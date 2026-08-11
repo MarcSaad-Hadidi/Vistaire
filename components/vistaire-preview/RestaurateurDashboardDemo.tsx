@@ -20,11 +20,27 @@ const RestaurateurPreviewInsights = dynamic(
   { loading: () => <p role="status">…</p> }
 );
 
-export function RestaurateurDashboardDemo({ locale }: { locale: RestaurateurPreviewLocale }) {
+export function RestaurateurDashboardDemo({
+  initialPeriodId = "24h",
+  locale,
+  presentation = "preview"
+}: {
+  initialPeriodId?: RestaurateurPreviewPeriodId;
+  locale: RestaurateurPreviewLocale;
+  presentation?: "preview" | "pilotage";
+}) {
   const fixture = RESTAURATEUR_PREVIEW_FIXTURE;
   const copy = RESTAURATEUR_PREVIEW_COPY[locale];
+  const usesPilotageCopy = presentation === "pilotage";
+  const dashboardEyebrow = usesPilotageCopy ? "Vistaire · Pilotage" : copy.dashboardEyebrow;
+  const dashboardTabsLabel = usesPilotageCopy
+    ? locale === "fr"
+      ? "Vues du dashboard Vistaire Pilotage"
+      : "Vistaire Pilotage dashboard views"
+    : copy.tabsLabel;
+  const restaurantName = usesPilotageCopy ? "Maison Élyse" : fixture.restaurant.name[locale];
   const [activeTab, setActiveTab] = useState<DemoTab>("overview");
-  const [periodId, setPeriodId] = useState<RestaurateurPreviewPeriodId>("24h");
+  const [periodId, setPeriodId] = useState<RestaurateurPreviewPeriodId>(initialPeriodId);
   const [availableById, setAvailableById] = useState<Record<string, boolean>>(() =>
     Object.fromEntries(fixture.dishes.map((dish) => [dish.id, dish.available]))
   );
@@ -67,11 +83,14 @@ export function RestaurateurDashboardDemo({ locale }: { locale: RestaurateurPrev
   };
 
   return (
-    <section className={`${adminStyles.adminRoot} ${styles.dashboardDemo}`} aria-label={copy.tabsLabel}>
+    <section
+      aria-label={dashboardTabsLabel}
+      className={`${adminStyles.adminRoot} ${styles.dashboardDemo}`}
+    >
       <header className={styles.demoHeader}>
         <div>
-          <p>{copy.dashboardEyebrow}</p>
-          <h2>{fixture.restaurant.name[locale]}</h2>
+          <p>{dashboardEyebrow}</p>
+          <h2>{restaurantName}</h2>
           <span>{copy.dashboardSubtitle}</span>
         </div>
         {activeTab !== "availability" ? <div aria-label={copy.periodsLabel} className={styles.periodSelector} role="group">
@@ -88,7 +107,7 @@ export function RestaurateurDashboardDemo({ locale }: { locale: RestaurateurPrev
           ))}
         </div> : null}
       </header>
-      <div aria-label={copy.tabsLabel} className={styles.demoTabs} role="tablist">
+      <div aria-label={dashboardTabsLabel} className={styles.demoTabs} role="tablist">
         {tabs.map((id, index) => (
           <button
             aria-controls={`demo-panel-${id}`}

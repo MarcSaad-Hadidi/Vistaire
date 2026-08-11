@@ -257,12 +257,21 @@ test.describe("Vistaire landing redesign", () => {
     await expect(nav).toBeVisible();
     await expect(nav.getByText("Vistaire", { exact: true })).toBeVisible();
     await expect(nav.getByText("Carte digitale premium")).toBeVisible();
-    await expect(nav.getByRole("link")).toHaveCount(8);
-    for (const label of ["Accueil", "Carte", "\u00c0 propos", "Contact"]) {
+    await expect(nav.getByRole("link")).toHaveCount(9);
+    for (const label of [
+      "Accueil",
+      "Carte",
+      "Tarifs",
+      "\u00c0 propos",
+      "Contact"
+    ]) {
       await expect(
         nav.getByRole("link", { name: label, exact: true })
       ).toBeVisible();
     }
+    await expect(
+      nav.getByRole("link", { name: "Tarifs", exact: true })
+    ).toHaveAttribute("href", "/tarifs-menu-digital-restaurant");
     for (const label of ["FR", "EN"]) {
       await expect(nav.getByText(label, { exact: true })).toBeVisible();
     }
@@ -537,6 +546,12 @@ test.describe("Vistaire landing redesign", () => {
 
     await page.goto(landingUrl("/en"), { waitUntil: "domcontentloaded" });
     await expectSecureLandingMenuLinks(page);
+    const englishNavigation = page.getByRole("navigation", {
+      name: "Main navigation"
+    });
+    await expect(
+      englishNavigation.getByRole("link", { name: "Pricing", exact: true })
+    ).toHaveAttribute("href", "/en/pricing-digital-restaurant-menu");
     await expect(
       page.getByRole("heading", {
         level: 1,

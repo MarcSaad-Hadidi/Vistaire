@@ -1,7 +1,6 @@
 import {
   absoluteUrl,
   buildBreadcrumbJsonLd,
-  buildFaqPageJsonLd,
   buildWebPageJsonLd,
   type JsonLdObject
 } from "./seo.ts";
@@ -13,456 +12,484 @@ export const PRICING_PATH_EN = "/en/pricing-digital-restaurant-menu";
 export const SAMPLE_MENU_PATH_EN = "/en/vistaire-menu";
 
 export const pricingMetadata = {
-  title: "Tarifs menu digital restaurant avec plats 3D | Vistaire",
+  title: "Tarifs Vistaire | Supports QR et menu digital restaurant",
   description:
-    "Découvrez les tarifs Vistaire pour créer un menu digital premium clé en main avec QR code, fiches plats, photos, allergènes, mise en ligne et plats 3D inclus pour restaurants."
+    "Découvrez les quatre collections de supports QR Vistaire dès 2 000 $ CAD, avec menu digital restaurant à 200 $ par mois et Pilotage en option."
 } as const;
 
 export const pricingMetadataEn = {
-  title: "Digital restaurant menu pricing with 3D dishes | Vistaire",
+  title: "Vistaire Pricing | QR Displays & Digital Restaurant Menu",
   description:
-    "Explore Vistaire pricing for a premium mobile restaurant menu with QR code, dish pages, photos, allergens, launch support and included 3D dishes."
+    "Explore four Vistaire QR display collections from $2,000 CAD, with a digital restaurant menu at $200 per month and optional Pilotage controls."
 } as const;
 
-export type PricingPlan = {
+export type PricingCollectionId =
+  | "acrylique"
+  | "sculpte"
+  | "carre"
+  | "signature";
+
+export type PricingCollection = {
+  id: PricingCollectionId;
   name: string;
+  label: string;
+  positioning: string;
+  description: string;
+  setupAmount: number;
   setupPrice: string;
   monthlyPrice: string;
-  setupAmount: number;
-  monthlyAmount: number;
-  menuDishLimit: number;
-  included3dDishCount: number;
-  recommended?: boolean;
+  image: string;
+  imageAlt: string;
+  imagePosition: string;
+  featured?: boolean;
   cta: {
     label: string;
     href: string;
   };
-  bestFor: string;
-  highlights: string[];
-  included: string[];
 };
 
-export type PricingThreeDPack = {
-  label: string;
-  price: string;
-  description: string;
+export type PricingIncludedGroup = {
+  title: string;
+  index: string;
+  items: string[];
 };
+
+export type PricingPageContent = {
+  path: string;
+  eyebrow: string;
+  h1: string;
+  subtitle: string;
+  monthlyAmount: number;
+  collections: PricingCollection[];
+  included: {
+    eyebrow: string;
+    title: string;
+    body: string;
+    priceDifference: string;
+  };
+  includedGroups: PricingIncludedGroup[];
+  pilotage: {
+    eyebrow: string;
+    optionLabel: string;
+    title: string;
+    price: string;
+    monthlyAmount: number;
+    totalMonthlyAmount: number;
+    body: string;
+    features: string[];
+    disclosure: string;
+    standardLabel: string;
+    optionPriceLabel: string;
+    totalLabel: string;
+  };
+  additional: {
+    eyebrow: string;
+    extras: string[];
+    startingAtTitle: string;
+    startingAtBody: string;
+    variables: string[];
+  };
+  finalCta: {
+    eyebrow: string;
+    title: string;
+    body: string;
+    primary: {
+      label: string;
+      href: string;
+    };
+    secondary: {
+      label: string;
+      href: string;
+    };
+  };
+};
+
+const collectionImages = {
+  acrylique: "/images/pricing/vistaire-acrylique.jpg",
+  sculpte: "/images/pricing/vistaire-sculpte.jpg",
+  carre: "/images/pricing/vistaire-carre.png",
+  signature: "/images/pricing/vistaire-signature.jpg"
+} as const;
 
 export const PRICING_PAGE = {
   path: PRICING_PATH,
-  h1: "Tarifs Vistaire : menu digital premium avec plats 3D inclus",
+  eyebrow: "Tarifs",
+  h1: "Choisissez l’expérience qui prendra place sur vos tables.",
   subtitle:
-    "Un service clé en main pour transformer votre menu PDF en carte digitale mobile, élégante et accessible par QR code, avec une sélection de plats en 3D dans chaque offre.",
-  proof:
-    "Création, structure, fiches plats, QR code, mise en ligne et plats 3D inclus.",
-  primaryCta: {
-    label: "Parler de votre menu",
-    href: "/prendre-rendez-vous"
-  },
-  secondaryCta: {
-    label: "Voir le menu exemple",
-    href: SAMPLE_MENU_PATH
-  },
-  plans: [
+    "Chaque support Vistaire est conçu pour mettre en valeur votre menu et votre identité tout en offrant une expérience digitale immersive.",
+  monthlyAmount: 200,
+  collections: [
     {
-      name: "Vistaire Base",
-      setupPrice: "950 $ CAD setup",
-      monthlyPrice: "125 $ CAD / mois",
-      setupAmount: 950,
-      monthlyAmount: 125,
-      menuDishLimit: 40,
-      included3dDishCount: 5,
+      id: "acrylique",
+      name: "Vistaire Acrylique",
+      label: "Vistaire",
+      positioning: "Minimal. Moderne. Épuré.",
+      description:
+        "Support vertical transparent en acrylique avec base en bois.",
+      setupAmount: 2_000,
+      setupPrice: "2 000 $ CAD",
+      monthlyPrice: "+ 200 $ CAD / mois",
+      image: collectionImages.acrylique,
+      imageAlt:
+        "Support QR Vistaire Acrylique transparent sur une table de restaurant",
+      imagePosition: "50% 50%",
       cta: {
-        label: "Parler de votre menu",
+        label: "Découvrir cette collection",
         href: "/prendre-rendez-vous"
-      },
-      bestFor:
-        "Restaurant indépendant qui veut remplacer son PDF par une vraie carte mobile premium avec un premier effet 3D visible.",
-      highlights: [
-        "Jusqu’à 40 plats",
-        "5 plats 3D inclus",
-        "QR code prêt à imprimer",
-        "Service accompagné"
-      ],
-      included: [
-        "Menu digital premium",
-        "Lien public du menu",
-        "Structure catégories",
-        "Fiches plats avec prix et descriptions courtes",
-        "Allergènes de base",
-        "Photos fournies intégrées",
-        "Fallback photo si un rendu 3D n’est pas assez bon",
-        "2 rondes de corrections avant lancement",
-        "Petites modifications mensuelles raisonnables"
-      ]
+      }
     },
     {
-      name: "Vistaire Premium",
-      setupPrice: "1 450 $ CAD setup",
-      monthlyPrice: "169 $ CAD / mois",
-      setupAmount: 1450,
-      monthlyAmount: 169,
-      menuDishLimit: 60,
-      included3dDishCount: 10,
-      recommended: true,
+      id: "sculpte",
+      name: "Vistaire Sculpté",
+      label: "Vistaire",
+      positioning: "Design. Sculpté. Pour se démarquer.",
+      description:
+        "Support vertical en bois avec coin supérieur droit arrondi et sculpté.",
+      setupAmount: 2_050,
+      setupPrice: "2 050 $ CAD",
+      monthlyPrice: "+ 200 $ CAD / mois",
+      image: collectionImages.sculpte,
+      imageAlt:
+        "Support QR Vistaire Sculpté en bois avec coin supérieur arrondi",
+      imagePosition: "50% 52%",
       cta: {
-        label: "Choisir Premium",
+        label: "Découvrir cette collection",
         href: "/prendre-rendez-vous"
-      },
-      bestFor:
-        "Restaurant qui veut une expérience Vistaire plus complète et veut que plusieurs plats importants soient visibles en 3D.",
-      highlights: [
-        "Jusqu’à 60 plats",
-        "10 plats 3D inclus",
-        "QR premium",
-        "Plats signatures mieux mis en avant"
-      ],
-      included: [
-        "Tout dans Base",
-        "Structure de menu plus poussée",
-        "Descriptions améliorées",
-        "Badges signature, recommandé, populaire et nouveauté",
-        "Allergènes, options et accompagnements",
-        "Adaptation plus forte à l’identité du restaurant",
-        "Support modifications plus généreux",
-        "Meilleure mise en avant des plats signatures"
-      ]
+      }
     },
     {
+      id: "carre",
+      name: "Vistaire Carré",
+      label: "Vistaire",
+      positioning: "Compact. Design. Chaleureux.",
+      description:
+        "Petit support carré en bois avec QR directement intégré, offert dans plusieurs finitions.",
+      setupAmount: 2_100,
+      setupPrice: "2 100 $ CAD",
+      monthlyPrice: "+ 200 $ CAD / mois",
+      image: collectionImages.carre,
+      imageAlt:
+        "Support QR carré Vistaire présenté recto et verso sur une table de restaurant",
+      imagePosition: "84% 50%",
+      cta: {
+        label: "Découvrir cette collection",
+        href: "/prendre-rendez-vous"
+      }
+    },
+    {
+      id: "signature",
       name: "Vistaire Signature",
-      setupPrice: "2 500 $ CAD setup",
-      monthlyPrice: "249 $ CAD / mois",
-      setupAmount: 2500,
-      monthlyAmount: 249,
-      menuDishLimit: 100,
-      included3dDishCount: 20,
+      label: "Vistaire",
+      positioning: "Premium. Distinctif. Signature.",
+      description:
+        "Support horizontal en bois premium avec partie QR noire et amovible.",
+      setupAmount: 2_200,
+      setupPrice: "2 200 $ CAD",
+      monthlyPrice: "+ 200 $ CAD / mois",
+      image: collectionImages.signature,
+      imageAlt:
+        "Support QR horizontal Vistaire Signature en bois avec insert noir amovible",
+      imagePosition: "50% 50%",
+      featured: true,
       cta: {
-        label: "Parler d’une carte Signature",
+        label: "Découvrir cette collection",
         href: "/prendre-rendez-vous"
-      },
-      bestFor:
-        "Restaurant haut de gamme ou établissement qui veut utiliser son menu comme une vraie expérience de marque.",
-      highlights: [
-        "Jusqu’à 100 plats",
-        "20 plats 3D inclus",
-        "Direction visuelle plus premium",
-        "Support prioritaire"
-      ],
-      included: [
-        "Tout dans Premium",
-        "Fiches plats plus travaillées",
-        "Mise en avant stratégique des plats signatures",
-        "Accompagnement lancement",
-        "QR premium",
-        "QA plus poussée",
-        "Recommandations sur la présentation du menu"
+      }
+    }
+  ],
+  included: {
+    eyebrow: "Inclus dans chaque offre",
+    title: "Une même expérience Vistaire, quel que soit le support.",
+    body:
+      "Chaque collection réunit la carte digitale, les supports personnalisés et l’accompagnement nécessaire pour prendre place naturellement dans votre restaurant.",
+    priceDifference:
+      "La différence de prix entre les collections provient principalement du support physique choisi et de son positionnement premium."
+  },
+  includedGroups: [
+    {
+      index: "01",
+      title: "L’expérience digitale",
+      items: [
+        "Menu digital personnalisé",
+        "Expérience mobile optimisée",
+        "Intégration du menu",
+        "Personnalisation selon l’identité du restaurant",
+        "Multilingue",
+        "Multi-devises"
+      ]
+    },
+    {
+      index: "02",
+      title: "Sur vos tables",
+      items: [
+        "Jusqu’à 20 supports QR personnalisés",
+        "QR code personnalisé",
+        "Jusqu’à 5 plats en 3D",
+        "Expériences 3D / AR lorsque disponibles"
+      ]
+    },
+    {
+      index: "03",
+      title: "Mise en place",
+      items: [
+        "Hébergement",
+        "Maintenance",
+        "Configuration initiale",
+        "Accompagnement et mise en place"
       ]
     }
-  ] satisfies PricingPlan[],
-  threeDPacks: [
-    {
-      label: "+5 plats 3D",
-      price: "149 $ CAD",
-      description: "Pour étendre l’expérience à quelques signatures de plus."
+  ],
+  pilotage: {
+    eyebrow: "Vistaire Pilotage",
+    optionLabel: "Option",
+    title: "Prenez le contrôle.",
+    price: "+ 100 $ CAD / mois",
+    monthlyAmount: 100,
+    totalMonthlyAmount: 300,
+    body:
+      "Ajoutez le dashboard Vistaire pour gérer la disponibilité de vos plats et analyser l’expérience de vos clients.",
+    features: [
+      "Disponibilités gérées depuis le dashboard et répercutées sur la carte après validation",
+      "Ouvertures du menu",
+      "Plats consultés",
+      "Recherches anonymisées lorsque l’échantillon est suffisant",
+      "Interactions 3D / AR",
+      "Consultations de plats par catégorie",
+      "Moments d’activité par plages horaires UTC",
+      "Aujourd’hui, 7 jours et 30 jours, avec comparaison à la période précédente"
+    ],
+    disclosure:
+      "Les données affichées dépendent de l’activité enregistrée et respectent les seuils de confidentialité du produit.",
+    standardLabel: "Vistaire — 200 $ / mois",
+    optionPriceLabel: "Pilotage — + 100 $ / mois",
+    totalLabel: "Total — 300 $ / mois"
+  },
+  additional: {
+    eyebrow: "Sur mesure",
+    extras: [
+      "Supports supplémentaires ou de remplacement sur devis.",
+      "Expériences 3D supplémentaires sur devis."
+    ],
+    startingAtTitle: "Pourquoi nos prix commencent-ils par « À partir de » ?",
+    startingAtBody:
+      "Chaque projet est ajusté à la réalité de l’établissement et à la quantité de contenu à préparer.",
+    variables: [
+      "taille du menu",
+      "nombre de plats",
+      "nombre de menus",
+      "contenu à préparer",
+      "plats 3D",
+      "établissements",
+      "supports",
+      "complexité du projet"
+    ]
+  },
+  finalCta: {
+    eyebrow: "Votre collection",
+    title: "Besoin d’aide pour choisir ?",
+    body:
+      "Nous vous accompagnons dans le choix du support qui s’intègre le mieux à votre établissement.",
+    primary: {
+      label: "Prendre rendez-vous",
+      href: "/prendre-rendez-vous"
     },
-    {
-      label: "+10 plats 3D",
-      price: "249 $ CAD",
-      description: "Pour couvrir davantage de plats importants sans alourdir la carte."
-    },
-    {
-      label: "+20 plats 3D",
-      price: "449 $ CAD",
-      description: "Pour une carte où l’immersion visuelle devient un marqueur fort."
-    },
-    {
-      label: "Plat 3D additionnel seul",
-      price: "À partir de 35 $ à 50 $ CAD / plat",
-      description: "Selon la complexité du plat et les validations nécessaires."
+    secondary: {
+      label: "Parler à un expert",
+      href: "/contact"
     }
-  ] satisfies PricingThreeDPack[],
-  faq: [
-    {
-      question: "Combien coûte Vistaire ?",
-      answer:
-        "Vistaire Base commence à 950 $ CAD setup et 125 $ CAD / mois. Vistaire Premium est à 1 450 $ CAD setup et 169 $ CAD / mois. Vistaire Signature est à 2 500 $ CAD setup et 249 $ CAD / mois. Taxes applicables en sus."
-    },
-    {
-      question: "Que comprend le setup Vistaire ?",
-      answer:
-        "Le setup comprend la structure de la carte, les catégories, les fiches plats, les prix, les descriptions, les allergènes de base, l’intégration des photos fournies, le QR code, la mise en ligne et les plats 3D inclus selon le forfait."
-    },
-    {
-      question: "Est-ce que les plats 3D sont inclus ?",
-      answer:
-        "Oui. Chaque forfait inclut une sélection de plats 3D créés à partir des photos fournies par le restaurant, puis validés avant publication."
-    },
-    {
-      question: "Combien de plats 3D sont inclus dans chaque offre ?",
-      answer:
-        "Vistaire Base inclut 5 plats 3D, Vistaire Premium inclut 10 plats 3D et Vistaire Signature inclut 20 plats 3D."
-    },
-    {
-      question: "Est-ce que Vistaire remplace un menu PDF ?",
-      answer:
-        "Oui. Vistaire peut devenir l’expérience principale scannée par QR code, tout en gardant le PDF comme archive si nécessaire."
-    },
-    {
-      question: "Est-ce que le QR code est inclus ?",
-      answer:
-        "Oui. Chaque offre inclut un QR code prêt à imprimer et un lien public pour accéder à la carte digitale."
-    },
-    {
-      question: "Est-ce que le restaurant doit gérer un dashboard ?",
-      answer:
-        "Non. Vistaire est d’abord un service accompagné. Vous envoyez votre menu et Vistaire s’occupe de la création, de la mise en ligne et des modifications prévues dans l’abonnement."
-    },
-    {
-      question: "Est-ce que les modifications sont incluses ?",
-      answer:
-        "Les petites modifications mensuelles raisonnables sont incluses selon le forfait. Les changements plus lourds sont cadrés avant d’être réalisés."
-    },
-    {
-      question: "Est-ce que les photos sont nécessaires ?",
-      answer:
-        "De bonnes photos améliorent le résultat. Vistaire peut démarrer avec les photos existantes, mais certaines images peuvent demander une retouche ou un remplacement."
-    },
-    {
-      question: "Est-ce que l’AR fonctionne sur tous les appareils ?",
-      answer:
-        "Non. La réalité augmentée dépend de l’appareil, du navigateur et du format validé. Vistaire parle d’abord de plats 3D inclus, avec AR compatible lorsque possible."
-    },
-    {
-      question: "Est-ce disponible pour les restaurants à Montréal ?",
-      answer:
-        "Oui. Vistaire accompagne les restaurants à Montréal, au Québec et au Canada, avec une approche adaptée aux restaurants indépendants, bistros premium et établissements haut de gamme."
-    },
-    {
-      question: "Est-ce adapté aux restaurants haut de gamme ?",
-      answer:
-        "Oui. Vistaire est conçu pour les restaurants qui veulent une carte mobile sobre, lisible à table et cohérente avec leur image de marque."
-    },
-    {
-      question: "Combien de temps prend la création d’un menu digital Vistaire ?",
-      answer:
-        "Le calendrier dépend du nombre de plats, de la qualité des photos, du niveau de rédaction et des validations 3D. Une carte simple avance plus vite lorsque les contenus sont prêts."
-    },
-    {
-      question: "Peut-on commencer avec une version simple ?",
-      answer:
-        "Oui. Vistaire Base permet de remplacer un PDF par une carte digitale premium avec 5 plats 3D inclus, puis d’étendre l’expérience avec un forfait supérieur ou des packs 3D."
-    }
-  ]
-} as const;
+  }
+} satisfies PricingPageContent;
 
 export const PRICING_PAGE_EN = {
   path: PRICING_PATH_EN,
-  h1: "Vistaire pricing: premium digital menu with included 3D dishes",
+  eyebrow: "Pricing",
+  h1: "Choose the experience that belongs on your tables.",
   subtitle:
-    "A guided service to turn your PDF menu into an elegant mobile menu opened by QR code, with selected 3D dishes included in every package.",
-  proof:
-    "Menu structure, dish pages, QR code, launch support and included 3D dishes.",
-  primaryCta: {
-    label: "Talk about your menu",
-    href: "/en/book-a-call"
-  },
-  secondaryCta: {
-    label: "View a Vistaire menu",
-    href: SAMPLE_MENU_PATH_EN
-  },
-  plans: [
+    "Every Vistaire display is designed to showcase your menu and identity while delivering an immersive digital experience.",
+  monthlyAmount: 200,
+  collections: [
     {
-      name: "Vistaire Base",
-      setupPrice: "$950 CAD setup",
-      monthlyPrice: "$125 CAD / month",
-      setupAmount: 950,
-      monthlyAmount: 125,
-      menuDishLimit: 40,
-      included3dDishCount: 5,
+      id: "acrylique",
+      name: "Vistaire Acrylic",
+      label: "Vistaire",
+      positioning: "Minimal. Modern. Refined.",
+      description:
+        "A transparent vertical acrylic display set into a wooden base.",
+      setupAmount: 2_000,
+      setupPrice: "$2,000 CAD",
+      monthlyPrice: "+ $200 CAD / month",
+      image: collectionImages.acrylique,
+      imageAlt:
+        "Transparent Vistaire Acrylic QR display on a restaurant table",
+      imagePosition: "50% 50%",
       cta: {
-        label: "Talk about your menu",
+        label: "Discover this collection",
         href: "/en/book-a-call"
-      },
-      bestFor:
-        "An independent restaurant ready to replace a PDF with a premium mobile menu and a first visible 3D moment.",
-      highlights: [
-        "Up to 40 dishes",
-        "5 included 3D dishes",
-        "QR code ready for print",
-        "Guided service"
-      ],
-      included: [
-        "Premium digital menu",
-        "Public menu link",
-        "Category structure",
-        "Dish pages with prices and concise descriptions",
-        "Basic allergen information",
-        "Provided photos integrated",
-        "Photo fallback if a 3D render is not strong enough",
-        "2 correction rounds before launch",
-        "Reasonable small monthly updates"
-      ]
+      }
     },
     {
-      name: "Vistaire Premium",
-      setupPrice: "$1,450 CAD setup",
-      monthlyPrice: "$169 CAD / month",
-      setupAmount: 1450,
-      monthlyAmount: 169,
-      menuDishLimit: 60,
-      included3dDishCount: 10,
-      recommended: true,
+      id: "sculpte",
+      name: "Vistaire Sculpted",
+      label: "Vistaire",
+      positioning: "Designed. Sculpted. Made to stand out.",
+      description:
+        "A vertical wooden display with a rounded, sculpted upper-right corner.",
+      setupAmount: 2_050,
+      setupPrice: "$2,050 CAD",
+      monthlyPrice: "+ $200 CAD / month",
+      image: collectionImages.sculpte,
+      imageAlt:
+        "Vistaire Sculpted wooden QR display with a rounded upper corner",
+      imagePosition: "50% 52%",
       cta: {
-        label: "Choose Premium",
+        label: "Discover this collection",
         href: "/en/book-a-call"
-      },
-      bestFor:
-        "A restaurant that wants a fuller Vistaire experience and several key dishes visible in 3D.",
-      highlights: [
-        "Up to 60 dishes",
-        "10 included 3D dishes",
-        "Premium QR",
-        "Stronger signature dish presentation"
-      ],
-      included: [
-        "Everything in Base",
-        "More developed menu structure",
-        "Improved descriptions",
-        "Signature, recommended, popular and new badges",
-        "Allergens, options and sides",
-        "Stronger adaptation to the restaurant identity",
-        "More generous update support",
-        "Better presentation of signature dishes"
-      ]
+      }
     },
     {
+      id: "carre",
+      name: "Vistaire Square",
+      label: "Vistaire",
+      positioning: "Compact. Designed. Warm.",
+      description:
+        "A compact square wooden display with the QR code built directly into it, available in several finishes.",
+      setupAmount: 2_100,
+      setupPrice: "$2,100 CAD",
+      monthlyPrice: "+ $200 CAD / month",
+      image: collectionImages.carre,
+      imageAlt:
+        "Vistaire Square QR display shown from the front and back on a restaurant table",
+      imagePosition: "84% 50%",
+      cta: {
+        label: "Discover this collection",
+        href: "/en/book-a-call"
+      }
+    },
+    {
+      id: "signature",
       name: "Vistaire Signature",
-      setupPrice: "$2,500 CAD setup",
-      monthlyPrice: "$249 CAD / month",
-      setupAmount: 2500,
-      monthlyAmount: 249,
-      menuDishLimit: 100,
-      included3dDishCount: 20,
+      label: "Vistaire",
+      positioning: "Premium. Distinctive. Signature.",
+      description:
+        "A premium horizontal wooden display with a removable black QR insert.",
+      setupAmount: 2_200,
+      setupPrice: "$2,200 CAD",
+      monthlyPrice: "+ $200 CAD / month",
+      image: collectionImages.signature,
+      imageAlt:
+        "Horizontal Vistaire Signature wooden QR display with a removable black insert",
+      imagePosition: "50% 50%",
+      featured: true,
       cta: {
-        label: "Discuss a Signature menu",
+        label: "Discover this collection",
         href: "/en/book-a-call"
-      },
-      bestFor:
-        "A high-end restaurant or venue that wants the menu to become a branded visual experience.",
-      highlights: [
-        "Up to 100 dishes",
-        "20 included 3D dishes",
-        "More premium visual direction",
-        "Priority support"
-      ],
-      included: [
-        "Everything in Premium",
-        "More crafted dish pages",
-        "Strategic signature dish highlights",
-        "Launch support",
-        "Premium QR",
-        "Deeper QA",
-        "Recommendations on menu presentation"
+      }
+    }
+  ],
+  included: {
+    eyebrow: "Included in every offer",
+    title: "The same Vistaire experience, whichever display you choose.",
+    body:
+      "Every collection brings together the digital menu, personalized displays and guided setup needed to belong naturally in your restaurant.",
+    priceDifference:
+      "The price difference between collections comes primarily from the physical display selected and its premium positioning."
+  },
+  includedGroups: [
+    {
+      index: "01",
+      title: "The digital experience",
+      items: [
+        "Personalized digital menu",
+        "Optimized mobile experience",
+        "Menu integration",
+        "Adaptation to the restaurant identity",
+        "Multiple languages",
+        "Multiple currencies"
+      ]
+    },
+    {
+      index: "02",
+      title: "On your tables",
+      items: [
+        "Up to 20 personalized QR displays",
+        "Personalized QR code",
+        "Up to 5 dishes in 3D",
+        "3D / AR experiences when available"
+      ]
+    },
+    {
+      index: "03",
+      title: "Delivery and care",
+      items: [
+        "Hosting",
+        "Maintenance",
+        "Initial configuration",
+        "Guided setup and launch"
       ]
     }
-  ] satisfies PricingPlan[],
-  threeDPacks: [
-    {
-      label: "+5 3D dishes",
-      price: "$149 CAD",
-      description: "To extend the experience to a few more signatures."
+  ],
+  pilotage: {
+    eyebrow: "Vistaire Pilotage",
+    optionLabel: "Option",
+    title: "Take control.",
+    price: "+ $100 CAD / month",
+    monthlyAmount: 100,
+    totalMonthlyAmount: 300,
+    body:
+      "Add the Vistaire dashboard to manage dish availability and understand how guests experience your menu.",
+    features: [
+      "Availability managed from the dashboard and reflected in the menu after validation",
+      "Menu openings",
+      "Dishes viewed",
+      "Anonymized searches when the sample is sufficient",
+      "3D / AR interactions",
+      "Dish views by category",
+      "Activity moments grouped into UTC time ranges",
+      "Today, 7-day and 30-day views with prior-period comparison"
+    ],
+    disclosure:
+      "Displayed insights depend on recorded activity and respect the product’s privacy thresholds.",
+    standardLabel: "Vistaire — $200 / month",
+    optionPriceLabel: "Pilotage — + $100 / month",
+    totalLabel: "Total — $300 / month"
+  },
+  additional: {
+    eyebrow: "Tailored",
+    extras: [
+      "Additional or replacement displays are quoted separately.",
+      "Additional 3D experiences are quoted separately."
+    ],
+    startingAtTitle: "Why do our prices say “Starting at” ?",
+    startingAtBody:
+      "Every project is adjusted to the venue and the amount of content to prepare.",
+    variables: [
+      "menu size",
+      "dish count",
+      "number of menus",
+      "content preparation",
+      "3D dishes",
+      "locations",
+      "display quantity",
+      "project complexity"
+    ]
+  },
+  finalCta: {
+    eyebrow: "Your collection",
+    title: "Need help choosing?",
+    body:
+      "We will help you choose the display that fits most naturally into your restaurant.",
+    primary: {
+      label: "Book a call",
+      href: "/en/book-a-call"
     },
-    {
-      label: "+10 3D dishes",
-      price: "$249 CAD",
-      description: "To cover more important dishes without weighing down the menu."
-    },
-    {
-      label: "+20 3D dishes",
-      price: "$449 CAD",
-      description: "For a menu where visual immersion becomes a stronger signal."
-    },
-    {
-      label: "Single additional 3D dish",
-      price: "From $35 to $50 CAD / dish",
-      description: "Depending on dish complexity and validation needs."
+    secondary: {
+      label: "Talk to an expert",
+      href: "/en/contact"
     }
-  ] satisfies PricingThreeDPack[],
-  faq: [
-    {
-      question: "How much does Vistaire cost?",
-      answer:
-        "Vistaire Base starts at $950 CAD setup and $125 CAD per month. Vistaire Premium is $1,450 CAD setup and $169 CAD per month. Vistaire Signature is $2,500 CAD setup and $249 CAD per month. Applicable taxes are extra."
-    },
-    {
-      question: "What is included in the Vistaire setup?",
-      answer:
-        "The setup includes menu structure, categories, dish pages, prices, descriptions, basic allergens, integration of provided photos, QR code, launch support and the included 3D dishes for the selected package."
-    },
-    {
-      question: "Are 3D dishes included?",
-      answer:
-        "Yes. Every package includes selected 3D dishes created from restaurant-provided photos and validated before publication."
-    },
-    {
-      question: "How many 3D dishes are included in each package?",
-      answer:
-        "Vistaire Base includes 5 3D dishes, Vistaire Premium includes 10 and Vistaire Signature includes 20."
-    },
-    {
-      question: "Does Vistaire replace a PDF menu?",
-      answer:
-        "Yes. Vistaire can become the main QR-scanned menu experience while keeping the PDF as an archive if needed."
-    },
-    {
-      question: "Is the QR code included?",
-      answer:
-        "Yes. Every offer includes a print-ready QR code and a public link to the digital menu."
-    },
-    {
-      question: "Does the restaurant have to manage a dashboard?",
-      answer:
-        "No. Vistaire is first a guided service. You send your menu and Vistaire handles creation, launch and planned updates."
-    },
-    {
-      question: "Are updates included?",
-      answer:
-        "Reasonable small monthly updates are included depending on the package. Larger changes are scoped before implementation."
-    },
-    {
-      question: "Are photos required?",
-      answer:
-        "Good photos improve the result. Vistaire can start with existing photos, but some images may need retouching or replacement."
-    },
-    {
-      question: "Does AR work on every device?",
-      answer:
-        "No. Augmented reality depends on the device, browser and validated asset format. Vistaire speaks first about included 3D dishes, with compatible AR when possible."
-    },
-    {
-      question: "Is Vistaire available for Montreal restaurants?",
-      answer:
-        "Yes. Vistaire supports restaurants in Montreal, Quebec and Canada, with an approach suited to independent restaurants, premium bistros and high-end venues."
-    },
-    {
-      question: "Is Vistaire suitable for high-end restaurants?",
-      answer:
-        "Yes. Vistaire is designed for restaurants that want a calm, visual and table-friendly mobile menu aligned with their brand."
-    },
-    {
-      question: "How long does a Vistaire menu take to create?",
-      answer:
-        "The timeline depends on dish count, photo quality, writing needs and 3D validation. A simple menu moves faster when content is ready."
-    },
-    {
-      question: "Can we start with a simple version?",
-      answer:
-        "Yes. Vistaire Base can replace a PDF with a premium digital menu and 5 included 3D dishes, then the experience can expand with a higher package or 3D packs."
-    }
-  ]
-} as const;
+  }
+} satisfies PricingPageContent;
 
-export function getPricingPage(locale: Locale = "fr") {
+export function getPricingPage(locale: Locale = "fr"): PricingPageContent {
   return locale === "en" ? PRICING_PAGE_EN : PRICING_PAGE;
 }
 
@@ -470,181 +497,113 @@ export function getPricingMetadata(locale: Locale = "fr") {
   return locale === "en" ? pricingMetadataEn : pricingMetadata;
 }
 
-function buildPricingOfferCatalogEn(
+function buildPricingOfferCatalog(
+  page: PricingPageContent,
+  locale: Locale,
   env?: Record<string, string | undefined>
 ): JsonLdObject {
+  const english = locale === "en";
+
   return {
     "@context": "https://schema.org",
     "@type": "OfferCatalog",
-    "@id": `${absoluteUrl(PRICING_PATH_EN, env)}#offer-catalog`,
-    name: "Vistaire packages with included 3D dishes",
-    url: absoluteUrl(PRICING_PATH_EN, env),
-    itemListElement: PRICING_PAGE_EN.plans.map((plan, index) => ({
+    "@id": `${absoluteUrl(page.path, env)}#offer-catalog`,
+    name: english
+      ? "Vistaire physical QR display collections"
+      : "Collections de supports QR physiques Vistaire",
+    url: absoluteUrl(page.path, env),
+    itemListElement: page.collections.map((collection, index) => ({
       "@type": "Offer",
       position: index + 1,
-      name: plan.name,
-      url: absoluteUrl(PRICING_PATH_EN, env),
+      name: collection.name,
+      url: `${absoluteUrl(page.path, env)}#collection-${collection.id}`,
       priceCurrency: "CAD",
       itemOffered: {
         "@type": "Service",
-        name: `${plan.name} - premium digital menu with ${plan.included3dDishCount} included 3D dishes`,
-        serviceType: "Guided digital restaurant menu with included 3D dishes",
-        description: plan.bestFor
+        name: english
+          ? `${collection.name} restaurant menu experience`
+          : `Expérience restaurant ${collection.name}`,
+        serviceType: english
+          ? "Physical QR display with a guided premium digital restaurant menu"
+          : "Support QR physique avec menu digital restaurant premium accompagné",
+        description: collection.description
       },
       priceSpecification: [
         {
           "@type": "UnitPriceSpecification",
-          price: plan.setupAmount,
+          price: collection.setupAmount,
           priceCurrency: "CAD",
-          unitText: "setup"
+          unitText: english ? "one-time setup" : "mise en place unique"
         },
         {
           "@type": "UnitPriceSpecification",
-          price: plan.monthlyAmount,
+          price: page.monthlyAmount,
           priceCurrency: "CAD",
-          unitText: "month"
+          unitText: english ? "month" : "mois"
         }
       ],
       additionalProperty: [
         {
           "@type": "PropertyValue",
-          name: "Included dishes",
-          value: `Up to ${plan.menuDishLimit} dishes`
+          name: english ? "Personalized QR displays" : "Supports QR personnalisés",
+          value: english ? "Up to 20" : "Jusqu’à 20"
         },
         {
           "@type": "PropertyValue",
-          name: "Included 3D dishes",
-          value: `${plan.included3dDishCount} included 3D dishes, validated before publication`
+          name: english ? "Included 3D dishes" : "Plats 3D inclus",
+          value: english ? "Up to 5" : "Jusqu’à 5"
         }
       ]
     }))
   };
 }
 
-function buildPricingServiceJsonLdEn(
+function buildPricingServiceJsonLd(
+  page: PricingPageContent,
+  locale: Locale,
   env?: Record<string, string | undefined>
 ): JsonLdObject {
+  const english = locale === "en";
+
   return {
     "@context": "https://schema.org",
     "@type": "Service",
-    "@id": `${absoluteUrl(PRICING_PATH_EN, env)}#service`,
-    name: "Vistaire digital restaurant menu with included 3D dishes",
-    serviceType: "Guided premium digital menu creation for restaurants",
-    url: absoluteUrl(PRICING_PATH_EN, env),
-    description:
-      "Guided service to create a premium mobile menu with QR code, dish pages, integrated provided photos, allergens, launch support and included 3D dishes.",
+    "@id": `${absoluteUrl(page.path, env)}#service`,
+    name: english
+      ? "Vistaire physical QR displays and digital restaurant menu"
+      : "Supports QR physiques et menu digital restaurant Vistaire",
+    serviceType: english
+      ? "Premium physical and digital restaurant menu experience"
+      : "Expérience de menu restaurant physique et digitale premium",
+    url: absoluteUrl(page.path, env),
+    description: english
+      ? "A guided Vistaire experience combining a personalized physical QR display, a premium mobile menu, selected 3D dishes and optional Pilotage controls."
+      : "Une expérience Vistaire accompagnée qui réunit support QR physique personnalisé, carte mobile premium, plats 3D sélectionnés et option Pilotage.",
     provider: {
       "@id": `${absoluteUrl("/", env)}#organization`
     },
     areaServed: [
-      {
-        "@type": "City",
-        name: "Montreal"
-      },
-      {
-        "@type": "AdministrativeArea",
-        name: "Quebec"
-      },
-      {
-        "@type": "Country",
-        name: "Canada"
-      }
+      { "@type": "City", name: "Montreal" },
+      { "@type": "AdministrativeArea", name: "Quebec" },
+      { "@type": "Country", name: "Canada" }
     ],
     audience: {
       "@type": "BusinessAudience",
-      audienceType: "Independent restaurants, premium bistros and high-end restaurants"
+      audienceType: english
+        ? "Independent restaurants, premium bistros and high-end restaurants"
+        : "Restaurants indépendants, bistros premium et restaurants haut de gamme"
     },
-    hasOfferCatalog: {
-      "@id": `${absoluteUrl(PRICING_PATH_EN, env)}#offer-catalog`
-    }
-  };
-}
-
-export function buildPricingOfferCatalog(env?: Record<string, string | undefined>): JsonLdObject {
-  return {
-    "@context": "https://schema.org",
-    "@type": "OfferCatalog",
-    "@id": `${absoluteUrl(PRICING_PATH, env)}#offer-catalog`,
-    name: "Forfaits Vistaire avec plats 3D inclus",
-    url: absoluteUrl(PRICING_PATH, env),
-    itemListElement: PRICING_PAGE.plans.map((plan, index) => ({
-      "@type": "Offer",
-      position: index + 1,
-      name: plan.name,
-      url: absoluteUrl(PRICING_PATH, env),
-      priceCurrency: "CAD",
-      itemOffered: {
-        "@type": "Service",
-        name: `${plan.name} - menu digital premium avec ${plan.included3dDishCount} plats 3D inclus`,
-        serviceType: "Menu digital restaurant clé en main avec plats 3D inclus",
-        description: plan.bestFor
-      },
-      priceSpecification: [
-        {
-          "@type": "UnitPriceSpecification",
-          price: plan.setupAmount,
-          priceCurrency: "CAD",
-          unitText: "setup"
-        },
-        {
-          "@type": "UnitPriceSpecification",
-          price: plan.monthlyAmount,
-          priceCurrency: "CAD",
-          unitText: "mois"
-        }
-      ],
-      additionalProperty: [
-        {
-          "@type": "PropertyValue",
-          name: "Plats inclus",
-          value: `Jusqu’à ${plan.menuDishLimit} plats`
-        },
-        {
-          "@type": "PropertyValue",
-          name: "Plats 3D inclus",
-          value: `${plan.included3dDishCount} plats 3D inclus, validés avant publication`
-        }
-      ]
-    }))
-  };
-}
-
-export function buildPricingServiceJsonLd(
-  env?: Record<string, string | undefined>
-): JsonLdObject {
-  return {
-    "@context": "https://schema.org",
-    "@type": "Service",
-    "@id": `${absoluteUrl(PRICING_PATH, env)}#service`,
-    name: "Menu digital restaurant Vistaire avec plats 3D inclus",
-    serviceType: "Création de menu digital premium clé en main pour restaurants",
-    url: absoluteUrl(PRICING_PATH, env),
-    description:
-      "Service clé en main pour créer une carte digitale mobile premium avec QR code, fiches plats, photos fournies intégrées, allergènes, mise en ligne accompagnée et plats 3D inclus.",
-    provider: {
-      "@id": `${absoluteUrl("/", env)}#organization`
-    },
-    areaServed: [
+    additionalProperty: [
       {
-        "@type": "City",
-        name: "Montréal"
-      },
-      {
-        "@type": "AdministrativeArea",
-        name: "Québec"
-      },
-      {
-        "@type": "Country",
-        name: "Canada"
+        "@type": "PropertyValue",
+        name: "Vistaire Pilotage",
+        value: english
+          ? `Optional add-on at $${page.pilotage.monthlyAmount} CAD per month; $${page.pilotage.totalMonthlyAmount} CAD total monthly with Vistaire`
+          : `Option à + ${page.pilotage.monthlyAmount} $ CAD par mois; total mensuel de ${page.pilotage.totalMonthlyAmount} $ CAD avec Vistaire`
       }
     ],
-    audience: {
-      "@type": "BusinessAudience",
-      audienceType:
-        "Restaurants indépendants, bistros premium et restaurants haut de gamme"
-    },
     hasOfferCatalog: {
-      "@id": `${absoluteUrl(PRICING_PATH, env)}#offer-catalog`
+      "@id": `${absoluteUrl(page.path, env)}#offer-catalog`
     }
   };
 }
@@ -653,46 +612,29 @@ export function buildPricingPageJsonLd(
   env?: Record<string, string | undefined>,
   locale: Locale = "fr"
 ) {
-  if (locale === "en") {
-    return [
-      buildWebPageJsonLd(
-        {
-          path: PRICING_PATH_EN,
-          name: pricingMetadataEn.title,
-          description: pricingMetadataEn.description,
-          locale: "en"
-        },
-        env
-      ),
-      buildPricingServiceJsonLdEn(env),
-      buildPricingOfferCatalogEn(env),
-      buildFaqPageJsonLd([...PRICING_PAGE_EN.faq], PRICING_PATH_EN, env),
-      buildBreadcrumbJsonLd(
-        [
-          { name: "Home", path: "/en" },
-          { name: "Digital restaurant menu pricing", path: PRICING_PATH_EN }
-        ],
-        env
-      )
-    ];
-  }
+  const page = getPricingPage(locale);
+  const metadata = getPricingMetadata(locale);
+  const english = locale === "en";
 
   return [
     buildWebPageJsonLd(
       {
-        path: PRICING_PATH,
-        name: pricingMetadata.title,
-        description: pricingMetadata.description
+        path: page.path,
+        name: metadata.title,
+        description: metadata.description,
+        ...(english ? { locale: "en" as const } : {})
       },
       env
     ),
-    buildPricingServiceJsonLd(env),
-    buildPricingOfferCatalog(env),
-    buildFaqPageJsonLd([...PRICING_PAGE.faq], PRICING_PATH, env),
+    buildPricingServiceJsonLd(page, locale, env),
+    buildPricingOfferCatalog(page, locale, env),
     buildBreadcrumbJsonLd(
       [
-        { name: "Accueil", path: "/" },
-        { name: "Tarifs menu digital restaurant", path: PRICING_PATH }
+        { name: english ? "Home" : "Accueil", path: english ? "/en" : "/" },
+        {
+          name: english ? "Vistaire pricing" : "Tarifs Vistaire",
+          path: page.path
+        }
       ],
       env
     )

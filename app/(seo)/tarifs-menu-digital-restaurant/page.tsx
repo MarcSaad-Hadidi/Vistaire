@@ -9,7 +9,7 @@ import {
 import { buildPageAlternates, LOCALE_OPEN_GRAPH } from "@/lib/i18n";
 import { absoluteUrl } from "@/lib/seo";
 
-const socialImage = "/frames/menualive/frame_0001.webp";
+const socialImage = "/images/pricing/vistaire-acrylique.jpg";
 
 export const metadata: Metadata = {
   title: {
@@ -30,7 +30,7 @@ export const metadata: Metadata = {
     images: [
       {
         url: absoluteUrl(socialImage),
-        alt: "Plat servi dans une ambiance de restaurant premium"
+        alt: "Support QR Vistaire Acrylique sur une table de restaurant premium"
       }
     ]
   },
