@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { headers } from "next/headers";
 import { WebMcpProvider } from "@/components/agent/WebMcpProvider";
+import { MicrosoftClarity } from "@/components/analytics/MicrosoftClarity";
 import { JsonLd } from "@/components/JsonLd";
 import {
   LOCALE_LANGUAGE_TAG,
@@ -90,7 +91,9 @@ export default async function RootLayout({
           ]}
         />
         <WebMcpProvider />
-        <div id="contenu">{children}</div>
+        <MicrosoftClarity>
+          <div id="contenu">{children}</div>
+        </MicrosoftClarity>
       </body>
     </html>
   );
