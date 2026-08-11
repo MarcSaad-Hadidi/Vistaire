@@ -42,6 +42,13 @@ const PUBLIC_NAVIGATION_CALLSITES = new Set([
   "components/seo/seogeoaeopage.tsx"
 ]);
 
+const PUBLIC_PREVIEW_SHARED_DEPENDENCIES = new Set([
+  "components/admin/system/adminicons.tsx",
+  "components/admin/system/adminpresentationprimitives.tsx",
+  "components/admin/system/adminsystem.module.css",
+  "lib/adminpresentationcopy.ts"
+]);
+
 // These are the only job-policy outputs consumed by App CI.  Keeping the
 // decision here means workflow `if:` expressions and CI Gate cannot drift
 // apart when a category is added or reclassified.
@@ -168,6 +175,8 @@ export function classifyPath(input) {
   // admin QR classification.
   if (
     /^components\/vistaire-preview\//.test(lower) ||
+    /^components\/admin\/charts\//.test(lower) ||
+    PUBLIC_PREVIEW_SHARED_DEPENDENCIES.has(lower) ||
     /^lib\/restaurateurpreview\//.test(lower) ||
     /^e2e\/restaurateur-preview(?:-[^/]+)?\.spec\.ts$/.test(lower) ||
     PUBLIC_NAVIGATION_CALLSITES.has(lower) ||

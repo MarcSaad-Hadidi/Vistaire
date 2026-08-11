@@ -368,6 +368,33 @@ test("request policy distinguishes Next internals from private product mutations
   }
 });
 
+test("request policy catches and redacts every owner and admin namespace", async () => {
+  const policyPath = new URL(
+    "../e2e/support/restaurateur-preview-request-policy.mjs",
+    import.meta.url
+  );
+  const { classifyRestaurateurPreviewRequest } = await import(policyPath.href);
+  const base = "http://127.0.0.1:3000";
+  const cases = [
+    ["/admin/restaurants/secret-admin", "/admin/[redacted]"],
+    ["/owner/restaurants/secret-owner", "/owner/[redacted]"],
+    ["/api/admin/assistant/secret-api-admin", "/api/admin/[redacted]"],
+    ["/api/owner/restaurants/secret-api-owner", "/api/owner/[redacted]"]
+  ];
+
+  for (const [pathname, redactedPathname] of cases) {
+    const result = classifyRestaurateurPreviewRequest({
+      baseOrigin: base,
+      url: `${base}${pathname}?token=secret-query`,
+      method: "GET"
+    });
+    assert.equal(result.privateEndpoint, true, pathname);
+    assert.equal(result.productMutation, false, pathname);
+    assert.equal(result.pathname, redactedPathname, pathname);
+    assert.doesNotMatch(JSON.stringify(result), /secret|token/i, pathname);
+  }
+});
+
 test("request policy source never captures bodies or raw credential headers", async () => {
   const source = await readFile(
     new URL("../e2e/support/restaurateur-preview-request-policy.mjs", import.meta.url),

@@ -4,7 +4,7 @@ const FRAMEWORK_HEADER_NAMES = new Set([
   "next-router-state-tree",
   "rsc"
 ]);
-const PRIVATE_PATH = /^\/(?:admin(?:\/|$)|api\/owner(?:\/|$))/i;
+const PRIVATE_PATH = /^\/(?:admin|owner|api\/(?:admin|owner))(?:\/|$)/i;
 const ANALYTICS_PATH = /^\/api\/analytics\/events(?:\/|$)/i;
 const SUPABASE_PATH = /^\/(?:auth|realtime|rest)\/v1(?:\/|$)|^\/rpc(?:\/|$)/i;
 const MODEL_ASSET = /(?:^|\/)(?:model\/)?(?:glb|usdz)(?:\/|$)|\.(?:glb|usdz)$/i;
@@ -25,8 +25,10 @@ function safePathname(url, privateEndpoint, supabaseRequest) {
     return `${prefix ?? "/supabase"}/[redacted]`;
   }
   if (privateEndpoint) {
+    if (/^\/api\/admin(?:\/|$)/i.test(pathname)) return "/api/admin/[redacted]";
     if (/^\/api\/owner(?:\/|$)/i.test(pathname)) return "/api/owner/[redacted]";
     if (/^\/admin(?:\/|$)/i.test(pathname)) return "/admin/[redacted]";
+    if (/^\/owner(?:\/|$)/i.test(pathname)) return "/owner/[redacted]";
   }
   return pathname;
 }

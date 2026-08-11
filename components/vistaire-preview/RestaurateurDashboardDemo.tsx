@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState, type KeyboardEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import dynamic from "next/dynamic";
 import { AdminToast } from "@/components/admin/system/AdminPresentationPrimitives";
 import adminStyles from "@/components/admin/system/AdminSystem.module.css";
@@ -14,6 +14,7 @@ import styles from "./VistaireRestaurateurDashboardPreview.module.css";
 type DemoTab = "overview" | "availability" | "insights";
 const tabs: DemoTab[] = ["overview", "availability", "insights"];
 const periods: RestaurateurPreviewPeriodId[] = ["24h", "7d", "30d"];
+const FEEDBACK_VISIBLE_MS = 3_000;
 const RestaurateurPreviewInsights = dynamic(
   () => import("./RestaurateurPreviewInsights").then((module) => module.RestaurateurPreviewInsights),
   { loading: () => <p role="status">…</p> }
@@ -32,6 +33,15 @@ export function RestaurateurDashboardDemo({ locale }: { locale: RestaurateurPrev
   const feedbackSequence = useRef(0);
   const period = fixture.periods[periodId];
   const availableCount = useMemo(() => Object.values(availableById).filter(Boolean).length, [availableById]);
+
+  useEffect(() => {
+    if (!feedback) return;
+    const sequence = feedback.sequence;
+    const timeoutId = window.setTimeout(() => {
+      setFeedback((current) => current?.sequence === sequence ? null : current);
+    }, FEEDBACK_VISIBLE_MS);
+    return () => window.clearTimeout(timeoutId);
+  }, [feedback]);
 
   const onTabKeyDown = (event: KeyboardEvent<HTMLButtonElement>, index: number) => {
     let next = index;

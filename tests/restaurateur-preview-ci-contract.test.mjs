@@ -20,8 +20,36 @@ const previewOwnedPaths = [
   "e2e/restaurateur-preview.spec.ts"
 ];
 
+const previewSharedPaths = [
+  "components/admin/charts/InteractiveLineChart.tsx",
+  "components/admin/charts/geometry.ts",
+  "components/admin/charts/Charts.module.css",
+  "components/admin/system/AdminIcons.tsx",
+  "components/admin/system/AdminPresentationPrimitives.tsx",
+  "components/admin/system/AdminSystem.module.css",
+  "lib/adminPresentationCopy.ts"
+];
+
 test("every Prompt 7 product path selects public Chromium and critical WebKit", () => {
   for (const path of previewOwnedPaths) {
+    const classification = classifyPath(path);
+    assert.equal(
+      classification.categories.has("public_navigation"),
+      true,
+      `${path} must remain in the public_navigation family`
+    );
+
+    const result = classifyChanges({
+      eventName: "pull_request",
+      changedFiles: [path]
+    });
+    assert.equal(result.run_core, true, `${path} must select public Chromium`);
+    assert.equal(result.run_webkit, true, `${path} must select critical WebKit`);
+  }
+});
+
+test("every shared Prompt 7 dependency selects public Chromium and critical WebKit", () => {
+  for (const path of previewSharedPaths) {
     const classification = classifyPath(path);
     assert.equal(
       classification.categories.has("public_navigation"),

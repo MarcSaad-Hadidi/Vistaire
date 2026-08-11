@@ -391,6 +391,7 @@ async function exerciseAvailability(page: Page, scenario: Scenario) {
   await expect(toggle).toHaveAttribute("aria-checked", "false");
   await expect(summary("available")).toContainText("9");
   await expect(summary("unavailable")).toContainText("3");
+  await expect(simulationStatus).toBeHidden();
 }
 
 async function exerciseInsightsMetricSelector(page: Page, scenario: Scenario) {
