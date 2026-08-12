@@ -130,7 +130,7 @@ test.describe("admin deterministic visual contract", () => {
       const desktopTabs = page.getByRole("navigation", { name: "Sections principales" });
       await expect(navigation).toBeVisible();
       await expect(desktopTabs).toBeHidden();
-      await expect(navigation.locator("a")).toHaveCount(3);
+      await expect(navigation.locator("a")).toHaveCount(5);
       for (const link of await navigation.locator("a:visible").all()) {
         const box = await link.boundingBox();
         expect(box?.width ?? 0).toBeGreaterThanOrEqual(44);
@@ -193,7 +193,7 @@ test.describe("admin deterministic visual contract", () => {
     await enterLocalPreview(page);
     for (const width of [390, 430]) {
       await page.setViewportSize({ width, height: width === 430 ? 932 : 844 });
-      for (const [route, currentLabel] of [["/admin", "Vue d’ensemble"], ["/admin/availability", "Disponibilités"], ["/admin/insights", "Analyses"]] as const) {
+      for (const [route, currentLabel] of [["/admin", "Aujourd’hui"], ["/admin/availability", "Disponibilités"], ["/admin/insights", "Intelligence"]] as const) {
         await page.goto(route, { waitUntil: "networkidle" });
         await stabilize(page);
         await assertPageHealth(page);
@@ -202,7 +202,7 @@ test.describe("admin deterministic visual contract", () => {
         const mobileNavigation = page.getByRole("navigation", { name: "Navigation du restaurant" });
         await expect(topTabs).toBeHidden();
         await expect(mobileNavigation).toBeVisible();
-        await expect(mobileNavigation.locator("a")).toHaveCount(3);
+        await expect(mobileNavigation.locator("a")).toHaveCount(5);
         await expect(mobileNavigation.getByRole("link", { name: currentLabel, exact: true })).toHaveAttribute("aria-current", "page");
         await expect(page.locator("[data-admin-subtitle]")).toBeVisible();
         await expect(page.getByRole("link", { name: "Ouvrir le menu client", exact: true })).toBeVisible();
@@ -234,7 +234,7 @@ test.describe("admin deterministic visual contract", () => {
     expect(new Set(focusOrder).size).toBe(focusOrder.length);
     await expect(page.locator('p[aria-live="polite"]')).toContainText(/résultat/);
     const navigationSnapshot=await page.getByRole("navigation",{name:"Navigation du restaurant"}).ariaSnapshot();
-    expect(navigationSnapshot).toContain("Vue d’ensemble"); expect(navigationSnapshot).toContain("Disponibilités"); expect(navigationSnapshot).toContain("Analyses");
+    expect(navigationSnapshot).toContain("Aujourd’hui"); expect(navigationSnapshot).toContain("Disponibilités"); expect(navigationSnapshot).toContain("Intelligence"); expect(navigationSnapshot).toContain("Rapports"); expect(navigationSnapshot).toContain("Plus");
     const motion = await page.locator("[class*=adminRoot]").evaluate((root) => [...root.querySelectorAll("button,a,svg polyline")].slice(0,20).map((element)=>({animation:getComputedStyle(element).animationDuration,transition:getComputedStyle(element).transitionDuration})));
     for(const value of motion){expect(value.animation).toMatch(/^(0s|1e-05s|0\.00001s|0\.001s|0\.01ms)$/);expect(value.transition).toMatch(/^(0s|1e-05s|0\.00001s|0\.001s|0\.01ms)$/)}
   });
