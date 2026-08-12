@@ -1,6 +1,7 @@
 import { AdminPanel } from "../system/AdminPrimitives";
 import type { AdminReportModel } from "@/lib/admin/reports/contracts";
 import { ReportAvailabilityChanges } from "./ReportAvailabilityChanges";
+import { ReportActions } from "./ReportActions";
 import { ReportFilters } from "./ReportFilters";
 import { ReportHighlights } from "./ReportHighlights";
 import { ReportMetricGrid } from "./ReportMetricGrid";
@@ -23,6 +24,7 @@ export function AdminReportsPage({ report }: { report: AdminReportModel }) {
       <div><p className={styles.eyebrow}>{fr ? "Bilan privÃ©" : "Private summary"}</p><h1>{fr ? "Bilan du service" : "Service report"}</h1><p>{fr ? "Une lecture fondÃ©e uniquement sur les interactions observÃ©es et leurs preuves." : "A view based only on observed interactions and their evidence."}</p></div>
       <div className={styles.period}><span>{fr ? "PÃ©riode alignÃ©e" : "Aligned period"}</span><strong>{periodLabel(report)}</strong><small>{report.window.timezone}</small></div>
     </header>
+    <ReportActions locale={report.locale} range={report.range} service={report.service}/>
     <ReportFilters report={report}/>
     <AdminPanel className={styles.fullPanel} eyebrow={fr ? "Points clÃ©s du service" : "Service highlights"} data-report-card><ReportHighlights report={report}/></AdminPanel>
     <section className={styles.section} aria-labelledby="metrics-title"><header><p>{fr ? "Performance" : "Performance"}</p><h2 id="metrics-title">{fr ? "ComparÃ© Ã  la pÃ©riode alignÃ©e" : "Compared with the aligned period"}</h2></header><ReportMetricGrid report={report}/></section>
@@ -36,4 +38,3 @@ export function AdminReportsPage({ report }: { report: AdminReportModel }) {
     </div>
   </div>;
 }
-

@@ -167,3 +167,19 @@ test("reports page exposes named evidence regions and responsive print-safe stru
   assert.match(css, /display:\s*none\s*!important/);
   assert.doesNotMatch(css, /overflow-x:\s*(auto|scroll)/);
 });
+
+test("report actions stay local, accessible and degrade without browser APIs", async () => {
+  const [actions, page] = await Promise.all([
+    readFile(new URL("../components/admin/reports/ReportActions.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../components/admin/reports/AdminReportsPage.tsx", import.meta.url), "utf8")
+  ]);
+  assert.match(actions, /^[\s\S]*["']use client["']/);
+  assert.match(actions, /href=\{exportHref\}/);
+  assert.match(actions, /window\.print\(\)/);
+  assert.match(actions, /typeof window\.print/);
+  assert.match(actions, /navigator\.share\(/);
+  assert.match(actions, /navigator\.clipboard\.writeText\(window\.location\.href\)/);
+  assert.match(actions, /aria-live=["']polite["']/);
+  assert.doesNotMatch(actions, /fetch\(|https?:\/\/|report\s*:/i);
+  assert.match(page, /<ReportActions\b/);
+});
