@@ -187,3 +187,16 @@ test("report actions stay local, accessible and degrade without browser APIs", a
   assert.doesNotMatch(actions, /fetch\(|https?:\/\/|report\s*:/i);
   assert.match(page, /<ReportActions\b/);
 });
+
+test("Reports Playwright proof is hermetic, assertion-bearing and unskipped", async () => {
+  const source = await readFile(new URL("../e2e/admin-vnext-reports.spec.ts", import.meta.url), "utf8");
+  assert.doesNotMatch(source, /test\.skip|test\.fixme|describe\.skip|VISTAIRE_ADMIN_E2E_QR_TOKEN/);
+  assert.match(source, /target\.origin !== appOrigin && target\.origin !== fixtureOrigin/);
+  assert.match(source, /route\.abort\(["']blockedbyclient["']\)/);
+  assert.match(source, /page\.routeWebSocket\(/);
+  assert.match(source, /webSocketRoute\.close\(/);
+  assert.match(source, /390/);
+  assert.match(source, /430/);
+  assert.match(source, /1448/);
+  assert.match(source, /expect\(/);
+});
