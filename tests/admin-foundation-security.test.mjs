@@ -9,6 +9,7 @@ import { pathToFileURL } from "node:url";
 
 globalThis.AsyncLocalStorage = AsyncLocalStorage;
 const require = createRequire(import.meta.url);
+const clerkServerUrl = pathToFileURL(require.resolve("@clerk/nextjs/server")).href;
 
 function resolveTypeScriptAlias(specifier) {
   const basePath = resolve(process.cwd(), specifier.slice(2));
@@ -21,7 +22,7 @@ function resolveTypeScriptAlias(specifier) {
 registerHooks({
   resolve(specifier, context, nextResolve) {
     if (specifier === "@clerk/nextjs/server") {
-      return nextResolve(pathToFileURL(require.resolve(specifier)).href, context);
+      return nextResolve(clerkServerUrl, context);
     }
     if (specifier.startsWith("@/")) return nextResolve(resolveTypeScriptAlias(specifier), context);
     try {
