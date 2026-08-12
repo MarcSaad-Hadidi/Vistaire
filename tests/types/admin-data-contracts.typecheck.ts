@@ -16,7 +16,7 @@ if (state.kind === "available") {
   state.value satisfies number;
 } else {
   // @ts-expect-error negative metric states never carry values
-  state.value;
+  void state.value;
 }
 
 // @ts-expect-error production repositories never accept demo scope
