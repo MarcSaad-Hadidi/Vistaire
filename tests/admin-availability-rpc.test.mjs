@@ -31,3 +31,27 @@ test("atomic availability RPC has narrow typed inputs and service-role-only exec
   assert.match(setClause, /updated_at\s*=\s*now\(\)/i);
   assert.doesNotMatch(setClause, /(?:name|slug|price|description|restaurant_id|menu_id)\s*=/i);
 });
+
+test("availability scheduling migration is scoped, idempotent, locked and service-role-only", async () => {
+  const sql = await readFile("supabase/migrations/20260811190000_admin_availability_schedule.sql", "utf8");
+  for (const table of ["admin_dish_availability_events", "admin_dish_availability_schedules", "admin_availability_workers"]) assert.match(sql, new RegExp(`create table[^;]+${table}`, "is"));
+  assert.match(sql, /enable row level security/gi);
+  assert.match(sql, /unique\s*\(restaurant_id,\s*menu_id,\s*idempotency_key\)/i);
+  assert.match(sql, /for update skip locked/i);
+  assert.match(sql, /pg_try_advisory_xact_lock/i);
+  assert.match(sql, /set search_path\s*=\s*''/gi);
+  assert.match(sql, /revoke all on table[^;]+from public, anon, authenticated/is);
+  assert.match(sql, /revoke execute on function[^;]+from public, anon, authenticated/is);
+  assert.match(sql, /grant execute on function[^;]+to service_role/is);
+  assert.match(sql, /last_attempt_at/i);
+  assert.match(sql, /last_success_at/i);
+  assert.doesNotMatch(sql, /revoke all on all sequences in schema public/i);
+  assert.match(sql, /mark_admin_availability_worker_attempt/i);
+  assert.match(sql, /cancel_admin_dish_availability\s*\(p_qr_id uuid,\s*p_restaurant_id uuid,\s*p_dish_id uuid,\s*p_schedule_id uuid\)/is);
+  assert.match(sql, /s\.dish_id\s*=\s*p_dish_id/i);
+  assert.match(sql, /drop trigger if exists admin_availability_events_append_only/i);
+  assert.match(sql, /add constraint admin_availability_events_schedule_fk[\s\S]*not valid/i);
+  assert.match(sql, /validate constraint admin_availability_events_schedule_fk/i);
+  assert.match(sql, /create or replace function public\.set_admin_dish_availability[\s\S]+insert into public\.admin_dish_availability_events/i);
+  assert.doesNotMatch(sql, /^\s*(?:delete\s+from|truncate\s+table)\b/im);
+});
