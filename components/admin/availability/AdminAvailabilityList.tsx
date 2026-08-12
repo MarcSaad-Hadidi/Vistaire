@@ -30,7 +30,7 @@ export function AdminAvailabilityList({ dishes, capability }: { dishes: AdminMen
   const selected = current.find((dish) => dish.id === selectedDish);
 
   return <section className={styles.page} aria-labelledby="availability-title">
-    <header className={styles.hero}><div><p className={styles.eyebrow}>Carte en direct</p><h2 id="availability-title">Disponibilités — Gestion opérationnelle</h2><p>Gérez la disponibilité de vos plats en temps réel et planifiez les retours avec précision.</p></div></header>
+    <h2 id="availability-title" className="sr-only">Disponibilités — Gestion opérationnelle</h2>
     <div className={styles.metrics} aria-label="État du catalogue">
       <article><i aria-hidden="true"><MenuOpenIcon/></i><div><span>Total plats</span><strong>{current.length}</strong><small>dans le menu</small></div></article>
       <article><i aria-hidden="true" data-tone="available"><CheckIcon/></i><div><span>Disponibles</span><strong>{available}</strong><small>{Math.round(available / Math.max(1, current.length) * 100)} %</small></div></article>
