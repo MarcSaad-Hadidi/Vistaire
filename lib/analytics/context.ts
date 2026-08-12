@@ -40,6 +40,28 @@ export async function validateAnalyticsEventContext(
           .maybeSingle();
         if (error) throw error;
         return Boolean(data);
+      },
+      dishBelongsToMenu: async (slug, menuId, restaurantId) => {
+        const { data, error } = await admin.client
+          .from("menu_dishes")
+          .select("id")
+          .eq("slug", slug)
+          .eq("restaurant_id", restaurantId)
+          .eq("menu_id", menuId)
+          .maybeSingle();
+        if (error) throw error;
+        return Boolean(data);
+      },
+      categoryBelongsToMenu: async (slug, menuId, restaurantId) => {
+        const { data, error } = await admin.client
+          .from("menu_categories")
+          .select("id")
+          .eq("slug", slug)
+          .eq("restaurant_id", restaurantId)
+          .eq("menu_id", menuId)
+          .maybeSingle();
+        if (error) throw error;
+        return Boolean(data);
       }
     });
 

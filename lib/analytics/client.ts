@@ -4,6 +4,7 @@ import type {
   AnalyticsEventName,
   AnalyticsEventPayload
 } from "./types.ts";
+import { ADMIN_INSTRUMENTATION_VERSION } from "../admin/data/instrumentation.ts";
 
 type TrackMenuEventInput = Partial<
   Omit<AnalyticsEventPayload, "eventName" | "sessionId" | "source">
@@ -114,6 +115,9 @@ export function trackMenuEvent(input: TrackMenuEventInput): void {
   if (now - lastSeen < 1_000) return;
   recentEvents.set(dedupeKey, now);
 
+  const metadata = input.metadata && typeof input.metadata === "object" && !Array.isArray(input.metadata)
+    ? { ...input.metadata, instrumentationVersion: ADMIN_INSTRUMENTATION_VERSION }
+    : { instrumentationVersion: ADMIN_INSTRUMENTATION_VERSION };
   const payload: AnalyticsEventPayload = {
     eventName: input.eventName,
     restaurantId,
@@ -126,7 +130,7 @@ export function trackMenuEvent(input: TrackMenuEventInput): void {
     filterName: input.filterName,
     ctaName: input.ctaName,
     viewport: getViewport(),
-    metadata: input.metadata
+    metadata
   };
 
   void fetch("/api/analytics/events", {

@@ -4,6 +4,7 @@ import { validateAnalyticsEventContext } from "@/lib/analytics/context";
 import { insertAnalyticsEvent } from "@/lib/analytics/eventStore";
 import {
   isConfiguredDemoAnalyticsPayload,
+  isAnalyticsRequestSameOrigin,
   validateAnalyticsEvent
 } from "@/lib/analytics/validation";
 import type { AnalyticsApiResponse } from "@/lib/analytics/types";
@@ -14,6 +15,16 @@ export const dynamic = "force-dynamic";
 const MAX_BODY_BYTES = 16_000;
 
 export async function POST(request: NextRequest) {
+  if (!isAnalyticsRequestSameOrigin({
+    secFetchSite: request.headers.get("sec-fetch-site"),
+    origin: request.headers.get("origin"),
+    expectedOrigin: request.nextUrl.origin
+  })) {
+    return NextResponse.json<AnalyticsApiResponse>(
+      { ok: false, error: "Cross-site analytics payload refused." },
+      { status: 403 }
+    );
+  }
   const contentType = request.headers.get("content-type")?.split(";", 1)[0].trim().toLowerCase();
   if (contentType !== "application/json") {
     return NextResponse.json<AnalyticsApiResponse>(

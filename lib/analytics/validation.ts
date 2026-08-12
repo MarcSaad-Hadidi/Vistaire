@@ -1,4 +1,5 @@
 import {
+  isAnalyticsRequestSameOrigin as isAnalyticsRequestSameOriginCore,
   validateAnalyticsEvent as validateAnalyticsEventCore
 } from "./validationCore.mjs";
 import type {
@@ -18,6 +19,14 @@ const DEMO_MENU_ID =
 
 export function validateAnalyticsEvent(input: unknown): ValidationResult {
   return validateAnalyticsEventCore(input) as ValidationResult;
+}
+
+export function isAnalyticsRequestSameOrigin(input: {
+  secFetchSite: string | null;
+  origin: string | null;
+  expectedOrigin: string;
+}): boolean {
+  return isAnalyticsRequestSameOriginCore(input);
 }
 
 export function isConfiguredDemoAnalyticsPayload(
