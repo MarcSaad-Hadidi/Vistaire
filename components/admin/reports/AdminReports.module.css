@@ -35,7 +35,7 @@
 @media (max-width: 430px) { .report { gap: 14px; }.reportHeader h1 { font-size: 38px; }.metricGrid { grid-template-columns: 1fr; }.metric { min-height: 96px; }.metric strong { margin-top: 8px; }.highlight { padding-inline: 8px; }.reliability { align-items: flex-start; flex-direction: column; } }
 @media print {
   .report { color: #17130d; background: #fff; }
-  [data-report-print-hidden] { display: none !important; }
+  .report [data-report-print-hidden] { display: none !important; }
   .reportHeader,.fullPanel,.metric,.dashboardGrid>[data-report-card] { break-inside: avoid; box-shadow: none !important; }
   .reportHeader h1 { font-size: 34pt; }
   .metricGrid { grid-template-columns: repeat(3,1fr); }
