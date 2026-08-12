@@ -12,7 +12,7 @@ export function ReportMetricGrid({ report }: { report: AdminReportModel }) {
         ? `${comparison.delta >= 0 ? "+" : ""}${number(report.locale, comparison.delta)}`
         : new Intl.NumberFormat(report.locale === "fr" ? "fr-CA" : "en-CA", { style: "percent", maximumFractionDigits: 0 }).format(comparison.changeRate)
       : null;
-    return <article className={styles.metric} data-evidence-ids={[...metric.current.evidenceIds, ...metric.comparison.evidenceIds].join(",")} data-state={metric.current.state.kind} key={metric.metricId}><span className={styles.metricDot} aria-hidden="true"/><p>{metric.label}</p><strong>{count === undefined || count === null ? "â€”" : number(report.locale, count)}</strong><small>{trend ? `${trend} Â· ${metric.comparison.copy}` : metric.current.copy}</small></article>;
+    return <article className={styles.metric} data-evidence-ids={[...metric.current.evidenceIds, ...metric.comparison.evidenceIds].join(",")} data-state={metric.current.state.kind} key={metric.metricId}><span className={styles.metricDot} aria-hidden="true"/><p>{metric.label}</p><strong>{count === undefined || count === null ? "—" : number(report.locale, count)}</strong><small>{trend ? `${trend} · ${metric.comparison.copy}` : metric.current.copy}</small></article>;
   })}</div>;
 }
 

@@ -77,6 +77,9 @@ test("available report comparisons preserve every evidence id and avoid forbidde
   assert.deepEqual(report.topDishes.evidenceIds.length, 1);
   assert.deepEqual(report.searches.evidenceIds.length, 1);
   assert.equal(report.highlights.every((item) => item.evidenceIds.length > 0), true);
+  assert.equal(report.reliability.state, "limited");
+  assert.equal(report.reliability.availableEvidence, 5);
+  assert.equal(report.reliability.totalEvidence, 10);
   assert.doesNotMatch(JSON.stringify(report), /revenue|sales|orders|conversion|chiffre d.affaires|ventes|commandes/i);
   assert.doesNotMatch(JSON.stringify(report), /restaurant-private|menu-private/);
 });
@@ -131,7 +134,10 @@ test("absence states and service slices remain explicit instead of estimating", 
   assert.equal(report.service, "lunch");
   assert.equal(report.metrics.every((item) => item.current.state.kind === "unmeasured"), true);
   assert.equal(report.timeline.state.kind, "unmeasured");
-  assert.match(report.metrics[0].current.copy, /dÃ©coupage|service/i);
+  assert.equal(report.reliability.state, "unavailable");
+  assert.equal(report.reliability.availableEvidence, 0);
+  assert.equal(report.reliability.totalEvidence, 10);
+  assert.match(report.metrics[0].current.copy, /découpage|service/i);
 });
 
 test("reports route validates access and composes the v2 evidence model", async () => {
@@ -161,7 +167,7 @@ test("reports page exposes named evidence regions and responsive print-safe stru
     "ReportHighlights", "ReportMetricGrid", "ReportTimeline", "ReportTopDishes",
     "ReportSearches", "ReportAvailabilityChanges", "ReportReliability", "ReportRecommendations"
   ]) assert.match(page, new RegExp(`<${component}\\b`));
-  for (const label of ["points clÃ©s", "chronologie", "top plats", "recherches", "fiabilitÃ©"]) {
+  for (const label of ["points clés", "chronologie", "top plats", "recherches", "fiabilité"]) {
     assert.match(page, new RegExp(label, "i"));
   }
   assert.doesNotMatch(page, /<h1\b/);
@@ -199,4 +205,31 @@ test("Reports Playwright proof is hermetic, assertion-bearing and unskipped", as
   assert.match(source, /430/);
   assert.match(source, /1448/);
   assert.match(source, /expect\(/);
+});
+
+test("Reports source and proofs contain no mojibake", async () => {
+  const files = [
+    "app/admin/reports/page.tsx",
+    "app/admin/api/reports/export/route.ts",
+    "components/admin/reports/AdminReportsPage.tsx",
+    "components/admin/reports/ReportActions.tsx",
+    "components/admin/reports/ReportAvailabilityChanges.tsx",
+    "components/admin/reports/ReportFilters.tsx",
+    "components/admin/reports/ReportHighlights.tsx",
+    "components/admin/reports/ReportRecommendations.tsx",
+    "components/admin/reports/ReportReliability.tsx",
+    "components/admin/reports/ReportSearches.tsx",
+    "components/admin/reports/ReportTimeline.tsx",
+    "lib/admin/reports/buildReport.ts",
+    "lib/admin/reports/csv.ts",
+    "lib/admin/reports/reportCopy.ts",
+    "tests/admin-vnext-reports.test.mjs",
+    "tests/admin-vnext-reports-csv.test.mjs",
+    "e2e/admin-vnext-reports.spec.ts"
+  ];
+  const sources = await Promise.all(files.map((file) => readFile(new URL(`../${file}`, import.meta.url), "utf8")));
+  const mojibakeLeadCodePoints = new Set([195, 194, 226]);
+  for (const [index, source] of sources.entries()) {
+    assert.equal([...source].some((character) => mojibakeLeadCodePoints.has(character.codePointAt(0))), false, `${files[index]} contains mojibake`);
+  }
 });

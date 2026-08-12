@@ -33,9 +33,9 @@ export default async function AdminReportsRoute({ searchParams }: { searchParams
       menuPath={dataResult.presentation.publicMenuPath}
       pageTitle={preferences.locale === "fr" ? "Bilan du service" : "Service report"}
       pageDescription={preferences.locale === "fr"
-        ? "Une lecture fondÃ©e uniquement sur les interactions observÃ©es et leurs preuves."
+        ? "Une lecture fondée uniquement sur les interactions observées et leurs preuves."
         : "A view based only on observed interactions and their evidence."}
-      headerDetails={<span>{preferences.locale === "fr" ? "Rapports privÃ©s" : "Private reports"}</span>}
+      headerDetails={<span>{preferences.locale === "fr" ? "Rapports privés" : "Private reports"}</span>}
     >
       <AdminReportsPage report={report} />
     </AdminShell>

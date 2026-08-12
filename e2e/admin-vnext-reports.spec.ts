@@ -24,7 +24,7 @@ async function installLocalNetworkGuard(page: Page) {
 
 async function enterReports(page: Page) {
   await page.goto("/admin", { waitUntil: "networkidle" });
-  const preview = page.getByRole("button", { name: "Ouvrir la prÃ©visualisation locale" });
+  const preview = page.getByRole("button", { name: "Ouvrir la prévisualisation locale" });
   if (await preview.isVisible()) {
     await preview.click();
     await expect(preview).toBeHidden({ timeout: 30_000 });
@@ -48,9 +48,9 @@ test("private report filters, evidence states and CSV export stay server backed"
 
   await enterReports(page);
   await expect(page.getByRole("navigation", { name: "Filtres du rapport" })).toBeVisible();
-  await page.getByRole("link", { name: "DÃ®ner", exact: true }).click();
+  await page.getByRole("link", { name: "Dîner", exact: true }).click();
   await expect(page).toHaveURL(/service=dinner/);
-  await expect(page.getByText(/dÃ©coupage fiable par service/i).first()).toBeVisible();
+  await expect(page.getByText(/découpage fiable par service/i).first()).toBeVisible();
   await page.getByRole("link", { name: "30 jours", exact: true }).click();
   await expect(page).toHaveURL(/range=30d/);
 
@@ -92,7 +92,7 @@ test("reports remain accessible in both locales, themes, print and target viewpo
   expect(await page.evaluate(() => (window as typeof window & { __reportPrints?: number }).__reportPrints)).toBe(1);
   await page.emulateMedia({ media: "print" });
   await expect(page.getByRole("navigation", { name: "Filtres du rapport" })).toBeHidden();
-  await expect(page.getByText("Preuves et fiabilitÃ©", { exact: true })).toBeVisible();
+  await expect(page.getByText("Preuves et fiabilité", { exact: true })).toBeVisible();
   await page.emulateMedia({ media: "screen" });
 
   await page.getByRole("button", { name: "English" }).click();
@@ -101,4 +101,3 @@ test("reports remain accessible in both locales, themes, print and target viewpo
   await expect(page.locator('[data-admin-theme="dark"]')).toBeVisible();
   await expect(page.getByRole("link", { name: "Export CSV" })).toHaveAttribute("href", /\/admin\/api\/reports\/export\?range=/);
 });
-

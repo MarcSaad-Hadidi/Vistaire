@@ -35,7 +35,7 @@ export function serializeAdminReportCsv(input: {
     fr ? "Indicateur" : "Metric",
     fr ? "Valeur" : "Value",
     fr ? "Comparaison" : "Comparison",
-    fr ? "Ã‰tat" : "State",
+    fr ? "État" : "State",
     fr ? "Identifiants de preuve" : "Evidence identifiers"
   ]];
 
@@ -58,7 +58,7 @@ export function serializeAdminReportCsv(input: {
     assertAuthorized(input.evidence, input.report.searches.evidenceIds);
     for (const search of input.report.searches.value) {
       rows.push([
-        fr ? "Recherches protÃ©gÃ©es" : "Privacy-protected searches",
+        fr ? "Recherches protégées" : "Privacy-protected searches",
         search.term,
         String(search.count),
         "",

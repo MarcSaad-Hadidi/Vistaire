@@ -17,7 +17,7 @@ function fixture() {
   const bundle = buildAdminEvidenceBundle({ scope, window, generatedAt: window.observedAt, records: [
     record("observed-menu-opens", "current", { kind: "available", value: { count: 8 } }),
     record("observed-menu-opens", "previous", { kind: "available", value: { count: 4 } }),
-    record("private-search-ranking", "current", { kind: "available", value: [{ term: "=SUM(A1:A2), cafÃ©; \"menu\"\r\nligne", count: 3 }] })
+    record("private-search-ranking", "current", { kind: "available", value: [{ term: "=SUM(A1:A2), café; \"menu\"\r\nligne", count: 3 }] })
   ] });
   return { bundle, report: buildAdminReport({ locale: "fr", range: "today", service: "all", bundle }) };
 }
@@ -26,7 +26,7 @@ test("CSV formula prefixes are neutralized before escaping", () => {
   for (const input of ["=SUM(A1:A2)", "+cmd", "-1+2", "@import", "\tformula", "\rformula"]) {
     assert.equal(sanitizeCsvCell(input), `'${input}`);
   }
-  for (const input of ["normal", "1", "cafÃ©", " space", "a,b", "a;b", "a\"b", "a\nb"]) {
+  for (const input of ["normal", "1", "café", " space", "a,b", "a;b", "a\"b", "a\nb"]) {
     assert.equal(sanitizeCsvCell(input), input);
   }
 });
@@ -39,8 +39,8 @@ test("CSV is deterministic UTF-8 with BOM, CRLF and export-authorized evidence o
   assert.match(csv, /^\uFEFF/);
   assert.match(csv, /\r\n/);
   assert.doesNotMatch(csv.replaceAll("\r\n", ""), /\n|\r/);
-  assert.match(csv, /'=SUM\(A1:A2\), cafÃ©; ""menu""/);
-  assert.match(csv, /Ouvertures du menu observÃ©es/);
+  assert.match(csv, /'=SUM\(A1:A2\), café; ""menu""/);
+  assert.match(csv, /Ouvertures du menu observées/);
   assert.doesNotMatch(csv, /r-private|m-private/);
 });
 

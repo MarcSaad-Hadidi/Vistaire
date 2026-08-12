@@ -140,11 +140,21 @@ export function buildAdminReport(input: {
         evidenceIds: item.comparison.evidenceIds
       };
     });
-  const admitted = Object.values(input.bundle.records).filter((record) => record.audiences.includes("ui"));
-  const available = admitted.filter((record) => record.state.kind === "available");
-  const reliabilityState = admitted.length === 0
+  const timeline = panel<AdminSeriesPayload>(input.bundle, input.locale, input.service, "activity-series");
+  const topDishes = panel<AdminRankingPayload>(input.bundle, input.locale, input.service, "dish-ranking");
+  const searches = panel<readonly SearchTermEvidence[]>(input.bundle, input.locale, input.service, "private-search-ranking");
+  const availabilityChanges = evidence<readonly { label: string; state: string; occurredAt?: string }[]>(input.locale, input.service, null, unavailableState);
+  const requiredEvidence = [
+    ...metrics.map((item) => item.current),
+    timeline,
+    topDishes,
+    searches,
+    availabilityChanges
+  ];
+  const availableEvidence = requiredEvidence.filter((item) => item.state.kind === "available");
+  const reliabilityState = availableEvidence.length === 0
     ? "unavailable"
-    : available.length === admitted.length
+    : availableEvidence.length === requiredEvidence.length
       ? "complete"
       : "limited";
   const recommendations = metrics
@@ -163,16 +173,16 @@ export function buildAdminReport(input: {
     window: input.bundle.window,
     highlights,
     metrics,
-    timeline: panel<AdminSeriesPayload>(input.bundle, input.locale, input.service, "activity-series"),
-    topDishes: panel<AdminRankingPayload>(input.bundle, input.locale, input.service, "dish-ranking"),
-    searches: panel<readonly SearchTermEvidence[]>(input.bundle, input.locale, input.service, "private-search-ranking"),
-    availabilityChanges: evidence(input.locale, input.service, null, unavailableState),
+    timeline,
+    topDishes,
+    searches,
+    availabilityChanges,
     reliability: {
-      label: input.locale === "fr" ? "FiabilitÃ© des preuves" : "Evidence reliability",
+      label: input.locale === "fr" ? "Fiabilité des preuves" : "Evidence reliability",
       state: reliabilityState,
-      availableEvidence: available.length,
-      totalEvidence: admitted.length,
-      evidenceIds: admitted.map((record) => record.evidenceId)
+      availableEvidence: availableEvidence.length,
+      totalEvidence: requiredEvidence.length,
+      evidenceIds: [...new Set(availableEvidence.flatMap((item) => item.evidenceIds))]
     },
     recommendations
   };
