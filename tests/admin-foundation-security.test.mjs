@@ -2,12 +2,13 @@ import assert from "node:assert/strict";
 import { AsyncLocalStorage } from "node:async_hooks";
 import { existsSync } from "node:fs";
 import { readFile } from "node:fs/promises";
-import { registerHooks } from "node:module";
+import { createRequire, registerHooks } from "node:module";
 import { resolve } from "node:path";
 import test from "node:test";
 import { pathToFileURL } from "node:url";
 
 globalThis.AsyncLocalStorage = AsyncLocalStorage;
+const require = createRequire(import.meta.url);
 
 function resolveTypeScriptAlias(specifier) {
   const basePath = resolve(process.cwd(), specifier.slice(2));
@@ -20,7 +21,7 @@ function resolveTypeScriptAlias(specifier) {
 registerHooks({
   resolve(specifier, context, nextResolve) {
     if (specifier === "@clerk/nextjs/server") {
-      return nextResolve(pathToFileURL(resolve(process.cwd(), "node_modules/@clerk/nextjs/dist/cjs/server/index.js")).href, context);
+      return nextResolve(pathToFileURL(require.resolve(specifier)).href, context);
     }
     if (specifier.startsWith("@/")) return nextResolve(resolveTypeScriptAlias(specifier), context);
     try {

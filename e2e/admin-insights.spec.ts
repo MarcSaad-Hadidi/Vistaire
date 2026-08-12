@@ -1,6 +1,27 @@
 import { expect, type Page, test } from "@playwright/test";
 
-const LOOPBACK = new Set(["localhost", "127.0.0.1", "[::1]"]);
+const appOrigin = new URL(process.env.PLAYWRIGHT_BASE_URL ?? "http://127.0.0.1:3000").origin;
+const fixtureOrigin = `http://127.0.0.1:${process.env.VISTAIRE_ADMIN_VISUAL_FIXTURE_PORT ?? "3110"}`;
+
+function watchPageHealth(page: Page) {
+  const runtimeErrors: string[] = [];
+  const networkFailures: string[] = [];
+  const heavyAssets: string[] = [];
+  page.on("console", (message) => { if (message.type() === "error") runtimeErrors.push(message.text()); });
+  page.on("pageerror", (error) => runtimeErrors.push(error.message));
+  page.on("requestfailed", (request) => networkFailures.push(request.failure()?.errorText ?? "request failed"));
+  page.on("response", (response) => {
+    if (response.status() === 404 || response.status() >= 500) networkFailures.push(`${response.status()} ${new URL(response.url()).pathname}`);
+  });
+  page.on("request", (request) => {
+    if (/\.(?:glb|usdz|mp4)(?:\?|$)/i.test(request.url())) heavyAssets.push(request.url());
+  });
+  return () => {
+    expect(runtimeErrors).toEqual([]);
+    expect(networkFailures).toEqual([]);
+    expect(heavyAssets).toEqual([]);
+  };
+}
 
 async function enterLocalPreview(page: Page) {
   await page.goto("/admin", { waitUntil: "networkidle" });
@@ -17,28 +38,27 @@ test.beforeAll(() => {
 });
 
 test.beforeEach(async ({ page }) => {
+  const allowedOrigins = new Set([appOrigin, fixtureOrigin]);
   await page.route("**/*", async (route) => {
     const url = new URL(route.request().url());
-    if (["http:", "https:"].includes(url.protocol) && !LOOPBACK.has(url.hostname)) {
+    if (["http:", "https:"].includes(url.protocol) && !allowedOrigins.has(url.origin)) {
       await route.abort("blockedbyclient");
-      throw new Error(`Insights blocked a non-loopback request: ${url.origin}`);
+      throw new Error("Insights blocked a non-fixture HTTP request");
     }
     await route.continue();
   });
   await page.routeWebSocket("**/*", async (socket) => {
-    const url = new URL(socket.url());
-    if (!LOOPBACK.has(url.hostname)) {
+    const origin = new URL(socket.url()).origin.replace(/^ws/, "http");
+    if (origin !== appOrigin) {
       await socket.close({ code: 1008, reason: "Non-loopback connection blocked" });
-      throw new Error(`Insights blocked a non-loopback WebSocket: ${url.origin}`);
+      throw new Error("Insights blocked a non-app WebSocket");
     }
     socket.connectToServer();
   });
 });
 
 test("Intelligence supports reduced motion, keyboard and responsive reading order", async ({ page }) => {
-  const runtimeErrors: string[] = [];
-  page.on("console", (message) => { if (message.type() === "error") runtimeErrors.push(message.text()); });
-  page.on("pageerror", (error) => runtimeErrors.push(error.message));
+  const healthy = watchPageHealth(page);
   await page.emulateMedia({ reducedMotion: "reduce" });
 
   for (const viewport of [{ width: 390, height: 844 }, { width: 430, height: 932 }]) {
@@ -50,11 +70,12 @@ test("Intelligence supports reduced motion, keyboard and responsive reading orde
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
     for (const control of await page.getByRole("navigation", { name: "Période analysée" }).getByRole("link").all()) {
       const box = await control.boundingBox();
+      expect(box?.width ?? 0).toBeGreaterThanOrEqual(44);
       expect(box?.height ?? 0).toBeGreaterThanOrEqual(44);
     }
   }
 
   await page.keyboard.press("Tab");
   await expect(page.locator(":focus-visible")).toHaveCount(1);
-  expect(runtimeErrors).toEqual([]);
+  healthy();
 });

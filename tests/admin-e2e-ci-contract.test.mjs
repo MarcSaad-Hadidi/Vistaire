@@ -442,7 +442,8 @@ test("official visual audit covers all four external references", async () => {
   assert.match(audit, /-diff\.png/);
   assert.match(audit, /process\.exitCode = 1/);
   assert.match(visualSpec, /overview-mobile-reference/);
-  assert.match(insightsSpec, /insights-kpis\.png/);
+  assert.match(visualSpec, /\["\/admin\/insights",\s*"insights-desktop"\]/);
+  assert.match(insightsSpec, /Intelligence/);
 });
 
 test("admin E2E specification contains no mojibake", async () => {

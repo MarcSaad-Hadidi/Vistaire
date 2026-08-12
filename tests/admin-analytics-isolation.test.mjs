@@ -109,39 +109,37 @@ test("production analytics never substitute Maison Elyse preview data", async ()
 
 test("admin dashboard loader receives one trusted restaurant id for every data read", async () => {
   const page = await readFile("app/admin/page.tsx", "utf8");
-  const loader = await readFile("lib/admin/dashboardData.ts", "utf8");
+  const loader = await readFile("lib/admin/data/loadAdminData.ts", "utf8");
 
-  assert.match(page, /loadAdminDashboardData\(access\.restaurantId, range\)/);
-  assert.match(page, /parseAdminPageSearchParams\(await searchParams\)/);
+  assert.match(page, /loadAdminDataBundle\(access, range\)/);
+  assert.match(page, /const params = await searchParams/);
+  assert.match(page, /parseAdminPageSearchParams\(params[\s\S]*\)/);
   assert.doesNotMatch(page, /searchParams\?\.|searchParams\[|restaurantId\s*=/);
-  assert.match(loader, /readEvents\(\{ restaurantId, menuId: selectedMenu\.id/);
-  assert.match(
-    loader,
-    /table:\s*["']restaurants["'][\s\S]*?filters:\s*\{\s*id:\s*restaurantId/
-  );
-  assert.match(
-    loader,
-    /table:\s*["']menu_dishes["'][\s\S]*?filters,\s*orderBy/
-  );
+  assert.match(loader, /readRestaurant\(\{ restaurantId: input\.access\.restaurantId \}\)/);
+  assert.match(loader, /readMenu\(\{ restaurantId: input\.access\.restaurantId \}\)/);
+  assert.match(loader, /restaurantId: input\.access\.restaurantId/);
+  assert.match(loader, /readCatalog\(scope\)/);
+  assert.match(loader, /readEvents\(\{ scope,/);
+  assert.doesNotMatch(loader, /searchParams|query\.restaurant|params\.restaurant/);
 });
 
 test("admin dashboard fails closed before menu reads when the restaurant lookup fails", async () => {
   const page = await readFile("app/admin/page.tsx", "utf8");
-  const loader = await readFile("lib/admin/dashboardData.ts", "utf8");
-  const restaurantRead = loader.indexOf("const restaurantResult");
-  const failedGuard = loader.indexOf("if (!restaurantResult.ok)");
-  const missingGuard = loader.indexOf("if (!restaurantRow)");
-  const dishRead = loader.indexOf('"menu_dishes"');
+  const loader = await readFile("lib/admin/data/loadAdminData.ts", "utf8");
+  const restaurantRead = loader.indexOf("const restaurantRead");
+  const failedGuard = loader.indexOf("if (!restaurantRead.ok");
+  const menuRead = loader.indexOf("const menuRead");
+  const catalogRead = loader.indexOf("dependencies.readCatalog(scope)");
 
   assert.ok(restaurantRead >= 0);
-  assert.ok(failedGuard > restaurantRead && failedGuard < dishRead);
-  assert.ok(missingGuard > failedGuard && missingGuard < dishRead);
+  assert.ok(failedGuard > restaurantRead && failedGuard < menuRead);
+  assert.ok(menuRead > failedGuard && menuRead < catalogRead);
   assert.doesNotMatch(loader, /Votre restaurant/);
-  assert.match(loader, /reason:\s*["']restaurant-(?:lookup-failed|not-found)["']/);
+  assert.match(loader, /return \{ ok: false as const, error: \{ code: "configuration" as const, retryable: false \} \}/);
   assert.match(page, /if\s*\(!result\.ok\)/);
   assert.ok(
     page.indexOf("if (!result.ok)") <
-      page.indexOf("<AdminOverview")
+      page.indexOf("<AdminTodayPage")
   );
 });
 

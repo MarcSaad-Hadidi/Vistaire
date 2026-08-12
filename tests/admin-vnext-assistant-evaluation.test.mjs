@@ -57,6 +57,27 @@ test("insufficient evidence renders absence without a fabricated value", () => {
   assert.equal(Object.hasOwn(answer.blocks[0], "value"), false);
 });
 
+test("every non-available evidence state renders one public label without leaking internal codes", () => {
+  const states = [
+    { kind: "insufficient", reason: "privacy-threshold" },
+    { kind: "unmeasured", reason: "instrumentation-unverified" },
+    { kind: "unavailable", reason: "schema-not-deployed" },
+    { kind: "error", code: "scope-integrity", retryable: false },
+    { kind: "truncated", observedRows: 1000, rowLimit: 1000 },
+  ];
+  const forbidden = ["privacy-threshold", "instrumentation-unverified", "schema-not-deployed", "scope-integrity", "1000"];
+
+  for (const state of states) {
+    const evidence = bundle({ current: state });
+    const current = Object.values(evidence.records).find((record) => record.period === "current");
+    const answer = renderAssistantClaims({ locale: "fr", bundle: evidence, claims: [{ claimType: "metric-observation", evidenceIds: [current.evidenceId] }] });
+    assert.equal(answer.blocks[0].kind, "unavailable");
+    assert.equal(answer.blocks[0].label, "Donnée insuffisante");
+    assert.equal(Object.hasOwn(answer.blocks[0], "value"), false);
+    assert.doesNotMatch(JSON.stringify(answer.blocks), new RegExp(forbidden.join("|")));
+  }
+});
+
 test("rules fallback selects only renderable evidence and adds no free fact", () => {
   const evidence = bundle();
   const claims = buildRuleBasedAssistantClaims(evidence);
