@@ -177,7 +177,9 @@ test("admin visual system is scoped, locally typeset and accessible", async () =
   assert.match(primitives, /role="alert"/);
   assert.match(primitives, /aria-describedby/);
   assert.match(primitives, /aria-checked/);
-  assert.match(loading, /aria-busy="true"/);
+  assert.match(loading, /<AdminShellState kind="loading"/);
+  const shellState = await read("components/admin/system/AdminShellState.tsx");
+  assert.match(shellState, /aria-busy=\{kind === "loading" \? true : undefined\}/);
 });
 
 test("admin compact controls preserve 44px hit areas and direct tooltip semantics", async () => {

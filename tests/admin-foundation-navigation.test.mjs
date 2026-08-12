@@ -33,8 +33,8 @@ test("AdminShell keeps the legacy route API while rendering canonical navigation
   assert.match(shell, /activeRoute:\s*AdminRouteId;\s*active\?:\s*never/);
   assert.match(shell, /active:\s*LegacyAdminRoute;\s*activeRoute\?:\s*never/);
   assert.match(shell, /normalizeLegacyAdminRoute\((?:props\.)?active\)/);
-  assert.match(shell, /<AdminNav active=\{canonicalActive\} locale="fr" variant="desktop"\s*\/>/);
-  assert.match(shell, /<AdminNav active=\{canonicalActive\} locale="fr" variant="mobile"\s*\/>/);
+  assert.match(shell, /<AdminNav active=\{canonicalActive\} locale=\{preferences\.locale\} variant="desktop"\s*\/>/);
+  assert.match(shell, /<AdminNav active=\{canonicalActive\} locale=\{preferences\.locale\} variant="mobile"\s*\/>/);
   assert.match(shell, /active \? <div hidden><AdminTabs active=\{active\} \/><\/div> : null/);
 });
 

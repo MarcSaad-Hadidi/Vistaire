@@ -83,3 +83,46 @@ test("preferences persist in SSR-scoped admin cookies", async ({ page }) => {
   });
   expect(rootCookieHeader).toBe(true);
 });
+
+test("accessibility keeps navigation targets, focus, motion and health stable", async ({ page }) => {
+  const errors: string[] = [];
+  const heavy: string[] = [];
+  page.on("console", (message) => { if (message.type() === "error") errors.push(message.text()); });
+  page.on("pageerror", (error) => errors.push(error.message));
+  page.on("request", (request) => { if (/\.(?:glb|usdz|mp4)(?:\?|$)/i.test(request.url())) heavy.push(request.url()); });
+
+  for (const viewport of [{ width: 390, height: 844 }, { width: 430, height: 932 }]) {
+    await page.setViewportSize(viewport);
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await page.goto("/admin", { waitUntil: "networkidle" });
+    const links = page.locator('[data-admin-nav="mobile"] a');
+    await expect(links).toHaveCount(5);
+    for (const link of await links.all()) {
+      const box = await link.boundingBox();
+      expect(box?.width ?? 0).toBeGreaterThanOrEqual(44);
+      expect(box?.height ?? 0).toBeGreaterThanOrEqual(44);
+      await link.focus();
+      const focus = await link.evaluate((element) => {
+        const style = getComputedStyle(element);
+        return { outlineStyle: style.outlineStyle, outlineWidth: style.outlineWidth };
+      });
+      expect(focus.outlineStyle).not.toBe("none");
+      expect(Number.parseFloat(focus.outlineWidth)).toBeGreaterThanOrEqual(2);
+    }
+    const durations = await page.locator("[class*=adminRoot]").evaluate((root) => [...root.querySelectorAll("a,button,[class*=skeleton]")].map((element) => ({
+      animation: Number.parseFloat(getComputedStyle(element).animationDuration) || 0,
+      transition: Number.parseFloat(getComputedStyle(element).transitionDuration) || 0
+    })));
+    for (const duration of durations) {
+      expect(duration.animation).toBeLessThanOrEqual(0.00001);
+      expect(duration.transition).toBeLessThanOrEqual(0.00001);
+    }
+  }
+
+  for (const route of ["/admin", "/admin/availability", "/admin/insights"]) {
+    const response = await page.goto(route, { waitUntil: "networkidle" });
+    expect(response?.status() ?? 500).toBeLessThan(400);
+  }
+  expect(errors).toEqual([]);
+  expect(heavy).toEqual([]);
+});
