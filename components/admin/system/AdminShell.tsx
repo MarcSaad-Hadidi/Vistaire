@@ -1,9 +1,11 @@
 import type { ReactNode } from "react";
+import { headers } from "next/headers";
 import {
   type AdminRouteId,
   type LegacyAdminRoute,
   normalizeLegacyAdminRoute
 } from "@/lib/admin/foundationRoutes";
+import { readAdminPreferencesFromHeaders } from "@/lib/admin/preferences";
 import { AdminMenuActions } from "../AdminMenuActions";
 import { AdminNav } from "./AdminNav";
 import { AdminTabs } from "./AdminPrimitives";
@@ -21,7 +23,8 @@ export type AdminShellProps = AdminShellRouteProps & {
   children: ReactNode;
 };
 
-export function AdminShell(props: AdminShellProps) {
+export async function AdminShell(props: AdminShellProps) {
+  const preferences = readAdminPreferencesFromHeaders(await headers());
   const { restaurantName, menuPath, headerDetails, headerStatus, children } = props;
   const active = "active" in props ? props.active : undefined;
   let canonicalActive: AdminRouteId;
@@ -62,9 +65,9 @@ export function AdminShell(props: AdminShellProps) {
         </div>
       </header>
       {active ? <div hidden><AdminTabs active={active} /></div> : null}
-      <AdminNav active={canonicalActive} locale="fr" variant="desktop" />
+      <AdminNav active={canonicalActive} locale={preferences.locale} variant="desktop" />
       <main className={styles.main}>{children}</main>
-      <AdminNav active={canonicalActive} locale="fr" variant="mobile" />
+      <AdminNav active={canonicalActive} locale={preferences.locale} variant="mobile" />
     </div>
   );
 }
