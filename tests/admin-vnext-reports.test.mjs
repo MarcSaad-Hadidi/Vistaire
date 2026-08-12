@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { readFile } from "node:fs/promises";
 import { buildAdminEvidenceBundle } from "../lib/admin/data/evidenceRegistry.ts";
 import {
   buildAdminReport,
@@ -131,4 +132,38 @@ test("absence states and service slices remain explicit instead of estimating", 
   assert.equal(report.metrics.every((item) => item.current.state.kind === "unmeasured"), true);
   assert.equal(report.timeline.state.kind, "unmeasured");
   assert.match(report.metrics[0].current.copy, /dÃ©coupage|service/i);
+});
+
+test("reports route validates access and composes the v2 evidence model", async () => {
+  const page = await readFile(new URL("../app/admin/reports/page.tsx", import.meta.url), "utf8");
+  assert.match(page, /requireAdminRestaurantAccess\(["']dashboard:read["']\)/);
+  assert.match(page, /parseAdminReportFilters\(/);
+  assert.match(page, /loadAdminDataBundle\(/);
+  assert.match(page, /buildAdminReport\(/);
+  assert.match(page, /<AdminShell[\s\S]*activeRoute=["']reports["']/);
+  assert.doesNotMatch(page, /getSupabase|createClient|\.from\(/);
+  const searchParamContract = page.match(/type ReportsSearchParams\s*=\s*\{[^}]+\}/)?.[0] ?? "";
+  assert.match(searchParamContract, /range\?:/);
+  assert.match(searchParamContract, /service\?:/);
+  assert.doesNotMatch(searchParamContract, /restaurant|menu|source|timezone/i);
+});
+
+test("reports page exposes named evidence regions and responsive print-safe structure", async () => {
+  const [page, css] = await Promise.all([
+    readFile(new URL("../components/admin/reports/AdminReportsPage.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../components/admin/reports/AdminReports.module.css", import.meta.url), "utf8")
+  ]);
+  for (const component of [
+    "ReportHighlights", "ReportMetricGrid", "ReportTimeline", "ReportTopDishes",
+    "ReportSearches", "ReportAvailabilityChanges", "ReportReliability", "ReportRecommendations"
+  ]) assert.match(page, new RegExp(`<${component}\\b`));
+  for (const label of ["points clÃ©s", "chronologie", "top plats", "recherches", "fiabilitÃ©"]) {
+    assert.match(page, new RegExp(label, "i"));
+  }
+  assert.match(page, /<h1[^>]*>[\s\S]*Bilan du service/);
+  assert.match(css, /@media\s*\(max-width:\s*430px\)/);
+  assert.match(css, /@media\s+print/);
+  assert.match(css, /break-inside:\s*avoid/);
+  assert.match(css, /display:\s*none\s*!important/);
+  assert.doesNotMatch(css, /overflow-x:\s*(auto|scroll)/);
 });
