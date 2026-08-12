@@ -1,91 +1,93 @@
 import Link from "next/link";
-import type { ReactNode } from "react";
-import type { AdminDashboardData } from "@/lib/admin/dashboardData";
-import type { AdminDashboardRange } from "@/lib/admin/dashboardRange";
-import { adminFreshnessCopy } from "@/lib/admin/analyticsPresentationCopy";
-import { AvailableDishIcon, DishViewsIcon, ImmersiveIcon, MenuOpenIcon, SearchIcon } from "../system/AdminIcons";
+import type { AdminLocale } from "@/lib/admin/foundationRoutes";
+import type { AdminEvidenceBundle, AdminEvidenceRecord } from "@/lib/admin/data/evidenceRegistry";
+import { renderAssistantClaims } from "@/lib/admin/assistant/renderClaims";
+import { buildRuleBasedAssistantClaims } from "@/lib/admin/assistant/rulesFallback";
+import { AdminAssistant } from "../AdminAssistant";
 import { AdminShell } from "../system/AdminShell";
-import { AdminEvidenceState, AdminKpiCard, AdminPanel } from "../system/AdminPrimitives";
-import { Sparkline } from "../charts/Sparkline";
-import { AdminComparisonChart } from "./AdminComparisonChart";
-import { AdminHeatmap } from "./AdminHeatmap";
-import { AdminCategoryBreakdown, AdminRankedBreakdown, AdminSearchBreakdown, AdminServiceBreakdown } from "./AdminBreakdowns";
-import { InsightsActivityChart } from "./InsightsActivityChart";
+import { AdminPanel } from "../system/AdminPrimitives";
+import { InsightsAttentionMap } from "./InsightsAttentionMap";
+import { InsightsConversionState } from "./InsightsConversionState";
+import { InsightsRecommendations } from "./InsightsRecommendations";
 import styles from "./AdminInsights.module.css";
 
+type Presentation = Readonly<{ restaurantName: string; publicMenuPath: string }>;
 const number = new Intl.NumberFormat("fr-CA");
-const day = new Intl.DateTimeFormat("fr-CA", { day: "numeric", month: "short", timeZone: "UTC" });
-const moment = new Intl.DateTimeFormat("fr-CA", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "UTC" });
-const endDay = (value: string) => new Date(new Date(value).getTime() - 1);
-const rangeLabel = (start: string, end: string) => `${day.format(new Date(start))} – ${day.format(endDay(end))}`;
-const trendCopy = (rate: number | null) => rate === null ? "Sans base comparable" : `${rate >= 0 ? "↗" : "↘"} ${Math.abs(Math.round(rate * 100))} % vs période précédente`;
 
-function Trend({ rate, values, label }: { rate: number | null; values: number[]; label: string }) {
-  return <div className={styles.kpiTrendContent} data-kpi-trend data-tone={rate !== null && rate < 0 ? "down" : "up"}><span>{trendCopy(rate)}</span>{values.length > 1 ? <Sparkline values={values} label={`Tendance quotidienne de ${label}`} interactive/> : null}</div>;
+function count(record: AdminEvidenceRecord | undefined): number | null {
+  if (record?.state.kind !== "available") return null;
+  const value = record.state.value;
+  return value && typeof value === "object" && "count" in value && typeof value.count === "number"
+    ? value.count
+    : null;
 }
 
-export function AdminInsightsPage({ data, range }: { data: AdminDashboardData; range: AdminDashboardRange }) {
-  const analytics = data.analytics;
-  const panels = analytics.kind === "real" ? analytics.panels : null;
-  const fallback = { kind: analytics.kind === "unavailable" ? "unavailable" : "insufficient", reason: analytics.kind === "real" ? "no-evidence" : analytics.reason } as const;
-  const metrics = analytics.kind === "real" ? new Map(analytics.metrics.map((metric) => [metric.id, metric])) : new Map();
-  const dishes = new Map(data.menu.dishes.map((dish) => [dish.slug, dish]));
-  const metric = (id: string) => metrics.get(id);
-  const series = analytics.kind === "real" ? analytics.metricSeries : null;
-  const eventIds = ["menu-opens", "dish-opens", "searches", "immersive"];
-  const eventTotal = eventIds.reduce((sum, id) => sum + (metric(id)?.value ?? 0), 0);
-  const coverage = analytics.kind === "real" ? [analytics.coverage.menuOpened, analytics.coverage.dishOpened].filter(Boolean).length : 0;
-  const bestDish = panels?.ranking.kind === "supported" ? panels.ranking.data[0] : null;
-  const bestService = panels?.serviceWindows.kind === "supported" ? [...panels.serviceWindows.data.windows].sort((a, b) => b.count - a.count)[0] : null;
-  const insights: string[] = [];
-  const menuRate = metric("menu-opens")?.changeRate ?? null;
-  const comparisonSummary = panels?.dailyComparison.kind === "supported" && menuRate !== null ? `${menuRate >= 0 ? "+" : ""}${Math.round(menuRate * 100)} % ouvertures` : "À venir";
-  if (menuRate !== null) insights.push(`Les ouvertures du menu ont ${menuRate >= 0 ? "progressé" : "reculé"} de ${Math.abs(Math.round(menuRate * 100))} % par rapport à la période précédente.`);
-  if (bestDish) insights.push(`${dishes.get(bestDish.slug)?.name ?? bestDish.label ?? "Plat du menu"} reste le plat le plus consulté avec ${number.format(bestDish.count)} consultations.`);
-  if ((metric("immersive")?.value ?? 0) > 0) insights.push(`Les expériences 3D/AR ont généré ${number.format(metric("immersive")!.value)} interactions.`);
-  if (bestService) insights.push(`${bestService.label} concentre le plus d’activité avec ${number.format(bestService.count)} interactions.`);
-  if (analytics.kind === "real" && insights.length < 2) insights.push(`${number.format(data.menu.readiness.counts.available)} plats sur ${number.format(data.menu.readiness.counts.dishes)} sont actuellement disponibles.`);
-  if (analytics.kind === "real" && insights.length < 2) insights.push(`${number.format(eventTotal)} interactions mesurées composent le résumé de cette période.`);
+function find(bundle: AdminEvidenceBundle, metricId: string, period: AdminEvidenceRecord["period"]) {
+  return Object.values(bundle.records).find((record) => record.metricId === metricId && record.period === period);
+}
 
-  const window = analytics.kind === "real" || analytics.kind === "insufficient" ? analytics.observationWindow : null;
-  const headerDetails: ReactNode = window ? <div className={styles.rangeDetails}>
-    <span className={styles.rangeControl}>{rangeLabel(window.startInclusive, window.endExclusive)}</span>
-    <span>vs {rangeLabel(window.comparisonStartInclusive, window.comparisonEndExclusive)}</span>
-  </div> : null;
-  const headerStatus = <div className={styles.headerStatus}>
-    <div><span>Dernière mise à jour</span><strong>{analytics.kind === "real" && analytics.lastUpdatedAt ? moment.format(new Date(analytics.lastUpdatedAt)) : "Non disponible"}</strong>{analytics.kind === "real" ? <em>{adminFreshnessCopy(analytics.freshness)}</em> : null}</div>
-    <nav aria-label="Période analysée">{(["today-utc", "7d", "30d"] as AdminDashboardRange[]).map((option) => <Link key={option} href={`/admin/insights?range=${option}`} aria-current={range === option ? "page" : undefined}>{option === "today-utc" ? "24 h" : option === "7d" ? "7 j" : "30 j"}</Link>)}</nav>
-  </div>;
+function metricState(record: AdminEvidenceRecord | undefined, locale: AdminLocale) {
+  const value = count(record);
+  if (value !== null) return number.format(value);
+  if (record?.state.kind === "insufficient") return locale === "fr" ? "Preuve insuffisante" : "Insufficient evidence";
+  if (record?.state.kind === "unavailable") return locale === "fr" ? "Non disponible" : "Unavailable";
+  if (record?.state.kind === "error") return locale === "fr" ? "Erreur récupérable" : "Recoverable error";
+  return locale === "fr" ? "Non mesuré" : "Unmeasured";
+}
 
-  const kpi = (id: string, label: string, icon: ReactNode, definition: string, seriesId?: "menuOpened" | "dishOpened" | "searches" | "immersive") => {
-    const item = metric(id);
-    return <AdminKpiCard data-insights-kpi label={label} value={item ? number.format(item.value) : "—"} icon={icon} definition={definition} evidence={item ? undefined : fallback} trend={item && seriesId && series ? <Trend rate={item.changeRate} values={series[seriesId].current.map((point) => point.value)} label={label}/> : undefined}/>;
-  };
+export function AdminInsightsPage({
+  bundle,
+  presentation,
+  locale,
+  assistantEnabled
+}: {
+  bundle: AdminEvidenceBundle;
+  presentation: Presentation;
+  locale: AdminLocale;
+  assistantEnabled: boolean;
+}) {
+  const current = find(bundle, "observed-menu-opens", "current");
+  const previous = find(bundle, "observed-menu-opens", "previous");
+  const dishes = find(bundle, "catalog-dishes", "snapshot");
+  const currentCount = count(current);
+  const previousCount = count(previous);
+  const delta = currentCount !== null && previousCount !== null ? currentCount - previousCount : null;
+  const claims = renderAssistantClaims({
+    locale,
+    bundle,
+    claims: buildRuleBasedAssistantClaims(bundle),
+    source: "rules"
+  });
+  const fr = locale === "fr";
 
-  return <AdminShell restaurantName={data.restaurant.name} menuPath={data.restaurant.publicMenuPath} active="insights" headerDetails={headerDetails} headerStatus={headerStatus}>
-    <Link className={styles.srBack} href="/admin">Retour au tableau de bord</Link>
-    <section className={styles.kpis} data-insights-kpis aria-label="Indicateurs analytiques">
-      {kpi("menu-opens", "Ouvertures du menu", <MenuOpenIcon/>, "Nombre exact d’ouvertures du menu public.", "menuOpened")}
-      {kpi("dish-opens", "Consultations de plats", <DishViewsIcon/>, "Nombre exact de fiches de plats consultées.", "dishOpened")}
-      {kpi("searches", "Recherches", <SearchIcon/>, "Nombre exact de recherches effectuées dans le menu.", "searches")}
-      {kpi("immersive", "Interactions 3D/AR", <ImmersiveIcon/>, "Ouvertures exactes des expériences 3D et AR.", "immersive")}
-      <AdminKpiCard data-insights-kpi label="Plats disponibles" value={`${data.menu.readiness.counts.available} / ${data.menu.readiness.counts.dishes}`} detail={`${Math.round(data.menu.readiness.counts.available / Math.max(1, data.menu.readiness.counts.dishes) * 100)} % du menu`} icon={<AvailableDishIcon/>} definition="Plats actuellement visibles comme disponibles dans le menu."/>
+  return <AdminShell
+    restaurantName={presentation.restaurantName}
+    menuPath={presentation.publicMenuPath}
+    activeRoute="intelligence"
+    pageTitle={fr ? "Intelligence menu — Comprendre l’attention des convives" : "Menu intelligence — Understand guest attention"}
+    pageDescription={fr ? "Analysez les signaux observés et les zones encore non mesurées, sans inventer de ventes." : "Review observed signals and unmeasured areas without inferred sales."}
+    headerDetails={<nav className={styles.periodNav} aria-label={fr ? "Période analysée" : "Analysis period"}>{(["today", "7d", "30d"] as const).map((range) => <Link key={range} href={`/admin/insights?range=${range}`} aria-current={bundle.window.range === range ? "page" : undefined}>{range === "today" ? (fr ? "Aujourd’hui" : "Today") : range}</Link>)}</nav>}
+  >
+    <section className={styles.essential} aria-labelledby="intelligence-essential">
+      <div className={styles.sectionHeading}><p>{fr ? "L’essentiel Vistaire" : "Vistaire essentials"}</p><h2 id="intelligence-essential">{fr ? "Ce que les preuves permettent d’affirmer" : "What the evidence supports"}</h2></div>
+      <div className={styles.essentialGrid}>
+        <article className={styles.signalCard} data-tone="risk"><span>{fr ? "Observation" : "Observation"}</span><strong>{metricState(current, locale)}</strong><h3>{fr ? "ouvertures du menu observées" : "observed menu opens"}</h3><p>{fr ? "Mesure instrumentée sur la période sélectionnée." : "Instrumented measure for the selected period."}</p></article>
+        <article className={styles.signalCard} data-tone="trend"><span>{fr ? "Comparaison" : "Comparison"}</span><strong>{delta === null ? "—" : `${delta > 0 ? "+" : ""}${number.format(delta)}`}</strong><h3>{fr ? "par rapport à la période précédente" : "versus the previous period"}</h3><p>{delta === null ? (fr ? "Base comparable indisponible." : "Comparable baseline unavailable.") : (fr ? "Différence calculée depuis les deux preuves observées." : "Difference computed from both observed records.")}</p></article>
+        <article className={styles.signalCard} data-tone="discovery"><span>{fr ? "Catalogue" : "Catalog"}</span><strong>{metricState(dishes, locale)}</strong><h3>{fr ? "plats présents au menu" : "dishes in the menu"}</h3><p>{fr ? "État du catalogue, distinct de l’attention observée." : "Catalog state, separate from observed attention."}</p></article>
+      </div>
     </section>
 
-    <div className={styles.primaryGrid}>
-      <AdminPanel className={styles.activity} data-insights-panel>{series ? <InsightsActivityChart series={series}/> : <AdminEvidenceState kind={fallback.kind} reason={fallback.reason}/>}</AdminPanel>
-      <AdminPanel className={styles.comparison} data-insights-panel>{<AdminComparisonChart evidence={panels?.dailyComparison ?? fallback}/>}</AdminPanel>
-      <AdminPanel className={styles.heatmapPanel} data-insights-panel title="Moments d’activité" action={<p id="insights-utc-note" className={styles.utcNote}>Heures affichées en UTC</p>}><AdminHeatmap evidence={panels?.hourWeekday ?? fallback}/></AdminPanel>
+    <div className={styles.intelligenceGrid}>
+      <AdminPanel className={styles.searchPanel} title={fr ? "Top recherches" : "Top searches"}><div className={styles.emptyState}><strong>{fr ? "Non mesuré" : "Unmeasured"}</strong><p>{fr ? "Aucun classement de recherches k-anonyme n’est disponible dans ce bundle." : "No k-anonymous search ranking is available in this bundle."}</p></div></AdminPanel>
+      <AdminPanel className={styles.mapPanel} title={fr ? "Carte d’attention Vistaire" : "Vistaire attention map"}><InsightsAttentionMap record={current} locale={locale}/></AdminPanel>
+      <AdminPanel className={styles.contextPanel} title={fr ? "Contexte" : "Context"}><div className={styles.emptyState}><strong>{fr ? "Non instrumenté" : "Not instrumented"}</strong><p>{fr ? "Appareils, langues et zones QR ne sont pas affirmés sans preuve dédiée." : "Devices, languages and QR zones are not shown without dedicated evidence."}</p></div></AdminPanel>
+      <AdminPanel className={styles.funnelPanel} title={fr ? "Parcours de conversion" : "Conversion journey"}><InsightsConversionState locale={locale}/></AdminPanel>
     </div>
-    <div className={styles.secondaryGrid}>
-      <AdminPanel className={styles.dishes} data-insights-panel title="Top plats consultés"><AdminRankedBreakdown evidence={panels?.ranking ?? fallback} dishes={dishes}/></AdminPanel>
-      <AdminPanel className={styles.searches} data-insights-panel title="Top recherches"><AdminSearchBreakdown evidence={panels?.searches ?? fallback}/></AdminPanel>
-      <AdminPanel className={styles.categories} data-insights-panel><AdminCategoryBreakdown evidence={panels?.categories ?? fallback}/></AdminPanel>
-      <AdminPanel className={styles.service} data-insights-panel><AdminServiceBreakdown evidence={panels?.serviceWindows ?? fallback}/></AdminPanel>
-    </div>
-    <div className={styles.bottomGrid}>
-      <AdminPanel className={styles.summary} data-insights-panel data-insights-summary title="Résumé de la période">{analytics.kind === "real" ? <div className={styles.summaryMetrics}>{eventIds.map((id) => <span key={id}>{id === "menu-opens" ? "Ouvertures" : id === "dish-opens" ? "Consultations" : id === "searches" ? "Recherches" : "3D/AR"}<strong>{number.format(metric(id)!.value)}</strong></span>)}<span>Plats au menu<strong>{data.menu.readiness.counts.dishes}</strong></span><span>Fraîcheur<strong>{adminFreshnessCopy(analytics.freshness)}</strong></span><span>Couverture<strong>{coverage} / 2 mesures</strong></span><span>Comparaison<strong>{comparisonSummary}</strong></span><span>Total suivi<strong>{number.format(eventTotal)}</strong></span></div> : <AdminEvidenceState kind={fallback.kind} reason={fallback.reason}/>}</AdminPanel>
-      <AdminPanel className={styles.recommendations} data-insights-panel data-insights-key-insights title="Insights clés">{insights.length >= 2 ? <ul className={styles.insightsList}>{insights.slice(0, 4).map((insight) => <li key={insight}>{insight}</li>)}</ul> : <AdminEvidenceState kind={fallback.kind} reason={fallback.reason}/>}</AdminPanel>
+
+    <div className={styles.bottomIntelligenceGrid}>
+      <AdminPanel title={fr ? "Scorecards observées" : "Observed scorecards"}><dl className={styles.scorecards}><div><dt>{fr ? "Ouvertures actuelles" : "Current opens"}</dt><dd>{metricState(current, locale)}</dd></div><div><dt>{fr ? "Ouvertures précédentes" : "Previous opens"}</dt><dd>{metricState(previous, locale)}</dd></div><div><dt>{fr ? "Plats au catalogue" : "Catalog dishes"}</dt><dd>{metricState(dishes, locale)}</dd></div></dl></AdminPanel>
+      <AdminPanel title={fr ? "Recommandations Vistaire" : "Vistaire recommendations"}><InsightsRecommendations answer={claims} locale={locale}/></AdminPanel>
+      <AdminPanel className={styles.assistantPanel} title={fr ? "Assistant Vistaire" : "Vistaire Assistant"}>{assistantEnabled ? <AdminAssistant locale={locale} range={bundle.window.range}/> : <div className={styles.emptyState}><strong>{fr ? "Assistant en validation" : "Assistant under validation"}</strong><p>{fr ? "Le drawer sera activé lorsque le quota distribué et les gates IA seront validés." : "The drawer will activate after distributed quota and AI gates are validated."}</p></div>}</AdminPanel>
     </div>
   </AdminShell>;
 }
