@@ -25,6 +25,9 @@ export function aggregatePrivateSearchPeriod(input: {
   minimumDistinctSessions: 3;
   audience: "ui" | "export" | "mistral";
 }): AdminMetricState<readonly SearchTermEvidence[]> {
+  if (input.minimumDistinctSessions < 3) {
+    throw new Error("Search privacy requires a minimum k=3 threshold.");
+  }
   const from = Date.parse(input.bounds.from);
   const to = Date.parse(input.bounds.to);
   const groups = new Map<string, { count: number; sessions: Set<string> }>();

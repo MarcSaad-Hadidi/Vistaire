@@ -34,3 +34,29 @@ test("same-origin guard rejects cross-site signals before ingestion", () => {
   assert.equal(isAnalyticsRequestSameOrigin({ secFetchSite: null, origin: null, expectedOrigin }), true);
   assert.equal(isAnalyticsRequestSameOrigin({ secFetchSite: "same-origin", origin: expectedOrigin, expectedOrigin }), true);
 });
+
+test("search ingestion rejects direct identifiers instead of persisting replacement markers", () => {
+  const searchBase = {
+    ...base,
+    eventName: "search_used",
+    dishSlug: undefined
+  };
+  for (const searchQuery of [
+    "marc@example.com",
+    "+1 514 555 0199",
+    "https://evil.example/menu",
+    "H2X 1Y4",
+    "12 rue Royale"
+  ]) {
+    const result = validateAnalyticsEvent({ ...searchBase, searchQuery });
+    assert.equal(result.ok, false, searchQuery);
+    assert.doesNotMatch(JSON.stringify(result), /\[email\]|\[telephone\]/i);
+  }
+
+  const safe = validateAnalyticsEvent({
+    ...searchBase,
+    searchQuery: "  sans\u202E   gluten  "
+  });
+  assert.equal(safe.ok, true);
+  assert.equal(safe.payload.searchQuery, "sans gluten");
+});

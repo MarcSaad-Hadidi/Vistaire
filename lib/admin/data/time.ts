@@ -22,28 +22,28 @@ export type AdminTimeBucket = Readonly<{
   utcOffset: string;
 }>;
 
-type LocalParts = { year: number; month: number; day: number; hour: number; minute: number; second: number };
+type LocalParts = { year: number; month: number; day: number; hour: number; minute: number; second: number; millisecond: number };
 
 function localParts(date: Date, timezone: IanaTimeZone): LocalParts {
   const parts = new Intl.DateTimeFormat("en-CA", {
     timeZone: timezone, hourCycle: "h23", year: "numeric", month: "2-digit", day: "2-digit",
-    hour: "2-digit", minute: "2-digit", second: "2-digit"
+    hour: "2-digit", minute: "2-digit", second: "2-digit", fractionalSecondDigits: 3
   }).formatToParts(date);
   const value = (type: Intl.DateTimeFormatPartTypes) => Number(parts.find((part) => part.type === type)?.value);
-  return { year: value("year"), month: value("month"), day: value("day"), hour: value("hour"), minute: value("minute"), second: value("second") };
+  return { year: value("year"), month: value("month"), day: value("day"), hour: value("hour"), minute: value("minute"), second: value("second"), millisecond: value("fractionalSecond") };
 }
 
 function addLocalDays(parts: LocalParts, amount: number): LocalParts {
-  const date = new Date(Date.UTC(parts.year, parts.month - 1, parts.day + amount, parts.hour, parts.minute, parts.second));
-  return { year: date.getUTCFullYear(), month: date.getUTCMonth() + 1, day: date.getUTCDate(), hour: date.getUTCHours(), minute: date.getUTCMinutes(), second: date.getUTCSeconds() };
+  const date = new Date(Date.UTC(parts.year, parts.month - 1, parts.day + amount, parts.hour, parts.minute, parts.second, parts.millisecond));
+  return { year: date.getUTCFullYear(), month: date.getUTCMonth() + 1, day: date.getUTCDate(), hour: date.getUTCHours(), minute: date.getUTCMinutes(), second: date.getUTCSeconds(), millisecond: date.getUTCMilliseconds() };
 }
 
 function localToInstant(parts: LocalParts, timezone: IanaTimeZone): Date {
-  const target = Date.UTC(parts.year, parts.month - 1, parts.day, parts.hour, parts.minute, parts.second);
+  const target = Date.UTC(parts.year, parts.month - 1, parts.day, parts.hour, parts.minute, parts.second, parts.millisecond);
   let guess = target;
   for (let attempt = 0; attempt < 6; attempt += 1) {
     const actual = localParts(new Date(guess), timezone);
-    const actualAsUtc = Date.UTC(actual.year, actual.month - 1, actual.day, actual.hour, actual.minute, actual.second);
+    const actualAsUtc = Date.UTC(actual.year, actual.month - 1, actual.day, actual.hour, actual.minute, actual.second, actual.millisecond);
     const delta = target - actualAsUtc;
     if (delta === 0) return new Date(guess);
     guess += delta;
@@ -68,8 +68,9 @@ export function resolveAdminObservationWindow(input: { range: AdminRange; observ
   if (!Number.isFinite(input.observedAt.getTime())) throw new Error("Invalid observation clock.");
   const dayCount = input.range === "today" ? 1 : input.range === "7d" ? 7 : 30;
   const cutoff = localParts(input.observedAt, input.timezone);
-  const currentStartLocal = addLocalDays({ ...cutoff, hour: 0, minute: 0, second: 0 }, -(dayCount - 1));
+  const currentStartLocal = addLocalDays({ ...cutoff, hour: 0, minute: 0, second: 0, millisecond: 0 }, -(dayCount - 1));
   const previousStartLocal = addLocalDays(currentStartLocal, -dayCount);
+  const previousCutoffLocal = addLocalDays(cutoff, -dayCount);
   const currentFrom = localToInstant(currentStartLocal, input.timezone).toISOString();
   return {
     range: input.range,
@@ -77,7 +78,10 @@ export function resolveAdminObservationWindow(input: { range: AdminRange; observ
     calendarDayCount: dayCount as 1 | 7 | 30,
     observedAt: input.observedAt.toISOString(),
     current: { from: currentFrom, to: input.observedAt.toISOString() },
-    previous: { from: localToInstant(previousStartLocal, input.timezone).toISOString(), to: currentFrom },
+    previous: {
+      from: localToInstant(previousStartLocal, input.timezone).toISOString(),
+      to: localToInstant(previousCutoffLocal, input.timezone).toISOString()
+    },
     alignment: "local-calendar-v1"
   };
 }

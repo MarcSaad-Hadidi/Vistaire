@@ -36,6 +36,17 @@ test("k=3 counts distinct sessions inside one period", () => {
   assert.doesNotMatch(JSON.stringify(admitted), /session/i);
 });
 
+test("privacy aggregation rejects caller thresholds below k=3", () => {
+  for (const minimumDistinctSessions of [0, 1, 2]) {
+    assert.throws(() => aggregatePrivateSearchPeriod({
+      events: [event("homard", "a"), event("homard", "b"), event("homard", "c")],
+      bounds,
+      minimumDistinctSessions,
+      audience: "ui"
+    }), /minimum.*3|k=3/i);
+  }
+});
+
 test("current and previous privacy thresholds never pool sessions", () => {
   const current = aggregatePrivateSearchPeriod({ events: [event("homard", "a"), event("homard", "b")], bounds, minimumDistinctSessions: 3, audience: "ui" });
   const previous = aggregatePrivateSearchPeriod({ events: [event("homard", "c")], bounds, minimumDistinctSessions: 3, audience: "ui" });

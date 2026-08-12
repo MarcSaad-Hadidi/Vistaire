@@ -37,12 +37,50 @@ test("Toronto fall day is 25 hours and keeps both 01 h offsets", () => {
 });
 
 test("7d and 30d comparisons preserve calendar-day count and local cutoff", () => {
-  for (const [range, days] of [["7d", 7], ["30d", 30]]) {
+  for (const [range, days, expectedPreviousCutoff] of [
+    ["7d", 7, "2026-03-03T20:30:00.000Z"],
+    ["30d", 30, "2026-02-08T20:30:00.000Z"]
+  ]) {
     const window = resolveAdminObservationWindow({
       range, timezone: "America/Toronto", observedAt: new Date("2026-03-10T19:30:00.000Z")
     });
     assert.equal(window.calendarDayCount, days);
-    assert.equal(window.previous.to, window.current.from);
+    const currentCutoff = new Intl.DateTimeFormat("en-CA", {
+      timeZone: "America/Toronto", hourCycle: "h23", hour: "2-digit", minute: "2-digit"
+    }).format(new Date(window.current.to));
+    const previousCutoff = new Intl.DateTimeFormat("en-CA", {
+      timeZone: "America/Toronto", hourCycle: "h23", hour: "2-digit", minute: "2-digit"
+    }).format(new Date(window.previous.to));
+    assert.equal(previousCutoff, currentCutoff);
+    assert.equal(window.previous.to, expectedPreviousCutoff);
     assert.equal(window.alignment, "local-calendar-v1");
   }
+});
+
+test("partial spring-forward day compares the same Toronto wall-clock cutoff", () => {
+  const window = resolveAdminObservationWindow({
+    range: "today", timezone: "America/Toronto", observedAt: new Date("2026-03-08T19:30:00.000Z")
+  });
+  assert.deepEqual(window.current, {
+    from: "2026-03-08T05:00:00.000Z",
+    to: "2026-03-08T19:30:00.000Z"
+  });
+  assert.deepEqual(window.previous, {
+    from: "2026-03-07T05:00:00.000Z",
+    to: "2026-03-07T20:30:00.000Z"
+  });
+});
+
+test("partial fall-back day compares the same Toronto wall-clock cutoff", () => {
+  const window = resolveAdminObservationWindow({
+    range: "today", timezone: "America/Toronto", observedAt: new Date("2026-11-01T20:30:00.000Z")
+  });
+  assert.deepEqual(window.current, {
+    from: "2026-11-01T04:00:00.000Z",
+    to: "2026-11-01T20:30:00.000Z"
+  });
+  assert.deepEqual(window.previous, {
+    from: "2026-10-31T04:00:00.000Z",
+    to: "2026-10-31T19:30:00.000Z"
+  });
 });
