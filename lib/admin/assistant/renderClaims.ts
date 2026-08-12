@@ -5,6 +5,34 @@ import type { AssistantAnswer, AssistantClaim, AssistantRenderedBlock } from "./
 
 type Locale = "fr" | "en";
 
+const RANKING_METRICS = new Set(["dish-ranking", "category-ranking", "private-search-ranking"]);
+const ATTENTION_METRICS = new Set([
+  "observed-menu-opens",
+  "observed-dish-opens",
+  "observed-immersive-intents",
+  "observed-ar-intents",
+  "observed-sessions"
+]);
+
+function assertClaimEvidenceCompatibility(claim: AssistantClaim, records: readonly AdminEvidenceRecord[]) {
+  if (claim.claimType === "period-comparison") {
+    const [first, ...rest] = records;
+    if (rest.some((record) => record.metricId !== first.metricId || record.definitionVersion !== first.definitionVersion)) {
+      throw new Error("Comparison evidence must share one metric definition.");
+    }
+    if (RANKING_METRICS.has(first.metricId)) throw new Error("Ranking evidence cannot be compared as a scalar.");
+  }
+  if (claim.claimType === "rank-observation" && records.some((record) => !RANKING_METRICS.has(record.metricId))) {
+    throw new Error("Rank claims require ranking evidence.");
+  }
+  if (claim.claimType === "attention-observation" && records.some((record) => !ATTENTION_METRICS.has(record.metricId))) {
+    throw new Error("Attention claims require observed attention evidence.");
+  }
+  if (claim.claimType === "metric-observation" && records.some((record) => RANKING_METRICS.has(record.metricId))) {
+    throw new Error("Ranking evidence requires a rank claim.");
+  }
+}
+
 function count(record: AdminEvidenceRecord): number | null {
   if (record.state.kind !== "available") return null;
   const value = record.state.value;
@@ -28,6 +56,7 @@ function renderClaim(locale: Locale, bundle: AdminEvidenceBundle, claim: Assista
   const requirement = ASSISTANT_CLAIM_REQUIREMENTS[claim.claimType];
   if (claim.evidenceIds.length < requirement.minimum || claim.evidenceIds.length > requirement.maximum) throw new Error("Invalid evidence cardinality.");
   const records = requireEvidenceReferences(bundle, { bundleId: bundle.bundleId, evidenceIds: claim.evidenceIds }, "mistral");
+  assertClaimEvidenceCompatibility(claim, records);
   if (claim.claimType === "period-comparison") {
     const current = records.find((record) => record.period === "current");
     const previous = records.find((record) => record.period === "previous");
