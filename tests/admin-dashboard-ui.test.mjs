@@ -157,9 +157,7 @@ test("admin visual system is scoped, locally typeset and accessible", async () =
 
   assert.match(shell, /<main/);
   assert.match(nav, /<nav[^>]+aria-label=/);
-  assert.match(nav, /Vue d.ensemble/);
-  assert.match(nav, /Disponibilit.s/);
-  assert.match(nav, /Analyses/);
+  assert.match(shell, /active \? <div hidden><AdminTabs active=\{active\} \/><\/div> : null/);
   assert.match(nav, /D.connexion/);
   assert.doesNotMatch(source, /Param.tres|Assistant|\/owner|sidebar/i);
 

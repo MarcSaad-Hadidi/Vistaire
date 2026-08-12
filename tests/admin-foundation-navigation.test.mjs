@@ -35,7 +35,7 @@ test("AdminShell keeps the legacy route API while rendering canonical navigation
   assert.match(shell, /normalizeLegacyAdminRoute\((?:props\.)?active\)/);
   assert.match(shell, /<AdminNav active=\{canonicalActive\} locale="fr" variant="desktop"\s*\/>/);
   assert.match(shell, /<AdminNav active=\{canonicalActive\} locale="fr" variant="mobile"\s*\/>/);
-  assert.match(shell, /hidden[^>]*>[\s\S]*<AdminTabs active=\{active\}/);
+  assert.match(shell, /active \? <div hidden><AdminTabs active=\{active\} \/><\/div> : null/);
 });
 
 test("foundation and legacy browser specs stay local, unskipped, and cover five labels", async () => {
@@ -51,6 +51,8 @@ test("foundation and legacy browser specs stay local, unskipped, and cover five 
   assert.match(foundation, /127\.0\.0\.1/);
   assert.match(foundation, /\[::1\]/);
   assert.match(foundation, /route\.abort\(["']blockedbyclient["']\)/);
+  assert.match(foundation, /page\.routeWebSocket\(/);
+  assert.match(foundation, /webSocketRoute\.close\(/);
   for (const label of ["Aujourd’hui", "Disponibilités", "Intelligence", "Rapports", "Plus"]) {
     assert.match(foundation, new RegExp(label));
   }

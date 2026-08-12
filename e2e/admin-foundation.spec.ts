@@ -15,13 +15,23 @@ async function enterLocalPreview(page: Page) {
 test.beforeEach(async ({ page }) => {
   await page.route("**/*", async (route) => {
     const requestUrl = new URL(route.request().url());
-    const isNetworkRequest = ["http:", "https:", "ws:", "wss:"].includes(requestUrl.protocol);
+    const isNetworkRequest = ["http:", "https:"].includes(requestUrl.protocol);
     const isLoopback = ["localhost", "127.0.0.1", "[::1]"].includes(requestUrl.hostname);
     if (isNetworkRequest && !isLoopback) {
       await route.abort("blockedbyclient");
       throw new Error(`Admin Foundation blocked a non-loopback request to ${requestUrl.protocol}//blocked.invalid`);
     }
     await route.continue();
+  });
+
+  await page.routeWebSocket("**/*", async (webSocketRoute) => {
+    const requestUrl = new URL(webSocketRoute.url());
+    const isLoopback = ["localhost", "127.0.0.1", "[::1]"].includes(requestUrl.hostname);
+    if (!isLoopback) {
+      await webSocketRoute.close({ code: 1008, reason: "Non-loopback connection blocked" });
+      throw new Error(`Admin Foundation blocked a non-loopback WebSocket to ${requestUrl.protocol}//blocked.invalid`);
+    }
+    webSocketRoute.connectToServer();
   });
 });
 

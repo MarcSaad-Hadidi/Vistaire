@@ -34,7 +34,6 @@ export function AdminNav({ active, locale, variant }: AdminNavProps) {
     en: { desktop: "Primary restaurant navigation", mobile: "Restaurant navigation" }
   } as const;
 
-  // The hidden legacy AdminTabs retains “Vue d’ensemble”, “Disponibilités” and “Analyses”; this nav exposes vNext labels.
   return (
     <nav
       aria-label={navigationLabels[locale][variant]}
