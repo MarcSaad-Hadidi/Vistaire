@@ -45,6 +45,13 @@ test("availability scheduling migration is scoped, idempotent, locked and servic
   assert.match(sql, /grant execute on function[^;]+to service_role/is);
   assert.match(sql, /last_attempt_at/i);
   assert.match(sql, /last_success_at/i);
+  assert.doesNotMatch(sql, /revoke all on all sequences in schema public/i);
+  assert.match(sql, /mark_admin_availability_worker_attempt/i);
+  assert.match(sql, /cancel_admin_dish_availability\s*\(p_qr_id uuid,\s*p_restaurant_id uuid,\s*p_dish_id uuid,\s*p_schedule_id uuid\)/is);
+  assert.match(sql, /s\.dish_id\s*=\s*p_dish_id/i);
+  assert.match(sql, /drop trigger if exists admin_availability_events_append_only/i);
+  assert.match(sql, /add constraint admin_availability_events_schedule_fk[\s\S]*not valid/i);
+  assert.match(sql, /validate constraint admin_availability_events_schedule_fk/i);
   assert.match(sql, /create or replace function public\.set_admin_dish_availability[\s\S]+insert into public\.admin_dish_availability_events/i);
   assert.doesNotMatch(sql, /^\s*(?:delete\s+from|truncate\s+table)\b/im);
 });

@@ -45,16 +45,23 @@ test("view model preserves server totals, locale and timezone without inventing 
 });
 
 test("availability UI owns premium operational hierarchy and honest degraded state", async () => {
+  const route = await readFile("app/admin/availability/page.tsx", "utf8");
   const page = await readFile("components/admin/availability/AdminAvailabilityList.tsx", "utf8");
   const notice = await readFile("components/admin/availability/AvailabilityCapabilityNotice.tsx", "utf8");
   const form = await readFile("components/admin/availability/AvailabilityScheduleForm.tsx", "utf8");
+  const schedules = await readFile("components/admin/availability/AvailabilityScheduleList.tsx", "utf8");
   const history = await readFile("components/admin/availability/AvailabilityHistory.tsx", "utf8");
   const css = await readFile("components/admin/availability/AdminAvailability.module.css", "utf8");
   assert.match(page, /Gestion opérationnelle|Gestion opÃ©rationnelle/);
-  assert.match(page, /Retours planifiés|Retours planifiÃ©s/);
+  assert.match(schedules, /Retours planifiés|Retours planifiÃ©s/);
   assert.match(history, /Historique récent|Historique rÃ©cent/);
   assert.match(notice, /capability\.kind/);
   assert.match(form, /maxLength=\{120\}/);
+  assert.match(route, /capabilities\.includes\("dish:availability:write"\)/);
+  assert.match(page, /canWrite=\{canWrite\}/);
+  assert.match(page, /AvailabilityScheduleList/);
+  assert.match(page, /canWrite=\{canWrite && capability\.kind === "available"\}/);
+  assert.doesNotMatch(page, /capability\.kind === "available" \? "Aucun retour/);
   assert.doesNotMatch(`${page}\n${form}`, /localStorage|sessionStorage/);
   assert.match(css, /@media \(max-width:\s*700px\)/);
   assert.match(css, /overflow-x:\s*clip/);

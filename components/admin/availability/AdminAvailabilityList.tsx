@@ -6,10 +6,11 @@ import { AdminDishAvailabilityControl } from "@/components/admin/AdminDishAvaila
 import { AlertIcon, CheckIcon, MenuOpenIcon, SearchIcon } from "@/components/admin/system/AdminIcons";
 import { AdminStatusBadge, AdminToast } from "@/components/admin/system/AdminPrimitives";
 import type { AdminMenuDish } from "@/lib/admin/menuReadiness";
-import type { AvailabilitySchedulingCapability } from "@/lib/admin/availability/contracts";
+import type { AvailabilityOperationsState, AvailabilitySchedulingCapability } from "@/lib/admin/availability/contracts";
 import { AvailabilityCapabilityNotice } from "./AvailabilityCapabilityNotice";
 import { AvailabilityHistory } from "./AvailabilityHistory";
 import { AvailabilityScheduleForm } from "./AvailabilityScheduleForm";
+import { AvailabilityScheduleList } from "./AvailabilityScheduleList";
 import { resolveAvailabilityForSource, type AvailabilityFeedback, type AvailabilityOverride } from "./availabilityMutation";
 import styles from "./AdminAvailability.module.css";
 
@@ -17,7 +18,7 @@ type Filter = "all" | "available" | "unavailable";
 type AvailabilityState = { source: AdminMenuDish[]; overrides: Record<string, AvailabilityOverride> };
 const filters: Array<{ id: Filter; label: string }> = [{ id: "all", label: "Tous" }, { id: "available", label: "Disponibles" }, { id: "unavailable", label: "Indisponibles" }];
 
-export function AdminAvailabilityList({ dishes, capability }: { dishes: AdminMenuDish[]; capability: AvailabilitySchedulingCapability }) {
+export function AdminAvailabilityList({ dishes, capability, canWrite, operations, timezone }: { dishes: AdminMenuDish[]; capability: AvailabilitySchedulingCapability; canWrite: boolean; operations: AvailabilityOperationsState; timezone: string }) {
   const [filter, setFilter] = useState<Filter>("all");
   const [query, setQuery] = useState("");
   const [selectedDish, setSelectedDish] = useState<string | undefined>();
@@ -40,11 +41,11 @@ export function AdminAvailabilityList({ dishes, capability }: { dishes: AdminMen
       <div className={styles.controls}><label><span className="sr-only">Rechercher un plat</span><SearchIcon aria-hidden="true"/><input type="search" placeholder="Rechercher un plat…" value={query} onChange={(event) => setQuery(event.target.value)}/></label><div className={styles.filters} aria-label="Filtrer les plats">{filters.map((item) => <button key={item.id} type="button" aria-pressed={filter === item.id} onClick={() => setFilter(item.id)}><span>{item.label}</span><small aria-hidden="true">{filterCount[item.id]}</small></button>)}</div></div>
       <div className={styles.list}>{visible.map((dish, index) => <article className={styles.row} key={dish.id} data-admin-menu-dish data-dish-id={dish.id} data-category-id={dish.categorySlug ?? dish.category} data-available={dish.available}>
         <AdminDishThumbnail name={dish.name} thumbnailUrl={dish.thumbnailUrl} imageUrl={dish.imageUrl} priority={index === 0}/><div className={styles.identity}><h3>{dish.name}</h3><p>{dish.category}</p></div><AdminStatusBadge tone={dish.available ? "available" : "unavailable"}>{dish.available ? "Disponible" : "Indisponible"}</AdminStatusBadge>
-        {!dish.available && capability.kind === "available" ? <button className={styles.planButton} type="button" onClick={() => setSelectedDish(dish.id)}>Planifier</button> : null}
-        <AdminDishAvailabilityControl key={`${dish.id}:${dish.available}`} dishId={dish.id} dishName={dish.name} initialAvailable={dish.available} onAvailabilityChange={(value) => setAvailability((state) => ({ source: dishes, overrides: { ...(state.source === dishes ? state.overrides : {}), [dish.id]: { base: dish.available, value } } }))} onFeedback={setFeedback}/>
+        {!dish.available && canWrite && capability.kind === "available" ? <button className={styles.planButton} type="button" onClick={() => setSelectedDish(dish.id)}>Planifier</button> : null}
+        <AdminDishAvailabilityControl key={`${dish.id}:${dish.available}`} dishId={dish.id} dishName={dish.name} initialAvailable={dish.available} canWrite={canWrite} onAvailabilityChange={(value) => setAvailability((state) => ({ source: dishes, overrides: { ...(state.source === dishes ? state.overrides : {}), [dish.id]: { base: dish.available, value } } }))} onFeedback={setFeedback}/>
       </article>)}</div>
       <p className="sr-only" aria-live="polite">{visible.length} résultat{visible.length > 1 ? "s" : ""} affiché{visible.length > 1 ? "s" : ""}.</p>{visible.length === 0 ? <p className={styles.empty} role="status">Aucun plat ne correspond à cette recherche.</p> : null}
-    </div><aside className={styles.rail} aria-label="Opérations de disponibilité"><AvailabilityCapabilityNotice capability={capability}/><AvailabilityScheduleForm capability={capability} dishName={selected?.name}/><section className={styles.railCard}><h2>Retours planifiés</h2><p>{capability.kind === "available" ? "Aucun retour n’est planifié." : "Aucun retour exécutable n’est disponible."}</p></section><AvailabilityHistory /></aside></div>
+    </div><aside className={styles.rail} aria-label="Opérations de disponibilité"><AvailabilityCapabilityNotice capability={capability}/><AvailabilityScheduleForm capability={capability} dishId={selected?.id} dishName={selected?.name}/><AvailabilityScheduleList operations={operations} dishes={dishes} canWrite={canWrite && capability.kind === "available"} timezone={timezone}/><AvailabilityHistory operations={operations} dishes={dishes} timezone={timezone}/></aside></div>
     {feedback.message ? <AdminToast tone={feedback.tone === "error" ? "error" : "success"}>{feedback.message}</AdminToast> : null}
   </section>;
 }
