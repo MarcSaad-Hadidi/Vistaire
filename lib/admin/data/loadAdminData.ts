@@ -6,12 +6,14 @@ import type { AdminInstrumentationCoverage } from "./instrumentation.ts";
 import { resolveAdminObservationWindow, resolveAdminTimeZone } from "./time.ts";
 
 type GrantedAdminAccess = Extract<AdminRestaurantAccessResult, { ok: true }>;
+type RestaurantRead = { ok: true; restaurant: null | { id: string; name: string; slug: string } } | { ok: false; code: string; retryable: boolean };
 type MenuRead = { ok: true; menu: null | { id: string; restaurantId: string; settingsJson: unknown; updatedAt: string } } | { ok: false; code: string; retryable: boolean };
 type CatalogRead = { ok: true; categories: readonly unknown[]; dishes: readonly unknown[] } | { ok: false; code: string; retryable: boolean };
 type EventRead = { ok: true; events: readonly Readonly<{ eventName?: string; event_name?: string }>[]; truncated: boolean; observedRows: number; rowLimit: number } | { ok: false; code: string; retryable: boolean };
 
 export type AdminDataDependencies = Readonly<{
   now: () => Date;
+  readRestaurant: (input: { restaurantId: string }) => Promise<RestaurantRead>;
   readMenu: (input: { restaurantId: string }) => Promise<MenuRead>;
   readCatalog: (scope: ProductionAdminMetricScope) => Promise<CatalogRead>;
   readEvents: (input: { scope: ProductionAdminMetricScope; window: { from: string; to: string }; maxRows: number }) => Promise<EventRead>;
@@ -49,6 +51,12 @@ export async function loadAdminDataBundleWithDependencies(
   input: { access: GrantedAdminAccess; range: AdminRange },
   dependencies: AdminDataDependencies
 ) {
+  const restaurantRead = await dependencies.readRestaurant({ restaurantId: input.access.restaurantId });
+  if (!restaurantRead.ok || !restaurantRead.restaurant ||
+      restaurantRead.restaurant.id !== input.access.restaurantId ||
+      !restaurantRead.restaurant.name.trim() || !restaurantRead.restaurant.slug.trim()) {
+    return { ok: false as const, error: { code: "configuration" as const, retryable: false } };
+  }
   const menuRead = await dependencies.readMenu({ restaurantId: input.access.restaurantId });
   if (!menuRead.ok || !menuRead.menu || menuRead.menu.restaurantId !== input.access.restaurantId) {
     return { ok: false as const, error: { code: "configuration" as const, retryable: false } };
@@ -95,13 +103,22 @@ export async function loadAdminDataBundleWithDependencies(
   }
 
   const bundle = buildAdminEvidenceBundle({ scope, window, generatedAt: window.observedAt, records });
-  return { ok: true as const, bundle, timezoneResolution };
+  return {
+    ok: true as const,
+    bundle,
+    timezoneResolution,
+    presentation: {
+      restaurantName: restaurantRead.restaurant.name.trim(),
+      publicMenuPath: `/menu/${encodeURIComponent(restaurantRead.restaurant.slug.trim())}`
+    }
+  };
 }
 
 export async function loadAdminDataBundle(access: GrantedAdminAccess, range: AdminRange) {
   const repository = await import("./repository.ts");
   return loadAdminDataBundleWithDependencies({ access, range }, {
     now: () => new Date(),
+    readRestaurant: repository.readProductionAdminRestaurant,
     readMenu: repository.readProductionAdminMenu,
     readCatalog: repository.readProductionAdminCatalog,
     readEvents: repository.readProductionAdminEvents,

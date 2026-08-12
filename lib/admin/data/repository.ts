@@ -25,6 +25,7 @@ async function execute(request: AdminRepositoryRequest) {
 
 const repository = createProductionAdminRepositoryCore(execute);
 
+export function readProductionAdminRestaurant(input: { restaurantId: string }) { return repository.readRestaurant(input); }
 export function readProductionAdminMenu(input: { restaurantId: string }) { return repository.readMenu(input); }
 export function readProductionAdminCatalog(scope: ProductionAdminMetricScope) { return repository.readCatalog(scope); }
 export function readProductionAdminEvents(input: { scope: ProductionAdminMetricScope; window: AdminPeriodBounds; maxRows: number }) { return repository.readEvents(input); }
