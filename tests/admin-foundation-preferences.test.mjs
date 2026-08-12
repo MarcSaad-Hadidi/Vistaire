@@ -79,6 +79,30 @@ test("admin preference endpoint writes one scoped hardened cookie", async () => 
   assert.equal(response.headers.get("referrer-policy"), "no-referrer");
 });
 
+test("admin preference endpoint preserves a validated loopback origin in development", async () => {
+  const previousNodeEnv = process.env.NODE_ENV;
+  process.env.NODE_ENV = "development";
+  try {
+    const request = new NextRequest("http://localhost:3015/admin/preferences", {
+      method: "POST",
+      body: "kind=locale&value=en",
+      headers: {
+        "content-type": "application/x-www-form-urlencoded",
+        host: "127.0.0.1:3015",
+        origin: "http://127.0.0.1:3015",
+        referer: "http://127.0.0.1:3015/admin/insights?range=30d",
+        "sec-fetch-site": "same-origin"
+      }
+    });
+    const response = await POST(request);
+    assert.equal(response.status, 303);
+    assert.equal(response.headers.get("location"), "http://127.0.0.1:3015/admin/insights?range=30d");
+  } finally {
+    if (previousNodeEnv === undefined) delete process.env.NODE_ENV;
+    else process.env.NODE_ENV = previousNodeEnv;
+  }
+});
+
 test("admin preference endpoint fails closed before form parsing", async () => {
   const cases = [
     preferenceRequest("kind=locale&value=EN"),

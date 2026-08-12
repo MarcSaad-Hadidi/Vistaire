@@ -53,6 +53,10 @@ test("foundation and legacy browser specs stay local, unskipped, and cover five 
   assert.match(foundation, /route\.abort\(["']blockedbyclient["']\)/);
   assert.match(foundation, /page\.routeWebSocket\(/);
   assert.match(foundation, /webSocketRoute\.close\(/);
+  assert.match(
+    foundation,
+    /test\(["']accessibility keeps navigation targets[\s\S]*?await enterLocalPreview\(page\)/
+  );
   for (const label of ["Aujourd’hui", "Disponibilités", "Intelligence", "Rapports", "Plus"]) {
     assert.match(foundation, new RegExp(label));
   }
