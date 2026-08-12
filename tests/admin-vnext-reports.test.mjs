@@ -1,0 +1,134 @@
+import assert from "node:assert/strict";
+import test from "node:test";
+import { buildAdminEvidenceBundle } from "../lib/admin/data/evidenceRegistry.ts";
+import {
+  buildAdminReport,
+  parseAdminReportFilters
+} from "../lib/admin/reports/buildReport.ts";
+
+const scope = {
+  restaurantId: "restaurant-private",
+  menuId: "menu-private",
+  source: "production",
+  timezone: "America/Toronto"
+};
+const window = {
+  range: "today",
+  timezone: "America/Toronto",
+  calendarDayCount: 1,
+  observedAt: "2026-05-19T20:42:00.000Z",
+  current: { from: "2026-05-19T04:00:00.000Z", to: "2026-05-19T20:42:00.000Z" },
+  previous: { from: "2026-05-18T04:00:00.000Z", to: "2026-05-18T20:42:00.000Z" },
+  alignment: "local-calendar-v1"
+};
+
+function record(metricId, period, state, overrides = {}) {
+  return {
+    metricId,
+    period,
+    state,
+    definitionVersion: "admin-vnext-observed-v1",
+    labelKey: `metrics.${metricId}`,
+    provenance: {
+      source: "production",
+      timezone: "America/Toronto",
+      alignment: "local-calendar-v1"
+    },
+    freshness: { generatedAt: window.observedAt },
+    sample: { state: state.kind },
+    privacy: { classification: "aggregate", promptUnsafe: false },
+    audiences: ["ui", "export", "mistral"],
+    ...overrides
+  };
+}
+
+function bundle(records) {
+  return buildAdminEvidenceBundle({ scope, window, generatedAt: window.observedAt, records });
+}
+
+test("report filters are closed allowlists", () => {
+  assert.deepEqual(parseAdminReportFilters({ range: "30d", service: "dinner" }), { range: "30d", service: "dinner" });
+  assert.deepEqual(parseAdminReportFilters({ range: "forever", service: "brunch" }), { range: "today", service: "all" });
+  assert.deepEqual(parseAdminReportFilters({ range: ["7d"], service: ["lunch"] }), { range: "today", service: "all" });
+});
+
+test("available report comparisons preserve every evidence id and avoid forbidden metrics", () => {
+  const report = buildAdminReport({
+    locale: "fr",
+    range: "today",
+    service: "all",
+    bundle: bundle([
+      record("observed-menu-opens", "current", { kind: "available", value: { count: 1248 } }),
+      record("observed-menu-opens", "previous", { kind: "available", value: { count: 1056 } }),
+      record("observed-dish-opens", "current", { kind: "available", value: { count: 2315 } }),
+      record("observed-dish-opens", "previous", { kind: "available", value: { count: 1892 } }),
+      record("activity-series", "current", { kind: "available", value: [{ key: "20:00", count: 142 }] }),
+      record("dish-ranking", "current", { kind: "available", value: [{ key: "filet-rossini", count: 412, rank: 1 }] }),
+      record("private-search-ranking", "current", { kind: "available", value: [{ term: "sans gluten", count: 186 }] })
+    ])
+  });
+
+  assert.equal(report.locale, "fr");
+  assert.equal(report.metrics[0].comparison.state.kind, "available");
+  assert.deepEqual(report.metrics[0].comparison.evidenceIds.length, 2);
+  assert.equal(report.metrics[0].comparison.value.changeRate, 192 / 1056);
+  assert.deepEqual(report.timeline.evidenceIds.length, 1);
+  assert.deepEqual(report.topDishes.evidenceIds.length, 1);
+  assert.deepEqual(report.searches.evidenceIds.length, 1);
+  assert.equal(report.highlights.every((item) => item.evidenceIds.length > 0), true);
+  assert.doesNotMatch(JSON.stringify(report), /revenue|sales|orders|conversion|chiffre d.affaires|ventes|commandes/i);
+  assert.doesNotMatch(JSON.stringify(report), /restaurant-private|menu-private/);
+});
+
+test("zero baseline exposes the absolute delta but never a rate", () => {
+  const report = buildAdminReport({
+    locale: "en",
+    range: "7d",
+    service: "all",
+    bundle: bundle([
+      record("observed-menu-opens", "current", { kind: "available", value: { count: 4 } }),
+      record("observed-menu-opens", "previous", { kind: "available", value: { count: 0 } })
+    ])
+  });
+  assert.deepEqual(report.metrics[0].comparison.value, { count: 4, previousCount: 0, delta: 4, changeRate: null });
+});
+
+test("incompatible definitions, timezones and alignment fail closed", () => {
+  for (const incompatiblePrevious of [
+    record("observed-menu-opens", "previous", { kind: "available", value: { count: 8 } }, { definitionVersion: "other-v2" }),
+    record("observed-menu-opens", "previous", { kind: "available", value: { count: 8 } }, { provenance: { source: "production", timezone: "UTC", alignment: "local-calendar-v1" } }),
+    record("observed-menu-opens", "previous", { kind: "available", value: { count: 8 } }, { provenance: { source: "production", timezone: "America/Toronto", alignment: "rolling-window-v1" } })
+  ]) {
+    const report = buildAdminReport({
+      locale: "fr",
+      range: "today",
+      service: "all",
+      bundle: bundle([
+        record("observed-menu-opens", "current", { kind: "available", value: { count: 10 } }),
+        incompatiblePrevious
+      ])
+    });
+    assert.deepEqual(report.metrics[0].comparison.state, { kind: "insufficient", reason: "comparison-unavailable" });
+    assert.equal(report.metrics[0].comparison.value, null);
+  }
+});
+
+test("absence states and service slices remain explicit instead of estimating", () => {
+  const states = [
+    { kind: "insufficient", reason: "sample-too-small" },
+    { kind: "unmeasured", reason: "instrumentation-unverified" },
+    { kind: "truncated", observedRows: 10001, rowLimit: 10000 }
+  ];
+  const report = buildAdminReport({
+    locale: "fr",
+    range: "today",
+    service: "lunch",
+    bundle: bundle(states.flatMap((state, index) => [
+      record(["observed-menu-opens", "observed-dish-opens", "observed-immersive-intents"][index], "current", state)
+    ]))
+  });
+  assert.equal(report.service, "lunch");
+  assert.equal(report.metrics.every((item) => item.current.state.kind === "unmeasured"), true);
+  assert.equal(report.timeline.state.kind, "unmeasured");
+  assert.match(report.metrics[0].current.copy, /dÃ©coupage|service/i);
+});
