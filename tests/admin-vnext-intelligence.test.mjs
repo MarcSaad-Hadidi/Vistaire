@@ -74,7 +74,11 @@ test("all Intelligence E2E specs are hermetic, token-free and cannot silently sk
     assert.doesNotMatch(spec, /test\.(?:skip|fixme)/);
     assert.doesNotMatch(spec, /VISTAIRE_ADMIN_E2E_QR_TOKEN/);
     assert.match(spec, /routeWebSocket/);
-    assert.match(spec, /LOOPBACK/);
+    assert.match(spec, /LOOPBACK|appOrigin/);
+    if (/appOrigin/.test(spec)) {
+      assert.match(spec, /fixtureOrigin/);
+      assert.match(spec, /allowedOrigins/);
+    }
   }
 });
 

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { execFile } from "node:child_process";
-import { promisify } from "node:util";
+import { createHash } from "node:crypto";
+import { readFile } from "node:fs/promises";
 import { loadAdminDataBundleWithDependencies } from "../lib/admin/data/loadAdminData.ts";
 
 const access = { ok: true, sessionKind: "qr", assurance: "live-admin-qr", qrId: "q1", restaurantId: "r1", expiresAt: 1, capabilities: ["dashboard:read"] };
@@ -76,6 +76,15 @@ test("missing or incomplete scoped restaurant presentation fails before downstre
 });
 
 test("legacy admin analytics facades remain byte-for-byte unchanged from the frozen base", async () => {
-  const files = ["lib/admin/dashboardData.ts", "lib/admin/dashboardRange.ts", "lib/admin/analyticsState.ts", "lib/admin/analyticsPresentation.ts"];
-  await promisify(execFile)("git", ["diff", "--exit-code", "a8f321fdb33cbb12dda6249e37a60a679183d4ea", "--", ...files]);
+  const frozenHashes = new Map([
+    ["lib/admin/dashboardData.ts", "3c53bd7bc2131d4e0927c2ffaa28c630160d9197b97378c21526240d526b3d2c"],
+    ["lib/admin/dashboardRange.ts", "fe29abeae76eb1b372b0f40713fe201013214c5fda42a6c287e2aea407e00d98"],
+    ["lib/admin/analyticsState.ts", "3310b4f8725b373555c286687787d781ea4e8fb874264b559e7f6bacd891a09d"],
+    ["lib/admin/analyticsPresentation.ts", "117dd47425e08ce9262c5c32aaf96569fa1b14e3f94ab70d4167ff9dc0703106"],
+  ]);
+
+  for (const [file, expectedHash] of frozenHashes) {
+    const source = (await readFile(file, "utf8")).replaceAll("\r\n", "\n");
+    assert.equal(createHash("sha256").update(source, "utf8").digest("hex"), expectedHash, file);
+  }
 });

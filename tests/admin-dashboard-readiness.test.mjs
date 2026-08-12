@@ -131,7 +131,8 @@ test("admin dashboard stays locked without a QR session and remains noindex", as
   assert.match(page, /Accès dashboard restaurant requis/);
   assert.match(page, /Scannez le QR admin interne de votre restaurant\./);
   assert.doesNotMatch(page, /getDemoRestaurantId|searchParams\?\.|searchParams\[/);
-  assert.match(page, /parseAdminPageSearchParams\(await searchParams\)/);
+  assert.match(page, /const params = await searchParams/);
+  assert.match(page, /parseAdminPageSearchParams\(params[\s\S]*\)/);
   assert.doesNotMatch(page, /href=["']\/owner\//);
   assert.match(layout, /index:\s*false/);
   assert.match(layout, /noarchive:\s*true/);
@@ -184,17 +185,19 @@ test("admin page and loader delegate fallback handling to the analytics state bo
 test("admin page loads only the authorized restaurant and renders the dashboard data contract", async () => {
   const page = await readFile("app/admin/page.tsx", "utf8");
   const dashboard = await readFile(
-    "components/admin/AdminRestaurantDashboard.tsx",
+    "components/admin/today/AdminTodayPage.tsx",
     "utf8"
   );
 
-  assert.match(page, /import\s*\{\s*loadAdminDashboardData\s*\}/);
-  assert.match(page, /const\s+result\s*=\s*await\s+loadAdminDashboardData\(access\.restaurantId, range\)/);
+  assert.match(page, /import\s*\{\s*loadAdminDataBundle\s*\}/);
+  assert.match(page, /const\s+result\s*=\s*await\s+loadAdminDataBundle\(access, range\)/);
   assert.match(page, /if\s*\(!result\.ok\)/);
-  assert.match(page, /<AdminOverview\s+data=\{result\.data\}\s+range=\{range\}\s*\/>/);
+  assert.match(page, /buildTodayViewModel\(\{ locale: preferences\.locale, bundle: result\.bundle \}\)/);
+  assert.match(page, /<AdminTodayPage/);
+  assert.match(page, /restaurantName=\{result\.presentation\.restaurantName\}/);
+  assert.match(page, /menuPath=\{result\.presentation\.publicMenuPath\}/);
   assert.doesNotMatch(page, /getDemo|getRestaurantInsights|@\/lib\/analytics\/insights/);
-  assert.match(dashboard, /data\.menu/);
-  assert.match(dashboard, /data\.restaurant\.publicMenuPath/);
-  assert.match(dashboard, /state=\{data\.analytics\}/);
-  assert.doesNotMatch(dashboard, /adaptDashboardData|ViewData|data\.dishes|data\.readiness|data\.restaurant\.menuPath|case\s*["'](?:partial|empty|preview)/);
+  assert.match(dashboard, /model:\s*TodayViewModel/);
+  assert.match(dashboard, /activeRoute="today"/);
+  assert.doesNotMatch(dashboard, /adaptDashboardData|ViewData|getDemo|fixture/i);
 });
