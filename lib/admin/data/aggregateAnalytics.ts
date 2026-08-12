@@ -20,7 +20,8 @@ export function aggregateObservedMetric(input: {
   });
   if (!covered) return { kind: "unmeasured", reason: "instrumentation-unverified" };
   const count = input.events.filter((event) => (event.eventName ?? event.event_name) === input.eventName).length;
-  if (count > 0 && count < (input.minimumSample ?? 0)) return { kind: "insufficient", reason: "sample-too-small" };
+  const minimumSample = input.minimumSample === undefined ? 0 : input.minimumSample;
+  if (count > 0 && count < minimumSample) return { kind: "insufficient", reason: "sample-too-small" };
   return { kind: "available", value: { count } };
 }
 
