@@ -38,6 +38,16 @@ test("AdminShell keeps the legacy route API while rendering canonical navigation
   assert.match(shell, /active \? <div hidden><AdminTabs active=\{active\} \/><\/div> : null/);
 });
 
+test("AdminShell gives vnext routes one page heading while preserving restaurant identity", async () => {
+  const shell = await read("components/admin/system/AdminShell.tsx");
+
+  assert.match(shell, /pageTitle\?:\s*string/);
+  assert.match(shell, /pageDescription\?:\s*string/);
+  assert.match(shell, /pageTitle \? restaurantName : ["']Dashboard restaurant["']/);
+  assert.match(shell, /<h1>\{pageTitle \?\? restaurantName\}<\/h1>/);
+  assert.equal((shell.match(/<h1>/g) ?? []).length, 1);
+});
+
 test("foundation and legacy browser specs stay local, unskipped, and cover five labels", async () => {
   const [foundation, legacy] = await Promise.all([
     read("e2e/admin-foundation.spec.ts"),

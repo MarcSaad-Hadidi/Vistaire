@@ -18,6 +18,8 @@ type AdminShellRouteProps =
 export type AdminShellProps = AdminShellRouteProps & {
   restaurantName: string;
   menuPath: string;
+  pageTitle?: string;
+  pageDescription?: string;
   headerDetails?: ReactNode;
   headerStatus?: ReactNode;
   children: ReactNode;
@@ -25,7 +27,10 @@ export type AdminShellProps = AdminShellRouteProps & {
 
 export async function AdminShell(props: AdminShellProps) {
   const preferences = readAdminPreferencesFromHeaders(await headers());
-  const { restaurantName, menuPath, headerDetails, headerStatus, children } = props;
+  const {
+    restaurantName, menuPath, pageTitle, pageDescription,
+    headerDetails, headerStatus, children
+  } = props;
   const active = "active" in props ? props.active : undefined;
   let canonicalActive: AdminRouteId;
   if ("activeRoute" in props && props.activeRoute) {
@@ -48,13 +53,13 @@ export async function AdminShell(props: AdminShellProps) {
     <div className={`${styles.dashboard} ${routeClass}`}>
       <header className={styles.header} {...(insights ? { "data-insights-header": true } : {})}>
         <div className={styles.headerIdentity}>
-          <p className={styles.brand}>Dashboard restaurant</p>
-          <h1>{restaurantName}</h1>
+          <p className={styles.brand}>{pageTitle ? restaurantName : "Dashboard restaurant"}</p>
+          <h1>{pageTitle ?? restaurantName}</h1>
           <div className={styles.headerLower}>
             <p className={styles.subtitle} data-admin-subtitle>
-              {insights
+              {pageDescription ?? (insights
                 ? "Analyses détaillées et insights avancés sur l’activité de votre menu"
-                : "Insights en temps réel sur l’activité de votre menu"}
+                : "Insights en temps réel sur l’activité de votre menu")}
             </p>
             {headerDetails}
           </div>
