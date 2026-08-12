@@ -5,6 +5,36 @@ import { createProductionAdminRepositoryCore } from "../lib/admin/data/repositor
 
 const scope = { restaurantId: "r1", menuId: "m1", source: "production", timezone: "UTC" };
 
+test("restaurant presentation read is allowlisted and scoped to the granted restaurant", async () => {
+  const requests = [];
+  const repository = createProductionAdminRepositoryCore(async (request) => {
+    requests.push(request);
+    return { rows: [{ id: "r1", name: "Maison Élyse", slug: "maison-elyse" }] };
+  });
+  assert.deepEqual(await repository.readRestaurant({ restaurantId: "r1" }), {
+    ok: true,
+    restaurant: { id: "r1", name: "Maison Élyse", slug: "maison-elyse" }
+  });
+  assert.deepEqual(requests[0], {
+    table: "restaurants",
+    columns: "id,name,slug",
+    equals: { id: "r1" },
+    order: [{ column: "id", ascending: true }],
+    limit: 2
+  });
+});
+
+test("restaurant presentation rejects rows outside the granted scope", async () => {
+  const repository = createProductionAdminRepositoryCore(async () => ({ rows: [
+    { id: "other", name: "Autre", slug: "autre" }
+  ] }));
+  assert.deepEqual(await repository.readRestaurant({ restaurantId: "r1" }), {
+    ok: false,
+    code: "scope-integrity",
+    retryable: false
+  });
+});
+
 test("repository emits allowlisted, fully-scoped and deterministically ordered event reads", async () => {
   const requests = [];
   const repository = createProductionAdminRepositoryCore(async (request) => {

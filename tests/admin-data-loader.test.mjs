@@ -5,6 +5,7 @@ import { promisify } from "node:util";
 import { loadAdminDataBundleWithDependencies } from "../lib/admin/data/loadAdminData.ts";
 
 const access = { ok: true, sessionKind: "qr", assurance: "live-admin-qr", qrId: "q1", restaurantId: "r1", expiresAt: 1, capabilities: ["dashboard:read"] };
+const restaurant = { ok: true, restaurant: { id: "r1", name: "Maison Élyse", slug: "maison-elyse" } };
 const menu = { ok: true, menu: { id: "m1", restaurantId: "r1", slug: "menu", status: "published", isPrimary: true, settingsJson: { timezone: "America/Toronto" }, updatedAt: "2026-01-01T00:00:00.000Z" } };
 const events = { ok: true, events: [], truncated: false, observedRows: 0, rowLimit: 1000 };
 
@@ -12,6 +13,7 @@ function dependencies(overrides = {}) {
   const calls = [];
   return { calls, value: {
     now: () => { calls.push("now"); return new Date("2026-01-10T18:00:00.000Z"); },
+    readRestaurant: async (input) => { calls.push(["restaurant", input]); return restaurant; },
     readMenu: async (input) => { calls.push(["menu", input]); return menu; },
     readCatalog: async (scope) => { calls.push(["catalog", scope]); return { ok: true, categories: [], dishes: [{ id: "d1" }] }; },
     readEvents: async (input) => { calls.push(["events", input.window]); return events; },
@@ -24,9 +26,11 @@ test("loader derives restaurant, menu, source and timezone server-side with one 
   const deps = dependencies();
   const result = await loadAdminDataBundleWithDependencies({ access, range: "today" }, deps.value);
   assert.equal(result.ok, true);
+  assert.deepEqual(result.presentation, { restaurantName: "Maison Élyse", publicMenuPath: "/menu/maison-elyse" });
   assert.deepEqual(result.bundle.scope, { restaurantId: "r1", menuId: "m1", source: "production", timezone: "America/Toronto" });
   assert.equal(deps.calls.filter((call) => call === "now").length, 1);
-  assert.deepEqual(deps.calls[0], ["menu", { restaurantId: "r1" }]);
+  assert.deepEqual(deps.calls[0], ["restaurant", { restaurantId: "r1" }]);
+  assert.deepEqual(deps.calls[1], ["menu", { restaurantId: "r1" }]);
   assert.doesNotMatch(JSON.stringify(result), /sessionId|session_id|rawRows/);
 });
 
@@ -55,6 +59,20 @@ test("missing menu fails before catalog or analytics reads", async () => {
   const deps = dependencies({ readMenu: async () => ({ ok: true, menu: null }), readCatalog: async () => { downstream += 1; }, readEvents: async () => { downstream += 1; } });
   assert.deepEqual(await loadAdminDataBundleWithDependencies({ access, range: "today" }, deps.value), { ok: false, error: { code: "configuration", retryable: false } });
   assert.equal(downstream, 0);
+});
+
+test("missing or incomplete scoped restaurant presentation fails before downstream reads", async () => {
+  for (const value of [null, { id: "r1", name: "", slug: "maison-elyse" }, { id: "r1", name: "Maison Élyse", slug: "" }, { id: "other", name: "Maison Élyse", slug: "maison-elyse" }]) {
+    let downstream = 0;
+    const deps = dependencies({
+      readRestaurant: async () => ({ ok: true, restaurant: value }),
+      readMenu: async () => { downstream += 1; return menu; },
+      readCatalog: async () => { downstream += 1; },
+      readEvents: async () => { downstream += 1; }
+    });
+    assert.deepEqual(await loadAdminDataBundleWithDependencies({ access, range: "today" }, deps.value), { ok: false, error: { code: "configuration", retryable: false } });
+    assert.equal(downstream, 0);
+  }
 });
 
 test("legacy admin analytics facades remain byte-for-byte unchanged from the frozen base", async () => {

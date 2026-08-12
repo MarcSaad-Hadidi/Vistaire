@@ -2,7 +2,7 @@ import type { AdminPeriodBounds, ProductionAdminMetricScope } from "./contracts.
 import { assertProductionAdminMetricScope } from "./contracts.ts";
 
 export type AdminRepositoryRequest = Readonly<{
-  table: "menus" | "menu_categories" | "menu_dishes" | "analytics_events";
+  table: "restaurants" | "menus" | "menu_categories" | "menu_dishes" | "analytics_events";
   columns: string;
   equals: Readonly<Record<string, string | boolean>>;
   range?: Readonly<{ column: string; from: string; to: string }>;
@@ -32,6 +32,24 @@ export function createProductionAdminRepositoryCore(execute: AdminRepositoryExec
   }
 
   return {
+    async readRestaurant(input: { restaurantId: string }) {
+      if (!input.restaurantId) return { ok: false as const, code: "scope-integrity" as const, retryable: false };
+      const result = await run({
+        table: "restaurants", columns: "id,name,slug",
+        equals: { id: input.restaurantId },
+        order: [{ column: "id", ascending: true }],
+        limit: 2
+      });
+      if (!result.ok) return result;
+      if (result.rows.some((row) => string(row, "id") !== input.restaurantId) || result.rows.length > 1) {
+        return { ok: false as const, code: "scope-integrity" as const, retryable: false };
+      }
+      const row = result.rows[0];
+      return { ok: true as const, restaurant: row ? {
+        id: string(row, "id"), name: string(row, "name"), slug: string(row, "slug")
+      } : null };
+    },
+
     async readMenu(input: { restaurantId: string }) {
       if (!input.restaurantId) return { ok: false as const, code: "scope-integrity" as const, retryable: false };
       const result = await run({
