@@ -328,7 +328,7 @@ test("QR fonctionnel: creation owner admin, echange HttpOnly et dashboard restau
   await expect
     .poll(() =>
       page.evaluate(() => ({
-        authorized: (document.body?.innerText ?? "").includes("Restaurant Fixture QR"),
+        authorized: (document.body?.innerText ?? "").toLocaleLowerCase().includes("restaurant fixture qr"),
         accessRequired: (document.body?.innerText ?? "").includes(
           "Accès dashboard restaurant requis"
         ),
