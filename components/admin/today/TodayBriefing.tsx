@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { AdminPanel, AdminStatusBadge } from "@/components/admin/system/AdminPrimitives";
 import type { TodayViewModel } from "./todayViewModel";
-import { TODAY_COPY } from "./todayCopy";
+import { TODAY_COPY, todayStateLabel } from "./todayCopy";
 import styles from "./AdminToday.module.css";
 
 const briefingHref = {
@@ -24,7 +24,7 @@ export function TodayBriefing({ model }: { model: TodayViewModel }) {
           <li data-evidence-id={item.evidenceId ?? undefined} key={item.metricId}>
             <div>
               <AdminStatusBadge tone={item.state.kind === "available" ? "available" : "neutral"}>
-                {item.state.kind === "available" ? copy.currentPeriod : item.state.kind}
+                {item.state.kind === "available" ? copy.currentPeriod : todayStateLabel(model.locale, item.state)}
               </AdminStatusBadge>
               <h3>{item.label}</h3>
               <p>{item.summary}</p>

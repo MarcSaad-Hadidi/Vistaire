@@ -88,6 +88,23 @@ const STATE_COPY = {
   }
 } as const;
 
+const STATE_LABELS = {
+  fr: {
+    insufficient: "Preuve insuffisante",
+    unmeasured: "Non mesuré",
+    unavailable: "Indisponible",
+    error: "Erreur de lecture",
+    truncated: "Lecture tronquée"
+  },
+  en: {
+    insufficient: "Insufficient evidence",
+    unmeasured: "Not measured",
+    unavailable: "Unavailable",
+    error: "Read error",
+    truncated: "Truncated read"
+  }
+} as const;
+
 export function todayMetricLabel(locale: AdminLocale, metricId: AdminMetricId): string {
   return METRIC_LABELS[locale][metricId] ?? metricId;
 }
@@ -97,4 +114,11 @@ export function todayStateCopy(
   state: Exclude<AdminMetricState<unknown>, { kind: "available" }>
 ): string {
   return STATE_COPY[locale][state.kind];
+}
+
+export function todayStateLabel(
+  locale: AdminLocale,
+  state: Exclude<AdminMetricState<unknown>, { kind: "available" }>
+): string {
+  return STATE_LABELS[locale][state.kind];
 }

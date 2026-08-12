@@ -5,18 +5,6 @@
   padding-bottom: calc(18px + env(safe-area-inset-bottom));
 }
 
-.pageIntro { padding: 2px 2px var(--admin-space-2); }
-.pageIntro h2 {
-  max-width: 22ch;
-  margin: 0;
-  font-family: var(--admin-display);
-  font-size: clamp(30px, 8.5vw, 48px);
-  font-weight: 400;
-  letter-spacing: -.025em;
-  line-height: 1.02;
-}
-.pageIntro p { max-width: 66ch; margin: 8px 0 0; color: var(--admin-muted); font-size: 13px; }
-
 .briefing { padding: var(--admin-space-4); }
 .briefingList { display: grid; gap: var(--admin-space-3); margin: 0; padding: 0; list-style: none; }
 .briefingList li {

@@ -152,13 +152,17 @@ test("Today sections compose Foundation primitives and expose named regions", as
   const all = sources.join("\n");
   assert.match(sources[0], /AdminShell/);
   assert.match(sources[0], /activeRoute="today"/);
-  assert.match(sources[0], /data-admin-today-title/);
+  assert.match(sources[0], /pageTitle=\{copy\.pageTitle\}/);
+  assert.match(sources[0], /pageDescription=\{copy\.pageSubtitle\}/);
+  assert.doesNotMatch(sources[0], /<h1\b|<h2\b/);
   for (const landmark of ["briefing", "pulse", "activity", "alerts", "top-dishes", "timeline", "searches", "menu-health", "quick-actions"]) {
     assert.match(all, new RegExp(`data-today-region=["']${landmark}["']`));
   }
   assert.match(all, /InteractiveLineChart/);
   assert.match(all, /exactValues|points\.map/);
   assert.match(all, /aria-live=/);
+  assert.match(sources[1], /todayStateLabel\(model\.locale, item\.state\)/);
+  assert.doesNotMatch(sources[1], /:\s*item\.state\.kind\s*\}/);
   assert.doesNotMatch(all, /@supabase|supabase-js|analytics_events|rawRows|demoAnalytics|fixture/i);
 });
 
@@ -178,4 +182,32 @@ test("Today CSS is mobile-first, uses shared tokens and reserves bottom navigati
   assert.match(source, /@media\s*\(min-width:\s*701px\)/);
   assert.match(source, /@media\s*\(min-width:\s*1180px\)/);
   assert.doesNotMatch(source, /width:\s*(?:1448|1536)px/);
+});
+
+test("Today server route derives scope from access and loads one v2 evidence bundle", async () => {
+  const [route, page] = await Promise.all([
+    readFile("app/admin/page.tsx", "utf8"),
+    readFile("components/admin/today/AdminTodayPage.tsx", "utf8")
+  ]);
+  assert.match(route, /requireAdminRestaurantAccess\("dashboard:read"\)/);
+  assert.match(route, /parseAdminPageSearchParams\(.*\)/s);
+  assert.match(route, /loadAdminDataBundle\(access, range\)/);
+  assert.match(route, /buildTodayViewModel\(\{\s*locale:\s*preferences\.locale,\s*bundle:\s*result\.bundle\s*\}\)/s);
+  assert.match(route, /restaurantName=\{result\.presentation\.restaurantName\}/);
+  assert.match(route, /menuPath=\{result\.presentation\.publicMenuPath\}/);
+  assert.match(page, /activeRoute="today"/);
+  assert.doesNotMatch(route, /loadAdminDashboardData|demoAnalytics|adminVisualFixture|searchParams[^\n]*(?:restaurant|menu|source)/i);
+});
+
+test("Today E2E is deterministic, loopback-only and forbids mutation traffic", async () => {
+  const source = await readFile("e2e/admin-vnext-today.spec.ts", "utf8");
+  assert.match(source, /allowedOrigins/);
+  assert.match(source, /routeWebSocket/);
+  assert.match(source, /\["GET", "HEAD"\]\.includes\(request\.method\(\)\)/);
+  assert.match(source, /\{ width: 390, height: 844 \}/);
+  assert.match(source, /\{ width: 430, height: 932 \}/);
+  assert.match(source, /\{ width: 1448, height: 1086 \}/);
+  assert.match(source, /English/);
+  assert.match(source, /Dark/);
+  assert.doesNotMatch(source, /VISTAIRE_ADMIN_E2E_QR_TOKEN|test\.(?:skip|fixme)|\.skip\(|\.fixme\(/);
 });

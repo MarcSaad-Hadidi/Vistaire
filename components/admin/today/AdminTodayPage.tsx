@@ -21,12 +21,14 @@ export type AdminTodayPageProps = Readonly<{
 export function AdminTodayPage({ model, restaurantName, menuPath }: AdminTodayPageProps) {
   const copy = TODAY_COPY[model.locale];
   return (
-    <AdminShell activeRoute="today" menuPath={menuPath} restaurantName={restaurantName}>
+    <AdminShell
+      activeRoute="today"
+      menuPath={menuPath}
+      pageDescription={copy.pageSubtitle}
+      pageTitle={copy.pageTitle}
+      restaurantName={restaurantName}
+    >
       <div className={styles.today}>
-        <header className={styles.pageIntro}>
-          <h2 data-admin-today-title>{copy.pageTitle}</h2>
-          <p>{copy.pageSubtitle}</p>
-        </header>
         <TodayBriefing model={model} />
         <TodayPulse model={model} />
         <div className={styles.serviceGrid}>
