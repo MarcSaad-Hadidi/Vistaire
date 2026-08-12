@@ -15,6 +15,23 @@
   font-family: var(--admin-ui); font-size: 15px; line-height: 1.45; isolation: isolate;
 }
 .adminRoot *, .adminRoot *::before, .adminRoot *::after { box-sizing: border-box; }
+.adminRoot[data-admin-theme="light"] {
+  color-scheme: light;
+  --admin-bg: #f7f0e4;
+  --admin-surface: #fffaf1;
+  --admin-surface-raised: #f1e6d6;
+  --admin-border: #b8a990;
+  --admin-border-soft: #d7c9b5;
+  --admin-accent: #77501f;
+  --admin-accent-soft: #ead9bd;
+  --admin-text: #211c16;
+  --admin-muted: #5f574e;
+}
+.adminPreferences { position: fixed; z-index: 12; top: 14px; right: 18px; display: flex; gap: 8px; padding: 5px; border: 1px solid var(--admin-border); border-radius: 14px; color: var(--admin-text); background: color-mix(in srgb, var(--admin-surface) 94%, transparent); box-shadow: 0 8px 30px rgba(0,0,0,.16); backdrop-filter: blur(14px); }
+.adminPreferences form { display: flex; align-items: center; gap: 3px; }
+.adminPreferences form > span { margin: 0 5px; color: var(--admin-muted); font-size: 10px; font-weight: 700; text-transform: uppercase; }
+.adminPreferences button { min-width: 44px; min-height: 44px; padding: 4px 9px; border: 1px solid transparent; border-radius: 9px; color: var(--admin-muted); background: transparent; font: inherit; font-size: 11px; cursor: pointer; }
+.adminPreferences button[aria-pressed="true"] { border-color: var(--admin-accent); color: var(--admin-text); background: var(--admin-accent-soft); }
 .dashboard { width: min(1536px, calc(100% - 40px)); min-height: 100svh; margin: 0 auto; padding: 34px 0 calc(110px + env(safe-area-inset-bottom)); }
 .header { display: flex; align-items: center; justify-content: space-between; gap: 24px; margin-bottom: 30px; }
 .headerIdentity,.headerControls{min-width:0}.headerControls{display:flex;align-items:flex-end;flex-direction:column;gap:10px}.headerLower{display:flex;align-items:center;gap:18px;min-width:0}
@@ -85,6 +102,8 @@
 @keyframes adminShimmer { from { transform: translateX(-110%); } to { transform: translateX(230%); } }
 
 @media (max-width: 700px) {
+  .adminPreferences { position: static; width: calc(100% - 28px); margin: 0 auto; justify-content: space-between; overflow: hidden; }
+  .adminPreferences form > span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
   .dashboard { width: calc(100% - 28px); padding-top: 24px; }
   .header { align-items: flex-start; margin-bottom: 24px; }
   .header h1 { font-size: clamp(34px, 10.5vw, 44px); }

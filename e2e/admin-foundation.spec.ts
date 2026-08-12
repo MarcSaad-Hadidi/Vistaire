@@ -62,3 +62,24 @@ test("five admin destinations remain visible without horizontal overflow", async
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
   }
 });
+
+test("preferences persist in SSR-scoped admin cookies", async ({ page }) => {
+  await enterLocalPreview(page);
+  await page.getByRole("button", { name: "English" }).click();
+  await expect(page.locator('[data-admin-locale="en"]')).toBeVisible();
+  await page.getByRole("button", { name: "Dark" }).click();
+  await page.reload({ waitUntil: "networkidle" });
+  await expect(page.locator('[data-admin-theme="dark"]')).toBeVisible();
+  await expect(page.getByRole("navigation", { name: "Primary restaurant navigation" })).toBeVisible();
+  const cookies = await page.context().cookies();
+  for (const name of ["vistaire-admin-locale", "vistaire-admin-theme"]) {
+    const cookie = cookies.find((candidate) => candidate.name === name);
+    expect(cookie?.path).toBe("/admin");
+    expect(cookie?.httpOnly).toBe(true);
+  }
+  const rootCookieHeader = await page.evaluate(async () => {
+    const response = await fetch("/", { cache: "no-store" });
+    return response.ok;
+  });
+  expect(rootCookieHeader).toBe(true);
+});
