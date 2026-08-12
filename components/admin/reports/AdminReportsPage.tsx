@@ -21,7 +21,7 @@ export function AdminReportsPage({ report }: { report: AdminReportModel }) {
   const fr = report.locale === "fr";
   return <div className={styles.report}>
     <header className={styles.reportHeader}>
-      <div><p className={styles.eyebrow}>{fr ? "Bilan privÃ©" : "Private summary"}</p><h1>{fr ? "Bilan du service" : "Service report"}</h1><p>{fr ? "Une lecture fondÃ©e uniquement sur les interactions observÃ©es et leurs preuves." : "A view based only on observed interactions and their evidence."}</p></div>
+      <p className={styles.eyebrow}>{fr ? "PÃ©rimÃ¨tre de preuve" : "Evidence scope"}</p>
       <div className={styles.period}><span>{fr ? "PÃ©riode alignÃ©e" : "Aligned period"}</span><strong>{periodLabel(report)}</strong><small>{report.window.timezone}</small></div>
     </header>
     <ReportActions locale={report.locale} range={report.range} service={report.service}/>

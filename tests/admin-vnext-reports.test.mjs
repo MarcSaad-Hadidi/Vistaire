@@ -141,6 +141,10 @@ test("reports route validates access and composes the v2 evidence model", async 
   assert.match(page, /loadAdminDataBundle\(/);
   assert.match(page, /buildAdminReport\(/);
   assert.match(page, /<AdminShell[\s\S]*activeRoute=["']reports["']/);
+  assert.match(page, /restaurantName=\{dataResult\.presentation\.restaurantName\}/);
+  assert.match(page, /menuPath=\{dataResult\.presentation\.publicMenuPath\}/);
+  assert.match(page, /pageTitle=\{preferences\.locale === ["']fr["'] \? ["']Bilan du service["']/);
+  assert.doesNotMatch(page, /loadAdminDashboardData|legacyRange|identityResult/);
   assert.doesNotMatch(page, /getSupabase|createClient|\.from\(/);
   const searchParamContract = page.match(/type ReportsSearchParams\s*=\s*\{[^}]+\}/)?.[0] ?? "";
   assert.match(searchParamContract, /range\?:/);
@@ -160,7 +164,7 @@ test("reports page exposes named evidence regions and responsive print-safe stru
   for (const label of ["points clÃ©s", "chronologie", "top plats", "recherches", "fiabilitÃ©"]) {
     assert.match(page, new RegExp(label, "i"));
   }
-  assert.match(page, /<h1[^>]*>[\s\S]*Bilan du service/);
+  assert.doesNotMatch(page, /<h1\b/);
   assert.match(css, /@media\s*\(max-width:\s*430px\)/);
   assert.match(css, /@media\s+print/);
   assert.match(css, /break-inside:\s*avoid/);

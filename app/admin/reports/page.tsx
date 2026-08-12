@@ -5,7 +5,6 @@ import { AdminShellState } from "@/components/admin/system/AdminShellState";
 import { requireAdminRestaurantAccess } from "@/lib/admin/access";
 import { buildAdminReport, parseAdminReportFilters } from "@/lib/admin/reports/buildReport";
 import { loadAdminDataBundle } from "@/lib/admin/data/loadAdminData";
-import { loadAdminDashboardData } from "@/lib/admin/dashboardData";
 import { readAdminPreferencesFromHeaders } from "@/lib/admin/preferences";
 
 export const dynamic = "force-dynamic";
@@ -18,11 +17,7 @@ export default async function AdminReportsRoute({ searchParams }: { searchParams
   if (!access.ok) return <AdminShellState kind="forbidden" locale={preferences.locale} />;
 
   const filters = parseAdminReportFilters((await searchParams) ?? {});
-  const legacyRange = filters.range === "today" ? "today-utc" : filters.range;
-  const [dataResult, identityResult] = await Promise.all([
-    loadAdminDataBundle(access, filters.range),
-    loadAdminDashboardData(access.restaurantId, legacyRange)
-  ]);
+  const dataResult = await loadAdminDataBundle(access, filters.range);
   if (!dataResult.ok) return <AdminShellState kind="error" locale={preferences.locale} />;
 
   const report = buildAdminReport({
@@ -31,16 +26,15 @@ export default async function AdminReportsRoute({ searchParams }: { searchParams
     service: filters.service,
     bundle: dataResult.bundle
   });
-  const restaurantName = identityResult.ok
-    ? identityResult.data.restaurant.name
-    : preferences.locale === "fr" ? "Votre restaurant" : "Your restaurant";
-  const menuPath = identityResult.ok ? identityResult.data.restaurant.publicMenuPath : "/";
-
   return (
     <AdminShell
       activeRoute="reports"
-      restaurantName={restaurantName}
-      menuPath={menuPath}
+      restaurantName={dataResult.presentation.restaurantName}
+      menuPath={dataResult.presentation.publicMenuPath}
+      pageTitle={preferences.locale === "fr" ? "Bilan du service" : "Service report"}
+      pageDescription={preferences.locale === "fr"
+        ? "Une lecture fondÃ©e uniquement sur les interactions observÃ©es et leurs preuves."
+        : "A view based only on observed interactions and their evidence."}
       headerDetails={<span>{preferences.locale === "fr" ? "Rapports privÃ©s" : "Private reports"}</span>}
     >
       <AdminReportsPage report={report} />
