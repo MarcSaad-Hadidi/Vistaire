@@ -31,3 +31,20 @@ test("atomic availability RPC has narrow typed inputs and service-role-only exec
   assert.match(setClause, /updated_at\s*=\s*now\(\)/i);
   assert.doesNotMatch(setClause, /(?:name|slug|price|description|restaurant_id|menu_id)\s*=/i);
 });
+
+test("availability scheduling migration is scoped, idempotent, locked and service-role-only", async () => {
+  const sql = await readFile("supabase/migrations/20260811190000_admin_availability_schedule.sql", "utf8");
+  for (const table of ["admin_dish_availability_events", "admin_dish_availability_schedules", "admin_availability_workers"]) assert.match(sql, new RegExp(`create table[^;]+${table}`, "is"));
+  assert.match(sql, /enable row level security/gi);
+  assert.match(sql, /unique\s*\(restaurant_id,\s*menu_id,\s*idempotency_key\)/i);
+  assert.match(sql, /for update skip locked/i);
+  assert.match(sql, /pg_try_advisory_xact_lock/i);
+  assert.match(sql, /set search_path\s*=\s*''/gi);
+  assert.match(sql, /revoke all on table[^;]+from public, anon, authenticated/is);
+  assert.match(sql, /revoke execute on function[^;]+from public, anon, authenticated/is);
+  assert.match(sql, /grant execute on function[^;]+to service_role/is);
+  assert.match(sql, /last_attempt_at/i);
+  assert.match(sql, /last_success_at/i);
+  assert.match(sql, /create or replace function public\.set_admin_dish_availability[\s\S]+insert into public\.admin_dish_availability_events/i);
+  assert.doesNotMatch(sql, /^\s*(?:delete\s+from|truncate\s+table)\b/im);
+});
