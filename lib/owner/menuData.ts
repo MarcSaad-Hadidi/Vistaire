@@ -62,7 +62,7 @@ async function fallbackMenu(): Promise<OwnerMenuDataSuccess> {
 }
 
 const OWNER_RESTAURANT_COLUMNS =
-  "id,name,slug,location,cuisine_type,status,contact_name,contact_email,contact_phone,notes,public_menu_url,qr_ready,qr_generated_at,created_at,updated_at";
+  "id,name,slug,location,cuisine_type,status,contact_name,contact_email,contact_phone,notes,public_menu_url,qr_ready,qr_generated_at,google_review_enabled,google_review_url,created_at,updated_at";
 const OWNER_DISH_COLUMNS =
   "id,restaurant_id,menu_id,category_id,slug,name,short_description,description,price_cents,currency,image_url,is_available,is_signature,is_recommended,has_immersive_view,allergens,allergen_declarations,metadata,created_at,updated_at,display_order";
 const OWNER_UI_CONFIG_COLUMNS =

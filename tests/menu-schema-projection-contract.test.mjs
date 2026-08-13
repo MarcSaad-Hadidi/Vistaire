@@ -100,3 +100,10 @@ test("owner and public loaders both consume the shared canonical menu projection
   assert.match(ownerSource, /MENU_PROJECTIONS\.menus/);
   assert.match(ownerSource, /MENU_PROJECTIONS\.menuCategories/);
 });
+
+test("owner restaurant projection preserves the Google Reviews CTA fields", async () => {
+  const ownerSource = await readFile("lib/owner/menuData.ts", "utf8");
+
+  assert.match(ownerSource, /OWNER_RESTAURANT_COLUMNS[\s\S]*google_review_enabled/);
+  assert.match(ownerSource, /OWNER_RESTAURANT_COLUMNS[\s\S]*google_review_url/);
+});

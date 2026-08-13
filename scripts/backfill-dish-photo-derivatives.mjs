@@ -119,6 +119,71 @@ function isStorageNotFound(error) {
   );
 }
 
+function derivativePathsFromMetadata(value) {
+  const metadata = parseMetadata(value);
+  const derivatives = metadata.photoDerivatives;
+  if (!derivatives || typeof derivatives !== "object" || Array.isArray(derivatives)) {
+    return [];
+  }
+  return Object.values(derivatives)
+    .map((entry) => {
+      if (!entry || typeof entry !== "object" || Array.isArray(entry)) return "";
+      const storagePath = entry.storagePath;
+      return typeof storagePath === "string" ? storagePath.trim() : "";
+    })
+    .filter(Boolean);
+}
+
+async function referencedDerivativePaths(client, plan) {
+  try {
+    const { data, error } = await client
+      .from("menu_dishes")
+      .select("metadata")
+      .eq("restaurant_id", plan.restaurantId);
+    if (error || !Array.isArray(data)) return null;
+
+    const references = new Set();
+    for (const row of data) {
+      for (const storagePath of derivativePathsFromMetadata(row?.metadata)) {
+        references.add(storagePath);
+      }
+    }
+    return references;
+  } catch {
+    return null;
+  }
+}
+
+async function rollbackUploadedDerivatives(bucket, client, plan, uploadedPaths) {
+  if (!uploadedPaths.length) return;
+
+  // A failed guarded update may race another dish with the same source SHA.
+  // If references cannot be read, keep the objects as safe orphans.
+  const references = await referencedDerivativePaths(client, plan);
+  if (!references) return;
+
+  const rollbackPaths = uploadedPaths.filter((storagePath) => !references.has(storagePath));
+  if (rollbackPaths.length) await bucket.remove(rollbackPaths);
+}
+
+const sourceLocks = new Map();
+
+async function withSourceLock(key, work) {
+  const previous = sourceLocks.get(key) ?? Promise.resolve();
+  let release;
+  const current = new Promise((resolve) => {
+    release = resolve;
+  });
+  sourceLocks.set(key, current);
+  await previous;
+  try {
+    return await work();
+  } finally {
+    release();
+    if (sourceLocks.get(key) === current) sourceLocks.delete(key);
+  }
+}
+
 function supabaseConfig() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim();
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
@@ -230,7 +295,7 @@ async function processPlan(client, plan, checkpoint) {
       .maybeSingle();
     if (updated.error || !updated.data) throw new Error(`Metadata impossible à mettre à jour: ${updated.error?.message ?? plan.row.id}`);
   } catch (error) {
-    if (uploadedPaths.length) await bucket.remove(uploadedPaths);
+    await rollbackUploadedDerivatives(bucket, client, plan, uploadedPaths);
     throw error;
   }
   checkpoint.completed = { ...(checkpoint.completed ?? {}), [key]: true };
@@ -246,7 +311,9 @@ async function mapLimited(items, workerCount, worker) {
     while (cursor < items.length) {
       const index = cursor++;
       try {
-        results[index] = await worker(items[index], index);
+        const item = items[index];
+        const lockKey = `${item.restaurantId}:${item.sourceSha}`;
+        results[index] = await withSourceLock(lockKey, () => worker(item, index));
       } catch (error) {
         results[index] = { status: "error", error: error instanceof Error ? error.message : String(error) };
       }
