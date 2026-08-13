@@ -401,6 +401,196 @@
   line-height: 1.55;
 }
 
+.guidesSection {
+  position: relative;
+  z-index: 2;
+  isolation: isolate;
+  overflow: hidden;
+  width: 100%;
+  padding: clamp(36px, 7vw, 96px) 0;
+  scroll-margin-top: 20px;
+}
+
+.guidesBackdrop {
+  position: absolute;
+  inset: -24px;
+  z-index: -2;
+  background: url("/images/landing/trouvable-experience.jpg") center 56% / cover;
+  filter: blur(15px) saturate(0.82) brightness(0.55);
+  transform: scale(1.07);
+}
+
+.guidesSection::before {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background:
+    linear-gradient(180deg, rgba(7, 4, 2, 0.76), rgba(7, 4, 2, 0.66) 50%, rgba(5, 3, 2, 0.84)),
+    radial-gradient(circle at 80% 12%, rgba(142, 84, 33, 0.22), transparent 46%),
+    rgba(7, 4, 2, 0.2);
+  content: "";
+  pointer-events: none;
+}
+
+.guidesPanel {
+  width: var(--landing-width);
+  margin-inline: auto;
+  padding: clamp(26px, 4.5vw, 56px);
+  border: 1px solid rgba(255, 250, 240, 0.3);
+  border-radius: 30px;
+  background:
+    linear-gradient(145deg, rgba(255, 250, 240, 0.1), rgba(255, 250, 240, 0.025) 46%, rgba(7, 4, 2, 0.22)),
+    rgba(12, 7, 4, 0.26);
+  box-shadow:
+    0 28px 80px rgba(0, 0, 0, 0.32),
+    inset 0 1px 0 rgba(255, 250, 240, 0.14);
+  -webkit-backdrop-filter: blur(18px) saturate(118%);
+  backdrop-filter: blur(18px) saturate(118%);
+}
+
+.guidesIntro {
+  max-width: 780px;
+}
+
+.guidesIntro h2 {
+  max-width: 760px;
+  margin: 14px 0 0;
+  color: var(--landing-cream);
+  font-family: var(--vistaire-font-display);
+  font-size: clamp(42px, 5vw, 72px);
+  font-weight: 400;
+  letter-spacing: -0.025em;
+  line-height: 0.96;
+  text-wrap: balance;
+}
+
+.guidesIntro > p:last-child {
+  max-width: 640px;
+  margin: 20px 0 0;
+  color: rgba(247, 234, 215, 0.78);
+  font-size: 16px;
+  line-height: 1.55;
+}
+
+.guidesGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+  margin-top: clamp(28px, 4vw, 46px);
+}
+
+.guideCard {
+  display: flex;
+  min-height: 278px;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid rgba(255, 250, 240, 0.22);
+  border-radius: 20px;
+  background:
+    linear-gradient(145deg, rgba(255, 250, 240, 0.085), rgba(255, 250, 240, 0.018) 42%, rgba(8, 4, 2, 0.2)),
+    rgba(16, 9, 5, 0.32);
+  box-shadow: inset 0 1px 0 rgba(255, 250, 240, 0.11), 0 16px 34px rgba(0, 0, 0, 0.14);
+  color: var(--landing-cream);
+  padding: 22px;
+  text-decoration: none;
+  transition:
+    transform 180ms ease,
+    border-color 180ms ease,
+    background-color 180ms ease,
+    box-shadow 180ms ease;
+}
+
+.guideCard:hover {
+  border-color: rgba(232, 207, 155, 0.62);
+  background:
+    linear-gradient(145deg, rgba(255, 250, 240, 0.12), rgba(255, 250, 240, 0.025) 42%, rgba(8, 4, 2, 0.2)),
+    rgba(22, 12, 6, 0.38);
+  box-shadow: inset 0 1px 0 rgba(255, 250, 240, 0.16), 0 20px 44px rgba(0, 0, 0, 0.24);
+  transform: translateY(-4px);
+}
+
+.guideCard:focus-visible,
+.guidesPillarLink:focus-visible {
+  outline: 2px solid var(--landing-champagne);
+  outline-offset: 4px;
+}
+
+.guideIndex {
+  margin: 0;
+  color: rgba(232, 207, 155, 0.82);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  line-height: 1.3;
+  text-transform: uppercase;
+}
+
+.guideCard h3 {
+  margin: 22px 0 0;
+  color: var(--landing-cream);
+  font-family: var(--vistaire-font-display);
+  font-size: clamp(29px, 2.7vw, 39px);
+  font-weight: 400;
+  letter-spacing: -0.018em;
+  line-height: 1.02;
+  text-wrap: balance;
+  transition: color 180ms ease;
+}
+
+.guideCard:hover h3 {
+  color: var(--landing-champagne);
+}
+
+.guideDescription {
+  margin: 14px 0 0;
+  color: rgba(247, 234, 215, 0.66);
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.guideLink {
+  display: flex;
+  min-height: 42px;
+  align-items: flex-end;
+  gap: 10px;
+  margin-top: auto;
+  padding-top: 24px;
+  color: var(--landing-champagne);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.15em;
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+
+.guideArrow {
+  font-size: 18px;
+  font-weight: 400;
+  line-height: 0.8;
+  transition: transform 180ms ease;
+}
+
+.guideCard:hover .guideArrow {
+  transform: translate(2px, -2px);
+}
+
+.guidesPillarLink {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  margin-top: 28px;
+  color: rgba(247, 234, 215, 0.74);
+  font-size: 14px;
+  text-decoration: underline;
+  text-decoration-color: rgba(255, 250, 240, 0.24);
+  text-underline-offset: 5px;
+  transition: color 180ms ease;
+}
+
+.guidesPillarLink:hover {
+  color: var(--landing-cream);
+}
+
 .valuePanel {
   display: grid;
   grid-template-columns: minmax(250px, 0.78fr) minmax(0, 1.42fr);
@@ -838,6 +1028,14 @@
   .ownerGrid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+
+  .guidesGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .guideCard:last-child {
+    grid-column: 1 / -1;
+  }
 }
 
 @media (max-width: 620px) {
@@ -988,6 +1186,46 @@
   .finalCta h2 {
     font-size: 46px;
   }
+
+  .guidesSection {
+    padding-block: 26px;
+  }
+
+  .guidesPanel {
+    border-radius: 22px;
+    padding: 25px 20px;
+  }
+
+  .guidesIntro h2 {
+    font-size: clamp(39px, 11vw, 53px);
+    line-height: 0.98;
+  }
+
+  .guidesIntro > p:last-child {
+    margin-top: 16px;
+    font-size: 14px;
+  }
+
+  .guidesGrid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 10px;
+    margin-top: 28px;
+  }
+
+  .guideCard {
+    min-height: 244px;
+    border-radius: 18px;
+    padding: 20px;
+  }
+
+  .guideCard h3 {
+    margin-top: 18px;
+    font-size: 34px;
+  }
+
+  .guidesPillarLink {
+    margin-top: 22px;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -998,14 +1236,29 @@
   .primaryButton,
   .secondaryButton,
   .compactButton,
-  .cardLink {
+  .cardLink,
+  .guideCard,
+  .guideCard h3,
+  .guideArrow,
+  .guidesPillarLink {
     transition: none;
   }
 
   .primaryButton:hover,
   .secondaryButton:hover,
   .compactButton:hover,
-  .cardLink:hover {
+  .cardLink:hover,
+  .guideCard:hover {
     transform: none;
+  }
+}
+
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .guidesPanel {
+    background: rgba(13, 8, 5, 0.94);
+  }
+
+  .guideCard {
+    background: rgba(18, 10, 6, 0.92);
   }
 }
