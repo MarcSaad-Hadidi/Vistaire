@@ -50,7 +50,7 @@
   isolation: isolate;
   min-height: 100svh;
   overflow-x: clip;
-  background: #0d0805;
+  background: #0c0704;
   color: var(--preview-cream);
   font-family: var(--vistaire-font-body);
 }
@@ -66,15 +66,15 @@
 .backgroundImage {
   object-fit: cover;
   object-position: center 42%;
-  filter: saturate(0.74) brightness(0.54);
-  transform: scale(1.04);
+  filter: saturate(0.9) brightness(0.82);
+  transform: scale(1.035);
 }
 
 .backgroundVeil {
   z-index: -1;
   background:
-    linear-gradient(180deg, rgba(18, 9, 4, 0.72) 0%, rgba(14, 8, 5, 0.5) 28%, #0d0805 100%),
-    linear-gradient(90deg, rgba(31, 14, 7, 0.38), rgba(9, 5, 3, 0.24));
+    linear-gradient(180deg, rgba(7, 4, 2, 0.12) 0%, rgba(7, 4, 2, 0.24) 48%, rgba(7, 4, 2, 0.56) 100%),
+    linear-gradient(90deg, rgba(5, 3, 2, 0.2), rgba(5, 3, 2, 0.04) 62%, rgba(5, 3, 2, 0.16));
 }
 
 .navShell,
@@ -100,8 +100,15 @@
   width: 100%;
   gap: 12px;
   border: 1px solid var(--preview-border);
-  border-radius: 22px;
-  background: rgba(16, 9, 5, 0.16);
+  border-radius: 28px;
+  background:
+    linear-gradient(
+      145deg,
+      rgba(255, 250, 240, 0.065),
+      rgba(255, 250, 240, 0.012) 38%,
+      rgba(6, 4, 3, 0.08)
+    ),
+    rgba(6, 4, 3, 0.1);
   padding: 14px;
   box-shadow:
     0 24px 70px rgba(0, 0, 0, 0.22),
@@ -118,12 +125,14 @@
 .related,
 .cta {
   border: 1px solid var(--preview-border);
-  border-radius: 15px;
-  background: rgba(20, 11, 7, 0.68);
+  border-radius: 18px;
+  background: rgba(255, 250, 240, 0.025);
   box-shadow:
     0 24px 70px rgba(0, 0, 0, 0.16),
     inset 0 1px 0 rgba(255, 250, 240, 0.12),
     inset 0 -1px 0 rgba(255, 250, 240, 0.06);
+  -webkit-backdrop-filter: blur(4px) saturate(108%);
+  backdrop-filter: blur(4px) saturate(108%);
 }
 
 .hero {
@@ -293,7 +302,7 @@
   align-self: center;
   border: 1px solid rgba(255, 250, 240, 0.26);
   border-radius: 14px;
-  background: rgba(7, 4, 2, 0.55);
+  background: rgba(7, 4, 2, 0.22);
   box-shadow:
     0 24px 70px rgba(0, 0, 0, 0.3),
     inset 0 1px 0 rgba(255, 250, 240, 0.2);
@@ -307,7 +316,7 @@
 .heroVisual::after {
   position: absolute;
   inset: 0;
-  background: linear-gradient(180deg, transparent 45%, rgba(6, 3, 2, 0.62));
+  background: linear-gradient(180deg, transparent 45%, rgba(6, 3, 2, 0.38));
   content: "";
   pointer-events: none;
 }
@@ -422,7 +431,7 @@
 
 .layoutQuiet {
   grid-column: span 8;
-  background: rgba(15, 9, 6, 0.78);
+  background: rgba(255, 250, 240, 0.018);
 }
 
 .sectionHeading {
@@ -504,7 +513,7 @@
   overflow-x: auto;
   border: 1px solid rgba(232, 207, 155, 0.24);
   border-radius: 11px;
-  background: rgba(7, 4, 2, 0.38);
+  background: rgba(7, 4, 2, 0.2);
   scrollbar-color: rgba(232, 207, 155, 0.48) transparent;
 }
 
@@ -557,7 +566,7 @@
   grid-template-columns: minmax(0, 0.75fr) minmax(0, 1.25fr);
   gap: 1.4rem 3rem;
   border-color: rgba(232, 207, 155, 0.36);
-  background: linear-gradient(145deg, rgba(34, 22, 13, 0.82), rgba(14, 8, 5, 0.76));
+  background: linear-gradient(145deg, rgba(232, 207, 155, 0.1), rgba(6, 4, 3, 0.12) 68%);
 }
 
 .checklist .sectionHeading {
@@ -610,7 +619,7 @@
   flex-direction: column;
   border: 1px solid rgba(255, 250, 240, 0.18);
   border-radius: 12px;
-  background: rgba(6, 4, 2, 0.26);
+  background: rgba(255, 250, 240, 0.025);
   padding: 1rem;
   color: var(--preview-cream);
   text-decoration: none;
@@ -664,7 +673,7 @@
   justify-content: space-between;
   gap: 2rem;
   border-color: rgba(255, 250, 240, 0.34);
-  background: linear-gradient(115deg, rgba(232, 207, 155, 0.15), rgba(18, 10, 6, 0.72) 62%);
+  background: linear-gradient(115deg, rgba(232, 207, 155, 0.14), rgba(6, 4, 3, 0.16) 62%);
 }
 
 .cta h2 {

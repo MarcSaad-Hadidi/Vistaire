@@ -402,96 +402,33 @@
 }
 
 .guidesSection {
-  position: relative;
-  z-index: 2;
-  isolation: isolate;
-  overflow: hidden;
-  width: 100%;
-  padding: clamp(36px, 7vw, 96px) 0;
+  padding: 15px 0;
   scroll-margin-top: 20px;
 }
 
-.guidesBackdrop {
-  position: absolute;
-  inset: -24px;
-  z-index: -2;
-  background: url("/images/landing/trouvable-experience.jpg") center 56% / cover;
-  filter: blur(15px) saturate(0.82) brightness(0.55);
-  transform: scale(1.07);
-}
-
-.guidesSection::before {
-  position: absolute;
-  inset: 0;
-  z-index: -1;
-  background:
-    linear-gradient(180deg, rgba(7, 4, 2, 0.76), rgba(7, 4, 2, 0.66) 50%, rgba(5, 3, 2, 0.84)),
-    radial-gradient(circle at 80% 12%, rgba(142, 84, 33, 0.22), transparent 46%),
-    rgba(7, 4, 2, 0.2);
-  content: "";
-  pointer-events: none;
-}
-
 .guidesPanel {
-  width: var(--landing-width);
-  margin-inline: auto;
-  padding: clamp(26px, 4.5vw, 56px);
-  border: 1px solid rgba(255, 250, 240, 0.3);
-  border-radius: 30px;
-  background:
-    linear-gradient(145deg, rgba(255, 250, 240, 0.1), rgba(255, 250, 240, 0.025) 46%, rgba(7, 4, 2, 0.22)),
-    rgba(12, 7, 4, 0.26);
-  box-shadow:
-    0 28px 80px rgba(0, 0, 0, 0.32),
-    inset 0 1px 0 rgba(255, 250, 240, 0.14);
-  -webkit-backdrop-filter: blur(18px) saturate(118%);
-  backdrop-filter: blur(18px) saturate(118%);
-}
-
-.guidesIntro {
-  max-width: 780px;
-}
-
-.guidesIntro h2 {
-  max-width: 760px;
-  margin: 14px 0 0;
-  color: var(--landing-cream);
-  font-family: var(--vistaire-font-display);
-  font-size: clamp(42px, 5vw, 72px);
-  font-weight: 400;
-  letter-spacing: -0.025em;
-  line-height: 0.96;
-  text-wrap: balance;
-}
-
-.guidesIntro > p:last-child {
-  max-width: 640px;
-  margin: 20px 0 0;
-  color: rgba(247, 234, 215, 0.78);
-  font-size: 16px;
-  line-height: 1.55;
+  align-items: center;
 }
 
 .guidesGrid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 14px;
-  margin-top: clamp(28px, 4vw, 46px);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  align-self: stretch;
+  min-width: 0;
 }
 
 .guideCard {
   display: flex;
-  min-height: 278px;
+  min-height: 274px;
   flex-direction: column;
   overflow: hidden;
-  border: 1px solid rgba(255, 250, 240, 0.22);
-  border-radius: 20px;
-  background:
-    linear-gradient(145deg, rgba(255, 250, 240, 0.085), rgba(255, 250, 240, 0.018) 42%, rgba(8, 4, 2, 0.2)),
-    rgba(16, 9, 5, 0.32);
-  box-shadow: inset 0 1px 0 rgba(255, 250, 240, 0.11), 0 16px 34px rgba(0, 0, 0, 0.14);
+  border: 1px solid rgba(255, 250, 240, 0.18);
+  border-radius: 18px;
+  background: rgba(255, 250, 240, 0.025);
+  box-shadow: none;
   color: var(--landing-cream);
-  padding: 22px;
+  padding: 16px;
   text-decoration: none;
   transition:
     transform 180ms ease,
@@ -501,16 +438,12 @@
 }
 
 .guideCard:hover {
-  border-color: rgba(232, 207, 155, 0.62);
-  background:
-    linear-gradient(145deg, rgba(255, 250, 240, 0.12), rgba(255, 250, 240, 0.025) 42%, rgba(8, 4, 2, 0.2)),
-    rgba(22, 12, 6, 0.38);
-  box-shadow: inset 0 1px 0 rgba(255, 250, 240, 0.16), 0 20px 44px rgba(0, 0, 0, 0.24);
+  border-color: rgba(232, 207, 155, 0.56);
+  background: rgba(255, 250, 240, 0.06);
   transform: translateY(-4px);
 }
 
-.guideCard:focus-visible,
-.guidesPillarLink:focus-visible {
+.guideCard:focus-visible {
   outline: 2px solid var(--landing-champagne);
   outline-offset: 4px;
 }
@@ -526,10 +459,10 @@
 }
 
 .guideCard h3 {
-  margin: 22px 0 0;
+  margin: 14px 0 0;
   color: var(--landing-cream);
   font-family: var(--vistaire-font-display);
-  font-size: clamp(29px, 2.7vw, 39px);
+  font-size: clamp(26px, 2.35vw, 34px);
   font-weight: 400;
   letter-spacing: -0.018em;
   line-height: 1.02;
@@ -542,9 +475,9 @@
 }
 
 .guideDescription {
-  margin: 14px 0 0;
-  color: rgba(247, 234, 215, 0.66);
-  font-size: 14px;
+  margin: 9px 0 0;
+  color: var(--landing-muted);
+  font-size: 13px;
   line-height: 1.55;
 }
 
@@ -554,7 +487,7 @@
   align-items: flex-end;
   gap: 10px;
   margin-top: auto;
-  padding-top: 24px;
+  padding-top: 14px;
   color: var(--landing-champagne);
   font-size: 11px;
   font-weight: 700;
@@ -574,21 +507,9 @@
   transform: translate(2px, -2px);
 }
 
-.guidesPillarLink {
-  display: inline-flex;
-  min-height: 44px;
-  align-items: center;
-  margin-top: 28px;
-  color: rgba(247, 234, 215, 0.74);
-  font-size: 14px;
-  text-decoration: underline;
-  text-decoration-color: rgba(255, 250, 240, 0.24);
-  text-underline-offset: 5px;
-  transition: color 180ms ease;
-}
-
-.guidesPillarLink:hover {
-  color: var(--landing-cream);
+.guideCard:last-child {
+  grid-column: 1 / -1;
+  min-height: 220px;
 }
 
 .valuePanel {
@@ -1188,7 +1109,7 @@
   }
 
   .guidesSection {
-    padding-block: 26px;
+    padding-block: 8px;
   }
 
   .guidesPanel {
@@ -1196,20 +1117,9 @@
     padding: 25px 20px;
   }
 
-  .guidesIntro h2 {
-    font-size: clamp(39px, 11vw, 53px);
-    line-height: 0.98;
-  }
-
-  .guidesIntro > p:last-child {
-    margin-top: 16px;
-    font-size: 14px;
-  }
-
   .guidesGrid {
     grid-template-columns: minmax(0, 1fr);
     gap: 10px;
-    margin-top: 28px;
   }
 
   .guideCard {
@@ -1219,12 +1129,11 @@
   }
 
   .guideCard h3 {
-    margin-top: 18px;
     font-size: 34px;
   }
 
-  .guidesPillarLink {
-    margin-top: 22px;
+  .guideCard:last-child {
+    grid-column: auto;
   }
 }
 
@@ -1239,8 +1148,7 @@
   .cardLink,
   .guideCard,
   .guideCard h3,
-  .guideArrow,
-  .guidesPillarLink {
+  .guideArrow {
     transition: none;
   }
 

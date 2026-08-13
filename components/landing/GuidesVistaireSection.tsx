@@ -32,17 +32,28 @@ export function GuidesVistaireSection({ locale = "fr" }: { locale?: Locale }) {
     <section
       id="guides"
       aria-labelledby="guides-title"
-      className={styles.guidesSection}
+      className={`${styles.section} ${styles.guidesSection}`}
     >
-      <div aria-hidden="true" className={styles.guidesBackdrop} />
-      <div className={styles.guidesPanel}>
-        <div className={styles.guidesIntro}>
+      <div
+        className={`${styles.sectionPanel} ${styles.ownerPanel} ${styles.guidesPanel}`}
+      >
+        <header className={styles.ownerIntro}>
           <p className={styles.eyebrow}>
             {sectionCopy.eyebrow}
           </p>
           <h2 id="guides-title">{sectionCopy.title}</h2>
           <p>{sectionCopy.description}</p>
-        </div>
+          <Link
+            className={styles.secondaryButton}
+            href={sectionCopy.pillarHref}
+            prefetch={false}
+          >
+            {sectionCopy.pillarLabel}
+            <span aria-hidden="true" className={styles.linkArrow}>
+              ↗
+            </span>
+          </Link>
+        </header>
 
         <div className={styles.guidesGrid}>
           {guides.map((guide, index) => (
@@ -68,14 +79,6 @@ export function GuidesVistaireSection({ locale = "fr" }: { locale?: Locale }) {
             </Link>
           ))}
         </div>
-
-        <Link
-          className={styles.guidesPillarLink}
-          href={sectionCopy.pillarHref}
-          prefetch={false}
-        >
-          {sectionCopy.pillarLabel}
-        </Link>
       </div>
     </section>
   );
