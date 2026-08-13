@@ -92,6 +92,24 @@ function relatedLabel(path: string, guide: EditorialGuide) {
   return RELATED_LABELS[path]?.[guide.locale] ?? path;
 }
 
+function relatedCardMeta(path: string, guide: EditorialGuide) {
+  return getEditorialGuideByPath(path)
+    ? "Guide"
+    : guide.locale === "en"
+      ? "Related page"
+      : "Page associée";
+}
+
+function relatedCardAction(path: string, guide: EditorialGuide) {
+  return getEditorialGuideByPath(path)
+    ? guide.locale === "en"
+      ? "Read the guide"
+      : "Lire le guide"
+    : guide.locale === "en"
+      ? "Explore the page"
+      : "Explorer la page";
+}
+
 function layoutClass(layout: GuideSectionLayout) {
   switch (layout) {
     case "feature":
@@ -320,11 +338,11 @@ export function VistaireEditorialGuide({ guide }: { guide: EditorialGuide }) {
               {guide.relatedPaths.map((path, index) => (
                 <Link href={path} key={path} prefetch={false}>
                   <span className={styles.relatedCardMeta}>
-                    {String(index + 1).padStart(2, "0")} · {isEnglish ? "Guide" : "Guide"}
+                    {String(index + 1).padStart(2, "0")} · {relatedCardMeta(path, guide)}
                   </span>
                   <span className={styles.relatedCardTitle}>{relatedLabel(path, guide)}</span>
                   <span className={styles.relatedCardAction}>
-                    {isEnglish ? "Read the guide" : "Lire le guide"}
+                    {relatedCardAction(path, guide)}
                     <span aria-hidden="true" className={styles.relatedArrow}>↗</span>
                   </span>
                 </Link>

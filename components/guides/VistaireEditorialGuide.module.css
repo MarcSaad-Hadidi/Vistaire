@@ -45,6 +45,8 @@
   --preview-champagne: #e8cf9b;
   --preview-muted: rgba(255, 247, 234, 0.72);
   --preview-border: rgba(255, 250, 240, 0.26);
+  --preview-surface: rgba(13, 8, 5, 0.66);
+  --preview-surface-soft: rgba(13, 8, 5, 0.52);
 
   position: relative;
   isolation: isolate;
@@ -99,7 +101,7 @@
   gap: 12px;
   border: 1px solid var(--preview-border);
   border-radius: 22px;
-  background: transparent;
+  background: var(--preview-surface);
   padding: 14px;
   box-shadow:
     0 24px 70px rgba(0, 0, 0, 0.22),
@@ -117,7 +119,7 @@
 .cta {
   border: 1px solid var(--preview-border);
   border-radius: 15px;
-  background: transparent;
+  background: var(--preview-surface-soft);
   box-shadow:
     0 24px 70px rgba(0, 0, 0, 0.22),
     inset 0 1px 0 rgba(255, 250, 240, 0.18),
@@ -558,7 +560,7 @@
   grid-template-columns: minmax(0, 0.75fr) minmax(0, 1.25fr);
   gap: 1.4rem 3rem;
   border-color: var(--preview-border);
-  background: transparent;
+  background: var(--preview-surface-soft);
 }
 
 .checklist .sectionHeading {
@@ -611,7 +613,7 @@
   flex-direction: column;
   border: 1px solid rgba(255, 250, 240, 0.18);
   border-radius: 12px;
-  background: transparent;
+  background: rgba(13, 8, 5, 0.42);
   padding: 1rem;
   color: var(--preview-cream);
   text-decoration: none;
@@ -665,7 +667,7 @@
   justify-content: space-between;
   gap: 2rem;
   border-color: rgba(255, 250, 240, 0.34);
-  background: transparent;
+  background: var(--preview-surface-soft);
 }
 
 .cta h2 {
