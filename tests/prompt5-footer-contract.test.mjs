@@ -108,6 +108,11 @@ test("mobile footer uses one column and footer links have 44px targets", async (
     /\.footerLinkList a,[\s\S]*?min-height:\s*44px/,
     "footer links need an explicit mobile touch target"
   );
+  assert.match(
+    styles,
+    /\.footerLinkListBalanced a:nth-child\(3\)\s*\{[\s\S]*?grid-column:\s*1;[\s\S]*?justify-self:\s*start;/,
+    "the third guide link must stay in one column instead of spanning the footer"
+  );
 });
 
 test("tablet footer reflows before six fixed tracks can be clipped", async () => {

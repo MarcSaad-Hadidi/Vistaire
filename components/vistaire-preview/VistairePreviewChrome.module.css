@@ -331,7 +331,7 @@
 }
 
 .footerLinkListBalanced a:nth-child(3) {
-  grid-column: 1 / -1;
+  grid-column: 1;
   justify-self: start;
 }
 
