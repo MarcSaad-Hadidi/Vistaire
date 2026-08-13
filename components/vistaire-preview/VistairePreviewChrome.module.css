@@ -331,7 +331,8 @@
 }
 
 .footerLinkListBalanced a:nth-child(3) {
-  grid-column: 1;
+  grid-column: 1 / -1;
+  justify-self: start;
 }
 
 .footerLinkList a,
@@ -507,7 +508,8 @@
   }
 
   .footerLinkListBalanced {
-    grid-template-columns: minmax(0, 1fr);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px 18px;
   }
 }
 
@@ -661,7 +663,8 @@
   }
 
   .footerLinkListBalanced {
-    grid-template-columns: minmax(0, 1fr);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px 18px;
   }
 
   .footerLinkList a,

@@ -72,12 +72,7 @@
 
 .backgroundVeil {
   z-index: -2;
-  background-color: #0d0805;
-  background-position: center;
-  background-repeat: no-repeat;
-  background-size: cover;
-  filter: blur(18px) brightness(0.52) saturate(0.86);
-  transform: scale(1.08);
+  background: transparent;
 }
 
 .navShell,
