@@ -54,7 +54,7 @@ test("production landing renders a versioned public dish photo through its signe
   expect(new Set(photoPaths).size).toBe(3);
   for (const photoPath of photoPaths) {
     expect(photoPath).toMatch(
-      /^\/api\/public\/menu-dishes\/[0-9a-f-]+\/photo\?v=[0-9a-f]{64}$/i
+      /^\/api\/public\/menu-dishes\/[0-9a-f-]+\/photo\?v=[0-9a-f]{64}&variant=display$/i
     );
   }
 
