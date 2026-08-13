@@ -5,8 +5,10 @@ import {
   isCanonicalUuid,
   isStorageSafeIdentifier
 } from "@/lib/owner/storageSafeIdentifier";
+import type { DishPhotoDerivativeVariant } from "@/lib/owner/dishPhotoUpload";
 
 export type PublicDishAssetKind = "photo" | "web-glb" | "ar-lite-glb" | "usdz";
+export type PublicDishPhotoVariant = DishPhotoDerivativeVariant;
 
 type DishAssetAdmin =
   | { ok: true; client: SupabaseClient }
@@ -82,6 +84,24 @@ function metadataString(metadata: Record<string, unknown>, key: string): string 
   return typeof value === "string" ? value.trim() : "";
 }
 
+function storageErrorStatus(error: unknown): number {
+  if (!error || typeof error !== "object") return Number.NaN;
+  const record = error as { status?: unknown; statusCode?: unknown };
+  return Number(record.status ?? record.statusCode);
+}
+
+function isMissingStorageError(error: unknown): boolean {
+  const status = storageErrorStatus(error);
+  if (status === 404) return true;
+  const message =
+    error && typeof error === "object" && "message" in error
+      ? String((error as { message?: unknown }).message ?? "")
+      : String(error ?? "");
+  return /object\s+(?:not found|does not exist)|file\s+(?:not found|does not exist)/i.test(
+    message
+  );
+}
+
 const NO_STORE_HEADERS = {
   "Cache-Control": "private, no-store",
   "CDN-Cache-Control": "private, no-store",
@@ -143,10 +163,28 @@ export function isAllowedPublicDishAssetLocation(args: {
   bucket: string;
   storagePath: string;
   restaurantId: string;
+  photoVariant?: PublicDishPhotoVariant;
 }): boolean {
   const profile = ASSET_PROFILES[args.kind];
   if (args.bucket !== profile.bucket || !hasSafePathSyntax(args.storagePath)) {
     return false;
+  }
+
+  if (args.kind === "photo" && args.photoVariant) {
+    const pathSegments = args.storagePath.split("/");
+    const expectedPrefix = [
+      "restaurants",
+      args.restaurantId,
+      "photos",
+      "derivatives"
+    ];
+    const sourceSha = pathSegments[4] ?? "";
+    return (
+      pathSegments.length === 6 &&
+      expectedPrefix.every((segment, index) => pathSegments[index] === segment) &&
+      /^[a-f0-9]{64}$/i.test(sourceSha) &&
+      pathSegments[5] === `${args.photoVariant}.webp`
+    );
   }
 
   const pathSegments = args.storagePath.split("/");
@@ -218,6 +256,7 @@ async function redirectDishAsset(args: {
   notFoundMessage: string;
   unavailableMessage: string;
   assetVisibilityPolicy: DishAssetVisibilityPolicy;
+  photoVariant?: PublicDishPhotoVariant;
 }): Promise<Response> {
   if (!isCanonicalUuid(args.dishId)) {
     return publicDishAssetJsonError(args.notFoundMessage, 404);
@@ -286,14 +325,50 @@ async function redirectDishAsset(args: {
 
   const restaurantId = dishRestaurantId;
   const bucket = metadataString(metadata, profile.bucketMetadataKey) || profile.bucket;
-  const storagePath = metadataString(metadata, profile.pathMetadataKey);
+  const originalStoragePath = metadataString(metadata, profile.pathMetadataKey);
+  const derivativeRecord =
+    args.kind === "photo" && args.photoVariant
+      ? metadataRecord(metadata.photoDerivatives)[args.photoVariant]
+      : undefined;
+  const derivativeMetadata = metadataRecord(derivativeRecord);
+  const derivativeStoragePath = metadataString(derivativeMetadata, "storagePath");
+  const derivativeSourceSha256 = metadataString(
+    derivativeMetadata,
+    "sourceSha256"
+  ).toLowerCase();
+  const derivativeSha256 = metadataString(derivativeMetadata, "sha256");
+  const derivativeBytes = Number(derivativeMetadata.bytes);
+  const derivativeContentType = metadataString(derivativeMetadata, "contentType");
+  const hasUsableDerivative = Boolean(
+    args.kind === "photo" &&
+      args.photoVariant &&
+      derivativeStoragePath &&
+      derivativeSourceSha256 === activeVersion.toLowerCase() &&
+      /^[a-f0-9]{64}$/i.test(derivativeSha256) &&
+      derivativeContentType === "image/webp" &&
+      Number.isInteger(derivativeBytes) &&
+      derivativeBytes > 0 &&
+      isAllowedDishAssetLocation({
+        kind: args.kind,
+        bucket,
+        storagePath: derivativeStoragePath,
+        restaurantId,
+        photoVariant: args.photoVariant
+      })
+  );
+  let storagePath = hasUsableDerivative
+    ? derivativeStoragePath
+    : originalStoragePath;
   if (
     !restaurantId ||
     !isAllowedDishAssetLocation({
       kind: args.kind,
       bucket,
       storagePath,
-      restaurantId
+      restaurantId,
+      ...(hasUsableDerivative && args.photoVariant
+        ? { photoVariant: args.photoVariant }
+        : {})
     })
   ) {
     return publicDishAssetJsonError(args.notFoundMessage, 404);
@@ -301,32 +376,84 @@ async function redirectDishAsset(args: {
 
   const storage = args.admin.client.storage.from(bucket);
   try {
-    const storageInfoStartedAt = performance.now();
-    const objectInfo = await storage.info(storagePath);
-    const storageInfoDuration = boundedDuration(storageInfoStartedAt);
-    if (objectInfo.error) {
-      const status =
-        typeof objectInfo.error === "object" && objectInfo.error
-          ? Number((objectInfo.error as { status?: unknown }).status)
-          : Number.NaN;
-      return publicDishAssetJsonError(
-        status === 404 ? args.notFoundMessage : args.unavailableMessage,
-        status === 404 ? 404 : 503
-      );
-    }
-    if (!objectInfo.data) {
-      return publicDishAssetJsonError(args.notFoundMessage, 404);
+    let storageInfoDuration = 0;
+    let storageSignDuration = 0;
+    let signedUrl: string | undefined;
+    let signError: unknown = null;
+    const sign = async () => {
+      const storageSignStartedAt = performance.now();
+      try {
+        const signed =
+          args.assetVisibilityPolicy.kind === "authorized-admin"
+            ? await storage.createSignedUrl(storagePath, ADMIN_SIGNED_URL_TTL_SECONDS)
+            : await storage.createSignedUrl(storagePath, SIGNED_URL_TTL_SECONDS);
+        storageSignDuration += boundedDuration(storageSignStartedAt);
+        signError = signed.error;
+        const candidate = signed.data?.signedUrl;
+        if (
+          !signed.error &&
+          candidate &&
+          isExpectedSignedStorageUrl({
+            signedUrl: candidate,
+            supabaseUrl: args.supabaseUrl,
+            bucket,
+            storagePath
+          })
+        ) {
+          signedUrl = candidate;
+          return true;
+        }
+      } catch (error) {
+        storageSignDuration += boundedDuration(storageSignStartedAt);
+        signError = error;
+      }
+      return false;
+    };
+
+    const directSigning = Boolean(activeVersion);
+    const signOriginal = async (): Promise<boolean> => {
+      if (directSigning) return sign();
+      const storageInfoStartedAt = performance.now();
+      const objectInfo = await storage.info(storagePath);
+      storageInfoDuration = boundedDuration(storageInfoStartedAt);
+      if (objectInfo.error) {
+        signError = objectInfo.error;
+        return false;
+      }
+      if (!objectInfo.data) {
+        signError = { status: 404, message: "Object not found" };
+        return false;
+      }
+      return sign();
+    };
+
+    // Versioned paths are content-addressed and Supabase validates existence
+    // while creating the signed URL. Keep Storage.info only for true legacy
+    // photos without a version, where the historical existence contract is
+    // still required.
+    const derivativeSigned = hasUsableDerivative ? await sign() : false;
+    if (!derivativeSigned) {
+      storagePath = originalStoragePath;
+      if (
+        !isAllowedDishAssetLocation({
+          kind: args.kind,
+          bucket,
+          storagePath,
+          restaurantId
+        })
+      ) {
+        return publicDishAssetJsonError(args.notFoundMessage, 404);
+      }
+      if (!(await signOriginal())) {
+        const missing = isMissingStorageError(signError);
+        return publicDishAssetJsonError(
+          missing ? args.notFoundMessage : args.unavailableMessage,
+          missing ? 404 : 503
+        );
+      }
     }
 
-    const storageSignStartedAt = performance.now();
-    const signed =
-      args.assetVisibilityPolicy.kind === "authorized-admin"
-        ? await storage.createSignedUrl(storagePath, ADMIN_SIGNED_URL_TTL_SECONDS)
-        : await storage.createSignedUrl(storagePath, SIGNED_URL_TTL_SECONDS);
-    const storageSignDuration = boundedDuration(storageSignStartedAt);
-    const signedUrl = signed.data?.signedUrl;
     if (
-      signed.error ||
       !signedUrl ||
       !isExpectedSignedStorageUrl({
         signedUrl,
@@ -384,10 +511,12 @@ export async function redirectPublicDishAsset(args: {
   supabaseUrl: string | undefined;
   notFoundMessage: string;
   unavailableMessage: string;
+  photoVariant?: PublicDishPhotoVariant;
 }): Promise<Response> {
   return redirectDishAsset({
     ...args,
-    assetVisibilityPolicy: { kind: "public-available-only" }
+    assetVisibilityPolicy: { kind: "public-available-only" },
+    photoVariant: args.photoVariant
   });
 }
 
@@ -400,12 +529,14 @@ export async function redirectAuthorizedAdminDishAsset(args: {
   restaurantId: string;
   notFoundMessage: string;
   unavailableMessage: string;
+  photoVariant?: PublicDishPhotoVariant;
 }): Promise<Response> {
   return redirectDishAsset({
     ...args,
     assetVisibilityPolicy: {
       kind: "authorized-admin",
       restaurantId: args.restaurantId
-    }
+    },
+    photoVariant: args.photoVariant
   });
 }

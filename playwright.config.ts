@@ -2,6 +2,30 @@ import { randomBytes } from "node:crypto";
 import { defineConfig, devices } from "@playwright/test";
 
 const baseURL = process.env.PLAYWRIGHT_BASE_URL ?? "http://127.0.0.1:3000";
+const configuredSupabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim() ?? "";
+const allowProductionSupabaseE2e =
+  process.env.VISTAIRE_ALLOW_PRODUCTION_SUPABASE_E2E === "1" &&
+  process.env.VISTAIRE_E2E_PRODUCTION_SMOKE === "1";
+let externalSupabaseUrl = false;
+if (configuredSupabaseUrl) {
+  try {
+    const parsed = new URL(configuredSupabaseUrl);
+    const loopback =
+      parsed.hostname === "localhost" ||
+      parsed.hostname.endsWith(".localhost") ||
+      parsed.hostname === "127.0.0.1" ||
+      parsed.hostname === "[::1]" ||
+      parsed.hostname === "::1";
+    externalSupabaseUrl = !loopback;
+  } catch {
+    externalSupabaseUrl = true;
+  }
+}
+if (externalSupabaseUrl && !allowProductionSupabaseE2e) {
+  throw new Error(
+    "Playwright refuse toute URL Supabase externe; configurez un fixture local ou l'opt-in explicite du smoke contrôlé."
+  );
+}
 const shouldStartWebServer = process.env.PLAYWRIGHT_SKIP_WEB_SERVER !== "1";
 const startCommand = "node ./node_modules/next/dist/bin/next start --hostname 127.0.0.1";
 const reuseExistingServer = process.env.PLAYWRIGHT_REUSE_EXISTING_SERVER === "1";

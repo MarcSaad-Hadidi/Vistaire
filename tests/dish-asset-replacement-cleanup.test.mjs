@@ -13,6 +13,7 @@ const dishId = "22222222-3333-4444-8555-666666666666";
 function createCleanupClient({
   currentMetadata = {},
   otherRows = [],
+  otherRowsError = null,
   removeError = null,
   removeThrows = false
 } = {}) {
@@ -51,7 +52,9 @@ function createCleanupClient({
             then(resolve, reject) {
               Promise.resolve(
                 state.otherRows
-                  ? { data: otherRows, error: null }
+                  ? otherRowsError
+                    ? { data: null, error: { message: otherRowsError } }
+                    : { data: otherRows, error: null }
                   : { data: [{ metadata: currentMetadata }], error: null }
               ).then(resolve, reject);
             }
@@ -174,7 +177,7 @@ test("cleanupReplacedDishAssets protects unsafe buckets, prefixes, and dangerous
   assert.deepEqual(client.removed, []);
 });
 
-test("cleanupReplacedDishAssets skips old assets still referenced by another active dish", async () => {
+test("cleanupReplacedDishAssets skips old assets still referenced by another dish", async () => {
   const oldPath = `restaurants/${restaurantId}/models/web/shared.glb`;
   const previousMetadata = {
     webModel3dStorageBucket: "vistaire-3d",
@@ -199,6 +202,120 @@ test("cleanupReplacedDishAssets skips old assets still referenced by another act
   });
 
   assert.equal(report.skippedStillReferenced.length, 1);
+  assert.deepEqual(client.removed, []);
+});
+
+test("cleanupReplacedDishAssets preserves shared photo derivatives while deleting a unique original", async () => {
+  const sourceSha = "a".repeat(64);
+  const originalA = `restaurants/${restaurantId}/photos/originals/sole-a-${sourceSha.slice(0, 12)}.webp`;
+  const originalB = `restaurants/${restaurantId}/photos/originals/sole-b-${sourceSha.slice(0, 12)}.webp`;
+  const thumbnail = `restaurants/${restaurantId}/photos/derivatives/${sourceSha}/thumbnail.webp`;
+  const display = `restaurants/${restaurantId}/photos/derivatives/${sourceSha}/display.webp`;
+  const previousMetadata = {
+    photoStorageBucket: "vistaire-media",
+    photoStoragePath: originalA,
+    photoSha256: sourceSha,
+    photoDerivatives: {
+      thumbnail: { storagePath: thumbnail },
+      display: { storagePath: display }
+    }
+  };
+  const otherMetadata = {
+    photoStorageBucket: "vistaire-media",
+    photoStoragePath: originalB,
+    photoSha256: sourceSha,
+    photoDerivatives: {
+      thumbnail: { storagePath: thumbnail },
+      display: { storagePath: display }
+    }
+  };
+  const client = createCleanupClient({
+    currentMetadata: {},
+    otherRows: [{ metadata: otherMetadata }]
+  });
+
+  const report = await cleanupReplacedDishAssets({
+    client,
+    dishId,
+    restaurantId,
+    previousMetadata,
+    nextMetadata: {},
+    reason: "dish-photo-delete"
+  });
+
+  assert.deepEqual(report.deleted.map((ref) => ref.path), [originalA]);
+  assert.deepEqual(
+    report.skippedStillReferenced.map((ref) => ref.path).sort(),
+    [thumbnail, display].sort()
+  );
+  assert.deepEqual(client.removed, [{ bucket: "vistaire-media", paths: [originalA] }]);
+});
+
+test("cleanupReplacedDishAssets deletes unique original and derivatives", async () => {
+  const sourceSha = "b".repeat(64);
+  const original = `restaurants/${restaurantId}/photos/originals/sole-${sourceSha.slice(0, 12)}.webp`;
+  const thumbnail = `restaurants/${restaurantId}/photos/derivatives/${sourceSha}/thumbnail.webp`;
+  const display = `restaurants/${restaurantId}/photos/derivatives/${sourceSha}/display.webp`;
+  const previousMetadata = {
+    photoStorageBucket: "vistaire-media",
+    photoStoragePath: original,
+    photoSha256: sourceSha,
+    photoDerivatives: {
+      thumbnail: { storagePath: thumbnail },
+      display: { storagePath: display }
+    }
+  };
+  const client = createCleanupClient({ currentMetadata: {} });
+
+  const report = await cleanupReplacedDishAssets({
+    client,
+    dishId,
+    restaurantId,
+    previousMetadata,
+    nextMetadata: {},
+    reason: "dish-photo-delete"
+  });
+
+  assert.deepEqual(
+    report.deleted.map((ref) => ref.path).sort(),
+    [original, thumbnail, display].sort()
+  );
+  assert.deepEqual(client.removed, [
+    { bucket: "vistaire-media", paths: [original, thumbnail, display] }
+  ]);
+});
+
+test("cleanupReplacedDishAssets preserves every uncertain photo object when cross-dish lookup fails", async () => {
+  const sourceSha = "c".repeat(64);
+  const original = `restaurants/${restaurantId}/photos/originals/sole-${sourceSha.slice(0, 12)}.webp`;
+  const thumbnail = `restaurants/${restaurantId}/photos/derivatives/${sourceSha}/thumbnail.webp`;
+  const display = `restaurants/${restaurantId}/photos/derivatives/${sourceSha}/display.webp`;
+  const previousMetadata = {
+    photoStorageBucket: "vistaire-media",
+    photoStoragePath: original,
+    photoSha256: sourceSha,
+    photoDerivatives: {
+      thumbnail: { storagePath: thumbnail },
+      display: { storagePath: display }
+    }
+  };
+  const client = createCleanupClient({
+    currentMetadata: {},
+    otherRowsError: "database unavailable"
+  });
+
+  const report = await cleanupReplacedDishAssets({
+    client,
+    dishId,
+    restaurantId,
+    previousMetadata,
+    nextMetadata: {},
+    reason: "dish-photo-delete"
+  });
+
+  assert.equal(report.errors.length, 1);
+  assert.equal(report.deleted.length, 0);
+  assert.equal(report.skippedStillReferenced.length, 3);
   assert.deepEqual(client.removed, []);
 });
 

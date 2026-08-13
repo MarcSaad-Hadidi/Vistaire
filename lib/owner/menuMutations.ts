@@ -12,10 +12,7 @@ import {
   isMissingColumnError as isMissingSettingsColumnError,
   readPublicMenuSettingsWithFallbacks
 } from "@/lib/owner/publicMenuSettingsFallback";
-import {
-  collectDishMediaStorageTargets,
-  deleteDishMediaStorageTargets
-} from "@/lib/owner/dishMediaGarbageCollector";
+import { cleanupReplacedDishAssets } from "@/lib/owner/dishAssetReplacementCleanup";
 import {
   customAllergensFromLegacyValues,
   fixedAllergenIdForValue,
@@ -896,18 +893,6 @@ export async function deleteOwnerMenuDish(args: {
   if (!existing.data?.id) {
     return { ok: false, status: 404, error: "Plat introuvable." };
   }
-  const mediaCleanup = await deleteDishMediaStorageTargets(
-    args.client,
-    collectDishMediaStorageTargets(existing.data.metadata, args.restaurantId)
-  );
-  if (mediaCleanup.warnings.some((warning) => warning.includes("non supprime") || warning.includes("indisponible"))) {
-    return {
-      ok: false,
-      status: 503,
-      error: "Medias du plat impossibles a supprimer dans Storage."
-    };
-  }
-
   const deleted = await args.client
     .from("menu_dishes")
     .delete()
@@ -922,5 +907,27 @@ export async function deleteOwnerMenuDish(args: {
   if (!deleted.data?.id) {
     return { ok: false, status: 404, error: "Plat introuvable." };
   }
+
+  const cleanup = await cleanupReplacedDishAssets({
+    client: args.client,
+    dishId: id,
+    restaurantId: args.restaurantId,
+    previousMetadata: existing.data.metadata,
+    nextMetadata: {},
+    currentMetadata: {},
+    reason: "dish-delete"
+  });
+  const mediaCleanup = {
+    deleted: cleanup.deleted,
+    skipped: [
+      ...cleanup.skippedStillReferenced,
+      ...cleanup.skippedUnsafeBucket,
+      ...cleanup.skippedUnsafePrefix,
+      ...cleanup.skippedMissingPath
+    ],
+    warnings: cleanup.errors.map(
+      (error) => `Storage ${error.bucket || "metadata"} cleanup partiel: ${error.message}`
+    )
+  };
   return { ok: true, record: { ...deleted.data, mediaCleanup } };
 }

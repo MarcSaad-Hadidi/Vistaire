@@ -1,5 +1,7 @@
 import "server-only";
 
+import { cache } from "react";
+
 import { getAllDishes, getRestaurant } from "@/lib/demoMenuData";
 import {
   filterRowsByRestaurantId,
@@ -9,6 +11,7 @@ import {
   getString,
   getSupabaseTableColumns,
   readSupabaseRows,
+  readSupabaseRowsByIn,
   type AnyRow
 } from "@/lib/analytics/serverRows";
 import { getSupabaseAdminClient } from "@/utils/supabase/admin";
@@ -777,19 +780,40 @@ const skippedRowsResult = {
 async function getOwnerRestaurantRowsData(
   options: OwnerRestaurantReadOptions = {}
 ): Promise<OwnerRestaurantsData> {
-  const [restaurantsResult, dishesResult, eventsResult, qrCodesResult] =
-    await Promise.all([
-      readSupabaseRows("restaurants", 200),
-      options.includeDishes
-        ? readSupabaseRows("menu_dishes", 1_000)
-        : Promise.resolve(skippedRowsResult),
-      options.includeActivity
-        ? readSupabaseRows("analytics_events", 1_000)
-        : Promise.resolve(skippedRowsResult),
-      options.includeQr
-        ? readSupabaseRows("qr_codes", 500)
-        : Promise.resolve(skippedRowsResult)
-    ]);
+  const restaurantsResult = await readSupabaseRows("restaurants", 200);
+  const restaurantIds = restaurantsResult.ok
+    ? restaurantsResult.rows
+        .map((row) => getString(row, ["id", "restaurant_id"], ""))
+        .filter(Boolean)
+    : [];
+  const [dishesResult, eventsResult, qrCodesResult] = restaurantIds.length
+    ? await Promise.all([
+        options.includeDishes
+          ? readSupabaseRowsByIn({
+              table: "menu_dishes",
+              column: "restaurant_id",
+              values: restaurantIds,
+              limit: 1_000
+            })
+          : Promise.resolve(skippedRowsResult),
+        options.includeActivity
+          ? readSupabaseRowsByIn({
+              table: "analytics_events",
+              column: "restaurant_id",
+              values: restaurantIds,
+              limit: 1_000
+            })
+          : Promise.resolve(skippedRowsResult),
+        options.includeQr
+          ? readSupabaseRowsByIn({
+              table: "qr_codes",
+              column: "restaurant_id",
+              values: restaurantIds,
+              limit: 500
+            })
+          : Promise.resolve(skippedRowsResult)
+      ])
+    : [skippedRowsResult, skippedRowsResult, skippedRowsResult];
 
   const dishRows = dishesResult.ok ? dishesResult.rows : [];
   const activeQrRestaurantIds =
@@ -849,14 +873,16 @@ async function getOwnerRestaurantRowsData(
   };
 }
 
-export async function getOwnerRestaurantsData(): Promise<OwnerRestaurantsData> {
+async function getOwnerRestaurantsDataUncached(): Promise<OwnerRestaurantsData> {
   return getOwnerRestaurantRowsData({
     includeDishes: true,
     includeQr: true
   });
 }
 
-export async function getOwnerRestaurantDashboardData(
+export const getOwnerRestaurantsData = cache(getOwnerRestaurantsDataUncached);
+
+async function getOwnerRestaurantDashboardDataUncached(
   restaurantIdOrSlug: string
 ): Promise<OwnerRestaurantDashboardData> {
   const data = await getOwnerRestaurantRowsData({
@@ -877,11 +903,17 @@ export async function getOwnerRestaurantDashboardData(
   };
 }
 
-export async function getOwnerMenuStatusData(): Promise<OwnerRestaurantsData> {
+export const getOwnerRestaurantDashboardData = cache(
+  getOwnerRestaurantDashboardDataUncached
+);
+
+async function getOwnerMenuStatusDataUncached(): Promise<OwnerRestaurantsData> {
   return getOwnerRestaurantRowsData({
     includeDishes: true
   });
 }
+
+export const getOwnerMenuStatusData = cache(getOwnerMenuStatusDataUncached);
 
 export async function getOwnerDashboardData(
   options: { includeAiRecommendations?: boolean } = {}

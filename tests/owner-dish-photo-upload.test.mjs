@@ -168,7 +168,8 @@ test("dish photo metadata merge keeps existing fields and marks photo ready", ()
       photoStoragePath: "restaurants/x/photos/originals/dish.png",
       photoSha256: "b".repeat(64),
       photoContentType: "image/png",
-      photoBytes: 123
+      photoBytes: 123,
+      photoDerivatives: {}
     }
   );
 });
@@ -194,7 +195,6 @@ test("dish photo upload API and public redirect use guarded server-side storage"
   assert.match(uploadRoute, /storage\.from\(MEDIA_BUCKET\)\.remove/);
   assert.match(uploadRoute, /export async function DELETE/);
   assert.match(uploadRoute, /clearDishPhotoMetadata/);
-  assert.match(uploadRoute, /deleteDishMediaStorageTargets/);
   assert.match(uploadRoute, /cleanupReplacedDishAssets/);
   assert.match(uploadRoute, /previousMetadata: oldMetadata/);
   assert.match(uploadRoute, /nextMetadata: metadata/);
@@ -210,7 +210,7 @@ test("dish photo upload API and public redirect use guarded server-side storage"
   assert.doesNotMatch(redirectHelper, /\.download\s*\(|\.arrayBuffer\s*\(/);
 });
 
-test("photo replacement, delete, and dish delete use the central media collector", async () => {
+test("photo replacement, delete, and dish delete use the shared media cleanup", async () => {
   const uploadRoute = await readFile(
     "app/api/owner/restaurants/[restaurantId]/dishes/[dishId]/photo/route.ts",
     "utf8"
@@ -235,7 +235,36 @@ test("photo replacement, delete, and dish delete use the central media collector
   assert.match(uploadRoute, /skippedCount/);
   assert.match(uploadRoute, /revalidateOwnerMenuMutationPaths/);
   assert.match(dishRoute, /mediaCleanup/);
-  assert.match(mutations, /collectDishMediaStorageTargets/);
-  assert.match(mutations, /deleteDishMediaStorageTargets/);
+  assert.match(mutations, /cleanupReplacedDishAssets/);
   assert.match(mutations, /select\("id,name,slug,menu_id,category_id,metadata"\)/);
+});
+
+test("photo DELETE clears DB metadata before cross-dish-safe Storage cleanup", async () => {
+  const uploadRoute = await readFile(
+    "app/api/owner/restaurants/[restaurantId]/dishes/[dishId]/photo/route.ts",
+    "utf8"
+  );
+  const deleteStart = uploadRoute.indexOf("export async function DELETE");
+  assert.ok(deleteStart >= 0);
+  const deleteRoute = uploadRoute.slice(deleteStart);
+  const updateIndex = deleteRoute.indexOf('.update({\n      image_url: null');
+  const cleanupIndex = deleteRoute.indexOf("cleanupReplacedDishAssets({");
+  assert.ok(updateIndex >= 0, "DELETE must clear the dish metadata");
+  assert.ok(cleanupIndex > updateIndex, "Storage cleanup must run after the DB update");
+  assert.doesNotMatch(deleteRoute, /deleteDishMediaStorageTargets|collectDishPhotoStorageTarget/);
+  assert.match(deleteRoute, /previousMetadata: oldMetadata/);
+  assert.match(deleteRoute, /nextMetadata: clearedMetadata/);
+});
+
+test("whole-dish deletion also updates DB before cross-dish-safe media cleanup", async () => {
+  const mutations = await readFile("lib/owner/menuMutations.ts", "utf8");
+  const deleteStart = mutations.indexOf("export async function deleteOwnerMenuDish");
+  assert.ok(deleteStart >= 0);
+  const deleteMutation = mutations.slice(deleteStart);
+  const dbDeleteIndex = deleteMutation.indexOf(".delete()");
+  const cleanupIndex = deleteMutation.indexOf("cleanupReplacedDishAssets({");
+  assert.ok(dbDeleteIndex >= 0, "dish deletion must be the DB authority");
+  assert.ok(cleanupIndex > dbDeleteIndex, "dish media cleanup must run after DB deletion");
+  assert.doesNotMatch(deleteMutation, /deleteDishMediaStorageTargets|collectDishMediaStorageTargets/);
+  assert.match(deleteMutation, /currentMetadata: \{\}/);
 });

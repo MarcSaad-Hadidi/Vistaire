@@ -10,37 +10,6 @@ const attemptedAssetAt = new Map<string, number>();
 const ASSET_WARMUP_TIMEOUT_MS = 4_000;
 const ASSET_WARMUP_RETRY_COOLDOWN_MS = 30_000;
 const QUICK_LOOK_PREFETCH_TIMEOUT_MS = 25_000;
-const SMALL_ASSET_WARMUP_MAX_BYTES = 1024 * 1024;
-
-const demoAssetByteSizes = new Map<string, number>([
-  ["/models/demo/ravioles-chevre-miel-meshy.glb", 2_861_744],
-  ["/models/demo/ar-lite/ravioles-chevre-miel-ar-lite-meshy.glb", 8_112_832],
-  ["/models/demo/ar-lite/ravioles-chevre-miel-ios-quicklook-meshy.usdz", 3_438_515],
-  ["/models/demo/canette-aux-figues-meshy.glb", 2_782_652],
-  ["/models/demo/ar-lite/canette-aux-figues-ar-lite-meshy.glb", 7_801_972],
-  ["/models/demo/ar-lite/canette-aux-figues-ios-quicklook-meshy.usdz", 1_786_076],
-  ["/models/demo/bar-de-ligne-meshy.glb", 1_942_636],
-  ["/models/demo/ar-lite/bar-de-ligne-ar-lite-meshy.glb", 5_557_396],
-  ["/models/demo/ar-lite/bar-de-ligne-ios-quicklook-meshy.usdz", 1_317_457],
-  ["/models/demo/pave-boeuf-meshy.glb", 1_650_004],
-  ["/models/demo/ar-lite/pave-boeuf-ar-lite-meshy.glb", 4_499_952],
-  ["/models/demo/ar-lite/pave-boeuf-ios-quicklook-meshy.usdz", 1_043_589],
-  ["/models/demo/homard-bisque-meshy.glb", 3_405_480],
-  ["/models/demo/homard-bisque.usdz", 26_352_806],
-  ["/models/demo/ar-lite/homard-bisque-ar-lite-meshy.glb", 8_594_588],
-  ["/models/demo/ar-lite/homard-bisque-ios-quicklook-meshy.usdz", 2_450_572],
-  ["/models/demo/souffle-chocolat-meshy.glb", 1_672_464],
-  ["/models/demo/ar-lite/souffle-chocolat-ar-lite-meshy.glb", 4_707_036],
-  ["/models/demo/ar-lite/souffle-chocolat-ios-quicklook-meshy.usdz", 1_736_180],
-  ["/models/demo/tartare-saumon-meshy.glb", 3_845_704],
-  ["/models/demo/ar-lite/tartare-saumon-ar-lite-meshy.glb", 11_786_728],
-  ["/models/demo/ar-lite/tartare-saumon-ios-quicklook-meshy.usdz", 3_612_924],
-  ["/models/demo/tarte-citron-basilic-meshy.glb", 2_226_400],
-  ["/models/demo/ar-lite/tarte-citron-basilic-ar-lite-meshy.glb", 6_255_656],
-  ["/models/demo/ar-lite/tarte-citron-basilic-ios-quicklook-meshy.usdz", 1_455_612],
-  ["/models/demo/maison-elyse-n1.glb", 86_380],
-  ["/models/demo/maison-elyse-n1.usdz", 208_984]
-]);
 
 type AssetKind = "glb" | "usdz";
 
@@ -130,20 +99,6 @@ function normalizeAssetUrl(url: string): string | null {
   } catch {
     return null;
   }
-}
-
-function getDemoAssetByteSize(normalizedUrl: string): number | null {
-  try {
-    const parsed = new URL(normalizedUrl);
-    return demoAssetByteSizes.get(parsed.pathname) ?? null;
-  } catch {
-    return null;
-  }
-}
-
-function canWarmAssetFromMenuCard(normalizedUrl: string): boolean {
-  const byteSize = getDemoAssetByteSize(normalizedUrl);
-  return Boolean(byteSize && byteSize <= SMALL_ASSET_WARMUP_MAX_BYTES);
 }
 
 function resolveDishUsdzUrl(dish: WarmableDish): string {
@@ -397,16 +352,9 @@ export function prefetchUsdzForQuickLook(
 }
 
 export function prepareDishAssetIntent(dish: WarmableDish): void {
-  if (typeof window === "undefined" || !shouldWarmHeavyAsset()) return;
-
-  prepareDemoAssetOrigin();
-
-  const requests = getWarmupOrder(dish).filter((request) => {
-    const normalizedUrl = normalizeAssetUrl(request.url);
-    return Boolean(normalizedUrl && canWarmAssetFromMenuCard(normalizedUrl));
-  });
-
-  for (const request of requests) {
-    warmAsset(request.url, request.kind);
-  }
+  // Kept as a compatibility no-op for older menu integrations. A card hover,
+  // focus, or pointer-down is not an explicit 3D/AR choice; warming here
+  // would spend bandwidth before the viewer action. Call warmDishAssets only
+  // from the explicit viewer/AR intent handlers.
+  void dish;
 }

@@ -3,6 +3,7 @@ import { requireAdminApiAccess } from "@/lib/admin/apiAuth";
 import {
   buildAdminDishPhotoPath
 } from "@/lib/admin/dishPhotoUrl";
+import type { DishPhotoDerivativeVariant } from "@/lib/owner/dishPhotoUpload";
 import {
   publicDishAssetJsonError,
   redirectAuthorizedAdminDishAsset
@@ -21,9 +22,18 @@ async function handlePhotoRequest(
 
   const { dishId } = await params;
   const assetVersion = request.nextUrl.searchParams.get("v")?.trim() ?? "";
+  const rawVariant = request.nextUrl.searchParams.get("variant")?.trim() ?? "";
+  const photoVariant: DishPhotoDerivativeVariant | undefined =
+    rawVariant === "thumbnail" || rawVariant === "display"
+      ? rawVariant
+      : undefined;
+  if (rawVariant && !photoVariant) {
+    return publicDishAssetJsonError("Photo introuvable.", 404);
+  }
   try {
     buildAdminDishPhotoPath(dishId, {
-      assetVersion: assetVersion || undefined
+      assetVersion: assetVersion || undefined,
+      variant: photoVariant
     });
   } catch {
     return publicDishAssetJsonError("Photo introuvable.", 404);
@@ -42,7 +52,8 @@ async function handlePhotoRequest(
     restaurantId: access.restaurantId,
     supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL,
     notFoundMessage: "Photo introuvable.",
-    unavailableMessage: "Photo indisponible."
+    unavailableMessage: "Photo indisponible.",
+    photoVariant
   });
 }
 

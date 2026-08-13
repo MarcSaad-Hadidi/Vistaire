@@ -60,8 +60,9 @@ function createFixture({
     },
     async createSignedUrl(storagePath, expiresIn) {
       calls.signed.push({ storagePath, expiresIn });
+      const effectiveError = signError || (objectExists ? null : { status: 404, message: "Object not found" });
       return {
-        data: signError
+        data: effectiveError
           ? null
           : {
               signedUrl:
@@ -69,7 +70,7 @@ function createFixture({
                   ? signedUrl("vistaire-media", storagePath)
                   : signedUrlOverride
             },
-        error: signError
+        error: effectiveError
       };
     }
   };
@@ -280,7 +281,7 @@ test("admin route rejects stale, malformed, missing, or unsafe photo assets", as
 
 test("admin route maps Storage outages, missing objects, and bad origins safely", async () => {
   process.env.NEXT_PUBLIC_SUPABASE_URL = SUPABASE_ORIGIN;
-  const unavailable = createFixture({ infoError: { status: 500 } });
+  const unavailable = createFixture({ signError: { status: 500 } });
   installFixture(unavailable);
   await assertError(
     await invoke(adminRoute, "GET", `/admin/api/menu-dishes/${DISH_ID}/photo?v=${PHOTO_SHA256}`),
@@ -331,7 +332,7 @@ test("admin photo URL boundary rewrites only canonical public photo routes", asy
     buildAdminDishPhotoUrl(
       `/api/public/menu-dishes/${DISH_ID}/photo?v=${PHOTO_SHA256}`
     ),
-    `/admin/api/menu-dishes/${DISH_ID}/photo?v=${PHOTO_SHA256}`
+    `/admin/api/menu-dishes/${DISH_ID}/photo?v=${PHOTO_SHA256}&variant=thumbnail`
   );
   assert.equal(
     isAdminDishPhotoUrl(

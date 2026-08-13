@@ -18,6 +18,7 @@ const ASSET_VERSION = "meshy-20260729-abcdef123456";
 const PHOTO_SHA256 = "a".repeat(64);
 
 const PHOTO_PATH = `restaurants/${RESTAURANT_ID}/photos/originals/tartare-saumon.webp`;
+const PHOTO_DERIVATIVE_PATH = `restaurants/${RESTAURANT_ID}/photos/derivatives/${PHOTO_SHA256}/thumbnail.webp`;
 const WEB_GLB_PATH = `restaurants/${RESTAURANT_ID}/models/web/tartare-saumon.glb`;
 const AR_LITE_GLB_PATH = `restaurants/${RESTAURANT_ID}/models/ar-lite/tartare-saumon.glb`;
 const USDZ_PATH = `restaurants/${RESTAURANT_ID}/models/ar-ios/tartare-saumon.usdz`;
@@ -67,7 +68,8 @@ function createAdminFixture({
   objectExists = true,
   infoError = null,
   signedUrlOverride,
-  signError = null
+  signError = null,
+  signErrorForPath
 } = {}) {
   const calls = {
     table: [],
@@ -93,8 +95,11 @@ function createAdminFixture({
       calls.signed.push({ storagePath, expiresIn });
       calls.operationOrder.push("sign");
       const bucket = calls.storageFrom.at(-1);
+      const pathError = signErrorForPath?.(storagePath) ?? false;
+      const missingObject = !objectExists;
+      const effectiveError = signError || pathError || (missingObject ? { status: 404, message: "Object not found" } : null);
       return {
-        data: signError
+        data: effectiveError
           ? null
           : {
               signedUrl:
@@ -102,7 +107,7 @@ function createAdminFixture({
                   ? signedUrl(bucket, storagePath)
                   : signedUrlOverride
             },
-        error: signError
+        error: effectiveError
       };
     }
   };
@@ -256,11 +261,11 @@ test("GET and HEAD redirect all public dish asset variants with a signed 307 and
         assert.equal(response.body, null);
         assert.equal(await response.text(), "");
         assert.deepEqual(fixture.calls.storageFrom, [entry.bucket]);
-        assert.deepEqual(fixture.calls.info, [entry.storagePath]);
+        assert.deepEqual(fixture.calls.info, []);
         assert.deepEqual(fixture.calls.signed, [
           { storagePath: entry.storagePath, expiresIn: 3600 }
         ]);
-        assert.deepEqual(fixture.calls.operationOrder, ["info", "sign"]);
+        assert.deepEqual(fixture.calls.operationOrder, ["sign"]);
         assert.equal(fixture.calls.forbiddenBodyReads, 0);
         assert.match(fixture.calls.select[0], /restaurant_id/);
       }
@@ -350,6 +355,87 @@ test("photo versions accept the persisted SHA-256 regardless of letter case", as
       signedUrl("vistaire-media", PHOTO_PATH)
     );
     assert.deepEqual(fixture.calls.storageFrom, ["vistaire-media"]);
+    assert.deepEqual(fixture.calls.info, []);
+  } finally {
+    if (previousSupabaseUrl === undefined) {
+      delete process.env.NEXT_PUBLIC_SUPABASE_URL;
+    } else {
+      process.env.NEXT_PUBLIC_SUPABASE_URL = previousSupabaseUrl;
+    }
+  }
+});
+
+test("photo derivatives are source-bound, skip info on a hit, and fall back safely", async () => {
+  const previousSupabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  process.env.NEXT_PUBLIC_SUPABASE_URL = SUPABASE_ORIGIN;
+  try {
+    const derivativeMetadata = assetMetadata("photo", {
+      photoDerivatives: {
+        thumbnail: {
+          storagePath: PHOTO_DERIVATIVE_PATH,
+          sha256: "b".repeat(64),
+          contentType: "image/webp",
+          bytes: 321,
+          sourceSha256: PHOTO_SHA256
+        }
+      }
+    });
+    const derivativeFixture = createAdminFixture({ metadata: derivativeMetadata });
+    installAdmin(derivativeFixture);
+    const derivativeResponse = await invokeRoute({
+      route: photoRoute,
+      method: "GET",
+      url: `https://vistaire.example/api/public/menu-dishes/${DISH_ID}/photo?v=${PHOTO_SHA256}&variant=thumbnail`
+    });
+    assert.equal(derivativeResponse.status, 307);
+    assert.equal(
+      derivativeResponse.headers.get("location"),
+      signedUrl("vistaire-media", PHOTO_DERIVATIVE_PATH)
+    );
+    assert.deepEqual(derivativeFixture.calls.info, []);
+    assert.deepEqual(derivativeFixture.calls.operationOrder, ["sign"]);
+
+    const staleFixture = createAdminFixture({
+      metadata: assetMetadata("photo", {
+        photoDerivatives: {
+          thumbnail: {
+            storagePath: PHOTO_DERIVATIVE_PATH,
+            sha256: "b".repeat(64),
+            contentType: "image/webp",
+            bytes: 321,
+            sourceSha256: "c".repeat(64)
+          }
+        }
+      })
+    });
+    installAdmin(staleFixture);
+    const staleResponse = await invokeRoute({
+      route: photoRoute,
+      method: "GET",
+      url: `https://vistaire.example/api/public/menu-dishes/${DISH_ID}/photo?v=${PHOTO_SHA256}&variant=thumbnail`
+    });
+    assert.equal(staleResponse.status, 307);
+    assert.equal(staleResponse.headers.get("location"), signedUrl("vistaire-media", PHOTO_PATH));
+    assert.deepEqual(staleFixture.calls.info, []);
+    assert.deepEqual(staleFixture.calls.operationOrder, ["sign"]);
+
+    const missingDerivativeFixture = createAdminFixture({
+      metadata: derivativeMetadata,
+      signErrorForPath: (storagePath) => storagePath === PHOTO_DERIVATIVE_PATH
+    });
+    installAdmin(missingDerivativeFixture);
+    const missingDerivativeResponse = await invokeRoute({
+      route: photoRoute,
+      method: "GET",
+      url: `https://vistaire.example/api/public/menu-dishes/${DISH_ID}/photo?v=${PHOTO_SHA256}&variant=thumbnail`
+    });
+    assert.equal(missingDerivativeResponse.status, 307);
+    assert.equal(
+      missingDerivativeResponse.headers.get("location"),
+      signedUrl("vistaire-media", PHOTO_PATH)
+    );
+    assert.deepEqual(missingDerivativeFixture.calls.info, []);
+    assert.deepEqual(missingDerivativeFixture.calls.operationOrder, ["sign", "sign"]);
   } finally {
     if (previousSupabaseUrl === undefined) {
       delete process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -675,7 +761,11 @@ test("unavailable dishes and missing storage objects keep public 404 responses",
       url: entry.url
     });
     await assertJsonError(response, 404, entry.error);
-    assert.deepEqual(fixture.calls.signed, [], entry.label);
+    if (entry.options?.objectExists === false) {
+      assert.equal(fixture.calls.signed.length, 1, entry.label);
+    } else {
+      assert.deepEqual(fixture.calls.signed, [], entry.label);
+    }
   }
 });
 

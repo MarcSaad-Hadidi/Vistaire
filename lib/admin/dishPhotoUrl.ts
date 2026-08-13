@@ -1,11 +1,15 @@
 import { isCanonicalUuid } from "@/lib/owner/storageSafeIdentifier";
+import type { DishPhotoDerivativeVariant } from "@/lib/owner/dishPhotoUpload";
 
 const PHOTO_SHA256_PATTERN = /^[a-f0-9]{64}$/i;
 const LOCAL_ORIGIN = "https://admin-photo.vistaire.invalid";
 
 export function buildAdminDishPhotoPath(
   dishId: string,
-  options?: { assetVersion?: string }
+  options?: {
+    assetVersion?: string;
+    variant?: DishPhotoDerivativeVariant;
+  }
 ): string {
   if (!isCanonicalUuid(dishId)) {
     throw new Error("Identifiant plat invalide.");
@@ -13,11 +17,21 @@ export function buildAdminDishPhotoPath(
 
   const basePath = `/admin/api/menu-dishes/${dishId}/photo`;
   const assetVersion = options?.assetVersion?.trim() ?? "";
-  if (!assetVersion) return basePath;
+  if (!assetVersion) {
+    if (options?.variant) throw new Error("Version photo requise pour un derive.");
+    return basePath;
+  }
   if (!PHOTO_SHA256_PATTERN.test(assetVersion)) {
     throw new Error("Version photo invalide.");
   }
-  return `${basePath}?v=${assetVersion.toLowerCase()}`;
+  const params = new URLSearchParams({ v: assetVersion.toLowerCase() });
+  if (options?.variant) {
+    if (options.variant !== "thumbnail" && options.variant !== "display") {
+      throw new Error("Variante photo invalide.");
+    }
+    params.set("variant", options.variant);
+  }
+  return `${basePath}?${params.toString()}`;
 }
 
 /**
@@ -41,6 +55,9 @@ export function buildAdminDishPhotoUrl(
     if (!match || !isCanonicalUuid(match[1])) return value;
 
     parsed.pathname = `/admin/api/menu-dishes/${match[1]}/photo`;
+    if (parsed.searchParams.get("v") && !parsed.searchParams.get("variant")) {
+      parsed.searchParams.set("variant", "thumbnail");
+    }
     parsed.hash = "";
     return `${parsed.pathname}${parsed.search}`;
   } catch {

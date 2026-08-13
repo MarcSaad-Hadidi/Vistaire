@@ -104,3 +104,35 @@ test("official runtime Preview E2E preflight rejects an HTTPS loopback origin", 
   assert.equal(result.code, 2);
   assert.match(result.stderr, /PLAYWRIGHT_BASE_URL/);
 });
+
+test("official runtime Preview E2E preflight rejects the canonical production origin by default", async () => {
+  const result = await runPreflight({
+    PATH: process.env.PATH ?? "",
+    VISTAIRE_RUNTIME_E2E: "1",
+    PLAYWRIGHT_SKIP_WEB_SERVER: "1",
+    PLAYWRIGHT_BASE_URL: "https://vistaire.ca",
+    VISTAIRE_RUNTIME_DISH_PATH: "/menu/example/dishes/dish",
+    VISTAIRE_RUNTIME_DISH_ID: "11111111-2222-4333-8444-555555555555",
+    VISTAIRE_RUNTIME_ASSET_VERSION: "asset-version",
+    VISTAIRE_RUNTIME_STORAGE_HOST: "project.supabase.co"
+  });
+
+  assert.equal(result.code, 2);
+  assert.match(result.stderr, /PLAYWRIGHT_BASE_URL/);
+});
+
+test("official runtime Preview E2E preflight rejects an arbitrary external origin by default", async () => {
+  const result = await runPreflight({
+    PATH: process.env.PATH ?? "",
+    VISTAIRE_RUNTIME_E2E: "1",
+    PLAYWRIGHT_SKIP_WEB_SERVER: "1",
+    PLAYWRIGHT_BASE_URL: "https://example.com",
+    VISTAIRE_RUNTIME_DISH_PATH: "/menu/example/dishes/dish",
+    VISTAIRE_RUNTIME_DISH_ID: "11111111-2222-4333-8444-555555555555",
+    VISTAIRE_RUNTIME_ASSET_VERSION: "asset-version",
+    VISTAIRE_RUNTIME_STORAGE_HOST: "project.supabase.co"
+  });
+
+  assert.equal(result.code, 2);
+  assert.match(result.stderr, /PLAYWRIGHT_BASE_URL/);
+});

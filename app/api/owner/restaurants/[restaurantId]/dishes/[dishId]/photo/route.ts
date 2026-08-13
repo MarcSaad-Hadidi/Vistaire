@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import {
   requireSameOriginOwnerMutation,
   requireVistaireOwnerApi
@@ -7,13 +8,11 @@ import {
   buildDishPhotoPublicPath,
   buildDishPhotoStoragePath,
   clearDishPhotoMetadata,
+  buildDishPhotoDerivativeStoragePath,
   mergeDishPhotoMetadata,
   validateDishPhotoFile
 } from "@/lib/owner/dishPhotoUpload";
-import {
-  collectDishPhotoStorageTarget,
-  deleteDishMediaStorageTargets
-} from "@/lib/owner/dishMediaGarbageCollector";
+import { generateDishPhotoDerivatives } from "@/lib/owner/dishPhotoDerivatives";
 import { cleanupReplacedDishAssets } from "@/lib/owner/dishAssetReplacementCleanup";
 import { revalidateOwnerMenuMutationPaths } from "@/lib/owner/menuMutationRevalidation";
 import { requireOwnerRestaurantCapability } from "@/lib/owner/demoCapabilities";
@@ -39,6 +38,52 @@ function getMetadata(value: unknown): Record<string, unknown> {
   return value && typeof value === "object" && !Array.isArray(value)
     ? (value as Record<string, unknown>)
     : {};
+}
+
+function getPreviouslyReferencedPhotoPaths(
+  metadata: Record<string, unknown>
+): Set<string> {
+  const paths = new Set<string>();
+  if (typeof metadata.photoStoragePath === "string" && metadata.photoStoragePath.trim()) {
+    paths.add(metadata.photoStoragePath.trim());
+  }
+  const derivatives = metadata.photoDerivatives;
+  if (derivatives && typeof derivatives === "object" && !Array.isArray(derivatives)) {
+    for (const value of Object.values(derivatives as Record<string, unknown>)) {
+      if (value && typeof value === "object" && !Array.isArray(value)) {
+        const path = (value as Record<string, unknown>).storagePath;
+        if (typeof path === "string" && path.trim()) paths.add(path.trim());
+      }
+    }
+  }
+  return paths;
+}
+
+async function getOtherReferencedPhotoPaths(args: {
+  client: SupabaseClient;
+  restaurantId: string;
+  dishId: string;
+}): Promise<Set<string> | null> {
+  // This query is used only after a failed metadata update. Derivative paths
+  // are content-addressed and may be shared by another dish, so rollback must
+  // fail safe rather than deleting an object whose active reference is unknown.
+  try {
+    const { data, error } = await args.client
+      .from("menu_dishes")
+      .select("id,metadata")
+      .eq("restaurant_id", args.restaurantId)
+      .neq("id", args.dishId);
+    if (error || !Array.isArray(data)) return null;
+    const paths = new Set<string>();
+    for (const row of data as Array<{ metadata?: unknown }>) {
+      for (const path of getPreviouslyReferencedPhotoPaths(getMetadata(row.metadata))) {
+        paths.add(path);
+      }
+    }
+    return paths;
+  } catch {
+    return null;
+  }
 }
 
 export async function POST(
@@ -120,6 +165,7 @@ export async function POST(
     );
   }
   const oldMetadata = getMetadata(dish.metadata);
+  const previouslyReferencedPhotoPaths = getPreviouslyReferencedPhotoPaths(oldMetadata);
 
   let storagePath: string;
   let imageUrl: string;
@@ -141,6 +187,20 @@ export async function POST(
     );
   }
 
+  const uploadedStoragePaths: string[] = [];
+  const derivativeWarnings: string[] = [];
+  let generatedDerivatives: Awaited<ReturnType<typeof generateDishPhotoDerivatives>> = {};
+  try {
+    generatedDerivatives = await generateDishPhotoDerivatives(
+      validated.bytes,
+      validated.sha256
+    );
+  } catch {
+    derivativeWarnings.push(
+      "Derives photo non generes; la photo originale reste disponible."
+    );
+  }
+
   const uploaded = await admin.client.storage.from(MEDIA_BUCKET).upload(
     storagePath,
     validated.bytes,
@@ -156,13 +216,54 @@ export async function POST(
       { status: 503 }
     );
   }
+  uploadedStoragePaths.push(storagePath);
+
+  const derivativeMetadata: Record<string, {
+    storagePath: string;
+    sha256: string;
+    contentType: "image/webp";
+    bytes: number;
+    sourceSha256: string;
+  }> = {};
+  for (const variant of ["thumbnail", "display"] as const) {
+    const generated = generatedDerivatives[variant];
+    if (!generated) continue;
+    let derivativePath: string;
+    try {
+      derivativePath = buildDishPhotoDerivativeStoragePath({
+        restaurantId,
+        sha256: validated.sha256,
+        variant
+      });
+    } catch {
+      derivativeWarnings.push(`Derive ${variant} ignore: chemin invalide.`);
+      continue;
+    }
+    const derivativeUpload = await admin.client.storage
+      .from(MEDIA_BUCKET)
+      .upload(derivativePath, generated.bytes, {
+        contentType: "image/webp",
+        cacheControl: "31536000",
+        upsert: true
+      });
+    if (derivativeUpload.error) {
+      derivativeWarnings.push(`Derive ${variant} non uploadee.`);
+      continue;
+    }
+    uploadedStoragePaths.push(derivativePath);
+    derivativeMetadata[variant] = {
+      ...generated.metadata,
+      storagePath: derivativePath
+    };
+  }
 
   const metadata = mergeDishPhotoMetadata(oldMetadata, {
     storageBucket: MEDIA_BUCKET,
     storagePath,
     sha256: validated.sha256,
     contentType: validated.contentType,
-    bytes: validated.bytes.byteLength
+    bytes: validated.bytes.byteLength,
+    derivatives: derivativeMetadata
   });
   const updated = await admin.client
     .from("menu_dishes")
@@ -173,7 +274,21 @@ export async function POST(
     .maybeSingle();
 
   if (updated.error || !updated.data) {
-    await admin.client.storage.from(MEDIA_BUCKET).remove([storagePath]);
+    const otherReferencedPhotoPaths = await getOtherReferencedPhotoPaths({
+      client: admin.client,
+      restaurantId,
+      dishId
+    });
+    const rollbackPaths = uploadedStoragePaths.filter((path) => {
+      if (previouslyReferencedPhotoPaths.has(path)) return false;
+      // If the cross-dish reference check failed, preserve every uploaded
+      // object. Deleting an uncertain shared derivative is worse than leaving
+      // a deterministic object available for a later retry/GC pass.
+      return otherReferencedPhotoPaths ? !otherReferencedPhotoPaths.has(path) : false;
+    });
+    if (rollbackPaths.length) {
+      await admin.client.storage.from(MEDIA_BUCKET).remove(rollbackPaths);
+    }
     return NextResponse.json(
       { ok: false, error: "Photo uploadee mais plat impossible a mettre a jour." },
       { status: 503 }
@@ -210,8 +325,9 @@ export async function POST(
       replacementCleanup.skippedUnsafePrefix.length +
       replacementCleanup.skippedMissingPath.length,
     cleanup: replacementCleanup,
-    warning: cleanupWarnings[0],
-    warnings: cleanupWarnings
+    warning: [...derivativeWarnings, ...cleanupWarnings][0],
+    warnings: [...derivativeWarnings, ...cleanupWarnings],
+    derivatives: derivativeMetadata
   });
 }
 
@@ -255,31 +371,13 @@ export async function DELETE(
     );
   }
 
-  const cleanup = await deleteDishMediaStorageTargets(
-    admin.client,
-    collectDishPhotoStorageTarget(dish.metadata, restaurantId)
-  );
-  const failedValidDelete =
-    cleanup.deleted.length === 0 &&
-    cleanup.skipped.length === 0 &&
-    cleanup.warnings.some((warning) => warning.includes("non supprime"));
-  if (failedValidDelete) {
-    return NextResponse.json(
-      {
-        ok: false,
-        error: "Suppression Storage impossible pour cette photo.",
-        skippedCount: cleanup.skipped.length,
-        warnings: cleanup.warnings
-      },
-      { status: 503 }
-    );
-  }
-
+  const oldMetadata = getMetadata(dish.metadata);
+  const clearedMetadata = clearDishPhotoMetadata(oldMetadata);
   const updated = await admin.client
     .from("menu_dishes")
     .update({
       image_url: null,
-      metadata: clearDishPhotoMetadata(getMetadata(dish.metadata))
+      metadata: clearedMetadata
     })
     .eq("id", dishId)
     .eq("restaurant_id", restaurantId)
@@ -288,10 +386,31 @@ export async function DELETE(
 
   if (updated.error || !updated.data) {
     return NextResponse.json(
-      { ok: false, error: "Photo supprimee mais plat impossible a nettoyer." },
+      { ok: false, error: "Photo impossible a supprimer du plat." },
       { status: 503 }
     );
   }
+
+  // The DB is now authoritative: the dish no longer references the photo.
+  // Cleanup re-reads this row and every other dish in the restaurant before
+  // removing any object, preserving shared content-addressed derivatives and
+  // leaving safe orphans when the cross-reference lookup is uncertain.
+  const cleanup = await cleanupReplacedDishAssets({
+    client: admin.client,
+    dishId,
+    restaurantId,
+    previousMetadata: oldMetadata,
+    nextMetadata: clearedMetadata,
+    reason: "dish-photo-delete"
+  });
+  const cleanupWarnings = cleanup.errors.map(
+    (error) => `Storage ${error.bucket || "metadata"} cleanup partiel: ${error.message}`
+  );
+  const skippedCount =
+    cleanup.skippedStillReferenced.length +
+    cleanup.skippedUnsafeBucket.length +
+    cleanup.skippedUnsafePrefix.length +
+    cleanup.skippedMissingPath.length;
 
   await revalidateOwnerMenuMutationPaths({
     client: admin.client,
@@ -304,7 +423,7 @@ export async function DELETE(
     imageUrl: null,
     dishUpdated: true,
     deletedCount: cleanup.deleted.length,
-    skippedCount: cleanup.skipped.length,
-    warnings: cleanup.warnings
+    skippedCount,
+    warnings: cleanupWarnings
   });
 }

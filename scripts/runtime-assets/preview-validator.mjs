@@ -79,10 +79,33 @@ function requireHttpUrl(value, label) {
   return url;
 }
 
+function isLoopbackHostname(hostname) {
+  return isLoopback(hostname) || hostname.endsWith(".localhost");
+}
+
+function isAllowedPreviewHostname(hostname) {
+  return (
+    hostname === "preview.example.test" ||
+    hostname.endsWith(".vercel.app") ||
+    hostname.endsWith(".vercel.sh")
+  );
+}
+
 function normalizeBaseUrl(value) {
   const url = requireHttpUrl(value, "baseUrl");
   if (url.search || url.hash) {
     throw new TypeError("baseUrl must not include a query or hash");
+  }
+  const productionOptIn =
+    process.env.VISTAIRE_ALLOW_PRODUCTION_RUNTIME_E2E === "1";
+  if (
+    !isLoopbackHostname(url.hostname) &&
+    !productionOptIn &&
+    !isAllowedPreviewHostname(url.hostname)
+  ) {
+    throw new TypeError(
+      "baseUrl must be a Vercel Preview origin (or preview.example.test); production/custom runtime E2E requires explicit VISTAIRE_ALLOW_PRODUCTION_RUNTIME_E2E=1"
+    );
   }
   url.pathname = url.pathname.replace(/\/+$/, "") || "/";
   return url;

@@ -5,6 +5,7 @@ import {
   REQUEST_CLASSIFICATIONS,
   classifyFailedRequest,
   classifyFailedResponse,
+  classifySuccessfulResponse,
   classifyRuntimeSignal,
   hasExplicitPrefetchMarker,
   isMediaCurrentSrcCoherent,
@@ -166,6 +167,30 @@ test("HTTP 404 and 500 responses remain blocking", () => {
     assert.equal(result.ignored, false);
     assert.match(result.reason, new RegExp(`HTTP ${status}`));
   }
+});
+
+test("a successful production Supabase response is blocked instead of ignored as cross-origin", () => {
+  const result = classifySuccessfulResponse({
+    url: "https://bkpewsjvxswqruwqljcy.supabase.co/rest/v1/restaurants",
+    expectedOrigin,
+    status: 200,
+    method: "GET",
+    resourceType: "fetch",
+    isNavigationRequest: false,
+    isMainFrame: false,
+    frame: "main",
+    prefetchHeaders: {}
+  });
+  assert.equal(result.ignored, false);
+  assert.equal(result.classification, REQUEST_CLASSIFICATIONS.SUPABASE_PRODUCTION_EGRESS);
+  assert.match(result.reason, /Supabase/);
+});
+
+test("non-Supabase cross-origin success remains outside the egress policy", () => {
+  assert.equal(
+    classifySuccessfulResponse({ url: "https://fonts.example.test/font.woff2", status: 200 }),
+    null
+  );
 });
 
 test("console errors and page errors are always blocking signals", () => {

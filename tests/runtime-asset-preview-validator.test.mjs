@@ -283,6 +283,23 @@ test("validates redirect, range, type, CORS, version, and missing-asset contract
   }
 });
 
+test("rejects arbitrary external base URLs before issuing runtime asset requests", async () => {
+  const { validateRuntimeAssetPreview } = await loadValidator();
+  await assert.rejects(
+    () =>
+      validateRuntimeAssetPreview({
+        baseUrl: "https://example.com",
+        dishId: DISH_ID,
+        assetVersion: ASSET_VERSION,
+        photoVersion: PHOTO_VERSION,
+        expectedStorageHost: "project.supabase.co",
+        expectedRestaurantId: RESTAURANT_ID,
+        missingAssetUrl: "/api/public/menu-dishes/missing/photo"
+      }),
+    /Vercel Preview origin|production\/custom runtime E2E/i
+  );
+});
+
 test("fails non-empty 307 bodies, unsigned Locations, and GET/HEAD object mismatches", async () => {
   for (const fixtureOptions of [
     { redirectBody: "Temporary redirect", failedId: "photo.get.body" },
