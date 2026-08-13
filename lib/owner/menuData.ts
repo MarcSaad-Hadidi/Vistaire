@@ -1,5 +1,7 @@
 import "server-only";
 
+import { cache } from "react";
+
 import { getDemoRestaurantId } from "@/lib/analytics/insights";
 import { getRestaurant } from "@/lib/demoMenuData";
 import {
@@ -11,7 +13,7 @@ import {
   serializePublicMenuSettings
 } from "@/lib/menu/publicMenuSettings";
 import { getPublicMenuBySlug } from "@/lib/menu/publicMenu";
-import { readSupabaseRows } from "@/lib/analytics/serverRows";
+import { readSupabaseRowsByFilters } from "@/lib/analytics/serverRows";
 import {
   buildOwnerMenuDataFromRows,
   type OwnerMenuDataFailure,
@@ -58,7 +60,24 @@ async function fallbackMenu(): Promise<OwnerMenuDataSuccess> {
   };
 }
 
-export async function getOwnerMenuData(
+const OWNER_RESTAURANT_COLUMNS =
+  "id,name,slug,location,cuisine_type,status,contact_name,contact_email,contact_phone,notes,public_menu_url,qr_ready,qr_generated_at,created_at,updated_at";
+const OWNER_MENU_COLUMNS =
+  "id,restaurant_id,name,slug,status,is_primary,display_order,metadata,settings_json,created_at,updated_at";
+const OWNER_CATEGORY_COLUMNS =
+  "id,restaurant_id,menu_id,name,slug,description,display_order,metadata,created_at,updated_at";
+const OWNER_DISH_COLUMNS =
+  "id,restaurant_id,menu_id,category_id,slug,name,short_description,description,price_cents,currency,image_url,is_available,is_signature,is_recommended,has_immersive_view,allergens,allergen_declarations,metadata,created_at,updated_at,display_order";
+const OWNER_UI_CONFIG_COLUMNS =
+  "id,restaurant_id,theme,config_json,status,created_at,updated_at";
+const OWNER_RESTAURANT_COLUMNS_FALLBACK =
+  "id,name,slug,location,cuisine_type,status,contact_name,contact_email,contact_phone,notes,public_menu_url,qr_ready,qr_generated_at,created_at,updated_at";
+const OWNER_MENU_COLUMNS_FALLBACK =
+  "id,restaurant_id,name,slug,status,is_primary,display_order,metadata,created_at,updated_at";
+const OWNER_DISH_COLUMNS_FALLBACK =
+  "id,restaurant_id,menu_id,category_id,slug,name,short_description,description,price_cents,currency,image_url,is_available,is_signature,is_recommended,has_immersive_view,allergens,metadata,created_at,updated_at";
+
+async function getOwnerMenuDataUncached(
   restaurantId: string
 ): Promise<OwnerMenuDataSuccess | OwnerMenuDataFailure> {
   if (!restaurantId.trim()) {
@@ -72,11 +91,46 @@ export async function getOwnerMenuData(
     dishesResult,
     uiConfigsResult
   ] = await Promise.all([
-    readSupabaseRows<PublicMenuRow>("restaurants", 300),
-    readSupabaseRows<PublicMenuRow>("menus", 500),
-    readSupabaseRows<PublicMenuRow>("menu_categories", 1_000),
-    readSupabaseRows<PublicMenuRow>("menu_dishes", 1_000),
-    readSupabaseRows<PublicMenuRow>("menu_ui_configs", 1_000)
+    readSupabaseRowsByFilters<PublicMenuRow>({
+      table: "restaurants",
+      columns: OWNER_RESTAURANT_COLUMNS,
+      filters: { id: restaurantId },
+      orderBy: "id",
+      limit: 1,
+      fallbackColumns: OWNER_RESTAURANT_COLUMNS_FALLBACK
+    }),
+    readSupabaseRowsByFilters<PublicMenuRow>({
+      table: "menus",
+      columns: OWNER_MENU_COLUMNS,
+      filters: { restaurant_id: restaurantId },
+      orderBy: ["display_order", "id"],
+      limit: 500,
+      fallbackColumns: OWNER_MENU_COLUMNS_FALLBACK,
+      fallbackOrderBy: "id"
+    }),
+    readSupabaseRowsByFilters<PublicMenuRow>({
+      table: "menu_categories",
+      columns: OWNER_CATEGORY_COLUMNS,
+      filters: { restaurant_id: restaurantId },
+      orderBy: ["display_order", "id"],
+      limit: 1_000
+    }),
+    readSupabaseRowsByFilters<PublicMenuRow>({
+      table: "menu_dishes",
+      columns: OWNER_DISH_COLUMNS,
+      filters: { restaurant_id: restaurantId },
+      orderBy: ["display_order", "id"],
+      limit: 1_000,
+      fallbackColumns: OWNER_DISH_COLUMNS_FALLBACK,
+      fallbackOrderBy: "id"
+    }),
+    readSupabaseRowsByFilters<PublicMenuRow>({
+      table: "menu_ui_configs",
+      columns: OWNER_UI_CONFIG_COLUMNS,
+      filters: { restaurant_id: restaurantId },
+      orderBy: "id",
+      limit: 1_000
+    })
   ]);
 
   if (!restaurantsResult.ok || restaurantsResult.rows.length === 0) {
@@ -93,4 +147,6 @@ export async function getOwnerMenuData(
     dishesAvailable: dishesResult.ok
   });
 }
+
+export const getOwnerMenuData = cache(getOwnerMenuDataUncached);
 

@@ -521,7 +521,8 @@ test("owner and public builders expose identical settings for the same ui_config
 test("getOwnerMenuData is wired to read menu_ui_configs publicMenuSettings", async () => {
   const source = await readFile("lib/owner/menuData.ts", "utf8");
 
-  assert.match(source, /readSupabaseRows<PublicMenuRow>\("menu_ui_configs"/);
+  assert.match(source, /readSupabaseRowsByFilters<PublicMenuRow>\(\{[\s\S]*table: "menu_ui_configs"/);
+  assert.match(source, /filters: \{ restaurant_id: restaurantId \}/);
   assert.match(source, /buildOwnerMenuDataFromRows/);
   assert.match(source, /uiConfigRows/);
 });

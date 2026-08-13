@@ -32,6 +32,23 @@ type DishPhotoMetadataInfo = {
   sha256: string;
   contentType: string;
   bytes: number;
+  derivatives?: Partial<Record<DishPhotoDerivativeVariant, DishPhotoDerivativeMetadata>>;
+};
+
+export const DISH_PHOTO_DERIVATIVE_VARIANTS = [
+  "thumbnail",
+  "display"
+] as const;
+
+export type DishPhotoDerivativeVariant =
+  (typeof DISH_PHOTO_DERIVATIVE_VARIANTS)[number];
+
+export type DishPhotoDerivativeMetadata = {
+  storagePath: string;
+  sha256: string;
+  contentType: "image/webp";
+  bytes: number;
+  sourceSha256: string;
 };
 
 const SHA256_PATTERN = /^[a-f0-9]{64}$/i;
@@ -163,20 +180,60 @@ export function buildDishPhotoStoragePath(args: {
   ].join("/");
 }
 
+/**
+ * Derivatives are immutable, content-addressed siblings of the original.
+ * Keeping the source hash in the path makes retries idempotent and lets two
+ * dishes that intentionally share the same source safely share bytes.
+ */
+export function buildDishPhotoDerivativeStoragePath(args: {
+  restaurantId: string;
+  sha256: string;
+  variant: DishPhotoDerivativeVariant;
+}): string {
+  const restaurantId = normalizeStorageSafeIdentifier(args.restaurantId);
+  if (!restaurantId || !SHA256_PATTERN.test(args.sha256)) {
+    throw new Error("Identifiants photo invalides.");
+  }
+  if (!DISH_PHOTO_DERIVATIVE_VARIANTS.includes(args.variant)) {
+    throw new Error("Variante photo invalide.");
+  }
+  return [
+    "restaurants",
+    restaurantId,
+    "photos",
+    "derivatives",
+    args.sha256.toLowerCase(),
+    `${args.variant}.webp`
+  ].join("/");
+}
+
 export function buildDishPhotoPublicPath(
   dishId: string,
-  options?: { assetVersion?: string }
+  options?: {
+    assetVersion?: string;
+    variant?: DishPhotoDerivativeVariant;
+  }
 ): string {
   if (!isCanonicalUuid(dishId)) {
     throw new Error("Identifiant plat invalide.");
   }
   const basePath = `/api/public/menu-dishes/${dishId}/photo`;
   const assetVersion = options?.assetVersion?.trim() ?? "";
-  if (!assetVersion) return basePath;
+  if (!assetVersion) {
+    if (options?.variant) throw new Error("Version photo requise pour un derive.");
+    return basePath;
+  }
   if (!SHA256_PATTERN.test(assetVersion)) {
     throw new Error("Version photo invalide.");
   }
-  return `${basePath}?v=${assetVersion.toLowerCase()}`;
+  const params = new URLSearchParams({ v: assetVersion.toLowerCase() });
+  if (options?.variant) {
+    if (!DISH_PHOTO_DERIVATIVE_VARIANTS.includes(options.variant)) {
+      throw new Error("Variante photo invalide.");
+    }
+    params.set("variant", options.variant);
+  }
+  return `${basePath}?${params.toString()}`;
 }
 
 export function mergeDishPhotoMetadata(
@@ -195,7 +252,8 @@ export function mergeDishPhotoMetadata(
     photoStoragePath: info.storagePath,
     photoSha256: info.sha256.toLowerCase(),
     photoContentType: info.contentType,
-    photoBytes: info.bytes
+    photoBytes: info.bytes,
+    photoDerivatives: info.derivatives ?? {}
   };
 }
 
@@ -211,5 +269,6 @@ export function clearDishPhotoMetadata(existing: unknown): Record<string, unknow
   delete metadata.photoSha256;
   delete metadata.photoContentType;
   delete metadata.photoBytes;
+  delete metadata.photoDerivatives;
   return metadata;
 }

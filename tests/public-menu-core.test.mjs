@@ -390,7 +390,7 @@ test("versions only the canonical same-origin photo route for its dish", () => {
       id: canonicalDishId,
       restaurant_id: restoMarcId,
       name: "Photo canonique",
-      image_url: `/api/public/menu-dishes/${canonicalDishId}/photo`,
+      image_url: `/api/public/menu-dishes/${canonicalDishId}/photo?v=${photoSha256}&quality=source`,
       metadata: { photoSha256 }
     },
     {
@@ -420,9 +420,12 @@ test("versions only the canonical same-origin photo route for its dish", () => {
 
   assert.equal(
     menu.dishes[0].imageUrl,
-    `/api/public/menu-dishes/${canonicalDishId}/photo?v=${photoSha256}`
+    `/api/public/menu-dishes/${canonicalDishId}/photo?v=${photoSha256}&quality=source&variant=display`
   );
-  assert.equal(menu.dishes[0].thumbnailUrl, menu.dishes[0].imageUrl);
+  assert.equal(
+    menu.dishes[0].thumbnailUrl,
+    `/api/public/menu-dishes/${canonicalDishId}/photo?v=${photoSha256}&quality=source&variant=thumbnail`
+  );
   assert.equal(
     menu.dishes[1].imageUrl,
     `/api/public/menu-dishes/${canonicalDishId}/photo`

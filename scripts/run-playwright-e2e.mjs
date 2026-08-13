@@ -19,6 +19,33 @@ const LOCAL_E2E_CLERK_SECRET_KEY =
 
 const baseURL = process.env.PLAYWRIGHT_BASE_URL ?? DEFAULT_BASE_URL;
 const parsedBaseURL = new URL(baseURL);
+const configuredSupabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim() ?? "";
+const allowProductionSupabaseE2e =
+  process.env.VISTAIRE_ALLOW_PRODUCTION_SUPABASE_E2E === "1" &&
+  process.env.VISTAIRE_E2E_PRODUCTION_SMOKE === "1";
+let externalSupabaseUrl = false;
+if (configuredSupabaseUrl) {
+  try {
+    const parsed = new URL(configuredSupabaseUrl);
+    const loopback =
+      parsed.hostname === "localhost" ||
+      parsed.hostname.endsWith(".localhost") ||
+      parsed.hostname === "127.0.0.1" ||
+      parsed.hostname === "[::1]" ||
+      parsed.hostname === "::1";
+    externalSupabaseUrl = !loopback;
+  } catch {
+    externalSupabaseUrl = true;
+  }
+}
+if (
+  externalSupabaseUrl &&
+  !allowProductionSupabaseE2e
+) {
+  throw new Error(
+    "E2E refuse toute URL Supabase externe. Utilisez un fixture local ou activez explicitement VISTAIRE_ALLOW_PRODUCTION_SUPABASE_E2E=1 et VISTAIRE_E2E_PRODUCTION_SMOKE=1 pour un smoke contrôlé."
+  );
+}
 const rawArgs = process.argv.slice(2);
 const buildRequested =
   rawArgs.includes("--build") || process.env.VISTAIRE_E2E_BUILD === "1";

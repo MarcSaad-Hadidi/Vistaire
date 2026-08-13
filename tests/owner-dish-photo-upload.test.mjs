@@ -168,7 +168,8 @@ test("dish photo metadata merge keeps existing fields and marks photo ready", ()
       photoStoragePath: "restaurants/x/photos/originals/dish.png",
       photoSha256: "b".repeat(64),
       photoContentType: "image/png",
-      photoBytes: 123
+      photoBytes: 123,
+      photoDerivatives: {}
     }
   );
 });

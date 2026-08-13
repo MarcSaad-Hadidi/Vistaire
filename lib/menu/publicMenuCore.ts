@@ -776,16 +776,33 @@ const PHOTO_SHA256_PATTERN = /^[a-f0-9]{64}$/i;
 function versionCanonicalDishPhotoUrl(
   imageUrl: string,
   dishId: string,
-  photoSha256: string
+  photoSha256: string,
+  variant?: "thumbnail" | "display"
 ): string {
   const canonicalPath = `/api/public/menu-dishes/${dishId}/photo`;
+  let parsed: URL;
+  try {
+    parsed = new URL(imageUrl, "https://menu.vistaire.invalid");
+  } catch {
+    return imageUrl;
+  }
   if (
-    imageUrl !== canonicalPath ||
-    !PHOTO_SHA256_PATTERN.test(photoSha256)
+    parsed.origin !== "https://menu.vistaire.invalid" ||
+    parsed.pathname !== canonicalPath
   ) {
     return imageUrl;
   }
-  return `${canonicalPath}?v=${photoSha256.toLowerCase()}`;
+  const existingVersion = parsed.searchParams.get("v")?.trim() ?? "";
+  const version = PHOTO_SHA256_PATTERN.test(photoSha256)
+    ? photoSha256.toLowerCase()
+    : PHOTO_SHA256_PATTERN.test(existingVersion)
+      ? existingVersion.toLowerCase()
+      : "";
+  if (!version) return imageUrl;
+  const params = new URLSearchParams(parsed.searchParams);
+  params.set("v", version);
+  if (variant) params.set("variant", variant);
+  return `${canonicalPath}?${params.toString()}`;
 }
 
 function mapDishRow(
@@ -838,7 +855,8 @@ function mapDishRow(
   const imageUrl = versionCanonicalDishPhotoUrl(
     rawImageUrl,
     dishId,
-    photoSha256
+    photoSha256,
+    "display"
   );
   const rawThumbnailUrl =
     getSafeStringFromSources(row, metadata, [
@@ -848,7 +866,8 @@ function mapDishRow(
   const thumbnailUrl = versionCanonicalDishPhotoUrl(
     rawThumbnailUrl,
     dishId,
-    photoSha256
+    photoSha256,
+    "thumbnail"
   );
   const model3dUrl = getSafeStringFromSources(row, metadata, ["model3dUrl", "model3d_url"]);
   const webModel3dUrl =

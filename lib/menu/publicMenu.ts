@@ -1,5 +1,7 @@
 import "server-only";
 
+import { cache } from "react";
+
 import {
   getBoolean,
   getString,
@@ -37,21 +39,43 @@ function isMissingDisplayOrderError(result: { ok: boolean; error?: string }): bo
   return !result.ok && /display_order|schema cache|does not exist/i.test(result.error ?? "");
 }
 
+// Keep public menu reads explicit. These are the canonical columns from the
+// relational menu migrations; legacy slug fallback intentionally retains `*`
+// below because older installations may not expose the relational shape.
+const PUBLIC_RESTAURANT_COLUMNS =
+  "id,name,slug,location,cuisine_type,status,public_menu_url,google_review_enabled,google_review_url,created_at,updated_at";
+const PUBLIC_MENU_COLUMNS =
+  "id,restaurant_id,name,slug,status,is_primary,display_order,metadata,settings_json,created_at,updated_at";
+const PUBLIC_CATEGORY_COLUMNS =
+  "id,restaurant_id,menu_id,name,slug,description,display_order,metadata,created_at,updated_at";
+const PUBLIC_DISH_COLUMNS =
+  "id,restaurant_id,menu_id,category_id,slug,name,short_description,description,price_cents,currency,image_url,is_available,is_signature,is_recommended,has_immersive_view,allergens,allergen_declarations,metadata,created_at,updated_at,display_order";
+const PUBLIC_RESTAURANT_COLUMNS_FALLBACK =
+  "id,name,slug,location,cuisine_type,status,public_menu_url,created_at,updated_at";
+const PUBLIC_MENU_COLUMNS_FALLBACK =
+  "id,restaurant_id,name,slug,status,is_primary,display_order,metadata,created_at,updated_at";
+const PUBLIC_DISH_COLUMNS_FALLBACK =
+  "id,restaurant_id,menu_id,category_id,slug,name,short_description,description,price_cents,currency,image_url,is_available,is_signature,is_recommended,has_immersive_view,allergens,metadata,created_at,updated_at";
+const PUBLIC_UI_CONFIG_COLUMNS =
+  "id,restaurant_id,theme,config_json,status,created_at,updated_at";
+
 async function readDishRows(
   readRows: typeof readSupabaseRowsByFilters,
   filters: Record<string, string>
 ) {
   const ordered = await readRows({
     table: "menu_dishes",
-    columns: "*",
+    columns: filters.restaurant_id ? PUBLIC_DISH_COLUMNS : "*",
     filters,
     orderBy: ["display_order", "id"],
-    limit: 1_000
+    limit: 1_000,
+    fallbackColumns: filters.restaurant_id ? PUBLIC_DISH_COLUMNS_FALLBACK : undefined,
+    fallbackOrderBy: "id"
   });
   if (ordered.ok || !isMissingDisplayOrderError(ordered)) return ordered;
   return readRows({
     table: "menu_dishes",
-    columns: "*",
+    columns: filters.restaurant_id ? PUBLIC_DISH_COLUMNS_FALLBACK : "*",
     filters,
     orderBy: ["id"],
     limit: 1_000
@@ -562,7 +586,7 @@ const localPublicMenuCache = new Map<
   { expiresAt: number; promise: Promise<PublicMenu | null> }
 >();
 
-export async function getPublicMenuBySlug(
+async function getPublicMenuBySlugUncached(
   rawSlug: string,
   locale: Locale | string = DEFAULT_LOCALE,
   dependencies: PublicMenuDependencies = { readRows: readSupabaseRowsByFilters, nodeEnv: process.env.NODE_ENV }
@@ -609,7 +633,7 @@ export async function getPublicMenuBySlug(
     return null;
   };
 
-    const restaurantsResult = await dependencies.readRows<PublicMenuRow>({ table: "restaurants", columns: "*", filters: { slug }, orderBy: "id", limit: 1 });
+    const restaurantsResult = await dependencies.readRows<PublicMenuRow>({ table: "restaurants", columns: PUBLIC_RESTAURANT_COLUMNS, fallbackColumns: PUBLIC_RESTAURANT_COLUMNS_FALLBACK, filters: { slug }, orderBy: "id", limit: 1 });
     if (!restaurantsResult.ok || restaurantsResult.rows.length === 0) {
       return localDemo();
     }
@@ -622,10 +646,10 @@ export async function getPublicMenuBySlug(
     const isDemoRestaurant = restaurantId === getDemoRestaurantId();
 
     const [menusResult, categoriesResult, dishesResult, uiConfigsResult] = await Promise.all([
-      dependencies.readRows<PublicMenuRow>({ table: "menus", columns: "*", filters: { restaurant_id: restaurantId }, orderBy: "id", limit: 500 }),
-      dependencies.readRows<PublicMenuRow>({ table: "menu_categories", columns: "*", filters: { restaurant_id: restaurantId }, orderBy: "display_order", limit: 1_000 }),
+      dependencies.readRows<PublicMenuRow>({ table: "menus", columns: PUBLIC_MENU_COLUMNS, fallbackColumns: PUBLIC_MENU_COLUMNS_FALLBACK, filters: { restaurant_id: restaurantId }, orderBy: ["display_order", "id"], limit: 500, fallbackOrderBy: ["id"] }),
+      dependencies.readRows<PublicMenuRow>({ table: "menu_categories", columns: PUBLIC_CATEGORY_COLUMNS, filters: { restaurant_id: restaurantId }, orderBy: ["display_order", "id"], limit: 1_000 }),
       readDishRows(dependencies.readRows, { restaurant_id: restaurantId }),
-      dependencies.readRows<PublicMenuRow>({ table: "menu_ui_configs", columns: "*", filters: { restaurant_id: restaurantId }, orderBy: "id", limit: 1_000 })
+      dependencies.readRows<PublicMenuRow>({ table: "menu_ui_configs", columns: PUBLIC_UI_CONFIG_COLUMNS, filters: { restaurant_id: restaurantId }, orderBy: "id", limit: 1_000 })
     ]);
     if (!menusResult.ok || !categoriesResult.ok || !dishesResult.ok) return localDemo();
     const primaryMenu = findPrimaryMenu(menusResult.rows, restaurantId);
@@ -686,4 +710,23 @@ export async function getPublicMenuBySlug(
     localPublicMenuCache.delete(cacheKey);
   });
   return promise;
+}
+
+// React's request cache deduplicates metadata/page/render callers without
+// sharing a menu between users or deployments. Custom dependency readers used
+// by contract tests intentionally bypass this wrapper.
+const getPublicMenuBySlugRequestCached = cache(
+  async (rawSlug: string, locale: Locale | string) =>
+    getPublicMenuBySlugUncached(rawSlug, locale)
+);
+
+export async function getPublicMenuBySlug(
+  rawSlug: string,
+  locale: Locale | string = DEFAULT_LOCALE,
+  dependencies?: PublicMenuDependencies
+): Promise<PublicMenu | null> {
+  if (!dependencies) {
+    return getPublicMenuBySlugRequestCached(rawSlug, locale);
+  }
+  return getPublicMenuBySlugUncached(rawSlug, locale, dependencies);
 }

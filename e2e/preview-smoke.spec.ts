@@ -2,6 +2,7 @@ import { expect, test, type BrowserContext, type Page, type Request } from "@pla
 import {
   classifyFailedRequest,
   classifyFailedResponse,
+  classifySuccessfulResponse,
   classifyRuntimeSignal,
   isMediaCurrentSrcCoherent,
   pickPrefetchHeaders,
@@ -177,16 +178,20 @@ function observeRuntimeIssues(page: Page): RuntimeIssues {
   };
   const failedRequests: ReturnType<typeof readRequestDetails>[] = [];
   const failedResponses: Array<ReturnType<typeof readRequestDetails> & { status: number }> = [];
+  const successfulSupabaseResponses: FailedResponseDiagnostic[] = [];
   const pendingMediaByUrl = new Map<string, number>();
   let currentMediaState = emptyMediaReadiness();
   let hasFinalized = false;
   let eventVersion = 0;
 
   const refreshClassifications = () => {
-    issues.failedResponses = failedResponses.map((input) => ({
-      ...classifyFailedResponse(input),
-      status: input.status
-    }));
+    issues.failedResponses = [
+      ...failedResponses.map((input) => ({
+        ...classifyFailedResponse(input),
+        status: input.status
+      })),
+      ...successfulSupabaseResponses
+    ];
     const classified = failedRequests.map((input) =>
       classifyFailedRequest({
         ...input,
@@ -227,6 +232,18 @@ function observeRuntimeIssues(page: Page): RuntimeIssues {
 
   page.on("response", (response) => {
     try {
+      const successfulSupabase = classifySuccessfulResponse({
+        ...readRequestDetails(response.request(), page),
+        status: response.status()
+      });
+      if (successfulSupabase) {
+        successfulSupabaseResponses.push({
+          ...successfulSupabase,
+          status: response.status()
+        });
+        markEvent();
+        return;
+      }
       if (new URL(response.url()).origin !== expectedOrigin || response.status() < 400) return;
       failedResponses.push({
         ...readRequestDetails(response.request(), page),

@@ -174,7 +174,7 @@ test("cleanupReplacedDishAssets protects unsafe buckets, prefixes, and dangerous
   assert.deepEqual(client.removed, []);
 });
 
-test("cleanupReplacedDishAssets skips old assets still referenced by another active dish", async () => {
+test("cleanupReplacedDishAssets skips old assets still referenced by another dish", async () => {
   const oldPath = `restaurants/${restaurantId}/models/web/shared.glb`;
   const previousMetadata = {
     webModel3dStorageBucket: "vistaire-3d",
