@@ -59,18 +59,25 @@
 .backgroundVeil {
   position: fixed !important;
   inset: 0;
-  z-index: -2;
   pointer-events: none;
 }
 
 .backgroundImage {
-  object-fit: cover;
-  object-position: center top;
+  z-index: -1;
+  object-fit: contain;
+  object-position: center center;
+  transform: scale(0.98);
+  transform-origin: center;
 }
 
 .backgroundVeil {
-  z-index: -1;
-  background: transparent;
+  z-index: -2;
+  background-color: #0d0805;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: cover;
+  filter: blur(18px) brightness(0.52) saturate(0.86);
+  transform: scale(1.08);
 }
 
 .navShell,
@@ -411,7 +418,7 @@
 
 .layoutSplit {
   grid-column: span 12;
-  grid-template-columns: minmax(190px, 0.38fr) minmax(0, 0.62fr);
+  grid-template-columns: minmax(260px, 0.44fr) minmax(0, 0.56fr);
   align-items: start;
 }
 
@@ -780,13 +787,23 @@
   gap: 18px 12px;
 }
 
+.pageDecision .body > .guideSection.layoutSplit {
+  grid-column: 1 / -1;
+  gap: clamp(2rem, 5vw, 5rem);
+  grid-template-columns: minmax(280px, 0.44fr) minmax(0, 0.56fr);
+}
+
+.pageDecision .body > .guideSection.layoutSplit .sectionHeading {
+  max-width: 32rem;
+}
+
 .pageDecision .body > .guideSection:nth-child(1),
 .pageDecision .body > .guideSection:nth-child(6) {
   grid-column: 1 / -1;
 }
 
 .pageDecision .body > .guideSection:nth-child(2) {
-  grid-column: 1 / span 6;
+  grid-column: 1 / -1;
 }
 
 .pageDecision .body > .guideSection:nth-child(3) {
@@ -798,7 +815,7 @@
 }
 
 .pageDecision .body > .guideSection:nth-child(5) {
-  grid-column: 1 / span 8;
+  grid-column: 1 / -1;
 }
 
 .pageDecision .relatedGrid {
@@ -919,7 +936,9 @@
   }
 
   .backgroundImage {
-    object-position: center top;
+    object-fit: cover;
+    object-position: center center;
+    transform: scale(0.95);
   }
 
   .hero {

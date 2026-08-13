@@ -143,7 +143,11 @@ export function VistaireEditorialGuide({ guide }: { guide: EditorialGuide }) {
         sizes="100vw"
         src={presentation.backgroundImage}
       />
-      <div aria-hidden="true" className={styles.backgroundVeil} />
+      <div
+        aria-hidden="true"
+        className={styles.backgroundVeil}
+        style={{ backgroundImage: `url("${presentation.backgroundImage.src}")` }}
+      />
       <div className={styles.navShell}>
         <PreviewNav
           currentPath={guide.path}
