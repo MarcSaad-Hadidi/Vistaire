@@ -1,4 +1,7 @@
 import type { StaticImageData } from "next/image";
+import restaurantBackground from "@/Framer/PhotoRestoComplet5.png";
+import restaurantBackground2 from "@/Framer/PhotoRestoComplet6.png";
+import restaurantBackground3 from "@/Framer/PhotoRestoComplet4.png";
 import pageDigitalPhoto from "@/Framer/PageDigital.png";
 import photoDigital2 from "@/Framer/PhotoDigital2.png";
 import photoQrCode1 from "@/Framer/PhotoQRcode1.png";
@@ -13,6 +16,7 @@ export type EditorialGuideVariant = "anatomy" | "journey" | "decision";
 export type EditorialGuidePresentation = {
   heroImage: StaticImageData;
   heroImageAlt: { fr: string; en: string };
+  backgroundImage: StaticImageData;
   heroVariant: "visual-right" | "visual-left" | "editorial-stack";
   guideVariant: EditorialGuideVariant;
   sectionLayouts: Record<string, GuideSectionLayout>;
@@ -21,6 +25,7 @@ export type EditorialGuidePresentation = {
 const PRESENTATIONS: Record<EditorialGuideKey, EditorialGuidePresentation> = {
   "premium-menu-anatomy": {
     heroImage: pageDigitalPhoto,
+    backgroundImage: restaurantBackground,
     heroImageAlt: {
       fr: "Aperçu d’une fiche plat Vistaire sur téléphone",
       en: "Preview of a Vistaire dish page on a phone"
@@ -44,6 +49,7 @@ const PRESENTATIONS: Record<EditorialGuideKey, EditorialGuidePresentation> = {
   },
   "mobile-qr-without-app": {
     heroImage: photoQrCode1,
+    backgroundImage: restaurantBackground2,
     heroImageAlt: {
       fr: "Carte de restaurant Vistaire ouverte après un scan QR",
       en: "Vistaire restaurant menu opened after a QR scan"
@@ -66,6 +72,7 @@ const PRESENTATIONS: Record<EditorialGuideKey, EditorialGuidePresentation> = {
   },
   "restaurant-3d-decision": {
     heroImage: photoDigital2,
+    backgroundImage: restaurantBackground3,
     heroImageAlt: {
       fr: "Présentation d’un plat Vistaire avec une vue immersive",
       en: "Vistaire dish presentation with an immersive view"

@@ -323,18 +323,19 @@
 }
 
 .contents {
-  position: sticky;
-  top: 12px;
+  position: relative;
+  top: auto;
   z-index: 2;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 1.25rem;
   min-width: 0;
-  padding: 0.65rem 1rem;
+  padding: 0.9rem 1rem 1rem;
 }
 
 .contents > p {
   flex: 0 0 auto;
+  padding-top: 0.7rem;
   margin: 0;
   color: var(--preview-champagne);
   font-size: 0.67rem;
@@ -345,18 +346,18 @@
 
 .contents ol {
   display: flex;
+  flex: 1 1 auto;
   min-width: 0;
+  flex-wrap: wrap;
   gap: 0.25rem;
   margin: 0;
   padding: 0;
-  overflow-x: auto;
   list-style: none;
-  scrollbar-width: thin;
 }
 
 .contents a {
   display: inline-flex;
-  min-height: 42px;
+  min-height: 40px;
   align-items: center;
   gap: 0.45rem;
   border: 1px solid transparent;
@@ -366,7 +367,7 @@
   font-size: 0.73rem;
   line-height: 1.2;
   text-decoration: none;
-  white-space: nowrap;
+  white-space: normal;
   transition: background-color 180ms ease, border-color 180ms ease, color 180ms ease;
 }
 
@@ -721,16 +722,6 @@
   gap: 18px 12px;
 }
 
-.pageJourney .body::before {
-  position: absolute;
-  top: 20px;
-  bottom: 20px;
-  left: 8.333%;
-  border-left: 1px solid rgba(232, 207, 155, 0.28);
-  content: "";
-  pointer-events: none;
-}
-
 .pageJourney .body > .guideSection {
   position: relative;
   z-index: 1;
@@ -845,7 +836,7 @@
   }
 
   .pageJourney .body::before {
-    display: none;
+    content: none;
   }
 
   .pageJourney .checklist {
@@ -895,8 +886,6 @@
   }
 
   .contents {
-    position: relative;
-    top: auto;
     display: block;
     padding: 0.9rem 1rem;
   }

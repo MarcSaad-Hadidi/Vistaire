@@ -2,7 +2,6 @@ import Image from "next/image";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { JsonLd } from "@/components/JsonLd";
-import restaurantBackground from "@/Framer/PhotoRestoComplet5.png";
 import {
   getEditorialGuidePresentation,
   type GuideSectionLayout
@@ -142,7 +141,7 @@ export function VistaireEditorialGuide({ guide }: { guide: EditorialGuide }) {
         loading="lazy"
         quality={75}
         sizes="100vw"
-        src={restaurantBackground}
+        src={presentation.backgroundImage}
       />
       <div aria-hidden="true" className={styles.backgroundVeil} />
       <div className={styles.navShell}>
