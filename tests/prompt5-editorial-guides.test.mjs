@@ -108,6 +108,19 @@ test("publishes six substantial localized editorial guides with unique metadata"
   }
 });
 
+test("gives each editorial topic its own composition variant", async () => {
+  const presentationSource = await readFile(
+    join(process.cwd(), "components", "guides", "editorialGuidePresentation.ts"),
+    "utf8"
+  );
+  const variants = [...presentationSource.matchAll(/guideVariant:\s*"([^"]+)"/g)].map(
+    ([, variant]) => variant
+  );
+
+  assert.deepEqual(variants, ["anatomy", "journey", "decision"]);
+  assert.equal(new Set(variants).size, variants.length);
+});
+
 test("registers exact reciprocal canonical, hreflang and sitemap pairs", async () => {
   const { buildPageAlternates, getLocalizedPath } = await import("../lib/i18n.ts");
   const { buildSitemapEntries } = await import("../lib/seo.ts");

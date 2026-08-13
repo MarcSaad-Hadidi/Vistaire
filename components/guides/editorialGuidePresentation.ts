@@ -8,11 +8,13 @@ import type {
 } from "@/lib/editorialGuideRoutes";
 
 export type GuideSectionLayout = "feature" | "split" | "table" | "quiet";
+export type EditorialGuideVariant = "anatomy" | "journey" | "decision";
 
 export type EditorialGuidePresentation = {
   heroImage: StaticImageData;
   heroImageAlt: { fr: string; en: string };
   heroVariant: "visual-right" | "visual-left" | "editorial-stack";
+  guideVariant: EditorialGuideVariant;
   sectionLayouts: Record<string, GuideSectionLayout>;
 };
 
@@ -24,6 +26,7 @@ const PRESENTATIONS: Record<EditorialGuideKey, EditorialGuidePresentation> = {
       en: "Preview of a Vistaire dish page on a phone"
     },
     heroVariant: "visual-right",
+    guideVariant: "anatomy",
     sectionLayouts: {
       hierarchie: "feature",
       "fiche-plat": "table",
@@ -46,6 +49,7 @@ const PRESENTATIONS: Record<EditorialGuideKey, EditorialGuidePresentation> = {
       en: "Vistaire restaurant menu opened after a QR scan"
     },
     heroVariant: "visual-left",
+    guideVariant: "journey",
     sectionLayouts: {
       parcours: "feature",
       placement: "split",
@@ -67,6 +71,7 @@ const PRESENTATIONS: Record<EditorialGuideKey, EditorialGuidePresentation> = {
       en: "Vistaire dish presentation with an immersive view"
     },
     heroVariant: "editorial-stack",
+    guideVariant: "decision",
     sectionLayouts: {
       question: "feature",
       "positive-cases": "split",

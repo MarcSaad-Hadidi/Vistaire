@@ -122,9 +122,18 @@ export function VistaireEditorialGuide({ guide }: { guide: EditorialGuide }) {
       : presentation.heroVariant === "editorial-stack"
         ? styles.heroEditorialStack
         : styles.heroVisualRight;
+  const guideVariantClass =
+    presentation.guideVariant === "journey"
+      ? styles.pageJourney
+      : presentation.guideVariant === "decision"
+        ? styles.pageDecision
+        : styles.pageAnatomy;
 
   return (
-    <main className={styles.page}>
+    <main
+      className={`${styles.page} ${guideVariantClass}`}
+      data-guide-variant={presentation.guideVariant}
+    >
       <Image
         alt=""
         aria-hidden="true"

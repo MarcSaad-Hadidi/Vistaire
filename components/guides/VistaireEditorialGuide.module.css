@@ -679,6 +679,141 @@
   flex: 0 0 auto;
 }
 
+/* Each guide has its own editorial rhythm while sharing the Vistaire shell. */
+.pageAnatomy .body > .guideSection:nth-child(1) {
+  grid-column: 1 / span 8;
+}
+
+.pageAnatomy .body > .guideSection:nth-child(2) {
+  grid-column: 2 / span 11;
+}
+
+.pageAnatomy .body > .guideSection:nth-child(3) {
+  grid-column: 1 / -1;
+}
+
+.pageAnatomy .body > .guideSection:nth-child(4) {
+  grid-column: 4 / span 9;
+}
+
+.pageAnatomy .body > .guideSection:nth-child(5) {
+  grid-column: 1 / span 7;
+}
+
+.pageAnatomy .body > .guideSection:nth-child(6) {
+  grid-column: 3 / span 10;
+}
+
+.pageAnatomy .checklist {
+  margin-inline: 1.5rem;
+}
+
+.pageJourney .hero {
+  grid-template-columns: minmax(320px, 0.94fr) minmax(0, 1.06fr);
+}
+
+.pageJourney .heroVisual {
+  min-height: 390px;
+}
+
+.pageJourney .body {
+  position: relative;
+  gap: 18px 12px;
+}
+
+.pageJourney .body::before {
+  position: absolute;
+  top: 20px;
+  bottom: 20px;
+  left: 8.333%;
+  border-left: 1px solid rgba(232, 207, 155, 0.28);
+  content: "";
+  pointer-events: none;
+}
+
+.pageJourney .body > .guideSection {
+  position: relative;
+  z-index: 1;
+}
+
+.pageJourney .body > .guideSection:nth-child(1) {
+  grid-column: 1 / span 9;
+}
+
+.pageJourney .body > .guideSection:nth-child(2) {
+  grid-column: 4 / span 9;
+}
+
+.pageJourney .body > .guideSection:nth-child(3) {
+  grid-column: 2 / span 11;
+}
+
+.pageJourney .body > .guideSection:nth-child(4) {
+  grid-column: 3 / span 9;
+}
+
+.pageJourney .body > .guideSection:nth-child(5) {
+  grid-column: 1 / span 8;
+}
+
+.pageJourney .body > .guideSection:nth-child(6) {
+  grid-column: 4 / span 9;
+}
+
+.pageJourney .checklist {
+  grid-template-columns: minmax(0, 0.58fr) minmax(0, 1.42fr);
+}
+
+.pageJourney .relatedGrid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.pageDecision .hero {
+  gap: 26px;
+}
+
+.pageDecision .heroCopy {
+  max-width: 68rem;
+}
+
+.pageDecision .heroVisual {
+  width: min(100%, 920px);
+  min-height: 0;
+  aspect-ratio: 16 / 7;
+  margin-inline: auto;
+}
+
+.pageDecision .body {
+  max-width: 1160px;
+  margin-inline: auto;
+  gap: 18px 12px;
+}
+
+.pageDecision .body > .guideSection:nth-child(1),
+.pageDecision .body > .guideSection:nth-child(6) {
+  grid-column: 1 / -1;
+}
+
+.pageDecision .body > .guideSection:nth-child(2) {
+  grid-column: 1 / span 6;
+}
+
+.pageDecision .body > .guideSection:nth-child(3) {
+  grid-column: 2 / span 11;
+}
+
+.pageDecision .body > .guideSection:nth-child(4) {
+  grid-column: 6 / span 7;
+}
+
+.pageDecision .body > .guideSection:nth-child(5) {
+  grid-column: 1 / span 8;
+}
+
+.pageDecision .relatedGrid {
+  grid-template-columns: minmax(0, 1.25fr) repeat(2, minmax(0, 0.875fr));
+}
+
 @media (max-width: 1180px) {
   .article {
     padding-inline: 20px;
@@ -695,6 +830,38 @@
 }
 
 @media (max-width: 920px) {
+  .pageAnatomy .body > .guideSection,
+  .pageJourney .body > .guideSection,
+  .pageDecision .body > .guideSection {
+    grid-column: 1 / -1;
+  }
+
+  .pageAnatomy .checklist {
+    margin-inline: 0;
+  }
+
+  .pageJourney .hero {
+    grid-template-columns: 1fr;
+  }
+
+  .pageJourney .body::before {
+    display: none;
+  }
+
+  .pageJourney .checklist {
+    grid-template-columns: 1fr;
+  }
+
+  .pageJourney .relatedGrid,
+  .pageDecision .relatedGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .pageDecision .heroVisual {
+    width: 100%;
+    aspect-ratio: 16 / 9;
+  }
+
   .navShell {
     padding: 8px 14px;
   }
@@ -757,6 +924,11 @@
 }
 
 @media (max-width: 620px) {
+  .pageJourney .relatedGrid,
+  .pageDecision .relatedGrid {
+    grid-template-columns: 1fr;
+  }
+
   .backgroundImage {
     object-position: center top;
   }
