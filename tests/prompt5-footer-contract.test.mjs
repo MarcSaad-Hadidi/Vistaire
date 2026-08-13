@@ -110,8 +110,23 @@ test("mobile footer uses one column and footer links have 44px targets", async (
   );
   assert.match(
     styles,
-    /\.footerLinkListBalanced a:nth-child\(3\)\s*\{[\s\S]*?grid-column:\s*1;[\s\S]*?justify-self:\s*start;/,
-    "the third guide link must stay in one column instead of spanning the footer"
+    /\.footerLinkListBalanced\s*\{[\s\S]*?grid-template-columns:\s*minmax\(0,\s*1fr\);/,
+    "guide links must use one column instead of a split grid"
+  );
+});
+
+test("footer guide navigation follows the requested reading order", async () => {
+  const { getEditorialGuideNavigation } = await import(
+    "../lib/editorialGuideRoutes.ts"
+  );
+
+  assert.deepEqual(
+    getEditorialGuideNavigation("fr").map((item) => item.href),
+    [
+      "/guides/anatomie-menu-digital-premium",
+      "/guides/3d-restaurant-utile-vs-gadget",
+      "/guides/menu-qr-mobile-sans-application"
+    ]
   );
 });
 

@@ -326,12 +326,11 @@
   display: grid;
   width: 100%;
   max-width: 430px;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 7px 26px;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 7px;
 }
 
-.footerLinkListBalanced a:nth-child(3) {
-  grid-column: 1;
+.footerLinkListBalanced a {
   justify-self: start;
 }
 
@@ -508,8 +507,8 @@
   }
 
   .footerLinkListBalanced {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 6px 18px;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 6px;
   }
 }
 
@@ -663,8 +662,8 @@
   }
 
   .footerLinkListBalanced {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 6px 18px;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 6px;
   }
 
   .footerLinkList a,
