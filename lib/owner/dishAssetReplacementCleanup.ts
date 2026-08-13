@@ -33,6 +33,12 @@ type CleanupReplacedDishAssetsArgs = {
   restaurantId: string;
   previousMetadata: unknown;
   nextMetadata: unknown;
+  /**
+   * When the dish row was already deleted, pass its post-delete metadata
+   * instead of attempting to re-read a row that no longer exists. The helper
+   * still performs the mandatory cross-dish lookup and remains fail-safe.
+   */
+  currentMetadata?: unknown;
   reason: string;
 };
 
@@ -298,7 +304,12 @@ export async function cleanupReplacedDishAssets(
   report.candidates = previousRefs.filter((ref) => !isRefInSet(ref, suppliedNextIdentities));
   if (report.candidates.length === 0) return report;
 
-  const current = await fetchCurrentDishRefs(args);
+  const current =
+    args.currentMetadata === undefined
+      ? await fetchCurrentDishRefs(args)
+      : {
+          refs: extractDishAssetRefsFromMetadata(args.currentMetadata, args.restaurantId)
+        };
   if (current.error) {
     report.errors.push({ bucket: "", paths: [], message: current.error });
     report.skippedStillReferenced.push(...report.candidates);

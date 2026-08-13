@@ -12,6 +12,7 @@ import {
   DEFAULT_PUBLIC_MENU_SETTINGS,
   serializePublicMenuSettings
 } from "@/lib/menu/publicMenuSettings";
+import { MENU_PROJECTIONS } from "@/lib/menu/menuSchemaProjections";
 import { getPublicMenuBySlug } from "@/lib/menu/publicMenu";
 import { readSupabaseRowsByFilters } from "@/lib/analytics/serverRows";
 import {
@@ -62,18 +63,12 @@ async function fallbackMenu(): Promise<OwnerMenuDataSuccess> {
 
 const OWNER_RESTAURANT_COLUMNS =
   "id,name,slug,location,cuisine_type,status,contact_name,contact_email,contact_phone,notes,public_menu_url,qr_ready,qr_generated_at,created_at,updated_at";
-const OWNER_MENU_COLUMNS =
-  "id,restaurant_id,name,slug,status,is_primary,display_order,metadata,settings_json,created_at,updated_at";
-const OWNER_CATEGORY_COLUMNS =
-  "id,restaurant_id,menu_id,name,slug,description,display_order,metadata,created_at,updated_at";
 const OWNER_DISH_COLUMNS =
   "id,restaurant_id,menu_id,category_id,slug,name,short_description,description,price_cents,currency,image_url,is_available,is_signature,is_recommended,has_immersive_view,allergens,allergen_declarations,metadata,created_at,updated_at,display_order";
 const OWNER_UI_CONFIG_COLUMNS =
   "id,restaurant_id,theme,config_json,status,created_at,updated_at";
 const OWNER_RESTAURANT_COLUMNS_FALLBACK =
   "id,name,slug,location,cuisine_type,status,contact_name,contact_email,contact_phone,notes,public_menu_url,qr_ready,qr_generated_at,created_at,updated_at";
-const OWNER_MENU_COLUMNS_FALLBACK =
-  "id,restaurant_id,name,slug,status,is_primary,display_order,metadata,created_at,updated_at";
 const OWNER_DISH_COLUMNS_FALLBACK =
   "id,restaurant_id,menu_id,category_id,slug,name,short_description,description,price_cents,currency,image_url,is_available,is_signature,is_recommended,has_immersive_view,allergens,metadata,created_at,updated_at";
 
@@ -101,16 +96,16 @@ async function getOwnerMenuDataUncached(
     }),
     readSupabaseRowsByFilters<PublicMenuRow>({
       table: "menus",
-      columns: OWNER_MENU_COLUMNS,
+      columns: MENU_PROJECTIONS.menus,
       filters: { restaurant_id: restaurantId },
-      orderBy: ["display_order", "id"],
+      orderBy: "id",
       limit: 500,
-      fallbackColumns: OWNER_MENU_COLUMNS_FALLBACK,
+      fallbackColumns: MENU_PROJECTIONS.legacyMenus,
       fallbackOrderBy: "id"
     }),
     readSupabaseRowsByFilters<PublicMenuRow>({
       table: "menu_categories",
-      columns: OWNER_CATEGORY_COLUMNS,
+      columns: MENU_PROJECTIONS.menuCategories,
       filters: { restaurant_id: restaurantId },
       orderBy: ["display_order", "id"],
       limit: 1_000

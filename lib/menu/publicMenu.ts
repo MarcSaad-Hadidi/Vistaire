@@ -30,6 +30,7 @@ import {
   publicLocaleToShortLocale,
   serializePublicMenuSettings
 } from "@/lib/menu/publicMenuSettings";
+import { MENU_PROJECTIONS } from "@/lib/menu/menuSchemaProjections";
 import { applyStoredPublicMenuTranslations } from "@/lib/menu/publicMenuTranslations";
 import { publicMenuSettingsFallbackFromUiConfigRows } from "@/lib/owner/publicMenuSettingsFallback";
 
@@ -39,21 +40,15 @@ function isMissingDisplayOrderError(result: { ok: boolean; error?: string }): bo
   return !result.ok && /display_order|schema cache|does not exist/i.test(result.error ?? "");
 }
 
-// Keep public menu reads explicit. These are the canonical columns from the
-// relational menu migrations; legacy slug fallback intentionally retains `*`
-// below because older installations may not expose the relational shape.
+// Keep public menu reads explicit. The shared menu projection contract tracks
+// the deployed production schema; legacy slug fallback intentionally retains
+// `*` below because older installations may not expose the relational shape.
 const PUBLIC_RESTAURANT_COLUMNS =
   "id,name,slug,location,cuisine_type,status,public_menu_url,google_review_enabled,google_review_url,created_at,updated_at";
-const PUBLIC_MENU_COLUMNS =
-  "id,restaurant_id,name,slug,status,is_primary,display_order,metadata,settings_json,created_at,updated_at";
-const PUBLIC_CATEGORY_COLUMNS =
-  "id,restaurant_id,menu_id,name,slug,description,display_order,metadata,created_at,updated_at";
 const PUBLIC_DISH_COLUMNS =
   "id,restaurant_id,menu_id,category_id,slug,name,short_description,description,price_cents,currency,image_url,is_available,is_signature,is_recommended,has_immersive_view,allergens,allergen_declarations,metadata,created_at,updated_at,display_order";
 const PUBLIC_RESTAURANT_COLUMNS_FALLBACK =
   "id,name,slug,location,cuisine_type,status,public_menu_url,created_at,updated_at";
-const PUBLIC_MENU_COLUMNS_FALLBACK =
-  "id,restaurant_id,name,slug,status,is_primary,display_order,metadata,created_at,updated_at";
 const PUBLIC_DISH_COLUMNS_FALLBACK =
   "id,restaurant_id,menu_id,category_id,slug,name,short_description,description,price_cents,currency,image_url,is_available,is_signature,is_recommended,has_immersive_view,allergens,metadata,created_at,updated_at";
 const PUBLIC_UI_CONFIG_COLUMNS =
@@ -646,8 +641,8 @@ async function getPublicMenuBySlugUncached(
     const isDemoRestaurant = restaurantId === getDemoRestaurantId();
 
     const [menusResult, categoriesResult, dishesResult, uiConfigsResult] = await Promise.all([
-      dependencies.readRows<PublicMenuRow>({ table: "menus", columns: PUBLIC_MENU_COLUMNS, fallbackColumns: PUBLIC_MENU_COLUMNS_FALLBACK, filters: { restaurant_id: restaurantId }, orderBy: ["display_order", "id"], limit: 500, fallbackOrderBy: ["id"] }),
-      dependencies.readRows<PublicMenuRow>({ table: "menu_categories", columns: PUBLIC_CATEGORY_COLUMNS, filters: { restaurant_id: restaurantId }, orderBy: ["display_order", "id"], limit: 1_000 }),
+      dependencies.readRows<PublicMenuRow>({ table: "menus", columns: MENU_PROJECTIONS.menus, fallbackColumns: MENU_PROJECTIONS.legacyMenus, filters: { restaurant_id: restaurantId }, orderBy: "id", limit: 500, fallbackOrderBy: "id" }),
+      dependencies.readRows<PublicMenuRow>({ table: "menu_categories", columns: MENU_PROJECTIONS.menuCategories, filters: { restaurant_id: restaurantId }, orderBy: ["display_order", "id"], limit: 1_000 }),
       readDishRows(dependencies.readRows, { restaurant_id: restaurantId }),
       dependencies.readRows<PublicMenuRow>({ table: "menu_ui_configs", columns: PUBLIC_UI_CONFIG_COLUMNS, filters: { restaurant_id: restaurantId }, orderBy: "id", limit: 1_000 })
     ]);

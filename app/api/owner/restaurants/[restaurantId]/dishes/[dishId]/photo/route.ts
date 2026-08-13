@@ -13,10 +13,6 @@ import {
   validateDishPhotoFile
 } from "@/lib/owner/dishPhotoUpload";
 import { generateDishPhotoDerivatives } from "@/lib/owner/dishPhotoDerivatives";
-import {
-  collectDishPhotoStorageTarget,
-  deleteDishMediaStorageTargets
-} from "@/lib/owner/dishMediaGarbageCollector";
 import { cleanupReplacedDishAssets } from "@/lib/owner/dishAssetReplacementCleanup";
 import { revalidateOwnerMenuMutationPaths } from "@/lib/owner/menuMutationRevalidation";
 import { requireOwnerRestaurantCapability } from "@/lib/owner/demoCapabilities";
@@ -375,31 +371,13 @@ export async function DELETE(
     );
   }
 
-  const cleanup = await deleteDishMediaStorageTargets(
-    admin.client,
-    collectDishPhotoStorageTarget(dish.metadata, restaurantId)
-  );
-  const failedValidDelete =
-    cleanup.deleted.length === 0 &&
-    cleanup.skipped.length === 0 &&
-    cleanup.warnings.some((warning) => warning.includes("non supprime"));
-  if (failedValidDelete) {
-    return NextResponse.json(
-      {
-        ok: false,
-        error: "Suppression Storage impossible pour cette photo.",
-        skippedCount: cleanup.skipped.length,
-        warnings: cleanup.warnings
-      },
-      { status: 503 }
-    );
-  }
-
+  const oldMetadata = getMetadata(dish.metadata);
+  const clearedMetadata = clearDishPhotoMetadata(oldMetadata);
   const updated = await admin.client
     .from("menu_dishes")
     .update({
       image_url: null,
-      metadata: clearDishPhotoMetadata(getMetadata(dish.metadata))
+      metadata: clearedMetadata
     })
     .eq("id", dishId)
     .eq("restaurant_id", restaurantId)
@@ -408,10 +386,31 @@ export async function DELETE(
 
   if (updated.error || !updated.data) {
     return NextResponse.json(
-      { ok: false, error: "Photo supprimee mais plat impossible a nettoyer." },
+      { ok: false, error: "Photo impossible a supprimer du plat." },
       { status: 503 }
     );
   }
+
+  // The DB is now authoritative: the dish no longer references the photo.
+  // Cleanup re-reads this row and every other dish in the restaurant before
+  // removing any object, preserving shared content-addressed derivatives and
+  // leaving safe orphans when the cross-reference lookup is uncertain.
+  const cleanup = await cleanupReplacedDishAssets({
+    client: admin.client,
+    dishId,
+    restaurantId,
+    previousMetadata: oldMetadata,
+    nextMetadata: clearedMetadata,
+    reason: "dish-photo-delete"
+  });
+  const cleanupWarnings = cleanup.errors.map(
+    (error) => `Storage ${error.bucket || "metadata"} cleanup partiel: ${error.message}`
+  );
+  const skippedCount =
+    cleanup.skippedStillReferenced.length +
+    cleanup.skippedUnsafeBucket.length +
+    cleanup.skippedUnsafePrefix.length +
+    cleanup.skippedMissingPath.length;
 
   await revalidateOwnerMenuMutationPaths({
     client: admin.client,
@@ -424,7 +423,7 @@ export async function DELETE(
     imageUrl: null,
     dishUpdated: true,
     deletedCount: cleanup.deleted.length,
-    skippedCount: cleanup.skipped.length,
-    warnings: cleanup.warnings
+    skippedCount,
+    warnings: cleanupWarnings
   });
 }
