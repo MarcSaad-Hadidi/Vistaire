@@ -10,7 +10,9 @@ import {
   clearDishPhotoMetadata,
   buildDishPhotoDerivativeV2StoragePath,
   mergeDishPhotoMetadata,
-  inspectDishPhotoFile
+  inspectDishPhotoFile,
+  type DishPhotoDerivativeMetadata,
+  type DishPhotoDerivativeVariant
 } from "@/lib/owner/dishPhotoUpload";
 import { generateDishPhotoDerivatives } from "@/lib/owner/dishPhotoDerivatives";
 import { cleanupReplacedDishAssets } from "@/lib/owner/dishAssetReplacementCleanup";
@@ -38,6 +40,17 @@ function getMetadata(value: unknown): Record<string, unknown> {
   return value && typeof value === "object" && !Array.isArray(value)
     ? (value as Record<string, unknown>)
     : {};
+}
+
+function storageInfoBytes(value: unknown): number | null {
+  if (!value || typeof value !== "object") return null;
+  const record = value as Record<string, unknown>;
+  const metadata =
+    record.metadata && typeof record.metadata === "object"
+      ? (record.metadata as Record<string, unknown>)
+      : {};
+  const bytes = Number(metadata.size ?? metadata.size_bytes ?? record.size);
+  return Number.isInteger(bytes) && bytes >= 0 ? bytes : null;
 }
 
 function getPreviouslyReferencedPhotoPaths(
@@ -206,26 +219,30 @@ export async function POST(
       upsert: false
     }
   );
+  const sourceWasUploaded = !uploaded.error;
   if (uploaded.error) {
     const existing = await admin.client.storage.from(MEDIA_BUCKET).info(storagePath);
     if (existing.error || !existing.data) {
-    return NextResponse.json(
-      { ok: false, error: "Upload Supabase Storage impossible." },
-      { status: 503 }
-    );
+      return NextResponse.json(
+        { ok: false, error: "Upload Supabase Storage impossible." },
+        { status: 503 }
+      );
+    }
+    const existingBytes = storageInfoBytes(existing.data);
+    if (existingBytes !== null && existingBytes !== validated.bytes.byteLength) {
+      return NextResponse.json(
+        { ok: false, error: "Conflit Storage immutable: taille inattendue." },
+        { status: 503 }
+      );
     }
     // Content-addressed source path: an already-existing object is the same
     // immutable bytes, so a retry is idempotent and must not overwrite it.
   }
-  uploadedStoragePaths.push(storagePath);
+  if (sourceWasUploaded) uploadedStoragePaths.push(storagePath);
 
-  const derivativeMetadata: Record<string, {
-    storagePath: string;
-    sha256: string;
-    contentType: "image/webp";
-    bytes: number;
-    sourceSha256: string;
-  }> = {};
+  const derivativeMetadata: Partial<
+    Record<DishPhotoDerivativeVariant, DishPhotoDerivativeMetadata>
+  > = {};
   for (const variant of ["thumbnail", "card", "display"] as const) {
     const generated = generatedDerivatives[variant];
     if (!generated) continue;
@@ -253,6 +270,11 @@ export async function POST(
       const existing = await admin.client.storage.from(MEDIA_BUCKET).info(derivativePath);
       if (existing.error || !existing.data) {
         derivativeWarnings.push(`Derive ${variant} non uploadee.`);
+        continue;
+      }
+      const existingBytes = storageInfoBytes(existing.data);
+      if (existingBytes !== null && existingBytes !== generated.bytes.byteLength) {
+        derivativeWarnings.push(`Derive ${variant} ignoree: taille immutable inattendue.`);
         continue;
       }
       // Immutable output hash + recipe path makes Storage conflict safe.

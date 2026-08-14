@@ -5,7 +5,11 @@ import {
   isCanonicalUuid,
   isStorageSafeIdentifier
 } from "@/lib/owner/storageSafeIdentifier";
-import type { DishPhotoDerivativeVariant } from "@/lib/owner/dishPhotoUpload";
+import {
+  DISH_PHOTO_RECIPE,
+  isValidDishPhotoDerivativeMetadata,
+  type DishPhotoDerivativeVariant
+} from "@/lib/owner/dishPhotoUpload";
 
 export type PublicDishAssetKind = "photo" | "web-glb" | "ar-lite-glb" | "usdz";
 export type PublicDishPhotoVariant = DishPhotoDerivativeVariant;
@@ -61,6 +65,27 @@ type SignedUrlCacheEntry = {
 const signedUrlCache = new Map<string, SignedUrlCacheEntry>();
 const signedUrlInFlight = new Map<string, Promise<string | null>>();
 
+type PublicDishMetadataCacheEntry = {
+  dish: Record<string, unknown>;
+  expiresAt: number;
+};
+
+const PUBLIC_DISH_METADATA_CACHE_TTL_MS = 60_000;
+const PUBLIC_DISH_METADATA_CACHE_MAX_ENTRIES = 512;
+const publicDishMetadataCache = new Map<
+  string,
+  PublicDishMetadataCacheEntry
+>();
+type PublicDishMetadataLookup = {
+  data: Record<string, unknown> | null;
+  error: unknown;
+  transportFailure: boolean;
+};
+const publicDishMetadataInFlight = new Map<
+  string,
+  Promise<PublicDishMetadataLookup>
+>();
+
 function publicSignedUrlCacheEnabled(): boolean {
   return process.env.NODE_ENV === "production";
 }
@@ -99,10 +124,50 @@ function writeCachedSignedUrl(key: string, signedUrl: string): void {
   }
 }
 
+function publicDishMetadataCacheKey(args: {
+  dishId: string;
+  kind: PublicDishAssetKind;
+  version: string;
+}): string {
+  return `${args.kind}\u0000${args.dishId}\u0000${args.version}`;
+}
+
+function readCachedPublicDishMetadata(
+  key: string
+): Record<string, unknown> | null {
+  const entry = publicDishMetadataCache.get(key);
+  if (!entry) return null;
+  if (entry.expiresAt <= Date.now()) {
+    publicDishMetadataCache.delete(key);
+    return null;
+  }
+  publicDishMetadataCache.delete(key);
+  publicDishMetadataCache.set(key, entry);
+  return entry.dish;
+}
+
+function writeCachedPublicDishMetadata(
+  key: string,
+  dish: Record<string, unknown>
+): void {
+  publicDishMetadataCache.delete(key);
+  publicDishMetadataCache.set(key, {
+    dish,
+    expiresAt: Date.now() + PUBLIC_DISH_METADATA_CACHE_TTL_MS
+  });
+  while (publicDishMetadataCache.size > PUBLIC_DISH_METADATA_CACHE_MAX_ENTRIES) {
+    const oldest = publicDishMetadataCache.keys().next().value;
+    if (typeof oldest !== "string") break;
+    publicDishMetadataCache.delete(oldest);
+  }
+}
+
 /** Test/diagnostic hook; does not touch Supabase or production Storage. */
 export function resetPublicDishAssetCachesForTests(): void {
   signedUrlCache.clear();
   signedUrlInFlight.clear();
+  publicDishMetadataCache.clear();
+  publicDishMetadataInFlight.clear();
 }
 
 const ASSET_PROFILES: Record<PublicDishAssetKind, PublicDishAssetProfile> = {
@@ -246,12 +311,25 @@ export function isAllowedPublicDishAssetLocation(args: {
       "derivatives"
     ];
     const sourceSha = pathSegments[4] ?? "";
-    return (
-      pathSegments.length === 6 &&
-      expectedPrefix.every((segment, index) => pathSegments[index] === segment) &&
-      /^[a-f0-9]{64}$/i.test(sourceSha) &&
-      pathSegments[5] === `${args.photoVariant}.webp`
-    );
+    if (
+      !isStorageSafeIdentifier(args.restaurantId) ||
+      !expectedPrefix.every((segment, index) => pathSegments[index] === segment) ||
+      !/^[a-f0-9]{64}$/i.test(sourceSha)
+    ) {
+      return false;
+    }
+    // V1 derivatives stay readable during migration. New immutable V2 paths
+    // add the recipe and output hash so a path can never be overwritten.
+    if (pathSegments.length === 6) {
+      return pathSegments[5] === `${args.photoVariant}.webp`;
+    }
+    if (pathSegments.length !== 7 || pathSegments[5] !== DISH_PHOTO_RECIPE.id) {
+      return false;
+    }
+    return new RegExp(
+      `^${args.photoVariant}-[a-f0-9]{64}\\.webp$`,
+      "i"
+    ).test(pathSegments[6] ?? "");
   }
 
   const pathSegments = args.storagePath.split("/");
@@ -331,24 +409,80 @@ async function redirectDishAsset(args: {
   if (!args.admin.ok) {
     return publicDishAssetJsonError(args.unavailableMessage, 503);
   }
+  const adminClient = args.admin.client;
 
-  let dishResult;
-  const dbStartedAt = performance.now();
-  try {
-    const dishQuery = args.admin.client
-      .from("menu_dishes")
-      .select("id,restaurant_id,is_available,metadata")
-      .eq("id", args.dishId);
-    if (args.assetVisibilityPolicy.kind === "authorized-admin") {
-      dishQuery.eq("restaurant_id", args.assetVisibilityPolicy.restaurantId);
+  const rawRequestedVersion = args.requestedAssetVersion?.trim() ?? "";
+  const requestedVersion =
+    args.kind === "photo" ? rawRequestedVersion.toLowerCase() : rawRequestedVersion;
+  const profile = ASSET_PROFILES[args.kind];
+  const canCachePublicDishMetadata =
+    args.assetVisibilityPolicy.kind === "public-available-only" &&
+    Boolean(requestedVersion) &&
+    publicSignedUrlCacheEnabled();
+  const metadataCacheKey = canCachePublicDishMetadata
+    ? publicDishMetadataCacheKey({
+        dishId: args.dishId,
+        kind: args.kind,
+        version: requestedVersion
+      })
+    : null;
+
+  let dbDuration = 0;
+  const lookupDish = async (): Promise<PublicDishMetadataLookup> => {
+    const dbStartedAt = performance.now();
+    try {
+      const dishQuery = adminClient
+        .from("menu_dishes")
+        .select("id,restaurant_id,is_available,metadata")
+        .eq("id", args.dishId);
+      if (args.assetVisibilityPolicy.kind === "authorized-admin") {
+        dishQuery.eq("restaurant_id", args.assetVisibilityPolicy.restaurantId);
+      }
+      const result = await dishQuery.maybeSingle();
+      dbDuration = boundedDuration(dbStartedAt);
+      return {
+        data: (result.data as Record<string, unknown> | null) ?? null,
+        error: result.error,
+        transportFailure: false
+      };
+    } catch (error) {
+      dbDuration = boundedDuration(dbStartedAt);
+      return { data: null, error, transportFailure: true };
     }
-    dishResult = await dishQuery.maybeSingle();
-  } catch {
-    return publicDishAssetJsonError(args.unavailableMessage, 503);
+  };
+
+  let dishResult: PublicDishMetadataLookup;
+  if (metadataCacheKey) {
+    const cachedDish = readCachedPublicDishMetadata(metadataCacheKey);
+    if (cachedDish) {
+      dishResult = { data: cachedDish, error: null, transportFailure: false };
+    } else {
+      const inFlight = publicDishMetadataInFlight.get(metadataCacheKey);
+      if (inFlight) {
+        dishResult = await inFlight;
+      } else {
+        const lookupPromise = lookupDish();
+        publicDishMetadataInFlight.set(metadataCacheKey, lookupPromise);
+        try {
+          dishResult = await lookupPromise;
+          if (!dishResult.error && dishResult.data) {
+            writeCachedPublicDishMetadata(metadataCacheKey, dishResult.data);
+          }
+        } finally {
+          if (publicDishMetadataInFlight.get(metadataCacheKey) === lookupPromise) {
+            publicDishMetadataInFlight.delete(metadataCacheKey);
+          }
+        }
+      }
+    }
+  } else {
+    dishResult = await lookupDish();
   }
-  const dbDuration = boundedDuration(dbStartedAt);
 
   const dish = dishResult.data as Record<string, unknown> | null;
+  if (dishResult.transportFailure) {
+    return publicDishAssetJsonError(args.unavailableMessage, 503);
+  }
   if (dishResult.error) {
     return publicDishAssetJsonError(
       args.assetVisibilityPolicy.kind === "authorized-admin"
@@ -378,10 +512,6 @@ async function redirectDishAsset(args: {
   }
 
   const metadata = metadataRecord(dish.metadata);
-  const rawRequestedVersion = args.requestedAssetVersion?.trim() ?? "";
-  const requestedVersion =
-    args.kind === "photo" ? rawRequestedVersion.toLowerCase() : rawRequestedVersion;
-  const profile = ASSET_PROFILES[args.kind];
   const activeVersion = metadataString(metadata, profile.versionMetadataKey);
   if (
     (args.kind === "photo" && Boolean(activeVersion) !== Boolean(requestedVersion)) ||
@@ -403,7 +533,9 @@ async function redirectDishAsset(args: {
     derivativeMetadata,
     "sourceSha256"
   ).toLowerCase();
-  const derivativeSha256 = metadataString(derivativeMetadata, "sha256");
+  const derivativeSha256 =
+    metadataString(derivativeMetadata, "outputSha256") ||
+    metadataString(derivativeMetadata, "sha256");
   const derivativeBytes = Number(derivativeMetadata.bytes);
   const derivativeContentType = metadataString(derivativeMetadata, "contentType");
   const hasUsableDerivative = Boolean(
@@ -415,6 +547,14 @@ async function redirectDishAsset(args: {
       derivativeContentType === "image/webp" &&
       Number.isInteger(derivativeBytes) &&
       derivativeBytes > 0 &&
+      (isValidDishPhotoDerivativeMetadata(derivativeRecord, {
+        sourceSha256: activeVersion,
+        variant: args.photoVariant
+      }) ||
+        // V1 metadata has no recipe/schema fields. It remains read-only and
+        // is accepted only with the legacy immutable source/variant path.
+        (metadataString(derivativeMetadata, "recipeId") === "" &&
+          metadataString(derivativeMetadata, "schemaVersion") === "")) &&
       isAllowedDishAssetLocation({
         kind: args.kind,
         bucket,

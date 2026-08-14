@@ -329,6 +329,13 @@ test("admin photo URL boundary rewrites only canonical public photo routes", asy
     `/admin/api/menu-dishes/${DISH_ID}/photo?v=${PHOTO_SHA256}`
   );
   assert.equal(
+    buildAdminDishPhotoPath(DISH_ID, {
+      assetVersion: PHOTO_SHA256,
+      variant: "card"
+    }),
+    `/admin/api/menu-dishes/${DISH_ID}/photo?v=${PHOTO_SHA256}&variant=card`
+  );
+  assert.equal(
     buildAdminDishPhotoUrl(
       `/api/public/menu-dishes/${DISH_ID}/photo?v=${PHOTO_SHA256}`
     ),

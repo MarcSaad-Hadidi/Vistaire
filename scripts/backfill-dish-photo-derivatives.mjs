@@ -17,6 +17,7 @@ const args = new Set(process.argv.slice(2));
 const apply = args.has("--apply");
 const measureOnly = args.has("--measure-only");
 const verifyOnly = args.has("--verify-only");
+const verifySource = args.has("--verify-source");
 const confirmProduction = args.has("--confirm-production");
 const limitArg = process.argv.find((value) => value.startsWith("--limit="));
 const concurrencyArg = process.argv.find((value) => value.startsWith("--concurrency="));
@@ -68,19 +69,49 @@ function isSafeOriginalPath(value, restaurantId) {
 }
 
 function isCompleteDerivative(value, restaurantId, sourceSha256, variant) {
+  const outputSha256 = typeof value?.outputSha256 === "string"
+    ? value.outputSha256.toLowerCase()
+    : typeof value?.sha256 === "string"
+      ? value.sha256.toLowerCase()
+      : "";
   return Boolean(
     value &&
       typeof value === "object" &&
       typeof value.storagePath === "string" &&
-      value.storagePath.startsWith(`restaurants/${restaurantId}/photos/derivatives/${sourceSha256}/${RECIPE.id}/${variant}-`) &&
-      isSha(value.sha256) &&
+      new RegExp(`^restaurants/${restaurantId}/photos/derivatives/${sourceSha256}/${RECIPE.id}/${variant}-[a-f0-9]{64}\\.webp$`, "i").test(value.storagePath) &&
+      isSha(outputSha256) &&
+      (!value.sha256 || String(value.sha256).toLowerCase() === outputSha256) &&
+      value.variant === variant &&
       value.recipeId === RECIPE.id &&
       value.schemaVersion === RECIPE.schemaVersion &&
       value.contentType === "image/webp" &&
+      value.format === "webp" &&
+      typeof value.generatedAt === "string" &&
+      Number.isFinite(Date.parse(value.generatedAt)) &&
+      typeof value.encoder === "string" &&
+      value.encoder.length > 0 &&
       Number.isInteger(Number(value.bytes)) &&
       Number(value.bytes) > 0 &&
+      Number.isInteger(Number(value.width)) &&
+      Number(value.width) > 0 &&
+      Number(value.width) <= Number(RECIPE.variants[variant].width) &&
+      Number.isInteger(Number(value.height)) &&
+      Number(value.height) > 0 &&
+      Number(value.height) <= Number(RECIPE.variants[variant].width) &&
       String(value.sourceSha256 ?? "").toLowerCase() === sourceSha256
   );
+}
+
+function legacyDerivativeByteSize(value, restaurantId, sourceSha256, variant) {
+  if (!value || typeof value !== "object") return 0;
+  const bytes = Number(value.bytes);
+  if (!Number.isInteger(bytes) || bytes <= 0) return 0;
+  const storagePath = typeof value.storagePath === "string" ? value.storagePath : "";
+  const legacyPath = new RegExp(
+    `^restaurants/${restaurantId}/photos/derivatives/${sourceSha256}/${variant}\\.webp$`,
+    "i"
+  );
+  return legacyPath.test(storagePath) ? bytes : 0;
 }
 
 function sha256(bytes) {
@@ -98,7 +129,7 @@ async function makeDerivative(bytes, config) {
     .resize({ width: config.width, height: config.width, fit: "inside", withoutEnlargement: true })
     .webp({ quality: config.quality, effort: 4 })
     .timeout({ seconds: RECIPE.sharpPolicy.timeoutSeconds })
-    .toBuffer();
+    .toBuffer({ resolveWithObject: true });
 }
 
 async function loadCheckpoint() {
@@ -126,6 +157,12 @@ function isStorageNotFound(error) {
         Number(error.status) === 404 ||
         /not found|does not exist/i.test(String(error.message ?? error)))
   );
+}
+
+function storageInfoBytes(info) {
+  const value = info?.metadata?.size ?? info?.metadata?.size_bytes ?? info?.size;
+  const bytes = Number(value);
+  return Number.isInteger(bytes) && bytes >= 0 ? bytes : null;
 }
 
 function derivativePathsFromMetadata(value) {
@@ -251,32 +288,78 @@ async function processPlan(client, plan, checkpoint) {
   }
 
   const bucket = client.storage.from("vistaire-media");
+  if (verifyOnly) {
+    const checks = [];
+    for (const variant of VARIANTS) {
+      const metadata = plan.metadata.photoDerivatives?.[variant.name];
+      const complete = isCompleteDerivative(
+        metadata,
+        plan.restaurantId,
+        plan.sourceSha,
+        variant.name
+      );
+      let objectPresent = false;
+      if (complete) {
+        const object = await bucket.info(metadata.storagePath);
+        objectPresent = !object.error && Boolean(object.data);
+      }
+      checks.push({ variant: variant.name, complete, objectPresent });
+    }
+    if (checks.some((check) => !check.complete || !check.objectPresent)) {
+      return { status: "error", key, error: "Derivative metadata/object verification failed.", checks };
+    }
+    if (verifySource) {
+      const downloaded = await bucket.download(plan.sourcePath);
+      if (downloaded.error || !downloaded.data) {
+        return {
+          status: "error",
+          key,
+          error: `Original impossible à lire: ${downloaded.error?.message ?? plan.sourcePath}`,
+          checks
+        };
+      }
+      const sourceBytes = Buffer.from(await downloaded.data.arrayBuffer());
+      if (sha256(sourceBytes) !== plan.sourceSha) {
+        return { status: "error", key, error: `SHA original différent: ${plan.sourcePath}`, checks };
+      }
+    }
+    return { status: "verified", key, checks, sourceChecked: verifySource };
+  }
+
   const downloaded = await bucket.download(plan.sourcePath);
   if (downloaded.error || !downloaded.data) throw new Error(`Original impossible à lire: ${downloaded.error?.message ?? plan.sourcePath}`);
   const sourceBytes = Buffer.from(await downloaded.data.arrayBuffer());
   if (sha256(sourceBytes) !== plan.sourceSha) throw new Error(`SHA original différent: ${plan.sourcePath}`);
 
-  if (verifyOnly) {
-    return { status: "verified", key, checks: VARIANTS.map((variant) => ({ variant: variant.name, complete: isCompleteDerivative(plan.metadata.photoDerivatives?.[variant.name], plan.restaurantId, plan.sourceSha, variant.name) })) };
-  }
   if (measureOnly) {
     const measured = [];
     for (const variant of plan.missing) {
-      const bytes = await makeDerivative(sourceBytes, variant);
-      measured.push({ variant: variant.name, bytes: bytes.byteLength, outputSha256: sha256(bytes) });
+      const generated = await makeDerivative(sourceBytes, variant);
+      measured.push({
+        variant: variant.name,
+        bytes: generated.data.byteLength,
+        width: Number(generated.info?.width ?? 0),
+        height: Number(generated.info?.height ?? 0),
+        outputSha256: sha256(generated.data)
+      });
     }
-    return { status: "measure-only", key, measured };
+    return { status: "measure-only", key, sourceBytes: sourceBytes.byteLength, measured };
   }
   const photoDerivatives = { ...(plan.metadata.photoDerivatives ?? {}) };
   const uploadedPaths = [];
   try {
     for (const variant of plan.missing) {
-      const bytes = await makeDerivative(sourceBytes, variant);
+      const generated = await makeDerivative(sourceBytes, variant);
+      const bytes = generated.data;
       const outputSha256 = sha256(bytes);
       const outputPath = `restaurants/${plan.restaurantId}/photos/derivatives/${plan.sourceSha}/${RECIPE.id}/${variant.name}-${outputSha256}.webp`;
       const existing = await bucket.info(outputPath);
       if (existing.error && !isStorageNotFound(existing.error)) {
         throw new Error(`Vérification ${variant.name} impossible: ${existing.error.message ?? outputPath}`);
+      }
+      const existingBytes = storageInfoBytes(existing.data);
+      if (existing.data && existingBytes !== null && existingBytes !== bytes.byteLength) {
+        throw new Error(`Conflit immutable ${variant.name}: taille Storage inattendue.`);
       }
       const uploaded = await bucket.upload(outputPath, bytes, {
         contentType: "image/webp",
@@ -286,8 +369,15 @@ async function processPlan(client, plan, checkpoint) {
       if (uploaded.error) {
         const conflict = await bucket.info(outputPath);
         if (conflict.error || !conflict.data) throw new Error(`Upload ${variant.name} impossible: ${uploaded.error.message}`);
+        const conflictBytes = storageInfoBytes(conflict.data);
+        if (conflictBytes !== null && conflictBytes !== bytes.byteLength) {
+          throw new Error(`Conflit immutable ${variant.name}: taille Storage inattendue.`);
+        }
       }
-      if (!existing.data) uploadedPaths.push(outputPath);
+      // Rollback may remove only objects created by this process. A
+      // concurrent immutable-path conflict is idempotent but not ours to
+      // delete, even if the pre-upload info call saw 404.
+      if (!existing.data && !uploaded.error) uploadedPaths.push(outputPath);
       photoDerivatives[variant.name] = {
         storagePath: outputPath,
         schemaVersion: RECIPE.schemaVersion,
@@ -297,6 +387,8 @@ async function processPlan(client, plan, checkpoint) {
         outputSha256,
         contentType: "image/webp",
         format: "webp",
+        width: Number(generated.info?.width ?? 0),
+        height: Number(generated.info?.height ?? 0),
         bytes: bytes.byteLength,
         sourceSha256: plan.sourceSha,
         generatedAt: new Date().toISOString(),
@@ -357,6 +449,12 @@ async function mapLimited(items, workerCount, worker) {
 }
 
 async function main() {
+  if (apply && (measureOnly || verifyOnly)) {
+    throw new Error("--apply ne peut pas être combiné avec --measure-only ou --verify-only.");
+  }
+  if (measureOnly && verifyOnly) {
+    throw new Error("--measure-only et --verify-only sont exclusifs.");
+  }
   const config = supabaseConfig();
   const client = createClient(config.url, config.key, { auth: { persistSession: false, autoRefreshToken: false } });
   const checkpoint = await loadCheckpoint();
@@ -364,23 +462,58 @@ async function main() {
   const plans = rows.map(planRow).filter(Boolean);
   const missingPlans = plans.filter((plan) => plan.status !== "complete");
   const sourceBytes = missingPlans.reduce((total, plan) => total + Number(plan.metadata.photoBytes ?? 0), 0);
+  const derivativeByteTotals = plans.reduce((totals, plan) => {
+    const derivatives = plan.metadata.photoDerivatives && typeof plan.metadata.photoDerivatives === "object"
+      ? plan.metadata.photoDerivatives
+      : {};
+    for (const variant of VARIANTS) {
+      const value = derivatives[variant.name];
+      if (isCompleteDerivative(value, plan.restaurantId, plan.sourceSha, variant.name)) {
+        totals.v2 += Number(value.bytes);
+      } else {
+        totals.v1 += legacyDerivativeByteSize(
+          value,
+          plan.restaurantId,
+          plan.sourceSha,
+          variant.name
+        );
+      }
+    }
+    return totals;
+  }, { v1: 0, v2: 0 });
+  const existingDerivativeBytes = derivativeByteTotals.v1 + derivativeByteTotals.v2;
   const report = {
     mode: apply ? "apply" : measureOnly ? "measure-only" : verifyOnly ? "verify-only" : "dry-run",
     rows: rows.length,
     objectsWithPhotos: plans.length,
     objectsMissingDerivatives: missingPlans.length,
     sourceBytes,
+    existingDerivativeBytes,
+    legacyDerivativeBytes: derivativeByteTotals.v1,
+    v2DerivativeBytes: derivativeByteTotals.v2,
     derivativeBytes: null,
+    expectedDerivativeBytesAfterRun: null,
     recipeId: RECIPE.id,
     variants: VARIANTS,
     checkpoint: checkpointPath,
     concurrency
   };
   console.log(JSON.stringify(report, null, 2));
-  const results = await mapLimited(missingPlans, concurrency, (plan) => processPlan(client, plan, checkpoint));
+  const workPlans = verifyOnly ? plans : missingPlans;
+  const results = await mapLimited(workPlans, concurrency, (plan) => processPlan(client, plan, checkpoint));
   const errors = results.filter((result) => result?.status === "error");
   const measuredBytes = results.flatMap((result) => result?.measured ?? []).reduce((sum, item) => sum + item.bytes, 0);
-  console.log(JSON.stringify({ ...report, derivativeBytes: measureOnly ? measuredBytes : null, results: results.length, errors }, null, 2));
+  const measuredSourceBytes = results.reduce((sum, result) => sum + Number(result?.sourceBytes ?? 0), 0);
+  console.log(JSON.stringify({
+    ...report,
+    derivativeBytes: measureOnly ? measuredBytes : null,
+    measuredSourceBytes: measureOnly ? measuredSourceBytes : null,
+    expectedDerivativeBytesAfterRun: measureOnly
+      ? existingDerivativeBytes + measuredBytes
+      : null,
+    results: results.length,
+    errors
+  }, null, 2));
   if (errors.length) process.exitCode = 1;
 }
 

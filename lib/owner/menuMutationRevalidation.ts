@@ -27,9 +27,9 @@ export async function revalidateOwnerMenuMutationPaths(args: {
     slugifyRestaurantSlug(getString(restaurant.data, "name"));
   if (!restaurantSlug) return;
 
-  // Keep the inter-request public menu cache in sync with the path cache.
-  // `revalidateTag(..., "max")` uses stale-while-revalidate semantics in
-  // Next 16; no user/session state is included in these tags.
+  // Keep the inter-request public menu cache in sync with the path cache. The
+  // route-handler invalidation expires tags immediately for read-your-writes;
+  // no user/session state is included in these tags.
   await revalidatePublicMenuCache({
     slug: restaurantSlug,
     restaurantId: args.restaurantId

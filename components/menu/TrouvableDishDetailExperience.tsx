@@ -25,7 +25,10 @@ import {
 } from "@/lib/menu/publicMenuCore";
 import { buildPublicMenuPath } from "@/lib/owner/menuUrlCore";
 import type { DishModelViewerProps } from "@/components/dish/DishModelViewer";
-import { trackPublicMenuEvent } from "@/lib/analytics/client";
+import {
+  getPublicMenuAnalyticsContext,
+  trackPublicMenuEvent
+} from "@/lib/analytics/client";
 import { isSafe3dAssetUrl } from "@/lib/dish3dManifest";
 import {
   copyTextToClipboard,
@@ -294,6 +297,7 @@ export function TrouvableDishDetailExperience({
     setArCopyStatus("error");
   }
   const googleReviewCta = getGoogleReviewCta(menu.googleReview);
+  const analyticsContext = getPublicMenuAnalyticsContext(menu);
 
   const replaceLocaleInUrl = useCallback(
     (nextLocale: TrouvableLocale) => {
@@ -643,6 +647,7 @@ export function TrouvableDishDetailExperience({
               manualDishUrlId={manualDishUrlId}
               manualDishUrlRef={manualDishUrlRef}
               menu={menu}
+              analyticsContext={analyticsContext ?? undefined}
               modelControlsId="trouvable-public-model"
               modelViewerComponent={ModelViewerComponent}
               modelViewerLoadFailed={modelViewerLoadFailed}

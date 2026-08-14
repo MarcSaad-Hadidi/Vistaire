@@ -39,7 +39,10 @@ export async function revalidatePublicMenuCache(args: {
   // Keep the Next server-only dependency lazy so dependency-injected menu
   // contract tests can exercise the loader without booting the Next runtime.
   const { revalidateTag } = await import("next/cache");
-  for (const tag of publicMenuCacheTags(args)) revalidateTag(tag, "max");
+  // Owner/Admin mutations are route-handler writes: expire immediately for
+  // read-your-writes. The 60s TTL only applies when no mutation invalidation
+  // has occurred.
+  for (const tag of publicMenuCacheTags(args)) revalidateTag(tag, { expire: 0 });
 }
 
 /**

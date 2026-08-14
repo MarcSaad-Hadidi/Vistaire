@@ -21,7 +21,8 @@ const storagePageSize = Math.max(
 );
 
 function fail(message) {
-  if (!jsonOnly) console.error(`[supabase:usage:audit] ${message}`);
+  if (jsonOnly) console.log(JSON.stringify({ ok: false, error: message }, null, 2));
+  else console.error(`[supabase:usage:audit] ${message}`);
   process.exitCode = 1;
   return { ok: false, error: message };
 }

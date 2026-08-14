@@ -424,6 +424,6 @@ test("public photo, GLB, and USDZ routes redirect active metadata objects throug
   assert.match(redirectHelper, /arUsdzStoragePath/);
   assert.match(redirectHelper, /modelAssetVersion/);
   assert.match(redirectHelper, /storage\.info\(storagePath\)/);
-  assert.match(redirectHelper, /storage\.createSignedUrl\(storagePath, SIGNED_URL_TTL_SECONDS\)/);
+  assert.match(redirectHelper, /storage\.createSignedUrl\((?:storagePath|targetPath), SIGNED_URL_TTL_SECONDS\)/);
   assert.doesNotMatch(redirectHelper, /\.download\s*\(|\.arrayBuffer\s*\(/);
 });

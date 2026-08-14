@@ -20,6 +20,8 @@ const PHOTO_SHA256 = "a".repeat(64);
 
 const PHOTO_PATH = `restaurants/${RESTAURANT_ID}/photos/originals/tartare-saumon.webp`;
 const PHOTO_DERIVATIVE_PATH = `restaurants/${RESTAURANT_ID}/photos/derivatives/${PHOTO_SHA256}/thumbnail.webp`;
+const PHOTO_DERIVATIVE_V2_OUTPUT_SHA256 = "b".repeat(64);
+const PHOTO_DERIVATIVE_V2_PATH = `restaurants/${RESTAURANT_ID}/photos/derivatives/${PHOTO_SHA256}/dish-photo-v2/card-${PHOTO_DERIVATIVE_V2_OUTPUT_SHA256}.webp`;
 const WEB_GLB_PATH = `restaurants/${RESTAURANT_ID}/models/web/tartare-saumon.glb`;
 const AR_LITE_GLB_PATH = `restaurants/${RESTAURANT_ID}/models/ar-lite/tartare-saumon.glb`;
 const USDZ_PATH = `restaurants/${RESTAURANT_ID}/models/ar-ios/tartare-saumon.usdz`;
@@ -312,6 +314,7 @@ test("production public redirects reuse a versioned signed URL while admin stays
     });
     assert.equal(secondResponse.status, 307);
     assert.equal(secondResponse.headers.get("location"), firstResponse.headers.get("location"));
+    assert.deepEqual(second.calls.table, [], "public metadata cache should avoid a second DB read");
     assert.deepEqual(second.calls.signed, []);
 
     const adminFirst = createAdminFixture({ metadata: assetMetadata("photo") });
@@ -511,6 +514,50 @@ test("photo derivatives are source-bound, skip info on a hit, and fall back safe
     } else {
       process.env.NEXT_PUBLIC_SUPABASE_URL = previousSupabaseUrl;
     }
+  }
+});
+
+test("V2 card derivatives validate recipe, source/output hashes, and immutable path", async () => {
+  const previousSupabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  process.env.NEXT_PUBLIC_SUPABASE_URL = SUPABASE_ORIGIN;
+  try {
+    const fixture = createAdminFixture({
+      metadata: assetMetadata("photo", {
+        photoDerivatives: {
+          card: {
+            schemaVersion: 2,
+            recipeId: "dish-photo-v2",
+            variant: "card",
+            storagePath: PHOTO_DERIVATIVE_V2_PATH,
+            sha256: PHOTO_DERIVATIVE_V2_OUTPUT_SHA256,
+            outputSha256: PHOTO_DERIVATIVE_V2_OUTPUT_SHA256,
+            contentType: "image/webp",
+            format: "webp",
+            width: 768,
+            height: 512,
+            bytes: 120_000,
+            sourceSha256: PHOTO_SHA256,
+            generatedAt: "2026-08-13T00:00:00.000Z",
+            encoder: "sharp-webp-effort-4"
+          }
+        }
+      })
+    });
+    installAdmin(fixture);
+    const response = await invokeRoute({
+      route: photoRoute,
+      method: "GET",
+      url: `https://vistaire.example/api/public/menu-dishes/${DISH_ID}/photo?v=${PHOTO_SHA256}&variant=card`
+    });
+    assert.equal(response.status, 307);
+    assert.equal(
+      response.headers.get("location"),
+      signedUrl("vistaire-media", PHOTO_DERIVATIVE_V2_PATH)
+    );
+    assert.deepEqual(fixture.calls.info, []);
+  } finally {
+    if (previousSupabaseUrl === undefined) delete process.env.NEXT_PUBLIC_SUPABASE_URL;
+    else process.env.NEXT_PUBLIC_SUPABASE_URL = previousSupabaseUrl;
   }
 });
 

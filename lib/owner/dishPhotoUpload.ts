@@ -70,22 +70,31 @@ export function isValidDishPhotoDerivativeMetadata(
   const metadata = value as Record<string, unknown>;
   const sourceSha256 = String(metadata.sourceSha256 ?? "").toLowerCase();
   const outputSha256 = String(metadata.outputSha256 ?? metadata.sha256 ?? "").toLowerCase();
+  const legacySha256 = String(metadata.sha256 ?? "").toLowerCase();
+  const variant = isDishPhotoDerivativeVariant(metadata.variant)
+    ? metadata.variant
+    : null;
+  const variantWidth = variant ? DISH_PHOTO_RECIPE.variants[variant].width : 0;
+  const generatedAt = typeof metadata.generatedAt === "string"
+    ? Date.parse(metadata.generatedAt)
+    : Number.NaN;
   return (
     metadata.schemaVersion === 2 &&
     metadata.recipeId === DISH_PHOTO_RECIPE.id &&
-    isDishPhotoDerivativeVariant(metadata.variant) &&
+    Boolean(variant) &&
     (!expected?.variant || metadata.variant === expected.variant) &&
     SHA256_PATTERN.test(sourceSha256) &&
     (!expected?.sourceSha256 || sourceSha256 === expected.sourceSha256.toLowerCase()) &&
     SHA256_PATTERN.test(outputSha256) &&
+    (!legacySha256 || legacySha256 === outputSha256) &&
     typeof metadata.storagePath === "string" &&
     metadata.storagePath.length > 0 &&
     metadata.contentType === "image/webp" &&
     metadata.format === "webp" &&
-    Number.isInteger(metadata.width) && Number(metadata.width) > 0 &&
-    Number.isInteger(metadata.height) && Number(metadata.height) > 0 &&
+    Number.isInteger(metadata.width) && Number(metadata.width) > 0 && Number(metadata.width) <= variantWidth &&
+    Number.isInteger(metadata.height) && Number(metadata.height) > 0 && Number(metadata.height) <= variantWidth &&
     Number.isInteger(metadata.bytes) && Number(metadata.bytes) > 0 &&
-    typeof metadata.generatedAt === "string" &&
+    Number.isFinite(generatedAt) &&
     typeof metadata.encoder === "string" && metadata.encoder.length > 0
   );
 }

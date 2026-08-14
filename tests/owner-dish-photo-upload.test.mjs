@@ -232,7 +232,7 @@ test("dish photo upload API and public redirect use guarded server-side storage"
   assert.match(redirectHelper, /photoStorageBucket/);
   assert.match(redirectHelper, /photoStoragePath/);
   assert.match(redirectHelper, /storage\.info\(storagePath\)/);
-  assert.match(redirectHelper, /storage\.createSignedUrl\(storagePath, SIGNED_URL_TTL_SECONDS\)/);
+  assert.match(redirectHelper, /storage\.createSignedUrl\((?:storagePath|targetPath), SIGNED_URL_TTL_SECONDS\)/);
   assert.doesNotMatch(redirectHelper, /\.download\s*\(|\.arrayBuffer\s*\(/);
 });
 
@@ -272,7 +272,7 @@ test("photo DELETE clears DB metadata before cross-dish-safe Storage cleanup", a
   );
   const deleteStart = uploadRoute.indexOf("export async function DELETE");
   assert.ok(deleteStart >= 0);
-  const deleteRoute = uploadRoute.slice(deleteStart);
+  const deleteRoute = uploadRoute.slice(deleteStart).replace(/\r\n/g, "\n");
   const updateIndex = deleteRoute.indexOf('.update({\n      image_url: null');
   const cleanupIndex = deleteRoute.indexOf("cleanupReplacedDishAssets({");
   assert.ok(updateIndex >= 0, "DELETE must clear the dish metadata");

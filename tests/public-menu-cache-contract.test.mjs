@@ -82,4 +82,14 @@ test("usage audit refuses missing credentials and never runs in CI", async () =>
   });
   assert.equal(ci.code, 1);
   assert.match(`${ci.stdout}${ci.stderr}`, /CI/i);
+
+  const hostedWithoutOptIn = await runAudit({
+    NEXT_PUBLIC_SUPABASE_URL: "https://example.supabase.co",
+    SUPABASE_SERVICE_ROLE_KEY: "not-a-real-key",
+    VISTAIRE_EXPECTED_SUPABASE_PROJECT_REF: "",
+    VISTAIRE_SUPABASE_AUDIT_TARGET: "",
+    CI: ""
+  });
+  assert.equal(hostedWithoutOptIn.code, 1);
+  assert.match(`${hostedWithoutOptIn.stdout}${hostedWithoutOptIn.stderr}`, /allow-production-read/i);
 });
