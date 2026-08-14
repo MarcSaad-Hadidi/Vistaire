@@ -1,0 +1,20 @@
+{
+  "id": "dish-photo-v2",
+  "schemaVersion": 2,
+  "format": "webp",
+  "variants": {
+    "thumbnail": { "width": 320, "quality": 82 },
+    "card": { "width": 768, "quality": 84 },
+    "display": { "width": 1440, "quality": 86 }
+  },
+  "sharpPolicy": {
+    "failOn": "warning",
+    "limitInputPixels": 40000000,
+    "limitInputChannels": 4,
+    "pages": 1,
+    "timeoutSeconds": 15,
+    "maxWidth": 12000,
+    "maxHeight": 12000
+  },
+  "encoder": "sharp-webp-effort-4"
+}

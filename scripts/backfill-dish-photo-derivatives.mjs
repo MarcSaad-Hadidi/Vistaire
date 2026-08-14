@@ -1,20 +1,22 @@
 import { createHash } from "node:crypto";
+import { createRequire } from "node:module";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import process from "node:process";
 import sharp from "sharp";
 import { createClient } from "@supabase/supabase-js";
 
-const VARIANTS = [
-  { name: "thumbnail", width: 320, quality: 82 },
-  { name: "display", width: 1440, quality: 86 }
-];
+const require = createRequire(import.meta.url);
+const RECIPE = require("../lib/owner/dishPhotoRecipe.json");
+const VARIANTS = Object.entries(RECIPE.variants).map(([name, config]) => ({ name, ...config }));
 const DEFAULT_CHECKPOINT = path.resolve(
   process.env.VISTAIRE_MEDIA_BACKFILL_CHECKPOINT ??
     ".cache/media-backfill/dish-photo-derivatives.json"
 );
 const args = new Set(process.argv.slice(2));
 const apply = args.has("--apply");
+const measureOnly = args.has("--measure-only");
+const verifyOnly = args.has("--verify-only");
 const confirmProduction = args.has("--confirm-production");
 const limitArg = process.argv.find((value) => value.startsWith("--limit="));
 const concurrencyArg = process.argv.find((value) => value.startsWith("--concurrency="));
@@ -22,6 +24,8 @@ const checkpointArg = process.argv.find((value) => value.startsWith("--checkpoin
 const rowLimit = Math.max(1, Math.min(Number(limitArg?.split("=")[1] ?? 1000), 10_000));
 const concurrency = Math.max(1, Math.min(Number(concurrencyArg?.split("=")[1] ?? 2), 4));
 const checkpointPath = path.resolve(checkpointArg?.split("=")[1] ?? DEFAULT_CHECKPOINT);
+const restaurantFilter = process.argv.find((value) => value.startsWith("--restaurant-id="))?.split("=")[1]?.trim();
+const dishFilter = process.argv.find((value) => value.startsWith("--dish-id="))?.split("=")[1]?.trim();
 let checkpointWriteQueue = Promise.resolve();
 
 function fail(message) {
@@ -63,16 +67,15 @@ function isSafeOriginalPath(value, restaurantId) {
   );
 }
 
-function derivativePath(restaurantId, sha256, variant) {
-  return `restaurants/${restaurantId}/photos/derivatives/${sha256.toLowerCase()}/${variant}.webp`;
-}
-
 function isCompleteDerivative(value, restaurantId, sourceSha256, variant) {
   return Boolean(
     value &&
       typeof value === "object" &&
-      value.storagePath === derivativePath(restaurantId, sourceSha256, variant) &&
+      typeof value.storagePath === "string" &&
+      value.storagePath.startsWith(`restaurants/${restaurantId}/photos/derivatives/${sourceSha256}/${RECIPE.id}/${variant}-`) &&
       isSha(value.sha256) &&
+      value.recipeId === RECIPE.id &&
+      value.schemaVersion === RECIPE.schemaVersion &&
       value.contentType === "image/webp" &&
       Number.isInteger(Number(value.bytes)) &&
       Number(value.bytes) > 0 &&
@@ -85,10 +88,16 @@ function sha256(bytes) {
 }
 
 async function makeDerivative(bytes, config) {
-  return sharp(bytes, { failOn: "error" })
+  return sharp(bytes, {
+    failOn: RECIPE.sharpPolicy.failOn,
+    limitInputPixels: RECIPE.sharpPolicy.limitInputPixels,
+    limitInputChannels: RECIPE.sharpPolicy.limitInputChannels,
+    pages: RECIPE.sharpPolicy.pages
+  })
     .rotate()
     .resize({ width: config.width, height: config.width, fit: "inside", withoutEnlargement: true })
     .webp({ quality: config.quality, effort: 4 })
+    .timeout({ seconds: RECIPE.sharpPolicy.timeoutSeconds })
     .toBuffer();
 }
 
@@ -220,6 +229,8 @@ function planRow(row) {
   const sourcePath = typeof metadata.photoStoragePath === "string" ? metadata.photoStoragePath.trim() : "";
   const sourceSha = typeof metadata.photoSha256 === "string" ? metadata.photoSha256.trim().toLowerCase() : "";
   if (!isSafeRestaurantId(restaurantId) || !isSha(sourceSha) || !isSafeOriginalPath(sourcePath, restaurantId)) return null;
+  if (restaurantFilter && restaurantId !== restaurantFilter) return null;
+  if (dishFilter && String(row.id) !== dishFilter) return null;
   const existing = metadata.photoDerivatives && typeof metadata.photoDerivatives === "object"
     ? metadata.photoDerivatives
     : {};
@@ -234,7 +245,7 @@ function planRow(row) {
 async function processPlan(client, plan, checkpoint) {
   const key = `${plan.row.id}:${plan.sourceSha}`;
   if (checkpoint.completed?.[key]) return { status: "checkpoint-skip", key };
-  if (!apply) {
+  if (!apply && !measureOnly && !verifyOnly) {
     checkpoint.planned = (checkpoint.planned ?? 0) + 1;
     return { status: "dry-run", key, missing: plan.missing.map((variant) => variant.name) };
   }
@@ -245,12 +256,24 @@ async function processPlan(client, plan, checkpoint) {
   const sourceBytes = Buffer.from(await downloaded.data.arrayBuffer());
   if (sha256(sourceBytes) !== plan.sourceSha) throw new Error(`SHA original différent: ${plan.sourcePath}`);
 
+  if (verifyOnly) {
+    return { status: "verified", key, checks: VARIANTS.map((variant) => ({ variant: variant.name, complete: isCompleteDerivative(plan.metadata.photoDerivatives?.[variant.name], plan.restaurantId, plan.sourceSha, variant.name) })) };
+  }
+  if (measureOnly) {
+    const measured = [];
+    for (const variant of plan.missing) {
+      const bytes = await makeDerivative(sourceBytes, variant);
+      measured.push({ variant: variant.name, bytes: bytes.byteLength, outputSha256: sha256(bytes) });
+    }
+    return { status: "measure-only", key, measured };
+  }
   const photoDerivatives = { ...(plan.metadata.photoDerivatives ?? {}) };
   const uploadedPaths = [];
   try {
     for (const variant of plan.missing) {
       const bytes = await makeDerivative(sourceBytes, variant);
-      const outputPath = derivativePath(plan.restaurantId, plan.sourceSha, variant.name);
+      const outputSha256 = sha256(bytes);
+      const outputPath = `restaurants/${plan.restaurantId}/photos/derivatives/${plan.sourceSha}/${RECIPE.id}/${variant.name}-${outputSha256}.webp`;
       const existing = await bucket.info(outputPath);
       if (existing.error && !isStorageNotFound(existing.error)) {
         throw new Error(`Vérification ${variant.name} impossible: ${existing.error.message ?? outputPath}`);
@@ -258,16 +281,26 @@ async function processPlan(client, plan, checkpoint) {
       const uploaded = await bucket.upload(outputPath, bytes, {
         contentType: "image/webp",
         cacheControl: "31536000",
-        upsert: true
+        upsert: false
       });
-      if (uploaded.error) throw new Error(`Upload ${variant.name} impossible: ${uploaded.error.message}`);
+      if (uploaded.error) {
+        const conflict = await bucket.info(outputPath);
+        if (conflict.error || !conflict.data) throw new Error(`Upload ${variant.name} impossible: ${uploaded.error.message}`);
+      }
       if (!existing.data) uploadedPaths.push(outputPath);
       photoDerivatives[variant.name] = {
         storagePath: outputPath,
-        sha256: sha256(bytes),
+        schemaVersion: RECIPE.schemaVersion,
+        recipeId: RECIPE.id,
+        variant: variant.name,
+        sha256: outputSha256,
+        outputSha256,
         contentType: "image/webp",
+        format: "webp",
         bytes: bytes.byteLength,
-        sourceSha256: plan.sourceSha
+        sourceSha256: plan.sourceSha,
+        generatedAt: new Date().toISOString(),
+        encoder: RECIPE.encoder
       };
     }
     const current = await client
@@ -332,20 +365,22 @@ async function main() {
   const missingPlans = plans.filter((plan) => plan.status !== "complete");
   const sourceBytes = missingPlans.reduce((total, plan) => total + Number(plan.metadata.photoBytes ?? 0), 0);
   const report = {
-    mode: apply ? "apply" : "dry-run",
+    mode: apply ? "apply" : measureOnly ? "measure-only" : verifyOnly ? "verify-only" : "dry-run",
     rows: rows.length,
     objectsWithPhotos: plans.length,
     objectsMissingDerivatives: missingPlans.length,
     sourceBytes,
-    estimatedDerivativeBytes: Math.round(sourceBytes * 0.54),
-    estimateModel: "planning estimate only: thumbnail 12% + display 42% of source bytes",
+    derivativeBytes: null,
+    recipeId: RECIPE.id,
+    variants: VARIANTS,
     checkpoint: checkpointPath,
     concurrency
   };
   console.log(JSON.stringify(report, null, 2));
   const results = await mapLimited(missingPlans, concurrency, (plan) => processPlan(client, plan, checkpoint));
   const errors = results.filter((result) => result?.status === "error");
-  console.log(JSON.stringify({ ...report, results: results.length, errors }, null, 2));
+  const measuredBytes = results.flatMap((result) => result?.measured ?? []).reduce((sum, item) => sum + item.bytes, 0);
+  console.log(JSON.stringify({ ...report, derivativeBytes: measureOnly ? measuredBytes : null, results: results.length, errors }, null, 2));
   if (errors.length) process.exitCode = 1;
 }
 

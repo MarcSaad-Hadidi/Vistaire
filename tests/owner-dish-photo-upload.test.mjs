@@ -5,9 +5,13 @@ import { readFile } from "node:fs/promises";
 import {
   buildDishPhotoPublicPath,
   buildDishPhotoStoragePath,
+  buildDishPhotoV2StoragePath,
+  buildDishPhotoDerivativeV2StoragePath,
+  inspectDishPhotoFile,
   mergeDishPhotoMetadata,
   validateDishPhotoFile
 } from "../lib/owner/dishPhotoUpload.ts";
+import { DISH_PHOTO_RECIPE } from "../lib/owner/dishPhotoRecipe.ts";
 
 const restaurantId = "11111111-2222-4333-8444-555555555555";
 const dishId = "22222222-3333-4444-8555-666666666666";
@@ -16,6 +20,10 @@ const maisonElyseRestaurantId = "11111111-1111-1111-1111-111111111111";
 const tinyPng = Buffer.from(
   "89504e470d0a1a0a0000000d49484452000000010000000108060000001f15c489",
   "hex"
+);
+const validTinyPng = Buffer.from(
+  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=",
+  "base64"
 );
 
 test("dish photo upload accepts image bytes and rejects non-images", () => {
@@ -49,6 +57,24 @@ test("dish photo upload accepts image bytes and rejects non-images", () => {
       error: "Seules les images JPEG, PNG ou WebP sont acceptees."
     }
   );
+});
+
+test("dish photo v2 recipe and paths are immutable/content-addressed", async () => {
+  assert.equal(DISH_PHOTO_RECIPE.id, "dish-photo-v2");
+  assert.deepEqual(Object.keys(DISH_PHOTO_RECIPE.variants), ["thumbnail", "card", "display"]);
+  const sourceSha = "a".repeat(64);
+  const outputSha = "b".repeat(64);
+  assert.equal(
+    buildDishPhotoV2StoragePath({ restaurantId, sha256: sourceSha, extension: "png" }),
+    `restaurants/${restaurantId}/photos/originals/${sourceSha}.png`
+  );
+  assert.equal(
+    buildDishPhotoDerivativeV2StoragePath({ restaurantId, sourceSha256: sourceSha, recipeId: DISH_PHOTO_RECIPE.id, variant: "card", outputSha256: outputSha }),
+    `restaurants/${restaurantId}/photos/derivatives/${sourceSha}/${DISH_PHOTO_RECIPE.id}/card-${outputSha}.webp`
+  );
+  const inspected = await inspectDishPhotoFile({ name: "photo.png", type: "image/png", size: validTinyPng.byteLength, bytes: validTinyPng }, 5 * 1024 * 1024);
+  assert.equal(inspected.ok, true);
+  assert.equal(inspected.inspection?.pages, 1);
 });
 
 test("dish photo upload rejects oversized files and path filenames", () => {

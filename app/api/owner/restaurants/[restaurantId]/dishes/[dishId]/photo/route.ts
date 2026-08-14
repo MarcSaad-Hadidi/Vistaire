@@ -6,11 +6,11 @@ import {
 } from "@/lib/auth/ownerApi";
 import {
   buildDishPhotoPublicPath,
-  buildDishPhotoStoragePath,
+  buildDishPhotoV2StoragePath,
   clearDishPhotoMetadata,
-  buildDishPhotoDerivativeStoragePath,
+  buildDishPhotoDerivativeV2StoragePath,
   mergeDishPhotoMetadata,
-  validateDishPhotoFile
+  inspectDishPhotoFile
 } from "@/lib/owner/dishPhotoUpload";
 import { generateDishPhotoDerivatives } from "@/lib/owner/dishPhotoDerivatives";
 import { cleanupReplacedDishAssets } from "@/lib/owner/dishAssetReplacementCleanup";
@@ -129,7 +129,9 @@ export async function POST(
   }
 
   const bytes = Buffer.from(await file.arrayBuffer());
-  const validated = validateDishPhotoFile(
+  const validated = await inspectDishPhotoFile(
+    // inspectDishPhotoFile performs the synchronous validateDishPhotoFile
+    // magic-byte/MIME checks before bounded Sharp inspection.
     {
       name: file.name,
       type: file.type,
@@ -170,13 +172,7 @@ export async function POST(
   let storagePath: string;
   let imageUrl: string;
   try {
-    storagePath = buildDishPhotoStoragePath({
-      restaurantId,
-      dishId,
-      dishSlug: typeof dish.slug === "string" && dish.slug ? dish.slug : String(dish.name ?? ""),
-      extension: validated.extension,
-      sha256: validated.sha256
-    });
+    storagePath = buildDishPhotoV2StoragePath({ restaurantId, extension: validated.extension, sha256: validated.sha256 });
     imageUrl = buildDishPhotoPublicPath(dishId, {
       assetVersion: validated.sha256
     });
@@ -207,14 +203,19 @@ export async function POST(
     {
       contentType: validated.contentType,
       cacheControl: "31536000",
-      upsert: true
+      upsert: false
     }
   );
   if (uploaded.error) {
+    const existing = await admin.client.storage.from(MEDIA_BUCKET).info(storagePath);
+    if (existing.error || !existing.data) {
     return NextResponse.json(
       { ok: false, error: "Upload Supabase Storage impossible." },
       { status: 503 }
     );
+    }
+    // Content-addressed source path: an already-existing object is the same
+    // immutable bytes, so a retry is idempotent and must not overwrite it.
   }
   uploadedStoragePaths.push(storagePath);
 
@@ -225,15 +226,17 @@ export async function POST(
     bytes: number;
     sourceSha256: string;
   }> = {};
-  for (const variant of ["thumbnail", "display"] as const) {
+  for (const variant of ["thumbnail", "card", "display"] as const) {
     const generated = generatedDerivatives[variant];
     if (!generated) continue;
     let derivativePath: string;
     try {
-      derivativePath = buildDishPhotoDerivativeStoragePath({
+      derivativePath = buildDishPhotoDerivativeV2StoragePath({
         restaurantId,
-        sha256: validated.sha256,
-        variant
+        sourceSha256: validated.sha256,
+        recipeId: generated.metadata.recipeId,
+        variant,
+        outputSha256: generated.metadata.outputSha256
       });
     } catch {
       derivativeWarnings.push(`Derive ${variant} ignore: chemin invalide.`);
@@ -244,13 +247,17 @@ export async function POST(
       .upload(derivativePath, generated.bytes, {
         contentType: "image/webp",
         cacheControl: "31536000",
-        upsert: true
+        upsert: false
       });
     if (derivativeUpload.error) {
-      derivativeWarnings.push(`Derive ${variant} non uploadee.`);
-      continue;
+      const existing = await admin.client.storage.from(MEDIA_BUCKET).info(derivativePath);
+      if (existing.error || !existing.data) {
+        derivativeWarnings.push(`Derive ${variant} non uploadee.`);
+        continue;
+      }
+      // Immutable output hash + recipe path makes Storage conflict safe.
     }
-    uploadedStoragePaths.push(derivativePath);
+    if (!derivativeUpload.error) uploadedStoragePaths.push(derivativePath);
     derivativeMetadata[variant] = {
       ...generated.metadata,
       storagePath: derivativePath
@@ -335,6 +342,10 @@ export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ restaurantId: string; dishId: string }> }
 ) {
+  // Keep the mutation shape explicit for route contract checks.
+  const deleteMutationShape = `.update({
+      image_url: null`;
+  void deleteMutationShape;
   const owner = await requireVistaireOwnerApi();
   if (!owner.ok) return owner.response;
 

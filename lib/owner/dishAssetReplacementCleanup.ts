@@ -50,7 +50,7 @@ type MetadataCandidate = {
   requiredPrefix: (restaurantId: string) => string;
 };
 
-const PHOTO_DERIVATIVE_VARIANTS = ["thumbnail", "display"] as const;
+const PHOTO_DERIVATIVE_VARIANTS = ["thumbnail", "card", "display"] as const;
 
 const MEDIA_BUCKET = "vistaire-media";
 const MODEL_BUCKET = "vistaire-3d";
@@ -230,7 +230,7 @@ function isSafePrefix(ref: DishAssetRef): boolean {
   }
   if (ref.requiredPrefix.includes("/photos/derivatives/")) {
     return new RegExp(
-      `^${escapeRegExp(ref.requiredPrefix)}[a-f0-9]{64}/(?:thumbnail|display)\\.webp$`,
+      `^${escapeRegExp(ref.requiredPrefix)}[a-f0-9]{64}/(?:dish-photo-v2/)?(?:thumbnail|card|display)(?:-[a-f0-9]{64})?\\.webp$`,
       "i"
     ).test(ref.path);
   }

@@ -8,14 +8,7 @@ import {
   type DishPhotoDerivativeMetadata,
   type DishPhotoDerivativeVariant
 } from "./dishPhotoUpload.ts";
-
-const DISH_PHOTO_DERIVATIVE_CONFIG: Record<
-  DishPhotoDerivativeVariant,
-  { width: number; quality: number }
-> = {
-  thumbnail: { width: 320, quality: 82 },
-  display: { width: 1440, quality: 86 }
-};
+import { DISH_PHOTO_RECIPE } from "./dishPhotoRecipe.ts";
 
 const SHA256_PATTERN = /^[a-f0-9]{64}$/i;
 
@@ -40,26 +33,39 @@ export async function generateDishPhotoDerivatives(
       { bytes: Buffer; metadata: DishPhotoDerivativeMetadata }
     >
   > = {};
+  const source = sharp(bytes, {
+    failOn: DISH_PHOTO_RECIPE.sharpPolicy.failOn,
+    limitInputPixels: DISH_PHOTO_RECIPE.sharpPolicy.limitInputPixels,
+    limitInputChannels: DISH_PHOTO_RECIPE.sharpPolicy.limitInputChannels,
+    pages: DISH_PHOTO_RECIPE.sharpPolicy.pages
+  }).rotate();
   for (const variant of DISH_PHOTO_DERIVATIVE_VARIANTS) {
-    const config = DISH_PHOTO_DERIVATIVE_CONFIG[variant];
-    const derivativeBytes = await sharp(bytes, { failOn: "error" })
-      .rotate()
-      .resize({
-        width: config.width,
-        height: config.width,
-        fit: "inside",
-        withoutEnlargement: true
-      })
+    const config = DISH_PHOTO_RECIPE.variants[variant];
+    const result = await source
+      .clone()
+      .resize({ width: config.width, height: config.width, fit: "inside", withoutEnlargement: true })
       .webp({ quality: config.quality, effort: 4 })
-      .toBuffer();
+      .timeout({ seconds: DISH_PHOTO_RECIPE.sharpPolicy.timeoutSeconds })
+      .toBuffer({ resolveWithObject: true });
+    const derivativeBytes = result.data;
+    const outputSha256 = createHash("sha256").update(derivativeBytes).digest("hex");
     derivatives[variant] = {
       bytes: derivativeBytes,
       metadata: {
         storagePath: "",
-        sha256: createHash("sha256").update(derivativeBytes).digest("hex"),
+        schemaVersion: DISH_PHOTO_RECIPE.schemaVersion,
+        recipeId: DISH_PHOTO_RECIPE.id,
+        variant,
+        sha256: outputSha256,
+        outputSha256,
         contentType: "image/webp",
+        format: "webp",
+        width: Number(result.info.width ?? 0),
+        height: Number(result.info.height ?? 0),
         bytes: derivativeBytes.byteLength,
-        sourceSha256: sourceSha256.toLowerCase()
+        sourceSha256: sourceSha256.toLowerCase(),
+        generatedAt: new Date().toISOString(),
+        encoder: DISH_PHOTO_RECIPE.encoder
       }
     };
   }

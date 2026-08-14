@@ -4,6 +4,11 @@ import {
   isCanonicalUuid,
   normalizeStorageSafeIdentifier
 } from "./storageSafeIdentifier.ts";
+import {
+  DISH_PHOTO_DERIVATIVE_VARIANTS,
+  DISH_PHOTO_RECIPE,
+  isDishPhotoDerivativeVariant
+} from "./dishPhotoRecipe.ts";
 
 type DishPhotoFile = {
   name: string;
@@ -35,21 +40,55 @@ type DishPhotoMetadataInfo = {
   derivatives?: Partial<Record<DishPhotoDerivativeVariant, DishPhotoDerivativeMetadata>>;
 };
 
-export const DISH_PHOTO_DERIVATIVE_VARIANTS = [
-  "thumbnail",
-  "display"
-] as const;
+export { DISH_PHOTO_DERIVATIVE_VARIANTS, DISH_PHOTO_RECIPE } from "./dishPhotoRecipe.ts";
 
 export type DishPhotoDerivativeVariant =
-  (typeof DISH_PHOTO_DERIVATIVE_VARIANTS)[number];
+  import("./dishPhotoRecipe.ts").DishPhotoDerivativeVariant;
 
 export type DishPhotoDerivativeMetadata = {
+  schemaVersion: 2;
+  recipeId: "dish-photo-v2";
+  variant: DishPhotoDerivativeVariant;
   storagePath: string;
   sha256: string;
+  outputSha256: string;
   contentType: "image/webp";
+  format: "webp";
+  width: number;
+  height: number;
   bytes: number;
   sourceSha256: string;
+  generatedAt: string;
+  encoder: string;
 };
+
+export function isValidDishPhotoDerivativeMetadata(
+  value: unknown,
+  expected?: { sourceSha256?: string; variant?: DishPhotoDerivativeVariant }
+): value is DishPhotoDerivativeMetadata {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const metadata = value as Record<string, unknown>;
+  const sourceSha256 = String(metadata.sourceSha256 ?? "").toLowerCase();
+  const outputSha256 = String(metadata.outputSha256 ?? metadata.sha256 ?? "").toLowerCase();
+  return (
+    metadata.schemaVersion === 2 &&
+    metadata.recipeId === DISH_PHOTO_RECIPE.id &&
+    isDishPhotoDerivativeVariant(metadata.variant) &&
+    (!expected?.variant || metadata.variant === expected.variant) &&
+    SHA256_PATTERN.test(sourceSha256) &&
+    (!expected?.sourceSha256 || sourceSha256 === expected.sourceSha256.toLowerCase()) &&
+    SHA256_PATTERN.test(outputSha256) &&
+    typeof metadata.storagePath === "string" &&
+    metadata.storagePath.length > 0 &&
+    metadata.contentType === "image/webp" &&
+    metadata.format === "webp" &&
+    Number.isInteger(metadata.width) && Number(metadata.width) > 0 &&
+    Number.isInteger(metadata.height) && Number(metadata.height) > 0 &&
+    Number.isInteger(metadata.bytes) && Number(metadata.bytes) > 0 &&
+    typeof metadata.generatedAt === "string" &&
+    typeof metadata.encoder === "string" && metadata.encoder.length > 0
+  );
+}
 
 const SHA256_PATTERN = /^[a-f0-9]{64}$/i;
 
@@ -100,6 +139,22 @@ function hasMatchingSignature(contentType: string, bytes: Buffer): boolean {
   }
   return false;
 }
+
+export type DishPhotoInspection = {
+  width: number;
+  height: number;
+  pages: number;
+  channels: number;
+  hasAlpha: boolean;
+  orientation?: number;
+  format: string;
+};
+
+/**
+ * Cheap synchronous checks used before invoking Sharp. This function remains
+ * synchronous for callers that only need MIME/magic-byte validation; uploads
+ * must additionally call inspectDishPhotoFile below.
+ */
 
 export function validateDishPhotoFile(
   file: DishPhotoFile,
@@ -155,6 +210,66 @@ export function validateDishPhotoFile(
   };
 }
 
+/**
+ * Strict, bounded image inspection. Sharp is deliberately imported lazily so
+ * simple metadata/path helpers do not pull the native codec into edge code.
+ */
+export async function inspectDishPhotoFile(
+  file: DishPhotoFile,
+  maxBytes: number
+): Promise<DishPhotoValidationResult & { inspection?: DishPhotoInspection }> {
+  const validated = validateDishPhotoFile(file, maxBytes);
+  if (!validated.ok) return validated;
+
+  const sharpModule = await import("sharp");
+  let metadata: Awaited<ReturnType<ReturnType<typeof sharpModule.default>["metadata"]>>;
+  try {
+    metadata = await sharpModule.default(validated.bytes, {
+      failOn: DISH_PHOTO_RECIPE.sharpPolicy.failOn,
+      limitInputPixels: DISH_PHOTO_RECIPE.sharpPolicy.limitInputPixels,
+      limitInputChannels: DISH_PHOTO_RECIPE.sharpPolicy.limitInputChannels,
+      pages: DISH_PHOTO_RECIPE.sharpPolicy.pages
+    })
+      .timeout({ seconds: DISH_PHOTO_RECIPE.sharpPolicy.timeoutSeconds })
+      .metadata();
+  } catch {
+    return { ok: false, status: 400, error: "Fichier image corrompu ou non supporte." };
+  }
+
+  const width = Number(metadata.width ?? 0);
+  const height = Number(metadata.height ?? 0);
+  const pages = Number(metadata.pages ?? 1);
+  const channels = Number(metadata.channels ?? 0);
+  const pixels = width * height;
+  if (!Number.isInteger(width) || !Number.isInteger(height) || width < 1 || height < 1) {
+    return { ok: false, status: 400, error: "Dimensions photo invalides." };
+  }
+  if (width > DISH_PHOTO_RECIPE.sharpPolicy.maxWidth || height > DISH_PHOTO_RECIPE.sharpPolicy.maxHeight || pixels > DISH_PHOTO_RECIPE.sharpPolicy.limitInputPixels) {
+    return { ok: false, status: 413, error: "Dimensions photo trop importantes." };
+  }
+  if (pages !== 1) {
+    return { ok: false, status: 400, error: "Les photos animees ne sont pas acceptees." };
+  }
+  if (!Number.isInteger(channels) || channels < 1 || channels > DISH_PHOTO_RECIPE.sharpPolicy.limitInputChannels) {
+    return { ok: false, status: 400, error: "Canaux image invalides." };
+  }
+  if (metadata.format !== validated.extension.replace("jpg", "jpeg")) {
+    return { ok: false, status: 400, error: "Le format reel de la photo ne correspond pas au MIME." };
+  }
+  return {
+    ...validated,
+    inspection: {
+      width,
+      height,
+      pages,
+      channels,
+      hasAlpha: metadata.hasAlpha === true,
+      orientation: metadata.orientation,
+      format: metadata.format
+    }
+  };
+}
+
 export function buildDishPhotoStoragePath(args: {
   restaurantId: string;
   dishId: string;
@@ -178,6 +293,19 @@ export function buildDishPhotoStoragePath(args: {
     "originals",
     `${slug}-${args.sha256.toLowerCase().slice(0, 12)}.${args.extension}`
   ].join("/");
+}
+
+/** V2 source path: the filename is content-addressed and never overwritten. */
+export function buildDishPhotoV2StoragePath(args: {
+  restaurantId: string;
+  sha256: string;
+  extension: "jpg" | "png" | "webp";
+}): string {
+  const restaurantId = normalizeStorageSafeIdentifier(args.restaurantId);
+  if (!restaurantId || !SHA256_PATTERN.test(args.sha256)) {
+    throw new Error("Identifiants photo invalides.");
+  }
+  return `restaurants/${restaurantId}/photos/originals/${args.sha256.toLowerCase()}.${args.extension}`;
 }
 
 /**
@@ -205,6 +333,21 @@ export function buildDishPhotoDerivativeStoragePath(args: {
     args.sha256.toLowerCase(),
     `${args.variant}.webp`
   ].join("/");
+}
+
+/** V2 derivative path includes recipe and output hashes, so collisions are impossible. */
+export function buildDishPhotoDerivativeV2StoragePath(args: {
+  restaurantId: string;
+  sourceSha256: string;
+  recipeId: string;
+  variant: DishPhotoDerivativeVariant;
+  outputSha256: string;
+}): string {
+  const restaurantId = normalizeStorageSafeIdentifier(args.restaurantId);
+  if (!restaurantId || !SHA256_PATTERN.test(args.sourceSha256) || !SHA256_PATTERN.test(args.outputSha256) || args.recipeId !== DISH_PHOTO_RECIPE.id || !isDishPhotoDerivativeVariant(args.variant)) {
+    throw new Error("Identifiants derive photo invalides.");
+  }
+  return `restaurants/${restaurantId}/photos/derivatives/${args.sourceSha256.toLowerCase()}/${args.recipeId}/${args.variant}-${args.outputSha256.toLowerCase()}.webp`;
 }
 
 export function buildDishPhotoPublicPath(
