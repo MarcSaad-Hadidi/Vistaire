@@ -274,6 +274,7 @@ export async function POST(
       }
       const existingBytes = storageInfoBytes(existing.data);
       if (existingBytes !== null && existingBytes !== generated.bytes.byteLength) {
+        delete derivativeMetadata[variant];
         derivativeWarnings.push(`Derive ${variant} ignoree: taille immutable inattendue.`);
         continue;
       }

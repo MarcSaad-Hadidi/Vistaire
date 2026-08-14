@@ -74,11 +74,15 @@ function isCompleteDerivative(value, restaurantId, sourceSha256, variant) {
     : typeof value?.sha256 === "string"
       ? value.sha256.toLowerCase()
       : "";
+  const outputPathMatch = typeof value?.storagePath === "string"
+    ? new RegExp(`^restaurants/${restaurantId}/photos/derivatives/${sourceSha256}/${RECIPE.id}/${variant}-([a-f0-9]{64})\\.webp$`, "i").exec(value.storagePath)
+    : null;
   return Boolean(
     value &&
       typeof value === "object" &&
       typeof value.storagePath === "string" &&
-      new RegExp(`^restaurants/${restaurantId}/photos/derivatives/${sourceSha256}/${RECIPE.id}/${variant}-[a-f0-9]{64}\\.webp$`, "i").test(value.storagePath) &&
+      outputPathMatch &&
+      outputPathMatch[1].toLowerCase() === outputSha256 &&
       isSha(outputSha256) &&
       (!value.sha256 || String(value.sha256).toLowerCase() === outputSha256) &&
       value.variant === variant &&
@@ -281,7 +285,7 @@ function planRow(row) {
 
 async function processPlan(client, plan, checkpoint) {
   const key = `${plan.row.id}:${plan.sourceSha}`;
-  if (checkpoint.completed?.[key]) return { status: "checkpoint-skip", key };
+  if (!verifyOnly && checkpoint.completed?.[key]) return { status: "checkpoint-skip", key };
   if (!apply && !measureOnly && !verifyOnly) {
     checkpoint.planned = (checkpoint.planned ?? 0) + 1;
     return { status: "dry-run", key, missing: plan.missing.map((variant) => variant.name) };
@@ -299,11 +303,17 @@ async function processPlan(client, plan, checkpoint) {
         variant.name
       );
       let objectPresent = false;
+      let objectBytes = null;
       if (complete) {
         const object = await bucket.info(metadata.storagePath);
-        objectPresent = !object.error && Boolean(object.data);
+        objectBytes = storageInfoBytes(object.data);
+        objectPresent =
+          !object.error &&
+          Boolean(object.data) &&
+          objectBytes !== null &&
+          objectBytes === Number(metadata.bytes);
       }
-      checks.push({ variant: variant.name, complete, objectPresent });
+      checks.push({ variant: variant.name, complete, objectPresent, objectBytes });
     }
     if (checks.some((check) => !check.complete || !check.objectPresent)) {
       return { status: "error", key, error: "Derivative metadata/object verification failed.", checks };

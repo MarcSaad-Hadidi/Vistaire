@@ -563,7 +563,7 @@ async function redirectDishAsset(args: {
         photoVariant: args.photoVariant
       })
   );
-  let storagePath = hasUsableDerivative
+  let selectedStoragePath = hasUsableDerivative
     ? derivativeStoragePath
     : originalStoragePath;
   if (
@@ -571,7 +571,7 @@ async function redirectDishAsset(args: {
     !isAllowedDishAssetLocation({
       kind: args.kind,
       bucket,
-      storagePath,
+      storagePath: selectedStoragePath,
       restaurantId,
       ...(hasUsableDerivative && args.photoVariant
         ? { photoVariant: args.photoVariant }
@@ -581,7 +581,7 @@ async function redirectDishAsset(args: {
     return publicDishAssetJsonError(args.notFoundMessage, 404);
   }
 
-  const storage = args.admin.client.storage.from(bucket);
+  const storage = adminClient.storage.from(bucket);
   try {
     let storageInfoDuration = 0;
     let storageSignDuration = 0;
@@ -591,11 +591,11 @@ async function redirectDishAsset(args: {
       args.assetVisibilityPolicy.kind === "public-available-only" &&
       Boolean(activeVersion) &&
       publicSignedUrlCacheEnabled();
-    const sign = async (targetPath = storagePath): Promise<boolean> => {
+    const sign = async (storagePath = selectedStoragePath): Promise<boolean> => {
       const cacheKey = canReuseSignedUrl
         ? signedUrlCacheKey({
             bucket,
-            storagePath: targetPath,
+            storagePath,
             version: activeVersion
           })
         : null;
@@ -621,8 +621,8 @@ async function redirectDishAsset(args: {
         try {
           const signed =
             args.assetVisibilityPolicy.kind === "authorized-admin"
-              ? await storage.createSignedUrl(targetPath, ADMIN_SIGNED_URL_TTL_SECONDS)
-              : await storage.createSignedUrl(targetPath, SIGNED_URL_TTL_SECONDS);
+              ? await storage.createSignedUrl(storagePath, ADMIN_SIGNED_URL_TTL_SECONDS)
+              : await storage.createSignedUrl(storagePath, SIGNED_URL_TTL_SECONDS);
           storageSignDuration += boundedDuration(storageSignStartedAt);
           signError = signed.error;
           const candidate = signed.data?.signedUrl;
@@ -633,7 +633,7 @@ async function redirectDishAsset(args: {
               signedUrl: candidate,
               supabaseUrl: args.supabaseUrl,
               bucket,
-              storagePath: targetPath
+              storagePath
             })
           ) {
             return candidate;
@@ -663,6 +663,7 @@ async function redirectDishAsset(args: {
     const signOriginal = async (): Promise<boolean> => {
       if (directSigning) return sign();
       const storageInfoStartedAt = performance.now();
+      const storagePath = selectedStoragePath;
       const objectInfo = await storage.info(storagePath);
       storageInfoDuration = boundedDuration(storageInfoStartedAt);
       if (objectInfo.error) {
@@ -682,12 +683,12 @@ async function redirectDishAsset(args: {
     // still required.
     const derivativeSigned = hasUsableDerivative ? await sign() : false;
     if (!derivativeSigned) {
-      storagePath = originalStoragePath;
+      selectedStoragePath = originalStoragePath;
       if (
         !isAllowedDishAssetLocation({
           kind: args.kind,
           bucket,
-          storagePath,
+          storagePath: selectedStoragePath,
           restaurantId
         })
       ) {
@@ -708,7 +709,7 @@ async function redirectDishAsset(args: {
         signedUrl,
         supabaseUrl: args.supabaseUrl,
         bucket,
-        storagePath
+        storagePath: selectedStoragePath
       })
     ) {
       return publicDishAssetJsonError(args.unavailableMessage, 503);

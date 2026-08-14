@@ -78,6 +78,12 @@ export function isValidDishPhotoDerivativeMetadata(
   const generatedAt = typeof metadata.generatedAt === "string"
     ? Date.parse(metadata.generatedAt)
     : Number.NaN;
+  const storagePath = typeof metadata.storagePath === "string"
+    ? metadata.storagePath
+    : "";
+  const outputPathMatch = /(?:^|\/)(?:thumbnail|card|display)-([a-f0-9]{64})\.webp$/i.exec(
+    storagePath
+  );
   return (
     metadata.schemaVersion === 2 &&
     metadata.recipeId === DISH_PHOTO_RECIPE.id &&
@@ -87,8 +93,9 @@ export function isValidDishPhotoDerivativeMetadata(
     (!expected?.sourceSha256 || sourceSha256 === expected.sourceSha256.toLowerCase()) &&
     SHA256_PATTERN.test(outputSha256) &&
     (!legacySha256 || legacySha256 === outputSha256) &&
-    typeof metadata.storagePath === "string" &&
-    metadata.storagePath.length > 0 &&
+    storagePath.length > 0 &&
+    Boolean(outputPathMatch) &&
+    outputPathMatch?.[1].toLowerCase() === outputSha256 &&
     metadata.contentType === "image/webp" &&
     metadata.format === "webp" &&
     Number.isInteger(metadata.width) && Number(metadata.width) > 0 && Number(metadata.width) <= variantWidth &&
