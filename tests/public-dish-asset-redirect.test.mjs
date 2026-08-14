@@ -4,6 +4,7 @@ import { readFile } from "node:fs/promises";
 
 import {
   createNextRequest,
+  loadAdminPhotoRoute,
   loadGlbRoute,
   loadPhotoRoute,
   loadPublicDishAssetRedirect,
@@ -23,8 +24,9 @@ const WEB_GLB_PATH = `restaurants/${RESTAURANT_ID}/models/web/tartare-saumon.glb
 const AR_LITE_GLB_PATH = `restaurants/${RESTAURANT_ID}/models/ar-lite/tartare-saumon.glb`;
 const USDZ_PATH = `restaurants/${RESTAURANT_ID}/models/ar-ios/tartare-saumon.usdz`;
 
-const [photoRoute, glbRoute, usdzRoute, redirectHelper] = await Promise.all([
+const [photoRoute, adminPhotoRoute, glbRoute, usdzRoute, redirectHelper] = await Promise.all([
   loadPhotoRoute(),
+  loadAdminPhotoRoute(),
   loadGlbRoute(),
   loadUsdzRoute(),
   loadPublicDishAssetRedirect()
@@ -276,6 +278,73 @@ test("GET and HEAD redirect all public dish asset variants with a signed 307 and
     } else {
       process.env.NEXT_PUBLIC_SUPABASE_URL = previousSupabaseUrl;
     }
+  }
+});
+
+test("production public redirects reuse a versioned signed URL while admin stays no-store", async () => {
+  const previousNodeEnv = process.env.NODE_ENV;
+  const previousSupabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  process.env.NODE_ENV = "production";
+  process.env.NEXT_PUBLIC_SUPABASE_URL = SUPABASE_ORIGIN;
+  redirectHelper.resetPublicDishAssetCachesForTests();
+  try {
+    const first = createAdminFixture({ metadata: assetMetadata("photo") });
+    installAdmin(first);
+    const firstResponse = await invokeRoute({
+      route: photoRoute,
+      method: "GET",
+      url: `https://vistaire.example/api/public/menu-dishes/${DISH_ID}/photo?v=${PHOTO_SHA256}`
+    });
+    assert.equal(firstResponse.status, 307);
+    assert.equal(first.calls.signed.length, 1);
+    assert.equal(
+      firstResponse.headers.get("surrogate-control"),
+      "public, max-age=2700"
+    );
+    assert.equal(firstResponse.headers.get("x-vistaire-asset-revocation-sla"), "2700");
+
+    const second = createAdminFixture({ metadata: assetMetadata("photo") });
+    installAdmin(second);
+    const secondResponse = await invokeRoute({
+      route: photoRoute,
+      method: "GET",
+      url: `https://vistaire.example/api/public/menu-dishes/${DISH_ID}/photo?v=${PHOTO_SHA256}`
+    });
+    assert.equal(secondResponse.status, 307);
+    assert.equal(secondResponse.headers.get("location"), firstResponse.headers.get("location"));
+    assert.deepEqual(second.calls.signed, []);
+
+    const adminFirst = createAdminFixture({ metadata: assetMetadata("photo") });
+    globalThis.__PUBLIC_DISH_ASSET_TEST_ADMIN__ = adminFirst.admin;
+    globalThis.__PUBLIC_DISH_ASSET_TEST_ADMIN_ACCESS__ = {
+      ok: true,
+      restaurantId: RESTAURANT_ID
+    };
+    const adminFirstResponse = await invokeRoute({
+      route: adminPhotoRoute,
+      method: "GET",
+      url: `https://vistaire.example/admin/api/menu-dishes/${DISH_ID}/photo?v=${PHOTO_SHA256}&variant=thumbnail`
+    });
+    assert.equal(adminFirstResponse.status, 307);
+    assert.equal(adminFirst.calls.signed.length, 1);
+    assert.equal(adminFirstResponse.headers.get("cache-control"), "private, no-store");
+
+    const adminSecond = createAdminFixture({ metadata: assetMetadata("photo") });
+    globalThis.__PUBLIC_DISH_ASSET_TEST_ADMIN__ = adminSecond.admin;
+    const adminSecondResponse = await invokeRoute({
+      route: adminPhotoRoute,
+      method: "GET",
+      url: `https://vistaire.example/admin/api/menu-dishes/${DISH_ID}/photo?v=${PHOTO_SHA256}&variant=thumbnail`
+    });
+    assert.equal(adminSecondResponse.status, 307);
+    assert.equal(adminSecond.calls.signed.length, 1);
+  } finally {
+    redirectHelper.resetPublicDishAssetCachesForTests();
+    if (previousNodeEnv === undefined) delete process.env.NODE_ENV;
+    else process.env.NODE_ENV = previousNodeEnv;
+    if (previousSupabaseUrl === undefined) delete process.env.NEXT_PUBLIC_SUPABASE_URL;
+    else process.env.NEXT_PUBLIC_SUPABASE_URL = previousSupabaseUrl;
+    delete globalThis.__PUBLIC_DISH_ASSET_TEST_ADMIN_ACCESS__;
   }
 });
 

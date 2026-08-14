@@ -63,6 +63,7 @@ function PublicDishCard({
   query?: PublicMenuContextQuery;
 }) {
   const badge = dishBadge(dish);
+  const cardImageUrl = dish.thumbnailUrl || dish.imageUrl;
   return (
     <li className={styles.dishCard}>
       <Link
@@ -75,12 +76,12 @@ function PublicDishCard({
           aria-hidden="true"
           className={styles.dishThumb}
           style={
-            dish.imageUrl
-              ? { backgroundImage: `url("${dish.imageUrl}")` }
+            cardImageUrl
+              ? { backgroundImage: `url("${cardImageUrl}")` }
               : undefined
           }
         >
-          {!dish.imageUrl ? menu.name.slice(0, 1) : null}
+          {!cardImageUrl ? menu.name.slice(0, 1) : null}
         </span>
         <span className={styles.dishCopy}>
           <span className={styles.dishHeading}>

@@ -38,6 +38,73 @@ type PublicDishAssetProfile = {
 const SIGNED_URL_TTL_SECONDS = 3600;
 const ADMIN_SIGNED_URL_TTL_SECONDS = 600;
 
+/**
+ * Public redirects are versioned/content-addressed, so a signed URL can be
+ * reused safely after the availability check has run. Keep the cache shorter
+ * than the Storage token lifetime to leave a revocation margin. The CDN
+ * redirect cache uses the same window (45 minutes); therefore `is_available`
+ * changes have a documented maximum stale-redirect window of 2,700 seconds.
+ *
+ * The cache is deliberately production-only. Local/test executions must keep
+ * their deterministic Storage fixtures and must never retain signed tokens.
+ */
+export const PUBLIC_ASSET_REVOCATION_SLA_SECONDS = 2_700;
+const SIGNED_URL_CACHE_TTL_MS =
+  PUBLIC_ASSET_REVOCATION_SLA_SECONDS * 1_000;
+const SIGNED_URL_CACHE_MAX_ENTRIES = 512;
+
+type SignedUrlCacheEntry = {
+  signedUrl: string;
+  expiresAt: number;
+};
+
+const signedUrlCache = new Map<string, SignedUrlCacheEntry>();
+const signedUrlInFlight = new Map<string, Promise<string | null>>();
+
+function publicSignedUrlCacheEnabled(): boolean {
+  return process.env.NODE_ENV === "production";
+}
+
+function signedUrlCacheKey(args: {
+  bucket: string;
+  storagePath: string;
+  version: string;
+}): string {
+  return `${args.bucket}\u0000${args.storagePath}\u0000${args.version}`;
+}
+
+function readCachedSignedUrl(key: string): string | null {
+  const entry = signedUrlCache.get(key);
+  if (!entry) return null;
+  if (entry.expiresAt <= Date.now()) {
+    signedUrlCache.delete(key);
+    return null;
+  }
+  // Refresh insertion order so the bounded map behaves as a small LRU.
+  signedUrlCache.delete(key);
+  signedUrlCache.set(key, entry);
+  return entry.signedUrl;
+}
+
+function writeCachedSignedUrl(key: string, signedUrl: string): void {
+  signedUrlCache.delete(key);
+  signedUrlCache.set(key, {
+    signedUrl,
+    expiresAt: Date.now() + SIGNED_URL_CACHE_TTL_MS
+  });
+  while (signedUrlCache.size > SIGNED_URL_CACHE_MAX_ENTRIES) {
+    const oldest = signedUrlCache.keys().next().value;
+    if (typeof oldest !== "string") break;
+    signedUrlCache.delete(oldest);
+  }
+}
+
+/** Test/diagnostic hook; does not touch Supabase or production Storage. */
+export function resetPublicDishAssetCachesForTests(): void {
+  signedUrlCache.clear();
+  signedUrlInFlight.clear();
+}
+
 const ASSET_PROFILES: Record<PublicDishAssetKind, PublicDishAssetProfile> = {
   photo: {
     bucket: "vistaire-media",
@@ -380,34 +447,76 @@ async function redirectDishAsset(args: {
     let storageSignDuration = 0;
     let signedUrl: string | undefined;
     let signError: unknown = null;
-    const sign = async () => {
-      const storageSignStartedAt = performance.now();
-      try {
-        const signed =
-          args.assetVisibilityPolicy.kind === "authorized-admin"
-            ? await storage.createSignedUrl(storagePath, ADMIN_SIGNED_URL_TTL_SECONDS)
-            : await storage.createSignedUrl(storagePath, SIGNED_URL_TTL_SECONDS);
-        storageSignDuration += boundedDuration(storageSignStartedAt);
-        signError = signed.error;
-        const candidate = signed.data?.signedUrl;
-        if (
-          !signed.error &&
-          candidate &&
-          isExpectedSignedStorageUrl({
-            signedUrl: candidate,
-            supabaseUrl: args.supabaseUrl,
+    const canReuseSignedUrl =
+      args.assetVisibilityPolicy.kind === "public-available-only" &&
+      Boolean(activeVersion) &&
+      publicSignedUrlCacheEnabled();
+    const sign = async (targetPath = storagePath): Promise<boolean> => {
+      const cacheKey = canReuseSignedUrl
+        ? signedUrlCacheKey({
             bucket,
-            storagePath
+            storagePath: targetPath,
+            version: activeVersion
           })
-        ) {
-          signedUrl = candidate;
+        : null;
+      if (cacheKey) {
+        const cached = readCachedSignedUrl(cacheKey);
+        if (cached) {
+          signedUrl = cached;
           return true;
         }
-      } catch (error) {
-        storageSignDuration += boundedDuration(storageSignStartedAt);
-        signError = error;
+        const inFlight = signedUrlInFlight.get(cacheKey);
+        if (inFlight) {
+          const reused = await inFlight;
+          if (reused) {
+            signedUrl = reused;
+            return true;
+          }
+          return false;
+        }
       }
-      return false;
+
+      const signPromise = (async (): Promise<string | null> => {
+        const storageSignStartedAt = performance.now();
+        try {
+          const signed =
+            args.assetVisibilityPolicy.kind === "authorized-admin"
+              ? await storage.createSignedUrl(targetPath, ADMIN_SIGNED_URL_TTL_SECONDS)
+              : await storage.createSignedUrl(targetPath, SIGNED_URL_TTL_SECONDS);
+          storageSignDuration += boundedDuration(storageSignStartedAt);
+          signError = signed.error;
+          const candidate = signed.data?.signedUrl;
+          if (
+            !signed.error &&
+            candidate &&
+            isExpectedSignedStorageUrl({
+              signedUrl: candidate,
+              supabaseUrl: args.supabaseUrl,
+              bucket,
+              storagePath: targetPath
+            })
+          ) {
+            return candidate;
+          }
+        } catch (error) {
+          storageSignDuration += boundedDuration(storageSignStartedAt);
+          signError = error;
+        }
+        return null;
+      })();
+
+      if (cacheKey) signedUrlInFlight.set(cacheKey, signPromise);
+      try {
+        const candidate = await signPromise;
+        if (!candidate) return false;
+        if (cacheKey) writeCachedSignedUrl(cacheKey, candidate);
+        signedUrl = candidate;
+        return true;
+      } finally {
+        if (cacheKey && signedUrlInFlight.get(cacheKey) === signPromise) {
+          signedUrlInFlight.delete(cacheKey);
+        }
+      }
     };
 
     const directSigning = Boolean(activeVersion);
@@ -486,6 +595,16 @@ async function redirectDishAsset(args: {
         ? "public, s-maxage=2700"
         : "private, no-store"
     };
+    if (isVersioned && !isAuthorizedAdmin) {
+      // Explicit contract: a cached redirect may continue to expose an
+      // otherwise valid signed URL for at most 45 minutes after availability
+      // changes. Admin requests are always authorized at the origin instead.
+      headers["Surrogate-Control"] =
+        `public, max-age=${PUBLIC_ASSET_REVOCATION_SLA_SECONDS}`;
+      headers["X-Vistaire-Asset-Revocation-SLA"] = String(
+        PUBLIC_ASSET_REVOCATION_SLA_SECONDS
+      );
+    }
     if (process.env.VERCEL_ENV === "preview") {
       headers["Server-Timing"] = formatServerTiming({
         db: dbDuration,

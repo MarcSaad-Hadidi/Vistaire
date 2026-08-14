@@ -187,3 +187,22 @@ test("public menu renderer links dish cards to shareable detail routes with QR c
   assert.match(rendererSource, /mode === "public"/);
   assert.match(rendererSource, /onClick=\{\(\) => openDish\(dish\)\}/);
 });
+
+test("menu card surfaces prefer the thumbnail delivery variant over display", async () => {
+  const [experience, sauge] = await Promise.all([
+    readFile("components/menu/PublicMenuExperience.tsx", "utf8"),
+    readFile(
+      "components/menu/unique/sauge-noire/SaugeNoireMenuPages.tsx",
+      "utf8"
+    )
+  ]);
+
+  assert.match(experience, /const cardImageUrl = dish\.thumbnailUrl \|\| dish\.imageUrl/);
+  assert.match(experience, /backgroundImage: `url\("\$\{cardImageUrl\}"\)`/);
+  assert.match(sauge, /const cardImageUrl = dish\.thumbnailUrl \|\| dish\.imageUrl/);
+  assert.match(sauge, /src=\{isPhysicalPageMedia \? undefined : cardImageUrl\}/);
+  assert.doesNotMatch(
+    sauge,
+    /function PhotoSlot[\s\S]{0,1800}src=\{isPhysicalPageMedia \? undefined : dish\.imageUrl\}/
+  );
+});
