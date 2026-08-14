@@ -13,6 +13,7 @@ import {
 } from "@/lib/owner/menuSettingsMutation";
 import { getSupabaseAdminClient } from "@/utils/supabase/admin";
 import { requireOwnerRestaurantCapability } from "@/lib/owner/demoCapabilities";
+import { revalidateOwnerMenuMutationPaths } from "@/lib/owner/menuMutationRevalidation";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -82,6 +83,11 @@ export async function PATCH(
       { status: result.status }
     );
   }
+
+  await revalidateOwnerMenuMutationPaths({
+    client: adminResult.client,
+    restaurantId
+  });
 
   return NextResponse.json({
     ok: true,

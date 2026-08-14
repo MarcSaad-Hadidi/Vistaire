@@ -3,6 +3,7 @@ import "server-only";
 import { revalidatePath } from "next/cache";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { slugifyRestaurantSlug } from "@/lib/owner/menuUrlCore";
+import { revalidatePublicMenuCache } from "@/lib/menu/publicMenuCache";
 
 function getString(row: Record<string, unknown> | null | undefined, key: string): string {
   const value = row?.[key];
@@ -25,6 +26,14 @@ export async function revalidateOwnerMenuMutationPaths(args: {
     getString(restaurant.data, "slug") ||
     slugifyRestaurantSlug(getString(restaurant.data, "name"));
   if (!restaurantSlug) return;
+
+  // Keep the inter-request public menu cache in sync with the path cache.
+  // `revalidateTag(..., "max")` uses stale-while-revalidate semantics in
+  // Next 16; no user/session state is included in these tags.
+  await revalidatePublicMenuCache({
+    slug: restaurantSlug,
+    restaurantId: args.restaurantId
+  });
 
   revalidatePath(`/menu/${restaurantSlug}`);
   const dishSlug = slugifyRestaurantSlug(args.dishSlug ?? "");

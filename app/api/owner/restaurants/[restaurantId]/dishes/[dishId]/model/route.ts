@@ -1,4 +1,5 @@
 import { revalidatePath } from "next/cache";
+import { revalidatePublicMenuCache } from "@/lib/menu/publicMenuCache";
 import { NextResponse, type NextRequest } from "next/server";
 import {
   requireSameOriginOwnerMutation,
@@ -39,8 +40,9 @@ function getString(row: Record<string, unknown> | null | undefined, key: string)
   return typeof value === "string" ? value.trim() : "";
 }
 
-function revalidatePublicDishModelPaths(restaurantSlug: string, dishSlug: string): void {
+async function revalidatePublicDishModelPaths(restaurantSlug: string, dishSlug: string): Promise<void> {
   if (!restaurantSlug) return;
+  await revalidatePublicMenuCache({ slug: restaurantSlug });
   revalidatePath(`/menu/${restaurantSlug}`);
   if (dishSlug) revalidatePath(`/menu/${restaurantSlug}/dishes/${dishSlug}`);
 }
@@ -168,7 +170,7 @@ export async function DELETE(
     );
   }
 
-  revalidatePublicDishModelPaths(restaurantSlug, dishSlug);
+  await revalidatePublicDishModelPaths(restaurantSlug, dishSlug);
 
   return NextResponse.json({
     ok: true,

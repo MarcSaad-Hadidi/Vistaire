@@ -20,6 +20,7 @@
     "lfs:check": "node scripts/check-lfs-policy.mjs",
     "media:backfill:dry-run": "node scripts/backfill-dish-photo-derivatives.mjs",
     "media:backfill:apply": "node scripts/backfill-dish-photo-derivatives.mjs --apply --confirm-production",
+    "supabase:usage:audit": "node scripts/supabase-usage-audit.mjs",
     "3d:analyze": "node scripts/3d/analyze.mjs",
     "3d:analyze-source": "node scripts/3d/analyze-source.mjs",
     "3d:repair-source": "node scripts/3d/repair-source.mjs",

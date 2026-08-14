@@ -9,6 +9,8 @@ import {
 } from "@/lib/owner/menuTranslations";
 import { normalizePublicMenuLocale } from "@/lib/menu/publicMenuSettings";
 import { requireOwnerRestaurantCapability } from "@/lib/owner/demoCapabilities";
+import { revalidateOwnerMenuMutationPaths } from "@/lib/owner/menuMutationRevalidation";
+import { getSupabaseAdminClient } from "@/utils/supabase/admin";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -76,6 +78,15 @@ export async function POST(
       { ok: false, error: result.error },
       { status: result.status }
     );
+  }
+  if (body?.dryRun !== true) {
+    const admin = getSupabaseAdminClient();
+    if (admin.ok) {
+      await revalidateOwnerMenuMutationPaths({
+        client: admin.client,
+        restaurantId
+      });
+    }
   }
   return NextResponse.json(result);
 }

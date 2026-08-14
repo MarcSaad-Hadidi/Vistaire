@@ -1,4 +1,5 @@
 import { revalidatePath } from "next/cache";
+import { revalidatePublicMenuCache } from "@/lib/menu/publicMenuCache";
 import { NextResponse, type NextRequest } from "next/server";
 import {
   assertUsdzRuntimeJobClaimsMatchRoute,
@@ -13,8 +14,9 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const maxDuration = 120;
 
-function revalidatePublicDishModelPaths(restaurantSlug: string, dishSlug: string): void {
+async function revalidatePublicDishModelPaths(restaurantSlug: string, dishSlug: string): Promise<void> {
   if (!restaurantSlug) return;
+  await revalidatePublicMenuCache({ slug: restaurantSlug });
   revalidatePath(`/menu/${restaurantSlug}`);
   if (dishSlug) revalidatePath(`/menu/${restaurantSlug}/dishes/${dishSlug}`);
 }
@@ -70,7 +72,7 @@ export async function POST(
       adminClient: admin.client,
       input
     });
-    revalidatePublicDishModelPaths(verified.claims.restaurantSlug, verified.claims.dishSlug);
+    await revalidatePublicDishModelPaths(verified.claims.restaurantSlug, verified.claims.dishSlug);
     return NextResponse.json({
       ok: true,
       ...result,
