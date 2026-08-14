@@ -108,6 +108,26 @@ test("mobile footer uses one column and footer links have 44px targets", async (
     /\.footerLinkList a,[\s\S]*?min-height:\s*44px/,
     "footer links need an explicit mobile touch target"
   );
+  assert.match(
+    styles,
+    /\.footerLinkListBalanced\s*\{[\s\S]*?grid-template-columns:\s*minmax\(0,\s*1fr\);/,
+    "guide links must use one column instead of a split grid"
+  );
+});
+
+test("footer guide navigation follows the requested reading order", async () => {
+  const { getEditorialGuideNavigation } = await import(
+    "../lib/editorialGuideRoutes.ts"
+  );
+
+  assert.deepEqual(
+    getEditorialGuideNavigation("fr").map((item) => item.href),
+    [
+      "/guides/anatomie-menu-digital-premium",
+      "/guides/3d-restaurant-utile-vs-gadget",
+      "/guides/menu-qr-mobile-sans-application"
+    ]
+  );
 });
 
 test("tablet footer reflows before six fixed tracks can be clipped", async () => {

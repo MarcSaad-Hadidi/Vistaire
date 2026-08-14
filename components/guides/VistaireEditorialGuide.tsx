@@ -1,10 +1,11 @@
+import Image from "next/image";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { JsonLd } from "@/components/JsonLd";
 import {
-  PreviewFooter,
-  PreviewNav
-} from "@/components/vistaire-preview/VistairePreviewChrome";
+  getEditorialGuidePresentation,
+  type GuideSectionLayout
+} from "@/components/guides/editorialGuidePresentation";
 import {
   getEditorialGuideByPath,
   type EditorialGuide
@@ -16,6 +17,10 @@ import {
   buildBreadcrumbJsonLd,
   buildWebPageJsonLd
 } from "@/lib/seo";
+import {
+  PreviewFooter,
+  PreviewNav
+} from "@/components/vistaire-preview/VistairePreviewChrome";
 import styles from "./VistaireEditorialGuide.module.css";
 
 const RELATED_LABELS: Record<string, { fr: string; en: string }> = {
@@ -87,16 +92,76 @@ function relatedLabel(path: string, guide: EditorialGuide) {
   return RELATED_LABELS[path]?.[guide.locale] ?? path;
 }
 
+function relatedCardMeta(path: string, guide: EditorialGuide) {
+  return getEditorialGuideByPath(path)
+    ? "Guide"
+    : guide.locale === "en"
+      ? "Related page"
+      : "Page associée";
+}
+
+function relatedCardAction(path: string, guide: EditorialGuide) {
+  return getEditorialGuideByPath(path)
+    ? guide.locale === "en"
+      ? "Read the guide"
+      : "Lire le guide"
+    : guide.locale === "en"
+      ? "Explore the page"
+      : "Explorer la page";
+}
+
+function layoutClass(layout: GuideSectionLayout) {
+  switch (layout) {
+    case "feature":
+      return styles.layoutFeature;
+    case "split":
+      return styles.layoutSplit;
+    case "table":
+      return styles.layoutTable;
+    case "quiet":
+      return styles.layoutQuiet;
+    default:
+      return styles.layoutQuiet;
+  }
+}
+
 export function VistaireEditorialGuide({ guide }: { guide: EditorialGuide }) {
   const isEnglish = guide.locale === "en";
   const homePath = isEnglish ? "/en" : "/";
   const breadcrumbLabel = isEnglish ? "Breadcrumb" : "Fil d’Ariane";
   const breadcrumbHome = isEnglish ? "Home" : "Accueil";
   const contentsLabel = isEnglish ? "In this guide" : "Dans ce guide";
+  const presentation = getEditorialGuidePresentation(guide.key, guide.locale);
+  const heroImageAlt = presentation.heroImageAlt[guide.locale];
+  const heroVariantClass =
+    presentation.heroVariant === "visual-left"
+      ? styles.heroVisualLeft
+      : presentation.heroVariant === "editorial-stack"
+        ? styles.heroEditorialStack
+        : styles.heroVisualRight;
+  const guideVariantClass =
+    presentation.guideVariant === "journey"
+      ? styles.pageJourney
+      : presentation.guideVariant === "decision"
+        ? styles.pageDecision
+        : styles.pageAnatomy;
 
   return (
-    <main className={styles.page}>
-      <div aria-hidden="true" className={styles.background} />
+    <main
+      className={`${styles.page} ${guideVariantClass}`}
+      data-guide-variant={presentation.guideVariant}
+    >
+      <Image
+        alt=""
+        aria-hidden="true"
+        className={styles.backgroundImage}
+        fill
+        loading="lazy"
+        quality={75}
+        sizes="100vw"
+        src={presentation.backgroundImage}
+      />
+      <div aria-hidden="true" className={styles.backgroundVeil} />
       <div className={styles.navShell}>
         <PreviewNav
           currentPath={guide.path}
@@ -127,115 +192,176 @@ export function VistaireEditorialGuide({ guide }: { guide: EditorialGuide }) {
       />
 
       <article className={styles.article}>
-        <header className={styles.hero}>
-          <nav aria-label={breadcrumbLabel} className={styles.breadcrumb}>
-            <Link href={homePath}>{breadcrumbHome}</Link>
-            <span aria-hidden="true">/</span>
-            <span aria-current="page">{guide.h1}</span>
-          </nav>
-          <p className={styles.eyebrow}>{guide.eyebrow}</p>
-          <h1>{guide.h1}</h1>
-          <p className={styles.dek}>{guide.dek}</p>
-          <p className={styles.definition}>{guide.definition}</p>
-        </header>
+        <div className={styles.previewFrame}>
+          <header className={`${styles.hero} ${heroVariantClass}`}>
+            <div className={styles.heroCopy}>
+              <nav aria-label={breadcrumbLabel} className={styles.breadcrumb}>
+                <Link href={homePath}>{breadcrumbHome}</Link>
+                <span aria-hidden="true">/</span>
+                <span aria-current="page">{guide.h1}</span>
+              </nav>
+              <p className={styles.eyebrow}>{guide.eyebrow}</p>
+              <h1>{guide.h1}</h1>
+              <p className={styles.dek}>{guide.dek}</p>
+              <p className={styles.definition}>{guide.definition}</p>
+              <Link className={styles.heroCta} href={guide.cta.href} prefetch={false}>
+                {guide.cta.label}
+                <span aria-hidden="true">↗</span>
+              </Link>
+            </div>
+            <figure className={styles.heroVisual}>
+              <Image
+                alt={heroImageAlt}
+                className={styles.heroImage}
+                fill
+                priority
+                sizes="(max-width: 920px) calc(100vw - 64px), 42vw"
+                src={presentation.heroImage}
+              />
+              <figcaption>
+                {isEnglish ? "A Vistaire point of view" : "Un regard Vistaire"}
+              </figcaption>
+            </figure>
+          </header>
 
-        <div className={styles.editorialGrid}>
-          <aside className={styles.contents} aria-label={contentsLabel}>
+          <nav aria-label={contentsLabel} className={styles.contents}>
             <p>{contentsLabel}</p>
             <ol>
-              {guide.sections.map((section) => (
+              {guide.sections.map((section, index) => (
                 <li key={section.id}>
-                  <a href={`#${section.id}`}>{section.title}</a>
+                  <a href={`#${section.id}`}>
+                    <span aria-hidden="true">{String(index + 1).padStart(2, "0")}</span>
+                    {section.title}
+                  </a>
                 </li>
               ))}
               <li>
-                <a href="#checklist">{guide.checklist.title}</a>
+                <a href="#checklist">
+                  <span aria-hidden="true">↳</span>
+                  {guide.checklist.title}
+                </a>
               </li>
             </ol>
-          </aside>
+          </nav>
 
-          <div className={styles.body}>
-            {guide.sections.map((section) => (
-              <section id={section.id} key={section.id}>
-                <h2>{section.title}</h2>
-                {section.paragraphs.map((paragraph) => (
-                  <p key={paragraph}>{paragraph}</p>
-                ))}
-                {section.bullets ? (
-                  <ul className={styles.criteria}>
-                    {section.bullets.map((item) => (
-                      <li key={item}>{item}</li>
-                    ))}
-                  </ul>
-                ) : null}
-                {section.table ? (
-                  <div
-                    aria-label={section.table.caption}
-                    className={styles.tableScroll}
-                    data-guide-table-scroll
-                    role="region"
-                    tabIndex={0}
+          <div className={styles.editorialGrid}>
+            <div className={styles.body}>
+              {guide.sections.map((section, index) => {
+                const sectionLayout =
+                  presentation.sectionLayouts[section.id] ?? "quiet";
+                return (
+                  <section
+                    className={`${styles.guideSection} ${layoutClass(sectionLayout)}`}
+                    id={section.id}
+                    key={section.id}
                   >
-                    <table>
-                      <caption>{section.table.caption}</caption>
-                      <thead>
-                        <tr>
-                          {section.table.headers.map((header) => (
-                            <th key={header} scope="col">{header}</th>
+                    <div className={styles.sectionHeading}>
+                      <p className={styles.sectionNumber}>
+                        {String(index + 1).padStart(2, "0")}
+                      </p>
+                      <h2>{section.title}</h2>
+                    </div>
+                    <div className={styles.sectionContent}>
+                      {section.paragraphs.map((paragraph) => (
+                        <p key={paragraph}>{paragraph}</p>
+                      ))}
+                      {section.bullets ? (
+                        <ul className={styles.criteria}>
+                          {section.bullets.map((item) => (
+                            <li key={item}>{item}</li>
                           ))}
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {section.table.rows.map((row) => (
-                          <tr key={row[0]}>
-                            <th scope="row">{row[0]}</th>
-                            <td>{row[1]}</td>
-                            <td>{row[2]}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                ) : null}
-              </section>
-            ))}
-
-            <section className={styles.checklist} id="checklist">
-              <p className={styles.sectionKicker}>
-                {isEnglish ? "For the team" : "Pour l’équipe"}
-              </p>
-              <h2>{guide.checklist.title}</h2>
-              <p>{guide.checklist.introduction}</p>
-              <ul>
-                {guide.checklist.items.map((item) => (
-                  <li key={item}>
-                    <span aria-hidden="true">✓</span>
-                    {item}
-                  </li>
-                ))}
-              </ul>
-            </section>
-
-            <section className={styles.related} aria-labelledby="related-guides-title">
-              <h2 id="related-guides-title">{guide.relatedTitle}</h2>
-              <div className={styles.relatedGrid}>
-                {guide.relatedPaths.map((path) => (
-                  <Link href={path} key={path}>
-                    <span>{relatedLabel(path, guide)}</span>
-                    <span aria-hidden="true">↗</span>
-                  </Link>
-                ))}
-              </div>
-            </section>
+                        </ul>
+                      ) : null}
+                    </div>
+                    {section.table ? (
+                      <div
+                        aria-label={section.table.caption}
+                        className={styles.tableScroll}
+                        data-guide-table-scroll
+                        role="region"
+                        tabIndex={0}
+                      >
+                        <table>
+                          <caption>{section.table.caption}</caption>
+                          <thead>
+                            <tr>
+                              {section.table.headers.map((header) => (
+                                <th key={header} scope="col">{header}</th>
+                              ))}
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {section.table.rows.map((row) => (
+                              <tr key={row[0]}>
+                                <th scope="row">{row[0]}</th>
+                                <td>{row[1]}</td>
+                                <td>{row[2]}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    ) : null}
+                  </section>
+                );
+              })}
+            </div>
           </div>
-        </div>
 
-        <aside className={styles.cta} aria-label={guide.cta.eyebrow}>
-          <p className={styles.eyebrow}>{guide.cta.eyebrow}</p>
-          <h2>{guide.cta.title}</h2>
-          <p>{guide.cta.text}</p>
-          <Link href={guide.cta.href}>{guide.cta.label}<span aria-hidden="true">↗</span></Link>
-        </aside>
+          <section className={styles.checklist} id="checklist">
+            <div className={styles.sectionHeading}>
+              <p className={styles.sectionNumber}>✓</p>
+              <div>
+                <p className={styles.sectionKicker}>
+                  {isEnglish ? "For the team" : "Pour l’équipe"}
+                </p>
+                <h2>{guide.checklist.title}</h2>
+              </div>
+            </div>
+            <p className={styles.checklistIntro}>{guide.checklist.introduction}</p>
+            <ul>
+              {guide.checklist.items.map((item) => (
+                <li key={item}>
+                  <span aria-hidden="true">✓</span>
+                  {item}
+                </li>
+              ))}
+            </ul>
+          </section>
+
+          <section className={styles.related} aria-labelledby="related-guides-title">
+            <div className={styles.sectionHeading}>
+              <p className={styles.sectionNumber}>↗</p>
+              <h2 id="related-guides-title">{guide.relatedTitle}</h2>
+            </div>
+            <div className={styles.relatedGrid}>
+              {guide.relatedPaths.map((path, index) => (
+                <Link href={path} key={path} prefetch={false}>
+                  <span className={styles.relatedCardMeta}>
+                    {String(index + 1).padStart(2, "0")} · {relatedCardMeta(path, guide)}
+                  </span>
+                  <span className={styles.relatedCardTitle}>{relatedLabel(path, guide)}</span>
+                  <span className={styles.relatedCardAction}>
+                    {relatedCardAction(path, guide)}
+                    <span aria-hidden="true" className={styles.relatedArrow}>↗</span>
+                  </span>
+                </Link>
+              ))}
+            </div>
+          </section>
+
+          <section className={styles.cta} aria-label={guide.cta.eyebrow}>
+            <div>
+              <p className={styles.eyebrow}>{guide.cta.eyebrow}</p>
+              <h2>{guide.cta.title}</h2>
+              <p>{guide.cta.text}</p>
+            </div>
+            <Link className={styles.ctaButton} href={guide.cta.href} prefetch={false}>
+              {guide.cta.label}
+              <span aria-hidden="true">↗</span>
+            </Link>
+          </section>
+        </div>
       </article>
 
       <PreviewFooter

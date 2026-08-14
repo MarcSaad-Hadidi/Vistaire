@@ -68,8 +68,22 @@ export function getEditorialGuideRoute(
 }
 
 export function getEditorialGuideNavigation(locale: EditorialGuideLocale) {
-  return EDITORIAL_GUIDE_ROUTE_PAIRS.map((pair) => ({
-    label: pair.labels[locale],
-    href: pair[locale]
-  }));
+  const footerOrder: EditorialGuideKey[] = [
+    "premium-menu-anatomy",
+    "restaurant-3d-decision",
+    "mobile-qr-without-app"
+  ];
+
+  return footerOrder.map((key) => {
+    const pair = EDITORIAL_GUIDE_ROUTE_PAIRS.find((candidate) => candidate.key === key);
+
+    if (!pair) {
+      throw new Error(`Missing editorial guide route: ${key}`);
+    }
+
+    return {
+      label: pair.labels[locale],
+      href: pair[locale]
+    };
+  });
 }
