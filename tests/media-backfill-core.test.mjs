@@ -82,6 +82,7 @@ test("measure report is versioned, deterministic and uses authoritative global q
     projectRef: "project-a",
     target: "non-production",
     generatedAt: "2026-08-15T12:00:00.000Z",
+    usageMeasuredAt: "2026-08-15T11:55:00.000Z",
     codeVersion: "abc123",
     recipeId: "dish-photo-v2",
     schemaVersion: 2,
@@ -97,6 +98,7 @@ test("measure report is versioned, deterministic and uses authoritative global q
     errors: []
   });
   assert.equal(report.reportVersion, 1);
+  assert.equal(report.usageMeasuredAt, "2026-08-15T11:55:00.000Z");
   assert.equal(report.capacity.headroomBeforeBytes, 500);
   assert.equal(report.capacity.headroomAfterBytes, 400);
   assert.equal(report.capacity.headroomAfterPercent, 40);
@@ -109,6 +111,7 @@ test("apply gate rejects stale, mismatched, low-headroom or non-opted-in reports
     projectRef: "project-a",
     target: "production",
     generatedAt: "2026-08-15T12:00:00.000Z",
+    usageMeasuredAt: "2026-08-15T11:55:00.000Z",
     codeVersion: "abc123",
     recipeId: "dish-photo-v2",
     schemaVersion: 2,
@@ -126,6 +129,7 @@ test("apply gate rejects stale, mismatched, low-headroom or non-opted-in reports
   const context = {
     now: new Date("2026-08-15T12:10:00.000Z"),
     projectRef: "project-a",
+    usageMeasuredAt: "2026-08-15T11:55:00.000Z",
     codeVersion: "abc123",
     compatibleCommit: "abc123",
     recipeId: "dish-photo-v2",
@@ -136,6 +140,25 @@ test("apply gate rejects stale, mismatched, low-headroom or non-opted-in reports
   };
   assert.equal(validateApplyMeasureReport(base, context).ok, true);
   assert.equal(validateApplyMeasureReport({ ...base, generatedAt: "2026-08-15T11:44:59.000Z" }, context).ok, false);
+  assert.ok(
+    validateApplyMeasureReport(
+      { ...base, usageMeasuredAt: "2026-08-15T11:54:59.000Z" },
+      context
+    ).reasons?.includes("stale-capacity-usage-measurement")
+  );
+  assert.deepEqual(
+    validateApplyMeasureReport(base, {
+      ...context,
+      usageMeasuredAt: "2026-08-15T11:56:00.000Z"
+    }),
+    { ok: false, reasons: ["capacity-usage-measurement-mismatch"] }
+  );
+  assert.ok(
+    validateApplyMeasureReport(
+      { ...base, usageMeasuredAt: "2026-08-15T12:10:00.001Z" },
+      context
+    ).reasons?.includes("stale-capacity-usage-measurement")
+  );
   assert.equal(validateApplyMeasureReport({ ...base, projectRef: "other" }, context).ok, false);
   assert.equal(validateApplyMeasureReport({
     ...base,
@@ -153,6 +176,7 @@ test("apply gate requires a finite, complete and internally consistent measure r
     projectRef: "project-a",
     target: "production",
     generatedAt: "2026-08-15T12:00:00.000Z",
+    usageMeasuredAt: "2026-08-15T11:55:00.000Z",
     codeVersion: "abc123",
     recipeId: "dish-photo-v2",
     schemaVersion: 2,
@@ -170,6 +194,7 @@ test("apply gate requires a finite, complete and internally consistent measure r
   const context = {
     now: new Date("2026-08-15T12:10:00.000Z"),
     projectRef: "project-a",
+    usageMeasuredAt: "2026-08-15T11:55:00.000Z",
     codeVersion: "abc123",
     recipeId: "dish-photo-v2",
     schemaVersion: 2,
@@ -190,6 +215,37 @@ test("apply gate requires a finite, complete and internally consistent measure r
     { ...base, gitCommit: "different" }
   ]) {
     assert.equal(validateApplyMeasureReport(invalid, context).ok, false, JSON.stringify(invalid));
+  }
+});
+
+test("backfill planning distinguishes rows without photos from invalid photo contracts", async () => {
+  const { planDishPhotoBackfillSource } = await loadBackfillModule();
+  const sourcePath = `restaurants/${restaurantId}/photos/originals/${sourceSha}.png`;
+  const valid = {
+    id: dishId,
+    restaurant_id: restaurantId,
+    metadata: {
+      photoStoragePath: sourcePath,
+      photoSha256: sourceSha
+    }
+  };
+
+  assert.deepEqual(planDishPhotoBackfillSource({
+    id: "no-photo",
+    restaurant_id: restaurantId,
+    metadata: { menuCopy: "preserved" }
+  }), { status: "no-photo" });
+  assert.equal(planDishPhotoBackfillSource(valid).status, "valid");
+
+  for (const [label, row] of [
+    ["restaurant", { ...valid, restaurant_id: "not-a-uuid" }],
+    ["source path", { ...valid, metadata: { ...valid.metadata, photoStoragePath: ` ${sourcePath}` } }],
+    ["source SHA", { ...valid, metadata: { ...valid.metadata, photoSha256: ` ${sourceSha}` } }],
+    ["partial photo", { ...valid, metadata: { photoStoragePath: sourcePath } }]
+  ]) {
+    const planned = planDishPhotoBackfillSource(row);
+    assert.equal(planned.status, "invalid", label);
+    assert.match(planned.error, /invalid photo source/i, label);
   }
 });
 

@@ -21,7 +21,11 @@ import {
   mediaWritesEnabled,
   withMediaCapacityReservation
 } from "@/lib/owner/mediaCapacity";
-import { rollbackCreatedMediaObjects } from "@/lib/owner/mediaRollback";
+import {
+  potentiallyCreatedMediaObjectBytes,
+  rollbackPotentiallyCreatedMediaObjects,
+  type PotentiallyCreatedMediaObject
+} from "@/lib/owner/mediaRollback";
 import { inspectImmutableStorageObject } from "@/lib/owner/mediaObjectIntegrity";
 import { cleanupReplacedDishAssets } from "@/lib/owner/dishAssetReplacementCleanup";
 import { revalidateOwnerMenuMutationPaths } from "@/lib/owner/menuMutationRevalidation";
@@ -296,10 +300,15 @@ export async function POST(
       reservationKey,
       requestedBytes,
       work: async () => {
-        const uploadedObjects: Array<{ path: string; bytes: number }> = [];
-        let newlyCreatedBytes = 0;
+        const potentiallyCreatedObjects: PotentiallyCreatedMediaObject[] = [];
         try {
           for (const candidate of candidatesToUpload) {
+            const potentiallyCreated: PotentiallyCreatedMediaObject = {
+              path: candidate.path,
+              bytes: candidate.bytes.byteLength,
+              creation: "ambiguous"
+            };
+            potentiallyCreatedObjects.push(potentiallyCreated);
             const uploaded = await bucket.upload(candidate.path, candidate.bytes, {
               contentType: candidate.contentType,
               cacheControl: "31536000",
@@ -315,13 +324,13 @@ export async function POST(
                 maxBytes: HARD_PHOTO_MAX_BYTES,
                 timeoutMs: 10_000
               });
-              if (raced.state !== "reusable") {
+              if (raced.state === "missing") {
+                potentiallyCreatedObjects.pop();
                 throw new Error("Upload Supabase Storage impossible.");
               }
               continue;
             }
-            uploadedObjects.push({ path: candidate.path, bytes: candidate.bytes.byteLength });
-            newlyCreatedBytes += candidate.bytes.byteLength;
+            potentiallyCreated.creation = "confirmed";
           }
 
           const metadata = mergeDishPhotoMetadata(oldMetadata, {
@@ -380,7 +389,9 @@ export async function POST(
             cleanupWarnings.push("Revalidation du menu différée.");
           }
           return {
-            newlyCreatedBytes,
+            newlyCreatedBytes: potentiallyCreatedMediaObjectBytes(
+              potentiallyCreatedObjects
+            ),
             value: NextResponse.json({
               ok: true,
               imageUrl,
@@ -407,9 +418,9 @@ export async function POST(
           const referencedPaths = otherReferencedPhotoPaths
             ? new Set([...previouslyReferencedPhotoPaths, ...otherReferencedPhotoPaths])
             : null;
-          const rollback = await rollbackCreatedMediaObjects({
+          const rollback = await rollbackPotentiallyCreatedMediaObjects({
             bucket,
-            created: uploadedObjects,
+            potentiallyCreated: potentiallyCreatedObjects,
             referencedPaths
           });
           throw new MediaCapacityWorkError(

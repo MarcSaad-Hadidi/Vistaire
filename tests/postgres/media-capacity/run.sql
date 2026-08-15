@@ -53,6 +53,42 @@ insert into public.media_capacity_state (
   'capacity-test-project', 1000, 0, clock_timestamp(), 'test-authoritative-fixture'
 );
 
+update public.media_capacity_state
+   set usage_measured_at = clock_timestamp() - interval '16 minutes'
+ where project_ref = 'capacity-test-project';
+set role service_role;
+do $$
+declare
+  stale jsonb;
+begin
+  stale := public.reserve_media_capacity('capacity-test-project', 'measurement:stale', 1, 20);
+  if stale->>'status' <> 'unavailable' then
+    raise exception 'stale usage measurement must fail closed: %', stale;
+  end if;
+end;
+$$;
+reset role;
+
+update public.media_capacity_state
+   set usage_measured_at = clock_timestamp() + interval '1 minute'
+ where project_ref = 'capacity-test-project';
+set role service_role;
+do $$
+declare
+  future jsonb;
+begin
+  future := public.reserve_media_capacity('capacity-test-project', 'measurement:future', 1, 20);
+  if future->>'status' <> 'unavailable' then
+    raise exception 'future usage measurement must fail closed: %', future;
+  end if;
+end;
+$$;
+reset role;
+
+update public.media_capacity_state
+   set usage_measured_at = clock_timestamp()
+ where project_ref = 'capacity-test-project';
+
 select dblink_connect('capacity_a', 'dbname=' || current_database());
 select dblink_connect('capacity_b', 'dbname=' || current_database());
 select dblink_exec('capacity_a', 'set role service_role');

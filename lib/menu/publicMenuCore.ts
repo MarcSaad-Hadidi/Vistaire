@@ -796,7 +796,8 @@ function hasValidV2CardDerivative(
   const sourceSha256 = getString(card, ["sourceSha256", "source_sha256"], "").toLowerCase();
   const outputSha256 = getString(card, ["outputSha256", "output_sha256", "sha256"], "").toLowerCase();
   const legacySha256 = getString(card, ["sha256"], "").toLowerCase();
-  const storagePath = getString(card, ["storagePath", "storage_path"], "");
+  const rawStoragePath = card.storagePath ?? card.storage_path;
+  const storagePath = typeof rawStoragePath === "string" ? rawStoragePath : "";
   const normalizedPhotoSha256 = photoSha256.toLowerCase();
   const expectedStoragePath = `restaurants/${restaurantId}/photos/derivatives/${normalizedPhotoSha256}/dish-photo-v2/card-${outputSha256}.webp`;
   const width = getNumber(card, ["width"], 0);

@@ -16,9 +16,17 @@ test("media backfill rollback preserves and accounts for derivatives that are re
   const script = await source();
 
   assert.match(script, /\.from\("menu_dishes"\)[\s\S]*\.eq\("restaurant_id", plan\.restaurantId\)/);
-  assert.match(script, /rollbackCreatedMediaObjects\(\{ bucket, created, referencedPaths: references \}\)/);
+  assert.match(script, /rollbackPotentiallyCreatedMediaObjects\(\{[\s\S]*potentiallyCreated/);
   assert.match(script, /throw new MediaCapacityWorkError\([\s\S]*rollback\.retainedBytes/);
-  assert.match(script, /uploadedObjects\.push\(\{ path: item\.outputPath, bytes: item\.bytes\.byteLength \}\)/);
+  assert.match(script, /creation: "ambiguous"[\s\S]*potentiallyCreatedObjects\.push\([\s\S]*await bucket\.upload/);
+  assert.match(script, /conflict\.state === "missing"[\s\S]*potentiallyCreatedObjects\.pop\(\)/);
+});
+
+test("media backfill reports invalid photo plans instead of filtering them out of hash verification", async () => {
+  const script = await source();
+
+  assert.match(script, /const invalidPlans = rowPlans\.filter\(\(plan\) => plan\.status === "invalid"\)/);
+  assert.match(script, /const errors = \[[\s\S]*invalidPlans\.map/);
 });
 
 test("media backfill capacity accounting retains V1 derivative bytes", async () => {

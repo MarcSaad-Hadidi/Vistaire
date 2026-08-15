@@ -60,3 +60,27 @@ test("rollback keeps every object counted when reference lookup or remove throws
   assert.deepEqual(partial.removedPaths, []);
   assert.deepEqual(partial.errors, ["Storage remove result incomplete"]);
 });
+
+test("rollback bills ambiguous upload attempts unless Storage absence was proven", async () => {
+  const {
+    potentiallyCreatedMediaObjectBytes,
+    rollbackPotentiallyCreatedMediaObjects
+  } = await import("../lib/owner/mediaRollback.ts");
+  const potentiallyCreated = [
+    { path: "confirmed.webp", bytes: 10, creation: "confirmed" },
+    { path: "ambiguous.webp", bytes: 20, creation: "ambiguous" }
+  ];
+
+  assert.equal(potentiallyCreatedMediaObjectBytes(potentiallyCreated), 30);
+  const rollback = await rollbackPotentiallyCreatedMediaObjects({
+    bucket: { remove: async (paths) => ({ data: paths, error: null }) },
+    potentiallyCreated,
+    referencedPaths: new Set()
+  });
+  assert.deepEqual(rollback, {
+    removedPaths: ["confirmed.webp"],
+    retainedPaths: ["ambiguous.webp"],
+    retainedBytes: 20,
+    errors: ["ambiguous Storage upload retained conservatively"]
+  });
+});

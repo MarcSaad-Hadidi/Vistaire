@@ -98,6 +98,8 @@ begin
     or v_state.used_bytes < 0
     or v_state.used_bytes > v_state.quota_bytes
     or v_state.usage_measured_at is null
+    or v_state.usage_measured_at < clock_timestamp() - interval '15 minutes'
+    or v_state.usage_measured_at > clock_timestamp()
     or btrim(v_state.quota_source) = '' then
     return jsonb_build_object('status', 'unavailable', 'reason', 'state-invalid');
   end if;

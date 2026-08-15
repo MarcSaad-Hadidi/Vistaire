@@ -114,6 +114,23 @@ test("rejects V2 card metadata whose storage path is not immutable recipe output
   assert.equal(menu.dishes[0].cardUrl, canonicalPhotoUrl());
 });
 
+test("rejects V2 card metadata whose storage path differs by one whitespace byte", () => {
+  for (const storagePath of [
+    ` restaurants/${restaurantId}/photos/derivatives/${sourceSha256}/dish-photo-v2/card-${outputSha256}.webp`,
+    `restaurants/${restaurantId}/photos/derivatives/${sourceSha256}/dish-photo-v2/card-${outputSha256}.webp `
+  ]) {
+    const menu = buildSupabasePublicMenu("resto-marc", restaurant, [{
+      id: dishId,
+      restaurant_id: restaurantId,
+      name: "Carte V2 avec espace",
+      image_url: canonicalPhotoUrl(),
+      metadata: v2CardMetadata({ storagePath })
+    }]);
+
+    assert.equal(menu.dishes[0].cardUrl, canonicalPhotoUrl());
+  }
+});
+
 test("rejects V2 card metadata owned by another restaurant or source revision", () => {
   const otherRestaurantId = "44444444-4444-4444-8444-444444444444";
   const otherSourceSha256 = "c".repeat(64);

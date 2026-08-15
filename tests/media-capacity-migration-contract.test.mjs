@@ -19,6 +19,13 @@ test("capacity SQL keeps overdue and ambiguous reservations counted until explic
   assert.match(migration, /media_capacity_reservations_live_key_idx/);
 });
 
+test("capacity reservations reject usage measurements older than fifteen minutes or in the future", async () => {
+  const migration = await readFile(migrationUrl, "utf8");
+
+  assert.match(migration, /usage_measured_at\s*<\s*clock_timestamp\(\)\s*-\s*interval '15 minutes'/i);
+  assert.match(migration, /usage_measured_at\s*>\s*clock_timestamp\(\)/i);
+});
+
 test("PostgreSQL harness exercises same-key ownership, finalized retry, expiry, renewal and ambiguity", async () => {
   const sqlTest = await readFile(sqlTestUrl, "utf8");
 
@@ -29,6 +36,8 @@ test("PostgreSQL harness exercises same-key ownership, finalized retry, expiry, 
     "overdue reservations must remain counted",
     "renew_media_capacity_reservation",
     "ambiguous finalize retry must settle retained bytes exactly once"
+    ,"stale usage measurement must fail closed"
+    ,"future usage measurement must fail closed"
   ]) {
     assert.ok(sqlTest.includes(evidence), `missing PostgreSQL case: ${evidence}`);
   }

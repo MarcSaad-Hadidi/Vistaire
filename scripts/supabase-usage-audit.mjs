@@ -13,6 +13,7 @@ import { createHash } from "node:crypto";
 import { createClient } from "@supabase/supabase-js";
 import {
   classifyDishPhotoUsage,
+  isFreshMediaUsageMeasurement,
   parseMediaMetadata,
   paginateProviderRows,
   requireStorageObjectBytes,
@@ -180,7 +181,8 @@ async function capacityState(client, projectRef) {
     !Number.isSafeInteger(quotaBytes) || quotaBytes <= 0 ||
     !Number.isSafeInteger(usedBytes) || usedBytes < 0 ||
     !Number.isSafeInteger(activeReservedBytes) || activeReservedBytes < 0 ||
-    typeof value.quotaSource !== "string" || !value.quotaSource.trim()
+    typeof value.quotaSource !== "string" || !value.quotaSource.trim() ||
+    !isFreshMediaUsageMeasurement(value.usageMeasuredAt)
   ) return { status: "unavailable", reason: "invalid authoritative capacity state" };
   return {
     status: "available",
@@ -305,12 +307,12 @@ async function main() {
     return fail("NEXT_PUBLIC_SUPABASE_URL is invalid.");
   }
   const expectedRef = process.env.VISTAIRE_EXPECTED_SUPABASE_PROJECT_REF?.trim().toLowerCase();
+  if (expectedRef && expectedRef !== projectRef) {
+    return fail("Configured project ref is different from the Supabase target.");
+  }
   const looksProduction = Boolean(
     process.env.VISTAIRE_SUPABASE_AUDIT_TARGET === "production" ||
-      (expectedRef && projectRef === expectedRef) ||
-      // An unlabelled hosted project is ambiguous; fail closed until the
-      // operator explicitly acknowledges a production-capable read.
-      (!expectedRef && isSupabaseHosted)
+      isSupabaseHosted
   );
   if (looksProduction && !allowProductionRead) {
     return fail("Target matches the configured production project; add --allow-production-read for a read-only audit.");

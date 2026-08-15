@@ -12,6 +12,8 @@ import {
   checkpointEntryMatches,
   deduplicateMediaObjectBytes,
   deterministicSourceSetDigest,
+  isFreshMediaUsageMeasurement,
+  planDishPhotoBackfillSource,
   validateApplyMeasureReport,
   verifyDerivativeObject
 } from "../lib/owner/mediaBackfill.ts";
@@ -21,7 +23,10 @@ import {
   withMediaCapacityReservation
 } from "../lib/owner/mediaCapacity.ts";
 import { inspectImmutableStorageObject } from "../lib/owner/mediaObjectIntegrity.ts";
-import { rollbackCreatedMediaObjects } from "../lib/owner/mediaRollback.ts";
+import {
+  potentiallyCreatedMediaObjectBytes,
+  rollbackPotentiallyCreatedMediaObjects
+} from "../lib/owner/mediaRollback.ts";
 import { parseBackfillNumericOptions } from "../lib/owner/mediaCli.ts";
 
 const require = createRequire(import.meta.url);
@@ -89,23 +94,6 @@ function parseMetadata(value) {
 
 function isSha(value) {
   return typeof value === "string" && /^[a-f0-9]{64}$/i.test(value.trim());
-}
-
-function isSafeRestaurantId(value) {
-  return typeof value === "string" &&
-    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
-}
-
-function isSafeOriginalPath(value, restaurantId) {
-  return (
-    typeof value === "string" &&
-    value === value.trim() &&
-    new RegExp(
-      `^restaurants/${restaurantId}/photos/originals/[a-z0-9][a-z0-9._-]*\\.(?:jpg|png|webp)$`,
-      "i"
-    ).test(value) &&
-    !value.includes("..")
-  );
 }
 
 function isCompleteDerivative(value, restaurantId, sourceSha256, variant) {
@@ -246,11 +234,15 @@ async function referencedDerivativePaths(client, plan) {
   }
 }
 
-async function rollbackUploadedDerivatives(bucket, client, plan, created) {
+async function rollbackUploadedDerivatives(bucket, client, plan, potentiallyCreated) {
   // A failed guarded update may race another dish with the same source SHA.
   // If references cannot be read, keep the objects as safe orphans.
   const references = await referencedDerivativePaths(client, plan);
-  return rollbackCreatedMediaObjects({ bucket, created, referencedPaths: references });
+  return rollbackPotentiallyCreatedMediaObjects({
+    bucket,
+    potentiallyCreated,
+    referencedPaths: references
+  });
 }
 
 const sourceLocks = new Map();
@@ -322,8 +314,7 @@ async function readRows(client) {
       : offset + 999;
     const { data, error } = await client
       .from("menu_dishes")
-      .select("id,restaurant_id,slug,name,metadata")
-      .not("metadata", "is", null)
+      .select("id,restaurant_id,slug,name,image_url,metadata")
       .order("id", { ascending: true })
       .range(offset, end);
     if (error) throw new Error(`Lecture menu_dishes impossible: ${error.message}`);
@@ -336,13 +327,12 @@ async function readRows(client) {
 }
 
 function planRow(row) {
-  const metadata = parseMetadata(row.metadata);
-  const restaurantId = typeof row.restaurant_id === "string" ? row.restaurant_id.trim() : "";
-  const sourcePath = typeof metadata.photoStoragePath === "string" ? metadata.photoStoragePath.trim() : "";
-  const sourceSha = typeof metadata.photoSha256 === "string" ? metadata.photoSha256.trim().toLowerCase() : "";
-  if (!isSafeRestaurantId(restaurantId) || !isSha(sourceSha) || !isSafeOriginalPath(sourcePath, restaurantId)) return null;
-  if (restaurantFilter && restaurantId !== restaurantFilter) return null;
-  if (dishFilter && String(row.id) !== dishFilter) return null;
+  const source = planDishPhotoBackfillSource(row, {
+    restaurantId: restaurantFilter,
+    dishId: dishFilter
+  });
+  if (source.status !== "valid") return { row, ...source };
+  const { metadata, restaurantId, sourcePath, sourceSha } = source;
   const existing = metadata.photoDerivatives && typeof metadata.photoDerivatives === "object"
     ? metadata.photoDerivatives
     : {};
@@ -569,11 +559,16 @@ async function processPlan(client, plan, checkpoint, runtime) {
     requestedBytes,
     work: async () => {
       const photoDerivatives = { ...(plan.metadata.photoDerivatives ?? {}) };
-      const uploadedObjects = [];
-      let newlyCreatedBytes = 0;
+      const potentiallyCreatedObjects = [];
       try {
         for (const item of generatedPlans) {
           if (item.integrity.state === "missing") {
+            const potentiallyCreated = {
+              path: item.outputPath,
+              bytes: item.bytes.byteLength,
+              creation: "ambiguous"
+            };
+            potentiallyCreatedObjects.push(potentiallyCreated);
             const uploaded = await bucket.upload(item.outputPath, item.bytes, {
               contentType: "image/webp",
               cacheControl: "31536000",
@@ -589,10 +584,12 @@ async function processPlan(client, plan, checkpoint, runtime) {
                 maxBytes: verifyMaxBytes,
                 timeoutMs: verifyTimeoutMs
               });
-              if (conflict.state !== "reusable") throw new Error(`Upload ${item.variant.name} impossible: ${uploaded.error.message}`);
+              if (conflict.state === "missing") {
+                potentiallyCreatedObjects.pop();
+                throw new Error(`Upload ${item.variant.name} impossible: ${uploaded.error.message}`);
+              }
             } else {
-              uploadedObjects.push({ path: item.outputPath, bytes: item.bytes.byteLength });
-              newlyCreatedBytes += item.bytes.byteLength;
+              potentiallyCreated.creation = "confirmed";
             }
           }
           photoDerivatives[item.variant.name] = {
@@ -639,14 +636,19 @@ async function processPlan(client, plan, checkpoint, runtime) {
           bucket,
           client,
           plan,
-          uploadedObjects
+          potentiallyCreatedObjects
         );
         throw new MediaCapacityWorkError(
           error instanceof Error ? error.message : String(error),
           rollback.retainedBytes
         );
       }
-      return { value: { photoDerivatives }, newlyCreatedBytes };
+      return {
+        value: { photoDerivatives },
+        newlyCreatedBytes: potentiallyCreatedMediaObjectBytes(
+          potentiallyCreatedObjects
+        )
+      };
     }
   });
   const completedPlan = { ...plan, metadata: { ...plan.metadata, photoDerivatives: result.photoDerivatives } };
@@ -704,7 +706,7 @@ async function capacityState(client, projectRef) {
     !Number.isSafeInteger(usedBytes) || usedBytes < 0 ||
     !Number.isSafeInteger(activeReservedBytes) || activeReservedBytes < 0 ||
     typeof value.quotaSource !== "string" || !value.quotaSource.trim() ||
-    !Number.isFinite(Date.parse(String(value.usageMeasuredAt ?? "")))
+    !isFreshMediaUsageMeasurement(value.usageMeasuredAt)
   ) throw new Error("État de capacité incomplet; quota/usage autoritatif requis.");
   return { quotaBytes, usedBytes, activeReservedBytes, quotaSource: value.quotaSource, usageMeasuredAt: value.usageMeasuredAt };
 }
@@ -754,7 +756,11 @@ async function main() {
   const client = createClient(config.url, config.key, { auth: { persistSession: false, autoRefreshToken: false } });
   const checkpoint = await loadCheckpoint();
   const rows = await readRows(client);
-  const plans = rows.map(planRow).filter(Boolean);
+  const rowPlans = rows.map(planRow);
+  const invalidPlans = rowPlans.filter((plan) => plan.status === "invalid");
+  const plans = rowPlans.filter(
+    (plan) => plan.status === "complete" || plan.status === "planned"
+  );
   const missingPlans = plans.filter((plan) => plan.status !== "complete");
   const sourceBytes = uniqueBytes(
     plans.map((plan) => ({ storagePath: plan.sourcePath, bytes: plan.metadata.photoBytes })),
@@ -796,9 +802,11 @@ async function main() {
   const target = config.local ? "non-production" : "production";
   if (apply) {
     const measureReport = await readMeasureReport();
+    const applyCapacity = await capacityState(client, config.projectRef);
     const gate = validateApplyMeasureReport(measureReport, {
       now: new Date(),
       projectRef: config.projectRef,
+      usageMeasuredAt: applyCapacity.usageMeasuredAt,
       codeVersion: currentCodeVersion,
       recipeId: RECIPE.id,
       schemaVersion: RECIPE.schemaVersion,
@@ -815,6 +823,7 @@ async function main() {
     mode: apply ? "apply" : measureOnly ? "measure-only" : verifyOnly ? "verify-only" : "dry-run",
     rows: rows.length,
     objectsWithPhotos: plans.length,
+    invalidPhotoPlans: invalidPlans.length,
     objectsMissingDerivatives: missingPlans.length,
     sourceBytes,
     existingDerivativeBytes,
@@ -842,7 +851,10 @@ async function main() {
     concurrency,
     (plan) => processPlan(client, plan, checkpoint, runtime)
   );
-  const errors = results.filter((result) => result?.status === "error");
+  const errors = [
+    ...invalidPlans.map((plan) => ({ status: "error", error: plan.error })),
+    ...results.filter((result) => result?.status === "error")
+  ];
   const measuredEntries = results.flatMap((result) => result?.measured ?? []);
   const measuredBytes = uniqueBytes(measuredEntries, "storagePath", "bytes");
   const uniqueAdditionalBytes = uniqueBytes(measuredEntries, "storagePath", "additionalBytes");
@@ -862,6 +874,7 @@ async function main() {
       projectRef: config.projectRef,
       target,
       generatedAt: new Date().toISOString(),
+      usageMeasuredAt: state.usageMeasuredAt,
       codeVersion: currentCodeVersion,
       recipeId: RECIPE.id,
       schemaVersion: RECIPE.schemaVersion,
@@ -880,8 +893,7 @@ async function main() {
       ...measureReport,
       globalUsedBytes: state.usedBytes,
       activeReservedBytes: state.activeReservedBytes,
-      quotaSource: state.quotaSource,
-      usageMeasuredAt: state.usageMeasuredAt
+      quotaSource: state.quotaSource
     }, null, 2));
     if (measureReport.status !== "pass") process.exitCode = 1;
     return;

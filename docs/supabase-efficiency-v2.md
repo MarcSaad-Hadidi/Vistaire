@@ -55,6 +55,35 @@ and 60 seconds. Capacity reservations have a five-minute heartbeat deadline;
 expiry never releases bytes implicitly, and unsettled reservations remain
 counted until explicit finalize/release.
 
+### Operator reconciliation for abandoned reservations
+
+Reconciliation is a manual, reviewed incident procedure; no production SQL or
+Storage mutation is run automatically. Keep media writes disabled while it is
+in progress.
+
+1. Run the read-only usage audit with the exact expected project ref and the
+   explicit production-read opt-in. In the Supabase SQL editor, use a
+   read-only transaction to list overdue `active` or `settlement_pending`
+   reservations with their id, key, reserved/actual bytes, timestamps, and
+   project ref. Export the result into the incident record.
+2. Correlate each reservation key with application/backfill logs, the dish
+   metadata row, and byte-exact Storage `info` results. For every attempted
+   path, record one of: absent; present and referenced; present and unreferenced;
+   or unknown. A timeout, partial provider response, hash mismatch, or missing
+   cross-reference remains `unknown`.
+3. Release an `active` reservation through
+   `release_media_capacity_reservation` only when every attempted object is
+   proven absent and no database metadata references it. Finalize through
+   `finalize_media_capacity_reservation` with the deduplicated retained bytes
+   when objects are present or their creation is still ambiguous. Never guess
+   zero bytes, edit reservation tables directly, or delete an object as part of
+   capacity reconciliation.
+4. Re-measure all project Storage buckets, update the authoritative capacity
+   snapshot with its exact `usage_measured_at` and evidence source through the
+   separately approved operator change, then rerun the read-only audit. A
+   second operator must verify that active reserved bytes, global used bytes,
+   and the incident ledger reconcile before media writes are re-enabled.
+
 ## Evidence boundary
 
 The Supabase connector was used for this snapshot in read-only mode against

@@ -9,6 +9,7 @@ import {
 
 const SHA256_PATTERN = /^[a-f0-9]{64}$/;
 const MAX_MEASURE_AGE_MS = 15 * 60 * 1000;
+const RESTAURANT_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 type CheckpointInput = {
   dishId: string;
@@ -144,6 +145,7 @@ export function buildMeasureReport(args: {
   projectRef: string;
   target: string;
   generatedAt: string;
+  usageMeasuredAt: string;
   codeVersion: string;
   recipeId: string;
   schemaVersion: number;
@@ -168,6 +170,9 @@ export function buildMeasureReport(args: {
     ? (headroomAfterBytes / args.authoritativeQuotaBytes) * 100
     : Number.NaN;
   const reasons = [...(args.reasons ?? [])];
+  if (!isFreshMediaUsageMeasurement(args.usageMeasuredAt, new Date(args.generatedAt))) {
+    reasons.push("stale-capacity-usage-measurement");
+  }
   if (!Number.isSafeInteger(args.authoritativeQuotaBytes) || args.authoritativeQuotaBytes <= 0) {
     reasons.push("authoritative-quota-unavailable");
   }
@@ -180,6 +185,7 @@ export function buildMeasureReport(args: {
     projectRef: args.projectRef,
     target: args.target,
     generatedAt: args.generatedAt,
+    usageMeasuredAt: args.usageMeasuredAt,
     gitCommit: args.codeVersion,
     codeVersion: args.codeVersion,
     recipeId: args.recipeId,
@@ -215,6 +221,7 @@ export function validateApplyMeasureReport(
   context: {
     now: Date;
     projectRef: string;
+    usageMeasuredAt: string;
     codeVersion: string;
     compatibleCommit?: string;
     recipeId: string;
@@ -226,7 +233,7 @@ export function validateApplyMeasureReport(
 ): { ok: true } | { ok: false; reasons: string[] } {
   const reasons: string[] = [];
   const requiredStrings = [
-    "projectRef", "target", "generatedAt", "gitCommit", "codeVersion",
+    "projectRef", "target", "generatedAt", "usageMeasuredAt", "gitCommit", "codeVersion",
     "recipeId", "sourceSetDigest"
   ] as const;
   if (requiredStrings.some((key) => typeof report[key] !== "string" || !(report[key] as string).trim())) {
@@ -301,6 +308,14 @@ export function validateApplyMeasureReport(
   const generatedAt = Date.parse(String(report.generatedAt ?? ""));
   const age = context.now.getTime() - generatedAt;
   if (!Number.isFinite(generatedAt) || age < 0 || age > MAX_MEASURE_AGE_MS) reasons.push("stale-measure-report");
+  const usageMeasuredAt = String(report.usageMeasuredAt ?? "");
+  if (
+    !isFreshMediaUsageMeasurement(usageMeasuredAt, context.now) ||
+    Date.parse(usageMeasuredAt) > generatedAt
+  ) reasons.push("stale-capacity-usage-measurement");
+  if (usageMeasuredAt !== context.usageMeasuredAt) {
+    reasons.push("capacity-usage-measurement-mismatch");
+  }
   if (report.reportVersion !== 1) reasons.push("incompatible-report-version");
   if (report.projectRef !== context.projectRef) reasons.push("project-mismatch");
   if (report.recipeId !== context.recipeId || report.schemaVersion !== context.schemaVersion) reasons.push("recipe-mismatch");
@@ -317,6 +332,87 @@ export function validateApplyMeasureReport(
   if (!context.productionOptIn) reasons.push("production-opt-in-required");
   if (!context.mediaWritesEnabled) reasons.push("media-write-kill-switch-disabled");
   return reasons.length ? { ok: false, reasons: [...new Set(reasons)] } : { ok: true };
+}
+
+export function isFreshMediaUsageMeasurement(
+  value: unknown,
+  now: Date = new Date()
+): value is string {
+  if (typeof value !== "string" || !value.trim()) return false;
+  const measuredAt = Date.parse(value);
+  const nowMs = now.getTime();
+  const age = nowMs - measuredAt;
+  return (
+    Number.isFinite(nowMs) &&
+    Number.isFinite(measuredAt) &&
+    age >= 0 &&
+    age <= MAX_MEASURE_AGE_MS
+  );
+}
+
+export function planDishPhotoBackfillSource(
+  row: Record<string, unknown>,
+  filters: { restaurantId?: string; dishId?: string } = {}
+):
+  | { status: "filtered" | "no-photo" }
+  | { status: "invalid"; error: string }
+  | {
+      status: "valid";
+      metadata: Record<string, unknown>;
+      restaurantId: string;
+      sourcePath: string;
+      sourceSha: string;
+    } {
+  const dishId = typeof row.id === "string" ? row.id : String(row.id ?? "");
+  const restaurantId = typeof row.restaurant_id === "string"
+    ? row.restaurant_id
+    : "";
+  if (filters.dishId && dishId !== filters.dishId) return { status: "filtered" };
+  if (filters.restaurantId && restaurantId !== filters.restaurantId) {
+    return { status: "filtered" };
+  }
+
+  const parsed = parseMediaMetadata(row.metadata);
+  const metadata = parsed.metadata;
+  const sourcePath = typeof metadata.photoStoragePath === "string"
+    ? metadata.photoStoragePath
+    : "";
+  const rawSourceSha = typeof metadata.photoSha256 === "string"
+    ? metadata.photoSha256
+    : "";
+  const imageUrl = typeof row.image_url === "string" ? row.image_url.trim() : "";
+  const hasPhotoSignal = Boolean(
+    sourcePath ||
+    rawSourceSha ||
+    imageUrl ||
+    metadata.photoStatus ||
+    metadata.photoStorageBucket ||
+    metadata.photoBytes ||
+    metadata.photoDerivatives
+  );
+  if (parsed.valid && !hasPhotoSignal) return { status: "no-photo" };
+
+  const sourceSha = rawSourceSha.toLowerCase();
+  const safePath = RESTAURANT_ID_PATTERN.test(restaurantId) &&
+    sourcePath === sourcePath.trim() &&
+    new RegExp(
+      `^restaurants/${restaurantId}/photos/originals/[a-z0-9][a-z0-9._-]*\\.(?:jpg|png|webp)$`,
+      "i"
+    ).test(sourcePath) &&
+    !sourcePath.includes("..");
+  if (
+    !parsed.valid ||
+    !RESTAURANT_ID_PATTERN.test(restaurantId) ||
+    rawSourceSha !== rawSourceSha.trim() ||
+    !/^[a-f0-9]{64}$/i.test(rawSourceSha) ||
+    !safePath
+  ) {
+    return {
+      status: "invalid",
+      error: `Invalid photo source contract for dish ${dishId || "unknown"}.`
+    };
+  }
+  return { status: "valid", metadata, restaurantId, sourcePath, sourceSha };
 }
 
 function record(value: unknown): Record<string, unknown> | null {

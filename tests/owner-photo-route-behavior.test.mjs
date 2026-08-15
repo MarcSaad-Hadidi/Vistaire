@@ -1,12 +1,14 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import test from "node:test";
 
 import { loadOwnerPhotoRoute } from "./helpers/owner-photo-route-runtime.mjs";
 
 const restaurantId = "11111111-2222-4333-8444-555555555555";
 const dishId = "22222222-3333-4444-8555-666666666666";
-const sourceSha = "a".repeat(64);
-const outputs = { thumbnail: "b".repeat(64), card: "c".repeat(64), display: "d".repeat(64) };
+const hash = (value) => createHash("sha256").update(value).digest("hex");
+const sourceSha = hash("source");
+const outputs = { thumbnail: hash("thumbnail"), card: hash("card"), display: hash("display") };
 
 function metadata() {
   return {
@@ -21,10 +23,17 @@ function metadata() {
   };
 }
 
-function fixture({ reserveStatus = "reserved", updateError = false, removeError = false } = {}) {
+function fixture({
+  reserveStatus = "reserved",
+  updateError = false,
+  removeError = false,
+  ambiguousUploadAt = -1,
+  thrownUploadAt = -1
+} = {}) {
   const events = [];
   const calls = { updates: [], uploads: [], infos: [], downloads: [], rpc: [] };
   const sourceBytes = Buffer.from("source");
+  const attemptedBodies = new Map();
   const derivatives = Object.fromEntries(Object.entries(outputs).map(([variant, outputSha256]) => [
     variant,
     {
@@ -49,15 +58,30 @@ function fixture({ reserveStatus = "reserved", updateError = false, removeError 
   const bucket = {
     async info(path) {
       calls.infos.push(path);
+      const body = attemptedBodies.get(path);
+      if (body && calls.uploads.findIndex((call) => call.path === path) === ambiguousUploadAt) {
+        return {
+          data: { metadata: { size: body.byteLength, mimetype: path.endsWith(".webp") ? "image/webp" : "image/png" } },
+          error: null
+        };
+      }
       return { data: null, error: { statusCode: 404, message: "not found" } };
     },
     async download(path) {
       calls.downloads.push(path);
+      const body = attemptedBodies.get(path);
+      if (body) return { data: new Blob([body]), error: null };
       return { data: null, error: { statusCode: 404 } };
     },
     async upload(path, bytes) {
       events.push(`upload:${path}`);
       calls.uploads.push({ path, bytes: bytes.byteLength });
+      const uploadIndex = calls.uploads.length - 1;
+      attemptedBodies.set(path, Buffer.from(bytes));
+      if (uploadIndex === thrownUploadAt) throw new Error("upload response lost");
+      if (uploadIndex === ambiguousUploadAt) {
+        return { data: null, error: { message: "upload response lost" } };
+      }
       return { data: { path }, error: null };
     },
     async remove(paths) {
@@ -211,4 +235,39 @@ test("failed upload rollback finalizes retained object bytes instead of releasin
   const expectedBytes = Buffer.byteLength("source") + Buffer.byteLength("thumbnail") + Buffer.byteLength("card") + Buffer.byteLength("display");
   assert.equal(state.calls.rpc.at(-1).name, "finalize_media_capacity_reservation");
   assert.equal(state.calls.rpc.at(-1).parameters.p_actual_bytes, expectedBytes);
+});
+
+test("ambiguous upload response that re-inspects as reusable is billed conservatively", async () => {
+  const route = await loadOwnerPhotoRoute();
+  process.env.VISTAIRE_MEDIA_WRITES_ENABLED = "true";
+  process.env.VISTAIRE_EXPECTED_SUPABASE_PROJECT_REF = "project-a";
+  const state = fixture({ ambiguousUploadAt: 0 });
+  globalThis.__OWNER_PHOTO_TEST__ = state;
+
+  const response = await route.POST(
+    requestForPost(),
+    { params: Promise.resolve({ restaurantId, dishId }) }
+  );
+  assert.equal(response.status, 200);
+  const expectedBytes = Buffer.byteLength("source") + Buffer.byteLength("thumbnail") + Buffer.byteLength("card") + Buffer.byteLength("display");
+  assert.equal(state.calls.rpc.at(-1).name, "finalize_media_capacity_reservation");
+  assert.equal(state.calls.rpc.at(-1).parameters.p_actual_bytes, expectedBytes);
+});
+
+test("thrown upload response is rolled back or retained without releasing capacity", async () => {
+  const route = await loadOwnerPhotoRoute();
+  process.env.VISTAIRE_MEDIA_WRITES_ENABLED = "true";
+  process.env.VISTAIRE_EXPECTED_SUPABASE_PROJECT_REF = "project-a";
+  const state = fixture({ thrownUploadAt: 0, removeError: true });
+  globalThis.__OWNER_PHOTO_TEST__ = state;
+
+  const response = await route.POST(
+    requestForPost(),
+    { params: Promise.resolve({ restaurantId, dishId }) }
+  );
+  assert.equal(response.status, 503);
+  assert.equal(state.events.includes("remove"), false, "ambiguous writes must not be deleted across a concurrent content-addressed race");
+  assert.equal(state.calls.rpc.some((call) => call.name === "release_media_capacity_reservation"), false);
+  assert.equal(state.calls.rpc.at(-1).name, "finalize_media_capacity_reservation");
+  assert.equal(state.calls.rpc.at(-1).parameters.p_actual_bytes, Buffer.byteLength("source"));
 });
