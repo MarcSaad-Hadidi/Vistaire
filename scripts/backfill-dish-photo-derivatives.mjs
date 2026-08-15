@@ -10,6 +10,7 @@ import {
   buildCheckpointEnvelope,
   buildMeasureReport,
   checkpointEntryMatches,
+  deduplicateMediaObjectBytes,
   deterministicSourceSetDigest,
   validateApplyMeasureReport,
   verifyDerivativeObject
@@ -21,6 +22,7 @@ import {
 } from "../lib/owner/mediaCapacity.ts";
 import { inspectImmutableStorageObject } from "../lib/owner/mediaObjectIntegrity.ts";
 import { rollbackCreatedMediaObjects } from "../lib/owner/mediaRollback.ts";
+import { parseBackfillNumericOptions } from "../lib/owner/mediaCli.ts";
 
 const require = createRequire(import.meta.url);
 const RECIPE = require("../lib/owner/dishPhotoRecipe.json");
@@ -29,27 +31,25 @@ const DEFAULT_CHECKPOINT = path.resolve(
   process.env.VISTAIRE_MEDIA_BACKFILL_CHECKPOINT ??
     ".cache/media-backfill/dish-photo-derivatives.json"
 );
-const args = new Set(process.argv.slice(2));
+const rawArgs = process.argv.slice(2);
+const args = new Set(rawArgs);
 const apply = args.has("--apply");
 const measureOnly = args.has("--measure-only");
 const verifyOnly = args.has("--verify-only");
 const verifySource = args.has("--verify-source");
 const verifyHash = args.has("--verify-hash");
 const confirmProduction = args.has("--confirm-production");
-const limitArg = process.argv.find((value) => value.startsWith("--limit="));
-const concurrencyArg = process.argv.find((value) => value.startsWith("--concurrency="));
 const checkpointArg = process.argv.find((value) => value.startsWith("--checkpoint="));
 const measureReportArg = process.argv.find((value) => value.startsWith("--measure-report="));
-const verifyMaxObjectsArg = process.argv.find((value) => value.startsWith("--verify-max-objects="));
-const verifyMaxBytesArg = process.argv.find((value) => value.startsWith("--verify-max-bytes="));
-const verifyTimeoutArg = process.argv.find((value) => value.startsWith("--verify-timeout-ms="));
-const rowLimit = limitArg
-  ? Math.max(1, Math.min(Number(limitArg.split("=")[1]), 100_000))
-  : Number.POSITIVE_INFINITY;
-const concurrency = Math.max(1, Math.min(Number(concurrencyArg?.split("=")[1] ?? 2), 4));
-const verifyMaxObjects = Math.max(1, Math.min(Number(verifyMaxObjectsArg?.split("=")[1] ?? 10_000), 100_000));
-const verifyMaxBytes = Math.max(1, Math.min(Number(verifyMaxBytesArg?.split("=")[1] ?? 256 * 1024 * 1024), 1024 * 1024 * 1024));
-const verifyTimeoutMs = Math.max(1_000, Math.min(Number(verifyTimeoutArg?.split("=")[1] ?? 10_000), 60_000));
+let cliParseError = null;
+let numericOptions;
+try {
+  numericOptions = parseBackfillNumericOptions(rawArgs);
+} catch (error) {
+  cliParseError = error;
+  numericOptions = parseBackfillNumericOptions([]);
+}
+const { rowLimit, concurrency, verifyMaxObjects, verifyMaxBytes, verifyTimeoutMs } = numericOptions;
 const checkpointPath = path.resolve(checkpointArg?.split("=")[1] ?? DEFAULT_CHECKPOINT);
 const measureReportPath = measureReportArg
   ? path.resolve(measureReportArg.split("=")[1])
@@ -59,7 +59,18 @@ const dishFilter = process.argv.find((value) => value.startsWith("--dish-id="))?
 let checkpointWriteQueue = Promise.resolve();
 
 function fail(message) {
-  console.error(`[media:backfill] ${message}`);
+  if (measureOnly) {
+    console.log(JSON.stringify({
+      reportVersion: 1,
+      status: "fail",
+      pass: false,
+      generatedAt: new Date().toISOString(),
+      reasons: ["execution-error"],
+      errors: [message]
+    }, null, 2));
+  } else {
+    console.error(`[media:backfill] ${message}`);
+  }
   process.exitCode = 1;
 }
 
@@ -135,16 +146,18 @@ function isCompleteDerivative(value, restaurantId, sourceSha256, variant) {
   );
 }
 
-function legacyDerivativeByteSize(value, restaurantId, sourceSha256, variant) {
-  if (!value || typeof value !== "object") return 0;
+function legacyDerivativeObject(value, restaurantId, sourceSha256, variant) {
+  if (!value || typeof value !== "object") return null;
   const bytes = Number(value.bytes);
-  if (!Number.isInteger(bytes) || bytes <= 0) return 0;
+  if (!Number.isInteger(bytes) || bytes <= 0) return null;
   const storagePath = typeof value.storagePath === "string" ? value.storagePath : "";
   const legacyPath = new RegExp(
     `^restaurants/${restaurantId}/photos/derivatives/${sourceSha256}/${variant}\\.webp$`,
     "i"
   );
-  return legacyPath.test(storagePath) ? bytes : 0;
+  return legacyPath.test(storagePath)
+    ? { bucket: "vistaire-media", path: storagePath, bytes }
+    : null;
 }
 
 function sha256(bytes) {
@@ -727,6 +740,7 @@ function uniqueBytes(entries, pathKey, bytesKey) {
 }
 
 async function main() {
+  if (cliParseError) throw cliParseError;
   if (apply && (measureOnly || verifyOnly)) {
     throw new Error("--apply ne peut pas être combiné avec --measure-only ou --verify-only.");
   }
@@ -747,25 +761,30 @@ async function main() {
     "storagePath",
     "bytes"
   );
-  const derivativeByteTotals = plans.reduce((totals, plan) => {
+  const derivativeObjects = plans.reduce((objects, plan) => {
     const derivatives = plan.metadata.photoDerivatives && typeof plan.metadata.photoDerivatives === "object"
       ? plan.metadata.photoDerivatives
       : {};
     for (const variant of VARIANTS) {
       const value = derivatives[variant.name];
       if (isCompleteDerivative(value, plan.restaurantId, plan.sourceSha, variant.name)) {
-        totals.v2 += Number(value.bytes);
+        objects.v2.push({ bucket: "vistaire-media", path: value.storagePath, bytes: Number(value.bytes) });
       } else {
-        totals.v1 += legacyDerivativeByteSize(
+        const legacy = legacyDerivativeObject(
           value,
           plan.restaurantId,
           plan.sourceSha,
           variant.name
         );
+        if (legacy) objects.v1.push(legacy);
       }
     }
-    return totals;
-  }, { v1: 0, v2: 0 });
+    return objects;
+  }, { v1: [], v2: [] });
+  const derivativeByteTotals = {
+    v1: deduplicateMediaObjectBytes(derivativeObjects.v1),
+    v2: deduplicateMediaObjectBytes(derivativeObjects.v2)
+  };
   const existingDerivativeBytes = derivativeByteTotals.v1 + derivativeByteTotals.v2;
   const currentCodeVersion = codeVersion();
   const sourceSetDigest = deterministicSourceSetDigest(plans.map((plan) => ({

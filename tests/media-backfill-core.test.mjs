@@ -104,20 +104,25 @@ test("measure report is versioned, deterministic and uses authoritative global q
 });
 
 test("apply gate rejects stale, mismatched, low-headroom or non-opted-in reports", async () => {
-  const { validateApplyMeasureReport } = await loadBackfillModule();
-  const base = {
-    reportVersion: 1,
+  const { buildMeasureReport, validateApplyMeasureReport } = await loadBackfillModule();
+  const base = buildMeasureReport({
     projectRef: "project-a",
+    target: "production",
     generatedAt: "2026-08-15T12:00:00.000Z",
     codeVersion: "abc123",
     recipeId: "dish-photo-v2",
     schemaVersion: 2,
     sourceSetDigest: sha("set"),
+    rowCount: 2,
+    sourceCount: 2,
+    currentGlobalBytes: 500,
+    existingSourceBytes: 100,
+    existingDerivativeBytes: 200,
+    measuredDerivativeBytes: 100,
+    uniqueAdditionalBytes: 100,
     authoritativeQuotaBytes: 1_000,
-    capacity: { headroomAfterPercent: 25 },
-    status: "pass",
     errors: []
-  };
+  });
   const context = {
     now: new Date("2026-08-15T12:10:00.000Z"),
     projectRef: "project-a",
@@ -132,9 +137,60 @@ test("apply gate rejects stale, mismatched, low-headroom or non-opted-in reports
   assert.equal(validateApplyMeasureReport(base, context).ok, true);
   assert.equal(validateApplyMeasureReport({ ...base, generatedAt: "2026-08-15T11:44:59.000Z" }, context).ok, false);
   assert.equal(validateApplyMeasureReport({ ...base, projectRef: "other" }, context).ok, false);
-  assert.equal(validateApplyMeasureReport({ ...base, capacity: { headroomAfterPercent: 19.99 } }, context).ok, false);
+  assert.equal(validateApplyMeasureReport({
+    ...base,
+    headroomAfterBytes: 199,
+    headroomAfterPercent: 19.9,
+    capacity: { ...base.capacity, headroomAfterBytes: 199, headroomAfterPercent: 19.9 }
+  }, context).ok, false);
   assert.equal(validateApplyMeasureReport(base, { ...context, productionOptIn: false }).ok, false);
   assert.equal(validateApplyMeasureReport(base, { ...context, mediaWritesEnabled: false }).ok, false);
+});
+
+test("apply gate requires a finite, complete and internally consistent measure report", async () => {
+  const { buildMeasureReport, validateApplyMeasureReport } = await loadBackfillModule();
+  const base = buildMeasureReport({
+    projectRef: "project-a",
+    target: "production",
+    generatedAt: "2026-08-15T12:00:00.000Z",
+    codeVersion: "abc123",
+    recipeId: "dish-photo-v2",
+    schemaVersion: 2,
+    sourceSetDigest: sha("set"),
+    rowCount: 2,
+    sourceCount: 2,
+    currentGlobalBytes: 500,
+    existingSourceBytes: 100,
+    existingDerivativeBytes: 200,
+    measuredDerivativeBytes: 100,
+    uniqueAdditionalBytes: 100,
+    authoritativeQuotaBytes: 1_000,
+    errors: []
+  });
+  const context = {
+    now: new Date("2026-08-15T12:10:00.000Z"),
+    projectRef: "project-a",
+    codeVersion: "abc123",
+    recipeId: "dish-photo-v2",
+    schemaVersion: 2,
+    sourceSetDigest: sha("set"),
+    productionOptIn: true,
+    mediaWritesEnabled: true
+  };
+
+  for (const invalid of [
+    { ...base, pass: undefined },
+    { ...base, errors: undefined },
+    { ...base, reasons: ["hidden-failure"] },
+    { ...base, currentGlobalBytes: Number.NaN },
+    { ...base, uniqueAdditionalBytes: Number.POSITIVE_INFINITY },
+    { ...base, headroomAfterBytes: base.headroomAfterBytes - 1 },
+    { ...base, headroomBeforePercent: base.headroomBeforePercent + 1 },
+    { ...base, capacity: { ...base.capacity, headroomAfterBytes: base.capacity.headroomAfterBytes - 1 } },
+    { ...base, gitCommit: "different" }
+  ]) {
+    assert.equal(validateApplyMeasureReport(invalid, context).ok, false, JSON.stringify(invalid));
+  }
 });
 
 test("shared audit classifies empty derivatives as partial and exact V2 as complete", async () => {
@@ -156,6 +212,54 @@ test("shared audit classifies empty derivatives as partial and exact V2 as compl
   };
   assert.equal(classifyDishPhotoUsage({ metadata: { ...base, photoDerivatives: derivatives } }).classification, "v2-complete");
   assert.equal(classifyDishPhotoUsage({ metadata: { ...base, photoDerivatives: { ...derivatives, card: validDerivative({ sourceSha256: sha("wrong") }) } } }).classification, "wrong-source-sha");
+});
+
+test("shared audit is metadata-validity aware and validates exact V1 identity", async () => {
+  const {
+    classifyDishPhotoUsage,
+    parseMediaMetadata,
+    requireStorageObjectBytes,
+    validateLegacyDerivativeMetadata
+  } = await loadBackfillModule();
+  assert.equal(parseMediaMetadata("{broken").valid, false);
+  assert.equal(parseMediaMetadata(null).valid, true);
+  assert.equal(requireStorageObjectBytes({ size: 0 }, "empty.webp"), 0);
+  assert.throws(() => requireStorageObjectBytes({}, "unknown.webp"), /unknown object size/);
+  assert.equal(classifyDishPhotoUsage({ metadata: {}, metadataValid: false }).classification, "invalid-metadata");
+  assert.equal(classifyDishPhotoUsage({ metadata: {}, imageUrl: "/legacy/photo.jpg" }).classification, "image-url-only");
+
+  const legacy = {
+    schemaVersion: 1,
+    recipeId: "dish-photo-v1",
+    variant: "card",
+    storagePath: `restaurants/${restaurantId}/photos/derivatives/${sourceSha}/card.webp`,
+    sha256: outputSha,
+    outputSha256: outputSha,
+    sourceSha256: sourceSha,
+    contentType: "image/webp",
+    format: "webp",
+    bytes: 6
+  };
+  assert.deepEqual(validateLegacyDerivativeMetadata({
+    restaurantId,
+    sourceSha256: sourceSha,
+    variant: "card",
+    metadata: legacy
+  }), []);
+  for (const mutation of [
+    { storagePath: `${legacy.storagePath}.other` },
+    { sourceSha256: sha("wrong") },
+    { variant: "display" },
+    { recipeId: "dish-photo-v2" },
+    { schemaVersion: 2 }
+  ]) {
+    assert.notDeepEqual(validateLegacyDerivativeMetadata({
+      restaurantId,
+      sourceSha256: sourceSha,
+      variant: "card",
+      metadata: { ...legacy, ...mutation }
+    }), []);
+  }
 });
 
 test("hash verification checks canonical path, metadata, content type, size and downloaded bytes", async () => {
@@ -209,4 +313,17 @@ test("provider pagination reaches EOF, deduplicates stable identities and reject
     }),
     /partial|unavailable/i
   );
+});
+
+test("media byte accounting deduplicates bucket/path and rejects conflicting sizes", async () => {
+  const { deduplicateMediaObjectBytes } = await loadBackfillModule();
+  assert.equal(deduplicateMediaObjectBytes([
+    { bucket: "vistaire-media", path: "shared.webp", bytes: 10 },
+    { bucket: "vistaire-media", path: "shared.webp", bytes: 10 },
+    { bucket: "other", path: "shared.webp", bytes: 10 }
+  ]), 20);
+  assert.throws(() => deduplicateMediaObjectBytes([
+    { bucket: "vistaire-media", path: "shared.webp", bytes: 10 },
+    { bucket: "vistaire-media", path: "shared.webp", bytes: 11 }
+  ]), /conflicting/i);
 });

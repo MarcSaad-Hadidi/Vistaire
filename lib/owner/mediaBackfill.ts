@@ -119,6 +119,27 @@ export async function paginateProviderRows<T>(args: {
   return [...rows.values()];
 }
 
+export function deduplicateMediaObjectBytes(
+  objects: Array<{ bucket: string; path: string; bytes: number }>
+): number {
+  const byIdentity = new Map<string, number>();
+  for (const object of objects) {
+    if (
+      !object.bucket.trim() ||
+      !object.path.trim() ||
+      !Number.isSafeInteger(object.bytes) ||
+      object.bytes < 0
+    ) throw new Error("Media object identity or byte size is invalid.");
+    const identity = `${object.bucket.trim()}/${object.path.trim()}`;
+    const previous = byIdentity.get(identity);
+    if (previous !== undefined && previous !== object.bytes) {
+      throw new Error(`Conflicting media object byte size: ${identity}`);
+    }
+    byIdentity.set(identity, object.bytes);
+  }
+  return [...byIdentity.values()].reduce((total, bytes) => total + bytes, 0);
+}
+
 export function buildMeasureReport(args: {
   projectRef: string;
   target: string;
@@ -204,6 +225,79 @@ export function validateApplyMeasureReport(
   }
 ): { ok: true } | { ok: false; reasons: string[] } {
   const reasons: string[] = [];
+  const requiredStrings = [
+    "projectRef", "target", "generatedAt", "gitCommit", "codeVersion",
+    "recipeId", "sourceSetDigest"
+  ] as const;
+  if (requiredStrings.some((key) => typeof report[key] !== "string" || !(report[key] as string).trim())) {
+    reasons.push("invalid-measure-report-schema");
+  }
+  const requiredIntegers = [
+    "schemaVersion", "rowCount", "sourceCount", "currentGlobalBytes",
+    "existingSourceBytes", "existingDerivativeBytes", "measuredDerivativeBytes",
+    "uniqueAdditionalBytes", "authoritativeQuotaBytes", "headroomBeforeBytes",
+    "headroomAfterBytes"
+  ] as const;
+  if (requiredIntegers.some((key) => (
+    typeof report[key] !== "number" ||
+    !Number.isSafeInteger(report[key]) ||
+    (report[key] as number) < 0
+  ))) {
+    reasons.push("invalid-measure-report-schema");
+  }
+  if (
+    report.reportVersion !== 1 ||
+    report.schemaVersion !== context.schemaVersion ||
+    typeof report.headroomBeforePercent !== "number" ||
+    !Number.isFinite(report.headroomBeforePercent) ||
+    typeof report.headroomAfterPercent !== "number" ||
+    !Number.isFinite(report.headroomAfterPercent) ||
+    report.pass !== true ||
+    report.status !== "pass" ||
+    !Array.isArray(report.errors) ||
+    !report.errors.every((error) => typeof error === "string") ||
+    report.errors.length !== 0 ||
+    !Array.isArray(report.reasons) ||
+    !report.reasons.every((reason) => typeof reason === "string") ||
+    report.reasons.length !== 0 ||
+    !SHA256_PATTERN.test(String(report.sourceSetDigest ?? "")) ||
+    report.gitCommit !== report.codeVersion
+  ) {
+    reasons.push("invalid-measure-report-schema");
+  }
+  const capacity = record(report.capacity);
+  if (!capacity) {
+    reasons.push("invalid-measure-report-schema");
+  } else {
+    for (const key of [
+      "headroomBeforeBytes", "headroomBeforePercent",
+      "headroomAfterBytes", "headroomAfterPercent"
+    ] as const) {
+      if (
+        typeof capacity[key] !== "number" ||
+        !Number.isFinite(capacity[key]) ||
+        capacity[key] !== report[key]
+      ) reasons.push("inconsistent-capacity-report");
+    }
+  }
+  if (!reasons.includes("invalid-measure-report-schema")) {
+    const quotaBytes = report.authoritativeQuotaBytes as number;
+    const currentGlobalBytes = report.currentGlobalBytes as number;
+    const additionalBytes = report.uniqueAdditionalBytes as number;
+    const expectedHeadroomBeforeBytes = quotaBytes - currentGlobalBytes;
+    const expectedHeadroomAfterBytes = expectedHeadroomBeforeBytes - additionalBytes;
+    const expectedHeadroomBeforePercent = (expectedHeadroomBeforeBytes / quotaBytes) * 100;
+    const expectedHeadroomAfterPercent = (expectedHeadroomAfterBytes / quotaBytes) * 100;
+    const approximatelyEqual = (left: number, right: number) =>
+      Math.abs(left - right) <= 1e-9;
+    if (
+      quotaBytes <= 0 ||
+      report.headroomBeforeBytes !== expectedHeadroomBeforeBytes ||
+      report.headroomAfterBytes !== expectedHeadroomAfterBytes ||
+      !approximatelyEqual(report.headroomBeforePercent as number, expectedHeadroomBeforePercent) ||
+      !approximatelyEqual(report.headroomAfterPercent as number, expectedHeadroomAfterPercent)
+    ) reasons.push("inconsistent-capacity-report");
+  }
   const generatedAt = Date.parse(String(report.generatedAt ?? ""));
   const age = context.now.getTime() - generatedAt;
   if (!Number.isFinite(generatedAt) || age < 0 || age > MAX_MEASURE_AGE_MS) reasons.push("stale-measure-report");
@@ -217,12 +311,9 @@ export function validateApplyMeasureReport(
     report.gitCommit !== context.codeVersion &&
     report.gitCommit !== context.compatibleCommit
   ) reasons.push("code-version-mismatch");
-  const capacity = report.capacity && typeof report.capacity === "object"
-    ? report.capacity as Record<string, unknown>
-    : {};
-  if (Number(capacity.headroomAfterPercent) < 20) reasons.push("minimum-headroom-not-met");
-  if (!Number.isSafeInteger(Number(report.authoritativeQuotaBytes)) || Number(report.authoritativeQuotaBytes) <= 0) reasons.push("authoritative-quota-unavailable");
-  if (report.status !== "pass" || (Array.isArray(report.errors) && report.errors.length)) reasons.push("measure-report-failed");
+  if (typeof report.headroomAfterPercent !== "number" || report.headroomAfterPercent < 20) reasons.push("minimum-headroom-not-met");
+  if (typeof report.authoritativeQuotaBytes !== "number" || !Number.isSafeInteger(report.authoritativeQuotaBytes) || report.authoritativeQuotaBytes <= 0) reasons.push("authoritative-quota-unavailable");
+  if (report.status !== "pass" || report.pass !== true || !Array.isArray(report.errors) || report.errors.length) reasons.push("measure-report-failed");
   if (!context.productionOptIn) reasons.push("production-opt-in-required");
   if (!context.mediaWritesEnabled) reasons.push("media-write-kill-switch-disabled");
   return reasons.length ? { ok: false, reasons: [...new Set(reasons)] } : { ok: true };
@@ -232,6 +323,37 @@ function record(value: unknown): Record<string, unknown> | null {
   return value && typeof value === "object" && !Array.isArray(value)
     ? value as Record<string, unknown>
     : null;
+}
+
+export function parseMediaMetadata(value: unknown): {
+  metadata: Record<string, unknown>;
+  valid: boolean;
+} {
+  const objectValue = record(value);
+  if (objectValue) return { metadata: objectValue, valid: true };
+  if (typeof value === "string") {
+    try {
+      const parsed = record(JSON.parse(value));
+      return parsed
+        ? { metadata: parsed, valid: true }
+        : { metadata: {}, valid: false };
+    } catch {
+      return { metadata: {}, valid: false };
+    }
+  }
+  return { metadata: {}, valid: value === null || value === undefined };
+}
+
+export function requireStorageObjectBytes(
+  metadata: unknown,
+  identity: string
+): number {
+  const value = record(metadata);
+  const bytes = value?.size ?? value?.size_bytes;
+  if (typeof bytes !== "number" || !Number.isSafeInteger(bytes) || bytes < 0) {
+    throw new Error(`unknown object size: ${identity}`);
+  }
+  return bytes;
 }
 
 export function validateDerivativeMetadata(args: {
@@ -256,6 +378,57 @@ export function validateDerivativeMetadata(args: {
   if (metadata.contentType !== "image/webp" || metadata.format !== "webp") reasons.push("wrong-content-type");
   if (!Number.isSafeInteger(Number(metadata.bytes)) || Number(metadata.bytes) <= 0) reasons.push("wrong-size");
   return [...new Set(reasons)];
+}
+
+export function validateLegacyDerivativeMetadata(args: {
+  restaurantId: string;
+  sourceSha256: string;
+  variant: DishPhotoDerivativeVariant;
+  metadata: unknown;
+}): string[] {
+  const reasons: string[] = [];
+  const metadata = record(args.metadata);
+  if (!metadata) return ["invalid-metadata"];
+  const sourceSha256 = args.sourceSha256.toLowerCase();
+  const outputSha256 = String(metadata.outputSha256 ?? metadata.sha256 ?? "").toLowerCase();
+  const legacySha256 = String(metadata.sha256 ?? "").toLowerCase();
+  const canonicalPath = `restaurants/${args.restaurantId}/photos/derivatives/${sourceSha256}/${args.variant}.webp`;
+  if (metadata.schemaVersion !== 1) reasons.push("wrong-schema-version");
+  if (metadata.recipeId !== "dish-photo-v1") reasons.push("wrong-recipe");
+  if (metadata.variant !== args.variant) reasons.push("wrong-variant");
+  if (String(metadata.sourceSha256 ?? "").toLowerCase() !== sourceSha256) reasons.push("wrong-source-sha");
+  if (!SHA256_PATTERN.test(outputSha256)) reasons.push("wrong-output-sha");
+  if (!SHA256_PATTERN.test(legacySha256) || legacySha256 !== outputSha256) reasons.push("wrong-legacy-sha");
+  if (metadata.storagePath !== canonicalPath) reasons.push("wrong-canonical-path");
+  if (metadata.contentType !== "image/webp" || metadata.format !== "webp") reasons.push("wrong-content-type");
+  if (typeof metadata.bytes !== "number" || !Number.isSafeInteger(metadata.bytes) || metadata.bytes <= 0) reasons.push("wrong-size");
+  return [...new Set(reasons)];
+}
+
+export async function verifyLegacyDerivativeObject(args: {
+  restaurantId: string;
+  sourceSha256: string;
+  variant: DishPhotoDerivativeVariant;
+  metadata: unknown;
+  object: { bytes: number; contentType: string; body?: Buffer } | null;
+  verifyHash: boolean;
+}) {
+  const reasons = validateLegacyDerivativeMetadata(args);
+  const metadata = record(args.metadata) ?? {};
+  if (!args.object) reasons.push("missing-object");
+  else {
+    if (args.object.bytes !== metadata.bytes) reasons.push("wrong-size");
+    if (args.object.contentType.split(";")[0].toLowerCase() !== "image/webp") reasons.push("wrong-content-type");
+    if (args.verifyHash) {
+      if (!args.object.body) reasons.push("hash-unavailable");
+      else {
+        const actualSha = createHash("sha256").update(args.object.body).digest("hex");
+        const expectedSha = String(metadata.outputSha256 ?? metadata.sha256 ?? "").toLowerCase();
+        if (actualSha !== expectedSha) reasons.push("wrong-hash");
+      }
+    }
+  }
+  return { ok: reasons.length === 0, reasons: [...new Set(reasons)] };
 }
 
 export async function verifyDerivativeObject(args: {
@@ -285,12 +458,20 @@ export async function verifyDerivativeObject(args: {
 
 export function classifyDishPhotoUsage(args: {
   metadata: unknown;
+  metadataValid?: boolean;
+  imageUrl?: unknown;
   objectResults?: Partial<Record<DishPhotoDerivativeVariant | "source", { reasons?: string[] }>>;
 }) {
   const metadata = record(args.metadata) ?? {};
+  if (args.metadataValid === false) {
+    return { classification: "invalid-metadata", status: "fail", reasons: ["invalid-metadata"] };
+  }
   const sourcePath = String(metadata.photoStoragePath ?? "");
   const sourceSha256 = String(metadata.photoSha256 ?? "").toLowerCase();
   if (!sourcePath && !sourceSha256) {
+    if (typeof args.imageUrl === "string" && args.imageUrl.trim()) {
+      return { classification: "image-url-only", status: "partial", reasons: ["image-url-fallback"] };
+    }
     return { classification: "no-photo", status: "pass", reasons: [] as string[] };
   }
   if (!sourcePath || !SHA256_PATTERN.test(sourceSha256) || metadata.photoStorageBucket !== "vistaire-media") {
@@ -318,7 +499,14 @@ export function classifyDishPhotoUsage(args: {
     }
     const valueRecord = record(value) ?? {};
     if (valueRecord.schemaVersion === 1 || valueRecord.recipeId === "dish-photo-v1") {
-      legacyCount += 1;
+      const reasons = validateLegacyDerivativeMetadata({
+        restaurantId: sourcePath.split("/")[1] ?? "",
+        sourceSha256,
+        variant,
+        metadata: value
+      });
+      allReasons.push(...reasons);
+      if (!reasons.length) legacyCount += 1;
     } else {
       const reasons = validateDerivativeMetadata({
         restaurantId: sourcePath.split("/")[1] ?? "",

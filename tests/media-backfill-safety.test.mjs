@@ -24,7 +24,8 @@ test("media backfill rollback preserves and accounts for derivatives that are re
 test("media backfill capacity accounting retains V1 derivative bytes", async () => {
   const script = await source();
 
-  assert.match(script, /function legacyDerivativeByteSize/);
+  assert.match(script, /function legacyDerivativeObject/);
+  assert.match(script, /deduplicateMediaObjectBytes\(derivativeObjects\.v1\)/);
   assert.match(script, /legacyDerivativeBytes: derivativeByteTotals\.v1/);
   assert.match(script, /existingDerivativeBytes = derivativeByteTotals\.v1 \+ derivativeByteTotals\.v2/);
 });

@@ -13,47 +13,41 @@ import { createHash } from "node:crypto";
 import { createClient } from "@supabase/supabase-js";
 import {
   classifyDishPhotoUsage,
+  parseMediaMetadata,
   paginateProviderRows,
-  verifyDerivativeObject
+  requireStorageObjectBytes,
+  verifyDerivativeObject,
+  verifyLegacyDerivativeObject
 } from "../lib/owner/mediaBackfill.ts";
+import { parseUsageAuditNumericOptions } from "../lib/owner/mediaCli.ts";
 
-const argv = new Set(process.argv.slice(2));
+const rawArgs = process.argv.slice(2);
+const argv = new Set(rawArgs);
 const jsonOnly = argv.has("--json");
 const allowProductionRead = argv.has("--allow-production-read");
 const verifyHash = argv.has("--verify-hash");
-const limitArg = process.argv.find((value) => value.startsWith("--storage-limit="));
-const concurrencyArg = process.argv.find((value) => value.startsWith("--concurrency="));
-const verifyMaxObjectsArg = process.argv.find((value) => value.startsWith("--verify-max-objects="));
-const verifyMaxBytesArg = process.argv.find((value) => value.startsWith("--verify-max-bytes="));
-const verifyTimeoutArg = process.argv.find((value) => value.startsWith("--verify-timeout-ms="));
-const storagePageSize = Math.max(
-  50,
-  Math.min(Number(limitArg?.split("=")[1] ?? 1_000) || 1_000, 1_000)
-);
-const concurrency = Math.max(1, Math.min(Number(concurrencyArg?.split("=")[1] ?? 2), 4));
-const verifyMaxObjects = Math.max(1, Math.min(Number(verifyMaxObjectsArg?.split("=")[1] ?? 10_000), 100_000));
-const verifyMaxBytes = Math.max(1, Math.min(Number(verifyMaxBytesArg?.split("=")[1] ?? 256 * 1024 * 1024), 1024 * 1024 * 1024));
-const verifyTimeoutMs = Math.max(1_000, Math.min(Number(verifyTimeoutArg?.split("=")[1] ?? 10_000), 60_000));
+let cliParseError = null;
+let numericOptions;
+try {
+  numericOptions = parseUsageAuditNumericOptions(rawArgs);
+} catch (error) {
+  cliParseError = error;
+  numericOptions = parseUsageAuditNumericOptions([]);
+}
+const { storagePageSize, concurrency, verifyMaxObjects, verifyMaxBytes, verifyTimeoutMs } = numericOptions;
 const PHOTO_VARIANTS = ["thumbnail", "card", "display"];
 
 function fail(message) {
-  if (jsonOnly) console.log(JSON.stringify({ ok: false, error: message }, null, 2));
+  if (jsonOnly) console.log(JSON.stringify({
+    reportVersion: 2,
+    status: "unavailable",
+    pass: false,
+    generatedAt: new Date().toISOString(),
+    errors: [message]
+  }, null, 2));
   else console.error(`[supabase:usage:audit] ${message}`);
   process.exitCode = 1;
   return { ok: false, error: message };
-}
-
-function parseMetadata(value) {
-  if (value && typeof value === "object" && !Array.isArray(value)) return value;
-  if (typeof value === "string") {
-    try {
-      const parsed = JSON.parse(value);
-      return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
-    } catch {
-      return {};
-    }
-  }
-  return {};
 }
 
 function collectAssetReferences(value, result = new Set()) {
@@ -94,9 +88,10 @@ async function listStorageObjects(client, bucket, prefix = "", pageSize = storag
       if (!entry.id && !entry.metadata) {
         objects.push(...(await listStorageObjects(client, bucket, path, pageSize)));
       } else {
+        const objectBytes = requireStorageObjectBytes(entry.metadata, `${bucket}/${path}`);
         objects.push({
           path,
-          bytes: Number(entry.metadata?.size ?? entry.metadata?.size_bytes ?? 0) || 0,
+          bytes: objectBytes,
           contentType: entry.metadata?.mimetype ?? entry.metadata?.contentType ?? null,
           category: categoryForPath(path)
         });
@@ -113,7 +108,7 @@ async function readAllDishes(client) {
     fetchPage: async (offset, limit) => {
       const result = await client
         .from("menu_dishes")
-        .select("id,restaurant_id,metadata")
+        .select("id,restaurant_id,image_url,metadata")
         .order("id", { ascending: true })
         .range(offset, offset + limit - 1);
       return { data: result.data, error: result.error };
@@ -200,7 +195,8 @@ async function capacityState(client, projectRef) {
 }
 
 async function auditPhotoRow({ row, bucket, objectByPath, budget }) {
-  const metadata = parseMetadata(row.metadata);
+  const parsedMetadata = parseMediaMetadata(row.metadata);
+  const metadata = parsedMetadata.metadata;
   const objectResults = {};
   const sourcePath = typeof metadata.photoStoragePath === "string" ? metadata.photoStoragePath : "";
   const sourceSha256 = typeof metadata.photoSha256 === "string" ? metadata.photoSha256.toLowerCase() : "";
@@ -235,18 +231,15 @@ async function auditPhotoRow({ row, bucket, objectByPath, budget }) {
     let body;
     if (verifyHash && object) body = await downloadBounded(bucket, derivativePath, object.bytes, budget);
     if (derivative?.schemaVersion === 1 || derivative?.recipeId === "dish-photo-v1") {
-      const reasons = [];
-      if (!object) reasons.push("missing-object");
-      else {
-        if (object.bytes !== Number(derivative.bytes)) reasons.push("wrong-size");
-        if (object.contentType !== "image/webp") reasons.push("wrong-content-type");
-        if (verifyHash) {
-          const expectedSha = String(derivative.outputSha256 ?? derivative.sha256 ?? "").toLowerCase();
-          const actualSha = createHash("sha256").update(body).digest("hex");
-          if (!expectedSha || actualSha !== expectedSha) reasons.push("wrong-hash");
-        }
-      }
-      objectResults[variant] = { reasons };
+      const verified = await verifyLegacyDerivativeObject({
+        restaurantId: String(row.restaurant_id ?? ""),
+        sourceSha256,
+        variant,
+        metadata: derivative,
+        object: object ? { bytes: object.bytes, contentType: object.contentType ?? "", body } : null,
+        verifyHash
+      });
+      objectResults[variant] = { reasons: verified.reasons };
     } else {
       const verified = await verifyDerivativeObject({
         restaurantId: String(row.restaurant_id ?? ""),
@@ -262,7 +255,12 @@ async function auditPhotoRow({ row, bucket, objectByPath, budget }) {
   return {
     dishId: row.id,
     restaurantId: row.restaurant_id,
-    ...classifyDishPhotoUsage({ metadata, objectResults })
+    ...classifyDishPhotoUsage({
+      metadata,
+      metadataValid: parsedMetadata.valid,
+      imageUrl: row.image_url,
+      objectResults
+    })
   };
 }
 
@@ -286,6 +284,7 @@ async function projectionStatus(client, table, columns) {
 }
 
 async function main() {
+  if (cliParseError) return fail(cliParseError instanceof Error ? cliParseError.message : String(cliParseError));
   if (process.env.CI === "true" || process.env.CI === "1") {
     return fail("Refusing Supabase usage audit in CI; production requests must remain zero.");
   }
@@ -338,7 +337,7 @@ async function main() {
     return fail(`paginated database read failed: ${error instanceof Error ? error.message : error}`);
   }
   const restaurantIds = restaurantRows.map((row) => row.id).filter(Boolean);
-  const photoRows = dishes.map((row) => parseMetadata(row.metadata));
+  const photoRows = dishes.map((row) => parseMediaMetadata(row.metadata).metadata);
   const sourcePaths = new Set(photoRows.map((metadata) => metadata.photoStoragePath).filter(Boolean));
   const derivativeCount = photoRows.reduce((count, metadata) => {
     const derivatives = metadata.photoDerivatives;
