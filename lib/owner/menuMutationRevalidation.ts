@@ -1,6 +1,5 @@
 import "server-only";
 
-import { channel } from "node:diagnostics_channel";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
   revalidatePublicMenuCache,
@@ -27,44 +26,53 @@ export type MenuMutationRevalidationResult = {
 
 export type MenuMutationRetrySignal = {
   kind: "menu-revalidation-retry-required";
-  schemaVersion: 1;
-  source: "owner-menu-mutation" | "admin-availability";
   restaurantId: string;
   dishId?: string;
-  failures: readonly (
-    | MenuMutationRevalidationFailure
-    | "post-commit-revalidation"
-  )[];
 };
-
-export const MENU_MUTATION_RETRY_CHANNEL_NAME =
-  "vistaire.menu-mutation-revalidation.retry.v1";
-const menuMutationRetryChannel = channel(MENU_MUTATION_RETRY_CHANNEL_NAME);
 
 type MenuMutationRetrySink = (
   signal: MenuMutationRetrySignal
 ) => void | Promise<void>;
+
+function allowlistedRetrySignal(input: unknown): MenuMutationRetrySignal | null {
+  if (!input || typeof input !== "object" || Array.isArray(input)) return null;
+  const record = input as Record<string, unknown>;
+  if (record.kind !== "menu-revalidation-retry-required") return null;
+  const restaurantId =
+    typeof record.restaurantId === "string" ? record.restaurantId.trim() : "";
+  if (!restaurantId) return null;
+  const payload: MenuMutationRetrySignal = {
+    kind: "menu-revalidation-retry-required",
+    restaurantId
+  };
+  const dishId =
+    typeof record.dishId === "string" ? record.dishId.trim() : "";
+  if (dishId) payload.dishId = dishId;
+  return Object.freeze(payload);
+}
+
+const structuredRetryLogSink: MenuMutationRetrySink = (signal) => {
+  const payload: MenuMutationRetrySignal = {
+    kind: signal.kind,
+    restaurantId: signal.restaurantId
+  };
+  if (signal.dishId) payload.dishId = signal.dishId;
+  console.error(JSON.stringify(payload));
+};
 
 /**
  * Publishes a non-secret, machine-readable post-commit retry event. A broken
  * observability subscriber must never change the result of the committed
  * mutation, so every sink exception is contained here.
  */
-export function emitMenuMutationRetrySignal(
-  signal: MenuMutationRetrySignal,
+export async function emitMenuMutationRetrySignal(
+  signal: unknown,
   sink?: MenuMutationRetrySink
-): boolean {
-  const safeSignal = Object.freeze({
-    ...signal,
-    failures: Object.freeze([...signal.failures])
-  });
+): Promise<boolean> {
+  const safeSignal = allowlistedRetrySignal(signal);
+  if (!safeSignal) return false;
   try {
-    const pending = (
-      sink ?? ((event) => menuMutationRetryChannel.publish(event))
-    )(safeSignal);
-    if (pending) {
-      void Promise.resolve(pending).catch(() => {});
-    }
+    await (sink ?? structuredRetryLogSink)(safeSignal);
     return true;
   } catch {
     return false;
@@ -115,19 +123,16 @@ export async function revalidateOwnerMenuMutationPaths(
 ): Promise<MenuMutationRevalidationResult> {
   const failures: MenuMutationRevalidationFailure[] = [];
   const invalidatedPaths: string[] = [];
-  const finish = (
+  const finish = async (
     result: MenuMutationRevalidationResult
-  ): MenuMutationRevalidationResult => {
+  ): Promise<MenuMutationRevalidationResult> => {
     if (result.retryRequired) {
       const signal: MenuMutationRetrySignal = {
         kind: "menu-revalidation-retry-required",
-        schemaVersion: 1,
-        source: "owner-menu-mutation",
         restaurantId: args.restaurantId,
-        ...(args.dishId ? { dishId: args.dishId } : {}),
-        failures: [...result.failures]
+        ...(args.dishId ? { dishId: args.dishId } : {})
       };
-      emitMenuMutationRetrySignal(signal, dependencies.signalRetry);
+      await emitMenuMutationRetrySignal(signal, dependencies.signalRetry);
     }
     return result;
   };

@@ -66,11 +66,8 @@ async function updateDishAvailability({
     {
       retrySignal: {
         kind: "menu-revalidation-retry-required",
-        schemaVersion: 1,
-        source: "admin-availability",
         restaurantId,
-        dishId,
-        failures: ["post-commit-revalidation"]
+        dishId
       }
     }
   );

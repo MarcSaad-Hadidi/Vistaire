@@ -37,8 +37,20 @@ const [photoRoute, adminPhotoRoute, glbRoute, usdzRoute, redirectHelper, mutatio
   loadMenuMutationRevalidation()
 ]);
 
-function signedUrl(bucket, storagePath) {
-  return `${SUPABASE_ORIGIN}/storage/v1/object/sign/${bucket}/${storagePath}?token=signed-token`;
+const DEFAULT_SIGNED_TOKEN_EXP_SECONDS = Math.floor(Date.now() / 1_000) + 270;
+
+function jwtToken(expSeconds, claims = {}) {
+  const encode = (value) => Buffer.from(JSON.stringify(value)).toString("base64url");
+  return `${encode({ alg: "HS256", typ: "JWT" })}.${encode({ exp: expSeconds, ...claims })}.test-signature`;
+}
+
+function signedUrl(
+  bucket,
+  storagePath,
+  { expSeconds = DEFAULT_SIGNED_TOKEN_EXP_SECONDS, claims } = {}
+) {
+  const token = jwtToken(expSeconds, claims);
+  return `${SUPABASE_ORIGIN}/storage/v1/object/sign/${bucket}/${storagePath}?token=${token}`;
 }
 
 function assetMetadata(kind, overrides = {}) {
@@ -77,7 +89,11 @@ function createAdminFixture({
   signedUrlOverride,
   signError = null,
   signErrorForPath,
-  onSign
+  onSign,
+  onLookup,
+  tokenNow,
+  tokenExpiresAt,
+  tokenId
 } = {}) {
   const calls = {
     table: [],
@@ -111,9 +127,17 @@ function createAdminFixture({
         data: effectiveError
           ? null
           : {
-              signedUrl:
-                signedUrlOverride === undefined
-                  ? signedUrl(bucket, storagePath)
+              signedUrl: signedUrlOverride === undefined
+                ? signedUrl(bucket, storagePath, {
+                    expSeconds: tokenExpiresAt
+                      ? Math.floor(tokenExpiresAt({ storagePath, expiresIn }) / 1_000)
+                      : tokenNow
+                        ? Math.floor(tokenNow() / 1_000) + expiresIn
+                        : DEFAULT_SIGNED_TOKEN_EXP_SECONDS,
+                    ...(tokenId ? { claims: { jti: tokenId } } : {})
+                  })
+                : typeof signedUrlOverride === "function"
+                  ? signedUrlOverride({ bucket, storagePath, expiresIn })
                   : signedUrlOverride
             },
         error: effectiveError
@@ -139,6 +163,7 @@ function createAdminFixture({
       return this;
     },
     async maybeSingle() {
+      onLookup?.();
       return {
         data: queryError
           ? null
@@ -711,7 +736,8 @@ test("public redirect cache refreshes on controlled TTL boundaries without outli
   try {
     const first = createAdminFixture({
       metadata: assetMetadata("photo"),
-      signedUrlOverride: `${signedUrl("vistaire-media", PHOTO_PATH)}-first`
+      tokenNow: () => nowMs,
+      tokenId: "first"
     });
     const firstResponse = await invoke(first);
     assert.equal(firstResponse.status, 307);
@@ -724,7 +750,8 @@ test("public redirect cache refreshes on controlled TTL boundaries without outli
     nowMs += 29_999;
     const beforeMetadataExpiry = createAdminFixture({
       metadata: assetMetadata("photo"),
-      signedUrlOverride: `${signedUrl("vistaire-media", PHOTO_PATH)}-unexpected`
+      tokenNow: () => nowMs,
+      tokenId: "unexpected"
     });
     const beforeMetadataExpiryResponse = await invoke(beforeMetadataExpiry);
     assert.equal(beforeMetadataExpiryResponse.headers.get("location"), firstResponse.headers.get("location"));
@@ -734,7 +761,8 @@ test("public redirect cache refreshes on controlled TTL boundaries without outli
     nowMs += 1;
     const atMetadataExpiry = createAdminFixture({
       metadata: assetMetadata("photo"),
-      signedUrlOverride: `${signedUrl("vistaire-media", PHOTO_PATH)}-unexpected`
+      tokenNow: () => nowMs,
+      tokenId: "unexpected"
     });
     const atMetadataExpiryResponse = await invoke(atMetadataExpiry);
     assert.equal(atMetadataExpiryResponse.headers.get("location"), firstResponse.headers.get("location"));
@@ -742,7 +770,10 @@ test("public redirect cache refreshes on controlled TTL boundaries without outli
     assert.deepEqual(atMetadataExpiry.calls.signed, []);
 
     nowMs += 89_999;
-    const beforeReuseExpiry = createAdminFixture({ metadata: assetMetadata("photo") });
+    const beforeReuseExpiry = createAdminFixture({
+      metadata: assetMetadata("photo"),
+      tokenNow: () => nowMs
+    });
     const beforeReuseExpiryResponse = await invoke(beforeReuseExpiry);
     assert.equal(beforeReuseExpiryResponse.headers.get("location"), firstResponse.headers.get("location"));
     assert.equal(beforeReuseExpiryResponse.headers.get("x-vistaire-signed-url-remaining"), "150");
@@ -752,7 +783,8 @@ test("public redirect cache refreshes on controlled TTL boundaries without outli
     nowMs += 1;
     const atReuseExpiry = createAdminFixture({
       metadata: assetMetadata("photo"),
-      signedUrlOverride: `${signedUrl("vistaire-media", PHOTO_PATH)}-second`
+      tokenNow: () => nowMs,
+      tokenId: "second"
     });
     const atReuseExpiryResponse = await invoke(atReuseExpiry);
     assert.notEqual(atReuseExpiryResponse.headers.get("location"), firstResponse.headers.get("location"));
@@ -803,11 +835,15 @@ test("a stale instance cannot mint public access beyond the truthful 300 second 
   });
 
   try {
-    const beforeMutation = createAdminFixture({ metadata });
+    const beforeMutation = createAdminFixture({ metadata, tokenNow: () => nowMs });
     assert.equal((await redirect(beforeMutation)).status, 307);
 
     nowMs += 29_999;
-    const staleInstance = createAdminFixture({ metadata, isAvailable: false });
+    const staleInstance = createAdminFixture({
+      metadata,
+      isAvailable: false,
+      tokenNow: () => nowMs
+    });
     const staleResponse = await redirect(staleInstance, "card");
     assert.equal(staleResponse.status, 307);
     assert.deepEqual(staleInstance.calls.table, [], "the remote instance still has pre-mutation metadata");
@@ -816,10 +852,14 @@ test("a stale instance cannot mint public access beyond the truthful 300 second 
       expiresIn: 270
     }]);
     assert.equal(staleResponse.headers.get("x-vistaire-asset-revocation-sla"), "300");
-    assert.equal(staleResponse.headers.get("x-vistaire-signed-url-remaining"), "270");
+    assert.equal(staleResponse.headers.get("x-vistaire-signed-url-remaining"), "269");
 
     nowMs += 1;
-    const afterMetadataBoundary = createAdminFixture({ metadata, isAvailable: false });
+    const afterMetadataBoundary = createAdminFixture({
+      metadata,
+      isAvailable: false,
+      tokenNow: () => nowMs
+    });
     const unavailableResponse = await redirect(afterMetadataBoundary, "thumbnail");
     await assertJsonError(unavailableResponse, 404, "Photo introuvable.");
     assert.deepEqual(afterMetadataBoundary.calls.table, ["menu_dishes"]);
@@ -829,7 +869,7 @@ test("a stale instance cannot mint public access beyond the truthful 300 second 
   }
 });
 
-test("CDN TTL follows remaining public token lifetime at the safety-margin boundary", async () => {
+test("a provider token below the CDN plus safety boundary is refused", async () => {
   redirectHelper.resetPublicDishAssetCachesForTests();
   const startedAt = Date.parse("2026-08-15T12:00:00.000Z");
   let nowMs = startedAt;
@@ -842,6 +882,7 @@ test("CDN TTL follows remaining public token lifetime at the safety-margin bound
   try {
     const fixture = createAdminFixture({
       metadata: assetMetadata("photo"),
+      tokenExpiresAt: () => startedAt + 270_000,
       onSign: () => { nowMs = startedAt + 121_000; }
     });
     const response = await redirectHelper.redirectPublicDishAsset({
@@ -855,14 +896,157 @@ test("CDN TTL follows remaining public token lifetime at the safety-margin bound
       runtime
     });
 
-    assert.equal(response.status, 307);
-    assert.equal(response.headers.get("x-vistaire-signed-url-remaining"), "149");
-    assert.equal(response.headers.get("cdn-cache-control"), "public, s-maxage=119, must-revalidate");
-    assert.equal(response.headers.get("surrogate-control"), "public, max-age=119");
-    assert.equal(response.headers.get("x-vistaire-asset-revocation-sla"), "300");
+    await assertJsonError(response, 503, "Photo indisponible.");
+    assert.equal(fixture.calls.signed.length, 1);
   } finally {
     redirectHelper.resetPublicDishAssetCachesForTests();
   }
+});
+
+test("metadata lookup started before mutation keeps that origin when it resolves after commit", async () => {
+  redirectHelper.resetPublicDishAssetCachesForTests();
+  const startedAt = Date.parse("2026-08-15T12:00:00.000Z");
+  let nowMs = startedAt;
+  let mutationCommittedAt = 0;
+  const fixture = createAdminFixture({
+    metadata: assetMetadata("photo"),
+    onLookup: () => {
+      mutationCommittedAt = startedAt + 1_000;
+      nowMs = startedAt + 40_000;
+    },
+    tokenNow: () => nowMs
+  });
+  try {
+    const response = await redirectHelper.redirectPublicDishAsset({
+      admin: fixture.admin,
+      dishId: DISH_ID,
+      kind: "photo",
+      requestedAssetVersion: PHOTO_SHA256,
+      supabaseUrl: SUPABASE_ORIGIN,
+      notFoundMessage: "Photo introuvable.",
+      unavailableMessage: "Photo indisponible.",
+      runtime: {
+        now: () => nowMs,
+        performanceNow: () => nowMs,
+        cachePublicAssets: true
+      }
+    });
+    assert.equal(mutationCommittedAt, startedAt + 1_000);
+    assert.equal(response.status, 307);
+    assert.deepEqual(fixture.calls.signed, [{ storagePath: PHOTO_PATH, expiresIn: 260 }]);
+    assert.equal(response.headers.get("x-vistaire-signed-url-remaining"), "260");
+  } finally {
+    redirectHelper.resetPublicDishAssetCachesForTests();
+  }
+});
+
+test("warm metadata keeps lookup-start origin and expires 30 seconds from that start", async () => {
+  redirectHelper.resetPublicDishAssetCachesForTests();
+  const startedAt = Date.parse("2026-08-15T12:00:00.000Z");
+  let nowMs = startedAt;
+  const runtime = {
+    now: () => nowMs,
+    performanceNow: () => nowMs,
+    cachePublicAssets: true
+  };
+  const invoke = (fixture) => redirectHelper.redirectPublicDishAsset({
+    admin: fixture.admin,
+    dishId: DISH_ID,
+    kind: "photo",
+    requestedAssetVersion: PHOTO_SHA256,
+    supabaseUrl: SUPABASE_ORIGIN,
+    notFoundMessage: "Photo introuvable.",
+    unavailableMessage: "Photo indisponible.",
+    runtime
+  });
+  try {
+    const delayed = createAdminFixture({
+      metadata: assetMetadata("photo"),
+      onLookup: () => { nowMs = startedAt + 10_000; },
+      tokenNow: () => nowMs
+    });
+    assert.equal((await invoke(delayed)).status, 307);
+
+    nowMs = startedAt + 29_999;
+    const warm = createAdminFixture({ metadata: assetMetadata("photo"), tokenNow: () => nowMs });
+    assert.equal((await invoke(warm)).status, 307);
+    assert.deepEqual(warm.calls.table, []);
+
+    nowMs = startedAt + 30_000;
+    const expired = createAdminFixture({ metadata: assetMetadata("photo"), tokenNow: () => nowMs });
+    assert.equal((await invoke(expired)).status, 307);
+    assert.deepEqual(expired.calls.table, ["menu_dishes"]);
+  } finally {
+    redirectHelper.resetPublicDishAssetCachesForTests();
+  }
+});
+
+test("a provider signature delayed beyond the snapshot deadline is refused", async () => {
+  redirectHelper.resetPublicDishAssetCachesForTests();
+  const startedAt = Date.parse("2026-08-15T12:00:00.000Z");
+  let nowMs = startedAt;
+  const fixture = createAdminFixture({
+    metadata: assetMetadata("photo"),
+    tokenNow: () => nowMs,
+    onSign: () => { nowMs = startedAt + 40_000; }
+  });
+  try {
+    const response = await redirectHelper.redirectPublicDishAsset({
+      admin: fixture.admin,
+      dishId: DISH_ID,
+      kind: "photo",
+      requestedAssetVersion: PHOTO_SHA256,
+      supabaseUrl: SUPABASE_ORIGIN,
+      notFoundMessage: "Photo introuvable.",
+      unavailableMessage: "Photo indisponible.",
+      runtime: {
+        now: () => nowMs,
+        performanceNow: () => nowMs,
+        cachePublicAssets: true
+      }
+    });
+    await assertJsonError(response, 503, "Photo indisponible.");
+    assert.equal(fixture.calls.signed[0].expiresIn, 270);
+  } finally {
+    redirectHelper.resetPublicDishAssetCachesForTests();
+  }
+});
+
+test("JWT exp is authoritative at exact CDN plus safety boundaries", async () => {
+  const cases = [
+    { label: "exact 150 seconds accepted", remaining: 150, status: 307 },
+    { label: "149 seconds refused", remaining: 149, status: 503 },
+    { label: "one second beyond snapshot deadline refused", remaining: 301, status: 503 }
+  ];
+  for (const entry of cases) {
+    redirectHelper.resetPublicDishAssetCachesForTests();
+    const startedAt = Date.parse("2026-08-15T12:00:00.000Z");
+    let nowMs = startedAt;
+    const fixture = createAdminFixture({
+      metadata: assetMetadata("photo"),
+      tokenExpiresAt: () => startedAt + entry.remaining * 1_000
+    });
+    const response = await redirectHelper.redirectPublicDishAsset({
+      admin: fixture.admin,
+      dishId: DISH_ID,
+      kind: "photo",
+      requestedAssetVersion: PHOTO_SHA256,
+      supabaseUrl: SUPABASE_ORIGIN,
+      notFoundMessage: "Photo introuvable.",
+      unavailableMessage: "Photo indisponible.",
+      runtime: {
+        now: () => nowMs,
+        performanceNow: () => nowMs,
+        cachePublicAssets: true
+      }
+    });
+    assert.equal(response.status, entry.status, entry.label);
+    if (entry.status === 307) {
+      assert.equal(response.headers.get("cdn-cache-control"), "public, s-maxage=120, must-revalidate");
+      assert.equal(response.headers.get("x-vistaire-signed-url-remaining"), "150");
+    }
+  }
+  redirectHelper.resetPublicDishAssetCachesForTests();
 });
 
 test("committed availability invalidation evicts asset metadata so the next redirect observes unavailable", async () => {
@@ -884,7 +1068,10 @@ test("committed availability invalidation evicts asset metadata so the next redi
   });
 
   try {
-    const available = createAdminFixture({ metadata: assetMetadata("photo") });
+    const available = createAdminFixture({
+      metadata: assetMetadata("photo"),
+      tokenNow: runtime.now
+    });
     assert.equal((await redirect(available)).status, 307);
 
     const restaurantQuery = {
@@ -1268,9 +1455,10 @@ test("signed URL validation rejects remote HTTP while permitting local Supabase 
   assert.equal(remoteResponse.headers.get("location"), null);
 
   const localOrigin = "http://127.0.0.1:54321";
+  const localSignedUrl = `${localOrigin}/storage/v1/object/sign/vistaire-3d/${WEB_GLB_PATH}?token=${jwtToken(DEFAULT_SIGNED_TOKEN_EXP_SECONDS)}`;
   const localFixture = createAdminFixture({
     metadata: assetMetadata("web"),
-    signedUrlOverride: `${localOrigin}/storage/v1/object/sign/vistaire-3d/${WEB_GLB_PATH}?token=signed-token`
+    signedUrlOverride: localSignedUrl
   });
   const localResponse = await redirectHelper.redirectPublicDishAsset({
     admin: localFixture.admin,
@@ -1283,7 +1471,7 @@ test("signed URL validation rejects remote HTTP while permitting local Supabase 
   assert.equal(localResponse.status, 307);
   assert.equal(
     localResponse.headers.get("location"),
-    `${localOrigin}/storage/v1/object/sign/vistaire-3d/${WEB_GLB_PATH}?token=signed-token`
+    localSignedUrl
   );
 });
 

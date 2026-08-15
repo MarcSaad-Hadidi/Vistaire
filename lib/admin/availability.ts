@@ -50,9 +50,11 @@ export async function preserveAvailabilityResultAfterRevalidation<
     | { ok: boolean },
   retryOptions?: AvailabilityRetryOptions
 ): Promise<T & { revalidation: "complete" | "retry-required" }> {
-  const requireRetry = (): T & { revalidation: "retry-required" } => {
+  const requireRetry = async (): Promise<
+    T & { revalidation: "retry-required" }
+  > => {
     if (retryOptions) {
-      emitMenuMutationRetrySignal(
+      await emitMenuMutationRetrySignal(
         retryOptions.retrySignal,
         retryOptions.signalRetry
       );

@@ -64,6 +64,9 @@ export const PUBLIC_ASSET_REVOCATION_SLA_SECONDS =
 const SIGNED_URL_CACHE_TTL_MS =
   PUBLIC_ASSET_SIGNED_URL_REUSE_SECONDS * 1_000;
 const SIGNED_URL_CACHE_MAX_ENTRIES = 512;
+const MIN_PUBLIC_SIGNED_URL_REMAINING_SECONDS =
+  PUBLIC_ASSET_CDN_REDIRECT_MAX_AGE_SECONDS +
+  PUBLIC_ASSET_TOKEN_SAFETY_MARGIN_SECONDS;
 
 type SignedUrlCacheEntry = {
   signedUrl: string;
@@ -79,6 +82,7 @@ const signedUrlInFlight = new Map<
 
 type PublicDishMetadataCacheEntry = {
   dish: Record<string, unknown>;
+  snapshotStartedAt: number;
   expiresAt: number;
 };
 
@@ -93,6 +97,7 @@ type PublicDishMetadataLookup = {
   data: Record<string, unknown> | null;
   error: unknown;
   transportFailure: boolean;
+  snapshotStartedAt: number;
 };
 const publicDishMetadataInFlight = new Map<
   string,
@@ -129,13 +134,27 @@ function signedUrlCacheKey(args: {
   return `${args.bucket}\u0000${args.storagePath}\u0000${args.version}`;
 }
 
+function signedUrlEntryFitsSnapshot(
+  entry: SignedUrlCacheEntry,
+  now: number,
+  accessDeadlineAt: number
+): boolean {
+  return (
+    entry.reuseExpiresAt > now &&
+    entry.tokenExpiresAt <= accessDeadlineAt &&
+    entry.tokenExpiresAt - now >=
+      MIN_PUBLIC_SIGNED_URL_REMAINING_SECONDS * 1_000
+  );
+}
+
 function readCachedSignedUrl(
   key: string,
-  now: number
+  now: number,
+  accessDeadlineAt: number
 ): SignedUrlCacheEntry | null {
   const entry = signedUrlCache.get(key);
   if (!entry) return null;
-  if (entry.reuseExpiresAt <= now) {
+  if (!signedUrlEntryFitsSnapshot(entry, now, accessDeadlineAt)) {
     signedUrlCache.delete(key);
     return null;
   }
@@ -169,7 +188,7 @@ function publicDishMetadataCacheKey(args: {
 function readCachedPublicDishMetadata(
   key: string,
   now: number
-): Record<string, unknown> | null {
+): PublicDishMetadataCacheEntry | null {
   const entry = publicDishMetadataCache.get(key);
   if (!entry) return null;
   if (entry.expiresAt <= now) {
@@ -178,18 +197,19 @@ function readCachedPublicDishMetadata(
   }
   publicDishMetadataCache.delete(key);
   publicDishMetadataCache.set(key, entry);
-  return entry.dish;
+  return entry;
 }
 
 function writeCachedPublicDishMetadata(
   key: string,
   dish: Record<string, unknown>,
-  now: number
+  snapshotStartedAt: number
 ): void {
   publicDishMetadataCache.delete(key);
   publicDishMetadataCache.set(key, {
     dish,
-    expiresAt: now + PUBLIC_DISH_METADATA_CACHE_TTL_MS
+    snapshotStartedAt,
+    expiresAt: snapshotStartedAt + PUBLIC_DISH_METADATA_CACHE_TTL_MS
   });
   while (publicDishMetadataCache.size > PUBLIC_DISH_METADATA_CACHE_MAX_ENTRIES) {
     const oldest = publicDishMetadataCache.keys().next().value;
@@ -543,6 +563,37 @@ export function isExpectedSignedStorageUrl(args: {
   }
 }
 
+function signedStorageJwtExpiresAt(signedUrl: string): number | null {
+  try {
+    const token = new URL(signedUrl).searchParams.get("token") ?? "";
+    const segments = token.split(".");
+    if (segments.length !== 3 || !segments[1]) return null;
+    const normalizedPayload = segments[1]
+      .replace(/-/g, "+")
+      .replace(/_/g, "/")
+      .padEnd(Math.ceil(segments[1].length / 4) * 4, "=");
+    const payloadBytes = Uint8Array.from(
+      atob(normalizedPayload),
+      (character) => character.charCodeAt(0)
+    );
+    const payload = JSON.parse(new TextDecoder().decode(payloadBytes)) as unknown;
+    if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+      return null;
+    }
+    const exp = (payload as Record<string, unknown>).exp;
+    if (
+      !Number.isSafeInteger(exp) ||
+      Number(exp) <= 0 ||
+      Number(exp) > Number.MAX_SAFE_INTEGER / 1_000
+    ) {
+      return null;
+    }
+    return Number(exp) * 1_000;
+  } catch {
+    return null;
+  }
+}
+
 async function redirectDishAsset(args: {
   admin: DishAssetAdmin;
   dishId: string;
@@ -582,6 +633,7 @@ async function redirectDishAsset(args: {
 
   let dbDuration = 0;
   const lookupDish = async (): Promise<PublicDishMetadataLookup> => {
+    const snapshotStartedAt = runtime.now();
     const dbStartedAt = runtime.performanceNow();
     try {
       const dishQuery = adminClient
@@ -596,22 +648,33 @@ async function redirectDishAsset(args: {
       return {
         data: (result.data as Record<string, unknown> | null) ?? null,
         error: result.error,
-        transportFailure: false
+        transportFailure: false,
+        snapshotStartedAt
       };
     } catch (error) {
       dbDuration = boundedDuration(dbStartedAt, runtime);
-      return { data: null, error, transportFailure: true };
+      return {
+        data: null,
+        error,
+        transportFailure: true,
+        snapshotStartedAt
+      };
     }
   };
 
   let dishResult: PublicDishMetadataLookup;
   if (metadataCacheKey) {
-    const cachedDish = readCachedPublicDishMetadata(
+    const cachedSnapshot = readCachedPublicDishMetadata(
       metadataCacheKey,
       runtime.now()
     );
-    if (cachedDish) {
-      dishResult = { data: cachedDish, error: null, transportFailure: false };
+    if (cachedSnapshot) {
+      dishResult = {
+        data: cachedSnapshot.dish,
+        error: null,
+        transportFailure: false,
+        snapshotStartedAt: cachedSnapshot.snapshotStartedAt
+      };
     } else {
       const inFlight = publicDishMetadataInFlight.get(metadataCacheKey);
       if (inFlight) {
@@ -630,7 +693,7 @@ async function redirectDishAsset(args: {
             writeCachedPublicDishMetadata(
               metadataCacheKey,
               dishResult.data,
-              runtime.now()
+              dishResult.snapshotStartedAt
             );
           }
         } finally {
@@ -645,6 +708,8 @@ async function redirectDishAsset(args: {
   }
 
   const dish = dishResult.data as Record<string, unknown> | null;
+  const publicAccessDeadlineAt =
+    dishResult.snapshotStartedAt + PUBLIC_ASSET_REVOCATION_SLA_SECONDS * 1_000;
   if (dishResult.transportFailure) {
     return publicDishAssetJsonError(args.unavailableMessage, 503);
   }
@@ -775,7 +840,11 @@ async function redirectDishAsset(args: {
           })
         : null;
       if (cacheKey) {
-        const cached = readCachedSignedUrl(cacheKey, runtime.now());
+        const cached = readCachedSignedUrl(
+          cacheKey,
+          runtime.now(),
+          publicAccessDeadlineAt
+        );
         if (cached) {
           signedUrl = cached.signedUrl;
           signedUrlTokenExpiresAt = cached.tokenExpiresAt;
@@ -784,7 +853,14 @@ async function redirectDishAsset(args: {
         const inFlight = signedUrlInFlight.get(cacheKey);
         if (inFlight) {
           const reused = await inFlight;
-          if (reused) {
+          if (
+            reused &&
+            signedUrlEntryFitsSnapshot(
+              reused,
+              runtime.now(),
+              publicAccessDeadlineAt
+            )
+          ) {
             signedUrl = reused.signedUrl;
             signedUrlTokenExpiresAt = reused.tokenExpiresAt;
             return true;
@@ -799,12 +875,25 @@ async function redirectDishAsset(args: {
         const signedUrlTtlSeconds =
           args.assetVisibilityPolicy.kind === "authorized-admin"
             ? ADMIN_SIGNED_URL_TTL_SECONDS
-            : SIGNED_URL_TTL_SECONDS;
+            : Math.min(
+                SIGNED_URL_TTL_SECONDS,
+                Math.floor(
+                  (publicAccessDeadlineAt - signedAt) / 1_000
+                )
+              );
+        if (
+          args.assetVisibilityPolicy.kind === "public-available-only" &&
+          signedUrlTtlSeconds < MIN_PUBLIC_SIGNED_URL_REMAINING_SECONDS
+        ) {
+          return null;
+        }
         try {
           const signed =
             args.assetVisibilityPolicy.kind === "authorized-admin"
               ? await storage.createSignedUrl(storagePath, ADMIN_SIGNED_URL_TTL_SECONDS)
-              : await storage.createSignedUrl(storagePath, SIGNED_URL_TTL_SECONDS);
+              : signedUrlTtlSeconds === SIGNED_URL_TTL_SECONDS
+                ? await storage.createSignedUrl(storagePath, SIGNED_URL_TTL_SECONDS)
+                : await storage.createSignedUrl(storagePath, signedUrlTtlSeconds);
           storageSignDuration += boundedDuration(storageSignStartedAt, runtime);
           signError = signed.error;
           const candidate = signed.data?.signedUrl;
@@ -819,7 +908,22 @@ async function redirectDishAsset(args: {
             })
           ) {
             const tokenExpiresAt =
-              signedAt + signedUrlTtlSeconds * 1_000;
+              args.assetVisibilityPolicy.kind === "authorized-admin"
+                ? signedAt + signedUrlTtlSeconds * 1_000
+                : signedStorageJwtExpiresAt(candidate);
+            const tokenRemainingMs =
+              tokenExpiresAt === null
+                ? 0
+                : tokenExpiresAt - runtime.now();
+            if (
+              tokenExpiresAt === null ||
+              (args.assetVisibilityPolicy.kind === "public-available-only" &&
+                (tokenExpiresAt > publicAccessDeadlineAt ||
+                  tokenRemainingMs <
+                    MIN_PUBLIC_SIGNED_URL_REMAINING_SECONDS * 1_000))
+            ) {
+              return null;
+            }
             return {
               signedUrl: candidate,
               tokenExpiresAt,
