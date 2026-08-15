@@ -185,6 +185,7 @@ jobs:
           npm run test:qr:node
           npm run test:admin
           npm run test:maison-elyse-media
+          npm run test:supabase-efficiency-v2
       - name: Deterministic Node contracts
         run: |
           npm run test:landing:contract
@@ -249,6 +250,7 @@ jobs:
           npm run test:translation:backfill:postgres
           npm run test:maison-elyse-postgres
           npm run test:qr:postgres
+          npm run test:media-capacity:postgres
       - name: Job summary
         if: ${{ always() }}
         env:

@@ -4,6 +4,57 @@ Status: implementation is local-only and **not production-ready** until the
 read-only capacity gate below is green. This document is the contract for the
 media, delivery and public-menu cache changes on `perf/supabase-efficiency-v2`.
 
+## Integrated architecture and deployment order
+
+The v2 media path is one fail-closed system rather than three independent
+features. Owner uploads and an eventual backfill generate immutable V2
+derivatives; the project-wide PostgreSQL capacity ledger reserves bytes before
+the first Storage write and settles the actual bytes retained; public menu
+mapping selects the `thumbnail`, `card`, or `display` variant for the consumer;
+the public redirect validates the byte-exact canonical path and token deadline;
+and owner mutations invalidate both menu and asset metadata caches after the
+database commit. Signed URLs are never stored in the durable menu cache.
+
+The only supported rollout order is:
+
+1. **Migration:** deploy `20260815120000_media_capacity_reservations.sql` and
+   run the PostgreSQL 17 concurrency/RLS/ACL contract in an ephemeral database.
+   The migration creates a closed gate and does not seed or guess a quota.
+2. **Configuration:** a privileged operator records the authoritative
+   `project_ref`, `quota_bytes`, `used_bytes`, `usage_measured_at`, and
+   `quota_source` state. Configure the exact project identity and credentials,
+   but leave media writes disabled while measuring and reviewing headroom.
+3. **Code:** deploy the upload, delivery, cache, and card consumers. Enable
+   writes only after the migration and state are verified. Measure first,
+   approve one canary separately, and enable backfill apply only for that run.
+
+Do not reverse or combine these stages. Code deployed without the migration or
+authoritative state returns capacity unavailable and performs no media write.
+There is **no upload or backfill rollout without at least 20% measured
+post-operation headroom**. An unknown, stale, incomplete, inferred, or
+historical quota/usage measurement is a failed gate, never approval.
+
+### Required variables and closed defaults
+
+| Variable | Required value / default |
+| --- | --- |
+| `NEXT_PUBLIC_SUPABASE_URL` | Exact HTTPS Supabase target (localhost is allowed only for fixtures). Missing/invalid fails closed. |
+| `SUPABASE_SERVICE_ROLE_KEY` | Server-only credential for capacity RPC, audit, and operator tooling. Missing fails closed. |
+| `VISTAIRE_EXPECTED_SUPABASE_PROJECT_REF` | Must exactly match the target project ref. Missing/mismatch fails closed. |
+| `VISTAIRE_MEDIA_WRITES_ENABLED` | Only the exact string `true` enables upload/delete/apply writes; missing or any other value disables them. |
+| `VISTAIRE_MEDIA_BACKFILL_ALLOW_APPLY` | Only `1`, together with `--apply --confirm-production` and the global write switch, allows apply. Default is disabled. |
+| `VISTAIRE_MEDIA_BACKFILL_CHECKPOINT` | Optional local checkpoint path; default `.cache/media-backfill/dish-photo-derivatives.json`. Never commit it. |
+| `VISTAIRE_SUPABASE_AUDIT_TARGET` | Set to `production` only for an explicitly approved read-only audit with `--allow-production-read`; audit always refuses CI. |
+
+Backfill apply additionally requires a fresh `--measure-report` (maximum age
+15 minutes) matching project, target, Git commit, source set, recipe, schema,
+quota, usage, and recomputed headroom. The default concurrency is 2 (maximum
+4). Hash verification defaults to 10,000 objects, 256 MiB total downloaded
+bytes, and 10 seconds per download; hard maxima are 100,000 objects, 1 GiB,
+and 60 seconds. Capacity reservations have a five-minute heartbeat deadline;
+expiry never releases bytes implicitly, and unsettled reservations remain
+counted until explicit finalize/release.
+
 ## Evidence boundary
 
 The Supabase connector was used for this snapshot in read-only mode against
@@ -103,40 +154,47 @@ before introducing an asynchronous queue.
 
 ## Delivery and cache contract
 
-Public and Admin routes accept `thumbnail`, `card` and `display`. Cards/lists
-use the thumbnail URL; details use the display URL. No normal card path uses
-`display`, and no detail path uses the original when a validated derivative is
-available. Admin authorization runs on every request and its redirect is
-`private, no-store`; Admin signed URLs are 600 seconds.
+Public and Admin routes accept `thumbnail`, `card`, and `display`. Compact rows
+use `thumbnail`; large/editorial/grid cards use `card`; dish details continue
+to use `display`. A card URL is emitted only for immutable V2 metadata whose raw
+path exactly matches restaurant, active source SHA-256, recipe, variant, and
+output SHA-256. Legacy or malformed metadata falls back to the original. Admin
+authorization runs on every request; Admin tokens are 300 seconds and every
+Admin response is `private, no-store`.
 
-For a public, available, versioned asset, authorization/availability is checked
-against the dish row first. A production-only bounded metadata LRU/in-flight
-cache (60 seconds, versioned public keys only) avoids repeating that PostgREST
-read at the origin while preserving the explicit 45-minute public availability
-SLA. A second bounded in-process LRU and in-flight map then reuses a signed URL
-by bucket/path/version for 2,700 seconds (512 entries), below the 3,600-second
-Storage token lifetime. It is deliberately not user-specific and tokens are
-never put in client metadata or logs. These are per-warm-instance optimizations;
-cross-region/global deduplication would require a shared KV and is out of scope.
+The public contract is deliberately short and deadline-bound:
 
-The public redirect advertises `s-maxage=2700`, `Surrogate-Control: public,
-max-age=2700` and `X-Vistaire-Asset-Revocation-SLA: 2700`. Therefore changing
-`is_available` to false does **not** revoke an already cached redirect
-immediately: the explicit maximum stale-redirect window is 45 minutes. The
-signed token itself may remain cryptographically valid for up to one hour, but
-the application/CDN will not issue a new redirect after availability is false.
-Admin access is not covered by this public SLA.
+| Layer | TTL / bound |
+| --- | ---: |
+| Availability/metadata snapshot | 30 s from lookup start |
+| Public signed token | at most 270 s |
+| In-process signed URL reuse | at most 120 s |
+| CDN redirect | at most 120 s |
+| Token safety margin after CDN expiry | at least 30 s |
+| Composed stale-access SLA | at most 300 s from snapshot start |
+| Browser cache | `no-store` |
+
+The redirect decodes the returned JWT `exp` and rejects a token that exceeds
+the absolute snapshot deadline or has less than 150 seconds remaining. Its CDN
+TTL is recomputed as `min(120, remaining token seconds - 30)`; token reuse never
+extends expiry. `X-Vistaire-Asset-Revocation-SLA: 300` reports the composed
+bound. Invalid/legacy assets, unavailable dishes, errors, and Admin redirects
+receive no public cacheability. These caches are per warm instance; no signed
+URL/token enters durable menu data or logs.
 
 ## Public menu data cache
 
-`getPublicMenuBySlug` now has a 60-second inter-request `unstable_cache` keyed by
-`public-menu/v2/<slug>/<locale>`. Tags include `public-menu:<slug>`,
-`restaurant:<id>`, `menu-locale:<slug>:<locale>` and their explicit aliases.
-Owner/Admin mutations for dishes, categories, photos, model assets, settings and
-translations call the shared invalidation helper as well as path revalidation.
-Route-handler writes expire the tags with `revalidateTag(tag, { expire: 0 })`,
-so read-your-writes is immediate; the 60-second TTL is the no-mutation freshness
-SLA. No cookies, sessions, permissions or admin state enter the cache key.
+`getPublicMenuBySlug` has a 60-second inter-request v3 cache whose identity is
+the exact `(restaurantId, slug, locale)` tuple. A bounded 60-second identity
+lookup discovers the restaurant id before the full menu is cached; the full
+loader re-reads the restaurant row. Tags cover exact restaurant, slug, and
+locale identities. Owner/Admin mutations invalidate in-process asset metadata
+and the restaurant menu tag before the fallible slug lookup, then invalidate
+the remaining exact tags and paths independently. An in-flight pre-invalidation
+load cannot repopulate stale data. Failures produce an awaited, structured,
+non-secret retry signal while preserving the already committed mutation result.
+No cookies, sessions, permissions, Admin state, or signed material enter the
+cache key/value. Unavailable dishes are never reintroduced by menu construction.
 
 The cold loader still performs the existing five scoped PostgREST reads (four
 parallel branches); no RPC was added without a measured contract. A warm hit is
@@ -170,30 +228,35 @@ npm run supabase:usage:audit -- --allow-production-read --json
 
 The script refuses CI, hosted projects without `--allow-production-read`, and
 all writes. It reports bucket/category bytes, source/derivative coverage, 3D
-reference candidates, analytics windows and projection status. Plan/quota
-values still come from the provider organization lookup, not PostgREST.
+reference candidates, analytics windows and projection status. The rollout
+gate accepts quota and global usage only from the authoritative,
+project-scoped capacity state returned by `get_media_capacity_state`; observed
+bucket bytes, a plan label, or a published allowance are not quota authority.
 
 Definitions:
 
 ```text
 CURRENT_STORAGE_BYTES       = measured bytes in both production buckets
+ACTIVE_RESERVED_BYTES       = all active or settlement-pending reservations
 EXPECTED_DERIVATIVE_BYTES   = sum of real --measure-only variant bytes
-EXPECTED_STORAGE_AFTER       = CURRENT_STORAGE_BYTES + EXPECTED_DERIVATIVE_BYTES
-EXPECTED_HEADROOM_BYTES      = PLAN_STORAGE_LIMIT - EXPECTED_STORAGE_AFTER
-EXPECTED_HEADROOM_PERCENT    = EXPECTED_HEADROOM_BYTES / PLAN_STORAGE_LIMIT * 100
+EXPECTED_STORAGE_AFTER      = AUTHORITATIVE_USED_BYTES + ACTIVE_RESERVED_BYTES + EXPECTED_DERIVATIVE_BYTES
+EXPECTED_HEADROOM_BYTES     = AUTHORITATIVE_QUOTA_BYTES - EXPECTED_STORAGE_AFTER
+EXPECTED_HEADROOM_PERCENT   = EXPECTED_HEADROOM_BYTES / AUTHORITATIVE_QUOTA_BYTES * 100
 ```
 
 The backfill report counts complete V2 bytes **and retained V1 derivative bytes**
 (`legacyDerivativeBytes`); V1 objects are not deleted by this rollout. The live
 current storage is `999,707,284 B`. The historical dry-run estimate of
 `29,602,572 B` would produce `EXPECTED_STORAGE_AFTER=1,029,309,856 B`.
-Using the published decimal 1 GB Free allowance as a conservative capacity
-assumption gives only `292,716 B` (`0.029%`) current headroom and
+Using the published decimal 1 GB Free allowance only as a historical scenario
+gives `292,716 B` (`0.029%`) current headroom and
 `-29,309,856 B` (`-2.93%`) after that estimate. This is already a hard
-capacity failure even before a new measured derivative run. A real
+scenario failure, but it is not eligible to populate or bypass the capacity
+ledger. A real
 `--measure-only` run is still required for the final derivative byte value.
-The gate remains `FAIL / NOT READY` until measured headroom is at least 20%
-and the quota/plan decision is approved.
+The gate remains `FAIL / NOT READY` until an authoritative capacity state and
+fresh measure report prove at least 20% post-run headroom and the quota/plan
+decision is approved.
 
 Capacity options (no option is activated here):
 

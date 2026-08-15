@@ -16,6 +16,8 @@
     "test:unique-menu-design:postgres": "node scripts/run-unique-menu-design-postgres-tests.mjs",
     "test:translation:backfill:postgres": "node scripts/run-translation-backfill-postgres-tests.mjs",
     "test:maison-elyse-media": "node --test tests/owner-maison-elyse-media-backfill.test.mjs tests/owner-dish-photo-upload.test.mjs tests/owner-dish-photo-uploader.test.mjs tests/owner-dish-model-assets.test.mjs tests/owner-prepared-glb-workflow.test.mjs tests/owner-public-media-contract.test.mjs tests/public-menu-core.test.mjs tests/owner-usdz-source-not-stored.test.mjs tests/owner-usdz-runtime-optimizer.test.mjs tests/maison-elyse-ci-contract.test.mjs",
+    "test:supabase-efficiency-v2": "node --test tests/media-capacity-migration-contract.test.mjs tests/media-capacity.test.mjs tests/media-backfill-core.test.mjs tests/media-backfill-safety.test.mjs tests/media-audit-safety.test.mjs tests/media-cli-behavior.test.mjs tests/media-integrity.test.mjs tests/media-rollback.test.mjs tests/owner-dish-photo-upload.test.mjs tests/owner-photo-route-behavior.test.mjs tests/public-dish-asset-redirect.test.mjs tests/public-menu-cache-contract.test.mjs tests/public-menu-card-contract.test.mjs tests/public-menu-card-renderer.test.mjs tests/public-menu-core.test.mjs tests/public-menu-renderer-source.test.mjs tests/sauge-noire-renderer-contract.test.mjs tests/landing-dish-identity.test.mjs tests/admin-availability.test.mjs tests/admin-availability-rpc.test.mjs",
+    "test:media-capacity:postgres": "node scripts/run-media-capacity-postgres-tests.mjs",
     "assets:check": "node scripts/check-large-files.mjs",
     "lfs:check": "node scripts/check-lfs-policy.mjs",
     "media:backfill:dry-run": "node scripts/backfill-dish-photo-derivatives.mjs",
