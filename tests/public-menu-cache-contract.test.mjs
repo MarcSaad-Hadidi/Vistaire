@@ -31,6 +31,13 @@ test("public menu cache is inter-request and tag-invalidated", async () => {
   assert.match(mutation, /revalidatePublicMenuCache/);
 });
 
+test("hermetic E2E fixtures bypass persistent public menu cache", async () => {
+  const cache = await readFile("lib/menu/publicMenuCache.ts", "utf8");
+  assert.match(cache, /VISTAIRE_OWNER_E2E_AUTH_BYPASS/);
+  assert.match(cache, /isHermeticE2E/);
+  assert.match(cache, /NODE_ENV !== \"production\" \|\| isHermeticE2E/);
+});
+
 test("public projections are explicit and do not expose wildcard rows", () => {
   for (const [name, projection] of Object.entries(PUBLIC_MENU_PROJECTIONS)) {
     assert.equal(projection.includes("*"), false, `${name} must stay column-scoped`);

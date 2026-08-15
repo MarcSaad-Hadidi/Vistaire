@@ -56,6 +56,15 @@ export async function getCachedPublicMenu<T>(args: {
   locale: string;
   loader: () => Promise<T>;
 }): Promise<T> {
+  // Hermetic E2E servers deliberately swap Supabase for per-run fixtures.
+  // Never let Next's persistent incremental cache carry one fixture's menu
+  // into another browser group; production deployments keep the cache.
+  const isHermeticE2E =
+    process.env.CI === "true" &&
+    process.env.VISTAIRE_OWNER_E2E_AUTH_BYPASS === "1";
+  if (process.env.NODE_ENV !== "production" || isHermeticE2E) {
+    return args.loader();
+  }
   const { unstable_cache } = await import("next/cache");
   const slug = normalizeTagPart(args.slug);
   const locale = normalizeTagPart(args.locale);
