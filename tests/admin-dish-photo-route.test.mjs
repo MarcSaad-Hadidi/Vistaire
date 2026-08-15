@@ -177,7 +177,7 @@ test("authorized admin GET and HEAD redirect available and unavailable photos", 
         "private, no-store"
       );
       assert.deepEqual(fixture.calls.signed, [
-        { storagePath: PHOTO_PATH, expiresIn: 600 }
+        { storagePath: PHOTO_PATH, expiresIn: 300 }
       ]);
       assert.deepEqual(fixture.calls.storageFrom, ["vistaire-media"]);
       assert.ok(fixture.calls.eq.some(([column, value]) => column === "restaurant_id" && value === RESTAURANT_ID));
@@ -199,7 +199,7 @@ test("authorized admin keeps legacy photos working without a SHA version", async
   assert.equal(response.status, 307);
   assert.equal(response.headers.get("cache-control"), "private, no-store");
   assert.deepEqual(fixture.calls.signed, [
-    { storagePath: PHOTO_PATH, expiresIn: 600 }
+    { storagePath: PHOTO_PATH, expiresIn: 300 }
   ]);
 });
 

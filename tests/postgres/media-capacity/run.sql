@@ -198,6 +198,7 @@ select dblink_send_query(
 );
 
 create temporary table same_key_results(payload jsonb not null);
+grant select on same_key_results to service_role;
 insert into same_key_results(payload)
 select payload::jsonb from dblink_get_result('same_key_a') as result(payload text);
 insert into same_key_results(payload)
