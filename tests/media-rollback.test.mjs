@@ -50,4 +50,13 @@ test("rollback keeps every object counted when reference lookup or remove throws
   });
   assert.equal(thrown.retainedBytes, 10);
   assert.deepEqual(thrown.errors, ["timeout"]);
+
+  const partial = await rollbackCreatedMediaObjects({
+    bucket: { remove: async () => ({ data: [], error: null }) },
+    created,
+    referencedPaths: new Set()
+  });
+  assert.equal(partial.retainedBytes, 10);
+  assert.deepEqual(partial.removedPaths, []);
+  assert.deepEqual(partial.errors, ["Storage remove result incomplete"]);
 });

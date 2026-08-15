@@ -67,6 +67,14 @@ export async function rollbackCreatedMediaObjects(args: {
           errors: [errorMessage(removed.error)]
         };
       }
+      if (!Array.isArray(removed.data) || removed.data.length !== rollbackPaths.length) {
+        return {
+          removedPaths: [],
+          retainedPaths: allPaths,
+          retainedBytes: [...objects.values()].reduce((total, bytes) => total + bytes, 0),
+          errors: ["Storage remove result incomplete"]
+        };
+      }
     } catch (error) {
       return {
         removedPaths: [],
