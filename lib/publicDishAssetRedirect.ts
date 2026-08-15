@@ -39,38 +39,49 @@ type PublicDishAssetProfile = {
   extensions: readonly string[];
 };
 
-const SIGNED_URL_TTL_SECONDS = 3600;
-const ADMIN_SIGNED_URL_TTL_SECONDS = 600;
+const SIGNED_URL_TTL_SECONDS = 300;
+const ADMIN_SIGNED_URL_TTL_SECONDS = 300;
+
+export const PUBLIC_ASSET_SIGNED_URL_TTL_SECONDS = SIGNED_URL_TTL_SECONDS;
+export const PUBLIC_ASSET_SIGNED_URL_REUSE_SECONDS = 120;
+export const PUBLIC_ASSET_METADATA_CACHE_SECONDS = 30;
+export const PUBLIC_ASSET_CDN_REDIRECT_MAX_AGE_SECONDS = 120;
+export const PUBLIC_ASSET_TOKEN_SAFETY_MARGIN_SECONDS = 30;
 
 /**
  * Public redirects are versioned/content-addressed, so a signed URL can be
- * reused safely after the availability check has run. Keep the cache shorter
- * than the Storage token lifetime to leave a revocation margin. The CDN
- * redirect cache uses the same window (45 minutes); therefore `is_available`
- * changes have a documented maximum stale-redirect window of 2,700 seconds.
+ * reused briefly after the availability check has run. The public browser
+ * never stores the redirect. The CDN window is bounded by both the configured
+ * maximum and the signed token's remaining lifetime minus a safety margin.
  *
  * The cache is deliberately production-only. Local/test executions must keep
  * their deterministic Storage fixtures and must never retain signed tokens.
  */
-export const PUBLIC_ASSET_REVOCATION_SLA_SECONDS = 2_700;
+export const PUBLIC_ASSET_REVOCATION_SLA_SECONDS =
+  PUBLIC_ASSET_CDN_REDIRECT_MAX_AGE_SECONDS;
 const SIGNED_URL_CACHE_TTL_MS =
-  PUBLIC_ASSET_REVOCATION_SLA_SECONDS * 1_000;
+  PUBLIC_ASSET_SIGNED_URL_REUSE_SECONDS * 1_000;
 const SIGNED_URL_CACHE_MAX_ENTRIES = 512;
 
 type SignedUrlCacheEntry = {
   signedUrl: string;
-  expiresAt: number;
+  reuseExpiresAt: number;
+  tokenExpiresAt: number;
 };
 
 const signedUrlCache = new Map<string, SignedUrlCacheEntry>();
-const signedUrlInFlight = new Map<string, Promise<string | null>>();
+const signedUrlInFlight = new Map<
+  string,
+  Promise<SignedUrlCacheEntry | null>
+>();
 
 type PublicDishMetadataCacheEntry = {
   dish: Record<string, unknown>;
   expiresAt: number;
 };
 
-const PUBLIC_DISH_METADATA_CACHE_TTL_MS = 60_000;
+const PUBLIC_DISH_METADATA_CACHE_TTL_MS =
+  PUBLIC_ASSET_METADATA_CACHE_SECONDS * 1_000;
 const PUBLIC_DISH_METADATA_CACHE_MAX_ENTRIES = 512;
 const publicDishMetadataCache = new Map<
   string,
@@ -85,9 +96,27 @@ const publicDishMetadataInFlight = new Map<
   string,
   Promise<PublicDishMetadataLookup>
 >();
+let publicDishMetadataCacheGeneration = 0;
 
-function publicSignedUrlCacheEnabled(): boolean {
-  return process.env.NODE_ENV === "production";
+export type DishAssetRedirectRuntime = {
+  now: () => number;
+  performanceNow: () => number;
+  cachePublicAssets: boolean;
+};
+
+function dishAssetRedirectRuntime(
+  override?: Partial<DishAssetRedirectRuntime>
+): DishAssetRedirectRuntime {
+  return {
+    now: override?.now ?? Date.now,
+    performanceNow: override?.performanceNow ?? (() => performance.now()),
+    cachePublicAssets:
+      override?.cachePublicAssets ?? process.env.NODE_ENV === "production"
+  };
+}
+
+function publicSignedUrlCacheEnabled(runtime: DishAssetRedirectRuntime): boolean {
+  return runtime.cachePublicAssets;
 }
 
 function signedUrlCacheKey(args: {
@@ -98,25 +127,28 @@ function signedUrlCacheKey(args: {
   return `${args.bucket}\u0000${args.storagePath}\u0000${args.version}`;
 }
 
-function readCachedSignedUrl(key: string): string | null {
+function readCachedSignedUrl(
+  key: string,
+  now: number
+): SignedUrlCacheEntry | null {
   const entry = signedUrlCache.get(key);
   if (!entry) return null;
-  if (entry.expiresAt <= Date.now()) {
+  if (entry.reuseExpiresAt <= now) {
     signedUrlCache.delete(key);
     return null;
   }
   // Refresh insertion order so the bounded map behaves as a small LRU.
   signedUrlCache.delete(key);
   signedUrlCache.set(key, entry);
-  return entry.signedUrl;
+  return entry;
 }
 
-function writeCachedSignedUrl(key: string, signedUrl: string): void {
+function writeCachedSignedUrl(
+  key: string,
+  entry: SignedUrlCacheEntry
+): void {
   signedUrlCache.delete(key);
-  signedUrlCache.set(key, {
-    signedUrl,
-    expiresAt: Date.now() + SIGNED_URL_CACHE_TTL_MS
-  });
+  signedUrlCache.set(key, entry);
   while (signedUrlCache.size > SIGNED_URL_CACHE_MAX_ENTRIES) {
     const oldest = signedUrlCache.keys().next().value;
     if (typeof oldest !== "string") break;
@@ -133,11 +165,12 @@ function publicDishMetadataCacheKey(args: {
 }
 
 function readCachedPublicDishMetadata(
-  key: string
+  key: string,
+  now: number
 ): Record<string, unknown> | null {
   const entry = publicDishMetadataCache.get(key);
   if (!entry) return null;
-  if (entry.expiresAt <= Date.now()) {
+  if (entry.expiresAt <= now) {
     publicDishMetadataCache.delete(key);
     return null;
   }
@@ -148,12 +181,13 @@ function readCachedPublicDishMetadata(
 
 function writeCachedPublicDishMetadata(
   key: string,
-  dish: Record<string, unknown>
+  dish: Record<string, unknown>,
+  now: number
 ): void {
   publicDishMetadataCache.delete(key);
   publicDishMetadataCache.set(key, {
     dish,
-    expiresAt: Date.now() + PUBLIC_DISH_METADATA_CACHE_TTL_MS
+    expiresAt: now + PUBLIC_DISH_METADATA_CACHE_TTL_MS
   });
   while (publicDishMetadataCache.size > PUBLIC_DISH_METADATA_CACHE_MAX_ENTRIES) {
     const oldest = publicDishMetadataCache.keys().next().value;
@@ -164,10 +198,49 @@ function writeCachedPublicDishMetadata(
 
 /** Test/diagnostic hook; does not touch Supabase or production Storage. */
 export function resetPublicDishAssetCachesForTests(): void {
+  publicDishMetadataCacheGeneration += 1;
   signedUrlCache.clear();
   signedUrlInFlight.clear();
   publicDishMetadataCache.clear();
   publicDishMetadataInFlight.clear();
+}
+
+/**
+ * Invalidates availability-sensitive metadata after a committed mutation.
+ * In-flight reads are detached and generation-guarded so a stale completion
+ * cannot repopulate the cache after invalidation.
+ */
+export function invalidatePublicDishAssetMetadataCache(args: {
+  dishId?: string;
+  restaurantId?: string;
+}): number {
+  const dishId = args.dishId?.trim() ?? "";
+  const restaurantId = args.restaurantId?.trim() ?? "";
+  publicDishMetadataCacheGeneration += 1;
+  let invalidated = 0;
+
+  for (const [key, entry] of publicDishMetadataCache) {
+    const keyDishId = key.split("\u0000")[1] ?? "";
+    const entryRestaurantId =
+      typeof entry.dish.restaurant_id === "string"
+        ? entry.dish.restaurant_id.trim()
+        : "";
+    if (
+      (!dishId || keyDishId === dishId) &&
+      (!restaurantId || entryRestaurantId === restaurantId)
+    ) {
+      publicDishMetadataCache.delete(key);
+      invalidated += 1;
+    }
+  }
+
+  for (const key of publicDishMetadataInFlight.keys()) {
+    const keyDishId = key.split("\u0000")[1] ?? "";
+    if (!dishId || keyDishId === dishId) {
+      publicDishMetadataInFlight.delete(key);
+    }
+  }
+  return invalidated;
 }
 
 const ASSET_PROFILES: Record<PublicDishAssetKind, PublicDishAssetProfile> = {
@@ -250,8 +323,14 @@ export function publicDishAssetJsonError(
   );
 }
 
-function boundedDuration(startedAt: number): number {
-  return Math.min(Math.max(performance.now() - startedAt, 0), 9_999.9);
+function boundedDuration(
+  startedAt: number,
+  runtime: DishAssetRedirectRuntime
+): number {
+  return Math.min(
+    Math.max(runtime.performanceNow() - startedAt, 0),
+    9_999.9
+  );
 }
 
 function formatServerTiming(durations: {
@@ -347,6 +426,69 @@ export function isAllowedPublicDishAssetLocation(args: {
 
 export const isAllowedDishAssetLocation = isAllowedPublicDishAssetLocation;
 
+function isUsableDishPhotoDerivativeV2(args: {
+  derivativeRecord: unknown;
+  derivativeMetadata: Record<string, unknown>;
+  restaurantId: string;
+  sourceSha256: string;
+  outputSha256: string;
+  variant: PublicDishPhotoVariant;
+}): boolean {
+  if (
+    !isValidDishPhotoDerivativeMetadata(args.derivativeRecord, {
+      sourceSha256: args.sourceSha256,
+      variant: args.variant
+    }) ||
+    !/^[a-f0-9]{64}$/.test(args.sourceSha256) ||
+    !/^[a-f0-9]{64}$/.test(args.outputSha256) ||
+    metadataString(args.derivativeMetadata, "outputSha256").toLowerCase() !==
+      args.outputSha256
+  ) {
+    return false;
+  }
+
+  const expectedStoragePath = [
+    "restaurants",
+    args.restaurantId,
+    "photos",
+    "derivatives",
+    args.sourceSha256,
+    DISH_PHOTO_RECIPE.id,
+    `${args.variant}-${args.outputSha256}.webp`
+  ].join("/");
+  return (
+    metadataString(args.derivativeMetadata, "storagePath") ===
+    expectedStoragePath
+  );
+}
+
+function isUsableDishPhotoDerivativeV1Legacy(args: {
+  derivativeMetadata: Record<string, unknown>;
+  restaurantId: string;
+  sourceSha256: string;
+  variant: PublicDishPhotoVariant;
+}): boolean {
+  if (
+    Object.hasOwn(args.derivativeMetadata, "recipeId") ||
+    Object.hasOwn(args.derivativeMetadata, "schemaVersion") ||
+    Object.hasOwn(args.derivativeMetadata, "variant")
+  ) {
+    return false;
+  }
+  const expectedStoragePath = [
+    "restaurants",
+    args.restaurantId,
+    "photos",
+    "derivatives",
+    args.sourceSha256,
+    `${args.variant}.webp`
+  ].join("/");
+  return (
+    metadataString(args.derivativeMetadata, "storagePath") ===
+    expectedStoragePath
+  );
+}
+
 function configuredSupabaseOrigin(supabaseUrl: string | undefined): string | null {
   if (!supabaseUrl) return null;
   try {
@@ -402,7 +544,9 @@ async function redirectDishAsset(args: {
   unavailableMessage: string;
   assetVisibilityPolicy: DishAssetVisibilityPolicy;
   photoVariant?: PublicDishPhotoVariant;
+  runtime?: Partial<DishAssetRedirectRuntime>;
 }): Promise<Response> {
+  const runtime = dishAssetRedirectRuntime(args.runtime);
   if (!isCanonicalUuid(args.dishId)) {
     return publicDishAssetJsonError(args.notFoundMessage, 404);
   }
@@ -418,7 +562,7 @@ async function redirectDishAsset(args: {
   const canCachePublicDishMetadata =
     args.assetVisibilityPolicy.kind === "public-available-only" &&
     Boolean(requestedVersion) &&
-    publicSignedUrlCacheEnabled();
+    publicSignedUrlCacheEnabled(runtime);
   const metadataCacheKey = canCachePublicDishMetadata
     ? publicDishMetadataCacheKey({
         dishId: args.dishId,
@@ -429,7 +573,7 @@ async function redirectDishAsset(args: {
 
   let dbDuration = 0;
   const lookupDish = async (): Promise<PublicDishMetadataLookup> => {
-    const dbStartedAt = performance.now();
+    const dbStartedAt = runtime.performanceNow();
     try {
       const dishQuery = adminClient
         .from("menu_dishes")
@@ -439,21 +583,24 @@ async function redirectDishAsset(args: {
         dishQuery.eq("restaurant_id", args.assetVisibilityPolicy.restaurantId);
       }
       const result = await dishQuery.maybeSingle();
-      dbDuration = boundedDuration(dbStartedAt);
+      dbDuration = boundedDuration(dbStartedAt, runtime);
       return {
         data: (result.data as Record<string, unknown> | null) ?? null,
         error: result.error,
         transportFailure: false
       };
     } catch (error) {
-      dbDuration = boundedDuration(dbStartedAt);
+      dbDuration = boundedDuration(dbStartedAt, runtime);
       return { data: null, error, transportFailure: true };
     }
   };
 
   let dishResult: PublicDishMetadataLookup;
   if (metadataCacheKey) {
-    const cachedDish = readCachedPublicDishMetadata(metadataCacheKey);
+    const cachedDish = readCachedPublicDishMetadata(
+      metadataCacheKey,
+      runtime.now()
+    );
     if (cachedDish) {
       dishResult = { data: cachedDish, error: null, transportFailure: false };
     } else {
@@ -461,12 +608,21 @@ async function redirectDishAsset(args: {
       if (inFlight) {
         dishResult = await inFlight;
       } else {
+        const cacheGeneration = publicDishMetadataCacheGeneration;
         const lookupPromise = lookupDish();
         publicDishMetadataInFlight.set(metadataCacheKey, lookupPromise);
         try {
           dishResult = await lookupPromise;
-          if (!dishResult.error && dishResult.data) {
-            writeCachedPublicDishMetadata(metadataCacheKey, dishResult.data);
+          if (
+            !dishResult.error &&
+            dishResult.data &&
+            cacheGeneration === publicDishMetadataCacheGeneration
+          ) {
+            writeCachedPublicDishMetadata(
+              metadataCacheKey,
+              dishResult.data,
+              runtime.now()
+            );
           }
         } finally {
           if (publicDishMetadataInFlight.get(metadataCacheKey) === lookupPromise) {
@@ -547,14 +703,20 @@ async function redirectDishAsset(args: {
       derivativeContentType === "image/webp" &&
       Number.isInteger(derivativeBytes) &&
       derivativeBytes > 0 &&
-      (isValidDishPhotoDerivativeMetadata(derivativeRecord, {
-        sourceSha256: activeVersion,
+      (isUsableDishPhotoDerivativeV2({
+        derivativeRecord,
+        derivativeMetadata,
+        restaurantId,
+        sourceSha256: activeVersion.toLowerCase(),
+        outputSha256: derivativeSha256.toLowerCase(),
         variant: args.photoVariant
       }) ||
-        // V1 metadata has no recipe/schema fields. It remains read-only and
-        // is accepted only with the legacy immutable source/variant path.
-        (metadataString(derivativeMetadata, "recipeId") === "" &&
-          metadataString(derivativeMetadata, "schemaVersion") === "")) &&
+        isUsableDishPhotoDerivativeV1Legacy({
+          derivativeMetadata,
+          restaurantId,
+          sourceSha256: activeVersion.toLowerCase(),
+          variant: args.photoVariant
+        })) &&
       isAllowedDishAssetLocation({
         kind: args.kind,
         bucket,
@@ -586,11 +748,12 @@ async function redirectDishAsset(args: {
     let storageInfoDuration = 0;
     let storageSignDuration = 0;
     let signedUrl: string | undefined;
+    let signedUrlTokenExpiresAt = 0;
     let signError: unknown = null;
     const canReuseSignedUrl =
       args.assetVisibilityPolicy.kind === "public-available-only" &&
       Boolean(activeVersion) &&
-      publicSignedUrlCacheEnabled();
+      publicSignedUrlCacheEnabled(runtime);
     const sign = async (storagePath = selectedStoragePath): Promise<boolean> => {
       const cacheKey = canReuseSignedUrl
         ? signedUrlCacheKey({
@@ -600,30 +763,37 @@ async function redirectDishAsset(args: {
           })
         : null;
       if (cacheKey) {
-        const cached = readCachedSignedUrl(cacheKey);
+        const cached = readCachedSignedUrl(cacheKey, runtime.now());
         if (cached) {
-          signedUrl = cached;
+          signedUrl = cached.signedUrl;
+          signedUrlTokenExpiresAt = cached.tokenExpiresAt;
           return true;
         }
         const inFlight = signedUrlInFlight.get(cacheKey);
         if (inFlight) {
           const reused = await inFlight;
           if (reused) {
-            signedUrl = reused;
+            signedUrl = reused.signedUrl;
+            signedUrlTokenExpiresAt = reused.tokenExpiresAt;
             return true;
           }
           return false;
         }
       }
 
-      const signPromise = (async (): Promise<string | null> => {
-        const storageSignStartedAt = performance.now();
+      const signPromise = (async (): Promise<SignedUrlCacheEntry | null> => {
+        const storageSignStartedAt = runtime.performanceNow();
+        const signedAt = runtime.now();
+        const signedUrlTtlSeconds =
+          args.assetVisibilityPolicy.kind === "authorized-admin"
+            ? ADMIN_SIGNED_URL_TTL_SECONDS
+            : SIGNED_URL_TTL_SECONDS;
         try {
           const signed =
             args.assetVisibilityPolicy.kind === "authorized-admin"
               ? await storage.createSignedUrl(storagePath, ADMIN_SIGNED_URL_TTL_SECONDS)
               : await storage.createSignedUrl(storagePath, SIGNED_URL_TTL_SECONDS);
-          storageSignDuration += boundedDuration(storageSignStartedAt);
+          storageSignDuration += boundedDuration(storageSignStartedAt, runtime);
           signError = signed.error;
           const candidate = signed.data?.signedUrl;
           if (
@@ -636,10 +806,20 @@ async function redirectDishAsset(args: {
               storagePath
             })
           ) {
-            return candidate;
+            const tokenExpiresAt =
+              signedAt + signedUrlTtlSeconds * 1_000;
+            return {
+              signedUrl: candidate,
+              tokenExpiresAt,
+              reuseExpiresAt: Math.min(
+                signedAt + SIGNED_URL_CACHE_TTL_MS,
+                tokenExpiresAt -
+                  PUBLIC_ASSET_TOKEN_SAFETY_MARGIN_SECONDS * 1_000
+              )
+            };
           }
         } catch (error) {
-          storageSignDuration += boundedDuration(storageSignStartedAt);
+          storageSignDuration += boundedDuration(storageSignStartedAt, runtime);
           signError = error;
         }
         return null;
@@ -650,7 +830,8 @@ async function redirectDishAsset(args: {
         const candidate = await signPromise;
         if (!candidate) return false;
         if (cacheKey) writeCachedSignedUrl(cacheKey, candidate);
-        signedUrl = candidate;
+        signedUrl = candidate.signedUrl;
+        signedUrlTokenExpiresAt = candidate.tokenExpiresAt;
         return true;
       } finally {
         if (cacheKey && signedUrlInFlight.get(cacheKey) === signPromise) {
@@ -662,10 +843,10 @@ async function redirectDishAsset(args: {
     const directSigning = Boolean(activeVersion);
     const signOriginal = async (): Promise<boolean> => {
       if (directSigning) return sign();
-      const storageInfoStartedAt = performance.now();
+      const storageInfoStartedAt = runtime.performanceNow();
       const storagePath = selectedStoragePath;
       const objectInfo = await storage.info(storagePath);
-      storageInfoDuration = boundedDuration(storageInfoStartedAt);
+      storageInfoDuration = boundedDuration(storageInfoStartedAt, runtime);
       if (objectInfo.error) {
         signError = objectInfo.error;
         return false;
@@ -718,32 +899,47 @@ async function redirectDishAsset(args: {
     const isVersioned = Boolean(requestedVersion);
     const isAuthorizedAdmin =
       args.assetVisibilityPolicy.kind === "authorized-admin";
+    const signedUrlRemainingSeconds = Math.max(
+      0,
+      Math.min(
+        SIGNED_URL_TTL_SECONDS,
+        Math.floor((signedUrlTokenExpiresAt - runtime.now()) / 1_000)
+      )
+    );
+    const cdnRedirectMaxAgeSeconds = Math.max(
+      0,
+      Math.min(
+        PUBLIC_ASSET_CDN_REDIRECT_MAX_AGE_SECONDS,
+        signedUrlRemainingSeconds -
+          PUBLIC_ASSET_TOKEN_SAFETY_MARGIN_SECONDS
+      )
+    );
+    const isPublicCacheable =
+      isVersioned && !isAuthorizedAdmin && cdnRedirectMaxAgeSeconds > 0;
     const headers: Record<string, string> = {
       Location: signedUrl,
       "Cache-Control": isAuthorizedAdmin
         ? "private, no-store"
-        : isVersioned
-        ? "public, max-age=120, must-revalidate"
-        : "private, no-store",
+        : "no-store",
       "CDN-Cache-Control": isAuthorizedAdmin
         ? "private, no-store"
-        : isVersioned
-        ? "public, s-maxage=2700"
+        : isPublicCacheable
+        ? `public, s-maxage=${cdnRedirectMaxAgeSeconds}, must-revalidate`
         : "private, no-store",
       "Vercel-CDN-Cache-Control": isAuthorizedAdmin
         ? "private, no-store"
-        : isVersioned
-        ? "public, s-maxage=2700"
+        : isPublicCacheable
+        ? `public, s-maxage=${cdnRedirectMaxAgeSeconds}, must-revalidate`
         : "private, no-store"
     };
-    if (isVersioned && !isAuthorizedAdmin) {
-      // Explicit contract: a cached redirect may continue to expose an
-      // otherwise valid signed URL for at most 45 minutes after availability
-      // changes. Admin requests are always authorized at the origin instead.
+    if (isPublicCacheable) {
       headers["Surrogate-Control"] =
-        `public, max-age=${PUBLIC_ASSET_REVOCATION_SLA_SECONDS}`;
+        `public, max-age=${cdnRedirectMaxAgeSeconds}`;
       headers["X-Vistaire-Asset-Revocation-SLA"] = String(
-        PUBLIC_ASSET_REVOCATION_SLA_SECONDS
+        cdnRedirectMaxAgeSeconds
+      );
+      headers["X-Vistaire-Signed-URL-Remaining"] = String(
+        signedUrlRemainingSeconds
       );
     }
     if (process.env.VERCEL_ENV === "preview") {
@@ -772,6 +968,7 @@ export async function redirectPublicDishAsset(args: {
   notFoundMessage: string;
   unavailableMessage: string;
   photoVariant?: PublicDishPhotoVariant;
+  runtime?: Partial<DishAssetRedirectRuntime>;
 }): Promise<Response> {
   return redirectDishAsset({
     ...args,
@@ -790,6 +987,7 @@ export async function redirectAuthorizedAdminDishAsset(args: {
   notFoundMessage: string;
   unavailableMessage: string;
   photoVariant?: PublicDishPhotoVariant;
+  runtime?: Partial<DishAssetRedirectRuntime>;
 }): Promise<Response> {
   return redirectDishAsset({
     ...args,

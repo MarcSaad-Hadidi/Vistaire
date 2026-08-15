@@ -22,6 +22,7 @@ function dependencyRequire() {
 const requireDependency = dependencyRequire();
 const ts = requireDependency("typescript");
 const nextServerUrl = pathToFileURL(requireDependency.resolve("next/server")).href;
+const nextCacheUrl = pathToFileURL(requireDependency.resolve("next/cache")).href;
 const rootUrl = pathToFileURL(`${path.resolve(process.cwd())}${path.sep}`).href;
 const adminStubUrl = "public-dish-asset-test:admin";
 const adminAuthStubUrl = "public-dish-asset-test:admin-auth";
@@ -49,6 +50,9 @@ registerHooks({
     }
     if (specifier === "next/server") {
       return { url: nextServerUrl, shortCircuit: true };
+    }
+    if (specifier === "next/cache") {
+      return { url: nextCacheUrl, shortCircuit: true };
     }
     if (specifier.startsWith("@/")) {
       return {
@@ -125,4 +129,20 @@ export function loadUsdzRoute() {
 
 export function loadPublicDishAssetRedirect() {
   return import("../../lib/publicDishAssetRedirect.ts");
+}
+
+export function loadPublicMenuCache() {
+  return import("../../lib/menu/publicMenuCache.ts");
+}
+
+export function loadPublicMenu() {
+  return import("../../lib/menu/publicMenu.ts");
+}
+
+export function loadMenuSchemaProjections() {
+  return import("../../lib/menu/menuSchemaProjections.ts");
+}
+
+export function loadMenuMutationRevalidation() {
+  return import("../../lib/owner/menuMutationRevalidation.ts");
 }

@@ -1,10 +1,24 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
+import { loadMenuMutationRevalidation } from "./helpers/public-dish-asset-route-runtime.mjs";
 
 const loadAvailability = () => import("../lib/admin/availability.ts");
 const loadRequestBody = () => import("../lib/admin/requestBody.ts");
 const loadMutation = () => import("../components/admin/availability/availabilityMutation.ts");
+const loadMenuRevalidation = () => loadMenuMutationRevalidation();
+
+function createRestaurantLookup({ data = null, error = null, thrown = null } = {}) {
+  const query = {
+    select() { return this; },
+    eq() { return this; },
+    async maybeSingle() {
+      if (thrown) throw thrown;
+      return { data, error };
+    }
+  };
+  return { from: () => query };
+}
 
 test("bounded JSON reader rejects declared and chunked oversized bodies", async () => {
   const { readBoundedJsonBody } = await loadRequestBody();
@@ -190,7 +204,7 @@ test("availability media type accepts JSON parameters but rejects JSON lookalike
   }
 });
 
-test("post-commit revalidation failures are logged and never replace RPC success", async () => {
+test("post-commit revalidation failures return an explicit retry signal without replacing RPC success", async () => {
   const { preserveAvailabilityResultAfterRevalidation } = await loadAvailability();
   const logged = [];
   const committed = { ok: true, dishId: "dish", dishSlug: "plat", available: false };
@@ -199,8 +213,96 @@ test("post-commit revalidation failures are logged and never replace RPC success
     async () => { throw new Error("cache unavailable"); },
     (message) => logged.push(message)
   );
-  assert.equal(result, committed);
+  assert.deepEqual(result, { ...committed, revalidation: "retry-required" });
   assert.deepEqual(logged, ["Admin availability revalidation failed after commit."]);
+});
+
+test("owner mutation invalidates restaurant cache and dish asset metadata even when slug lookup fails", async () => {
+  const { revalidateOwnerMenuMutationPaths } = await loadMenuRevalidation();
+  const menuInvalidations = [];
+  const assetInvalidations = [];
+  const paths = [];
+  const retrySignals = [];
+  const result = await revalidateOwnerMenuMutationPaths(
+    {
+      client: createRestaurantLookup({ error: { message: "lookup unavailable" } }),
+      restaurantId: "restaurant-a",
+      dishId: "dish-a",
+      dishSlug: "plat-a"
+    },
+    {
+      revalidateMenuCache: async (scope) => {
+        menuInvalidations.push(scope);
+        return { ok: true, invalidatedTags: ["restaurant"], failedTags: [] };
+      },
+      invalidateAssetMetadata: (scope) => {
+        assetInvalidations.push(scope);
+        return 1;
+      },
+      revalidatePath: (path) => paths.push(path),
+      signalRetry: (signal) => retrySignals.push(signal)
+    }
+  );
+
+  assert.deepEqual(menuInvalidations, [{ restaurantId: "restaurant-a" }]);
+  assert.deepEqual(assetInvalidations, [{ restaurantId: "restaurant-a", dishId: "dish-a" }]);
+  assert.deepEqual(paths, []);
+  assert.deepEqual(retrySignals, [{
+    kind: "menu-revalidation-retry-required",
+    restaurantId: "restaurant-a",
+    dishId: "dish-a"
+  }]);
+  assert.deepEqual(result, {
+    ok: false,
+    retryRequired: true,
+    restaurantSlug: null,
+    invalidatedAssetMetadataEntries: 1,
+    invalidatedPaths: [],
+    failures: ["restaurant-lookup"]
+  });
+});
+
+test("owner mutation performs observable restaurant and exact slug invalidation before path refresh", async () => {
+  const { revalidateOwnerMenuMutationPaths } = await loadMenuRevalidation();
+  const events = [];
+  const result = await revalidateOwnerMenuMutationPaths(
+    {
+      client: createRestaurantLookup({ data: { slug: "Bistro A", name: "Ignored" } }),
+      restaurantId: "restaurant-a",
+      dishId: "dish-a",
+      dishSlug: "Plat Signature"
+    },
+    {
+      revalidateMenuCache: async (scope) => {
+        events.push(["cache", scope]);
+        return { ok: true, invalidatedTags: ["tag"], failedTags: [] };
+      },
+      invalidateAssetMetadata: (scope) => {
+        events.push(["asset", scope]);
+        return 2;
+      },
+      revalidatePath: (path) => events.push(["path", path])
+    }
+  );
+
+  assert.deepEqual(events, [
+    ["asset", { restaurantId: "restaurant-a", dishId: "dish-a" }],
+    ["cache", { restaurantId: "restaurant-a" }],
+    ["cache", { slug: "bistro-a", restaurantId: "restaurant-a" }],
+    ["path", "/menu/bistro-a"],
+    ["path", "/menu/bistro-a/dishes/plat-signature"]
+  ]);
+  assert.deepEqual(result, {
+    ok: true,
+    retryRequired: false,
+    restaurantSlug: "bistro-a",
+    invalidatedAssetMetadataEntries: 2,
+    invalidatedPaths: [
+      "/menu/bistro-a",
+      "/menu/bistro-a/dishes/plat-signature"
+    ],
+    failures: []
+  });
 });
 
 test("missing availability RPC fails closed as a controlled 503 without fallback", async () => {

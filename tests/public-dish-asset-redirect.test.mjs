@@ -6,6 +6,7 @@ import {
   createNextRequest,
   loadAdminPhotoRoute,
   loadGlbRoute,
+  loadMenuMutationRevalidation,
   loadPhotoRoute,
   loadPublicDishAssetRedirect,
   loadUsdzRoute
@@ -20,18 +21,20 @@ const PHOTO_SHA256 = "a".repeat(64);
 
 const PHOTO_PATH = `restaurants/${RESTAURANT_ID}/photos/originals/tartare-saumon.webp`;
 const PHOTO_DERIVATIVE_PATH = `restaurants/${RESTAURANT_ID}/photos/derivatives/${PHOTO_SHA256}/thumbnail.webp`;
+const PHOTO_DERIVATIVE_CARD_V1_PATH = `restaurants/${RESTAURANT_ID}/photos/derivatives/${PHOTO_SHA256}/card.webp`;
 const PHOTO_DERIVATIVE_V2_OUTPUT_SHA256 = "b".repeat(64);
 const PHOTO_DERIVATIVE_V2_PATH = `restaurants/${RESTAURANT_ID}/photos/derivatives/${PHOTO_SHA256}/dish-photo-v2/card-${PHOTO_DERIVATIVE_V2_OUTPUT_SHA256}.webp`;
 const WEB_GLB_PATH = `restaurants/${RESTAURANT_ID}/models/web/tartare-saumon.glb`;
 const AR_LITE_GLB_PATH = `restaurants/${RESTAURANT_ID}/models/ar-lite/tartare-saumon.glb`;
 const USDZ_PATH = `restaurants/${RESTAURANT_ID}/models/ar-ios/tartare-saumon.usdz`;
 
-const [photoRoute, adminPhotoRoute, glbRoute, usdzRoute, redirectHelper] = await Promise.all([
+const [photoRoute, adminPhotoRoute, glbRoute, usdzRoute, redirectHelper, mutationRevalidation] = await Promise.all([
   loadPhotoRoute(),
   loadAdminPhotoRoute(),
   loadGlbRoute(),
   loadUsdzRoute(),
-  loadPublicDishAssetRedirect()
+  loadPublicDishAssetRedirect(),
+  loadMenuMutationRevalidation()
 ]);
 
 function signedUrl(bucket, storagePath) {
@@ -250,15 +253,15 @@ test("GET and HEAD redirect all public dish asset variants with a signed 307 and
         );
         assert.equal(
           response.headers.get("cache-control"),
-          "public, max-age=120, must-revalidate"
+          "no-store"
         );
         assert.equal(
           response.headers.get("cdn-cache-control"),
-          "public, s-maxage=2700"
+          "public, s-maxage=120, must-revalidate"
         );
         assert.equal(
           response.headers.get("vercel-cdn-cache-control"),
-          "public, s-maxage=2700"
+          "public, s-maxage=120, must-revalidate"
         );
         assert.equal(response.headers.get("content-length"), null);
         assert.equal(response.headers.get("content-type"), null);
@@ -267,7 +270,7 @@ test("GET and HEAD redirect all public dish asset variants with a signed 307 and
         assert.deepEqual(fixture.calls.storageFrom, [entry.bucket]);
         assert.deepEqual(fixture.calls.info, []);
         assert.deepEqual(fixture.calls.signed, [
-          { storagePath: entry.storagePath, expiresIn: 3600 }
+          { storagePath: entry.storagePath, expiresIn: 300 }
         ]);
         assert.deepEqual(fixture.calls.operationOrder, ["sign"]);
         assert.equal(fixture.calls.forbiddenBodyReads, 0);
@@ -301,9 +304,9 @@ test("production public redirects reuse a versioned signed URL while admin stays
     assert.equal(first.calls.signed.length, 1);
     assert.equal(
       firstResponse.headers.get("surrogate-control"),
-      "public, max-age=2700"
+      "public, max-age=120"
     );
-    assert.equal(firstResponse.headers.get("x-vistaire-asset-revocation-sla"), "2700");
+    assert.equal(firstResponse.headers.get("x-vistaire-asset-revocation-sla"), "120");
 
     const second = createAdminFixture({ metadata: assetMetadata("photo") });
     installAdmin(second);
@@ -365,7 +368,7 @@ test("only true legacy photos redirect without a version while modern photos req
       url: `https://vistaire.example/api/public/menu-dishes/${DISH_ID}/photo`
     });
     assert.equal(legacyResponse.status, 307);
-    assert.equal(legacyResponse.headers.get("cache-control"), "private, no-store");
+    assert.equal(legacyResponse.headers.get("cache-control"), "no-store");
     assert.equal(legacyResponse.headers.get("cdn-cache-control"), "private, no-store");
     assert.equal(
       legacyResponse.headers.get("vercel-cdn-cache-control"),
@@ -558,6 +561,243 @@ test("V2 card derivatives validate recipe, source/output hashes, and immutable p
   } finally {
     if (previousSupabaseUrl === undefined) delete process.env.NEXT_PUBLIC_SUPABASE_URL;
     else process.env.NEXT_PUBLIC_SUPABASE_URL = previousSupabaseUrl;
+  }
+});
+
+test("V2 derivatives use only the byte-exact canonical path derived from active metadata", async () => {
+  const canonicalDerivative = {
+    schemaVersion: 2,
+    recipeId: "dish-photo-v2",
+    variant: "card",
+    storagePath: PHOTO_DERIVATIVE_V2_PATH,
+    sha256: PHOTO_DERIVATIVE_V2_OUTPUT_SHA256,
+    outputSha256: PHOTO_DERIVATIVE_V2_OUTPUT_SHA256,
+    contentType: "image/webp",
+    format: "webp",
+    width: 768,
+    height: 512,
+    bytes: 120_000,
+    sourceSha256: PHOTO_SHA256,
+    generatedAt: "2026-08-13T00:00:00.000Z",
+    encoder: "sharp-webp-effort-4"
+  };
+  const wrongSource = "c".repeat(64);
+  const wrongOutput = "d".repeat(64);
+  const cases = [
+    {
+      label: "restaurant segment",
+      patch: { storagePath: PHOTO_DERIVATIVE_V2_PATH.replace(RESTAURANT_ID, OTHER_RESTAURANT_ID) }
+    },
+    {
+      label: "source segment",
+      patch: { storagePath: PHOTO_DERIVATIVE_V2_PATH.replace(PHOTO_SHA256, wrongSource) }
+    },
+    {
+      label: "recipe segment",
+      patch: { storagePath: PHOTO_DERIVATIVE_V2_PATH.replace("dish-photo-v2", "dish-photo-v1") }
+    },
+    {
+      label: "variant segment",
+      patch: { storagePath: PHOTO_DERIVATIVE_V2_PATH.replace("/card-", "/display-") }
+    },
+    {
+      label: "output filename",
+      patch: { storagePath: PHOTO_DERIVATIVE_V2_PATH.replace(PHOTO_DERIVATIVE_V2_OUTPUT_SHA256, wrongOutput) }
+    },
+    {
+      label: "legacy path declared as V2",
+      patch: { storagePath: PHOTO_DERIVATIVE_CARD_V1_PATH }
+    },
+    {
+      label: "legacy path with a numeric V2 schema marker",
+      patch: {
+        storagePath: PHOTO_DERIVATIVE_CARD_V1_PATH,
+        recipeId: "",
+        variant: ""
+      }
+    },
+    {
+      label: "encoded segment",
+      patch: { storagePath: PHOTO_DERIVATIVE_V2_PATH.replace("/dish-photo-v2/", "/dish-photo-v2%2f/") }
+    },
+    {
+      label: "traversal segment",
+      patch: { storagePath: PHOTO_DERIVATIVE_V2_PATH.replace("/dish-photo-v2/", "/../dish-photo-v2/") }
+    },
+    {
+      label: "metadata/path source mismatch",
+      patch: {
+        sourceSha256: wrongSource,
+        storagePath: PHOTO_DERIVATIVE_V2_PATH.replace(PHOTO_SHA256, wrongSource)
+      }
+    },
+    {
+      label: "metadata/path output mismatch",
+      patch: { outputSha256: wrongOutput, sha256: wrongOutput }
+    }
+  ];
+
+  for (const entry of cases) {
+    const rejectedPath = entry.patch.storagePath ?? PHOTO_DERIVATIVE_V2_PATH;
+    const fixture = createAdminFixture({
+      metadata: assetMetadata("photo", {
+        photoDerivatives: {
+          card: { ...canonicalDerivative, ...entry.patch }
+        }
+      })
+    });
+    const response = await redirectHelper.redirectPublicDishAsset({
+      admin: fixture.admin,
+      dishId: DISH_ID,
+      kind: "photo",
+      requestedAssetVersion: PHOTO_SHA256,
+      supabaseUrl: SUPABASE_ORIGIN,
+      notFoundMessage: "Photo introuvable.",
+      unavailableMessage: "Photo indisponible.",
+      photoVariant: "card"
+    });
+
+    assert.equal(response.status, 307, entry.label);
+    assert.equal(response.headers.get("location"), signedUrl("vistaire-media", PHOTO_PATH), entry.label);
+    assert.equal(
+      fixture.calls.signed.some((call) => call.storagePath === rejectedPath),
+      false,
+      entry.label
+    );
+  }
+});
+
+test("public redirect cache refreshes on controlled TTL boundaries without outliving its token", async () => {
+  redirectHelper.resetPublicDishAssetCachesForTests();
+  let nowMs = Date.parse("2026-08-15T12:00:00.000Z");
+  const runtime = {
+    now: () => nowMs,
+    performanceNow: () => nowMs,
+    cachePublicAssets: true
+  };
+  const invoke = (fixture) => redirectHelper.redirectPublicDishAsset({
+    admin: fixture.admin,
+    dishId: DISH_ID,
+    kind: "photo",
+    requestedAssetVersion: PHOTO_SHA256,
+    supabaseUrl: SUPABASE_ORIGIN,
+    notFoundMessage: "Photo introuvable.",
+    unavailableMessage: "Photo indisponible.",
+    runtime
+  });
+
+  try {
+    const first = createAdminFixture({
+      metadata: assetMetadata("photo"),
+      signedUrlOverride: `${signedUrl("vistaire-media", PHOTO_PATH)}-first`
+    });
+    const firstResponse = await invoke(first);
+    assert.equal(firstResponse.status, 307);
+    assert.deepEqual(first.calls.signed, [{ storagePath: PHOTO_PATH, expiresIn: 300 }]);
+    assert.equal(firstResponse.headers.get("cache-control"), "no-store");
+    assert.equal(firstResponse.headers.get("cdn-cache-control"), "public, s-maxage=120, must-revalidate");
+    assert.equal(firstResponse.headers.get("x-vistaire-signed-url-remaining"), "300");
+
+    nowMs += 29_999;
+    const beforeMetadataExpiry = createAdminFixture({
+      metadata: assetMetadata("photo"),
+      signedUrlOverride: `${signedUrl("vistaire-media", PHOTO_PATH)}-unexpected`
+    });
+    const beforeMetadataExpiryResponse = await invoke(beforeMetadataExpiry);
+    assert.equal(beforeMetadataExpiryResponse.headers.get("location"), firstResponse.headers.get("location"));
+    assert.deepEqual(beforeMetadataExpiry.calls.table, []);
+    assert.deepEqual(beforeMetadataExpiry.calls.signed, []);
+
+    nowMs += 1;
+    const atMetadataExpiry = createAdminFixture({
+      metadata: assetMetadata("photo"),
+      signedUrlOverride: `${signedUrl("vistaire-media", PHOTO_PATH)}-unexpected`
+    });
+    const atMetadataExpiryResponse = await invoke(atMetadataExpiry);
+    assert.equal(atMetadataExpiryResponse.headers.get("location"), firstResponse.headers.get("location"));
+    assert.deepEqual(atMetadataExpiry.calls.table, ["menu_dishes"]);
+    assert.deepEqual(atMetadataExpiry.calls.signed, []);
+
+    nowMs += 89_999;
+    const beforeReuseExpiry = createAdminFixture({ metadata: assetMetadata("photo") });
+    const beforeReuseExpiryResponse = await invoke(beforeReuseExpiry);
+    assert.equal(beforeReuseExpiryResponse.headers.get("location"), firstResponse.headers.get("location"));
+    assert.equal(beforeReuseExpiryResponse.headers.get("x-vistaire-signed-url-remaining"), "180");
+    assert.equal(beforeReuseExpiryResponse.headers.get("cdn-cache-control"), "public, s-maxage=120, must-revalidate");
+    assert.deepEqual(beforeReuseExpiry.calls.signed, []);
+
+    nowMs += 1;
+    const atReuseExpiry = createAdminFixture({
+      metadata: assetMetadata("photo"),
+      signedUrlOverride: `${signedUrl("vistaire-media", PHOTO_PATH)}-second`
+    });
+    const atReuseExpiryResponse = await invoke(atReuseExpiry);
+    assert.notEqual(atReuseExpiryResponse.headers.get("location"), firstResponse.headers.get("location"));
+    assert.deepEqual(atReuseExpiry.calls.signed, [{ storagePath: PHOTO_PATH, expiresIn: 300 }]);
+    assert.equal(atReuseExpiryResponse.headers.get("x-vistaire-signed-url-remaining"), "300");
+  } finally {
+    redirectHelper.resetPublicDishAssetCachesForTests();
+  }
+});
+
+test("committed availability invalidation evicts asset metadata so the next redirect observes unavailable", async () => {
+  redirectHelper.resetPublicDishAssetCachesForTests();
+  const runtime = {
+    now: () => Date.parse("2026-08-15T12:00:00.000Z"),
+    performanceNow: () => 1,
+    cachePublicAssets: true
+  };
+  const redirect = (fixture) => redirectHelper.redirectPublicDishAsset({
+    admin: fixture.admin,
+    dishId: DISH_ID,
+    kind: "photo",
+    requestedAssetVersion: PHOTO_SHA256,
+    supabaseUrl: SUPABASE_ORIGIN,
+    notFoundMessage: "Photo introuvable.",
+    unavailableMessage: "Photo indisponible.",
+    runtime
+  });
+
+  try {
+    const available = createAdminFixture({ metadata: assetMetadata("photo") });
+    assert.equal((await redirect(available)).status, 307);
+
+    const restaurantQuery = {
+      select() { return this; },
+      eq() { return this; },
+      async maybeSingle() {
+        return { data: { slug: "bistro-assets", name: "Bistro Assets" }, error: null };
+      }
+    };
+    const invalidation = await mutationRevalidation.revalidateOwnerMenuMutationPaths(
+      {
+        client: { from: () => restaurantQuery },
+        restaurantId: RESTAURANT_ID,
+        dishId: DISH_ID,
+        dishSlug: "plat-test"
+      },
+      {
+        revalidateMenuCache: async () => ({
+          ok: true,
+          invalidatedTags: ["tag"],
+          failedTags: []
+        }),
+        revalidatePath: () => {}
+      }
+    );
+    assert.equal(invalidation.ok, true);
+    assert.equal(invalidation.invalidatedAssetMetadataEntries, 1);
+
+    const unavailable = createAdminFixture({
+      metadata: assetMetadata("photo"),
+      isAvailable: false
+    });
+    const response = await redirect(unavailable);
+    await assertJsonError(response, 404, "Photo introuvable.");
+    assert.deepEqual(unavailable.calls.table, ["menu_dishes"]);
+    assert.deepEqual(unavailable.calls.signed, []);
+  } finally {
+    redirectHelper.resetPublicDishAssetCachesForTests();
   }
 });
 

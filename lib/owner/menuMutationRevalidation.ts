@@ -1,43 +1,195 @@
 import "server-only";
 
-import { revalidatePath } from "next/cache";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import {
+  revalidatePublicMenuCache,
+  type PublicMenuRevalidationResult
+} from "@/lib/menu/publicMenuCache";
 import { slugifyRestaurantSlug } from "@/lib/owner/menuUrlCore";
-import { revalidatePublicMenuCache } from "@/lib/menu/publicMenuCache";
+import { invalidatePublicDishAssetMetadataCache } from "@/lib/publicDishAssetRedirect";
 
-function getString(row: Record<string, unknown> | null | undefined, key: string): string {
+type MenuMutationRevalidationFailure =
+  | "asset-metadata-invalidation"
+  | "restaurant-cache"
+  | "restaurant-lookup"
+  | "slug-cache"
+  | "path-revalidation";
+
+export type MenuMutationRevalidationResult = {
+  ok: boolean;
+  retryRequired: boolean;
+  restaurantSlug: string | null;
+  invalidatedAssetMetadataEntries: number;
+  invalidatedPaths: string[];
+  failures: MenuMutationRevalidationFailure[];
+};
+
+export type MenuMutationRetrySignal = {
+  kind: "menu-revalidation-retry-required";
+  restaurantId: string;
+  dishId?: string;
+};
+
+type MenuMutationRevalidationDependencies = {
+  revalidateMenuCache?: (
+    scope: { slug?: string; restaurantId?: string }
+  ) => Promise<PublicMenuRevalidationResult>;
+  invalidateAssetMetadata?: (scope: {
+    restaurantId: string;
+    dishId?: string;
+  }) => number;
+  revalidatePath?: (path: string) => Promise<void> | void;
+  signalRetry?: (signal: MenuMutationRetrySignal) => void;
+};
+
+function getString(
+  row: Record<string, unknown> | null | undefined,
+  key: string
+): string {
   const value = row?.[key];
   return typeof value === "string" ? value.trim() : "";
 }
 
-export async function revalidateOwnerMenuMutationPaths(args: {
-  client: SupabaseClient;
-  restaurantId: string;
-  dishSlug?: string;
-}) {
-  const restaurant = await args.client
-    .from("restaurants")
-    .select("slug,name")
-    .eq("id", args.restaurantId)
-    .maybeSingle();
-  if (restaurant.error || !restaurant.data) return;
+function recordFailure(
+  failures: MenuMutationRevalidationFailure[],
+  failure: MenuMutationRevalidationFailure
+): void {
+  if (!failures.includes(failure)) failures.push(failure);
+}
 
-  const restaurantSlug =
-    getString(restaurant.data, "slug") ||
-    slugifyRestaurantSlug(getString(restaurant.data, "name"));
-  if (!restaurantSlug) return;
+/**
+ * Invalidates by restaurant id before the fallible slug lookup. A committed
+ * mutation therefore has a reliable cache path even if the lookup needed for
+ * friendly page paths is temporarily unavailable. Failures are returned as a
+ * retry signal and never reinterpret the committed database mutation.
+ */
+export async function revalidateOwnerMenuMutationPaths(
+  args: {
+    client: SupabaseClient;
+    restaurantId: string;
+    dishId?: string;
+    dishSlug?: string;
+  },
+  dependencies: MenuMutationRevalidationDependencies = {}
+): Promise<MenuMutationRevalidationResult> {
+  const failures: MenuMutationRevalidationFailure[] = [];
+  const invalidatedPaths: string[] = [];
+  const finish = (
+    result: MenuMutationRevalidationResult
+  ): MenuMutationRevalidationResult => {
+    if (result.retryRequired) {
+      const signal: MenuMutationRetrySignal = {
+        kind: "menu-revalidation-retry-required",
+        restaurantId: args.restaurantId,
+        ...(args.dishId ? { dishId: args.dishId } : {})
+      };
+      if (dependencies.signalRetry) {
+        dependencies.signalRetry(signal);
+      } else {
+        console.error("Owner menu revalidation requires retry.");
+      }
+    }
+    return result;
+  };
+  const invalidateAssetMetadata =
+    dependencies.invalidateAssetMetadata ??
+    invalidatePublicDishAssetMetadataCache;
+  let invalidatedAssetMetadataEntries = 0;
+  try {
+    invalidatedAssetMetadataEntries = invalidateAssetMetadata({
+      restaurantId: args.restaurantId,
+      ...(args.dishId ? { dishId: args.dishId } : {})
+    });
+  } catch {
+    recordFailure(failures, "asset-metadata-invalidation");
+  }
 
-  // Keep the inter-request public menu cache in sync with the path cache. The
-  // route-handler invalidation expires tags immediately for read-your-writes;
-  // no user/session state is included in these tags.
-  await revalidatePublicMenuCache({
-    slug: restaurantSlug,
-    restaurantId: args.restaurantId
-  });
+  const revalidateMenuCache =
+    dependencies.revalidateMenuCache ?? revalidatePublicMenuCache;
+  try {
+    const restaurantInvalidation = await revalidateMenuCache({
+      restaurantId: args.restaurantId
+    });
+    if (!restaurantInvalidation.ok) {
+      recordFailure(failures, "restaurant-cache");
+    }
+  } catch {
+    recordFailure(failures, "restaurant-cache");
+  }
 
-  revalidatePath(`/menu/${restaurantSlug}`);
+  let restaurant: {
+    data: Record<string, unknown> | null;
+    error: unknown;
+  };
+  try {
+    restaurant = await args.client
+      .from("restaurants")
+      .select("slug,name")
+      .eq("id", args.restaurantId)
+      .maybeSingle();
+  } catch {
+    restaurant = { data: null, error: new Error("lookup failed") };
+  }
+  if (restaurant.error || !restaurant.data) {
+    recordFailure(failures, "restaurant-lookup");
+    return finish({
+      ok: false,
+      retryRequired: true,
+      restaurantSlug: null,
+      invalidatedAssetMetadataEntries,
+      invalidatedPaths,
+      failures
+    });
+  }
+
+  const restaurantSlug = slugifyRestaurantSlug(
+    getString(restaurant.data, "slug") || getString(restaurant.data, "name")
+  );
+  if (!restaurantSlug) {
+    recordFailure(failures, "restaurant-lookup");
+    return finish({
+      ok: false,
+      retryRequired: true,
+      restaurantSlug: null,
+      invalidatedAssetMetadataEntries,
+      invalidatedPaths,
+      failures
+    });
+  }
+
+  try {
+    const slugInvalidation = await revalidateMenuCache({
+      slug: restaurantSlug,
+      restaurantId: args.restaurantId
+    });
+    if (!slugInvalidation.ok) recordFailure(failures, "slug-cache");
+  } catch {
+    recordFailure(failures, "slug-cache");
+  }
+
+  const revalidatePath =
+    dependencies.revalidatePath ??
+    (await import("next/cache")).revalidatePath;
+  const paths = [`/menu/${restaurantSlug}`];
   const dishSlug = slugifyRestaurantSlug(args.dishSlug ?? "");
   if (dishSlug) {
-    revalidatePath(`/menu/${restaurantSlug}/dishes/${dishSlug}`);
+    paths.push(`/menu/${restaurantSlug}/dishes/${dishSlug}`);
   }
+  for (const path of paths) {
+    try {
+      await revalidatePath(path);
+      invalidatedPaths.push(path);
+    } catch {
+      recordFailure(failures, "path-revalidation");
+    }
+  }
+
+  return finish({
+    ok: failures.length === 0,
+    retryRequired: failures.length > 0,
+    restaurantSlug,
+    invalidatedAssetMetadataEntries,
+    invalidatedPaths,
+    failures
+  });
 }

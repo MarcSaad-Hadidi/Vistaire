@@ -47,12 +47,19 @@ async function updateDishAvailability({
   };
 
   return preserveAvailabilityResultAfterRevalidation(result, async () => {
-    revalidatePath("/admin");
-    await revalidateOwnerMenuMutationPaths({
+    const menuRevalidation = await revalidateOwnerMenuMutationPaths({
       client: admin.client,
       restaurantId,
+      dishId,
       dishSlug: result.ok ? result.dishSlug : ""
     });
+    let adminPathOk = true;
+    try {
+      revalidatePath("/admin");
+    } catch {
+      adminPathOk = false;
+    }
+    return { ok: menuRevalidation.ok && adminPathOk };
   });
 }
 
