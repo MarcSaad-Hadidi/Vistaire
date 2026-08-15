@@ -76,7 +76,8 @@ function createAdminFixture({
   infoError = null,
   signedUrlOverride,
   signError = null,
-  signErrorForPath
+  signErrorForPath,
+  onSign
 } = {}) {
   const calls = {
     table: [],
@@ -101,6 +102,7 @@ function createAdminFixture({
     async createSignedUrl(storagePath, expiresIn) {
       calls.signed.push({ storagePath, expiresIn });
       calls.operationOrder.push("sign");
+      onSign?.({ storagePath, expiresIn });
       const bucket = calls.storageFrom.at(-1);
       const pathError = signErrorForPath?.(storagePath) ?? false;
       const missingObject = !objectExists;
@@ -270,7 +272,7 @@ test("GET and HEAD redirect all public dish asset variants with a signed 307 and
         assert.deepEqual(fixture.calls.storageFrom, [entry.bucket]);
         assert.deepEqual(fixture.calls.info, []);
         assert.deepEqual(fixture.calls.signed, [
-          { storagePath: entry.storagePath, expiresIn: 300 }
+          { storagePath: entry.storagePath, expiresIn: 270 }
         ]);
         assert.deepEqual(fixture.calls.operationOrder, ["sign"]);
         assert.equal(fixture.calls.forbiddenBodyReads, 0);
@@ -306,7 +308,7 @@ test("production public redirects reuse a versioned signed URL while admin stays
       firstResponse.headers.get("surrogate-control"),
       "public, max-age=120"
     );
-    assert.equal(firstResponse.headers.get("x-vistaire-asset-revocation-sla"), "120");
+    assert.equal(firstResponse.headers.get("x-vistaire-asset-revocation-sla"), "300");
 
     const second = createAdminFixture({ metadata: assetMetadata("photo") });
     installAdmin(second);
@@ -621,6 +623,26 @@ test("V2 derivatives use only the byte-exact canonical path derived from active 
       patch: { storagePath: PHOTO_DERIVATIVE_V2_PATH.replace("/dish-photo-v2/", "/dish-photo-v2%2f/") }
     },
     {
+      label: "encoded segment with alternate hex case",
+      patch: { storagePath: PHOTO_DERIVATIVE_V2_PATH.replace("/dish-photo-v2/", "/dish-photo-v2%2F/") }
+    },
+    {
+      label: "leading ASCII whitespace",
+      patch: { storagePath: ` ${PHOTO_DERIVATIVE_V2_PATH}` }
+    },
+    {
+      label: "trailing Unicode no-break space",
+      patch: { storagePath: `${PHOTO_DERIVATIVE_V2_PATH}\u00a0` }
+    },
+    {
+      label: "leading Unicode byte-order mark",
+      patch: { storagePath: `\ufeff${PHOTO_DERIVATIVE_V2_PATH}` }
+    },
+    {
+      label: "path case differs from canonical bytes",
+      patch: { storagePath: PHOTO_DERIVATIVE_V2_PATH.replace("dish-photo-v2", "DISH-PHOTO-V2") }
+    },
+    {
       label: "traversal segment",
       patch: { storagePath: PHOTO_DERIVATIVE_V2_PATH.replace("/dish-photo-v2/", "/../dish-photo-v2/") }
     },
@@ -693,10 +715,11 @@ test("public redirect cache refreshes on controlled TTL boundaries without outli
     });
     const firstResponse = await invoke(first);
     assert.equal(firstResponse.status, 307);
-    assert.deepEqual(first.calls.signed, [{ storagePath: PHOTO_PATH, expiresIn: 300 }]);
+    assert.deepEqual(first.calls.signed, [{ storagePath: PHOTO_PATH, expiresIn: 270 }]);
     assert.equal(firstResponse.headers.get("cache-control"), "no-store");
     assert.equal(firstResponse.headers.get("cdn-cache-control"), "public, s-maxage=120, must-revalidate");
-    assert.equal(firstResponse.headers.get("x-vistaire-signed-url-remaining"), "300");
+    assert.equal(firstResponse.headers.get("x-vistaire-signed-url-remaining"), "270");
+    assert.equal(firstResponse.headers.get("x-vistaire-asset-revocation-sla"), "300");
 
     nowMs += 29_999;
     const beforeMetadataExpiry = createAdminFixture({
@@ -722,7 +745,7 @@ test("public redirect cache refreshes on controlled TTL boundaries without outli
     const beforeReuseExpiry = createAdminFixture({ metadata: assetMetadata("photo") });
     const beforeReuseExpiryResponse = await invoke(beforeReuseExpiry);
     assert.equal(beforeReuseExpiryResponse.headers.get("location"), firstResponse.headers.get("location"));
-    assert.equal(beforeReuseExpiryResponse.headers.get("x-vistaire-signed-url-remaining"), "180");
+    assert.equal(beforeReuseExpiryResponse.headers.get("x-vistaire-signed-url-remaining"), "150");
     assert.equal(beforeReuseExpiryResponse.headers.get("cdn-cache-control"), "public, s-maxage=120, must-revalidate");
     assert.deepEqual(beforeReuseExpiry.calls.signed, []);
 
@@ -733,8 +756,110 @@ test("public redirect cache refreshes on controlled TTL boundaries without outli
     });
     const atReuseExpiryResponse = await invoke(atReuseExpiry);
     assert.notEqual(atReuseExpiryResponse.headers.get("location"), firstResponse.headers.get("location"));
-    assert.deepEqual(atReuseExpiry.calls.signed, [{ storagePath: PHOTO_PATH, expiresIn: 300 }]);
-    assert.equal(atReuseExpiryResponse.headers.get("x-vistaire-signed-url-remaining"), "300");
+    assert.deepEqual(atReuseExpiry.calls.signed, [{ storagePath: PHOTO_PATH, expiresIn: 270 }]);
+    assert.equal(atReuseExpiryResponse.headers.get("x-vistaire-signed-url-remaining"), "270");
+  } finally {
+    redirectHelper.resetPublicDishAssetCachesForTests();
+  }
+});
+
+test("a stale instance cannot mint public access beyond the truthful 300 second composed SLA", async () => {
+  redirectHelper.resetPublicDishAssetCachesForTests();
+  let nowMs = Date.parse("2026-08-15T12:00:00.000Z");
+  const runtime = {
+    now: () => nowMs,
+    performanceNow: () => nowMs,
+    cachePublicAssets: true
+  };
+  const derivative = {
+    schemaVersion: 2,
+    recipeId: "dish-photo-v2",
+    variant: "card",
+    storagePath: PHOTO_DERIVATIVE_V2_PATH,
+    sha256: PHOTO_DERIVATIVE_V2_OUTPUT_SHA256,
+    outputSha256: PHOTO_DERIVATIVE_V2_OUTPUT_SHA256,
+    contentType: "image/webp",
+    format: "webp",
+    width: 768,
+    height: 512,
+    bytes: 120_000,
+    sourceSha256: PHOTO_SHA256,
+    generatedAt: "2026-08-13T00:00:00.000Z",
+    encoder: "sharp-webp-effort-4"
+  };
+  const metadata = assetMetadata("photo", {
+    photoDerivatives: { card: derivative }
+  });
+  const redirect = (fixture, photoVariant) => redirectHelper.redirectPublicDishAsset({
+    admin: fixture.admin,
+    dishId: DISH_ID,
+    kind: "photo",
+    requestedAssetVersion: PHOTO_SHA256,
+    supabaseUrl: SUPABASE_ORIGIN,
+    notFoundMessage: "Photo introuvable.",
+    unavailableMessage: "Photo indisponible.",
+    ...(photoVariant ? { photoVariant } : {}),
+    runtime
+  });
+
+  try {
+    const beforeMutation = createAdminFixture({ metadata });
+    assert.equal((await redirect(beforeMutation)).status, 307);
+
+    nowMs += 29_999;
+    const staleInstance = createAdminFixture({ metadata, isAvailable: false });
+    const staleResponse = await redirect(staleInstance, "card");
+    assert.equal(staleResponse.status, 307);
+    assert.deepEqual(staleInstance.calls.table, [], "the remote instance still has pre-mutation metadata");
+    assert.deepEqual(staleInstance.calls.signed, [{
+      storagePath: PHOTO_DERIVATIVE_V2_PATH,
+      expiresIn: 270
+    }]);
+    assert.equal(staleResponse.headers.get("x-vistaire-asset-revocation-sla"), "300");
+    assert.equal(staleResponse.headers.get("x-vistaire-signed-url-remaining"), "270");
+
+    nowMs += 1;
+    const afterMetadataBoundary = createAdminFixture({ metadata, isAvailable: false });
+    const unavailableResponse = await redirect(afterMetadataBoundary, "thumbnail");
+    await assertJsonError(unavailableResponse, 404, "Photo introuvable.");
+    assert.deepEqual(afterMetadataBoundary.calls.table, ["menu_dishes"]);
+    assert.deepEqual(afterMetadataBoundary.calls.signed, []);
+  } finally {
+    redirectHelper.resetPublicDishAssetCachesForTests();
+  }
+});
+
+test("CDN TTL follows remaining public token lifetime at the safety-margin boundary", async () => {
+  redirectHelper.resetPublicDishAssetCachesForTests();
+  const startedAt = Date.parse("2026-08-15T12:00:00.000Z");
+  let nowMs = startedAt;
+  const runtime = {
+    now: () => nowMs,
+    performanceNow: () => nowMs,
+    cachePublicAssets: true
+  };
+
+  try {
+    const fixture = createAdminFixture({
+      metadata: assetMetadata("photo"),
+      onSign: () => { nowMs = startedAt + 121_000; }
+    });
+    const response = await redirectHelper.redirectPublicDishAsset({
+      admin: fixture.admin,
+      dishId: DISH_ID,
+      kind: "photo",
+      requestedAssetVersion: PHOTO_SHA256,
+      supabaseUrl: SUPABASE_ORIGIN,
+      notFoundMessage: "Photo introuvable.",
+      unavailableMessage: "Photo indisponible.",
+      runtime
+    });
+
+    assert.equal(response.status, 307);
+    assert.equal(response.headers.get("x-vistaire-signed-url-remaining"), "149");
+    assert.equal(response.headers.get("cdn-cache-control"), "public, s-maxage=119, must-revalidate");
+    assert.equal(response.headers.get("surrogate-control"), "public, max-age=119");
+    assert.equal(response.headers.get("x-vistaire-asset-revocation-sla"), "300");
   } finally {
     redirectHelper.resetPublicDishAssetCachesForTests();
   }

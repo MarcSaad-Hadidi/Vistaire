@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { channel } from "node:diagnostics_channel";
 import { readFile } from "node:fs/promises";
 import { loadMenuMutationRevalidation } from "./helpers/public-dish-asset-route-runtime.mjs";
 
@@ -206,15 +207,133 @@ test("availability media type accepts JSON parameters but rejects JSON lookalike
 
 test("post-commit revalidation failures return an explicit retry signal without replacing RPC success", async () => {
   const { preserveAvailabilityResultAfterRevalidation } = await loadAvailability();
-  const logged = [];
+  const signals = [];
   const committed = { ok: true, dishId: "dish", dishSlug: "plat", available: false };
+  const retrySignal = {
+    kind: "menu-revalidation-retry-required",
+    schemaVersion: 1,
+    source: "admin-availability",
+    restaurantId: "restaurant",
+    dishId: "dish",
+    failures: ["post-commit-revalidation"]
+  };
   const result = await preserveAvailabilityResultAfterRevalidation(
     committed,
     async () => { throw new Error("cache unavailable"); },
-    (message) => logged.push(message)
+    {
+      retrySignal,
+      signalRetry: (signal) => signals.push(signal)
+    }
   );
   assert.deepEqual(result, { ...committed, revalidation: "retry-required" });
-  assert.deepEqual(logged, ["Admin availability revalidation failed after commit."]);
+  assert.deepEqual(signals, [retrySignal]);
+});
+
+test("a retry sink exception never turns committed availability into a rejection", async () => {
+  const { preserveAvailabilityResultAfterRevalidation } = await loadAvailability();
+  const committed = { ok: true, dishId: "dish", dishSlug: "plat", available: false };
+  const result = await preserveAvailabilityResultAfterRevalidation(
+    committed,
+    async () => ({ ok: false }),
+    {
+      retrySignal: {
+        kind: "menu-revalidation-retry-required",
+        schemaVersion: 1,
+        source: "admin-availability",
+        restaurantId: "restaurant",
+        dishId: "dish",
+        failures: ["post-commit-revalidation"]
+      },
+      signalRetry: () => { throw new Error("observability unavailable"); }
+    }
+  );
+  assert.deepEqual(result, { ...committed, revalidation: "retry-required" });
+});
+
+test("production fallback publishes a structured non-secret owner retry event", async () => {
+  const { revalidateOwnerMenuMutationPaths } = await loadMenuRevalidation();
+  const retryChannel = channel("vistaire.menu-mutation-revalidation.retry.v1");
+  const events = [];
+  const subscriber = (event) => events.push(event);
+  retryChannel.subscribe(subscriber);
+  try {
+    const result = await revalidateOwnerMenuMutationPaths(
+      {
+        client: createRestaurantLookup({ error: { message: "contains-secret-token" } }),
+        restaurantId: "restaurant-a",
+        dishId: "dish-a"
+      },
+      {
+        revalidateMenuCache: async () => ({
+          ok: true,
+          invalidatedTags: ["restaurant"],
+          failedTags: []
+        }),
+        invalidateAssetMetadata: () => 1,
+        revalidatePath: () => {}
+      }
+    );
+
+    assert.equal(result.retryRequired, true);
+    assert.deepEqual(events, [{
+      kind: "menu-revalidation-retry-required",
+      schemaVersion: 1,
+      source: "owner-menu-mutation",
+      restaurantId: "restaurant-a",
+      dishId: "dish-a",
+      failures: ["restaurant-lookup"]
+    }]);
+    assert.doesNotMatch(JSON.stringify(events), /contains-secret-token|token=/i);
+  } finally {
+    retryChannel.unsubscribe(subscriber);
+  }
+});
+
+test("owner retry sink exceptions are contained after a committed mutation", async () => {
+  const { revalidateOwnerMenuMutationPaths } = await loadMenuRevalidation();
+  const result = await revalidateOwnerMenuMutationPaths(
+    {
+      client: createRestaurantLookup({ error: { message: "lookup failed" } }),
+      restaurantId: "restaurant-a",
+      dishId: "dish-a"
+    },
+    {
+      revalidateMenuCache: async () => ({
+        ok: true,
+        invalidatedTags: ["restaurant"],
+        failedTags: []
+      }),
+      invalidateAssetMetadata: () => 1,
+      revalidatePath: () => {},
+      signalRetry: () => { throw new Error("observability unavailable"); }
+    }
+  );
+  assert.equal(result.retryRequired, true);
+  assert.deepEqual(result.failures, ["restaurant-lookup"]);
+});
+
+test("asynchronous owner retry sink rejections are contained after commit", async () => {
+  const { revalidateOwnerMenuMutationPaths } = await loadMenuRevalidation();
+  const result = await revalidateOwnerMenuMutationPaths(
+    {
+      client: createRestaurantLookup({ error: { message: "lookup failed" } }),
+      restaurantId: "restaurant-a",
+      dishId: "dish-a"
+    },
+    {
+      revalidateMenuCache: async () => ({
+        ok: true,
+        invalidatedTags: ["restaurant"],
+        failedTags: []
+      }),
+      invalidateAssetMetadata: () => 1,
+      revalidatePath: () => {},
+      signalRetry: async () => { throw new Error("async observability unavailable"); }
+    }
+  );
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(result.retryRequired, true);
+  assert.deepEqual(result.failures, ["restaurant-lookup"]);
 });
 
 test("owner mutation invalidates restaurant cache and dish asset metadata even when slug lookup fails", async () => {
@@ -249,8 +368,11 @@ test("owner mutation invalidates restaurant cache and dish asset metadata even w
   assert.deepEqual(paths, []);
   assert.deepEqual(retrySignals, [{
     kind: "menu-revalidation-retry-required",
+    schemaVersion: 1,
+    source: "owner-menu-mutation",
     restaurantId: "restaurant-a",
-    dishId: "dish-a"
+    dishId: "dish-a",
+    failures: ["restaurant-lookup"]
   }]);
   assert.deepEqual(result, {
     ok: false,

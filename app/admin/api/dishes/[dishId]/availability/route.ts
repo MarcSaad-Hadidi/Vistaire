@@ -46,21 +46,34 @@ async function updateDishAvailability({
     available: row.is_available === true
   };
 
-  return preserveAvailabilityResultAfterRevalidation(result, async () => {
-    const menuRevalidation = await revalidateOwnerMenuMutationPaths({
-      client: admin.client,
-      restaurantId,
-      dishId,
-      dishSlug: result.ok ? result.dishSlug : ""
-    });
-    let adminPathOk = true;
-    try {
-      revalidatePath("/admin");
-    } catch {
-      adminPathOk = false;
+  return preserveAvailabilityResultAfterRevalidation(
+    result,
+    async () => {
+      const menuRevalidation = await revalidateOwnerMenuMutationPaths({
+        client: admin.client,
+        restaurantId,
+        dishId,
+        dishSlug: result.ok ? result.dishSlug : ""
+      });
+      let adminPathOk = true;
+      try {
+        revalidatePath("/admin");
+      } catch {
+        adminPathOk = false;
+      }
+      return { ok: menuRevalidation.ok && adminPathOk };
+    },
+    {
+      retrySignal: {
+        kind: "menu-revalidation-retry-required",
+        schemaVersion: 1,
+        source: "admin-availability",
+        restaurantId,
+        dishId,
+        failures: ["post-commit-revalidation"]
+      }
     }
-    return { ok: menuRevalidation.ok && adminPathOk };
-  });
+  );
 }
 
 export async function PATCH(

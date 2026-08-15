@@ -39,7 +39,7 @@ type PublicDishAssetProfile = {
   extensions: readonly string[];
 };
 
-const SIGNED_URL_TTL_SECONDS = 300;
+const SIGNED_URL_TTL_SECONDS = 270;
 const ADMIN_SIGNED_URL_TTL_SECONDS = 300;
 
 export const PUBLIC_ASSET_SIGNED_URL_TTL_SECONDS = SIGNED_URL_TTL_SECONDS;
@@ -57,8 +57,10 @@ export const PUBLIC_ASSET_TOKEN_SAFETY_MARGIN_SECONDS = 30;
  * The cache is deliberately production-only. Local/test executions must keep
  * their deterministic Storage fixtures and must never retain signed tokens.
  */
+// A remote instance may retain availability metadata for 30 seconds and then
+// mint one last 270-second public token. This is the composed stale-access SLA.
 export const PUBLIC_ASSET_REVOCATION_SLA_SECONDS =
-  PUBLIC_ASSET_CDN_REDIRECT_MAX_AGE_SECONDS;
+  PUBLIC_ASSET_METADATA_CACHE_SECONDS + PUBLIC_ASSET_SIGNED_URL_TTL_SECONDS;
 const SIGNED_URL_CACHE_TTL_MS =
   PUBLIC_ASSET_SIGNED_URL_REUSE_SECONDS * 1_000;
 const SIGNED_URL_CACHE_MAX_ENTRIES = 512;
@@ -285,8 +287,15 @@ function metadataRecord(value: unknown): Record<string, unknown> {
 }
 
 function metadataString(metadata: Record<string, unknown>, key: string): string {
+  return metadataRawString(metadata, key).trim();
+}
+
+function metadataRawString(
+  metadata: Record<string, unknown>,
+  key: string
+): string {
   const value = metadata[key];
-  return typeof value === "string" ? value.trim() : "";
+  return typeof value === "string" ? value : "";
 }
 
 function storageErrorStatus(error: unknown): number {
@@ -457,7 +466,7 @@ function isUsableDishPhotoDerivativeV2(args: {
     `${args.variant}-${args.outputSha256}.webp`
   ].join("/");
   return (
-    metadataString(args.derivativeMetadata, "storagePath") ===
+    metadataRawString(args.derivativeMetadata, "storagePath") ===
     expectedStoragePath
   );
 }
@@ -484,7 +493,7 @@ function isUsableDishPhotoDerivativeV1Legacy(args: {
     `${args.variant}.webp`
   ].join("/");
   return (
-    metadataString(args.derivativeMetadata, "storagePath") ===
+    metadataRawString(args.derivativeMetadata, "storagePath") ===
     expectedStoragePath
   );
 }
@@ -684,7 +693,10 @@ async function redirectDishAsset(args: {
       ? metadataRecord(metadata.photoDerivatives)[args.photoVariant]
       : undefined;
   const derivativeMetadata = metadataRecord(derivativeRecord);
-  const derivativeStoragePath = metadataString(derivativeMetadata, "storagePath");
+  const derivativeStoragePath = metadataRawString(
+    derivativeMetadata,
+    "storagePath"
+  );
   const derivativeSourceSha256 = metadataString(
     derivativeMetadata,
     "sourceSha256"
@@ -902,7 +914,9 @@ async function redirectDishAsset(args: {
     const signedUrlRemainingSeconds = Math.max(
       0,
       Math.min(
-        SIGNED_URL_TTL_SECONDS,
+        isAuthorizedAdmin
+          ? ADMIN_SIGNED_URL_TTL_SECONDS
+          : SIGNED_URL_TTL_SECONDS,
         Math.floor((signedUrlTokenExpiresAt - runtime.now()) / 1_000)
       )
     );
@@ -936,7 +950,7 @@ async function redirectDishAsset(args: {
       headers["Surrogate-Control"] =
         `public, max-age=${cdnRedirectMaxAgeSeconds}`;
       headers["X-Vistaire-Asset-Revocation-SLA"] = String(
-        cdnRedirectMaxAgeSeconds
+        PUBLIC_ASSET_REVOCATION_SLA_SECONDS
       );
       headers["X-Vistaire-Signed-URL-Remaining"] = String(
         signedUrlRemainingSeconds

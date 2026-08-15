@@ -1,3 +1,9 @@
+import { readBoundedJsonBody } from "./requestBody.ts";
+import {
+  emitMenuMutationRetrySignal,
+  type MenuMutationRetrySignal
+} from "@/lib/owner/menuMutationRevalidation";
+
 export type AvailabilityUpdateInput = {
   qrId: string;
   restaurantId: string;
@@ -27,8 +33,12 @@ type AvailabilityDependencies = {
 
 const MAX_BODY_BYTES = 1_024;
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-const REVALIDATION_FAILURE_MESSAGE =
-  "Admin availability revalidation failed after commit.";
+type AvailabilityRetryOptions = {
+  retrySignal: MenuMutationRetrySignal;
+  signalRetry?: (
+    signal: MenuMutationRetrySignal
+  ) => void | Promise<void>;
+};
 
 export async function preserveAvailabilityResultAfterRevalidation<
   T extends Record<string, unknown>
@@ -38,17 +48,24 @@ export async function preserveAvailabilityResultAfterRevalidation<
     | Promise<void | { ok: boolean }>
     | void
     | { ok: boolean },
-  log: (message: string) => void = (message) => console.error(message)
+  retryOptions?: AvailabilityRetryOptions
 ): Promise<T & { revalidation: "complete" | "retry-required" }> {
+  const requireRetry = (): T & { revalidation: "retry-required" } => {
+    if (retryOptions) {
+      emitMenuMutationRetrySignal(
+        retryOptions.retrySignal,
+        retryOptions.signalRetry
+      );
+    }
+    return { ...committedResult, revalidation: "retry-required" };
+  };
   try {
     const outcome = await revalidate();
     if (outcome && !outcome.ok) {
-      log(REVALIDATION_FAILURE_MESSAGE);
-      return { ...committedResult, revalidation: "retry-required" };
+      return requireRetry();
     }
   } catch {
-    log(REVALIDATION_FAILURE_MESSAGE);
-    return { ...committedResult, revalidation: "retry-required" };
+    return requireRetry();
   }
   return { ...committedResult, revalidation: "complete" };
 }
@@ -160,4 +177,3 @@ export async function handleAdminAvailabilityRequest(
     200
   );
 }
-import { readBoundedJsonBody } from "./requestBody.ts";

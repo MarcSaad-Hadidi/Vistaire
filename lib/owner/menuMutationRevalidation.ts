@@ -1,5 +1,6 @@
 import "server-only";
 
+import { channel } from "node:diagnostics_channel";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
   revalidatePublicMenuCache,
@@ -8,7 +9,7 @@ import {
 import { slugifyRestaurantSlug } from "@/lib/owner/menuUrlCore";
 import { invalidatePublicDishAssetMetadataCache } from "@/lib/publicDishAssetRedirect";
 
-type MenuMutationRevalidationFailure =
+export type MenuMutationRevalidationFailure =
   | "asset-metadata-invalidation"
   | "restaurant-cache"
   | "restaurant-lookup"
@@ -26,9 +27,49 @@ export type MenuMutationRevalidationResult = {
 
 export type MenuMutationRetrySignal = {
   kind: "menu-revalidation-retry-required";
+  schemaVersion: 1;
+  source: "owner-menu-mutation" | "admin-availability";
   restaurantId: string;
   dishId?: string;
+  failures: readonly (
+    | MenuMutationRevalidationFailure
+    | "post-commit-revalidation"
+  )[];
 };
+
+export const MENU_MUTATION_RETRY_CHANNEL_NAME =
+  "vistaire.menu-mutation-revalidation.retry.v1";
+const menuMutationRetryChannel = channel(MENU_MUTATION_RETRY_CHANNEL_NAME);
+
+type MenuMutationRetrySink = (
+  signal: MenuMutationRetrySignal
+) => void | Promise<void>;
+
+/**
+ * Publishes a non-secret, machine-readable post-commit retry event. A broken
+ * observability subscriber must never change the result of the committed
+ * mutation, so every sink exception is contained here.
+ */
+export function emitMenuMutationRetrySignal(
+  signal: MenuMutationRetrySignal,
+  sink?: MenuMutationRetrySink
+): boolean {
+  const safeSignal = Object.freeze({
+    ...signal,
+    failures: Object.freeze([...signal.failures])
+  });
+  try {
+    const pending = (
+      sink ?? ((event) => menuMutationRetryChannel.publish(event))
+    )(safeSignal);
+    if (pending) {
+      void Promise.resolve(pending).catch(() => {});
+    }
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 type MenuMutationRevalidationDependencies = {
   revalidateMenuCache?: (
@@ -39,7 +80,7 @@ type MenuMutationRevalidationDependencies = {
     dishId?: string;
   }) => number;
   revalidatePath?: (path: string) => Promise<void> | void;
-  signalRetry?: (signal: MenuMutationRetrySignal) => void;
+  signalRetry?: MenuMutationRetrySink;
 };
 
 function getString(
@@ -80,14 +121,13 @@ export async function revalidateOwnerMenuMutationPaths(
     if (result.retryRequired) {
       const signal: MenuMutationRetrySignal = {
         kind: "menu-revalidation-retry-required",
+        schemaVersion: 1,
+        source: "owner-menu-mutation",
         restaurantId: args.restaurantId,
-        ...(args.dishId ? { dishId: args.dishId } : {})
+        ...(args.dishId ? { dishId: args.dishId } : {}),
+        failures: [...result.failures]
       };
-      if (dependencies.signalRetry) {
-        dependencies.signalRetry(signal);
-      } else {
-        console.error("Owner menu revalidation requires retry.");
-      }
+      emitMenuMutationRetrySignal(signal, dependencies.signalRetry);
     }
     return result;
   };
