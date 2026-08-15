@@ -21,7 +21,7 @@ function metadata() {
   };
 }
 
-function fixture({ reserveStatus = "reserved" } = {}) {
+function fixture({ reserveStatus = "reserved", updateError = false, removeError = false } = {}) {
   const events = [];
   const calls = { updates: [], uploads: [], infos: [], downloads: [], rpc: [] };
   const sourceBytes = Buffer.from("source");
@@ -62,7 +62,9 @@ function fixture({ reserveStatus = "reserved" } = {}) {
     },
     async remove(paths) {
       events.push("remove");
-      return { data: paths, error: null };
+      return removeError
+        ? { data: null, error: { message: "remove failed" } }
+        : { data: paths, error: null };
     }
   };
   const client = {
@@ -87,7 +89,9 @@ function fixture({ reserveStatus = "reserved" } = {}) {
         eq() { return query; },
         neq() { return query; },
         async maybeSingle() {
-          if (operation === "update") return { data: { id: dishId }, error: null };
+          if (operation === "update") return updateError
+            ? { data: null, error: { message: "update failed" } }
+            : { data: { id: dishId }, error: null };
           return { data: { id: dishId, restaurant_id: restaurantId, slug: "dish", name: "Dish", metadata: metadata() }, error: null };
         },
         then(resolve) { resolve({ data: [], error: null }); }
@@ -119,6 +123,8 @@ test("photo DELETE behavior clears image_url and all photo metadata before clean
   const route = await loadOwnerPhotoRoute();
   const state = fixture();
   globalThis.__OWNER_PHOTO_TEST__ = state;
+  process.env.VISTAIRE_MEDIA_WRITES_ENABLED = "true";
+  process.env.VISTAIRE_EXPECTED_SUPABASE_PROJECT_REF = "project-a";
 
   const response = await route.DELETE(
     { headers: new Headers() },
@@ -129,6 +135,22 @@ test("photo DELETE behavior clears image_url and all photo metadata before clean
   assert.ok(state.events.indexOf("db-update") < state.events.indexOf("cleanup"));
   assert.deepEqual(state.cleanupArgs.previousMetadata, metadata());
   assert.deepEqual(state.cleanupArgs.nextMetadata, { keep: "yes" });
+});
+
+test("photo DELETE obeys the shared media kill switch before DB mutation", async () => {
+  const route = await loadOwnerPhotoRoute();
+  delete process.env.VISTAIRE_MEDIA_WRITES_ENABLED;
+  process.env.VISTAIRE_EXPECTED_SUPABASE_PROJECT_REF = "project-a";
+  const state = fixture();
+  globalThis.__OWNER_PHOTO_TEST__ = state;
+
+  const response = await route.DELETE(
+    { headers: new Headers() },
+    { params: Promise.resolve({ restaurantId, dishId }) }
+  );
+  assert.equal(response.status, 503);
+  assert.deepEqual(state.calls.updates, []);
+  assert.equal(state.events.includes("cleanup"), false);
 });
 
 test("photo upload reserves exact new bytes before the first Storage write and finalizes actual bytes", async () => {
@@ -170,4 +192,23 @@ test("disabled writes and insufficient headroom fail before Storage or DB mutati
   assert.equal(capacityResponse.status, 507);
   assert.deepEqual(insufficient.calls.uploads, []);
   assert.deepEqual(insufficient.calls.updates, []);
+});
+
+test("failed upload rollback finalizes retained object bytes instead of releasing capacity", async () => {
+  const route = await loadOwnerPhotoRoute();
+  process.env.VISTAIRE_MEDIA_WRITES_ENABLED = "true";
+  process.env.VISTAIRE_EXPECTED_SUPABASE_PROJECT_REF = "project-a";
+  const state = fixture({ updateError: true, removeError: true });
+  globalThis.__OWNER_PHOTO_TEST__ = state;
+
+  const response = await route.POST(
+    requestForPost(),
+    { params: Promise.resolve({ restaurantId, dishId }) }
+  );
+  assert.equal(response.status, 503);
+  assert.equal(state.events.includes("remove"), true);
+  assert.equal(state.calls.rpc.some((call) => call.name === "release_media_capacity_reservation"), false);
+  const expectedBytes = Buffer.byteLength("source") + Buffer.byteLength("thumbnail") + Buffer.byteLength("card") + Buffer.byteLength("display");
+  assert.equal(state.calls.rpc.at(-1).name, "finalize_media_capacity_reservation");
+  assert.equal(state.calls.rpc.at(-1).parameters.p_actual_bytes, expectedBytes);
 });

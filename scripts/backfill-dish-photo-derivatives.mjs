@@ -15,10 +15,12 @@ import {
   verifyDerivativeObject
 } from "../lib/owner/mediaBackfill.ts";
 import {
+  MediaCapacityWorkError,
   mediaWritesEnabled,
   withMediaCapacityReservation
 } from "../lib/owner/mediaCapacity.ts";
 import { inspectImmutableStorageObject } from "../lib/owner/mediaObjectIntegrity.ts";
+import { rollbackCreatedMediaObjects } from "../lib/owner/mediaRollback.ts";
 
 const require = createRequire(import.meta.url);
 const RECIPE = require("../lib/owner/dishPhotoRecipe.json");
@@ -231,16 +233,11 @@ async function referencedDerivativePaths(client, plan) {
   }
 }
 
-async function rollbackUploadedDerivatives(bucket, client, plan, uploadedPaths) {
-  if (!uploadedPaths.length) return;
-
+async function rollbackUploadedDerivatives(bucket, client, plan, created) {
   // A failed guarded update may race another dish with the same source SHA.
   // If references cannot be read, keep the objects as safe orphans.
   const references = await referencedDerivativePaths(client, plan);
-  if (!references) return;
-
-  const rollbackPaths = uploadedPaths.filter((storagePath) => !references.has(storagePath));
-  if (rollbackPaths.length) await bucket.remove(rollbackPaths);
+  return rollbackCreatedMediaObjects({ bucket, created, referencedPaths: references });
 }
 
 const sourceLocks = new Map();
@@ -559,7 +556,7 @@ async function processPlan(client, plan, checkpoint, runtime) {
     requestedBytes,
     work: async () => {
       const photoDerivatives = { ...(plan.metadata.photoDerivatives ?? {}) };
-      const uploadedPaths = [];
+      const uploadedObjects = [];
       let newlyCreatedBytes = 0;
       try {
         for (const item of generatedPlans) {
@@ -581,7 +578,7 @@ async function processPlan(client, plan, checkpoint, runtime) {
               });
               if (conflict.state !== "reusable") throw new Error(`Upload ${item.variant.name} impossible: ${uploaded.error.message}`);
             } else {
-              uploadedPaths.push(item.outputPath);
+              uploadedObjects.push({ path: item.outputPath, bytes: item.bytes.byteLength });
               newlyCreatedBytes += item.bytes.byteLength;
             }
           }
@@ -625,8 +622,16 @@ async function processPlan(client, plan, checkpoint, runtime) {
           .maybeSingle();
         if (updated.error || !updated.data) throw new Error(`Metadata impossible à mettre à jour: ${updated.error?.message ?? plan.row.id}`);
       } catch (error) {
-        await rollbackUploadedDerivatives(bucket, client, plan, uploadedPaths);
-        throw error;
+        const rollback = await rollbackUploadedDerivatives(
+          bucket,
+          client,
+          plan,
+          uploadedObjects
+        );
+        throw new MediaCapacityWorkError(
+          error instanceof Error ? error.message : String(error),
+          rollback.retainedBytes
+        );
       }
       return { value: { photoDerivatives }, newlyCreatedBytes };
     }

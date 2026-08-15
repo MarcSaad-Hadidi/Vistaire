@@ -17,9 +17,11 @@ import {
 import { generateDishPhotoDerivatives } from "@/lib/owner/dishPhotoDerivatives";
 import {
   MediaCapacityError,
+  MediaCapacityWorkError,
   mediaWritesEnabled,
   withMediaCapacityReservation
 } from "@/lib/owner/mediaCapacity";
+import { rollbackCreatedMediaObjects } from "@/lib/owner/mediaRollback";
 import { inspectImmutableStorageObject } from "@/lib/owner/mediaObjectIntegrity";
 import { cleanupReplacedDishAssets } from "@/lib/owner/dishAssetReplacementCleanup";
 import { revalidateOwnerMenuMutationPaths } from "@/lib/owner/menuMutationRevalidation";
@@ -294,7 +296,7 @@ export async function POST(
       reservationKey,
       requestedBytes,
       work: async () => {
-        const uploadedStoragePaths: string[] = [];
+        const uploadedObjects: Array<{ path: string; bytes: number }> = [];
         let newlyCreatedBytes = 0;
         try {
           for (const candidate of candidatesToUpload) {
@@ -318,7 +320,7 @@ export async function POST(
               }
               continue;
             }
-            uploadedStoragePaths.push(candidate.path);
+            uploadedObjects.push({ path: candidate.path, bytes: candidate.bytes.byteLength });
             newlyCreatedBytes += candidate.bytes.byteLength;
           }
 
@@ -402,12 +404,18 @@ export async function POST(
             restaurantId,
             dishId
           });
-          const rollbackPaths = uploadedStoragePaths.filter((path) => {
-            if (previouslyReferencedPhotoPaths.has(path)) return false;
-            return otherReferencedPhotoPaths ? !otherReferencedPhotoPaths.has(path) : false;
+          const referencedPaths = otherReferencedPhotoPaths
+            ? new Set([...previouslyReferencedPhotoPaths, ...otherReferencedPhotoPaths])
+            : null;
+          const rollback = await rollbackCreatedMediaObjects({
+            bucket,
+            created: uploadedObjects,
+            referencedPaths
           });
-          if (rollbackPaths.length) await bucket.remove(rollbackPaths);
-          throw error;
+          throw new MediaCapacityWorkError(
+            error instanceof Error ? error.message : "Upload Supabase Storage impossible.",
+            rollback.retainedBytes
+          );
         }
       }
     });
@@ -434,6 +442,15 @@ export async function DELETE(
   const capability = await requireOwnerRestaurantCapability(restaurantId, "canManageMedia");
   if (!capability.ok) {
     return NextResponse.json({ ok: false, error: capability.error }, { status: capability.status });
+  }
+  const expectedProjectRef = process.env.VISTAIRE_EXPECTED_SUPABASE_PROJECT_REF
+    ?.trim()
+    .toLowerCase();
+  if (!mediaWritesEnabled() || !expectedProjectRef) {
+    return NextResponse.json(
+      { ok: false, error: "Ecritures media desactivees ou projet Supabase non configure." },
+      { status: 503 }
+    );
   }
   const admin = getSupabaseAdminClient();
   if (!admin.ok) {

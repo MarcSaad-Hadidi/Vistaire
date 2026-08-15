@@ -12,13 +12,13 @@ test("media backfill serializes workers sharing one restaurant/source SHA", asyn
   assert.match(script, /withSourceLock\(lockKey, \(\) => worker\(item, index\)\)/);
 });
 
-test("media backfill rollback preserves derivatives that are still referenced or uncertain", async () => {
+test("media backfill rollback preserves and accounts for derivatives that are referenced, uncertain or not removed", async () => {
   const script = await source();
 
   assert.match(script, /\.from\("menu_dishes"\)[\s\S]*\.eq\("restaurant_id", plan\.restaurantId\)/);
-  assert.match(script, /if \(!references\) return;/);
-  assert.match(script, /const rollbackPaths = uploadedPaths\.filter\(\(storagePath\) => !references\.has\(storagePath\)\)/);
-  assert.match(script, /rollbackUploadedDerivatives\(bucket, client, plan, uploadedPaths\)/);
+  assert.match(script, /rollbackCreatedMediaObjects\(\{ bucket, created, referencedPaths: references \}\)/);
+  assert.match(script, /throw new MediaCapacityWorkError\([\s\S]*rollback\.retainedBytes/);
+  assert.match(script, /uploadedObjects\.push\(\{ path: item\.outputPath, bytes: item\.bytes\.byteLength \}\)/);
 });
 
 test("media backfill capacity accounting retains V1 derivative bytes", async () => {
