@@ -15,6 +15,16 @@ const linkModuleUrl =
   encodeURIComponent(
     "const reactElement = Symbol.for('react.transitional.element'); export default function Link({ children, prefetch, ...props }) { return { $$typeof: reactElement, type: 'a', key: null, props: { ...props, children }, _owner: null }; }"
   );
+const dynamicModuleUrl =
+  "data:text/javascript," +
+  encodeURIComponent(
+    "export default function dynamic() { return function DynamicComponent() { return null; }; }"
+  );
+const navigationModuleUrl =
+  "data:text/javascript," +
+  encodeURIComponent(
+    "export function usePathname() { return '/menu/resto-marc'; } export function useRouter() { return { push() {}, replace() {} }; } export function useSearchParams() { return new URLSearchParams(); }"
+  );
 
 function resolveTypeScript(specifier, parentUrl) {
   const parentPath = fileURLToPath(parentUrl);
@@ -32,6 +42,12 @@ registerHooks({
   resolve(specifier, context, nextResolve) {
     if (specifier === "next/link") {
       return { url: linkModuleUrl, shortCircuit: true };
+    }
+    if (specifier === "next/dynamic") {
+      return { url: dynamicModuleUrl, shortCircuit: true };
+    }
+    if (specifier === "next/navigation") {
+      return { url: navigationModuleUrl, shortCircuit: true };
     }
     if (specifier.endsWith(".module.css")) {
       return { url: cssModuleUrl, shortCircuit: true };
@@ -71,8 +87,23 @@ const { PublicDishDetailExperience } = await import(
 const { PublicMenuExperience } = await import(
   "../components/menu/PublicMenuExperience.tsx"
 );
+const { MaisonElyseDishCard } = await import(
+  "../components/menu/MaisonElyseQrMenu.tsx"
+);
+const { TrouvableDishVisual } = await import(
+  "../components/menu/TrouvablePremiumMenuExperience.tsx"
+);
+const {
+  SaugeNoireDishFeatureCard,
+  SaugeNoireDishRow
+} = await import(
+  "../components/menu/unique/sauge-noire/SaugeNoireMenuPages.tsx"
+);
 const { DEFAULT_MENU_UI_CONFIG } = await import("../lib/menu/menuUiConfig.ts");
 const { buildSupabasePublicMenu } = await import("../lib/menu/publicMenuCore.ts");
+const { landingPhotoForDish } = await import(
+  "../lib/landing/landingDishIdentity.ts"
+);
 
 const restaurantId = "33333333-3333-4333-8333-333333333333";
 const dishId = "84226092-1b25-4174-a635-50e2b8319580";
@@ -121,11 +152,19 @@ const menu = buildSupabasePublicMenu(
   ]
 );
 
-const urls = {
-  thumbnail: `${photoPath}?v=${sourceSha256}&variant=thumbnail`,
-  card: `${photoPath}?v=${sourceSha256}&variant=card`,
-  display: `${photoPath}?v=${sourceSha256}&variant=display`
+const distinctUrls = {
+  thumbnail: "https://images.vistaire.invalid/dishes/tartare-thumbnail.webp",
+  card: "https://images.vistaire.invalid/dishes/tartare-card.webp",
+  display: "https://images.vistaire.invalid/dishes/tartare-display.webp"
 };
+
+const surfaceDish = {
+  ...menu.dishes[0],
+  thumbnailUrl: distinctUrls.thumbnail,
+  cardUrl: distinctUrls.card,
+  imageUrl: distinctUrls.display
+};
+const surfaceMenu = { ...menu, dishes: [surfaceDish] };
 
 function markupUrlPattern(url) {
   return new RegExp(
@@ -139,26 +178,98 @@ test("renders card media for generic photo-large cards", () => {
     cards: { ...DEFAULT_MENU_UI_CONFIG.cards, variant: "photo-large" }
   };
   const markup = renderToStaticMarkup(
-    React.createElement(PublicMenuRenderer, { config, menu, mode: "public" })
+    React.createElement(PublicMenuRenderer, {
+      config,
+      menu: surfaceMenu,
+      mode: "public"
+    })
   );
 
-  assert.match(markup, markupUrlPattern(urls.card));
-  assert.doesNotMatch(markup, markupUrlPattern(urls.thumbnail));
+  assert.match(markup, markupUrlPattern(distinctUrls.card));
+  assert.doesNotMatch(markup, markupUrlPattern(distinctUrls.thumbnail));
+  assert.doesNotMatch(markup, markupUrlPattern(distinctUrls.display));
 });
 
 test("renders display media for a dish detail and thumbnail media for compact rows", () => {
   const detailMarkup = renderToStaticMarkup(
     React.createElement(PublicDishDetailExperience, {
-      dish: menu.dishes[0],
-      menu,
+      dish: surfaceDish,
+      menu: surfaceMenu,
       mode: "public"
     })
   );
   const compactMarkup = renderToStaticMarkup(
-    React.createElement(PublicMenuExperience, { menu })
+    React.createElement(PublicMenuExperience, { menu: surfaceMenu })
   );
 
-  assert.match(detailMarkup, markupUrlPattern(urls.display));
-  assert.match(compactMarkup, markupUrlPattern(urls.thumbnail));
-  assert.doesNotMatch(compactMarkup, markupUrlPattern(urls.display));
+  assert.match(detailMarkup, markupUrlPattern(distinctUrls.display));
+  assert.match(compactMarkup, markupUrlPattern(distinctUrls.thumbnail));
+  assert.doesNotMatch(compactMarkup, markupUrlPattern(distinctUrls.card));
+  assert.doesNotMatch(compactMarkup, markupUrlPattern(distinctUrls.display));
+});
+
+test("renders branded small and card surfaces without selecting display media", () => {
+  const maisonMarkup = renderToStaticMarkup(
+    React.createElement(MaisonElyseDishCard, {
+      disableNavigation: true,
+      dish: surfaceDish,
+      locale: "fr-CA",
+      menu: surfaceMenu
+    })
+  );
+  const trouvableListMarkup = renderToStaticMarkup(
+    React.createElement(TrouvableDishVisual, {
+      dish: surfaceDish,
+      menu: surfaceMenu,
+      viewMode: "list"
+    })
+  );
+  const trouvableGridMarkup = renderToStaticMarkup(
+    React.createElement(TrouvableDishVisual, {
+      dish: surfaceDish,
+      menu: surfaceMenu,
+      viewMode: "grid"
+    })
+  );
+  const saugeRowMarkup = renderToStaticMarkup(
+    React.createElement(SaugeNoireDishRow, {
+      compact: false,
+      currency: "CAD",
+      disableNavigation: true,
+      dish: surfaceDish,
+      locale: "fr-CA",
+      menu: surfaceMenu,
+      query: {}
+    })
+  );
+  const saugeFeaturedMarkup = renderToStaticMarkup(
+    React.createElement(SaugeNoireDishFeatureCard, {
+      copy: { menu: "Menu" },
+      currency: "CAD",
+      disableNavigation: true,
+      dish: surfaceDish,
+      locale: "fr-CA",
+      menu: surfaceMenu,
+      query: {},
+      variant: "editorial"
+    })
+  );
+
+  for (const markup of [maisonMarkup, trouvableListMarkup, saugeRowMarkup]) {
+    assert.match(markup, markupUrlPattern(distinctUrls.thumbnail));
+    assert.doesNotMatch(markup, markupUrlPattern(distinctUrls.card));
+    assert.doesNotMatch(markup, markupUrlPattern(distinctUrls.display));
+  }
+  for (const markup of [trouvableGridMarkup, saugeFeaturedMarkup]) {
+    assert.match(markup, markupUrlPattern(distinctUrls.card));
+    assert.doesNotMatch(markup, markupUrlPattern(distinctUrls.thumbnail));
+    assert.doesNotMatch(markup, markupUrlPattern(distinctUrls.display));
+  }
+});
+
+test("prefers the card URL for shared landing menu media", () => {
+  assert.deepEqual(landingPhotoForDish(surfaceDish), {
+    source: "cardUrl",
+    url: distinctUrls.card
+  });
 });

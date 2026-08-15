@@ -298,7 +298,7 @@ function quickFilterMatches(dish: PublicMenuDish, filter: QuickFilterId): boolea
   return true;
 }
 
-function DishVisual({
+export function TrouvableDishVisual({
   dish,
   menu,
   viewMode
@@ -1430,7 +1430,7 @@ export function TrouvablePremiumMenuExperience({
     const show3dBadge = hasPublicMenu3d(dish);
     const dishSummaryContent = (
       <>
-        <DishVisual dish={dish} menu={menu} viewMode={viewMode} />
+        <TrouvableDishVisual dish={dish} menu={menu} viewMode={viewMode} />
         <span className={styles.dishCopy}>
           <span className={styles.dishTopline}>
             <strong>{dish.name}</strong>

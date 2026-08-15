@@ -373,7 +373,7 @@ export function SectionPage({
       {sectionNumber === 1 ? <SaugeNoireBotanical variant="sprig" className={styles.sectionBotanical} /> : null}
       {sectionNumber === 7 ? <SaugeNoireBotanical variant="sansAlcoolBranch" className={styles.sectionBotanical} /> : null}
       {featured ? (
-        <DishFeatureCard
+        <SaugeNoireDishFeatureCard
           menu={menu}
           dish={featured}
           locale={locale}
@@ -390,7 +390,7 @@ export function SectionPage({
       ) : null}
       <div className={styles.dishList}>
         {remainingDishes.map((dish) => (
-          <DishRow
+          <SaugeNoireDishRow
             key={dish.id}
             menu={menu}
             dish={dish}
@@ -418,7 +418,7 @@ export function SectionPage({
   );
 }
 
-function DishFeatureCard({
+export function SaugeNoireDishFeatureCard({
   menu,
   dish,
   locale,
@@ -505,7 +505,7 @@ function DishFeatureCard({
   );
 }
 
-function DishRow({
+export function SaugeNoireDishRow({
   menu,
   dish,
   locale,

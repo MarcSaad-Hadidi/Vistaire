@@ -546,7 +546,7 @@ function dishBadges(dish: PublicMenuDish, locale: PublicMenuLocale): string[] {
   return badges.slice(0, 4);
 }
 
-function DishCard({
+export function MaisonElyseDishCard({
   disableNavigation = false,
   dish,
   locale,
@@ -683,7 +683,7 @@ function DishSection({
       </div>
       <ul className={styles.dishList}>
         {dishes.map((dish) => (
-          <DishCard
+          <MaisonElyseDishCard
             disableNavigation={disableNavigation}
             dish={dish}
             key={dish.id}

@@ -788,6 +788,7 @@ const CARD_DERIVATIVE_MAX_DIMENSION = 768;
 
 function hasValidV2CardDerivative(
   metadata: PublicMenuRow,
+  restaurantId: string,
   photoSha256: string
 ): boolean {
   const derivatives = getObject(metadata, ["photoDerivatives", "photo_derivatives"]);
@@ -796,9 +797,8 @@ function hasValidV2CardDerivative(
   const outputSha256 = getString(card, ["outputSha256", "output_sha256", "sha256"], "").toLowerCase();
   const legacySha256 = getString(card, ["sha256"], "").toLowerCase();
   const storagePath = getString(card, ["storagePath", "storage_path"], "");
-  const outputPathMatch = /(?:^|\/)dish-photo-v2\/card-([a-f0-9]{64})\.webp$/i.exec(
-    storagePath
-  );
+  const normalizedPhotoSha256 = photoSha256.toLowerCase();
+  const expectedStoragePath = `restaurants/${restaurantId}/photos/derivatives/${normalizedPhotoSha256}/dish-photo-v2/card-${outputSha256}.webp`;
   const width = getNumber(card, ["width"], 0);
   const height = getNumber(card, ["height"], 0);
   const bytes = getNumber(card, ["bytes"], 0);
@@ -808,12 +808,12 @@ function hasValidV2CardDerivative(
     card.schemaVersion === 2 &&
     card.recipeId === "dish-photo-v2" &&
     card.variant === "card" &&
+    Boolean(restaurantId) &&
     PHOTO_SHA256_PATTERN.test(photoSha256) &&
-    sourceSha256 === photoSha256.toLowerCase() &&
+    sourceSha256 === normalizedPhotoSha256 &&
     PHOTO_SHA256_PATTERN.test(outputSha256) &&
     (!legacySha256 || legacySha256 === outputSha256) &&
-    Boolean(outputPathMatch) &&
-    outputPathMatch?.[1].toLowerCase() === outputSha256 &&
+    storagePath === expectedStoragePath &&
     card.contentType === "image/webp" &&
     card.format === "webp" &&
     Number.isInteger(width) &&
@@ -873,7 +873,8 @@ function versionCanonicalDishPhotoUrl(
 function mapDishRow(
   row: PublicMenuRow,
   index: number,
-  settings: PublicMenuSettings
+  settings: PublicMenuSettings,
+  restaurantId: string
 ): PublicMenuDish {
   const metadata = getObject(row, ["metadata", "meta"]);
   const name = getString(row, ["name", "dish_name", "title"], "Plat");
@@ -934,7 +935,7 @@ function mapDishRow(
     photoSha256,
     "thumbnail"
   );
-  const cardUrl = hasValidV2CardDerivative(metadata, photoSha256)
+  const cardUrl = hasValidV2CardDerivative(metadata, restaurantId, photoSha256)
     ? canonicalDishPhotoVariantUrl(dishId, photoSha256, "card")
     : rawImageUrl;
   const model3dUrl = getSafeStringFromSources(row, metadata, ["model3dUrl", "model3d_url"]);
@@ -1508,7 +1509,7 @@ export function buildSupabasePublicMenu(
     .map((row, index) => ({ row, index, order: dishSortOrder(row, index) }))
     .sort(compareDishEntries)
     .slice(0, 200)
-    .map(({ row, index }) => mapDishRow(row, index, settings));
+    .map(({ row, index }) => mapDishRow(row, index, settings, restaurantId));
 
   return {
     restaurantId,
@@ -1587,7 +1588,7 @@ export function buildRelationalSupabasePublicMenu(args: {
     })
     .sort(compareDishEntries)
     .slice(0, 200)
-    .map(({ row, index }) => mapDishRow(row, index, settings));
+    .map(({ row, index }) => mapDishRow(row, index, settings, restaurantId));
 
   return {
     restaurantId,
