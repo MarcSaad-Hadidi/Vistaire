@@ -25,6 +25,11 @@ const navigationModuleUrl =
   encodeURIComponent(
     "export function usePathname() { return '/menu/resto-marc'; } export function useRouter() { return { push() {}, replace() {} }; } export function useSearchParams() { return new URLSearchParams(); }"
   );
+const imageModuleUrl =
+  "data:text/javascript," +
+  encodeURIComponent(
+    "const reactElement = Symbol.for('react.transitional.element'); export default function Image({ fill, priority, quality, sizes, unoptimized, ...props }) { return { $$typeof: reactElement, type: 'img', key: null, props, _owner: null }; }"
+  );
 
 function resolveTypeScript(specifier, parentUrl) {
   const parentPath = fileURLToPath(parentUrl);
@@ -48,6 +53,9 @@ registerHooks({
     }
     if (specifier === "next/navigation") {
       return { url: navigationModuleUrl, shortCircuit: true };
+    }
+    if (specifier === "next/image") {
+      return { url: imageModuleUrl, shortCircuit: true };
     }
     if (specifier.endsWith(".module.css")) {
       return { url: cssModuleUrl, shortCircuit: true };
@@ -99,10 +107,16 @@ const {
 } = await import(
   "../components/menu/unique/sauge-noire/SaugeNoireMenuPages.tsx"
 );
+const { LandingDishStorySection } = await import(
+  "../components/landing/LandingDishStorySection.tsx"
+);
 const { DEFAULT_MENU_UI_CONFIG } = await import("../lib/menu/menuUiConfig.ts");
 const { buildSupabasePublicMenu } = await import("../lib/menu/publicMenuCore.ts");
-const { landingPhotoForDish } = await import(
-  "../lib/landing/landingDishIdentity.ts"
+const { buildCurrentPublicMenuPreview } = await import(
+  "../lib/landing/publicMenuPreview.ts"
+);
+const { getLandingCopy } = await import(
+  "../lib/landing/landingCopy.ts"
 );
 
 const restaurantId = "33333333-3333-4333-8333-333333333333";
@@ -267,9 +281,52 @@ test("renders branded small and card surfaces without selecting display media", 
   }
 });
 
-test("prefers the card URL for shared landing menu media", () => {
-  assert.deepEqual(landingPhotoForDish(surfaceDish), {
-    source: "cardUrl",
-    url: distinctUrls.card
+test("renders card media in the landing dish-story component", () => {
+  const { preview } = buildCurrentPublicMenuPreview({
+    locale: "fr",
+    menu: surfaceMenu,
+    preferredDishId: surfaceDish.id,
+    preferredDishSlug: surfaceDish.slug,
+    theme: "maison-elyse"
   });
+  const featuredDish = preview.featuredDish;
+  assert.ok(featuredDish);
+  const markup = renderToStaticMarkup(
+    React.createElement(LandingDishStorySection, {
+      copy: getLandingCopy("fr").dishes,
+      experiences: [
+        {
+          id: "maison-elyse",
+          menuSlug: "maison-elyse",
+          name: "Maison Élyse",
+          label: "Éditoriale et gastronomique",
+          publicMenuHref: "/menu/maison-elyse",
+          image: "",
+          imageAlt: "",
+          imagePosition: "center",
+          preferredDishSlug: surfaceDish.slug,
+          featuredDish: {
+            id: surfaceDish.id,
+            slug: surfaceDish.slug,
+            name: surfaceDish.name,
+            description: surfaceDish.description,
+            price: surfaceDish.priceLabel,
+            href: `/menu/maison-elyse/dishes/${surfaceDish.slug}`,
+            image: featuredDish.image ?? "",
+            imageSource: "cardUrl",
+            imageAlt: surfaceDish.name,
+            imagePosition: "center"
+          },
+          preview,
+          renderPayload: null,
+          hasLiveData: true
+        }
+      ],
+      locale: "fr"
+    })
+  );
+
+  assert.match(markup, markupUrlPattern(distinctUrls.card));
+  assert.doesNotMatch(markup, markupUrlPattern(distinctUrls.thumbnail));
+  assert.doesNotMatch(markup, markupUrlPattern(distinctUrls.display));
 });
