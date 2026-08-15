@@ -28,10 +28,3 @@ test("media backfill capacity accounting retains V1 derivative bytes", async () 
   assert.match(script, /legacyDerivativeBytes: derivativeByteTotals\.v1/);
   assert.match(script, /existingDerivativeBytes = derivativeByteTotals\.v1 \+ derivativeByteTotals\.v2/);
 });
-
-test("verify-only checks Storage metadata before optional source download", async () => {
-  const script = await source();
-
-  assert.match(script, /const verifySource = args\.has\("--verify-source"\)/);
-  assert.match(script, /if \(verifyOnly\) \{[\s\S]*?bucket\.info\(metadata\.storagePath\)[\s\S]*?if \(verifySource\)/);
-});

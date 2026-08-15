@@ -9,16 +9,32 @@
  * cannot accidentally turn a build into a production probe.
  */
 import process from "node:process";
+import { createHash } from "node:crypto";
 import { createClient } from "@supabase/supabase-js";
+import {
+  classifyDishPhotoUsage,
+  paginateProviderRows,
+  verifyDerivativeObject
+} from "../lib/owner/mediaBackfill.ts";
 
 const argv = new Set(process.argv.slice(2));
 const jsonOnly = argv.has("--json");
 const allowProductionRead = argv.has("--allow-production-read");
+const verifyHash = argv.has("--verify-hash");
 const limitArg = process.argv.find((value) => value.startsWith("--storage-limit="));
+const concurrencyArg = process.argv.find((value) => value.startsWith("--concurrency="));
+const verifyMaxObjectsArg = process.argv.find((value) => value.startsWith("--verify-max-objects="));
+const verifyMaxBytesArg = process.argv.find((value) => value.startsWith("--verify-max-bytes="));
+const verifyTimeoutArg = process.argv.find((value) => value.startsWith("--verify-timeout-ms="));
 const storagePageSize = Math.max(
   50,
   Math.min(Number(limitArg?.split("=")[1] ?? 1_000) || 1_000, 1_000)
 );
+const concurrency = Math.max(1, Math.min(Number(concurrencyArg?.split("=")[1] ?? 2), 4));
+const verifyMaxObjects = Math.max(1, Math.min(Number(verifyMaxObjectsArg?.split("=")[1] ?? 10_000), 100_000));
+const verifyMaxBytes = Math.max(1, Math.min(Number(verifyMaxBytesArg?.split("=")[1] ?? 256 * 1024 * 1024), 1024 * 1024 * 1024));
+const verifyTimeoutMs = Math.max(1_000, Math.min(Number(verifyTimeoutArg?.split("=")[1] ?? 10_000), 60_000));
+const PHOTO_VARIANTS = ["thumbnail", "card", "display"];
 
 function fail(message) {
   if (jsonOnly) console.log(JSON.stringify({ ok: false, error: message }, null, 2));
@@ -70,7 +86,8 @@ async function listStorageObjects(client, bucket, prefix = "", pageSize = storag
       sortBy: { column: "name", order: "asc" }
     });
     if (error) throw new Error(`${bucket} list ${prefix || "/"}: ${error.message}`);
-    const entries = data ?? [];
+    if (!Array.isArray(data)) throw new Error(`${bucket} list ${prefix || "/"}: partial provider response`);
+    const entries = data;
     for (const entry of entries) {
       const path = prefix ? `${prefix}/${entry.name}` : entry.name;
       // Storage folders are represented by an entry with no id/metadata.
@@ -88,6 +105,165 @@ async function listStorageObjects(client, bucket, prefix = "", pageSize = storag
     if (entries.length < pageSize) break;
   }
   return objects;
+}
+
+async function readAllDishes(client) {
+  return paginateProviderRows({
+    pageSize: 1_000,
+    fetchPage: async (offset, limit) => {
+      const result = await client
+        .from("menu_dishes")
+        .select("id,restaurant_id,metadata")
+        .order("id", { ascending: true })
+        .range(offset, offset + limit - 1);
+      return { data: result.data, error: result.error };
+    },
+    identity: (row) => String(row.id ?? "")
+  });
+}
+
+async function mapLimited(items, workerCount, worker) {
+  const results = [];
+  let cursor = 0;
+  async function loop() {
+    while (cursor < items.length) {
+      const index = cursor++;
+      results[index] = await worker(items[index], index);
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(workerCount, Math.max(items.length, 1)) }, loop));
+  return results;
+}
+
+async function downloadBounded(bucket, storagePath, expectedBytes, budget) {
+  if (!Number.isSafeInteger(expectedBytes) || expectedBytes < 0) throw new Error(`unknown object size: ${storagePath}`);
+  if (budget.objects + 1 > verifyMaxObjects) throw new Error("verify-hash object limit exceeded");
+  if (budget.bytes + expectedBytes > verifyMaxBytes) throw new Error("verify-hash byte/memory limit exceeded");
+  budget.objects += 1;
+  budget.bytes += expectedBytes;
+  let timer;
+  try {
+    const result = await Promise.race([
+      bucket.download(storagePath),
+      new Promise((_, reject) => {
+        timer = setTimeout(() => reject(new Error(`verify-hash timeout: ${storagePath}`)), verifyTimeoutMs);
+      })
+    ]);
+    if (result.error || !result.data) throw new Error(`download unavailable: ${result.error?.message ?? storagePath}`);
+    const body = Buffer.from(await result.data.arrayBuffer());
+    if (body.byteLength !== expectedBytes) throw new Error(`download size changed: ${storagePath}`);
+    return body;
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
+function deduplicateStorageObjects(bucket, objects) {
+  const byPath = new Map();
+  for (const object of objects) {
+    const key = `${bucket}/${object.path}`;
+    const prior = byPath.get(key);
+    if (prior && (prior.bytes !== object.bytes || prior.contentType !== object.contentType)) {
+      throw new Error(`conflicting duplicate Storage object: ${key}`);
+    }
+    byPath.set(key, object);
+  }
+  return [...byPath.values()];
+}
+
+async function capacityState(client, projectRef) {
+  const { data, error } = await client.rpc("get_media_capacity_state", { p_project_ref: projectRef });
+  const value = Array.isArray(data) ? data[0] : data;
+  if (error || !value || typeof value !== "object" || value.status !== "available") {
+    return { status: "unavailable", reason: error?.message ?? value?.reason ?? "missing capacity state" };
+  }
+  const quotaBytes = Number(value.quotaBytes);
+  const usedBytes = Number(value.usedBytes);
+  const activeReservedBytes = Number(value.activeReservedBytes);
+  if (
+    value.projectRef !== projectRef ||
+    !Number.isSafeInteger(quotaBytes) || quotaBytes <= 0 ||
+    !Number.isSafeInteger(usedBytes) || usedBytes < 0 ||
+    !Number.isSafeInteger(activeReservedBytes) || activeReservedBytes < 0 ||
+    typeof value.quotaSource !== "string" || !value.quotaSource.trim()
+  ) return { status: "unavailable", reason: "invalid authoritative capacity state" };
+  return {
+    status: "available",
+    quotaBytes,
+    usedBytes,
+    activeReservedBytes,
+    quotaSource: value.quotaSource,
+    usageMeasuredAt: value.usageMeasuredAt,
+    headroomBytes: quotaBytes - usedBytes - activeReservedBytes,
+    headroomPercent: ((quotaBytes - usedBytes - activeReservedBytes) / quotaBytes) * 100
+  };
+}
+
+async function auditPhotoRow({ row, bucket, objectByPath, budget }) {
+  const metadata = parseMetadata(row.metadata);
+  const objectResults = {};
+  const sourcePath = typeof metadata.photoStoragePath === "string" ? metadata.photoStoragePath : "";
+  const sourceSha256 = typeof metadata.photoSha256 === "string" ? metadata.photoSha256.toLowerCase() : "";
+  if (sourcePath) {
+    const sourceObject = objectByPath.get(sourcePath);
+    const reasons = [];
+    if (!sourceObject) reasons.push("missing-object");
+    else {
+      if (sourceObject.bytes !== Number(metadata.photoBytes)) reasons.push("wrong-size");
+      const expectedType = typeof metadata.photoContentType === "string"
+        ? metadata.photoContentType.split(";")[0].toLowerCase()
+        : "";
+      if (sourceObject.contentType !== expectedType) reasons.push("wrong-content-type");
+      if (verifyHash && reasons.length === 0) {
+        const body = await downloadBounded(bucket, sourcePath, sourceObject.bytes, budget);
+        const actualSha = createHash("sha256").update(body).digest("hex");
+        if (actualSha !== sourceSha256) reasons.push("wrong-hash");
+      }
+    }
+    objectResults.source = { reasons };
+  }
+
+  const derivatives = metadata.photoDerivatives && typeof metadata.photoDerivatives === "object" && !Array.isArray(metadata.photoDerivatives)
+    ? metadata.photoDerivatives
+    : {};
+  for (const variant of PHOTO_VARIANTS) {
+    const derivative = derivatives[variant];
+    const derivativePath = derivative && typeof derivative === "object"
+      ? derivative.storagePath
+      : "";
+    const object = typeof derivativePath === "string" ? objectByPath.get(derivativePath) : null;
+    let body;
+    if (verifyHash && object) body = await downloadBounded(bucket, derivativePath, object.bytes, budget);
+    if (derivative?.schemaVersion === 1 || derivative?.recipeId === "dish-photo-v1") {
+      const reasons = [];
+      if (!object) reasons.push("missing-object");
+      else {
+        if (object.bytes !== Number(derivative.bytes)) reasons.push("wrong-size");
+        if (object.contentType !== "image/webp") reasons.push("wrong-content-type");
+        if (verifyHash) {
+          const expectedSha = String(derivative.outputSha256 ?? derivative.sha256 ?? "").toLowerCase();
+          const actualSha = createHash("sha256").update(body).digest("hex");
+          if (!expectedSha || actualSha !== expectedSha) reasons.push("wrong-hash");
+        }
+      }
+      objectResults[variant] = { reasons };
+    } else {
+      const verified = await verifyDerivativeObject({
+        restaurantId: String(row.restaurant_id ?? ""),
+        sourceSha256,
+        variant,
+        metadata: derivative,
+        object: object ? { bytes: object.bytes, contentType: object.contentType ?? "", body } : null,
+        verifyHash
+      });
+      objectResults[variant] = { reasons: verified.reasons };
+    }
+  }
+  return {
+    dishId: row.id,
+    restaurantId: row.restaurant_id,
+    ...classifyDishPhotoUsage({ metadata, objectResults })
+  };
 }
 
 async function countAnalytics(client, restaurantId, fromIso) {
@@ -146,15 +322,22 @@ async function main() {
     global: { headers: { "X-Client-Info": "vistaire-supabase-usage-audit" } }
   });
   const now = Date.now();
-  const restaurantResult = await client.from("restaurants").select("id").limit(10_000);
-  if (restaurantResult.error) return fail(`restaurants read failed: ${restaurantResult.error.message}`);
-  const restaurantIds = (restaurantResult.data ?? []).map((row) => row.id).filter(Boolean);
-  const dishResult = await client
-    .from("menu_dishes")
-    .select("id,restaurant_id,metadata", { count: "exact" })
-    .limit(10_000);
-  if (dishResult.error) return fail(`menu_dishes read failed: ${dishResult.error.message}`);
-  const dishes = dishResult.data ?? [];
+  let restaurantRows;
+  let dishes;
+  try {
+    restaurantRows = await paginateProviderRows({
+      pageSize: 1_000,
+      fetchPage: async (offset, limit) => {
+        const result = await client.from("restaurants").select("id").order("id", { ascending: true }).range(offset, offset + limit - 1);
+        return { data: result.data, error: result.error };
+      },
+      identity: (row) => String(row.id ?? "")
+    });
+    dishes = await readAllDishes(client);
+  } catch (error) {
+    return fail(`paginated database read failed: ${error instanceof Error ? error.message : error}`);
+  }
+  const restaurantIds = restaurantRows.map((row) => row.id).filter(Boolean);
   const photoRows = dishes.map((row) => parseMetadata(row.metadata));
   const sourcePaths = new Set(photoRows.map((metadata) => metadata.photoStoragePath).filter(Boolean));
   const derivativeCount = photoRows.reduce((count, metadata) => {
@@ -166,7 +349,10 @@ async function main() {
   const storageObjectsByBucket = new Map();
   for (const bucket of ["vistaire-media", "vistaire-3d"]) {
     try {
-      const objects = await listStorageObjects(client, bucket);
+      const objects = deduplicateStorageObjects(
+        bucket,
+        await listStorageObjects(client, bucket)
+      );
       storageObjectsByBucket.set(bucket, objects);
       const byCategory = {};
       for (const object of objects) {
@@ -193,15 +379,53 @@ async function main() {
     }
   }
 
-  const mediaObjects = storageObjectsByBucket.get("vistaire-media") ?? [];
+  const storageUnavailable = [...Object.values(buckets)].some((entry) => entry.error);
+  const mediaObjects = storageObjectsByBucket.get("vistaire-media");
   // Storage list responses are intentionally not emitted in the report, but
   // retaining them briefly lets us report measured source/derivative bytes.
   const mediaSourceBytes = mediaObjects
+    ? mediaObjects
     .filter((object) => /\/photos\/originals\//i.test(object.path))
-    .reduce((sum, object) => sum + object.bytes, 0);
+    .reduce((sum, object) => sum + object.bytes, 0)
+    : null;
   const mediaDerivativeBytes = mediaObjects
+    ? mediaObjects
     .filter((object) => /\/photos\/derivatives\//i.test(object.path))
-    .reduce((sum, object) => sum + object.bytes, 0);
+    .reduce((sum, object) => sum + object.bytes, 0)
+    : null;
+
+  const verifyBudget = { objects: 0, bytes: 0 };
+  let photoAudit = [];
+  if (!storageUnavailable && mediaObjects) {
+    const mediaBucket = client.storage.from("vistaire-media");
+    const objectByPath = new Map(mediaObjects.map((object) => [object.path, object]));
+    photoAudit = await mapLimited(dishes, concurrency, async (row) => {
+      try {
+        return await auditPhotoRow({ row, bucket: mediaBucket, objectByPath, budget: verifyBudget });
+      } catch (error) {
+        return {
+          dishId: row.id,
+          restaurantId: row.restaurant_id,
+          classification: "unavailable",
+          status: "unavailable",
+          reasons: [error instanceof Error ? error.message : String(error)]
+        };
+      }
+    });
+  } else {
+    photoAudit = dishes.map((row) => ({
+      dishId: row.id,
+      restaurantId: row.restaurant_id,
+      classification: "unavailable",
+      status: "unavailable",
+      reasons: ["Storage listing unavailable"]
+    }));
+  }
+  const classifications = {};
+  for (const entry of photoAudit) {
+    classifications[entry.classification] = (classifications[entry.classification] ?? 0) + 1;
+  }
+  const capacity = await capacityState(client, projectRef);
 
   const analytics = {
     total: await countAnalytics(client),
@@ -214,28 +438,54 @@ async function main() {
     projectionStatus(client, "menu_categories", "id,restaurant_id,menu_id,name,slug,description,display_order,created_at,updated_at"),
     projectionStatus(client, "analytics_events", "id,restaurant_id,menu_id,dish_id,session_id,event_name,source,dish_slug,category_slug,search_query,filter_name,cta_name,created_at")
   ]);
+  const photoStatus = photoAudit.some((entry) => entry.status === "unavailable")
+    ? "unavailable"
+    : photoAudit.some((entry) => entry.status === "fail")
+      ? "fail"
+      : photoAudit.some((entry) => entry.status === "partial")
+        ? "partial"
+        : "pass";
+  const overallStatus = storageUnavailable || capacity.status === "unavailable" || photoStatus === "unavailable"
+    ? "unavailable"
+    : photoStatus === "fail"
+      ? "fail"
+      : photoStatus === "partial"
+        ? "partial"
+        : "pass";
   const report = {
+    reportVersion: 2,
+    status: overallStatus,
     generatedAt: new Date(now).toISOString(),
     projectRef,
     target: looksProduction ? "production-read-only" : "non-production-read-only",
     project: {
-      plan: "not-available-via-data-api",
-      status: "not-available-via-data-api",
-      note: "Supabase Management API credentials are intentionally not accepted by this audit."
+      status: capacity.status,
+      note: "Quota and global usage come only from the authoritative project-scoped capacity state."
     },
     storage: buckets,
-    capacity: {
-      status: "not-computed",
-      reason: "Plan/quota values require the Supabase Management API and are not inferred from Storage list responses."
-    },
+    capacity,
     photoCoverage: {
-      dishes: dishResult.count ?? dishes.length,
+      status: photoStatus,
+      dishes: dishes.length,
       sources: sourcePaths.size,
       derivativeEntries: derivativeCount,
-      rowsWithDerivatives: photoRows.filter((metadata) => metadata.photoDerivatives && typeof metadata.photoDerivatives === "object").length,
-      originalFallbackCandidates: photoRows.filter((metadata) => !metadata.photoDerivatives || typeof metadata.photoDerivatives !== "object").length,
+      rowsWithDerivatives: photoRows.filter((metadata) => metadata.photoDerivatives && typeof metadata.photoDerivatives === "object" && Object.keys(metadata.photoDerivatives).length > 0).length,
+      originalFallbackCandidates: photoAudit.filter(
+        (entry) => entry.classification === "original-only" || entry.status === "partial"
+      ).length,
       sourceBytes: mediaSourceBytes,
-      derivativeBytes: mediaDerivativeBytes
+      derivativeBytes: mediaDerivativeBytes,
+      classifications,
+      verification: {
+        mode: verifyHash ? "hash" : "existence-size-content-type",
+        objects: verifyBudget.objects,
+        bytes: verifyBudget.bytes,
+        maxObjects: verifyMaxObjects,
+        maxBytes: verifyMaxBytes,
+        timeoutMs: verifyTimeoutMs,
+        concurrency
+      },
+      rows: photoAudit
     },
     analytics,
     schema: { status: schema.every((entry) => entry.ok) ? "pass" : "drift-or-unavailable", projections: schema },
@@ -246,6 +496,7 @@ async function main() {
     notes: [
       "Read-only audit: no Storage writes/removes, no DB mutations, no plan/provider changes.",
       `Restaurants observed: ${restaurantIds.length}.`,
+      "An empty photoDerivatives object is classified as partial, never complete.",
       "3D reference/orphan counts are candidates based on metadata path matches; review URL normalization before any cleanup."
     ]
   };
@@ -258,10 +509,12 @@ async function main() {
       if (value.byCategory) console.log(`  categories: ${JSON.stringify(value.byCategory)}`);
     }
     console.log(`Photos: ${report.photoCoverage.dishes} dishes, ${report.photoCoverage.rowsWithDerivatives} derivative rows, ${report.photoCoverage.sources} distinct sources`);
+    console.log(`Photo audit: ${report.photoCoverage.status} ${JSON.stringify(report.photoCoverage.classifications)}`);
     console.log(`Analytics: ${JSON.stringify(report.analytics)}`);
     console.log(`Schema projections: ${report.schema.status}`);
     console.log(JSON.stringify(report, null, 2));
   }
+  if (overallStatus === "fail" || overallStatus === "unavailable") process.exitCode = 1;
 }
 
 main().catch((error) => fail(error instanceof Error ? error.message : String(error)));

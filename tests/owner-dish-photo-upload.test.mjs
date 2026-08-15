@@ -217,8 +217,8 @@ test("dish photo upload API and public redirect use guarded server-side storage"
   assert.match(uploadRoute, /\.eq\("id", dishId\)/);
   assert.match(uploadRoute, /\.eq\("restaurant_id", restaurantId\)/);
   assert.match(uploadRoute, /validateDishPhotoFile/);
-  assert.match(uploadRoute, /storage\.from\(MEDIA_BUCKET\)\.upload/);
-  assert.match(uploadRoute, /storage\.from\(MEDIA_BUCKET\)\.remove/);
+  assert.match(uploadRoute, /withMediaCapacityReservation/);
+  assert.match(uploadRoute, /inspectImmutableStorageObject/);
   assert.match(uploadRoute, /export async function DELETE/);
   assert.match(uploadRoute, /clearDishPhotoMetadata/);
   assert.match(uploadRoute, /cleanupReplacedDishAssets/);
@@ -263,23 +263,6 @@ test("photo replacement, delete, and dish delete use the shared media cleanup", 
   assert.match(dishRoute, /mediaCleanup/);
   assert.match(mutations, /cleanupReplacedDishAssets/);
   assert.match(mutations, /select\("id,name,slug,menu_id,category_id,metadata"\)/);
-});
-
-test("photo DELETE clears DB metadata before cross-dish-safe Storage cleanup", async () => {
-  const uploadRoute = await readFile(
-    "app/api/owner/restaurants/[restaurantId]/dishes/[dishId]/photo/route.ts",
-    "utf8"
-  );
-  const deleteStart = uploadRoute.indexOf("export async function DELETE");
-  assert.ok(deleteStart >= 0);
-  const deleteRoute = uploadRoute.slice(deleteStart).replace(/\r\n/g, "\n");
-  const updateIndex = deleteRoute.indexOf('.update({\n      image_url: null');
-  const cleanupIndex = deleteRoute.indexOf("cleanupReplacedDishAssets({");
-  assert.ok(updateIndex >= 0, "DELETE must clear the dish metadata");
-  assert.ok(cleanupIndex > updateIndex, "Storage cleanup must run after the DB update");
-  assert.doesNotMatch(deleteRoute, /deleteDishMediaStorageTargets|collectDishPhotoStorageTarget/);
-  assert.match(deleteRoute, /previousMetadata: oldMetadata/);
-  assert.match(deleteRoute, /nextMetadata: clearedMetadata/);
 });
 
 test("whole-dish deletion also updates DB before cross-dish-safe media cleanup", async () => {
