@@ -21,23 +21,30 @@ create table if not exists public.media_capacity_reservations (
   reserved_bytes bigint not null check (reserved_bytes >= 0),
   actual_bytes bigint check (actual_bytes is null or actual_bytes >= 0),
   status text not null default 'active'
-    check (status in ('active', 'finalized', 'released', 'expired')),
+    check (status in ('active', 'settlement_pending', 'finalized', 'released')),
   created_at timestamptz not null default clock_timestamp(),
   expires_at timestamptz not null default (clock_timestamp() + interval '5 minutes'),
   settled_at timestamptz,
-  unique (project_ref, reservation_key),
   check (length(btrim(reservation_key)) between 1 and 512),
   check (expires_at > created_at),
   check (
     (status = 'active' and settled_at is null and actual_bytes is null)
+    or (status = 'settlement_pending' and settled_at is null and actual_bytes is not null and actual_bytes <= reserved_bytes)
     or (status = 'finalized' and settled_at is not null and actual_bytes is not null and actual_bytes <= reserved_bytes)
-    or (status in ('released', 'expired') and settled_at is not null)
+    or (status = 'released' and settled_at is not null)
   )
 );
 
 create index if not exists media_capacity_reservations_active_idx
   on public.media_capacity_reservations(project_ref, expires_at)
-  where status = 'active';
+  where status in ('active', 'settlement_pending');
+
+-- A logical key may be retried after it is settled, but two live owners must
+-- never share one reservation. The project state row lock serializes normal
+-- inserts; this partial unique index is the final race guard.
+create unique index if not exists media_capacity_reservations_live_key_idx
+  on public.media_capacity_reservations(project_ref, reservation_key)
+  where status in ('active', 'settlement_pending');
 
 alter table public.media_capacity_state enable row level security;
 alter table public.media_capacity_state force row level security;
@@ -95,91 +102,21 @@ begin
     return jsonb_build_object('status', 'unavailable', 'reason', 'state-invalid');
   end if;
 
-  update public.media_capacity_reservations
-     set status = 'expired', settled_at = clock_timestamp()
-   where project_ref = p_project_ref
-     and status = 'active'
-     and expires_at <= clock_timestamp();
-
   select * into v_existing
     from public.media_capacity_reservations
    where project_ref = p_project_ref
      and reservation_key = btrim(p_reservation_key)
+     and status in ('active', 'settlement_pending')
+   limit 1
    for update;
   if found then
-    if v_existing.status = 'active'
-      and v_existing.expires_at > clock_timestamp()
-      and v_existing.reserved_bytes = p_requested_bytes then
-      select coalesce(sum(reserved_bytes), 0)::bigint into v_active_bytes
-        from public.media_capacity_reservations
-       where project_ref = p_project_ref
-         and status = 'active'
-         and expires_at > clock_timestamp();
-      v_headroom_bytes := v_state.quota_bytes - v_state.used_bytes - v_active_bytes;
-      v_headroom_percent := (v_headroom_bytes::numeric * 100) / v_state.quota_bytes;
-      return jsonb_build_object(
-        'status', 'reserved',
-        'reservationId', v_existing.id,
-        'projectRef', p_project_ref,
-        'quotaBytes', v_state.quota_bytes,
-        'usedBytes', v_state.used_bytes,
-        'activeReservedBytes', v_active_bytes - v_existing.reserved_bytes,
-        'requestedBytes', v_existing.reserved_bytes,
-        'headroomBytes', v_headroom_bytes,
-        'headroomPercent', v_headroom_percent,
-        'expiresAt', v_existing.expires_at
-      );
-    end if;
-    if v_existing.status in ('released', 'expired') then
-      select coalesce(sum(reserved_bytes), 0)::bigint into v_active_bytes
-        from public.media_capacity_reservations
-       where project_ref = p_project_ref
-         and status = 'active'
-         and expires_at > clock_timestamp();
-      v_headroom_bytes := v_state.quota_bytes - v_state.used_bytes - v_active_bytes - p_requested_bytes;
-      v_headroom_percent := (v_headroom_bytes::numeric * 100) / v_state.quota_bytes;
-      if v_headroom_bytes < 0 or v_headroom_percent < p_min_headroom_percent then
-        return jsonb_build_object(
-          'status', 'insufficient',
-          'projectRef', p_project_ref,
-          'quotaBytes', v_state.quota_bytes,
-          'usedBytes', v_state.used_bytes,
-          'activeReservedBytes', v_active_bytes,
-          'requestedBytes', p_requested_bytes,
-          'headroomBytes', greatest(v_headroom_bytes, 0),
-          'headroomPercent', greatest(v_headroom_percent, 0)
-        );
-      end if;
-      update public.media_capacity_reservations
-         set reserved_bytes = p_requested_bytes,
-             actual_bytes = null,
-             status = 'active',
-             created_at = clock_timestamp(),
-             expires_at = clock_timestamp() + interval '5 minutes',
-             settled_at = null
-       where id = v_existing.id
-       returning id, expires_at into v_reservation_id, v_expires_at;
-      return jsonb_build_object(
-        'status', 'reserved',
-        'reservationId', v_reservation_id,
-        'projectRef', p_project_ref,
-        'quotaBytes', v_state.quota_bytes,
-        'usedBytes', v_state.used_bytes,
-        'activeReservedBytes', v_active_bytes,
-        'requestedBytes', p_requested_bytes,
-        'headroomBytes', v_headroom_bytes,
-        'headroomPercent', v_headroom_percent,
-        'expiresAt', v_expires_at
-      );
-    end if;
-    return jsonb_build_object('status', 'unavailable', 'reason', 'reservation-key-conflict');
+    return jsonb_build_object('status', 'unavailable', 'reason', 'reservation-key-active');
   end if;
 
   select coalesce(sum(reserved_bytes), 0)::bigint into v_active_bytes
     from public.media_capacity_reservations
    where project_ref = p_project_ref
-     and status = 'active'
-     and expires_at > clock_timestamp();
+     and status in ('active', 'settlement_pending');
 
   v_headroom_bytes := v_state.quota_bytes - v_state.used_bytes - v_active_bytes - p_requested_bytes;
   v_headroom_percent := (v_headroom_bytes::numeric * 100) / v_state.quota_bytes;
@@ -217,6 +154,33 @@ begin
 end;
 $$;
 
+create or replace function public.renew_media_capacity_reservation(
+  p_project_ref text,
+  p_reservation_id uuid
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_expires_at timestamptz;
+begin
+  -- Expiry is a heartbeat deadline, not a release. Even an overdue live row
+  -- stays counted until explicit settlement, and its owner may renew it.
+  update public.media_capacity_reservations
+     set expires_at = clock_timestamp() + interval '5 minutes'
+   where id = p_reservation_id
+     and project_ref = p_project_ref
+     and status in ('active', 'settlement_pending')
+  returning expires_at into v_expires_at;
+  if not found then
+    return jsonb_build_object('status', 'unavailable', 'reason', 'reservation-not-live');
+  end if;
+  return jsonb_build_object('status', 'renewed', 'expiresAt', v_expires_at);
+end;
+$$;
+
 create or replace function public.finalize_media_capacity_reservation(
   p_project_ref text,
   p_reservation_id uuid,
@@ -251,14 +215,12 @@ begin
   if v_reservation.status = 'finalized' and v_reservation.actual_bytes = p_actual_bytes then
     return jsonb_build_object('status', 'finalized', 'actualBytes', p_actual_bytes);
   end if;
-  if v_reservation.status <> 'active' then
+  if v_reservation.status not in ('active', 'settlement_pending') then
     return jsonb_build_object('status', 'unavailable', 'reason', 'reservation-not-active');
   end if;
-  if v_reservation.expires_at <= clock_timestamp() then
-    update public.media_capacity_reservations
-       set status = 'expired', settled_at = clock_timestamp()
-     where id = v_reservation.id;
-    return jsonb_build_object('status', 'unavailable', 'reason', 'reservation-expired');
+  if v_reservation.status = 'settlement_pending'
+    and v_reservation.actual_bytes <> p_actual_bytes then
+    return jsonb_build_object('status', 'unavailable', 'reason', 'settlement-bytes-conflict');
   end if;
   if p_actual_bytes > v_reservation.reserved_bytes
     or v_state.used_bytes + p_actual_bytes > v_state.quota_bytes then
@@ -326,8 +288,7 @@ begin
   select coalesce(sum(reserved_bytes), 0)::bigint into v_active_bytes
     from public.media_capacity_reservations
    where project_ref = p_project_ref
-     and status = 'active'
-     and expires_at > clock_timestamp();
+     and status in ('active', 'settlement_pending');
   return jsonb_build_object(
     'status', 'available',
     'projectRef', v_state.project_ref,
@@ -341,10 +302,12 @@ end;
 $$;
 
 revoke all on function public.reserve_media_capacity(text, text, bigint, numeric) from public, anon, authenticated;
+revoke all on function public.renew_media_capacity_reservation(text, uuid) from public, anon, authenticated;
 revoke all on function public.finalize_media_capacity_reservation(text, uuid, bigint) from public, anon, authenticated;
 revoke all on function public.release_media_capacity_reservation(text, uuid) from public, anon, authenticated;
 revoke all on function public.get_media_capacity_state(text) from public, anon, authenticated;
 grant execute on function public.reserve_media_capacity(text, text, bigint, numeric) to service_role;
+grant execute on function public.renew_media_capacity_reservation(text, uuid) to service_role;
 grant execute on function public.finalize_media_capacity_reservation(text, uuid, bigint) to service_role;
 grant execute on function public.release_media_capacity_reservation(text, uuid) to service_role;
 grant execute on function public.get_media_capacity_state(text) to service_role;

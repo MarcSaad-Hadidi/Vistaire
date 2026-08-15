@@ -1,4 +1,7 @@
+import { randomUUID } from "node:crypto";
+
 const MIN_HEADROOM_PERCENT = 20;
+const DEFAULT_HEARTBEAT_INTERVAL_MS = 60_000;
 const SHA_OR_KEY_PATTERN = /^[a-z0-9][a-z0-9:._/-]{0,511}$/i;
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -30,6 +33,19 @@ export class MediaCapacityError extends Error {
     this.name = "MediaCapacityError";
     this.status = status;
     this.reason = reason;
+  }
+}
+
+export class MediaCapacityWorkError extends Error {
+  readonly retainedBytes: number;
+
+  constructor(message: string, retainedBytes: number) {
+    super(message);
+    this.name = "MediaCapacityWorkError";
+    if (!Number.isSafeInteger(retainedBytes) || retainedBytes < 0) {
+      throw new TypeError("retainedBytes must be a non-negative safe integer");
+    }
+    this.retainedBytes = retainedBytes;
   }
 }
 
@@ -199,36 +215,144 @@ export function releaseMediaCapacityReservation(args: {
   return settleReservation({ ...args, rpc: "release_media_capacity_reservation" });
 }
 
+export async function renewMediaCapacityReservation(args: {
+  client: RpcClient;
+  projectRef: string;
+  reservationId: string;
+}): Promise<string> {
+  let response: Awaited<ReturnType<RpcClient["rpc"]>>;
+  try {
+    response = await args.client.rpc("renew_media_capacity_reservation", {
+      p_project_ref: args.projectRef,
+      p_reservation_id: args.reservationId
+    });
+  } catch {
+    throw unavailable("reservation-renewal-unavailable");
+  }
+  const value = recordFromRpc(response.data);
+  const expiresAt = String(value?.expiresAt ?? "");
+  if (
+    response.error ||
+    !value ||
+    value.status !== "renewed" ||
+    !Number.isFinite(Date.parse(expiresAt))
+  ) {
+    throw unavailable("reservation-renewal-failed");
+  }
+  return expiresAt;
+}
+
+export function createMediaCapacityReservationAttemptKey(
+  reservationKey: string,
+  attemptId: string = randomUUID()
+): string {
+  const baseKey = reservationKey.trim();
+  const normalizedAttemptId = attemptId.trim().toLowerCase();
+  const ownedKey = `${baseKey}:attempt:${normalizedAttemptId}`;
+  if (
+    !SHA_OR_KEY_PATTERN.test(baseKey) ||
+    !UUID_PATTERN.test(normalizedAttemptId) ||
+    !SHA_OR_KEY_PATTERN.test(ownedKey)
+  ) {
+    throw unavailable("invalid-capacity-attempt-key");
+  }
+  return ownedKey;
+}
+
+async function finalizeRetainedBytes(args: {
+  client: RpcClient;
+  projectRef: string;
+  reservationId: string;
+  actualBytes: number;
+}): Promise<void> {
+  try {
+    await finalizeMediaCapacityReservation(args);
+  } catch {
+    // The first response may have been lost after PostgreSQL committed. A
+    // second identical call is safe; if it is also ambiguous the reservation
+    // remains active and counted until explicit reconciliation.
+    await finalizeMediaCapacityReservation(args);
+  }
+}
+
 export async function withMediaCapacityReservation<T>(args: {
   client: RpcClient;
   projectRef: string;
   reservationKey: string;
+  reservationAttemptId?: string;
   requestedBytes: number;
+  heartbeatIntervalMs?: number;
   work: (reservation: MediaCapacityReservation) => Promise<{
     value: T;
     newlyCreatedBytes: number;
   }>;
 }): Promise<T> {
-  const reservation = await reserveMediaCapacity(args);
+  const heartbeatIntervalMs = args.heartbeatIntervalMs ?? DEFAULT_HEARTBEAT_INTERVAL_MS;
+  if (
+    !Number.isSafeInteger(heartbeatIntervalMs) ||
+    heartbeatIntervalMs < 1 ||
+    heartbeatIntervalMs > 240_000
+  ) {
+    throw unavailable("invalid-heartbeat-interval");
+  }
+  const reservation = await reserveMediaCapacity({
+    ...args,
+    reservationKey: createMediaCapacityReservationAttemptKey(
+      args.reservationKey,
+      args.reservationAttemptId
+    )
+  });
+  let heartbeatPromise: Promise<void> | null = null;
+  let heartbeatError: unknown;
+  const heartbeat = () => {
+    if (heartbeatPromise || heartbeatError) return;
+    heartbeatPromise = renewMediaCapacityReservation({
+      client: args.client,
+      projectRef: reservation.projectRef,
+      reservationId: reservation.reservationId
+    }).then(() => undefined).catch((error) => {
+      heartbeatError = error;
+    }).finally(() => {
+      heartbeatPromise = null;
+    });
+  };
+  const heartbeatTimer = setInterval(heartbeat, heartbeatIntervalMs);
+  heartbeatTimer.unref?.();
   let result: { value: T; newlyCreatedBytes: number };
   try {
     result = await args.work(reservation);
   } catch (error) {
+    clearInterval(heartbeatTimer);
+    if (heartbeatPromise) await heartbeatPromise;
+    const retainedBytes = error instanceof MediaCapacityWorkError
+      ? error.retainedBytes
+      : 0;
     try {
-      await releaseMediaCapacityReservation({
-        client: args.client,
-        projectRef: reservation.projectRef,
-        reservationId: reservation.reservationId
-      });
-    } catch (releaseError) {
-      if (error instanceof Error) {
-        error.message = `${error.message} (capacity release failed)`;
+      if (retainedBytes > 0) {
+        await finalizeRetainedBytes({
+          client: args.client,
+          projectRef: reservation.projectRef,
+          reservationId: reservation.reservationId,
+          actualBytes: retainedBytes
+        });
       } else {
-        throw releaseError;
+        await releaseMediaCapacityReservation({
+          client: args.client,
+          projectRef: reservation.projectRef,
+          reservationId: reservation.reservationId
+        });
+      }
+    } catch (settlementError) {
+      if (error instanceof Error) {
+        error.message = `${error.message} (capacity settlement failed)`;
+      } else {
+        throw settlementError;
       }
     }
     throw error;
   }
+  clearInterval(heartbeatTimer);
+  if (heartbeatPromise) await heartbeatPromise;
 
   const finalizeArgs = {
     client: args.client,
@@ -236,14 +360,7 @@ export async function withMediaCapacityReservation<T>(args: {
     reservationId: reservation.reservationId,
     actualBytes: result.newlyCreatedBytes
   };
-  try {
-    await finalizeMediaCapacityReservation(finalizeArgs);
-  } catch {
-    // The first response can be lost after PostgreSQL committed. The RPC is
-    // idempotent for the same actual byte count, so retry without releasing a
-    // reservation whose Storage/metadata work already succeeded.
-    await finalizeMediaCapacityReservation(finalizeArgs);
-  }
+  await finalizeRetainedBytes(finalizeArgs);
   return result.value;
 }
 

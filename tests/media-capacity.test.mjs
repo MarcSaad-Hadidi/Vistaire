@@ -166,6 +166,128 @@ test("reservation finalization records only newly-created bytes and failures rel
   assert.equal(client.calls.at(-1).name, "release_media_capacity_reservation");
 });
 
+test("each capacity attempt owns a unique reservation key, including retry after finalization", async () => {
+  const { withMediaCapacityReservation } = await loadCapacityModule();
+  let reservationSequence = 0;
+  const client = rpcClient(async (name, parameters) => {
+    if (name === "reserve_media_capacity") {
+      reservationSequence += 1;
+      return { data: {
+        status: "reserved",
+        reservationId: `11111111-2222-4333-8444-${String(reservationSequence).padStart(12, "0")}`,
+        projectRef: "project-a",
+        quotaBytes: 1_000,
+        usedBytes: 100,
+        activeReservedBytes: 0,
+        requestedBytes: parameters.p_requested_bytes,
+        headroomBytes: 890,
+        headroomPercent: 89,
+        expiresAt: "2026-08-15T12:05:00.000Z"
+      }, error: null };
+    }
+    return { data: { status: name.startsWith("finalize") ? "finalized" : "released" }, error: null };
+  });
+
+  const run = (attemptId) => withMediaCapacityReservation({
+    client,
+    projectRef: "project-a",
+    reservationKey: "upload:same-logical-operation",
+    reservationAttemptId: attemptId,
+    requestedBytes: 10,
+    work: async () => ({ value: "ok", newlyCreatedBytes: 0 })
+  });
+  await Promise.all([run("aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"), run("bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb")]);
+  await run("cccccccc-cccc-4ccc-8ccc-cccccccccccc");
+
+  const keys = client.calls
+    .filter((call) => call.name === "reserve_media_capacity")
+    .map((call) => call.parameters.p_reservation_key);
+  assert.equal(new Set(keys).size, 3);
+  assert.deepEqual(keys, [
+    "upload:same-logical-operation:attempt:aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+    "upload:same-logical-operation:attempt:bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+    "upload:same-logical-operation:attempt:cccccccc-cccc-4ccc-8ccc-cccccccccccc"
+  ]);
+});
+
+test("long-running work renews its lease and an expired lease can still finalize fail-closed", async () => {
+  const { withMediaCapacityReservation } = await loadCapacityModule();
+  const client = rpcClient(async (name) => {
+    if (name === "reserve_media_capacity") {
+      return { data: {
+        status: "reserved",
+        reservationId: "11111111-2222-4333-8444-555555555555",
+        projectRef: "project-a",
+        quotaBytes: 1_000,
+        usedBytes: 100,
+        activeReservedBytes: 0,
+        requestedBytes: 10,
+        headroomBytes: 890,
+        headroomPercent: 89,
+        expiresAt: "2000-01-01T00:00:00.000Z"
+      }, error: null };
+    }
+    if (name === "renew_media_capacity_reservation") {
+      return { data: { status: "renewed", expiresAt: "2099-01-01T00:00:00.000Z" }, error: null };
+    }
+    return { data: { status: "finalized" }, error: null };
+  });
+
+  await withMediaCapacityReservation({
+    client,
+    projectRef: "project-a",
+    reservationKey: "upload:heartbeat",
+    requestedBytes: 10,
+    heartbeatIntervalMs: 5,
+    work: async () => {
+      await new Promise((resolve) => setTimeout(resolve, 20));
+      return { value: "ok", newlyCreatedBytes: 10 };
+    }
+  });
+
+  assert.ok(client.calls.some((call) => call.name === "renew_media_capacity_reservation"));
+  assert.equal(client.calls.at(-1).name, "finalize_media_capacity_reservation");
+});
+
+test("retained objects are finalized durably while confirmed rollback releases", async () => {
+  const { MediaCapacityWorkError, withMediaCapacityReservation } = await loadCapacityModule();
+  const client = rpcClient(async (name) => {
+    if (name === "reserve_media_capacity") {
+      return { data: {
+        status: "reserved",
+        reservationId: "11111111-2222-4333-8444-555555555555",
+        projectRef: "project-a",
+        quotaBytes: 1_000,
+        usedBytes: 100,
+        activeReservedBytes: 0,
+        requestedBytes: 30,
+        headroomBytes: 870,
+        headroomPercent: 87,
+        expiresAt: "2026-08-15T12:05:00.000Z"
+      }, error: null };
+    }
+    return { data: { status: name.startsWith("finalize") ? "finalized" : "released" }, error: null };
+  });
+
+  await assert.rejects(withMediaCapacityReservation({
+    client,
+    projectRef: "project-a",
+    reservationKey: "upload:retained",
+    requestedBytes: 30,
+    work: async () => { throw new MediaCapacityWorkError("metadata failed", 17); }
+  }), /metadata failed/);
+
+  assert.equal(client.calls.some((call) => call.name === "release_media_capacity_reservation"), false);
+  assert.deepEqual(client.calls.at(-1), {
+    name: "finalize_media_capacity_reservation",
+    parameters: {
+      p_project_ref: "project-a",
+      p_reservation_id: "11111111-2222-4333-8444-555555555555",
+      p_actual_bytes: 17
+    }
+  });
+});
+
 test("a transient finalize response is retried idempotently and never released after writes succeeded", async () => {
   const { withMediaCapacityReservation } = await loadCapacityModule();
   let finalizeAttempts = 0;
@@ -202,5 +324,39 @@ test("a transient finalize response is retried idempotently and never released a
   });
   assert.equal(value, "committed");
   assert.equal(finalizeAttempts, 2);
+  assert.equal(client.calls.some((call) => call.name === "release_media_capacity_reservation"), false);
+});
+
+test("ambiguous finalization remains reserved and is never compensated by release", async () => {
+  const { withMediaCapacityReservation } = await loadCapacityModule();
+  const client = rpcClient(async (name) => {
+    if (name === "reserve_media_capacity") {
+      return { data: {
+        status: "reserved",
+        reservationId: "11111111-2222-4333-8444-555555555555",
+        projectRef: "project-a",
+        quotaBytes: 1_000,
+        usedBytes: 100,
+        activeReservedBytes: 0,
+        requestedBytes: 10,
+        headroomBytes: 890,
+        headroomPercent: 89,
+        expiresAt: "2000-01-01T00:00:00.000Z"
+      }, error: null };
+    }
+    if (name === "finalize_media_capacity_reservation") {
+      return { data: null, error: { message: "ambiguous" } };
+    }
+    return { data: { status: "released" }, error: null };
+  });
+
+  await assert.rejects(withMediaCapacityReservation({
+    client,
+    projectRef: "project-a",
+    reservationKey: "upload:ambiguous-finalize",
+    requestedBytes: 10,
+    work: async () => ({ value: "written", newlyCreatedBytes: 10 })
+  }), /Capacité média indisponible/);
+  assert.equal(client.calls.filter((call) => call.name === "finalize_media_capacity_reservation").length, 2);
   assert.equal(client.calls.some((call) => call.name === "release_media_capacity_reservation"), false);
 });
