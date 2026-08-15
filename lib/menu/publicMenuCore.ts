@@ -40,6 +40,7 @@ export type PublicMenuDish = {
   dietaryType?: string;
   imageUrl: string;
   thumbnailUrl: string;
+  cardUrl: string;
   hasPhoto: boolean;
   photoStatus: "ready" | "missing" | "planned" | "draft" | "unknown";
   hasImmersive: boolean;
@@ -115,6 +116,17 @@ export type PublicMenuDish = {
   houseNote: string;
   tags: string[];
 };
+
+export type PublicDishImageSurface = "thumbnail" | "card" | "display";
+
+export function getPublicDishImageUrl(
+  dish: Pick<PublicMenuDish, "imageUrl" | "thumbnailUrl" | "cardUrl">,
+  surface: PublicDishImageSurface
+): string {
+  if (surface === "thumbnail") return dish.thumbnailUrl || dish.imageUrl;
+  if (surface === "card") return dish.cardUrl || dish.imageUrl;
+  return dish.imageUrl;
+}
 
 /**
  * Historical translation hashes were generated before presentation-only list
@@ -772,6 +784,59 @@ function getOptionalNumberFromSources(
 }
 
 const PHOTO_SHA256_PATTERN = /^[a-f0-9]{64}$/i;
+const CARD_DERIVATIVE_MAX_DIMENSION = 768;
+
+function hasValidV2CardDerivative(
+  metadata: PublicMenuRow,
+  photoSha256: string
+): boolean {
+  const derivatives = getObject(metadata, ["photoDerivatives", "photo_derivatives"]);
+  const card = getObject(derivatives, ["card"]);
+  const sourceSha256 = getString(card, ["sourceSha256", "source_sha256"], "").toLowerCase();
+  const outputSha256 = getString(card, ["outputSha256", "output_sha256", "sha256"], "").toLowerCase();
+  const legacySha256 = getString(card, ["sha256"], "").toLowerCase();
+  const storagePath = getString(card, ["storagePath", "storage_path"], "");
+  const outputPathMatch = /(?:^|\/)dish-photo-v2\/card-([a-f0-9]{64})\.webp$/i.exec(
+    storagePath
+  );
+  const width = getNumber(card, ["width"], 0);
+  const height = getNumber(card, ["height"], 0);
+  const bytes = getNumber(card, ["bytes"], 0);
+  const generatedAt = getString(card, ["generatedAt", "generated_at"], "");
+
+  return (
+    card.schemaVersion === 2 &&
+    card.recipeId === "dish-photo-v2" &&
+    card.variant === "card" &&
+    PHOTO_SHA256_PATTERN.test(photoSha256) &&
+    sourceSha256 === photoSha256.toLowerCase() &&
+    PHOTO_SHA256_PATTERN.test(outputSha256) &&
+    (!legacySha256 || legacySha256 === outputSha256) &&
+    Boolean(outputPathMatch) &&
+    outputPathMatch?.[1].toLowerCase() === outputSha256 &&
+    card.contentType === "image/webp" &&
+    card.format === "webp" &&
+    Number.isInteger(width) &&
+    width > 0 &&
+    width <= CARD_DERIVATIVE_MAX_DIMENSION &&
+    Number.isInteger(height) &&
+    height > 0 &&
+    height <= CARD_DERIVATIVE_MAX_DIMENSION &&
+    Number.isInteger(bytes) &&
+    bytes > 0 &&
+    Number.isFinite(Date.parse(generatedAt)) &&
+    Boolean(getString(card, ["encoder"], ""))
+  );
+}
+
+function canonicalDishPhotoVariantUrl(
+  dishId: string,
+  photoSha256: string,
+  variant: "card"
+): string {
+  if (!PHOTO_SHA256_PATTERN.test(photoSha256)) return "";
+  return `/api/public/menu-dishes/${dishId}/photo?v=${photoSha256.toLowerCase()}&variant=${variant}`;
+}
 
 function versionCanonicalDishPhotoUrl(
   imageUrl: string,
@@ -869,6 +934,9 @@ function mapDishRow(
     photoSha256,
     "thumbnail"
   );
+  const cardUrl = hasValidV2CardDerivative(metadata, photoSha256)
+    ? canonicalDishPhotoVariantUrl(dishId, photoSha256, "card")
+    : rawImageUrl;
   const model3dUrl = getSafeStringFromSources(row, metadata, ["model3dUrl", "model3d_url"]);
   const webModel3dUrl =
     getSafeStringFromSources(row, metadata, ["webModel3dUrl", "web_model_3d_url"]) ||
@@ -1061,6 +1129,7 @@ function mapDishRow(
     ...(dietaryType ? { dietaryType } : {}),
     imageUrl,
     thumbnailUrl,
+    cardUrl,
     hasPhoto: Boolean(imageUrl),
     photoStatus:
       imageUrl

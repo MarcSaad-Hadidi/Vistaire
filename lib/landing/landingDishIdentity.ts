@@ -8,7 +8,7 @@ export type LandingDishIdentity = {
 type DishIdentityCandidate = Pick<PublicMenuDish, "id" | "slug">;
 
 export type LandingDishPhoto = {
-  source: "imageUrl" | "thumbnailUrl" | "posterUrl";
+  source: "cardUrl" | "imageUrl" | "thumbnailUrl" | "posterUrl";
   url: string;
 };
 
@@ -103,9 +103,10 @@ export function canonicalLandingDishPhotoId(url: string): string | null {
  * canonical URLs for another dish are discarded before any fallback logic.
  */
 export function landingPhotoForDish(
-  dish: Pick<PublicMenuDish, "id" | "imageUrl" | "thumbnailUrl" | "posterUrl">
+  dish: Pick<PublicMenuDish, "id" | "cardUrl" | "imageUrl" | "thumbnailUrl" | "posterUrl">
 ): LandingDishPhoto | null {
   const fields = [
+    ["cardUrl", dish.cardUrl],
     ["imageUrl", dish.imageUrl],
     ["thumbnailUrl", dish.thumbnailUrl],
     ["posterUrl", dish.posterUrl]
@@ -128,7 +129,7 @@ export function landingPhotoForDish(
 }
 
 export function resolveLandingDishPhoto<T extends DishIdentityCandidate>(
-  dish: T & Pick<PublicMenuDish, "imageUrl" | "thumbnailUrl" | "posterUrl">,
+  dish: T & Pick<PublicMenuDish, "cardUrl" | "imageUrl" | "thumbnailUrl" | "posterUrl">,
   fallback: LandingDishIdentity & { image?: string | null },
   siblings: readonly T[] = []
 ): LandingResolvedDishPhoto {

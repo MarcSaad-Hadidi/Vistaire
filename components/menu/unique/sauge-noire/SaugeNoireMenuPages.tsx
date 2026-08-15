@@ -9,6 +9,7 @@ import {
 import type { Locale } from "@/lib/i18n";
 import {
   buildPublicDishPath,
+  getPublicDishImageUrl,
   getPublicMenuCategoryGroups,
   getVisiblePublicMenuCategories,
   type PublicMenu,
@@ -628,7 +629,10 @@ function PhotoSlot({ dish, large = false }: { dish: PublicMenuDish; large?: bool
   // Feature cards and rows are list surfaces; keep the detail-only display
   // derivative out of the initial menu payload. The detail route owns the
   // full-size image separately.
-  const cardImageUrl = dish.thumbnailUrl || dish.imageUrl;
+  const cardImageUrl = getPublicDishImageUrl(
+    dish,
+    large ? "card" : "thumbnail"
+  );
   return (
     <span className={`${styles.photoSlot} ${large ? styles.photoSlotLarge : ""}`} data-photo-slot={dish.slug}>
       {cardImageUrl ? (

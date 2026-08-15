@@ -12,6 +12,7 @@ import {
 } from "@/lib/menu/allergens";
 import {
   buildPublicDishPath,
+  getPublicDishImageUrl,
   getPublicMenuCategoryGroups,
   getVisiblePublicMenuCategories,
   type PublicMenu,
@@ -231,13 +232,14 @@ function DishVisual({
   showPlaceholder: boolean;
   large?: boolean;
 }) {
-  if (!dish.imageUrl && !showPlaceholder) return null;
+  const imageUrl = getPublicDishImageUrl(dish, large ? "card" : "thumbnail");
+  if (!imageUrl && !showPlaceholder) return null;
 
   return (
     <span className={`${styles.dishVisual} ${large ? styles.dishVisualLarge : ""}`}>
-      {dish.imageUrl ? (
+      {imageUrl ? (
         // eslint-disable-next-line @next/next/no-img-element
-        <img loading="lazy" src={dish.thumbnailUrl || dish.imageUrl} alt="" />
+        <img loading="lazy" src={imageUrl} alt="" />
       ) : (
         <span className={styles.photoPlaceholder}>{menu.name.slice(0, 1)}</span>
       )}

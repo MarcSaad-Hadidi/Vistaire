@@ -38,6 +38,7 @@ import {
 } from "@/lib/menu/allergens";
 import {
   buildPublicDishPath,
+  getPublicDishImageUrl,
   getPublicMenuCategoryGroups,
   getVisiblePublicMenuCategories,
   type PublicMenu,
@@ -571,7 +572,7 @@ function DishCard({
       <span className={styles.dishImage} aria-hidden="true">
         {dish.imageUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img loading="lazy" src={dish.thumbnailUrl || dish.imageUrl} alt="" />
+          <img loading="lazy" src={getPublicDishImageUrl(dish, "thumbnail")} alt="" />
         ) : (
           <span>{menu.name.slice(0, 1)}</span>
         )}

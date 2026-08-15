@@ -355,6 +355,7 @@ function demoMenu(slug: string, locale: Locale = "fr"): PublicMenu {
       displayPriceMode: "auto",
       imageUrl: dish.image ?? "",
       thumbnailUrl: dish.image ?? "",
+      cardUrl: dish.image ?? "",
       hasPhoto: Boolean(dish.image),
       photoStatus: dish.image ? "ready" : "missing",
       has3d: Boolean(
@@ -480,6 +481,7 @@ function trouvableDemoMenu(
         displayPriceMode: "auto",
         imageUrl: dish.imageUrl,
         thumbnailUrl: dish.imageUrl,
+        cardUrl: dish.imageUrl,
         hasPhoto: true,
         photoStatus: "ready",
         has3d: Boolean(e2eImmersiveAssets),

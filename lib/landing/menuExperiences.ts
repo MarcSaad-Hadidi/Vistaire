@@ -47,7 +47,7 @@ export type LandingFeaturedDish = {
   price: string;
   href: LandingPublicMenuHref;
   image: string;
-  imageSource: "imageUrl" | "thumbnailUrl" | "posterUrl" | "fallback" | "unavailable";
+  imageSource: "cardUrl" | "imageUrl" | "thumbnailUrl" | "posterUrl" | "fallback" | "unavailable";
   imageAlt: string;
   imagePosition: string;
 };

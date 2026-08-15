@@ -28,6 +28,7 @@ export type LandingMenuUiDish = Pick<
   | "dietaryType"
   | "imageUrl"
   | "thumbnailUrl"
+  | "cardUrl"
   | "hasPhoto"
   | "photoStatus"
   | "available"
@@ -121,6 +122,7 @@ export function projectLandingMenuUiMenu(menu: PublicMenu): LandingMenuUiMenu {
       ...(dish.dietaryType ? { dietaryType: dish.dietaryType } : {}),
       imageUrl: dish.imageUrl || dish.thumbnailUrl || dish.posterUrl,
       thumbnailUrl: dish.thumbnailUrl || dish.imageUrl || dish.posterUrl,
+      cardUrl: dish.cardUrl || dish.imageUrl || dish.thumbnailUrl || dish.posterUrl,
       hasPhoto: dish.hasPhoto,
       photoStatus: dish.photoStatus,
       available: dish.available,
