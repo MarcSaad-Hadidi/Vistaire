@@ -424,7 +424,7 @@ test("PR150 pages expose complete premium analytics with controlled visible rank
   assert.match(icons, /export function MenuOpenIcon/);
 });
 
-test("full-menu parity exposes the same stable identity fields on admin and public dishes", async () => {
+test("full-menu parity exposes stable identity while keeping unavailable dishes private", async () => {
   const [admin, publicMenu, e2e] = await Promise.all([
     read("components/admin/availability/AdminAvailabilityList.tsx"),
     read("components/menu/PublicMenuRenderer.tsx"),
@@ -434,7 +434,8 @@ test("full-menu parity exposes the same stable identity fields on admin and publ
     assert.match(admin, new RegExp(attribute));
     assert.match(publicMenu, new RegExp(attribute));
   }
-  assert.match(e2e, /expect\(publicDishes\)\.toEqual\(adminDishes\)/);
+  assert.match(e2e, /adminDishes\.filter\(\(\{ available \}\) => available === "true"\)/);
+  assert.match(e2e, /expect\(publicDishes\)\.toEqual\(availableAdminDishes\)/);
 });
 
 test("insights summary excludes availability and centralized evidence copy never leaks internal reasons", async () => {
