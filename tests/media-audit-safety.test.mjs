@@ -19,3 +19,11 @@ test("usage audit rejects absent object sizes and delegates strict V1 validation
   assert.match(script, /verifyLegacyDerivativeObject/);
   assert.doesNotMatch(script, /Number\(entry\.metadata\?\.size \?\? entry\.metadata\?\.size_bytes \?\? 0\) \|\| 0/);
 });
+
+test("usage audit publishes strict coverage counters and fails closed on partial coverage", async () => {
+  const script = await source();
+
+  assert.match(script, /buildStrictPhotoCoverageCounts\(photoAudit\)/);
+  assert.match(script, /\.\.\.strictCoverage/);
+  assert.match(script, /overallStatus !== "pass"/);
+});

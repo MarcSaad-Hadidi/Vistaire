@@ -100,7 +100,7 @@ function fixture({
         if (reserveStatus === "insufficient") {
           return { data: { status: "insufficient", projectRef: "project-a", quotaBytes: 1000, usedBytes: 750, activeReservedBytes: 0, requestedBytes: parameters.p_requested_bytes, headroomBytes: 100, headroomPercent: 10 }, error: null };
         }
-        return { data: { status: "reserved", reservationId: "99999999-9999-4999-8999-999999999999", projectRef: "project-a", quotaBytes: 1000, usedBytes: 100, activeReservedBytes: 0, requestedBytes: parameters.p_requested_bytes, headroomBytes: 800, headroomPercent: 80, expiresAt: "2026-08-15T12:05:00.000Z" }, error: null };
+        return { data: { status: "reserved", reservationId: "99999999-9999-4999-8999-999999999999", projectRef: "project-a", operationId: parameters.p_operation_id, restaurantId: parameters.p_restaurant_id, dishId: parameters.p_dish_id, recipeId: parameters.p_recipe_id, quotaBytes: 1000, usedBytes: 100, activeReservedBytes: 0, requestedBytes: parameters.p_requested_bytes, headroomBytes: 800, headroomPercent: 80, expiresAt: "2026-08-15T12:05:00.000Z" }, error: null };
       }
       return { data: { status: name.startsWith("finalize") ? "finalized" : "released" }, error: null };
     },
@@ -218,11 +218,11 @@ test("disabled writes and insufficient headroom fail before Storage or DB mutati
   assert.deepEqual(insufficient.calls.updates, []);
 });
 
-test("failed upload rollback finalizes retained object bytes instead of releasing capacity", async () => {
+test("failed DB update retains shared immutable objects and finalizes their capacity", async () => {
   const route = await loadOwnerPhotoRoute();
   process.env.VISTAIRE_MEDIA_WRITES_ENABLED = "true";
   process.env.VISTAIRE_EXPECTED_SUPABASE_PROJECT_REF = "project-a";
-  const state = fixture({ updateError: true, removeError: true });
+  const state = fixture({ updateError: true });
   globalThis.__OWNER_PHOTO_TEST__ = state;
 
   const response = await route.POST(
@@ -230,7 +230,11 @@ test("failed upload rollback finalizes retained object bytes instead of releasin
     { params: Promise.resolve({ restaurantId, dishId }) }
   );
   assert.equal(response.status, 503);
-  assert.equal(state.events.includes("remove"), true);
+  assert.equal(
+    state.events.includes("remove"),
+    false,
+    "a concurrent instance may have reused the content-addressed path before committing metadata"
+  );
   assert.equal(state.calls.rpc.some((call) => call.name === "release_media_capacity_reservation"), false);
   const expectedBytes = Buffer.byteLength("source") + Buffer.byteLength("thumbnail") + Buffer.byteLength("card") + Buffer.byteLength("display");
   assert.equal(state.calls.rpc.at(-1).name, "finalize_media_capacity_reservation");

@@ -33,6 +33,7 @@ test("backfill rejects invalid numeric CLI before provider setup with a versione
     const result = runScript("scripts/backfill-dish-photo-derivatives.mjs", ["--measure-only", option]);
     assert.notEqual(result.status, 0, `${option}: ${result.stderr}`);
     const report = JSON.parse(result.stdout);
+    assert.equal(report.reportSchemaVersion, 1);
     assert.equal(report.reportVersion, 1);
     assert.equal(report.status, "fail");
     assert.equal(report.pass, false);

@@ -119,7 +119,7 @@ test("cleanupReplacedDishAssets does not delete when previous and next exact pat
   assert.deepEqual(client.removed, []);
 });
 
-test("cleanupReplacedDishAssets deletes only old exact paths when replacement differs", async () => {
+test("cleanupReplacedDishAssets defers old photo deletion for cross-instance safety", async () => {
   const previousMetadata = {
     photoStorageBucket: "vistaire-media",
     photoStoragePath: `restaurants/${restaurantId}/photos/originals/sole-old.webp`
@@ -139,16 +139,12 @@ test("cleanupReplacedDishAssets deletes only old exact paths when replacement di
     reason: "test"
   });
 
+  assert.deepEqual(report.deleted, []);
   assert.deepEqual(
-    report.deleted.map((ref) => `${ref.bucket}:${ref.path}`),
+    report.skippedConcurrentReuseRisk.map((ref) => `${ref.bucket}:${ref.path}`),
     [`vistaire-media:restaurants/${restaurantId}/photos/originals/sole-old.webp`]
   );
-  assert.deepEqual(client.removed, [
-    {
-      bucket: "vistaire-media",
-      paths: [`restaurants/${restaurantId}/photos/originals/sole-old.webp`]
-    }
-  ]);
+  assert.deepEqual(client.removed, []);
 });
 
 test("cleanupReplacedDishAssets protects unsafe buckets, prefixes, and dangerous path shapes", async () => {
@@ -205,7 +201,7 @@ test("cleanupReplacedDishAssets skips old assets still referenced by another dis
   assert.deepEqual(client.removed, []);
 });
 
-test("cleanupReplacedDishAssets preserves shared photo derivatives while deleting a unique original", async () => {
+test("cleanupReplacedDishAssets preserves every shared photo path for offline reconciliation", async () => {
   const sourceSha = "a".repeat(64);
   const originalA = `restaurants/${restaurantId}/photos/originals/sole-a-${sourceSha.slice(0, 12)}.webp`;
   const originalB = `restaurants/${restaurantId}/photos/originals/sole-b-${sourceSha.slice(0, 12)}.webp`;
@@ -243,15 +239,15 @@ test("cleanupReplacedDishAssets preserves shared photo derivatives while deletin
     reason: "dish-photo-delete"
   });
 
-  assert.deepEqual(report.deleted.map((ref) => ref.path), [originalA]);
+  assert.deepEqual(report.deleted, []);
   assert.deepEqual(
-    report.skippedStillReferenced.map((ref) => ref.path).sort(),
-    [thumbnail, display].sort()
+    report.skippedConcurrentReuseRisk.map((ref) => ref.path).sort(),
+    [originalA, thumbnail, display].sort()
   );
-  assert.deepEqual(client.removed, [{ bucket: "vistaire-media", paths: [originalA] }]);
+  assert.deepEqual(client.removed, []);
 });
 
-test("cleanupReplacedDishAssets deletes unique original and derivatives", async () => {
+test("cleanupReplacedDishAssets never deletes unique-looking photo paths inline", async () => {
   const sourceSha = "b".repeat(64);
   const original = `restaurants/${restaurantId}/photos/originals/sole-${sourceSha.slice(0, 12)}.webp`;
   const thumbnail = `restaurants/${restaurantId}/photos/derivatives/${sourceSha}/thumbnail.webp`;
@@ -276,13 +272,12 @@ test("cleanupReplacedDishAssets deletes unique original and derivatives", async 
     reason: "dish-photo-delete"
   });
 
+  assert.deepEqual(report.deleted, []);
   assert.deepEqual(
-    report.deleted.map((ref) => ref.path).sort(),
+    report.skippedConcurrentReuseRisk.map((ref) => ref.path).sort(),
     [original, thumbnail, display].sort()
   );
-  assert.deepEqual(client.removed, [
-    { bucket: "vistaire-media", paths: [original, thumbnail, display] }
-  ]);
+  assert.deepEqual(client.removed, []);
 });
 
 test("cleanupReplacedDishAssets preserves every uncertain photo object when cross-dish lookup fails", async () => {

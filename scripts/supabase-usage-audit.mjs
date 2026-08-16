@@ -12,6 +12,7 @@ import process from "node:process";
 import { createHash } from "node:crypto";
 import { createClient } from "@supabase/supabase-js";
 import {
+  buildStrictPhotoCoverageCounts,
   classifyDishPhotoUsage,
   isFreshMediaUsageMeasurement,
   parseMediaMetadata,
@@ -426,6 +427,7 @@ async function main() {
   for (const entry of photoAudit) {
     classifications[entry.classification] = (classifications[entry.classification] ?? 0) + 1;
   }
+  const strictCoverage = buildStrictPhotoCoverageCounts(photoAudit);
   const capacity = await capacityState(client, projectRef);
 
   const analytics = {
@@ -477,6 +479,7 @@ async function main() {
       sourceBytes: mediaSourceBytes,
       derivativeBytes: mediaDerivativeBytes,
       classifications,
+      ...strictCoverage,
       verification: {
         mode: verifyHash ? "hash" : "existence-size-content-type",
         objects: verifyBudget.objects,
@@ -515,7 +518,7 @@ async function main() {
     console.log(`Schema projections: ${report.schema.status}`);
     console.log(JSON.stringify(report, null, 2));
   }
-  if (overallStatus === "fail" || overallStatus === "unavailable") process.exitCode = 1;
+  if (overallStatus !== "pass") process.exitCode = 1;
 }
 
 main().catch((error) => fail(error instanceof Error ? error.message : String(error)));

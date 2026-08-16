@@ -6,6 +6,10 @@ const migrationUrl = new URL(
   "../supabase/migrations/20260815120000_media_capacity_reservations.sql",
   import.meta.url
 );
+const contextMigrationUrl = new URL(
+  "../supabase/migrations/20260815130000_media_capacity_reservation_context.sql",
+  import.meta.url
+);
 const sqlTestUrl = new URL("./postgres/media-capacity/run.sql", import.meta.url);
 
 test("capacity SQL keeps overdue and ambiguous reservations counted until explicit settlement", async () => {
@@ -26,6 +30,22 @@ test("capacity reservations reject usage measurements older than fifteen minutes
   assert.match(migration, /usage_measured_at\s*>\s*clock_timestamp\(\)/i);
 });
 
+test("capacity reservation context migration persists required operator reconciliation fields", async () => {
+  const migration = await readFile(contextMigrationUrl, "utf8");
+
+  for (const column of ["operation_id", "restaurant_id", "dish_id", "recipe_id"]) {
+    assert.match(migration, new RegExp(`add column if not exists ${column}`, "i"));
+  }
+  assert.match(
+    migration,
+    /reserve_media_capacity\s*\(\s*p_project_ref text,\s*p_reservation_key text,\s*p_operation_id uuid,\s*p_restaurant_id uuid,\s*p_dish_id uuid,\s*p_recipe_id text,/i
+  );
+  assert.match(
+    migration,
+    /drop function if exists public\.reserve_media_capacity\(text, text, bigint, numeric\)/i
+  );
+});
+
 test("PostgreSQL harness exercises same-key ownership, finalized retry, expiry, renewal and ambiguity", async () => {
   const sqlTest = await readFile(sqlTestUrl, "utf8");
 
@@ -36,6 +56,8 @@ test("PostgreSQL harness exercises same-key ownership, finalized retry, expiry, 
     "overdue reservations must remain counted",
     "renew_media_capacity_reservation",
     "ambiguous finalize retry must settle retained bytes exactly once"
+    ,"reservation context must be persisted exactly"
+    ,"public.reserve_media_capacity(text,text,uuid,uuid,uuid,text,bigint,numeric)"
     ,"stale usage measurement must fail closed"
     ,"future usage measurement must fail closed"
   ]) {

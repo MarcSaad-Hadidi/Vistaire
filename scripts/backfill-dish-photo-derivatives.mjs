@@ -1,4 +1,4 @@
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { execFileSync } from "node:child_process";
 import { createRequire } from "node:module";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
@@ -8,6 +8,7 @@ import sharp from "sharp";
 import { createClient } from "@supabase/supabase-js";
 import {
   buildCheckpointEnvelope,
+  buildCheckpointRecordKey,
   buildMeasureReport,
   checkpointEntryMatches,
   deduplicateMediaObjectBytes,
@@ -66,6 +67,7 @@ let checkpointWriteQueue = Promise.resolve();
 function fail(message) {
   if (measureOnly) {
     console.log(JSON.stringify({
+      reportSchemaVersion: 1,
       reportVersion: 1,
       status: "fail",
       pass: false,
@@ -423,7 +425,14 @@ function checkpointInputForPlan(plan, validatedAt) {
 }
 
 async function processPlan(client, plan, checkpoint, runtime) {
-  const key = `${plan.row.id}:${plan.sourceSha}`;
+  const key = buildCheckpointRecordKey({
+    dishId: String(plan.row.id),
+    restaurantId: plan.restaurantId,
+    sourcePath: plan.sourcePath,
+    sourceSha256: plan.sourceSha,
+    recipeId: RECIPE.id,
+    schemaVersion: RECIPE.schemaVersion
+  });
   if (!apply && !measureOnly && !verifyOnly) {
     checkpoint.planned = (checkpoint.planned ?? 0) + 1;
     return { status: "dry-run", key, missing: plan.missing.map((variant) => variant.name) };
@@ -556,6 +565,10 @@ async function processPlan(client, plan, checkpoint, runtime) {
     client,
     projectRef: runtime.projectRef,
     reservationKey: `backfill:${plan.restaurantId}:${plan.row.id}:${plan.sourceSha}:${RECIPE.id}`,
+    operationId: randomUUID(),
+    restaurantId: plan.restaurantId,
+    dishId: String(plan.row.id),
+    recipeId: RECIPE.id,
     requestedBytes,
     work: async () => {
       const photoDerivatives = { ...(plan.metadata.photoDerivatives ?? {}) };
@@ -588,8 +601,6 @@ async function processPlan(client, plan, checkpoint, runtime) {
                 potentiallyCreatedObjects.pop();
                 throw new Error(`Upload ${item.variant.name} impossible: ${uploaded.error.message}`);
               }
-            } else {
-              potentiallyCreated.creation = "confirmed";
             }
           }
           photoDerivatives[item.variant.name] = {

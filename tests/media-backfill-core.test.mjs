@@ -37,7 +37,11 @@ function validDerivative(overrides = {}) {
 }
 
 test("checkpoint identity binds row, source, recipe, variants and every output hash", async () => {
-  const { buildCheckpointEnvelope, checkpointEntryMatches } = await loadBackfillModule();
+  const {
+    buildCheckpointEnvelope,
+    buildCheckpointRecordKey,
+    checkpointEntryMatches
+  } = await loadBackfillModule();
   const input = {
     dishId,
     restaurantId,
@@ -55,6 +59,7 @@ test("checkpoint identity binds row, source, recipe, variants and every output h
   };
   const envelope = buildCheckpointEnvelope(input);
   assert.equal(checkpointEntryMatches(envelope, input), true);
+  const recordKey = buildCheckpointRecordKey(input);
 
   for (const mutation of [
     { dishId: "33333333-3333-4333-8333-333333333333" },
@@ -66,6 +71,16 @@ test("checkpoint identity binds row, source, recipe, variants and every output h
     { outputs: { ...input.outputs, card: sha("other-output") } }
   ]) {
     assert.equal(checkpointEntryMatches(envelope, { ...input, ...mutation }), false);
+  }
+  for (const mutation of [
+    { dishId: "33333333-3333-4333-8333-333333333333" },
+    { restaurantId: "44444444-4444-4444-8444-444444444444" },
+    { sourcePath: `${input.sourcePath}.other` },
+    { sourceSha256: sha("other-source") },
+    { recipeId: "dish-photo-v3" },
+    { schemaVersion: 3 }
+  ]) {
+    assert.notEqual(buildCheckpointRecordKey({ ...input, ...mutation }), recordKey);
   }
 });
 
@@ -97,11 +112,25 @@ test("measure report is versioned, deterministic and uses authoritative global q
     authoritativeQuotaBytes: 1_000,
     errors: []
   });
+  assert.equal(report.reportSchemaVersion, 1);
   assert.equal(report.reportVersion, 1);
+  assert.equal(report.gitHead, "abc123");
+  assert.equal(report.rows, 2);
+  assert.equal(report.sources, 2);
+  assert.equal(report.existingStorageBytes, 500);
+  assert.equal(report.additionalBytes, 100);
   assert.equal(report.usageMeasuredAt, "2026-08-15T11:55:00.000Z");
   assert.equal(report.capacity.headroomBeforeBytes, 500);
   assert.equal(report.capacity.headroomAfterBytes, 400);
   assert.equal(report.capacity.headroomAfterPercent, 40);
+  assert.deepEqual(report.headroomBefore, { bytes: 500, percent: 50 });
+  assert.deepEqual(report.headroomAfter, { bytes: 400, percent: 40 });
+  assert.equal(report.headroomPercent, 40);
+  assert.deepEqual(report.capacityGate, {
+    status: "pass",
+    minimumHeadroomPercent: 20,
+    reasons: []
+  });
   assert.equal(report.status, "pass");
 });
 
@@ -212,7 +241,12 @@ test("apply gate requires a finite, complete and internally consistent measure r
     { ...base, headroomAfterBytes: base.headroomAfterBytes - 1 },
     { ...base, headroomBeforePercent: base.headroomBeforePercent + 1 },
     { ...base, capacity: { ...base.capacity, headroomAfterBytes: base.capacity.headroomAfterBytes - 1 } },
-    { ...base, gitCommit: "different" }
+    { ...base, gitCommit: "different" },
+    { ...base, reportSchemaVersion: 2 },
+    { ...base, gitHead: "different" },
+    { ...base, additionalBytes: base.additionalBytes + 1 },
+    { ...base, headroomAfter: { ...base.headroomAfter, bytes: base.headroomAfter.bytes - 1 } },
+    { ...base, capacityGate: { ...base.capacityGate, status: "fail" } }
   ]) {
     assert.equal(validateApplyMeasureReport(invalid, context).ok, false, JSON.stringify(invalid));
   }
@@ -260,6 +294,21 @@ test("shared audit classifies empty derivatives as partial and exact V2 as compl
     photoBytes: 10
   };
   assert.equal(classifyDishPhotoUsage({ metadata: {} }).classification, "no-photo");
+  assert.deepEqual(
+    classifyDishPhotoUsage({
+      metadata: {
+        photoStatus: "ready",
+        photoStorageBucket: "vistaire-media",
+        photoBytes: 12,
+        photoDerivatives: {}
+      }
+    }),
+    {
+      classification: "invalid-metadata",
+      status: "fail",
+      reasons: ["invalid-metadata"]
+    }
+  );
   assert.equal(classifyDishPhotoUsage({ metadata: { ...base, photoDerivatives: {} } }).classification, "partial");
   const derivatives = {
     thumbnail: validDerivative({ variant: "thumbnail", storagePath: `restaurants/${restaurantId}/photos/derivatives/${sourceSha}/dish-photo-v2/thumbnail-${outputSha}.webp`, width: 320 }),
@@ -268,6 +317,40 @@ test("shared audit classifies empty derivatives as partial and exact V2 as compl
   };
   assert.equal(classifyDishPhotoUsage({ metadata: { ...base, photoDerivatives: derivatives } }).classification, "v2-complete");
   assert.equal(classifyDishPhotoUsage({ metadata: { ...base, photoDerivatives: { ...derivatives, card: validDerivative({ sourceSha256: sha("wrong") }) } } }).classification, "wrong-source-sha");
+});
+
+test("strict photo coverage exports every operator counter", async () => {
+  const { buildStrictPhotoCoverageCounts } = await loadBackfillModule();
+  const counts = buildStrictPhotoCoverageCounts([
+    { classification: "no-photo", status: "pass", reasons: [] },
+    { classification: "original-only", status: "partial", reasons: ["original-fallback"] },
+    { classification: "image-url-only", status: "partial", reasons: ["image-url-fallback"] },
+    { classification: "legacy-v1-complete", status: "pass", reasons: [] },
+    { classification: "v2-complete", status: "pass", reasons: [] },
+    { classification: "invalid-metadata", status: "fail", reasons: ["invalid-metadata"] },
+    { classification: "wrong-recipe", status: "fail", reasons: ["wrong-recipe", "wrong-source-sha"] },
+    { classification: "wrong-output-sha", status: "fail", reasons: ["wrong-output-sha"] },
+    { classification: "missing-object", status: "partial", reasons: ["missing-object"] },
+    { classification: "wrong-size", status: "fail", reasons: ["wrong-size", "wrong-content-type"] },
+    { classification: "wrong-hash", status: "fail", reasons: ["wrong-hash"] }
+  ]);
+
+  assert.deepEqual(counts, {
+    rowsWithoutPhoto: 1,
+    rowsOriginalOnly: 1,
+    rowsV1Complete: 1,
+    rowsV2Complete: 1,
+    rowsPartial: 3,
+    rowsInvalidMetadata: 1,
+    rowsWrongRecipe: 1,
+    rowsWrongSourceSha: 1,
+    rowsWrongOutputSha: 1,
+    rowsMissingObject: 1,
+    rowsWrongSize: 1,
+    rowsWrongContentType: 1,
+    rowsHashMismatch: 1,
+    rowsOriginalFallback: 2
+  });
 });
 
 test("shared audit is metadata-validity aware and validates exact V1 identity", async () => {

@@ -73,6 +73,7 @@ registerHooks({
         export const getSupabaseAdminClient = () => ({ ok: true, client: globalThis.__OWNER_PHOTO_TEST__.client });
       `,
       "owner-photo-test:upload-helper": `
+        export const DISH_PHOTO_RECIPE = { id: "dish-photo-v2", schemaVersion: 2 };
         export const inspectDishPhotoFile = async () => globalThis.__OWNER_PHOTO_TEST__.validated;
         export const buildDishPhotoV2StoragePath = ({ restaurantId, sha256, extension }) => \`restaurants/\${restaurantId}/photos/originals/\${sha256}.\${extension}\`;
         export const buildDishPhotoDerivativeV2StoragePath = ({ restaurantId, sourceSha256, recipeId, variant, outputSha256 }) => \`restaurants/\${restaurantId}/photos/derivatives/\${sourceSha256}/\${recipeId}/\${variant}-\${outputSha256}.webp\`;
@@ -84,7 +85,7 @@ registerHooks({
         export const generateDishPhotoDerivatives = async () => globalThis.__OWNER_PHOTO_TEST__.derivatives;
       `,
       "owner-photo-test:cleanup": `
-        export const cleanupReplacedDishAssets = async (args) => { globalThis.__OWNER_PHOTO_TEST__.events.push("cleanup"); globalThis.__OWNER_PHOTO_TEST__.cleanupArgs = args; return { candidates: [], deleted: [], skippedStillReferenced: [], skippedUnsafeBucket: [], skippedUnsafePrefix: [], skippedMissingPath: [], errors: [] }; };
+        export const cleanupReplacedDishAssets = async (args) => { globalThis.__OWNER_PHOTO_TEST__.events.push("cleanup"); globalThis.__OWNER_PHOTO_TEST__.cleanupArgs = args; return { candidates: [], deleted: [], skippedStillReferenced: [], skippedConcurrentReuseRisk: [], skippedUnsafeBucket: [], skippedUnsafePrefix: [], skippedMissingPath: [], errors: [] }; };
       `,
       "owner-photo-test:revalidation": `
         export const revalidateOwnerMenuMutationPaths = async () => { globalThis.__OWNER_PHOTO_TEST__.events.push("revalidate"); };

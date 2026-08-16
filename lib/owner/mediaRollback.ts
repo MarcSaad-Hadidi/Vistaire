@@ -139,33 +139,19 @@ export async function rollbackPotentiallyCreatedMediaObjects(args: {
     });
   }
 
-  const ambiguous = [...byPath.values()].filter(
-    (candidate) => candidate.creation === "ambiguous"
-  );
-  const confirmed = [...byPath.values()].filter(
-    (candidate) => candidate.creation === "confirmed"
-  );
-  const rollback = await rollbackCreatedMediaObjects({
-    bucket: args.bucket,
-    created: confirmed,
-    referencedPaths: args.referencedPaths
-  });
-  if (ambiguous.length === 0) return rollback;
-
-  const retained = new Map<string, number>();
-  for (const candidate of confirmed) {
-    if (rollback.retainedPaths.includes(candidate.path)) {
-      retained.set(candidate.path, candidate.bytes);
-    }
-  }
-  for (const candidate of ambiguous) retained.set(candidate.path, candidate.bytes);
+  // These paths are immutable and intentionally shared across dishes. A
+  // point-in-time reference query cannot see another instance that already
+  // reused an object but has not committed its metadata yet. Deleting here
+  // would create a dangling reference in that concurrent transaction, so all
+  // attempted content-addressed objects remain retained and capacity-billed
+  // until an offline, quiescent reconciliation proves them orphaned.
+  const retained = [...byPath.values()];
   return {
-    removedPaths: rollback.removedPaths,
-    retainedPaths: [...retained.keys()],
-    retainedBytes: [...retained.values()].reduce((total, bytes) => total + bytes, 0),
-    errors: [
-      ...rollback.errors,
-      "ambiguous Storage upload retained conservatively"
-    ]
+    removedPaths: [],
+    retainedPaths: retained.map((candidate) => candidate.path),
+    retainedBytes: retained.reduce((total, candidate) => total + candidate.bytes, 0),
+    errors: retained.length
+      ? ["content-addressed Storage objects retained for cross-instance safety"]
+      : []
   };
 }

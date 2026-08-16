@@ -4,6 +4,7 @@ const MIN_HEADROOM_PERCENT = 20;
 const DEFAULT_HEARTBEAT_INTERVAL_MS = 60_000;
 const SHA_OR_KEY_PATTERN = /^[a-z0-9][a-z0-9:._/-]{0,511}$/i;
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const RECIPE_ID_PATTERN = /^[a-z0-9][a-z0-9._-]{0,127}$/;
 
 type RpcClient = {
   rpc: (
@@ -12,7 +13,14 @@ type RpcClient = {
   ) => PromiseLike<{ data: unknown; error: unknown }>;
 };
 
-export type MediaCapacityReservation = {
+export type MediaCapacityReservationContext = {
+  operationId: string;
+  restaurantId: string;
+  dishId: string;
+  recipeId: string;
+};
+
+export type MediaCapacityReservation = MediaCapacityReservationContext & {
   reservationId: string;
   projectRef: string;
   quotaBytes: number;
@@ -84,15 +92,45 @@ function unavailable(reason: string): MediaCapacityError {
   );
 }
 
+function normalizeReservationContext(
+  value: Partial<MediaCapacityReservationContext>
+): MediaCapacityReservationContext | null {
+  const operationId = typeof value.operationId === "string"
+    ? value.operationId.trim().toLowerCase()
+    : "";
+  const restaurantId = typeof value.restaurantId === "string"
+    ? value.restaurantId.trim().toLowerCase()
+    : "";
+  const dishId = typeof value.dishId === "string"
+    ? value.dishId.trim().toLowerCase()
+    : "";
+  const recipeId = typeof value.recipeId === "string" ? value.recipeId : "";
+  if (
+    !UUID_PATTERN.test(operationId) ||
+    !UUID_PATTERN.test(restaurantId) ||
+    !UUID_PATTERN.test(dishId) ||
+    recipeId !== recipeId.trim().toLowerCase() ||
+    !RECIPE_ID_PATTERN.test(recipeId)
+  ) {
+    return null;
+  }
+  return { operationId, restaurantId, dishId, recipeId };
+}
+
 export async function reserveMediaCapacity(args: {
   client: RpcClient;
   projectRef: string;
   reservationKey: string;
+  operationId: string;
+  restaurantId: string;
+  dishId: string;
+  recipeId: string;
   requestedBytes: number;
   minHeadroomPercent?: number;
 }): Promise<MediaCapacityReservation> {
   const projectRef = args.projectRef.trim().toLowerCase();
   const reservationKey = args.reservationKey.trim();
+  const context = normalizeReservationContext(args);
   const requestedBytes = finiteInteger(args.requestedBytes);
   const minHeadroomPercent = args.minHeadroomPercent ?? MIN_HEADROOM_PERCENT;
   if (
@@ -106,12 +144,17 @@ export async function reserveMediaCapacity(args: {
   ) {
     throw unavailable("invalid-capacity-request");
   }
+  if (!context) throw unavailable("invalid-capacity-context");
 
   let response: Awaited<ReturnType<RpcClient["rpc"]>>;
   try {
     response = await args.client.rpc("reserve_media_capacity", {
       p_project_ref: projectRef,
       p_reservation_key: reservationKey,
+      p_operation_id: context.operationId,
+      p_restaurant_id: context.restaurantId,
+      p_dish_id: context.dishId,
+      p_recipe_id: context.recipeId,
       p_requested_bytes: requestedBytes,
       p_min_headroom_percent: minHeadroomPercent
     });
@@ -135,6 +178,12 @@ export async function reserveMediaCapacity(args: {
 
   const reservationId = String(value.reservationId ?? "");
   const responseProjectRef = String(value.projectRef ?? "").toLowerCase();
+  const responseContext = normalizeReservationContext({
+    operationId: String(value.operationId ?? ""),
+    restaurantId: String(value.restaurantId ?? ""),
+    dishId: String(value.dishId ?? ""),
+    recipeId: String(value.recipeId ?? "")
+  });
   const quotaBytes = finiteInteger(value.quotaBytes, 1);
   const usedBytes = finiteInteger(value.usedBytes);
   const activeReservedBytes = finiteInteger(value.activeReservedBytes);
@@ -145,6 +194,11 @@ export async function reserveMediaCapacity(args: {
   if (
     !UUID_PATTERN.test(reservationId) ||
     responseProjectRef !== projectRef ||
+    !responseContext ||
+    responseContext.operationId !== context.operationId ||
+    responseContext.restaurantId !== context.restaurantId ||
+    responseContext.dishId !== context.dishId ||
+    responseContext.recipeId !== context.recipeId ||
     quotaBytes === null ||
     usedBytes === null ||
     activeReservedBytes === null ||
@@ -159,6 +213,7 @@ export async function reserveMediaCapacity(args: {
   return {
     reservationId,
     projectRef: responseProjectRef,
+    ...responseContext,
     quotaBytes,
     usedBytes,
     activeReservedBytes,
@@ -279,7 +334,10 @@ export async function withMediaCapacityReservation<T>(args: {
   client: RpcClient;
   projectRef: string;
   reservationKey: string;
-  reservationAttemptId?: string;
+  operationId: string;
+  restaurantId: string;
+  dishId: string;
+  recipeId: string;
   requestedBytes: number;
   heartbeatIntervalMs?: number;
   work: (reservation: MediaCapacityReservation) => Promise<{
@@ -299,7 +357,7 @@ export async function withMediaCapacityReservation<T>(args: {
     ...args,
     reservationKey: createMediaCapacityReservationAttemptKey(
       args.reservationKey,
-      args.reservationAttemptId
+      args.operationId
     )
   });
   let heartbeatPromise: Promise<void> | null = null;

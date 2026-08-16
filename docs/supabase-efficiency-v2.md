@@ -53,7 +53,9 @@ quota, usage, and recomputed headroom. The default concurrency is 2 (maximum
 bytes, and 10 seconds per download; hard maxima are 100,000 objects, 1 GiB,
 and 60 seconds. Capacity reservations have a five-minute heartbeat deadline;
 expiry never releases bytes implicitly, and unsettled reservations remain
-counted until explicit finalize/release.
+counted until explicit finalize/release. Every reservation persists its
+operation id, restaurant id, dish id and recipe id for operator correlation;
+the unique live reservation key remains the idempotency/race guard.
 
 ### Operator reconciliation for abandoned reservations
 
@@ -83,6 +85,13 @@ in progress.
    separately approved operator change, then rerun the read-only audit. A
    second operator must verify that active reserved bytes, global used bytes,
    and the incident ledger reconcile before media writes are re-enabled.
+
+Photo originals and derivatives are immutable, content-addressed and may be
+reused by another instance before that instance commits its metadata. Inline
+rollback and replacement cleanup therefore never delete photo objects: they
+retain and capacity-bill attempted paths, report `skippedConcurrentReuseRisk`,
+and leave deletion to a separately approved offline reconciliation performed
+only after a stable reference scan. This closes the Storage/DB TOCTOU window.
 
 ## Evidence boundary
 
@@ -261,6 +270,10 @@ reference candidates, analytics windows and projection status. The rollout
 gate accepts quota and global usage only from the authoritative,
 project-scoped capacity state returned by `get_media_capacity_state`; observed
 bucket bytes, a plan label, or a published allowance are not quota authority.
+The photo section exposes explicit `rowsWithoutPhoto`, `rowsOriginalOnly`,
+`rowsV1Complete`, `rowsV2Complete`, `rowsPartial`, metadata/object/hash failure
+counters and `rowsOriginalFallback`. Any `partial`, `fail`, or `unavailable`
+result exits non-zero.
 
 Definitions:
 
@@ -275,6 +288,11 @@ EXPECTED_HEADROOM_PERCENT   = EXPECTED_HEADROOM_BYTES / AUTHORITATIVE_QUOTA_BYTE
 
 The backfill report counts complete V2 bytes **and retained V1 derivative bytes**
 (`legacyDerivativeBytes`); V1 objects are not deleted by this rollout. The live
+measure envelope exposes the stable operator aliases `reportSchemaVersion`,
+`gitHead`, `rows`, `sources`, `existingStorageBytes`, `additionalBytes`,
+`headroomBefore`, `headroomAfter`, `headroomPercent` and `capacityGate`; apply
+validates those aliases against the canonical numeric fields and fails closed
+on any mismatch. The live
 current storage is `999,707,284 B`. The historical dry-run estimate of
 `29,602,572 B` would produce `EXPECTED_STORAGE_AFTER=1,029,309,856 B`.
 Using the published decimal 1 GB Free allowance only as a historical scenario

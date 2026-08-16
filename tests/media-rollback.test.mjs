@@ -61,7 +61,7 @@ test("rollback keeps every object counted when reference lookup or remove throws
   assert.deepEqual(partial.errors, ["Storage remove result incomplete"]);
 });
 
-test("rollback bills ambiguous upload attempts unless Storage absence was proven", async () => {
+test("content-addressed rollback retains every attempted object across concurrent reuse", async () => {
   const {
     potentiallyCreatedMediaObjectBytes,
     rollbackPotentiallyCreatedMediaObjects
@@ -73,14 +73,14 @@ test("rollback bills ambiguous upload attempts unless Storage absence was proven
 
   assert.equal(potentiallyCreatedMediaObjectBytes(potentiallyCreated), 30);
   const rollback = await rollbackPotentiallyCreatedMediaObjects({
-    bucket: { remove: async (paths) => ({ data: paths, error: null }) },
+    bucket: { remove: async () => assert.fail("shared immutable objects must not be removed inline") },
     potentiallyCreated,
     referencedPaths: new Set()
   });
   assert.deepEqual(rollback, {
-    removedPaths: ["confirmed.webp"],
-    retainedPaths: ["ambiguous.webp"],
-    retainedBytes: 20,
-    errors: ["ambiguous Storage upload retained conservatively"]
+    removedPaths: [],
+    retainedPaths: ["confirmed.webp", "ambiguous.webp"],
+    retainedBytes: 30,
+    errors: ["content-addressed Storage objects retained for cross-instance safety"]
   });
 });

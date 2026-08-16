@@ -23,6 +23,16 @@ type CheckpointInput = {
   validatedAt: string;
 };
 
+type CheckpointRecordIdentity = Pick<
+  CheckpointInput,
+  | "dishId"
+  | "restaurantId"
+  | "sourcePath"
+  | "sourceSha256"
+  | "recipeId"
+  | "schemaVersion"
+>;
+
 function stableJson(value: unknown): string {
   if (Array.isArray(value)) return `[${value.map(stableJson).join(",")}]`;
   if (value && typeof value === "object") {
@@ -180,38 +190,60 @@ export function buildMeasureReport(args: {
     reasons.push("minimum-headroom-not-met");
   }
   if (args.errors.length) reasons.push("measurement-errors");
+  const uniqueReasons = [...new Set(reasons)];
+  const capacityGateStatus = uniqueReasons.length === 0 ? "pass" : "fail";
   return {
+    reportSchemaVersion: 1,
     reportVersion: 1,
     projectRef: args.projectRef,
     target: args.target,
     generatedAt: args.generatedAt,
     usageMeasuredAt: args.usageMeasuredAt,
     gitCommit: args.codeVersion,
+    gitHead: args.codeVersion,
     codeVersion: args.codeVersion,
     recipeId: args.recipeId,
     schemaVersion: args.schemaVersion,
     sourceSetDigest: args.sourceSetDigest,
     rowCount: args.rowCount,
+    rows: args.rowCount,
     sourceCount: args.sourceCount,
+    sources: args.sourceCount,
     currentGlobalBytes: args.currentGlobalBytes,
+    existingStorageBytes: args.currentGlobalBytes,
     existingSourceBytes: args.existingSourceBytes,
     existingDerivativeBytes: args.existingDerivativeBytes,
     measuredDerivativeBytes: args.measuredDerivativeBytes,
     uniqueAdditionalBytes: args.uniqueAdditionalBytes,
+    additionalBytes: args.uniqueAdditionalBytes,
     authoritativeQuotaBytes: args.authoritativeQuotaBytes,
     headroomBeforeBytes,
     headroomBeforePercent,
     headroomAfterBytes,
     headroomAfterPercent,
+    headroomPercent: headroomAfterPercent,
+    headroomBefore: {
+      bytes: headroomBeforeBytes,
+      percent: headroomBeforePercent
+    },
+    headroomAfter: {
+      bytes: headroomAfterBytes,
+      percent: headroomAfterPercent
+    },
     capacity: {
       headroomBeforeBytes,
       headroomBeforePercent,
       headroomAfterBytes,
       headroomAfterPercent
     },
-    status: reasons.length === 0 ? "pass" : "fail",
-    pass: reasons.length === 0,
-    reasons: [...new Set(reasons)],
+    capacityGate: {
+      status: capacityGateStatus,
+      minimumHeadroomPercent: 20,
+      reasons: uniqueReasons
+    },
+    status: capacityGateStatus,
+    pass: capacityGateStatus === "pass",
+    reasons: uniqueReasons,
     errors: [...args.errors]
   };
 }
@@ -253,6 +285,7 @@ export function validateApplyMeasureReport(
     reasons.push("invalid-measure-report-schema");
   }
   if (
+    report.reportSchemaVersion !== 1 ||
     report.reportVersion !== 1 ||
     report.schemaVersion !== context.schemaVersion ||
     typeof report.headroomBeforePercent !== "number" ||
@@ -271,6 +304,34 @@ export function validateApplyMeasureReport(
     report.gitCommit !== report.codeVersion
   ) {
     reasons.push("invalid-measure-report-schema");
+  }
+  if (
+    report.gitHead !== report.codeVersion ||
+    report.rows !== report.rowCount ||
+    report.sources !== report.sourceCount ||
+    report.existingStorageBytes !== report.currentGlobalBytes ||
+    report.additionalBytes !== report.uniqueAdditionalBytes ||
+    report.headroomPercent !== report.headroomAfterPercent
+  ) {
+    reasons.push("inconsistent-measure-report-aliases");
+  }
+  const headroomBefore = record(report.headroomBefore);
+  const headroomAfter = record(report.headroomAfter);
+  const capacityGate = record(report.capacityGate);
+  if (
+    !headroomBefore ||
+    headroomBefore.bytes !== report.headroomBeforeBytes ||
+    headroomBefore.percent !== report.headroomBeforePercent ||
+    !headroomAfter ||
+    headroomAfter.bytes !== report.headroomAfterBytes ||
+    headroomAfter.percent !== report.headroomAfterPercent ||
+    !capacityGate ||
+    capacityGate.status !== report.status ||
+    capacityGate.minimumHeadroomPercent !== 20 ||
+    !Array.isArray(capacityGate.reasons) ||
+    stableJson(capacityGate.reasons) !== stableJson(report.reasons)
+  ) {
+    reasons.push("inconsistent-measure-report-aliases");
   }
   const capacity = record(report.capacity);
   if (!capacity) {
@@ -334,6 +395,17 @@ export function validateApplyMeasureReport(
   return reasons.length ? { ok: false, reasons: [...new Set(reasons)] } : { ok: true };
 }
 
+export function buildCheckpointRecordKey(input: CheckpointRecordIdentity): string {
+  return digest({
+    dishId: input.dishId,
+    restaurantId: input.restaurantId,
+    sourcePath: input.sourcePath,
+    sourceSha256: input.sourceSha256.toLowerCase(),
+    recipeId: input.recipeId,
+    schemaVersion: input.schemaVersion
+  });
+}
+
 export function isFreshMediaUsageMeasurement(
   value: unknown,
   now: Date = new Date()
@@ -347,6 +419,27 @@ export function isFreshMediaUsageMeasurement(
     Number.isFinite(measuredAt) &&
     age >= 0 &&
     age <= MAX_MEASURE_AGE_MS
+  );
+}
+
+function hasDishPhotoSignal(
+  metadata: Record<string, unknown>,
+  imageUrl: unknown
+): boolean {
+  const hasImageUrl = typeof imageUrl === "string" && imageUrl.trim().length > 0;
+  const hasReadyStatus = metadata.photoStatus === "ready";
+  const contractKeys = [
+    "photoStorageBucket",
+    "photoStoragePath",
+    "photoSha256",
+    "photoContentType",
+    "photoBytes",
+    "photoDerivatives"
+  ];
+  return (
+    hasImageUrl ||
+    hasReadyStatus ||
+    contractKeys.some((key) => Object.hasOwn(metadata, key))
   );
 }
 
@@ -381,15 +474,7 @@ export function planDishPhotoBackfillSource(
     ? metadata.photoSha256
     : "";
   const imageUrl = typeof row.image_url === "string" ? row.image_url.trim() : "";
-  const hasPhotoSignal = Boolean(
-    sourcePath ||
-    rawSourceSha ||
-    imageUrl ||
-    metadata.photoStatus ||
-    metadata.photoStorageBucket ||
-    metadata.photoBytes ||
-    metadata.photoDerivatives
-  );
+  const hasPhotoSignal = hasDishPhotoSignal(metadata, imageUrl);
   if (parsed.valid && !hasPhotoSignal) return { status: "no-photo" };
 
   const sourceSha = rawSourceSha.toLowerCase();
@@ -565,6 +650,9 @@ export function classifyDishPhotoUsage(args: {
   const sourcePath = String(metadata.photoStoragePath ?? "");
   const sourceSha256 = String(metadata.photoSha256 ?? "").toLowerCase();
   if (!sourcePath && !sourceSha256) {
+    if (hasDishPhotoSignal(metadata, undefined)) {
+      return { classification: "invalid-metadata", status: "fail", reasons: ["invalid-metadata"] };
+    }
     if (typeof args.imageUrl === "string" && args.imageUrl.trim()) {
       return { classification: "image-url-only", status: "partial", reasons: ["image-url-fallback"] };
     }
@@ -636,6 +724,45 @@ export function classifyDishPhotoUsage(args: {
 
 export function isExpectedDerivativeVariant(value: unknown): value is DishPhotoDerivativeVariant {
   return isDishPhotoDerivativeVariant(value);
+}
+
+type PhotoCoverageEntry = {
+  classification?: unknown;
+  status?: unknown;
+  reasons?: unknown;
+};
+
+export function buildStrictPhotoCoverageCounts(entries: PhotoCoverageEntry[]) {
+  const hasClassification = (entry: PhotoCoverageEntry, value: string) =>
+    entry.classification === value;
+  const hasReason = (entry: PhotoCoverageEntry, value: string) =>
+    Array.isArray(entry.reasons) && entry.reasons.includes(value);
+  const matches = (entry: PhotoCoverageEntry, value: string) =>
+    hasClassification(entry, value) || hasReason(entry, value);
+  const count = (predicate: (entry: PhotoCoverageEntry) => boolean) =>
+    entries.filter(predicate).length;
+
+  return {
+    rowsWithoutPhoto: count((entry) => hasClassification(entry, "no-photo")),
+    rowsOriginalOnly: count((entry) => hasClassification(entry, "original-only")),
+    rowsV1Complete: count((entry) => hasClassification(entry, "legacy-v1-complete")),
+    rowsV2Complete: count((entry) => hasClassification(entry, "v2-complete")),
+    rowsPartial: count((entry) => entry.status === "partial"),
+    rowsInvalidMetadata: count((entry) => matches(entry, "invalid-metadata")),
+    rowsWrongRecipe: count((entry) => matches(entry, "wrong-recipe")),
+    rowsWrongSourceSha: count((entry) => matches(entry, "wrong-source-sha")),
+    rowsWrongOutputSha: count((entry) => matches(entry, "wrong-output-sha")),
+    rowsMissingObject: count((entry) => matches(entry, "missing-object")),
+    rowsWrongSize: count((entry) => matches(entry, "wrong-size")),
+    rowsWrongContentType: count((entry) => matches(entry, "wrong-content-type")),
+    rowsHashMismatch: count((entry) => matches(entry, "wrong-hash")),
+    rowsOriginalFallback: count((entry) =>
+      hasClassification(entry, "original-only") ||
+      hasClassification(entry, "image-url-only") ||
+      hasReason(entry, "original-fallback") ||
+      hasReason(entry, "image-url-fallback")
+    )
+  };
 }
 
 export const MEDIA_MEASURE_MAX_AGE_MS = MAX_MEASURE_AGE_MS;

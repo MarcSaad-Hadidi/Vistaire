@@ -18,6 +18,7 @@ end;
 $$;
 
 \ir ../../../supabase/migrations/20260815120000_media_capacity_reservations.sql
+\ir ../../../supabase/migrations/20260815130000_media_capacity_reservation_context.sql
 
 do $$
 begin
@@ -35,14 +36,14 @@ begin
   end if;
   if not pg_catalog.has_function_privilege(
     'service_role',
-    'public.reserve_media_capacity(text,text,bigint,numeric)',
+    'public.reserve_media_capacity(text,text,uuid,uuid,uuid,text,bigint,numeric)',
     'EXECUTE'
   ) or pg_catalog.has_function_privilege(
     'anon',
-    'public.reserve_media_capacity(text,text,bigint,numeric)',
+    'public.reserve_media_capacity(text,text,uuid,uuid,uuid,text,bigint,numeric)',
     'EXECUTE'
-  ) then
-    raise exception 'reserve RPC must be service-role only';
+  ) or to_regprocedure('public.reserve_media_capacity(text,text,bigint,numeric)') is not null then
+    raise exception 'contextual reserve RPC must be service-role only and the legacy signature must stay revoked';
   end if;
 end;
 $$;
@@ -61,7 +62,13 @@ do $$
 declare
   stale jsonb;
 begin
-  stale := public.reserve_media_capacity('capacity-test-project', 'measurement:stale', 1, 20);
+  stale := public.reserve_media_capacity(
+    'capacity-test-project', 'measurement:stale',
+    '10000000-0000-4000-8000-000000000001',
+    '20000000-0000-4000-8000-000000000001',
+    '30000000-0000-4000-8000-000000000001',
+    'dish-photo-v2', 1, 20
+  );
   if stale->>'status' <> 'unavailable' then
     raise exception 'stale usage measurement must fail closed: %', stale;
   end if;
@@ -77,7 +84,13 @@ do $$
 declare
   future jsonb;
 begin
-  future := public.reserve_media_capacity('capacity-test-project', 'measurement:future', 1, 20);
+  future := public.reserve_media_capacity(
+    'capacity-test-project', 'measurement:future',
+    '10000000-0000-4000-8000-000000000002',
+    '20000000-0000-4000-8000-000000000001',
+    '30000000-0000-4000-8000-000000000001',
+    'dish-photo-v2', 1, 20
+  );
   if future->>'status' <> 'unavailable' then
     raise exception 'future usage measurement must fail closed: %', future;
   end if;
@@ -89,6 +102,49 @@ update public.media_capacity_state
    set usage_measured_at = clock_timestamp()
  where project_ref = 'capacity-test-project';
 
+do $$
+declare
+  invalid_context jsonb;
+  contextual jsonb;
+begin
+  invalid_context := public.reserve_media_capacity(
+    'capacity-test-project', 'context:missing',
+    null,
+    '20000000-0000-4000-8000-000000000002',
+    '30000000-0000-4000-8000-000000000002',
+    'dish-photo-v2', 10, 20
+  );
+  if invalid_context->>'status' <> 'unavailable' or exists (
+    select 1
+      from public.media_capacity_reservations
+     where reservation_key = 'context:missing'
+  ) then
+    raise exception 'reservation context is required before persistence: %', invalid_context;
+  end if;
+  contextual := public.reserve_media_capacity(
+    'capacity-test-project', 'context:persisted',
+    '10000000-0000-4000-8000-000000000003',
+    '20000000-0000-4000-8000-000000000002',
+    '30000000-0000-4000-8000-000000000002',
+    'dish-photo-v2', 10, 20
+  );
+  if contextual->>'status' <> 'reserved' or not exists (
+    select 1
+      from public.media_capacity_reservations
+     where id = (contextual->>'reservationId')::uuid
+       and operation_id = '10000000-0000-4000-8000-000000000003'
+       and restaurant_id = '20000000-0000-4000-8000-000000000002'
+       and dish_id = '30000000-0000-4000-8000-000000000002'
+       and recipe_id = 'dish-photo-v2'
+  ) then
+    raise exception 'reservation context must be persisted exactly: %', contextual;
+  end if;
+  perform public.release_media_capacity_reservation(
+    'capacity-test-project', (contextual->>'reservationId')::uuid
+  );
+end;
+$$;
+
 select dblink_connect('capacity_a', 'dbname=' || current_database());
 select dblink_connect('capacity_b', 'dbname=' || current_database());
 select dblink_exec('capacity_a', 'set role service_role');
@@ -97,13 +153,21 @@ select dblink_exec('capacity_b', 'set role service_role');
 select dblink_send_query(
   'capacity_a',
   $$select public.reserve_media_capacity(
-      'capacity-test-project', 'concurrent:a', 450, 20
+      'capacity-test-project', 'concurrent:a',
+      '10000000-0000-4000-8000-000000000004',
+      '20000000-0000-4000-8000-000000000003',
+      '30000000-0000-4000-8000-000000000003',
+      'dish-photo-v2', 450, 20
     )::text$$
 );
 select dblink_send_query(
   'capacity_b',
   $$select public.reserve_media_capacity(
-      'capacity-test-project', 'concurrent:b', 450, 20
+      'capacity-test-project', 'concurrent:b',
+      '10000000-0000-4000-8000-000000000005',
+      '20000000-0000-4000-8000-000000000003',
+      '30000000-0000-4000-8000-000000000004',
+      'dish-photo-v2', 450, 20
     )::text$$
 );
 
@@ -146,7 +210,13 @@ do $$
 declare
   missing jsonb;
 begin
-  missing := public.reserve_media_capacity('missing-project', 'missing:test', 1, 20);
+  missing := public.reserve_media_capacity(
+    'missing-project', 'missing:test',
+    '10000000-0000-4000-8000-000000000006',
+    '20000000-0000-4000-8000-000000000004',
+    '30000000-0000-4000-8000-000000000005',
+    'dish-photo-v2', 1, 20
+  );
   if missing->>'status' <> 'unavailable' then
     raise exception 'missing capacity state must fail closed: %', missing;
   end if;
@@ -160,7 +230,13 @@ declare
   first_reservation jsonb;
   retried jsonb;
 begin
-  first_reservation := public.reserve_media_capacity('capacity-test-project', 'retry:released', 10, 20);
+  first_reservation := public.reserve_media_capacity(
+    'capacity-test-project', 'retry:released',
+    '10000000-0000-4000-8000-000000000007',
+    '20000000-0000-4000-8000-000000000005',
+    '30000000-0000-4000-8000-000000000006',
+    'dish-photo-v2', 10, 20
+  );
   if first_reservation->>'status' <> 'reserved' then
     raise exception 'retry fixture reservation failed: %', first_reservation;
   end if;
@@ -168,7 +244,13 @@ begin
     'capacity-test-project',
     (first_reservation->>'reservationId')::uuid
   );
-  retried := public.reserve_media_capacity('capacity-test-project', 'retry:released', 10, 20);
+  retried := public.reserve_media_capacity(
+    'capacity-test-project', 'retry:released',
+    '10000000-0000-4000-8000-000000000008',
+    '20000000-0000-4000-8000-000000000005',
+    '30000000-0000-4000-8000-000000000006',
+    'dish-photo-v2', 10, 20
+  );
   if retried->>'status' <> 'reserved' then
     raise exception 'released reservation key must be safely reusable: %', retried;
   end if;
@@ -187,13 +269,21 @@ select dblink_exec('same_key_b', 'set role service_role');
 select dblink_send_query(
   'same_key_a',
   $$select public.reserve_media_capacity(
-      'capacity-test-project', 'same-key:concurrent', 25, 20
+      'capacity-test-project', 'same-key:concurrent',
+      '10000000-0000-4000-8000-000000000009',
+      '20000000-0000-4000-8000-000000000006',
+      '30000000-0000-4000-8000-000000000007',
+      'dish-photo-v2', 25, 20
     )::text$$
 );
 select dblink_send_query(
   'same_key_b',
   $$select public.reserve_media_capacity(
-      'capacity-test-project', 'same-key:concurrent', 25, 20
+      'capacity-test-project', 'same-key:concurrent',
+      '10000000-0000-4000-8000-000000000009',
+      '20000000-0000-4000-8000-000000000006',
+      '30000000-0000-4000-8000-000000000007',
+      'dish-photo-v2', 25, 20
     )::text$$
 );
 
@@ -235,7 +325,11 @@ begin
     raise exception 'same-key fixture must finalize: %', finalized;
   end if;
   retried := public.reserve_media_capacity(
-    'capacity-test-project', 'same-key:concurrent', 25, 20
+    'capacity-test-project', 'same-key:concurrent',
+    '10000000-0000-4000-8000-000000000010',
+    '20000000-0000-4000-8000-000000000006',
+    '30000000-0000-4000-8000-000000000007',
+    'dish-photo-v2', 25, 20
   );
   if retried->>'status' <> 'reserved'
     or retried->>'reservationId' = first_reservation->>'reservationId' then
@@ -258,7 +352,11 @@ declare
   used_before bigint;
 begin
   overdue := public.reserve_media_capacity(
-    'capacity-test-project', 'expiry:retained', 40, 20
+    'capacity-test-project', 'expiry:retained',
+    '10000000-0000-4000-8000-000000000011',
+    '20000000-0000-4000-8000-000000000007',
+    '30000000-0000-4000-8000-000000000008',
+    'dish-photo-v2', 40, 20
   );
   if overdue->>'status' <> 'reserved' then
     raise exception 'expiry fixture reservation failed: %', overdue;

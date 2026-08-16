@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { NextResponse, type NextRequest } from "next/server";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
@@ -7,6 +8,7 @@ import {
 import {
   buildDishPhotoPublicPath,
   buildDishPhotoV2StoragePath,
+  DISH_PHOTO_RECIPE,
   clearDishPhotoMetadata,
   buildDishPhotoDerivativeV2StoragePath,
   mergeDishPhotoMetadata,
@@ -298,6 +300,10 @@ export async function POST(
       client: admin.client,
       projectRef: expectedProjectRef,
       reservationKey,
+      operationId: randomUUID(),
+      restaurantId,
+      dishId,
+      recipeId: DISH_PHOTO_RECIPE.id,
       requestedBytes,
       work: async () => {
         const potentiallyCreatedObjects: PotentiallyCreatedMediaObject[] = [];
@@ -330,7 +336,9 @@ export async function POST(
               }
               continue;
             }
-            potentiallyCreated.creation = "confirmed";
+            // A successful immutable upload can already be reused by another
+            // instance before that instance commits its metadata. Keep the
+            // attempt ambiguous so rollback never deletes a shared path.
           }
 
           const metadata = mergeDishPhotoMetadata(oldMetadata, {
@@ -358,6 +366,7 @@ export async function POST(
             candidates: [],
             deleted: [],
             skippedStillReferenced: [],
+            skippedConcurrentReuseRisk: [],
             skippedUnsafeBucket: [],
             skippedUnsafePrefix: [],
             skippedMissingPath: [],
@@ -400,6 +409,7 @@ export async function POST(
               deletedCount: replacementCleanup.deleted.length,
               skippedCount:
                 replacementCleanup.skippedStillReferenced.length +
+                replacementCleanup.skippedConcurrentReuseRisk.length +
                 replacementCleanup.skippedUnsafeBucket.length +
                 replacementCleanup.skippedUnsafePrefix.length +
                 replacementCleanup.skippedMissingPath.length,
@@ -525,6 +535,7 @@ export async function DELETE(
   );
   const skippedCount =
     cleanup.skippedStillReferenced.length +
+    cleanup.skippedConcurrentReuseRisk.length +
     cleanup.skippedUnsafeBucket.length +
     cleanup.skippedUnsafePrefix.length +
     cleanup.skippedMissingPath.length;

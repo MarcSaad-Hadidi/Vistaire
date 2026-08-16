@@ -14,10 +14,30 @@ function rpcClient(handler) {
     calls: [],
     async rpc(name, parameters) {
       this.calls.push({ name, parameters });
-      return handler(name, parameters);
+      const response = await handler(name, parameters);
+      if (
+        name === "reserve_media_capacity" &&
+        response?.data?.status === "reserved"
+      ) {
+        response.data = {
+          operationId: parameters.p_operation_id,
+          restaurantId: parameters.p_restaurant_id,
+          dishId: parameters.p_dish_id,
+          recipeId: parameters.p_recipe_id,
+          ...response.data
+        };
+      }
+      return response;
     }
   };
 }
+
+const DEFAULT_CAPACITY_CONTEXT = Object.freeze({
+  operationId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+  restaurantId: "11111111-1111-4111-8111-111111111111",
+  dishId: "22222222-2222-4222-8222-222222222222",
+  recipeId: "dish-photo-v2"
+});
 
 test("media writes are disabled unless the explicit kill switch is enabled", async () => {
   const { mediaWritesEnabled } = await loadCapacityModule();
@@ -50,6 +70,7 @@ test("capacity reservation delegates atomically to the project-scoped RPC", asyn
     client,
     projectRef: "project-a",
     reservationKey: "upload:dish-1:source-sha",
+    ...DEFAULT_CAPACITY_CONTEXT,
     requestedBytes: 100
   });
 
@@ -59,10 +80,72 @@ test("capacity reservation delegates atomically to the project-scoped RPC", asyn
     parameters: {
       p_project_ref: "project-a",
       p_reservation_key: "upload:dish-1:source-sha",
+      p_operation_id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+      p_restaurant_id: "11111111-1111-4111-8111-111111111111",
+      p_dish_id: "22222222-2222-4222-8222-222222222222",
+      p_recipe_id: "dish-photo-v2",
       p_requested_bytes: 100,
       p_min_headroom_percent: 20
     }
   }]);
+});
+
+test("capacity context is required and invalid values fail before the RPC", async () => {
+  const { MediaCapacityError, reserveMediaCapacity } = await loadCapacityModule();
+  const client = rpcClient(async () => assert.fail("invalid context must not reach the RPC"));
+
+  for (const context of [
+    {},
+    { ...DEFAULT_CAPACITY_CONTEXT, operationId: "not-a-uuid" },
+    { ...DEFAULT_CAPACITY_CONTEXT, restaurantId: "not-a-uuid" },
+    { ...DEFAULT_CAPACITY_CONTEXT, dishId: "not-a-uuid" },
+    { ...DEFAULT_CAPACITY_CONTEXT, recipeId: " dish-photo-v2" }
+  ]) {
+    await assert.rejects(
+      reserveMediaCapacity({
+        client,
+        projectRef: "project-a",
+        reservationKey: "upload:invalid-context",
+        requestedBytes: 1,
+        ...context
+      }),
+      (error) => error instanceof MediaCapacityError && error.reason === "invalid-capacity-context"
+    );
+  }
+  assert.equal(client.calls.length, 0);
+});
+
+test("capacity fails closed when the persisted reservation context differs", async () => {
+  const { MediaCapacityError, reserveMediaCapacity } = await loadCapacityModule();
+  const client = rpcClient(async () => ({
+    data: {
+      status: "reserved",
+      reservationId: "11111111-2222-4333-8444-555555555555",
+      projectRef: "project-a",
+      operationId: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+      quotaBytes: 1_000,
+      usedBytes: 100,
+      activeReservedBytes: 0,
+      requestedBytes: 10,
+      headroomBytes: 890,
+      headroomPercent: 89,
+      expiresAt: "2026-08-15T12:05:00.000Z"
+    },
+    error: null
+  }));
+
+  await assert.rejects(
+    reserveMediaCapacity({
+      client,
+      projectRef: "project-a",
+      reservationKey: "upload:context-mismatch",
+      ...DEFAULT_CAPACITY_CONTEXT,
+      requestedBytes: 10
+    }),
+    (error) =>
+      error instanceof MediaCapacityError &&
+      error.reason === "invalid-reservation-response"
+  );
 });
 
 test("capacity fails closed with 507 for headroom and 503 for unavailable state", async () => {
@@ -85,6 +168,7 @@ test("capacity fails closed with 507 for headroom and 503 for unavailable state"
       client: insufficient,
       projectRef: "project-a",
       reservationKey: "upload:1",
+      ...DEFAULT_CAPACITY_CONTEXT,
       requestedBytes: 100
     }),
     (error) => error instanceof MediaCapacityError && error.status === 507
@@ -103,6 +187,7 @@ test("capacity fails closed with 507 for headroom and 503 for unavailable state"
         client,
         projectRef: "project-a",
         reservationKey: "upload:2",
+        ...DEFAULT_CAPACITY_CONTEXT,
         requestedBytes: 1
       }),
       (error) => error instanceof MediaCapacityError && error.status === 503
@@ -139,6 +224,7 @@ test("reservation finalization records only newly-created bytes and failures rel
     client,
     projectRef: "project-a",
     reservationKey: "upload:3",
+    ...DEFAULT_CAPACITY_CONTEXT,
     requestedBytes: 90,
     work: async () => ({ value: "ok", newlyCreatedBytes: 40 })
   });
@@ -158,6 +244,7 @@ test("reservation finalization records only newly-created bytes and failures rel
       client,
       projectRef: "project-a",
       reservationKey: "upload:4",
+      ...DEFAULT_CAPACITY_CONTEXT,
       requestedBytes: 90,
       work: async () => { throw new Error("storage failed"); }
     }),
@@ -188,11 +275,12 @@ test("each capacity attempt owns a unique reservation key, including retry after
     return { data: { status: name.startsWith("finalize") ? "finalized" : "released" }, error: null };
   });
 
-  const run = (attemptId) => withMediaCapacityReservation({
+  const run = (operationId) => withMediaCapacityReservation({
     client,
     projectRef: "project-a",
     reservationKey: "upload:same-logical-operation",
-    reservationAttemptId: attemptId,
+    ...DEFAULT_CAPACITY_CONTEXT,
+    operationId,
     requestedBytes: 10,
     work: async () => ({ value: "ok", newlyCreatedBytes: 0 })
   });
@@ -237,6 +325,7 @@ test("long-running work renews its lease and an expired lease can still finalize
     client,
     projectRef: "project-a",
     reservationKey: "upload:heartbeat",
+    ...DEFAULT_CAPACITY_CONTEXT,
     requestedBytes: 10,
     heartbeatIntervalMs: 5,
     work: async () => {
@@ -273,6 +362,7 @@ test("retained objects are finalized durably while confirmed rollback releases",
     client,
     projectRef: "project-a",
     reservationKey: "upload:retained",
+    ...DEFAULT_CAPACITY_CONTEXT,
     requestedBytes: 30,
     work: async () => { throw new MediaCapacityWorkError("metadata failed", 17); }
   }), /metadata failed/);
@@ -319,6 +409,7 @@ test("a transient finalize response is retried idempotently and never released a
     client,
     projectRef: "project-a",
     reservationKey: "upload:retry-finalize",
+    ...DEFAULT_CAPACITY_CONTEXT,
     requestedBytes: 10,
     work: async () => ({ value: "committed", newlyCreatedBytes: 10 })
   });
@@ -354,6 +445,7 @@ test("ambiguous finalization remains reserved and is never compensated by releas
     client,
     projectRef: "project-a",
     reservationKey: "upload:ambiguous-finalize",
+    ...DEFAULT_CAPACITY_CONTEXT,
     requestedBytes: 10,
     work: async () => ({ value: "written", newlyCreatedBytes: 10 })
   }), /Capacité média indisponible/);

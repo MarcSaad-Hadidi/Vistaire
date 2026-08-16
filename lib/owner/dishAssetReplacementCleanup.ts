@@ -21,6 +21,7 @@ export type CleanupReplacedDishAssetsReport = {
   candidates: DishAssetRef[];
   deleted: DishAssetRef[];
   skippedStillReferenced: DishAssetRef[];
+  skippedConcurrentReuseRisk: DishAssetRef[];
   skippedUnsafeBucket: DishAssetRef[];
   skippedUnsafePrefix: DishAssetRef[];
   skippedMissingPath: DishAssetRef[];
@@ -146,6 +147,7 @@ function emptyReport(): CleanupReplacedDishAssetsReport {
     candidates: [],
     deleted: [],
     skippedStillReferenced: [],
+    skippedConcurrentReuseRisk: [],
     skippedUnsafeBucket: [],
     skippedUnsafePrefix: [],
     skippedMissingPath: [],
@@ -338,6 +340,14 @@ export async function cleanupReplacedDishAssets(
     }
     if (!isSafePrefix(ref)) {
       report.skippedUnsafePrefix.push(ref);
+      continue;
+    }
+    if (ref.kind === "photo") {
+      // Photo originals and derivatives are content-addressed and shared.
+      // Another instance may have reused this path without committing its
+      // metadata yet, which a point-in-time reference scan cannot observe.
+      // Keep it for offline reconciliation instead of risking a dangling ref.
+      report.skippedConcurrentReuseRisk.push(ref);
       continue;
     }
     if (isRefInSet(ref, activeCurrentIdentities) || isRefInSet(ref, otherIdentities)) {
