@@ -24,6 +24,10 @@ function canonicalPhotoUrl(id = dishId) {
   return `/api/public/menu-dishes/${id}/photo`;
 }
 
+function canonicalDisplayPhotoUrl(id = dishId) {
+  return `${canonicalPhotoUrl(id)}?v=${sourceSha256}&variant=display`;
+}
+
 function v2CardMetadata(overrides = {}) {
   return {
     photoSha256: sourceSha256,
@@ -95,7 +99,7 @@ test("keeps legacy and invalid V2 card metadata on the original image URL", () =
   ]);
 
   assert.equal(menu.dishes[0].cardUrl, legacyImageUrl);
-  assert.equal(menu.dishes[1].cardUrl, canonicalPhotoUrl());
+  assert.equal(menu.dishes[1].cardUrl, canonicalDisplayPhotoUrl());
 });
 
 test("rejects V2 card metadata whose storage path is not immutable recipe output", () => {
@@ -111,7 +115,7 @@ test("rejects V2 card metadata whose storage path is not immutable recipe output
     }
   ]);
 
-  assert.equal(menu.dishes[0].cardUrl, canonicalPhotoUrl());
+  assert.equal(menu.dishes[0].cardUrl, canonicalDisplayPhotoUrl());
 });
 
 test("rejects V2 card metadata whose storage path differs by one whitespace byte", () => {
@@ -127,7 +131,7 @@ test("rejects V2 card metadata whose storage path differs by one whitespace byte
       metadata: v2CardMetadata({ storagePath })
     }]);
 
-    assert.equal(menu.dishes[0].cardUrl, canonicalPhotoUrl());
+    assert.equal(menu.dishes[0].cardUrl, canonicalDisplayPhotoUrl());
   }
 });
 
@@ -155,8 +159,8 @@ test("rejects V2 card metadata owned by another restaurant or source revision", 
     }
   ]);
 
-  assert.equal(menu.dishes[0].cardUrl, canonicalPhotoUrl());
-  assert.equal(menu.dishes[1].cardUrl, canonicalPhotoUrl("different-source"));
+  assert.equal(menu.dishes[0].cardUrl, canonicalDisplayPhotoUrl());
+  assert.equal(menu.dishes[1].cardUrl, canonicalDisplayPhotoUrl("different-source"));
 });
 
 test("selects thumbnail for compact surfaces, card for cards, and display for details", () => {

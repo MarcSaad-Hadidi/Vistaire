@@ -938,7 +938,7 @@ function mapDishRow(
   );
   const cardUrl = hasValidV2CardDerivative(metadata, restaurantId, photoSha256)
     ? canonicalDishPhotoVariantUrl(dishId, photoSha256, "card")
-    : rawImageUrl;
+    : imageUrl;
   const model3dUrl = getSafeStringFromSources(row, metadata, ["model3dUrl", "model3d_url"]);
   const webModel3dUrl =
     getSafeStringFromSources(row, metadata, ["webModel3dUrl", "web_model_3d_url"]) ||

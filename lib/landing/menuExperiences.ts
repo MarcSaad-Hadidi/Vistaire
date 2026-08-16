@@ -54,11 +54,11 @@ export type LandingFeaturedDish = {
 
 const LANDING_FALLBACK_DISH_PHOTOS = Object.freeze({
   maisonElyse:
-    "/api/public/menu-dishes/fd64dc12-8bd2-4669-be63-51cf0d50b839/photo?v=a4ab316568668db121d32130ba53e60f2093872faaf106cbd4ceede879ec1f1f",
+    "/api/public/menu-dishes/fd64dc12-8bd2-4669-be63-51cf0d50b839/photo?v=a4ab316568668db121d32130ba53e60f2093872faaf106cbd4ceede879ec1f1f&variant=display",
   trouvable:
-    "/api/public/menu-dishes/7a312411-975a-4a12-9e74-d435a7c83406/photo?v=8701433fa5746feec3c320d717f3aea74980e9db52715ad9d0109ff7dd3d3d29",
+    "/api/public/menu-dishes/7a312411-975a-4a12-9e74-d435a7c83406/photo?v=8701433fa5746feec3c320d717f3aea74980e9db52715ad9d0109ff7dd3d3d29&variant=display",
   saugeNoire:
-    "/api/public/menu-dishes/cb7121a7-a8df-4650-8453-df83135defeb/photo?v=bd0c28bbf0139fcccb7c224c20c5770292b856213f316702737dc1e97a21a894"
+    "/api/public/menu-dishes/cb7121a7-a8df-4650-8453-df83135defeb/photo?v=bd0c28bbf0139fcccb7c224c20c5770292b856213f316702737dc1e97a21a894&variant=display"
 });
 
 export type LandingMenuPreviewPayload = RestaurantMenuPreviewPayload;
@@ -600,7 +600,7 @@ async function buildLandingExperiences(
             imageSource,
             imageAlt:
               locale === "en"
-                ? `${dish.name}, from ${experience.name}`
+                ? `${dish.name} from ${experience.name}`
                 : `${dish.name}, dans la carte ${experience.name}`,
             imagePosition: "center"
           }

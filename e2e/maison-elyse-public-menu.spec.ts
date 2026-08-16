@@ -1,4 +1,4 @@
-import { expect, type Page, test } from "@playwright/test";
+import { expect, type Locator, type Page, test } from "@playwright/test";
 
 const MODEL_ASSET_RE =
   /(?:\.(?:glb|usdz)(?:$|[?#])|\/model\/(?:glb|usdz)(?:\/|$|[?#]))/i;
@@ -38,6 +38,23 @@ type FirstDishIdentity = {
   name: string;
   slug: string;
 };
+
+async function openExpandable(trigger: Locator) {
+  await expect(trigger).toBeEnabled();
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    await trigger.click();
+    try {
+      await expect(trigger).toHaveAttribute("aria-expanded", "true", {
+        timeout: 1_000
+      });
+      return;
+    } catch {
+      // Server-rendered controls can receive focus before React hydration has
+      // attached their handler. Retry only while the control remains closed.
+    }
+  }
+  await expect(trigger).toHaveAttribute("aria-expanded", "true");
+}
 
 function shouldTrackPageUrl(page: Page, url: string) {
   if (url.startsWith("data:") || url.startsWith("blob:")) return false;
@@ -151,9 +168,11 @@ async function selectMaisonLocale(
   locale: "en-CA" | "fr-CA"
 ) {
   const menu = maisonMenu(page);
-  await menu
-    .getByRole("button", { name: /Choisir la langue du menu|Choose menu language/i })
-    .click();
+  await openExpandable(
+    menu.getByRole("button", {
+      name: /Choisir la langue du menu|Choose menu language/i
+    })
+  );
   const dialog = menu.getByRole("dialog");
   await expect(dialog).toBeVisible();
   await dialog
@@ -450,11 +469,18 @@ test.describe("Maison Elyse public QR menu", () => {
     );
 
     await page.evaluate(() => window.scrollTo({ top: 900, behavior: "auto" }));
-    await maisonMenu(page).getByRole("button", { exact: true, name: "La carte" }).click();
+    await openExpandable(
+      maisonMenu(page).getByRole("button", {
+        exact: true,
+        name: "La carte"
+      })
+    );
     await expect(maisonMenu(page).getByRole("dialog", { name: "La carte" })).toBeVisible();
     await maisonMenu(page).getByRole("button", { exact: true, name: "Fermer" }).click();
 
-    await maisonMenu(page).getByRole("button", { exact: true, name: "Filtrer" }).click();
+    await openExpandable(
+      maisonMenu(page).getByRole("button", { exact: true, name: "Filtrer" })
+    );
     const filterDialog = maisonMenu(page).getByRole("dialog", { name: "Filtrer la carte" });
     await filterDialog.getByRole("button", { exact: true, name: "Recommandé" }).click();
     await filterDialog.getByRole("button", { exact: true, name: "Appliquer" }).click();
@@ -576,9 +602,9 @@ test.describe("Maison Elyse public QR menu", () => {
     await expectMaisonLocale(page, "fr-CA");
 
     const menu = maisonMenu(page);
-    await menu
-      .getByRole("button", { name: /Choisir la langue du menu/i })
-      .click();
+    await openExpandable(
+      menu.getByRole("button", { name: /Choisir la langue du menu/i })
+    );
     await menu
       .getByRole("dialog", { name: "Langue du menu" })
       .getByRole("button", { name: /English/i })
@@ -743,8 +769,11 @@ test.describe("Maison Elyse public QR menu", () => {
       await expect(badges.getByText(badge, { exact: true })).toBeVisible();
     }
     await expect(dishRoot.getByRole("img", { name: /Dish image: Blue lobster/i })).toBeVisible();
-    const show3d = dishRoot.getByRole("button", { exact: true, name: "View in 3D" });
-    await expect(show3d).toHaveAttribute("aria-expanded", "false");
+    const modelToggle = dishRoot.locator(
+      'button[aria-controls="maison-elyse-dish-model-viewer"]'
+    );
+    await expect(modelToggle).toHaveAccessibleName("View in 3D");
+    await expect(modelToggle).toHaveAttribute("aria-expanded", "false");
     await expect(dishRoot.locator("model-viewer")).toHaveCount(0);
     await expect(dishRoot.getByRole("link", { name: "Back to menu" })).toHaveAttribute(
       "href",
@@ -752,7 +781,7 @@ test.describe("Maison Elyse public QR menu", () => {
     );
     expect(modelRequests).toEqual([]);
 
-    await show3d.click();
+    await openExpandable(modelToggle);
     await expect(
       dishRoot.getByRole("heading", { exact: true, name: "View the dish in 3D" })
     ).toBeVisible();
