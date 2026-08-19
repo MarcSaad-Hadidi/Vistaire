@@ -7,6 +7,12 @@ export type LandingDishIdentity = {
 
 type DishIdentityCandidate = Pick<PublicMenuDish, "id" | "slug">;
 
+type LandingDishPhotoCandidate = Pick<
+  PublicMenuDish,
+  "id" | "imageUrl" | "thumbnailUrl" | "posterUrl"
+> &
+  Partial<Pick<PublicMenuDish, "hasPhoto" | "photoStatus">>;
+
 export type LandingDishPhoto = {
   source: "imageUrl" | "thumbnailUrl" | "posterUrl";
   url: string;
@@ -27,6 +33,75 @@ function normalizedId(value: unknown): string {
 
 function normalizedSlug(value: unknown): string {
   return text(value).toLowerCase();
+}
+
+const CREDENTIAL_QUERY_KEYS = new Set([
+  "token",
+  "signature",
+  "expires",
+  "x-amz-algorithm",
+  "x-amz-credential",
+  "x-amz-signature",
+  "x-amz-security-token"
+]);
+
+type LandingMediaClassification =
+  | "stable"
+  | "private-capability"
+  | "mismatched-canonical"
+  | "unsupported";
+
+function hasCredentialQuery(parsed: URL): boolean {
+  return [...parsed.searchParams.keys()].some((key) =>
+    CREDENTIAL_QUERY_KEYS.has(key.trim().toLowerCase())
+  );
+}
+
+function classifyLandingMediaUrl(
+  value: unknown,
+  dishId: string
+): LandingMediaClassification {
+  const url = text(value);
+  if (!url) return "unsupported";
+
+  let parsed: URL;
+  try {
+    parsed = new URL(url, "https://landing-photo.invalid");
+  } catch {
+    return "unsupported";
+  }
+
+  const canonicalId = canonicalLandingDishPhotoId(url);
+  if (canonicalId && (!dishId || canonicalId !== dishId)) {
+    return "mismatched-canonical";
+  }
+
+  const signedStoragePath = parsed.pathname
+    .toLowerCase()
+    .includes("/storage/v1/object/sign/");
+  if (
+    parsed.username ||
+    parsed.password ||
+    signedStoragePath ||
+    hasCredentialQuery(parsed)
+  ) {
+    return "private-capability";
+  }
+
+  if (canonicalId) {
+    const relativeCanonical = url.startsWith("/api/public/menu-dishes/");
+    const publicHttpsCanonical =
+      /^https:\/\//i.test(url) && parsed.protocol === "https:";
+    return relativeCanonical || publicHttpsCanonical ? "stable" : "unsupported";
+  }
+
+  if (url.startsWith("/images/") && parsed.pathname.startsWith("/images/")) {
+    return "stable";
+  }
+  if (/^https:\/\//i.test(url) && parsed.protocol === "https:") {
+    return "stable";
+  }
+  return "unsupported";
 }
 
 function uniqueSlugMatch<T extends DishIdentityCandidate>(
@@ -103,28 +178,40 @@ export function canonicalLandingDishPhotoId(url: string): string | null {
  * canonical URLs for another dish are discarded before any fallback logic.
  */
 export function landingPhotoForDish(
-  dish: Pick<PublicMenuDish, "id" | "imageUrl" | "thumbnailUrl" | "posterUrl">
+  dish: LandingDishPhotoCandidate
 ): LandingDishPhoto | null {
   const fields = [
     ["imageUrl", dish.imageUrl],
     ["thumbnailUrl", dish.thumbnailUrl],
     ["posterUrl", dish.posterUrl]
   ] as const;
-  const dishId = normalizedId(dish.id);
-  const valid = fields.filter(([, value]) => {
-    const url = text(value);
-    if (!url) return false;
-    const canonicalId = canonicalLandingDishPhotoId(url);
-    return !canonicalId || (Boolean(dishId) && canonicalId === dishId);
-  });
+  const rawDishId = text(dish.id);
+  const dishId = normalizedId(rawDishId);
+  const classified = fields.map(([source, value]) => ({
+    classification: classifyLandingMediaUrl(value, dishId),
+    source,
+    url: text(value)
+  }));
+  const valid = classified.filter(
+    ({ classification }) => classification === "stable"
+  );
 
   const ownCanonical = valid.find(
-    ([, value]) => canonicalLandingDishPhotoId(text(value)) !== null
+    ({ url }) => canonicalLandingDishPhotoId(url) !== null
   );
   const selected = ownCanonical ?? valid[0];
-  return selected
-    ? { source: selected[0], url: text(selected[1]) }
-    : null;
+  if (selected) return { source: selected.source, url: selected.url };
+
+  const publicPhotoReady =
+    dish.hasPhoto === true || dish.photoStatus === "ready";
+  const privateSource = classified.find(
+    ({ classification }) => classification === "private-capability"
+  );
+  if (!rawDishId || !publicPhotoReady || !privateSource) return null;
+  return {
+    source: privateSource.source,
+    url: `/api/public/menu-dishes/${encodeURIComponent(rawDishId)}/photo`
+  };
 }
 
 export function resolveLandingDishPhoto<T extends DishIdentityCandidate>(

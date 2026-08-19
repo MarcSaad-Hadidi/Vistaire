@@ -271,6 +271,10 @@ jobs:
       SUPABASE_SERVICE_ROLE_KEY: sauge-noire-fixture-service-role-key
       NEXT_PUBLIC_DEMO_RESTAURANT_ID: 11111111-1111-4111-8111-111111111112
       VISTAIRE_EXPECTED_SUPABASE_PROJECT_REF: ""
+      VISTAIRE_EXCHANGE_RATES_FIXTURE_JSON: '{"CAD":1,"USD":0.72,"EUR":0.6225}'
+      VISTAIRE_OWNER_EMAILS: synthetic-owner-email@example.test
+      VISTAIRE_ADMIN_SESSION_SECRET: synthetic-session-cookie
+      VISTAIRE_PUBLIC_ARTIFACT_SENTINELS: '["sauge-noire-fixture-service-role-key","synthetic-owner-email@example.test","synthetic-session-cookie"]'
     steps:
       - name: Checkout
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
@@ -296,7 +300,10 @@ jobs:
             sleep 1
           done
           curl --fail --silent http://127.0.0.1:55434/fixture/health > /dev/null
+          node scripts/ci/check-static-public-import-boundary.mjs
           npm run build
+          node scripts/ci/check-static-public-routes.mjs
+          node scripts/ci/check-public-prerender-artifacts.mjs
       - name: Upload verified Next.js build
         uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
         with:
