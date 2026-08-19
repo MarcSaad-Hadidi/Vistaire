@@ -14,6 +14,51 @@ const controlsPath = "components/menu/trouvableMenuControls.ts";
 const publicMenuPath = "lib/menu/publicMenu.ts";
 const renderContextPath = "lib/menu/publicMenuRenderContext.ts";
 
+function assertTrouvableDishNameIdentity(source) {
+  const match = source.match(
+    /dishes:\s*TROUVABLE_DISHES\.map\(\(dish\)\s*=>\s*\{[\s\S]*?\breturn\s*\{([\s\S]*?)\}\s*;\s*\}\)/
+  );
+  assert.ok(match, "Trouvable demo dish mapping must return a dish object");
+  const dishMapping = match[1];
+
+  assert.match(
+    dishMapping,
+    /^\s*id:\s*dish\.slug,\s*slug:\s*dish\.slug,\s*name:\s*dish\.nameFr,/
+  );
+  assert.equal(
+    dishMapping.match(/(?:^|,)\s*name\s*:/g)?.length ?? 0,
+    1,
+    "Trouvable demo dishes must declare one name property"
+  );
+  assert.doesNotMatch(
+    dishMapping,
+    /name\s*:\s*(?:dish\.name(?:El|En)|(?:isGreek|isEnglish)\b)/
+  );
+  assert.doesNotMatch(
+    dishMapping,
+    /\.\.\.\s*(?:dish|(?:localized|translated)\w*)\b/i
+  );
+}
+
+function assertTrouvableHeroHeadingSemantics(source) {
+  assert.match(
+    source,
+    /export function TrouvablePremiumMenuExperience\(\{[^}]*\bdisplayMode\s*=\s*"public"[^}]*\}:\s*TrouvablePremiumMenuExperienceProps\)/
+  );
+  assert.match(
+    source,
+    /const isEmbeddedPreview\s*=\s*displayMode\s*!==\s*"public";/
+  );
+  assert.match(
+    source,
+    /const HeroHeading\s*=\s*isEmbeddedPreview\s*\?\s*"h2"\s*:\s*"h1";/
+  );
+  assert.match(
+    source,
+    /<HeroHeading\b(?=[^>]*\sid\s*=\s*"trouvable-hero-title")[^>]*>\s*\{menu\.name\}\s*<\/HeroHeading>/
+  );
+}
+
 test("public Trouvable menu is centralized in a targeted premium experience", async () => {
   const [page, helper, renderContext] = await Promise.all([
     readFile(pagePath, "utf8"),
@@ -48,11 +93,7 @@ test("public /menu/trouvable reads Supabase before the local Trouvable demo fall
   );
   assert.match(source, /TROUVABLE_PUBLIC_MENU_SETTINGS/);
   assert.match(source, /supportedLocales:\s*\["fr-CA",\s*"en-CA",\s*"es-ES",\s*"it-IT",\s*"el-GR",\s*"ar"\]/);
-  assert.match(source, /name:\s*dish\.nameFr/);
-  assert.doesNotMatch(
-    source,
-    /name:\s*(?:isGreek|isEnglish)\s*\?[\s\S]{0,120}dish\.name(?:El|En)/
-  );
+  assertTrouvableDishNameIdentity(source);
   assert.match(source, /!restaurantsResult\.ok \|\| restaurantsResult\.rows\.length === 0/);
   assert.match(source, /dependencies\.nodeEnv === "production"/);
   assert.match(source, /filters: \{ slug \}/);
@@ -60,6 +101,18 @@ test("public /menu/trouvable reads Supabase before the local Trouvable demo fall
   assert.doesNotMatch(source, /readSupabaseRows\(/);
   assert.match(source, /dejeuner-classique-maison/);
   assert.match(source, /publicMenuStyle:\s*"trouvable"/);
+
+  for (const source of [
+    `const unrelated = { name: dish.nameFr };
+     dishes: TROUVABLE_DISHES.map((dish) => {
+       return { id: dish.slug, slug: dish.slug, name: dish.nameEn, description: dish.descriptionEn };
+     })`,
+    `dishes: TROUVABLE_DISHES.map((dish) => {
+       return { id: dish.slug, slug: dish.slug, name: dish.nameFr, ...localizedDish, description: dish.descriptionEn };
+     })`
+  ]) {
+    assert.throws(() => assertTrouvableDishNameIdentity(source));
+  }
 });
 
 test("Trouvable premium menu keeps 3D assets behind explicit viewer intent", async () => {
@@ -509,8 +562,7 @@ test("Trouvable public UI labels use extensible localized copy", async () => {
   assert.match(source, /placeholder=\{copy\.tablePlaceholder\}/);
   assert.match(source, /localizedUiCopy=\{menu\.localizedUiCopy\}/);
   assert.match(source, /aria-labelledby="trouvable-hero-title"/);
-  assert.match(source, /const HeroHeading = isEmbeddedPreview \? "h2" : "h1";/);
-  assert.match(source, /<HeroHeading id="trouvable-hero-title">\{menu\.name\}<\/HeroHeading>/);
+  assertTrouvableHeroHeadingSemantics(source);
   assert.doesNotMatch(source, /label:\s*"3D \/ AR"/);
   assert.doesNotMatch(source, /placeholder="Ex\. 12"/);
   assert.doesNotMatch(source, /Table \$\{tableNumber\.trim\(\)\}/);
@@ -651,6 +703,23 @@ test("Trouvable welcome copy places the restaurant connector before the name", a
     source,
     /<p>\{greetingLead\}<\/p>\s*<HeroHeading id="trouvable-hero-title">\{menu\.name\}<\/HeroHeading>/
   );
+
+  for (const source of [
+    `export function TrouvablePremiumMenuExperience({
+       displayMode = "embedded"
+     }: TrouvablePremiumMenuExperienceProps) {}
+     const isEmbeddedPreview = displayMode !== "public";
+     const HeroHeading = isEmbeddedPreview ? "h2" : "h1";
+     <HeroHeading id="trouvable-hero-title">{menu.name}</HeroHeading>`,
+    `export function TrouvablePremiumMenuExperience({
+       displayMode = "public"
+     }: TrouvablePremiumMenuExperienceProps) {}
+     const isEmbeddedPreview = false;
+     const HeroHeading = isEmbeddedPreview ? "h2" : "h1";
+     <HeroHeading id="trouvable-hero-title">{menu.name}</HeroHeading>`
+  ]) {
+    assert.throws(() => assertTrouvableHeroHeadingSemantics(source));
+  }
 });
 
 test("Trouvable back-to-top control matches the compact reference and adapts to light theme", async () => {

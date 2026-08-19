@@ -6,6 +6,15 @@ async function source(path) {
   return readFile(new URL(`../${path}`, import.meta.url), "utf8");
 }
 
+function assertInteractiveComparison(source, locale, interaction) {
+  assert.match(
+    source,
+    new RegExp(
+      `<SeoInteractiveComparison\\b(?=[^>]*\\slocale\\s*=\\s*"${locale}")(?=[^>]*\\sinteraction\\s*=\\s*"${interaction}")[^>]*\\/>`
+    )
+  );
+}
+
 test("localized SEO showcase routes reuse the verified landing menu pipeline", async () => {
   const routes = await Promise.all([
     source("app/(fr)/(seo)/menu-pdf-vs-menu-digital/page.tsx"),
@@ -20,22 +29,27 @@ test("localized SEO showcase routes reuse the verified landing menu pipeline", a
     assert.match(route, /buildSeoPillarJsonLd/);
   }
 
-  assert.match(
-    routes[0],
-    /<SeoInteractiveComparison(?=[^>]*\blocale="fr")(?=[^>]*\binteraction="slider")[^>]*\/>/
+  assertInteractiveComparison(routes[0], "fr", "slider");
+  assertInteractiveComparison(routes[1], "en", "slider");
+  assertInteractiveComparison(routes[2], "fr", "reveal");
+  assertInteractiveComparison(routes[3], "en", "reveal");
+
+  assert.doesNotThrow(() =>
+    assertInteractiveComparison(
+      `<SeoInteractiveComparison interaction = "slider" deviceEmphasis locale = "fr" />`,
+      "fr",
+      "slider"
+    )
   );
-  assert.match(
-    routes[1],
-    /<SeoInteractiveComparison(?=[^>]*\blocale="en")(?=[^>]*\binteraction="slider")[^>]*\/>/
-  );
-  assert.match(
-    routes[2],
-    /<SeoInteractiveComparison(?=[^>]*\blocale="fr")(?=[^>]*\binteraction="reveal")[^>]*\/>/
-  );
-  assert.match(
-    routes[3],
-    /<SeoInteractiveComparison(?=[^>]*\blocale="en")(?=[^>]*\binteraction="reveal")[^>]*\/>/
-  );
+
+  for (const source of [
+    `<SeoInteractiveComparisonCard locale="fr" interaction="slider" />`,
+    `<SeoInteractiveComparison data-locale="fr" data-interaction="slider" />`,
+    `<SeoInteractiveComparison locale="fr" />
+     <OtherComparison interaction="slider" />`
+  ]) {
+    assert.throws(() => assertInteractiveComparison(source, "fr", "slider"));
+  }
 });
 
 test("SEO interactive showcase mounts one selected real renderer, not mock previews", async () => {
