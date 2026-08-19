@@ -14,9 +14,21 @@ test("Maison Elyse detail preserves relational analytics for dish and immersive 
 });
 
 test("generic and Trouvable renderers keep production context on immersive viewers", async () => {
-  for (const file of ["components/menu/PublicDishDetailExperience.tsx", "components/menu/TrouvableDishDetailExperience.tsx"]) {
-    const source = await readFile(file, "utf8");
-    assert.match(source, /getPublicMenuAnalyticsContext\(menu\)/, file);
-    assert.match(source, /dish_3d_clicked/, file);
-  }
+  const [genericSource, trouvableSource, sharedSurfaceSource] = await Promise.all([
+    readFile("components/menu/PublicDishDetailExperience.tsx", "utf8"),
+    readFile("components/menu/TrouvableDishDetailExperience.tsx", "utf8"),
+    readFile("components/menu/TrouvableDishDetailSurface.tsx", "utf8")
+  ]);
+
+  assert.match(genericSource, /getPublicMenuAnalyticsContext\(menu\)/);
+  assert.match(genericSource, /dish_3d_clicked/);
+  assert.match(trouvableSource, /eventName:\s*"dish_3d_clicked"/);
+  assert.match(
+    trouvableSource,
+    /<TrouvableImmersivePanelBody[\s\S]*?menu=\{menu\}[\s\S]*?\/>/
+  );
+  assert.match(
+    sharedSurfaceSource,
+    /<ModelViewerComponent[\s\S]*?analyticsContext=\{getPublicMenuAnalyticsContext\(menu\) \?\? undefined\}[\s\S]*?\/>/
+  );
 });

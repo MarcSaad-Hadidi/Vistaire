@@ -20,10 +20,22 @@ test("localized SEO showcase routes reuse the verified landing menu pipeline", a
     assert.match(route, /buildSeoPillarJsonLd/);
   }
 
-  assert.match(routes[0], /locale="fr" interaction="slider"/);
-  assert.match(routes[1], /locale="en" interaction="slider"/);
-  assert.match(routes[2], /locale="fr" interaction="reveal"/);
-  assert.match(routes[3], /locale="en" interaction="reveal"/);
+  assert.match(
+    routes[0],
+    /<SeoInteractiveComparison(?=[^>]*\blocale="fr")(?=[^>]*\binteraction="slider")[^>]*\/>/
+  );
+  assert.match(
+    routes[1],
+    /<SeoInteractiveComparison(?=[^>]*\blocale="en")(?=[^>]*\binteraction="slider")[^>]*\/>/
+  );
+  assert.match(
+    routes[2],
+    /<SeoInteractiveComparison(?=[^>]*\blocale="fr")(?=[^>]*\binteraction="reveal")[^>]*\/>/
+  );
+  assert.match(
+    routes[3],
+    /<SeoInteractiveComparison(?=[^>]*\blocale="en")(?=[^>]*\binteraction="reveal")[^>]*\/>/
+  );
 });
 
 test("SEO interactive showcase mounts one selected real renderer, not mock previews", async () => {

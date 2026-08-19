@@ -48,11 +48,11 @@ test("public /menu/trouvable reads Supabase before the local Trouvable demo fall
   );
   assert.match(source, /TROUVABLE_PUBLIC_MENU_SETTINGS/);
   assert.match(source, /supportedLocales:\s*\["fr-CA",\s*"en-CA",\s*"es-ES",\s*"it-IT",\s*"el-GR",\s*"ar"\]/);
-  assert.match(
+  assert.match(source, /name:\s*dish\.nameFr/);
+  assert.doesNotMatch(
     source,
-    /name:\s*isGreek\s*\?\s*dish\.nameEl\s*:\s*isEnglish\s*\?\s*dish\.nameEn\s*:\s*dish\.nameFr/
+    /name:\s*(?:isGreek|isEnglish)\s*\?[\s\S]{0,120}dish\.name(?:El|En)/
   );
-  assert.doesNotMatch(source, /name:\s*isEnglish\s*\?\s*dish\.nameEn/);
   assert.match(source, /!restaurantsResult\.ok \|\| restaurantsResult\.rows\.length === 0/);
   assert.match(source, /dependencies\.nodeEnv === "production"/);
   assert.match(source, /filters: \{ slug \}/);
@@ -509,7 +509,8 @@ test("Trouvable public UI labels use extensible localized copy", async () => {
   assert.match(source, /placeholder=\{copy\.tablePlaceholder\}/);
   assert.match(source, /localizedUiCopy=\{menu\.localizedUiCopy\}/);
   assert.match(source, /aria-labelledby="trouvable-hero-title"/);
-  assert.match(source, /<h1 id="trouvable-hero-title">\{menu\.name\}<\/h1>/);
+  assert.match(source, /const HeroHeading = isEmbeddedPreview \? "h2" : "h1";/);
+  assert.match(source, /<HeroHeading id="trouvable-hero-title">\{menu\.name\}<\/HeroHeading>/);
   assert.doesNotMatch(source, /label:\s*"3D \/ AR"/);
   assert.doesNotMatch(source, /placeholder="Ex\. 12"/);
   assert.doesNotMatch(source, /Table \$\{tableNumber\.trim\(\)\}/);
@@ -595,7 +596,10 @@ test("Trouvable premium menu styles are mobile-first and overflow-safe", async (
   assert.match(css, /\.sheetApply/);
   assert.match(css, /content:\s*"\\263e"/);
   assert.match(css, /content:\s*"\\2600"/);
-  assert.match(css, /\.hero h1[\s\S]*font-style:\s*italic/);
+  assert.match(
+    css,
+    /\.hero :is\(h1, h2\)\s*\{[^}]*font-style:\s*italic[^}]*\}/
+  );
   assert.match(css, /\.brandBlock strong[\s\S]*font-size:\s*clamp\(14px,\s*3\.8vw,\s*20px\)/);
   assert.doesNotMatch(css, /BT Suave/);
   assert.doesNotMatch(css, /Neue Montreal/);
@@ -642,8 +646,11 @@ test("Trouvable welcome copy places the restaurant connector before the name", a
 
   assert.match(source, /getTrouvableGreetingPeriodForDate\([\s\S]*menu\.settings\.timezone/);
   assert.match(source, /formatTrouvableGreetingLead\([\s\S]*greetingText[\s\S]*greetingPeriod/);
-  assert.match(source, /<p>\{greetingLead\}<\/p>/);
-  assert.match(source, /<h1 id="trouvable-hero-title">\{menu\.name\}<\/h1>/);
+  assert.match(source, /const HeroHeading = isEmbeddedPreview \? "h2" : "h1";/);
+  assert.match(
+    source,
+    /<p>\{greetingLead\}<\/p>\s*<HeroHeading id="trouvable-hero-title">\{menu\.name\}<\/HeroHeading>/
+  );
 });
 
 test("Trouvable back-to-top control matches the compact reference and adapts to light theme", async () => {
