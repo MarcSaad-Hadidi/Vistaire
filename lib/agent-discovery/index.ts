@@ -7,6 +7,11 @@ import {
   absoluteUrl
 } from "../seo.ts";
 
+export {
+  HOME_AGENT_LINK_HEADER,
+  buildHomeAgentLinkHeader
+} from "./homeResponseHeaders.ts";
+
 export const AGENT_DISCOVERY_CACHE_CONTROL =
   "public, max-age=3600, stale-while-revalidate=86400";
 
@@ -75,16 +80,6 @@ export function shouldServeMarkdownForAcceptHeader(acceptHeader: string | null):
   if (markdown.q !== html.q) return markdown.q > html.q;
 
   return markdown.index < html.index;
-}
-
-export function buildHomeAgentLinkHeader() {
-  return [
-    '</.well-known/api-catalog>; rel="api-catalog"; type="application/linkset+json"',
-    '</.well-known/agent-skills/index.json>; rel="service-desc"; type="application/json"',
-    '</.well-known/mcp/server-card.json>; rel="service-desc"; type="application/json"',
-    '</auth.md>; rel="service-doc"; type="text/markdown"',
-    '</openapi.json>; rel="service-desc"; type="application/openapi+json"'
-  ].join(", ");
 }
 
 export function buildHomepageMarkdown() {
