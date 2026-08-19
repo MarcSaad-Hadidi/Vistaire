@@ -6,6 +6,8 @@ import {
   vistaireClerkLocalization
 } from "@/lib/clerkAppearance";
 
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = {
   title: "Accès interne",
   description: "Connexion réservée à l'espace interne Vistaire.",

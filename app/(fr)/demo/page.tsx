@@ -5,10 +5,12 @@ import { buildPageAlternates, LOCALE_OPEN_GRAPH, normalizeLocale } from "@/lib/i
 import { getLandingExperiences } from "@/lib/landing/menuExperiences";
 import { absoluteUrl, buildBreadcrumbJsonLd, buildWebPageJsonLd } from "@/lib/seo";
 
-const canonicalPath = "/en/vistaire-menu";
-const title = "Sample client menu | Vistaire";
+export const dynamic = "force-dynamic";
+
+const canonicalPath = "/demo";
+const title = "Menu client exemple | Vistaire";
 const description =
-  "Explore three Vistaire client menu experiences, designed for a fluid at-table reading experience.";
+  "Explorez trois expériences de menu client Vistaire, pensées pour une lecture fluide à table.";
 
 export const metadata: Metadata = {
   title: { absolute: title },
@@ -18,7 +20,7 @@ export const metadata: Metadata = {
     url: absoluteUrl(canonicalPath),
     title,
     description,
-    locale: LOCALE_OPEN_GRAPH.en,
+    locale: LOCALE_OPEN_GRAPH.fr,
     type: "website"
   },
   twitter: {
@@ -28,39 +30,30 @@ export const metadata: Metadata = {
   }
 };
 
-type VistaireMenuPageEnProps = {
+type DemoPageProps = {
   searchParams: Promise<{ lang?: string; experience?: string }>;
 };
 
-export default async function VistaireMenuPageEn({
-  searchParams
-}: VistaireMenuPageEnProps) {
+export default async function DemoPage({ searchParams }: DemoPageProps) {
   const query = await searchParams;
   const hasLangParam = typeof query.lang === "string" && query.lang.trim().length > 0;
-  const menuLocale = hasLangParam ? normalizeLocale(query.lang) : "en";
-  const experiences = await getLandingExperiences(menuLocale);
+  const locale = hasLangParam ? normalizeLocale(query.lang) : "fr";
+  const experiences = await getLandingExperiences(locale);
 
   return (
     <>
       <JsonLd
         data={[
-          buildWebPageJsonLd({
-            path: canonicalPath,
-            name: title,
-            description,
-            locale: "en"
-          }),
+          buildWebPageJsonLd({ path: canonicalPath, name: title, description }),
           buildBreadcrumbJsonLd([
-            { name: "Home", path: "/en" },
-            { name: "Vistaire client menu", path: canonicalPath }
+            { name: "Accueil", path: "/" },
+            { name: "Menu client Vistaire", path: canonicalPath }
           ])
         ]}
       />
       <DemoPhoneShowcase
-        currentPath={canonicalPath}
         experiences={experiences}
-        locale="en"
-        menuLocale={menuLocale}
+        menuLocale={locale}
       />
     </>
   );

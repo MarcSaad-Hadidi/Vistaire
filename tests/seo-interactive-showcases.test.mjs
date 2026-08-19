@@ -8,10 +8,10 @@ async function source(path) {
 
 test("localized SEO showcase routes reuse the verified landing menu pipeline", async () => {
   const routes = await Promise.all([
-    source("app/(seo)/menu-pdf-vs-menu-digital/page.tsx"),
-    source("app/en/pdf-vs-digital-menu/page.tsx"),
-    source("app/(seo)/menu-digital-restaurant/page.tsx"),
-    source("app/en/digital-restaurant-menu/page.tsx")
+    source("app/(fr)/(seo)/menu-pdf-vs-menu-digital/page.tsx"),
+    source("app/(en)/en/pdf-vs-digital-menu/page.tsx"),
+    source("app/(fr)/(seo)/menu-digital-restaurant/page.tsx"),
+    source("app/(en)/en/digital-restaurant-menu/page.tsx")
   ]);
 
   for (const route of routes) {

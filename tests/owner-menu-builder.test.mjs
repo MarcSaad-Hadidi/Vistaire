@@ -15,7 +15,7 @@ test("owner nav keeps Menu Builder contextual instead of a primary sidebar item"
 });
 
 test("owner menu builder route renders the builder component", async () => {
-  const source = await readFile("app/owner/menu-builder/page.tsx", "utf8");
+  const source = await readFile("app/(fr)/owner/menu-builder/page.tsx", "utf8");
 
   assert.match(source, /MenuUiBuilder/);
   assert.match(source, /getOwnerRestaurantsData/);

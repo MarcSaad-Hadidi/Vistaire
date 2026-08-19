@@ -115,7 +115,7 @@ test("model lab limits are exposed by config and the client does not hardcode 25
 test("model lab is visible in the rendered owner portfolio navigation and dashboard", () => {
   const nav = read("lib/owner/nav.ts");
   const shell = read("components/owner/OwnerShell.tsx");
-  const ownerPage = read("app/owner/page.tsx");
+  const ownerPage = read("app/(fr)/owner/page.tsx");
 
   assert.match(nav, /OWNER_PORTFOLIO_NAV_ITEMS[\s\S]*\/owner\/model-lab/);
   assert.match(shell, /items=\{OWNER_PORTFOLIO_NAV_ITEMS\}/);

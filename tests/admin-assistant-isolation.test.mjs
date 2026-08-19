@@ -15,7 +15,7 @@ test("admin assistant client sends no restaurant identifier", async () => {
 });
 
 test("admin assistant endpoint authenticates the session before deriving restaurant scope", async () => {
-  const route = await readFile("app/admin/api/assistant/route.ts", "utf8");
+  const route = await readFile("app/(fr)/admin/api/assistant/route.ts", "utf8");
 
   assert.match(route, /requireAdminRestaurantAccess\(["']dashboard:read["']\)/);
   assert.match(route, /restaurantId:\s*access\.restaurantId/);

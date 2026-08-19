@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 
 test("public menu route loads the published UI config and shared renderer", async () => {
   const [source, renderContext] = await Promise.all([
-    readFile("app/menu/[slug]/page.tsx", "utf8"),
+    readFile("app/(fr)/menu/[slug]/page.tsx", "utf8"),
     readFile("lib/menu/publicMenuRenderContext.ts", "utf8")
   ]);
 
@@ -129,7 +129,7 @@ test("builder preview opens dish details as a full detail experience, not a comp
 test("generic public dish sheets render structured allergen declarations and active locale", async () => {
   const source = await readFile("components/menu/PublicMenuRenderer.tsx", "utf8");
   const detailRouteSource = await readFile(
-    "app/menu/[slug]/dishes/[dishSlug]/page.tsx",
+    "app/(fr)/menu/[slug]/dishes/[dishSlug]/page.tsx",
     "utf8"
   );
 
@@ -168,7 +168,7 @@ test("public menu CSS prevents letter-by-letter wrapping and fragile mobile grid
 });
 
 test("public menu renderer links dish cards to shareable detail routes with QR context", async () => {
-  const pageSource = await readFile("app/menu/[slug]/page.tsx", "utf8");
+  const pageSource = await readFile("app/(fr)/menu/[slug]/page.tsx", "utf8");
   const rendererSource = await readFile(
     "components/menu/PublicMenuRenderer.tsx",
     "utf8"

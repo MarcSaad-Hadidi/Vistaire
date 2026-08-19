@@ -300,7 +300,7 @@ test("public renderer has class support for the expanded theme set", async () =>
 });
 
 test("dish detail route is shareable for any scoped public menu slug", async () => {
-  const source = await readFile("app/menu/[slug]/dishes/[dishSlug]/page.tsx", "utf8");
+  const source = await readFile("app/(fr)/menu/[slug]/dishes/[dishSlug]/page.tsx", "utf8");
 
   assert.match(source, /getPublicMenuBySlug/);
   assert.match(source, /getPublicMenuDishBySlug/);

@@ -33,11 +33,11 @@ export const CATEGORIES = Object.freeze([
 ]);
 
 const PUBLIC_NAVIGATION_CALLSITES = new Set([
-  "app/apercu-restaurateur/page.tsx",
-  "app/demo/page.tsx",
-  "app/en/restaurant-preview/page.tsx",
-  "app/en/pricing-digital-restaurant-menu/page.tsx",
-  "app/en/vistaire-menu/page.tsx",
+  "app/(fr)/apercu-restaurateur/page.tsx",
+  "app/(fr)/demo/page.tsx",
+  "app/(en)/en/restaurant-preview/page.tsx",
+  "app/(en)/en/pricing-digital-restaurant-menu/page.tsx",
+  "app/(en)/en/vistaire-menu/page.tsx",
   "components/landing/vistairelanding.tsx",
   "components/seo/seogeoaeopage.tsx"
 ]);
@@ -137,17 +137,17 @@ export function classifyPath(input) {
     add(categories, "translations");
   }
 
-  if (/^(?:app\/(?:\(?(?:landing|marketing)\)?|page(?:\.|\/))|components\/landing\/|lib\/landing\/|styles\/landing(?:\/|\.|$)|e2e\/landing[-/])/.test(lower) ||
+  if (/^(?:app\/(?:\(?(?:landing|marketing)\)?|page(?:\.|\/)|\(fr\)\/page\.tsx)|components\/landing\/|lib\/landing\/|styles\/landing(?:\/|\.|$)|e2e\/landing[-/])/.test(lower) ||
       /(?:landing|marketing|showcase)/.test(base)) {
     add(categories, "landing");
   }
 
-  if (/^(?:lib\/seo|app\/(?:robots|sitemap)(?:\.|\/|$)|app\/(?:seo|geo)(?:\/|$)|e2e\/seo[-/])/.test(lower) ||
+  if (/^(?:lib\/seo|app\/(?:robots|sitemap)(?:\.|\/|$)|app\/(?:seo|geo)(?:\/|$)|app\/\(fr\)\/\((?:seo|geo)\)(?:\/|$)|e2e\/seo[-/])/.test(lower) ||
       /(?:^|[-_.])seo(?:[-_.]|$)|metadata|json-ld/.test(base)) {
     add(categories, "seo");
   }
 
-  if (/^(?:components\/menu\/|lib\/menu\/|app\/(?:menu|api\/(?:public\/)?menu(?:[-/]))|e2e\/menu[-/])/.test(lower) ||
+  if (/^(?:components\/menu\/|lib\/menu\/|app\/(?:\(fr\)\/menu|menu|api\/(?:public\/)?menu(?:[-/]))|e2e\/menu[-/])/.test(lower) ||
       /(?:trouvable|menu-(?:navigation|photo|translation)|public-menu)/.test(lower)) {
     add(categories, "menu_shared");
   }
@@ -162,7 +162,7 @@ export function classifyPath(input) {
     add(categories, "pageflip_gestures");
   }
 
-  if (/^(?:app\/admin|components\/admin|lib\/admin|e2e\/admin[-/])/.test(lower) ||
+  if (/^(?:app\/(?:\(fr\)\/(?:admin|owner)|admin)|components\/admin|lib\/admin|e2e\/admin[-/])/.test(lower) ||
       /(?:admin|owner-dashboard|owner-cockpit)/.test(base)) {
     add(categories, "admin");
   }

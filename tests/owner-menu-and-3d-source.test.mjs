@@ -7,7 +7,7 @@ async function source(path) {
 }
 
 test("owner Carte & plats page uses the interactive menu manager", async () => {
-  const page = await source("app/owner/restaurants/[restaurantId]/menu/page.tsx");
+  const page = await source("app/(fr)/owner/restaurants/[restaurantId]/menu/page.tsx");
   const manager = await source("components/owner/OwnerRestaurantMenuManager.tsx");
 
   assert.match(page, /OwnerRestaurantMenuManager/);
@@ -22,7 +22,7 @@ test("owner Carte & plats page uses the interactive menu manager", async () => {
 });
 
 test("owner 3D page renders one selected comparison instead of a cascade", async () => {
-  const page = await source("app/owner/restaurants/[restaurantId]/3d/page.tsx");
+  const page = await source("app/(fr)/owner/restaurants/[restaurantId]/3d/page.tsx");
   const manager = await source("components/owner/OwnerRestaurant3dManager.tsx");
 
   assert.match(page, /OwnerRestaurant3dManager/);

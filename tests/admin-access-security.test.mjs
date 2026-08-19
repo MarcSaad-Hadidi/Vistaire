@@ -152,9 +152,9 @@ test("live admin authorization requires an explicit stored admin target kind", a
 test("admin routes use the hardened exchange, scoped cookie, API auth helper, and POST logout", async () => {
   const [accessRoute, qrRoute, logoutRoute, apiAuth, access] =
     await Promise.all([
-      readFile("app/admin/access/route.ts", "utf8"),
-      readFile("app/q/[token]/route.ts", "utf8"),
-      readFile("app/admin/logout/route.ts", "utf8"),
+      readFile("app/(fr)/admin/access/route.ts", "utf8"),
+      readFile("app/(fr)/q/[token]/route.ts", "utf8"),
+      readFile("app/(fr)/admin/logout/route.ts", "utf8"),
       readFile("lib/admin/apiAuth.ts", "utf8"),
       readFile("lib/admin/access.ts", "utf8")
     ]);

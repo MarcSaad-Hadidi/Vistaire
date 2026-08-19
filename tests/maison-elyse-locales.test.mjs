@@ -360,8 +360,8 @@ test("Maison Elyse detail keeps its restaurant-specific return label", async () 
 test("Maison demo showcase projects localized menus by canonical public locale", async () => {
   const [showcase, demo, englishDemo, projection, landingData] = await Promise.all([
     readFile("components/vistaire-preview/DemoPhoneShowcase.tsx", "utf8"),
-    readFile("app/demo/page.tsx", "utf8"),
-    readFile("app/en/vistaire-menu/page.tsx", "utf8"),
+    readFile("app/(fr)/demo/page.tsx", "utf8"),
+    readFile("app/(en)/en/vistaire-menu/page.tsx", "utf8"),
     readFile("lib/landing/landingMenuUiPreview.ts", "utf8"),
     readFile("lib/landing/menuExperiences.ts", "utf8")
   ]);

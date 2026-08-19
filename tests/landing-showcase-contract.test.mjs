@@ -263,8 +263,8 @@ test("landing comparison shares each public menu UI without the generic preview 
 test("landing Trouvable comparison uses the public route typography contract", async () => {
   const [trouvablePreview, publicRoute, typography] = await Promise.all([
     source("components/landing/comparison/TrouvableComparisonPreview.tsx"),
-    source("app/menu/[slug]/page.tsx"),
-    source("app/menu/[slug]/trouvableTypography.ts")
+    source("app/(fr)/menu/[slug]/page.tsx"),
+    source("app/(fr)/menu/[slug]/trouvableTypography.ts")
   ]);
 
   assert.match(typography, /Inter\(/);
@@ -352,7 +352,7 @@ test("comparison renderers remove dead controls from the keyboard and pointer co
 });
 
 test("landing and the public menu route share the official render-context resolver", async () => {
-  const route = await source("app/menu/[slug]/page.tsx");
+  const route = await source("app/(fr)/menu/[slug]/page.tsx");
   const previewRoute = await source(
     "app/api/public/landing-menu-preview/[experienceId]/route.ts"
   );

@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 
+export const dynamic = "force-dynamic";
+
 type LegacyPageProps = {
   params: Promise<{ slug: string[] }>;
 };

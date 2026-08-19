@@ -757,7 +757,7 @@ test("restaurant creation wizard keeps structure before dishes and style after d
 
 test("restaurant creation wizard keeps price decimals and targeted post-create links", async () => {
   const form = await readFile("components/owner/RestaurantCreateForm.tsx", "utf8");
-  const page = await readFile("app/owner/restaurants/create/page.tsx", "utf8");
+  const page = await readFile("app/(fr)/owner/restaurants/create/page.tsx", "utf8");
   const formatted = new Intl.NumberFormat("fr-CA", {
     style: "currency",
     currency: "CAD",

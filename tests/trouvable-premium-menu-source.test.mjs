@@ -2,9 +2,9 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 import assert from "node:assert/strict";
 
-const pagePath = "app/menu/[slug]/page.tsx";
-const dishPagePath = "app/menu/[slug]/dishes/[dishSlug]/page.tsx";
-const typographyPath = "app/menu/[slug]/trouvableTypography.ts";
+const pagePath = "app/(fr)/menu/[slug]/page.tsx";
+const dishPagePath = "app/(fr)/menu/[slug]/dishes/[dishSlug]/page.tsx";
+const typographyPath = "app/(fr)/menu/[slug]/trouvableTypography.ts";
 const componentPath = "components/menu/TrouvablePremiumMenuExperience.tsx";
 const dishDetailPath = "components/menu/TrouvableDishDetailExperience.tsx";
 const cssPath = "components/menu/TrouvablePremiumMenuExperience.module.css";

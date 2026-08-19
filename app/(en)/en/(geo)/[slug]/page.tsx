@@ -5,23 +5,21 @@ import { SeoGeoAeoPage } from "@/components/seo/SeoGeoAeoPage";
 import { buildPageAlternates, LOCALE_OPEN_GRAPH } from "@/lib/i18n";
 import { absoluteUrl } from "@/lib/seo";
 import { buildSeoGeoAeoJsonLd } from "@/lib/seoGeoJsonLd";
-import { SEO_GEO_PAGES, getSeoGeoPage } from "@/lib/seoGeoPages";
+import { getSeoGeoPage } from "@/lib/seoGeoPages";
+
+export const dynamic = "force-dynamic";
 
 type PageProps = {
   params: Promise<{ slug: string }>;
 };
 
-export function generateStaticParams(): { slug: string }[] {
-  return SEO_GEO_PAGES.map((page) => ({ slug: page.slug }));
-}
-
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { slug } = await params;
-  const page = getSeoGeoPage(slug);
+  const page = getSeoGeoPage(slug, "en");
 
   if (!page) {
     return {
-      title: "Page introuvable | Vistaire",
+      title: "Page not found | Vistaire",
       robots: {
         index: false,
         follow: false
@@ -39,7 +37,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
       url: absoluteUrl(page.path),
       title: page.metadataTitle,
       description: page.metadataDescription,
-      locale: LOCALE_OPEN_GRAPH.fr,
+      locale: LOCALE_OPEN_GRAPH.en,
       type: "website",
       images: [
         {
@@ -57,9 +55,9 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   };
 }
 
-export default async function SeoGeoAeoRoute({ params }: PageProps) {
+export default async function SeoGeoAeoEnglishRoute({ params }: PageProps) {
   const { slug } = await params;
-  const page = getSeoGeoPage(slug);
+  const page = getSeoGeoPage(slug, "en");
 
   if (!page) {
     notFound();

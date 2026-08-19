@@ -8,8 +8,8 @@ import ts from "typescript";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
 const entrypoints = [
-  "app/apercu-restaurateur/page.tsx",
-  "app/en/restaurant-preview/page.tsx"
+  "app/(fr)/apercu-restaurateur/page.tsx",
+  "app/(en)/en/restaurant-preview/page.tsx"
 ];
 const codeExtensions = ["", ".ts", ".tsx", ".mjs", ".js"];
 const indexExtensions = ["/index.ts", "/index.tsx", "/index.mjs", "/index.js"];

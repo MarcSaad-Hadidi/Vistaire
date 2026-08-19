@@ -834,7 +834,7 @@ test("restaurant dashboard exposes archive controls and confirmed hard delete", 
 });
 
 test("owner restaurants page can display delete success after redirect", async () => {
-  const source = await readFile("app/owner/restaurants/page.tsx", "utf8");
+  const source = await readFile("app/(fr)/owner/restaurants/page.tsx", "utf8");
 
   assert.match(source, /deleted.*"1"/);
   assert.match(source, /Restaurant supprim/);
@@ -944,7 +944,7 @@ test("forward repair migration refreshes deployed restaurant delete RPC", async 
 });
 
 test("owner portfolio keeps archived restaurants out of urgent counters", async () => {
-  const source = await readFile("app/owner/page.tsx", "utf8");
+  const source = await readFile("app/(fr)/owner/page.tsx", "utf8");
 
   assert.match(source, /isActivePortfolioRestaurant/);
   assert.match(source, /restaurant\.status !== "archived"/);
