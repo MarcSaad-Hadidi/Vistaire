@@ -22,6 +22,10 @@ import {
   verifyLegacyDerivativeObject
 } from "../lib/owner/mediaBackfill.ts";
 import { parseUsageAuditNumericOptions } from "../lib/owner/mediaCli.ts";
+import {
+  buildAnalyticsCounts,
+  validateSupabaseUsageAuditTarget
+} from "../lib/owner/mediaAudit.ts";
 
 const rawArgs = process.argv.slice(2);
 const argv = new Set(rawArgs);
@@ -267,18 +271,6 @@ async function auditPhotoRow({ row, bucket, objectByPath, budget }) {
   };
 }
 
-async function countAnalytics(client, restaurantId, fromIso) {
-  let query = client
-    .from("analytics_events")
-    .select("id", { count: "exact", head: true })
-    .eq("source", "production");
-  if (restaurantId) query = query.eq("restaurant_id", restaurantId);
-  if (fromIso) query = query.gte("created_at", fromIso);
-  const { count, error } = await query;
-  if (error) return { ok: false, error: error.message, count: null };
-  return { ok: true, count: count ?? 0 };
-}
-
 async function projectionStatus(client, table, columns) {
   const { error } = await client.from(table).select(columns).limit(1);
   return error
@@ -296,28 +288,14 @@ async function main() {
   if (!supabaseUrl || !serviceRoleKey) {
     return fail("Set NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY explicitly.");
   }
-  let projectRef = "";
-  let isSupabaseHosted = false;
-  try {
-    const hostname = new URL(supabaseUrl).hostname.toLowerCase();
-    isSupabaseHosted = hostname.endsWith(".supabase.co");
-    projectRef = hostname.endsWith(".supabase.co")
-      ? hostname.slice(0, -".supabase.co".length)
-      : hostname;
-  } catch {
-    return fail("NEXT_PUBLIC_SUPABASE_URL is invalid.");
-  }
-  const expectedRef = process.env.VISTAIRE_EXPECTED_SUPABASE_PROJECT_REF?.trim().toLowerCase();
-  if (expectedRef && expectedRef !== projectRef) {
-    return fail("Configured project ref is different from the Supabase target.");
-  }
-  const looksProduction = Boolean(
-    process.env.VISTAIRE_SUPABASE_AUDIT_TARGET === "production" ||
-      isSupabaseHosted
-  );
-  if (looksProduction && !allowProductionRead) {
-    return fail("Target matches the configured production project; add --allow-production-read for a read-only audit.");
-  }
+  const target = validateSupabaseUsageAuditTarget({
+    supabaseUrl,
+    expectedProjectRef: process.env.VISTAIRE_EXPECTED_SUPABASE_PROJECT_REF,
+    auditTarget: process.env.VISTAIRE_SUPABASE_AUDIT_TARGET,
+    allowProductionRead
+  });
+  if (!target.ok) return fail(target.error);
+  const { projectRef, productionRead: looksProduction } = target;
 
   const client = createClient(supabaseUrl, serviceRoleKey, {
     auth: { autoRefreshToken: false, persistSession: false },
@@ -430,12 +408,7 @@ async function main() {
   const strictCoverage = buildStrictPhotoCoverageCounts(photoAudit);
   const capacity = await capacityState(client, projectRef);
 
-  const analytics = {
-    total: await countAnalytics(client),
-    last24h: await countAnalytics(client, undefined, new Date(now - 86_400_000).toISOString()),
-    last7d: await countAnalytics(client, undefined, new Date(now - 7 * 86_400_000).toISOString()),
-    last30d: await countAnalytics(client, undefined, new Date(now - 30 * 86_400_000).toISOString())
-  };
+  const analytics = await buildAnalyticsCounts(client, new Date(now));
   const schema = await Promise.all([
     projectionStatus(client, "menus", "id,restaurant_id,name,slug,status,is_primary,settings_json,created_at,updated_at"),
     projectionStatus(client, "menu_categories", "id,restaurant_id,menu_id,name,slug,description,display_order,created_at,updated_at"),

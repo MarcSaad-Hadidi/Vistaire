@@ -38,6 +38,19 @@ export type PublicMenuRevalidationResult = {
   failedTags: string[];
 };
 
+export class PublicMenuCacheInvalidatedDuringLoadError extends Error {
+  constructor() {
+    super("Public menu cache invalidated during load.");
+    this.name = "PublicMenuCacheInvalidatedDuringLoadError";
+  }
+}
+
+export function isPublicMenuCacheInvalidatedDuringLoadError(
+  error: unknown
+): error is PublicMenuCacheInvalidatedDuringLoadError {
+  return error instanceof PublicMenuCacheInvalidatedDuringLoadError;
+}
+
 const publicMenuInFlight = new Map<string, Promise<unknown>>();
 const publicMenuTagGenerations = new Map<string, number>();
 
@@ -191,7 +204,7 @@ async function getCachedPublicMenuValue<T>(args: {
     const value = await args.loader();
     assertDurableMenuCacheSafe(value);
     if (generation !== currentTagGeneration(tags)) {
-      throw new Error("Public menu cache invalidated during load.");
+      throw new PublicMenuCacheInvalidatedDuringLoadError();
     }
     return value;
   };

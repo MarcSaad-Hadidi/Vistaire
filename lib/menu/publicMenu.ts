@@ -36,7 +36,9 @@ import {
 } from "@/lib/menu/menuSchemaProjections";
 import {
   getCachedPublicMenu,
-  getCachedPublicMenuIdentity
+  getCachedPublicMenuIdentity,
+  isPublicMenuCacheInvalidatedDuringLoadError,
+  type PublicMenuCacheDependencies
 } from "@/lib/menu/publicMenuCache";
 import { applyStoredPublicMenuTranslations } from "@/lib/menu/publicMenuTranslations";
 import { publicMenuSettingsFallbackFromUiConfigRows } from "@/lib/owner/publicMenuSettingsFallback";
@@ -578,6 +580,7 @@ function findLegacyMenuLanguages(
 type PublicMenuDependencies = {
   readRows: typeof readSupabaseRowsByFilters;
   nodeEnv: string | undefined;
+  cache?: PublicMenuCacheDependencies;
 };
 
 type PublicMenuRestaurantIdentity = {
@@ -585,9 +588,10 @@ type PublicMenuRestaurantIdentity = {
 };
 
 async function loadPublicMenuRestaurantIdentity(
-  slug: string
+  slug: string,
+  readRows: typeof readSupabaseRowsByFilters = readSupabaseRowsByFilters
 ): Promise<PublicMenuRestaurantIdentity | null> {
-  const result = await readSupabaseRowsByFilters<PublicMenuRow>({
+  const result = await readRows<PublicMenuRow>({
     table: "restaurants",
     columns: PUBLIC_RESTAURANT_COLUMNS,
     fallbackColumns: PUBLIC_RESTAURANT_COLUMNS_FALLBACK,
@@ -754,30 +758,61 @@ export async function getPublicMenuBySlug(
   locale: Locale | string = DEFAULT_LOCALE,
   dependencies?: PublicMenuDependencies
 ): Promise<PublicMenu | null> {
-  if (!dependencies) {
+  if (!dependencies || dependencies.cache) {
     const slug = slugifyRestaurantSlug(rawSlug);
     if (!slug) return null;
+    const cacheDependencies = dependencies?.cache;
+    const uncachedDependencies = dependencies ?? {
+      readRows: readSupabaseRowsByFilters,
+      nodeEnv: process.env.NODE_ENV
+    };
+    const requestLoader = dependencies
+      ? () => getPublicMenuBySlugUncached(slug, locale, dependencies)
+      : () => getPublicMenuBySlugRequestCached(slug, locale);
     let identity: PublicMenuRestaurantIdentity | null;
     try {
       identity = await getCachedPublicMenuIdentity({
         slug,
-        loader: () => getPublicMenuRestaurantIdentityRequestCached(slug)
+        dependencies: cacheDependencies,
+        loader: dependencies
+          ? () => loadPublicMenuRestaurantIdentity(slug, dependencies.readRows)
+          : () => getPublicMenuRestaurantIdentityRequestCached(slug)
       });
     } catch {
       // Preserve the existing controlled fallback on transient identity read
       // failures. The failed lookup itself is never stored as a success.
-      return getPublicMenuBySlugRequestCached(slug, locale);
+      return requestLoader();
     }
-    if (!identity) return getPublicMenuBySlugRequestCached(slug, locale);
+    if (!identity) return requestLoader();
     // React's request cache still deduplicates callers in a render. The
     // inter-request cache below avoids repeating the four PostgREST reads for
     // every visitor while retaining a short, explicit freshness window.
-    return getCachedPublicMenu({
+    const cacheArgs = {
       slug,
       locale,
       restaurantId: identity.restaurantId,
-      loader: () => getPublicMenuBySlugRequestCached(slug, locale)
-    });
+      dependencies: cacheDependencies
+    };
+    try {
+      return await getCachedPublicMenu({
+        ...cacheArgs,
+        loader: requestLoader
+      });
+    } catch (error) {
+      if (!isPublicMenuCacheInvalidatedDuringLoadError(error)) throw error;
+    }
+
+    const freshLoader = () =>
+      getPublicMenuBySlugUncached(slug, locale, uncachedDependencies);
+    try {
+      return await getCachedPublicMenu({
+        ...cacheArgs,
+        loader: freshLoader
+      });
+    } catch (error) {
+      if (!isPublicMenuCacheInvalidatedDuringLoadError(error)) throw error;
+      return freshLoader();
+    }
   }
   return getPublicMenuBySlugUncached(rawSlug, locale, dependencies);
 }

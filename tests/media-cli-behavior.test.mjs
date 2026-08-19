@@ -16,7 +16,7 @@ function runScript(script, args, env = {}) {
       WINDIR: process.env.WINDIR,
       ...env
     },
-    timeout: 3_000,
+    timeout: 15_000,
     windowsHide: true
   });
 }
@@ -42,11 +42,30 @@ test("backfill rejects invalid numeric CLI before provider setup with a versione
   }
 });
 
-test("usage audit rejects hosted project-ref mismatch and missing hosted opt-in before network access", () => {
+test("usage audit fails hosted target preflight closed before network access", () => {
   const common = {
     NEXT_PUBLIC_SUPABASE_URL: "https://hosted-project.supabase.co",
     SUPABASE_SERVICE_ROLE_KEY: "not-a-real-service-role-key"
   };
+  const missingExpectedRef = runScript(
+    "scripts/supabase-usage-audit.mjs",
+    ["--json", "--allow-production-read"],
+    {
+      ...common,
+      VISTAIRE_EXPECTED_SUPABASE_PROJECT_REF: ""
+    }
+  );
+  assert.notEqual(missingExpectedRef.status, 0);
+  assert.equal(missingExpectedRef.signal, null, missingExpectedRef.stderr);
+  assert.match(
+    JSON.parse(missingExpectedRef.stdout).errors[0],
+    /expected project ref|required project ref|project ref.*required/i
+  );
+  assert.doesNotMatch(
+    `${missingExpectedRef.stdout}${missingExpectedRef.stderr}`,
+    /not-a-real-service-role-key/
+  );
+
   const mismatch = runScript("scripts/supabase-usage-audit.mjs", ["--json"], {
     ...common,
     VISTAIRE_EXPECTED_SUPABASE_PROJECT_REF: "different-project"

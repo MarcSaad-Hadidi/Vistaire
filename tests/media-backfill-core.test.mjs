@@ -454,6 +454,127 @@ test("provider pagination reaches EOF, deduplicates stable identities and reject
   );
 });
 
+function filteredDishClient(rows) {
+  const calls = [];
+  return {
+    calls,
+    from(table) {
+      assert.equal(table, "menu_dishes");
+      let current = [...rows];
+      const query = {
+        select() { calls.push("select"); return query; },
+        eq(column, value) {
+          calls.push(`eq:${column}:${value}`);
+          current = current.filter((row) => row[column] === value);
+          return query;
+        },
+        order(column) {
+          calls.push(`order:${column}`);
+          current.sort((left, right) => String(left[column]).localeCompare(String(right[column])));
+          return query;
+        },
+        async range(start, end) {
+          calls.push(`range:${start}:${end}`);
+          return { data: current.slice(start, end + 1), error: null };
+        }
+      };
+      return query;
+    }
+  };
+}
+
+test("backfill applies restaurant and dish filters before limit and pagination", async () => {
+  const { readFilteredDishRows } = await loadBackfillModule();
+  const restaurantA = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
+  const restaurantB = "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb";
+  const rows = Array.from({ length: 30 }, (_, index) => ({
+    id: String(index + 1).padStart(4, "0"),
+    restaurant_id: index < 20 ? restaurantA : restaurantB
+  }));
+
+  const restaurantClient = filteredDishClient(rows);
+  const restaurantRows = await readFilteredDishRows({
+    client: restaurantClient,
+    rowLimit: 5,
+    restaurantId: restaurantB
+  });
+  assert.deepEqual(restaurantRows.map((row) => row.id), ["0021", "0022", "0023", "0024", "0025"]);
+  assert.ok(
+    restaurantClient.calls.indexOf(`eq:restaurant_id:${restaurantB}`) <
+      restaurantClient.calls.indexOf("range:0:4")
+  );
+
+  const dishClient = filteredDishClient(rows);
+  const dishRows = await readFilteredDishRows({
+    client: dishClient,
+    rowLimit: 1,
+    dishId: "0025"
+  });
+  assert.deepEqual(dishRows.map((row) => row.id), ["0025"]);
+  assert.ok(dishClient.calls.indexOf("eq:id:0025") < dishClient.calls.indexOf("range:0:0"));
+
+  const combinedClient = filteredDishClient(rows);
+  const combinedRows = await readFilteredDishRows({
+    client: combinedClient,
+    rowLimit: 1,
+    restaurantId: restaurantB,
+    dishId: "0025"
+  });
+  assert.deepEqual(combinedRows.map((row) => row.id), ["0025"]);
+});
+
+test("filtered backfill pagination and source-set accounting exclude global rows", async () => {
+  const {
+    deterministicSourceSetDigest,
+    readFilteredDishRows
+  } = await loadBackfillModule();
+  const restaurantA = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
+  const restaurantB = "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb";
+  const rows = [
+    ...Array.from({ length: 20 }, (_, index) => ({
+      id: `a-${String(index).padStart(4, "0")}`,
+      restaurant_id: restaurantA,
+      sourcePath: `restaurants/${restaurantA}/photos/originals/a-${index}.png`,
+      sourceSha256: sha(`a-${index}`)
+    })),
+    ...Array.from({ length: 1_010 }, (_, index) => ({
+      id: `b-${String(index).padStart(4, "0")}`,
+      restaurant_id: restaurantB,
+      sourcePath: `restaurants/${restaurantB}/photos/originals/b-${index}.png`,
+      sourceSha256: sha(`b-${index}`)
+    }))
+  ];
+  const client = filteredDishClient(rows);
+  const filtered = await readFilteredDishRows({
+    client,
+    rowLimit: 1_005,
+    restaurantId: restaurantB
+  });
+  const sourceSet = filtered.map((row) => ({
+    dishId: row.id,
+    restaurantId: row.restaurant_id,
+    sourcePath: row.sourcePath,
+    sourceSha256: row.sourceSha256
+  }));
+
+  assert.equal(filtered.length, 1_005);
+  assert.equal(new Set(sourceSet.map((row) => row.sourcePath)).size, 1_005);
+  assert.equal(client.calls.filter((call) => call.startsWith("range:")).length, 2);
+  assert.equal(
+    deterministicSourceSetDigest(sourceSet),
+    deterministicSourceSetDigest([...sourceSet].reverse())
+  );
+  assert.notEqual(
+    deterministicSourceSetDigest(sourceSet),
+    deterministicSourceSetDigest(rows.slice(0, 1_005).map((row) => ({
+      dishId: row.id,
+      restaurantId: row.restaurant_id,
+      sourcePath: row.sourcePath,
+      sourceSha256: row.sourceSha256
+    })))
+  );
+});
+
 test("media byte accounting deduplicates bucket/path and rejects conflicting sizes", async () => {
   const { deduplicateMediaObjectBytes } = await loadBackfillModule();
   assert.equal(deduplicateMediaObjectBytes([

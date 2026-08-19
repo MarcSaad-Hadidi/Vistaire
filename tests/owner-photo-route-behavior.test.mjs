@@ -198,6 +198,31 @@ test("photo upload reserves exact new bytes before the first Storage write and f
   assert.equal(state.calls.rpc.at(-1).parameters.p_actual_bytes, expectedBytes);
 });
 
+test("photo upload with a legacy restaurant id reaches the capacity RPC", async () => {
+  const route = await loadOwnerPhotoRoute();
+  const state = fixture();
+  const legacyRestaurantId = "11111111-1111-1111-1111-111111111111";
+  globalThis.__OWNER_PHOTO_TEST__ = state;
+  process.env.VISTAIRE_MEDIA_WRITES_ENABLED = "true";
+  process.env.VISTAIRE_EXPECTED_SUPABASE_PROJECT_REF = "project-a";
+
+  const response = await route.POST(
+    requestForPost(),
+    { params: Promise.resolve({ restaurantId: legacyRestaurantId, dishId }) }
+  );
+
+  assert.equal(response.status, 200);
+  const reservation = state.calls.rpc.find(
+    (call) => call.name === "reserve_media_capacity"
+  );
+  assert.ok(reservation, "legacy restaurant uploads must reach reserve_media_capacity");
+  assert.equal(reservation.parameters.p_restaurant_id, legacyRestaurantId);
+  assert.match(
+    reservation.parameters.p_operation_id,
+    /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/
+  );
+});
+
 test("disabled writes and insufficient headroom fail before Storage or DB mutations", async () => {
   const route = await loadOwnerPhotoRoute();
   delete process.env.VISTAIRE_MEDIA_WRITES_ENABLED;

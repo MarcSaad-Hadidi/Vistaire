@@ -15,6 +15,7 @@ import {
   deterministicSourceSetDigest,
   isFreshMediaUsageMeasurement,
   planDishPhotoBackfillSource,
+  readFilteredDishRows,
   validateApplyMeasureReport,
   verifyDerivativeObject
 } from "../lib/owner/mediaBackfill.ts";
@@ -306,26 +307,6 @@ async function downloadWithTimeout(bucket, storagePath) {
   } finally {
     if (timer) clearTimeout(timer);
   }
-}
-
-async function readRows(client) {
-  const rows = [];
-  for (let offset = 0; offset < rowLimit; offset += 1000) {
-    const end = Number.isFinite(rowLimit)
-      ? Math.min(offset + 999, rowLimit - 1)
-      : offset + 999;
-    const { data, error } = await client
-      .from("menu_dishes")
-      .select("id,restaurant_id,slug,name,image_url,metadata")
-      .order("id", { ascending: true })
-      .range(offset, end);
-    if (error) throw new Error(`Lecture menu_dishes impossible: ${error.message}`);
-    if (!Array.isArray(data)) throw new Error("Lecture menu_dishes partielle ou indisponible.");
-    const page = data;
-    rows.push(...page);
-    if (page.length < 1000) break;
-  }
-  return rows;
 }
 
 function planRow(row) {
@@ -766,7 +747,12 @@ async function main() {
   const config = supabaseConfig();
   const client = createClient(config.url, config.key, { auth: { persistSession: false, autoRefreshToken: false } });
   const checkpoint = await loadCheckpoint();
-  const rows = await readRows(client);
+  const rows = await readFilteredDishRows({
+    client,
+    rowLimit,
+    restaurantId: restaurantFilter,
+    dishId: dishFilter
+  });
   const rowPlans = rows.map(planRow);
   const invalidPlans = rowPlans.filter((plan) => plan.status === "invalid");
   const plans = rowPlans.filter(

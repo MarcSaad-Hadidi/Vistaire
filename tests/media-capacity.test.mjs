@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { randomUUID } from "node:crypto";
 import test from "node:test";
 
 async function loadCapacityModule() {
@@ -90,15 +91,90 @@ test("capacity reservation delegates atomically to the project-scoped RPC", asyn
   }]);
 });
 
+test("capacity accepts storage-safe legacy database ids while keeping operation ids strict", async () => {
+  const { MediaCapacityError, reserveMediaCapacity } = await loadCapacityModule();
+  const client = rpcClient(async (_name, parameters) => ({
+    data: {
+      status: "reserved",
+      reservationId: "11111111-2222-4333-8444-555555555555",
+      projectRef: "project-a",
+      quotaBytes: 1_000,
+      usedBytes: 100,
+      activeReservedBytes: 0,
+      requestedBytes: parameters.p_requested_bytes,
+      headroomBytes: 890,
+      headroomPercent: 89,
+      expiresAt: "2026-08-15T12:05:00.000Z"
+    },
+    error: null
+  }));
+  const cases = [
+    {
+      restaurantId: "11111111-1111-1111-1111-111111111111",
+      dishId: "22222222-2222-8222-8222-222222222222"
+    },
+    {
+      restaurantId: "AAAAAAAA-BBBB-CCCC-DDDD-EEEEEEEEEEEE",
+      dishId: "FFFFFFFF-EEEE-8DDD-CCCC-BBBBBBBBBBBB"
+    }
+  ];
+
+  for (const databaseIds of cases) {
+    const operationId = randomUUID();
+    const reservation = await reserveMediaCapacity({
+      client,
+      projectRef: "project-a",
+      reservationKey: `upload:${databaseIds.dishId}`,
+      operationId,
+      ...databaseIds,
+      recipeId: "dish-photo-v2",
+      requestedBytes: 10
+    });
+    assert.equal(reservation.operationId, operationId.toLowerCase());
+    assert.equal(reservation.restaurantId, databaseIds.restaurantId.toLowerCase());
+    assert.equal(reservation.dishId, databaseIds.dishId.toLowerCase());
+  }
+
+  await assert.rejects(
+    reserveMediaCapacity({
+      client,
+      projectRef: "project-a",
+      reservationKey: "upload:strict-operation",
+      ...DEFAULT_CAPACITY_CONTEXT,
+      operationId: "11111111-1111-1111-1111-111111111111",
+      requestedBytes: 10
+    }),
+    (error) =>
+      error instanceof MediaCapacityError &&
+      error.reason === "invalid-capacity-context"
+  );
+});
+
 test("capacity context is required and invalid values fail before the RPC", async () => {
   const { MediaCapacityError, reserveMediaCapacity } = await loadCapacityModule();
   const client = rpcClient(async () => assert.fail("invalid context must not reach the RPC"));
 
+  const unsafeDatabaseIds = [
+    "not-a-uuid",
+    "11111111-1111-1111-1111",
+    "11111111-1111-1111-1111-111111111111/path",
+    "..",
+    " 11111111-1111-1111-1111-111111111111",
+    "11111111-1111-1111-1111-111111111111 ",
+    "11111111-1111-1111-1111-111111111111%2Fpath",
+    "https://example.test/11111111-1111-1111-1111-111111111111"
+  ];
   for (const context of [
     {},
     { ...DEFAULT_CAPACITY_CONTEXT, operationId: "not-a-uuid" },
-    { ...DEFAULT_CAPACITY_CONTEXT, restaurantId: "not-a-uuid" },
-    { ...DEFAULT_CAPACITY_CONTEXT, dishId: "not-a-uuid" },
+    ...unsafeDatabaseIds.map((restaurantId) => ({
+      ...DEFAULT_CAPACITY_CONTEXT,
+      restaurantId
+    })),
+    ...unsafeDatabaseIds.map((dishId) => ({
+      ...DEFAULT_CAPACITY_CONTEXT,
+      dishId
+    })),
     { ...DEFAULT_CAPACITY_CONTEXT, recipeId: " dish-photo-v2" }
   ]) {
     await assert.rejects(

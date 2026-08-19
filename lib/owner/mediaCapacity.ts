@@ -1,5 +1,7 @@
 import { randomUUID } from "node:crypto";
 
+import { normalizeStorageSafeIdentifier } from "./storageSafeIdentifier.ts";
+
 const MIN_HEADROOM_PERCENT = 20;
 const DEFAULT_HEARTBEAT_INTERVAL_MS = 60_000;
 const SHA_OR_KEY_PATTERN = /^[a-z0-9][a-z0-9:._/-]{0,511}$/i;
@@ -92,23 +94,23 @@ function unavailable(reason: string): MediaCapacityError {
   );
 }
 
+function normalizeOperationId(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const normalized = value.trim().toLowerCase();
+  return UUID_PATTERN.test(normalized) ? normalized : null;
+}
+
 function normalizeReservationContext(
   value: Partial<MediaCapacityReservationContext>
 ): MediaCapacityReservationContext | null {
-  const operationId = typeof value.operationId === "string"
-    ? value.operationId.trim().toLowerCase()
-    : "";
-  const restaurantId = typeof value.restaurantId === "string"
-    ? value.restaurantId.trim().toLowerCase()
-    : "";
-  const dishId = typeof value.dishId === "string"
-    ? value.dishId.trim().toLowerCase()
-    : "";
+  const operationId = normalizeOperationId(value.operationId);
+  const restaurantId = normalizeStorageSafeIdentifier(value.restaurantId);
+  const dishId = normalizeStorageSafeIdentifier(value.dishId);
   const recipeId = typeof value.recipeId === "string" ? value.recipeId : "";
   if (
-    !UUID_PATTERN.test(operationId) ||
-    !UUID_PATTERN.test(restaurantId) ||
-    !UUID_PATTERN.test(dishId) ||
+    !operationId ||
+    !restaurantId ||
+    !dishId ||
     recipeId !== recipeId.trim().toLowerCase() ||
     !RECIPE_ID_PATTERN.test(recipeId)
   ) {

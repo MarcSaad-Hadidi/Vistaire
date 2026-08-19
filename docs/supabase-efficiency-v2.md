@@ -264,9 +264,14 @@ $env:VISTAIRE_EXPECTED_SUPABASE_PROJECT_REF = "bkpewsjvxswqruwqljcy"
 npm run supabase:usage:audit -- --allow-production-read --json
 ```
 
-The script refuses CI, hosted projects without `--allow-production-read`, and
-all writes. It reports bucket/category bytes, source/derivative coverage, 3D
-reference candidates, analytics windows and projection status. The rollout
+The script refuses CI, hosted projects without an exact
+`VISTAIRE_EXPECTED_SUPABASE_PROJECT_REF`, hosted projects without
+`--allow-production-read`, and all writes. It reports bucket/category bytes,
+source/derivative coverage, 3D reference candidates, analytics windows and
+projection status. Analytics counts are explicit:
+`analytics.all.{total,last24h,last7d,last30d}` covers every event source, while
+`analytics.production.{total,last24h,last7d,last30d}` covers only
+`source = production`. The rollout
 gate accepts quota and global usage only from the authoritative,
 project-scoped capacity state returned by `get_media_capacity_state`; observed
 bucket bytes, a plan label, or a published allowance are not quota authority.

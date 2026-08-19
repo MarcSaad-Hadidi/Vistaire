@@ -181,6 +181,78 @@ test("restaurant and locale tags invalidate warm data and the next read loads th
   assert.equal(loads, 3);
 });
 
+test("a visitor cold load invalidated in flight retries once with fresh menu data", async () => {
+  const restaurantId = "55555555-5555-4555-8555-555555555555";
+  const slug = "bistro-in-flight";
+  const clock = { now: () => 1_000 };
+  const harness = createCacheHarness(clock);
+  const cache = productionDependencies(harness);
+  let committed = "before";
+  let dishReads = 0;
+  let releaseFirstDishRead;
+  let markFirstDishReadStarted;
+  const firstDishReadStarted = new Promise((resolve) => {
+    markFirstDishReadStarted = resolve;
+  });
+  const readRows = async ({ table }) => {
+    if (table === "restaurants") {
+      return { ok: true, rows: [{ id: restaurantId, slug, name: "Bistro" }] };
+    }
+    if (table === "menu_dishes") {
+      dishReads += 1;
+      const snapshot = committed;
+      if (dishReads === 1) {
+        markFirstDishReadStarted();
+        await new Promise((resolve) => { releaseFirstDishRead = resolve; });
+      }
+      return {
+        ok: true,
+        rows: [{
+          id: "66666666-6666-4666-8666-666666666666",
+          restaurant_id: restaurantId,
+          slug: "plat-test",
+          name: snapshot,
+          category_name: "Plats",
+          price: 20,
+          is_available: true
+        }]
+      };
+    }
+    return { ok: true, rows: [] };
+  };
+
+  const visitorRequest = publicMenu.getPublicMenuBySlug(slug, "fr-CA", {
+    readRows,
+    nodeEnv: "production",
+    cache
+  });
+  await firstDishReadStarted;
+  committed = "after";
+  await publicMenuCache.revalidatePublicMenuCache(
+    { restaurantId },
+    { revalidateTag: harness.revalidateTag }
+  );
+  releaseFirstDishRead();
+
+  const menu = await visitorRequest;
+  assert.equal(menu.dishes[0].name, "after");
+  assert.equal(dishReads, 2, "the invalidated full-menu loader must retry exactly once");
+  assert.equal(
+    [...harness.entries.values()].some((entry) =>
+      JSON.stringify(entry.value).includes('"before"')
+    ),
+    false,
+    "the pre-mutation menu must never enter durable cache"
+  );
+  assert.equal(
+    [...harness.entries.values()].some((entry) =>
+      JSON.stringify(entry.value).includes('"after"')
+    ),
+    true,
+    "the fresh retry result should become the durable menu value"
+  );
+});
+
 test("an availability mutation evicts the old menu and the unavailable dish disappears on reload", async () => {
   const restaurantId = "33333333-3333-4333-8333-333333333333";
   const slug = "bistro-mutation";
@@ -296,5 +368,8 @@ test("usage audit refuses missing credentials and never runs in CI", async () =>
     CI: ""
   });
   assert.equal(hostedWithoutOptIn.code, 1);
-  assert.match(`${hostedWithoutOptIn.stdout}${hostedWithoutOptIn.stderr}`, /allow-production-read/i);
+  assert.match(
+    `${hostedWithoutOptIn.stdout}${hostedWithoutOptIn.stderr}`,
+    /expected project ref|required project ref|project ref.*required/i
+  );
 });

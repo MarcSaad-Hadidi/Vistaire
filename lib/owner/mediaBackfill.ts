@@ -130,6 +130,68 @@ export async function paginateProviderRows<T>(args: {
   return [...rows.values()];
 }
 
+type FilteredDishRowsQuery = {
+  eq: (column: string, value: string) => FilteredDishRowsQuery;
+  order: (
+    column: string,
+    options: { ascending: boolean }
+  ) => FilteredDishRowsQuery;
+  range: (
+    start: number,
+    end: number
+  ) => PromiseLike<{
+    data: Array<Record<string, unknown>> | null;
+    error: { message?: string } | null;
+  }>;
+};
+
+type FilteredDishRowsClient = {
+  from: (table: "menu_dishes") => {
+    select: (columns: string) => FilteredDishRowsQuery;
+  };
+};
+
+export async function readFilteredDishRows(args: {
+  client: FilteredDishRowsClient;
+  rowLimit: number;
+  restaurantId?: string;
+  dishId?: string;
+}): Promise<Array<Record<string, unknown>>> {
+  if (
+    !(args.rowLimit === Number.POSITIVE_INFINITY) &&
+    (!Number.isSafeInteger(args.rowLimit) || args.rowLimit < 1)
+  ) {
+    throw new Error("Filtered dish row limit is invalid.");
+  }
+  const rows: Array<Record<string, unknown>> = [];
+  for (let offset = 0; offset < args.rowLimit; offset += 1_000) {
+    const pageSize = Number.isFinite(args.rowLimit)
+      ? Math.min(1_000, args.rowLimit - offset)
+      : 1_000;
+    let query = args.client
+      .from("menu_dishes")
+      .select("id,restaurant_id,slug,name,image_url,metadata");
+    if (args.restaurantId) {
+      query = query.eq("restaurant_id", args.restaurantId);
+    }
+    if (args.dishId) query = query.eq("id", args.dishId);
+    const { data, error } = await query
+      .order("id", { ascending: true })
+      .range(offset, offset + pageSize - 1);
+    if (error) {
+      throw new Error(
+        `Lecture menu_dishes impossible: ${error.message ?? "erreur provider"}`
+      );
+    }
+    if (!Array.isArray(data)) {
+      throw new Error("Lecture menu_dishes partielle ou indisponible.");
+    }
+    rows.push(...data);
+    if (data.length < pageSize) break;
+  }
+  return rows;
+}
+
 export function deduplicateMediaObjectBytes(
   objects: Array<{ bucket: string; path: string; bytes: number }>
 ): number {
