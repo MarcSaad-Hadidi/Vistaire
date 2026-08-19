@@ -56,6 +56,9 @@ const { landingPhotoForDish } = await import(
 const { projectLandingMenuUiMenu } = await import(
   "../lib/landing/landingMenuUiPreview.ts"
 );
+const { buildCurrentPublicMenuPreview } = await import(
+  "../lib/landing/publicMenuPreview.ts"
+);
 
 function dish(overrides = {}) {
   return {
@@ -233,6 +236,50 @@ test("the landing menu projection sanitizes image and thumbnail fields independe
     ]
   );
   const payload = JSON.stringify(projected);
+  assert.doesNotMatch(payload, /storage\/v1\/object\/sign/i);
+  assert.doesNotMatch(payload, /synthetic-(?:capability|signature)/i);
+});
+
+test("the complete comparison payload sanitizes featured, category and Vistaire dish media", () => {
+  const signedImage =
+    "https://project.supabase.co/storage/v1/object/sign/dishes/live.webp?token=synthetic-capability";
+  const signedThumbnail =
+    "https://cdn.example.test/thumb.webp?X-Amz-Signature=synthetic-signature";
+  const sourceMenu = menu([
+    dish({
+      id: "ready-signed",
+      slug: "ready-signed",
+      categoryId: "category-1",
+      categorySlug: "signatures",
+      categoryDescription: "Current signatures",
+      imageUrl: signedImage,
+      thumbnailUrl: signedThumbnail,
+      hasPhoto: true,
+      photoStatus: "ready",
+      isRecommended: true,
+      isSignature: true
+    })
+  ]);
+  sourceMenu.settings = {
+    defaultCurrency: "CAD"
+  };
+
+  const { featuredDish, preview } = buildCurrentPublicMenuPreview({
+    locale: "fr",
+    menu: sourceMenu,
+    preferredDishId: "ready-signed",
+    preferredDishSlug: "ready-signed",
+    theme: "maison-elyse"
+  });
+  const canonicalPhoto =
+    "/api/public/menu-dishes/ready-signed/photo";
+
+  assert.equal(featuredDish?.id, "ready-signed");
+  assert.equal(preview.featuredDish?.image, canonicalPhoto);
+  assert.equal(preview.categoryCards[0]?.image, canonicalPhoto);
+  assert.equal(preview.vistaireDishes[0]?.image, canonicalPhoto);
+
+  const payload = JSON.stringify(preview);
   assert.doesNotMatch(payload, /storage\/v1\/object\/sign/i);
   assert.doesNotMatch(payload, /synthetic-(?:capability|signature)/i);
 });

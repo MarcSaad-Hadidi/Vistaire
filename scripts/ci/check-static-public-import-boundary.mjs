@@ -44,6 +44,7 @@ export const STATIC_PUBLIC_NAMED_PAGE_ENTRIES = Object.freeze([
 
 export const STATIC_PUBLIC_ENTRY_FILES = Object.freeze([
   "app/(fr)/layout.tsx",
+  "app/(fr)/(seo)/layout.tsx",
   "app/(en)/layout.tsx",
   ...STATIC_PUBLIC_NAMED_PAGE_ENTRIES
 ]);
@@ -75,6 +76,16 @@ const LANDING_BRIDGE = "components/vistaire-preview/VistairePreviewLanding.tsx";
 const LANDING_RENDERER = "components/landing/VistaireLanding.tsx";
 const SEO_COMPARISON = "components/landing/SeoInteractiveComparison.tsx";
 const LANDING_LOADER = "lib/landing/menuExperiences.ts";
+const PUBLIC_EXTERNAL_DATA_FACADE =
+  "lib/landing/publicLandingMenuData.ts";
+const PUBLIC_EXTERNAL_DATA_DELEGATE =
+  "lib/menu/publicMenuRenderContext.ts";
+const PUBLIC_EXTERNAL_DATA_DELEGATE_SPECIFIER =
+  "@/lib/menu/publicMenuRenderContext";
+const PUBLIC_EXTERNAL_DATA_FACADE_IMPORTS = new Set([
+  "server-only",
+  PUBLIC_EXTERNAL_DATA_DELEGATE_SPECIFIER
+]);
 const REVIEWED_PUBLIC_OWNER_HELPERS = new Set([
   "lib/owner/price.ts",
   "lib/owner/modelAssetSize.ts",
@@ -95,7 +106,6 @@ const PUBLIC_BUILD_ENVIRONMENT_KEYS = new Set([
   "VERCEL_PROJECT_PRODUCTION_URL",
   "VERCEL_URL"
 ]);
-const REVIEWED_PROCESS_ENV_OBJECT_FILES = new Set(["lib/seo.ts"]);
 
 function portablePath(value) {
   return value.split(sep).join("/");
@@ -372,7 +382,6 @@ export async function inspectStaticPublicImportBoundary(
             detail: "menuExperiences is outside the exact reviewed landing and SEO comparison chains"
           });
         }
-        return;
       }
 
       if (
@@ -399,6 +408,27 @@ export async function inspectStaticPublicImportBoundary(
         true,
         scriptKind(fileReal)
       );
+      const moduleSpecifiers = literalModuleSpecifiers(sourceFile);
+      if (filePath === PUBLIC_EXTERNAL_DATA_FACADE) {
+        for (const specifier of moduleSpecifiers) {
+          if (!PUBLIC_EXTERNAL_DATA_FACADE_IMPORTS.has(specifier)) {
+            addFinding({
+              entry,
+              file: filePath,
+              rule: "public-data-facade-import",
+              detail: specifier
+            });
+          }
+        }
+        if (!moduleSpecifiers.includes(PUBLIC_EXTERNAL_DATA_DELEGATE_SPECIFIER)) {
+          addFinding({
+            entry,
+            file: filePath,
+            rule: "public-data-facade-import",
+            detail: `missing ${PUBLIC_EXTERNAL_DATA_DELEGATE_SPECIFIER}`
+          });
+        }
+      }
       if (callsCreateSignedUrl(sourceFile)) {
         addFinding({
           entry,
@@ -412,9 +442,7 @@ export async function inspectStaticPublicImportBoundary(
           environmentKey.startsWith("NEXT_PUBLIC_") ||
           PUBLIC_BUILD_ENVIRONMENT_KEYS.has(environmentKey) ||
           (environmentKey === "NODE_TEST_CONTEXT" &&
-            filePath === SAUGE_RENDERER_BINDINGS) ||
-          (environmentKey === "<process.env>" &&
-            REVIEWED_PROCESS_ENV_OBJECT_FILES.has(filePath));
+            filePath === SAUGE_RENDERER_BINDINGS);
         if (!allowed) {
           addFinding({
             entry,
@@ -425,7 +453,7 @@ export async function inspectStaticPublicImportBoundary(
         }
       }
 
-      for (const specifier of literalModuleSpecifiers(sourceFile)) {
+      for (const specifier of moduleSpecifiers) {
         if (packageIsForbidden(specifier)) {
           addFinding({
             entry,
@@ -446,6 +474,27 @@ export async function inspectStaticPublicImportBoundary(
             detail: specifier
           });
           continue;
+        }
+        if (
+          filePath === PUBLIC_EXTERNAL_DATA_FACADE &&
+          specifier === PUBLIC_EXTERNAL_DATA_DELEGATE_SPECIFIER
+        ) {
+          const delegateReal = await realpath(resolvedImport);
+          const delegatePath = portablePath(
+            relative(rootReal, delegateReal)
+          );
+          if (
+            isInside(rootReal, delegateReal) &&
+            delegatePath === PUBLIC_EXTERNAL_DATA_DELEGATE
+          ) {
+            continue;
+          }
+          addFinding({
+            entry,
+            file: filePath,
+            rule: "public-data-facade-import",
+            detail: `${specifier} resolves to ${delegatePath}`
+          });
         }
         await visit(resolvedImport, [...chain, filePath]);
       }

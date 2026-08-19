@@ -19,12 +19,7 @@ function fixture() {
         }
       ])
     ),
-    dynamicRoutes: {
-      "/[slug]": { routeRegex: "synthetic" },
-      "/en/[slug]": { routeRegex: "synthetic" },
-      "/menu/[slug]": { routeRegex: "synthetic" },
-      "/menu/[slug]/dishes/[dishSlug]": { routeRegex: "synthetic" }
-    },
+    dynamicRoutes: {},
     notFoundRoutes: [],
     preview: {}
   };
@@ -35,12 +30,7 @@ test("the exact 26 named routes accept static or positive ISR entries", () => {
   const manifest = fixture();
   assert.deepEqual(validateStaticPublicRoutes(manifest), {
     named: [...NAMED_STATIC_PUBLIC_ROUTES],
-    dynamic: [
-      "/[slug]",
-      "/en/[slug]",
-      "/menu/[slug]",
-      "/menu/[slug]/dishes/[dishSlug]"
-    ]
+    dynamic: []
   });
 });
 
@@ -73,6 +63,38 @@ test("approved dynamic surfaces may not appear as prerendered routes", () => {
     assert.throws(
       () => validateStaticPublicRoutes(manifest),
       new RegExp(`dynamic route is prerendered: ${route.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`, "i"),
+      route
+    );
+  }
+});
+
+test("approved dynamic surfaces may not appear as dynamic prerender templates", () => {
+  for (const route of [
+    "/[slug]",
+    "/en/[slug]",
+    "/menu/[slug]",
+    "/menu/[slug]/dishes/[dishSlug]",
+    "/admin",
+    "/owner/restaurants/[restaurantId]",
+    "/api/public/menu-dishes/[dishId]/photo",
+    "/q/[token]",
+    "/sign-in/[[...sign-in]]",
+    "/todos/[id]",
+    "/legacy/[...path]",
+    "/demo",
+    "/en/vistaire-menu"
+  ]) {
+    const manifest = fixture();
+    manifest.dynamicRoutes[route] = {
+      routeRegex: "synthetic",
+      dataRoute: `${route}.rsc`
+    };
+    assert.throws(
+      () => validateStaticPublicRoutes(manifest),
+      new RegExp(
+        `dynamic route is prerendered: ${route.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`,
+        "i"
+      ),
       route
     );
   }

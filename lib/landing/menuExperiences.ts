@@ -15,10 +15,10 @@ import { buildPublicDishPath } from "@/lib/menu/publicMenuCore";
 import {
   resolvePublicMenuRenderContext,
   type PublicMenuRenderContext
-} from "@/lib/menu/publicMenuRenderContext";
+} from "@/lib/landing/publicLandingMenuData";
 import { buildPublicMenuPath } from "@/lib/owner/menuUrlCore";
 import type { PdfComparePreviewData } from "@/lib/pdfComparePreviewData";
-import { getMaisonElyseIdentity } from "@/lib/owner/demoCapabilities";
+import { getMaisonElyseIdentity } from "@/lib/maisonElyseIdentity";
 import type { LandingPublicMenuHref } from "@/components/landing/LandingPublicMenuLink";
 import {
   isRestaurantExperienceId,

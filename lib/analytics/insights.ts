@@ -31,6 +31,9 @@ import {
   resolveAnalyticsSourceHealth,
   sortSearchRowsByCount
 } from "@/lib/analytics/insightsCore.mjs";
+import { getDemoRestaurantId } from "@/lib/maisonElyseIdentity";
+
+export { getDemoRestaurantId } from "@/lib/maisonElyseIdentity";
 
 export type RestaurantInsightsResult = {
   insights: DemoAdminInsights;
@@ -38,7 +41,7 @@ export type RestaurantInsightsResult = {
   note: string;
 };
 
-const DEMO_RESTAURANT_ID = process.env.NEXT_PUBLIC_DEMO_RESTAURANT_ID ?? "11111111-1111-1111-1111-111111111111";
+const DEMO_RESTAURANT_ID = getDemoRestaurantId();
 export const ANALYTICS_WINDOW_DAYS = 30;
 export const DEFAULT_RESTAURANT_TIME_ZONE = "America/Toronto";
 
@@ -213,5 +216,3 @@ export async function getRestaurantInsights(restaurantId: string, menuId?: strin
   if (process.env.NODE_ENV !== "production" && scopedRestaurantId === DEMO_RESTAURANT_ID) return { insights: getDemoAdminInsights(), source: "preview", note: "Prévisualisation locale uniquement." };
   return { insights: emptyInsights(restaurantName), source: "empty", note: "Aucune activité menu disponible pour le moment." };
 }
-
-export function getDemoRestaurantId(): string { return DEMO_RESTAURANT_ID; }

@@ -269,8 +269,39 @@ test("build-app proves the static public graph and artifacts before upload", () 
     /VISTAIRE_EXCHANGE_RATES_FIXTURE_JSON:\s*['"]?\{[^\n]*"CAD":1[^\n]*"USD":0\.72[^\n]*"EUR":0\.6225[^\n]*\}['"]?/
   );
   assert.match(buildJob, /VISTAIRE_PUBLIC_ARTIFACT_SENTINELS:/);
-  assert.match(buildJob, /synthetic-owner-email@example\.test/);
-  assert.match(buildJob, /synthetic-session-cookie/);
+  const envValue = (key) => {
+    const matches = [
+      ...buildJob.matchAll(
+        new RegExp(`^\\s+${key}:\\s+(.+?)\\s*$`, "gm")
+      )
+    ];
+    assert.equal(
+      matches.length,
+      1,
+      `${key} must be configured exactly once in build-app`
+    );
+    const raw = matches[0][1];
+    if (raw.startsWith("'") && raw.endsWith("'")) {
+      return raw.slice(1, -1).replaceAll("''", "'");
+    }
+    if (raw.startsWith('"') && raw.endsWith('"')) {
+      return JSON.parse(raw);
+    }
+    return raw;
+  };
+  const sentinels = JSON.parse(
+    envValue("VISTAIRE_PUBLIC_ARTIFACT_SENTINELS")
+  );
+  assert.deepEqual(sentinels, [
+    envValue("SUPABASE_SERVICE_ROLE_KEY"),
+    envValue("VISTAIRE_OWNER_EMAILS"),
+    envValue("VISTAIRE_ADMIN_SESSION_SECRET")
+  ]);
+  assert.deepEqual(sentinels, [
+    "sauge-noire-fixture-service-role-key",
+    "synthetic-owner-email@example.test",
+    "synthetic-session-cookie"
+  ]);
 
   const importBoundary = workflow.indexOf(
     "node scripts/ci/check-static-public-import-boundary.mjs",

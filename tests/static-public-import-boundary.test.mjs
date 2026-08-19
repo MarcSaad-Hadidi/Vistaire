@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { basename, join } from "node:path";
 import test from "node:test";
@@ -125,7 +125,7 @@ test("private server paths and non-public environment reads fail closed", async 
   );
 });
 
-test("the landing loader exception is path- and entry-specific and remains a leaf", async (t) => {
+test("the landing loader is traversed behind one exact external-data facade", async (t) => {
   const root = await makeGraph(t);
   for (const entry of ["app/(fr)/page.tsx", "app/(fr)/contact/page.tsx"]) {
     await moduleFile(
@@ -147,14 +147,57 @@ test("the landing loader exception is path- and entry-specific and remains a lea
   await moduleFile(
     root,
     "lib/landing/menuExperiences.ts",
-    'import privateData from "@/lib/admin/private"; export const getLandingExperiences = privateData;'
+    'import { resolveLandingPublicMenuRenderContext } from "@/lib/landing/publicLandingMenuData"; export const getLandingExperiences = resolveLandingPublicMenuRenderContext;'
   );
-  await moduleFile(root, "lib/admin/private.ts", "export default {};\n");
+  await moduleFile(
+    root,
+    "lib/landing/publicLandingMenuData.ts",
+    'import { resolvePublicMenuRenderContext } from "@/lib/menu/publicMenuRenderContext"; export const resolveLandingPublicMenuRenderContext = resolvePublicMenuRenderContext;'
+  );
+  await moduleFile(
+    root,
+    "lib/menu/publicMenuRenderContext.ts",
+    'import admin from "@/utils/supabase/admin"; export const resolvePublicMenuRenderContext = admin;'
+  );
+  await moduleFile(root, "utils/supabase/admin.ts", "export default {};\n");
 
   assert.deepEqual(
     await inspectStaticPublicImportBoundary(["app/(fr)/page.tsx"], { root }),
     []
   );
+
+  await moduleFile(
+    root,
+    "lib/landing/menuExperiences.ts",
+    [
+      'import { resolveLandingPublicMenuRenderContext } from "@/lib/landing/publicLandingMenuData";',
+      'import privateData from "@/lib/admin/private";',
+      "export const privateSecret = process.env.INTERNAL_LANDING_SECRET;",
+      "export const signed = (storage) => storage.createSignedUrl('landing');",
+      "export const getLandingExperiences = resolveLandingPublicMenuRenderContext;",
+      "void privateData;"
+    ].join("\n")
+  );
+  await moduleFile(root, "lib/admin/private.ts", "export default {};\n");
+  const landingFindings = await inspectStaticPublicImportBoundary(
+    ["app/(fr)/page.tsx"],
+    { root }
+  );
+  for (const [file, rule, detail] of [
+    ["lib/admin/private.ts", "forbidden-path", "lib/admin/private"],
+    ["lib/landing/menuExperiences.ts", "non-public-environment", "INTERNAL_LANDING_SECRET"],
+    ["lib/landing/menuExperiences.ts", "signed-url-capability", "createSignedUrl"]
+  ]) {
+    assert.ok(
+      landingFindings.some(
+        (finding) =>
+          finding.file === file &&
+          finding.rule === rule &&
+          finding.detail === detail
+      ),
+      `${file} must prove ${rule}`
+    );
+  }
   const contactFindings = await inspectStaticPublicImportBoundary(
     ["app/(fr)/contact/page.tsx"],
     { root }
@@ -177,6 +220,125 @@ test("the landing loader exception is path- and entry-specific and remains a lea
   assert.ok(
     directFindings.some(
       (finding) => finding.rule === "landing-loader-boundary"
+    )
+  );
+});
+
+test("the public external-data facade is scanned and enforces its exact delegate", async (t) => {
+  const root = await makeGraph(t);
+  await moduleFile(
+    root,
+    "app/(fr)/page.tsx",
+    'import { VistairePreviewLanding } from "@/components/vistaire-preview/VistairePreviewLanding"; void VistairePreviewLanding;'
+  );
+  await moduleFile(
+    root,
+    "components/vistaire-preview/VistairePreviewLanding.tsx",
+    'import { VistaireLanding } from "@/components/landing/VistaireLanding"; export const VistairePreviewLanding = VistaireLanding;'
+  );
+  await moduleFile(
+    root,
+    "components/landing/VistaireLanding.tsx",
+    'import { getLandingExperiences } from "@/lib/landing/menuExperiences"; export const VistaireLanding = getLandingExperiences;'
+  );
+  await moduleFile(
+    root,
+    "lib/landing/menuExperiences.ts",
+    'import { resolveLandingPublicMenuRenderContext } from "@/lib/landing/publicLandingMenuData"; export const getLandingExperiences = resolveLandingPublicMenuRenderContext;'
+  );
+  await moduleFile(
+    root,
+    "lib/landing/publicLandingMenuData.ts",
+    [
+      'import { resolvePublicMenuRenderContext } from "@/lib/menu/publicMenuRenderContext";',
+      'import extra from "@/safe/extra";',
+      "export const leaked = process.env.INTERNAL_FACADE_SECRET;",
+      "export const signed = (storage) => storage.createSignedUrl('facade');",
+      "export const resolveLandingPublicMenuRenderContext = resolvePublicMenuRenderContext;",
+      "void extra;"
+    ].join("\n")
+  );
+  await moduleFile(
+    root,
+    "lib/menu/publicMenuRenderContext.ts",
+    'import admin from "@/utils/supabase/admin"; export const resolvePublicMenuRenderContext = admin;'
+  );
+  await moduleFile(root, "utils/supabase/admin.ts", "export default {};\n");
+  await moduleFile(root, "safe/extra.ts", "export default {};\n");
+
+  const facadeFindings = await inspectStaticPublicImportBoundary(
+    ["app/(fr)/page.tsx"],
+    { root }
+  );
+  assert.ok(
+    facadeFindings.some(
+      (finding) =>
+        finding.file === "lib/landing/publicLandingMenuData.ts" &&
+        finding.rule === "public-data-facade-import" &&
+        finding.detail === "@/safe/extra"
+    )
+  );
+  assert.ok(
+    facadeFindings.some(
+      (finding) =>
+        finding.file === "lib/landing/publicLandingMenuData.ts" &&
+        finding.rule === "non-public-environment" &&
+        finding.detail === "INTERNAL_FACADE_SECRET"
+    )
+  );
+  assert.ok(
+    facadeFindings.some(
+      (finding) =>
+        finding.file === "lib/landing/publicLandingMenuData.ts" &&
+        finding.rule === "signed-url-capability"
+    )
+  );
+  assert.equal(
+    facadeFindings.some(
+      (finding) => finding.file === "utils/supabase/admin.ts"
+    ),
+    false,
+    "only the exact delegate edge may remain opaque"
+  );
+
+  await moduleFile(
+    root,
+    "lib/landing/publicLandingMenuData.ts",
+    'import "server-only"; export const resolveLandingPublicMenuRenderContext = null;'
+  );
+  const missingDelegateFindings = await inspectStaticPublicImportBoundary(
+    ["app/(fr)/page.tsx"],
+    { root }
+  );
+  assert.ok(
+    missingDelegateFindings.some(
+      (finding) =>
+        finding.file === "lib/landing/publicLandingMenuData.ts" &&
+        finding.rule === "public-data-facade-import" &&
+        finding.detail ===
+          "missing @/lib/menu/publicMenuRenderContext"
+    )
+  );
+
+  await moduleFile(
+    root,
+    "lib/landing/menuExperiences.ts",
+    'import { resolveLandingPublicMenuRenderContext } from "@/lib/landing/publicLandingMenuDataPreview"; export const getLandingExperiences = resolveLandingPublicMenuRenderContext;'
+  );
+  await moduleFile(
+    root,
+    "lib/landing/publicLandingMenuDataPreview.ts",
+    'import { resolvePublicMenuRenderContext } from "@/lib/menu/publicMenuRenderContext"; export const resolveLandingPublicMenuRenderContext = resolvePublicMenuRenderContext;'
+  );
+  const nearMissFindings = await inspectStaticPublicImportBoundary(
+    ["app/(fr)/page.tsx"],
+    { root }
+  );
+  assert.ok(
+    nearMissFindings.some(
+      (finding) =>
+        finding.file === "utils/supabase/admin.ts" &&
+        finding.rule === "forbidden-path"
     )
   );
 });
@@ -204,13 +366,47 @@ test("only the four reviewed SEO comparison entries may use the landing loader d
   await moduleFile(
     root,
     "lib/landing/menuExperiences.ts",
-    'import privateData from "@/lib/admin/private"; export const getLandingExperiences = privateData;'
+    'import { resolveLandingPublicMenuRenderContext } from "@/lib/landing/publicLandingMenuData"; export const getLandingExperiences = resolveLandingPublicMenuRenderContext;'
   );
-  await moduleFile(root, "lib/admin/private.ts", "export default {};\n");
+  await moduleFile(
+    root,
+    "lib/landing/publicLandingMenuData.ts",
+    'import { resolvePublicMenuRenderContext } from "@/lib/menu/publicMenuRenderContext"; export const resolveLandingPublicMenuRenderContext = resolvePublicMenuRenderContext;'
+  );
+  await moduleFile(
+    root,
+    "lib/menu/publicMenuRenderContext.ts",
+    'import admin from "@/utils/supabase/admin"; export const resolvePublicMenuRenderContext = admin;'
+  );
+  await moduleFile(root, "utils/supabase/admin.ts", "export default {};\n");
 
   assert.deepEqual(
     await inspectStaticPublicImportBoundary(reviewedEntries, { root }),
     []
+  );
+
+  await moduleFile(
+    root,
+    "lib/landing/menuExperiences.ts",
+    [
+      'import { resolveLandingPublicMenuRenderContext } from "@/lib/landing/publicLandingMenuData";',
+      'import privateData from "@/lib/admin/private";',
+      "export const getLandingExperiences = resolveLandingPublicMenuRenderContext;",
+      "void privateData;"
+    ].join("\n")
+  );
+  await moduleFile(root, "lib/admin/private.ts", "export default {};\n");
+  const reviewedFindings = await inspectStaticPublicImportBoundary(
+    reviewedEntries,
+    { root }
+  );
+  assert.equal(
+    reviewedFindings.filter(
+      (finding) =>
+        finding.file === "lib/admin/private.ts" &&
+        finding.rule === "forbidden-path"
+    ).length,
+    reviewedEntries.length
   );
 
   await moduleFile(
@@ -363,13 +559,93 @@ test("NODE_TEST_CONTEXT is allowed only in the exact Sauge renderer binding", as
   );
 });
 
-test("the repository's two roots and exact 26 named pages keep a public-only graph", async () => {
-  assert.equal(STATIC_PUBLIC_NAMED_PAGE_ENTRIES.length, 26);
-  assert.deepEqual(
-    STATIC_PUBLIC_ENTRY_FILES.slice(0, 2),
-    ["app/(fr)/layout.tsx", "app/(en)/layout.tsx"]
+test("lib/seo accepts only explicit approved environment reads", async (t) => {
+  const root = await makeGraph(t);
+  const seo = "lib/seo.ts";
+  await moduleFile(
+    root,
+    seo,
+    [
+      "export const publicSite = process.env.NEXT_PUBLIC_SITE_URL;",
+      "export const site = process.env.SITE_URL;",
+      "export const production = process.env.VERCEL_PROJECT_PRODUCTION_URL;",
+      "export const preview = process.env.VERCEL_URL;"
+    ].join("\n")
   );
-  assert.equal(STATIC_PUBLIC_ENTRY_FILES.length, 28);
+  assert.deepEqual(
+    await inspectStaticPublicImportBoundary([seo], { root }),
+    []
+  );
+
+  await moduleFile(
+    root,
+    seo,
+    [
+      "export const publicSite = process.env.NEXT_PUBLIC_SITE_URL;",
+      "export const copied = { ...process.env };",
+      "export const { INTERNAL_SEO_SECRET } = process.env;"
+    ].join("\n")
+  );
+  const findings = await inspectStaticPublicImportBoundary([seo], { root });
+  assert.ok(
+    findings.some(
+      (finding) =>
+        finding.file === seo &&
+        finding.rule === "non-public-environment" &&
+        finding.detail === "<process.env>"
+    )
+  );
+});
+
+test("Maison Elyse public identity stays dependency-free and scanner-visible", async () => {
+  const identityPath = "lib/maisonElyseIdentity.ts";
+  const source = await readFile(
+    new URL(`../${identityPath}`, import.meta.url),
+    "utf8"
+  );
+  assert.doesNotMatch(
+    source,
+    /\b(?:import\s*(?:\(|["'{*])|require\s*\(|from\s*["'])/
+  );
+  assert.match(source, /process\.env\.NEXT_PUBLIC_DEMO_RESTAURANT_ID/);
+  assert.deepEqual(
+    await inspectStaticPublicImportBoundary([identityPath]),
+    []
+  );
+});
+
+test("the composed French SEO layout is part of the scanned static graph", async (t) => {
+  const seoLayout = "app/(fr)/(seo)/layout.tsx";
+  assert.ok(STATIC_PUBLIC_ENTRY_FILES.includes(seoLayout));
+
+  const root = await makeGraph(t);
+  await moduleFile(
+    root,
+    seoLayout,
+    'import privateData from "@/lib/admin/private"; export default function Layout({ children }) { void privateData; return children; }'
+  );
+  await moduleFile(root, "lib/admin/private.ts", "export default {};\n");
+
+  const findings = await inspectStaticPublicImportBoundary([seoLayout], {
+    root
+  });
+  assert.ok(
+    findings.some(
+      (finding) =>
+        finding.file === "lib/admin/private.ts" &&
+        finding.rule === "forbidden-path"
+    )
+  );
+});
+
+test("the repository's layouts and exact 26 named pages keep a public-only graph", async () => {
+  assert.equal(STATIC_PUBLIC_NAMED_PAGE_ENTRIES.length, 26);
+  assert.deepEqual(STATIC_PUBLIC_ENTRY_FILES.slice(0, 3), [
+    "app/(fr)/layout.tsx",
+    "app/(fr)/(seo)/layout.tsx",
+    "app/(en)/layout.tsx"
+  ]);
+  assert.equal(STATIC_PUBLIC_ENTRY_FILES.length, 29);
   assert.deepEqual(
     await inspectStaticPublicImportBoundary(STATIC_PUBLIC_ENTRY_FILES),
     []

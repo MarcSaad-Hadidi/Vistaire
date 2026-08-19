@@ -15,7 +15,7 @@ import {
   type AnyRow
 } from "@/lib/analytics/serverRows";
 import { getSupabaseAdminClient } from "@/utils/supabase/admin";
-import { getDemoRestaurantId } from "@/lib/analytics/insights";
+import { getDemoRestaurantId } from "@/lib/maisonElyseIdentity";
 import {
   buildRuleBasedOwnerRecommendations,
   getAutomaticOwnerRecommendations

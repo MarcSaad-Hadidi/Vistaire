@@ -94,6 +94,12 @@ export function validateStaticPublicRoutes(manifest) {
     }
   }
 
+  for (const route of dynamic) {
+    if (isApprovedDynamicSurface(route)) {
+      throw new Error(`dynamic route is prerendered: ${route}`);
+    }
+  }
+
   return {
     named: [...NAMED_STATIC_PUBLIC_ROUTES],
     dynamic

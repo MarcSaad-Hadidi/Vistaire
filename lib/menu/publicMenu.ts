@@ -7,7 +7,7 @@ import {
   getString,
   readSupabaseRowsByFilters
 } from "@/lib/analytics/serverRows";
-import { getDemoRestaurantId } from "@/lib/analytics/insights";
+import { getDemoRestaurantId } from "@/lib/maisonElyseIdentity";
 import {
   getAllDishes,
   getCategoryBySlug,
