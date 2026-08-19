@@ -54,6 +54,7 @@ const RESOLUTION_EXTENSIONS = [".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs"];
 const FORBIDDEN_PACKAGES = [
   "next/headers",
   "next/cookies",
+  "next/font/google",
   "@clerk/nextjs/server"
 ];
 const FORBIDDEN_PATH_PATTERNS = [

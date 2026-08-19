@@ -65,6 +65,30 @@ test("relative, alias, index and literal dynamic imports are all traversed", asy
   }
 });
 
+test("Google font loaders are rejected from static public import graphs", async (t) => {
+  const root = await makeGraph(t);
+  await moduleFile(root, "entry.ts", 'import "./typography";');
+  await moduleFile(
+    root,
+    "typography.ts",
+    'import { Inter } from "next/font/google"; export const font = Inter;'
+  );
+
+  const findings = await inspectStaticPublicImportBoundary(["entry.ts"], {
+    root
+  });
+
+  assert.ok(
+    findings.some(
+      (finding) =>
+        finding.file === "typography.ts" &&
+        finding.rule === "forbidden-package" &&
+        finding.detail === "next/font/google"
+    ),
+    "the static graph must reject the build-time Google font loader"
+  );
+});
+
 test("private server paths and non-public environment reads fail closed", async (t) => {
   const root = await makeGraph(t);
   const privateModules = [

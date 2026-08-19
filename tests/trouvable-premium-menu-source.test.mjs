@@ -661,19 +661,25 @@ test("Trouvable back-to-top control matches the compact reference and adapts to 
   );
 });
 
-test("Trouvable typography uses optimized next/font variables for display and UI", async () => {
+test("Trouvable typography keeps a hermetic class-name interface and CSS fallback stacks", async () => {
   const page = await readFile(pagePath, "utf8");
   const dishPage = await readFile(dishPagePath, "utf8");
   const source = await readFile(componentPath, "utf8");
   const detailSource = await readFile(dishDetailPath, "utf8");
   const typography = await readFile(typographyPath, "utf8");
+  const css = await readFile(cssPath, "utf8");
 
-  assert.match(typography, /from "next\/font\/google"/);
-  assert.match(typography, /Inter\(/);
-  assert.match(typography, /Noto_Serif_Display\(/);
-  assert.match(typography, /variable:\s*"--trouvable-font-ui"/);
-  assert.match(typography, /variable:\s*"--trouvable-font-display"/);
-  assert.match(typography, /style:\s*\["normal", "italic"\]/);
+  assert.doesNotMatch(typography, /next\/font\/(?:google|local)/);
+  assert.doesNotMatch(css, /fonts\.googleapis\.com/i);
+  assert.match(
+    typography,
+    /export const trouvableTypographyClassName:\s*string\s*=\s*"";/
+  );
+  assert.match(css, /--trouvable-font-ui:\s*Inter,\s*sans-serif/);
+  assert.match(
+    css,
+    /--trouvable-font-display:\s*"Noto Serif Display",\s*Georgia,\s*serif/
+  );
   assert.match(page, /typographyClassName=\{trouvableTypographyClassName\}/);
   assert.match(dishPage, /typographyClassName=\{trouvableTypographyClassName\}/);
   assert.match(source, /typographyClassName/);

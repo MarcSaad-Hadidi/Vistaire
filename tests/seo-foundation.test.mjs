@@ -163,7 +163,7 @@ test("publishes an llms.txt guide for public AI crawlers without private claims"
 
 test("keeps demo admin out of search indexes and removes legacy dish pages", () => {
   const adminLayout = readFileSync(
-    join(process.cwd(), "app", "admin", "layout.tsx"),
+    join(process.cwd(), "app", "(fr)", "admin", "layout.tsx"),
     "utf8"
   );
   const dishPagePath = join(process.cwd(), "app", "demo", "dishes", "[slug]", "page.tsx");
@@ -184,7 +184,7 @@ test("keeps demo admin out of search indexes and removes legacy dish pages", () 
 
 test("declares an indexable public restaurateur dashboard page", () => {
   const page = readFileSync(
-    join(process.cwd(), "app", "apercu-restaurateur", "page.tsx"),
+    join(process.cwd(), "app", "(fr)", "apercu-restaurateur", "page.tsx"),
     "utf8"
   );
   const header = readFileSync(join(process.cwd(), "components", "Header.tsx"), "utf8");

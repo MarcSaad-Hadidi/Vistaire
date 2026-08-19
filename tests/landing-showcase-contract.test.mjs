@@ -267,8 +267,11 @@ test("landing Trouvable comparison uses the public route typography contract", a
     source("app/(fr)/menu/[slug]/trouvableTypography.ts")
   ]);
 
-  assert.match(typography, /Inter\(/);
-  assert.match(typography, /Noto_Serif_Display\(/);
+  assert.doesNotMatch(typography, /next\/font\/(?:google|local)/);
+  assert.match(
+    typography,
+    /export const trouvableTypographyClassName:\s*string\s*=\s*"";/
+  );
   assert.match(publicRoute, /typographyClassName=\{trouvableTypographyClassName\}/);
   assert.match(trouvablePreview, /trouvableTypographyClassName/);
   assert.match(
