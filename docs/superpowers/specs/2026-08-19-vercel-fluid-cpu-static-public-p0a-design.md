@@ -8,6 +8,11 @@ P0-A changes the rendering architecture for named public marketing routes. It mu
 
 This design does not authorize a production deployment, a merge to `main`, a migration, a paid service, a Vercel or Cloudflare dashboard change, or the P0-B landing/menu cache work.
 
+The user approved two binding clarifications after the initial specification commit:
+
+1. P0-A does not change any landing or menu cache TTL, tag, invalidation, deduplication, persistence, or signed-URL strategy. The homepage target is **static or ISR with current cache semantics preserved**, never “ISR 900 seconds” in P0-A.
+2. Static generation must remain hermetic and must not serialize sensitive or ephemeral material into HTML, RSC payloads, manifests, build artifacts, or durable caches.
+
 ## Certified baseline
 
 - Package manager: npm, proven by `package-lock.json`.
@@ -60,6 +65,8 @@ English:
 - `/en/restaurant-preview`, provided its existing fixture remains isolated and request-independent
 
 The build is the authority for the final `○`/ISR classification. A named route may remain `ƒ` only if a request-time dependency is found, documented with code evidence, and explicitly accepted before P0-A is declared complete.
+
+The P0-A route table must describe `/` exactly as “static or ISR with current cache semantics preserved.” A 900-second TTL is not part of this phase.
 
 ### Routes that intentionally remain dynamic
 
@@ -220,9 +227,32 @@ P0-A removes only request-time dependencies that are unnecessary for the named m
 
 The landing may continue using its current cache implementation and TTL during P0-A. Cache TTL, menu data caching, tags, invalidation, deduplication, and signed-URL handling belong exclusively to P0-B.
 
+No P0-A commit may change the existing `revalidate` values in `lib/landing/menuExperiences.ts` or introduce public-menu durable caching. No cache implementation from PR #209 may be cherry-picked or reconstructed during this phase.
+
 Static generation must never import private admin/owner loaders, sessions, preview-only request state, or signed asset capabilities. `/apercu-restaurateur` and `/en/restaurant-preview` qualify only if their existing synthetic fixture and public components remain request-independent and their static import graph stays outside private boundaries.
 
 The build route table and `.next/prerender-manifest.json` provide acceptance evidence. Named routes that become ISR must expose their revalidation behavior in the manifest; routes intentionally left dynamic must remain `ƒ`.
+
+## Hermetic build and artifact-safety contract
+
+Before a named route is accepted as static or ISR, its build-time dependency graph must identify every read of Supabase, an HTTP API, another external service, environment variables, menu data, and dynamic asset metadata.
+
+When a public external source is unavailable during build, the route may use only an existing editorial or deterministic fallback already owned by Vistaire. It must not invent records, silently swallow an unexplained failure, add `force-dynamic` as an escape hatch, or require network access for the repository's hermetic CI build. The fallback branch and its observable output require a focused contract test.
+
+The production build must be exercised with the repository's hermetic environment controls when available. If the environment cannot technically block every outbound connection, the report must identify that limitation and separately prove through dependency injection, fixtures, or controlled failure that the named route can prerender without the external source.
+
+After each production build, automated and manual scans inspect generated HTML, RSC payloads, `.next/prerender-manifest.json`, relevant server/app manifests, and other emitted text artifacts for:
+
+- Supabase signed-object paths;
+- query parameters or fields named `token`, `signature`, or `expires` when they carry capability material;
+- known secret and cookie values supplied by the hermetic test environment;
+- Owner/Admin payload markers;
+- private capability URLs;
+- sensitive identifiers not already part of an approved public route contract.
+
+The scan uses synthetic sentinel values, never real secrets. A match is a blocking failure until classified and removed. Static HTML may contain stable public asset URLs and public restaurant/menu identifiers already required by the existing user-facing experience; it may not contain expiring access capabilities or private data.
+
+For every named static/ISR route, the intermediate report lists its external build reads, fallback behavior, and artifact-scan result. A route that cannot meet this contract stays dynamic temporarily, is documented with its exact dependency, and requires user approval before P0-A can be called conformant.
 
 ## Hero invariants
 
@@ -295,6 +325,8 @@ Repository checks for P0-A are:
 - `npm run typecheck` when present;
 - `npm run build`;
 - relevant public, SEO, landing, menu, auth, Sauge, Chromium, and WebKit suites;
+- the repository-supported hermetic build path or the closest controlled external-failure equivalent, without increasing timeouts, adding retries, or adding skips;
+- emitted-artifact scans using synthetic secret, cookie, token, signature, and expiry sentinels;
 - `git diff --check`;
 - final `git status --short` and generated-artifact cleanup.
 
@@ -319,6 +351,10 @@ P0-B cannot begin until the P0-A branch state has passed implementation review a
 - hero and Sauge evidence at 390 px and 430 px;
 - review findings classified P0/P1 and their disposition;
 - tests and commands with exact results;
+- every named route's build-time external reads and deterministic fallback;
+- hermetic-build evidence and emitted-artifact scan results;
+- confirmation that landing/menu TTLs, tags, invalidation, deduplication, and durable-cache behavior did not change;
+- exact before/after dynamic-route counts, marketing static/ISR counts, and expected Proxy invocation surface;
 - Preview status and controlled runtime logs if a Preview is available;
 - remaining risks and non-verifiable claims.
 
@@ -349,4 +385,4 @@ No report may claim a completed Fluid Active CPU reduction solely because tests 
 
 ## Self-review
 
-This specification contains no placeholder. It keeps P0-A independent from cache P0-B, lists every named marketing target and deliberate dynamic exception, defines an exact route movement map, preserves literal server-rendered language, localizes Sauge without request headers, keeps the q-value parser authoritative, makes the HTML `Vary` defect blocking, excludes `/` from the first Cloudflare rule, and prohibits production, migrations, remote settings, paid services, asset changes, and merges to `main`.
+This specification contains no placeholder. It keeps P0-A independent from cache P0-B, explicitly preserves every current TTL and cache policy, lists every named marketing target and deliberate dynamic exception, defines an exact route movement map, preserves literal server-rendered language, localizes Sauge without request headers, keeps the q-value parser authoritative, makes the HTML `Vary` defect blocking, requires hermetic prerendering and synthetic-sentinel artifact scans, excludes `/` from the first Cloudflare rule, and prohibits production, migrations, remote settings, paid services, asset changes, and merges to `main`.
