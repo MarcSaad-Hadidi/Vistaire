@@ -410,6 +410,8 @@ test("landing serializes only the default renderer and lazy-loads inactive resta
       /\/api\/public\/landing-menu-preview\/\$\{activeExperience\.id\}/
     );
     assert.match(client, /AbortController/);
+    assert.match(client, /controller\.signal\.aborted/);
+    assert.doesNotMatch(client, /instanceof DOMException/);
     assert.match(client, /previewPayloads/);
     assert.match(client, /payloadMatchesExperience/);
   }
