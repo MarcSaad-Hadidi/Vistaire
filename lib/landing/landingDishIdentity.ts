@@ -1,4 +1,5 @@
 import type { PublicMenuDish } from "../menu/publicMenuCore";
+import { isPrivateCapabilityUrl } from "../cache/publicCacheSafety";
 
 export type LandingDishIdentity = {
   id?: string | null;
@@ -35,27 +36,14 @@ function normalizedSlug(value: unknown): string {
   return text(value).toLowerCase();
 }
 
-const CREDENTIAL_QUERY_KEYS = new Set([
-  "token",
-  "signature",
-  "expires",
-  "x-amz-algorithm",
-  "x-amz-credential",
-  "x-amz-signature",
-  "x-amz-security-token"
-]);
-
 type LandingMediaClassification =
   | "stable"
   | "private-capability"
   | "mismatched-canonical"
   | "unsupported";
 
-function hasCredentialQuery(parsed: URL): boolean {
-  return [...parsed.searchParams.keys()].some((key) =>
-    CREDENTIAL_QUERY_KEYS.has(key.trim().toLowerCase())
-  );
-}
+const UNSUPPORTED_MEDIA_PROTOCOL =
+  /^(?:data|blob|file|javascript|vbscript):/i;
 
 function classifyLandingMediaUrl(
   value: unknown,
@@ -63,6 +51,7 @@ function classifyLandingMediaUrl(
 ): LandingMediaClassification {
   const url = text(value);
   if (!url) return "unsupported";
+  if (UNSUPPORTED_MEDIA_PROTOCOL.test(url)) return "unsupported";
 
   let parsed: URL;
   try {
@@ -76,15 +65,7 @@ function classifyLandingMediaUrl(
     return "mismatched-canonical";
   }
 
-  const signedStoragePath = parsed.pathname
-    .toLowerCase()
-    .includes("/storage/v1/object/sign/");
-  if (
-    parsed.username ||
-    parsed.password ||
-    signedStoragePath ||
-    hasCredentialQuery(parsed)
-  ) {
+  if (isPrivateCapabilityUrl(url)) {
     return "private-capability";
   }
 

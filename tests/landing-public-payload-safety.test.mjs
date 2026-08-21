@@ -185,6 +185,52 @@ test("a public ready photo replaces a signed source with its canonical route", (
   );
 });
 
+test("landing photos reuse the recursive capability boundary without changing stable fallbacks", () => {
+  const privateSources = [
+    "//user:synthetic-password@cdn.example.test/live.webp",
+    "https://project.supabase.co/STORAGE/V1/OBJECT/SIGN/dishes/live.webp",
+    "https://cdn.example.test/live.webp?X-Amz-Expires=900"
+  ];
+  for (const imageUrl of privateSources) {
+    assert.deepEqual(
+      landingPhotoForDish(
+        dish({ id: "ready-dish", imageUrl, hasPhoto: true, photoStatus: "ready" })
+      ),
+      {
+        source: "imageUrl",
+        url: "/api/public/menu-dishes/ready-dish/photo"
+      },
+      imageUrl
+    );
+  }
+
+  assert.deepEqual(
+    landingPhotoForDish(
+      dish({
+        id: "ready-dish",
+        imageUrl: "/api/public/menu-dishes/ready-dish/photo?v=release-8",
+        hasPhoto: true,
+        photoStatus: "ready"
+      })
+    ),
+    {
+      source: "imageUrl",
+      url: "/api/public/menu-dishes/ready-dish/photo?v=release-8"
+    }
+  );
+  assert.equal(
+    landingPhotoForDish(
+      dish({
+        id: "ready-dish",
+        imageUrl: "/api/public/menu-dishes/another-dish/photo?v=release-8",
+        hasPhoto: true,
+        photoStatus: "ready"
+      })
+    ),
+    null
+  );
+});
+
 test("the landing menu projection sanitizes image and thumbnail fields independently", () => {
   const signedImage =
     "https://project.supabase.co/storage/v1/object/sign/dishes/live.webp?token=synthetic-capability";
