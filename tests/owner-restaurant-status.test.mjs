@@ -598,6 +598,75 @@ test("restaurant delete invalidates its retained slug after deleted and before s
   );
 });
 
+test("restaurant delete reschedules retained identity and controls thrown Storage cleanup", async () => {
+  for (const failureStage of ["list", "remove"]) {
+    const events = [];
+    const commits = [];
+    const sentinel = `${failureStage}-storage-secret`;
+    const result = await deleteRestaurantRecord(
+      RESTAURANT_ID,
+      { confirmation: "Bistro Test", deleteStorage: true },
+      {
+        admin: {
+          ok: true,
+          client: deleteClient({
+            onRpc() {
+              events.push("rpc:deleted");
+            },
+            storage: {
+              from() {
+                return {
+                  async list() {
+                    events.push("cleanup:list");
+                    if (failureStage === "list") throw new Error(sentinel);
+                    return {
+                      data: [{ id: "storage-object", name: "model.glb" }],
+                      error: null
+                    };
+                  },
+                  async remove() {
+                    events.push("cleanup:remove");
+                    if (failureStage === "remove") throw new Error(sentinel);
+                    return { data: [], error: null };
+                  }
+                };
+              }
+            }
+          })
+        },
+        onPublicCommit: async (commit) => {
+          commits.push(commit);
+          events.push(`invalidate:${commit.kind}:${commit.restaurantSlug}`);
+        }
+      }
+    );
+
+    assert.equal(result.ok, true);
+    assert.equal(result.restaurantDeleted, true);
+    assert.equal(result.storage.attempted, true);
+    assert.deepEqual(commits, [
+      {
+        kind: "deleted",
+        restaurantId: RESTAURANT_ID,
+        restaurantSlug: "bistro-test"
+      },
+      {
+        kind: "deleted",
+        restaurantId: RESTAURANT_ID,
+        restaurantSlug: "bistro-test"
+      }
+    ]);
+    assert.equal(
+      events.filter((event) => event === "invalidate:deleted:bistro-test").length,
+      2
+    );
+    assert.ok(events.indexOf("rpc:deleted") < events.indexOf("invalidate:deleted:bistro-test"));
+    assert.ok(events.indexOf("invalidate:deleted:bistro-test") < events.indexOf("cleanup:list"));
+    assert.match(result.storage.warnings.join("\n"), /nettoyage.*differe/i);
+    assert.equal(JSON.stringify(result).includes(sentinel), false);
+  }
+});
+
 test("restaurant dish media cleanup warnings are reported after confirmed DB deletion", async () => {
   const result = await deleteRestaurantRecord(
     RESTAURANT_ID,

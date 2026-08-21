@@ -125,7 +125,7 @@ function request(method, body) {
   });
 }
 
-function baseHooks(events) {
+function baseHooks(events, options = {}) {
   return {
     ownerAuth: async () => ({ ok: true }),
     sameOrigin: () => null,
@@ -149,18 +149,28 @@ function baseHooks(events) {
     },
     deleteRestaurant: async (_restaurantId, _confirmation, dependencies) => {
       events.push("commit:deleted");
-      await dependencies.onPublicCommit?.({
+      const commit = {
         kind: "deleted",
         restaurantId: RESTAURANT_ID,
         restaurantSlug: "bistro-test"
-      });
+      };
+      await dependencies.onPublicCommit?.(commit);
+      if (options.cleanupThrows) {
+        await dependencies.onPublicCommit?.(commit);
+      }
       return {
         ok: true,
         restaurantId: RESTAURANT_ID,
         restaurantDeleted: true,
         deleted: { restaurants: 1 },
         skipped: [],
-        storage: { attempted: false, deletedFiles: 0, warnings: [] },
+        storage: {
+          attempted: options.cleanupThrows === true,
+          deletedFiles: 0,
+          warnings: options.cleanupThrows
+            ? ["Nettoyage Storage differe apres suppression."]
+            : []
+        },
         warnings: []
       };
     },
@@ -199,4 +209,23 @@ test("create handler returns a controlled response for malformed post-commit dat
     ok: false,
     error: "Creation invalide apres commit."
   });
+});
+
+test("both delete handlers return a redacted committed response after cleanup failure", async () => {
+  for (const route of [legacyRoute, ownerDeleteRoute]) {
+    const events = [];
+    globalThis[hooksSymbol] = baseHooks(events, { cleanupThrows: true });
+    const response = await route.DELETE(
+      request("DELETE", { confirmation: "Bistro Test", deleteStorage: true }),
+      { params: Promise.resolve({ restaurantId: RESTAURANT_ID }) }
+    );
+    const body = await response.json();
+
+    assert.equal(response.status, 200);
+    assert.equal(body.ok, true);
+    assert.equal(body.restaurantDeleted, true);
+    assert.equal(events.filter((event) => event === "invalidate:bistro-test").length, 2);
+    assert.match(body.storage.warnings.join("\n"), /nettoyage.*differe/i);
+    assert.equal(JSON.stringify(body).includes("storage-secret"), false);
+  }
 });

@@ -574,6 +574,20 @@ async function cleanupRestaurantStorage(args: {
   return report;
 }
 
+function deferredRestaurantStorageReport(args: {
+  restaurant: Record<string, unknown>;
+  env: Record<string, string | undefined>;
+  shouldAttempt: boolean;
+}): RestaurantStorageCleanupReport {
+  return {
+    attempted: args.shouldAttempt,
+    deletedFiles: 0,
+    buckets: storageBuckets(args.env),
+    prefixes: storagePrefixes(args.restaurant),
+    warnings: ["Nettoyage Storage differe apres suppression du restaurant."]
+  };
+}
+
 async function collectRestaurantDishMediaRows(args: {
   client: SupabaseRestaurantStatusClient;
   restaurantId: string;
@@ -818,31 +832,43 @@ export async function deleteRestaurantRecord(
   }
 
   if (rpcResult.kind === "deleted") {
-    await dependencies.onPublicCommit?.({
+    const publicCommit = Object.freeze({
       kind: "deleted",
       restaurantId: restaurantIdValue,
       restaurantSlug: getString(restaurant, "slug") || getString(restaurant, "name")
-    });
+    }) satisfies RestaurantLifecyclePublicCommit;
+    await dependencies.onPublicCommit?.(publicCommit);
 
-    const storage = await cleanupRestaurantStorage({
-      client: dependencies.admin.client,
-      restaurant,
-      env: dependencies.env ?? process.env,
-      shouldAttempt: confirmation.deleteStorage === true
-    });
-    if (confirmation.deleteStorage === true) {
-      const dishMedia = await cleanupRestaurantDishMedia({
+    const cleanupEnv = dependencies.env ?? process.env;
+    let storage: RestaurantStorageCleanupReport;
+    try {
+      storage = await cleanupRestaurantStorage({
         client: dependencies.admin.client,
-        restaurantId: restaurantIdValue,
-        rows: dishMediaRows.rows
+        restaurant,
+        env: cleanupEnv,
+        shouldAttempt: confirmation.deleteStorage === true
       });
-      storage.deletedFiles += dishMedia.deleted.length;
-      storage.warnings.push(...dishMedia.warnings);
-      storage.dishMedia = {
-        deletedFiles: dishMedia.deleted.length,
-        skippedFiles: dishMedia.skipped.length,
-        warnings: dishMedia.warnings
-      };
+      if (confirmation.deleteStorage === true) {
+        const dishMedia = await cleanupRestaurantDishMedia({
+          client: dependencies.admin.client,
+          restaurantId: restaurantIdValue,
+          rows: dishMediaRows.rows
+        });
+        storage.deletedFiles += dishMedia.deleted.length;
+        storage.warnings.push(...dishMedia.warnings);
+        storage.dishMedia = {
+          deletedFiles: dishMedia.deleted.length,
+          skippedFiles: dishMedia.skipped.length,
+          warnings: dishMedia.warnings
+        };
+      }
+    } catch {
+      await dependencies.onPublicCommit?.(publicCommit);
+      storage = deferredRestaurantStorageReport({
+        restaurant,
+        env: cleanupEnv,
+        shouldAttempt: confirmation.deleteStorage === true
+      });
     }
 
     return {
