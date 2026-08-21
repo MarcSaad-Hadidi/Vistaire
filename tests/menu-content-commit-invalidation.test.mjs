@@ -80,6 +80,10 @@ function queuedClient(entries, events = []) {
       const entry = queues.get(table)?.shift();
       assert.ok(entry, `Unexpected query for ${table}`);
       let operation = "read";
+      const settle = () => {
+        if (entry.reject) throw entry.reject;
+        return entry.result;
+      };
       const builder = {
         select() { return builder; },
         eq() { return builder; },
@@ -91,15 +95,15 @@ function queuedClient(entries, events = []) {
         delete() { operation = "delete"; return builder; },
         async single() {
           events.push(`${operation}:${entry.label}`);
-          return entry.result;
+          return settle();
         },
         async maybeSingle() {
           events.push(`${operation}:${entry.label}`);
-          return entry.result;
+          return settle();
         },
         then(resolve, reject) {
           events.push(`${operation}:${entry.label}`);
-          return Promise.resolve(entry.result).then(resolve, reject);
+          return Promise.resolve().then(settle).then(resolve, reject);
         }
       };
       return builder;
@@ -143,6 +147,104 @@ test("a newly committed primary menu invalidates even when category creation lat
   assert.ok(events.indexOf("insert:primary-menu-commit") < events.indexOf("invalidate"));
   assert.ok(events.indexOf("invalidate") < events.indexOf("insert:category-failed"));
   assert.equal(events.filter((event) => event === "invalidate").length, 1);
+});
+
+test("category creation converts a downstream rejection after primary-menu commit to a controlled result", async () => {
+  const events = [];
+  const client = queuedClient(
+    {
+      restaurants: [
+        { label: "restaurant", result: { data: { id: "restaurant-id" }, error: null } }
+      ],
+      menus: [
+        { label: "menu-list", result: { data: [], error: null } },
+        {
+          label: "primary-menu-commit",
+          result: { data: { id: "menu-id", settings_json: {} }, error: null }
+        }
+      ],
+      menu_categories: [
+        {
+          label: "category-downstream-reject",
+          reject: new Error("never-print-this-category-sentinel")
+        }
+      ]
+    },
+    events
+  );
+
+  const result = await mutations.createOwnerMenuCategory({
+    client,
+    restaurantId: "restaurant-id",
+    input: { name: "Entrées" },
+    onPublicCommit: async () => events.push("invalidate")
+  });
+
+  assert.deepEqual(result, {
+    ok: false,
+    status: 503,
+    error: "Section impossible a creer."
+  });
+  assert.deepEqual(events, [
+    "read:restaurant",
+    "read:menu-list",
+    "insert:primary-menu-commit",
+    "invalidate",
+    "read:category-downstream-reject",
+    "invalidate"
+  ]);
+  assert.doesNotMatch(JSON.stringify(result), /never-print-this/);
+});
+
+test("dish creation converts a downstream rejection after primary-menu commit to a controlled result", async () => {
+  const events = [];
+  const client = queuedClient(
+    {
+      restaurants: [
+        { label: "restaurant", result: { data: { id: "restaurant-id" }, error: null } }
+      ],
+      menus: [
+        { label: "menu-list", result: { data: [], error: null } },
+        {
+          label: "primary-menu-commit",
+          result: { data: { id: "menu-id", settings_json: {} }, error: null }
+        }
+      ],
+      menu_categories: [
+        {
+          label: "dish-downstream-reject",
+          reject: new Error("never-print-this-dish-sentinel")
+        }
+      ]
+    },
+    events
+  );
+
+  const result = await mutations.createOwnerMenuDish({
+    client,
+    restaurantId: "restaurant-id",
+    input: {
+      name: "Turbot rôti",
+      categoryId: "category-id",
+      price: "24.00"
+    },
+    onPublicCommit: async () => events.push("invalidate")
+  });
+
+  assert.deepEqual(result, {
+    ok: false,
+    status: 503,
+    error: "Plat impossible a creer."
+  });
+  assert.deepEqual(events, [
+    "read:restaurant",
+    "read:menu-list",
+    "insert:primary-menu-commit",
+    "invalidate",
+    "read:dish-downstream-reject",
+    "invalidate"
+  ]);
+  assert.doesNotMatch(JSON.stringify(result), /never-print-this/);
 });
 
 function categoryUpdateClient({ succeeds }, events) {

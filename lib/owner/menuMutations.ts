@@ -59,6 +59,21 @@ type PrimaryMenuResult =
   | { ok: true; menu: PrimaryMenu }
   | { ok: false; status: 400 | 404 | 409 | 503; error: string };
 
+async function runAfterPrimaryMenuResolution(args: {
+  primaryMenuCommitted: boolean;
+  onPublicCommit?: OwnerMenuPublicCommitCallback;
+  controlledError: string;
+  run: () => Promise<MenuMutationResult>;
+}): Promise<MenuMutationResult> {
+  try {
+    return await args.run();
+  } catch (error) {
+    if (!args.primaryMenuCommitted) throw error;
+    await args.onPublicCommit?.({});
+    return { ok: false, status: 503, error: args.controlledError };
+  }
+}
+
 function objectInput(value: unknown): Record<string, unknown> {
   return value && typeof value === "object" && !Array.isArray(value)
     ? (value as Record<string, unknown>)
@@ -465,41 +480,52 @@ export async function createOwnerMenuCategory(args: {
     return { ok: false, status: 400, error: "Nom de section requis." };
   }
 
+  let primaryMenuCommitted = false;
   const menuResult = await ensurePrimaryMenu(
     args.client,
     args.restaurantId,
-    args.onPublicCommit
+    async (commit) => {
+      primaryMenuCommitted = true;
+      await args.onPublicCommit?.(commit);
+    }
   );
   if (!menuResult.ok) return menuResult;
-  const slug = await uniqueSlug({
-    client: args.client,
-    table: "menu_categories",
-    menuId: menuResult.menu.id,
-    name,
-    fallback: "section"
-  });
+  return runAfterPrimaryMenuResolution({
+    primaryMenuCommitted,
+    onPublicCommit: args.onPublicCommit,
+    controlledError: "Section impossible a creer.",
+    run: async () => {
+      const slug = await uniqueSlug({
+        client: args.client,
+        table: "menu_categories",
+        menuId: menuResult.menu.id,
+        name,
+        fallback: "section"
+      });
 
-  const inserted = await args.client
-    .from("menu_categories")
-    .insert({
-      restaurant_id: args.restaurantId,
-      menu_id: menuResult.menu.id,
-      name,
-      slug,
-      description,
-      display_order: await nextCategoryOrder(args.client, menuResult.menu.id)
-    })
-    .select("id,name,slug,description,display_order")
-    .single();
+      const inserted = await args.client
+        .from("menu_categories")
+        .insert({
+          restaurant_id: args.restaurantId,
+          menu_id: menuResult.menu.id,
+          name,
+          slug,
+          description,
+          display_order: await nextCategoryOrder(args.client, menuResult.menu.id)
+        })
+        .select("id,name,slug,description,display_order")
+        .single();
 
-  if (inserted.error || !inserted.data) {
-    if (isUniqueViolation(inserted.error)) {
-      return { ok: false, status: 409, error: "Une section avec ce nom existe deja." };
+      if (inserted.error || !inserted.data) {
+        if (isUniqueViolation(inserted.error)) {
+          return { ok: false, status: 409, error: "Une section avec ce nom existe deja." };
+        }
+        return { ok: false, status: 503, error: "Section impossible a creer." };
+      }
+      await args.onPublicCommit?.({});
+      return { ok: true, record: inserted.data };
     }
-    return { ok: false, status: 503, error: "Section impossible a creer." };
-  }
-  await args.onPublicCommit?.({});
-  return { ok: true, record: inserted.data };
+  });
 }
 
 export async function updateOwnerMenuCategory(args: {
@@ -706,82 +732,93 @@ export async function createOwnerMenuDish(args: {
   if (!categoryId) return { ok: false, status: 400, error: "Section du plat requise." };
   if (!parsedPrice.ok) return { ok: false, status: 400, error: parsedPrice.error };
 
+  let primaryMenuCommitted = false;
   const menuResult = await ensurePrimaryMenu(
     args.client,
     args.restaurantId,
-    args.onPublicCommit
+    async (commit) => {
+      primaryMenuCommitted = true;
+      await args.onPublicCommit?.(commit);
+    }
   );
   if (!menuResult.ok) return menuResult;
-  const category = await categoryForDish({
-    client: args.client,
-    restaurantId: args.restaurantId,
-    menuId: menuResult.menu.id,
-    categoryId
-  });
-  if (category.error) {
-    return { ok: false, status: 503, error: "Section impossible a verifier." };
-  }
-  if (!category.data?.id) {
-    return { ok: false, status: 404, error: "Section introuvable pour ce restaurant." };
-  }
+  return runAfterPrimaryMenuResolution({
+    primaryMenuCommitted,
+    onPublicCommit: args.onPublicCommit,
+    controlledError: "Plat impossible a creer.",
+    run: async () => {
+      const category = await categoryForDish({
+        client: args.client,
+        restaurantId: args.restaurantId,
+        menuId: menuResult.menu.id,
+        categoryId
+      });
+      if (category.error) {
+        return { ok: false, status: 503, error: "Section impossible a verifier." };
+      }
+      if (!category.data?.id) {
+        return { ok: false, status: 404, error: "Section introuvable pour ce restaurant." };
+      }
 
-  const settings = await readEffectiveMenuSettings({
-    client: args.client,
-    restaurantId: args.restaurantId,
-    menuId: menuResult.menu.id,
-    menuRow: menuResult.menu
-  });
-  const slug = await uniqueSlug({
-    client: args.client,
-    table: "menu_dishes",
-    menuId: menuResult.menu.id,
-    name,
-    fallback: "plat"
-  });
-  const displayOrder = await nextDishDisplayOrder({
-    client: args.client,
-    menuId: menuResult.menu.id,
-    categoryId
-  });
-  if (!displayOrder.ok) {
-    return { ok: false, status: 503, error: displayOrder.error };
-  }
-  const dishPayload = {
-    restaurant_id: args.restaurantId,
-    menu_id: menuResult.menu.id,
-    category_id: categoryId,
-    slug,
-    name,
-    short_description: description,
-    description,
-    price_cents: parsedPrice.cents,
-    currency: settings.baseCurrency,
-    is_available: available,
-    has_immersive_view: false,
-    allergens,
-    allergen_declarations: persistedAllergenDeclarations(allergenData),
-    metadata: {
-      ...dishMetadata({ photoStatus: "planned" }, parsedPrice, candidate),
-      displayOrder: displayOrder.value
-    },
-    ...(displayOrder.supportsColumn ? { display_order: displayOrder.value } : {})
-  };
-  const inserted = await args.client
-    .from("menu_dishes")
-    .insert(dishPayload)
-    .select("id,name,slug,category_id,price_cents,currency")
-    .single();
+      const settings = await readEffectiveMenuSettings({
+        client: args.client,
+        restaurantId: args.restaurantId,
+        menuId: menuResult.menu.id,
+        menuRow: menuResult.menu
+      });
+      const slug = await uniqueSlug({
+        client: args.client,
+        table: "menu_dishes",
+        menuId: menuResult.menu.id,
+        name,
+        fallback: "plat"
+      });
+      const displayOrder = await nextDishDisplayOrder({
+        client: args.client,
+        menuId: menuResult.menu.id,
+        categoryId
+      });
+      if (!displayOrder.ok) {
+        return { ok: false, status: 503, error: displayOrder.error };
+      }
+      const dishPayload = {
+        restaurant_id: args.restaurantId,
+        menu_id: menuResult.menu.id,
+        category_id: categoryId,
+        slug,
+        name,
+        short_description: description,
+        description,
+        price_cents: parsedPrice.cents,
+        currency: settings.baseCurrency,
+        is_available: available,
+        has_immersive_view: false,
+        allergens,
+        allergen_declarations: persistedAllergenDeclarations(allergenData),
+        metadata: {
+          ...dishMetadata({ photoStatus: "planned" }, parsedPrice, candidate),
+          displayOrder: displayOrder.value
+        },
+        ...(displayOrder.supportsColumn ? { display_order: displayOrder.value } : {})
+      };
+      const inserted = await args.client
+        .from("menu_dishes")
+        .insert(dishPayload)
+        .select("id,name,slug,category_id,price_cents,currency")
+        .single();
 
-  if (inserted.error || !inserted.data) {
-    if (isUniqueViolation(inserted.error)) {
-      return { ok: false, status: 409, error: "Un plat avec ce nom existe deja." };
+      if (inserted.error || !inserted.data) {
+        if (isUniqueViolation(inserted.error)) {
+          return { ok: false, status: 409, error: "Un plat avec ce nom existe deja." };
+        }
+        return { ok: false, status: 503, error: "Plat impossible a creer." };
+      }
+      await args.onPublicCommit?.({
+        dishSlug: typeof inserted.data.slug === "string" ? inserted.data.slug : undefined
+      });
+      return { ok: true, record: inserted.data };
     }
-    return { ok: false, status: 503, error: "Plat impossible a creer." };
-  }
-  await args.onPublicCommit?.({
-    dishSlug: typeof inserted.data.slug === "string" ? inserted.data.slug : undefined
   });
-  return { ok: true, record: inserted.data };
 }
 
 export async function updateOwnerMenuDish(args: {
