@@ -1,4 +1,3 @@
-import { revalidatePath } from "next/cache";
 import { NextResponse, type NextRequest } from "next/server";
 import {
   requireSameOriginOwnerMutation,
@@ -15,7 +14,10 @@ import {
   type DishModelDeleteTarget
 } from "@/lib/owner/deleteDishModelAssets";
 import { requireOwnerRestaurantCapability } from "@/lib/owner/demoCapabilities";
-import { slugifyRestaurantSlug } from "@/lib/owner/menuUrlCore";
+import {
+  invalidateCommittedPublicMutation,
+  resolvePublicMutationIdentity
+} from "@/lib/owner/menuMutationRevalidation";
 import {
   isCanonicalUuid,
   normalizeStorageSafeIdentifier
@@ -33,17 +35,6 @@ type DishRow = {
   metadata: unknown;
   has_immersive_view?: boolean | null;
 };
-
-function getString(row: Record<string, unknown> | null | undefined, key: string): string {
-  const value = row?.[key];
-  return typeof value === "string" ? value.trim() : "";
-}
-
-function revalidatePublicDishModelPaths(restaurantSlug: string, dishSlug: string): void {
-  if (!restaurantSlug) return;
-  revalidatePath(`/menu/${restaurantSlug}`);
-  if (dishSlug) revalidatePath(`/menu/${restaurantSlug}/dishes/${dishSlug}`);
-}
 
 export async function DELETE(
   request: NextRequest,
@@ -94,13 +85,11 @@ export async function DELETE(
     );
   }
 
-  const restaurant = await admin.client
-    .from("restaurants")
-    .select("slug")
-    .eq("id", restaurantId)
-    .maybeSingle();
-  const restaurantSlug = slugifyRestaurantSlug(getString(restaurant.data, "slug") || restaurantId);
-  const dishSlug = slugifyRestaurantSlug(dish.slug || dish.name || dishId);
+  const publicIdentity = await resolvePublicMutationIdentity({
+    client: admin.client,
+    restaurantId,
+    dishSlug: dish.slug || dish.name || dishId
+  });
 
   const requestedTarget = request.nextUrl.searchParams.get("target") ?? "all";
   const validTargets: DishModelDeleteTarget[] = ["all", "viewer-glb", "usdz-runtime", "report"];
@@ -168,7 +157,7 @@ export async function DELETE(
     );
   }
 
-  revalidatePublicDishModelPaths(restaurantSlug, dishSlug);
+  await invalidateCommittedPublicMutation(publicIdentity);
 
   return NextResponse.json({
     ok: true,

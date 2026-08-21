@@ -1,4 +1,3 @@
-import { revalidatePath } from "next/cache";
 import { NextResponse, type NextRequest } from "next/server";
 import {
   assertUsdzRuntimeJobClaimsMatchRoute,
@@ -6,18 +5,16 @@ import {
   parseCompleteInput,
   verifyUsdzRuntimeJobToken
 } from "@/lib/owner/usdzRuntimeJsonFlow";
+import {
+  invalidateCommittedPublicMutation,
+  resolvePublicMutationIdentity
+} from "@/lib/owner/menuMutationRevalidation";
 import { requireOwnerRestaurantCapability } from "@/lib/owner/demoCapabilities";
 import { getSupabaseAdminClient } from "@/utils/supabase/admin";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const maxDuration = 120;
-
-function revalidatePublicDishModelPaths(restaurantSlug: string, dishSlug: string): void {
-  if (!restaurantSlug) return;
-  revalidatePath(`/menu/${restaurantSlug}`);
-  if (dishSlug) revalidatePath(`/menu/${restaurantSlug}/dishes/${dishSlug}`);
-}
 
 export async function POST(
   request: NextRequest,
@@ -64,13 +61,23 @@ export async function POST(
   if (!admin.ok) {
     return NextResponse.json({ ok: false, error: admin.reason }, { status: 503 });
   }
+  const publicIdentity = await resolvePublicMutationIdentity({
+    client: admin.client,
+    restaurantId: verified.claims.restaurantId,
+    dishSlug: verified.claims.dishSlug
+  });
+  let publicCommitted = false;
+  const onPublicCommit = async () => {
+    publicCommitted = true;
+    await invalidateCommittedPublicMutation(publicIdentity);
+  };
 
   try {
     const result = await completeUsdzRuntimeSignedUpload({
       adminClient: admin.client,
-      input
+      input,
+      onPublicCommit
     });
-    revalidatePublicDishModelPaths(verified.claims.restaurantSlug, verified.claims.dishSlug);
     return NextResponse.json({
       ok: true,
       ...result,
@@ -80,6 +87,20 @@ export async function POST(
       warning: result.cleanup.errors[0]?.message
     });
   } catch (error) {
+    if (publicCommitted) {
+      await invalidateCommittedPublicMutation(publicIdentity);
+      return NextResponse.json(
+        {
+          ok: false,
+          error: "Runtime USDZ publie, mais finalisation 3D incomplete.",
+          usdzSourceStored: false,
+          uploaded: true,
+          committed: true,
+          dishUpdated: true
+        },
+        { status: 503 }
+      );
+    }
     const reportReason =
       error && typeof error === "object" && "reason" in error && typeof error.reason === "string"
         ? error.reason

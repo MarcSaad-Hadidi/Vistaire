@@ -46,6 +46,7 @@ type RestaurantMeshyPipelineArgs = {
   existingMetadata: unknown;
   sourceBytes: Buffer;
   originalName?: string;
+  onPublicCommit?: () => void | Promise<void>;
 };
 
 type MeshyManifest = {
@@ -118,6 +119,24 @@ type DurableMeshyAssets = {
   arModel3dBytes: number;
   arUsdzBytes: number;
 };
+
+function deferredCleanupReport(): CleanupReplacedDishAssetsReport {
+  return {
+    candidates: [],
+    deleted: [],
+    skippedStillReferenced: [],
+    skippedUnsafeBucket: [],
+    skippedUnsafePrefix: [],
+    skippedMissingPath: [],
+    errors: [
+      {
+        bucket: "",
+        paths: [],
+        message: "Nettoyage differe apres publication du modele."
+      }
+    ]
+  };
+}
 
 function assertSafeSlug(value: string, label: string): string {
   const slug = value.trim().toLowerCase();
@@ -540,14 +559,22 @@ export async function runRestaurantMeshyDishPipeline(
       throw new Error("Plat impossible a mettre a jour avec les URLs Meshy.");
     }
 
-    const cleanup = await cleanupReplacedDishAssets({
-      client: args.adminClient,
-      dishId: args.dishId,
-      restaurantId: args.restaurantId,
-      previousMetadata: args.existingMetadata,
-      nextMetadata,
-      reason: "meshy-model-replacement"
-    });
+    await args.onPublicCommit?.();
+
+    let cleanup: CleanupReplacedDishAssetsReport;
+    try {
+      cleanup = await cleanupReplacedDishAssets({
+        client: args.adminClient,
+        dishId: args.dishId,
+        restaurantId: args.restaurantId,
+        previousMetadata: args.existingMetadata,
+        nextMetadata,
+        reason: "meshy-model-replacement"
+      });
+    } catch {
+      await args.onPublicCommit?.();
+      cleanup = deferredCleanupReport();
+    }
 
     const finishedAt = new Date();
     const manualRunnerCommand = [
