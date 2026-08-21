@@ -68,6 +68,12 @@ registerHooks({
 });
 
 const revalidation = await import("../lib/owner/menuMutationRevalidation.ts");
+const { AppRouteRouteModule } = await import(
+  "../node_modules/next/dist/server/route-modules/app-route/module.js"
+);
+const { RouteKind } = await import(
+  "../node_modules/next/dist/server/route-kind.js"
+);
 
 const FEATURED_STATIC_PATHS = [
   "/",
@@ -99,6 +105,111 @@ function nextCacheRecorder({ failAt = -1, events = [] } = {}) {
     }
   };
   return calls;
+}
+
+function deferred() {
+  let resolve;
+  const promise = new Promise((settle) => {
+    resolve = settle;
+  });
+  return { promise, resolve };
+}
+
+function appRouteDoFixture() {
+  const implicitTags = {
+    tags: [],
+    expirationsByCacheKind: new Map()
+  };
+  const request = new Request(
+    "https://vistaire.test/api/test/public-mutation",
+    { method: "POST" }
+  );
+  const actionStore = { isAppRoute: true, isAction: false };
+  const workStore = {
+    isStaticGeneration: false,
+    pendingRevalidatedTags: [],
+    pendingRevalidates: {},
+    pendingRevalidateWrites: [],
+    fetchMetrics: []
+  };
+  const requestStore = {
+    type: "request",
+    phase: "action",
+    url: { pathname: "/api/test/public-mutation", search: "" },
+    mutableCookies: {},
+    implicitTags,
+    rootParams: {}
+  };
+  const context = {
+    params: undefined,
+    renderOpts: { cacheComponents: false },
+    previewProps: {},
+    sharedContext: { buildId: "test-build", deploymentId: "test-deployment" }
+  };
+  const routeModule = new AppRouteRouteModule({
+    userland: { POST: () => new Response(null, { status: 204 }) },
+    definition: {
+      kind: RouteKind.APP_ROUTE,
+      page: "/api/test/public-mutation/route",
+      pathname: "/api/test/public-mutation",
+      filename: "route",
+      bundlePath: "app/api/test/public-mutation/route"
+    },
+    distDir: ".next",
+    relativeProjectDir: "",
+    resolvedPagePath: "app/api/test/public-mutation/route.ts",
+    nextConfigOutput: undefined
+  });
+
+  return {
+    context,
+    workStore,
+    invoke(handler) {
+      return routeModule.do(
+        handler,
+        actionStore,
+        workStore,
+        requestStore,
+        implicitTags,
+        request,
+        context
+      );
+    }
+  };
+}
+
+function pendingRevalidationRecorder(workStore, events = []) {
+  const attempts = [];
+  const signals = [];
+
+  function register(kind, target, profile) {
+    const signal = deferred();
+    const operationIndex = attempts.length;
+    attempts.push({ kind, target, ...(profile ? { profile } : {}) });
+    signals.push(signal);
+    events.push(`${kind}:${target}`);
+    workStore.pendingRevalidates[`sentinel-${operationIndex}`] = signal.promise;
+  }
+
+  return {
+    attempts,
+    signals,
+    callbacks: {
+      revalidateTag(tag, profile) {
+        register("tag", tag, profile);
+      },
+      revalidatePath(path) {
+        register("path", path);
+      }
+    }
+  };
+}
+
+async function settlePendingWaitUntil(fixture, recorder) {
+  const pendingWaitUntil = fixture.context.renderOpts.pendingWaitUntil;
+  assert.ok(pendingWaitUntil instanceof Promise);
+  for (const signal of recorder.signals) signal.resolve();
+  await pendingWaitUntil;
 }
 
 function restaurantClient(row, events = []) {
@@ -240,19 +351,12 @@ test("every enqueue call is attempted after one fails and the report stays redac
   assert.doesNotMatch(serialized, /never-print-this|expired|success/i);
 });
 
-async function invokeLikeNext(handler, events) {
-  try {
-    const response = await handler();
-    assert.ok(response instanceof Response);
-    events.push("next:pending-revalidation-flush");
-    return response;
-  } catch (error) {
-    events.push("next:throw-bypassed-flush");
-    throw error;
-  }
-}
-
-async function committedRouteHandler({ events, cleanup, outcome = "committed" }) {
+async function committedRouteHandler({
+  events,
+  cleanup,
+  callbacks,
+  outcome = "committed"
+}) {
   const identity = await revalidation.resolvePublicMutationIdentity({
     client: restaurantClient({ slug: "Maison Élyse", name: "Maison Élyse" }, events),
     restaurantId: "restaurant-id",
@@ -268,12 +372,18 @@ async function committedRouteHandler({ events, cleanup, outcome = "committed" })
   }
 
   events.push(`commit:${outcome}`);
-  const scheduling = await revalidation.invalidateCommittedPublicMutation(identity);
+  const scheduling = await revalidation.invalidateCommittedPublicMutation(
+    identity,
+    { callbacks }
+  );
   try {
     await cleanup?.();
   } catch {
     events.push("cleanup:caught");
-    const retry = await revalidation.invalidateCommittedPublicMutation(identity);
+    const retry = await revalidation.invalidateCommittedPublicMutation(
+      identity,
+      { callbacks }
+    );
     return new Response(
       JSON.stringify({
         ok: false,
@@ -302,17 +412,18 @@ async function committedRouteHandler({ events, cleanup, outcome = "committed" })
 
 test("a post-commit cleanup error is caught, rescheduled and returned as a controlled Response", async () => {
   const events = [];
-  const calls = nextCacheRecorder({ events });
-  const response = await invokeLikeNext(
+  const fixture = appRouteDoFixture();
+  const recorder = pendingRevalidationRecorder(fixture.workStore, events);
+  const response = await fixture.invoke(
     () =>
       committedRouteHandler({
         events,
+        callbacks: recorder.callbacks,
         cleanup: async () => {
           events.push("cleanup:start");
           throw new Error("never-print-this-cleanup-sentinel");
         }
-      }),
-    events
+      })
   );
 
   assert.equal(response.status, 202);
@@ -327,39 +438,92 @@ test("a post-commit cleanup error is caught, rescheduled and returned as a contr
       enqueueErrorCount: 0
     }
   });
-  assert.equal(calls.length, 20, "cleanup catch must schedule the retained identity again");
+  assert.equal(
+    recorder.attempts.length,
+    20,
+    "cleanup catch must schedule the retained identity again"
+  );
   assert.ok(events.indexOf("identity:restaurants") < events.indexOf("commit:committed"));
   assert.ok(events.indexOf("commit:committed") < events.findIndex((event) => event.startsWith("tag:")));
   assert.ok(events.findIndex((event) => event.startsWith("path:")) < events.indexOf("cleanup:start"));
-  assert.ok(events.indexOf("cleanup:caught") < events.indexOf("next:pending-revalidation-flush"));
-  assert.equal(events.includes("next:throw-bypassed-flush"), false);
+  const pendingWaitUntil = fixture.context.renderOpts.pendingWaitUntil;
+  assert.ok(pendingWaitUntil instanceof Promise);
+  let pendingSettled = false;
+  void pendingWaitUntil.then(() => {
+    pendingSettled = true;
+  });
+  await Promise.resolve();
+  assert.equal(pendingSettled, false);
+  for (const signal of recorder.signals.slice(0, -1)) signal.resolve();
+  await Promise.resolve();
+  assert.equal(pendingSettled, false);
+  recorder.signals.at(-1).resolve();
+  await pendingWaitUntil;
+  assert.equal(pendingSettled, true);
   assert.doesNotMatch(JSON.stringify(events), /never-print-this/);
+});
+
+test("an arbitrary post-commit throw bypasses Next pending revalidation flush", async () => {
+  const events = [];
+  const fixture = appRouteDoFixture();
+  const recorder = pendingRevalidationRecorder(fixture.workStore, events);
+  const identity = await featuredIdentity();
+
+  await assert.rejects(
+    fixture.invoke(async () => {
+      events.push("commit:committed");
+      await revalidation.invalidateCommittedPublicMutation(identity, {
+        callbacks: recorder.callbacks
+      });
+      throw new Error("post-commit-rethrow");
+    }),
+    /post-commit-rethrow/
+  );
+
+  assert.equal(recorder.attempts.length, 10);
+  assert.equal(fixture.context.renderOpts.pendingWaitUntil, undefined);
+  for (const signal of recorder.signals) signal.resolve();
 });
 
 test("only committed and partial outcomes schedule; failed, no-op, draft and dry-run outcomes do not", async () => {
   for (const outcome of ["failed", "noop", "draft", "dry-run"]) {
     const events = [];
-    const calls = nextCacheRecorder({ events });
-    const response = await invokeLikeNext(
-      () => committedRouteHandler({ events, outcome }),
-      events
+    const fixture = appRouteDoFixture();
+    const recorder = pendingRevalidationRecorder(fixture.workStore, events);
+    const response = await fixture.invoke(
+      () =>
+        committedRouteHandler({
+          events,
+          outcome,
+          callbacks: recorder.callbacks
+        })
     );
     assert.ok(response instanceof Response);
-    assert.equal(calls.length, 0, outcome);
+    assert.equal(recorder.attempts.length, 0, outcome);
+    assert.equal(fixture.context.renderOpts.pendingWaitUntil, undefined);
   }
 
   const partialEvents = [];
-  const partialCalls = nextCacheRecorder({ events: partialEvents });
-  const partialResponse = await invokeLikeNext(
-    () => committedRouteHandler({ events: partialEvents, outcome: "partial" }),
+  const partialFixture = appRouteDoFixture();
+  const partialRecorder = pendingRevalidationRecorder(
+    partialFixture.workStore,
     partialEvents
   );
+  const partialResponse = await partialFixture.invoke(
+    () =>
+      committedRouteHandler({
+        events: partialEvents,
+        outcome: "partial",
+        callbacks: partialRecorder.callbacks
+      })
+  );
   assert.equal(partialResponse.status, 207);
-  assert.equal(partialCalls.length, 10);
+  assert.equal(partialRecorder.attempts.length, 10);
   assert.ok(
     partialEvents.indexOf("commit:partial") <
       partialEvents.findIndex((event) => event.startsWith("tag:"))
   );
+  await settlePendingWaitUntil(partialFixture, partialRecorder);
 });
 
 test("the historical helper delegates through retained identity without changing its call shape", async () => {
