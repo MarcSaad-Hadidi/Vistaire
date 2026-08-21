@@ -455,12 +455,17 @@ function applyTaskTranslations(
   return nextContent;
 }
 
-async function upsertEntityTranslation(args: {
+export type OwnerMenuTranslationPublicCommitCallback = (commit: {
+  locale: string;
+}) => void | Promise<void>;
+
+export async function upsertEntityTranslation(args: {
   ctx: TranslationContext;
   entity: MenuTranslationSourceEntity;
   locale: string;
   provider: string;
   content: AnyRow;
+  onPublicCommit?: OwnerMenuTranslationPublicCommitCallback;
 }) {
   const menuId = getString(args.ctx.menu, ["id"]);
   const payload: AnyRow = {
@@ -483,12 +488,14 @@ async function upsertEntityTranslation(args: {
     .from(tableForEntity(args.entity.type))
     .upsert(payload, { onConflict: `${idColumnForEntity(args.entity.type)},locale` });
   if (error) throw new Error(error.message);
+  await args.onPublicCommit?.({ locale: args.locale });
 }
 
-async function repairEntityTranslationMetadata(args: {
+export async function repairEntityTranslationMetadata(args: {
   ctx: TranslationContext;
   entity: MenuTranslationSourceEntity;
   locale: string;
+  onPublicCommit?: OwnerMenuTranslationPublicCommitCallback;
 }) {
   const menuId = getString(args.ctx.menu, ["id"]);
   const entityId = args.entity.type === "menu" ? menuId : args.entity.id;
@@ -505,6 +512,7 @@ async function repairEntityTranslationMetadata(args: {
   if (args.entity.type !== "menu") query = query.eq("menu_id", menuId);
   const { error } = await query;
   if (error) throw new Error(error.message);
+  await args.onPublicCommit?.({ locale: args.locale });
 }
 
 function summarizeLocaleTranslationStatusWithUiCopy(args: {
@@ -549,6 +557,7 @@ export async function generateOwnerMenuTranslations(args: {
   restaurantId: string;
   locale: string;
   dryRun?: boolean;
+  onPublicCommit?: OwnerMenuTranslationPublicCommitCallback;
 }): Promise<GenerateMenuTranslationsResult> {
   const ctx = await getTranslationContext(args.restaurantId);
   if ("error" in ctx) return { ok: false, status: ctx.status, error: ctx.error };
@@ -648,7 +657,8 @@ export async function generateOwnerMenuTranslations(args: {
           await repairEntityTranslationMetadata({
             ctx,
             entity,
-            locale: args.locale
+            locale: args.locale,
+            onPublicCommit: args.onPublicCommit
           });
           continue;
         }
@@ -671,7 +681,8 @@ export async function generateOwnerMenuTranslations(args: {
           entity,
           locale: args.locale,
           provider: translator.provider,
-          content: applyTaskTranslations(entity, row, tasks, translations)
+          content: applyTaskTranslations(entity, row, tasks, translations),
+          onPublicCommit: args.onPublicCommit
         });
       }
     }
@@ -696,7 +707,10 @@ export async function generateOwnerMenuTranslations(args: {
         menuId,
         menuRow: ctx.menu,
         settings: ctx.settings,
-        localizedUiCopy: generatedLocalizedUiCopy
+        localizedUiCopy: generatedLocalizedUiCopy,
+        onPublicCommit: args.onPublicCommit
+          ? () => args.onPublicCommit?.({ locale: args.locale })
+          : undefined
       });
       if (!persisted.ok) throw new Error(persisted.error);
     }
