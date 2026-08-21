@@ -729,7 +729,7 @@ async function getPublicMenuBySlugUncached(
       });
       return {
         status: "live",
-        menu: applyStoredPublicMenuTranslations(menu, resolvedPublicLocale)
+        menu: await applyStoredPublicMenuTranslations(menu, resolvedPublicLocale)
       };
     }
 
@@ -741,7 +741,7 @@ async function getPublicMenuBySlugUncached(
     );
     return {
       status: "live",
-      menu: applyStoredPublicMenuTranslations(menu, resolvedPublicLocale)
+      menu: await applyStoredPublicMenuTranslations(menu, resolvedPublicLocale)
     };
   };
 

@@ -7,6 +7,16 @@ import { pathToFileURL } from "node:url";
 import ts from "typescript";
 
 const projectRootUrl = pathToFileURL(`${process.cwd()}${sep}`).href;
+const adminClientFactorySymbol = Symbol.for(
+  "vistaire.test.public-menu-cache-contract.admin-client-factory"
+);
+const unavailableAdminClient = () => ({ ok: false, reason: "test unavailable" });
+globalThis[adminClientFactorySymbol] = unavailableAdminClient;
+const adminClientModuleUrl = `data:text/javascript,${encodeURIComponent(`
+  export function getSupabaseAdminClient() {
+    return globalThis[Symbol.for("vistaire.test.public-menu-cache-contract.admin-client-factory")]();
+  }
+`)}`;
 
 registerHooks({
   resolve(specifier, context, nextResolve) {
@@ -15,6 +25,9 @@ registerHooks({
         url: "data:text/javascript,export%20default%20undefined",
         shortCircuit: true
       };
+    }
+    if (specifier === "@/utils/supabase/admin") {
+      return { url: adminClientModuleUrl, shortCircuit: true };
     }
     if (specifier.startsWith("@/")) {
       const baseUrl = new URL(specifier.slice(2), projectRootUrl);
@@ -55,6 +68,18 @@ const { futurePublicMenuCacheKeyParts } = await import(
   "../lib/cache/publicCachePolicy.ts"
 );
 
+test.after(() => {
+  delete globalThis[adminClientFactorySymbol];
+});
+
+function deferred() {
+  let resolve;
+  const promise = new Promise((done) => {
+    resolve = done;
+  });
+  return { promise, resolve };
+}
+
 function controlledRead(result) {
   let release;
   let calls = 0;
@@ -90,6 +115,117 @@ test("canonical slug and locale callers share only the active read", async () =>
     null
   );
   assert.equal(source.calls(), 2, "a settled value must not remain cached");
+});
+
+test("live translation stays inside the active flight and settles before deletion", async () => {
+  const translationStarted = deferred();
+  const releaseTranslations = deferred();
+  let restaurantReads = 0;
+
+  globalThis[adminClientFactorySymbol] = () => ({
+    ok: true,
+    client: {
+      from() {
+        const query = {
+          select() {
+            return query;
+          },
+          eq() {
+            return query;
+          },
+          in() {
+            return query;
+          },
+          then(onFulfilled, onRejected) {
+            translationStarted.resolve();
+            return releaseTranslations.promise
+              .then(() => ({ data: [], error: null }))
+              .then(onFulfilled, onRejected);
+          }
+        };
+        return query;
+      }
+    }
+  });
+
+  const readRows = async ({ table }) => {
+    if (table === "restaurants") {
+      restaurantReads += 1;
+      return {
+        ok: true,
+        rows: [
+          {
+            id: "restaurant-live",
+            slug: "live-bistro",
+            name: "Live Bistro",
+            location: "Montréal",
+            cuisine_type: "Bistro",
+            status: "active"
+          }
+        ]
+      };
+    }
+    if (table === "menus") {
+      return {
+        ok: true,
+        rows: [
+          {
+            id: "menu-live",
+            restaurant_id: "restaurant-live",
+            name: "Menu principal",
+            slug: "principal",
+            status: "published",
+            is_primary: true,
+            settings_json: {
+              defaultLocale: "fr-CA",
+              supportedLocales: ["fr-CA", "en-CA"],
+              publicMenuStyle: "trouvable"
+            }
+          }
+        ]
+      };
+    }
+    return { ok: true, rows: [] };
+  };
+  const dependencies = { readRows, nodeEnv: "production" };
+
+  try {
+    const first = getPublicMenuBySlug("live-bistro", "en", dependencies);
+    await translationStarted.promise;
+    await new Promise((resolve) => setImmediate(resolve));
+
+    const concurrent = getPublicMenuBySlug(
+      "  Live Bistro  ",
+      "en-CA",
+      dependencies
+    );
+    await new Promise((resolve) => setImmediate(resolve));
+    assert.equal(
+      restaurantReads,
+      1,
+      "translation must finish before the active live flight is deleted"
+    );
+
+    releaseTranslations.resolve();
+    const [firstMenu, concurrentMenu] = await Promise.all([first, concurrent]);
+    assert.equal(firstMenu?.source, "supabase");
+    assert.equal(concurrentMenu?.source, "supabase");
+
+    const nextMenu = await getPublicMenuBySlug(
+      "live-bistro",
+      "en-CA",
+      dependencies
+    );
+    assert.equal(nextMenu?.source, "supabase");
+    assert.equal(
+      restaurantReads,
+      2,
+      "the completed live outcome must be deleted before the next read"
+    );
+  } finally {
+    releaseTranslations.resolve();
+    globalThis[adminClientFactorySymbol] = unavailableAdminClient;
+  }
 });
 
 test("a rejected read is removed before a later retry", async () => {
