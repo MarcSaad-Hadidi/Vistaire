@@ -101,9 +101,18 @@ const moduleStubs = new Map([
       export const DISH_MODEL_MISSING_STATUS = "missing";
       export function cleanDishModelMetadata() { return {}; }
       export function cleanTargetedDishModelMetadata() { return {}; }
-      export function collectDishModelStorageTargets() { return { targets: [], skipped: [] }; }
-      export function collectTargetedDishModelDeletion() { return { targets: [], clearKeys: [] }; }
-      export function groupTargetsByBucket() { return []; }
+      export function collectDishModelStorageTargets() {
+        return { targets: [{ bucket: "models", path: "public/sole.glb" }], skipped: [] };
+      }
+      export function collectTargetedDishModelDeletion() {
+        return {
+          targets: [{ bucket: "models", path: "public/sole.glb" }],
+          clearKeys: ["webModel3dUrl"]
+        };
+      }
+      export function groupTargetsByBucket() {
+        return [["models", ["public/sole.glb"]]];
+      }
       export function hasDishModelMetadata() { return true; }
     `)
   ],
@@ -175,13 +184,17 @@ function identity() {
   };
 }
 
-function fakeAdmin(events) {
+function fakeAdmin(events, { cleanupThrows = false } = {}) {
   return {
     storage: {
       from() {
         return {
           async download() { return { data: new Blob([Buffer.from("glb")]), error: null }; },
-          async remove(paths) { return { data: paths.map((name) => ({ name })), error: null }; }
+          async remove(paths) {
+            events.push("storage:cleanup");
+            if (cleanupThrows) throw new Error("private-model-cleanup-sentinel");
+            return { data: paths.map((name) => ({ name })), error: null };
+          }
         };
       }
     },
@@ -217,8 +230,8 @@ function fakeAdmin(events) {
   };
 }
 
-function baseHooks(events) {
-  const admin = fakeAdmin(events);
+function baseHooks(events, options) {
+  const admin = fakeAdmin(events, options);
   return {
     ownerAuth: async () => ({ ok: true, userId: "owner", emailAddresses: ["owner@vistaire.test"] }),
     sameOrigin: () => null,
@@ -308,7 +321,34 @@ test("model delete keeps menu and dish invalidation after the metadata commit th
   assert.equal(response.status, 200);
   assert.ok(events.indexOf("identity") < events.indexOf("db:commit"));
   assert.ok(events.indexOf("db:commit") < events.indexOf("invalidate"));
+  assert.ok(events.indexOf("invalidate") < events.indexOf("storage:cleanup"));
   assert.equal(events.filter((event) => event.startsWith("legacy-path:")).length, 0);
+});
+
+test("model delete cleanup throws reschedule and return a redacted committed Response", async () => {
+  const events = [];
+  globalThis[hooksSymbol] = baseHooks(events, { cleanupThrows: true });
+  const request = new Request("https://vistaire.test/api/model?target=all", {
+    method: "DELETE",
+    headers: { origin: "https://vistaire.test" }
+  });
+  Object.defineProperty(request, "nextUrl", { value: new URL(request.url) });
+
+  const response = await deleteRoute.DELETE(request, {
+    params: Promise.resolve({ restaurantId: RESTAURANT_ID, dishId: DISH_ID })
+  });
+  const body = await response.json();
+
+  assert.equal(response.status, 503);
+  assert.equal(body.committed, true);
+  assert.equal(body.dishUpdated, true);
+  assert.doesNotMatch(JSON.stringify(body), /private-|sentinel/);
+  assert.deepEqual(events.slice(-4), [
+    "db:commit",
+    "invalidate",
+    "storage:cleanup",
+    "invalidate"
+  ]);
 });
 
 test("USDZ start, prepare, fail, and the retired 410 route never claim a public commit", async () => {

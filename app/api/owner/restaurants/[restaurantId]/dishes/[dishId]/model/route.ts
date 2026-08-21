@@ -111,24 +111,6 @@ export async function DELETE(
   let attemptedCount = 0;
   let deletedCount = 0;
 
-  for (const [bucket, paths] of groupTargetsByBucket(scoped.targets)) {
-    attemptedCount += paths.length;
-    const removal = await admin.client.storage.from(bucket).remove(paths);
-    if (removal.error) {
-      return NextResponse.json(
-        {
-          ok: false,
-          error: "Suppression Storage impossible pour ce modele.",
-          deletedCount,
-          skippedCount: collectedAll.skipped.length,
-          modelStatus: DISH_MODEL_MISSING_STATUS
-        },
-        { status: 503 }
-      );
-    }
-    deletedCount += Array.isArray(removal.data) ? removal.data.length : paths.length;
-  }
-
   const cleanedMetadata = isFullDelete
     ? cleanDishModelMetadata(dish.metadata)
     : cleanTargetedDishModelMetadata(dish.metadata, scoped.clearKeys);
@@ -158,6 +140,34 @@ export async function DELETE(
   }
 
   await invalidateCommittedPublicMutation(publicIdentity);
+
+  try {
+    for (const [bucket, paths] of groupTargetsByBucket(scoped.targets)) {
+      attemptedCount += paths.length;
+      const removal = await admin.client.storage.from(bucket).remove(paths);
+      if (removal.error) {
+        throw new Error("storage_cleanup_failed");
+      }
+      deletedCount += Array.isArray(removal.data) ? removal.data.length : paths.length;
+    }
+  } catch {
+    await invalidateCommittedPublicMutation(publicIdentity);
+    return NextResponse.json(
+      {
+        ok: false,
+        error: "Modele retire du menu, mais nettoyage Storage incomplet.",
+        committed: true,
+        target,
+        modelDeleted,
+        dishUpdated: true,
+        attemptedCount,
+        deletedCount,
+        skippedCount: collectedAll.skipped.length,
+        modelStatus: nextModelStatus
+      },
+      { status: 503 }
+    );
+  }
 
   return NextResponse.json({
     ok: true,
