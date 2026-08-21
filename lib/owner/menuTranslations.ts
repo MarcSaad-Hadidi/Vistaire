@@ -765,7 +765,13 @@ export async function generateOwnerMenuTranslations(args: {
   }
   if (!updatedRows.ok) {
     await rescheduleObservedPublicCommit();
-    return { ok: false, status: updatedRows.status, error: updatedRows.error };
+    return {
+      ok: false,
+      status: updatedRows.status,
+      error: publicCommitObserved
+        ? CONTROLLED_TRANSLATION_FAILURE
+        : updatedRows.error
+    };
   }
   return {
     ok: true,

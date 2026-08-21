@@ -196,9 +196,23 @@ function translationClient(mode, events) {
               }
               if (table === "menu_translations") {
                 menuTranslationRead += 1;
+                if (mode === "initial-read-error" && menuTranslationRead === 1) {
+                  events.push("read:initial:error");
+                  return {
+                    data: null,
+                    error: { message: "private-precommit-sentinel" }
+                  };
+                }
                 if (mode === "final-read-throws" && menuTranslationRead === 2) {
                   events.push("read:final:throw");
                   throw new Error("private-final-read-sentinel");
+                }
+                if (mode === "final-read-error" && menuTranslationRead === 2) {
+                  events.push("read:final:error");
+                  return {
+                    data: null,
+                    error: { message: "private-sentinel" }
+                  };
                 }
               }
               return { data: [], error: null };
@@ -274,6 +288,28 @@ test("a throwing final translation read after a public commit stays controlled a
   ]);
   assert.equal(events.filter((event) => event === "invalidate").length, 2);
   assert.doesNotMatch(JSON.stringify(result), /private-|sentinel/);
+});
+
+test("a returned final-read error after a public commit stays redacted and reschedules", async () => {
+  const { result, events } = await runPostCommitFailure("final-read-error");
+
+  assert.deepEqual(result, { ok: false, status: 503, error: CONTROLLED_ERROR });
+  assert.deepEqual(events.slice(-3), [
+    "job:succeeded",
+    "read:final:error",
+    "invalidate"
+  ]);
+  assert.equal(events.filter((event) => event === "invalidate").length, 2);
+  assert.doesNotMatch(JSON.stringify(result), /private-|sentinel/);
+});
+
+test("a pre-commit translation read keeps its existing storage detail", async () => {
+  const { result, events } = await runPostCommitFailure("initial-read-error");
+
+  assert.equal(result.ok, false);
+  assert.equal(result.status, 503);
+  assert.match(result.error, /private-precommit-sentinel/);
+  assert.deepEqual(events, ["read:initial:error"]);
 });
 
 test.after(() => {
