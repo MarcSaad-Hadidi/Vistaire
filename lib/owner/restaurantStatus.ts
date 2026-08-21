@@ -1,9 +1,12 @@
 import type { OwnerRestaurantStatus } from "./types.ts";
+import type { PublicMutationIdentity } from "./menuMutationRevalidation.ts";
+import { slugifyRestaurantSlug } from "./menuUrlCore.ts";
 import {
   collectDishMediaStorageTargets,
   deleteDishMediaStorageTargets,
   type DishMediaDeleteReport
 } from "./dishMediaGarbageCollector.ts";
+import { isRestaurantExperienceId } from "../restaurant-experiences/contracts.ts";
 
 type SupabaseUpdateError = {
   code?: string;
@@ -77,6 +80,51 @@ type SupabaseAdminResult =
 
 type RestaurantStatusAction = "archive" | "restore";
 
+export type RestaurantLifecyclePublicCommit = Readonly<{
+  kind:
+    | "transaction"
+    | "restaurant"
+    | "restaurant-metadata"
+    | "menu"
+    | "dishes"
+    | "status"
+    | "deleted";
+  restaurantId: string;
+  restaurantSlug: string;
+}>;
+
+export type RestaurantLifecyclePublicCommitCallback = (
+  commit: RestaurantLifecyclePublicCommit
+) => void | Promise<unknown>;
+
+type RestaurantLifecyclePublicInvalidator = (
+  identity: PublicMutationIdentity | null
+) => void | Promise<unknown>;
+
+export function createRestaurantLifecyclePublicCommitHook(
+  invalidate: RestaurantLifecyclePublicInvalidator
+): RestaurantLifecyclePublicCommitCallback {
+  return async (commit) => {
+    const restaurantSlug = slugifyRestaurantSlug(commit.restaurantSlug);
+    if (!restaurantSlug) {
+      await invalidate(null);
+      return;
+    }
+
+    await invalidate(
+      Object.freeze({
+        restaurantId: commit.restaurantId.trim(),
+        restaurantSlug,
+        restaurantKey: restaurantSlug,
+        featuredExperienceId: isRestaurantExperienceId(restaurantSlug)
+          ? restaurantSlug
+          : null,
+        dishSlug: ""
+      })
+    );
+  };
+}
+
 const DEMO_RESTAURANT_ID =
   process.env.NEXT_PUBLIC_DEMO_RESTAURANT_ID ??
   "11111111-1111-1111-1111-111111111111";
@@ -89,6 +137,7 @@ const BUCKET_PATTERN = /^[a-z0-9][a-z0-9._-]{1,126}$/;
 type RestaurantStatusDependencies = {
   admin: SupabaseAdminResult;
   env?: Record<string, string | undefined>;
+  onPublicCommit?: RestaurantLifecyclePublicCommitCallback;
 };
 
 export type UpdateRestaurantStatusResult =
@@ -356,6 +405,13 @@ export async function updateRestaurantStatusRecord(
   if (!data) {
     return { ok: false, status: 404, error: "Restaurant introuvable." };
   }
+
+  await dependencies.onPublicCommit?.({
+    kind: "status",
+    restaurantId: restaurantIdValue,
+    restaurantSlug:
+      getString(found.restaurant, "slug") || getString(found.restaurant, "name")
+  });
 
   return {
     ok: true,
@@ -762,6 +818,12 @@ export async function deleteRestaurantRecord(
   }
 
   if (rpcResult.kind === "deleted") {
+    await dependencies.onPublicCommit?.({
+      kind: "deleted",
+      restaurantId: restaurantIdValue,
+      restaurantSlug: getString(restaurant, "slug") || getString(restaurant, "name")
+    });
+
     const storage = await cleanupRestaurantStorage({
       client: dependencies.admin.client,
       restaurant,

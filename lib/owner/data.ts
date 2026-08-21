@@ -25,6 +25,8 @@ import {
   createRestaurantRecord,
   type CreateRestaurantRecordResult
 } from "@/lib/owner/restaurantCreation";
+import { invalidateCommittedPublicMutation } from "@/lib/owner/menuMutationRevalidation";
+import { createRestaurantLifecyclePublicCommitHook } from "@/lib/owner/restaurantStatus";
 import {
   buildPublicMenuPath,
   buildPublicMenuUrl,
@@ -45,6 +47,9 @@ import type {
 } from "@/lib/owner/types";
 
 export { validateCreateRestaurantInput } from "@/lib/owner/restaurantCreation";
+
+const invalidateRestaurantLifecyclePublicCommit =
+  createRestaurantLifecyclePublicCommitHook(invalidateCommittedPublicMutation);
 
 const STATUS_LABELS: Record<OwnerRestaurantStatus, string> = {
   demo: "Presentation",
@@ -975,6 +980,7 @@ export async function createRestaurant(
   return createRestaurantRecord(input, {
     admin: getSupabaseAdminClient() as unknown as CreateRestaurantDependencies["admin"],
     getColumns: getSupabaseTableColumns,
-    env: process.env
+    env: process.env,
+    onPublicCommit: invalidateRestaurantLifecyclePublicCommit
   });
 }

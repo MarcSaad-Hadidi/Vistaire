@@ -40,6 +40,7 @@ import {
   type DishAllergenDeclaration
 } from "../menu/allergens.ts";
 import { isCanonicalUuid } from "./storageSafeIdentifier.ts";
+import type { RestaurantLifecyclePublicCommitCallback } from "./restaurantStatus.ts";
 
 type SupabaseInsertError = {
   code?: string;
@@ -130,6 +131,7 @@ type CreateRestaurantRecordDependencies = {
   admin: SupabaseAdminResult;
   getColumns: (table: string) => Promise<Set<string>>;
   env?: Record<string, string | undefined>;
+  onPublicCommit?: RestaurantLifecyclePublicCommitCallback;
 };
 
 const STATUS_LABELS: Record<OwnerRestaurantStatus, string> = {
@@ -819,6 +821,17 @@ async function createRestaurantRecordWithRpc(
   }
 
   const response = getResponseObject(data);
+  const committedRestaurant = getResponseObject(response?.restaurant);
+  await dependencies.onPublicCommit?.({
+    kind: "transaction",
+    restaurantId: committedRestaurant
+      ? getString(committedRestaurant, ["id", "restaurant_id"], "")
+      : "",
+    restaurantSlug:
+      (committedRestaurant
+        ? getString(committedRestaurant, ["slug", "restaurant_slug"], "")
+        : "") || payload.restaurant.slug
+  });
   if (!response || response.ok !== true) {
     return {
       ok: false,
@@ -1402,6 +1415,13 @@ export async function createRestaurantRecord(
     };
   }
 
+  await dependencies.onPublicCommit?.({
+    kind: "restaurant",
+    restaurantId: getString(data ?? {}, ["id", "restaurant_id"], ""),
+    restaurantSlug:
+      getString(data ?? {}, ["slug", "restaurant_slug"], "") || normalizedSlug
+  });
+
   if (!data || !UUID_PATTERN.test(getString(data, ["id", "restaurant_id"], ""))) {
     return {
       ok: false,
@@ -1442,6 +1462,11 @@ export async function createRestaurantRecord(
       warnings.push(MEDIA_BASE_PATH_UPDATE_WARNING);
     } else {
       mediaBasePathPersisted = true;
+      await dependencies.onPublicCommit?.({
+        kind: "restaurant-metadata",
+        restaurantId,
+        restaurantSlug
+      });
     }
   } else {
     warnings.push(MEDIA_BASE_PATH_UNSAVED_WARNING);
@@ -1486,6 +1511,11 @@ export async function createRestaurantRecord(
         } else {
           menuPersisted = true;
           menuRow = insertedMenu;
+          await dependencies.onPublicCommit?.({
+            kind: "menu",
+            restaurantId,
+            restaurantSlug
+          });
         }
       }
     }
@@ -1573,6 +1603,11 @@ export async function createRestaurantRecord(
       );
     } else {
       persistedDishCount = dishRows.length;
+      await dependencies.onPublicCommit?.({
+        kind: "dishes",
+        restaurantId,
+        restaurantSlug
+      });
       const sectionsWithoutDish = getSectionsWithoutDish(inputSections, inputDishes);
       if (sectionsWithoutDish.length > 0) {
         sectionsPersisted = false;

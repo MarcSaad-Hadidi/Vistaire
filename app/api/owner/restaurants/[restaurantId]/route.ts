@@ -3,13 +3,20 @@ import {
   requireSameOriginOwnerMutation,
   requireVistaireOwnerApi
 } from "@/lib/auth/ownerApi";
-import { deleteRestaurantRecord } from "@/lib/owner/restaurantStatus";
+import {
+  createRestaurantLifecyclePublicCommitHook,
+  deleteRestaurantRecord
+} from "@/lib/owner/restaurantStatus";
+import { invalidateCommittedPublicMutation } from "@/lib/owner/menuMutationRevalidation";
 import { getSupabaseAdminClient } from "@/utils/supabase/admin";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 type RestaurantDeleteAdmin = Parameters<typeof deleteRestaurantRecord>[2]["admin"];
+
+const invalidateRestaurantLifecyclePublicCommit =
+  createRestaurantLifecyclePublicCommitHook(invalidateCommittedPublicMutation);
 
 function getRestaurantDeleteAdmin(): RestaurantDeleteAdmin {
   return getSupabaseAdminClient() as RestaurantDeleteAdmin;
@@ -58,7 +65,8 @@ export async function DELETE(
 
   const deleted = await deleteRestaurantRecord(restaurantId, deletePayload(body), {
     admin: getRestaurantDeleteAdmin(),
-    env: process.env
+    env: process.env,
+    onPublicCommit: invalidateRestaurantLifecyclePublicCommit
   });
 
   if (!deleted.ok) {
