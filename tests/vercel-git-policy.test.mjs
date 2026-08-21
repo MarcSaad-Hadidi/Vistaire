@@ -2,6 +2,8 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
+import { buildHomeAgentLinkHeader } from "../lib/agent-discovery/index.ts";
+
 async function readVercelConfig() {
   return JSON.parse(await readFile("vercel.json", "utf8"));
 }
@@ -52,7 +54,7 @@ test("Vercel disables only bot preview deployments", async () => {
   assert.equal(config.git.deploymentEnabled["**"], undefined);
 });
 
-test("Vercel sets the complete negotiated Vary value only on root responses", async () => {
+test("Vercel normalizes root discovery headers without dropping Markdown Vary", async () => {
   const config = await readVercelConfig();
 
   assert.equal(config.routes.length, 1);
@@ -81,6 +83,24 @@ test("Vercel sets the complete negotiated Vary value only on root responses", as
   assert.deepEqual(route.transforms, [
     {
       type: "response.headers",
+      op: "set",
+      target: { key: "Link" },
+      args: buildHomeAgentLinkHeader()
+    },
+    {
+      type: "response.headers",
+      op: "delete",
+      target: { key: "Vary" },
+      args: "rsc"
+    },
+    {
+      type: "response.headers",
+      op: "append",
+      target: { key: "Vary" },
+      args: "rsc"
+    },
+    {
+      type: "response.headers",
       op: "delete",
       target: { key: "Vary" },
       args: "Accept"
@@ -93,18 +113,25 @@ test("Vercel sets the complete negotiated Vary value only on root responses", as
     }
   ]);
 
+  const varyTransforms = route.transforms.filter(
+    (transform) => transform.target.key.toLowerCase() === "vary"
+  );
   const tokens = applyVaryTransforms(
     "rsc, next-router-state-tree, next-router-prefetch, next-router-segment-prefetch, future-router-token, ACCEPT, Accept-Encoding, accept",
-    route.transforms
+    varyTransforms
   );
   assert.deepEqual(tokens, [
-    "rsc",
     "next-router-state-tree",
     "next-router-prefetch",
     "next-router-segment-prefetch",
     "future-router-token",
     "accept-encoding",
+    "rsc",
     "accept"
   ]);
+  assert.equal(tokens.filter((token) => token === "rsc").length, 1);
   assert.equal(tokens.filter((token) => token === "accept").length, 1);
+
+  const markdownTokens = applyVaryTransforms("Accept", varyTransforms);
+  assert.deepEqual(markdownTokens, ["rsc", "accept"]);
 });

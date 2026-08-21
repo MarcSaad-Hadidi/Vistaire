@@ -14,6 +14,30 @@
       "transforms": [
         {
           "type": "response.headers",
+          "op": "set",
+          "target": {
+            "key": "Link"
+          },
+          "args": "</.well-known/api-catalog>; rel=\"api-catalog\"; type=\"application/linkset+json\", </.well-known/agent-skills/index.json>; rel=\"service-desc\"; type=\"application/json\", </.well-known/mcp/server-card.json>; rel=\"service-desc\"; type=\"application/json\", </auth.md>; rel=\"service-doc\"; type=\"text/markdown\", </openapi.json>; rel=\"service-desc\"; type=\"application/openapi+json\""
+        },
+        {
+          "type": "response.headers",
+          "op": "delete",
+          "target": {
+            "key": "Vary"
+          },
+          "args": "rsc"
+        },
+        {
+          "type": "response.headers",
+          "op": "append",
+          "target": {
+            "key": "Vary"
+          },
+          "args": "rsc"
+        },
+        {
+          "type": "response.headers",
           "op": "delete",
           "target": {
             "key": "Vary"
