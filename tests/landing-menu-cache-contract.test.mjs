@@ -177,6 +177,39 @@ function cacheInput(overrides = {}) {
   };
 }
 
+function richDishLists(suffix, translated) {
+  const list = (name, count) =>
+    Array.from({ length: count }, (_, index) => `${name}-${suffix}-${index}`);
+  return {
+    ingredients: list("ingredient", translated ? 80 : 24),
+    allergens: list("allergen", translated ? 80 : 24),
+    customAllergens: list("custom-allergen", 16),
+    allergenDeclarations: Array.from({ length: 14 }, () => ({
+      allergenId: "gluten",
+      status: "contains"
+    })),
+    allergenLegacyValues: list("legacy-allergen", 64),
+    options: list("option", translated ? 80 : 72),
+    tags: list("tag", translated ? 82 : 48)
+  };
+}
+
+function scaledMenuDishes(menu, count, suffix, translated) {
+  return Array.from({ length: count }, (_, index) => {
+    const source = menu.dishes[index % menu.dishes.length];
+    return {
+      ...source,
+      ...(index < menu.dishes.length
+        ? {}
+        : {
+            id: `${source.id}-${suffix}-${index}`,
+            slug: `${source.slug}-${suffix}-${index}`
+          }),
+      ...richDishLists(`${suffix}-${index}`, translated)
+    };
+  });
+}
+
 test("landing cache reuses fulfilled live values inside an epoch and isolates every address dimension", async () => {
   const fake = fakeCacheBackend();
   let now = 899_999;
@@ -207,6 +240,46 @@ test("landing cache reuses fulfilled live values inside an epoch and isolates ev
   ]);
   assert.ok(first.keyParts.includes("epoch=0"));
   assert.ok(fake.calls.at(-1).keyParts.includes("epoch=1"));
+});
+
+test("landing cache accepts the supported rich 200-dish bilingual projection", async () => {
+  const fake = fakeCacheBackend();
+  const frenchDishes = scaledMenuDishes(
+    liveMaisonContext.menu,
+    200,
+    "fr",
+    false
+  );
+  const englishDishes = scaledMenuDishes(
+    liveMaisonContext.menu,
+    200,
+    "en",
+    true
+  );
+  const bilingualContext = {
+    ...liveMaisonContext,
+    menu: { ...liveMaisonContext.menu, dishes: frenchDishes },
+    localizedMenus: {
+      "en-CA": {
+        ...liveMaisonContext.menu,
+        activeLocale: "en-CA",
+        translationStatus: { locale: "en-CA", status: "up_to_date" },
+        dishes: englishDishes
+      }
+    }
+  };
+  const reader = landingModule.createLandingDataReader({
+    cacheBackend: fake.backend,
+    now: () => 0,
+    resolveContext: async ({ slug }) =>
+      slug === "maison-elyse" ? bilingualContext : null,
+    resolveRates: async () => ({ base: "CAD", rates: { CAD: 1 } })
+  });
+
+  const payload = await reader.getPreviewPayload("maison-elyse", "fr");
+  assert.equal(payload?.menuUi.menu.dishes.length, 200);
+  assert.equal(payload?.menuUi.localizedMenus["en-CA"]?.dishes.length, 200);
+  assert.equal(fake.values.size, 1);
 });
 
 test("landing cache never stores a rejected fill and cannot reuse the prior epoch", async () => {

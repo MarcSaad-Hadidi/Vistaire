@@ -1,5 +1,6 @@
 export const PUBLIC_CACHE_SAFETY_MAX_DEPTH = 16;
-export const PUBLIC_CACHE_SAFETY_MAX_NODES = 10_000;
+export const PUBLIC_CACHE_SAFETY_DEFAULT_MAX_NODES = 10_000;
+export const PUBLIC_CACHE_SAFETY_MAX_NODES = 200_000;
 
 export type PublicCacheSafetyReason =
   | "credential-field"
@@ -161,10 +162,11 @@ export function isPrivateCapabilityUrl(value: unknown): boolean {
 function boundedOption(
   value: number | undefined,
   fallback: number,
+  maximum: number,
   field: string
 ): number {
   if (value === undefined) return fallback;
-  if (!Number.isSafeInteger(value) || value < 1 || value > fallback) {
+  if (!Number.isSafeInteger(value) || value < 1 || value > maximum) {
     throw new TypeError(`Invalid public cache safety ${field}.`);
   }
   return value;
@@ -177,10 +179,12 @@ export function assertPublicCacheSafe<T>(
   const maxDepth = boundedOption(
     options.maxDepth,
     PUBLIC_CACHE_SAFETY_MAX_DEPTH,
+    PUBLIC_CACHE_SAFETY_MAX_DEPTH,
     "depth limit"
   );
   const maxNodes = boundedOption(
     options.maxNodes,
+    PUBLIC_CACHE_SAFETY_DEFAULT_MAX_NODES,
     PUBLIC_CACHE_SAFETY_MAX_NODES,
     "node limit"
   );

@@ -33,13 +33,123 @@ export function readAttributes(tag: string) {
   return attributes;
 }
 
+function isHtmlTagBoundary(value: string | undefined) {
+  return (
+    value === ">" ||
+    value === "/" ||
+    value === "\t" ||
+    value === "\n" ||
+    value === "\f" ||
+    value === "\r" ||
+    value === " "
+  );
+}
+
+function findHtmlTagEnd(html: string, start: number) {
+  let quote: '"' | "'" | null = null;
+  for (let index = start; index < html.length; index += 1) {
+    const character = html[index];
+    if (quote) {
+      if (character === quote) quote = null;
+      continue;
+    }
+    if (character === '"' || character === "'") {
+      quote = character;
+      continue;
+    }
+    if (character === ">") return index;
+  }
+  return -1;
+}
+
+function matchesAsciiToken(html: string, start: number, token: string) {
+  for (let offset = 0; offset < token.length; offset += 1) {
+    const code = html.charCodeAt(start + offset);
+    const normalizedCode = code >= 65 && code <= 90 ? code + 32 : code;
+    if (normalizedCode !== token.charCodeAt(offset)) return false;
+  }
+  return true;
+}
+
+function findScriptClosingTag(html: string, start: number) {
+  const token = "</script";
+  let tokenStart = html.indexOf("<", start);
+  while (tokenStart >= 0) {
+    const boundaryIndex = tokenStart + token.length;
+    if (
+      matchesAsciiToken(html, tokenStart, token) &&
+      isHtmlTagBoundary(html[boundaryIndex])
+    ) {
+      const tagEnd = findHtmlTagEnd(html, boundaryIndex);
+      if (tagEnd >= 0) return { tagEnd, tokenStart };
+      return null;
+    }
+    tokenStart = html.indexOf("<", tokenStart + 1);
+  }
+  return null;
+}
+
+function isAsciiLetter(value: string | undefined) {
+  if (!value) return false;
+  const code = value.charCodeAt(0);
+  return (code >= 65 && code <= 90) || (code >= 97 && code <= 122);
+}
+
+function findScriptOpeningTag(html: string, start: number) {
+  const token = "<script";
+  let tokenStart = html.indexOf("<", start);
+  while (tokenStart >= 0) {
+    if (html.startsWith("<!--", tokenStart)) {
+      const commentEnd = html.indexOf("-->", tokenStart + 4);
+      if (commentEnd < 0) return null;
+      tokenStart = html.indexOf("<", commentEnd + 3);
+      continue;
+    }
+
+    const boundaryIndex = tokenStart + token.length;
+    if (
+      matchesAsciiToken(html, tokenStart, token) &&
+      isHtmlTagBoundary(html[boundaryIndex])
+    ) {
+      const tagEnd = findHtmlTagEnd(html, boundaryIndex);
+      if (tagEnd >= 0) return { tagEnd, tokenStart };
+      return null;
+    }
+
+    const tagMarker = html[tokenStart + 1];
+    if (
+      tagMarker === "/" ||
+      tagMarker === "!" ||
+      tagMarker === "?" ||
+      isAsciiLetter(tagMarker)
+    ) {
+      const tagEnd = findHtmlTagEnd(html, tokenStart + 2);
+      if (tagEnd < 0) return null;
+      tokenStart = html.indexOf("<", tagEnd + 1);
+      continue;
+    }
+    tokenStart = html.indexOf("<", tokenStart + 1);
+  }
+  return null;
+}
+
 export function jsonLdPayloads(html: string) {
   const payloads: unknown[] = [];
-  const scriptPattern = /<script\b([^>]*)>([\s\S]*?)<\/script\s*>/gi;
-  for (const match of html.matchAll(scriptPattern)) {
-    const attributes = readAttributes(`<script ${match[1]}>`);
+  let cursor = 0;
+  while (cursor < html.length) {
+    const opening = findScriptOpeningTag(html, cursor);
+    if (!opening) break;
+    const closing = findScriptClosingTag(html, opening.tagEnd + 1);
+    if (!closing) break;
+
+    const attributes = readAttributes(
+      html.slice(opening.tokenStart, opening.tagEnd + 1)
+    );
+    cursor = closing.tagEnd + 1;
     if (attributes.get("type")?.toLowerCase() !== "application/ld+json") continue;
-    payloads.push(JSON.parse(match[2].trim()));
+    payloads.push(
+      JSON.parse(html.slice(opening.tagEnd + 1, closing.tokenStart).trim())
+    );
   }
   return payloads;
 }

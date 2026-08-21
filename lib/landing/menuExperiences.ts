@@ -10,7 +10,8 @@ import {
 } from "@/lib/cache/publicCachePolicy";
 import {
   assertPublicCacheSafe,
-  PublicCacheSafetyError
+  PublicCacheSafetyError,
+  PUBLIC_CACHE_SAFETY_MAX_NODES
 } from "@/lib/cache/publicCacheSafety";
 import { LOCALE_LANGUAGE_TAG, type Locale } from "@/lib/i18n";
 import {
@@ -666,6 +667,12 @@ function isLandingPreviewFallbackError(error: unknown): boolean {
   );
 }
 
+function assertLandingCacheSafe<T>(candidate: T): T {
+  return assertPublicCacheSafe(candidate, {
+    maxNodes: PUBLIC_CACHE_SAFETY_MAX_NODES
+  });
+}
+
 type LandingStableContextResolver = (args: {
   query: Parameters<typeof resolvePublicMenuStableRenderContext>[0]["query"];
   slug: string;
@@ -764,7 +771,7 @@ async function buildLiveLandingExperience(
       imagePosition: "center"
     }
   };
-  return assertPublicCacheSafe(candidate);
+  return assertLandingCacheSafe(candidate);
 }
 
 async function hydrateLandingPayload(
@@ -816,7 +823,7 @@ async function buildLiveLandingMenuPreviewPayload(
     );
   }
   const candidate = landingRenderPayload(experience, context, current.preview);
-  return assertPublicCacheSafe(candidate);
+  return assertLandingCacheSafe(candidate);
 }
 
 export function createLandingDataReader({

@@ -181,6 +181,30 @@ test("cycles and traversal limit overflows fail closed", () => {
   );
 });
 
+test("larger cache budgets require an explicit bounded opt-in", () => {
+  const candidate = {
+    values: Array.from(
+      { length: safety.PUBLIC_CACHE_SAFETY_DEFAULT_MAX_NODES },
+      () => null
+    )
+  };
+
+  assert.equal(rejected(candidate, "node-limit").reason, "node-limit");
+  assert.equal(
+    safety.assertPublicCacheSafe(candidate, {
+      maxNodes: safety.PUBLIC_CACHE_SAFETY_MAX_NODES
+    }),
+    candidate
+  );
+  assert.throws(
+    () =>
+      safety.assertPublicCacheSafe(candidate, {
+        maxNodes: safety.PUBLIC_CACHE_SAFETY_MAX_NODES + 1
+      }),
+    TypeError
+  );
+});
+
 test("array accessors and non-index properties are rejected without invocation", () => {
   let getterInvoked = false;
   const accessorArray = [];
