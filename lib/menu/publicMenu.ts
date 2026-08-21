@@ -624,14 +624,15 @@ function coalescePublicMenuRead(
   const active = publicMenuReadFlights.get(key);
   if (active) return active;
 
-  let flight: Promise<PublicMenuReadOutcome>;
-  flight = Promise.resolve()
+  const flightReference: { current?: Promise<PublicMenuReadOutcome> } = {};
+  const flight = Promise.resolve()
     .then(read)
     .finally(() => {
-      if (publicMenuReadFlights.get(key) === flight) {
+      if (publicMenuReadFlights.get(key) === flightReference.current) {
         publicMenuReadFlights.delete(key);
       }
     });
+  flightReference.current = flight;
   publicMenuReadFlights.set(key, flight);
   return flight;
 }

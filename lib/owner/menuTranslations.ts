@@ -724,7 +724,7 @@ export async function generateOwnerMenuTranslations(args: {
         menuRow: ctx.menu,
         settings: ctx.settings,
         localizedUiCopy: generatedLocalizedUiCopy,
-        onPublicCommit: observePublicCommit
+        onPublicCommit: () => observePublicCommit({ locale: args.locale })
       });
       if (!persisted.ok) throw new Error(persisted.error);
     }
