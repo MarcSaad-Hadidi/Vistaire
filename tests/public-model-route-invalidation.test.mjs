@@ -99,21 +99,13 @@ const moduleStubs = new Map([
     "@/lib/owner/deleteDishModelAssets",
     hookedModule(`
       export const DISH_MODEL_MISSING_STATUS = "missing";
-      export function cleanDishModelMetadata() { return {}; }
-      export function cleanTargetedDishModelMetadata() { return {}; }
-      export function collectDishModelStorageTargets() {
-        return { targets: [{ bucket: "models", path: "public/sole.glb" }], skipped: [] };
-      }
-      export function collectTargetedDishModelDeletion() {
-        return {
-          targets: [{ bucket: "models", path: "public/sole.glb" }],
-          clearKeys: ["webModel3dUrl"]
-        };
-      }
-      export function groupTargetsByBucket() {
-        return [["models", ["public/sole.glb"]]];
-      }
-      export function hasDishModelMetadata() { return true; }
+      export function cleanDishModelMetadata(...args) { return ${hookCall("cleanDishModelMetadata")}; }
+      export function cleanTargetedDishModelMetadata(...args) { return ${hookCall("cleanTargetedDishModelMetadata")}; }
+      export function collectDishModelStorageTargets(...args) { return ${hookCall("collectDishModelStorageTargets")}; }
+      export function collectTargetedDishModelDeletion(...args) { return ${hookCall("collectTargetedDishModelDeletion")}; }
+      export function getObjectMetadata(...args) { return ${hookCall("getObjectMetadata")}; }
+      export function groupTargetsByBucket(...args) { return ${hookCall("groupTargetsByBucket")}; }
+      export function hasDishModelMetadata(...args) { return ${hookCall("hasDishModelMetadata")}; }
     `)
   ],
   [
@@ -184,7 +176,7 @@ function identity() {
   };
 }
 
-function fakeAdmin(events, { cleanupThrows = false } = {}) {
+function fakeAdmin(events, { cleanupThrows = false, noModel = false } = {}) {
   return {
     storage: {
       from() {
@@ -219,7 +211,7 @@ function fakeAdmin(events, { cleanupThrows = false } = {}) {
               slug: "sole",
               name: "Sole",
               metadata: {},
-              has_immersive_view: true
+              has_immersive_view: !noModel
             },
             error: null
           };
@@ -230,8 +222,9 @@ function fakeAdmin(events, { cleanupThrows = false } = {}) {
   };
 }
 
-function baseHooks(events, options) {
+function baseHooks(events, options = {}) {
   const admin = fakeAdmin(events, options);
+  const target = { bucket: "models", path: "public/sole.glb" };
   return {
     ownerAuth: async () => ({ ok: true, userId: "owner", emailAddresses: ["owner@vistaire.test"] }),
     sameOrigin: () => null,
@@ -242,6 +235,23 @@ function baseHooks(events, options) {
       events.push("invalidate");
       return { attempted: 10, queuedCallReturned: 10, enqueueErrors: [] };
     },
+    cleanDishModelMetadata: () => ({}),
+    cleanTargetedDishModelMetadata: () => ({}),
+    collectDishModelStorageTargets: () => ({
+      targets: options.noModel ? [] : [target],
+      skipped: []
+    }),
+    collectTargetedDishModelDeletion: () => ({
+      targets: options.noModel ? [] : [target],
+      clearKeys: ["webModel3dUrl"]
+    }),
+    getObjectMetadata: (value) =>
+      value && typeof value === "object" && !Array.isArray(value)
+        ? { ...value }
+        : {},
+    groupTargetsByBucket: (targets) =>
+      targets.length > 0 ? [["models", ["public/sole.glb"]]] : [],
+    hasDishModelMetadata: () => !options.noModel,
     revalidatePath: (path) => { events.push(`legacy-path:${path}`); },
     verifyToken: () => ({
       ok: true,
@@ -349,6 +359,34 @@ test("model delete cleanup throws reschedule and return a redacted committed Res
     "storage:cleanup",
     "invalidate"
   ]);
+});
+
+test("model delete no-op returns success without a DB commit, invalidation, or cleanup", async () => {
+  const events = [];
+  globalThis[hooksSymbol] = baseHooks(events, { noModel: true });
+  const request = new Request("https://vistaire.test/api/model?target=all", {
+    method: "DELETE",
+    headers: { origin: "https://vistaire.test" }
+  });
+  Object.defineProperty(request, "nextUrl", { value: new URL(request.url) });
+
+  const response = await deleteRoute.DELETE(request, {
+    params: Promise.resolve({ restaurantId: RESTAURANT_ID, dishId: DISH_ID })
+  });
+  const body = await response.json();
+
+  assert.equal(response.status, 200);
+  assert.equal(body.ok, true);
+  assert.equal(body.modelDeleted, false);
+  assert.equal(body.dishUpdated, false);
+  assert.equal(body.attemptedCount, 0);
+  assert.equal(body.deletedCount, 0);
+  assert.deepEqual(
+    events.filter((event) =>
+      ["db:commit", "invalidate", "storage:cleanup"].includes(event)
+    ),
+    []
+  );
 });
 
 test("USDZ start, prepare, fail, and the retired 410 route never claim a public commit", async () => {

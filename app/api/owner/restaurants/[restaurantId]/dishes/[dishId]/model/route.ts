@@ -1,3 +1,4 @@
+import { isDeepStrictEqual } from "node:util";
 import { NextResponse, type NextRequest } from "next/server";
 import {
   requireSameOriginOwnerMutation,
@@ -9,6 +10,7 @@ import {
   collectDishModelStorageTargets,
   collectTargetedDishModelDeletion,
   DISH_MODEL_MISSING_STATUS,
+  getObjectMetadata,
   groupTargetsByBucket,
   hasDishModelMetadata,
   type DishModelDeleteTarget
@@ -85,12 +87,6 @@ export async function DELETE(
     );
   }
 
-  const publicIdentity = await resolvePublicMutationIdentity({
-    client: admin.client,
-    restaurantId,
-    dishSlug: dish.slug || dish.name || dishId
-  });
-
   const requestedTarget = request.nextUrl.searchParams.get("target") ?? "all";
   const validTargets: DishModelDeleteTarget[] = ["all", "viewer-glb", "usdz-runtime", "report"];
   const target = (validTargets as string[]).includes(requestedTarget)
@@ -120,11 +116,37 @@ export async function DELETE(
       ? cleanedMetadata.modelStatus
       : DISH_MODEL_MISSING_STATUS;
   const stillImmersive = nextModelStatus !== DISH_MODEL_MISSING_STATUS;
+  const nextHasImmersiveView = isFullDelete ? false : stillImmersive;
+  const metadataChanged = !isDeepStrictEqual(
+    getObjectMetadata(dish.metadata),
+    cleanedMetadata
+  );
+  const immersiveStateChanged =
+    dish.has_immersive_view !== nextHasImmersiveView;
+
+  if (!metadataChanged && !immersiveStateChanged && scoped.targets.length === 0) {
+    return NextResponse.json({
+      ok: true,
+      target,
+      modelDeleted: false,
+      dishUpdated: false,
+      attemptedCount: 0,
+      deletedCount: 0,
+      skippedCount: collectedAll.skipped.length,
+      modelStatus: nextModelStatus
+    });
+  }
+
+  const publicIdentity = await resolvePublicMutationIdentity({
+    client: admin.client,
+    restaurantId,
+    dishSlug: dish.slug || dish.name || dishId
+  });
 
   const updated = await admin.client
     .from("menu_dishes")
     .update({
-      has_immersive_view: isFullDelete ? false : stillImmersive,
+      has_immersive_view: nextHasImmersiveView,
       metadata: cleanedMetadata
     })
     .eq("id", dishId)
