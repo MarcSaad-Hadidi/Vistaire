@@ -6,6 +6,12 @@ import {
   type Page
 } from "@playwright/test";
 
+import {
+  hasPageSpecificSchema,
+  jsonLdPayloads,
+  readAttributes
+} from "./support/staticPublicRenderingContract";
+
 const BASE_URL =
   process.env.PLAYWRIGHT_BASE_URL ?? "http://127.0.0.1:3000";
 const BASE_ORIGIN = new URL(BASE_URL).origin;
@@ -108,74 +114,12 @@ const OBSERVED_RESOURCE_TYPES = new Set([
 const ERROR_OVERLAY_SELECTOR =
   "[data-nextjs-dialog], nextjs-portal, #webpack-dev-server-client-overlay, .vite-error-overlay";
 
-function decodeHtmlEntities(value: string) {
-  return value.replace(
-    /&(?:#(\d+)|#x([\da-f]+)|amp|quot|apos|lt|gt);/gi,
-    (entity, decimal: string | undefined, hexadecimal: string | undefined) => {
-      if (decimal) return String.fromCodePoint(Number(decimal));
-      if (hexadecimal) return String.fromCodePoint(Number.parseInt(hexadecimal, 16));
-      const named: Record<string, string> = {
-        "&amp;": "&",
-        "&quot;": '"',
-        "&apos;": "'",
-        "&lt;": "<",
-        "&gt;": ">"
-      };
-      return named[entity.toLowerCase()] ?? entity;
-    }
-  );
-}
-
-function readAttributes(tag: string) {
-  const attributes = new Map<string, string>();
-  const attributePattern =
-    /([^\s=/>]+)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'=<>`]+)))?/g;
-  for (const match of tag.matchAll(attributePattern)) {
-    const name = match[1].toLowerCase();
-    if (name === "html" || name === "link" || name === "script") continue;
-    attributes.set(
-      name,
-      decodeHtmlEntities(match[2] ?? match[3] ?? match[4] ?? "")
-    );
-  }
-  return attributes;
-}
-
 function absoluteUrl(value: string) {
   return new URL(value).toString();
 }
 
 function expectedUrl(path: string) {
   return new URL(path, CANONICAL_ORIGIN).toString();
-}
-
-function jsonLdPayloads(html: string) {
-  const payloads: unknown[] = [];
-  const scriptPattern = /<script\b([^>]*)>([\s\S]*?)<\/script>/gi;
-  for (const match of html.matchAll(scriptPattern)) {
-    const attributes = readAttributes(`<script ${match[1]}>`);
-    if (attributes.get("type")?.toLowerCase() !== "application/ld+json") continue;
-    payloads.push(JSON.parse(match[2].trim()));
-  }
-  return payloads;
-}
-
-function hasPageSpecificSchema(payload: unknown) {
-  if (!payload || typeof payload !== "object") return false;
-  const records = Array.isArray(payload) ? payload : [payload];
-  const globalTypes = new Set(["Organization", "ProfessionalService", "WebSite"]);
-  return records.some((entry) => {
-    if (!entry || typeof entry !== "object" || Array.isArray(entry)) return false;
-    const record = entry as Record<string, unknown>;
-    const context = record["@context"];
-    const rawType = record["@type"];
-    const types = Array.isArray(rawType) ? rawType : [rawType];
-    return (
-      typeof context === "string" &&
-      context.includes("schema.org") &&
-      types.some((type) => typeof type === "string" && !globalTypes.has(type))
-    );
-  });
 }
 
 async function expectRawHtmlContract(

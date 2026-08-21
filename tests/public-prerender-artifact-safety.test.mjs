@@ -5,13 +5,27 @@ import { join, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
 import test from "node:test";
 
-import { scanPublicPrerenderArtifacts } from "../scripts/ci/check-public-prerender-artifacts.mjs";
+import {
+  buildCredentialQueryPattern,
+  scanPublicPrerenderArtifacts
+} from "../scripts/ci/check-public-prerender-artifacts.mjs";
 
 const SENTINELS = [
   "synthetic-service-role-secret",
   "synthetic-owner-email@example.test",
   "synthetic-session-cookie"
 ];
+
+test("credential query patterns treat backslashes and regex metacharacters literally", () => {
+  const hostileKey = "token\\w+|signature.*[x](y)?^$";
+  const hostilePattern = buildCredentialQueryPattern(hostileKey);
+  assert.equal(hostilePattern.test(`?${hostileKey}=synthetic-secret`), true);
+  assert.equal(hostilePattern.test("?tokenAAAA=synthetic-secret"), false);
+  assert.equal(hostilePattern.test("&signatureZZZx=synthetic-secret"), false);
+
+  const legitimatePattern = buildCredentialQueryPattern("x-amz-signature");
+  assert.equal(legitimatePattern.test("?X-Amz-Signature = synthetic-secret"), true);
+});
 
 async function makeNextRoot() {
   const parent = await mkdtemp(join(tmpdir(), "vistaire-public-artifacts-"));

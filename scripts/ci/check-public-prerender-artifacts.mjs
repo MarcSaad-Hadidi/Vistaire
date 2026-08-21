@@ -19,8 +19,16 @@ function normalizedRelative(root, file) {
   return relative(root, file).split(sep).join("/");
 }
 
-function markerPatterns() {
+function escapeRegExp(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+export function buildCredentialQueryPattern(key) {
   const querySeparator = String.raw`(?:\?|&|&amp;|\\u0026)`;
+  return new RegExp(`${querySeparator}${escapeRegExp(key)}\\s*=`, "i");
+}
+
+function markerPatterns() {
   return [
     {
       marker: "signed-storage-path",
@@ -28,7 +36,7 @@ function markerPatterns() {
     },
     ...CREDENTIAL_QUERY_KEYS.map((key) => ({
       marker: `credential-query:${key}`,
-      pattern: new RegExp(`${querySeparator}${key.replace(/-/g, "\\-")}\\s*=`, "i")
+      pattern: buildCredentialQueryPattern(key)
     })),
     {
       marker: "trusted-owner-bypass-header",
