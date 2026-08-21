@@ -186,6 +186,32 @@ function expectExactlyOneAnimatedCycle(probe: ContentsProbe) {
   ).toEqual([]);
 }
 
+function expectDirectJumpAfterSingleFlip(
+  probe: ContentsProbe,
+  adjacentPage: number,
+  finalPage: number
+) {
+  const settledSingleFlipIndex = probe.handoffSnapshots.findIndex(
+    ({ phase, actualPage }) =>
+      phase === "read-after-single-flip" &&
+      actualPage === String(adjacentPage)
+  );
+  expect(settledSingleFlipIndex).toBeGreaterThanOrEqual(0);
+
+  const physicalPageSequence = probe.handoffSnapshots
+    .slice(settledSingleFlipIndex + 1)
+    .reduce<string[]>((pages, { actualPage }) => {
+      if (actualPage !== null && pages.at(-1) !== actualPage) {
+        pages.push(actualPage);
+      }
+      return pages;
+    }, [String(adjacentPage)]);
+  expect(physicalPageSequence).toEqual([
+    String(adjacentPage),
+    String(finalPage)
+  ]);
+}
+
 for (const viewport of [
   { width: 390, height: 844 },
   { width: 430, height: 932 }
@@ -231,7 +257,7 @@ for (const viewport of [
       await expectSettledDestination(page, 7);
       const probe = await readProbe(page);
       expectExactlyOneAnimatedCycle(probe);
-      expect(probe.phases).toContain("instant-jump-to-target");
+      expectDirectJumpAfterSingleFlip(probe, 2, 7);
       expect(
         probe.historyUrls.filter((url) =>
           /[?&]view=sauge-(?:2|3|4|5|6)(?:&|$)/.test(url)
@@ -254,7 +280,7 @@ for (const viewport of [
       await expectSettledDestination(page, 9);
       const probe = await readProbe(page);
       expectExactlyOneAnimatedCycle(probe);
-      expect(probe.phases).toContain("instant-jump-to-target");
+      expectDirectJumpAfterSingleFlip(probe, 2, 9);
       expect(
         probe.historyUrls.filter((url) =>
           /[?&]view=sauge-(?:2|3|4|5|6|7|8)(?:&|$)/.test(url)
@@ -277,7 +303,7 @@ for (const viewport of [
       await expectSettledDestination(page, 1);
       const probe = await readProbe(page);
       expectExactlyOneAnimatedCycle(probe);
-      expect(probe.phases).toContain("instant-jump-to-target");
+      expectDirectJumpAfterSingleFlip(probe, 6, 1);
       expect(
         probe.historyUrls.filter((url) =>
           /[?&]view=sauge-(?:2|3|4|5|6)(?:&|$)/.test(url)
