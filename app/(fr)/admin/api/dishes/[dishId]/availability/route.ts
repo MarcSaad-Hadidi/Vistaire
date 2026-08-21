@@ -6,7 +6,11 @@ import {
   preserveAvailabilityResultAfterRevalidation,
   type AvailabilityUpdateResult
 } from "@/lib/admin/availability";
-import { revalidateOwnerMenuMutationPaths } from "@/lib/owner/menuMutationRevalidation";
+import {
+  invalidateCommittedPublicMutation,
+  resolvePublicMutationIdentity
+} from "@/lib/owner/menuMutationRevalidation";
+import { slugifyRestaurantSlug } from "@/lib/owner/menuUrlCore";
 import { getSupabaseAdminClient } from "@/utils/supabase/admin";
 
 export const runtime = "nodejs";
@@ -25,6 +29,11 @@ async function updateDishAvailability({
 }): Promise<AvailabilityUpdateResult> {
   const admin = getSupabaseAdminClient();
   if (!admin.ok) return { ok: false, status: 503 };
+
+  const publicIdentity = await resolvePublicMutationIdentity({
+    client: admin.client,
+    restaurantId
+  });
 
   const { data, error } = await admin.client
     .rpc("set_admin_dish_availability", {
@@ -47,12 +56,13 @@ async function updateDishAvailability({
   };
 
   return preserveAvailabilityResultAfterRevalidation(result, async () => {
+    const dishSlug = slugifyRestaurantSlug(result.ok ? result.dishSlug : "");
+    await invalidateCommittedPublicMutation(
+      publicIdentity && dishSlug
+        ? { ...publicIdentity, dishSlug }
+        : publicIdentity
+    );
     revalidatePath("/admin");
-    await revalidateOwnerMenuMutationPaths({
-      client: admin.client,
-      restaurantId,
-      dishSlug: result.ok ? result.dishSlug : ""
-    });
   });
 }
 

@@ -28,6 +28,14 @@ type MenuMutationResult =
   | { ok: true; record: Record<string, unknown> }
   | { ok: false; status: 400 | 404 | 409 | 503; error: string };
 
+export type OwnerMenuPublicCommit = Readonly<{
+  dishSlug?: string;
+}>;
+
+export type OwnerMenuPublicCommitCallback = (
+  commit: OwnerMenuPublicCommit
+) => void | Promise<void>;
+
 type PrimaryMenu = {
   id: string;
   settingsJson: unknown;
@@ -253,7 +261,8 @@ async function refetchPrimaryMenuAfterConflict(
 
 async function ensurePrimaryMenu(
   client: SupabaseClient,
-  restaurantId: string
+  restaurantId: string,
+  onPublicCommit?: OwnerMenuPublicCommitCallback
 ): Promise<PrimaryMenuResult> {
   const restaurant = await client
     .from("restaurants")
@@ -300,6 +309,8 @@ async function ensurePrimaryMenu(
       return { ok: false, status: 503, error: "Menu principal impossible a creer." };
     }
 
+    await onPublicCommit?.({});
+
     return {
       ok: true,
       menu: {
@@ -323,6 +334,8 @@ async function ensurePrimaryMenu(
   if (inserted.error || !inserted.data?.id) {
     return { ok: false, status: 503, error: "Menu principal impossible a creer." };
   }
+
+  await onPublicCommit?.({});
 
   return {
     ok: true,
@@ -443,6 +456,7 @@ export async function createOwnerMenuCategory(args: {
   client: SupabaseClient;
   restaurantId: string;
   input: unknown;
+  onPublicCommit?: OwnerMenuPublicCommitCallback;
 }): Promise<MenuMutationResult> {
   const candidate = objectInput(args.input);
   const name = stringInput(candidate.name, 120);
@@ -451,7 +465,11 @@ export async function createOwnerMenuCategory(args: {
     return { ok: false, status: 400, error: "Nom de section requis." };
   }
 
-  const menuResult = await ensurePrimaryMenu(args.client, args.restaurantId);
+  const menuResult = await ensurePrimaryMenu(
+    args.client,
+    args.restaurantId,
+    args.onPublicCommit
+  );
   if (!menuResult.ok) return menuResult;
   const slug = await uniqueSlug({
     client: args.client,
@@ -480,6 +498,7 @@ export async function createOwnerMenuCategory(args: {
     }
     return { ok: false, status: 503, error: "Section impossible a creer." };
   }
+  await args.onPublicCommit?.({});
   return { ok: true, record: inserted.data };
 }
 
@@ -487,6 +506,7 @@ export async function updateOwnerMenuCategory(args: {
   client: SupabaseClient;
   restaurantId: string;
   input: unknown;
+  onPublicCommit?: OwnerMenuPublicCommitCallback;
 }): Promise<MenuMutationResult> {
   const candidate = objectInput(args.input);
   const id = stringInput(candidate.id, 80);
@@ -534,6 +554,7 @@ export async function updateOwnerMenuCategory(args: {
   if (updated.error || !updated.data) {
     return { ok: false, status: 503, error: "Section impossible a modifier." };
   }
+  await args.onPublicCommit?.({});
   return { ok: true, record: updated.data };
 }
 
@@ -541,6 +562,7 @@ export async function deleteOwnerMenuCategory(args: {
   client: SupabaseClient;
   restaurantId: string;
   input: unknown;
+  onPublicCommit?: OwnerMenuPublicCommitCallback;
 }): Promise<MenuMutationResult> {
   const candidate = objectInput(args.input);
   const id = stringInput(candidate.id, 80);
@@ -590,6 +612,7 @@ export async function deleteOwnerMenuCategory(args: {
   if (!deleted.data?.id) {
     return { ok: false, status: 404, error: "Section introuvable." };
   }
+  await args.onPublicCommit?.({});
   return { ok: true, record: deleted.data };
 }
 
@@ -666,6 +689,7 @@ export async function createOwnerMenuDish(args: {
   client: SupabaseClient;
   restaurantId: string;
   input: unknown;
+  onPublicCommit?: OwnerMenuPublicCommitCallback;
 }): Promise<MenuMutationResult> {
   const candidate = objectInput(args.input);
   const name = stringInput(candidate.name, 140);
@@ -682,7 +706,11 @@ export async function createOwnerMenuDish(args: {
   if (!categoryId) return { ok: false, status: 400, error: "Section du plat requise." };
   if (!parsedPrice.ok) return { ok: false, status: 400, error: parsedPrice.error };
 
-  const menuResult = await ensurePrimaryMenu(args.client, args.restaurantId);
+  const menuResult = await ensurePrimaryMenu(
+    args.client,
+    args.restaurantId,
+    args.onPublicCommit
+  );
   if (!menuResult.ok) return menuResult;
   const category = await categoryForDish({
     client: args.client,
@@ -750,6 +778,9 @@ export async function createOwnerMenuDish(args: {
     }
     return { ok: false, status: 503, error: "Plat impossible a creer." };
   }
+  await args.onPublicCommit?.({
+    dishSlug: typeof inserted.data.slug === "string" ? inserted.data.slug : undefined
+  });
   return { ok: true, record: inserted.data };
 }
 
@@ -757,6 +788,7 @@ export async function updateOwnerMenuDish(args: {
   client: SupabaseClient;
   restaurantId: string;
   input: unknown;
+  onPublicCommit?: OwnerMenuPublicCommitCallback;
 }): Promise<MenuMutationResult> {
   const candidate = objectInput(args.input);
   const id = stringInput(candidate.id, 80);
@@ -869,6 +901,9 @@ export async function updateOwnerMenuDish(args: {
   if (updated.error || !updated.data) {
     return { ok: false, status: 503, error: "Plat impossible a modifier." };
   }
+  await args.onPublicCommit?.({
+    dishSlug: typeof updated.data.slug === "string" ? updated.data.slug : undefined
+  });
   return { ok: true, record: updated.data };
 }
 
@@ -876,6 +911,7 @@ export async function deleteOwnerMenuDish(args: {
   client: SupabaseClient;
   restaurantId: string;
   input: unknown;
+  onPublicCommit?: OwnerMenuPublicCommitCallback;
 }): Promise<MenuMutationResult> {
   const candidate = objectInput(args.input);
   const id = stringInput(candidate.id, 80);
@@ -908,15 +944,38 @@ export async function deleteOwnerMenuDish(args: {
     return { ok: false, status: 404, error: "Plat introuvable." };
   }
 
-  const cleanup = await cleanupReplacedDishAssets({
-    client: args.client,
-    dishId: id,
-    restaurantId: args.restaurantId,
-    previousMetadata: existing.data.metadata,
-    nextMetadata: {},
-    currentMetadata: {},
-    reason: "dish-delete"
-  });
+  const publicCommit = {
+    dishSlug: typeof deleted.data.slug === "string" ? deleted.data.slug : undefined
+  } satisfies OwnerMenuPublicCommit;
+  await args.onPublicCommit?.(publicCommit);
+
+  let cleanup;
+  try {
+    cleanup = await cleanupReplacedDishAssets({
+      client: args.client,
+      dishId: id,
+      restaurantId: args.restaurantId,
+      previousMetadata: existing.data.metadata,
+      nextMetadata: {},
+      currentMetadata: {},
+      reason: "dish-delete"
+    });
+  } catch {
+    await args.onPublicCommit?.(publicCommit);
+    return {
+      ok: true,
+      record: {
+        ...deleted.data,
+        mediaCleanup: {
+          deleted: [],
+          skipped: [],
+          warnings: [
+            "Storage metadata cleanup partiel: nettoyage differe apres suppression."
+          ]
+        }
+      }
+    };
+  }
   const mediaCleanup = {
     deleted: cleanup.deleted,
     skipped: [

@@ -237,7 +237,8 @@ test("successful availability changes revalidate admin and public menu paths", a
   const list = await readFile("components/admin/availability/AdminAvailabilityList.tsx", "utf8");
   const clientContract = `${control}\n${mutation}\n${list}`;
   assert.match(route, /revalidatePath\(["']\/admin["']\)/);
-  assert.match(route, /revalidateOwnerMenuMutationPaths/);
+  assert.match(route, /resolvePublicMutationIdentity/);
+  assert.match(route, /invalidateCommittedPublicMutation/);
   assert.match(route, /preserveAvailabilityResultAfterRevalidation/);
   assert.match(revalidation, /`\/menu\/\$\{restaurantSlug\}`/);
   assert.match(revalidation, /`\/menu\/\$\{restaurantSlug\}\/dishes\/\$\{dishSlug\}`/);

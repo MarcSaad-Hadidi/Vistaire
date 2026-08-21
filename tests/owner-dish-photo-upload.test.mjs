@@ -233,7 +233,9 @@ test("photo replacement, delete, and dish delete use the shared media cleanup", 
   assert.match(uploadRoute, /reason: "dish-photo-replacement"/);
   assert.match(uploadRoute, /cleanup: replacementCleanup/);
   assert.match(uploadRoute, /skippedCount/);
-  assert.match(uploadRoute, /revalidateOwnerMenuMutationPaths/);
+  assert.match(uploadRoute, /resolvePublicMutationIdentity/);
+  assert.match(uploadRoute, /invalidateCommittedPublicMutation/);
+  assert.match(uploadRoute, /committedPhotoCleanup/);
   assert.match(dishRoute, /mediaCleanup/);
   assert.match(mutations, /cleanupReplacedDishAssets/);
   assert.match(mutations, /select\("id,name,slug,menu_id,category_id,metadata"\)/);
@@ -247,7 +249,7 @@ test("photo DELETE clears DB metadata before cross-dish-safe Storage cleanup", a
   const deleteStart = uploadRoute.indexOf("export async function DELETE");
   assert.ok(deleteStart >= 0);
   const deleteRoute = uploadRoute.slice(deleteStart);
-  const updateIndex = deleteRoute.indexOf('.update({\n      image_url: null');
+  const updateIndex = deleteRoute.search(/\.update\(\{\r?\n\s+image_url: null/);
   const cleanupIndex = deleteRoute.indexOf("cleanupReplacedDishAssets({");
   assert.ok(updateIndex >= 0, "DELETE must clear the dish metadata");
   assert.ok(cleanupIndex > updateIndex, "Storage cleanup must run after the DB update");

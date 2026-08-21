@@ -45,7 +45,9 @@ test("owner menu mutation routes require owner auth and same-origin", async () =
     assert.match(route, /requireSameOriginOwnerMutation/);
     assert.match(route, /getSupabaseAdminClient/);
     assert.match(route, /export async function DELETE/);
-    assert.match(route, /revalidateOwnerMenuMutationPaths/);
+    assert.match(route, /resolvePublicMutationIdentity/);
+    assert.match(route, /invalidateCommittedPublicMutation/);
+    assert.match(route, /onPublicCommit/);
   }
 });
 
@@ -105,6 +107,7 @@ test("owner dish creation can attach photo and GLB and filter dishes by section"
   assert.match(manager, /Toutes les sections/);
   assert.match(manager, /filteredDishes\.map/);
   assert.match(manager, /Aucun plat dans cette section/);
-  assert.match(photoRoute, /revalidateOwnerMenuMutationPaths/);
-  assert.match(dishesRoute, /dishSlug: typeof result\.record\.slug/);
+  assert.match(photoRoute, /committedPhotoCleanup/);
+  assert.match(photoRoute, /invalidateCommittedPublicMutation/);
+  assert.match(dishesRoute, /publicCommitCallback/);
 });
