@@ -78,6 +78,8 @@ export type GenerateMenuTranslationsResult =
     }
   | { ok: false; status: 400 | 404 | 503; error: string };
 
+const CONTROLLED_TRANSLATION_FAILURE = "Generation traduction echouee.";
+
 function getString(row: AnyRow, keys: string[], fallback = ""): string {
   for (const key of keys) {
     const value = stringInput(row[key]);
@@ -649,6 +651,20 @@ export async function generateOwnerMenuTranslations(args: {
   let translatedCharacters = 0;
   let translatedUiCopyCharacters = 0;
   let generatedLocalizedUiCopy = ctx.localizedUiCopy;
+  let publicCommitObserved = false;
+  const publicCommit = Object.freeze({ locale: args.locale });
+  const observePublicCommit: OwnerMenuTranslationPublicCommitCallback = async () => {
+    publicCommitObserved = true;
+    await args.onPublicCommit?.(publicCommit);
+  };
+  const rescheduleObservedPublicCommit = async () => {
+    if (!publicCommitObserved || !args.onPublicCommit) return;
+    try {
+      await args.onPublicCommit(publicCommit);
+    } catch {
+      // The public write already committed; keep the handler response controlled.
+    }
+  };
   try {
     if (!isDefaultLocale) {
       for (const entity of ctx.entities) {
@@ -658,7 +674,7 @@ export async function generateOwnerMenuTranslations(args: {
             ctx,
             entity,
             locale: args.locale,
-            onPublicCommit: args.onPublicCommit
+            onPublicCommit: observePublicCommit
           });
           continue;
         }
@@ -682,7 +698,7 @@ export async function generateOwnerMenuTranslations(args: {
           locale: args.locale,
           provider: translator.provider,
           content: applyTaskTranslations(entity, row, tasks, translations),
-          onPublicCommit: args.onPublicCommit
+          onPublicCommit: observePublicCommit
         });
       }
     }
@@ -708,9 +724,7 @@ export async function generateOwnerMenuTranslations(args: {
         menuRow: ctx.menu,
         settings: ctx.settings,
         localizedUiCopy: generatedLocalizedUiCopy,
-        onPublicCommit: args.onPublicCommit
-          ? () => args.onPublicCommit?.({ locale: args.locale })
-          : undefined
+        onPublicCommit: observePublicCommit
       });
       if (!persisted.ok) throw new Error(persisted.error);
     }
@@ -724,22 +738,33 @@ export async function generateOwnerMenuTranslations(args: {
         updated_at: new Date().toISOString()
       })
       .eq("id", job.data.id);
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "Generation traduction echouee.";
-    await ctx.client
-      .from("menu_translation_jobs")
-      .update({
-        status: "failed",
-        error_message: message,
-        completed_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      })
-      .eq("id", job.data.id);
-    return { ok: false, status: 503, error: message };
+  } catch {
+    try {
+      await ctx.client
+        .from("menu_translation_jobs")
+        .update({
+          status: "failed",
+          error_message: CONTROLLED_TRANSLATION_FAILURE,
+          completed_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        })
+        .eq("id", job.data.id);
+    } catch {
+      // A best-effort job marker must not replace a controlled post-commit response.
+    }
+    await rescheduleObservedPublicCommit();
+    return { ok: false, status: 503, error: CONTROLLED_TRANSLATION_FAILURE };
   }
 
-  const updatedRows = await readStoredTranslations(ctx.client, menuId, [args.locale]);
+  let updatedRows: StoredTranslationsReadResult;
+  try {
+    updatedRows = await readStoredTranslations(ctx.client, menuId, [args.locale]);
+  } catch {
+    await rescheduleObservedPublicCommit();
+    return { ok: false, status: 503, error: CONTROLLED_TRANSLATION_FAILURE };
+  }
   if (!updatedRows.ok) {
+    await rescheduleObservedPublicCommit();
     return { ok: false, status: updatedRows.status, error: updatedRows.error };
   }
   return {
