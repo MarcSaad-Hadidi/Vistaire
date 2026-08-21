@@ -45,7 +45,8 @@ test("landing showcase presents verified experiences, routes, and owner capabili
   }
 
   assert.match(data, /buildPublicMenuPath/);
-  assert.match(data, /resolvePublicMenuRenderContext/);
+  assert.match(data, /resolvePublicMenuStableRenderContext/);
+  assert.match(data, /resolvePublicMenuExchangeRates/);
   assert.match(data, /buildPublicDishPath/);
   assert.doesNotMatch(
     data,
@@ -354,16 +355,30 @@ test("comparison renderers remove dead controls from the keyboard and pointer co
   );
 });
 
-test("landing and the public menu route share the official render-context resolver", async () => {
+test("landing stable data and the public route share the official resolver facade", async () => {
   const route = await source("app/(fr)/menu/[slug]/page.tsx");
   const previewRoute = await source(
     "app/api/public/landing-menu-preview/[experienceId]/route.ts"
   );
   const landingData = await source("lib/landing/menuExperiences.ts");
+  const landingFacade = await source("lib/landing/publicLandingMenuData.ts");
   const resolver = await source("lib/menu/publicMenuRenderContext.ts");
 
   assert.match(route, /resolvePublicMenuRenderContext/);
-  assert.match(landingData, /resolvePublicMenuRenderContext/);
+  assert.match(landingData, /resolvePublicMenuStableRenderContext/);
+  assert.match(landingData, /resolvePublicMenuExchangeRates/);
+  assert.match(landingFacade, /resolvePublicMenuStableRenderContextDelegate/);
+  assert.match(landingFacade, /resolvePublicMenuExchangeRatesDelegate/);
+  assert.deepEqual(
+    [
+      ...new Set(
+        [...landingFacade.matchAll(/from\s+["']([^"']+)["']/g)].map(
+          (match) => match[1]
+        )
+      )
+    ],
+    ["@/lib/menu/publicMenuRenderContext"]
+  );
   assert.match(previewRoute, /isLandingExperienceId/);
   assert.match(previewRoute, /value === "fr" \|\| value === "en"/);
   assert.doesNotMatch(previewRoute, /import\s*\(\s*[`'"].*\$\{/);
@@ -387,7 +402,7 @@ test("landing serializes only the default renderer and lazy-loads inactive resta
   );
   assert.match(
     landingData,
-    /experience\.id === "maison-elyse"\s*\?\s*landingRenderPayload/
+    /renderPayload:\s*experience\.id === "maison-elyse"\s*\?\s*stablePayload\s*:\s*null/
   );
   for (const client of [comparison, demo]) {
     assert.match(
@@ -404,30 +419,18 @@ test("landing serializes only the default renderer and lazy-loads inactive resta
 test("Next landing caches isolate French and English payloads structurally", async () => {
   const landingData = await source("lib/landing/menuExperiences.ts");
 
-  for (const key of [
-    "landing-menu-experiences-fr-v11",
-    "landing-menu-experiences-en-v11",
-    "landing-menu-preview-payload-fr-v9",
-    "landing-menu-preview-payload-en-v9"
-  ]) {
-    assert.match(landingData, new RegExp(key));
-  }
-  assert.match(
-    landingData,
-    /buildLandingExperiences\("fr"\)[\s\S]*buildLandingExperiences\("en"\)/
-  );
-  assert.match(
-    landingData,
-    /buildLandingMenuPreviewPayload\(experienceId,\s*"fr"\)[\s\S]*buildLandingMenuPreviewPayload\(experienceId,\s*"en"\)/
-  );
-  assert.doesNotMatch(
-    landingData,
-    /unstable_cache\(\s*buildLandingExperiences/
-  );
-  assert.doesNotMatch(
-    landingData,
-    /unstable_cache\(\s*buildLandingMenuPreviewPayload/
-  );
+  assert.match(landingData, /landingExperienceCacheKeyParts/);
+  assert.match(landingData, /landingPayloadCacheKeyParts/);
+  assert.match(landingData, /landingCacheEpoch/);
+  assert.match(landingData, /LANDING_DATA_CACHE_SECONDS/);
+  assert.match(landingData, /readExperience[\s\S]*version:\s*"v12"/);
+  assert.match(landingData, /readPayload[\s\S]*version:\s*"v10"/);
+  assert.match(landingData, /restaurantKey:\s*experience\.menuSlug/);
+  assert.match(landingData, /experienceId:\s*experience\.id/);
+  assert.match(landingData, /experienceId,\s*locale,\s*version:\s*"v10"/);
+  assert.doesNotMatch(landingData, /landing-menu-experiences-(?:fr|en)-v11/);
+  assert.doesNotMatch(landingData, /landing-menu-preview-payload-(?:fr|en)-v9/);
+  assert.doesNotMatch(landingData, /\{\s*revalidate:\s*60\s*\}/);
 });
 
 test("landing dish cards use current public-menu detail routes", async () => {
@@ -512,7 +515,10 @@ test("landing preview payload is sanitized and excludes immersive asset fields",
 
   assert.match(data, /comparison:\s*PdfComparePreviewData/);
   assert.doesNotMatch(data, /type LandingPreviewBase[\s\S]{0,300}menu:\s*PublicMenu/);
-  assert.match(data, /menuUi:\s*LandingMenuUiPreview/);
+  assert.match(data, /type StableLandingMenuUiPreview = Omit<[\s\S]{0,100}"exchangeRates"/);
+  assert.match(data, /menuUi:\s*StableLandingMenuUiPreview/);
+  assert.match(data, /projectLandingMenuQuery/);
+  assert.match(data, /exchangeRates = await resolveRates/);
   assert.doesNotMatch(serializedProjection, /model3dUrl|usdzUrl|has3d|hasAr/);
   assert.doesNotMatch(menuUiProjection, /as PublicMenu/);
   assert.doesNotMatch(activeRenderer, /PageFlip|model-viewer|\.glb|\.usdz/i);

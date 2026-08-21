@@ -47,6 +47,14 @@ type PublicMenuBaseRenderContext = Omit<
   "exchangeRates" | "localizedMenus"
 >;
 
+export type PublicMenuStableRenderContext = PublicMenuBaseRenderContext & {
+  localizedMenus: Partial<Record<PublicMenuLocale, PublicMenu>>;
+  stableCacheReadiness: {
+    publishedUiConfig: boolean;
+    localizedMenusComplete: boolean;
+  };
+};
+
 export type PublicDishRenderContext = PublicMenuBaseRenderContext & {
   exchangeRates: MenuExchangeRates | null;
 };
@@ -57,7 +65,10 @@ async function resolvePublicMenuBaseRenderContext({
 }: {
   query: PublicMenuRenderQuery;
   slug: string;
-}): Promise<PublicMenuBaseRenderContext | null> {
+}): Promise<{
+  renderContext: PublicMenuBaseRenderContext;
+  publishedUiConfig: boolean;
+} | null> {
   const hasLangParam =
     typeof query.lang === "string" && query.lang.trim().length > 0;
   const initialMenu = await getPublicMenuBySlug(
@@ -117,28 +128,66 @@ async function resolvePublicMenuBaseRenderContext({
   });
 
   return {
-    menu,
-    config,
-    context,
-    query: {
-      ...menuQuery,
-      ...(experience.kind === "trouvable" && !hasLangParam
-        ? { lang: undefined }
-        : {})
+    publishedUiConfig:
+      configRecord.persisted &&
+      configRecord.dataSource === "supabase" &&
+      configRecord.status === "published",
+    renderContext: {
+      menu,
+      config,
+      context,
+      query: {
+        ...menuQuery,
+        ...(experience.kind === "trouvable" && !hasLangParam
+          ? { lang: undefined }
+          : {})
+      },
+      locale,
+      publicLocale,
+      experience
     },
-    locale,
-    publicLocale,
-    experience
   };
+}
+
+export function arePublicMenuTranslationsReadyForStableCache(
+  menu: Pick<PublicMenu, "settings" | "translationLocales">
+): boolean {
+  const statuses = menu.translationLocales ?? [];
+  if (!statuses.length) return false;
+
+  const configuredLocales = new Set([
+    ...menu.settings.supportedLocales,
+    ...statuses.map((status) => status.locale)
+  ]);
+  const isReady = (locale: string, status: string) =>
+    locale === menu.settings.defaultLocale
+      ? status === "source" || status === "up_to_date"
+      : status === "up_to_date";
+
+  return (
+    statuses.every((status) => isReady(status.locale, status.status)) &&
+    [...configuredLocales].every((locale) =>
+      statuses.some(
+        (status) => status.locale === locale && isReady(locale, status.status)
+      )
+    )
+  );
 }
 
 async function resolveLocalizedMenus(
   renderContext: PublicMenuBaseRenderContext,
   slug: string
-): Promise<Partial<Record<PublicMenuLocale, PublicMenu>>> {
-  if (renderContext.experience.kind !== "maison-elyse") return {};
+): Promise<{
+  localizedMenus: Partial<Record<PublicMenuLocale, PublicMenu>>;
+  complete: boolean;
+}> {
+  if (renderContext.experience.kind !== "maison-elyse") {
+    return { localizedMenus: {}, complete: true };
+  }
 
   const { settings, translationLocales = [] } = renderContext.menu;
+  const translationProvenanceComplete =
+    arePublicMenuTranslationsReadyForStableCache(renderContext.menu);
   const readyLocales = settings.supportedLocales.filter((candidate) => {
     const status = translationLocales.find((item) => item.locale === candidate)?.status;
     return (
@@ -154,33 +203,86 @@ async function resolveLocalizedMenus(
         candidate === renderContext.publicLocale
           ? renderContext.menu
           : await getPublicMenuBySlug(slug, candidate);
-      if (!resolved?.activeLocale) return null;
+      if (!resolved?.activeLocale) {
+        return { cacheReady: false, entry: null };
+      }
 
       const candidateLocale = normalizePublicMenuLocale(candidate);
       const resolvedLocale = normalizePublicMenuLocale(
         resolved.activeLocale,
         resolved.settings.defaultLocale
       );
-      return resolvedLocale === candidateLocale
-        ? ([candidateLocale, resolved] as const)
-        : null;
+      const entry =
+        resolvedLocale === candidateLocale
+          ? ([candidateLocale, resolved] as const)
+          : null;
+      const status = resolved.translationStatus?.status;
+      const translationReady =
+        candidateLocale === settings.defaultLocale
+          ? status === "source" || status === "up_to_date"
+          : status === "up_to_date";
+      const sameIdentity =
+        resolved.slug === renderContext.menu.slug &&
+        resolved.restaurantId === renderContext.menu.restaurantId &&
+        (!renderContext.menu.menuId ||
+          resolved.menuId === renderContext.menu.menuId);
+      return {
+        cacheReady:
+          Boolean(entry) &&
+          resolved.source === "supabase" &&
+          sameIdentity &&
+          translationReady,
+        entry
+      };
     })
   );
 
-  return Object.fromEntries(
-    resolvedMenus.filter(
-      (entry): entry is readonly [PublicMenuLocale, PublicMenu] => Boolean(entry)
-    )
+  const entries = resolvedMenus.filter(
+    (
+      result
+    ): result is {
+      cacheReady: boolean;
+      entry: readonly [PublicMenuLocale, PublicMenu];
+    } => Boolean(result.entry)
   );
+  return {
+    localizedMenus: Object.fromEntries(entries.map((result) => result.entry)),
+    complete:
+      translationProvenanceComplete &&
+      resolvedMenus.length === locales.length &&
+      resolvedMenus.every((result) => result.cacheReady)
+  };
 }
 
-function getRenderContextExchangeRates(
-  renderContext: PublicMenuBaseRenderContext
+export function resolvePublicMenuExchangeRates(
+  menu: Pick<PublicMenu, "settings">
 ): Promise<MenuExchangeRates> {
   return getExchangeRates({
-    baseCurrency: renderContext.menu.settings.baseCurrency,
-    supportedCurrencies: renderContext.menu.settings.supportedCurrencies
+    baseCurrency: menu.settings.baseCurrency,
+    supportedCurrencies: menu.settings.supportedCurrencies
   });
+}
+
+export async function resolvePublicMenuStableRenderContext({
+  query,
+  slug
+}: {
+  query: PublicMenuRenderQuery;
+  slug: string;
+}): Promise<PublicMenuStableRenderContext | null> {
+  const base = await resolvePublicMenuBaseRenderContext({ query, slug });
+  if (!base) return null;
+  const { renderContext } = base;
+  const localized = await resolveLocalizedMenus(renderContext, slug);
+
+  return {
+    ...renderContext,
+    localizedMenus: localized.localizedMenus,
+    stableCacheReadiness: {
+      publishedUiConfig: base.publishedUiConfig,
+      localizedMenusComplete: localized.complete
+    }
+  };
 }
 
 export async function resolvePublicMenuRenderContext({
@@ -190,18 +292,19 @@ export async function resolvePublicMenuRenderContext({
   query: PublicMenuRenderQuery;
   slug: string;
 }): Promise<PublicMenuRenderContext | null> {
-  const renderContext = await resolvePublicMenuBaseRenderContext({ query, slug });
-  if (!renderContext) return null;
+  const base = await resolvePublicMenuBaseRenderContext({ query, slug });
+  if (!base) return null;
+  const { renderContext } = base;
 
-  const [exchangeRates, localizedMenus] = await Promise.all([
-    getRenderContextExchangeRates(renderContext),
+  const [exchangeRates, localized] = await Promise.all([
+    resolvePublicMenuExchangeRates(renderContext.menu),
     resolveLocalizedMenus(renderContext, slug)
   ]);
 
   return {
     ...renderContext,
     exchangeRates,
-    localizedMenus
+    localizedMenus: localized.localizedMenus
   };
 }
 
@@ -212,14 +315,15 @@ export async function resolvePublicDishRenderContext({
   query: PublicMenuRenderQuery;
   slug: string;
 }): Promise<PublicDishRenderContext | null> {
-  const renderContext = await resolvePublicMenuBaseRenderContext({ query, slug });
-  if (!renderContext) return null;
+  const base = await resolvePublicMenuBaseRenderContext({ query, slug });
+  if (!base) return null;
+  const { renderContext } = base;
 
   const { experience } = renderContext;
   const exchangeRates =
     experience.kind === "trouvable" ||
     experience.kind === "unique-registered"
-      ? await getRenderContextExchangeRates(renderContext)
+      ? await resolvePublicMenuExchangeRates(renderContext.menu)
       : null;
 
   return {

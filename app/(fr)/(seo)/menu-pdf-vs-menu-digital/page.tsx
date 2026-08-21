@@ -8,6 +8,8 @@ import { absoluteUrl } from "@/lib/seo";
 import { buildSeoPillarJsonLd } from "@/lib/seoPillarJsonLd";
 import { getSeoPage } from "@/lib/seoPages";
 
+export const revalidate = 60;
+
 const page = getSeoPage("menu-pdf-vs-menu-digital");
 
 export const metadata: Metadata = {

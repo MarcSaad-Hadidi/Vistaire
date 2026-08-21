@@ -4,6 +4,8 @@ import { VistairePreviewLanding } from "@/components/vistaire-preview/VistairePr
 import { absoluteUrl, buildVistaireServiceJsonLd, buildWebPageJsonLd } from "@/lib/seo";
 import { buildPageAlternates, LOCALE_OPEN_GRAPH } from "@/lib/i18n";
 
+export const revalidate = 60;
+
 const canonicalPath = "/en";
 const title = "Premium QR digital menu for high-end restaurants";
 const description =
