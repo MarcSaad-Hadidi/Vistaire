@@ -99,6 +99,7 @@ jobs:
           base64 --decode /tmp/vistaire-resolutions.b64 > /tmp/vistaire-resolutions.tar.gz
           echo "2d6ac586112843ba10fe0c923c69295d87f66e9ca793deca3b01e5ccc4a7c979  /tmp/vistaire-resolutions.tar.gz" | sha256sum --check --strict
           test "$(git hash-object .github/integration-resolutions/integration-postpatch.mjs)" = "ee0f106d8f4867aba7f7812668747720a0b0865c"
+          test "$(git hash-object .github/integration-resolutions/integration-testpatch.mjs)" = "894e5fcc0f68de6141f9b9a3cbc97a8761f242d7"
 
           if tar -tzf /tmp/vistaire-resolutions.tar.gz | grep -E '(^/|(^|/)\.\.(/|$))'; then
             echo "Unsafe path in resolution archive." >&2
@@ -108,7 +109,9 @@ jobs:
           tar -xzf /tmp/vistaire-resolutions.tar.gz -C .
           rm -f manifest.txt
           node --check .github/integration-resolutions/integration-postpatch.mjs
+          node --check .github/integration-resolutions/integration-testpatch.mjs
           node .github/integration-resolutions/integration-postpatch.mjs
+          node .github/integration-resolutions/integration-testpatch.mjs
 
           rm -rf .github/integration-resolutions
           rm -f .github/workflows/vistaire-final-integration.yml
