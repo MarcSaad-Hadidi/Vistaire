@@ -3,7 +3,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 test("owner medias page accepts targeted restaurant params and falls back globally", async () => {
-  const source = await readFile("app/owner/medias/page.tsx", "utf8");
+  const source = await readFile("app/(fr)/owner/medias/page.tsx", "utf8");
 
   assert.match(source, /searchParams/);
   assert.match(source, /restaurantId/);
@@ -14,7 +14,7 @@ test("owner medias page accepts targeted restaurant params and falls back global
 });
 
 test("owner medias page shows targeted media path and dishes without photos", async () => {
-  const source = await readFile("app/owner/medias/page.tsx", "utf8");
+  const source = await readFile("app/(fr)/owner/medias/page.tsx", "utf8");
 
   assert.match(source, /getOwnerMenuData\(restaurant\.id\)/);
   assert.match(source, /buildMediaBasePath\(restaurant\)/);
@@ -30,7 +30,7 @@ test("owner medias page shows targeted media path and dishes without photos", as
 });
 
 test("owner medias global rows link to the targeted restaurant view", async () => {
-  const source = await readFile("app/owner/medias/page.tsx", "utf8");
+  const source = await readFile("app/(fr)/owner/medias/page.tsx", "utf8");
 
   assert.match(source, /href=\{`\/owner\/restaurants\/\$\{encodeURIComponent\(restaurant\.id\)\}\/medias`\}/);
   assert.match(source, /encodeURIComponent\(restaurant\.id\)/);

@@ -1,7 +1,7 @@
 import "server-only";
 
 import { cookies, headers } from "next/headers";
-import { getDemoRestaurantId } from "@/lib/analytics/insights";
+import { getDemoRestaurantId } from "@/lib/maisonElyseIdentity";
 import { getSupabaseAdminClient } from "@/utils/supabase/admin";
 import { ADMIN_ACCESS_COOKIE_NAME } from "@/lib/admin/accessSessionCore";
 import {

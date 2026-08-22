@@ -2,10 +2,10 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 import assert from "node:assert/strict";
 
-const pagePath = "app/menu/[slug]/page.tsx";
-const dishPagePath = "app/menu/[slug]/dishes/[dishSlug]/page.tsx";
-const demoPagePath = "app/demo/page.tsx";
-const englishDemoPagePath = "app/en/vistaire-menu/page.tsx";
+const pagePath = "app/(fr)/menu/[slug]/page.tsx";
+const dishPagePath = "app/(fr)/menu/[slug]/dishes/[dishSlug]/page.tsx";
+const demoPagePath = "app/(fr)/demo/page.tsx";
+const englishDemoPagePath = "app/(en)/en/vistaire-menu/page.tsx";
 const componentPath = "components/menu/MaisonElyseQrMenu.tsx";
 const cssPath = "components/menu/MaisonElyseQrMenu.module.css";
 const dishDetailPath = "components/menu/MaisonElyseDishDetail.tsx";

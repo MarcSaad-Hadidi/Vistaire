@@ -4,7 +4,7 @@ import { readFile } from "node:fs/promises";
 
 test("publication page consumes the canonical secure payload and persisted style", async () => {
   const source = await readFile(
-    "app/owner/restaurants/[restaurantId]/qr/page.tsx",
+    "app/(fr)/owner/restaurants/[restaurantId]/qr/page.tsx",
     "utf8"
   );
   assert.match(source, /targetKind:\s*"menu"/);
@@ -19,7 +19,7 @@ test("publication page consumes the canonical secure payload and persisted style
 
 test("publication page surfaces canonical read outages instead of presenting a new QR", async () => {
   const source = await readFile(
-    "app/owner/restaurants/[restaurantId]/qr/page.tsx",
+    "app/(fr)/owner/restaurants/[restaurantId]/qr/page.tsx",
     "utf8"
   );
   assert.match(source, /const canonicalReadError = canonicalRead === null/);

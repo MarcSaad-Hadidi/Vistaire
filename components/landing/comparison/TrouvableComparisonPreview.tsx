@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
-import { trouvableTypographyClassName } from "@/app/menu/[slug]/trouvableTypography";
+import { trouvableTypographyClassName } from "@/app/(fr)/menu/[slug]/trouvableTypography";
 import { TrouvablePremiumMenuExperience } from "@/components/menu/TrouvablePremiumMenuExperience";
 import {
   inflateLandingMenuUiMenu,

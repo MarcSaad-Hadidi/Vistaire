@@ -36,6 +36,7 @@ export type ViewerGlbUploadArgs = {
   existingMetadata: unknown;
   sourceBytes: Buffer;
   originalName: string;
+  onPublicCommit?: () => void | Promise<void>;
 };
 
 export type ViewerGlbUploadResult = {
@@ -47,6 +48,24 @@ export type ViewerGlbUploadResult = {
   modelStatus: string;
   cleanup: CleanupReplacedDishAssetsReport;
 };
+
+function deferredCleanupReport(): CleanupReplacedDishAssetsReport {
+  return {
+    candidates: [],
+    deleted: [],
+    skippedStillReferenced: [],
+    skippedUnsafeBucket: [],
+    skippedUnsafePrefix: [],
+    skippedMissingPath: [],
+    errors: [
+      {
+        bucket: "",
+        paths: [],
+        message: "Nettoyage differe apres publication du modele."
+      }
+    ]
+  };
+}
 
 async function uploadGlb(
   adminClient: SupabaseClient,
@@ -137,14 +156,22 @@ export async function runViewerGlbUpload(
     throw new Error("Plat impossible a mettre a jour avec le GLB viewer.");
   }
 
-  const cleanup = await cleanupReplacedDishAssets({
-    client: args.adminClient,
-    dishId: args.dishId,
-    restaurantId: args.restaurantId,
-    previousMetadata: existing,
-    nextMetadata: merged,
-    reason: "viewer-glb-replacement"
-  });
+  await args.onPublicCommit?.();
+
+  let cleanup: CleanupReplacedDishAssetsReport;
+  try {
+    cleanup = await cleanupReplacedDishAssets({
+      client: args.adminClient,
+      dishId: args.dishId,
+      restaurantId: args.restaurantId,
+      previousMetadata: existing,
+      nextMetadata: merged,
+      reason: "viewer-glb-replacement"
+    });
+  } catch {
+    await args.onPublicCommit?.();
+    cleanup = deferredCleanupReport();
+  }
 
   const jobId = `job_viewer_glb_${randomUUID().replace(/-/g, "").slice(0, 20)}`;
   await args.adminClient.from("owner_3d_pipeline_jobs").insert({

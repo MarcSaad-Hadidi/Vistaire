@@ -1,7 +1,7 @@
 import "server-only";
 
 import { getSupabaseAdminClient } from "@/utils/supabase/admin";
-import { getDemoRestaurantId } from "@/lib/analytics/insights";
+import { getMaisonElyseIdentity } from "@/lib/maisonElyseIdentity";
 import {
   capabilityDeniedMessage,
   resolveRestaurantOwnerCapabilities,
@@ -13,15 +13,10 @@ export {
   resolveRestaurantOwnerCapabilities,
   type RestaurantOwnerCapabilities
 } from "./demoCapabilitiesCore";
-
-export const MAISON_ELYSE_SLUG = "maison-elyse" as const;
-
-export function getMaisonElyseIdentity() {
-  return {
-    id: getDemoRestaurantId(),
-    slug: MAISON_ELYSE_SLUG
-  };
-}
+export {
+  getMaisonElyseIdentity,
+  MAISON_ELYSE_SLUG
+} from "@/lib/maisonElyseIdentity";
 
 type CapabilityResult =
   | {

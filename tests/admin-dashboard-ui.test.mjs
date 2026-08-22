@@ -21,7 +21,7 @@ async function loadAnalyticsPanel() {
 
 test("admin has a private dedicated shell without marketing or heavy media", async () => {
   const [layout, page, dashboard, css] = await Promise.all([
-    read("app/admin/layout.tsx"), read("app/admin/page.tsx"),
+    read("app/(fr)/admin/layout.tsx"), read("app/(fr)/admin/page.tsx"),
     read("components/admin/AdminRestaurantDashboard.tsx"),
     read("components/admin/AdminDashboard.module.css")
   ]);
@@ -35,7 +35,7 @@ test("admin has a private dedicated shell without marketing or heavy media", asy
 });
 
 test("page strictly allowlists server ranges and discloses UTC timezone", async () => {
-  const [page, parser, dashboard] = await Promise.all([read("app/admin/page.tsx"), read("lib/admin/pageSearchParams.ts"), read("components/admin/AdminRestaurantDashboard.tsx")]);
+  const [page, parser, dashboard] = await Promise.all([read("app/(fr)/admin/page.tsx"), read("lib/admin/pageSearchParams.ts"), read("components/admin/AdminRestaurantDashboard.tsx")]);
   assert.match(page, /parseAdminPageSearchParams\(await searchParams\)/);
   assert.match(page, /loadAdminDashboardData\(access\.restaurantId, range\)/);
   assert.match(parser, /Pick<[^>]+["']range["']/);
@@ -149,8 +149,8 @@ test("admin visual system is scoped, locally typeset and accessible", async () =
     read("components/admin/system/AdminPresentationPrimitives.tsx"),
     read("components/admin/system/AdminIcons.tsx"),
     read("components/admin/system/AdminSystem.module.css"),
-    read("app/admin/layout.tsx"),
-    read("app/admin/loading.tsx")
+    read("app/(fr)/admin/layout.tsx"),
+    read("app/(fr)/admin/loading.tsx")
   ]);
   const primitives = `${primitivesEntry}\n${presentationPrimitives}`;
   const source = `${shell}\n${nav}\n${primitives}\n${icons}\n${layout}\n${loading}`;
@@ -214,7 +214,7 @@ test("shared admin shell exposes the approved menu actions on every route", asyn
 
 test("overview composes honest evidence panels with accessible exact values", async () => {
   const [page, overview, activity, top, strip, css] = await Promise.all([
-    read("app/admin/page.tsx"),
+    read("app/(fr)/admin/page.tsx"),
     read("components/admin/overview/AdminOverview.tsx"),
     read("components/admin/overview/AdminActivityChart.tsx"),
     read("components/admin/overview/AdminTopDishes.tsx"),
@@ -242,7 +242,7 @@ test("overview composes honest evidence panels with accessible exact values", as
 
 test("insights renders nine truthful panels with non-hover exact alternatives", async () => {
   const [page, insights, heatmap, comparison, breakdowns, css] = await Promise.all([
-    read("app/admin/insights/page.tsx"),
+    read("app/(fr)/admin/insights/page.tsx"),
     read("components/admin/insights/AdminInsightsPage.tsx"),
     read("components/admin/insights/AdminHeatmap.tsx"),
     read("components/admin/insights/AdminComparisonChart.tsx"),

@@ -1,4 +1,3 @@
-import { revalidatePath } from "next/cache";
 import { NextResponse, type NextRequest } from "next/server";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
@@ -6,6 +5,10 @@ import {
   requireVistaireOwnerApi
 } from "@/lib/auth/ownerApi";
 import { slugifyRestaurantSlug } from "@/lib/owner/menuUrlCore";
+import {
+  invalidateCommittedPublicMutation,
+  resolvePublicMutationIdentity
+} from "@/lib/owner/menuMutationRevalidation";
 import { runRestaurantMeshyDishPipeline } from "@/lib/owner/restaurantMeshyPipeline";
 import { requireOwnerRestaurantCapability } from "@/lib/owner/demoCapabilities";
 import { getSupabaseAdminClient } from "@/utils/supabase/admin";
@@ -38,12 +41,6 @@ function getMetadata(value: unknown): Record<string, unknown> {
 function getString(row: Record<string, unknown> | null | undefined, key: string): string {
   const value = row?.[key];
   return typeof value === "string" ? value.trim() : "";
-}
-
-function revalidatePublicDishModelPaths(restaurantSlug: string, dishSlug: string): void {
-  if (!restaurantSlug) return;
-  revalidatePath(`/menu/${restaurantSlug}`);
-  if (dishSlug) revalidatePath(`/menu/${restaurantSlug}/dishes/${dishSlug}`);
 }
 
 function safeStoragePath(value: unknown, prefix: string): string {
@@ -153,6 +150,16 @@ export async function POST(
   const restaurantSlug = slugifyRestaurantSlug(getString(restaurant.data, "slug") || restaurantId);
   const menuSlug = slugifyRestaurantSlug(getString(menu.data, "slug") || "principal");
   const dishSlug = slugifyRestaurantSlug(dish.slug || dish.name || dishId);
+  const publicIdentity = await resolvePublicMutationIdentity({
+    client: admin.client,
+    restaurantId,
+    dishSlug
+  });
+  let publicCommitted = false;
+  const onPublicCommit = async () => {
+    publicCommitted = true;
+    await invalidateCommittedPublicMutation(publicIdentity);
+  };
 
   try {
     const result = await runRestaurantMeshyDishPipeline({
@@ -168,10 +175,9 @@ export async function POST(
       dishSlug,
       existingMetadata: dish.metadata,
       sourceBytes,
-      originalName: `${dishSlug}.glb`
+      originalName: `${dishSlug}.glb`,
+      onPublicCommit
     });
-
-    revalidatePublicDishModelPaths(restaurantSlug, dishSlug);
 
     return NextResponse.json({
       ok: true,
@@ -192,6 +198,18 @@ export async function POST(
       warning: result.cleanup.errors[0]?.message
     });
   } catch (error) {
+    if (publicCommitted) {
+      await invalidateCommittedPublicMutation(publicIdentity);
+      return NextResponse.json(
+        {
+          ok: false,
+          error: "Modele publie, mais finalisation 3D incomplete.",
+          committed: true,
+          dishUpdated: true
+        },
+        { status: 503 }
+      );
+    }
     const message = error instanceof Error ? error.message : "Pipeline Meshy impossible.";
     return NextResponse.json(
       { ok: false, error: message },

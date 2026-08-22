@@ -1,10 +1,69 @@
 import { expect, test, type Page } from "@playwright/test";
 
+const BASE_URL =
+  process.env.PLAYWRIGHT_BASE_URL ?? "http://127.0.0.1:3000";
+
 type HomeScenario = {
   label: "Accueil" | "Home";
   path: string;
   expectedPath: "/" | "/en";
 };
+
+type LocaleSwitchScenario = {
+  sourcePath: string;
+  sourceLocale: "fr-CA" | "en-CA";
+  sourceControl: "Langue" | "Language";
+  sourceLinkName: "Voir cette page en français" | "View this page in English";
+  destinationPath: string;
+  destinationLocale: "fr-CA" | "en-CA";
+  destinationControl: "Langue" | "Language";
+  destinationLinkName:
+    | "Voir cette page en français"
+    | "View this page in English";
+};
+
+const localeSwitchScenarios: readonly LocaleSwitchScenario[] = [
+  {
+    sourcePath: "/",
+    sourceLocale: "fr-CA",
+    sourceControl: "Langue",
+    sourceLinkName: "Voir cette page en français",
+    destinationPath: "/en",
+    destinationLocale: "en-CA",
+    destinationControl: "Language",
+    destinationLinkName: "View this page in English"
+  },
+  {
+    sourcePath: "/en",
+    sourceLocale: "en-CA",
+    sourceControl: "Language",
+    sourceLinkName: "View this page in English",
+    destinationPath: "/",
+    destinationLocale: "fr-CA",
+    destinationControl: "Langue",
+    destinationLinkName: "Voir cette page en français"
+  },
+  {
+    sourcePath: "/a-propos",
+    sourceLocale: "fr-CA",
+    sourceControl: "Langue",
+    sourceLinkName: "Voir cette page en français",
+    destinationPath: "/en/about",
+    destinationLocale: "en-CA",
+    destinationControl: "Language",
+    destinationLinkName: "View this page in English"
+  },
+  {
+    sourcePath: "/en/about",
+    sourceLocale: "en-CA",
+    sourceControl: "Language",
+    sourceLinkName: "View this page in English",
+    destinationPath: "/a-propos",
+    destinationLocale: "fr-CA",
+    destinationControl: "Langue",
+    destinationLinkName: "Voir cette page en français"
+  }
+];
 
 const frenchSecondaryHomeScenarios: HomeScenario[] = [
   { label: "Accueil", path: "/menu-qr-code-restaurant", expectedPath: "/" },
@@ -117,7 +176,131 @@ async function expectHomeNavigation(
   expect(new URL(page.url()).hash).toBe("");
 }
 
+function rawDocumentLanguage(html: string) {
+  const openingTags = html.match(/<html\b[^>]*>/gi) ?? [];
+  expect(openingTags).toHaveLength(1);
+  const openingTag = openingTags[0];
+  if (!openingTag) throw new Error("Initial response is missing its opening html tag.");
+  const language = openingTag.match(/\blang\s*=\s*["']([^"']+)["']/i);
+  return language?.[1] ?? null;
+}
+
+async function expectFullDocumentLocaleSwitch(
+  page: Page,
+  scenario: LocaleSwitchScenario
+) {
+  const sourceResponse = await page.goto(scenario.sourcePath, {
+    waitUntil: "domcontentloaded"
+  });
+  expect(sourceResponse, `${scenario.sourcePath}: source response`).not.toBeNull();
+  expect(sourceResponse?.status()).toBeLessThan(400);
+  expect(rawDocumentLanguage(await sourceResponse!.text())).toBe(
+    scenario.sourceLocale
+  );
+  await expect(page.locator("html")).toHaveAttribute("lang", scenario.sourceLocale);
+
+  const sourceLanguageControl = page
+    .locator(`div[aria-label="${scenario.sourceControl}"]`)
+    .first();
+  await expect(sourceLanguageControl).toBeVisible();
+  await expect(
+    sourceLanguageControl.getByRole("link", {
+      name: scenario.sourceLinkName,
+      exact: true
+    })
+  ).toHaveAttribute("aria-current", "true");
+
+  const destinationLink = sourceLanguageControl.getByRole("link", {
+    name:
+      scenario.destinationLocale === "en-CA"
+        ? "View this page in English"
+        : "Voir cette page en français",
+    exact: true
+  });
+  await expect(destinationLink).toHaveAttribute("href", scenario.destinationPath);
+  await page.evaluate(() => {
+    (window as Window & { __vistaireRootNavigationSentinel?: string })
+      .__vistaireRootNavigationSentinel = "must-not-survive";
+  });
+
+  const navigationResponsePromise = page.waitForResponse((response) => {
+    const request = response.request();
+    return (
+      request.isNavigationRequest() &&
+      request.frame() === page.mainFrame() &&
+      new URL(response.url()).pathname === scenario.destinationPath
+    );
+  });
+  await destinationLink.click();
+  const navigationResponse = await navigationResponsePromise;
+  await page.waitForLoadState("domcontentloaded");
+  expect(
+    navigationResponse,
+    `${scenario.sourcePath} -> ${scenario.destinationPath}: main-document response`
+  ).not.toBeNull();
+  expect(navigationResponse?.status()).toBeLessThan(400);
+  expect(new URL(navigationResponse!.url()).pathname).toBe(
+    scenario.destinationPath
+  );
+  expect(rawDocumentLanguage(await navigationResponse!.text())).toBe(
+    scenario.destinationLocale
+  );
+  expect(new URL(page.url()).pathname).toBe(scenario.destinationPath);
+  expect(
+    await page.evaluate(
+      () =>
+        (window as Window & { __vistaireRootNavigationSentinel?: string })
+          .__vistaireRootNavigationSentinel
+    )
+  ).toBeUndefined();
+  await expect(page.locator("html")).toHaveAttribute(
+    "lang",
+    scenario.destinationLocale
+  );
+
+  const navigationEntries = await page.evaluate(() =>
+    performance.getEntriesByType("navigation").map((entry) => ({
+      name: entry.name,
+      type: (entry as PerformanceNavigationTiming).type
+    }))
+  );
+  expect(navigationEntries.length).toBeGreaterThan(0);
+  expect(navigationEntries.at(-1)?.type).toBe("navigate");
+  expect(new URL(navigationEntries.at(-1)?.name ?? BASE_URL).pathname).toBe(
+    scenario.destinationPath
+  );
+
+  const destinationLanguageControl = page
+    .locator(`div[aria-label="${scenario.destinationControl}"]`)
+    .first();
+  await expect(destinationLanguageControl).toBeVisible();
+  await expect(
+    destinationLanguageControl.getByRole("link", {
+      name: scenario.destinationLinkName,
+      exact: true
+    })
+  ).toHaveAttribute("aria-current", "true");
+  await expect(
+    destinationLanguageControl.getByRole("link", {
+      name: scenario.sourceLinkName,
+      exact: true
+    })
+  ).not.toHaveAttribute("aria-current");
+  const canonical = await page.locator('link[rel="canonical"]').getAttribute("href");
+  expect(new URL(canonical ?? "", BASE_URL).pathname).toBe(
+    scenario.destinationPath
+  );
+}
+
 test.describe("Vistaire public navigation", () => {
+  for (const scenario of localeSwitchScenarios) {
+    test(`uses a full document navigation from ${scenario.sourcePath} to ${scenario.destinationPath}`, async ({
+      page
+    }) => {
+      await expectFullDocumentLocaleSwitch(page, scenario);
+    });
+  }
+
   for (const scenario of frenchSecondaryHomeScenarios) {
     test(`returns Accueil to / from ${scenario.path}`, async ({ page }) => {
       await expectHomeNavigation(page, scenario);
@@ -137,14 +320,16 @@ test.describe("Vistaire public navigation", () => {
         brand: "Vistaire - accueil",
         home: "/",
         links: ["Accueil", "Carte", "À propos", "Contact"],
-        cta: "Prendre rendez-vous"
+        cta: "Prendre rendez-vous",
+        compactCta: "Rendez-vous"
       },
       {
         path: "/en/pricing-digital-restaurant-menu",
         brand: "Vistaire - home",
         home: "/en",
         links: ["Home", "Menu", "About", "Contact"],
-        cta: "Book a call"
+        cta: "Book a call",
+        compactCta: "Book"
       }
     ] as const) {
       await page.goto(scenario.path, { waitUntil: "domcontentloaded" });
@@ -163,7 +348,13 @@ test.describe("Vistaire public navigation", () => {
         scenario.path.startsWith("/en/") ? "en" : "fr",
         true
       );
-      await expect(nav.getByRole("link", { name: scenario.cta, exact: true })).toBeVisible();
+      const compactNavigation = (page.viewportSize()?.width ?? 0) <= 520;
+      await expect(
+        nav.getByRole("link", {
+          name: compactNavigation ? scenario.compactCta : scenario.cta,
+          exact: true
+        })
+      ).toBeVisible();
     }
   });
 
@@ -342,17 +533,87 @@ test.describe("Vistaire public navigation", () => {
     }
   });
 
-  test("preserves accessible navigation names and keyboard focus", async ({ page }) => {
-    await page.goto("/menu-qr-code-restaurant", { waitUntil: "domcontentloaded" });
-    const nav = topNavigation(page);
+  test("preserves accessible navigation names and keyboard focus", async ({
+    browser,
+    browserName
+  }) => {
+    const context = await browser.newContext({
+      hasTouch: false,
+      isMobile: false,
+      viewport: { width: 1280, height: 900 }
+    });
+    const page = await context.newPage();
+    try {
+      await page.goto("/menu-qr-code-restaurant", {
+        waitUntil: "domcontentloaded"
+      });
+      const nav = topNavigation(page);
 
-    await expect(nav.getByRole("link", { name: "Accueil", exact: true })).toBeVisible();
-    await expect(nav.getByRole("link", { name: "Carte", exact: true })).toBeVisible();
-    await expect(nav.getByRole("link", { name: "À propos", exact: true })).toBeVisible();
-    await expect(nav.getByRole("link", { name: "Contact", exact: true })).toBeVisible();
-    await expectPricingNavigation(nav, "fr");
+      await expect(nav.getByRole("link", { name: "Accueil", exact: true })).toBeVisible();
+      await expect(nav.getByRole("link", { name: "Carte", exact: true })).toBeVisible();
+      await expect(nav.getByRole("link", { name: "À propos", exact: true })).toBeVisible();
+      await expect(nav.getByRole("link", { name: "Contact", exact: true })).toBeVisible();
+      await expectPricingNavigation(nav, "fr");
 
-    await page.keyboard.press("Tab");
-    await expect(page.locator("a:focus-visible")).toHaveCount(1);
+      const home = nav.getByRole("link", { name: "Accueil", exact: true });
+      expect(await home.evaluate((element) => (element as HTMLElement).tabIndex)).toBe(0);
+      let reachedHomeWithKeyboard = false;
+      const keyboardFocusTrail: string[] = [];
+      if (browserName === "webkit") {
+        // Playwright WebKit follows Safari's platform preference that Tab
+        // traverses form controls, not links. Seed keyboard modality, then
+        // prove the semantic link accepts visible focus and keyboard activation.
+        await page.keyboard.press("Tab");
+        await home.focus();
+        reachedHomeWithKeyboard = await home.evaluate(
+          (element) => element === document.activeElement
+        );
+      } else {
+        for (let tabIndex = 0; tabIndex < 12; tabIndex += 1) {
+          await page.keyboard.press("Tab");
+          keyboardFocusTrail.push(
+            await page.evaluate(() => {
+              const active = document.activeElement;
+              if (!(active instanceof HTMLElement)) return "none";
+              return [
+                active.tagName.toLowerCase(),
+                active.getAttribute("href") ?? "",
+                active.getAttribute("aria-label") ?? "",
+                active.textContent?.replace(/\s+/g, " ").trim().slice(0, 80) ?? ""
+              ].join("|");
+            })
+          );
+          if (await home.evaluate((element) => element === document.activeElement)) {
+            reachedHomeWithKeyboard = true;
+            break;
+          }
+        }
+      }
+      expect(
+        reachedHomeWithKeyboard,
+        `the primary home link must accept keyboard-modality focus; focus trail: ${keyboardFocusTrail.join(" -> ")}`
+      ).toBe(true);
+      await expect(home).toBeFocused();
+      expect(
+        await home.evaluate((element) => element.matches(":focus-visible"))
+      ).toBe(true);
+      await expect(page.locator("a:focus-visible")).toHaveCount(1);
+      const focusIndicator = await home.evaluate((element) => {
+        const style = getComputedStyle(element);
+        return {
+          outlineStyle: style.outlineStyle,
+          outlineWidth: Number.parseFloat(style.outlineWidth)
+        };
+      });
+      expect(focusIndicator.outlineStyle).not.toBe("none");
+      expect(focusIndicator.outlineWidth).toBeGreaterThanOrEqual(2);
+
+      await Promise.all([
+        page.waitForURL((url) => url.pathname === "/"),
+        page.keyboard.press("Enter")
+      ]);
+    } finally {
+      await context.close();
+    }
   });
 });

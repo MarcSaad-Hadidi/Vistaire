@@ -13,6 +13,10 @@ import {
 } from "@/lib/owner/menuSettingsMutation";
 import { getSupabaseAdminClient } from "@/utils/supabase/admin";
 import { requireOwnerRestaurantCapability } from "@/lib/owner/demoCapabilities";
+import {
+  invalidateCommittedPublicMutation,
+  resolvePublicMutationIdentity
+} from "@/lib/owner/menuMutationRevalidation";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -69,11 +73,18 @@ export async function PATCH(
       { status: 503 }
     );
   }
+  const mutationIdentity = await resolvePublicMutationIdentity({
+    client: adminResult.client,
+    restaurantId
+  });
 
   const result = await updateOwnerMenuSettings({
     client: adminResult.client as unknown as SupabaseMenuSettingsClient,
     restaurantId,
-    settings
+    settings,
+    onPublicCommit: async () => {
+      await invalidateCommittedPublicMutation(mutationIdentity);
+    }
   });
 
   if (!result.ok) {

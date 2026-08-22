@@ -124,8 +124,8 @@ test("admin menu selection chooses one deterministic editable menu without mixin
 });
 
 test("admin dashboard stays locked without a QR session and remains noindex", async () => {
-  const page = await readFile("app/admin/page.tsx", "utf8");
-  const layout = await readFile("app/admin/layout.tsx", "utf8");
+  const page = await readFile("app/(fr)/admin/page.tsx", "utf8");
+  const layout = await readFile("app/(fr)/admin/layout.tsx", "utf8");
 
   assert.match(page, /requireAdminRestaurantAccess\("dashboard:read"\)/);
   assert.match(page, /Accès dashboard restaurant requis/);
@@ -138,7 +138,7 @@ test("admin dashboard stays locked without a QR session and remains noindex", as
 });
 
 test("admin dashboard exposes only menu reading and dish availability", async () => {
-  const page = await readFile("app/admin/page.tsx", "utf8");
+  const page = await readFile("app/(fr)/admin/page.tsx", "utf8");
   const dashboard = await readFile(
     "components/admin/overview/AdminOverview.tsx",
     "utf8"
@@ -170,7 +170,7 @@ test("analytics evidence states distinguish complete, partial and insufficient r
 });
 
 test("admin page and loader delegate fallback handling to the analytics state boundary", async () => {
-  const page = await readFile("app/admin/page.tsx", "utf8");
+  const page = await readFile("app/(fr)/admin/page.tsx", "utf8");
   const loader = await readFile("lib/admin/dashboardData.ts", "utf8");
   const combined = `${page}\n${loader}`;
 
@@ -182,7 +182,7 @@ test("admin page and loader delegate fallback handling to the analytics state bo
 });
 
 test("admin page loads only the authorized restaurant and renders the dashboard data contract", async () => {
-  const page = await readFile("app/admin/page.tsx", "utf8");
+  const page = await readFile("app/(fr)/admin/page.tsx", "utf8");
   const dashboard = await readFile(
     "components/admin/AdminRestaurantDashboard.tsx",
     "utf8"

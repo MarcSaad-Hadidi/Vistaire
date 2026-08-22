@@ -2,7 +2,7 @@ import "server-only";
 
 import { cache } from "react";
 
-import { getDemoRestaurantId } from "@/lib/analytics/insights";
+import { getDemoRestaurantId } from "@/lib/maisonElyseIdentity";
 import { getRestaurant } from "@/lib/demoMenuData";
 import {
   getVisiblePublicMenuCategories,

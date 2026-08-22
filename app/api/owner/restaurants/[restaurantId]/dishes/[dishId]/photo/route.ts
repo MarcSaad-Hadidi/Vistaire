@@ -13,8 +13,15 @@ import {
   validateDishPhotoFile
 } from "@/lib/owner/dishPhotoUpload";
 import { generateDishPhotoDerivatives } from "@/lib/owner/dishPhotoDerivatives";
-import { cleanupReplacedDishAssets } from "@/lib/owner/dishAssetReplacementCleanup";
-import { revalidateOwnerMenuMutationPaths } from "@/lib/owner/menuMutationRevalidation";
+import {
+  cleanupReplacedDishAssets,
+  type CleanupReplacedDishAssetsReport
+} from "@/lib/owner/dishAssetReplacementCleanup";
+import {
+  invalidateCommittedPublicMutation,
+  resolvePublicMutationIdentity,
+  type PublicMutationIdentity
+} from "@/lib/owner/menuMutationRevalidation";
 import { requireOwnerRestaurantCapability } from "@/lib/owner/demoCapabilities";
 import { getSupabaseAdminClient } from "@/utils/supabase/admin";
 
@@ -38,6 +45,37 @@ function getMetadata(value: unknown): Record<string, unknown> {
   return value && typeof value === "object" && !Array.isArray(value)
     ? (value as Record<string, unknown>)
     : {};
+}
+
+function deferredCleanupReport(): CleanupReplacedDishAssetsReport {
+  return {
+    candidates: [],
+    deleted: [],
+    skippedStillReferenced: [],
+    skippedUnsafeBucket: [],
+    skippedUnsafePrefix: [],
+    skippedMissingPath: [],
+    errors: [
+      {
+        bucket: "",
+        paths: [],
+        message: "Nettoyage differe apres mise a jour publique."
+      }
+    ]
+  };
+}
+
+async function committedPhotoCleanup(args: {
+  identity: PublicMutationIdentity | null;
+  cleanup: () => Promise<CleanupReplacedDishAssetsReport>;
+}): Promise<CleanupReplacedDishAssetsReport> {
+  await invalidateCommittedPublicMutation(args.identity);
+  try {
+    return await args.cleanup();
+  } catch {
+    await invalidateCommittedPublicMutation(args.identity);
+    return deferredCleanupReport();
+  }
 }
 
 function getPreviouslyReferencedPhotoPaths(
@@ -164,6 +202,11 @@ export async function POST(
       { status: 404 }
     );
   }
+  const publicIdentity = await resolvePublicMutationIdentity({
+    client: admin.client,
+    restaurantId,
+    dishSlug: typeof dish.slug === "string" ? dish.slug : undefined
+  });
   const oldMetadata = getMetadata(dish.metadata);
   const previouslyReferencedPhotoPaths = getPreviouslyReferencedPhotoPaths(oldMetadata);
 
@@ -295,23 +338,21 @@ export async function POST(
     );
   }
 
-  const replacementCleanup = await cleanupReplacedDishAssets({
-    client: admin.client,
-    dishId,
-    restaurantId,
-    previousMetadata: oldMetadata,
-    nextMetadata: metadata,
-    reason: "dish-photo-replacement"
+  const replacementCleanup = await committedPhotoCleanup({
+    identity: publicIdentity,
+    cleanup: () =>
+      cleanupReplacedDishAssets({
+        client: admin.client,
+        dishId,
+        restaurantId,
+        previousMetadata: oldMetadata,
+        nextMetadata: metadata,
+        reason: "dish-photo-replacement"
+      })
   });
   const cleanupWarnings = replacementCleanup.errors.map(
     (error) => `Storage ${error.bucket || "metadata"} cleanup partiel: ${error.message}`
   );
-
-  await revalidateOwnerMenuMutationPaths({
-    client: admin.client,
-    restaurantId,
-    dishSlug: typeof dish.slug === "string" ? dish.slug : undefined
-  });
 
   return NextResponse.json({
     ok: true,
@@ -371,6 +412,12 @@ export async function DELETE(
     );
   }
 
+  const publicIdentity = await resolvePublicMutationIdentity({
+    client: admin.client,
+    restaurantId,
+    dishSlug: typeof dish.slug === "string" ? dish.slug : undefined
+  });
+
   const oldMetadata = getMetadata(dish.metadata);
   const clearedMetadata = clearDishPhotoMetadata(oldMetadata);
   const updated = await admin.client
@@ -395,13 +442,17 @@ export async function DELETE(
   // Cleanup re-reads this row and every other dish in the restaurant before
   // removing any object, preserving shared content-addressed derivatives and
   // leaving safe orphans when the cross-reference lookup is uncertain.
-  const cleanup = await cleanupReplacedDishAssets({
-    client: admin.client,
-    dishId,
-    restaurantId,
-    previousMetadata: oldMetadata,
-    nextMetadata: clearedMetadata,
-    reason: "dish-photo-delete"
+  const cleanup = await committedPhotoCleanup({
+    identity: publicIdentity,
+    cleanup: () =>
+      cleanupReplacedDishAssets({
+        client: admin.client,
+        dishId,
+        restaurantId,
+        previousMetadata: oldMetadata,
+        nextMetadata: clearedMetadata,
+        reason: "dish-photo-delete"
+      })
   });
   const cleanupWarnings = cleanup.errors.map(
     (error) => `Storage ${error.bucket || "metadata"} cleanup partiel: ${error.message}`
@@ -411,12 +462,6 @@ export async function DELETE(
     cleanup.skippedUnsafeBucket.length +
     cleanup.skippedUnsafePrefix.length +
     cleanup.skippedMissingPath.length;
-
-  await revalidateOwnerMenuMutationPaths({
-    client: admin.client,
-    restaurantId,
-    dishSlug: typeof dish.slug === "string" ? dish.slug : undefined
-  });
 
   return NextResponse.json({
     ok: true,

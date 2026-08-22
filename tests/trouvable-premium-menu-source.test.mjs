@@ -2,9 +2,9 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 import assert from "node:assert/strict";
 
-const pagePath = "app/menu/[slug]/page.tsx";
-const dishPagePath = "app/menu/[slug]/dishes/[dishSlug]/page.tsx";
-const typographyPath = "app/menu/[slug]/trouvableTypography.ts";
+const pagePath = "app/(fr)/menu/[slug]/page.tsx";
+const dishPagePath = "app/(fr)/menu/[slug]/dishes/[dishSlug]/page.tsx";
+const typographyPath = "app/(fr)/menu/[slug]/trouvableTypography.ts";
 const componentPath = "components/menu/TrouvablePremiumMenuExperience.tsx";
 const dishDetailPath = "components/menu/TrouvableDishDetailExperience.tsx";
 const cssPath = "components/menu/TrouvablePremiumMenuExperience.module.css";
@@ -13,6 +13,51 @@ const helperPath = "lib/menu/trouvableMenuExperience.ts";
 const controlsPath = "components/menu/trouvableMenuControls.ts";
 const publicMenuPath = "lib/menu/publicMenu.ts";
 const renderContextPath = "lib/menu/publicMenuRenderContext.ts";
+
+function assertTrouvableDishNameIdentity(source) {
+  const match = source.match(
+    /dishes:\s*TROUVABLE_DISHES\.map\(\(dish\)\s*=>\s*\{[\s\S]*?\breturn\s*\{([\s\S]*?)\}\s*;\s*\}\)/
+  );
+  assert.ok(match, "Trouvable demo dish mapping must return a dish object");
+  const dishMapping = match[1];
+
+  assert.match(
+    dishMapping,
+    /^\s*id:\s*dish\.slug,\s*slug:\s*dish\.slug,\s*name:\s*dish\.nameFr,/
+  );
+  assert.equal(
+    dishMapping.match(/(?:^|,)\s*name\s*:/g)?.length ?? 0,
+    1,
+    "Trouvable demo dishes must declare one name property"
+  );
+  assert.doesNotMatch(
+    dishMapping,
+    /name\s*:\s*(?:dish\.name(?:El|En)|(?:isGreek|isEnglish)\b)/
+  );
+  assert.doesNotMatch(
+    dishMapping,
+    /\.\.\.\s*(?:dish|(?:localized|translated)\w*)\b/i
+  );
+}
+
+function assertTrouvableHeroHeadingSemantics(source) {
+  assert.match(
+    source,
+    /export function TrouvablePremiumMenuExperience\(\{[^}]*\bdisplayMode\s*=\s*"public"[^}]*\}:\s*TrouvablePremiumMenuExperienceProps\)/
+  );
+  assert.match(
+    source,
+    /const isEmbeddedPreview\s*=\s*displayMode\s*!==\s*"public";/
+  );
+  assert.match(
+    source,
+    /const HeroHeading\s*=\s*isEmbeddedPreview\s*\?\s*"h2"\s*:\s*"h1";/
+  );
+  assert.match(
+    source,
+    /<HeroHeading\b(?=[^>]*\sid\s*=\s*"trouvable-hero-title")[^>]*>\s*\{menu\.name\}\s*<\/HeroHeading>/
+  );
+}
 
 test("public Trouvable menu is centralized in a targeted premium experience", async () => {
   const [page, helper, renderContext] = await Promise.all([
@@ -48,11 +93,7 @@ test("public /menu/trouvable reads Supabase before the local Trouvable demo fall
   );
   assert.match(source, /TROUVABLE_PUBLIC_MENU_SETTINGS/);
   assert.match(source, /supportedLocales:\s*\["fr-CA",\s*"en-CA",\s*"es-ES",\s*"it-IT",\s*"el-GR",\s*"ar"\]/);
-  assert.match(
-    source,
-    /name:\s*isGreek\s*\?\s*dish\.nameEl\s*:\s*isEnglish\s*\?\s*dish\.nameEn\s*:\s*dish\.nameFr/
-  );
-  assert.doesNotMatch(source, /name:\s*isEnglish\s*\?\s*dish\.nameEn/);
+  assertTrouvableDishNameIdentity(source);
   assert.match(source, /!restaurantsResult\.ok \|\| restaurantsResult\.rows\.length === 0/);
   assert.match(source, /dependencies\.nodeEnv === "production"/);
   assert.match(source, /filters: \{ slug \}/);
@@ -60,6 +101,18 @@ test("public /menu/trouvable reads Supabase before the local Trouvable demo fall
   assert.doesNotMatch(source, /readSupabaseRows\(/);
   assert.match(source, /dejeuner-classique-maison/);
   assert.match(source, /publicMenuStyle:\s*"trouvable"/);
+
+  for (const source of [
+    `const unrelated = { name: dish.nameFr };
+     dishes: TROUVABLE_DISHES.map((dish) => {
+       return { id: dish.slug, slug: dish.slug, name: dish.nameEn, description: dish.descriptionEn };
+     })`,
+    `dishes: TROUVABLE_DISHES.map((dish) => {
+       return { id: dish.slug, slug: dish.slug, name: dish.nameFr, ...localizedDish, description: dish.descriptionEn };
+     })`
+  ]) {
+    assert.throws(() => assertTrouvableDishNameIdentity(source));
+  }
 });
 
 test("Trouvable premium menu keeps 3D assets behind explicit viewer intent", async () => {
@@ -509,7 +562,7 @@ test("Trouvable public UI labels use extensible localized copy", async () => {
   assert.match(source, /placeholder=\{copy\.tablePlaceholder\}/);
   assert.match(source, /localizedUiCopy=\{menu\.localizedUiCopy\}/);
   assert.match(source, /aria-labelledby="trouvable-hero-title"/);
-  assert.match(source, /<h1 id="trouvable-hero-title">\{menu\.name\}<\/h1>/);
+  assertTrouvableHeroHeadingSemantics(source);
   assert.doesNotMatch(source, /label:\s*"3D \/ AR"/);
   assert.doesNotMatch(source, /placeholder="Ex\. 12"/);
   assert.doesNotMatch(source, /Table \$\{tableNumber\.trim\(\)\}/);
@@ -595,7 +648,10 @@ test("Trouvable premium menu styles are mobile-first and overflow-safe", async (
   assert.match(css, /\.sheetApply/);
   assert.match(css, /content:\s*"\\263e"/);
   assert.match(css, /content:\s*"\\2600"/);
-  assert.match(css, /\.hero h1[\s\S]*font-style:\s*italic/);
+  assert.match(
+    css,
+    /\.hero :is\(h1, h2\)\s*\{[^}]*font-style:\s*italic[^}]*\}/
+  );
   assert.match(css, /\.brandBlock strong[\s\S]*font-size:\s*clamp\(14px,\s*3\.8vw,\s*20px\)/);
   assert.doesNotMatch(css, /BT Suave/);
   assert.doesNotMatch(css, /Neue Montreal/);
@@ -642,8 +698,28 @@ test("Trouvable welcome copy places the restaurant connector before the name", a
 
   assert.match(source, /getTrouvableGreetingPeriodForDate\([\s\S]*menu\.settings\.timezone/);
   assert.match(source, /formatTrouvableGreetingLead\([\s\S]*greetingText[\s\S]*greetingPeriod/);
-  assert.match(source, /<p>\{greetingLead\}<\/p>/);
-  assert.match(source, /<h1 id="trouvable-hero-title">\{menu\.name\}<\/h1>/);
+  assert.match(source, /const HeroHeading = isEmbeddedPreview \? "h2" : "h1";/);
+  assert.match(
+    source,
+    /<p>\{greetingLead\}<\/p>\s*<HeroHeading id="trouvable-hero-title">\{menu\.name\}<\/HeroHeading>/
+  );
+
+  for (const source of [
+    `export function TrouvablePremiumMenuExperience({
+       displayMode = "embedded"
+     }: TrouvablePremiumMenuExperienceProps) {}
+     const isEmbeddedPreview = displayMode !== "public";
+     const HeroHeading = isEmbeddedPreview ? "h2" : "h1";
+     <HeroHeading id="trouvable-hero-title">{menu.name}</HeroHeading>`,
+    `export function TrouvablePremiumMenuExperience({
+       displayMode = "public"
+     }: TrouvablePremiumMenuExperienceProps) {}
+     const isEmbeddedPreview = false;
+     const HeroHeading = isEmbeddedPreview ? "h2" : "h1";
+     <HeroHeading id="trouvable-hero-title">{menu.name}</HeroHeading>`
+  ]) {
+    assert.throws(() => assertTrouvableHeroHeadingSemantics(source));
+  }
 });
 
 test("Trouvable back-to-top control matches the compact reference and adapts to light theme", async () => {
@@ -661,19 +737,25 @@ test("Trouvable back-to-top control matches the compact reference and adapts to 
   );
 });
 
-test("Trouvable typography uses optimized next/font variables for display and UI", async () => {
+test("Trouvable typography keeps a hermetic class-name interface and CSS fallback stacks", async () => {
   const page = await readFile(pagePath, "utf8");
   const dishPage = await readFile(dishPagePath, "utf8");
   const source = await readFile(componentPath, "utf8");
   const detailSource = await readFile(dishDetailPath, "utf8");
   const typography = await readFile(typographyPath, "utf8");
+  const css = await readFile(cssPath, "utf8");
 
-  assert.match(typography, /from "next\/font\/google"/);
-  assert.match(typography, /Inter\(/);
-  assert.match(typography, /Noto_Serif_Display\(/);
-  assert.match(typography, /variable:\s*"--trouvable-font-ui"/);
-  assert.match(typography, /variable:\s*"--trouvable-font-display"/);
-  assert.match(typography, /style:\s*\["normal", "italic"\]/);
+  assert.doesNotMatch(typography, /next\/font\/(?:google|local)/);
+  assert.doesNotMatch(css, /fonts\.googleapis\.com/i);
+  assert.match(
+    typography,
+    /export const trouvableTypographyClassName:\s*string\s*=\s*"";/
+  );
+  assert.match(css, /--trouvable-font-ui:\s*Inter,\s*sans-serif/);
+  assert.match(
+    css,
+    /--trouvable-font-display:\s*"Noto Serif Display",\s*Georgia,\s*serif/
+  );
   assert.match(page, /typographyClassName=\{trouvableTypographyClassName\}/);
   assert.match(dishPage, /typographyClassName=\{trouvableTypographyClassName\}/);
   assert.match(source, /typographyClassName/);

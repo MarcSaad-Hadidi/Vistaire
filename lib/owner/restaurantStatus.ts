@@ -1,9 +1,12 @@
 import type { OwnerRestaurantStatus } from "./types.ts";
+import type { PublicMutationIdentity } from "./menuMutationRevalidation.ts";
+import { slugifyRestaurantSlug } from "./menuUrlCore.ts";
 import {
   collectDishMediaStorageTargets,
   deleteDishMediaStorageTargets,
   type DishMediaDeleteReport
 } from "./dishMediaGarbageCollector.ts";
+import { isRestaurantExperienceId } from "../restaurant-experiences/contracts.ts";
 
 type SupabaseUpdateError = {
   code?: string;
@@ -77,6 +80,51 @@ type SupabaseAdminResult =
 
 type RestaurantStatusAction = "archive" | "restore";
 
+export type RestaurantLifecyclePublicCommit = Readonly<{
+  kind:
+    | "transaction"
+    | "restaurant"
+    | "restaurant-metadata"
+    | "menu"
+    | "dishes"
+    | "status"
+    | "deleted";
+  restaurantId: string;
+  restaurantSlug: string;
+}>;
+
+export type RestaurantLifecyclePublicCommitCallback = (
+  commit: RestaurantLifecyclePublicCommit
+) => void | Promise<unknown>;
+
+type RestaurantLifecyclePublicInvalidator = (
+  identity: PublicMutationIdentity | null
+) => void | Promise<unknown>;
+
+export function createRestaurantLifecyclePublicCommitHook(
+  invalidate: RestaurantLifecyclePublicInvalidator
+): RestaurantLifecyclePublicCommitCallback {
+  return async (commit) => {
+    const restaurantSlug = slugifyRestaurantSlug(commit.restaurantSlug);
+    if (!restaurantSlug) {
+      await invalidate(null);
+      return;
+    }
+
+    await invalidate(
+      Object.freeze({
+        restaurantId: commit.restaurantId.trim(),
+        restaurantSlug,
+        restaurantKey: restaurantSlug,
+        featuredExperienceId: isRestaurantExperienceId(restaurantSlug)
+          ? restaurantSlug
+          : null,
+        dishSlug: ""
+      })
+    );
+  };
+}
+
 const DEMO_RESTAURANT_ID =
   process.env.NEXT_PUBLIC_DEMO_RESTAURANT_ID ??
   "11111111-1111-1111-1111-111111111111";
@@ -89,6 +137,7 @@ const BUCKET_PATTERN = /^[a-z0-9][a-z0-9._-]{1,126}$/;
 type RestaurantStatusDependencies = {
   admin: SupabaseAdminResult;
   env?: Record<string, string | undefined>;
+  onPublicCommit?: RestaurantLifecyclePublicCommitCallback;
 };
 
 export type UpdateRestaurantStatusResult =
@@ -357,6 +406,13 @@ export async function updateRestaurantStatusRecord(
     return { ok: false, status: 404, error: "Restaurant introuvable." };
   }
 
+  await dependencies.onPublicCommit?.({
+    kind: "status",
+    restaurantId: restaurantIdValue,
+    restaurantSlug:
+      getString(found.restaurant, "slug") || getString(found.restaurant, "name")
+  });
+
   return {
     ok: true,
     restaurantId: String(data.id ?? restaurantIdValue),
@@ -516,6 +572,20 @@ async function cleanupRestaurantStorage(args: {
   }
 
   return report;
+}
+
+function deferredRestaurantStorageReport(args: {
+  restaurant: Record<string, unknown>;
+  env: Record<string, string | undefined>;
+  shouldAttempt: boolean;
+}): RestaurantStorageCleanupReport {
+  return {
+    attempted: args.shouldAttempt,
+    deletedFiles: 0,
+    buckets: storageBuckets(args.env),
+    prefixes: storagePrefixes(args.restaurant),
+    warnings: ["Nettoyage Storage differe apres suppression du restaurant."]
+  };
 }
 
 async function collectRestaurantDishMediaRows(args: {
@@ -762,25 +832,43 @@ export async function deleteRestaurantRecord(
   }
 
   if (rpcResult.kind === "deleted") {
-    const storage = await cleanupRestaurantStorage({
-      client: dependencies.admin.client,
-      restaurant,
-      env: dependencies.env ?? process.env,
-      shouldAttempt: confirmation.deleteStorage === true
-    });
-    if (confirmation.deleteStorage === true) {
-      const dishMedia = await cleanupRestaurantDishMedia({
+    const publicCommit = Object.freeze({
+      kind: "deleted",
+      restaurantId: restaurantIdValue,
+      restaurantSlug: getString(restaurant, "slug") || getString(restaurant, "name")
+    }) satisfies RestaurantLifecyclePublicCommit;
+    await dependencies.onPublicCommit?.(publicCommit);
+
+    const cleanupEnv = dependencies.env ?? process.env;
+    let storage: RestaurantStorageCleanupReport;
+    try {
+      storage = await cleanupRestaurantStorage({
         client: dependencies.admin.client,
-        restaurantId: restaurantIdValue,
-        rows: dishMediaRows.rows
+        restaurant,
+        env: cleanupEnv,
+        shouldAttempt: confirmation.deleteStorage === true
       });
-      storage.deletedFiles += dishMedia.deleted.length;
-      storage.warnings.push(...dishMedia.warnings);
-      storage.dishMedia = {
-        deletedFiles: dishMedia.deleted.length,
-        skippedFiles: dishMedia.skipped.length,
-        warnings: dishMedia.warnings
-      };
+      if (confirmation.deleteStorage === true) {
+        const dishMedia = await cleanupRestaurantDishMedia({
+          client: dependencies.admin.client,
+          restaurantId: restaurantIdValue,
+          rows: dishMediaRows.rows
+        });
+        storage.deletedFiles += dishMedia.deleted.length;
+        storage.warnings.push(...dishMedia.warnings);
+        storage.dishMedia = {
+          deletedFiles: dishMedia.deleted.length,
+          skippedFiles: dishMedia.skipped.length,
+          warnings: dishMedia.warnings
+        };
+      }
+    } catch {
+      await dependencies.onPublicCommit?.(publicCommit);
+      storage = deferredRestaurantStorageReport({
+        restaurant,
+        env: cleanupEnv,
+        shouldAttempt: confirmation.deleteStorage === true
+      });
     }
 
     return {

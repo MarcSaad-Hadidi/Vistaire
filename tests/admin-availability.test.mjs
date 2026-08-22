@@ -131,7 +131,7 @@ test("availability request handler uses only session scope and cannot target que
 
 test("availability route invokes the atomic RPC with access-derived QR and restaurant scope", async () => {
   const route = await readFile(
-    "app/admin/api/dishes/[dishId]/availability/route.ts",
+    "app/(fr)/admin/api/dishes/[dishId]/availability/route.ts",
     "utf8"
   );
   const core = await readFile("lib/admin/availability.ts", "utf8");
@@ -231,13 +231,14 @@ test("missing availability RPC fails closed as a controlled 503 without fallback
 
 test("successful availability changes revalidate admin and public menu paths", async () => {
   const revalidation = await readFile("lib/owner/menuMutationRevalidation.ts", "utf8");
-  const route = await readFile("app/admin/api/dishes/[dishId]/availability/route.ts", "utf8");
+  const route = await readFile("app/(fr)/admin/api/dishes/[dishId]/availability/route.ts", "utf8");
   const control = await readFile("components/admin/AdminDishAvailabilityControl.tsx", "utf8");
   const mutation = await readFile("components/admin/availability/availabilityMutation.ts", "utf8");
   const list = await readFile("components/admin/availability/AdminAvailabilityList.tsx", "utf8");
   const clientContract = `${control}\n${mutation}\n${list}`;
   assert.match(route, /revalidatePath\(["']\/admin["']\)/);
-  assert.match(route, /revalidateOwnerMenuMutationPaths/);
+  assert.match(route, /resolvePublicMutationIdentity/);
+  assert.match(route, /invalidateCommittedPublicMutation/);
   assert.match(route, /preserveAvailabilityResultAfterRevalidation/);
   assert.match(revalidation, /`\/menu\/\$\{restaurantSlug\}`/);
   assert.match(revalidation, /`\/menu\/\$\{restaurantSlug\}\/dishes\/\$\{dishSlug\}`/);
@@ -267,7 +268,7 @@ test("focused availability page exposes only search and final-state filters", as
 });
 
 test("availability route preserves server scope and shared restaurant shell", async () => {
-  const route = await readFile("app/admin/availability/page.tsx", "utf8");
+  const route = await readFile("app/(fr)/admin/availability/page.tsx", "utf8");
   const page = await readFile("components/admin/availability/AdminAvailabilityPage.tsx", "utf8");
 
   assert.match(route, /requireAdminRestaurantAccess\("dashboard:read"\)/);

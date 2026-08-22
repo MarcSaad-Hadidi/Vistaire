@@ -4,6 +4,8 @@ import { createHash } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
+import nextConfig from "../next.config.ts";
+import * as agentDiscovery from "../lib/agent-discovery/index.ts";
 import {
   AGENT_SKILL_DOCS,
   LINKSET_CONTENT_TYPE,
@@ -29,14 +31,45 @@ function sha256(value) {
   return createHash("sha256").update(value, "utf8").digest("hex");
 }
 
+function linkEntries(value) {
+  return value
+    .split(/,\s*(?=<)/)
+    .map((entry) => entry.trim())
+    .filter(Boolean);
+}
+
 test("homepage discovery headers use registered or documented link relations", () => {
   const header = buildHomeAgentLinkHeader();
 
+  assert.equal(agentDiscovery.HOME_AGENT_LINK_HEADER, header);
+  assert.equal(new Set(linkEntries(header)).size, linkEntries(header).length);
   assert.ok(header.includes('</.well-known/api-catalog>; rel="api-catalog"'));
   assert.ok(header.includes('</.well-known/agent-skills/index.json>; rel="service-desc"'));
   assert.ok(header.includes('</.well-known/mcp/server-card.json>; rel="service-desc"'));
   assert.ok(header.includes('</auth.md>; rel="service-doc"'));
   assert.ok(header.includes('</openapi.json>; rel="service-desc"'));
+});
+
+test("static homepage HTML has one shared Link value and delegates final Vary", async () => {
+  const homepageRules = (await nextConfig.headers()).filter(
+    (rule) => rule.source === "/"
+  );
+
+  assert.equal(homepageRules.length, 1);
+  const linkHeaders = homepageRules[0].headers.filter(
+    ({ key }) => key.toLowerCase() === "link"
+  );
+  const varyHeaders = homepageRules[0].headers.filter(
+    ({ key }) => key.toLowerCase() === "vary"
+  );
+
+  assert.equal(linkHeaders.length, 1);
+  assert.equal(linkHeaders[0].value, buildHomeAgentLinkHeader());
+  assert.equal(
+    new Set(linkEntries(linkHeaders[0].value)).size,
+    linkEntries(linkHeaders[0].value).length
+  );
+  assert.equal(varyHeaders.length, 0);
 });
 
 test("markdown negotiation source is useful and configured through proxy", () => {

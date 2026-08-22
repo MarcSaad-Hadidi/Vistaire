@@ -13,8 +13,8 @@ const packageJson = JSON.parse(await read("package.json"));
 const workflow = await read(".github/workflows/app-ci.yml");
 
 const previewOwnedPaths = [
-  "app/apercu-restaurateur/page.tsx",
-  "app/en/restaurant-preview/page.tsx",
+  "app/(fr)/apercu-restaurateur/page.tsx",
+  "app/(en)/en/restaurant-preview/page.tsx",
   "components/vistaire-preview/RestaurateurDashboardDemo.tsx",
   "lib/restaurateurPreview/fixture.ts",
   "e2e/restaurateur-preview.spec.ts"

@@ -112,7 +112,7 @@ export function loadPhotoRoute() {
 }
 
 export function loadAdminPhotoRoute() {
-  return import("../../app/admin/api/menu-dishes/[dishId]/photo/route.ts");
+  return import("../../app/(fr)/admin/api/menu-dishes/[dishId]/photo/route.ts");
 }
 
 export function loadGlbRoute() {

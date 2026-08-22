@@ -125,8 +125,8 @@ export function LandingComparison({
           [activePayloadKey]: payload
         }));
       })
-      .catch((error: unknown) => {
-        if (error instanceof DOMException && error.name === "AbortError") return;
+      .catch(() => {
+        if (controller.signal.aborted) return;
         setPreviewPayloads((current) => ({
           ...current,
           [activePayloadKey]: null

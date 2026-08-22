@@ -395,7 +395,16 @@ const maisonFixture = {
   menus: [maisonMenu],
   menu_categories: [maisonCategory],
   menu_dishes: [maisonDish],
-  menu_ui_configs: []
+  menu_ui_configs: [
+    {
+      id: "55555555-5555-4555-8555-555555555552",
+      restaurant_id: maisonRestaurantId,
+      status: "published",
+      theme: "premium-gastronomic",
+      updated_at: "2026-07-27T12:00:00.000Z",
+      config_json: { schemaVersion: 2, theme: "premium-gastronomic" }
+    }
+  ]
 };
 
 const trouvableFixture = {
@@ -403,7 +412,16 @@ const trouvableFixture = {
   menus: [trouvableMenu],
   menu_categories: [trouvableCategory],
   menu_dishes: [trouvableDish],
-  menu_ui_configs: []
+  menu_ui_configs: [
+    {
+      id: "55555555-5555-4555-8555-555555555553",
+      restaurant_id: trouvableRestaurantId,
+      status: "published",
+      theme: "fresh-homemade",
+      updated_at: "2026-07-27T12:00:00.000Z",
+      config_json: { schemaVersion: 2, theme: "fresh-homemade" }
+    }
+  ]
 };
 
 const saugeNoireFixture = {
