@@ -6,12 +6,18 @@ on:
       - perf/vistaire-final-free-tier-optimization
     paths:
       - .github/workflows/vistaire-final-integration.yml
+  pull_request:
+    branches:
+      - main
+    types: [opened, synchronize, reopened]
+    paths:
+      - .github/workflows/vistaire-final-integration.yml
 
 permissions:
   contents: read
 
 concurrency:
-  group: vistaire-final-integration-probe
+  group: vistaire-final-integration-probe-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
