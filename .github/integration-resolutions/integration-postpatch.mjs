@@ -148,9 +148,9 @@ replaceTailFromMarker(
     }
   }
 
-  const menuPath = `/menu/${restaurantSlug}`;
+  const menuPath = \`/menu/\${restaurantSlug}\`;
   const dishPath = dishSlug
-    ? `/menu/${restaurantSlug}/dishes/${dishSlug}`
+    ? \`/menu/\${restaurantSlug}/dishes/\${dishSlug}\`
     : "";
   const schedulePath = dependencies.revalidatePath ?? revalidatePath;
   const scheduleTag = dependencies.revalidateTag ?? revalidateTag;
