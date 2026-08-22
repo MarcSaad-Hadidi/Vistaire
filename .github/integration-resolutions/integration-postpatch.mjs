@@ -9,6 +9,15 @@ function replaceExactly(path, before, after) {
   fs.writeFileSync(path, source.replace(before, after));
 }
 
+function replaceCountExactly(path, before, after, expected) {
+  const source = fs.readFileSync(path, "utf8");
+  const occurrences = source.split(before).length - 1;
+  if (occurrences !== expected) {
+    throw new Error(`${path}: expected ${expected} integration patch targets, found ${occurrences}.`);
+  }
+  fs.writeFileSync(path, source.split(before).join(after));
+}
+
 function replaceTailFromMarker(path, marker, replacement) {
   const source = fs.readFileSync(path, "utf8");
   const first = source.indexOf(marker);
@@ -47,6 +56,30 @@ replaceExactly(
   "lib/cache/publicCacheSafety.ts",
   "export class PublicCacheSafetyError extends Error {\n  constructor(\n    readonly path: string,\n    readonly reason: PublicCacheSafetyReason\n  ) {\n    super(`Public cache candidate rejected at ${path} (${reason}).`);\n    this.name = \"PublicCacheSafetyError\";\n  }\n}",
   "export class PublicCacheSafetyError extends Error {\n  readonly path: string;\n  readonly reason: PublicCacheSafetyReason;\n\n  constructor(path: string, reason: PublicCacheSafetyReason) {\n    super(`Public cache candidate rejected at ${path} (${reason}).`);\n    this.name = \"PublicCacheSafetyError\";\n    this.path = path;\n    this.reason = reason;\n  }\n}"
+);
+
+for (const path of [
+  "tests/landing-menu-cache-contract.test.mjs",
+  "tests/menu-mutation-cache-invalidation.test.mjs",
+  "tests/menu-content-route-invalidation.test.mjs"
+]) {
+  replaceExactly(
+    path,
+    'import { existsSync, readFileSync } from "node:fs";',
+    'import { existsSync, readFileSync, statSync } from "node:fs";'
+  );
+  replaceCountExactly(
+    path,
+    "if (existsSync(url)) return { url: url.href, shortCircuit: true };",
+    "if (existsSync(url) && statSync(url).isFile()) return { url: url.href, shortCircuit: true };",
+    2
+  );
+}
+
+replaceExactly(
+  "tests/menu-content-route-invalidation.test.mjs",
+  "      export function revalidateOwnerMenuMutationPaths(...args) { return ${hookCall(\"legacyInvalidate\")}; }",
+  "      export function emitMenuMutationRetrySignal() { return Promise.resolve(true); }\n      export function revalidateOwnerMenuMutationPaths(...args) { return ${hookCall(\"legacyInvalidate\")}; }"
 );
 
 replaceExactly(
