@@ -98,7 +98,7 @@ jobs:
           echo "795c933b41cc186b2cab1c088fee8145d9ba3b446a59d7e916a22a877822159e  /tmp/vistaire-resolutions.b64" | sha256sum --check --strict
           base64 --decode /tmp/vistaire-resolutions.b64 > /tmp/vistaire-resolutions.tar.gz
           echo "2d6ac586112843ba10fe0c923c69295d87f66e9ca793deca3b01e5ccc4a7c979  /tmp/vistaire-resolutions.tar.gz" | sha256sum --check --strict
-          echo "464e790e3b4f13a35bf82042179f6bb23586a6d3c9e652b7f532983b129a793a  .github/integration-resolutions/integration-postpatch.mjs" | sha256sum --check --strict
+          echo "d1fa417118a3733f8388d41d4a27783d6d155a3548d573121b2a35b19310728d  .github/integration-resolutions/integration-postpatch.mjs" | sha256sum --check --strict
 
           if tar -tzf /tmp/vistaire-resolutions.tar.gz | grep -E '(^/|(^|/)\.\.(/|$))'; then
             echo "Unsafe path in resolution archive." >&2
@@ -183,7 +183,7 @@ jobs:
             echo "## Vistaire final integration"
             echo "- Base: fddf75c41ebc96c0f71295d5cc074277c0c2fba2"
             echo "- PR #211 head: 70604251a3b35b63fd7673325e718d96d73ea4f8"
-            echo "- PR #209 head: 7433dd52ca184c4d8db19e2193d62f8fe5"
+            echo "- PR #209 head: 7433dd52ca184c4d8dbb086db19e2193d62f8fe5"
             echo "- Durable cross-request public-menu cache remains disabled."
             echo "- No migration, backfill, Storage mutation, production deployment or merge to main was performed."
           } >> "$GITHUB_STEP_SUMMARY"
