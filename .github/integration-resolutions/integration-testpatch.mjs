@@ -52,3 +52,43 @@ replaceExactly(
         }
       ]);`
 );
+
+replaceExactly(
+  "app/(fr)/admin/api/dishes/[dishId]/availability/route.ts",
+  `  return preserveAvailabilityResultAfterRevalidation(result, async () => {
+    const dishSlug = slugifyRestaurantSlug(result.ok ? result.dishSlug : "");
+    await invalidateCommittedPublicMutation(
+      publicIdentity && dishSlug
+        ? { ...publicIdentity, dishSlug }
+        : publicIdentity
+    );
+    revalidatePath("/admin");
+  });`,
+  `  return preserveAvailabilityResultAfterRevalidation(
+    result,
+    async () => {
+      const dishSlug = slugifyRestaurantSlug(result.ok ? result.dishSlug : "");
+      const publicInvalidation = await invalidateCommittedPublicMutation(
+        publicIdentity && dishSlug
+          ? { ...publicIdentity, dishSlug }
+          : publicIdentity
+      );
+      let adminPathOk = true;
+      try {
+        revalidatePath("/admin");
+      } catch {
+        adminPathOk = false;
+      }
+      return {
+        ok: publicInvalidation.enqueueErrors.length === 0 && adminPathOk
+      };
+    },
+    {
+      retrySignal: {
+        kind: "menu-revalidation-retry-required",
+        restaurantId,
+        dishId
+      }
+    }
+  );`
+);
