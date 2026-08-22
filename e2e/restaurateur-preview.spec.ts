@@ -471,6 +471,8 @@ test.describe("public restaurateur dashboard preview", () => {
 
   for (const scenario of scenarios) {
     test(`${scenario.path} keeps the availability simulation anonymous and local`, async ({ baseURL, page }) => {
+      // This full keyboard, filtering, mutation, reload and SEO contract exceeds 30s on WebKit CI.
+      test.setTimeout(45_000);
       const origin = baseURL ?? "http://127.0.0.1:3000";
       const runtime = observeRuntime(page, origin);
       const response = await page.goto(scenario.path, { waitUntil: "domcontentloaded" });

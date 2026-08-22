@@ -28,6 +28,7 @@ import {
 } from "@/lib/menu/trouvableCategoryIcons";
 import {
   buildPublicDishPath,
+  getPublicDishImageUrl,
   getGoogleReviewCta,
   getPublicMenuCategoryGroups,
   getVisiblePublicMenuCategories,
@@ -297,15 +298,27 @@ function quickFilterMatches(dish: PublicMenuDish, filter: QuickFilterId): boolea
   return true;
 }
 
-function DishVisual({ dish, menu }: { dish: PublicMenuDish; menu: PublicMenu }) {
-  if (dish.imageUrl) {
+export function TrouvableDishVisual({
+  dish,
+  menu,
+  viewMode
+}: {
+  dish: PublicMenuDish;
+  menu: PublicMenu;
+  viewMode: ViewMode;
+}) {
+  const imageUrl = getPublicDishImageUrl(
+    dish,
+    viewMode === "grid" ? "card" : "thumbnail"
+  );
+  if (imageUrl) {
     return (
       <span className={`${styles.dishVisual} ${styles.hasDishImage}`}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           alt=""
           loading="lazy"
-          src={dish.thumbnailUrl || dish.imageUrl}
+          src={imageUrl}
         />
       </span>
     );
@@ -1417,7 +1430,7 @@ export function TrouvablePremiumMenuExperience({
     const show3dBadge = hasPublicMenu3d(dish);
     const dishSummaryContent = (
       <>
-        <DishVisual dish={dish} menu={menu} />
+        <TrouvableDishVisual dish={dish} menu={menu} viewMode={viewMode} />
         <span className={styles.dishCopy}>
           <span className={styles.dishTopline}>
             <strong>{dish.name}</strong>

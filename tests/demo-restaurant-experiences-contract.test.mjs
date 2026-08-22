@@ -7,8 +7,8 @@ const source = (path) => readFile(new URL(`../${path}`, import.meta.url), "utf8"
 test("demo pages share the three restaurant experiences and preserve the generic route contract", async () => {
   const [showcase, demo, english, landing] = await Promise.all([
     source("components/vistaire-preview/DemoPhoneShowcase.tsx"),
-    source("app/demo/page.tsx"),
-    source("app/en/vistaire-menu/page.tsx"),
+    source("app/(fr)/demo/page.tsx"),
+    source("app/(en)/en/vistaire-menu/page.tsx"),
     source("components/landing/VistaireLanding.tsx")
   ]);
 

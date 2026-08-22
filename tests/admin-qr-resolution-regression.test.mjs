@@ -10,7 +10,7 @@ const loadSupabaseProject = () => import("../utils/supabase/projectIdentity.ts")
 
 test("the generic invalid QR destination is a concrete page, not the dynamic token route", async () => {
   const source = await readFile(
-    new URL("../app/q/invalid/page.tsx", import.meta.url),
+    new URL("../app/(fr)/q/invalid/page.tsx", import.meta.url),
     "utf8"
   );
 

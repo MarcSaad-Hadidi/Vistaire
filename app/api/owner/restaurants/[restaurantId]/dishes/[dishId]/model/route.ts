@@ -1,4 +1,4 @@
-import { revalidatePath } from "next/cache";
+import { isDeepStrictEqual } from "node:util";
 import { NextResponse, type NextRequest } from "next/server";
 import {
   requireSameOriginOwnerMutation,
@@ -10,12 +10,16 @@ import {
   collectDishModelStorageTargets,
   collectTargetedDishModelDeletion,
   DISH_MODEL_MISSING_STATUS,
+  getObjectMetadata,
   groupTargetsByBucket,
   hasDishModelMetadata,
   type DishModelDeleteTarget
 } from "@/lib/owner/deleteDishModelAssets";
 import { requireOwnerRestaurantCapability } from "@/lib/owner/demoCapabilities";
-import { slugifyRestaurantSlug } from "@/lib/owner/menuUrlCore";
+import {
+  invalidateCommittedPublicMutation,
+  resolvePublicMutationIdentity
+} from "@/lib/owner/menuMutationRevalidation";
 import {
   isCanonicalUuid,
   normalizeStorageSafeIdentifier
@@ -33,17 +37,6 @@ type DishRow = {
   metadata: unknown;
   has_immersive_view?: boolean | null;
 };
-
-function getString(row: Record<string, unknown> | null | undefined, key: string): string {
-  const value = row?.[key];
-  return typeof value === "string" ? value.trim() : "";
-}
-
-function revalidatePublicDishModelPaths(restaurantSlug: string, dishSlug: string): void {
-  if (!restaurantSlug) return;
-  revalidatePath(`/menu/${restaurantSlug}`);
-  if (dishSlug) revalidatePath(`/menu/${restaurantSlug}/dishes/${dishSlug}`);
-}
 
 export async function DELETE(
   request: NextRequest,
@@ -94,14 +87,6 @@ export async function DELETE(
     );
   }
 
-  const restaurant = await admin.client
-    .from("restaurants")
-    .select("slug")
-    .eq("id", restaurantId)
-    .maybeSingle();
-  const restaurantSlug = slugifyRestaurantSlug(getString(restaurant.data, "slug") || restaurantId);
-  const dishSlug = slugifyRestaurantSlug(dish.slug || dish.name || dishId);
-
   const requestedTarget = request.nextUrl.searchParams.get("target") ?? "all";
   const validTargets: DishModelDeleteTarget[] = ["all", "viewer-glb", "usdz-runtime", "report"];
   const target = (validTargets as string[]).includes(requestedTarget)
@@ -122,24 +107,6 @@ export async function DELETE(
   let attemptedCount = 0;
   let deletedCount = 0;
 
-  for (const [bucket, paths] of groupTargetsByBucket(scoped.targets)) {
-    attemptedCount += paths.length;
-    const removal = await admin.client.storage.from(bucket).remove(paths);
-    if (removal.error) {
-      return NextResponse.json(
-        {
-          ok: false,
-          error: "Suppression Storage impossible pour ce modele.",
-          deletedCount,
-          skippedCount: collectedAll.skipped.length,
-          modelStatus: DISH_MODEL_MISSING_STATUS
-        },
-        { status: 503 }
-      );
-    }
-    deletedCount += Array.isArray(removal.data) ? removal.data.length : paths.length;
-  }
-
   const cleanedMetadata = isFullDelete
     ? cleanDishModelMetadata(dish.metadata)
     : cleanTargetedDishModelMetadata(dish.metadata, scoped.clearKeys);
@@ -149,11 +116,38 @@ export async function DELETE(
       ? cleanedMetadata.modelStatus
       : DISH_MODEL_MISSING_STATUS;
   const stillImmersive = nextModelStatus !== DISH_MODEL_MISSING_STATUS;
+  const nextHasImmersiveView = isFullDelete ? false : stillImmersive;
+  const metadataChanged = !isDeepStrictEqual(
+    getObjectMetadata(dish.metadata),
+    cleanedMetadata
+  );
+  const immersiveStateChanged =
+    dish.has_immersive_view !== nextHasImmersiveView;
+
+  if (!metadataChanged && !immersiveStateChanged && scoped.targets.length === 0) {
+    return NextResponse.json({
+      ok: true,
+      target,
+      modelDeleted: false,
+      dishUpdated: false,
+      attemptedCount: 0,
+      deletedCount: 0,
+      skippedCount: collectedAll.skipped.length,
+      modelStatus: nextModelStatus
+    });
+  }
+
+  const publicIdentity = await resolvePublicMutationIdentity({
+    client: admin.client,
+    restaurantId,
+    dishId,
+    dishSlug: dish.slug || dish.name || dishId
+  });
 
   const updated = await admin.client
     .from("menu_dishes")
     .update({
-      has_immersive_view: isFullDelete ? false : stillImmersive,
+      has_immersive_view: nextHasImmersiveView,
       metadata: cleanedMetadata
     })
     .eq("id", dishId)
@@ -168,7 +162,35 @@ export async function DELETE(
     );
   }
 
-  revalidatePublicDishModelPaths(restaurantSlug, dishSlug);
+  await invalidateCommittedPublicMutation(publicIdentity);
+
+  try {
+    for (const [bucket, paths] of groupTargetsByBucket(scoped.targets)) {
+      attemptedCount += paths.length;
+      const removal = await admin.client.storage.from(bucket).remove(paths);
+      if (removal.error) {
+        throw new Error("storage_cleanup_failed");
+      }
+      deletedCount += Array.isArray(removal.data) ? removal.data.length : paths.length;
+    }
+  } catch {
+    await invalidateCommittedPublicMutation(publicIdentity);
+    return NextResponse.json(
+      {
+        ok: false,
+        error: "Modele retire du menu, mais nettoyage Storage incomplet.",
+        committed: true,
+        target,
+        modelDeleted,
+        dishUpdated: true,
+        attemptedCount,
+        deletedCount,
+        skippedCount: collectedAll.skipped.length,
+        modelStatus: nextModelStatus
+      },
+      { status: 503 }
+    );
+  }
 
   return NextResponse.json({
     ok: true,

@@ -1,6 +1,18 @@
 import "server-only";
 
 import { unstable_cache } from "next/cache";
+import {
+  LANDING_DATA_CACHE_SECONDS,
+  landingCacheEpoch,
+  landingCacheTag,
+  landingExperienceCacheKeyParts,
+  landingPayloadCacheKeyParts
+} from "@/lib/cache/publicCachePolicy";
+import {
+  assertPublicCacheSafe,
+  PublicCacheSafetyError,
+  PUBLIC_CACHE_SAFETY_MAX_NODES
+} from "@/lib/cache/publicCacheSafety";
 import { LOCALE_LANGUAGE_TAG, type Locale } from "@/lib/i18n";
 import {
   projectLandingMenuUiMenu,
@@ -9,16 +21,17 @@ import {
 import { buildCurrentPublicMenuPreview } from "@/lib/landing/publicMenuPreview";
 import {
   dedupeLandingDishPhotos,
-  resolveLandingDishPhoto
+  landingPhotoForDish
 } from "@/lib/landing/landingDishIdentity";
 import { buildPublicDishPath } from "@/lib/menu/publicMenuCore";
 import {
-  resolvePublicMenuRenderContext,
-  type PublicMenuRenderContext
-} from "@/lib/menu/publicMenuRenderContext";
+  resolvePublicMenuExchangeRates,
+  resolvePublicMenuStableRenderContext,
+  type PublicMenuStableRenderContext
+} from "@/lib/landing/publicLandingMenuData";
 import { buildPublicMenuPath } from "@/lib/owner/menuUrlCore";
 import type { PdfComparePreviewData } from "@/lib/pdfComparePreviewData";
-import { getMaisonElyseIdentity } from "@/lib/owner/demoCapabilities";
+import { getMaisonElyseIdentity } from "@/lib/maisonElyseIdentity";
 import type { LandingPublicMenuHref } from "@/components/landing/LandingPublicMenuLink";
 import {
   isRestaurantExperienceId,
@@ -29,9 +42,23 @@ import {
 
 export type LandingExperienceId = RestaurantExperienceId;
 
-type LandingPreviewBase = RestaurantMenuPreviewBase & {
-  menuUi: LandingMenuUiPreview;
+type StableLandingMenuUiPreview = Omit<
+  LandingMenuUiPreview,
+  "exchangeRates"
+>;
+
+type StableLandingPreviewBase = Omit<RestaurantMenuPreviewBase, "menuUi"> & {
+  menuUi: StableLandingMenuUiPreview;
 };
+
+type StableLandingMenuPreviewPayload =
+  | (StableLandingPreviewBase & { kind: "maison-elyse" })
+  | (StableLandingPreviewBase & { kind: "trouvable" })
+  | (StableLandingPreviewBase & {
+      kind: "unique-registered";
+      rendererKey: "sauge-noire-book-v1";
+      rendererVersion: 1;
+    });
 
 export function isLandingExperienceId(
   value: string
@@ -47,7 +74,7 @@ export type LandingFeaturedDish = {
   price: string;
   href: LandingPublicMenuHref;
   image: string;
-  imageSource: "imageUrl" | "thumbnailUrl" | "posterUrl" | "fallback" | "unavailable";
+  imageSource: "imageUrl" | "thumbnailUrl" | "cardUrl" | "posterUrl" | "fallback" | "unavailable";
   imageAlt: string;
   imagePosition: string;
 };
@@ -81,9 +108,24 @@ export class LandingMenuPreviewError extends Error {
   }
 }
 
+export type LandingLiveDataUnavailableCode =
+  | "landing_source_unavailable"
+  | "landing_menu_not_ready"
+  | "landing_featured_dish_not_ready"
+  | "landing_featured_dish_photo_not_ready"
+  | "landing_ui_config_not_ready"
+  | "landing_localized_menus_not_ready";
+
+export class LandingLiveDataUnavailableError extends Error {
+  constructor(readonly code: LandingLiveDataUnavailableCode) {
+    super("Landing live data is temporarily unavailable.");
+    this.name = "LandingLiveDataUnavailableError";
+  }
+}
+
 export function assertLandingMenuPreviewReady(
   context: Pick<
-    PublicMenuRenderContext,
+    PublicMenuStableRenderContext,
     "locale" | "publicLocale" | "query" | "menu"
   >,
   requestedLocale: Locale
@@ -144,6 +186,10 @@ export type LandingExperience = {
   preview: PdfComparePreviewData;
   renderPayload: LandingMenuPreviewPayload | null;
   hasLiveData: boolean;
+};
+
+type StableLandingExperience = Omit<LandingExperience, "renderPayload"> & {
+  renderPayload: StableLandingMenuPreviewPayload | null;
 };
 
 function toLandingPublicMenuHref(href: string): LandingPublicMenuHref {
@@ -431,11 +477,23 @@ function fallbackExperiences(locale: Locale): LandingExperience[] {
   }));
 }
 
+export function projectLandingMenuQuery(
+  query: PublicMenuStableRenderContext["query"]
+): PublicMenuStableRenderContext["query"] {
+  return {
+    ...(query.lang !== undefined ? { lang: query.lang } : {}),
+    ...(query.currency !== undefined ? { currency: query.currency } : {}),
+    ...(query.table !== undefined ? { table: query.table } : {}),
+    ...(query.zone !== undefined ? { zone: query.zone } : {}),
+    ...(query.view !== undefined ? { view: query.view } : {})
+  };
+}
+
 function landingRenderPayload(
   experience: LandingExperience,
-  context: PublicMenuRenderContext,
+  context: PublicMenuStableRenderContext,
   comparison: PdfComparePreviewData
-): LandingMenuPreviewPayload | null {
+): StableLandingMenuPreviewPayload {
   // E2E uses the same readiness contract as production.  Hermetic fixtures
   // must provide valid locale, translation and renderer data rather than
   // activating a product-only compatibility path.
@@ -469,7 +527,7 @@ function landingRenderPayload(
       );
     }
   }
-  const base: LandingPreviewBase = {
+  const base: StableLandingPreviewBase = {
     menuSlug: experience.menuSlug,
     restaurantId: context.menu.restaurantId,
     ...(context.menu.menuId ? { menuId: context.menu.menuId } : {}),
@@ -487,8 +545,7 @@ function landingRenderPayload(
       ),
       config: context.config,
       context: context.context,
-      query: context.query,
-      exchangeRates: context.exchangeRates
+      query: projectLandingMenuQuery(context.query)
     }
   };
 
@@ -526,172 +583,342 @@ function landingRenderPayload(
     };
   }
 
-  return null;
-}
-
-async function buildLandingExperiences(
-  locale: Locale
-): Promise<LandingExperience[]> {
-  const lang = LOCALE_LANGUAGE_TAG[locale];
-  const fallbacks = fallbackExperiences(locale);
-
-  const resolved = await Promise.all(
-    fallbacks.map(async (experience) => {
-      try {
-        const renderContext = await resolvePublicMenuRenderContext({
-          slug: experience.menuSlug,
-          query: {
-            lang,
-            ...(experience.dishView ? { view: experience.dishView } : {})
-          }
-        });
-        if (!renderContext?.menu.dishes.length) return experience;
-        assertLandingMenuPreviewReady(renderContext, locale);
-        const menu = renderContext.menu;
-        const current = buildCurrentPublicMenuPreview({
-          locale,
-          menu,
-          preferredDishId: experience.featuredDish.id,
-          preferredDishSlug: experience.preferredDishSlug,
-          theme: experience.id
-        });
-        if (!current.featuredDish) {
-          return {
-            ...experience,
-            preview: current.preview,
-            hasLiveData: false,
-            renderPayload:
-              experience.id === "maison-elyse"
-                ? landingRenderPayload(experience, renderContext, current.preview)
-                : null
-          };
-        }
-        const dish = current.featuredDish;
-        const resolvedPhoto = resolveLandingDishPhoto(
-          dish,
-          experience.featuredDish,
-          menu.dishes
-        );
-        const image = resolvedPhoto?.url ?? "";
-        const imageSource: LandingFeaturedDish["imageSource"] =
-          resolvedPhoto?.source ?? "unavailable";
-
-        return {
-          ...experience,
-          preview: current.preview,
-          hasLiveData: true,
-          renderPayload:
-            experience.id === "maison-elyse"
-              ? landingRenderPayload(experience, renderContext, current.preview)
-              : null,
-          featuredDish: {
-            id: dish.id,
-            slug: dish.slug,
-            name: dish.name,
-            description: dish.description,
-            price: dish.priceLabel,
-            href: toLandingPublicMenuHref(
-              buildPublicDishPath(menu.slug, dish.slug, {
-                lang,
-                ...(experience.dishView ? { view: experience.dishView } : {})
-              })
-            ),
-            image,
-            imageSource,
-            imageAlt:
-              locale === "en"
-                ? `${dish.name}, from ${experience.name}`
-                : `${dish.name}, dans la carte ${experience.name}`,
-            imagePosition: "center"
-          }
-        };
-      } catch (error) {
-        if (error instanceof LandingMenuPreviewError) return experience;
-        throw error;
-      }
-    })
-  );
-
-  const routedExperiences = resolved.map((experience) => ({
-    ...experience,
-    featuredDish: {
-      ...experience.featuredDish,
-      href: buildLandingFeaturedDishHref(experience, locale)
+  throw new LandingMenuPreviewError(
+    "landing_identity_mismatch",
+    `Landing experience ${experience.id} resolved the wrong renderer identity.`,
+    {
+      expectedExperienceId: experience.id,
+      actualExperienceKind: context.experience.kind
     }
-  }));
-  return dedupeLandingDishPhotos(routedExperiences);
-}
-
-const getCachedFrenchLandingExperiences = unstable_cache(
-  () => buildLandingExperiences("fr"),
-  ["landing-menu-experiences-fr-v11"],
-  { revalidate: 60 }
-);
-
-const getCachedEnglishLandingExperiences = unstable_cache(
-  () => buildLandingExperiences("en"),
-  ["landing-menu-experiences-en-v11"],
-  { revalidate: 60 }
-);
-
-export async function getLandingExperiences(
-  locale: Locale
-): Promise<LandingExperience[]> {
-  return locale === "en"
-    ? getCachedEnglishLandingExperiences()
-    : getCachedFrenchLandingExperiences();
-}
-
-async function buildLandingMenuPreviewPayload(
-  experienceId: LandingExperienceId,
-  locale: Locale
-): Promise<LandingMenuPreviewPayload | null> {
-  const experience = fallbackExperiences(locale).find(
-    (candidate) => candidate.id === experienceId
   );
-  if (!experience) return null;
+}
 
-  const lang = LOCALE_LANGUAGE_TAG[locale];
-  const renderContext = await resolvePublicMenuRenderContext({
+type LandingCacheOptions = {
+  revalidate: number;
+  tags: string[];
+};
+
+export type LandingCacheBackend = <T>(
+  load: () => Promise<T>,
+  keyParts: string[],
+  options: LandingCacheOptions
+) => () => Promise<T>;
+
+type LandingLiveCacheInput<T> = {
+  restaurantKey: string;
+  experienceId: LandingExperienceId;
+  locale: Locale;
+  version: string;
+  load: () => Promise<T>;
+};
+
+export function createLandingLiveCache({
+  cacheBackend,
+  now
+}: {
+  cacheBackend: LandingCacheBackend;
+  now: () => number;
+}) {
+  async function read<T>(
+    kind: "experience" | "payload",
+    input: LandingLiveCacheInput<T>
+  ): Promise<T> {
+    const epoch = landingCacheEpoch(now());
+    const address = {
+      restaurantKey: input.restaurantKey,
+      experienceId: input.experienceId,
+      locale: input.locale,
+      version: input.version,
+      epoch
+    };
+    const keyParts =
+      kind === "experience"
+        ? landingExperienceCacheKeyParts(address)
+        : landingPayloadCacheKeyParts(address);
+    const cached = cacheBackend(input.load, keyParts, {
+      revalidate: LANDING_DATA_CACHE_SECONDS,
+      tags: [landingCacheTag(address)]
+    });
+    return cached();
+  }
+
+  return {
+    readExperience<T>(input: LandingLiveCacheInput<T>) {
+      return read("experience", input);
+    },
+    readPayload<T>(input: LandingLiveCacheInput<T>) {
+      return read("payload", input);
+    }
+  };
+}
+
+function isLandingExperienceFallbackError(error: unknown): boolean {
+  return (
+    error instanceof LandingLiveDataUnavailableError ||
+    error instanceof LandingMenuPreviewError ||
+    error instanceof PublicCacheSafetyError
+  );
+}
+
+function isLandingPreviewFallbackError(error: unknown): boolean {
+  return (
+    error instanceof LandingLiveDataUnavailableError ||
+    error instanceof PublicCacheSafetyError
+  );
+}
+
+function assertLandingCacheSafe<T>(candidate: T): T {
+  return assertPublicCacheSafe(candidate, {
+    maxNodes: PUBLIC_CACHE_SAFETY_MAX_NODES
+  });
+}
+
+type LandingStableContextResolver = (args: {
+  query: Parameters<typeof resolvePublicMenuStableRenderContext>[0]["query"];
+  slug: string;
+}) => Promise<PublicMenuStableRenderContext | null>;
+
+type LandingExchangeRatesResolver = typeof resolvePublicMenuExchangeRates;
+
+async function resolveLiveLandingContext(
+  experience: LandingExperience,
+  locale: Locale,
+  resolveContext: LandingStableContextResolver
+): Promise<PublicMenuStableRenderContext> {
+  const context = await resolveContext({
     slug: experience.menuSlug,
     query: {
-      lang,
+      lang: LOCALE_LANGUAGE_TAG[locale],
       ...(experience.dishView ? { view: experience.dishView } : {})
     }
   });
-  if (!renderContext?.menu.dishes.length) return null;
-  assertLandingMenuPreviewReady(renderContext, locale);
+  if (!context || context.menu.source !== "supabase") {
+    throw new LandingLiveDataUnavailableError("landing_source_unavailable");
+  }
+  if (!context.stableCacheReadiness.publishedUiConfig) {
+    throw new LandingLiveDataUnavailableError("landing_ui_config_not_ready");
+  }
+  if (!context.stableCacheReadiness.localizedMenusComplete) {
+    throw new LandingLiveDataUnavailableError(
+      "landing_localized_menus_not_ready"
+    );
+  }
+  if (!context.menu.dishes.length) {
+    throw new LandingLiveDataUnavailableError("landing_menu_not_ready");
+  }
+  assertLandingMenuPreviewReady(context, locale);
+  return context;
+}
 
+async function buildLiveLandingExperience(
+  experience: LandingExperience,
+  locale: Locale,
+  resolveContext: LandingStableContextResolver
+): Promise<StableLandingExperience> {
+  const context = await resolveLiveLandingContext(
+    experience,
+    locale,
+    resolveContext
+  );
   const current = buildCurrentPublicMenuPreview({
     locale,
-    menu: renderContext.menu,
+    menu: context.menu,
     preferredDishId: experience.featuredDish.id,
     preferredDishSlug: experience.preferredDishSlug,
     theme: experience.id
   });
+  const stablePayload = landingRenderPayload(
+    experience,
+    context,
+    current.preview
+  );
+  if (!current.featuredDish) {
+    throw new LandingLiveDataUnavailableError(
+      "landing_featured_dish_not_ready"
+    );
+  }
 
-  return landingRenderPayload(experience, renderContext, current.preview);
+  const dish = current.featuredDish;
+  const resolvedPhoto = landingPhotoForDish(dish);
+  if (!resolvedPhoto) {
+    throw new LandingLiveDataUnavailableError(
+      "landing_featured_dish_photo_not_ready"
+    );
+  }
+  const candidate: StableLandingExperience = {
+    ...experience,
+    preview: current.preview,
+    hasLiveData: true,
+    renderPayload: experience.id === "maison-elyse" ? stablePayload : null,
+    featuredDish: {
+      id: dish.id,
+      slug: dish.slug,
+      name: dish.name,
+      description: dish.description,
+      price: dish.priceLabel,
+      href: toLandingPublicMenuHref(
+        buildPublicDishPath(context.menu.slug, dish.slug, {
+          lang: LOCALE_LANGUAGE_TAG[locale],
+          ...(experience.dishView ? { view: experience.dishView } : {})
+        })
+      ),
+      image: resolvedPhoto.url,
+      imageSource: resolvedPhoto.source,
+      imageAlt:
+        locale === "en"
+          ? `${dish.name}, from ${experience.name}`
+          : `${dish.name}, dans la carte ${experience.name}`,
+      imagePosition: "center"
+    }
+  };
+  return assertLandingCacheSafe(candidate);
 }
 
-const getCachedFrenchLandingMenuPreviewPayload = unstable_cache(
-  (experienceId: LandingExperienceId) =>
-    buildLandingMenuPreviewPayload(experienceId, "fr"),
-  ["landing-menu-preview-payload-fr-v9"],
-  { revalidate: 60 }
-);
+async function hydrateLandingPayload(
+  payload: StableLandingMenuPreviewPayload,
+  resolveRates: LandingExchangeRatesResolver
+): Promise<LandingMenuPreviewPayload> {
+  const exchangeRates = await resolveRates(payload.menuUi.menu);
+  return {
+    ...payload,
+    menuUi: {
+      ...payload.menuUi,
+      exchangeRates
+    }
+  } as LandingMenuPreviewPayload;
+}
 
-const getCachedEnglishLandingMenuPreviewPayload = unstable_cache(
-  (experienceId: LandingExperienceId) =>
-    buildLandingMenuPreviewPayload(experienceId, "en"),
-  ["landing-menu-preview-payload-en-v9"],
-  { revalidate: 60 }
-);
+async function hydrateLandingExperience(
+  experience: StableLandingExperience,
+  resolveRates: LandingExchangeRatesResolver
+): Promise<LandingExperience> {
+  return {
+    ...experience,
+    renderPayload: experience.renderPayload
+      ? await hydrateLandingPayload(experience.renderPayload, resolveRates)
+      : null
+  };
+}
 
-export async function getLandingMenuPreviewPayload(
+async function buildLiveLandingMenuPreviewPayload(
+  experience: LandingExperience,
+  locale: Locale,
+  resolveContext: LandingStableContextResolver
+): Promise<StableLandingMenuPreviewPayload> {
+  const context = await resolveLiveLandingContext(
+    experience,
+    locale,
+    resolveContext
+  );
+  const current = buildCurrentPublicMenuPreview({
+    locale,
+    menu: context.menu,
+    preferredDishId: experience.featuredDish.id,
+    preferredDishSlug: experience.preferredDishSlug,
+    theme: experience.id
+  });
+  if (!current.featuredDish) {
+    throw new LandingLiveDataUnavailableError(
+      "landing_featured_dish_not_ready"
+    );
+  }
+  const candidate = landingRenderPayload(experience, context, current.preview);
+  return assertLandingCacheSafe(candidate);
+}
+
+export function createLandingDataReader({
+  cacheBackend,
+  now,
+  resolveContext,
+  resolveRates
+}: {
+  cacheBackend: LandingCacheBackend;
+  now: () => number;
+  resolveContext: LandingStableContextResolver;
+  resolveRates: LandingExchangeRatesResolver;
+}) {
+  const liveCache = createLandingLiveCache({ cacheBackend, now });
+
+  async function getExperiences(locale: Locale): Promise<LandingExperience[]> {
+    const fallbacks = fallbackExperiences(locale);
+    const resolved = await Promise.all(
+      fallbacks.map(async (experience) => {
+        try {
+          const live = await liveCache.readExperience({
+            restaurantKey: experience.menuSlug,
+            experienceId: experience.id,
+            locale,
+            version: "v12",
+            load: () =>
+              buildLiveLandingExperience(experience, locale, resolveContext)
+          });
+          return hydrateLandingExperience(live, resolveRates);
+        } catch (error) {
+          if (isLandingExperienceFallbackError(error)) return experience;
+          throw error;
+        }
+      })
+    );
+
+    const routedExperiences = resolved.map((experience) => ({
+      ...experience,
+      featuredDish: {
+        ...experience.featuredDish,
+        href: buildLandingFeaturedDishHref(experience, locale)
+      }
+    }));
+    return dedupeLandingDishPhotos(routedExperiences);
+  }
+
+  async function getPreviewPayload(
+    experienceId: LandingExperienceId,
+    locale: Locale
+  ): Promise<LandingMenuPreviewPayload | null> {
+    const experience = fallbackExperiences(locale).find(
+      (candidate) => candidate.id === experienceId
+    );
+    if (!experience) return null;
+
+    try {
+      const stablePayload = await liveCache.readPayload({
+        restaurantKey: experience.menuSlug,
+        experienceId,
+        locale,
+        version: "v10",
+        load: () =>
+          buildLiveLandingMenuPreviewPayload(
+            experience,
+            locale,
+            resolveContext
+          )
+      });
+      return hydrateLandingPayload(stablePayload, resolveRates);
+    } catch (error) {
+      if (isLandingPreviewFallbackError(error)) return null;
+      throw error;
+    }
+  }
+
+  return { getExperiences, getPreviewPayload };
+}
+
+const landingDataReader = createLandingDataReader({
+  cacheBackend: (load, keyParts, options) =>
+    unstable_cache(load, keyParts, options),
+  now: () => Date.now(),
+  resolveContext: resolvePublicMenuStableRenderContext,
+  resolveRates: resolvePublicMenuExchangeRates
+});
+
+export function getLandingExperiences(
+  locale: Locale
+): Promise<LandingExperience[]> {
+  return landingDataReader.getExperiences(locale);
+}
+
+export function getLandingMenuPreviewPayload(
   experienceId: LandingExperienceId,
   locale: Locale
 ): Promise<LandingMenuPreviewPayload | null> {
-  return locale === "en"
-    ? getCachedEnglishLandingMenuPreviewPayload(experienceId)
-    : getCachedFrenchLandingMenuPreviewPayload(experienceId);
+  return landingDataReader.getPreviewPayload(experienceId, locale);
 }

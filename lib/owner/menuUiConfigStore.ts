@@ -481,6 +481,7 @@ export async function saveDraftMenuUiConfig(args: {
 export async function publishMenuUiConfig(args: {
   restaurantId: string;
   config: MenuUiConfig;
+  onPublicCommit?: () => void | Promise<void>;
 }): Promise<StoreSuccess | StoreFailure> {
   if (!isValidRestaurantId(args.restaurantId)) {
     return { ok: false, status: 400, error: "Restaurant invalide." };
@@ -512,12 +513,14 @@ export async function publishMenuUiConfig(args: {
     if (archived) return archived;
   }
 
-  return updatePublishedInPlace(
+  const published = await updatePublishedInPlace(
     admin.client,
     current.row,
     args.restaurantId,
     config
   );
+  if (published.ok) await args.onPublicCommit?.();
+  return published;
 }
 
 export async function duplicatePublishedMenuUiConfigToDraft(args: {
@@ -548,6 +551,7 @@ export async function duplicatePublishedMenuUiConfigToDraft(args: {
 export async function rollbackPublishedMenuUiConfig(args: {
   restaurantId: string;
   targetConfigId?: string;
+  onPublicCommit?: () => void | Promise<void>;
 }): Promise<StoreSuccess | StoreFailure> {
   if (!isValidRestaurantId(args.restaurantId)) {
     return { ok: false, status: 400, error: "Restaurant invalide." };
@@ -579,11 +583,13 @@ export async function rollbackPublishedMenuUiConfig(args: {
   }
 
   const target = mapMenuUiConfigRow(data as MenuUiConfigRow);
-  return updatePublishedInPlace(
+  const published = await updatePublishedInPlace(
     admin.client,
     current.row,
     args.restaurantId,
     target.config
   );
+  if (published.ok) await args.onPublicCommit?.();
+  return published;
 }
 

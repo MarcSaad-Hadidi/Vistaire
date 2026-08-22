@@ -1,10 +1,13 @@
-import { revalidatePath } from "next/cache";
 import { NextResponse, type NextRequest } from "next/server";
 import {
   requireSameOriginOwnerMutation,
   requireVistaireOwnerApi
 } from "@/lib/auth/ownerApi";
 import { slugifyRestaurantSlug } from "@/lib/owner/menuUrlCore";
+import {
+  invalidateCommittedPublicMutation,
+  resolvePublicMutationIdentity
+} from "@/lib/owner/menuMutationRevalidation";
 import {
   parseSourceUploadLimit,
   validateSourceGlbFile
@@ -31,12 +34,6 @@ type DishRow = {
 function getString(row: Record<string, unknown> | null | undefined, key: string): string {
   const value = row?.[key];
   return typeof value === "string" ? value.trim() : "";
-}
-
-function revalidatePublicDishModelPaths(restaurantSlug: string, dishSlug: string): void {
-  if (!restaurantSlug) return;
-  revalidatePath(`/menu/${restaurantSlug}`);
-  if (dishSlug) revalidatePath(`/menu/${restaurantSlug}/dishes/${dishSlug}`);
 }
 
 export async function POST(
@@ -136,6 +133,17 @@ export async function POST(
   const restaurantSlug = slugifyRestaurantSlug(getString(restaurant.data, "slug") || restaurantId);
   const menuSlug = slugifyRestaurantSlug(getString(menu.data, "slug") || "principal");
   const dishSlug = slugifyRestaurantSlug(dish.slug || dish.name || dishId);
+  const publicIdentity = await resolvePublicMutationIdentity({
+    client: admin.client,
+    restaurantId,
+    dishId,
+    dishSlug
+  });
+  let publicCommitted = false;
+  const onPublicCommit = async () => {
+    publicCommitted = true;
+    await invalidateCommittedPublicMutation(publicIdentity);
+  };
 
   try {
     const result = await runViewerGlbUpload({
@@ -148,10 +156,9 @@ export async function POST(
       dishSlug,
       existingMetadata: dish.metadata,
       sourceBytes: validated.bytes,
-      originalName: validated.originalName
+      originalName: validated.originalName,
+      onPublicCommit
     });
-
-    revalidatePublicDishModelPaths(restaurantSlug, dishSlug);
 
     return NextResponse.json(
       {
@@ -170,6 +177,18 @@ export async function POST(
       { status: 201 }
     );
   } catch (error) {
+    if (publicCommitted) {
+      await invalidateCommittedPublicMutation(publicIdentity);
+      return NextResponse.json(
+        {
+          ok: false,
+          error: "GLB viewer publie, mais finalisation 3D incomplete.",
+          committed: true,
+          dishUpdated: true
+        },
+        { status: 503 }
+      );
+    }
     const message = error instanceof Error ? error.message : "Upload GLB viewer impossible.";
     return NextResponse.json({ ok: false, error: message }, { status: 503 });
   }

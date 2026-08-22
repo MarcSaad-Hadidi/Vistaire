@@ -26,7 +26,11 @@ export function buildAdminDishPhotoPath(
   }
   const params = new URLSearchParams({ v: assetVersion.toLowerCase() });
   if (options?.variant) {
-    if (options.variant !== "thumbnail" && options.variant !== "display") {
+    if (
+      options.variant !== "thumbnail" &&
+      options.variant !== "card" &&
+      options.variant !== "display"
+    ) {
       throw new Error("Variante photo invalide.");
     }
     params.set("variant", options.variant);

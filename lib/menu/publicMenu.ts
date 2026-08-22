@@ -7,7 +7,7 @@ import {
   getString,
   readSupabaseRowsByFilters
 } from "@/lib/analytics/serverRows";
-import { getDemoRestaurantId } from "@/lib/analytics/insights";
+import { getDemoRestaurantId } from "@/lib/maisonElyseIdentity";
 import {
   getAllDishes,
   getCategoryBySlug,
@@ -30,7 +30,10 @@ import {
   publicLocaleToShortLocale,
   serializePublicMenuSettings
 } from "@/lib/menu/publicMenuSettings";
-import { MENU_PROJECTIONS } from "@/lib/menu/menuSchemaProjections";
+import {
+  MENU_PROJECTIONS,
+  PUBLIC_MENU_PROJECTIONS
+} from "@/lib/menu/menuSchemaProjections";
 import { applyStoredPublicMenuTranslations } from "@/lib/menu/publicMenuTranslations";
 import { publicMenuSettingsFallbackFromUiConfigRows } from "@/lib/owner/publicMenuSettingsFallback";
 
@@ -43,16 +46,12 @@ function isMissingDisplayOrderError(result: { ok: boolean; error?: string }): bo
 // Keep public menu reads explicit. The shared menu projection contract tracks
 // the deployed production schema; legacy slug fallback intentionally retains
 // `*` below because older installations may not expose the relational shape.
-const PUBLIC_RESTAURANT_COLUMNS =
-  "id,name,slug,location,cuisine_type,status,public_menu_url,google_review_enabled,google_review_url,created_at,updated_at";
-const PUBLIC_DISH_COLUMNS =
-  "id,restaurant_id,menu_id,category_id,slug,name,short_description,description,price_cents,currency,image_url,is_available,is_signature,is_recommended,has_immersive_view,allergens,allergen_declarations,metadata,created_at,updated_at,display_order";
+const PUBLIC_RESTAURANT_COLUMNS = PUBLIC_MENU_PROJECTIONS.restaurants;
+const PUBLIC_DISH_COLUMNS = PUBLIC_MENU_PROJECTIONS.dishes;
 const PUBLIC_RESTAURANT_COLUMNS_FALLBACK =
-  "id,name,slug,location,cuisine_type,status,public_menu_url,created_at,updated_at";
-const PUBLIC_DISH_COLUMNS_FALLBACK =
-  "id,restaurant_id,menu_id,category_id,slug,name,short_description,description,price_cents,currency,image_url,is_available,is_signature,is_recommended,has_immersive_view,allergens,metadata,created_at,updated_at";
-const PUBLIC_UI_CONFIG_COLUMNS =
-  "id,restaurant_id,theme,config_json,status,created_at,updated_at";
+  PUBLIC_MENU_PROJECTIONS.restaurantsFallback;
+const PUBLIC_DISH_COLUMNS_FALLBACK = PUBLIC_MENU_PROJECTIONS.dishesFallback;
+const PUBLIC_UI_CONFIG_COLUMNS = PUBLIC_MENU_PROJECTIONS.uiConfigs;
 
 async function readDishRows(
   readRows: typeof readSupabaseRowsByFilters,
@@ -352,6 +351,7 @@ function demoMenu(slug: string, locale: Locale = "fr"): PublicMenu {
       displayPriceMode: "auto",
       imageUrl: dish.image ?? "",
       thumbnailUrl: dish.image ?? "",
+      cardUrl: dish.image ?? "",
       hasPhoto: Boolean(dish.image),
       photoStatus: dish.image ? "ready" : "missing",
       has3d: Boolean(
@@ -477,6 +477,7 @@ function trouvableDemoMenu(
         displayPriceMode: "auto",
         imageUrl: dish.imageUrl,
         thumbnailUrl: dish.imageUrl,
+        cardUrl: dish.imageUrl,
         hasPhoto: true,
         photoStatus: "ready",
         has3d: Boolean(e2eImmersiveAssets),
@@ -575,46 +576,79 @@ type PublicMenuDependencies = {
   nodeEnv: string | undefined;
 };
 
-const LOCAL_PUBLIC_MENU_CACHE_TTL_MS = 30_000;
-const localPublicMenuCache = new Map<
+export type PublicMenuReadOutcome =
+  | { status: "live"; menu: PublicMenu }
+  | { status: "not_found" }
+  | { status: "temporarily_unavailable" };
+
+const defaultPublicMenuDependencies: PublicMenuDependencies = {
+  readRows: readSupabaseRowsByFilters,
+  nodeEnv: process.env.NODE_ENV
+};
+const publicMenuReadFlights = new Map<
   string,
-  { expiresAt: number; promise: Promise<PublicMenu | null> }
+  Promise<PublicMenuReadOutcome>
 >();
+const publicMenuDependencyScopes = new WeakMap<
+  typeof readSupabaseRowsByFilters,
+  number
+>();
+let nextPublicMenuDependencyScope = 1;
+
+function publicMenuDependencyScope(
+  readRows: typeof readSupabaseRowsByFilters
+): string {
+  if (readRows === readSupabaseRowsByFilters) return "default";
+  const existing = publicMenuDependencyScopes.get(readRows);
+  if (existing) return `test-${existing}`;
+  const created = nextPublicMenuDependencyScope++;
+  publicMenuDependencyScopes.set(readRows, created);
+  return `test-${created}`;
+}
+
+function publicMenuReadFlightKey(
+  slug: string,
+  locale: string,
+  dependencies: PublicMenuDependencies
+): string {
+  return JSON.stringify([
+    publicMenuDependencyScope(dependencies.readRows),
+    slug,
+    locale
+  ]);
+}
+
+function coalescePublicMenuRead(
+  key: string,
+  read: () => Promise<PublicMenuReadOutcome>
+): Promise<PublicMenuReadOutcome> {
+  const active = publicMenuReadFlights.get(key);
+  if (active) return active;
+
+  const flightReference: { current?: Promise<PublicMenuReadOutcome> } = {};
+  const flight = Promise.resolve()
+    .then(read)
+    .finally(() => {
+      if (publicMenuReadFlights.get(key) === flightReference.current) {
+        publicMenuReadFlights.delete(key);
+      }
+    });
+  flightReference.current = flight;
+  publicMenuReadFlights.set(key, flight);
+  return flight;
+}
 
 async function getPublicMenuBySlugUncached(
   rawSlug: string,
   locale: Locale | string = DEFAULT_LOCALE,
-  dependencies: PublicMenuDependencies = { readRows: readSupabaseRowsByFilters, nodeEnv: process.env.NODE_ENV }
+  dependencies: PublicMenuDependencies = defaultPublicMenuDependencies
 ): Promise<PublicMenu | null> {
   const slug = slugifyRestaurantSlug(rawSlug);
   const resolvedPublicLocale = normalizePublicMenuLocale(locale);
   const resolvedLocale = publicLocaleToShortLocale(resolvedPublicLocale);
   if (!slug) return null;
 
-  const canUseLocalCache =
-    dependencies.nodeEnv !== "production" &&
-    dependencies.readRows === readSupabaseRowsByFilters;
-  const cacheKey = `${slug}:${String(locale)}`;
-  if (canUseLocalCache) {
-    const cached = localPublicMenuCache.get(cacheKey);
-    if (cached && cached.expiresAt > Date.now()) return cached.promise;
-    if (cached) localPublicMenuCache.delete(cacheKey);
-  }
-
-  const readMenu = async (): Promise<PublicMenu | null> => {
-
-    // The dedicated public-menu matrix needs the complete tracked Maison data
-    // even when the shared CI Supabase fixture exposes only its landing card.
-    if (
-      slug === "maison-elyse" &&
-      dependencies.readRows === readSupabaseRowsByFilters &&
-      process.env.VISTAIRE_OWNER_E2E_AUTH_BYPASS === "1" &&
-      process.env.VISTAIRE_E2E_MAISON_PUBLIC_MENU === "1"
-    ) {
-      return demoMenu(slug, resolvedLocale);
-    }
-
-    const localDemo = () => {
+  const localDemo = () => {
     if (
       dependencies.nodeEnv === "production" &&
       (slug !== "trouvable" || process.env.VISTAIRE_E2E_TROUVABLE_3D !== "1")
@@ -628,16 +662,29 @@ async function getPublicMenuBySlugUncached(
     return null;
   };
 
+  // The dedicated public-menu matrix needs the complete tracked Maison data
+  // even when the shared CI Supabase fixture exposes only its landing card.
+  // This explicit test fixture stays outside the shared in-flight read.
+  if (
+    slug === "maison-elyse" &&
+    dependencies.readRows === readSupabaseRowsByFilters &&
+    process.env.VISTAIRE_OWNER_E2E_AUTH_BYPASS === "1" &&
+    process.env.VISTAIRE_E2E_MAISON_PUBLIC_MENU === "1"
+  ) {
+    return demoMenu(slug, resolvedLocale);
+  }
+
+  const readMenu = async (): Promise<PublicMenuReadOutcome> => {
+
     const restaurantsResult = await dependencies.readRows<PublicMenuRow>({ table: "restaurants", columns: PUBLIC_RESTAURANT_COLUMNS, fallbackColumns: PUBLIC_RESTAURANT_COLUMNS_FALLBACK, filters: { slug }, orderBy: "id", limit: 1 });
-    if (!restaurantsResult.ok || restaurantsResult.rows.length === 0) {
-      return localDemo();
-    }
+    if (!restaurantsResult.ok) return { status: "temporarily_unavailable" };
+    if (restaurantsResult.rows.length === 0) return { status: "not_found" };
 
     const match = restaurantsResult.rows.find((row) => getPublicMenuRowSlug(row) === slug);
-    if (!match) return localDemo();
+    if (!match) return { status: "not_found" };
 
     const restaurantId = getString(match, ["id", "restaurant_id"], "");
-    if (!restaurantId) return null;
+    if (!restaurantId) return { status: "temporarily_unavailable" };
     const isDemoRestaurant = restaurantId === getDemoRestaurantId();
 
     const [menusResult, categoriesResult, dishesResult, uiConfigsResult] = await Promise.all([
@@ -646,7 +693,9 @@ async function getPublicMenuBySlugUncached(
       readDishRows(dependencies.readRows, { restaurant_id: restaurantId }),
       dependencies.readRows<PublicMenuRow>({ table: "menu_ui_configs", columns: PUBLIC_UI_CONFIG_COLUMNS, filters: { restaurant_id: restaurantId }, orderBy: "id", limit: 1_000 })
     ]);
-    if (!menusResult.ok || !categoriesResult.ok || !dishesResult.ok) return localDemo();
+    if (!menusResult.ok || !categoriesResult.ok || !dishesResult.ok) {
+      return { status: "temporarily_unavailable" };
+    }
     const primaryMenu = findPrimaryMenu(menusResult.rows, restaurantId);
     let dishRows = dishesResult.rows;
     if (!primaryMenu && dishRows.length === 0) {
@@ -666,7 +715,7 @@ async function getPublicMenuBySlugUncached(
     const hasScopedDishRows = dishRows.length > 0;
 
     if (isDemoRestaurant && !primaryMenu && !hasScopedDishRows) {
-      return localDemo();
+      return { status: "not_found" };
     }
 
     if (primaryMenu) {
@@ -676,43 +725,41 @@ async function getPublicMenuBySlugUncached(
         menuRow: primaryMenu,
         categoryRows: categoriesResult.rows,
         dishRows,
-        includeUnavailableDishes: true,
+        includeUnavailableDishes: false,
         legacyPublicMenuSettings,
         legacyMenuLanguages
       });
-      return applyStoredPublicMenuTranslations(menu, resolvedPublicLocale);
+      return {
+        status: "live",
+        menu: await applyStoredPublicMenuTranslations(menu, resolvedPublicLocale)
+      };
     }
 
     const menu = buildSupabasePublicMenu(
       slug,
       match,
       dishRows,
-      { includeUnavailableDishes: true, legacyPublicMenuSettings, legacyMenuLanguages }
+      { includeUnavailableDishes: false, legacyPublicMenuSettings, legacyMenuLanguages }
     );
-    return applyStoredPublicMenuTranslations(menu, resolvedPublicLocale);
+    return {
+      status: "live",
+      menu: await applyStoredPublicMenuTranslations(menu, resolvedPublicLocale)
+    };
   };
 
-  if (!canUseLocalCache) return readMenu();
-
-  const promise = readMenu();
-  localPublicMenuCache.set(cacheKey, {
-    expiresAt: Date.now() + LOCAL_PUBLIC_MENU_CACHE_TTL_MS,
-    promise
-  });
-  void promise.then((menu) => {
-    if (!menu) localPublicMenuCache.delete(cacheKey);
-  }).catch(() => {
-    localPublicMenuCache.delete(cacheKey);
-  });
-  return promise;
+  const outcome = await coalescePublicMenuRead(
+    publicMenuReadFlightKey(slug, resolvedPublicLocale, dependencies),
+    readMenu
+  );
+  return outcome.status === "live" ? outcome.menu : localDemo();
 }
 
 // React's request cache deduplicates metadata/page/render callers without
 // sharing a menu between users or deployments. Custom dependency readers used
 // by contract tests intentionally bypass this wrapper.
 const getPublicMenuBySlugRequestCached = cache(
-  async (rawSlug: string, locale: Locale | string) =>
-    getPublicMenuBySlugUncached(rawSlug, locale)
+  async (slug: string, locale: string) =>
+    getPublicMenuBySlugUncached(slug, locale, defaultPublicMenuDependencies)
 );
 
 export async function getPublicMenuBySlug(
@@ -721,7 +768,12 @@ export async function getPublicMenuBySlug(
   dependencies?: PublicMenuDependencies
 ): Promise<PublicMenu | null> {
   if (!dependencies) {
-    return getPublicMenuBySlugRequestCached(rawSlug, locale);
+    const slug = slugifyRestaurantSlug(rawSlug);
+    if (!slug) return null;
+    return getPublicMenuBySlugRequestCached(
+      slug,
+      normalizePublicMenuLocale(locale)
+    );
   }
   return getPublicMenuBySlugUncached(rawSlug, locale, dependencies);
 }

@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 
 test("public menu route loads the published UI config and shared renderer", async () => {
   const [source, renderContext] = await Promise.all([
-    readFile("app/menu/[slug]/page.tsx", "utf8"),
+    readFile("app/(fr)/menu/[slug]/page.tsx", "utf8"),
     readFile("lib/menu/publicMenuRenderContext.ts", "utf8")
   ]);
 
@@ -129,7 +129,7 @@ test("builder preview opens dish details as a full detail experience, not a comp
 test("generic public dish sheets render structured allergen declarations and active locale", async () => {
   const source = await readFile("components/menu/PublicMenuRenderer.tsx", "utf8");
   const detailRouteSource = await readFile(
-    "app/menu/[slug]/dishes/[dishSlug]/page.tsx",
+    "app/(fr)/menu/[slug]/dishes/[dishSlug]/page.tsx",
     "utf8"
   );
 
@@ -168,7 +168,7 @@ test("public menu CSS prevents letter-by-letter wrapping and fragile mobile grid
 });
 
 test("public menu renderer links dish cards to shareable detail routes with QR context", async () => {
-  const pageSource = await readFile("app/menu/[slug]/page.tsx", "utf8");
+  const pageSource = await readFile("app/(fr)/menu/[slug]/page.tsx", "utf8");
   const rendererSource = await readFile(
     "components/menu/PublicMenuRenderer.tsx",
     "utf8"
@@ -186,4 +186,26 @@ test("public menu renderer links dish cards to shareable detail routes with QR c
   assert.match(rendererSource, /prefetch=\{false\}/);
   assert.match(rendererSource, /mode === "public"/);
   assert.match(rendererSource, /onClick=\{\(\) => openDish\(dish\)\}/);
+});
+
+test("menu card surfaces select compact and featured delivery variants without using display", async () => {
+  const [experience, sauge] = await Promise.all([
+    readFile("components/menu/PublicMenuExperience.tsx", "utf8"),
+    readFile(
+      "components/menu/unique/sauge-noire/SaugeNoireMenuPages.tsx",
+      "utf8"
+    )
+  ]);
+
+  assert.match(experience, /const cardImageUrl = getPublicDishImageUrl\(dish, "thumbnail"\)/);
+  assert.match(experience, /backgroundImage: `url\("\$\{cardImageUrl\}"\)`/);
+  assert.match(
+    sauge,
+    /const cardImageUrl = getPublicDishImageUrl\([\s\S]*large \? "card" : "thumbnail"/
+  );
+  assert.match(sauge, /src=\{isPhysicalPageMedia \? undefined : cardImageUrl\}/);
+  assert.doesNotMatch(
+    sauge,
+    /function PhotoSlot[\s\S]{0,1800}src=\{isPhysicalPageMedia \? undefined : dish\.imageUrl\}/
+  );
 });

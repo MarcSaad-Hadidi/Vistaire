@@ -3,12 +3,38 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
 import {
+  createRestaurantLifecyclePublicCommitHook,
   deleteRestaurantRecord,
   updateRestaurantStatusRecord,
   validateRestaurantStatusAction
 } from "../lib/owner/restaurantStatus.ts";
 
 const RESTAURANT_ID = "22222222-2222-4222-8222-222222222222";
+
+test("restaurant lifecycle commits reuse one canonical public invalidation identity", async () => {
+  const identities = [];
+  const onPublicCommit = createRestaurantLifecyclePublicCommitHook(
+    async (identity) => {
+      identities.push(identity);
+    }
+  );
+
+  await onPublicCommit({
+    kind: "deleted",
+    restaurantId: ` ${RESTAURANT_ID} `,
+    restaurantSlug: " Maison Elyse "
+  });
+
+  assert.deepEqual(identities, [
+    {
+      restaurantId: RESTAURANT_ID,
+      restaurantSlug: "maison-elyse",
+      restaurantKey: "maison-elyse",
+      featuredExperienceId: "maison-elyse",
+      dishSlug: ""
+    }
+  ]);
+});
 
 function updateClient({
   restaurant = {
@@ -90,6 +116,7 @@ function deleteClient({
   dishRows = [],
   dishRowsError = null,
   onDishMediaList = () => {},
+  onRestaurantLookup = () => {},
   verifyRestaurantDeleted = true,
   verifyError = null,
   onDelete = () => {},
@@ -108,6 +135,7 @@ function deleteClient({
                     assert.equal(columns, "id,name,slug,status");
                     assert.equal(column === "id" || column === "slug", true);
                     assert.equal(typeof value, "string");
+                    onRestaurantLookup({ column, value, restaurant });
                     return { data: restaurant, error: lookupError };
                   },
                   async maybeSingle() {
@@ -276,6 +304,41 @@ test("restores an archived restaurant to setup_needed", async () => {
     status: "setup_needed"
   });
   assert.deepEqual(updatedRow, { status: "setup_needed" });
+});
+
+test("status changes retain public identity before commit and invalidate only after success", async () => {
+  for (const [action, expectedStatus] of [
+    ["archive", "archived"],
+    ["restore", "setup_needed"]
+  ]) {
+    const events = [];
+    const result = await updateRestaurantStatusRecord(RESTAURANT_ID, action, {
+      admin: {
+        ok: true,
+        client: updateClient({
+          onEq(column) {
+            if (column === "id" && events.length === 0) events.push("identity");
+          },
+          onUpdate() {
+            events.push("commit");
+          },
+          data: { id: RESTAURANT_ID, status: expectedStatus }
+        })
+      },
+      onPublicCommit: async (commit) => {
+        events.push(
+          `invalidate:${commit.kind}:${commit.restaurantSlug}:${commit.restaurantId}`
+        );
+      }
+    });
+
+    assert.equal(result.ok, true);
+    assert.deepEqual(events, [
+      "identity",
+      "commit",
+      `invalidate:status:bistro-test:${RESTAURANT_ID}`
+    ]);
+  }
 });
 
 test("deletes a confirmed restaurant and reports linked Supabase cleanup counts", async () => {
@@ -478,6 +541,130 @@ test("restaurant RPC deleted with deleteStorage=true removes precollected dish m
     ),
     true
   );
+});
+
+test("restaurant delete invalidates its retained slug after deleted and before storage cleanup", async () => {
+  const events = [];
+  const result = await deleteRestaurantRecord(
+    RESTAURANT_ID,
+    { confirmation: "Bistro Test", deleteStorage: true },
+    {
+      admin: {
+        ok: true,
+        client: deleteClient({
+          onRestaurantLookup() {
+            events.push("identity:bistro-test");
+          },
+          onDishMediaList() {
+            events.push("media:precommit");
+          },
+          onRpc() {
+            events.push("rpc:deleted");
+          },
+          storage: {
+            from() {
+              return {
+                async list() {
+                  events.push("cleanup:list");
+                  return { data: [], error: null };
+                },
+                async remove() {
+                  return { data: [], error: null };
+                }
+              };
+            }
+          }
+        })
+      },
+      onPublicCommit: async (commit) => {
+        events.push(`invalidate:${commit.kind}:${commit.restaurantSlug}`);
+      }
+    }
+  );
+
+  assert.equal(result.ok, true);
+  assert.ok(events.indexOf("identity:bistro-test") < events.indexOf("rpc:deleted"));
+  assert.ok(
+    events.indexOf("rpc:deleted") <
+      events.indexOf("invalidate:deleted:bistro-test")
+  );
+  assert.ok(
+    events.indexOf("invalidate:deleted:bistro-test") <
+      events.indexOf("cleanup:list")
+  );
+  assert.equal(
+    events.filter((event) => event === "invalidate:deleted:bistro-test").length,
+    1
+  );
+});
+
+test("restaurant delete reschedules retained identity and controls thrown Storage cleanup", async () => {
+  for (const failureStage of ["list", "remove"]) {
+    const events = [];
+    const commits = [];
+    const sentinel = `${failureStage}-storage-secret`;
+    const result = await deleteRestaurantRecord(
+      RESTAURANT_ID,
+      { confirmation: "Bistro Test", deleteStorage: true },
+      {
+        admin: {
+          ok: true,
+          client: deleteClient({
+            onRpc() {
+              events.push("rpc:deleted");
+            },
+            storage: {
+              from() {
+                return {
+                  async list() {
+                    events.push("cleanup:list");
+                    if (failureStage === "list") throw new Error(sentinel);
+                    return {
+                      data: [{ id: "storage-object", name: "model.glb" }],
+                      error: null
+                    };
+                  },
+                  async remove() {
+                    events.push("cleanup:remove");
+                    if (failureStage === "remove") throw new Error(sentinel);
+                    return { data: [], error: null };
+                  }
+                };
+              }
+            }
+          })
+        },
+        onPublicCommit: async (commit) => {
+          commits.push(commit);
+          events.push(`invalidate:${commit.kind}:${commit.restaurantSlug}`);
+        }
+      }
+    );
+
+    assert.equal(result.ok, true);
+    assert.equal(result.restaurantDeleted, true);
+    assert.equal(result.storage.attempted, true);
+    assert.deepEqual(commits, [
+      {
+        kind: "deleted",
+        restaurantId: RESTAURANT_ID,
+        restaurantSlug: "bistro-test"
+      },
+      {
+        kind: "deleted",
+        restaurantId: RESTAURANT_ID,
+        restaurantSlug: "bistro-test"
+      }
+    ]);
+    assert.equal(
+      events.filter((event) => event === "invalidate:deleted:bistro-test").length,
+      2
+    );
+    assert.ok(events.indexOf("rpc:deleted") < events.indexOf("invalidate:deleted:bistro-test"));
+    assert.ok(events.indexOf("invalidate:deleted:bistro-test") < events.indexOf("cleanup:list"));
+    assert.match(result.storage.warnings.join("\n"), /nettoyage.*differe/i);
+    assert.equal(JSON.stringify(result).includes(sentinel), false);
+  }
 });
 
 test("restaurant dish media cleanup warnings are reported after confirmed DB deletion", async () => {
@@ -816,6 +1003,11 @@ test("owner restaurant routes are owner-only and same-origin", async () => {
   assert.match(ownerDeleteRoute, /DELETE/);
   assert.match(ownerDeleteRoute, /deleteRestaurantRecord/);
   assert.match(ownerArchiveRoute, /updateRestaurantStatusRecord/);
+  for (const source of [legacyRoute, ownerDeleteRoute, ownerArchiveRoute]) {
+    assert.match(source, /createRestaurantLifecyclePublicCommitHook/);
+    assert.match(source, /invalidateCommittedPublicMutation/);
+    assert.match(source, /onPublicCommit: invalidateRestaurantLifecyclePublicCommit/);
+  }
 });
 
 test("restaurant dashboard exposes archive controls and confirmed hard delete", async () => {
@@ -834,7 +1026,7 @@ test("restaurant dashboard exposes archive controls and confirmed hard delete", 
 });
 
 test("owner restaurants page can display delete success after redirect", async () => {
-  const source = await readFile("app/owner/restaurants/page.tsx", "utf8");
+  const source = await readFile("app/(fr)/owner/restaurants/page.tsx", "utf8");
 
   assert.match(source, /deleted.*"1"/);
   assert.match(source, /Restaurant supprim/);
@@ -944,7 +1136,7 @@ test("forward repair migration refreshes deployed restaurant delete RPC", async 
 });
 
 test("owner portfolio keeps archived restaurants out of urgent counters", async () => {
-  const source = await readFile("app/owner/page.tsx", "utf8");
+  const source = await readFile("app/(fr)/owner/page.tsx", "utf8");
 
   assert.match(source, /isActivePortfolioRestaurant/);
   assert.match(source, /restaurant\.status !== "archived"/);

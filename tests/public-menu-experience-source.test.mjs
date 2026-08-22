@@ -2,7 +2,7 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 import assert from "node:assert/strict";
 
-const pagePath = "app/menu/[slug]/page.tsx";
+const pagePath = "app/(fr)/menu/[slug]/page.tsx";
 const componentPath = "components/menu/PublicMenuRenderer.tsx";
 const cssPath = "components/menu/PublicMenuRenderer.module.css";
 

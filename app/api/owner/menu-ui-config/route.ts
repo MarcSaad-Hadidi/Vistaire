@@ -13,6 +13,11 @@ import {
   saveDraftMenuUiConfig
 } from "@/lib/owner/menuUiConfigStore";
 import { requireOwnerRestaurantCapability } from "@/lib/owner/demoCapabilities";
+import {
+  invalidateCommittedPublicMutation,
+  resolvePublicMutationIdentity
+} from "@/lib/owner/menuMutationRevalidation";
+import { getSupabaseAdminClient } from "@/utils/supabase/admin";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -88,6 +93,17 @@ export async function POST(request: NextRequest) {
     );
   }
   const action = typeof body.action === "string" ? body.action : "save";
+  const admin = getSupabaseAdminClient();
+  const mutationIdentity =
+    (action === "publish" || action === "rollback") && admin.ok
+      ? await resolvePublicMutationIdentity({
+          client: admin.client,
+          restaurantId
+        })
+      : null;
+  const onPublicCommit = async () => {
+    await invalidateCommittedPublicMutation(mutationIdentity);
+  };
   const result =
     action === "rollback"
       ? await rollbackPublishedMenuUiConfig({
@@ -95,7 +111,8 @@ export async function POST(request: NextRequest) {
           targetConfigId:
             typeof body.targetConfigId === "string"
               ? body.targetConfigId.trim()
-              : undefined
+              : undefined,
+          onPublicCommit
         })
       : action === "revert-to-published"
         ? await duplicatePublishedMenuUiConfigToDraft({ restaurantId })
@@ -103,7 +120,11 @@ export async function POST(request: NextRequest) {
             const validated = validateMenuUiConfig(body.config);
             if (!validated.ok) return Promise.resolve({ ok: false as const, status: 400, error: validated.error });
             return action === "publish"
-              ? publishMenuUiConfig({ restaurantId, config: validated.value })
+              ? publishMenuUiConfig({
+                  restaurantId,
+                  config: validated.value,
+                  onPublicCommit
+                })
               : saveDraftMenuUiConfig({ restaurantId, config: validated.value });
           })();
 

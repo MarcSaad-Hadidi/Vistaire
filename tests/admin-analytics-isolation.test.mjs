@@ -108,7 +108,7 @@ test("production analytics never substitute Maison Elyse preview data", async ()
 });
 
 test("admin dashboard loader receives one trusted restaurant id for every data read", async () => {
-  const page = await readFile("app/admin/page.tsx", "utf8");
+  const page = await readFile("app/(fr)/admin/page.tsx", "utf8");
   const loader = await readFile("lib/admin/dashboardData.ts", "utf8");
 
   assert.match(page, /loadAdminDashboardData\(access\.restaurantId, range\)/);
@@ -126,7 +126,7 @@ test("admin dashboard loader receives one trusted restaurant id for every data r
 });
 
 test("admin dashboard fails closed before menu reads when the restaurant lookup fails", async () => {
-  const page = await readFile("app/admin/page.tsx", "utf8");
+  const page = await readFile("app/(fr)/admin/page.tsx", "utf8");
   const loader = await readFile("lib/admin/dashboardData.ts", "utf8");
   const restaurantRead = loader.indexOf("const restaurantResult");
   const failedGuard = loader.indexOf("if (!restaurantResult.ok)");

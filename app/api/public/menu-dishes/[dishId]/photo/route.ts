@@ -20,7 +20,7 @@ async function handlePhotoRequest(
   const assetVersion = request.nextUrl.searchParams.get("v")?.trim() ?? "";
   const rawVariant = request.nextUrl.searchParams.get("variant")?.trim() ?? "";
   const photoVariant: DishPhotoDerivativeVariant | undefined =
-    rawVariant === "thumbnail" || rawVariant === "display"
+    rawVariant === "thumbnail" || rawVariant === "card" || rawVariant === "display"
       ? rawVariant
       : undefined;
   if (rawVariant && !photoVariant) {

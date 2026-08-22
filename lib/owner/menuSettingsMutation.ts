@@ -63,6 +63,8 @@ export type SupabaseMenuSettingsClient = {
   };
 };
 
+export type OwnerMenuSettingsPublicCommitCallback = () => void | Promise<void>;
+
 export type OwnerMenuSettingsMutationResult =
   | {
       ok: true;
@@ -181,10 +183,31 @@ async function saveSettingsToUiConfig(args: {
   };
 }
 
+async function syncSettingsToDraftAfterPublicCommit(args: {
+  client: SupabaseMenuSettingsClient;
+  restaurantId: string;
+  settings: PublicMenuSettings;
+  onPublicCommit?: OwnerMenuSettingsPublicCommitCallback;
+}): Promise<OwnerMenuSettingsMutationResult> {
+  try {
+    const result = await saveSettingsToUiConfig(args);
+    if (!result.ok) await args.onPublicCommit?.();
+    return result;
+  } catch {
+    await args.onPublicCommit?.();
+    return {
+      ok: false,
+      status: 503,
+      error: "Settings menu impossibles a sauvegarder."
+    };
+  }
+}
+
 export async function updateOwnerMenuSettings(args: {
   client: SupabaseMenuSettingsClient;
   restaurantId: string;
   settings: PublicMenuSettings;
+  onPublicCommit?: OwnerMenuSettingsPublicCommitCallback;
 }): Promise<OwnerMenuSettingsMutationResult> {
   const existingPrimary = await args.client
     .from("menus")
@@ -240,6 +263,7 @@ export async function updateOwnerMenuSettings(args: {
             : "Mutation atomique des settings unique refusee."
       };
     }
+    await args.onPublicCommit?.();
     return {
       ok: true,
       restaurantId: args.restaurantId,
@@ -267,10 +291,12 @@ export async function updateOwnerMenuSettings(args: {
     .single();
 
   if (!primary.error && primary.data) {
-    const uiSync = await saveSettingsToUiConfig({
+    await args.onPublicCommit?.();
+    const uiSync = await syncSettingsToDraftAfterPublicCommit({
       client: args.client,
       restaurantId: args.restaurantId,
-      settings
+      settings,
+      onPublicCommit: args.onPublicCommit
     });
     if (settings.publicMenuStyle === "unique" && !uiSync.ok) {
       return uiSync;
@@ -351,10 +377,12 @@ export async function updateOwnerMenuSettings(args: {
     };
   }
 
-  const uiSync = await saveSettingsToUiConfig({
+  await args.onPublicCommit?.();
+  const uiSync = await syncSettingsToDraftAfterPublicCommit({
     client: args.client,
     restaurantId: args.restaurantId,
-    settings
+    settings,
+    onPublicCommit: args.onPublicCommit
   });
   if (settings.publicMenuStyle === "unique" && !uiSync.ok) {
     return uiSync;

@@ -1,3 +1,9 @@
+import { readBoundedJsonBody } from "./requestBody.ts";
+import {
+  emitMenuMutationRetrySignal,
+  type MenuMutationRetrySignal
+} from "@/lib/owner/menuMutationRevalidation";
+
 export type AvailabilityUpdateInput = {
   qrId: string;
   restaurantId: string;
@@ -11,6 +17,7 @@ export type AvailabilityUpdateResult =
       dishId: string;
       dishSlug: string;
       available: boolean;
+      revalidation?: "complete" | "retry-required";
     }
   | { ok: false; status: 404 | 503 };
 
@@ -26,20 +33,43 @@ type AvailabilityDependencies = {
 
 const MAX_BODY_BYTES = 1_024;
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-const REVALIDATION_FAILURE_MESSAGE =
-  "Admin availability revalidation failed after commit.";
+type AvailabilityRetryOptions = {
+  retrySignal: MenuMutationRetrySignal;
+  signalRetry?: (
+    signal: MenuMutationRetrySignal
+  ) => void | Promise<void>;
+};
 
-export async function preserveAvailabilityResultAfterRevalidation<T>(
+export async function preserveAvailabilityResultAfterRevalidation<
+  T extends Record<string, unknown>
+>(
   committedResult: T,
-  revalidate: () => Promise<void> | void,
-  log: (message: string) => void = (message) => console.error(message)
-): Promise<T> {
+  revalidate: () =>
+    | Promise<void | { ok: boolean }>
+    | void
+    | { ok: boolean },
+  retryOptions?: AvailabilityRetryOptions
+): Promise<T & { revalidation: "complete" | "retry-required" }> {
+  const requireRetry = async (): Promise<
+    T & { revalidation: "retry-required" }
+  > => {
+    if (retryOptions) {
+      await emitMenuMutationRetrySignal(
+        retryOptions.retrySignal,
+        retryOptions.signalRetry
+      );
+    }
+    return { ...committedResult, revalidation: "retry-required" };
+  };
   try {
-    await revalidate();
+    const outcome = await revalidate();
+    if (outcome && !outcome.ok) {
+      return requireRetry();
+    }
   } catch {
-    log(REVALIDATION_FAILURE_MESSAGE);
+    return requireRetry();
   }
-  return committedResult;
+  return { ...committedResult, revalidation: "complete" };
 }
 
 function json(body: Record<string, unknown>, status: number): Response {
@@ -143,9 +173,9 @@ export async function handleAdminAvailabilityRequest(
       ok: true,
       dishId: updated.dishId,
       dishSlug: updated.dishSlug,
-      available: updated.available
+      available: updated.available,
+      revalidation: updated.revalidation ?? "complete"
     },
     200
   );
 }
-import { readBoundedJsonBody } from "./requestBody.ts";

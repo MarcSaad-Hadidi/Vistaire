@@ -321,7 +321,7 @@ test("all required viewports stay within the document width", async ({ page }) =
   }
 });
 
-test("full-menu admin parity matches the public menu including unavailable dishes", async ({ page }, testInfo) => {
+test("full-menu admin parity keeps unavailable dishes private while matching available public dishes", async ({ page }, testInfo) => {
   test.skip(process.env.VISTAIRE_ADMIN_FIXTURE_SCENARIO !== "full-menu", "requires the explicit full-menu fixture scenario");
   await enterFullMenuPreview(page, testInfo);
   await page.goto("/admin/availability", { waitUntil: "domcontentloaded" });
@@ -344,7 +344,8 @@ test("full-menu admin parity matches the public menu including unavailable dishe
   await page.goto("/menu/maison-elyse", { waitUntil: "domcontentloaded" });
   await expect(page.getByText("LA COLLECTION")).toBeVisible();
   const publicRows = page.locator("[data-public-menu-dish]");
-  await expect(publicRows).toHaveCount(12);
+  const availableAdminDishes = adminDishes.filter(({ available }) => available === "true");
+  await expect(publicRows).toHaveCount(availableAdminDishes.length);
   const publicDishes = await publicRows.evaluateAll((elements) => elements.map((element) => ({
     id: element.getAttribute("data-dish-id"),
     categoryId: element.getAttribute("data-category-id"),
@@ -352,7 +353,8 @@ test("full-menu admin parity matches the public menu including unavailable dishe
   })).sort((left, right) => (left.id ?? "").localeCompare(right.id ?? "")));
   expect(publicDishes).not.toContainEqual(expect.objectContaining({ id: "other-menu-dish" }));
   expect(publicDishes).not.toContainEqual(expect.objectContaining({ id: "foreign-dish" }));
-  expect(publicDishes).toEqual(adminDishes);
+  expect(publicDishes.every(({ available }) => available === "true")).toBe(true);
+  expect(publicDishes).toEqual(availableAdminDishes);
 });
 
 test("full-menu admin thumbnails fall back without broken-image icons", async ({ page }, testInfo) => {

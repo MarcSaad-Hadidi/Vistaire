@@ -102,7 +102,7 @@ export function isSafeDishPhotoDerivativeStoragePath(
 ): boolean {
   const normalizedRestaurantId = normalizeStorageSafeIdentifier(restaurantId);
   return new RegExp(
-    `^restaurants/${normalizedRestaurantId}/photos/derivatives/[a-f0-9]{64}/(?:thumbnail|display)\\.webp$`,
+    `^restaurants/${normalizedRestaurantId}/photos/derivatives/[a-f0-9]{64}/(?:dish-photo-v2/)?(?:thumbnail|card|display)(?:-[a-f0-9]{64})?\\.webp$`,
     "i"
   ).test(path);
 }
@@ -131,7 +131,7 @@ export function collectDishPhotoStorageTarget(
   }
 
   const derivatives = getObjectMetadata(metadata.photoDerivatives);
-  for (const variant of ["thumbnail", "display"] as const) {
+  for (const variant of ["thumbnail", "card", "display"] as const) {
     const derivative = getObjectMetadata(derivatives[variant]);
     const derivativePath = getStringMetadata(derivative, "storagePath");
     if (!derivativePath) continue;

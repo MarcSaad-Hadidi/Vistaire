@@ -405,6 +405,7 @@ export async function persistGeneratedLocalizedUiCopy(args: {
   menuRow?: unknown;
   settings: PublicMenuSettings;
   localizedUiCopy: Record<string, unknown>;
+  onPublicCommit?: () => void | Promise<void>;
 }): Promise<PersistGeneratedLocalizedUiCopyResult> {
   const payload = settingsWithLocalizedUiCopy(args.settings, args.localizedUiCopy);
   const native = await args.client
@@ -415,6 +416,7 @@ export async function persistGeneratedLocalizedUiCopy(args: {
     .single();
 
   if (!native.error && native.data) {
+    await args.onPublicCommit?.();
     return {
       ok: true,
       source: "settings_json",
@@ -458,6 +460,7 @@ export async function persistGeneratedLocalizedUiCopy(args: {
     return persistError("metadata", fallback.error);
   }
 
+  await args.onPublicCommit?.();
   return {
     ok: true,
     source: "metadata",

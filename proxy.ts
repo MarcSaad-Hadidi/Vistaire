@@ -18,12 +18,6 @@ import {
   markdownTokenEstimate,
   shouldServeMarkdownForAcceptHeader
 } from "@/lib/agent-discovery";
-import { getLocaleFromPath, VISTAIRE_LOCALE_HEADER } from "@/lib/i18n";
-import {
-  isSaugeNoirePath,
-  SAUGE_NOIRE_ROUTE_THEME,
-  VISTAIRE_ROUTE_THEME_HEADER
-} from "@/lib/vistaireRouteTheme";
 import { updateSession } from "@/utils/supabase/middleware";
 
 const isProtectedRoute = createRouteMatcher([
@@ -36,20 +30,14 @@ const needsClerkAuthContext = createRouteMatcher([
   "/todos(.*)",
   "/api/restaurants(.*)",
   "/api/owner(.*)",
-  "/api/analytics/summary(.*)",
+  "/api/analytics/summary",
 ]);
 
 const needsSupabaseSession = createRouteMatcher(["/todos(.*)"]);
 
-function requestHeadersWithLocale(request: NextRequest): Headers {
+function sanitizedRequestHeaders(request: NextRequest): Headers {
   const requestHeaders = new Headers(request.headers);
   requestHeaders.delete(DEV_OWNER_BYPASS_TRUSTED_HEADER);
-  requestHeaders.set(VISTAIRE_LOCALE_HEADER, getLocaleFromPath(request.nextUrl.pathname));
-  if (isSaugeNoirePath(request.nextUrl.pathname)) {
-    requestHeaders.set(VISTAIRE_ROUTE_THEME_HEADER, SAUGE_NOIRE_ROUTE_THEME);
-  } else {
-    requestHeaders.delete(VISTAIRE_ROUTE_THEME_HEADER);
-  }
   return requestHeaders;
 }
 
@@ -63,7 +51,7 @@ function isOwnerDevBypassRoute(request: NextRequest): boolean {
 }
 
 function devOwnerBypassResponse(request: NextRequest): NextResponse | null {
-  const requestHeaders = requestHeadersWithLocale(request);
+  const requestHeaders = sanitizedRequestHeaders(request);
 
   if (!isOwnerDevBypassRoute(request)) return null;
 
@@ -97,10 +85,10 @@ function acceptsMarkdown(request: NextRequest): boolean {
   return shouldServeMarkdownForAcceptHeader(request.headers.get("accept"));
 }
 
-function homepageMarkdownResponse(): Response {
+function homepageMarkdownResponse(method: string): Response {
   const markdown = buildHomepageMarkdown();
 
-  return new Response(markdown, {
+  return new Response(method === "HEAD" ? null : markdown, {
     headers: {
       "Content-Type": MARKDOWN_CONTENT_TYPE,
       Link: buildHomeAgentLinkHeader(),
@@ -110,26 +98,15 @@ function homepageMarkdownResponse(): Response {
   });
 }
 
-function withHomepageAgentDiscoveryHeaders(
-  request: NextRequest,
-  response: NextResponse
-): NextResponse {
-  if (request.nextUrl.pathname !== "/") return response;
-
-  response.headers.set("Link", buildHomeAgentLinkHeader());
-  response.headers.append("Vary", "Accept");
-  return response;
-}
-
 const handleProtectedRoute = clerkMiddleware(async (auth, request) => {
-  const requestHeaders = requestHeadersWithLocale(request);
+  const requestHeaders = sanitizedRequestHeaders(request);
 
   if (isProtectedRoute(request)) {
     await auth.protect();
   }
 
   if (needsSupabaseSession(request)) {
-    return updateSession(request);
+    return updateSession(request, requestHeaders);
   }
 
   return NextResponse.next({
@@ -141,7 +118,9 @@ const handleProtectedRoute = clerkMiddleware(async (auth, request) => {
 
 export default function proxy(request: NextRequest, event: NextFetchEvent) {
   if (request.nextUrl.pathname === "/" && acceptsMarkdown(request)) {
-    return homepageMarkdownResponse();
+    if (request.method === "GET" || request.method === "HEAD") {
+      return homepageMarkdownResponse(request.method);
+    }
   }
 
   if (needsClerkAuthContext(request)) {
@@ -151,16 +130,29 @@ export default function proxy(request: NextRequest, event: NextFetchEvent) {
     return handleProtectedRoute(request, event);
   }
 
-  return withHomepageAgentDiscoveryHeaders(request, NextResponse.next({
+  return NextResponse.next({
     request: {
-      headers: requestHeadersWithLocale(request),
+      headers: sanitizedRequestHeaders(request),
     },
-  }));
+  });
 }
 
 export const config = {
   matcher: [
-    // Matcher entries are ORed, so the media exclusion must wrap both branches.
-    "/((?!api/public/menu-dishes/[^/]+/(?:photo|model/(?:glb|usdz))/?$)(?:(?:api|trpc).*|(?!(?:_next|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest|mp4|glb|usdz))).*))",
+    {
+      source: "/",
+      has: [
+        {
+          type: "header",
+          key: "accept",
+          value: ".*[tT][eE][xX][tT]/[mM][aA][rR][kK][dD][oO][wW][nN].*"
+        }
+      ]
+    },
+    "/owner/:path*",
+    "/todos/:path*",
+    "/api/restaurants/:path*",
+    "/api/owner/:path*",
+    "/api/analytics/summary"
   ],
 };

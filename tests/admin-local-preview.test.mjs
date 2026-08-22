@@ -201,8 +201,8 @@ test("preview access rejects forged, expired, and wrong-secret grants", async ()
 });
 
 test("admin preview route derives origin from Host and uses a server-only secret", async () => {
-  const route = await readFile("app/admin/preview/route.ts", "utf8");
-  const page = await readFile("app/admin/page.tsx", "utf8");
+  const route = await readFile("app/(fr)/admin/preview/route.ts", "utf8");
+  const page = await readFile("app/(fr)/admin/page.tsx", "utf8");
   const access = await readFile("lib/admin/access.ts", "utf8");
   const secret = await readFile("lib/admin/localPreviewSecret.ts", "utf8");
 

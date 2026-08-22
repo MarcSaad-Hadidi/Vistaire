@@ -6,6 +6,7 @@ import type {
   PublicMenuDish
 } from "@/lib/menu/publicMenuCore";
 import type { PublicMenuLocale } from "@/lib/menu/publicMenuSettings";
+import { landingPhotoForDish } from "./landingDishIdentity.ts";
 
 export type LandingMenuUiDish = Pick<
   PublicMenuDish,
@@ -28,6 +29,7 @@ export type LandingMenuUiDish = Pick<
   | "dietaryType"
   | "imageUrl"
   | "thumbnailUrl"
+  | "cardUrl"
   | "hasPhoto"
   | "photoStatus"
   | "available"
@@ -97,57 +99,84 @@ export function projectLandingMenuUiMenu(menu: PublicMenu): LandingMenuUiMenu {
       ? { publicMenuStyleExplicit: menu.publicMenuStyleExplicit }
       : {}),
     source: menu.source,
-    dishes: menu.dishes.map((dish) => ({
-      id: dish.id,
-      slug: dish.slug,
-      name: dish.name,
-      description: dish.description,
-      ...(dish.categoryId ? { categoryId: dish.categoryId } : {}),
-      category: dish.category,
-      ...(dish.categorySlug ? { categorySlug: dish.categorySlug } : {}),
-      ...(dish.categoryDescription
-        ? { categoryDescription: dish.categoryDescription }
-        : {}),
-      priceLabel: dish.priceLabel,
-      priceCents: dish.priceCents,
-      priceCurrency: dish.priceCurrency,
-      baseCurrency: dish.baseCurrency,
-      displayPriceMode: dish.displayPriceMode,
-      ...(dish.originalPriceCents !== undefined
-        ? { originalPriceCents: dish.originalPriceCents }
-        : {}),
-      ...(dish.calories !== undefined ? { calories: dish.calories } : {}),
-      ...(dish.spiceLevel !== undefined ? { spiceLevel: dish.spiceLevel } : {}),
-      ...(dish.dietaryType ? { dietaryType: dish.dietaryType } : {}),
-      imageUrl: dish.imageUrl || dish.thumbnailUrl || dish.posterUrl,
-      thumbnailUrl: dish.thumbnailUrl || dish.imageUrl || dish.posterUrl,
-      hasPhoto: dish.hasPhoto,
-      photoStatus: dish.photoStatus,
-      available: dish.available,
-      ...(dish.isSignature !== undefined
-        ? { isSignature: dish.isSignature }
-        : {}),
-      ...(dish.isRecommended !== undefined
-        ? { isRecommended: dish.isRecommended }
-        : {}),
-      ingredients: dish.ingredients,
-      allergens: dish.allergens,
-      ...(dish.customAllergens
-        ? { customAllergens: dish.customAllergens }
-        : {}),
-      ...(dish.allergenDeclarations
-        ? { allergenDeclarations: dish.allergenDeclarations }
-        : {}),
-      ...(dish.allergenLegacyValues
-        ? { allergenLegacyValues: dish.allergenLegacyValues }
-        : {}),
-      ...(dish.allergenReviewRequired !== undefined
-        ? { allergenReviewRequired: dish.allergenReviewRequired }
-        : {}),
-      options: dish.options,
-      houseNote: dish.houseNote,
-      tags: dish.tags
-    }))
+    dishes: menu.dishes.map((dish) => {
+      const selectedPhoto = landingPhotoForDish(dish)?.url ?? "";
+      const imageUrl =
+        landingPhotoForDish({
+          ...dish,
+          cardUrl: "",
+          thumbnailUrl: "",
+          posterUrl: ""
+        })?.url ?? selectedPhoto;
+      const thumbnailUrl =
+        landingPhotoForDish({
+          ...dish,
+          cardUrl: "",
+          imageUrl: "",
+          posterUrl: ""
+        })?.url ?? selectedPhoto;
+      const cardUrl =
+        landingPhotoForDish({
+          ...dish,
+          imageUrl: "",
+          thumbnailUrl: "",
+          posterUrl: ""
+        })?.url ?? selectedPhoto;
+      return {
+        id: dish.id,
+        slug: dish.slug,
+        name: dish.name,
+        description: dish.description,
+        ...(dish.categoryId ? { categoryId: dish.categoryId } : {}),
+        category: dish.category,
+        ...(dish.categorySlug ? { categorySlug: dish.categorySlug } : {}),
+        ...(dish.categoryDescription
+          ? { categoryDescription: dish.categoryDescription }
+          : {}),
+        priceLabel: dish.priceLabel,
+        priceCents: dish.priceCents,
+        priceCurrency: dish.priceCurrency,
+        baseCurrency: dish.baseCurrency,
+        displayPriceMode: dish.displayPriceMode,
+        ...(dish.originalPriceCents !== undefined
+          ? { originalPriceCents: dish.originalPriceCents }
+          : {}),
+        ...(dish.calories !== undefined ? { calories: dish.calories } : {}),
+        ...(dish.spiceLevel !== undefined
+          ? { spiceLevel: dish.spiceLevel }
+          : {}),
+        ...(dish.dietaryType ? { dietaryType: dish.dietaryType } : {}),
+        imageUrl,
+        thumbnailUrl,
+        cardUrl,
+        hasPhoto: dish.hasPhoto,
+        photoStatus: dish.photoStatus,
+        available: dish.available,
+        ...(dish.isSignature !== undefined
+          ? { isSignature: dish.isSignature }
+          : {}),
+        ...(dish.isRecommended !== undefined
+          ? { isRecommended: dish.isRecommended }
+          : {}),
+        ingredients: dish.ingredients,
+        allergens: dish.allergens,
+        ...(dish.customAllergens
+          ? { customAllergens: dish.customAllergens }
+          : {}),
+        ...(dish.allergenDeclarations
+          ? { allergenDeclarations: dish.allergenDeclarations }
+          : {}),
+        ...(dish.allergenLegacyValues
+          ? { allergenLegacyValues: dish.allergenLegacyValues }
+          : {}),
+        ...(dish.allergenReviewRequired !== undefined
+          ? { allergenReviewRequired: dish.allergenReviewRequired }
+          : {}),
+        options: dish.options,
+        houseNote: dish.houseNote,
+        tags: dish.tags
+      };
+    })
   };
 }
 

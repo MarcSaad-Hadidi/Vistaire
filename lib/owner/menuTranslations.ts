@@ -78,6 +78,8 @@ export type GenerateMenuTranslationsResult =
     }
   | { ok: false; status: 400 | 404 | 503; error: string };
 
+const CONTROLLED_TRANSLATION_FAILURE = "Generation traduction echouee.";
+
 function getString(row: AnyRow, keys: string[], fallback = ""): string {
   for (const key of keys) {
     const value = stringInput(row[key]);
@@ -455,12 +457,17 @@ function applyTaskTranslations(
   return nextContent;
 }
 
-async function upsertEntityTranslation(args: {
+export type OwnerMenuTranslationPublicCommitCallback = (commit: {
+  locale: string;
+}) => void | Promise<void>;
+
+export async function upsertEntityTranslation(args: {
   ctx: TranslationContext;
   entity: MenuTranslationSourceEntity;
   locale: string;
   provider: string;
   content: AnyRow;
+  onPublicCommit?: OwnerMenuTranslationPublicCommitCallback;
 }) {
   const menuId = getString(args.ctx.menu, ["id"]);
   const payload: AnyRow = {
@@ -483,12 +490,14 @@ async function upsertEntityTranslation(args: {
     .from(tableForEntity(args.entity.type))
     .upsert(payload, { onConflict: `${idColumnForEntity(args.entity.type)},locale` });
   if (error) throw new Error(error.message);
+  await args.onPublicCommit?.({ locale: args.locale });
 }
 
-async function repairEntityTranslationMetadata(args: {
+export async function repairEntityTranslationMetadata(args: {
   ctx: TranslationContext;
   entity: MenuTranslationSourceEntity;
   locale: string;
+  onPublicCommit?: OwnerMenuTranslationPublicCommitCallback;
 }) {
   const menuId = getString(args.ctx.menu, ["id"]);
   const entityId = args.entity.type === "menu" ? menuId : args.entity.id;
@@ -505,6 +514,7 @@ async function repairEntityTranslationMetadata(args: {
   if (args.entity.type !== "menu") query = query.eq("menu_id", menuId);
   const { error } = await query;
   if (error) throw new Error(error.message);
+  await args.onPublicCommit?.({ locale: args.locale });
 }
 
 function summarizeLocaleTranslationStatusWithUiCopy(args: {
@@ -549,6 +559,7 @@ export async function generateOwnerMenuTranslations(args: {
   restaurantId: string;
   locale: string;
   dryRun?: boolean;
+  onPublicCommit?: OwnerMenuTranslationPublicCommitCallback;
 }): Promise<GenerateMenuTranslationsResult> {
   const ctx = await getTranslationContext(args.restaurantId);
   if ("error" in ctx) return { ok: false, status: ctx.status, error: ctx.error };
@@ -640,6 +651,20 @@ export async function generateOwnerMenuTranslations(args: {
   let translatedCharacters = 0;
   let translatedUiCopyCharacters = 0;
   let generatedLocalizedUiCopy = ctx.localizedUiCopy;
+  let publicCommitObserved = false;
+  const publicCommit = Object.freeze({ locale: args.locale });
+  const observePublicCommit: OwnerMenuTranslationPublicCommitCallback = async () => {
+    publicCommitObserved = true;
+    await args.onPublicCommit?.(publicCommit);
+  };
+  const rescheduleObservedPublicCommit = async () => {
+    if (!publicCommitObserved || !args.onPublicCommit) return;
+    try {
+      await args.onPublicCommit(publicCommit);
+    } catch {
+      // The public write already committed; keep the handler response controlled.
+    }
+  };
   try {
     if (!isDefaultLocale) {
       for (const entity of ctx.entities) {
@@ -648,7 +673,8 @@ export async function generateOwnerMenuTranslations(args: {
           await repairEntityTranslationMetadata({
             ctx,
             entity,
-            locale: args.locale
+            locale: args.locale,
+            onPublicCommit: observePublicCommit
           });
           continue;
         }
@@ -671,7 +697,8 @@ export async function generateOwnerMenuTranslations(args: {
           entity,
           locale: args.locale,
           provider: translator.provider,
-          content: applyTaskTranslations(entity, row, tasks, translations)
+          content: applyTaskTranslations(entity, row, tasks, translations),
+          onPublicCommit: observePublicCommit
         });
       }
     }
@@ -696,7 +723,8 @@ export async function generateOwnerMenuTranslations(args: {
         menuId,
         menuRow: ctx.menu,
         settings: ctx.settings,
-        localizedUiCopy: generatedLocalizedUiCopy
+        localizedUiCopy: generatedLocalizedUiCopy,
+        onPublicCommit: () => observePublicCommit({ locale: args.locale })
       });
       if (!persisted.ok) throw new Error(persisted.error);
     }
@@ -710,23 +738,40 @@ export async function generateOwnerMenuTranslations(args: {
         updated_at: new Date().toISOString()
       })
       .eq("id", job.data.id);
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "Generation traduction echouee.";
-    await ctx.client
-      .from("menu_translation_jobs")
-      .update({
-        status: "failed",
-        error_message: message,
-        completed_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      })
-      .eq("id", job.data.id);
-    return { ok: false, status: 503, error: message };
+  } catch {
+    try {
+      await ctx.client
+        .from("menu_translation_jobs")
+        .update({
+          status: "failed",
+          error_message: CONTROLLED_TRANSLATION_FAILURE,
+          completed_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        })
+        .eq("id", job.data.id);
+    } catch {
+      // A best-effort job marker must not replace a controlled post-commit response.
+    }
+    await rescheduleObservedPublicCommit();
+    return { ok: false, status: 503, error: CONTROLLED_TRANSLATION_FAILURE };
   }
 
-  const updatedRows = await readStoredTranslations(ctx.client, menuId, [args.locale]);
+  let updatedRows: StoredTranslationsReadResult;
+  try {
+    updatedRows = await readStoredTranslations(ctx.client, menuId, [args.locale]);
+  } catch {
+    await rescheduleObservedPublicCommit();
+    return { ok: false, status: 503, error: CONTROLLED_TRANSLATION_FAILURE };
+  }
   if (!updatedRows.ok) {
-    return { ok: false, status: updatedRows.status, error: updatedRows.error };
+    await rescheduleObservedPublicCommit();
+    return {
+      ok: false,
+      status: updatedRows.status,
+      error: publicCommitObserved
+        ? CONTROLLED_TRANSLATION_FAILURE
+        : updatedRows.error
+    };
   }
   return {
     ok: true,

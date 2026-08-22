@@ -75,7 +75,11 @@ test("Sauge Noire keeps empty media slots and defers real 3D to intent", async (
   const menuPages = await readFile(menuPagesPath, "utf8");
   const detail = await readFile(detailPath, "utf8");
   assert.match(menuPages, /data-photo-slot/);
-  assert.match(menuPages, /dish\.imageUrl \?/);
+  assert.match(
+    menuPages,
+    /const cardImageUrl = getPublicDishImageUrl\([\s\S]*large \? "card" : "thumbnail"/
+  );
+  assert.match(menuPages, /cardImageUrl \?/);
   assert.match(menuPages, /dish\.has3d \? <SaugeNoire3dIndicator/);
   assert.equal(
     (menuPages.match(/dish\.has3d \? <SaugeNoire3dIndicator/g) ?? []).length,

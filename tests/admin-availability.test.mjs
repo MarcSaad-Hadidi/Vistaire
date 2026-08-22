@@ -1,10 +1,24 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
+import { loadMenuMutationRevalidation } from "./helpers/public-dish-asset-route-runtime.mjs";
 
 const loadAvailability = () => import("../lib/admin/availability.ts");
 const loadRequestBody = () => import("../lib/admin/requestBody.ts");
 const loadMutation = () => import("../components/admin/availability/availabilityMutation.ts");
+const loadMenuRevalidation = () => loadMenuMutationRevalidation();
+
+function createRestaurantLookup({ data = null, error = null, thrown = null } = {}) {
+  const query = {
+    select() { return this; },
+    eq() { return this; },
+    async maybeSingle() {
+      if (thrown) throw thrown;
+      return { data, error };
+    }
+  };
+  return { from: () => query };
+}
 
 test("bounded JSON reader rejects declared and chunked oversized bodies", async () => {
   const { readBoundedJsonBody } = await loadRequestBody();
@@ -131,7 +145,7 @@ test("availability request handler uses only session scope and cannot target que
 
 test("availability route invokes the atomic RPC with access-derived QR and restaurant scope", async () => {
   const route = await readFile(
-    "app/admin/api/dishes/[dishId]/availability/route.ts",
+    "app/(fr)/admin/api/dishes/[dishId]/availability/route.ts",
     "utf8"
   );
   const core = await readFile("lib/admin/availability.ts", "utf8");
@@ -190,17 +204,262 @@ test("availability media type accepts JSON parameters but rejects JSON lookalike
   }
 });
 
-test("post-commit revalidation failures are logged and never replace RPC success", async () => {
+test("post-commit revalidation failures return an explicit retry signal without replacing RPC success", async () => {
   const { preserveAvailabilityResultAfterRevalidation } = await loadAvailability();
-  const logged = [];
+  const signals = [];
   const committed = { ok: true, dishId: "dish", dishSlug: "plat", available: false };
+  const retrySignal = {
+    kind: "menu-revalidation-retry-required",
+    restaurantId: "restaurant",
+    dishId: "dish",
+    token: "must-not-escape",
+    nested: { secret: "must-not-escape" }
+  };
   const result = await preserveAvailabilityResultAfterRevalidation(
     committed,
     async () => { throw new Error("cache unavailable"); },
-    (message) => logged.push(message)
+    {
+      retrySignal,
+      signalRetry: (signal) => signals.push(signal)
+    }
   );
-  assert.equal(result, committed);
-  assert.deepEqual(logged, ["Admin availability revalidation failed after commit."]);
+  assert.deepEqual(result, { ...committed, revalidation: "retry-required" });
+  assert.deepEqual(signals, [{
+    kind: "menu-revalidation-retry-required",
+    restaurantId: "restaurant",
+    dishId: "dish"
+  }]);
+  assert.doesNotMatch(JSON.stringify(signals), /must-not-escape|secret|token/i);
+});
+
+test("a retry sink exception never turns committed availability into a rejection", async () => {
+  const { preserveAvailabilityResultAfterRevalidation } = await loadAvailability();
+  const committed = { ok: true, dishId: "dish", dishSlug: "plat", available: false };
+  const result = await preserveAvailabilityResultAfterRevalidation(
+    committed,
+    async () => ({ ok: false }),
+    {
+      retrySignal: {
+        kind: "menu-revalidation-retry-required",
+        restaurantId: "restaurant",
+        dishId: "dish"
+      },
+      signalRetry: () => { throw new Error("observability unavailable"); }
+    }
+  );
+  assert.deepEqual(result, { ...committed, revalidation: "retry-required" });
+});
+
+test("production fallback emits one structured allowlisted retry log", async () => {
+  const { revalidateOwnerMenuMutationPaths } = await loadMenuRevalidation();
+  const originalConsoleError = console.error;
+  const logs = [];
+  console.error = (message) => logs.push(message);
+  try {
+    const result = await revalidateOwnerMenuMutationPaths(
+      {
+        client: createRestaurantLookup({ error: { message: "contains-secret-token" } }),
+        restaurantId: "restaurant-a",
+        dishId: "dish-a"
+      },
+      {
+        revalidateMenuCache: async () => ({
+          ok: true,
+          invalidatedTags: ["restaurant"],
+          failedTags: []
+        }),
+        invalidateAssetMetadata: () => 1,
+        revalidatePath: () => {}
+      }
+    );
+
+    assert.equal(result.retryRequired, true);
+    assert.equal(logs.length, 1);
+    assert.deepEqual(JSON.parse(logs[0]), {
+      kind: "menu-revalidation-retry-required",
+      restaurantId: "restaurant-a",
+      dishId: "dish-a"
+    });
+    assert.doesNotMatch(logs[0], /contains-secret-token|token=/i);
+  } finally {
+    console.error = originalConsoleError;
+  }
+});
+
+test("owner retry sink exceptions are contained after a committed mutation", async () => {
+  const { revalidateOwnerMenuMutationPaths } = await loadMenuRevalidation();
+  const result = await revalidateOwnerMenuMutationPaths(
+    {
+      client: createRestaurantLookup({ error: { message: "lookup failed" } }),
+      restaurantId: "restaurant-a",
+      dishId: "dish-a"
+    },
+    {
+      revalidateMenuCache: async () => ({
+        ok: true,
+        invalidatedTags: ["restaurant"],
+        failedTags: []
+      }),
+      invalidateAssetMetadata: () => 1,
+      revalidatePath: () => {},
+      signalRetry: () => { throw new Error("observability unavailable"); }
+    }
+  );
+  assert.equal(result.retryRequired, true);
+  assert.deepEqual(result.failures, ["restaurant-lookup"]);
+});
+
+test("asynchronous owner retry sink rejections are contained after commit", async () => {
+  const { revalidateOwnerMenuMutationPaths } = await loadMenuRevalidation();
+  const result = await revalidateOwnerMenuMutationPaths(
+    {
+      client: createRestaurantLookup({ error: { message: "lookup failed" } }),
+      restaurantId: "restaurant-a",
+      dishId: "dish-a"
+    },
+    {
+      revalidateMenuCache: async () => ({
+        ok: true,
+        invalidatedTags: ["restaurant"],
+        failedTags: []
+      }),
+      invalidateAssetMetadata: () => 1,
+      revalidatePath: () => {},
+      signalRetry: async () => { throw new Error("async observability unavailable"); }
+    }
+  );
+  assert.equal(result.retryRequired, true);
+  assert.deepEqual(result.failures, ["restaurant-lookup"]);
+});
+
+test("owner mutation awaits an explicit retry sink before returning", async () => {
+  const { revalidateOwnerMenuMutationPaths } = await loadMenuRevalidation();
+  let releaseSink;
+  const sinkGate = new Promise((resolve) => { releaseSink = resolve; });
+  const signals = [];
+  let settled = false;
+  const pending = revalidateOwnerMenuMutationPaths(
+    {
+      client: createRestaurantLookup({ error: { message: "lookup failed" } }),
+      restaurantId: "restaurant-a",
+      dishId: "dish-a"
+    },
+    {
+      revalidateMenuCache: async () => ({
+        ok: true,
+        invalidatedTags: ["restaurant"],
+        failedTags: []
+      }),
+      invalidateAssetMetadata: () => 1,
+      revalidatePath: () => {},
+      signalRetry: async (signal) => {
+        await sinkGate;
+        signals.push(signal);
+      }
+    }
+  ).then((result) => {
+    settled = true;
+    return result;
+  });
+
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(settled, false, "post-commit result must wait until the sink settles");
+  releaseSink();
+  const result = await pending;
+  assert.equal(result.retryRequired, true);
+  assert.deepEqual(signals, [{
+    kind: "menu-revalidation-retry-required",
+    restaurantId: "restaurant-a",
+    dishId: "dish-a"
+  }]);
+});
+
+test("owner mutation invalidates restaurant cache and dish asset metadata even when slug lookup fails", async () => {
+  const { revalidateOwnerMenuMutationPaths } = await loadMenuRevalidation();
+  const menuInvalidations = [];
+  const assetInvalidations = [];
+  const paths = [];
+  const retrySignals = [];
+  const result = await revalidateOwnerMenuMutationPaths(
+    {
+      client: createRestaurantLookup({ error: { message: "lookup unavailable" } }),
+      restaurantId: "restaurant-a",
+      dishId: "dish-a",
+      dishSlug: "plat-a"
+    },
+    {
+      revalidateMenuCache: async (scope) => {
+        menuInvalidations.push(scope);
+        return { ok: true, invalidatedTags: ["restaurant"], failedTags: [] };
+      },
+      invalidateAssetMetadata: (scope) => {
+        assetInvalidations.push(scope);
+        return 1;
+      },
+      revalidatePath: (path) => paths.push(path),
+      signalRetry: (signal) => retrySignals.push(signal)
+    }
+  );
+
+  assert.deepEqual(menuInvalidations, [{ restaurantId: "restaurant-a" }]);
+  assert.deepEqual(assetInvalidations, [{ restaurantId: "restaurant-a", dishId: "dish-a" }]);
+  assert.deepEqual(paths, []);
+  assert.deepEqual(retrySignals, [{
+    kind: "menu-revalidation-retry-required",
+    restaurantId: "restaurant-a",
+    dishId: "dish-a"
+  }]);
+  assert.deepEqual(result, {
+    ok: false,
+    retryRequired: true,
+    restaurantSlug: null,
+    invalidatedAssetMetadataEntries: 1,
+    invalidatedPaths: [],
+    failures: ["restaurant-lookup"]
+  });
+});
+
+test("owner mutation performs observable restaurant and exact slug invalidation before path refresh", async () => {
+  const { revalidateOwnerMenuMutationPaths } = await loadMenuRevalidation();
+  const events = [];
+  const result = await revalidateOwnerMenuMutationPaths(
+    {
+      client: createRestaurantLookup({ data: { slug: "Bistro A", name: "Ignored" } }),
+      restaurantId: "restaurant-a",
+      dishId: "dish-a",
+      dishSlug: "Plat Signature"
+    },
+    {
+      revalidateMenuCache: async (scope) => {
+        events.push(["cache", scope]);
+        return { ok: true, invalidatedTags: ["tag"], failedTags: [] };
+      },
+      invalidateAssetMetadata: (scope) => {
+        events.push(["asset", scope]);
+        return 2;
+      },
+      revalidatePath: (path) => events.push(["path", path])
+    }
+  );
+
+  assert.deepEqual(events, [
+    ["asset", { restaurantId: "restaurant-a", dishId: "dish-a" }],
+    ["cache", { restaurantId: "restaurant-a" }],
+    ["cache", { slug: "bistro-a", restaurantId: "restaurant-a" }],
+    ["path", "/menu/bistro-a"],
+    ["path", "/menu/bistro-a/dishes/plat-signature"]
+  ]);
+  assert.deepEqual(result, {
+    ok: true,
+    retryRequired: false,
+    restaurantSlug: "bistro-a",
+    invalidatedAssetMetadataEntries: 2,
+    invalidatedPaths: [
+      "/menu/bistro-a",
+      "/menu/bistro-a/dishes/plat-signature"
+    ],
+    failures: []
+  });
 });
 
 test("missing availability RPC fails closed as a controlled 503 without fallback", async () => {
@@ -231,13 +490,14 @@ test("missing availability RPC fails closed as a controlled 503 without fallback
 
 test("successful availability changes revalidate admin and public menu paths", async () => {
   const revalidation = await readFile("lib/owner/menuMutationRevalidation.ts", "utf8");
-  const route = await readFile("app/admin/api/dishes/[dishId]/availability/route.ts", "utf8");
+  const route = await readFile("app/(fr)/admin/api/dishes/[dishId]/availability/route.ts", "utf8");
   const control = await readFile("components/admin/AdminDishAvailabilityControl.tsx", "utf8");
   const mutation = await readFile("components/admin/availability/availabilityMutation.ts", "utf8");
   const list = await readFile("components/admin/availability/AdminAvailabilityList.tsx", "utf8");
   const clientContract = `${control}\n${mutation}\n${list}`;
   assert.match(route, /revalidatePath\(["']\/admin["']\)/);
-  assert.match(route, /revalidateOwnerMenuMutationPaths/);
+  assert.match(route, /resolvePublicMutationIdentity/);
+  assert.match(route, /invalidateCommittedPublicMutation/);
   assert.match(route, /preserveAvailabilityResultAfterRevalidation/);
   assert.match(revalidation, /`\/menu\/\$\{restaurantSlug\}`/);
   assert.match(revalidation, /`\/menu\/\$\{restaurantSlug\}\/dishes\/\$\{dishSlug\}`/);
@@ -267,7 +527,7 @@ test("focused availability page exposes only search and final-state filters", as
 });
 
 test("availability route preserves server scope and shared restaurant shell", async () => {
-  const route = await readFile("app/admin/availability/page.tsx", "utf8");
+  const route = await readFile("app/(fr)/admin/availability/page.tsx", "utf8");
   const page = await readFile("components/admin/availability/AdminAvailabilityPage.tsx", "utf8");
 
   assert.match(route, /requireAdminRestaurantAccess\("dashboard:read"\)/);

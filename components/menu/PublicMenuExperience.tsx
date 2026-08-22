@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { trackPublicMenuEvent } from "@/lib/analytics/client";
 import {
   buildPublicDishPath,
+  getPublicDishImageUrl,
   getPublicMenuCategoryGroups,
   getVisiblePublicMenuCategories,
   type PublicMenu,
@@ -63,6 +64,7 @@ function PublicDishCard({
   query?: PublicMenuContextQuery;
 }) {
   const badge = dishBadge(dish);
+  const cardImageUrl = getPublicDishImageUrl(dish, "thumbnail");
   return (
     <li className={styles.dishCard}>
       <Link
@@ -75,12 +77,12 @@ function PublicDishCard({
           aria-hidden="true"
           className={styles.dishThumb}
           style={
-            dish.imageUrl
-              ? { backgroundImage: `url("${dish.imageUrl}")` }
+            cardImageUrl
+              ? { backgroundImage: `url("${cardImageUrl}")` }
               : undefined
           }
         >
-          {!dish.imageUrl ? menu.name.slice(0, 1) : null}
+          {!cardImageUrl ? menu.name.slice(0, 1) : null}
         </span>
         <span className={styles.dishCopy}>
           <span className={styles.dishHeading}>

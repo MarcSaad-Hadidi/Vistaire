@@ -115,7 +115,10 @@ test("HTTP fixture projects English public menus into landing payloads", async (
 
   try {
     await waitForFixture(origin, fixture);
-    const { resolvePublicMenuRenderContext } = await import(
+    const {
+      resolvePublicMenuRenderContext,
+      resolvePublicMenuStableRenderContext
+    } = await import(
       "../lib/menu/publicMenuRenderContext.ts"
     );
     const {
@@ -153,6 +156,16 @@ test("HTTP fixture projects English public menus into landing payloads", async (
     assert.equal(frenchContext.menu.translationStatus?.status, "source");
     assert.equal(frenchContext.experience.kind, "maison-elyse");
     assert.doesNotThrow(() => assertLandingMenuPreviewReady(frenchContext, "fr"));
+
+    const stableContext = await resolvePublicMenuStableRenderContext({
+      slug: "maison-elyse",
+      query: { lang: "en-CA" }
+    });
+    assert.ok(stableContext);
+    assert.deepEqual(stableContext.stableCacheReadiness, {
+      publishedUiConfig: true,
+      localizedMenusComplete: true
+    });
 
     const experiences = await getLandingExperiences("en");
     assert.equal(experiences.length, 3);

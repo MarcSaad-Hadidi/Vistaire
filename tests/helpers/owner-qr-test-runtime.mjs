@@ -31,6 +31,7 @@ const AUTH_STUB_URL = "qr-test:owner-auth";
 const ROWS_STUB_URL = "qr-test:rows";
 const MENU_URLS_STUB_URL = "qr-test:menu-urls";
 const INSIGHTS_STUB_URL = "qr-test:insights";
+const MAISON_ELYSE_IDENTITY_STUB_URL = "qr-test:maison-elyse-identity";
 
 function localModuleUrl(url) {
   const parsed = new URL(url);
@@ -58,6 +59,9 @@ registerHooks({
     }
     if (specifier === "@/lib/analytics/insights") {
       return { url: INSIGHTS_STUB_URL, shortCircuit: true };
+    }
+    if (specifier === "@/lib/maisonElyseIdentity") {
+      return { url: MAISON_ELYSE_IDENTITY_STUB_URL, shortCircuit: true };
     }
     if (specifier === "@/lib/owner/menuUrls") {
       return { url: MENU_URLS_STUB_URL, shortCircuit: true };
@@ -144,6 +148,20 @@ registerHooks({
         format: "module",
         source:
           'export const getDemoRestaurantId = () => "99999999-9999-4999-8999-999999999999";',
+        shortCircuit: true
+      };
+    }
+    if (url === MAISON_ELYSE_IDENTITY_STUB_URL) {
+      return {
+        format: "module",
+        source: `
+          export const MAISON_ELYSE_SLUG = "maison-elyse";
+          export const getDemoRestaurantId = () => "99999999-9999-4999-8999-999999999999";
+          export const getMaisonElyseIdentity = () => ({
+            id: getDemoRestaurantId(),
+            slug: MAISON_ELYSE_SLUG
+          });
+        `,
         shortCircuit: true
       };
     }

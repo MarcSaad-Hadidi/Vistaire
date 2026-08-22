@@ -3,7 +3,7 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 const pageSource = await readFile(
-  new URL("../app/owner/restaurants/[restaurantId]/qr/page.tsx", import.meta.url),
+  new URL("../app/(fr)/owner/restaurants/[restaurantId]/qr/page.tsx", import.meta.url),
   "utf8"
 );
 const switcherSource = await readFile(

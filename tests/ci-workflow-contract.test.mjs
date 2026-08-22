@@ -259,6 +259,70 @@ test("the shared production artifact is built against the hermetic menu fixture"
   assert.doesNotMatch(buildJob, /VISTAIRE_E2E_LANDING_CANONICAL/);
 });
 
+test("build-app proves the static public graph and artifacts before upload", () => {
+  const buildStart = workflow.indexOf("  build-app:");
+  const uploadStart = workflow.indexOf("      - name: Upload verified Next.js build", buildStart);
+  const buildJob = workflow.slice(buildStart, workflow.indexOf("  e2e-public-chromium:", buildStart));
+
+  assert.match(
+    buildJob,
+    /VISTAIRE_EXCHANGE_RATES_FIXTURE_JSON:\s*['"]?\{[^\n]*"CAD":1[^\n]*"USD":0\.72[^\n]*"EUR":0\.6225[^\n]*\}['"]?/
+  );
+  assert.match(buildJob, /VISTAIRE_PUBLIC_ARTIFACT_SENTINELS:/);
+  const envValue = (key) => {
+    const matches = [
+      ...buildJob.matchAll(
+        new RegExp(`^\\s+${key}:\\s+(.+?)\\s*$`, "gm")
+      )
+    ];
+    assert.equal(
+      matches.length,
+      1,
+      `${key} must be configured exactly once in build-app`
+    );
+    const raw = matches[0][1];
+    if (raw.startsWith("'") && raw.endsWith("'")) {
+      return raw.slice(1, -1).replaceAll("''", "'");
+    }
+    if (raw.startsWith('"') && raw.endsWith('"')) {
+      return JSON.parse(raw);
+    }
+    return raw;
+  };
+  const sentinels = JSON.parse(
+    envValue("VISTAIRE_PUBLIC_ARTIFACT_SENTINELS")
+  );
+  assert.deepEqual(sentinels, [
+    envValue("SUPABASE_SERVICE_ROLE_KEY"),
+    envValue("VISTAIRE_OWNER_EMAILS"),
+    envValue("VISTAIRE_ADMIN_SESSION_SECRET")
+  ]);
+  assert.deepEqual(sentinels, [
+    "sauge-noire-fixture-service-role-key",
+    "synthetic-owner-email@example.test",
+    "synthetic-session-cookie"
+  ]);
+
+  const importBoundary = workflow.indexOf(
+    "node scripts/ci/check-static-public-import-boundary.mjs",
+    buildStart
+  );
+  const nextBuild = workflow.indexOf("npm run build", buildStart);
+  const routeManifest = workflow.indexOf(
+    "node scripts/ci/check-static-public-routes.mjs",
+    buildStart
+  );
+  const artifactScan = workflow.indexOf(
+    "node scripts/ci/check-public-prerender-artifacts.mjs",
+    buildStart
+  );
+  assert.ok(importBoundary > buildStart, "import boundary must run in build-app");
+  assert.ok(importBoundary < nextBuild, "import boundary must fail before build");
+  assert.ok(nextBuild < routeManifest, "route manifest must inspect the completed build");
+  assert.ok(routeManifest < artifactScan, "artifact scan must follow route classification");
+  assert.ok(artifactScan < uploadStart, "all public artifact checks must pass before upload");
+});
+
 test("landing E2E uses the production readiness path", () => {
   assert.doesNotMatch(menuExperiences, /VISTAIRE_E2E_LANDING_CANONICAL/);
   assert.doesNotMatch(e2eRunner, /VISTAIRE_E2E_LANDING_CANONICAL/);

@@ -492,7 +492,7 @@ test("Sauge browser fixture resolves complete stored English menus for all landi
   }
 });
 
-test("concurrent French and English landing resolution stays isolated per restaurant", async () => {
+test("concurrent French and English editorial fallbacks stay isolated per restaurant", async () => {
   const { getLandingExperiences } = await import(
     "../lib/landing/menuExperiences.ts"
   );
@@ -504,25 +504,19 @@ test("concurrent French and English landing resolution stays isolated per restau
 
   assert.equal(french.length, 3);
   assert.equal(english.length, 3);
+  assert.ok(french.every((experience) => experience.hasLiveData === false));
+  assert.ok(english.every((experience) => experience.hasLiveData === false));
 
   for (const englishExperience of english) {
     const frenchExperience = french.find(
       (candidate) => candidate.id === englishExperience.id
     );
     assert.ok(frenchExperience, `missing French ${englishExperience.id}`);
-    if (englishExperience.id === "maison-elyse") {
-      assert.notEqual(
-        englishExperience.featuredDish.name,
-        frenchExperience.featuredDish.name,
-        "Maison Elyse dish names must follow the selected menu locale"
-      );
-    } else {
-      assert.equal(
-        englishExperience.featuredDish.name,
-        frenchExperience.featuredDish.name,
-        `${englishExperience.id} dish name must stay in the source language`
-      );
-    }
+    assert.equal(
+      englishExperience.featuredDish.name,
+      frenchExperience.featuredDish.name,
+      `${englishExperience.id} editorial dish name must stay canonical`
+    );
     assert.notEqual(
       englishExperience.featuredDish.description,
       frenchExperience.featuredDish.description,
@@ -602,9 +596,27 @@ test("landing fallback catch is limited to readiness failures and endpoint error
     "utf8"
   );
 
+  const experiencePolicy = landingSource.match(
+    /function isLandingExperienceFallbackError[\s\S]*?\n\}/
+  )?.[0];
+  const previewPolicy = landingSource.match(
+    /function isLandingPreviewFallbackError[\s\S]*?\n\}/
+  )?.[0];
+  assert.ok(experiencePolicy);
+  assert.match(experiencePolicy, /LandingLiveDataUnavailableError/);
+  assert.match(experiencePolicy, /LandingMenuPreviewError/);
+  assert.match(experiencePolicy, /PublicCacheSafetyError/);
+  assert.ok(previewPolicy);
+  assert.match(previewPolicy, /LandingLiveDataUnavailableError/);
+  assert.match(previewPolicy, /PublicCacheSafetyError/);
+  assert.doesNotMatch(previewPolicy, /LandingMenuPreviewError/);
   assert.match(
     landingSource,
-    /catch \(error\) \{[\s\S]{0,180}error instanceof LandingMenuPreviewError[\s\S]{0,100}return experience/
+    /isLandingExperienceFallbackError\(error\)[\s\S]{0,40}return experience/
+  );
+  assert.match(
+    landingSource,
+    /isLandingPreviewFallbackError\(error\)[\s\S]{0,40}return null/
   );
   assert.doesNotMatch(landingSource, /catch \{\s*return experience/);
   assert.match(endpointSource, /LandingMenuPreviewError/);

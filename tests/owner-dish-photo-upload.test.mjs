@@ -5,9 +5,13 @@ import { readFile } from "node:fs/promises";
 import {
   buildDishPhotoPublicPath,
   buildDishPhotoStoragePath,
+  buildDishPhotoV2StoragePath,
+  buildDishPhotoDerivativeV2StoragePath,
+  inspectDishPhotoFile,
   mergeDishPhotoMetadata,
   validateDishPhotoFile
 } from "../lib/owner/dishPhotoUpload.ts";
+import { DISH_PHOTO_RECIPE } from "../lib/owner/dishPhotoRecipe.ts";
 
 const restaurantId = "11111111-2222-4333-8444-555555555555";
 const dishId = "22222222-3333-4444-8555-666666666666";
@@ -16,6 +20,10 @@ const maisonElyseRestaurantId = "11111111-1111-1111-1111-111111111111";
 const tinyPng = Buffer.from(
   "89504e470d0a1a0a0000000d49484452000000010000000108060000001f15c489",
   "hex"
+);
+const validTinyPng = Buffer.from(
+  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=",
+  "base64"
 );
 
 test("dish photo upload accepts image bytes and rejects non-images", () => {
@@ -49,6 +57,24 @@ test("dish photo upload accepts image bytes and rejects non-images", () => {
       error: "Seules les images JPEG, PNG ou WebP sont acceptees."
     }
   );
+});
+
+test("dish photo v2 recipe and paths are immutable/content-addressed", async () => {
+  assert.equal(DISH_PHOTO_RECIPE.id, "dish-photo-v2");
+  assert.deepEqual(Object.keys(DISH_PHOTO_RECIPE.variants), ["thumbnail", "card", "display"]);
+  const sourceSha = "a".repeat(64);
+  const outputSha = "b".repeat(64);
+  assert.equal(
+    buildDishPhotoV2StoragePath({ restaurantId, sha256: sourceSha, extension: "png" }),
+    `restaurants/${restaurantId}/photos/originals/${sourceSha}.png`
+  );
+  assert.equal(
+    buildDishPhotoDerivativeV2StoragePath({ restaurantId, sourceSha256: sourceSha, recipeId: DISH_PHOTO_RECIPE.id, variant: "card", outputSha256: outputSha }),
+    `restaurants/${restaurantId}/photos/derivatives/${sourceSha}/${DISH_PHOTO_RECIPE.id}/card-${outputSha}.webp`
+  );
+  const inspected = await inspectDishPhotoFile({ name: "photo.png", type: "image/png", size: validTinyPng.byteLength, bytes: validTinyPng }, 5 * 1024 * 1024);
+  assert.equal(inspected.ok, true);
+  assert.equal(inspected.inspection?.pages, 1);
 });
 
 test("dish photo upload rejects oversized files and path filenames", () => {
@@ -191,8 +217,8 @@ test("dish photo upload API and public redirect use guarded server-side storage"
   assert.match(uploadRoute, /\.eq\("id", dishId\)/);
   assert.match(uploadRoute, /\.eq\("restaurant_id", restaurantId\)/);
   assert.match(uploadRoute, /validateDishPhotoFile/);
-  assert.match(uploadRoute, /storage\.from\(MEDIA_BUCKET\)\.upload/);
-  assert.match(uploadRoute, /storage\.from\(MEDIA_BUCKET\)\.remove/);
+  assert.match(uploadRoute, /withMediaCapacityReservation/);
+  assert.match(uploadRoute, /inspectImmutableStorageObject/);
   assert.match(uploadRoute, /export async function DELETE/);
   assert.match(uploadRoute, /clearDishPhotoMetadata/);
   assert.match(uploadRoute, /cleanupReplacedDishAssets/);
@@ -206,7 +232,7 @@ test("dish photo upload API and public redirect use guarded server-side storage"
   assert.match(redirectHelper, /photoStorageBucket/);
   assert.match(redirectHelper, /photoStoragePath/);
   assert.match(redirectHelper, /storage\.info\(storagePath\)/);
-  assert.match(redirectHelper, /storage\.createSignedUrl\(storagePath, SIGNED_URL_TTL_SECONDS\)/);
+  assert.match(redirectHelper, /storage\.createSignedUrl\((?:storagePath|targetPath), SIGNED_URL_TTL_SECONDS\)/);
   assert.doesNotMatch(redirectHelper, /\.download\s*\(|\.arrayBuffer\s*\(/);
 });
 
@@ -233,27 +259,12 @@ test("photo replacement, delete, and dish delete use the shared media cleanup", 
   assert.match(uploadRoute, /reason: "dish-photo-replacement"/);
   assert.match(uploadRoute, /cleanup: replacementCleanup/);
   assert.match(uploadRoute, /skippedCount/);
-  assert.match(uploadRoute, /revalidateOwnerMenuMutationPaths/);
+  assert.match(uploadRoute, /resolvePublicMutationIdentity/);
+  assert.match(uploadRoute, /invalidateCommittedPublicMutation/);
+  assert.match(uploadRoute, /committedPhotoCleanup/);
   assert.match(dishRoute, /mediaCleanup/);
   assert.match(mutations, /cleanupReplacedDishAssets/);
   assert.match(mutations, /select\("id,name,slug,menu_id,category_id,metadata"\)/);
-});
-
-test("photo DELETE clears DB metadata before cross-dish-safe Storage cleanup", async () => {
-  const uploadRoute = await readFile(
-    "app/api/owner/restaurants/[restaurantId]/dishes/[dishId]/photo/route.ts",
-    "utf8"
-  );
-  const deleteStart = uploadRoute.indexOf("export async function DELETE");
-  assert.ok(deleteStart >= 0);
-  const deleteRoute = uploadRoute.slice(deleteStart);
-  const updateIndex = deleteRoute.indexOf('.update({\n      image_url: null');
-  const cleanupIndex = deleteRoute.indexOf("cleanupReplacedDishAssets({");
-  assert.ok(updateIndex >= 0, "DELETE must clear the dish metadata");
-  assert.ok(cleanupIndex > updateIndex, "Storage cleanup must run after the DB update");
-  assert.doesNotMatch(deleteRoute, /deleteDishMediaStorageTargets|collectDishPhotoStorageTarget/);
-  assert.match(deleteRoute, /previousMetadata: oldMetadata/);
-  assert.match(deleteRoute, /nextMetadata: clearedMetadata/);
 });
 
 test("whole-dish deletion also updates DB before cross-dish-safe media cleanup", async () => {
@@ -267,4 +278,30 @@ test("whole-dish deletion also updates DB before cross-dish-safe media cleanup",
   assert.ok(cleanupIndex > dbDeleteIndex, "dish media cleanup must run after DB deletion");
   assert.doesNotMatch(deleteMutation, /deleteDishMediaStorageTargets|collectDishMediaStorageTargets/);
   assert.match(deleteMutation, /currentMetadata: \{\}/);
+});
+
+
+test("photo DELETE clears DB metadata and invalidates before cross-dish-safe Storage cleanup", async () => {
+  const uploadRoute = await readFile(
+    "app/api/owner/restaurants/[restaurantId]/dishes/[dishId]/photo/route.ts",
+    "utf8"
+  );
+  const deleteStart = uploadRoute.indexOf("export async function DELETE");
+  assert.ok(deleteStart >= 0);
+  const deleteRoute = uploadRoute.slice(deleteStart);
+  const updateIndex = deleteRoute.search(/\.update\(\{\r?\n\s+image_url: null/);
+  const committedCleanupIndex = deleteRoute.indexOf("committedPhotoCleanup({");
+  const cleanupIndex = deleteRoute.indexOf("cleanupReplacedDishAssets({");
+  assert.ok(updateIndex >= 0, "DELETE must clear the dish metadata");
+  assert.ok(
+    committedCleanupIndex > updateIndex,
+    "cache and asset metadata invalidation must run after the DB commit"
+  );
+  assert.ok(
+    cleanupIndex > committedCleanupIndex,
+    "Storage cleanup must run after committed invalidation"
+  );
+  assert.doesNotMatch(deleteRoute, /deleteDishMediaStorageTargets|collectDishPhotoStorageTarget/);
+  assert.match(deleteRoute, /previousMetadata: oldMetadata/);
+  assert.match(deleteRoute, /nextMetadata: clearedMetadata/);
 });

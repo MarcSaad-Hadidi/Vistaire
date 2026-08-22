@@ -168,6 +168,7 @@ export async function mutateUniqueMenuDesignLifecycle(args: {
   expectedDesignId?: string | null;
   expectedVersion?: number | null;
   rendererKey?: string | null;
+  onPublicCommit?: () => void | Promise<void>;
 }): Promise<UniqueMenuDesignLifecycleStoreResult> {
   if (!isCanonicalUuid(args.restaurantId)) {
     return { ok: false, status: 400, error: "restaurantId invalide." };
@@ -354,6 +355,10 @@ export async function mutateUniqueMenuDesignLifecycle(args: {
     };
   }
 
+  const draftPersisted = response.draftPersisted === true;
+  const publishedPersisted = response.publishedPersisted === true;
+  if (publishedPersisted) await args.onPublicCommit?.();
+
   const uniqueDesign = normalizeUniqueMenuDesign(response.uniqueDesign);
   if (!uniqueDesign) {
     return {
@@ -363,8 +368,6 @@ export async function mutateUniqueMenuDesignLifecycle(args: {
     };
   }
 
-  const draftPersisted = response.draftPersisted === true;
-  const publishedPersisted = response.publishedPersisted === true;
   if (draft && !draftPersisted) {
     return {
       ok: false,

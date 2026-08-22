@@ -2,7 +2,7 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 import assert from "node:assert/strict";
 
-const detailPagePath = "app/menu/[slug]/dishes/[dishSlug]/page.tsx";
+const detailPagePath = "app/(fr)/menu/[slug]/dishes/[dishSlug]/page.tsx";
 const detailComponentPath = "components/menu/PublicDishDetailExperience.tsx";
 const detailCssPath = "components/menu/PublicDishDetailExperience.module.css";
 const maisonDetailPath = "components/menu/MaisonElyseDishDetail.tsx";
