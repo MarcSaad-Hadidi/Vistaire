@@ -82,6 +82,11 @@ const DEMO_PUBLIC_MENU_SETTINGS = serializePublicMenuSettings({
   publicMenuStyle: "maison-elyse"
 });
 
+const MAISON_E2E_GOOGLE_REVIEW_URL =
+  "https://search.google.com/local/writereview?placeid=ChIJMaisonElyseDemoVistaire";
+const TROUVABLE_E2E_GOOGLE_REVIEW_URL =
+  "https://search.google.com/local/writereview?placeid=ChIJTrouvableDemoVistaire";
+
 const TROUVABLE_PUBLIC_MENU_SETTINGS = serializePublicMenuSettings({
   ...DEFAULT_PUBLIC_MENU_SETTINGS,
   supportedLocales: ["fr-CA", "en-CA", "es-ES", "it-IT", "el-GR", "ar"],
@@ -326,7 +331,15 @@ function demoMenu(slug: string, locale: Locale = "fr"): PublicMenu {
     name: restaurant.name,
     location: restaurant.location,
     cuisineType: restaurant.cuisineType,
-    googleReview: normalizeGoogleReviewConfig(restaurant.googleReview),
+    googleReview: normalizeGoogleReviewConfig(
+      process.env.VISTAIRE_E2E_MAISON_PUBLIC_MENU === "1"
+        ? {
+            ...restaurant.googleReview,
+            presentationOnly: false,
+            googleReviewUrl: MAISON_E2E_GOOGLE_REVIEW_URL
+          }
+        : restaurant.googleReview
+    ),
     settings: DEMO_PUBLIC_MENU_SETTINGS,
     activeLocale: locale === "en" ? "en-CA" : "fr-CA",
     translationLocales: [
@@ -430,11 +443,14 @@ function trouvableDemoMenu(
       : isEnglish
         ? "Premium brunch and evening plates"
         : "Brunch premium et assiettes du soir",
-    googleReview: normalizeGoogleReviewConfig({
-      enabled: true,
-      googleReviewUrl:
-        "https://search.google.com/local/writereview?placeid=ChIJTrouvableDemoVistaire"
-    }),
+    googleReview: normalizeGoogleReviewConfig(
+      e2eImmersiveFixture
+        ? {
+            enabled: true,
+            googleReviewUrl: TROUVABLE_E2E_GOOGLE_REVIEW_URL
+          }
+        : { enabled: false, googleReviewUrl: "" }
+    ),
     settings: TROUVABLE_PUBLIC_MENU_SETTINGS,
     activeLocale: activePublicLocale,
     translationStatus: {

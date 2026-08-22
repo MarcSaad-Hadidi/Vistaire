@@ -12,6 +12,7 @@ import { resolveTrouvableCopy } from "./trouvableMenuControls";
 import styles from "./GoogleReviewCard.module.css";
 
 type GoogleReviewCardProps = {
+  dishSlug?: string;
   googleReview: GoogleReviewConfig;
   locale?: string;
   localizedUiCopy?: Record<string, unknown>;
@@ -56,6 +57,7 @@ function formatReviewCount(count: number, resolvedLocale: string): string {
 }
 
 export function GoogleReviewCard({
+  dishSlug,
   googleReview,
   locale = "fr",
   localizedUiCopy,
@@ -102,6 +104,7 @@ export function GoogleReviewCard({
 
   function trackOutboundClick() {
     trackGoogleReviewClick({
+      dishSlug,
       restaurantId,
       menuId,
       source

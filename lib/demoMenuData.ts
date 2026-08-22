@@ -82,10 +82,10 @@ const RESTAURANT: Restaurant = {
   currency: "CAD",
   googleReview: {
     enabled: true,
-    googleReviewUrl:
-      "https://search.google.com/local/writereview?placeid=ChIJMaisonElyseDemoVistaire",
+    googleReviewUrl: "",
     googleRating: 4.8,
-    googleReviewCount: 128
+    googleReviewCount: 128,
+    presentationOnly: true
   },
   contextLine:
     "Saisonnalité, produits du marché et créations de la maison."

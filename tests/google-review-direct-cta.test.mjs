@@ -37,6 +37,17 @@ test("enabled Google Review config with a valid URL yields a direct CTA", () => 
   );
 });
 
+test("presentation-only Google Review config yields no CTA even with a valid URL", () => {
+  assert.equal(
+    getGoogleReviewCta({
+      enabled: true,
+      presentationOnly: true,
+      googleReviewUrl: VALID_WRITE_REVIEW_URL
+    }),
+    null
+  );
+});
+
 test("disabled Google Review config yields no CTA even with a valid URL", () => {
   assert.equal(
     getGoogleReviewCta({
@@ -81,6 +92,7 @@ test("GoogleReviewCard is the canonical direct Google CTA and has no local revie
 
   assert.match(source, /getGoogleReviewCta/);
   assert.match(source, /trackGoogleReviewClick/);
+  assert.match(source, /dishSlug/);
   assert.match(source, /data-google-review-action="true"/);
   assert.match(source, /data-no-dish-swipe="true"/);
   assert.match(source, /href=\{cta\.href\}/);
@@ -94,18 +106,23 @@ test("GoogleReviewCard is the canonical direct Google CTA and has no local revie
   assert.match(source, /copy\.opensInNewTab/);
 });
 
-test("demo menus with a valid Google Review URL expose the shared direct CTA", async () => {
+test("demo menus keep fictional listings presentation-only outside E2E fixtures", async () => {
   const [demoData, publicMenu, fixture] = await Promise.all([
     readFile("lib/demoMenuData.ts", "utf8"),
     readFile("lib/menu/publicMenu.ts", "utf8"),
     readFile("e2e/support/sauge-noire-fixture-data.mjs", "utf8")
   ]);
 
+  assert.match(demoData, /presentationOnly:\s*true/);
+  assert.match(demoData, /googleReviewUrl:\s*""/);
+  assert.doesNotMatch(demoData, /ChIJMaisonElyseDemoVistaire/);
+  assert.match(publicMenu, /enabled:\s*false,\s*googleReviewUrl:\s*""/);
+  assert.match(publicMenu, /VISTAIRE_E2E_MAISON_PUBLIC_MENU === "1"/);
+  assert.match(publicMenu, /e2eImmersiveFixture/);
   assert.match(
-    demoData,
+    publicMenu,
     /search\.google.com\/local\/writereview\?placeid=ChIJMaisonElyseDemoVistaire/
   );
-  assert.doesNotMatch(demoData, /presentationOnly:\s*true/);
   assert.match(
     publicMenu,
     /search\.google.com\/local\/writereview\?placeid=ChIJTrouvableDemoVistaire/
@@ -148,6 +165,7 @@ test("public menus consume GoogleReviewCard without restaurant-specific Google c
   }
 
   assert.match(dish, /GoogleReviewCard/);
+  assert.match(dish, /dishSlug=\{activeDish\.slug\}/);
   assert.doesNotMatch(dish, /onReviewRequest/);
   assert.match(renderer, /mode === "public"/);
   assert.match(maison, /if \(!showGoogleReview\) return null/);

@@ -650,6 +650,7 @@ export function TrouvableDishDetailExperience({
       ) : null}
 
       <GoogleReviewCard
+        dishSlug={activeDish.slug}
         googleReview={menu.googleReview}
         locale={selectedLocale}
         localizedUiCopy={menu.localizedUiCopy}

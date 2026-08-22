@@ -56,6 +56,7 @@ test("Google Review card links out safely and tracks only the outbound click", a
   assert.match(source, /target="_blank"/);
   assert.match(source, /rel="noopener noreferrer"/);
   assert.match(source, /trackGoogleReviewClick/);
+  assert.match(source, /dishSlug/);
   assert.match(tracking, /trackMenuEvent/);
   assert.match(tracking, /eventName:\s*"cta_clicked"/);
   assert.match(tracking, /ctaName:\s*"google_review"/);
