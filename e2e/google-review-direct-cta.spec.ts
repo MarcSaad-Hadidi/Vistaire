@@ -61,6 +61,19 @@ async function clickCtaWithoutLeaving(page: Page) {
   await expect(page).not.toHaveURL(/search\.google\.com|g\.page/);
 }
 
+async function gotoExistingTrouvableDish(page: Page) {
+  const candidates = ["pesto-burrata-verde", "dejeuner-classique-maison"];
+  for (const slug of candidates) {
+    const response = await page.goto(`/menu/trouvable/dishes/${slug}?lang=fr-CA`, {
+      waitUntil: "domcontentloaded"
+    });
+    if (response && response.status() < 400) {
+      return slug;
+    }
+  }
+  throw new Error("No Trouvable dish detail route was available");
+}
+
 test.describe("Google Review direct CTA", () => {
   for (const viewport of VIEWPORTS) {
     test(`Trouvable opens Google directly at ${viewport.name}`, async ({ page }) => {
@@ -94,6 +107,9 @@ test.describe("Google Review direct CTA", () => {
   test("Trouvable English copy stays on the direct Google CTA", async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto("/menu/trouvable?lang=en-CA", { waitUntil: "domcontentloaded" });
+    await expect(
+      page.getByRole("region", { name: /Carte Trouvable|Trouvable menu/i })
+    ).toBeVisible();
     await page.locator("[data-google-review-card='true']").scrollIntoViewIfNeeded();
 
     await expect(page.getByRole("heading", { name: "Your experience matters" })).toBeVisible();
@@ -106,9 +122,7 @@ test.describe("Google Review direct CTA", () => {
 
   test("Trouvable dish detail uses the shared direct Google CTA", async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
-    await page.goto("/menu/trouvable/dishes/dejeuner-classique-maison?lang=fr-CA", {
-      waitUntil: "domcontentloaded"
-    });
+    await gotoExistingTrouvableDish(page);
     await page.locator("[data-google-review-card='true']").scrollIntoViewIfNeeded();
     await assertNoLocalReviewForm(page);
     await assertDirectGoogleCta(page, TROUVABLE_HREF);

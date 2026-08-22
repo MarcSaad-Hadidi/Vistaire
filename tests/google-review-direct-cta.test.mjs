@@ -95,9 +95,10 @@ test("GoogleReviewCard is the canonical direct Google CTA and has no local revie
 });
 
 test("demo menus with a valid Google Review URL expose the shared direct CTA", async () => {
-  const [demoData, publicMenu] = await Promise.all([
+  const [demoData, publicMenu, fixture] = await Promise.all([
     readFile("lib/demoMenuData.ts", "utf8"),
-    readFile("lib/menu/publicMenu.ts", "utf8")
+    readFile("lib/menu/publicMenu.ts", "utf8"),
+    readFile("e2e/support/sauge-noire-fixture-data.mjs", "utf8")
   ]);
 
   assert.match(
@@ -107,6 +108,15 @@ test("demo menus with a valid Google Review URL expose the shared direct CTA", a
   assert.doesNotMatch(demoData, /presentationOnly:\s*true/);
   assert.match(
     publicMenu,
+    /search\.google.com\/local\/writereview\?placeid=ChIJTrouvableDemoVistaire/
+  );
+  assert.match(fixture, /google_review_enabled:\s*true/);
+  assert.match(
+    fixture,
+    /google_review_url:\s*TROUVABLE_GOOGLE_REVIEW_URL/
+  );
+  assert.match(
+    fixture,
     /search\.google.com\/local\/writereview\?placeid=ChIJTrouvableDemoVistaire/
   );
 });

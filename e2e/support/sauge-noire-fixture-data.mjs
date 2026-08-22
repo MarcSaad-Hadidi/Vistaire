@@ -313,13 +313,18 @@ const maisonDish = {
   ar_usdz_url: ""
 };
 
+const TROUVABLE_GOOGLE_REVIEW_URL =
+  "https://search.google.com/local/writereview?placeid=ChIJTrouvableDemoVistaire";
+
 const trouvableRestaurant = {
   id: trouvableRestaurantId,
   name: "Trouvable",
   slug: "trouvable",
   location: "Montreal",
   cuisine_type: "Bistro moderne",
-  status: "active"
+  status: "active",
+  google_review_enabled: true,
+  google_review_url: TROUVABLE_GOOGLE_REVIEW_URL
 };
 
 const trouvableMenu = {
