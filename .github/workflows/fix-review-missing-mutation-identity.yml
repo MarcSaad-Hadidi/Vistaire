@@ -1,0 +1,528 @@
+name: Fix reviewed mutation identity invalidation
+
+on:
+  push:
+    branches:
+      - perf/vistaire-final-free-tier-optimization
+    paths:
+      - .github/workflows/fix-review-missing-mutation-identity.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: vistaire-fix-reviewed-mutation-identity
+  cancel-in-progress: false
+
+jobs:
+  red-green-fix:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout final PR branch
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          ref: perf/vistaire-final-free-tier-optimization
+          fetch-depth: 0
+          lfs: false
+          persist-credentials: true
+
+      - name: Setup Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Add regression test and prove RED
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat > tests/admin-menu-mutation-retry-identity.test.mjs <<'TEST'
+          import assert from "node:assert/strict";
+          import { existsSync, readFileSync, statSync } from "node:fs";
+          import { registerHooks } from "node:module";
+          import { sep } from "node:path";
+          import test from "node:test";
+          import { pathToFileURL } from "node:url";
+          import ts from "typescript";
+
+          const projectRootUrl = pathToFileURL(`${process.cwd()}${sep}`).href;
+          const nextCacheHooksSymbol = Symbol.for("vistaire.test.missing-mutation-identity-next-cache");
+          const nextCacheModuleUrl = `data:text/javascript,${encodeURIComponent(`
+            function hooks() {
+              return globalThis[Symbol.for("vistaire.test.missing-mutation-identity-next-cache")];
+            }
+            export function revalidatePath(...args) { return hooks().revalidatePath(...args); }
+            export function revalidateTag(...args) { return hooks().revalidateTag(...args); }
+          `)}`;
+
+          registerHooks({
+            resolve(specifier, context, nextResolve) {
+              if (specifier === "server-only") {
+                return {
+                  url: "data:text/javascript,export%20default%20undefined",
+                  shortCircuit: true
+                };
+              }
+              if (specifier === "next/cache") {
+                return { url: nextCacheModuleUrl, shortCircuit: true };
+              }
+              if (specifier.startsWith("@/")) {
+                const baseUrl = new URL(specifier.slice(2), projectRootUrl);
+                for (const extension of ["", ".ts", ".tsx", "/index.ts", "/index.tsx"]) {
+                  const url = new URL(`${baseUrl.href}${extension}`);
+                  if (existsSync(url) && statSync(url).isFile()) {
+                    return { url: url.href, shortCircuit: true };
+                  }
+                }
+              }
+              if ((specifier.startsWith("./") || specifier.startsWith("../")) && context.parentURL) {
+                const baseUrl = new URL(specifier, context.parentURL);
+                for (const extension of ["", ".ts", ".tsx", "/index.ts", "/index.tsx"]) {
+                  const url = new URL(`${baseUrl.href}${extension}`);
+                  if (existsSync(url) && statSync(url).isFile()) {
+                    return { url: url.href, shortCircuit: true };
+                  }
+                }
+              }
+              return nextResolve(specifier, context);
+            },
+            load(url, context, nextLoad) {
+              if (url.endsWith(".ts") || url.endsWith(".tsx")) {
+                return {
+                  format: "module",
+                  source: ts.transpileModule(readFileSync(new URL(url), "utf8"), {
+                    compilerOptions: {
+                      jsx: ts.JsxEmit.ReactJSX,
+                      module: ts.ModuleKind.ESNext,
+                      target: ts.ScriptTarget.ES2022
+                    }
+                  }).outputText,
+                  shortCircuit: true
+                };
+              }
+              return nextLoad(url, context);
+            }
+          });
+
+          const revalidation = await import("../lib/owner/menuMutationRevalidation.ts");
+          const RESTAURANT_ID = "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee";
+          const DISH_ID = "11111111-2222-4333-8444-555555555555";
+
+          function transientlyFailingRestaurantClient() {
+            return {
+              from(table) {
+                assert.equal(table, "restaurants");
+                const builder = {
+                  select(columns) {
+                    assert.equal(columns, "slug,name");
+                    return builder;
+                  },
+                  eq(column, value) {
+                    assert.equal(column, "id");
+                    assert.equal(value, RESTAURANT_ID);
+                    return builder;
+                  },
+                  async maybeSingle() {
+                    throw new Error("transient-restaurant-lookup-failure");
+                  }
+                };
+                return builder;
+              }
+            };
+          }
+
+          test("a transient pre-commit identity lookup failure emits a retry without malformed cache paths", async () => {
+            const events = [];
+            globalThis[nextCacheHooksSymbol] = {
+              revalidatePath(path) {
+                events.push(`path:${path}`);
+              },
+              revalidateTag(tag) {
+                events.push(`tag:${tag}`);
+              }
+            };
+
+            const identity = await revalidation.resolvePublicMutationIdentity({
+              client: transientlyFailingRestaurantClient(),
+              restaurantId: RESTAURANT_ID,
+              dishId: DISH_ID,
+              dishSlug: " Plat du Chef "
+            });
+
+            assert.deepEqual(identity, {
+              restaurantId: RESTAURANT_ID,
+              restaurantSlug: "",
+              restaurantKey: "",
+              featuredExperienceId: null,
+              dishSlug: "plat-du-chef",
+              dishId: DISH_ID,
+              retryOnly: true
+            });
+
+            const report = await revalidation.invalidateCommittedPublicMutation(identity, {
+              callbacks: {
+                revalidatePath(path) {
+                  events.push(`path:${path}`);
+                },
+                revalidateTag(tag) {
+                  events.push(`tag:${tag}`);
+                }
+              },
+              invalidateAssetMetadata(scope) {
+                events.push(`asset:${scope.restaurantId}:${scope.dishId}`);
+                return 1;
+              },
+              signalRetry(signal) {
+                events.push(`retry:${signal.restaurantId}:${signal.dishId}`);
+              }
+            });
+
+            assert.deepEqual(report, {
+              attempted: 0,
+              queuedCallReturned: 0,
+              enqueueErrors: [],
+              identityUnavailable: true
+            });
+            assert.deepEqual(events, [
+              `asset:${RESTAURANT_ID}:${DISH_ID}`,
+              `retry:${RESTAURANT_ID}:${DISH_ID}`
+            ]);
+          });
+
+          test("an explicit retry identity remains fail closed and never schedules an empty public path", async () => {
+            const identity = revalidation.createPublicMutationRetryIdentity({
+              restaurantId: ` ${RESTAURANT_ID} `,
+              dishId: ` ${DISH_ID} `
+            });
+            const scheduled = [];
+            const retries = [];
+            const report = await revalidation.invalidateCommittedPublicMutation(identity, {
+              callbacks: {
+                revalidatePath(path) { scheduled.push(path); },
+                revalidateTag(tag) { scheduled.push(tag); }
+              },
+              invalidateAssetMetadata() { return 0; },
+              signalRetry(signal) { retries.push(signal); }
+            });
+
+            assert.equal(report.identityUnavailable, true);
+            assert.deepEqual(scheduled, []);
+            assert.deepEqual(retries, [{
+              kind: "menu-revalidation-retry-required",
+              restaurantId: RESTAURANT_ID,
+              dishId: DISH_ID
+            }]);
+          });
+
+          test.after(() => {
+            delete globalThis[nextCacheHooksSymbol];
+          });
+          TEST
+
+          set +e
+          node --test tests/admin-menu-mutation-retry-identity.test.mjs > "$RUNNER_TEMP/red.log" 2>&1
+          red_status=$?
+          set -e
+          cat "$RUNNER_TEMP/red.log"
+          if [[ "$red_status" -eq 0 ]]; then
+            echo "::error::Regression test unexpectedly passed before the production fix."
+            exit 1
+          fi
+          if ! grep -Eq "createPublicMutationRetryIdentity|retryOnly|identityUnavailable|not a function" "$RUNNER_TEMP/red.log"; then
+            echo "::error::Regression test failed for an unrelated reason."
+            exit 1
+          fi
+
+      - name: Apply minimal reviewed fix
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+
+          def replace(path, old, new, count=1):
+              file = Path(path)
+              source = file.read_text(encoding="utf-8")
+              actual = source.count(old)
+              if actual < count:
+                  raise SystemExit(f"{path}: expected at least {count} occurrence(s), found {actual}")
+              source = source.replace(old, new, count)
+              file.write_text(source, encoding="utf-8")
+
+          path = "lib/owner/menuMutationRevalidation.ts"
+          replace(
+              path,
+              '''  dishSlug: string;
+  dishId?: string;
+}>;''',
+              '''  dishSlug: string;
+  dishId?: string;
+  retryOnly?: true;
+}>;'''
+          )
+          replace(
+              path,
+              '''export type PublicMutationInvalidationReport = Readonly<{
+  attempted: number;
+  queuedCallReturned: number;
+  enqueueErrors: readonly PublicMutationSchedulingError[];
+}>;''',
+              '''export type PublicMutationInvalidationReport = Readonly<{
+  attempted: number;
+  queuedCallReturned: number;
+  enqueueErrors: readonly PublicMutationSchedulingError[];
+  identityUnavailable?: true;
+}>;'''
+          )
+          replace(
+              path,
+              '''export async function resolvePublicMutationIdentity(args: {
+  client: SupabaseClient;
+  restaurantId: string;
+  dishId?: string;
+  dishSlug?: string;
+}): Promise<PublicMutationIdentity | null> {
+  const restaurantId = args.restaurantId.trim();
+  if (!restaurantId) return null;
+''',
+              '''export function createPublicMutationRetryIdentity(args: {
+  restaurantId: string;
+  dishId?: string;
+  dishSlug?: string;
+}): PublicMutationIdentity | null {
+  const restaurantId = args.restaurantId.trim();
+  if (!restaurantId) return null;
+  const dishId = args.dishId?.trim() ?? "";
+  return Object.freeze({
+    restaurantId,
+    restaurantSlug: "",
+    restaurantKey: "",
+    featuredExperienceId: null,
+    dishSlug: slugifyRestaurantSlug(args.dishSlug ?? ""),
+    ...(dishId ? { dishId } : {}),
+    retryOnly: true
+  });
+}
+
+export async function resolvePublicMutationIdentity(args: {
+  client: SupabaseClient;
+  restaurantId: string;
+  dishId?: string;
+  dishSlug?: string;
+}): Promise<PublicMutationIdentity | null> {
+  const fallbackIdentity = createPublicMutationRetryIdentity(args);
+  if (!fallbackIdentity) return null;
+  const restaurantId = fallbackIdentity.restaurantId;
+'''
+          )
+          replace(
+              path,
+              '''  } catch {
+    return null;
+  }
+  if (restaurant.error || !restaurant.data) return null;
+''',
+              '''  } catch {
+    return fallbackIdentity;
+  }
+  if (restaurant.error || !restaurant.data) return fallbackIdentity;
+'''
+          )
+          replace(
+              path,
+              '''  if (!restaurantSlug) return null;
+''',
+              '''  if (!restaurantSlug) return fallbackIdentity;
+'''
+          )
+          replace(
+              path,
+              '''  if (!identity) {
+    return Object.freeze({
+      attempted: 0,
+      queuedCallReturned: 0,
+      enqueueErrors: Object.freeze([])
+    });
+  }
+''',
+              '''  if (!identity) {
+    return Object.freeze({
+      attempted: 0,
+      queuedCallReturned: 0,
+      enqueueErrors: Object.freeze([]),
+      identityUnavailable: true
+    });
+  }
+'''
+          )
+          replace(
+              path,
+              '''  } catch {
+    assetMetadataFailed = true;
+  }
+
+  const scheduleTag = options.callbacks?.revalidateTag ?? revalidateTag;
+''',
+              '''  } catch {
+    assetMetadataFailed = true;
+  }
+
+  if (identity.retryOnly === true || !identity.restaurantSlug) {
+    if (options.emitRetrySignal !== false) {
+      await emitMenuMutationRetrySignal(
+        retrySignal(identity),
+        options.signalRetry
+      );
+    }
+    return Object.freeze({
+      attempted: 0,
+      queuedCallReturned: 0,
+      enqueueErrors: Object.freeze([]),
+      identityUnavailable: true
+    });
+  }
+
+  const scheduleTag = options.callbacks?.revalidateTag ?? revalidateTag;
+'''
+          )
+          replace(
+              path,
+              '''  const identity = await resolvePublicMutationIdentity(args);
+  if (!identity) {
+''',
+              '''  const identity = await resolvePublicMutationIdentity(args);
+  if (!identity || identity.retryOnly === true || !identity.restaurantSlug) {
+'''
+          )
+
+          path = "lib/owner/restaurantStatus.ts"
+          replace(
+              path,
+              '''import type { PublicMutationIdentity } from "./menuMutationRevalidation.ts";''',
+              '''import {
+  createPublicMutationRetryIdentity,
+  type PublicMutationIdentity
+} from "./menuMutationRevalidation.ts";'''
+          )
+          replace(
+              path,
+              '''    if (!restaurantSlug) {
+      await invalidate(null);
+      return;
+    }
+''',
+              '''    if (!restaurantSlug) {
+      await invalidate(
+        createPublicMutationRetryIdentity({ restaurantId: commit.restaurantId })
+      );
+      return;
+    }
+'''
+          )
+
+          for path in [
+              "app/api/owner/menu-ui-config/route.ts",
+              "app/api/owner/restaurants/[restaurantId]/menu-translations/route.ts",
+              "app/api/owner/unique-menu-design/route.ts",
+          ]:
+              replace(
+                  path,
+                  '''import {
+  invalidateCommittedPublicMutation,
+  resolvePublicMutationIdentity
+} from "@/lib/owner/menuMutationRevalidation";''',
+                  '''import {
+  createPublicMutationRetryIdentity,
+  invalidateCommittedPublicMutation,
+  resolvePublicMutationIdentity
+} from "@/lib/owner/menuMutationRevalidation";'''
+              )
+
+          replace(
+              "app/api/owner/menu-ui-config/route.ts",
+              '''  const mutationIdentity =
+    (action === "publish" || action === "rollback") && admin.ok
+      ? await resolvePublicMutationIdentity({
+          client: admin.client,
+          restaurantId
+        })
+      : null;''',
+              '''  const mutationIdentity =
+    action === "publish" || action === "rollback"
+      ? admin.ok
+        ? await resolvePublicMutationIdentity({
+            client: admin.client,
+            restaurantId
+          })
+        : createPublicMutationRetryIdentity({ restaurantId })
+      : null;'''
+          )
+          replace(
+              "app/api/owner/restaurants/[restaurantId]/menu-translations/route.ts",
+              '''  const mutationIdentity = admin.ok
+    ? await resolvePublicMutationIdentity({
+        client: admin.client,
+        restaurantId
+      })
+    : null;''',
+              '''  const mutationIdentity = admin.ok
+    ? await resolvePublicMutationIdentity({
+        client: admin.client,
+        restaurantId
+      })
+    : createPublicMutationRetryIdentity({ restaurantId });'''
+          )
+          replace(
+              "app/api/owner/unique-menu-design/route.ts",
+              '''  const mutationIdentity = admin.ok
+    ? await resolvePublicMutationIdentity({
+        client: admin.client,
+        restaurantId
+      })
+    : null;''',
+              '''  const mutationIdentity = admin.ok
+    ? await resolvePublicMutationIdentity({
+        client: admin.client,
+        restaurantId
+      })
+    : createPublicMutationRetryIdentity({ restaurantId });'''
+          )
+          PY
+          git diff --check
+          git diff --stat
+
+      - name: Verify GREEN and focused regressions
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --test tests/admin-menu-mutation-retry-identity.test.mjs
+          node --test \
+            tests/menu-mutation-cache-invalidation.test.mjs \
+            tests/menu-content-route-invalidation.test.mjs \
+            tests/restaurant-lifecycle-route-invalidation.test.mjs
+          npm run test:admin
+          npm run typecheck
+          npm run lint
+          git diff --check
+
+      - name: Remove temporary workflow and push reviewed fix
+        shell: bash
+        run: |
+          set -euo pipefail
+          git rm .github/workflows/fix-review-missing-mutation-identity.yml
+          git add \
+            lib/owner/menuMutationRevalidation.ts \
+            lib/owner/restaurantStatus.ts \
+            app/api/owner/menu-ui-config/route.ts \
+            'app/api/owner/restaurants/[restaurantId]/menu-translations/route.ts' \
+            app/api/owner/unique-menu-design/route.ts \
+            tests/admin-menu-mutation-retry-identity.test.mjs
+          git diff --cached --check
+          git config user.name "Marc Saad-Hadidi"
+          git config user.email "246904446+MarcSaad-Hadidi@users.noreply.github.com"
+          git commit -m "fix(cache): fail closed when mutation identity lookup is unavailable"
+          git push origin HEAD:perf/vistaire-final-free-tier-optimization
