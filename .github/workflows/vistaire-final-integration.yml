@@ -1,4 +1,4 @@
-name: Vistaire final integration probe
+name: Vistaire final integration
 
 on:
   push:
@@ -6,32 +6,60 @@ on:
       - perf/vistaire-final-free-tier-optimization
     paths:
       - .github/workflows/vistaire-final-integration.yml
-  pull_request:
-    branches:
-      - main
-    types: [opened, synchronize, reopened]
-    paths:
-      - .github/workflows/vistaire-final-integration.yml
+      - .github/integration-resolutions/**
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
-  group: vistaire-final-integration-probe-${{ github.event.pull_request.number || github.ref }}
+  group: vistaire-final-integration
   cancel-in-progress: true
 
+env:
+  NODE_VERSION: 24
+  CI: true
+  PGDATABASE: vistaire_media_capacity_ci
+  PGHOST: 127.0.0.1
+  PGPASSWORD: vistaire_media_capacity_ci_password
+  PGPORT: "5432"
+  PGUSER: postgres
+  VISTAIRE_MEDIA_CAPACITY_POSTGRES_TEST: "1"
+
 jobs:
-  merge-probe:
+  integrate-and-validate:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 45
+    services:
+      postgres:
+        image: postgres:17.10@sha256:a426e44bac0b759c95894d68e1a0ac03ecc20b619f498a91aae373bf06d8508d
+        env:
+          POSTGRES_DB: vistaire_media_capacity_ci
+          POSTGRES_PASSWORD: vistaire_media_capacity_ci_password
+          POSTGRES_USER: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d vistaire_media_capacity_ci"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
     steps:
       - name: Checkout integration branch
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
+          ref: perf/vistaire-final-free-tier-optimization
           fetch-depth: 0
+          lfs: false
+          persist-credentials: true
 
-      - name: Probe merge of PR 211 then PR 209
-        id: probe
+      - name: Setup Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - name: Merge approved source branches
         shell: bash
         run: |
           set -euo pipefail
@@ -42,6 +70,10 @@ jobs:
             perf/vercel-fluid-cpu-static-public \
             perf/supabase-efficiency-v2
 
+          test "$(git rev-parse origin/main)" = "fddf75c41ebc96c0f71295d5cc074277c0c2fba2"
+          test "$(git rev-parse origin/perf/vercel-fluid-cpu-static-public)" = "70604251a3b35b63fd7673325e718d96d73ea4f8"
+          test "$(git rev-parse origin/perf/supabase-efficiency-v2)" = "7433dd52ca184c4d8dbb086db19e2193d62f8fe5"
+
           git merge --no-ff --no-edit origin/perf/vercel-fluid-cpu-static-public \
             -m "merge: integrate Vercel static public optimization"
 
@@ -50,38 +82,119 @@ jobs:
             -m "merge: integrate Supabase media efficiency"
           merge_status=$?
           set -e
-          echo "merge_status=${merge_status}" >> "$GITHUB_OUTPUT"
 
-          mkdir -p integration-conflicts
-          git diff --name-only --diff-filter=U > integration-conflicts/conflicts.txt
+          if [ "$merge_status" -ne 0 ]; then
+            mapfile -t conflicts < <(git diff --name-only --diff-filter=U)
+            test "${#conflicts[@]}" -eq 16
+          fi
 
-          index=0
-          while IFS= read -r -d '' path; do
-            index=$((index + 1))
-            directory="integration-conflicts/$(printf '%03d' "$index")"
-            mkdir -p "$directory"
-            printf '%s\n' "$path" > "$directory/path.txt"
-            git show ":1:$path" > "$directory/base" 2>/dev/null || true
-            git show ":2:$path" > "$directory/pr211" 2>/dev/null || true
-            git show ":3:$path" > "$directory/pr209" 2>/dev/null || true
-            cp -- "$path" "$directory/conflicted"
-          done < <(git diff --name-only --diff-filter=U -z)
-
-          printf '%s\n' "$index" > integration-conflicts/count.txt
-          git status --short > integration-conflicts/status.txt
-          git diff --stat > integration-conflicts/diff-stat.txt || true
-          echo "Archived ${index} conflict sets."
-
-      - name: Upload conflict stages
-        if: always()
-        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
-        with:
-          name: vistaire-final-integration-conflicts
-          path: integration-conflicts
-          if-no-files-found: error
-          retention-days: 1
-
-      - name: Fail when conflicts remain
-        if: steps.probe.outputs.merge_status != '0'
+      - name: Verify and apply reviewed resolutions
         shell: bash
-        run: exit 1
+        run: |
+          set -euo pipefail
+          cat .github/integration-resolutions/part-*.txt > /tmp/vistaire-resolutions.b64
+          test "$(wc -c < /tmp/vistaire-resolutions.b64)" -eq 48340
+          echo "795c933b41cc186b2cab1c088fee8145d9ba3b446a59d7e916a22a877822159e  /tmp/vistaire-resolutions.b64" | sha256sum --check --strict
+          base64 --decode /tmp/vistaire-resolutions.b64 > /tmp/vistaire-resolutions.tar.gz
+          echo "2d6ac586112843ba10fe0c923c69295d87f66e9ca793deca3b01e5ccc4a7c979  /tmp/vistaire-resolutions.tar.gz" | sha256sum --check --strict
+
+          if tar -tzf /tmp/vistaire-resolutions.tar.gz | grep -E '(^/|(^|/)\.\.(/|$))'; then
+            echo "Unsafe path in resolution archive." >&2
+            exit 1
+          fi
+
+          tar -xzf /tmp/vistaire-resolutions.tar.gz -C .
+          rm -f manifest.txt
+
+          node --input-type=module - <<'NODE'
+          import fs from "node:fs";
+          const path = "package.json";
+          const pkg = JSON.parse(fs.readFileSync(path, "utf8"));
+          const testPath = "tests/supabase-usage-audit-safety.test.mjs";
+          const key = "test:supabase-efficiency-v2";
+          if (typeof pkg.scripts?.[key] !== "string") {
+            throw new Error(`${key} is missing after integration.`);
+          }
+          if (!pkg.scripts[key].includes(testPath)) {
+            pkg.scripts[key] = `${pkg.scripts[key]} ${testPath}`;
+          }
+          fs.writeFileSync(path, `${JSON.stringify(pkg, null, 2)}\n`);
+          NODE
+
+          rm -rf .github/integration-resolutions
+          rm -f .github/workflows/vistaire-final-integration.yml
+          git add -A
+
+          if git diff --name-only --diff-filter=U | grep -q .; then
+            echo "Unresolved merge conflicts remain:" >&2
+            git diff --name-only --diff-filter=U >&2
+            exit 1
+          fi
+
+          if git grep -nE '^(<<<<<<< |>>>>>>> )' -- '*.ts' '*.tsx' '*.mjs' '*.js' '*.json' '*.yml' '*.yaml'; then
+            echo "Conflict markers remain." >&2
+            exit 1
+          fi
+
+          git diff --cached --check
+          git status --short
+          git diff --cached --stat
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Repository asset guards
+        run: |
+          npm run assets:check
+          npm run lfs:check
+
+      - name: Supabase efficiency and media contracts
+        run: |
+          npm run test:supabase-efficiency-v2
+          npm run test:media-capacity:postgres
+          npm run test:maison-elyse-media
+
+      - name: Cache and post-commit invalidation contracts
+        run: |
+          node --test \
+            tests/menu-mutation-cache-invalidation.test.mjs \
+            tests/menu-content-commit-invalidation.test.mjs \
+            tests/menu-content-route-invalidation.test.mjs \
+            tests/public-model-library-commit-invalidation.test.mjs \
+            tests/public-model-route-invalidation.test.mjs \
+            tests/landing-menu-cache-contract.test.mjs \
+            tests/public-menu-cache-contract.test.mjs \
+            tests/supabase-usage-audit-safety.test.mjs
+
+      - name: Landing and public-menu regressions
+        run: |
+          npm run test:landing:contract
+          npm run test:landing:i18n
+          npm run test:landing:fixture-i18n
+          npm run test:unique-menu-design
+
+      - name: TypeScript and lint
+        run: |
+          npm run typecheck
+          npm run lint
+
+      - name: Commit integrated result
+        shell: bash
+        run: |
+          set -euo pipefail
+          git diff --cached --check
+          git commit -m "perf: finalize Vistaire free-tier, cache and media efficiency"
+          git push origin HEAD:perf/vistaire-final-free-tier-optimization
+
+      - name: Publish integration summary
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo "## Vistaire final integration"
+            echo "- Base: fddf75c41ebc96c0f71295d5cc074277c0c2fba2"
+            echo "- PR #211 head: 70604251a3b35b63fd7673325e718d96d73ea4f8"
+            echo "- PR #209 head: 7433dd52ca184c4d8dbb086db19e2193d62f8fe5"
+            echo "- Durable cross-request public-menu cache remains disabled."
+            echo "- No migration, backfill, Storage mutation, production deployment or merge to main was performed."
+          } >> "$GITHUB_STEP_SUMMARY"
