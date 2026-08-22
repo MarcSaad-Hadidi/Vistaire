@@ -58,6 +58,24 @@ replaceExactly(
   "export class PublicCacheSafetyError extends Error {\n  readonly path: string;\n  readonly reason: PublicCacheSafetyReason;\n\n  constructor(path: string, reason: PublicCacheSafetyReason) {\n    super(`Public cache candidate rejected at ${path} (${reason}).`);\n    this.name = \"PublicCacheSafetyError\";\n    this.path = path;\n    this.reason = reason;\n  }\n}"
 );
 
+replaceExactly(
+  "lib/landing/menuExperiences.ts",
+  '  imageSource: "imageUrl" | "thumbnailUrl" | "posterUrl" | "fallback" | "unavailable";',
+  '  imageSource: "imageUrl" | "thumbnailUrl" | "cardUrl" | "posterUrl" | "fallback" | "unavailable";'
+);
+
+for (const path of [
+  "lib/owner/restaurantMeshyPipeline.ts",
+  "lib/owner/usdzRuntimeJsonFlow.ts",
+  "lib/owner/viewerGlbUpload.ts"
+]) {
+  replaceExactly(
+    path,
+    "    skippedUnsafePrefix: [],\n    skippedMissingPath: [],\n    errors: [",
+    "    skippedUnsafePrefix: [],\n    skippedMissingPath: [],\n    skippedConcurrentReuseRisk: [],\n    errors: ["
+  );
+}
+
 for (const path of [
   "tests/landing-menu-cache-contract.test.mjs",
   "tests/menu-mutation-cache-invalidation.test.mjs",
