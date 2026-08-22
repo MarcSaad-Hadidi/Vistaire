@@ -44,6 +44,12 @@ replaceExactly(
 );
 
 replaceExactly(
+  "lib/cache/publicCacheSafety.ts",
+  "export class PublicCacheSafetyError extends Error {\n  constructor(\n    readonly path: string,\n    readonly reason: PublicCacheSafetyReason\n  ) {\n    super(`Public cache candidate rejected at ${path} (${reason}).`);\n    this.name = \"PublicCacheSafetyError\";\n  }\n}",
+  "export class PublicCacheSafetyError extends Error {\n  readonly path: string;\n  readonly reason: PublicCacheSafetyReason;\n\n  constructor(path: string, reason: PublicCacheSafetyReason) {\n    super(`Public cache candidate rejected at ${path} (${reason}).`);\n    this.name = \"PublicCacheSafetyError\";\n    this.path = path;\n    this.reason = reason;\n  }\n}"
+);
+
+replaceExactly(
   "tests/helpers/owner-photo-route-runtime.mjs",
   `      "owner-photo-test:revalidation": \`
         export const revalidateOwnerMenuMutationPaths = async () => { globalThis.__OWNER_PHOTO_TEST__.events.push("revalidate"); };
