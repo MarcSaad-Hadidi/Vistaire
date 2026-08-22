@@ -98,7 +98,7 @@ jobs:
           echo "795c933b41cc186b2cab1c088fee8145d9ba3b446a59d7e916a22a877822159e  /tmp/vistaire-resolutions.b64" | sha256sum --check --strict
           base64 --decode /tmp/vistaire-resolutions.b64 > /tmp/vistaire-resolutions.tar.gz
           echo "2d6ac586112843ba10fe0c923c69295d87f66e9ca793deca3b01e5ccc4a7c979  /tmp/vistaire-resolutions.tar.gz" | sha256sum --check --strict
-          test "$(git hash-object .github/integration-resolutions/integration-postpatch.mjs)" = "ee0f106d8f4867aba7f7812668747720a0b0865c"
+          test "$(git hash-object .github/integration-resolutions/integration-postpatch.mjs)" = "60c473d5c904bffe502ffdf3639e79925d662817"
           test "$(git hash-object .github/integration-resolutions/integration-testpatch.mjs)" = "91bebc83dc6d15698a47178b3dba67adc13f8e80"
 
           if tar -tzf /tmp/vistaire-resolutions.tar.gz | grep -E '(^/|(^|/)\.\.(/|$))'; then
