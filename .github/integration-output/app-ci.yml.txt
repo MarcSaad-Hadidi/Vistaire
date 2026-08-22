@@ -1,0 +1,796 @@
+name: App CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  merge_group:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: Validation scope (targeted is the normal PR mode)
+        required: true
+        default: targeted
+        type: choice
+        options: [targeted, full, sauge, database, admin_qr, landing, seo]
+  workflow_call:
+    inputs:
+      target:
+        required: false
+        default: full
+        type: string
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: vistaire-ci-${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  NODE_VERSION: 24
+  CI: true
+
+jobs:
+  classify-changes:
+    name: classify-changes
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      docs_only: ${{ steps.classify.outputs.docs_only }}
+      ci_infrastructure: ${{ steps.classify.outputs.ci_infrastructure }}
+      dependencies: ${{ steps.classify.outputs.dependencies }}
+      assets: ${{ steps.classify.outputs.assets }}
+      core: ${{ steps.classify.outputs.core }}
+      public_navigation: ${{ steps.classify.outputs.public_navigation }}
+      database: ${{ steps.classify.outputs.database }}
+      translations: ${{ steps.classify.outputs.translations }}
+      landing: ${{ steps.classify.outputs.landing }}
+      seo: ${{ steps.classify.outputs.seo }}
+      menu_shared: ${{ steps.classify.outputs.menu_shared }}
+      sauge_renderer: ${{ steps.classify.outputs.sauge_renderer }}
+      pageflip_gestures: ${{ steps.classify.outputs.pageflip_gestures }}
+      admin: ${{ steps.classify.outputs.admin }}
+      qr: ${{ steps.classify.outputs.qr }}
+      full_ci: ${{ steps.classify.outputs.full_ci }}
+      run_static: ${{ steps.classify.outputs.run_static }}
+      run_database: ${{ steps.classify.outputs.run_database }}
+      run_build: ${{ steps.classify.outputs.run_build }}
+      run_core: ${{ steps.classify.outputs.run_core }}
+      run_landing: ${{ steps.classify.outputs.run_landing }}
+      run_menu: ${{ steps.classify.outputs.run_menu }}
+      run_sauge: ${{ steps.classify.outputs.run_sauge }}
+      run_admin_qr: ${{ steps.classify.outputs.run_admin_qr }}
+      run_seo: ${{ steps.classify.outputs.run_seo }}
+      run_webkit: ${{ steps.classify.outputs.run_webkit }}
+      classification_valid: ${{ steps.classify.outputs.classification_valid }}
+      event: ${{ steps.classify.outputs.event }}
+      changed_files: ${{ steps.classify.outputs.changed_files }}
+      categories: ${{ steps.classify.outputs.categories }}
+      reason: ${{ steps.classify.outputs.reason }}
+      merge_base_depth: ${{ steps.graph.outputs.merge_base_depth }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 1
+          lfs: false
+          persist-credentials: false
+      - name: Fetch minimal PR graph for merge-base
+        id: graph
+        if: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository }}
+        env:
+          GITHUB_EVENT_NAME: ${{ github.event_name }}
+          GITHUB_EVENT_PATH: ${{ github.event_path }}
+        run: node scripts/ci/fetch-pr-graph.mjs
+      - name: Classify changed files (fail closed)
+        id: classify
+        env:
+          VISTAIRE_CI_TARGET: ${{ inputs.target || github.event.inputs.target || 'targeted' }}
+          VISTAIRE_CI_EVENT: ${{ github.event_name }}
+          VISTAIRE_CI_REF: ${{ github.ref }}
+        run: node scripts/ci/detect-changes.mjs
+      - name: Validate classifier outputs
+        env:
+          OUTPUTS_JSON: ${{ toJSON(steps.classify.outputs) }}
+        run: |
+          node --input-type=module - <<'NODE'
+          const outputs = JSON.parse(process.env.OUTPUTS_JSON);
+          const outputNames = ['docs_only','ci_infrastructure','dependencies','assets','core','public_navigation','database','translations','landing','seo','menu_shared','sauge_renderer','pageflip_gestures','admin','qr','full_ci','run_static','run_database','run_build','run_core','run_landing','run_menu','run_sauge','run_admin_qr','run_seo','run_webkit','classification_valid'];
+          for (const key of outputNames) {
+            if (!['true','false'].includes(outputs[key])) throw new Error(`classifier output ${key} is invalid`);
+          }
+          if (!outputs.event || !outputs.categories || !outputs.reason) throw new Error('classifier metadata is incomplete');
+          NODE
+      - name: Test classifier contract
+        run: node --test tests/ci-change-detection.test.mjs
+      - name: Publish classification summary
+        env:
+          CLASSIFY_EVENT: ${{ steps.classify.outputs.event }}
+          CLASSIFY_CATEGORIES: ${{ steps.classify.outputs.categories }}
+          CLASSIFY_FULL: ${{ steps.classify.outputs.full_ci }}
+          CLASSIFY_REASON: ${{ steps.classify.outputs.reason }}
+          CLASSIFY_CHANGED_FILES: ${{ steps.classify.outputs.changed_files }}
+        run: |
+          {
+            printf '%s\n' '## Change classification'
+            printf '%s\n' "- Event: ${CLASSIFY_EVENT}"
+            printf '%s\n' "- Categories: ${CLASSIFY_CATEGORIES}"
+            printf '%s\n' "- Full CI: ${CLASSIFY_FULL}"
+            printf '%s\n' "- Reason: ${CLASSIFY_REASON}"
+            printf '%s\n' "- Changed files: ${CLASSIFY_CHANGED_FILES}"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  fast-gate:
+    name: fast-gate
+    needs: classify-changes
+    if: ${{ !cancelled() && needs.classify-changes.result == 'success' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 1
+          lfs: false
+          persist-credentials: false
+      - name: Validate CI policy without installing dependencies
+        run: |
+          node --check scripts/ci/detect-changes.mjs
+          node --check scripts/ci/fetch-pr-graph.mjs
+          node --check scripts/ci/collect-metrics.mjs
+          node --check scripts/ci/aggregate-test-reports.mjs
+          node --check scripts/run-playwright-e2e.mjs
+          node --test tests/ci-change-detection.test.mjs tests/ci-workflow-contract.test.mjs tests/preview-workflow-contract.test.mjs tests/workflow-security-contract.test.mjs
+          node --test tests/restaurateur-preview-ci-contract.test.mjs
+      - name: Publish fast-gate summary
+        if: ${{ always() }}
+        env:
+          CATEGORIES: ${{ needs.classify-changes.outputs.categories }}
+          REASON: ${{ needs.classify-changes.outputs.reason }}
+        run: |
+          {
+            echo '## fast-gate'
+            echo "- Categories: \`${CATEGORIES}\`"
+            echo "- Reason: ${REASON}"
+            echo '- No npm install or browser setup is performed here.'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  static-quality:
+    name: static-quality
+    needs: classify-changes
+    if: ${{ !cancelled() && needs.classify-changes.outputs.run_static == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          lfs: false
+          persist-credentials: false
+      - name: Setup Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Repository and static checks
+        run: |
+          npm run lint
+          npm run typecheck
+          npm run test:unique-menu-design
+          npm run test:qr:node
+          npm run test:admin
+          npm run test:maison-elyse-media
+          npm run test:supabase-efficiency-v2
+      - name: Deterministic Node contracts
+        run: |
+          npm run test:landing:contract
+          npm run test:landing:i18n
+          npm run test:landing:fixture-i18n
+          npm run test:landing:keyboard
+          npm run test:translation:backfill
+          npm run test:seo
+          npm run test:restaurateur-preview:node
+      - name: Job summary
+        if: ${{ always() }}
+        env:
+          CATEGORIES: ${{ needs.classify-changes.outputs.categories }}
+          REASON: ${{ needs.classify-changes.outputs.reason }}
+        run: |
+          {
+            echo "## static-quality"
+            echo "- Categories: \`${CATEGORIES}\`"
+            echo "- Reason: ${REASON}"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  database-contracts:
+    name: database-contracts
+    needs: classify-changes
+    if: ${{ !cancelled() && needs.classify-changes.outputs.run_database == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        # postgres:17.10 multi-platform index digest verified 2026-08-03.
+        image: postgres:17.10@sha256:a426e44bac0b759c95894d68e1a0ac03ecc20b619f498a91aae373bf06d8508d
+        env:
+          POSTGRES_DB: vistaire_qr_ci
+          POSTGRES_PASSWORD: vistaire_qr_ci_password
+          POSTGRES_USER: postgres
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres -d vistaire_qr_ci"
+          --health-interval 10s --health-timeout 5s --health-retries 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          lfs: false
+          persist-credentials: false
+      - name: Setup Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: PostgreSQL contracts
+        env:
+          PGDATABASE: vistaire_qr_ci
+          PGHOST: 127.0.0.1
+          PGPASSWORD: vistaire_qr_ci_password
+          PGPORT: '5432'
+          PGUSER: postgres
+        run: |
+          npm run test:unique-menu-design:postgres
+          npm run test:translation:backfill:postgres
+          npm run test:maison-elyse-postgres
+          npm run test:qr:postgres
+          npm run test:media-capacity:postgres
+      - name: Job summary
+        if: ${{ always() }}
+        env:
+          CATEGORIES: ${{ needs.classify-changes.outputs.categories }}
+        run: |
+          echo "## database-contracts" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Categories: \`${CATEGORIES}\`" >> "$GITHUB_STEP_SUMMARY"
+
+  build-app:
+    name: build-app
+    needs: classify-changes
+    if: ${{ !cancelled() && needs.classify-changes.outputs.run_build == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    # Next replaces NEXT_PUBLIC_* values in the server bundle at build time.
+    # Use the hermetic fixture endpoint so production E2E jobs and the single
+    # uploaded .next artifact resolve the same deterministic menu dataset.
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: http://127.0.0.1:55434
+      SUPABASE_SERVICE_ROLE_KEY: sauge-noire-fixture-service-role-key
+      NEXT_PUBLIC_DEMO_RESTAURANT_ID: 11111111-1111-4111-8111-111111111112
+      VISTAIRE_EXPECTED_SUPABASE_PROJECT_REF: ""
+      VISTAIRE_EXCHANGE_RATES_FIXTURE_JSON: '{"CAD":1,"USD":0.72,"EUR":0.6225}'
+      VISTAIRE_OWNER_EMAILS: synthetic-owner-email@example.test
+      VISTAIRE_ADMIN_SESSION_SECRET: synthetic-session-cookie
+      VISTAIRE_PUBLIC_ARTIFACT_SENTINELS: '["sauge-noire-fixture-service-role-key","synthetic-owner-email@example.test","synthetic-session-cookie"]'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          lfs: false
+          persist-credentials: false
+      - name: Setup Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Build Next.js once against the hermetic fixture
+        run: |
+          node e2e/support/sauge-noire-fixture-server.mjs > "$RUNNER_TEMP/sauge-fixture.log" 2>&1 &
+          fixture_pid=$!
+          trap 'kill "$fixture_pid" 2>/dev/null || true' EXIT
+          for _ in $(seq 1 30); do
+            if curl --fail --silent http://127.0.0.1:55434/fixture/health > /dev/null; then
+              break
+            fi
+            sleep 1
+          done
+          curl --fail --silent http://127.0.0.1:55434/fixture/health > /dev/null
+          node scripts/ci/check-static-public-import-boundary.mjs
+          npm run build
+          node scripts/ci/check-static-public-routes.mjs
+          node scripts/ci/check-public-prerender-artifacts.mjs
+      - name: Upload verified Next.js build
+        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
+        with:
+          name: next-build-${{ github.run_id }}
+          path: .next
+          if-no-files-found: error
+          retention-days: 1
+          include-hidden-files: true
+      - name: Job summary
+        if: ${{ always() }}
+        run: |
+          echo '## build-app' >> "$GITHUB_STEP_SUMMARY"
+          { du -sh .next 2>/dev/null || true; } >> "$GITHUB_STEP_SUMMARY"
+
+  e2e-public-chromium:
+    name: e2e-public-chromium
+    needs: [classify-changes, fast-gate, static-quality, build-app]
+    if: >-
+      !cancelled() && needs.classify-changes.result == 'success' &&
+      needs.fast-gate.result == 'success' && needs.static-quality.result == 'success' &&
+      needs.build-app.result == 'success' &&
+      (needs.classify-changes.outputs.run_core == 'true' ||
+      needs.classify-changes.outputs.run_landing == 'true' ||
+      needs.classify-changes.outputs.run_menu == 'true' ||
+      needs.classify-changes.outputs.run_seo == 'true')
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    outputs:
+      test_report: ${{ steps.publish-test-report.outputs.report }}
+    env:
+      CI_TEST_REPORT_PATH: ${{ github.workspace }}/.ci-test-report-e2e-public-chromium.json
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          lfs: false
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - run: npm ci
+      - name: Install Chromium once for public suites
+        run: npx --no-install playwright install --with-deps chromium
+      - name: Download verified Next.js build
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: next-build-${{ github.run_id }}
+          path: .next
+      - name: Core browser smoke
+        if: ${{ !cancelled() && needs.classify-changes.outputs.run_core == 'true' }}
+        env:
+          CI_TEST_REPORT_PATH: ${{ github.workspace }}/.ci-test-report-core.json
+        run: npm run test:ci:e2e:core
+      - name: Landing browser smoke
+        if: ${{ !cancelled() && needs.classify-changes.outputs.run_landing == 'true' }}
+        env:
+          CI_TEST_REPORT_PATH: ${{ github.workspace }}/.ci-test-report-landing.json
+        run: npm run test:ci:e2e:landing
+      - name: Shared menu browser smoke
+        if: ${{ !cancelled() && needs.classify-changes.outputs.run_menu == 'true' }}
+        env:
+          CI_TEST_REPORT_PATH: ${{ github.workspace }}/.ci-test-report-menu.json
+        run: npm run test:ci:e2e:menu
+      - name: SEO browser smoke
+        if: ${{ !cancelled() && needs.classify-changes.outputs.run_seo == 'true' }}
+        env:
+          CI_TEST_REPORT_PATH: ${{ github.workspace }}/.ci-test-report-seo.json
+        run: npm run test:seo:e2e
+      - name: Publish structured test report
+        id: publish-test-report
+        if: ${{ always() }}
+        shell: bash
+        env:
+          RUN_CORE: ${{ needs.classify-changes.outputs.run_core }}
+          RUN_LANDING: ${{ needs.classify-changes.outputs.run_landing }}
+          RUN_MENU: ${{ needs.classify-changes.outputs.run_menu }}
+          RUN_SEO: ${{ needs.classify-changes.outputs.run_seo }}
+        run: |
+          paths=()
+          [[ "$RUN_CORE" == true ]] && paths+=("$GITHUB_WORKSPACE/.ci-test-report-core.json")
+          [[ "$RUN_LANDING" == true ]] && paths+=("$GITHUB_WORKSPACE/.ci-test-report-landing.json")
+          [[ "$RUN_MENU" == true ]] && paths+=("$GITHUB_WORKSPACE/.ci-test-report-menu.json")
+          [[ "$RUN_SEO" == true ]] && paths+=("$GITHUB_WORKSPACE/.ci-test-report-seo.json")
+          if [[ "${#paths[@]}" -eq 0 ]]; then
+            echo '::error::Public Chromium job had no selected browser family.'
+            exit 1
+          fi
+          CI_TEST_REPORT_PATHS="$(IFS=,; echo "${paths[*]}")" node scripts/ci/aggregate-test-reports.mjs
+          if [[ ! -s "$CI_TEST_REPORT_PATH" ]]; then
+            echo '::error::Public Chromium suites did not publish a structured test report.'
+            echo 'report=' >> "$GITHUB_OUTPUT"
+            exit 1
+          fi
+          report="$(tr -d '\n' < "$CI_TEST_REPORT_PATH")"
+          echo "report=$report" >> "$GITHUB_OUTPUT"
+      - name: Upload browser diagnostics
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
+        with:
+          name: e2e-public-chromium-failure-${{ github.run_id }}
+          path: |
+            test-results/
+            playwright-report/
+          if-no-files-found: ignore
+          retention-days: 7
+      - name: Job summary
+        if: ${{ always() }}
+        env:
+          CATEGORIES: ${{ needs.classify-changes.outputs.categories }}
+        run: |
+          echo '## e2e-public-chromium' >> "$GITHUB_STEP_SUMMARY"
+          echo "- Categories: \`${CATEGORIES}\`" >> "$GITHUB_STEP_SUMMARY"
+
+  e2e-sauge-chromium:
+    name: e2e-sauge-chromium
+    needs: [classify-changes, fast-gate, static-quality, build-app]
+    if: ${{ !cancelled() && needs.classify-changes.result == 'success' && needs.fast-gate.result == 'success' && needs.static-quality.result == 'success' && needs.build-app.result == 'success' && needs.classify-changes.outputs.run_sauge == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    outputs:
+      test_report: ${{ steps.publish-test-report.outputs.report }}
+    env:
+      CI_TEST_REPORT_PATH: ${{ github.workspace }}/.ci-test-report-e2e-sauge-chromium.json
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          lfs: false
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - run: npm ci
+      - name: Install Chromium once for Sauge
+        run: npx --no-install playwright install --with-deps chromium
+      - name: Download verified Next.js build
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: next-build-${{ github.run_id }}
+          path: .next
+      - name: Sauge deep browser suite
+        run: npm run test:ci:e2e:sauge
+      - name: Publish structured test report
+        id: publish-test-report
+        if: ${{ always() }}
+        shell: bash
+        run: |
+          if [[ ! -s "$CI_TEST_REPORT_PATH" ]]; then
+            echo '::error::Sauge Chromium suite did not publish a structured test report.'
+            echo 'report=' >> "$GITHUB_OUTPUT"
+            exit 1
+          fi
+          report="$(tr -d '\n' < "$CI_TEST_REPORT_PATH")"
+          echo "report=$report" >> "$GITHUB_OUTPUT"
+      - if: ${{ failure() }}
+        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
+        with:
+          name: e2e-sauge-chromium-failure-${{ github.run_id }}
+          path: |
+            test-results/
+            playwright-report/
+          if-no-files-found: ignore
+          retention-days: 7
+      - name: Job summary
+        if: ${{ always() }}
+        env:
+          CATEGORIES: ${{ needs.classify-changes.outputs.categories }}
+        run: |
+          echo '## e2e-sauge-chromium' >> "$GITHUB_STEP_SUMMARY"
+          echo "- Categories: \`${CATEGORIES}\`" >> "$GITHUB_STEP_SUMMARY"
+
+  e2e-admin-qr-chromium:
+    name: e2e-admin-qr-chromium
+    needs: [classify-changes, fast-gate, static-quality, build-app]
+    if: ${{ !cancelled() && needs.classify-changes.result == 'success' && needs.fast-gate.result == 'success' && needs.static-quality.result == 'success' && needs.build-app.result == 'success' && needs.classify-changes.outputs.run_admin_qr == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    outputs:
+      test_report: ${{ steps.publish-test-report.outputs.report }}
+    env:
+      CI_TEST_REPORT_PATH: ${{ github.workspace }}/.ci-test-report-e2e-admin-qr-chromium.json
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          lfs: false
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - run: npm ci
+      - name: Install Chromium once for Admin QR
+        run: npx --no-install playwright install --with-deps chromium
+      - name: Download verified Next.js build
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: next-build-${{ github.run_id }}
+          path: .next
+      - name: Admin QR browser suite
+        run: npm run test:qr:functional
+      - name: Admin dish image browser suite (Chromium)
+        env:
+          VISTAIRE_ADMIN_FULL_MENU_PROJECT: chromium
+        run: npm run test:admin:full-menu
+      - name: Publish structured test report
+        id: publish-test-report
+        if: ${{ always() }}
+        shell: bash
+        run: |
+          if [[ ! -s "$CI_TEST_REPORT_PATH" ]]; then
+            echo '::error::Admin QR Chromium suite did not publish a structured test report.'
+            echo 'report=' >> "$GITHUB_OUTPUT"
+            exit 1
+          fi
+          report="$(tr -d '\n' < "$CI_TEST_REPORT_PATH")"
+          echo "report=$report" >> "$GITHUB_OUTPUT"
+      - if: ${{ failure() }}
+        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
+        with:
+          name: e2e-admin-qr-chromium-failure-${{ github.run_id }}
+          path: |
+            test-results/
+            playwright-report/
+          if-no-files-found: ignore
+          retention-days: 7
+      - name: Job summary
+        if: ${{ always() }}
+        env:
+          CATEGORIES: ${{ needs.classify-changes.outputs.categories }}
+        run: |
+          echo '## e2e-admin-qr-chromium' >> "$GITHUB_STEP_SUMMARY"
+          echo "- Categories: \`${CATEGORIES}\`" >> "$GITHUB_STEP_SUMMARY"
+
+  webkit-critical:
+    name: webkit-critical
+    needs: [classify-changes, fast-gate, static-quality, build-app]
+    if: ${{ !cancelled() && needs.classify-changes.result == 'success' && needs.fast-gate.result == 'success' && needs.static-quality.result == 'success' && needs.build-app.result == 'success' && needs.classify-changes.outputs.run_webkit == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    outputs:
+      test_report: ${{ steps.publish-test-report.outputs.report }}
+    env:
+      CI_TEST_REPORT_PATH: ${{ github.workspace }}/.ci-test-report-webkit-critical.json
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          lfs: false
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - run: npm ci
+      - run: npx --no-install playwright install --with-deps webkit
+      - name: Download verified Next.js build
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: next-build-${{ github.run_id }}
+          path: .next
+      - run: |
+          npm run test:ci:e2e:webkit
+      - name: Admin dish image browser suite (WebKit)
+        if: ${{ needs.classify-changes.outputs.run_admin_qr == 'true' }}
+        env:
+          VISTAIRE_ADMIN_FULL_MENU_PROJECT: webkit
+        run: npm run test:admin:full-menu
+      - name: Publish structured test report
+        id: publish-test-report
+        if: ${{ always() }}
+        shell: bash
+        run: |
+          if [[ ! -s "$CI_TEST_REPORT_PATH" ]]; then
+            echo '::error::WebKit suite did not publish a structured test report.'
+            echo 'report=' >> "$GITHUB_OUTPUT"
+            exit 1
+          fi
+          report="$(tr -d '\n' < "$CI_TEST_REPORT_PATH")"
+          echo "report=$report" >> "$GITHUB_OUTPUT"
+      - if: ${{ failure() }}
+        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
+        with:
+          name: webkit-failure-${{ github.run_id }}
+          path: |
+            test-results/
+            playwright-report/
+          if-no-files-found: ignore
+          retention-days: 7
+      - name: Job summary
+        if: ${{ always() }}
+        env:
+          CATEGORIES: ${{ needs.classify-changes.outputs.categories }}
+        run: |
+          echo "## webkit-critical" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Categories: \`${CATEGORIES}\`" >> "$GITHUB_STEP_SUMMARY"
+
+  ci-gate:
+    name: CI Gate
+    if: ${{ always() }}
+    outputs:
+      root_failure: ${{ steps.diagnostics.outputs.root_failure }}
+    needs: [classify-changes, fast-gate, static-quality, database-contracts, build-app, e2e-public-chromium, e2e-sauge-chromium, e2e-admin-qr-chromium, webkit-critical]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Fail closed on missing or failed applicable jobs
+        env:
+          CLASSIFY: ${{ needs.classify-changes.result }}
+          CLASSIFY_FULL: ${{ needs.classify-changes.outputs.full_ci }}
+          CLASSIFICATION_VALID: ${{ needs.classify-changes.outputs.classification_valid }}
+          FAST_GATE: ${{ needs.fast-gate.result }}
+          STATIC: ${{ needs.static-quality.result }}
+          DATABASE: ${{ needs.database-contracts.result }}
+          BUILD: ${{ needs.build-app.result }}
+          PUBLIC_CHROMIUM: ${{ needs.e2e-public-chromium.result }}
+          SAUGE_CHROMIUM: ${{ needs.e2e-sauge-chromium.result }}
+          ADMIN_QR_CHROMIUM: ${{ needs.e2e-admin-qr-chromium.result }}
+          WEBKIT: ${{ needs.webkit-critical.result }}
+          EVENT: ${{ needs.classify-changes.outputs.event }}
+          RUN_STATIC: ${{ needs.classify-changes.outputs.run_static }}
+          RUN_DATABASE: ${{ needs.classify-changes.outputs.run_database }}
+          RUN_BUILD: ${{ needs.classify-changes.outputs.run_build }}
+          RUN_CORE: ${{ needs.classify-changes.outputs.run_core }}
+          RUN_LANDING: ${{ needs.classify-changes.outputs.run_landing }}
+          RUN_MENU: ${{ needs.classify-changes.outputs.run_menu }}
+          RUN_SAUGE: ${{ needs.classify-changes.outputs.run_sauge }}
+          RUN_ADMIN_QR: ${{ needs.classify-changes.outputs.run_admin_qr }}
+          RUN_SEO: ${{ needs.classify-changes.outputs.run_seo }}
+          RUN_WEBKIT: ${{ needs.classify-changes.outputs.run_webkit }}
+        run: |
+          set -euo pipefail
+          [[ "$CLASSIFY" == success ]] || { echo "classifier result: $CLASSIFY"; exit 1; }
+          [[ "$CLASSIFY_FULL" == true || "$CLASSIFY_FULL" == false ]] || { echo "invalid full_ci output"; exit 1; }
+          [[ "$CLASSIFICATION_VALID" == true ]] || { echo "invalid classifier policy output"; exit 1; }
+          for output in "$RUN_STATIC" "$RUN_DATABASE" "$RUN_BUILD" "$RUN_CORE" "$RUN_LANDING" "$RUN_MENU" "$RUN_SAUGE" "$RUN_ADMIN_QR" "$RUN_SEO" "$RUN_WEBKIT"; do
+            [[ "$output" == true || "$output" == false ]] || { echo "invalid run_* output: $output"; exit 1; }
+          done
+          public_expected=false
+          if [[ "$RUN_CORE" == true || "$RUN_LANDING" == true || "$RUN_MENU" == true || "$RUN_SEO" == true ]]; then public_expected=true; fi
+          declare -A results=( [fast-gate]="$FAST_GATE" [static-quality]="$STATIC" [database-contracts]="$DATABASE" [build-app]="$BUILD" [e2e-public-chromium]="$PUBLIC_CHROMIUM" [e2e-sauge-chromium]="$SAUGE_CHROMIUM" [e2e-admin-qr-chromium]="$ADMIN_QR_CHROMIUM" [webkit-critical]="$WEBKIT" )
+          declare -A expected=( [fast-gate]="true" [static-quality]="$RUN_STATIC" [database-contracts]="$RUN_DATABASE" [build-app]="$RUN_BUILD" [e2e-public-chromium]="$public_expected" [e2e-sauge-chromium]="$RUN_SAUGE" [e2e-admin-qr-chromium]="$RUN_ADMIN_QR" [webkit-critical]="$RUN_WEBKIT" )
+          ordered_jobs=(fast-gate static-quality database-contracts build-app e2e-public-chromium e2e-sauge-chromium e2e-admin-qr-chromium webkit-critical)
+          failed=0
+          root_failure=none
+          for root_job in classify-changes fast-gate build-app static-quality database-contracts; do
+            if [[ "$root_job" == classify-changes ]]; then
+              root_result="$CLASSIFY"
+              root_expected=true
+            else
+              root_result="${results[$root_job]}"
+              root_expected="${expected[$root_job]}"
+            fi
+            if [[ "$root_expected" == true && "$root_result" != success ]]; then
+              root_failure="$root_job"
+              break
+            fi
+          done
+          for job in "${ordered_jobs[@]}"; do
+            result="${results[$job]}"
+            if [[ "${expected[$job]}" == true && "$result" != success ]]; then
+              if [[ "$result" == skipped && "$root_failure" != none && "$job" == e2e-* ]]; then
+                echo "::notice::$job was blocked by root failure ${root_failure}"
+              else
+                echo "::error::$job was expected but completed as ${result:-missing}"
+                failed=1
+              fi
+            elif [[ "${expected[$job]}" == false && "$result" != success && "$result" != skipped ]]; then
+              echo "::error::$job has unexpected result ${result:-missing}"
+              failed=1
+            fi
+          done
+          if [[ "$root_failure" != none ]]; then
+            echo "::error::Root failure: $root_failure"
+            failed=1
+          fi
+          if (( failed )); then exit 1; fi
+          {
+            echo '## CI Gate'
+            echo "- Classification: \`$CLASSIFY_FULL\` (event: \`$EVENT\`)"
+            echo "- Fast gate: ${FAST_GATE}"
+            echo '- Applicable jobs must be success; skipped jobs are accepted only when the classifier marked them not applicable.'
+            for job in "${ordered_jobs[@]}"; do echo "- $job: ${results[$job]} (expected=${expected[$job]})"; done
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Publish root-cause diagnostics
+        id: diagnostics
+        if: ${{ always() }}
+        env:
+          CLASSIFY: ${{ needs.classify-changes.result }}
+          FAST_GATE: ${{ needs.fast-gate.result }}
+          STATIC: ${{ needs.static-quality.result }}
+          DATABASE: ${{ needs.database-contracts.result }}
+          BUILD: ${{ needs.build-app.result }}
+          RUN_STATIC: ${{ needs.classify-changes.outputs.run_static }}
+          RUN_DATABASE: ${{ needs.classify-changes.outputs.run_database }}
+          RUN_BUILD: ${{ needs.classify-changes.outputs.run_build }}
+        run: |
+          set -u
+          root_failure=none
+          [[ "$CLASSIFY" == success ]] || root_failure=classify-changes
+          if [[ "$root_failure" == none && "$FAST_GATE" != success ]]; then root_failure=fast-gate; fi
+          if [[ "$root_failure" == none && "$RUN_BUILD" == true && "$BUILD" != success ]]; then root_failure=build-app; fi
+          if [[ "$root_failure" == none && "$RUN_STATIC" == true && "$STATIC" != success ]]; then root_failure=static-quality; fi
+          if [[ "$root_failure" == none && "$RUN_DATABASE" == true && "$DATABASE" != success ]]; then root_failure=database-contracts; fi
+          echo "root_failure=${root_failure}" >> "$GITHUB_OUTPUT"
+          {
+            echo '## Root failure diagnosis'
+            echo "- Root failure: \`${root_failure}\`"
+            echo '- E2E jobs blocked by a failed classifier, fast gate, static-quality job, or build are reported as downstream skips.'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  ci-metrics:
+    name: CI metrics
+    if: ${{ always() && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) }}
+    needs: [classify-changes, fast-gate, static-quality, database-contracts, build-app, e2e-public-chromium, e2e-sauge-chromium, e2e-admin-qr-chromium, webkit-critical, ci-gate]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout metrics collector
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 1
+          lfs: false
+          persist-credentials: false
+      - name: Collect machine-readable CI metrics
+        env:
+          GITHUB_TOKEN: ${{ github.ref == 'refs/heads/main' && github.token || '' }}
+          CI_METRICS_OUTPUT: ci-metrics.json
+          CLASSIFY_RESULT: ${{ needs.classify-changes.result }}
+          CLASSIFY_EVENT: ${{ needs.classify-changes.outputs.event }}
+          CLASSIFY_CATEGORIES: ${{ needs.classify-changes.outputs.categories }}
+          CLASSIFY_REASON: ${{ needs.classify-changes.outputs.reason }}
+          CLASSIFY_CHANGED_FILES: ${{ needs.classify-changes.outputs.changed_files }}
+          MERGE_BASE_DEPTH: ${{ needs.classify-changes.outputs.merge_base_depth }}
+          ROOT_FAILURE: ${{ needs.ci-gate.outputs.root_failure }}
+          RUN_STATIC: ${{ needs.classify-changes.outputs.run_static }}
+          RUN_DATABASE: ${{ needs.classify-changes.outputs.run_database }}
+          RUN_BUILD: ${{ needs.classify-changes.outputs.run_build }}
+          RUN_CORE: ${{ needs.classify-changes.outputs.run_core }}
+          RUN_LANDING: ${{ needs.classify-changes.outputs.run_landing }}
+          RUN_MENU: ${{ needs.classify-changes.outputs.run_menu }}
+          RUN_SAUGE: ${{ needs.classify-changes.outputs.run_sauge }}
+          RUN_ADMIN_QR: ${{ needs.classify-changes.outputs.run_admin_qr }}
+          RUN_SEO: ${{ needs.classify-changes.outputs.run_seo }}
+          RUN_WEBKIT: ${{ needs.classify-changes.outputs.run_webkit }}
+          CI_TEST_REPORTS_JSON: ${{ toJSON(needs) }}
+        run: node scripts/ci/collect-metrics.mjs
+      - name: Upload CI metrics JSON
+        if: ${{ always() && hashFiles('ci-metrics.json') != '' }}
+        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
+        with:
+          name: ci-metrics-${{ github.run_id }}
+          path: ci-metrics.json
+          if-no-files-found: error
+          retention-days: 14
+      - name: Publish human-readable metrics summary
+        if: ${{ always() }}
+        run: |
+          # shellcheck disable=SC2016 # Scope: this quoted Node heredoc; JavaScript template literals are intentional. Owner: Vistaire maintainers. Review: 2026-09-30.
+          if [[ ! -s ci-metrics.json ]]; then
+            echo '## CI metrics' >> "$GITHUB_STEP_SUMMARY"
+            echo '- `ci-metrics.json` was not produced.' >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          node --input-type=module >> "$GITHUB_STEP_SUMMARY" <<'NODE'
+          import { readFileSync } from 'node:fs';
+          const metrics = JSON.parse(readFileSync('ci-metrics.json', 'utf8'));
+          const summary = metrics.summary ?? {};
+          const tests = metrics.tests ?? {};
+          const quality = metrics.data_quality ?? {};
+          const value = (key) => Object.hasOwn(summary, key) ? summary[key] : 'unavailable';
+          const testValue = (key) => Object.hasOwn(tests, key) ? tests[key] : 'unavailable';
+          const lines = [
+            '## CI metrics',
+            `- Collection complete: \`${quality.collection_complete === true}\``,
+            `- Failed jobs: ${value('failed_jobs')}`,
+            `- Failed tests: ${value('failed_tests')}`,
+            `- Cancelled jobs: ${value('cancelled_jobs')}`,
+            `- Skipped jobs: ${value('skipped_jobs')}`,
+            `- Jobs in progress: ${value('jobs_in_progress')}`,
+            `- Tests: passed=${testValue('passed')}, failed=${testValue('failed')}, skipped=${testValue('skipped')}, flaky=${testValue('flaky')}, interrupted=${testValue('interrupted')}`,
+            `- npm ci steps: ${metrics.timings?.npm_ci_count ?? 'unavailable'}`,
+            `- Browser installs: ${metrics.timings?.browser_setup_count ?? 'unavailable'}`,
+            `- Collection warnings: ${(quality.collection_warnings ?? []).join(', ') || 'none'}`,
+            `- Fields unavailable: ${(quality.fields_unavailable ?? []).join(', ') || 'none'}`
+          ];
+          process.stdout.write(`${lines.join('\\n')}\\n`);
+          NODE
+        shell: bash

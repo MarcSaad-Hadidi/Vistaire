@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, statSync } from "node:fs";
 import { createRequire, registerHooks } from "node:module";
 import { sep } from "node:path";
 import test from "node:test";
@@ -36,14 +36,14 @@ registerHooks({
       const baseUrl = new URL(specifier.slice(2), projectRootUrl);
       for (const extension of ["", ".ts", ".tsx", ".mjs", "/index.ts", "/index.tsx"]) {
         const url = new URL(`${baseUrl.href}${extension}`);
-        if (existsSync(url)) return { url: url.href, shortCircuit: true };
+        if (existsSync(url) && statSync(url).isFile()) return { url: url.href, shortCircuit: true };
       }
     }
     if ((specifier.startsWith("./") || specifier.startsWith("../")) && context.parentURL) {
       const baseUrl = new URL(specifier, context.parentURL);
       for (const extension of ["", ".ts", ".tsx", ".mjs", "/index.ts", "/index.tsx"]) {
         const url = new URL(`${baseUrl.href}${extension}`);
-        if (existsSync(url)) return { url: url.href, shortCircuit: true };
+        if (existsSync(url) && statSync(url).isFile()) return { url: url.href, shortCircuit: true };
       }
     }
     return nextResolve(specifier, context);
@@ -559,6 +559,7 @@ test("a live experience with only an editorial dish photo is not cached and reco
           ...liveMaisonContext.menu,
           dishes: liveMaisonContext.menu.dishes.map((dish) => ({
             ...dish,
+            cardUrl: "",
             imageUrl: "",
             thumbnailUrl: "",
             posterUrl: "",

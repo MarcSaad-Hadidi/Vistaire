@@ -30,7 +30,10 @@ import {
   publicLocaleToShortLocale,
   serializePublicMenuSettings
 } from "@/lib/menu/publicMenuSettings";
-import { MENU_PROJECTIONS } from "@/lib/menu/menuSchemaProjections";
+import {
+  MENU_PROJECTIONS,
+  PUBLIC_MENU_PROJECTIONS
+} from "@/lib/menu/menuSchemaProjections";
 import { applyStoredPublicMenuTranslations } from "@/lib/menu/publicMenuTranslations";
 import { publicMenuSettingsFallbackFromUiConfigRows } from "@/lib/owner/publicMenuSettingsFallback";
 
@@ -43,16 +46,12 @@ function isMissingDisplayOrderError(result: { ok: boolean; error?: string }): bo
 // Keep public menu reads explicit. The shared menu projection contract tracks
 // the deployed production schema; legacy slug fallback intentionally retains
 // `*` below because older installations may not expose the relational shape.
-const PUBLIC_RESTAURANT_COLUMNS =
-  "id,name,slug,location,cuisine_type,status,public_menu_url,google_review_enabled,google_review_url,created_at,updated_at";
-const PUBLIC_DISH_COLUMNS =
-  "id,restaurant_id,menu_id,category_id,slug,name,short_description,description,price_cents,currency,image_url,is_available,is_signature,is_recommended,has_immersive_view,allergens,allergen_declarations,metadata,created_at,updated_at,display_order";
+const PUBLIC_RESTAURANT_COLUMNS = PUBLIC_MENU_PROJECTIONS.restaurants;
+const PUBLIC_DISH_COLUMNS = PUBLIC_MENU_PROJECTIONS.dishes;
 const PUBLIC_RESTAURANT_COLUMNS_FALLBACK =
-  "id,name,slug,location,cuisine_type,status,public_menu_url,created_at,updated_at";
-const PUBLIC_DISH_COLUMNS_FALLBACK =
-  "id,restaurant_id,menu_id,category_id,slug,name,short_description,description,price_cents,currency,image_url,is_available,is_signature,is_recommended,has_immersive_view,allergens,metadata,created_at,updated_at";
-const PUBLIC_UI_CONFIG_COLUMNS =
-  "id,restaurant_id,theme,config_json,status,created_at,updated_at";
+  PUBLIC_MENU_PROJECTIONS.restaurantsFallback;
+const PUBLIC_DISH_COLUMNS_FALLBACK = PUBLIC_MENU_PROJECTIONS.dishesFallback;
+const PUBLIC_UI_CONFIG_COLUMNS = PUBLIC_MENU_PROJECTIONS.uiConfigs;
 
 async function readDishRows(
   readRows: typeof readSupabaseRowsByFilters,
@@ -352,6 +351,7 @@ function demoMenu(slug: string, locale: Locale = "fr"): PublicMenu {
       displayPriceMode: "auto",
       imageUrl: dish.image ?? "",
       thumbnailUrl: dish.image ?? "",
+      cardUrl: dish.image ?? "",
       hasPhoto: Boolean(dish.image),
       photoStatus: dish.image ? "ready" : "missing",
       has3d: Boolean(
@@ -477,6 +477,7 @@ function trouvableDemoMenu(
         displayPriceMode: "auto",
         imageUrl: dish.imageUrl,
         thumbnailUrl: dish.imageUrl,
+        cardUrl: dish.imageUrl,
         hasPhoto: true,
         photoStatus: "ready",
         has3d: Boolean(e2eImmersiveAssets),

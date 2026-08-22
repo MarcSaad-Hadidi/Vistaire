@@ -140,6 +140,7 @@ export async function DELETE(
   const publicIdentity = await resolvePublicMutationIdentity({
     client: admin.client,
     restaurantId,
+    dishId,
     dishSlug: dish.slug || dish.name || dishId
   });
 

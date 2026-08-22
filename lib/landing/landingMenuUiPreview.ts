@@ -6,7 +6,7 @@ import type {
   PublicMenuDish
 } from "@/lib/menu/publicMenuCore";
 import type { PublicMenuLocale } from "@/lib/menu/publicMenuSettings";
-import { landingPhotoForDish } from "./landingDishIdentity";
+import { landingPhotoForDish } from "./landingDishIdentity.ts";
 
 export type LandingMenuUiDish = Pick<
   PublicMenuDish,
@@ -29,6 +29,7 @@ export type LandingMenuUiDish = Pick<
   | "dietaryType"
   | "imageUrl"
   | "thumbnailUrl"
+  | "cardUrl"
   | "hasPhoto"
   | "photoStatus"
   | "available"
@@ -103,13 +104,22 @@ export function projectLandingMenuUiMenu(menu: PublicMenu): LandingMenuUiMenu {
       const imageUrl =
         landingPhotoForDish({
           ...dish,
+          cardUrl: "",
           thumbnailUrl: "",
           posterUrl: ""
         })?.url ?? selectedPhoto;
       const thumbnailUrl =
         landingPhotoForDish({
           ...dish,
+          cardUrl: "",
           imageUrl: "",
+          posterUrl: ""
+        })?.url ?? selectedPhoto;
+      const cardUrl =
+        landingPhotoForDish({
+          ...dish,
+          imageUrl: "",
+          thumbnailUrl: "",
           posterUrl: ""
         })?.url ?? selectedPhoto;
       return {
@@ -138,6 +148,7 @@ export function projectLandingMenuUiMenu(menu: PublicMenu): LandingMenuUiMenu {
         ...(dish.dietaryType ? { dietaryType: dish.dietaryType } : {}),
         imageUrl,
         thumbnailUrl,
+        cardUrl,
         hasPhoto: dish.hasPhoto,
         photoStatus: dish.photoStatus,
         available: dish.available,

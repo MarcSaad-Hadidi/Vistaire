@@ -21,6 +21,7 @@ export type CleanupReplacedDishAssetsReport = {
   candidates: DishAssetRef[];
   deleted: DishAssetRef[];
   skippedStillReferenced: DishAssetRef[];
+  skippedConcurrentReuseRisk: DishAssetRef[];
   skippedUnsafeBucket: DishAssetRef[];
   skippedUnsafePrefix: DishAssetRef[];
   skippedMissingPath: DishAssetRef[];
@@ -50,7 +51,7 @@ type MetadataCandidate = {
   requiredPrefix: (restaurantId: string) => string;
 };
 
-const PHOTO_DERIVATIVE_VARIANTS = ["thumbnail", "display"] as const;
+const PHOTO_DERIVATIVE_VARIANTS = ["thumbnail", "card", "display"] as const;
 
 const MEDIA_BUCKET = "vistaire-media";
 const MODEL_BUCKET = "vistaire-3d";
@@ -146,6 +147,7 @@ function emptyReport(): CleanupReplacedDishAssetsReport {
     candidates: [],
     deleted: [],
     skippedStillReferenced: [],
+    skippedConcurrentReuseRisk: [],
     skippedUnsafeBucket: [],
     skippedUnsafePrefix: [],
     skippedMissingPath: [],
@@ -230,7 +232,7 @@ function isSafePrefix(ref: DishAssetRef): boolean {
   }
   if (ref.requiredPrefix.includes("/photos/derivatives/")) {
     return new RegExp(
-      `^${escapeRegExp(ref.requiredPrefix)}[a-f0-9]{64}/(?:thumbnail|display)\\.webp$`,
+      `^${escapeRegExp(ref.requiredPrefix)}[a-f0-9]{64}/(?:dish-photo-v2/)?(?:thumbnail|card|display)(?:-[a-f0-9]{64})?\\.webp$`,
       "i"
     ).test(ref.path);
   }
@@ -338,6 +340,14 @@ export async function cleanupReplacedDishAssets(
     }
     if (!isSafePrefix(ref)) {
       report.skippedUnsafePrefix.push(ref);
+      continue;
+    }
+    if (ref.kind === "photo") {
+      // Photo originals and derivatives are content-addressed and shared.
+      // Another instance may have reused this path without committing its
+      // metadata yet, which a point-in-time reference scan cannot observe.
+      // Keep it for offline reconciliation instead of risking a dangling ref.
+      report.skippedConcurrentReuseRisk.push(ref);
       continue;
     }
     if (isRefInSet(ref, activeCurrentIdentities) || isRefInSet(ref, otherIdentities)) {

@@ -62,9 +62,9 @@ test("production landing renders a versioned public dish photo through its signe
     maxRedirects: 0
   });
   expect(redirectResponse.status()).toBe(307);
-  expect(redirectResponse.headers()["cache-control"]).toContain("max-age=120");
+  expect(redirectResponse.headers()["cache-control"]).toBe("no-store");
   expect(redirectResponse.headers().location).toMatch(
-    /^http:\/\/127\.0\.0\.1:55434\/storage\/v1\/object\/sign\/vistaire-media\/.+\?token=fixture-photo-token$/
+    /^http:\/\/127\.0\.0\.1:55434\/storage\/v1\/object\/sign\/vistaire-media\/.+\?token=[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/
   );
 
   await expect

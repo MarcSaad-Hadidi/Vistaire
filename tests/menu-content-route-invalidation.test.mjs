@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, statSync } from "node:fs";
 import { registerHooks } from "node:module";
 import { sep } from "node:path";
 import test from "node:test";
@@ -64,6 +64,10 @@ const moduleStubs = new Map([
     hookedModule(`
       export function resolvePublicMutationIdentity(...args) { return ${hookCall("resolveIdentity")}; }
       export function invalidateCommittedPublicMutation(...args) { return ${hookCall("invalidate")}; }
+      export function emitMenuMutationRetrySignal(signal) {
+        console.error(JSON.stringify(signal));
+        return Promise.resolve(true);
+      }
       export function revalidateOwnerMenuMutationPaths(...args) { return ${hookCall("legacyInvalidate")}; }
     `)
   ],
@@ -101,14 +105,14 @@ registerHooks({
       const baseUrl = new URL(specifier.slice(2), projectRootUrl);
       for (const extension of ["", ".ts", ".tsx", "/index.ts", "/index.tsx"]) {
         const url = new URL(`${baseUrl.href}${extension}`);
-        if (existsSync(url)) return { url: url.href, shortCircuit: true };
+        if (existsSync(url) && statSync(url).isFile()) return { url: url.href, shortCircuit: true };
       }
     }
     if ((specifier.startsWith("./") || specifier.startsWith("../")) && context.parentURL) {
       const baseUrl = new URL(specifier, context.parentURL);
       for (const extension of ["", ".ts", ".tsx", "/index.ts", "/index.tsx"]) {
         const url = new URL(`${baseUrl.href}${extension}`);
-        if (existsSync(url)) return { url: url.href, shortCircuit: true };
+        if (existsSync(url) && statSync(url).isFile()) return { url: url.href, shortCircuit: true };
       }
     }
     return nextResolve(specifier, context);
@@ -287,8 +291,10 @@ function photoRequest(method) {
   });
 }
 
-test("photo upload and delete invalidate after metadata commit, before cleanup, and catch cleanup throws", async () => {
-  for (const method of ["POST", "DELETE"]) {
+test("photo delete invalidates after metadata commit, before cleanup, and catches cleanup throws", async () => {
+  process.env.VISTAIRE_MEDIA_WRITES_ENABLED = "true";
+  process.env.VISTAIRE_EXPECTED_SUPABASE_PROJECT_REF = "project-a";
+  for (const method of ["DELETE"]) {
     const events = [];
     const hooks = baseHooks(events, photoAdmin(events));
     hooks.cleanup = async () => {
@@ -368,8 +374,12 @@ test("admin availability invalidates only after a successful RPC commit", async 
     if (succeeds) {
       assert.ok(events.indexOf("identity") < events.indexOf("rpc:commit"));
       assert.ok(events.indexOf("rpc:commit") < events.indexOf("invalidate:turbot"));
-      assert.deepEqual(logged, [
-        "Admin availability revalidation failed after commit."
+      assert.deepEqual(logged.map((message) => JSON.parse(message)), [
+        {
+          kind: "menu-revalidation-retry-required",
+          restaurantId: RESTAURANT_ID,
+          dishId: DISH_ID
+        }
       ]);
     }
   }

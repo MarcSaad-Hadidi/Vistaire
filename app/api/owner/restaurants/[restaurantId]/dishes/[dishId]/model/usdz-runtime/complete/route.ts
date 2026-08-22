@@ -64,6 +64,7 @@ export async function POST(
   const publicIdentity = await resolvePublicMutationIdentity({
     client: admin.client,
     restaurantId: verified.claims.restaurantId,
+    dishId: verified.claims.dishId,
     dishSlug: verified.claims.dishSlug
   });
   let publicCommitted = false;

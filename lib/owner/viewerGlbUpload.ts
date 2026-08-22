@@ -57,6 +57,7 @@ function deferredCleanupReport(): CleanupReplacedDishAssetsReport {
     skippedUnsafeBucket: [],
     skippedUnsafePrefix: [],
     skippedMissingPath: [],
+    skippedConcurrentReuseRisk: [],
     errors: [
       {
         bucket: "",

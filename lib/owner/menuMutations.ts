@@ -1017,6 +1017,7 @@ export async function deleteOwnerMenuDish(args: {
     deleted: cleanup.deleted,
     skipped: [
       ...cleanup.skippedStillReferenced,
+      ...cleanup.skippedConcurrentReuseRisk,
       ...cleanup.skippedUnsafeBucket,
       ...cleanup.skippedUnsafePrefix,
       ...cleanup.skippedMissingPath

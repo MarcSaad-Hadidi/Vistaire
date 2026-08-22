@@ -1,5 +1,5 @@
 import type { PublicMenuDish } from "../menu/publicMenuCore";
-import { isPrivateCapabilityUrl } from "../cache/publicCacheSafety";
+import { isPrivateCapabilityUrl } from "../cache/publicCacheSafety.ts";
 
 export type LandingDishIdentity = {
   id?: string | null;
@@ -10,12 +10,12 @@ type DishIdentityCandidate = Pick<PublicMenuDish, "id" | "slug">;
 
 type LandingDishPhotoCandidate = Pick<
   PublicMenuDish,
-  "id" | "imageUrl" | "thumbnailUrl" | "posterUrl"
+  "id" | "cardUrl" | "imageUrl" | "thumbnailUrl" | "posterUrl"
 > &
   Partial<Pick<PublicMenuDish, "hasPhoto" | "photoStatus">>;
 
 export type LandingDishPhoto = {
-  source: "imageUrl" | "thumbnailUrl" | "posterUrl";
+  source: "cardUrl" | "imageUrl" | "thumbnailUrl" | "posterUrl";
   url: string;
 };
 
@@ -162,6 +162,7 @@ export function landingPhotoForDish(
   dish: LandingDishPhotoCandidate
 ): LandingDishPhoto | null {
   const fields = [
+    ["cardUrl", dish.cardUrl],
     ["imageUrl", dish.imageUrl],
     ["thumbnailUrl", dish.thumbnailUrl],
     ["posterUrl", dish.posterUrl]
@@ -196,7 +197,7 @@ export function landingPhotoForDish(
 }
 
 export function resolveLandingDishPhoto<T extends DishIdentityCandidate>(
-  dish: T & Pick<PublicMenuDish, "imageUrl" | "thumbnailUrl" | "posterUrl">,
+  dish: T & Pick<PublicMenuDish, "cardUrl" | "imageUrl" | "thumbnailUrl" | "posterUrl">,
   fallback: LandingDishIdentity & { image?: string | null },
   siblings: readonly T[] = []
 ): LandingResolvedDishPhoto {

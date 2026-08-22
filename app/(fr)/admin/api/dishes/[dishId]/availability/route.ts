@@ -32,7 +32,8 @@ async function updateDishAvailability({
 
   const publicIdentity = await resolvePublicMutationIdentity({
     client: admin.client,
-    restaurantId
+    restaurantId,
+    dishId
   });
 
   const { data, error } = await admin.client
@@ -55,15 +56,33 @@ async function updateDishAvailability({
     available: row.is_available === true
   };
 
-  return preserveAvailabilityResultAfterRevalidation(result, async () => {
-    const dishSlug = slugifyRestaurantSlug(result.ok ? result.dishSlug : "");
-    await invalidateCommittedPublicMutation(
-      publicIdentity && dishSlug
-        ? { ...publicIdentity, dishSlug }
-        : publicIdentity
-    );
-    revalidatePath("/admin");
-  });
+  return preserveAvailabilityResultAfterRevalidation(
+    result,
+    async () => {
+      const dishSlug = slugifyRestaurantSlug(result.ok ? result.dishSlug : "");
+      const publicInvalidation = await invalidateCommittedPublicMutation(
+        publicIdentity && dishSlug
+          ? { ...publicIdentity, dishSlug }
+          : publicIdentity
+      );
+      let adminPathOk = true;
+      try {
+        revalidatePath("/admin");
+      } catch {
+        adminPathOk = false;
+      }
+      return {
+        ok: publicInvalidation.enqueueErrors.length === 0 && adminPathOk
+      };
+    },
+    {
+      retrySignal: {
+        kind: "menu-revalidation-retry-required",
+        restaurantId,
+        dishId
+      }
+    }
+  );
 }
 
 export async function PATCH(

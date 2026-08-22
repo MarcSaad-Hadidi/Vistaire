@@ -11,12 +11,14 @@ export type PublicCacheSafetyReason =
   | "non-serializable";
 
 export class PublicCacheSafetyError extends Error {
-  constructor(
-    readonly path: string,
-    readonly reason: PublicCacheSafetyReason
-  ) {
+  readonly path: string;
+  readonly reason: PublicCacheSafetyReason;
+
+  constructor(path: string, reason: PublicCacheSafetyReason) {
     super(`Public cache candidate rejected at ${path} (${reason}).`);
     this.name = "PublicCacheSafetyError";
+    this.path = path;
+    this.reason = reason;
   }
 }
 

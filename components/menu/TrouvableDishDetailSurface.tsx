@@ -9,7 +9,10 @@ import type {
   ArFallbackReason,
   DishModelViewerProps
 } from "@/components/dish/DishModelViewer";
-import { getPublicMenuAnalyticsContext } from "@/lib/analytics/client";
+import {
+  getPublicMenuAnalyticsContext,
+  type PublicMenuAnalyticsContext
+} from "@/lib/analytics/client";
 import type { ArHandoffPlatform } from "@/lib/menu/arBrowserHandoff";
 import type {
   GoogleReviewCta,
@@ -37,6 +40,7 @@ type TrouvableImmersivePanelBodyProps = {
   manualDishUrlId: string;
   manualDishUrlRef: RefObject<HTMLInputElement | null>;
   menu: PublicMenu;
+  analyticsContext?: PublicMenuAnalyticsContext;
   modelControlsId: string;
   modelViewerComponent: DishModelViewerComponent | null;
   modelViewerLoadFailed: boolean;
@@ -135,6 +139,7 @@ export function TrouvableImmersivePanelBody({
   manualDishUrlId,
   manualDishUrlRef,
   menu,
+  analyticsContext,
   modelControlsId,
   modelViewerComponent: ModelViewerComponent,
   modelViewerLoadFailed,
@@ -157,7 +162,7 @@ export function TrouvableImmersivePanelBody({
         {ModelViewerComponent ? (
           <ModelViewerComponent
             dish={modelViewerDishFromPublicDish(dish)}
-            analyticsContext={getPublicMenuAnalyticsContext(menu) ?? undefined}
+            analyticsContext={analyticsContext ?? getPublicMenuAnalyticsContext(menu) ?? undefined}
             minimalChrome
             quietChrome
             copy={{

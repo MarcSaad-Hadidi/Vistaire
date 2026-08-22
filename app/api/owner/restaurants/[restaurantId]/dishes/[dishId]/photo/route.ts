@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { NextResponse, type NextRequest } from "next/server";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
@@ -6,13 +7,28 @@ import {
 } from "@/lib/auth/ownerApi";
 import {
   buildDishPhotoPublicPath,
-  buildDishPhotoStoragePath,
+  buildDishPhotoV2StoragePath,
+  DISH_PHOTO_RECIPE,
   clearDishPhotoMetadata,
-  buildDishPhotoDerivativeStoragePath,
+  buildDishPhotoDerivativeV2StoragePath,
   mergeDishPhotoMetadata,
-  validateDishPhotoFile
+  inspectDishPhotoFile,
+  type DishPhotoDerivativeMetadata,
+  type DishPhotoDerivativeVariant
 } from "@/lib/owner/dishPhotoUpload";
 import { generateDishPhotoDerivatives } from "@/lib/owner/dishPhotoDerivatives";
+import {
+  MediaCapacityError,
+  MediaCapacityWorkError,
+  mediaWritesEnabled,
+  withMediaCapacityReservation
+} from "@/lib/owner/mediaCapacity";
+import {
+  potentiallyCreatedMediaObjectBytes,
+  rollbackPotentiallyCreatedMediaObjects,
+  type PotentiallyCreatedMediaObject
+} from "@/lib/owner/mediaRollback";
+import { inspectImmutableStorageObject } from "@/lib/owner/mediaObjectIntegrity";
 import {
   cleanupReplacedDishAssets,
   type CleanupReplacedDishAssetsReport
@@ -52,6 +68,7 @@ function deferredCleanupReport(): CleanupReplacedDishAssetsReport {
     candidates: [],
     deleted: [],
     skippedStillReferenced: [],
+    skippedConcurrentReuseRisk: [],
     skippedUnsafeBucket: [],
     skippedUnsafePrefix: [],
     skippedMissingPath: [],
@@ -139,6 +156,15 @@ export async function POST(
   if (!capability.ok) {
     return NextResponse.json({ ok: false, error: capability.error }, { status: capability.status });
   }
+  const expectedProjectRef = process.env.VISTAIRE_EXPECTED_SUPABASE_PROJECT_REF
+    ?.trim()
+    .toLowerCase();
+  if (!mediaWritesEnabled() || !expectedProjectRef) {
+    return NextResponse.json(
+      { ok: false, error: "Ecritures media desactivees ou projet Supabase non configure." },
+      { status: 503 }
+    );
+  }
   const maxBytes = photoMaxBytes();
   const rawContentLength = request.headers.get("content-length");
   const contentLength = rawContentLength ? Number(rawContentLength) : 0;
@@ -167,7 +193,9 @@ export async function POST(
   }
 
   const bytes = Buffer.from(await file.arrayBuffer());
-  const validated = validateDishPhotoFile(
+  const validated = await inspectDishPhotoFile(
+    // inspectDishPhotoFile performs the synchronous validateDishPhotoFile
+    // magic-byte/MIME checks before bounded Sharp inspection.
     {
       name: file.name,
       type: file.type,
@@ -205,6 +233,7 @@ export async function POST(
   const publicIdentity = await resolvePublicMutationIdentity({
     client: admin.client,
     restaurantId,
+    dishId,
     dishSlug: typeof dish.slug === "string" ? dish.slug : undefined
   });
   const oldMetadata = getMetadata(dish.metadata);
@@ -213,13 +242,7 @@ export async function POST(
   let storagePath: string;
   let imageUrl: string;
   try {
-    storagePath = buildDishPhotoStoragePath({
-      restaurantId,
-      dishId,
-      dishSlug: typeof dish.slug === "string" && dish.slug ? dish.slug : String(dish.name ?? ""),
-      extension: validated.extension,
-      sha256: validated.sha256
-    });
+    storagePath = buildDishPhotoV2StoragePath({ restaurantId, extension: validated.extension, sha256: validated.sha256 });
     imageUrl = buildDishPhotoPublicPath(dishId, {
       assetVersion: validated.sha256
     });
@@ -230,146 +253,224 @@ export async function POST(
     );
   }
 
-  const uploadedStoragePaths: string[] = [];
-  const derivativeWarnings: string[] = [];
-  let generatedDerivatives: Awaited<ReturnType<typeof generateDishPhotoDerivatives>> = {};
+  let generatedDerivatives: Awaited<ReturnType<typeof generateDishPhotoDerivatives>>;
   try {
     generatedDerivatives = await generateDishPhotoDerivatives(
       validated.bytes,
       validated.sha256
     );
   } catch {
-    derivativeWarnings.push(
-      "Derives photo non generes; la photo originale reste disponible."
-    );
-  }
-
-  const uploaded = await admin.client.storage.from(MEDIA_BUCKET).upload(
-    storagePath,
-    validated.bytes,
-    {
-      contentType: validated.contentType,
-      cacheControl: "31536000",
-      upsert: true
-    }
-  );
-  if (uploaded.error) {
     return NextResponse.json(
-      { ok: false, error: "Upload Supabase Storage impossible." },
+      { ok: false, error: "Derives photo impossibles a generer." },
       { status: 503 }
     );
   }
-  uploadedStoragePaths.push(storagePath);
-
-  const derivativeMetadata: Record<string, {
-    storagePath: string;
+  const derivativeMetadata: Partial<
+    Record<DishPhotoDerivativeVariant, DishPhotoDerivativeMetadata>
+  > = {};
+  const uploadCandidates: Array<{
+    path: string;
+    bytes: Buffer;
+    contentType: string;
     sha256: string;
-    contentType: "image/webp";
-    bytes: number;
-    sourceSha256: string;
-  }> = {};
-  for (const variant of ["thumbnail", "display"] as const) {
+  }> = [{
+    path: storagePath,
+    bytes: validated.bytes,
+    contentType: validated.contentType,
+    sha256: validated.sha256
+  }];
+  for (const variant of ["thumbnail", "card", "display"] as const) {
     const generated = generatedDerivatives[variant];
-    if (!generated) continue;
+    if (!generated) {
+      return NextResponse.json(
+        { ok: false, error: `Derive ${variant} manquante.` },
+        { status: 503 }
+      );
+    }
     let derivativePath: string;
     try {
-      derivativePath = buildDishPhotoDerivativeStoragePath({
+      derivativePath = buildDishPhotoDerivativeV2StoragePath({
         restaurantId,
-        sha256: validated.sha256,
-        variant
+        sourceSha256: validated.sha256,
+        recipeId: generated.metadata.recipeId,
+        variant,
+        outputSha256: generated.metadata.outputSha256
       });
     } catch {
-      derivativeWarnings.push(`Derive ${variant} ignore: chemin invalide.`);
-      continue;
+      return NextResponse.json(
+        { ok: false, error: `Chemin du derive ${variant} invalide.` },
+        { status: 503 }
+      );
     }
-    const derivativeUpload = await admin.client.storage
-      .from(MEDIA_BUCKET)
-      .upload(derivativePath, generated.bytes, {
-        contentType: "image/webp",
-        cacheControl: "31536000",
-        upsert: true
-      });
-    if (derivativeUpload.error) {
-      derivativeWarnings.push(`Derive ${variant} non uploadee.`);
-      continue;
-    }
-    uploadedStoragePaths.push(derivativePath);
     derivativeMetadata[variant] = {
       ...generated.metadata,
       storagePath: derivativePath
     };
+    uploadCandidates.push({
+      path: derivativePath,
+      bytes: generated.bytes,
+      contentType: "image/webp",
+      sha256: generated.metadata.outputSha256
+    });
   }
-
-  const metadata = mergeDishPhotoMetadata(oldMetadata, {
-    storageBucket: MEDIA_BUCKET,
-    storagePath,
-    sha256: validated.sha256,
-    contentType: validated.contentType,
-    bytes: validated.bytes.byteLength,
-    derivatives: derivativeMetadata
-  });
-  const updated = await admin.client
-    .from("menu_dishes")
-    .update({ image_url: imageUrl, metadata })
-    .eq("id", dishId)
-    .eq("restaurant_id", restaurantId)
-    .select("id")
-    .maybeSingle();
-
-  if (updated.error || !updated.data) {
-    const otherReferencedPhotoPaths = await getOtherReferencedPhotoPaths({
-      client: admin.client,
-      restaurantId,
-      dishId
-    });
-    const rollbackPaths = uploadedStoragePaths.filter((path) => {
-      if (previouslyReferencedPhotoPaths.has(path)) return false;
-      // If the cross-dish reference check failed, preserve every uploaded
-      // object. Deleting an uncertain shared derivative is worse than leaving
-      // a deterministic object available for a later retry/GC pass.
-      return otherReferencedPhotoPaths ? !otherReferencedPhotoPaths.has(path) : false;
-    });
-    if (rollbackPaths.length) {
-      await admin.client.storage.from(MEDIA_BUCKET).remove(rollbackPaths);
+  const bucket = admin.client.storage.from(MEDIA_BUCKET);
+  const candidatesToUpload: typeof uploadCandidates = [];
+  try {
+    for (const candidate of uploadCandidates) {
+      const integrity = await inspectImmutableStorageObject({
+        bucket,
+        path: candidate.path,
+        expectedBytes: candidate.bytes.byteLength,
+        expectedSha256: candidate.sha256,
+        expectedContentType: candidate.contentType,
+        maxBytes: HARD_PHOTO_MAX_BYTES,
+        timeoutMs: 10_000
+      });
+      if (integrity.state === "missing") candidatesToUpload.push(candidate);
     }
+  } catch {
     return NextResponse.json(
-      { ok: false, error: "Photo uploadee mais plat impossible a mettre a jour." },
+      { ok: false, error: "Verification Storage immutable impossible." },
       { status: 503 }
     );
   }
 
-  const replacementCleanup = await committedPhotoCleanup({
-    identity: publicIdentity,
-    cleanup: () =>
-      cleanupReplacedDishAssets({
-        client: admin.client,
-        dishId,
-        restaurantId,
-        previousMetadata: oldMetadata,
-        nextMetadata: metadata,
-        reason: "dish-photo-replacement"
-      })
-  });
-  const cleanupWarnings = replacementCleanup.errors.map(
-    (error) => `Storage ${error.bucket || "metadata"} cleanup partiel: ${error.message}`
+  const requestedBytes = candidatesToUpload.reduce(
+    (total, candidate) => total + candidate.bytes.byteLength,
+    0
   );
+  const reservationKey = `dish-photo:${restaurantId}:${dishId}:${validated.sha256}`;
+  try {
+    return await withMediaCapacityReservation({
+      client: admin.client,
+      projectRef: expectedProjectRef,
+      reservationKey,
+      operationId: randomUUID(),
+      restaurantId,
+      dishId,
+      recipeId: DISH_PHOTO_RECIPE.id,
+      requestedBytes,
+      work: async () => {
+        const potentiallyCreatedObjects: PotentiallyCreatedMediaObject[] = [];
+        try {
+          for (const candidate of candidatesToUpload) {
+            const potentiallyCreated: PotentiallyCreatedMediaObject = {
+              path: candidate.path,
+              bytes: candidate.bytes.byteLength,
+              creation: "ambiguous"
+            };
+            potentiallyCreatedObjects.push(potentiallyCreated);
+            const uploaded = await bucket.upload(candidate.path, candidate.bytes, {
+              contentType: candidate.contentType,
+              cacheControl: "31536000",
+              upsert: false
+            });
+            if (uploaded.error) {
+              const raced = await inspectImmutableStorageObject({
+                bucket,
+                path: candidate.path,
+                expectedBytes: candidate.bytes.byteLength,
+                expectedSha256: candidate.sha256,
+                expectedContentType: candidate.contentType,
+                maxBytes: HARD_PHOTO_MAX_BYTES,
+                timeoutMs: 10_000
+              });
+              if (raced.state === "missing") {
+                potentiallyCreatedObjects.pop();
+                throw new Error("Upload Supabase Storage impossible.");
+              }
+              continue;
+            }
+            // A successful immutable upload can already be reused by another
+            // instance before that instance commits its metadata. Keep the
+            // attempt ambiguous so rollback never deletes a shared path.
+          }
 
-  return NextResponse.json({
-    ok: true,
-    imageUrl,
-    storagePath,
-    dishUpdated: true,
-    deletedCount: replacementCleanup.deleted.length,
-    skippedCount:
-      replacementCleanup.skippedStillReferenced.length +
-      replacementCleanup.skippedUnsafeBucket.length +
-      replacementCleanup.skippedUnsafePrefix.length +
-      replacementCleanup.skippedMissingPath.length,
-    cleanup: replacementCleanup,
-    warning: [...derivativeWarnings, ...cleanupWarnings][0],
-    warnings: [...derivativeWarnings, ...cleanupWarnings],
-    derivatives: derivativeMetadata
-  });
+          const metadata = mergeDishPhotoMetadata(oldMetadata, {
+            storageBucket: MEDIA_BUCKET,
+            storagePath,
+            sha256: validated.sha256,
+            contentType: validated.contentType,
+            bytes: validated.bytes.byteLength,
+            derivatives: derivativeMetadata
+          });
+          const updated = await admin.client
+            .from("menu_dishes")
+            .update({ image_url: imageUrl, metadata })
+            .eq("id", dishId)
+            .eq("restaurant_id", restaurantId)
+            .select("id")
+            .maybeSingle();
+          if (updated.error || !updated.data) {
+            throw new Error("Photo uploadee mais plat impossible a mettre a jour.");
+          }
+
+          const replacementCleanup = await committedPhotoCleanup({
+            identity: publicIdentity,
+            cleanup: () =>
+              cleanupReplacedDishAssets({
+                client: admin.client,
+                dishId,
+                restaurantId,
+                previousMetadata: oldMetadata,
+                nextMetadata: metadata,
+                reason: "dish-photo-replacement"
+              })
+          });
+          const cleanupWarnings = replacementCleanup.errors.map(
+            (error) =>
+              `Storage ${error.bucket || "metadata"} cleanup partiel: ${error.message}`
+          );
+          return {
+            newlyCreatedBytes: potentiallyCreatedMediaObjectBytes(
+              potentiallyCreatedObjects
+            ),
+            value: NextResponse.json({
+              ok: true,
+              imageUrl,
+              storagePath,
+              dishUpdated: true,
+              deletedCount: replacementCleanup.deleted.length,
+              skippedCount:
+                replacementCleanup.skippedStillReferenced.length +
+                replacementCleanup.skippedConcurrentReuseRisk.length +
+                replacementCleanup.skippedUnsafeBucket.length +
+                replacementCleanup.skippedUnsafePrefix.length +
+                replacementCleanup.skippedMissingPath.length,
+              cleanup: replacementCleanup,
+              warning: cleanupWarnings[0],
+              warnings: cleanupWarnings,
+              derivatives: derivativeMetadata
+            })
+          };
+        } catch (error) {
+          const otherReferencedPhotoPaths = await getOtherReferencedPhotoPaths({
+            client: admin.client,
+            restaurantId,
+            dishId
+          });
+          const referencedPaths = otherReferencedPhotoPaths
+            ? new Set([...previouslyReferencedPhotoPaths, ...otherReferencedPhotoPaths])
+            : null;
+          const rollback = await rollbackPotentiallyCreatedMediaObjects({
+            bucket,
+            potentiallyCreated: potentiallyCreatedObjects,
+            referencedPaths
+          });
+          throw new MediaCapacityWorkError(
+            error instanceof Error ? error.message : "Upload Supabase Storage impossible.",
+            rollback.retainedBytes
+          );
+        }
+      }
+    });
+  } catch (error) {
+    const status = error instanceof MediaCapacityError ? error.status : 503;
+    const message = error instanceof Error
+      ? error.message
+      : "Upload Supabase Storage impossible.";
+    return NextResponse.json({ ok: false, error: message }, { status });
+  }
 }
 
 export async function DELETE(
@@ -386,6 +487,15 @@ export async function DELETE(
   const capability = await requireOwnerRestaurantCapability(restaurantId, "canManageMedia");
   if (!capability.ok) {
     return NextResponse.json({ ok: false, error: capability.error }, { status: capability.status });
+  }
+  const expectedProjectRef = process.env.VISTAIRE_EXPECTED_SUPABASE_PROJECT_REF
+    ?.trim()
+    .toLowerCase();
+  if (!mediaWritesEnabled() || !expectedProjectRef) {
+    return NextResponse.json(
+      { ok: false, error: "Ecritures media desactivees ou projet Supabase non configure." },
+      { status: 503 }
+    );
   }
   const admin = getSupabaseAdminClient();
   if (!admin.ok) {
@@ -415,6 +525,7 @@ export async function DELETE(
   const publicIdentity = await resolvePublicMutationIdentity({
     client: admin.client,
     restaurantId,
+    dishId,
     dishSlug: typeof dish.slug === "string" ? dish.slug : undefined
   });
 
@@ -459,9 +570,11 @@ export async function DELETE(
   );
   const skippedCount =
     cleanup.skippedStillReferenced.length +
+    cleanup.skippedConcurrentReuseRisk.length +
     cleanup.skippedUnsafeBucket.length +
     cleanup.skippedUnsafePrefix.length +
     cleanup.skippedMissingPath.length;
+
 
   return NextResponse.json({
     ok: true,
