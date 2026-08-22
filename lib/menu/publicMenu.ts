@@ -431,8 +431,9 @@ function trouvableDemoMenu(
         ? "Premium brunch and evening plates"
         : "Brunch premium et assiettes du soir",
     googleReview: normalizeGoogleReviewConfig({
-      enabled: false,
-      googleReviewUrl: ""
+      enabled: true,
+      googleReviewUrl:
+        "https://search.google.com/local/writereview?placeid=ChIJTrouvableDemoVistaire"
     }),
     settings: TROUVABLE_PUBLIC_MENU_SETTINGS,
     activeLocale: activePublicLocale,

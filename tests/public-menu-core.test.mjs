@@ -134,7 +134,12 @@ test("Google Review CTA is absent when disabled, missing, non-review, credential
     "https://maps.google.com/?cid=123",
     "https://search.google.com/",
     "https://search.google.com/local/writereview",
-    "https://search.google.com/local/writereview?placeid="
+    "https://search.google.com/local/writereview?placeid=",
+    "https://search.google.com.evil.com/local/writereview?placeid=abc123",
+    "https://evil-search.google.com/local/writereview?placeid=abc123",
+    "https://g.page.evil.com/r/x/review",
+    "https://notg.page/r/x/review",
+    "https://www.google.com/maps/place/Foo"
   ]) {
     const menu = buildSupabasePublicMenu(
       "resto-marc",

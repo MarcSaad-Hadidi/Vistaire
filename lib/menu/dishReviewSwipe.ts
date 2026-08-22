@@ -2,7 +2,7 @@ export const DISH_SWIPE_MIN_DISTANCE = 46;
 export const DISH_SWIPE_AXIS_RATIO = 1.35;
 export const DISH_SWIPE_SCROLL_TOLERANCE = 8;
 
-export type DishSwipeGesture = "previous" | "next" | "reviewOpen" | null;
+export type DishSwipeGesture = "previous" | "next" | null;
 
 export function resolveDishSwipeGesture(
   deltaX: number,
@@ -18,10 +18,6 @@ export function resolveDishSwipeGesture(
 
   if (absX >= DISH_SWIPE_MIN_DISTANCE && absX > absY * DISH_SWIPE_AXIS_RATIO) {
     return deltaX < 0 ? "next" : "previous";
-  }
-
-  if (deltaY <= -DISH_SWIPE_MIN_DISTANCE && absY > absX * DISH_SWIPE_AXIS_RATIO) {
-    return "reviewOpen";
   }
 
   return null;

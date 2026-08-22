@@ -57,15 +57,23 @@ const playwrightArgs = [
 ];
 const useLocalDemoServer = playwrightInputArgs
   .includes("e2e/ci-smoke.spec.ts");
-const useTrouvableImmersiveFixture = playwrightInputArgs
-  .some((argument) =>
-    argument.replaceAll("\\", "/").endsWith("e2e/trouvable-back-to-top-ar-handoff.spec.ts")
-  );
-const useMaisonPublicMenuFixture = playwrightInputArgs.some((argument) =>
+const useGoogleReviewDirectCtaFixture = playwrightInputArgs.some((argument) =>
   argument
     .replaceAll("\\", "/")
-    .endsWith("e2e/maison-elyse-public-menu.spec.ts")
+    .endsWith("e2e/google-review-direct-cta.spec.ts")
 );
+const useTrouvableImmersiveFixture =
+  useGoogleReviewDirectCtaFixture ||
+  playwrightInputArgs.some((argument) =>
+    argument.replaceAll("\\", "/").endsWith("e2e/trouvable-back-to-top-ar-handoff.spec.ts")
+  );
+const useMaisonPublicMenuFixture =
+  useGoogleReviewDirectCtaFixture ||
+  playwrightInputArgs.some((argument) =>
+    argument
+      .replaceAll("\\", "/")
+      .endsWith("e2e/maison-elyse-public-menu.spec.ts")
+  );
 const includesPrompt5BrowserFlow = playwrightInputArgs.some((argument) =>
   /(?:^|\/)prompt5-(?:pdf-comparison|faq|footer|guides)\.spec\.ts$/.test(
     argument.replaceAll("\\", "/")

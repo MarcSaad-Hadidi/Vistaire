@@ -84,7 +84,7 @@ test("public /menu/trouvable reads Supabase before the local Trouvable demo fall
   const supabaseReadIndex = source.indexOf(
     'const restaurantsResult = await dependencies.readRows<PublicMenuRow>'
   );
-  const fallbackIndex = source.indexOf("return localDemo();", supabaseReadIndex);
+  const fallbackIndex = source.indexOf("localDemo()", supabaseReadIndex);
 
   assert.ok(supabaseReadIndex > 0, "Trouvable must reach the Supabase restaurant read");
   assert.ok(
@@ -94,7 +94,8 @@ test("public /menu/trouvable reads Supabase before the local Trouvable demo fall
   assert.match(source, /TROUVABLE_PUBLIC_MENU_SETTINGS/);
   assert.match(source, /supportedLocales:\s*\["fr-CA",\s*"en-CA",\s*"es-ES",\s*"it-IT",\s*"el-GR",\s*"ar"\]/);
   assertTrouvableDishNameIdentity(source);
-  assert.match(source, /!restaurantsResult\.ok \|\| restaurantsResult\.rows\.length === 0/);
+  assert.match(source, /if \(!restaurantsResult\.ok\) return \{ status: "temporarily_unavailable" \}/);
+  assert.match(source, /if \(restaurantsResult\.rows\.length === 0\) return \{ status: "not_found" \}/);
   assert.match(source, /dependencies\.nodeEnv === "production"/);
   assert.match(source, /filters: \{ slug \}/);
   assert.match(source, /filters: \{ restaurant_id: restaurantId \}/);
@@ -255,11 +256,11 @@ test("Trouvable premium menu wires functional currency, language, theme, and gre
   assert.match(controls, /getTrouvableTextDirection/);
   assert.match(controls, /sans gluten/i);
   assert.match(controls, /fruits à coque/i);
-  assert.match(source, /openRestaurantReviewSheet/);
-  assert.match(source, /openSheet\("experienceReview"\)/);
-  assert.match(source, /copy\.reviewExperienceTitle/);
-  assert.match(source, /copy\.reviewExperiencePlaceholder/);
-  assert.match(source, /onReviewRequest=\{openRestaurantReviewSheet\}/);
+  assert.doesNotMatch(source, /openRestaurantReviewSheet/);
+  assert.doesNotMatch(source, /openSheet\("experienceReview"\)/);
+  assert.doesNotMatch(source, /onReviewRequest/);
+  assert.doesNotMatch(source, /reviewRating|setReviewText/);
+  assert.match(source, /<GoogleReviewCard/);
   assert.match(source, /hasPublicMenu3d\(selectedDish\)/);
   assert.doesNotMatch(source, /badges\.add\("4D"\)/);
   assert.match(controls, /TROUVABLE_STATIC_CAD_RATES/);
@@ -290,28 +291,27 @@ test("Trouvable standalone dish detail keeps locale URL navigation and layout di
   );
 });
 
-test("Trouvable dish details and reviews are stacked sub-sheets above the dish", async () => {
+test("Trouvable dish details stay stacked above the dish without a local review sheet", async () => {
   const source = await readFile(componentPath, "utf8");
   const detailSource = await readFile(dishDetailPath, "utf8");
 
-  assert.match(source, /type DishSubSheet = "details" \| "review" \| null/);
+  assert.match(source, /type DishSubSheet = "details" \| null/);
   assert.match(source, /renderDishDetailsSubSheet/);
   assert.match(source, /setDishSubSheet\("details"\)/);
-  assert.match(source, /activeSheet === "dish" && dishSubSheet === "review"/);
+  assert.doesNotMatch(source, /dishSubSheet === "review"/);
   assert.match(source, /closeDishSubSheet/);
   assert.match(source, /const subSheetRef = useRef<HTMLElement \| null>\(null\)/);
   assert.match(source, /if \(activeSheet === "dish" && dishSubSheet\) \{\s*closeDishSubSheet\(\);/);
-  assert.match(source, /ref=\{isDishStackReview \? subSheetRef : sheetRef\}/);
-  assert.match(source, /panelRef=\{subSheetRef\}/);
   assert.match(source, /trouvable-dish-more-details-/);
   assert.match(source, /PremiumDishDetailsSheet/);
   assert.doesNotMatch(source, /dishDetailsExpanded/);
+  assert.doesNotMatch(source, /renderReviewSheet/);
+  assert.doesNotMatch(source, /experienceReview/);
 
-  assert.match(detailSource, /type DishDetailSubSheet = "details" \| "review" \| null/);
+  assert.match(detailSource, /type DishDetailSubSheet = "details" \| null/);
   assert.match(detailSource, /activeSubSheet === "details"/);
-  assert.match(detailSource, /activeSubSheet === "review"/);
+  assert.doesNotMatch(detailSource, /activeSubSheet === "review"/);
   assert.match(detailSource, /setActiveSubSheet\(null\)/);
-  assert.match(detailSource, /styles\.stackedOverlay/);
   assert.doesNotMatch(detailSource, /showMoreDetails/);
   assert.doesNotMatch(detailSource, /showReviewSheet/);
 });
@@ -337,13 +337,16 @@ test("Trouvable dish swipe guards interactive controls and 3D surfaces", async (
     assert.ok(detailSource.includes(`"${selector}"`), `dish detail missing guard ${selector}`);
   }
 
+  const surfaceSource = await readFile(
+    "components/menu/TrouvableDishDetailSurface.tsx",
+    "utf8"
+  );
   assert.match(source, /isDishSwipeGuardedTarget\(event\.target,\s*event\.currentTarget\)/);
   assert.match(
     detailSource,
     /isDishSwipeGuardedTarget\(event\.target,\s*event\.currentTarget\)/
   );
-  assert.match(source, /data-no-dish-swipe="true"/);
-  assert.match(detailSource, /data-no-dish-swipe="true"/);
+  assert.match(surfaceSource, /data-no-dish-swipe="true"/);
   assert.doesNotMatch(
     source,
     /className=\{styles\.menuPanel\}[\s\S]{0,180}onPointerDown=\{handleMenuCategoryPointerDown\}/
@@ -469,41 +472,43 @@ test("Trouvable all category stays global while filters and searches resolve dis
   );
 });
 
-test("Trouvable review sheets track Google review outbound clicks", async () => {
-  const [source, detailSource, tracking] = await Promise.all([
+test("Trouvable Google Review CTA tracks outbound clicks from the shared card", async () => {
+  const [source, detailSource, tracking, card] = await Promise.all([
     readFile(componentPath, "utf8"),
     readFile(dishDetailPath, "utf8"),
-    readFile(googleReviewTrackingPath, "utf8")
+    readFile(googleReviewTrackingPath, "utf8"),
+    readFile("components/menu/GoogleReviewCard.tsx", "utf8")
   ]);
 
-  assert.match(source, /trackGoogleReviewClick/);
-  assert.match(source, /dishSlug:\s*reviewDish\?\.slug/);
-  assert.match(detailSource, /trackGoogleReviewClick/);
-  assert.match(detailSource, /dishSlug:\s*activeDish\.slug/);
+  assert.match(source, /<GoogleReviewCard/);
+  assert.match(detailSource, /<GoogleReviewCard/);
+  assert.doesNotMatch(source, /onReviewRequest/);
+  assert.doesNotMatch(detailSource, /onReviewRequest/);
+  assert.match(card, /trackGoogleReviewClick/);
   assert.match(tracking, /trackMenuEvent/);
   assert.match(tracking, /ctaName:\s*"google_review"/);
   assert.match(tracking, /destination:\s*"google_review"/);
 });
 
-test("Trouvable review sheets dismiss from backdrop and hide visible close control", async () => {
+test("Trouvable no longer uses a local review sheet or swipe-to-review shortcut", async () => {
   const [source, detailSource, css] = await Promise.all([
     readFile(componentPath, "utf8"),
     readFile(dishDetailPath, "utf8"),
     readFile(cssPath, "utf8")
   ]);
 
-  assert.match(source, /reviewOverlay\} \$\{styles\.stackedOverlay\}/);
-  assert.match(source, /if \(event\.target === event\.currentTarget\) closeReview\(\)/);
-  assert.doesNotMatch(source, /className=\{styles\.reviewClose\}/);
+  assert.doesNotMatch(source, /reviewOverlay/);
+  assert.doesNotMatch(source, /renderReviewSheet/);
+  assert.doesNotMatch(source, /gesture === "reviewOpen"/);
   assert.match(source, /resolveDishSwipeGesture/);
-  assert.match(source, /gesture === "reviewOpen"/);
   assert.match(source, /event\.key === "Escape"/);
   assert.match(detailSource, /resolveDishSwipeGesture/);
-  assert.match(detailSource, /if \(event\.target === event\.currentTarget\) setActiveSubSheet\(null\)/);
+  assert.doesNotMatch(detailSource, /gesture === "reviewOpen"/);
   assert.doesNotMatch(detailSource, /className=\{styles\.reviewClose\}/);
-  assert.match(detailSource, /if \(event\.key !== "Escape"\) return/);
-  assert.match(css, /\.reviewTrigger span[\s\S]*var\(--trouvable-gold\)/);
-  assert.doesNotMatch(css, /\.reviewClose/);
+  assert.doesNotMatch(css, /\.reviewStars/);
+  assert.doesNotMatch(css, /\.reviewTextarea/);
+  assert.doesNotMatch(css, /\.reviewPostButton/);
+  assert.doesNotMatch(css, /\.reviewTrigger/);
 });
 
 test("Trouvable hero includes animated botanical ornamentation", async () => {

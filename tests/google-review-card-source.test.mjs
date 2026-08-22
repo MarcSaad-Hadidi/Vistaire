@@ -16,9 +16,15 @@ test("Google Review card uses neutral approved wording and no incentive or gatin
 
   for (const text of [
     "Votre expérience compte",
-    "Partagez votre expérience chez",
-    "Votre avis Google aide l'équipe à mieux comprendre chaque visite",
-    "Laisser un avis Google",
+    "Partagez votre avis directement sur Google.",
+    "Cela ne prend qu'une minute.",
+    "Laisser un avis sur Google",
+    "Your experience matters",
+    "Share your experience directly on Google.",
+    "It only takes a minute.",
+    "Leave a Google review",
+    "S'ouvre dans un nouvel onglet",
+    "Opens in a new tab",
     "Aucun avantage n'est offert en échange d'un avis.",
     "Votre avis doit refléter votre expérience réelle."
   ]) {
@@ -54,6 +60,15 @@ test("Google Review card links out safely and tracks only the outbound click", a
   assert.match(tracking, /eventName:\s*"cta_clicked"/);
   assert.match(tracking, /ctaName:\s*"google_review"/);
   assert.doesNotMatch(source, /posted|published|reviewed|avis publie/i);
+  assert.doesNotMatch(source, /onReviewRequest/);
+  assert.doesNotMatch(source, /data-google-review-trigger/);
+  assert.doesNotMatch(source, /<textarea|<input|reviewRating|reviewText/);
+  assert.doesNotMatch(source, /disabled/);
+  assert.match(source, /copy\.opensInNewTab/);
+  assert.match(
+    source,
+    /cta \? \([\s\S]*<a[\s\S]*data-google-review-action="true"[\s\S]*href=\{cta\.href\}/
+  );
 });
 
 test("public menu renders Google Review card from the validated CTA helper", async () => {

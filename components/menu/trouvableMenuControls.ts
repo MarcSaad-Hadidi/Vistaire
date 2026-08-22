@@ -60,17 +60,17 @@ export const TROUVABLE_STATIC_CAD_RATES: Partial<Record<TrouvableCurrency, numbe
 
 const TROUVABLE_GOOGLE_REVIEW_COPY = {
   fr: {
-    action: "Laisser un avis Google",
+    action: "Laisser un avis sur Google",
     fallbackRestaurant: "le restaurant",
     metaLabel: "Résumé Google",
     note:
       "Aucun avantage n'est offert en échange d'un avis. Votre avis doit refléter votre expérience réelle.",
+    opensInNewTab: "S'ouvre dans un nouvel onglet",
     presentationRatingLabel: "Aperçu Google : {rating}/5",
     presentationReviewCountLabel: "Aperçu : {count} avis",
     ratingLabel: "{rating}/5 sur Google",
     reviewCountLabel: "{count} avis Google",
-    text:
-      "Partagez votre expérience chez {restaurantName}. Votre avis Google aide l'équipe à mieux comprendre chaque visite et à se faire découvrir.",
+    text: "Partagez votre avis directement sur Google. Cela ne prend qu'une minute.",
     title: "Votre expérience compte"
   },
   en: {
@@ -79,12 +79,12 @@ const TROUVABLE_GOOGLE_REVIEW_COPY = {
     metaLabel: "Google summary",
     note:
       "No benefit is offered in exchange for a review. Your review should reflect your real experience.",
+    opensInNewTab: "Opens in a new tab",
     presentationRatingLabel: "Google preview: {rating}/5",
     presentationReviewCountLabel: "Preview: {count} reviews",
     ratingLabel: "{rating}/5 on Google",
     reviewCountLabel: "{count} Google reviews",
-    text:
-      "Share your experience at {restaurantName}. Your Google review helps the team understand each visit and be discovered.",
+    text: "Share your experience directly on Google. It only takes a minute.",
     title: "Your experience matters"
   },
   es: {
@@ -93,26 +93,26 @@ const TROUVABLE_GOOGLE_REVIEW_COPY = {
     metaLabel: "Resumen de Google",
     note:
       "No se ofrece ningún beneficio a cambio de una reseña. Tu reseña debe reflejar tu experiencia real.",
+    opensInNewTab: "Se abre en una pestaña nueva",
     presentationRatingLabel: "Vista previa de Google: {rating}/5",
     presentationReviewCountLabel: "Vista previa: {count} reseñas",
     ratingLabel: "{rating}/5 en Google",
     reviewCountLabel: "{count} reseñas de Google",
-    text:
-      "Comparte tu experiencia en {restaurantName}. Tu reseña de Google ayuda al equipo a entender cada visita y a ser descubierto.",
+    text: "Comparte tu opinión directamente en Google. Solo toma un minuto.",
     title: "Tu experiencia cuenta"
   },
   it: {
-    action: "Lascia una recensione Google",
+    action: "Lascia una recensione su Google",
     fallbackRestaurant: "il ristorante",
     metaLabel: "Riepilogo Google",
     note:
       "Non viene offerto alcun vantaggio in cambio di una recensione. La recensione deve riflettere la tua esperienza reale.",
+    opensInNewTab: "Si apre in una nuova scheda",
     presentationRatingLabel: "Anteprima Google: {rating}/5",
     presentationReviewCountLabel: "Anteprima: {count} recensioni",
     ratingLabel: "{rating}/5 su Google",
     reviewCountLabel: "{count} recensioni Google",
-    text:
-      "Condividi la tua esperienza da {restaurantName}. La tua recensione Google aiuta il team a capire ogni visita e a farsi scoprire.",
+    text: "Condividi la tua esperienza direttamente su Google. Ci vuole solo un minuto.",
     title: "La tua esperienza conta"
   },
   de: {
@@ -121,26 +121,26 @@ const TROUVABLE_GOOGLE_REVIEW_COPY = {
     metaLabel: "Google-Zusammenfassung",
     note:
       "Es wird kein Vorteil im Austausch für eine Bewertung angeboten. Ihre Bewertung sollte Ihre echte Erfahrung widerspiegeln.",
+    opensInNewTab: "Öffnet sich in einem neuen Tab",
     presentationRatingLabel: "Google-Vorschau: {rating}/5",
     presentationReviewCountLabel: "Vorschau: {count} Bewertungen",
     ratingLabel: "{rating}/5 bei Google",
     reviewCountLabel: "{count} Google-Bewertungen",
-    text:
-      "Teilen Sie Ihre Erfahrung bei {restaurantName}. Ihre Google-Bewertung hilft dem Team, jeden Besuch besser zu verstehen und leichter entdeckt zu werden.",
+    text: "Teilen Sie Ihre Erfahrung direkt auf Google. Es dauert nur eine Minute.",
     title: "Ihre Erfahrung zählt"
   },
   el: {
-    action: "Αφήστε αξιολόγηση Google",
+    action: "Αφήστε μια αξιολόγηση στο Google",
     fallbackRestaurant: "το εστιατόριο",
     metaLabel: "Σύνοψη Google",
     note:
       "Δεν προσφέρεται κανένα όφελος ως αντάλλαγμα για αξιολόγηση. Η αξιολόγησή σας πρέπει να αντικατοπτρίζει την πραγματική εμπειρία σας.",
+    opensInNewTab: "Ανοίγει σε νέα καρτέλα",
     presentationRatingLabel: "Προεπισκόπηση Google: {rating}/5",
     presentationReviewCountLabel: "Προεπισκόπηση: {count} αξιολογήσεις",
     ratingLabel: "{rating}/5 στο Google",
     reviewCountLabel: "{count} αξιολογήσεις Google",
-    text:
-      "Μοιραστείτε την εμπειρία σας στο {restaurantName}. Η αξιολόγησή σας στο Google βοηθά την ομάδα να κατανοεί κάθε επίσκεψη και να γίνεται πιο εύκολα ανακαλύψιμη.",
+    text: "Μοιραστείτε την εμπειρία σας απευθείας στο Google. Χρειάζεται μόνο ένα λεπτό.",
     title: "Η εμπειρία σας μετράει"
   },
   ar: {
@@ -149,12 +149,12 @@ const TROUVABLE_GOOGLE_REVIEW_COPY = {
     metaLabel: "ملخص Google",
     note:
       "لا يتم تقديم أي منفعة مقابل التقييم. يجب أن يعكس تقييمك تجربتك الحقيقية.",
+    opensInNewTab: "يفتح في علامة تبويب جديدة",
     presentationRatingLabel: "معاينة Google: {rating}/5",
     presentationReviewCountLabel: "معاينة: {count} تقييم",
     ratingLabel: "{rating}/5 على Google",
     reviewCountLabel: "{count} تقييم Google",
-    text:
-      "شارك تجربتك لدى {restaurantName}. يساعد تقييمك على Google الفريق على فهم كل زيارة والوصول إلى ضيوف جدد.",
+    text: "شارك تجربتك مباشرة على Google. لا يستغرق الأمر سوى دقيقة واحدة.",
     title: "تجربتك مهمة"
   }
 } as const;
@@ -343,18 +343,6 @@ export const TROUVABLE_COPY = {
     resetFilters: "R\u00e9initialiser les filtres",
     resultStatus: (view: string, count: number) =>
       `Vue ${view}, ${count} plat${count > 1 ? "s" : ""} affiché${count > 1 ? "s" : ""}`,
-    review: "LAISSER UN AVIS",
-    reviewClose: "Fermer l'avis",
-    reviewComment: "Votre commentaire",
-    reviewExperiencePlaceholder: "Comment s'est passée votre visite ?",
-    reviewExperienceStars: "Note de l'expérience",
-    reviewExperienceTitle: "Noter votre expérience",
-    reviewMissing: "Lien Google Review non configuré pour ce restaurant.",
-    reviewOpened: "Google Review ouvert dans un nouvel onglet.",
-    reviewPlaceholder: "Comment était le goût ?",
-    reviewPost: "Publier l'avis",
-    reviewStars: "Note du plat",
-    reviewTitle: "Noter ce plat",
     searchLabel: "Recherche",
     searchPlaceholder: "Rechercher un plat, ingrédient, tag...",
     selection: "Sélection",
@@ -559,18 +547,6 @@ export const TROUVABLE_COPY = {
     resetFilters: "Reset filters",
     resultStatus: (view: string, count: number) =>
       `${view} view, ${count} dish${count > 1 ? "es" : ""} shown`,
-    review: "TAP TO REVIEW",
-    reviewClose: "Close review",
-    reviewComment: "Your comment",
-    reviewExperiencePlaceholder: "How was your visit?",
-    reviewExperienceStars: "Experience rating",
-    reviewExperienceTitle: "Rate your experience",
-    reviewMissing: "Google Review link is not configured for this restaurant.",
-    reviewOpened: "Google Review opened in a new tab.",
-    reviewPlaceholder: "How was the taste?",
-    reviewPost: "POST REVIEW",
-    reviewStars: "Dish rating",
-    reviewTitle: "Rate this Dish",
     searchLabel: "Search",
     searchPlaceholder: "Search dish, ingredient, tag...",
     selection: "Selection",
@@ -776,18 +752,6 @@ export const TROUVABLE_COPY = {
     resetFilters: "Restablecer filtros",
     resultStatus: (view: string, count: number) =>
       `Vista ${view}, ${count} plato${count > 1 ? "s" : ""} visible${count > 1 ? "s" : ""}`,
-    review: "DEJAR RESENA",
-    reviewClose: "Cerrar resena",
-    reviewComment: "Tu comentario",
-    reviewExperiencePlaceholder: "Como fue tu visita?",
-    reviewExperienceStars: "Valoracion de la experiencia",
-    reviewExperienceTitle: "Valorar tu experiencia",
-    reviewMissing: "El enlace de Google Review no esta configurado para este restaurante.",
-    reviewOpened: "Google Review se abrio en una nueva pestana.",
-    reviewPlaceholder: "Que tal el sabor?",
-    reviewPost: "Publicar resena",
-    reviewStars: "Valoracion del plato",
-    reviewTitle: "Valorar este plato",
     searchLabel: "Buscar",
     searchPlaceholder: "Buscar plato, ingrediente, etiqueta...",
     selection: "Seleccion",
@@ -993,18 +957,6 @@ export const TROUVABLE_COPY = {
     resetFilters: "Reimposta filtri",
     resultStatus: (view: string, count: number) =>
       `Vista ${view}, ${count} piatt${count > 1 ? "i" : "o"} visibil${count > 1 ? "i" : "e"}`,
-    review: "LASCIA RECENSIONE",
-    reviewClose: "Chiudi recensione",
-    reviewComment: "Il tuo commento",
-    reviewExperiencePlaceholder: "Com'e stata la visita?",
-    reviewExperienceStars: "Valutazione esperienza",
-    reviewExperienceTitle: "Valuta la tua esperienza",
-    reviewMissing: "Link Google Review non configurato per questo ristorante.",
-    reviewOpened: "Google Review aperto in una nuova scheda.",
-    reviewPlaceholder: "Com'era il gusto?",
-    reviewPost: "Pubblica recensione",
-    reviewStars: "Valutazione piatto",
-    reviewTitle: "Valuta questo piatto",
     searchLabel: "Cerca",
     searchPlaceholder: "Cerca piatto, ingrediente, tag...",
     selection: "Selezione",
@@ -1210,18 +1162,6 @@ export const TROUVABLE_COPY = {
     resetFilters: "Filter zurücksetzen",
     resultStatus: (view: string, count: number) =>
       `${view}-Ansicht, ${count} ${count === 1 ? "Gericht" : "Gerichte"} angezeigt`,
-    review: "BEWERTEN",
-    reviewClose: "Bewertung schließen",
-    reviewComment: "Ihr Kommentar",
-    reviewExperiencePlaceholder: "Wie war Ihr Besuch?",
-    reviewExperienceStars: "Erlebnisbewertung",
-    reviewExperienceTitle: "Bewerten Sie Ihre Erfahrung",
-    reviewMissing: "Der Google-Review-Link ist für dieses Restaurant nicht konfiguriert.",
-    reviewOpened: "Google Review wurde in einem neuen Tab geöffnet.",
-    reviewPlaceholder: "Wie war der Geschmack?",
-    reviewPost: "BEWERTUNG SENDEN",
-    reviewStars: "Gerichtbewertung",
-    reviewTitle: "Dieses Gericht bewerten",
     searchLabel: "Suche",
     searchPlaceholder: "Gericht, Zutat, Tag suchen...",
     selection: "Auswahl",
@@ -1427,18 +1367,6 @@ export const TROUVABLE_COPY = {
     resetFilters: "Επαναφορά φίλτρων",
     resultStatus: (view: string, count: number) =>
       `Προβολή ${view}, εμφανίζονται ${count} ${count === 1 ? "πιάτο" : "πιάτα"}`,
-    review: "ΑΞΙΟΛΟΓΗΣΗ",
-    reviewClose: "Κλείσιμο αξιολόγησης",
-    reviewComment: "Το σχόλιό σας",
-    reviewExperiencePlaceholder: "Πώς ήταν η επίσκεψή σας;",
-    reviewExperienceStars: "Βαθμολογία εμπειρίας",
-    reviewExperienceTitle: "Αξιολογήστε την εμπειρία σας",
-    reviewMissing: "Ο σύνδεσμος αξιολόγησης Google δεν έχει ρυθμιστεί για αυτό το εστιατόριο.",
-    reviewOpened: "Η αξιολόγηση Google άνοιξε σε νέα καρτέλα.",
-    reviewPlaceholder: "Πώς ήταν η γεύση;",
-    reviewPost: "ΔΗΜΟΣΙΕΥΣΗ ΑΞΙΟΛΟΓΗΣΗΣ",
-    reviewStars: "Βαθμολογία πιάτου",
-    reviewTitle: "Αξιολογήστε αυτό το πιάτο",
     searchLabel: "Αναζήτηση",
     searchPlaceholder: "Αναζήτηση πιάτου, υλικού, ετικέτας...",
     selection: "Επιλογή",
@@ -1642,18 +1570,6 @@ export const TROUVABLE_COPY = {
     resetFilters: "إعادة ضبط الفلاتر",
     resultStatus: (view: string, count: number) =>
       `عرض ${view}، ${count} أطباق معروضة`,
-    review: "اترك تقييما",
-    reviewClose: "إغلاق التقييم",
-    reviewComment: "تعليقك",
-    reviewExperiencePlaceholder: "كيف كانت زيارتك؟",
-    reviewExperienceStars: "تقييم التجربة",
-    reviewExperienceTitle: "قيّم تجربتك",
-    reviewMissing: "رابط Google Review غير معد لهذا المطعم.",
-    reviewOpened: "تم فتح Google Review في تبويب جديد.",
-    reviewPlaceholder: "كيف كان الطعم؟",
-    reviewPost: "نشر التقييم",
-    reviewStars: "تقييم الطبق",
-    reviewTitle: "قيّم هذا الطبق",
     searchLabel: "بحث",
     searchPlaceholder: "ابحث عن طبق أو مكون أو وسم...",
     selection: "الاختيار",
