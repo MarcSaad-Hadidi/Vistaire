@@ -31,6 +31,7 @@ jobs:
           fetch-depth: 0
 
       - name: Probe merge of PR 211 then PR 209
+        id: probe
         shell: bash
         run: |
           set -euo pipefail
@@ -49,15 +50,38 @@ jobs:
             -m "merge: integrate Supabase media efficiency"
           merge_status=$?
           set -e
+          echo "merge_status=${merge_status}" >> "$GITHUB_OUTPUT"
 
-          echo "MERGE_STATUS=${merge_status}"
-          echo "--- CONFLICTS ---"
-          git diff --name-only --diff-filter=U || true
-          echo "--- STATUS ---"
-          git status --short
+          mkdir -p integration-conflicts
+          git diff --name-only --diff-filter=U > integration-conflicts/conflicts.txt
 
-          if [ "${merge_status}" -ne 0 ]; then
-            exit 1
-          fi
+          index=0
+          while IFS= read -r -d '' path; do
+            index=$((index + 1))
+            directory="integration-conflicts/$(printf '%03d' "$index")"
+            mkdir -p "$directory"
+            printf '%s\n' "$path" > "$directory/path.txt"
+            git show ":1:$path" > "$directory/base" 2>/dev/null || true
+            git show ":2:$path" > "$directory/pr211" 2>/dev/null || true
+            git show ":3:$path" > "$directory/pr209" 2>/dev/null || true
+            cp -- "$path" "$directory/conflicted"
+          done < <(git diff --name-only --diff-filter=U -z)
 
-          echo "Both branches merged without unresolved conflicts."
+          printf '%s\n' "$index" > integration-conflicts/count.txt
+          git status --short > integration-conflicts/status.txt
+          git diff --stat > integration-conflicts/diff-stat.txt || true
+          echo "Archived ${index} conflict sets."
+
+      - name: Upload conflict stages
+        if: always()
+        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
+        with:
+          name: vistaire-final-integration-conflicts
+          path: integration-conflicts
+          if-no-files-found: error
+          retention-days: 1
+
+      - name: Fail when conflicts remain
+        if: steps.probe.outputs.merge_status != '0'
+        shell: bash
+        run: exit 1
