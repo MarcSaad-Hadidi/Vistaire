@@ -33,6 +33,7 @@ export type PublicMutationIdentity = Readonly<{
   featuredExperienceId: RestaurantExperienceId | null;
   dishSlug: string;
   dishId?: string;
+  retryOnly?: true;
 }>;
 
 export type PublicMutationRevalidationCallbacks = Readonly<{
@@ -70,6 +71,7 @@ export type PublicMutationInvalidationReport = Readonly<{
   attempted: number;
   queuedCallReturned: number;
   enqueueErrors: readonly PublicMutationSchedulingError[];
+  identityUnavailable?: true;
 }>;
 
 export type MenuMutationRevalidationFailure =
@@ -156,14 +158,34 @@ function retrySignal(identity: Pick<PublicMutationIdentity, "restaurantId" | "di
   };
 }
 
+export function createPublicMutationRetryIdentity(args: {
+  restaurantId: string;
+  dishId?: string;
+  dishSlug?: string;
+}): PublicMutationIdentity | null {
+  const restaurantId = args.restaurantId.trim();
+  if (!restaurantId) return null;
+  const dishId = args.dishId?.trim() ?? "";
+  return Object.freeze({
+    restaurantId,
+    restaurantSlug: "",
+    restaurantKey: "",
+    featuredExperienceId: null,
+    dishSlug: slugifyRestaurantSlug(args.dishSlug ?? ""),
+    ...(dishId ? { dishId } : {}),
+    retryOnly: true
+  });
+}
+
 export async function resolvePublicMutationIdentity(args: {
   client: SupabaseClient;
   restaurantId: string;
   dishId?: string;
   dishSlug?: string;
 }): Promise<PublicMutationIdentity | null> {
-  const restaurantId = args.restaurantId.trim();
-  if (!restaurantId) return null;
+  const fallbackIdentity = createPublicMutationRetryIdentity(args);
+  if (!fallbackIdentity) return null;
+  const restaurantId = fallbackIdentity.restaurantId;
 
   let restaurant: {
     data: Record<string, unknown> | null;
@@ -176,14 +198,14 @@ export async function resolvePublicMutationIdentity(args: {
       .eq("id", restaurantId)
       .maybeSingle();
   } catch {
-    return null;
+    return fallbackIdentity;
   }
-  if (restaurant.error || !restaurant.data) return null;
+  if (restaurant.error || !restaurant.data) return fallbackIdentity;
 
   const restaurantSlug = slugifyRestaurantSlug(
     getString(restaurant.data, "slug") || getString(restaurant.data, "name")
   );
-  if (!restaurantSlug) return null;
+  if (!restaurantSlug) return fallbackIdentity;
 
   const dishId = args.dishId?.trim() ?? "";
   return Object.freeze({
@@ -211,7 +233,8 @@ export async function invalidateCommittedPublicMutation(
     return Object.freeze({
       attempted: 0,
       queuedCallReturned: 0,
-      enqueueErrors: Object.freeze([])
+      enqueueErrors: Object.freeze([]),
+      identityUnavailable: true
     });
   }
 
@@ -225,6 +248,21 @@ export async function invalidateCommittedPublicMutation(
     });
   } catch {
     assetMetadataFailed = true;
+  }
+
+  if (identity.retryOnly === true || !identity.restaurantSlug) {
+    if (options.emitRetrySignal !== false) {
+      await emitMenuMutationRetrySignal(
+        retrySignal(identity),
+        options.signalRetry
+      );
+    }
+    return Object.freeze({
+      attempted: 0,
+      queuedCallReturned: 0,
+      enqueueErrors: Object.freeze([]),
+      identityUnavailable: true
+    });
   }
 
   const scheduleTag = options.callbacks?.revalidateTag ?? revalidateTag;
@@ -338,7 +376,7 @@ export async function revalidateOwnerMenuMutationPaths(
   }
 
   const identity = await resolvePublicMutationIdentity(args);
-  if (!identity) {
+  if (!identity || identity.retryOnly === true || !identity.restaurantSlug) {
     recordFailure(failures, "restaurant-lookup");
     await emitMenuMutationRetrySignal(
       {
