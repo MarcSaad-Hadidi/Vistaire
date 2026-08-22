@@ -725,7 +725,7 @@ async function getPublicMenuBySlugUncached(
         menuRow: primaryMenu,
         categoryRows: categoriesResult.rows,
         dishRows,
-        includeUnavailableDishes: true,
+        includeUnavailableDishes: false,
         legacyPublicMenuSettings,
         legacyMenuLanguages
       });
@@ -739,7 +739,7 @@ async function getPublicMenuBySlugUncached(
       slug,
       match,
       dishRows,
-      { includeUnavailableDishes: true, legacyPublicMenuSettings, legacyMenuLanguages }
+      { includeUnavailableDishes: false, legacyPublicMenuSettings, legacyMenuLanguages }
     );
     return {
       status: "live",
