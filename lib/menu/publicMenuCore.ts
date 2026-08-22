@@ -439,7 +439,13 @@ export function getGoogleReviewCta(
   config: GoogleReviewConfig | null | undefined
 ): GoogleReviewCta | null {
   const normalized = normalizeGoogleReviewConfig(config);
-  if (!normalized.enabled || !normalized.googleReviewUrl) return null;
+  if (
+    !normalized.enabled ||
+    normalized.presentationOnly ||
+    !normalized.googleReviewUrl
+  ) {
+    return null;
+  }
 
   return {
     href: normalized.googleReviewUrl,

@@ -29,7 +29,6 @@ import {
 import {
   buildPublicDishPath,
   getPublicDishImageUrl,
-  getGoogleReviewCta,
   getPublicMenuCategoryGroups,
   getVisiblePublicMenuCategories,
   type PublicMenu,
@@ -49,10 +48,8 @@ import { GoogleReviewCard } from "./GoogleReviewCard";
 import { PremiumDishDetailsSheet } from "./PremiumDishDetailsSheet";
 import {
   TrouvableDishDetailSurface,
-  TrouvableDishReviewPanelBody,
   TrouvableImmersivePanelBody
 } from "./TrouvableDishDetailSurface";
-import { trackGoogleReviewClick } from "./googleReviewTracking";
 import { useTrouvableDocumentLanguage } from "./useTrouvableDocumentLanguage";
 import { getTrouvablePaletteSource } from "@/lib/menu/trouvableMenuExperience";
 import {
@@ -118,13 +115,11 @@ type ActiveSheet =
   | "currency"
   | "filters"
   | "language"
-  | "experienceReview"
   | "dish"
   | "selection"
   | "waiter"
-  | "review"
   | null;
-type DishSubSheet = "details" | "review" | null;
+type DishSubSheet = "details" | null;
 type PointerSwipeStart = {
   x: number;
   y: number;
@@ -473,8 +468,6 @@ export function TrouvablePremiumMenuExperience({
   const [tableNumber, setTableNumber] = useState(query?.table?.slice(0, 24) ?? "");
   const [localMessage, setLocalMessage] = useState("");
   const [waiterMessage, setWaiterMessage] = useState("");
-  const [reviewRating, setReviewRating] = useState(0);
-  const [reviewText, setReviewText] = useState("");
   const [selectedLocale, setSelectedLocale] = useState<TrouvableLocale>(() =>
     normalizeTrouvableReadyLocaleForSettings(
       query?.lang,
@@ -775,7 +768,6 @@ export function TrouvablePremiumMenuExperience({
         exchangeRates
       ) !== null
     );
-  const googleReviewCta = getGoogleReviewCta(menu.googleReview);
   const viewLabel = viewMode === "grid" ? copy.viewGrid : copy.viewList;
 
   const resetArHandoffState = useCallback(() => {
@@ -1206,26 +1198,6 @@ export function TrouvablePremiumMenuExperience({
     openSheet("waiter");
   }
 
-  function openReviewSheet() {
-    setReviewRating(0);
-    setReviewText("");
-    setLocalMessage("");
-    if (activeSheet === "dish" && selectedDish) {
-      setDishSubSheet("review");
-      return;
-    }
-    openSheet("review");
-  }
-
-  function openRestaurantReviewSheet() {
-    resetArHandoffState();
-    setSelectedDish(null);
-    setReviewRating(0);
-    setReviewText("");
-    setLocalMessage("");
-    openSheet("experienceReview");
-  }
-
   function selectCurrency(nextCurrency: TrouvableCurrency) {
     if (!menu.settings.supportedCurrencies.includes(nextCurrency)) return;
     setSelectedCurrency(nextCurrency);
@@ -1410,10 +1382,6 @@ export function TrouvablePremiumMenuExperience({
     const scrollDelta =
       getDishSwipeScrollTop(event.currentTarget) - start.scrollTop;
     const gesture = resolveDishSwipeGesture(deltaX, deltaY, scrollDelta);
-    if (gesture === "reviewOpen") {
-      openReviewSheet();
-      return;
-    }
     if (gesture === "next" || gesture === "previous") {
       selectAdjacentDish(gesture === "next" ? 1 : -1);
     }
@@ -1846,80 +1814,6 @@ export function TrouvablePremiumMenuExperience({
     );
   }
 
-  function renderReviewSheet() {
-    const showAsPrimaryReview =
-      renderedSheet === "review" || renderedSheet === "experienceReview";
-    const showAsStackReview =
-      renderedSheet === "dish" && renderedSubSheet === "review";
-    if (!showAsPrimaryReview && !showAsStackReview) {
-      return null;
-    }
-
-    // Active (live) intent, used to route the close handler while the sheet is still open.
-    const isDishStackReviewActive = activeSheet === "dish" && dishSubSheet === "review";
-    // Rendered intent, used for markup/refs so the sub-sheet keeps its identity while closing.
-    const isDishStackReview = showAsStackReview;
-    const reviewMotionState = showAsStackReview
-      ? subSheetMotionState
-      : sheetMotionState;
-    const isExperienceReview = renderedSheet === "experienceReview";
-    const reviewDish = isExperienceReview ? null : selectedDish;
-    const closeReview = isDishStackReviewActive ? closeDishSubSheet : closeActiveSheet;
-    const reviewTitle = isExperienceReview
-      ? copy.reviewExperienceTitle
-      : copy.reviewTitle;
-    const reviewPlaceholder = isExperienceReview
-      ? copy.reviewExperiencePlaceholder
-      : copy.reviewPlaceholder;
-    const reviewStarsLabel = isExperienceReview
-      ? copy.reviewExperienceStars
-      : copy.reviewStars;
-
-    return (
-      <div
-        className={`${styles.overlay} ${styles.reviewOverlay} ${styles.stackedOverlay}`}
-        data-sheet-state={reviewMotionState}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="trouvable-review-title"
-        onClick={(event) => {
-          if (event.target === event.currentTarget) closeReview();
-        }}
-        data-no-dish-swipe="true"
-      >
-        <section
-          ref={isDishStackReview ? subSheetRef : sheetRef}
-          className={styles.reviewSheet}
-          tabIndex={-1}
-        >
-          <TrouvableDishReviewPanelBody
-            copy={copy}
-            dish={reviewDish}
-            fallbackInitial={menu.name.slice(0, 1)}
-            googleReviewCta={googleReviewCta}
-            onPostReview={() => {
-              trackGoogleReviewClick({
-                dishSlug: reviewDish?.slug,
-                menuId: menu.menuId,
-                restaurantId: menu.restaurantId,
-                source: menu.source
-              });
-              setLocalMessage(copy.reviewOpened);
-            }}
-            onRatingChange={setReviewRating}
-            onReviewTextChange={setReviewText}
-            placeholder={reviewPlaceholder}
-            rating={reviewRating}
-            starsLabel={reviewStarsLabel}
-            text={reviewText}
-            title={reviewTitle}
-            titleId="trouvable-review-title"
-          />
-        </section>
-      </div>
-    );
-  }
-
   function renderDishDetailsSubSheet() {
     const detailsDish =
       renderedSheet === "dish" && renderedSubSheet === "details"
@@ -2072,7 +1966,6 @@ export function TrouvablePremiumMenuExperience({
             modelExpanded={showDetailModelViewer}
             onClose={closeActiveSheet}
             onOpenDetails={() => setDishSubSheet("details")}
-            onOpenReview={openReviewSheet}
             onToggleModel={() => {
               resetArHandoffState();
               setShowDetailModelViewer((isVisible) => {
@@ -2484,7 +2377,6 @@ export function TrouvablePremiumMenuExperience({
         locale={selectedLocale}
         localizedUiCopy={menu.localizedUiCopy}
         menuId={menu.menuId}
-        onReviewRequest={openRestaurantReviewSheet}
         restaurantId={menu.restaurantId}
         restaurantName={menu.name}
         showNote={false}
@@ -2498,7 +2390,6 @@ export function TrouvablePremiumMenuExperience({
       {renderCurrencySheet()}
       {renderFiltersSheet()}
       {renderLanguageSheet()}
-      {renderReviewSheet()}
     </MenuRoot>
   );
 }

@@ -75,6 +75,7 @@ const GREEK_MENU_FORBIDDEN_ENGLISH = [
   "Your experience matters",
   "Share your experience",
   "Leave a Google review",
+  "Opens in a new tab",
   "View details",
   "VIEW IN 3D",
   "TAP TO REVIEW",
@@ -234,7 +235,24 @@ test("Trouvable copy supports Spanish, Italian, and Arabic without falling back 
     getTrouvableCopy("ar").modelAlt("Caesar"),
     "\u0639\u0631\u0636 \u0627\u0644\u0637\u0628\u0642: Caesar"
   );
-  assert.equal(getTrouvableCopy("fr-CA").reviewPost, "Publier l'avis");
+  assert.equal(
+    getTrouvableCopy("fr-CA").googleReview.action,
+    "Laisser un avis sur Google"
+  );
+  assert.equal(
+    getTrouvableCopy("fr-CA").googleReview.text,
+    "Partagez votre avis directement sur Google. Cela ne prend qu'une minute."
+  );
+  assert.equal(getTrouvableCopy("en-CA").googleReview.action, "Leave a Google review");
+  assert.equal(
+    getTrouvableCopy("en-CA").googleReview.text,
+    "Share your experience directly on Google. It only takes a minute."
+  );
+  assert.equal(
+    getTrouvableCopy("fr-CA").googleReview.opensInNewTab,
+    "S'ouvre dans un nouvel onglet"
+  );
+  assert.equal(getTrouvableCopy("fr-CA").reviewPost, undefined);
 });
 
 test("Trouvable built-in Greek UI copy is complete and avoids visible English menu strings", () => {
@@ -253,7 +271,7 @@ test("Trouvable built-in Greek UI copy is complete and avoids visible English me
   assert.equal(copy.filterButton, "Φίλτρα");
   assert.equal(copy.resultStatus(copy.viewList, 36), "Προβολή λίστας, εμφανίζονται 36 πιάτα");
   assert.equal(copy.googleReview.title, "Η εμπειρία σας μετράει");
-  assert.equal(copy.googleReview.action, "Αφήστε αξιολόγηση Google");
+  assert.equal(copy.googleReview.action, "Αφήστε μια αξιολόγηση στο Google");
   assert.equal(copy.moreDetails, "Δείτε λεπτομέρειες");
   assert.equal(copy.threeD, "ΠΡΟΒΟΛΗ ΣΕ 3D");
   assert.equal(
@@ -261,7 +279,6 @@ test("Trouvable built-in Greek UI copy is complete and avoids visible English me
     "Μπορεί να χρειαστούν λίγα δευτερόλεπτα ανάλογα με το δίκτυο."
   );
   assert.equal(copy.modelAlt("Caesar"), "Προβολή πιάτου: Caesar");
-  assert.equal(copy.review, "ΑΞΙΟΛΟΓΗΣΗ");
   assert.equal(copy.houseNote, "Σημείωση κουζίνας");
   assert.equal(copy.detailCompositionLabel, "Στο πιάτο");
   assert.equal(copy.detailAllergensLabel, "Αλλεργιογόνα προς προσοχή");

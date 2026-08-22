@@ -12,10 +12,10 @@ import { resolveTrouvableCopy } from "./trouvableMenuControls";
 import styles from "./GoogleReviewCard.module.css";
 
 type GoogleReviewCardProps = {
+  dishSlug?: string;
   googleReview: GoogleReviewConfig;
   locale?: string;
   localizedUiCopy?: Record<string, unknown>;
-  onReviewRequest?: () => void;
   menuId?: string;
   restaurantId: string;
   restaurantName: string;
@@ -57,11 +57,11 @@ function formatReviewCount(count: number, resolvedLocale: string): string {
 }
 
 export function GoogleReviewCard({
+  dishSlug,
   googleReview,
   locale = "fr",
   localizedUiCopy,
   menuId,
-  onReviewRequest,
   restaurantId,
   restaurantName,
   showNote = true,
@@ -75,7 +75,9 @@ export function GoogleReviewCard({
     normalizedGoogleReview.enabled && normalizedGoogleReview.presentationOnly === true;
   if (!cta && !isPresentationOnly) return null;
 
-  const cleanRestaurantName = restaurantName.trim() || copy.fallbackRestaurant;
+  const cleanRestaurantName = cta
+    ? restaurantName.trim() || copy.fallbackRestaurant
+    : "";
   const metadata = [
     normalizedGoogleReview.googleRating === undefined
       ? ""
@@ -102,6 +104,7 @@ export function GoogleReviewCard({
 
   function trackOutboundClick() {
     trackGoogleReviewClick({
+      dishSlug,
       restaurantId,
       menuId,
       source
@@ -112,15 +115,18 @@ export function GoogleReviewCard({
     <aside
       className={styles.googleReviewCard}
       data-google-review-card="true"
+      data-no-dish-swipe="true"
       aria-labelledby="google-review-title"
     >
       <div className={styles.googleReviewCopy}>
         <h2 id="google-review-title">{copy.title}</h2>
-        <p>
-          {renderGoogleReviewTemplate(copy.text, {
-            restaurantName: cleanRestaurantName
-          })}
-        </p>
+        {cta ? (
+          <p>
+            {renderGoogleReviewTemplate(copy.text, {
+              restaurantName: cleanRestaurantName
+            })}
+          </p>
+        ) : null}
       </div>
 
       {metadata.length ? (
@@ -131,36 +137,20 @@ export function GoogleReviewCard({
         </div>
       ) : null}
 
-      {cta && onReviewRequest ? (
-        <button
-          className={styles.googleReviewAction}
-          data-google-review-trigger="true"
-          type="button"
-          onClick={onReviewRequest}
-        >
-          {copy.action}
-        </button>
-      ) : cta ? (
+      {cta ? (
         <a
           className={styles.googleReviewAction}
           data-google-review-action="true"
           href={cta.href}
           target="_blank"
           rel="noopener noreferrer"
+          aria-label={`${copy.action}. ${copy.opensInNewTab}`}
           onClick={trackOutboundClick}
         >
           {copy.action}
+          <span className={styles.srOnly}>{copy.opensInNewTab}</span>
         </a>
-      ) : (
-        <button
-          className={styles.googleReviewAction}
-          data-google-review-action="true"
-          disabled
-          type="button"
-        >
-          {copy.action}
-        </button>
-      )}
+      ) : null}
 
       {cta && showNote ? <p className={styles.googleReviewNote}>{copy.note}</p> : null}
     </aside>

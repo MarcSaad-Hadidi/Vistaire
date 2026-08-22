@@ -264,6 +264,6 @@ test("public menu review tracking forwards the relational menu id", async () => 
   assert.match(client, /source === "production" && !menuId/);
   assert.match(card, /menuId,\s*source/);
   assert.match(renderer, /menuId=\{menu\.menuId\}/);
-  assert.match(trouvable, /menuId: menu\.menuId/);
-  assert.match(dish, /menuId: menu\.menuId/);
+  assert.match(trouvable, /menuId=\{menu\.menuId\}/);
+  assert.match(dish, /menuId=\{menu\.menuId\}/);
 });
