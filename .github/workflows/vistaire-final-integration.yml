@@ -1,0 +1,57 @@
+name: Vistaire final integration probe
+
+on:
+  push:
+    branches:
+      - perf/vistaire-final-free-tier-optimization
+    paths:
+      - .github/workflows/vistaire-final-integration.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: vistaire-final-integration-probe
+  cancel-in-progress: true
+
+jobs:
+  merge-probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout integration branch
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+        with:
+          fetch-depth: 0
+
+      - name: Probe merge of PR 211 then PR 209
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "vistaire-integration-bot"
+          git config user.email "vistaire-integration-bot@users.noreply.github.com"
+          git fetch --no-tags origin \
+            main \
+            perf/vercel-fluid-cpu-static-public \
+            perf/supabase-efficiency-v2
+
+          git merge --no-ff --no-edit origin/perf/vercel-fluid-cpu-static-public \
+            -m "merge: integrate Vercel static public optimization"
+
+          set +e
+          git merge --no-ff --no-edit origin/perf/supabase-efficiency-v2 \
+            -m "merge: integrate Supabase media efficiency"
+          merge_status=$?
+          set -e
+
+          echo "MERGE_STATUS=${merge_status}"
+          echo "--- CONFLICTS ---"
+          git diff --name-only --diff-filter=U || true
+          echo "--- STATUS ---"
+          git status --short
+
+          if [ "${merge_status}" -ne 0 ]; then
+            exit 1
+          fi
+
+          echo "Both branches merged without unresolved conflicts."
