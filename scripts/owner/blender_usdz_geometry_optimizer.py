@@ -31,7 +31,7 @@ DISH_SCALE_TARGETS = {
 }
 
 GROUND_EPSILON_METERS = 0.001
-SCALE_EPSILON = 0.001
+SCALE_EPSILON = 0.0001
 
 
 def mesh_triangle_count(obj) -> int:

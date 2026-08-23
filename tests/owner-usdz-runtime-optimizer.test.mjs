@@ -49,16 +49,16 @@ function windowsBlenderCandidates() {
   return [...candidates].sort().reverse();
 }
 
-function resolveBlenderExecutable() {
-  const candidates = [
-    process.env.VISTAIRE_USDZ_BLENDER,
-    "blender",
-    ...windowsBlenderCandidates()
-  ].filter(Boolean);
-  for (const candidate of candidates) {
+function resolveBlenderExecutable({
+  configured = process.env.VISTAIRE_USDZ_BLENDER,
+  discoverCandidates = () => ["blender", ...windowsBlenderCandidates()],
+  probe = spawnSync
+} = {}) {
+  const executableCandidates = configured ? [configured] : discoverCandidates();
+  for (const candidate of executableCandidates) {
     try {
-      const probe = spawnSync(candidate, ["--version"], { stdio: "ignore" });
-      if (probe.status === 0) return candidate;
+      const result = probe(candidate, ["--version"], { stdio: "ignore" });
+      if (result.status === 0) return candidate;
     } catch {
       // Try the next candidate.
     }
@@ -97,6 +97,23 @@ def Xform "Dish"
     def Mesh "Cube"
     {
         point3f[] points = [(-0.4, -0.4, 0), (0.4, -0.4, 0), (0.4, 0.4, 0), (-0.4, 0.4, 0), (-0.4, -0.4, 0.1), (0.4, -0.4, 0.1), (0.4, 0.4, 0.1), (-0.4, 0.4, 0.1)]
+        int[] faceVertexCounts = [4, 4, 4, 4, 4, 4]
+        int[] faceVertexIndices = [0, 1, 2, 3, 4, 7, 6, 5, 0, 4, 5, 1, 1, 5, 6, 2, 2, 6, 7, 3, 3, 7, 4, 0]
+    }
+}
+`;
+
+const LARGE_FOOTPRINT_USDA = `#usda 1.0
+(
+    defaultPrim = "Dish"
+    metersPerUnit = 1
+)
+
+def Xform "Dish"
+{
+    def Mesh "Cube"
+    {
+        point3f[] points = [(-90, -90, 0), (90, -90, 0), (90, 90, 0), (-90, 90, 0), (-90, -90, 1), (90, -90, 1), (90, 90, 1), (-90, 90, 1)]
         int[] faceVertexCounts = [4, 4, 4, 4, 4, 4]
         int[] faceVertexIndices = [0, 1, 2, 3, 4, 7, 6, 5, 0, 4, 5, 1, 1, 5, 6, 2, 2, 6, 7, 3, 3, 7, 4, 0]
     }
@@ -493,13 +510,13 @@ function usdTextBundle(filePath) {
     .join("\n");
 }
 
-function runBlenderPhysicalScaleFixture(dishKind) {
+function runBlenderPhysicalScaleFixture(dishKind, sourceText = OUT_OF_RANGE_FOOTPRINT_USDA) {
   const dir = mkdtempSync(join(tmpdir(), `vistaire-blender-${dishKind}-scale-test-`));
   const source = join(dir, "source.usda");
   const output = join(dir, "normalized.usdc");
   const metrics = join(dir, "metrics.json");
   try {
-    writeFileSync(source, OUT_OF_RANGE_FOOTPRINT_USDA, "utf8");
+    writeFileSync(source, sourceText, "utf8");
     execFileSync(
       BLENDER,
       [
@@ -526,6 +543,43 @@ function runBlenderPhysicalScaleFixture(dishKind) {
     rmSync(dir, { recursive: true, force: true });
   }
 }
+
+test("Blender test resolver does not hide an invalid configured executable", () => {
+  const probed = [];
+  const resolved = resolveBlenderExecutable({
+    configured: "configured-blender",
+    discoverCandidates() {
+      throw new Error("fallback discovery must not run for a configured executable");
+    },
+    probe(candidate) {
+      probed.push(candidate);
+      return { status: 1 };
+    }
+  });
+
+  assert.equal(resolved, null);
+  assert.deepEqual(probed, ["configured-blender"]);
+});
+
+test("Blender test resolver discovers fallbacks only without a configured executable", () => {
+  let discoveryCalls = 0;
+  const probed = [];
+  const resolved = resolveBlenderExecutable({
+    configured: "",
+    discoverCandidates() {
+      discoveryCalls += 1;
+      return ["fallback-blender"];
+    },
+    probe(candidate) {
+      probed.push(candidate);
+      return { status: 0 };
+    }
+  });
+
+  assert.equal(resolved, "fallback-blender");
+  assert.equal(discoveryCalls, 1);
+  assert.deepEqual(probed, ["fallback-blender"]);
+});
 
 function zipCentralDirectoryEntryNames(filePath) {
   const buffer = readFileSync(filePath);
@@ -725,6 +779,20 @@ for (const preset of [
     }
   );
 }
+
+test(
+  "Blender/OpenUSD accepts a valid fallback downscale at or below the legacy epsilon",
+  { skip: !BLENDER ? BLENDER_SKIP_REASON : false },
+  () => {
+    const physicalScale = runBlenderPhysicalScaleFixture("fallback", LARGE_FOOTPRINT_USDA);
+
+    assert.equal(physicalScale.footprintBeforeMeters, 180);
+    assert.ok(physicalScale.scaleFactor > 0);
+    assert.ok(physicalScale.scaleFactor <= 0.001);
+    assert.equal(physicalScale.footprintAfterMeters, 0.15);
+    assert.equal(physicalScale.status, "normalized");
+  }
+);
 
 test("USDZ runtime optimizer CLI accepts platter dish kind", () => {
   const result = spawnSync(
