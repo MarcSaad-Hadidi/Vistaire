@@ -103,10 +103,9 @@ test("landing stable UI readiness accepts only confirmed public built-in fallbac
 });
 
 test("landing stable render context derives the legacy readiness gate from a confirmed public UI config read", async () => {
-  const [renderContext, landingData, configStore] = await Promise.all([
+  const [renderContext, landingData] = await Promise.all([
     source("lib/menu/publicMenuRenderContext.ts"),
-    source("lib/landing/menuExperiences.ts"),
-    source("lib/owner/menuUiConfigStore.ts")
+    source("lib/landing/menuExperiences.ts")
   ]);
 
   assert.match(renderContext, /resolveStablePublicMenuUiConfigReadiness/);
@@ -118,9 +117,9 @@ test("landing stable render context derives the legacy readiness gate from a con
   );
   assert.match(landingData, /stableCacheReadiness\.publishedUiConfig/);
   assert.match(
-    configStore,
+    renderContext,
     /eq\(["']status["'],\s*["']published["']\)/
   );
-  assert.match(configStore, /readState:\s*["']not-found["']/);
-  assert.match(configStore, /readState:\s*["']unavailable["']/);
+  assert.match(renderContext, /readState:\s*["']not-found["']/);
+  assert.match(renderContext, /readState:\s*["']unavailable["']/);
 });
