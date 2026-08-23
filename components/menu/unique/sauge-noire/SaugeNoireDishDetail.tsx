@@ -161,6 +161,15 @@ export function SaugeNoireModelViewerCopyForLocale(
     desktopArHint: copy.modelViewer.desktopArHint,
     arAndroidBrowser: copy.modelViewer.arAndroidBrowser,
     arIosHandoff: copy.modelViewer.arIosHandoff,
+    arUnsupportedDeviceTitle: copy.modelViewer.arUnsupportedDeviceTitle,
+    arUnsupportedDeviceBody: copy.modelViewer.arUnsupportedDeviceBody,
+    arAssetUnavailableTitle: copy.modelViewer.arAssetUnavailableTitle,
+    arAssetUnavailableBody: copy.modelViewer.arAssetUnavailableBody,
+    arAndroidHandoffTitle: copy.modelViewer.arAndroidHandoffTitle,
+    arAndroidHandoffBody: copy.modelViewer.arAndroidHandoffBody,
+    copyError: copy.modelViewer.copyError,
+    manualCopyLabel: copy.modelViewer.manualCopyLabel,
+    selectLink: copy.modelViewer.selectLink,
     modelAlt: copy.modelAlt
   };
 }

@@ -35,7 +35,12 @@ async function openDishWithModel(page: Page) {
   throw new Error("The public Trouvable fixture has no dish with a 3D model");
 }
 
-async function triggerArFallback(page: Page, userAgent: string, platform: string, maxTouchPoints: number) {
+async function openTrouvableModel(
+  page: Page,
+  userAgent: string,
+  platform: string,
+  maxTouchPoints: number
+) {
   await page.addInitScript(
     ({ userAgent: nextUserAgent, platform: nextPlatform, maxTouchPoints: nextTouchPoints }) => {
       Object.defineProperty(navigator, "userAgent", { configurable: true, get: () => nextUserAgent });
@@ -48,7 +53,10 @@ async function triggerArFallback(page: Page, userAgent: string, platform: string
   const { dialog, modelButton } = await openDishWithModel(page);
   await modelButton.click();
   await expect(page.locator("model-viewer")).toHaveCount(1, { timeout: 20_000 });
-  await page.waitForTimeout(300);
+  return dialog;
+}
+
+async function dispatchArStatusFailed(page: Page) {
   await page.evaluate(() => {
     const modelViewer = document.querySelector("model-viewer");
     if (!modelViewer) throw new Error("Expected model-viewer element");
@@ -59,7 +67,12 @@ async function triggerArFallback(page: Page, userAgent: string, platform: string
       })
     );
   });
-  await expect(dialog.getByRole("heading", { name: /Ouvrez|Réalité|Open|Augmented/i })).toBeVisible();
+}
+
+async function triggerArFallback(page: Page, userAgent: string, platform: string, maxTouchPoints: number) {
+  const dialog = await openTrouvableModel(page, userAgent, platform, maxTouchPoints);
+  await page.waitForTimeout(300);
+  await dispatchArStatusFailed(page);
   return dialog;
 }
 
@@ -109,7 +122,8 @@ test.describe("Trouvable Retour en haut", () => {
 });
 
 test.describe("Trouvable AR fallback copy handoff", () => {
-  test("uses Safari copy wording on iPhone and preserves the absolute dish URL", async ({
+  test.describe.configure({ timeout: 90_000 });
+  test("uses Safari copy wording on iPhone in-app browsers and preserves the absolute dish URL", async ({
     page,
     context,
     baseURL
@@ -117,14 +131,15 @@ test.describe("Trouvable AR fallback copy handoff", () => {
     await context.grantPermissions(["clipboard-read", "clipboard-write"], {
       origin: new URL(baseURL ?? "http://127.0.0.1:3000").origin
     });
-    const dialog = await triggerArFallback(
+    const dialog = await openTrouvableModel(
       page,
-      "Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 Version/17.5 Mobile/15E148 Safari/604.1",
+      "Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 Version/17.5 Mobile/15E148 Safari/604.1 Brave/1.67.0",
       "iPhone",
       5
     );
 
     await expect(dialog.getByRole("heading", { name: "Ouvrez cette fiche dans Safari" })).toBeVisible();
+    await expect(dialog.getByText("Ouvrez cette fiche dans Chrome")).toHaveCount(0);
     await dialog.getByRole("button", { name: "Copier le lien pour Safari" }).click();
     const copyStatus = dialog.locator('p[role="status"]');
     await expect(copyStatus).toHaveCount(1);
@@ -141,7 +156,22 @@ test.describe("Trouvable AR fallback copy handoff", () => {
     await expect(dialog).toBeVisible();
   });
 
-  test("uses Chrome wording on Android", async ({ page }) => {
+  test("uses Chrome wording on Android Firefox without telling the user to leave Chrome", async ({ page }) => {
+    const dialog = await openTrouvableModel(
+      page,
+      "Mozilla/5.0 (Android 14; Mobile; rv:125.0) Gecko/125.0 Firefox/125.0",
+      "Linux armv8l",
+      5
+    );
+
+    await expect(dialog.getByRole("heading", { name: "Ouvrez cette fiche dans Chrome" })).toBeVisible();
+    await expect(dialog.getByRole("button", { name: "Copier le lien pour Chrome" })).toBeVisible();
+    await expect(dialog.getByRole("button", { name: "Afficher devant moi" })).toHaveCount(0);
+  });
+
+  test("Chrome Android activation failure shows a device message instead of Chrome handoff", async ({
+    page
+  }) => {
     const dialog = await triggerArFallback(
       page,
       "Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 Chrome/125.0 Mobile Safari/537.36",
@@ -149,21 +179,12 @@ test.describe("Trouvable AR fallback copy handoff", () => {
       5
     );
 
-    await expect(dialog.getByRole("heading", { name: "Ouvrez cette fiche dans Chrome" })).toBeVisible();
-    await expect(dialog.getByRole("button", { name: "Copier le lien pour Chrome" })).toBeVisible();
-  });
-
-  test("uses the generic wording on an unknown platform", async ({ page }) => {
-    const dialog = await triggerArFallback(
-      page,
-      "masked-user-agent",
-      "Unknown",
-      0
-    );
-
     await expect(
-      dialog.getByRole("heading", { name: "Réalité augmentée indisponible dans ce navigateur" })
+      dialog.getByRole("heading", {
+        name: "La réalité augmentée n'est pas disponible sur cet appareil"
+      })
     ).toBeVisible();
-    await expect(dialog.getByRole("button", { name: "Copier le lien de la fiche" })).toBeVisible();
+    await expect(dialog.getByText("Ouvrez cette fiche dans Chrome")).toHaveCount(0);
+    await expect(page.locator("model-viewer")).toHaveCount(1);
   });
 });

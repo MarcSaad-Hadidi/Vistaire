@@ -69,11 +69,13 @@ const useTrouvableImmersiveFixture =
   );
 const useMaisonPublicMenuFixture =
   useGoogleReviewDirectCtaFixture ||
-  playwrightInputArgs.some((argument) =>
-    argument
-      .replaceAll("\\", "/")
-      .endsWith("e2e/maison-elyse-public-menu.spec.ts")
-  );
+  playwrightInputArgs.some((argument) => {
+    const normalized = argument.replaceAll("\\", "/");
+    return (
+      normalized.endsWith("e2e/maison-elyse-public-menu.spec.ts") ||
+      normalized.endsWith("e2e/ar-handoff.spec.ts")
+    );
+  });
 const includesPrompt5BrowserFlow = playwrightInputArgs.some((argument) =>
   /(?:^|\/)prompt5-(?:pdf-comparison|faq|footer|guides)\.spec\.ts$/.test(
     argument.replaceAll("\\", "/")
@@ -91,6 +93,7 @@ const includesSaugeNoireBrowserFlow = playwrightInputArgs
     const normalized = argument.replaceAll("\\", "/");
     return (
       /(?:^|\/)sauge-noire-[^/]+\.spec\.ts$/.test(normalized) ||
+      /(?:^|\/)ar-renderer-handoff\.spec\.ts$/.test(normalized) ||
       /(?:^|\/)demo-restaurant-experiences\.spec\.ts$/.test(normalized) ||
       /(?:^|\/)seo-interactive-showcases\.spec\.ts$/.test(normalized) ||
       /(?:^|\/)landing-(?:redesign|production-photo)\.spec\.ts$/.test(normalized)

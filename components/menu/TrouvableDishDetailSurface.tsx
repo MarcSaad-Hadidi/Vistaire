@@ -49,6 +49,8 @@ type TrouvableImmersivePanelBodyProps = {
   onReturnToDish: () => void;
   onSelectManualDishUrl: () => void;
   showArBrowserHelp: boolean;
+  showArDeviceHelp?: boolean;
+  showArAssetHelp?: boolean;
 };
 
 type TrouvableDishDetailSurfaceProps = {
@@ -130,9 +132,16 @@ export function TrouvableImmersivePanelBody({
   onCopyDishUrl,
   onReturnToDish,
   onSelectManualDishUrl,
-  showArBrowserHelp
+  showArBrowserHelp,
+  showArDeviceHelp = false,
+  showArAssetHelp = false
 }: TrouvableImmersivePanelBodyProps) {
   const platformCopy = copy.arBrowserFallback[arHandoffPlatform];
+  const deviceCopy = copy.arBrowserFallback.device;
+  const assetCopy = {
+    title: copy.modelViewer.arAssetUnavailableTitle,
+    body: copy.modelViewer.arAssetUnavailableBody
+  };
 
   return (
     <>
@@ -155,6 +164,7 @@ export function TrouvableImmersivePanelBody({
             onReturnToDish={onReturnToDish}
             onArFallbackNeeded={onArFallbackNeeded}
             onArFallbackCleared={onArFallbackCleared}
+            fallbackPresentation="external"
           />
         ) : modelViewerLoadFailed ? (
           <div className={styles.modelLoading} role="status">
@@ -166,10 +176,50 @@ export function TrouvableImmersivePanelBody({
           </div>
         )}
       </div>
+      {showArAssetHelp ? (
+        <aside
+          className={styles.arBrowserFallback}
+          aria-labelledby={`${fallbackTitleId}-asset`}
+          data-ar-experience="asset-unavailable"
+          role="status"
+          aria-live="polite"
+          dir="auto"
+        >
+          <span className={styles.arBrowserFallbackIcon} aria-hidden="true">
+            <BrowserHandoffIcon />
+          </span>
+          <div className={styles.arBrowserFallbackContent}>
+            <h3 id={`${fallbackTitleId}-asset`}>{assetCopy.title}</h3>
+            <p>{assetCopy.body}</p>
+          </div>
+        </aside>
+      ) : null}
+      {showArDeviceHelp ? (
+        <aside
+          className={styles.arBrowserFallback}
+          aria-labelledby={`${fallbackTitleId}-device`}
+          data-ar-experience="unsupported-device"
+          role="alert"
+          aria-live="assertive"
+          dir="auto"
+        >
+          <span className={styles.arBrowserFallbackIcon} aria-hidden="true">
+            <BrowserHandoffIcon />
+          </span>
+          <div className={styles.arBrowserFallbackContent}>
+            <h3 id={`${fallbackTitleId}-device`}>{deviceCopy.title}</h3>
+            <p>{deviceCopy.body}</p>
+          </div>
+        </aside>
+      ) : null}
       {showArBrowserHelp ? (
         <aside
           className={styles.arBrowserFallback}
           aria-labelledby={fallbackTitleId}
+          data-ar-experience="handoff"
+          data-ar-recommended-browser={arHandoffPlatform === "other" ? undefined : arHandoffPlatform === "ios" ? "safari" : "chrome"}
+          role="status"
+          aria-live="polite"
           dir="auto"
         >
           <span className={styles.arBrowserFallbackIcon} aria-hidden="true">

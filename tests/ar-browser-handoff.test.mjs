@@ -167,7 +167,7 @@ test("clipboard helper falls back to the legacy document copy path", async () =>
 
 test("built-in AR fallback copy is complete for every supported locale", () => {
   const locales = ["fr", "en", "es", "it", "de", "el", "ar"];
-  const platformKeys = ["ios", "android", "other"];
+  const platformKeys = ["ios", "android", "other", "device"];
 
   for (const locale of locales) {
     const fallback = TROUVABLE_COPY[locale].arBrowserFallback;
@@ -192,6 +192,23 @@ test("built-in AR fallback copy is complete for every supported locale", () => {
   assert.equal(pack.arBrowserFallback.ios.title, TROUVABLE_COPY.fr.arBrowserFallback.ios.title);
 });
 
+test("arFallbackUiMode never maps Chrome Android runtime failure to a browser handoff", async () => {
+  const { arFallbackUiMode } = await import("../lib/ar/arExperience.ts");
+  assert.equal(arFallbackUiMode("ios-handoff"), "browser");
+  assert.equal(arFallbackUiMode("android-handoff"), "browser");
+  assert.equal(arFallbackUiMode("missing-ios-usdz"), "none");
+  assert.equal(arFallbackUiMode("unsupported-device"), "device");
+  assert.equal(arFallbackUiMode("activation-failed"), "device");
+  assert.equal(arFallbackUiMode("ar-status-failed"), "device");
+  assert.equal(arFallbackUiMode("scene-viewer-fallback"), "device");
+  assert.equal(arFallbackUiMode("asset-unavailable"), "asset");
+  assert.equal(
+    arFallbackUiMode("android-fallback"),
+    "device",
+    "legacy android-fallback was a runtime/device failure, never a Chrome handoff"
+  );
+});
+
 test("Trouvable keeps browser handoff separate from a generic 3D load failure", async () => {
   const [premium, standalone, viewer] = await Promise.all([
     readFile("components/menu/TrouvablePremiumMenuExperience.tsx", "utf8"),
@@ -201,10 +218,22 @@ test("Trouvable keeps browser handoff separate from a generic 3D load failure", 
 
   assert.doesNotMatch(premium, /showArBrowserHelp\s*\|\|\s*modelViewerLoadFailed/);
   assert.doesNotMatch(standalone, /className=\{styles\.arBrowserHelp\}/);
-  assert.match(premium, /reason === "missing-ios-usdz"/);
-  assert.match(standalone, /reason === "missing-ios-usdz"/);
+  assert.match(premium, /arFallbackUiMode/);
+  assert.match(standalone, /arFallbackUiMode/);
+  assert.match(premium, /showArDeviceHelp/);
+  assert.match(standalone, /showArDeviceHelp/);
+  assert.match(premium, /showArAssetHelp/);
+  assert.match(standalone, /showArAssetHelp/);
   assert.match(viewer, /onArFallbackNeeded\?: \(reason: ArFallbackReason\)/);
-  assert.match(viewer, /copyTextToClipboard\(url\)/);
+  assert.match(viewer, /getSafeCurrentPageUrl/);
+  assert.match(viewer, /ArFallbackPanel/);
+  assert.match(viewer, /fallbackPresentation/);
+  assert.doesNotMatch(viewer, /!quietChrome && showAndroidFallback/);
+  assert.match(
+    viewer,
+    /arExperience\.kind === "desktop-hint" && !quietChrome/
+  );
+  assert.match(viewer, /manifest\.variants\.arLite/);
   assert.doesNotMatch(viewer, /navigator\.clipboard\?\.writeText/);
   assert.match(premium, /setModelViewerLoadFailed\(true\)/);
 });

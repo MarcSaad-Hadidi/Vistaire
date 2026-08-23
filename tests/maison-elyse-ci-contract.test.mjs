@@ -60,6 +60,7 @@ test("Maison public browser tests opt into the complete tracked menu fixture", a
   ]);
 
   assert.match(runner, /endsWith\("e2e\/maison-elyse-public-menu\.spec\.ts"\)/);
+  assert.match(runner, /endsWith\("e2e\/ar-handoff\.spec\.ts"\)/);
   assert.match(runner, /VISTAIRE_E2E_MAISON_PUBLIC_MENU: "1"/);
   assert.match(
     publicMenu,

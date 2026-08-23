@@ -22,14 +22,19 @@ import {
 } from "@/lib/dish3dManifest";
 import type { Dish } from "@/lib/demoMenuData";
 import {
-  isAndroidDevice,
-  isAndroidLikelySceneViewerCapable,
-  isIosDevice,
-  shouldShowArBrowserHandoff
-} from "@/lib/arEnvironment";
+  classifyArBrowser,
+  isSceneViewerFallbackHash,
+  readLiveArClientSnapshot,
+  resolveArExperience,
+  type ArExperiencePhase,
+  type ArRuntimeSignal
+} from "@/lib/ar/arExperience";
 import { configureModelViewerAssetDecoders } from "@/lib/modelViewerAssetDecoders";
 import { usePrefersReducedMotion } from "@/lib/usePrefersReducedMotion";
-import { copyTextToClipboard } from "@/lib/menu/arBrowserHandoff";
+import {
+  getSafeCurrentPageUrl
+} from "@/lib/menu/arBrowserHandoff";
+import { ArFallbackPanel } from "@/components/dish/ArFallbackPanel";
 
 export { configureModelViewerAssetDecoders } from "@/lib/modelViewerAssetDecoders";
 
@@ -78,14 +83,28 @@ export type DishModelViewerCopy = Partial<{
   desktopArHint: string;
   arAndroidBrowser: string;
   arIosHandoff: string;
+  arUnsupportedDeviceTitle: string;
+  arUnsupportedDeviceBody: string;
+  arAssetUnavailableTitle: string;
+  arAssetUnavailableBody: string;
+  arAndroidHandoffTitle: string;
+  arAndroidHandoffBody: string;
+  copyError: string;
+  manualCopyLabel: string;
+  selectLink: string;
   modelAlt: (dishName: string) => string;
 }>;
 
 export type ArFallbackReason =
   | "ar-status-failed"
   | "activate-ar-failed"
+  | "scene-viewer-fallback"
   | "ios-handoff"
+  | "android-handoff"
   | "android-fallback"
+  | "unsupported-device"
+  | "activation-failed"
+  | "asset-unavailable"
   | "missing-ios-usdz";
 
 type ResolvedDishModelViewerCopy = Required<DishModelViewerCopy>;
@@ -128,6 +147,21 @@ const DEFAULT_MODEL_VIEWER_COPY = {
     "Votre navigateur ne permet pas la réalité augmentée ici. Vous pouvez quand même faire tourner le plat en 3D.",
   arIosHandoff:
     "Pour placer le plat devant vous, ouvrez cette fiche dans Safari sur iPhone.",
+  arUnsupportedDeviceTitle:
+    "La réalité augmentée n'est pas disponible sur cet appareil",
+  arUnsupportedDeviceBody:
+    "La réalité augmentée n'est pas disponible sur cet appareil pour le moment. Vous pouvez continuer à explorer le plat en 3D.",
+  arAssetUnavailableTitle:
+    "La réalité augmentée n'est pas disponible pour ce plat",
+  arAssetUnavailableBody:
+    "La réalité augmentée n'est pas encore disponible pour ce plat. Vous pouvez continuer à explorer le plat en 3D.",
+  arAndroidHandoffTitle: "Ouvrez cette fiche dans Chrome",
+  arAndroidHandoffBody:
+    "Ce navigateur ne peut pas lancer la réalité augmentée. Copiez le lien de cette fiche, ouvrez Chrome, puis collez-le dans la barre d'adresse.",
+  copyError:
+    "La copie automatique a échoué. Sélectionnez le lien ci-dessous et copiez-le manuellement.",
+  manualCopyLabel: "Lien de la fiche",
+  selectLink: "Sélectionner le lien",
   modelAlt: (dishName: string) => `Vue du plat : ${dishName}`
 } satisfies ResolvedDishModelViewerCopy;
 
@@ -147,12 +181,21 @@ export type DishModelViewerProps = {
   >;
   /** Chrome minimal : titres et aide fournis par le parent si besoin. */
   minimalChrome?: boolean;
+  /**
+   * Cache l'aide décorative (titre interne, texte d'usage, bouton de retour).
+   * N'a aucun effet sur les fallbacks AR critiques (handoff, appareil, échec).
+   */
   quietChrome?: boolean;
   copy?: DishModelViewerCopy;
   onReturnToDish?: () => void;
   onViewerMounted?: () => void;
   onArFallbackNeeded?: (reason: ArFallbackReason) => void;
   onArFallbackCleared?: () => void;
+  /**
+   * `inline` (défaut) : le viewer affiche toujours les fallbacks AR critiques.
+   * `external` : le parent rend le panneau (Trouvable) à partir de onArFallbackNeeded.
+   */
+  fallbackPresentation?: "inline" | "external";
   analyticsContext?: PublicMenuAnalyticsContext;
 };
 
@@ -204,23 +247,105 @@ type ModelViewerArStatusEvent = Event & {
   };
 };
 
-type ArClientEnvironment = {
-  isIos: boolean;
-  missingIosAr: boolean;
-  needsIosHandoff: boolean;
-};
+function arFallbackReasonForPhase(
+  phase: ArExperiencePhase
+): ArFallbackReason | null {
+  if (phase.kind === "handoff") {
+    return phase.recommendedBrowser === "safari" ? "ios-handoff" : "android-handoff";
+  }
+  if (phase.kind === "unsupported-device") return "unsupported-device";
+  if (phase.kind === "activation-failed") return "activation-failed";
+  if (phase.kind === "asset-unavailable") return "asset-unavailable";
+  if (phase.kind === "missing-usdz") return "missing-ios-usdz";
+  return null;
+}
 
 type ClientConnection = {
   effectiveType?: string;
   saveData?: boolean;
 };
 
-function readArClientEnvironment(iosSrc: string): ArClientEnvironment {
-  const isIos = isIosDevice();
+function fallbackPanelCopy(
+  phase: Extract<
+    ArExperiencePhase,
+    | { kind: "handoff" }
+    | { kind: "unsupported-device" }
+    | { kind: "activation-failed" }
+    | { kind: "asset-unavailable" }
+    | { kind: "missing-usdz" }
+    | { kind: "desktop-hint" }
+  >,
+  copy: ResolvedDishModelViewerCopy
+) {
+  if (phase.kind === "handoff" && phase.recommendedBrowser === "safari") {
+    return {
+      title: copy.safariTitle,
+      body: copy.arIosHandoff,
+      copyLink: copy.copyLink,
+      linkCopied: copy.linkCopied,
+      share: copy.share,
+      copyError: copy.copyError,
+      manualCopyLabel: copy.manualCopyLabel,
+      selectLink: copy.selectLink
+    };
+  }
+  if (phase.kind === "handoff") {
+    return {
+      title: copy.arAndroidHandoffTitle,
+      body: copy.arAndroidHandoffBody,
+      copyLink: copy.copyLink,
+      linkCopied: copy.linkCopied,
+      share: copy.share,
+      copyError: copy.copyError,
+      manualCopyLabel: copy.manualCopyLabel,
+      selectLink: copy.selectLink
+    };
+  }
+  if (phase.kind === "asset-unavailable") {
+    return {
+      title: copy.arAssetUnavailableTitle,
+      body: copy.arAssetUnavailableBody,
+      copyLink: copy.copyLink,
+      linkCopied: copy.linkCopied,
+      share: copy.share,
+      copyError: copy.copyError,
+      manualCopyLabel: copy.manualCopyLabel,
+      selectLink: copy.selectLink
+    };
+  }
+  if (phase.kind === "missing-usdz") {
+    return {
+      title: copy.iosUsdzMissing,
+      body: copy.iosUsdzMissing,
+      copyLink: copy.copyLink,
+      linkCopied: copy.linkCopied,
+      share: copy.share,
+      copyError: copy.copyError,
+      manualCopyLabel: copy.manualCopyLabel,
+      selectLink: copy.selectLink
+    };
+  }
+  if (phase.kind === "desktop-hint") {
+    return {
+      title: copy.desktopArHint,
+      body: copy.desktopArHint,
+      copyLink: copy.copyLink,
+      linkCopied: copy.linkCopied,
+      share: copy.share,
+      copyError: copy.copyError,
+      manualCopyLabel: copy.manualCopyLabel,
+      selectLink: copy.selectLink
+    };
+  }
   return {
-    isIos,
-    missingIosAr: isIos && !iosSrc,
-    needsIosHandoff: shouldShowArBrowserHandoff()
+    title: copy.arUnsupportedDeviceTitle,
+    body: copy.arUnsupportedDeviceBody,
+    copyLink: copy.copyLink,
+    linkCopied: copy.linkCopied,
+    share: copy.share,
+    copyError: copy.copyError,
+    manualCopyLabel: copy.manualCopyLabel,
+    selectLink: copy.selectLink
   };
 }
 
@@ -245,51 +370,24 @@ function readClientViewport(): { width: number; height: number } {
   };
 }
 
-function browserForSelection({
-  isIos,
-  isAndroid,
-  needsIosHandoff,
-  androidArUnavailable
-}: {
-  isIos: boolean;
-  isAndroid: boolean;
-  needsIosHandoff: boolean;
-  androidArUnavailable: boolean;
-}): ImmersiveBrowser {
-  if (isIos) return needsIosHandoff ? "unknown" : "safari";
-  if (isAndroid) return androidArUnavailable ? "unknown" : "chrome";
+function browserForSelection(
+  arBrowser: ReturnType<typeof classifyArBrowser>
+): ImmersiveBrowser {
+  if (arBrowser === "ios-safari") return "safari";
+  if (arBrowser === "ios-other" || arBrowser === "android-other") return "unknown";
   return "chrome";
 }
 
-function deviceForSelection(isIos: boolean, isAndroid: boolean): ImmersiveDevice {
-  if (isIos) return "ios";
-  if (isAndroid) return "android";
+function deviceForSelection(
+  arBrowser: ReturnType<typeof classifyArBrowser>
+): ImmersiveDevice {
+  if (arBrowser === "ios-safari" || arBrowser === "ios-other") return "ios";
+  if (arBrowser === "android-chrome" || arBrowser === "android-other") return "android";
   return "desktop";
 }
 
 function getCurrentPageUrl(): string {
-  if (typeof window === "undefined") return "";
-  return window.location.href;
-}
-
-async function copyPageLink(): Promise<boolean> {
-  const url = getCurrentPageUrl();
-  return url ? copyTextToClipboard(url) : false;
-}
-
-async function sharePageLink(dishName: string, text: string): Promise<boolean> {
-  const url = getCurrentPageUrl();
-  if (!url || !navigator.share) return false;
-  try {
-    await navigator.share({
-      title: dishName,
-      text,
-      url
-    });
-    return true;
-  } catch {
-    return false;
-  }
+  return getSafeCurrentPageUrl();
 }
 
 function getPosterPosition(
@@ -522,6 +620,7 @@ export function DishModelViewer({
   onViewerMounted,
   onArFallbackNeeded,
   onArFallbackCleared,
+  fallbackPresentation = "inline",
   analyticsContext
 }: DishModelViewerProps) {
   const copy = resolveModelViewerCopy(customCopy);
@@ -533,35 +632,34 @@ export function DishModelViewer({
   const [modelLoadTimedOut, setModelLoadTimedOut] = useState(false);
   const [modelLoaded, setModelLoaded] = useState(false);
   const [modelProgress, setModelProgress] = useState(0);
-  const [runtimeArFailed, setRuntimeArFailed] = useState(false);
+  const [runtimeSignal, setRuntimeSignal] = useState<ArRuntimeSignal>("none");
   const [loaderRevealed, setLoaderRevealed] = useState(false);
   const [modelAttempt, setModelAttempt] = useState(0);
   const [arSessionActive, setArSessionActive] = useState(false);
   const [handoffDismissed, setHandoffDismissed] = useState(false);
-  const [copyConfirmed, setCopyConfirmed] = useState(false);
   const [slowNetworkConfirmed, setSlowNetworkConfirmed] = useState(false);
   const loadWatchRef = useRef<ModelViewerElement | null>(null);
+  const arCtaButtonRef = useRef<HTMLButtonElement | null>(null);
   const listenerCleanupRef = useRef<(() => void) | null>(null);
   const prefersReducedMotion = usePrefersReducedMotion();
+  const runtimeArFailed =
+    runtimeSignal === "scene-viewer-unavailable" ||
+    runtimeSignal === "activation-rejected" ||
+    runtimeSignal === "ar-status-failed";
 
   useLayoutEffect(() => {
     onViewerMounted?.();
   }, [onViewerMounted]);
 
-  const isAndroid = isAndroidDevice();
+  const arBrowser = classifyArBrowser(readLiveArClientSnapshot());
+  const isAndroid = arBrowser === "android-chrome" || arBrowser === "android-other";
+  const isIos = arBrowser === "ios-safari" || arBrowser === "ios-other";
+  const needsIosHandoff = arBrowser === "ios-other";
   const manifest = useMemo(() => buildDemoDish3dManifest(dish), [dish]);
   const iosSrc = manifest.variants.iosUsdz?.url ?? "";
-  const arEnvironment = readArClientEnvironment(iosSrc);
-  const { isIos, missingIosAr, needsIosHandoff } = arEnvironment;
-  const androidArUnavailable =
-    isAndroid && !isAndroidLikelySceneViewerCapable();
-  const selectionDevice = deviceForSelection(isIos, isAndroid);
-  const selectionBrowser = browserForSelection({
-    isIos,
-    isAndroid,
-    needsIosHandoff,
-    androidArUnavailable
-  });
+  const missingIosAr = isIos && !iosSrc;
+  const selectionDevice = deviceForSelection(arBrowser);
+  const selectionBrowser = browserForSelection(arBrowser);
   const baseConnection = readClientConnection();
   const effectiveConnection = slowNetworkConfirmed
     ? { ...baseConnection, effectiveType: "4g", saveData: false }
@@ -592,13 +690,13 @@ export function DishModelViewer({
   const shouldConfirmSlowNetwork =
     modelSelection.requiresConfirmation && !slowNetworkConfirmed;
   const directIosQuickLookHref =
-    isIos && !needsIosHandoff && arSelection.kind === "iosUsdz"
+    arBrowser === "ios-safari" && arSelection.kind === "iosUsdz"
       ? arSelection.url
       : "";
   const arLiteReady = arSelection.kind === "arLite" && Boolean(arSelection.url);
-  const iosNativeArEnabled = isIos && !needsIosHandoff && !missingIosAr;
-  const androidNativeArEnabled =
-    isAndroid && !androidArUnavailable && arLiteReady;
+  const dishHasArLite = Boolean(manifest.variants.arLite?.url);
+  const iosNativeArEnabled = arBrowser === "ios-safari" && !missingIosAr;
+  const androidNativeArEnabled = arBrowser === "android-chrome" && arLiteReady;
   const showNoModelIosHandoff =
     !hasModel && needsIosHandoff && Boolean(iosSrc) && !shouldConfirmSlowNetwork;
 
@@ -607,7 +705,6 @@ export function DishModelViewer({
     setModelLoadError(false);
     setModelLoadTimedOut(false);
     setModelProgress(1);
-    setRuntimeArFailed(false);
   }, []);
 
   useEffect(() => {
@@ -650,22 +747,22 @@ export function DishModelViewer({
       const onArStatus = (event: Event) => {
         const status = (event as ModelViewerArStatusEvent).detail?.status;
         if (status === "failed") {
-          setRuntimeArFailed(true);
+          setRuntimeSignal("ar-status-failed");
           setArSessionActive(false);
-          onArFallbackNeeded?.("ar-status-failed");
           return;
         }
         if (status === "session-started" || status === "object-placed") {
-          setRuntimeArFailed(false);
+          setRuntimeSignal("active");
           setArSessionActive(true);
           onArFallbackCleared?.();
           prepareModelViewerForAr(node);
           return;
         }
         if (status === "not-presenting") {
-          setRuntimeArFailed(false);
           setArSessionActive(false);
-          onArFallbackCleared?.();
+          window.requestAnimationFrame(() => {
+            arCtaButtonRef.current?.focus();
+          });
         }
       };
 
@@ -686,7 +783,7 @@ export function DishModelViewer({
         if (node.loaded === true) onLoad();
       });
     },
-    [markModelLoaded, onArFallbackCleared, onArFallbackNeeded]
+    [markModelLoaded, onArFallbackCleared]
   );
 
   useEffect(
@@ -698,24 +795,23 @@ export function DishModelViewer({
   );
 
   useEffect(() => {
-    const resetTemporaryArState = () => {
-      setRuntimeArFailed(false);
-      setLoaderRevealed(false);
-    };
-    const resetWhenVisible = () => {
-      if (document.visibilityState === "visible") resetTemporaryArState();
+    const onHashChange = () => {
+      if (!isSceneViewerFallbackHash(window.location.hash)) return;
+      setRuntimeSignal("scene-viewer-unavailable");
+      setArSessionActive(false);
+      const { pathname, search } = window.location;
+      window.history.replaceState(
+        window.history.state,
+        "",
+        `${pathname}${search}`
+      );
     };
 
-    document.addEventListener("visibilitychange", resetWhenVisible);
-    window.addEventListener("pageshow", resetTemporaryArState);
-    window.addEventListener("focus", resetTemporaryArState);
-    window.addEventListener("pagehide", resetTemporaryArState);
+    window.addEventListener("hashchange", onHashChange);
+    onHashChange();
 
     return () => {
-      document.removeEventListener("visibilitychange", resetWhenVisible);
-      window.removeEventListener("pageshow", resetTemporaryArState);
-      window.removeEventListener("focus", resetTemporaryArState);
-      window.removeEventListener("pagehide", resetTemporaryArState);
+      window.removeEventListener("hashchange", onHashChange);
     };
   }, []);
 
@@ -769,12 +865,20 @@ export function DishModelViewer({
 
   const handleModelViewerArClick = useCallback(() => {
     trackArIntent();
-    void loadWatchRef.current?.activateAR?.().catch(() => {
-      setRuntimeArFailed(true);
+    setRuntimeSignal("launching");
+    try {
+      const activation = loadWatchRef.current?.activateAR?.();
+      if (activation && typeof activation.then === "function") {
+        void activation.catch(() => {
+          setRuntimeSignal("activation-rejected");
+          setArSessionActive(false);
+        });
+      }
+    } catch {
+      setRuntimeSignal("activation-rejected");
       setArSessionActive(false);
-      onArFallbackNeeded?.("activate-ar-failed");
-    });
-  }, [onArFallbackNeeded, trackArIntent]);
+    }
+  }, [trackArIntent]);
 
   const handleRetry = useCallback(() => {
     setInitTimedOut(false);
@@ -782,7 +886,7 @@ export function DishModelViewer({
     setModelLoadTimedOut(false);
     setModelLoaded(false);
     setModelProgress(0);
-    setRuntimeArFailed(false);
+    setRuntimeSignal("none");
     setLoaderRevealed(false);
     setHandoffDismissed(false);
     setModelAttempt((attempt) => attempt + 1);
@@ -794,35 +898,79 @@ export function DishModelViewer({
     hasModel && !showLoadFailure && (!mvReady || (mvReady && !modelLoaded));
   const showLoader = isLoadingModel && loaderRevealed;
   const showArReady = modelLoaded && !showLoadFailure;
+  const arExperience = resolveArExperience({
+    browser: arBrowser,
+    modelReady: showArReady,
+    hasArLite: dishHasArLite,
+    hasUsdz: Boolean(iosSrc),
+    runtime: runtimeSignal
+    // canActivateAR is intentionally omitted: model-viewer 4.2 reports false
+    // until AR init finishes, which would hide a valid Chrome Android CTA.
+  });
   const canOpenDirectIosQuickLook =
     iosNativeArEnabled && Boolean(directIosQuickLookHref);
-  const showIosQuickLookButton = showArReady && canOpenDirectIosQuickLook;
-  const showAndroidSceneViewerButton = showArReady && androidNativeArEnabled;
+  const showIosQuickLookButton =
+    showArReady &&
+    canOpenDirectIosQuickLook &&
+    arExperience.kind === "cta" &&
+    arExperience.platform === "ios";
+  const showAndroidSceneViewerButton =
+    showArReady &&
+    androidNativeArEnabled &&
+    arExperience.kind === "cta" &&
+    arExperience.platform === "android";
   const shouldReserveArActionRail =
     hasModel &&
     !showLoadFailure &&
-    (canOpenDirectIosQuickLook || androidNativeArEnabled);
-  const showHandoff =
-    showArReady && !handoffDismissed && needsIosHandoff && Boolean(iosSrc);
-  const showAndroidFallback =
+    (showIosQuickLookButton || showAndroidSceneViewerButton);
+  const visibleFallbackPhase =
     showArReady &&
     !handoffDismissed &&
-    (androidArUnavailable || (isAndroid && runtimeArFailed));
-  const showMissingIosAr = showArReady && missingIosAr;
-  const showDesktopArHint = showArReady && !isIos && !isAndroid;
+    fallbackPresentation === "inline" &&
+    (arExperience.kind === "handoff" ||
+      arExperience.kind === "unsupported-device" ||
+      arExperience.kind === "activation-failed" ||
+      arExperience.kind === "asset-unavailable" ||
+      arExperience.kind === "missing-usdz" ||
+      (arExperience.kind === "desktop-hint" && !quietChrome))
+      ? arExperience
+      : null;
+  const notifiedFallbackPhase =
+    showArReady &&
+    !handoffDismissed &&
+    (arExperience.kind === "handoff" ||
+      arExperience.kind === "unsupported-device" ||
+      arExperience.kind === "activation-failed" ||
+      arExperience.kind === "asset-unavailable" ||
+      arExperience.kind === "missing-usdz")
+      ? arExperience
+      : null;
   const arModes = isAndroid
     ? "scene-viewer webxr quick-look"
     : "webxr scene-viewer quick-look";
+  const shouldEnableModelViewerAr =
+    androidNativeArEnabled && !runtimeArFailed;
+
+  const notifiedFallbackReason = showNoModelIosHandoff
+    ? "ios-handoff"
+    : notifiedFallbackPhase
+      ? arFallbackReasonForPhase(notifiedFallbackPhase)
+      : null;
 
   useEffect(() => {
-    if (showHandoff) onArFallbackNeeded?.("ios-handoff");
-    if (showAndroidFallback) onArFallbackNeeded?.("android-fallback");
-    if (showMissingIosAr) onArFallbackNeeded?.("missing-ios-usdz");
+    if (notifiedFallbackReason) {
+      onArFallbackNeeded?.(notifiedFallbackReason);
+      return;
+    }
+    if (showArReady && arExperience.kind === "cta") {
+      onArFallbackCleared?.();
+    }
   }, [
+    arExperience.kind,
+    notifiedFallbackReason,
+    onArFallbackCleared,
     onArFallbackNeeded,
-    showAndroidFallback,
-    showHandoff,
-    showMissingIosAr
+    showArReady
   ]);
 
   useEffect(() => {
@@ -901,7 +1049,7 @@ export function DishModelViewer({
               ? quietChrome
                 ? copy.noModelQuiet
                 : copy.noModelIos
-              : showNoModelIosHandoff && !quietChrome
+              : showNoModelIosHandoff
                 ? copy.noModelIosHandoff
               : copy.noModelSoon}
           </p>
@@ -913,43 +1061,18 @@ export function DishModelViewer({
               className="relative mt-5 inline-flex min-h-11 items-center justify-center rounded-full border border-champagne/45 bg-champagne px-5 text-sm font-semibold text-[#17100a] transition hover:bg-[#e3c785] focus:outline-none focus-visible:ring-2 focus-visible:ring-champagne"
             />
           ) : null}
-          {showNoModelIosHandoff && !quietChrome ? (
-            <div
-              className="mt-5 w-full max-w-md rounded-xl border border-champagne/25 bg-champagne/10 p-3 text-left"
-              role="status"
-              aria-live="polite"
-            >
-              <p className="font-display text-base leading-tight text-cream">
-                {copy.safariTitle}
-              </p>
-              <p className="mt-1.5 text-sm leading-relaxed text-[#eadcc6]">
-                {copy.arIosHandoff}
-              </p>
-              <div className="mt-3 grid gap-2 sm:grid-cols-2">
-                <button
-                  type="button"
-                  className="min-h-10 rounded-full border border-champagne/45 px-3 text-xs font-semibold text-champagne transition hover:bg-champagne/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-champagne"
-                  onClick={() => {
-                    void copyPageLink().then((ok) => {
-                      setCopyConfirmed(ok);
-                      if (ok) {
-                        window.setTimeout(() => setCopyConfirmed(false), 1800);
-                      }
-                    });
-                  }}
-                >
-                  {copyConfirmed ? copy.linkCopied : copy.copyLink}
-                </button>
-                <button
-                  type="button"
-                  className="min-h-10 rounded-full border border-white/18 px-3 text-xs font-semibold text-cream transition hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-champagne"
-                  onClick={() => {
-                    void sharePageLink(dish.name, copy.shareText);
-                  }}
-                >
-                  {copy.share}
-                </button>
-              </div>
+          {showNoModelIosHandoff && fallbackPresentation === "inline" ? (
+            <div className="mt-5 w-full max-w-md text-left">
+              <ArFallbackPanel
+                phase={{ kind: "handoff", recommendedBrowser: "safari" }}
+                copy={fallbackPanelCopy(
+                  { kind: "handoff", recommendedBrowser: "safari" },
+                  copy
+                )}
+                pageUrl={getCurrentPageUrl()}
+                shareText={copy.shareText}
+                dishName={dish.name}
+              />
             </div>
           ) : null}
         </div>
@@ -999,7 +1122,7 @@ export function DishModelViewer({
                   aria-describedby={quietChrome ? undefined : helpId}
                   camera-controls
                   {...(!prefersReducedMotion && !arSessionActive ? { "auto-rotate": true } : {})}
-                  {...(androidNativeArEnabled ? { ar: true } : {})}
+                  {...(shouldEnableModelViewerAr ? { ar: true } : {})}
                   ar-modes={arModes}
                   ar-placement="floor"
                   ar-scale="fixed"
@@ -1025,6 +1148,7 @@ export function DishModelViewer({
                 <div className="relative z-30 flex min-h-[76px] items-center justify-center border-t border-white/10 bg-[#080706]/64 px-4 py-4">
                   {showAndroidSceneViewerButton ? (
                     <button
+                      ref={arCtaButtonRef}
                       type="button"
                       className="inline-flex min-h-11 max-w-full items-center justify-center whitespace-nowrap rounded-full border border-champagne/55 bg-champagne px-6 text-center text-sm font-semibold text-[#17100a] shadow-[0_14px_40px_rgba(0,0,0,0.34)] transition hover:bg-[#e3c785] focus:outline-none focus-visible:ring-2 focus-visible:ring-champagne focus-visible:ring-offset-2 focus-visible:ring-offset-[#10100e]"
                       onClick={handleModelViewerArClick}
@@ -1045,6 +1169,19 @@ export function DishModelViewer({
               {showLoader ? (
                 <PremiumLoadingState dish={dish} copy={copy} progress={modelProgress} />
               ) : null}
+              {visibleFallbackPhase ? (
+                <div className="pointer-events-none absolute inset-x-0 bottom-0 z-40 p-3">
+                  <div className="pointer-events-auto">
+                    <ArFallbackPanel
+                      phase={visibleFallbackPhase}
+                      copy={fallbackPanelCopy(visibleFallbackPhase, copy)}
+                      pageUrl={getCurrentPageUrl()}
+                      shareText={copy.shareText}
+                      dishName={dish.name}
+                    />
+                  </div>
+                </div>
+              ) : null}
             </div>
 
             {!quietChrome ? (
@@ -1064,60 +1201,6 @@ export function DishModelViewer({
             <p className="mt-2 px-1 text-center text-[0.72rem] leading-relaxed text-[#a9977c] sm:text-xs">
               {copy.sizeDisclaimer}
             </p>
-            {!quietChrome && showHandoff ? (
-              <div
-                className="mt-3 rounded-xl border border-champagne/25 bg-champagne/10 p-3 text-left"
-                role="status"
-                aria-live="polite"
-              >
-                <p className="font-display text-base leading-tight text-cream">
-                  {copy.safariTitle}
-                </p>
-                <p className="mt-1.5 text-sm leading-relaxed text-[#eadcc6]">
-                  {copy.arIosHandoff}
-                </p>
-                <div className="mt-3 grid gap-2 sm:grid-cols-2">
-                  <button
-                    type="button"
-                    className="min-h-10 rounded-full border border-champagne/45 px-3 text-xs font-semibold text-champagne transition hover:bg-champagne/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-champagne"
-                    onClick={() => {
-                      void copyPageLink().then((ok) => {
-                        setCopyConfirmed(ok);
-                        if (ok) {
-                          window.setTimeout(() => setCopyConfirmed(false), 1800);
-                        }
-                      });
-                    }}
-                  >
-                    {copyConfirmed ? copy.linkCopied : copy.copyLink}
-                  </button>
-                  <button
-                    type="button"
-                    className="min-h-10 rounded-full border border-white/18 px-3 text-xs font-semibold text-cream transition hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-champagne"
-                    onClick={() => {
-                      void sharePageLink(dish.name, copy.shareText);
-                    }}
-                  >
-                    {copy.share}
-                  </button>
-                </div>
-              </div>
-            ) : null}
-            {!quietChrome && showAndroidFallback ? (
-              <p className="mt-3 px-1 text-center text-xs leading-relaxed text-[#bba88f] sm:text-sm">
-                {copy.arAndroidBrowser}
-              </p>
-            ) : null}
-            {!quietChrome && showMissingIosAr ? (
-              <p className="mt-3 px-1 text-center text-xs leading-relaxed text-[#bba88f] sm:text-sm">
-                {copy.iosUsdzMissing}
-              </p>
-            ) : null}
-            {!quietChrome && showDesktopArHint ? (
-              <p className="mt-3 px-1 text-center text-xs leading-relaxed text-[#bba88f] sm:text-sm">
-                {copy.desktopArHint}
-              </p>
-            ) : null}
           </div>
         )}
       </div>
