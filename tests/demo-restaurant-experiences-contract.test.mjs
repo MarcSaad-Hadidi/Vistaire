@@ -28,7 +28,7 @@ test("demo pages share the three restaurant experiences and preserve the generic
   assert.match(landing, /<LandingHero[\s\S]*<LandingComparisonSection[\s\S]*<LandingValueSection[\s\S]*<LandingExperienceSection/);
 });
 
-test("landing stable UI readiness accepts only public built-in fallbacks or published configs", async () => {
+test("landing stable UI readiness accepts only confirmed public built-in fallbacks or published configs", async () => {
   const { resolveStablePublicMenuUiConfigReadiness } = await import(
     "../lib/menu/publicMenuStableUiConfig.ts"
   );
@@ -53,14 +53,24 @@ test("landing stable UI readiness accepts only public built-in fallbacks or publ
     assert.deepEqual(
       resolveStablePublicMenuUiConfigReadiness({
         configRecord: canonicalBuiltIn,
-        experienceKind
+        experienceKind,
+        readState: "not-found"
       }),
       { ready: true, source: "canonical-built-in" }
     );
     assert.deepEqual(
       resolveStablePublicMenuUiConfigReadiness({
+        configRecord: canonicalBuiltIn,
+        experienceKind,
+        readState: "unavailable"
+      }),
+      { ready: false, source: "unavailable" }
+    );
+    assert.deepEqual(
+      resolveStablePublicMenuUiConfigReadiness({
         configRecord: persistedDraft,
-        experienceKind
+        experienceKind,
+        readState: "not-found"
       }),
       { ready: false, source: "unavailable" }
     );
@@ -69,20 +79,30 @@ test("landing stable UI readiness accepts only public built-in fallbacks or publ
   assert.deepEqual(
     resolveStablePublicMenuUiConfigReadiness({
       configRecord: canonicalBuiltIn,
-      experienceKind: "unique-registered"
+      experienceKind: "unique-registered",
+      readState: "not-found"
     }),
     { ready: false, source: "unavailable" }
   );
   assert.deepEqual(
     resolveStablePublicMenuUiConfigReadiness({
       configRecord: published,
-      experienceKind: "unique-registered"
+      experienceKind: "unique-registered",
+      readState: "published"
     }),
     { ready: true, source: "published" }
   );
+  assert.deepEqual(
+    resolveStablePublicMenuUiConfigReadiness({
+      configRecord: published,
+      experienceKind: "unique-registered",
+      readState: "unavailable"
+    }),
+    { ready: false, source: "unavailable" }
+  );
 });
 
-test("landing stable render context derives the legacy readiness gate from effective public UI config", async () => {
+test("landing stable render context derives the legacy readiness gate from a confirmed public UI config read", async () => {
   const [renderContext, landingData, configStore] = await Promise.all([
     source("lib/menu/publicMenuRenderContext.ts"),
     source("lib/landing/menuExperiences.ts"),
@@ -90,6 +110,8 @@ test("landing stable render context derives the legacy readiness gate from effec
   ]);
 
   assert.match(renderContext, /resolveStablePublicMenuUiConfigReadiness/);
+  assert.match(renderContext, /loadPublishedMenuUiConfigForRestaurant/);
+  assert.match(renderContext, /readState:\s*configLoad\.readState/);
   assert.match(
     renderContext,
     /publishedUiConfig:\s*stablePublicUiConfig\.ready/
@@ -99,4 +121,6 @@ test("landing stable render context derives the legacy readiness gate from effec
     configStore,
     /eq\(["']status["'],\s*["']published["']\)/
   );
+  assert.match(configStore, /readState:\s*["']not-found["']/);
+  assert.match(configStore, /readState:\s*["']unavailable["']/);
 });
