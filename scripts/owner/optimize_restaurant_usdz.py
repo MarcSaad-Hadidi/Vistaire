@@ -86,12 +86,12 @@ RECIPES_BY_SLUG: dict[str, tuple[str, dict[str, float | int | str]]] = {
 DISH_PHYSICAL_SCALE_TARGETS = {
     "burger": {"dimension": "height", "targetMeters": 0.15, "minMeters": 0.10, "maxMeters": 0.22},
     "pizza": {"dimension": "footprint", "targetMeters": 0.32, "minMeters": 0.22, "maxMeters": 0.40},
-    "plate": {"dimension": "footprint", "targetMeters": 0.26, "minMeters": 0.18, "maxMeters": 0.34},
+    "plate": {"dimension": "footprint", "targetMeters": 0.18, "minMeters": 0.17, "maxMeters": 0.19},
     "bowl": {"dimension": "footprint", "targetMeters": 0.18, "minMeters": 0.12, "maxMeters": 0.25},
     "dessert": {"dimension": "footprint", "targetMeters": 0.12, "minMeters": 0.08, "maxMeters": 0.18},
     "drink": {"dimension": "height", "targetMeters": 0.18, "minMeters": 0.12, "maxMeters": 0.25},
     "platter": {"dimension": "footprint", "targetMeters": 0.32, "minMeters": 0.22, "maxMeters": 0.45},
-    "fallback": {"dimension": "footprint", "targetMeters": 0.20, "minMeters": 0.10, "maxMeters": 0.35},
+    "fallback": {"dimension": "footprint", "targetMeters": 0.15, "minMeters": 0.14, "maxMeters": 0.16},
 }
 
 DATA_ROLES = {"normal", "roughness", "metallic", "occlusion"}
