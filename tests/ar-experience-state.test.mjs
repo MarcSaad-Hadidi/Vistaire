@@ -64,6 +64,16 @@ test("classifyArBrowser maps platform and unsupported browsers without treating 
       expected: "android-other"
     },
     {
+      name: "Android WebView without the wv token still needs Chrome handoff",
+      input: {
+        userAgent:
+          "Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/125.0.0.0 Mobile Safari/537.36",
+        platform: "Linux armv8l",
+        maxTouchPoints: 5
+      },
+      expected: "android-other"
+    },
+    {
       name: "Android Instagram",
       input: { userAgent: INSTAGRAM_ANDROID, platform: "Linux armv8l", maxTouchPoints: 5 },
       expected: "android-other"

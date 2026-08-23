@@ -46,6 +46,7 @@ test("Maison Elyse public locale regression runs in Chromium and WebKit CI", () 
   const webkit = packageJson.scripts?.["test:ci:e2e:webkit"] ?? "";
 
   assert.match(chromium, /e2e\/maison-elyse-public-menu\.spec\.ts/);
+  assert.match(chromium, /e2e\/ar-handoff\.spec\.ts/);
   assert.match(chromium, /--project=chromium/);
   assert.match(webkit, /e2e\/maison-elyse-public-menu\.spec\.ts/);
   assert.match(webkit, /--project=webkit/);

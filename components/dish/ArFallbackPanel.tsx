@@ -134,7 +134,15 @@ export function ArFallbackPanel({
                 }
                 void navigator
                   .share({ title: dishName, text: shareText, url: pageUrl })
-                  .catch(() => {
+                  .catch((error: unknown) => {
+                    const name =
+                      typeof error === "object" &&
+                      error !== null &&
+                      "name" in error &&
+                      typeof error.name === "string"
+                        ? error.name
+                        : "";
+                    if (name === "AbortError") return;
                     setCopyUi({
                       key: copySessionKey,
                       confirmed: false,

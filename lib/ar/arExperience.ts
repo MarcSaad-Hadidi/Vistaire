@@ -104,7 +104,9 @@ function isAndroidFirefox(input: ArClientSnapshot): boolean {
 
 function isAndroidWebView(input: ArClientSnapshot): boolean {
   if (!isAndroid(input)) return false;
-  return /; wv\)|\bwv\b/i.test(input.userAgent);
+  // Classic Android WebView often omits `; wv` and instead ships
+  // `Version/x.x Chrome/`, which cannot launch Scene Viewer.
+  return /; wv\)|\bwv\b|Version\/[\d.]+.*Chrome\//i.test(input.userAgent);
 }
 
 function isNativeIosSafari(input: ArClientSnapshot): boolean {

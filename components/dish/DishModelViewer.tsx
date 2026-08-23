@@ -16,6 +16,7 @@ import {
 } from "@/lib/analytics/client";
 import {
   buildDemoDish3dManifest,
+  isSafe3dAssetUrl,
   selectImmersiveVariant,
   type ImmersiveBrowser,
   type ImmersiveDevice
@@ -694,7 +695,11 @@ export function DishModelViewer({
       ? arSelection.url
       : "";
   const arLiteReady = arSelection.kind === "arLite" && Boolean(arSelection.url);
-  const dishHasArLite = Boolean(manifest.variants.arLite?.url);
+  const dishHasArLite = isSafe3dAssetUrl(
+    manifest.variants.arLite?.url ?? "",
+    ALLOWED_3D_CDN_ORIGINS,
+    "arLite"
+  );
   const iosNativeArEnabled = arBrowser === "ios-safari" && !missingIosAr;
   const androidNativeArEnabled = arBrowser === "android-chrome" && arLiteReady;
   const showNoModelIosHandoff =
