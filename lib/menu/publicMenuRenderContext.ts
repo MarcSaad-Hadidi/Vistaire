@@ -77,7 +77,7 @@ type PublishedMenuUiConfigLoad = {
   readState: StablePublicMenuUiConfigReadState;
 };
 
-async function loadPublishedMenuUiConfigForRestaurant(
+async function getPublishedMenuUiConfigForRestaurantWithReadState(
   restaurantId: string,
   fallbackConfig: MenuUiConfig
 ): Promise<PublishedMenuUiConfigLoad> {
@@ -169,7 +169,7 @@ async function resolvePublicMenuBaseRenderContext({
     name: initialMenu.name,
     slug: initialMenu.slug
   });
-  const configLoad = await loadPublishedMenuUiConfigForRestaurant(
+  const configLoad = await getPublishedMenuUiConfigForRestaurantWithReadState(
     initialMenu.restaurantId,
     fallbackConfig
   );
