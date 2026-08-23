@@ -213,7 +213,9 @@ test("CI browser families use one grouped runner invocation", () => {
   );
   assert.match(packageJson.scripts["test:ci:e2e:landing"], /landing-production-photo\.spec\.ts[\s\S]*landing-redesign\.spec\.ts/);
   assert.match(packageJson.scripts["test:ci:e2e:sauge"], /sauge-noire-first-gesture-scroll\.spec\.ts[\s\S]*sauge-noire-swipe-intent\.spec\.ts/);
+  assert.match(packageJson.scripts["test:ci:e2e:sauge"], /e2e\/ar-renderer-handoff\.spec\.ts/);
   assert.match(packageJson.scripts["test:ci:e2e:menu"], /sauge-noire-menu-shared-smoke\.spec\.ts/);
+  assert.match(packageJson.scripts["test:ci:e2e:menu"], /e2e\/ar-handoff\.spec\.ts/);
   assert.doesNotMatch(packageJson.scripts["test:ci:e2e:menu"], /ci-smoke\.spec\.ts/);
   assert.doesNotMatch(packageJson.scripts["test:ci:e2e:menu"], /sauge-noire-critical-smoke\.spec\.ts/);
   assert.doesNotMatch(packageJson.scripts["test:ci:e2e:menu"], /sauge-noire-(?:first-gesture-scroll|swipe-intent|contents-single-flip|static-page-handoff)\.spec\.ts/);

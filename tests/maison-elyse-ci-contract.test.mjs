@@ -46,6 +46,7 @@ test("Maison Elyse public locale regression runs in Chromium and WebKit CI", () 
   const webkit = packageJson.scripts?.["test:ci:e2e:webkit"] ?? "";
 
   assert.match(chromium, /e2e\/maison-elyse-public-menu\.spec\.ts/);
+  assert.match(chromium, /e2e\/ar-handoff\.spec\.ts/);
   assert.match(chromium, /--project=chromium/);
   assert.match(webkit, /e2e\/maison-elyse-public-menu\.spec\.ts/);
   assert.match(webkit, /--project=webkit/);
@@ -60,6 +61,7 @@ test("Maison public browser tests opt into the complete tracked menu fixture", a
   ]);
 
   assert.match(runner, /endsWith\("e2e\/maison-elyse-public-menu\.spec\.ts"\)/);
+  assert.match(runner, /endsWith\("e2e\/ar-handoff\.spec\.ts"\)/);
   assert.match(runner, /VISTAIRE_E2E_MAISON_PUBLIC_MENU: "1"/);
   assert.match(
     publicMenu,

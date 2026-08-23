@@ -66,6 +66,49 @@ export function detectArHandoffPlatform(
   return isIpadOsDesktopMode ? "ios" : "other";
 }
 
+export type LocationLike = {
+  href: string;
+  origin: string;
+  protocol: string;
+};
+
+/**
+ * Copy only the current page URL. Rejects javascript: and cross-origin values
+ * so handoff never forwards an arbitrary URL into another browser.
+ * Strips the model-viewer Scene Viewer failure hash so a copied dish link
+ * cannot reopen the fallback state in Chrome.
+ *
+ * Android `intent://` / `googlechrome://` deep links are intentionally omitted:
+ * they fail silently in many in-app WebViews, can target an arbitrary URL if
+ * built from untrusted input, and still require copy/share as fallback.
+ */
+export function getSafeCurrentPageUrl(
+  locationLike?: LocationLike
+): string {
+  const current =
+    locationLike ??
+    (typeof window !== "undefined"
+      ? {
+          href: window.location.href,
+          origin: window.location.origin,
+          protocol: window.location.protocol
+        }
+      : undefined);
+  if (!current) return "";
+  if (current.protocol !== "http:" && current.protocol !== "https:") return "";
+  try {
+    const url = new URL(current.href);
+    if (url.origin !== current.origin) return "";
+    if (url.protocol !== "http:" && url.protocol !== "https:") return "";
+    if (url.hash === "#model-viewer-no-ar-fallback") {
+      url.hash = "";
+    }
+    return url.toString();
+  } catch {
+    return "";
+  }
+}
+
 export async function copyTextToClipboard(
   text: string,
   clipboard?: ArClipboard,

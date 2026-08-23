@@ -43,6 +43,7 @@ import {
   detectArHandoffPlatform,
   type ArHandoffPlatform
 } from "@/lib/menu/arBrowserHandoff";
+import { arFallbackUiMode } from "@/lib/ar/arExperience";
 import { TrouvableCategoryIcon } from "./TrouvableCategoryIcon";
 import { GoogleReviewCard } from "./GoogleReviewCard";
 import { PremiumDishDetailsSheet } from "./PremiumDishDetailsSheet";
@@ -445,6 +446,8 @@ export function TrouvablePremiumMenuExperience({
   const [dishSubSheet, setDishSubSheet] = useState<DishSubSheet>(null);
   const [showDetailModelViewer, setShowDetailModelViewer] = useState(false);
   const [showArBrowserHelp, setShowArBrowserHelp] = useState(false);
+  const [showArDeviceHelp, setShowArDeviceHelp] = useState(false);
+  const [showArAssetHelp, setShowArAssetHelp] = useState(false);
   const [arHandoffPlatform] = useState<ArHandoffPlatform>(() => {
     if (typeof navigator === "undefined") return "other";
     const navigatorWithData = navigator as Navigator & {
@@ -776,6 +779,8 @@ export function TrouvablePremiumMenuExperience({
       arCopyResetTimeoutRef.current = null;
     }
     setShowArBrowserHelp(false);
+    setShowArDeviceHelp(false);
+    setShowArAssetHelp(false);
     setArCopyStatus("idle");
     setManualDishUrl("");
   }, []);
@@ -1999,11 +2004,14 @@ export function TrouvablePremiumMenuExperience({
                 modelViewerLoadFailed={modelViewerLoadFailed}
                 onArFallbackCleared={resetArHandoffState}
                 onArFallbackNeeded={(reason) => {
-                  if (reason === "missing-ios-usdz") {
+                  const mode = arFallbackUiMode(reason);
+                  if (mode === "none") {
                     resetArHandoffState();
                     return;
                   }
-                  setShowArBrowserHelp(true);
+                  setShowArBrowserHelp(mode === "browser");
+                  setShowArDeviceHelp(mode === "device");
+                  setShowArAssetHelp(mode === "asset");
                 }}
                 onCopyDishUrl={() => void copyDishUrl()}
                 onReturnToDish={() => {
@@ -2012,6 +2020,8 @@ export function TrouvablePremiumMenuExperience({
                 }}
                 onSelectManualDishUrl={selectManualDishUrl}
                 showArBrowserHelp={showArBrowserHelp}
+                showArDeviceHelp={showArDeviceHelp}
+                showArAssetHelp={showArAssetHelp}
               />
             ) : null}
           </TrouvableDishDetailSurface>

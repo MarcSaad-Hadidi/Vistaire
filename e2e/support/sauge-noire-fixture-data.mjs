@@ -79,7 +79,9 @@ const dish = ({
   metadata,
   web_model_3d_url: webModel3dUrl,
   model_3d_url: webModel3dUrl,
-  ar_model_3d_url: "",
+  ar_model_3d_url: webModel3dUrl
+    ? "/models/demo/ar-lite/homard-bisque-ar-lite-meshy.glb"
+    : "",
   ar_usdz_url: ""
 });
 
