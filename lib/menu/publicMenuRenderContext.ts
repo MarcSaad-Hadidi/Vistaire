@@ -1,9 +1,16 @@
 import "server-only";
 
 import { getExchangeRates } from "@/lib/currency/exchangeRates";
+import type { MenuExchangeRates } from "@/lib/currency/formatMenuPrice";
 import { type Locale } from "@/lib/i18n";
-import { type PublicMenuLocale } from "@/lib/menu/publicMenuSettings";
-import { menuUiConfigForRestaurant, type MenuUiConfig } from "@/lib/menu/menuUiConfig";
+import {
+  defaultMenuUiConfigRecord,
+  mapMenuUiConfigRow,
+  menuUiConfigForRestaurant,
+  type MenuUiConfig,
+  type MenuUiConfigRecord,
+  type MenuUiConfigRow
+} from "@/lib/menu/menuUiConfig";
 import { getPublicMenuBySlug } from "@/lib/menu/publicMenu";
 import {
   type PublicMenu,
@@ -14,13 +21,17 @@ import {
   type ResolvedPublicMenuExperience
 } from "@/lib/menu/publicMenuExperienceRoute";
 import {
+  resolveStablePublicMenuUiConfigReadiness,
+  type StablePublicMenuUiConfigReadState
+} from "@/lib/menu/publicMenuStableUiConfig";
+import {
   normalizePublicMenuLocale,
   normalizePublicMenuLocalePreference,
-  publicLocaleToShortLocale
+  publicLocaleToShortLocale,
+  type PublicMenuLocale
 } from "@/lib/menu/publicMenuSettings";
 import { resolvePublicMenuUiConfig } from "@/lib/menu/trouvableMenuExperience";
-import { getPublishedMenuUiConfigForRestaurant } from "@/lib/owner/menuUiConfigStore";
-import type { MenuExchangeRates } from "@/lib/currency/formatMenuPrice";
+import { getSupabaseAdminClient } from "@/utils/supabase/admin";
 
 export type PublicMenuRenderQuery = {
   lang?: string;
@@ -50,6 +61,8 @@ type PublicMenuBaseRenderContext = Omit<
 export type PublicMenuStableRenderContext = PublicMenuBaseRenderContext & {
   localizedMenus: Partial<Record<PublicMenuLocale, PublicMenu>>;
   stableCacheReadiness: {
+    // Compatibility name: this is true when the effective public UI config is
+    // stable for landing-cache rendering, including code-owned built-in fallbacks.
     publishedUiConfig: boolean;
     localizedMenusComplete: boolean;
   };
@@ -58,6 +71,46 @@ export type PublicMenuStableRenderContext = PublicMenuBaseRenderContext & {
 export type PublicDishRenderContext = PublicMenuBaseRenderContext & {
   exchangeRates: MenuExchangeRates | null;
 };
+
+type PublishedMenuUiConfigLoad = {
+  record: MenuUiConfigRecord;
+  readState: StablePublicMenuUiConfigReadState;
+};
+
+async function getPublishedMenuUiConfigForRestaurantWithReadState(
+  restaurantId: string,
+  fallbackConfig: MenuUiConfig
+): Promise<PublishedMenuUiConfigLoad> {
+  const fallbackRecord = () =>
+    defaultMenuUiConfigRecord({ restaurantId, config: fallbackConfig });
+  const admin = getSupabaseAdminClient();
+
+  if (!admin.ok) {
+    return { record: fallbackRecord(), readState: "unavailable" };
+  }
+
+  const { data, error } = await admin.client
+    .from("menu_ui_configs")
+    .select("*")
+    .eq("restaurant_id", restaurantId)
+    .eq("status", "published")
+    .order("updated_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) {
+    return { record: fallbackRecord(), readState: "unavailable" };
+  }
+
+  if (!data) {
+    return { record: fallbackRecord(), readState: "not-found" };
+  }
+
+  return {
+    record: mapMenuUiConfigRow(data as MenuUiConfigRow, fallbackConfig),
+    readState: "published"
+  };
+}
 
 async function resolvePublicMenuBaseRenderContext({
   query,
@@ -116,22 +169,25 @@ async function resolvePublicMenuBaseRenderContext({
     name: initialMenu.name,
     slug: initialMenu.slug
   });
-  const configRecord = await getPublishedMenuUiConfigForRestaurant(
+  const configLoad = await getPublishedMenuUiConfigForRestaurantWithReadState(
     initialMenu.restaurantId,
     fallbackConfig
   );
+  const configRecord = configLoad.record;
   const config = resolvePublicMenuUiConfig(initialMenu, configRecord.config);
   const experience = resolvePublicMenuExperience(initialMenu, config, {
     allowPendingUniquePreview:
       process.env.NODE_ENV !== "production" &&
       process.env.VISTAIRE_UNIQUE_MENU_PREVIEW === "1"
   });
+  const stablePublicUiConfig = resolveStablePublicMenuUiConfigReadiness({
+    configRecord,
+    experienceKind: experience.kind,
+    readState: configLoad.readState
+  });
 
   return {
-    publishedUiConfig:
-      configRecord.persisted &&
-      configRecord.dataSource === "supabase" &&
-      configRecord.status === "published",
+    publishedUiConfig: stablePublicUiConfig.ready,
     renderContext: {
       menu,
       config,
@@ -145,7 +201,7 @@ async function resolvePublicMenuBaseRenderContext({
       locale,
       publicLocale,
       experience
-    },
+    }
   };
 }
 
