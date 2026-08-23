@@ -109,7 +109,7 @@ test("landing stable render context derives the legacy readiness gate from a con
   ]);
 
   assert.match(renderContext, /resolveStablePublicMenuUiConfigReadiness/);
-  assert.match(renderContext, /loadPublishedMenuUiConfigForRestaurant/);
+  assert.match(renderContext, /getPublishedMenuUiConfigForRestaurantWithReadState/);
   assert.match(renderContext, /readState:\s*configLoad\.readState/);
   assert.match(
     renderContext,
