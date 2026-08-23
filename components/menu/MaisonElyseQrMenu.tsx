@@ -894,10 +894,13 @@ export function MaisonElyseQrMenu({
 
   useEffect(() => {
     if (displayMode !== "public" || queryCurrency) return;
-    const storedCurrency = getStoredMenuCurrency(activeMenu.settings);
-    if (!storedCurrency || storedCurrency === activeCurrency) return;
-    setSelectedCurrency(storedCurrency);
-    setShouldPersistCurrencyInLinks(true);
+    const frameId = window.requestAnimationFrame(() => {
+      const storedCurrency = getStoredMenuCurrency(activeMenu.settings);
+      if (!storedCurrency || storedCurrency === activeCurrency) return;
+      setSelectedCurrency(storedCurrency);
+      setShouldPersistCurrencyInLinks(true);
+    });
+    return () => window.cancelAnimationFrame(frameId);
   }, [activeCurrency, activeMenu.settings, displayMode, queryCurrency]);
 
   useEffect(() => {
