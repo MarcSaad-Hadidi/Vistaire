@@ -27,3 +27,76 @@ test("demo pages share the three restaurant experiences and preserve the generic
   assert.match(english, /getLandingExperiences/);
   assert.match(landing, /<LandingHero[\s\S]*<LandingComparisonSection[\s\S]*<LandingValueSection[\s\S]*<LandingExperienceSection/);
 });
+
+test("landing stable UI readiness accepts only public built-in fallbacks or published configs", async () => {
+  const { resolveStablePublicMenuUiConfigReadiness } = await import(
+    "../lib/menu/publicMenuStableUiConfig.ts"
+  );
+
+  const canonicalBuiltIn = {
+    persisted: false,
+    dataSource: "default",
+    status: "draft"
+  };
+  const persistedDraft = {
+    persisted: true,
+    dataSource: "supabase",
+    status: "draft"
+  };
+  const published = {
+    persisted: true,
+    dataSource: "supabase",
+    status: "published"
+  };
+
+  for (const experienceKind of ["maison-elyse", "trouvable"]) {
+    assert.deepEqual(
+      resolveStablePublicMenuUiConfigReadiness({
+        configRecord: canonicalBuiltIn,
+        experienceKind
+      }),
+      { ready: true, source: "canonical-built-in" }
+    );
+    assert.deepEqual(
+      resolveStablePublicMenuUiConfigReadiness({
+        configRecord: persistedDraft,
+        experienceKind
+      }),
+      { ready: false, source: "unavailable" }
+    );
+  }
+
+  assert.deepEqual(
+    resolveStablePublicMenuUiConfigReadiness({
+      configRecord: canonicalBuiltIn,
+      experienceKind: "unique-registered"
+    }),
+    { ready: false, source: "unavailable" }
+  );
+  assert.deepEqual(
+    resolveStablePublicMenuUiConfigReadiness({
+      configRecord: published,
+      experienceKind: "unique-registered"
+    }),
+    { ready: true, source: "published" }
+  );
+});
+
+test("landing stable render context derives the legacy readiness gate from effective public UI config", async () => {
+  const [renderContext, landingData, configStore] = await Promise.all([
+    source("lib/menu/publicMenuRenderContext.ts"),
+    source("lib/landing/menuExperiences.ts"),
+    source("lib/owner/menuUiConfigStore.ts")
+  ]);
+
+  assert.match(renderContext, /resolveStablePublicMenuUiConfigReadiness/);
+  assert.match(
+    renderContext,
+    /publishedUiConfig:\s*stablePublicUiConfig\.ready/
+  );
+  assert.match(landingData, /stableCacheReadiness\.publishedUiConfig/);
+  assert.match(
+    configStore,
+    /eq\(["']status["'],\s*["']published["']\)/
+  );
+});
