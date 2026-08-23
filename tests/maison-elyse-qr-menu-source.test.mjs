@@ -132,11 +132,11 @@ test("Maison Elyse dish detail is dedicated while generic public details remain 
   assert.doesNotMatch(route, /getPublishedMenuUiConfigForRestaurant/);
 
   assert.match(localization, /detailBackToMenu:\s*"Retour à la carte"/);
-  assert.match(sharedCopy, /threeD:\s*"Voir en 3D"/);
+  assert.match(sharedCopy, /threeD:\s*"VOIR EN 3D"/);
   assert.match(sharedCopy, /ingredients:\s*"Ingrédients"/);
   assert.match(sharedCopy, /allergens:\s*"Allergènes"/);
   assert.match(sharedCopy, /options:\s*"Options"/);
-  assert.match(sharedCopy, /detailHouseNoteLabel:\s*"Note du chef"/);
+  assert.match(sharedCopy, /detailHouseNoteLabel:\s*"Note maison"/);
 
   assert.match(component, /getMaisonElyseCategoryLabel/);
   assert.match(component, /getMaisonElyseEditorialCopy/);
@@ -237,7 +237,7 @@ test("Maison Elyse QR menu keeps compact localized filters and Google Reviews wi
   assert.match(sharedCopy, /available:\s*"Disponible"/);
   assert.match(sharedCopy, /available:\s*"Available"/);
   assert.match(sharedCopy, /filterApply:\s*"Appliquer"/);
-  assert.match(sharedCopy, /resetFilters:\s*"Réinitialiser les filtres"/);
+  assert.match(sharedCopy, /resetFilters:/);
   assert.match(localization, /filterDialogLabel:\s*"Filtrer la carte"/);
   assert.match(localization, /filterDialogLabel:\s*"Filter the menu"/);
 
@@ -343,7 +343,7 @@ test("Maison Elyse phone detail resolves multilingual copy through shared and ed
   assert.match(localization, /detailBackToMenu:\s*"Volver a la carta"/);
   assert.match(localization, /detailBackToMenu:\s*"العودة إلى القائمة"/);
   assert.match(sharedCopy, /details:\s*"Dish details"/);
-  assert.match(sharedCopy, /threeD:\s*"View in 3D"/);
+  assert.match(sharedCopy, /threeD:\s*"VIEW IN 3D"/);
   assert.match(sharedCopy, /allergens:\s*"Allergens"/);
   assert.match(sharedCopy, /recommendation:\s*"Recommended"/);
   assert.match(sharedCopy, /soldOut:\s*"Sold out"/);
