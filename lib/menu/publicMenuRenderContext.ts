@@ -377,6 +377,7 @@ export async function resolvePublicDishRenderContext({
 
   const { experience } = renderContext;
   const exchangeRates =
+    experience.kind === "maison-elyse" ||
     experience.kind === "trouvable" ||
     experience.kind === "unique-registered"
       ? await resolvePublicMenuExchangeRates(renderContext.menu)
