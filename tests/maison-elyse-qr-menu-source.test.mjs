@@ -19,6 +19,8 @@ const themePresetPath = "lib/menu/menuThemePresets.ts";
 const menuExperiencePath = "lib/menu/trouvableMenuExperience.ts";
 const renderContextPath = "lib/menu/publicMenuRenderContext.ts";
 const themePath = "lib/menu/maisonElyseTheme.ts";
+const localizationPath = "lib/menu/maisonElyseLocalization.ts";
+const sharedCopyPath = "components/menu/trouvableMenuControls.ts";
 
 test("Maison Elyse public menu is the only dedicated QR table experience", async () => {
   const [source, renderContext] = await Promise.all([
@@ -115,10 +117,12 @@ test("Maison Elyse demo public menu can be built with localized sample data", as
 });
 
 test("Maison Elyse dish detail is dedicated while generic public details remain intact", async () => {
-  const [route, component, css] = await Promise.all([
+  const [route, component, css, localization, sharedCopy] = await Promise.all([
     readFile(dishPagePath, "utf8"),
     readFile(dishDetailPath, "utf8"),
-    readFile(dishDetailCssPath, "utf8")
+    readFile(dishDetailCssPath, "utf8"),
+    readFile(localizationPath, "utf8"),
+    readFile(sharedCopyPath, "utf8")
   ]);
 
   assert.match(route, /MaisonElyseDishDetail/);
@@ -127,19 +131,17 @@ test("Maison Elyse dish detail is dedicated while generic public details remain 
   assert.match(route, /PublicDishDetailExperience/);
   assert.doesNotMatch(route, /getPublishedMenuUiConfigForRestaurant/);
 
-  for (const text of [
-    "Retour",
-    "Voir en 3D",
-    "Ingr",
-    "Allerg",
-    "Options",
-    "Note du chef"
-  ]) {
-    assert.match(component, new RegExp(text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
-  }
+  assert.match(localization, /detailBackToMenu:\s*"Retour à la carte"/);
+  assert.match(sharedCopy, /threeD:\s*"Voir en 3D"/);
+  assert.match(sharedCopy, /ingredients:\s*"Ingrédients"/);
+  assert.match(sharedCopy, /allergens:\s*"Allergènes"/);
+  assert.match(sharedCopy, /options:\s*"Options"/);
+  assert.match(sharedCopy, /detailHouseNoteLabel:\s*"Note du chef"/);
 
   assert.match(component, /getMaisonElyseCategoryLabel/);
-
+  assert.match(component, /getMaisonElyseEditorialCopy/);
+  assert.match(component, /formatTrouvableDishPrice/);
+  assert.match(component, /exchangeRates\?: MenuExchangeRates/);
   assert.match(component, /dynamic<DishModelViewerProps>/);
   assert.match(component, /ssr: false/);
   assert.match(component, /showModelViewer/);
@@ -170,14 +172,15 @@ test("Maison Elyse dish detail is dedicated while generic public details remain 
 });
 
 test("Maison Elyse QR menu starts directly with the complete menu", async () => {
-  const [component, css] = await Promise.all([
+  const [component, css, localization] = await Promise.all([
     readFile(componentPath, "utf8"),
-    readFile(cssPath, "utf8")
+    readFile(cssPath, "utf8"),
+    readFile(localizationPath, "utf8")
   ]);
 
   assert.match(component, /useState<string>\(ALL_CATEGORY_ID\)/);
-  assert.match(component, /LA COLLECTION/);
-  assert.match(component, /LA CARTE/);
+  assert.match(localization, /collectionKicker:\s*"LA COLLECTION"/);
+  assert.match(localization, /collectionTitle:\s*"LA CARTE"/);
   assert.match(component, /DishSection/);
   assert.match(component, /visibleDishSections/);
   assert.match(component, /GoogleReviewCard/);
@@ -222,42 +225,32 @@ test("Maison category editorial stays independent from active dish filters", asy
   assert.match(component, /descriptionDishes=\{baseDishes\}/);
 });
 
-test("Maison Elyse QR menu keeps compact filters and Google Reviews without 3D autoload", async () => {
-  const component = await readFile(componentPath, "utf8");
+test("Maison Elyse QR menu keeps compact localized filters and Google Reviews without 3D autoload", async () => {
+  const [component, sharedCopy, localization] = await Promise.all([
+    readFile(componentPath, "utf8"),
+    readFile(sharedCopyPath, "utf8"),
+    readFile(localizationPath, "utf8")
+  ]);
 
-  for (const text of [
-    "Recommandés",
-    "Signature",
-    "3D / AR",
-    "Disponibles",
-    "Réinitialiser",
-    "Appliquer",
-    "Aucun plat dans cette sélection"
-  ]) {
-    assert.match(component, new RegExp(text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
-  }
+  assert.match(sharedCopy, /recommendation:\s*"Recommandé"/);
+  assert.match(sharedCopy, /recommendation:\s*"Recommended"/);
+  assert.match(sharedCopy, /available:\s*"Disponible"/);
+  assert.match(sharedCopy, /available:\s*"Available"/);
+  assert.match(sharedCopy, /filterApply:\s*"Appliquer"/);
+  assert.match(sharedCopy, /resetFilters:\s*"Réinitialiser les filtres"/);
+  assert.match(localization, /filterDialogLabel:\s*"Filtrer la carte"/);
+  assert.match(localization, /filterDialogLabel:\s*"Filter the menu"/);
 
-  assert.match(component, /Filtrer la carte/);
-  assert.match(component, /La carte/);
-  assert.match(component, /Filtre actif/);
-  assert.match(component, /Recommended/);
-  assert.match(component, /Available/);
   assert.match(component, /ALLERGEN_FILTERS/);
   assert.match(component, /matchesConfirmedFree/);
   assert.doesNotMatch(component, /AllergenWarning/);
-  assert.match(component, /Filter the menu/);
-  assert.match(component, /Active filter/);
-  assert.doesNotMatch(component, /Tous les plats/);
-  assert.doesNotMatch(component, /Les créations Maison Élyse/);
-  assert.doesNotMatch(component, /plats disponibles/);
-  assert.doesNotMatch(component, /plat disponible/);
-  assert.doesNotMatch(component, /Sans lactose \/ laitiers/);
-  assert.doesNotMatch(component, /Filtres précis/);
-  assert.doesNotMatch(component, /Sans lactose/);
   assert.doesNotMatch(component, /ALLERGEN_FILTER_TERMS/);
   assert.match(component, /GoogleReviewCard/);
   assert.match(component, /FILTER_OPTIONS/);
   assert.match(component, /activeSheet/);
+  assert.match(component, /getTrouvableCurrencyOptions/);
+  assert.match(component, /formatTrouvableDishPrice/);
+  assert.match(component, /TROUVABLE_CURRENCY_STORAGE_KEY/);
   assert.doesNotMatch(component, /QUICK_FILTERS/);
   assert.doesNotMatch(component, /PREFERENCE_FILTERS/);
   assert.doesNotMatch(component, /showDetailFilters/);
@@ -282,16 +275,15 @@ test("/demo and /en/vistaire-menu use the shared restaurant phone showcase", asy
     showcase,
     showcaseCss,
     ownerCreateForm
-  ] =
-    await Promise.all([
-      readFile(demoPagePath, "utf8"),
-      readFile(englishDemoPagePath, "utf8"),
-      readFile(componentPath, "utf8"),
-      readFile(cssPath, "utf8"),
-      readFile(demoShowcasePath, "utf8"),
-      readFile(demoShowcaseCssPath, "utf8"),
-      readFile(ownerCreateFormPath, "utf8")
-    ]);
+  ] = await Promise.all([
+    readFile(demoPagePath, "utf8"),
+    readFile(englishDemoPagePath, "utf8"),
+    readFile(componentPath, "utf8"),
+    readFile(cssPath, "utf8"),
+    readFile(demoShowcasePath, "utf8"),
+    readFile(demoShowcaseCssPath, "utf8"),
+    readFile(ownerCreateFormPath, "utf8")
+  ]);
 
   assert.match(demoPage, /DemoPhoneShowcase/);
   assert.match(demoPage, /getLandingExperiences/);
@@ -337,16 +329,22 @@ test("/demo and /en/vistaire-menu use the shared restaurant phone showcase", asy
   assert.match(showcaseCss, /@media \(max-width: 560px\)/);
 });
 
-test("Maison Elyse phone detail can render localized English copy", async () => {
-  const component = await readFile(dishDetailPath, "utf8");
+test("Maison Elyse phone detail resolves multilingual copy through shared and editorial packs", async () => {
+  const [component, sharedCopy, localization] = await Promise.all([
+    readFile(dishDetailPath, "utf8"),
+    readFile(sharedCopyPath, "utf8"),
+    readFile(localizationPath, "utf8")
+  ]);
 
   assert.match(component, /locale\?: Locale/);
-  assert.match(component, /Back to menu/);
-  assert.match(component, /Dish details/);
-  assert.match(component, /View in 3D/);
-  assert.match(component, /Augmented reality/);
-  assert.match(component, /Allergens/);
-  assert.match(component, /Chef's note/);
-  assert.match(component, /Recommended/);
-  assert.match(component, /Unavailable/);
+  assert.match(component, /resolveMaisonElyseCopy/);
+  assert.match(component, /getMaisonElyseEditorialCopy/);
+  assert.match(localization, /detailBackToMenu:\s*"Back to menu"/);
+  assert.match(localization, /detailBackToMenu:\s*"Volver a la carta"/);
+  assert.match(localization, /detailBackToMenu:\s*"العودة إلى القائمة"/);
+  assert.match(sharedCopy, /details:\s*"Dish details"/);
+  assert.match(sharedCopy, /threeD:\s*"View in 3D"/);
+  assert.match(sharedCopy, /allergens:\s*"Allergens"/);
+  assert.match(sharedCopy, /recommendation:\s*"Recommended"/);
+  assert.match(sharedCopy, /soldOut:\s*"Sold out"/);
 });
