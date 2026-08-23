@@ -13,6 +13,7 @@ import {
   resolvePublicMenuExperience,
   type ResolvedPublicMenuExperience
 } from "@/lib/menu/publicMenuExperienceRoute";
+import { resolveStablePublicMenuUiConfigReadiness } from "@/lib/menu/publicMenuStableUiConfig";
 import {
   normalizePublicMenuLocale,
   normalizePublicMenuLocalePreference,
@@ -50,6 +51,8 @@ type PublicMenuBaseRenderContext = Omit<
 export type PublicMenuStableRenderContext = PublicMenuBaseRenderContext & {
   localizedMenus: Partial<Record<PublicMenuLocale, PublicMenu>>;
   stableCacheReadiness: {
+    // Compatibility name: this is true when the effective public UI config is
+    // stable for landing-cache rendering, including code-owned built-in fallbacks.
     publishedUiConfig: boolean;
     localizedMenusComplete: boolean;
   };
@@ -126,12 +129,13 @@ async function resolvePublicMenuBaseRenderContext({
       process.env.NODE_ENV !== "production" &&
       process.env.VISTAIRE_UNIQUE_MENU_PREVIEW === "1"
   });
+  const stablePublicUiConfig = resolveStablePublicMenuUiConfigReadiness({
+    configRecord,
+    experienceKind: experience.kind
+  });
 
   return {
-    publishedUiConfig:
-      configRecord.persisted &&
-      configRecord.dataSource === "supabase" &&
-      configRecord.status === "published",
+    publishedUiConfig: stablePublicUiConfig.ready,
     renderContext: {
       menu,
       config,
