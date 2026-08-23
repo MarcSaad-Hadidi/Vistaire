@@ -111,7 +111,7 @@ test("Maison menu reuses shared currency infrastructure and never mirrors its ch
   assert.match(source, /formatTrouvableDishPrice/);
   assert.match(source, /getTrouvableCurrencyOptions/);
   assert.match(source, /TROUVABLE_CURRENCY_STORAGE_KEY/);
-  assert.match(source, /exchangeRates: MenuExchangeRates/);
+  assert.match(source, /exchangeRates\?: MenuExchangeRates/);
   assert.match(source, /toggleSheet\("currency"/);
   assert.match(source, /dir="ltr"/);
   assert.match(source, /data-text-direction=\{textDirection\}/);
