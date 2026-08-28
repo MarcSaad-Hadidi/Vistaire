@@ -66,6 +66,41 @@ type MaisonElyseDishDetailProps = {
   onBackToMenu?: () => void;
 };
 
+const DETAIL_COPY = {
+  fr: {
+    badgesAria: "Badges du plat",
+    ariaDetail: "Détail du plat",
+    dishImageAlt: (dishName: string) => `Image du plat ${dishName}`,
+    fallbackImage: "Image du plat à venir",
+    fallbackList: "À préciser avec l'équipe en salle.",
+    note: "Note du chef",
+    openAr: "Ouvrir l'aperçu AR",
+    show3d: "Voir en 3D",
+    title3d: "Voir le plat en 3D",
+    topNavAria: "Navigation fiche plat"
+  },
+  en: {
+    badgesAria: "Dish badges",
+    ariaDetail: "Dish details",
+    dishImageAlt: (dishName: string) => `Dish image: ${dishName}`,
+    fallbackImage: "Dish image coming soon",
+    fallbackList: "Ask the dining room team for details.",
+    note: "Chef's note",
+    openAr: "Open AR preview",
+    show3d: "View in 3D",
+    title3d: "View the dish in 3D",
+    topNavAria: "Dish navigation"
+  }
+} as const;
+
+function localeLanguage(locale: string): string {
+  try {
+    return new Intl.Locale(locale).language.toLowerCase();
+  } catch {
+    return locale.toLowerCase().split("-")[0] ?? "fr";
+  }
+}
+
 function cleanDisplayText(value: string): string {
   return value
     .replaceAll("Ãƒâ€°", "É")
@@ -264,16 +299,33 @@ function buildDetailCopy(
   locale: PublicMenuLocale,
   localizedUiCopy?: Record<string, unknown>
 ): DetailCopy {
-  const resolved = resolveMaisonElyseCopy(locale, localizedUiCopy).copy;
+  const language = localeLanguage(locale);
+  const maisonDefault = language === "fr" ? DETAIL_COPY.fr : language === "en" ? DETAIL_COPY.en : null;
+  const resolvedResult = resolveMaisonElyseCopy(locale, localizedUiCopy);
+  const resolved = resolvedResult.copy;
+  const neutral = resolveMaisonElyseCopy(locale).copy;
+  const sharedOrMaison = <T,>(value: T, neutralValue: T, maisonValue: T): T =>
+    maisonDefault && Object.is(value, neutralValue) ? maisonValue : value;
   const editorial = getMaisonElyseEditorialCopy(locale);
+
   return {
     allergens: resolved.allergens,
-    ariaDetail: resolved.details,
-    badgesAria: resolved.tags,
+    ariaDetail: maisonDefault
+      ? sharedOrMaison(resolved.details, neutral.details, maisonDefault.ariaDetail)
+      : resolved.details,
+    badgesAria: maisonDefault
+      ? sharedOrMaison(resolved.tags, neutral.tags, maisonDefault.badgesAria)
+      : resolved.tags,
     backToMenu: editorial.detailBackToMenu,
-    dishImageAlt: resolved.modelAlt,
-    fallbackImage: resolved.detailFallback,
-    fallbackList: resolved.detailFallback,
+    dishImageAlt: maisonDefault
+      ? sharedOrMaison(resolved.modelAlt, neutral.modelAlt, maisonDefault.dishImageAlt)
+      : resolved.modelAlt,
+    fallbackImage: maisonDefault
+      ? sharedOrMaison(resolved.detailFallback, neutral.detailFallback, maisonDefault.fallbackImage)
+      : resolved.detailFallback,
+    fallbackList: maisonDefault
+      ? sharedOrMaison(resolved.detailFallback, neutral.detailFallback, maisonDefault.fallbackList)
+      : resolved.detailFallback,
     hide3d: resolved.modelViewer.close,
     hidePreview: resolved.close,
     immersiveBody3d: resolved.modelViewer.slowNetworkBody,
@@ -283,20 +335,34 @@ function buildDetailCopy(
     immersivePreviewAr: resolved.modelViewer.arIosHandoff,
     ingredients: resolved.ingredients,
     noCategory: resolved.activeCategoryAll,
-    note: resolved.detailHouseNoteLabel,
+    note: maisonDefault
+      ? sharedOrMaison(
+          resolved.detailHouseNoteLabel,
+          neutral.detailHouseNoteLabel,
+          maisonDefault.note
+        )
+      : resolved.detailHouseNoteLabel,
     modelViewer: {
       loadingTitle: resolved.modelPreparing,
       ...resolved.modelViewer,
       modelAlt: resolved.modelAlt
     },
     options: resolved.options,
-    openAr: resolved.viewAr,
+    openAr: maisonDefault
+      ? sharedOrMaison(resolved.viewAr, neutral.viewAr, maisonDefault.openAr)
+      : resolved.viewAr,
     recommendedBadge: resolved.recommendation,
     signatureBadge: resolved.signature,
-    show3d: resolved.threeD,
-    title3d: resolved.threeD,
+    show3d: maisonDefault
+      ? sharedOrMaison(resolved.threeD, neutral.threeD, maisonDefault.show3d)
+      : resolved.threeD,
+    title3d: maisonDefault
+      ? sharedOrMaison(resolved.threeD, neutral.threeD, maisonDefault.title3d)
+      : resolved.threeD,
     titleAr: resolved.modelViewer.safariTitle,
-    topNavAria: resolved.details,
+    topNavAria: maisonDefault
+      ? sharedOrMaison(resolved.details, neutral.details, maisonDefault.topNavAria)
+      : resolved.details,
     unavailableBadge: resolved.soldOut
   };
 }
