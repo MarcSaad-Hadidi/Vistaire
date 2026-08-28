@@ -7,7 +7,10 @@ import type {
   DishModelViewerCopy,
   DishModelViewerProps
 } from "@/components/dish/DishModelViewer";
-import type { MenuExchangeRates } from "@/lib/currency/formatMenuPrice";
+import {
+  isCurrencyConversionAvailable,
+  type MenuExchangeRates
+} from "@/lib/currency/formatMenuPrice";
 import { isSafe3dAssetUrl } from "@/lib/dish3dManifest";
 import type { PublicMenuLocale } from "@/lib/menu/publicMenuSettings";
 import {
@@ -112,6 +115,45 @@ function getStoredMenuCurrency(
   } catch {
     return null;
   }
+}
+
+function resolveAvailableDishCurrency({
+  dish,
+  exchangeRates,
+  menu,
+  requestedCurrency
+}: {
+  dish: PublicMenuDish;
+  exchangeRates?: MenuExchangeRates;
+  menu: PublicMenu;
+  requestedCurrency?: TrouvableCurrency | string;
+}): TrouvableCurrency {
+  const defaultCurrency = normalizeTrouvableCurrency(undefined, menu.settings);
+  const normalizedRequested = normalizeTrouvableCurrency(
+    requestedCurrency,
+    menu.settings
+  );
+  const candidates = Array.from(
+    new Set<TrouvableCurrency>([
+      normalizedRequested,
+      defaultCurrency,
+      ...menu.settings.supportedCurrencies,
+      dish.priceCurrency
+    ])
+  );
+  const baseCurrency =
+    exchangeRates?.base ?? dish.baseCurrency ?? menu.settings.baseCurrency;
+
+  return (
+    candidates.find((targetCurrency) =>
+      isCurrencyConversionAvailable({
+        sourceCurrency: dish.priceCurrency || menu.settings.baseCurrency,
+        targetCurrency,
+        baseCurrency,
+        rates: exchangeRates?.rates
+      })
+    ) ?? dish.priceCurrency
+  );
 }
 
 function cleanDisplayText(value: string): string {
@@ -400,12 +442,14 @@ export function MaisonElyseDishDetail({
   const dishName = cleanDisplayText(dish.name);
   const dishDescription = cleanDisplayText(dish.description);
   const textDirection = getMaisonElyseTextDirection(locale);
-  const activeCurrency = normalizeTrouvableCurrency(
-    explicitCurrency ?? storedCurrency ?? undefined,
-    menu.settings
-  );
+  const activeCurrency = resolveAvailableDishCurrency({
+    dish,
+    exchangeRates,
+    menu,
+    requestedCurrency: explicitCurrency ?? storedCurrency ?? undefined
+  });
   const effectiveQuery: PublicMenuContextQuery =
-    storedCurrency && !explicitCurrency
+    explicitCurrency || storedCurrency
       ? { ...(query ?? {}), currency: activeCurrency }
       : { ...(query ?? {}) };
   const menuHref = buildFullMenuHref(menu, effectiveQuery);
@@ -435,10 +479,27 @@ export function MaisonElyseDishDetail({
     if (displayMode !== "public" || explicitCurrency) return;
     const frameId = window.requestAnimationFrame(() => {
       const stored = getStoredMenuCurrency(menu.settings);
-      if (stored) setStoredCurrency(stored);
+      if (!stored) return;
+      const resolvedStored = resolveAvailableDishCurrency({
+        dish,
+        exchangeRates,
+        menu,
+        requestedCurrency: stored
+      });
+      setStoredCurrency(resolvedStored);
+      if (resolvedStored !== stored) {
+        try {
+          window.localStorage.setItem(
+            TROUVABLE_CURRENCY_STORAGE_KEY,
+            resolvedStored
+          );
+        } catch {
+          // The sanitized in-memory fallback remains authoritative for this visit.
+        }
+      }
     });
     return () => window.cancelAnimationFrame(frameId);
-  }, [displayMode, explicitCurrency, menu.settings]);
+  }, [dish, displayMode, exchangeRates, explicitCurrency, menu]);
 
   useEffect(() => {
     if (displayMode !== "public") return;
