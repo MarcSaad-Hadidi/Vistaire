@@ -69,7 +69,10 @@ test("Maison public browser tests opt into the complete tracked menu fixture", a
 
 test("WebKit isolates the Maison public-menu fixture from landing demo specs", async () => {
   const script = packageJson.scripts?.["test:ci:e2e:webkit"] ?? "";
-  assert.equal(script, "node scripts/run-webkit-critical-e2e.mjs");
+  assert.equal(
+    script,
+    "node scripts/run-webkit-critical-e2e.mjs --runner=scripts/run-playwright-e2e.mjs"
+  );
 
   const runner = await readFile(
     new URL("../scripts/run-webkit-critical-e2e.mjs", import.meta.url),
@@ -86,6 +89,8 @@ test("WebKit isolates the Maison public-menu fixture from landing demo specs", a
   assert.doesNotMatch(maisonGroup, /e2e\/demo-restaurant-experiences\.spec\.ts/);
   assert.match(sharedGroup, /e2e\/demo-restaurant-experiences\.spec\.ts/);
   assert.doesNotMatch(sharedGroup, /e2e\/maison-elyse-public-menu\.spec\.ts/);
+  assert.match(runner, /RUNNER_ARGUMENT_PREFIX = "--runner="/);
+  assert.match(runner, /\[playwrightRunner, \.\.\.specs, \.\.\.COMMON_ARGS\]/);
   assert.match(runner, /--project=webkit/);
   assert.match(runner, /--workers=1/);
   assert.match(runner, /--retries=0/);
