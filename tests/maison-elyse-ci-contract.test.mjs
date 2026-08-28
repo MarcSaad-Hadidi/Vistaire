@@ -48,10 +48,8 @@ test("Maison Elyse public locale regression runs in Chromium and WebKit CI", () 
   assert.match(chromium, /e2e\/maison-elyse-public-menu\.spec\.ts/);
   assert.match(chromium, /e2e\/ar-handoff\.spec\.ts/);
   assert.match(chromium, /--project=chromium/);
-  assert.match(webkit, /e2e\/maison-elyse-public-menu\.spec\.ts/);
-  assert.match(webkit, /--project=webkit/);
+  assert.match(webkit, /webkit/);
   assert.match(chromium, /--retries=0/);
-  assert.match(webkit, /--retries=0/);
 });
 
 test("Maison public browser tests opt into the complete tracked menu fixture", async () => {
@@ -67,4 +65,31 @@ test("Maison public browser tests opt into the complete tracked menu fixture", a
     publicMenu,
     /slug === "maison-elyse"[\s\S]*?dependencies\.readRows === readSupabaseRowsByFilters[\s\S]*?VISTAIRE_OWNER_E2E_AUTH_BYPASS === "1"[\s\S]*?VISTAIRE_E2E_MAISON_PUBLIC_MENU === "1"[\s\S]*?return demoMenu\(slug, resolvedLocale\)/
   );
+});
+
+test("WebKit isolates the Maison public-menu fixture from landing demo specs", async () => {
+  const script = packageJson.scripts?.["test:ci:e2e:webkit"] ?? "";
+  assert.equal(script, "node scripts/run-webkit-critical-e2e.mjs");
+
+  const runner = await readFile(
+    new URL("../scripts/run-webkit-critical-e2e.mjs", import.meta.url),
+    "utf8"
+  );
+  const maisonGroup = runner.match(
+    /const MAISON_PUBLIC_SPECS = \[([\s\S]*?)\];/
+  )?.[1] ?? "";
+  const sharedGroup = runner.match(
+    /const SHARED_WEBKIT_SPECS = \[([\s\S]*?)\];/
+  )?.[1] ?? "";
+
+  assert.match(maisonGroup, /e2e\/maison-elyse-public-menu\.spec\.ts/);
+  assert.doesNotMatch(maisonGroup, /e2e\/demo-restaurant-experiences\.spec\.ts/);
+  assert.match(sharedGroup, /e2e\/demo-restaurant-experiences\.spec\.ts/);
+  assert.doesNotMatch(sharedGroup, /e2e\/maison-elyse-public-menu\.spec\.ts/);
+  assert.match(runner, /--project=webkit/);
+  assert.match(runner, /--workers=1/);
+  assert.match(runner, /--retries=0/);
+  assert.match(runner, /forbid-skipped-tests-reporter\.ts/);
+  assert.match(runner, /aggregate-test-reports\.mjs/);
+  assert.match(runner, /CI_TEST_REPORT_PATHS/);
 });
