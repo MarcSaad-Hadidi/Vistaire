@@ -104,15 +104,74 @@ test("Maison exposes only locales with both ready menu data and a complete Maiso
   );
 });
 
+test("currency availability requires real finite positive conversion rates", async () => {
+  const { isCurrencyConversionAvailable } = await import(
+    "../lib/currency/formatMenuPrice.ts"
+  );
+  const validRates = { CAD: 1, USD: 0.73, EUR: 0.64 };
+  const canConvert = (targetCurrency, rates) =>
+    isCurrencyConversionAvailable({
+      sourceCurrency: "CAD",
+      targetCurrency,
+      baseCurrency: "CAD",
+      rates
+    });
+
+  assert.equal(canConvert("CAD", validRates), true);
+  assert.equal(canConvert("USD", validRates), true);
+  assert.equal(canConvert("EUR", validRates), true);
+
+  const providerFallback = { CAD: 1 };
+  assert.equal(canConvert("CAD", providerFallback), true);
+  assert.equal(canConvert("USD", providerFallback), false);
+  assert.equal(canConvert("EUR", providerFallback), false);
+
+  assert.equal(canConvert("USD", { CAD: 1, USD: 0 }), false);
+  assert.equal(canConvert("EUR", { CAD: 1, EUR: Number.NaN }), false);
+  assert.equal(canConvert("USD", { CAD: 1 }), false);
+  assert.equal(canConvert("EUR", { CAD: 1 }), false);
+
+  assert.equal(
+    isCurrencyConversionAvailable({
+      sourceCurrency: "USD",
+      targetCurrency: "USD",
+      baseCurrency: "CAD",
+      rates: {}
+    }),
+    true
+  );
+  assert.equal(
+    isCurrencyConversionAvailable({
+      sourceCurrency: "USD",
+      targetCurrency: "CAD",
+      baseCurrency: "CAD",
+      rates: { CAD: 1, USD: 0.73 }
+    }),
+    true
+  );
+  assert.equal(
+    isCurrencyConversionAvailable({
+      sourceCurrency: "USD",
+      targetCurrency: "CAD",
+      baseCurrency: "CAD",
+      rates: { CAD: 1 }
+    }),
+    false
+  );
+});
+
 test("Maison menu reuses shared currency infrastructure and never mirrors its chrome", async () => {
   const source = await readFile("components/menu/MaisonElyseQrMenu.tsx", "utf8");
 
   assert.match(source, /type SheetId = "menu" \| "filter" \| "language" \| "currency" \| null/);
   assert.match(source, /formatTrouvableDishPrice/);
   assert.match(source, /getTrouvableCurrencyOptions/);
+  assert.match(source, /isCurrencyConversionAvailable/);
+  assert.match(source, /availableCurrencyOptions/);
   assert.match(source, /TROUVABLE_CURRENCY_STORAGE_KEY/);
   assert.match(source, /exchangeRates\?: MenuExchangeRates/);
   assert.match(source, /toggleSheet\("currency"/);
+  assert.doesNotMatch(source, /Boolean\(exchangeRates\)/);
   assert.match(source, /dir="ltr"/);
   assert.match(source, /data-text-direction=\{textDirection\}/);
   assert.doesNotMatch(source, /PhonePreviewDishDetailFr/);
@@ -124,6 +183,7 @@ test("Maison dish detail keeps currency and translated semantic badges end to en
   const source = await readFile("components/menu/MaisonElyseDishDetail.tsx", "utf8");
 
   assert.match(source, /formatTrouvableDishPrice/);
+  assert.match(source, /isCurrencyConversionAvailable/);
   assert.match(source, /exchangeRates\?: MenuExchangeRates/);
   assert.match(source, /currency\?: TrouvableCurrency/);
   assert.match(source, /getMaisonElyseEditorialCopy/);
@@ -149,16 +209,40 @@ test("Maison public routes load and pass exchange rates for both menu and dish",
   assert.match(dishRoute, /<MaisonElyseDishDetail[\s\S]*exchangeRates=\{exchangeRates\}/);
 });
 
-test("Sauge Noire keeps the document and book chrome LTR for Arabic", async () => {
-  const source = await readFile(
-    "components/menu/unique/sauge-noire/SaugeNoireBookMenu.tsx",
-    "utf8"
-  );
+test("Arabic shared text surfaces keep LTR layout and local RTL text", async () => {
+  const [allergens, googleReview] = await Promise.all([
+    readFile("components/menu/AllergenDisclosure.tsx", "utf8"),
+    readFile("components/menu/GoogleReviewCard.tsx", "utf8")
+  ]);
 
-  assert.match(source, /root\.dir = "ltr"/);
-  assert.match(source, /<main[\s\S]{0,300}dir="ltr"/);
+  assert.match(allergens, /case "ar":[\s\S]*مسببات حساسية أخرى/);
+  assert.match(allergens, /dir="ltr"/);
+  assert.match(allergens, /<h2[^>]*dir=\{direction\}/);
+  assert.match(allergens, /<dt dir=\{direction\}>\{label\}<\/dt>/);
+  assert.match(allergens, /<dd dir=\{direction\}>\{values\.join\(", "\)\}<\/dd>/);
+
+  assert.match(googleReview, /const textDirection = getTextDirection\(resolvedLocale\)/);
+  assert.match(googleReview, /data-google-review-card="true"[\s\S]{0,180}dir="ltr"/);
+  assert.match(googleReview, /className=\{styles\.googleReviewCopy\} dir=\{textDirection\}/);
+  assert.match(googleReview, /<span key=\{item\} dir=\{textDirection\}>/);
+});
+
+test("Sauge Noire keeps the document and book chrome LTR while localized text owns bidi direction", async () => {
+  const [book, pages] = await Promise.all([
+    readFile("components/menu/unique/sauge-noire/SaugeNoireBookMenu.tsx", "utf8"),
+    readFile("components/menu/unique/sauge-noire/SaugeNoireMenuPages.tsx", "utf8")
+  ]);
+
+  assert.match(book, /root\.dir = "ltr"/);
+  assert.match(book, /<main[\s\S]{0,300}dir="ltr"/);
+  assert.match(book, /data-text-direction=\{copyLocale\(activeLocaleValue\) === "ar" \? "rtl" : "ltr"\}/);
   assert.doesNotMatch(
-    source,
+    book,
     /root\.dir = copyLocale\(language\) === "ar" \? "rtl" : "ltr"/
   );
+
+  assert.match(pages, /data-sauge-typography-role="title" dir="auto"/);
+  assert.match(pages, /<h2 dir="auto">\{dish\.name\}<\/h2>/);
+  assert.match(pages, /<span dir="auto">\{dish\.name\}<\/span>/);
+  assert.match(pages, /<p dir="auto">\{copy\}<\/p>/);
 });
