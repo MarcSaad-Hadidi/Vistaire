@@ -66,10 +66,26 @@ const loadPhonePreviewDishDetail = () =>
     (mod) => mod.MaisonElyseDishDetail
   );
 
-const PhonePreviewDishDetail = dynamic(loadPhonePreviewDishDetail, {
-  ssr: false,
-  loading: () => null
-});
+function createPhonePreviewDishDetail(loadingText: string) {
+  return dynamic(loadPhonePreviewDishDetail, {
+    ssr: false,
+    loading: () => (
+      <div className={styles.detailLoading} role="status" aria-live="polite">
+        {loadingText}
+      </div>
+    )
+  });
+}
+
+const PHONE_PREVIEW_DISH_DETAILS = {
+  fr: createPhonePreviewDishDetail("Chargement de la fiche..."),
+  en: createPhonePreviewDishDetail("Loading dish details..."),
+  es: createPhonePreviewDishDetail("Cargando los detalles del plato..."),
+  it: createPhonePreviewDishDetail("Caricamento dei dettagli del piatto..."),
+  de: createPhonePreviewDishDetail("Gerichtdetails werden geladen..."),
+  el: createPhonePreviewDishDetail("Φόρτωση λεπτομερειών πιάτου..."),
+  ar: createPhonePreviewDishDetail("جارٍ تحميل تفاصيل الطبق...")
+} as const;
 
 const ALLOWED_3D_CDN_ORIGINS = (process.env.NEXT_PUBLIC_VISTAIRE_3D_CDN_ORIGINS ?? "")
   .split(/[,\s]+/)
@@ -1337,6 +1353,11 @@ export function MaisonElyseQrMenu({
       label: activeLocale,
       shortLabel: activeLocale
     };
+  const phonePreviewLanguage = localeLanguage(activeLocale);
+  const PhonePreviewDishDetail =
+    PHONE_PREVIEW_DISH_DETAILS[
+      phonePreviewLanguage as keyof typeof PHONE_PREVIEW_DISH_DETAILS
+    ] ?? PHONE_PREVIEW_DISH_DETAILS.en;
   const currentCurrency = getTrouvableCurrencyOption(activeCurrency);
   const prefersReducedMotion = usePrefersReducedMotion();
   const textDirection = getMaisonElyseTextDirection(activeLocale);
