@@ -32,6 +32,7 @@ import {
 } from "@/lib/analytics/client";
 import { maisonElyseThemeStyle } from "@/lib/menu/maisonElyseTheme";
 import {
+  TROUVABLE_CURRENCY_STORAGE_KEY,
   formatTrouvableDishPrice,
   normalizeTrouvableCurrency,
   type TrouvableCurrency
@@ -98,6 +99,18 @@ function localeLanguage(locale: string): string {
     return new Intl.Locale(locale).language.toLowerCase();
   } catch {
     return locale.toLowerCase().split("-")[0] ?? "fr";
+  }
+}
+
+function getStoredMenuCurrency(
+  settings: PublicMenu["settings"]
+): TrouvableCurrency | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const stored = window.localStorage.getItem(TROUVABLE_CURRENCY_STORAGE_KEY);
+    return stored ? normalizeTrouvableCurrency(stored, settings) : null;
+  } catch {
+    return null;
   }
 }
 
@@ -380,16 +393,22 @@ export function MaisonElyseDishDetail({
 }: MaisonElyseDishDetailProps) {
   const copy = buildDetailCopy(locale, menu.localizedUiCopy);
   const [showModelViewer, setShowModelViewer] = useState(false);
+  const explicitCurrency = currency ?? query?.currency;
+  const [storedCurrency, setStoredCurrency] = useState<TrouvableCurrency | null>(null);
   const analyticsContext = getPublicMenuAnalyticsContext(menu);
-  const menuHref = buildFullMenuHref(menu, query);
   const restaurantName = cleanDisplayText(menu.name) || "Restaurant";
   const dishName = cleanDisplayText(dish.name);
   const dishDescription = cleanDisplayText(dish.description);
   const textDirection = getMaisonElyseTextDirection(locale);
   const activeCurrency = normalizeTrouvableCurrency(
-    currency ?? query?.currency,
+    explicitCurrency ?? storedCurrency ?? undefined,
     menu.settings
   );
+  const effectiveQuery: PublicMenuContextQuery =
+    storedCurrency && !explicitCurrency
+      ? { ...(query ?? {}), currency: activeCurrency }
+      : { ...(query ?? {}) };
+  const menuHref = buildFullMenuHref(menu, effectiveQuery);
   const priceLabel = formatTrouvableDishPrice(
     dish,
     activeCurrency,
@@ -411,6 +430,15 @@ export function MaisonElyseDishDetail({
     : has3d
       ? copy.show3d
       : copy.openAr;
+
+  useEffect(() => {
+    if (displayMode !== "public" || explicitCurrency) return;
+    const frameId = window.requestAnimationFrame(() => {
+      const stored = getStoredMenuCurrency(menu.settings);
+      if (stored) setStoredCurrency(stored);
+    });
+    return () => window.cancelAnimationFrame(frameId);
+  }, [displayMode, explicitCurrency, menu.settings]);
 
   useEffect(() => {
     if (displayMode !== "public") return;
