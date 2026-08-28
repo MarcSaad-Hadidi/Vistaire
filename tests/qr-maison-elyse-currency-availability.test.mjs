@@ -120,7 +120,7 @@ test("Maison preserves historical FR EN detail copy while non-FR EN copy stays l
   for (const localizedBackToMenu of [
     "Volver a la carta",
     "Torna alla carta",
-    "Zurück zur Karte",
+    "Zurück zur Speisekarte",
     "Επιστροφή στο μενού",
     "العودة إلى القائمة"
   ]) {
