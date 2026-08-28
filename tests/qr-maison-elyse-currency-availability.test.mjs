@@ -131,7 +131,7 @@ test("Maison preserves historical FR EN detail copy while non-FR EN copy stays l
   }
 });
 
-test("Arabic shared content is RTL without mirroring Maison or Google Review layout", async () => {
+test("Maison Arabic shared content is RTL without mirroring Maison or Google Review layout", async () => {
   const [menuSource, detailSource, allergenSource, googleReviewSource] = await Promise.all([
     readFile("components/menu/MaisonElyseQrMenu.tsx", "utf8"),
     readFile("components/menu/MaisonElyseDishDetail.tsx", "utf8"),
@@ -172,4 +172,23 @@ test("Sauge keeps book chrome LTR and gives text its own bidi direction", async 
   assert.match(pagesSource, /data-sauge-typography-role="title" dir="auto"/);
   assert.match(pagesSource, /<h2 dir="auto">\{dish\.name\}<\/h2>/);
   assert.match(pagesSource, /<span dir="auto">\{dish\.name\}<\/span>/);
+});
+
+test("Maison dietary filters use the resolved locale copy instead of the FR EN allergen registry labels", async () => {
+  const menuSource = await readFile("components/menu/MaisonElyseQrMenu.tsx", "utf8");
+
+  for (const mapping of [
+    "dairyFree: resolved.dairyFree",
+    "eggFree: resolved.eggFree",
+    "fishFree: resolved.fishFree",
+    "glutenFree: resolved.glutenFree",
+    "nutFree: resolved.nutFree",
+    "sesameFree: resolved.sesameFree",
+    "shellfishFree: resolved.shellfishFree",
+    "soyFree: resolved.soyFree"
+  ]) {
+    assert.ok(menuSource.includes(mapping), `missing localized filter mapping: ${mapping}`);
+  }
+  assert.doesNotMatch(menuSource, /ALLERGEN_FILTER_LABELS/);
+  assert.doesNotMatch(menuSource, /option\.labels\[localeLanguage\(activeLocale\)\]/);
 });
