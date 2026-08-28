@@ -3,6 +3,16 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
+const RUNNER_ARGUMENT_PREFIX = "--runner=";
+const runnerArgument = process.argv
+  .slice(2)
+  .find((argument) => argument.startsWith(RUNNER_ARGUMENT_PREFIX));
+const playwrightRunner = runnerArgument?.slice(RUNNER_ARGUMENT_PREFIX.length).trim();
+
+if (!playwrightRunner) {
+  throw new Error("WebKit critical runner requires --runner=<path>.");
+}
+
 const MAISON_PUBLIC_SPECS = [
   "e2e/maison-elyse-public-menu.spec.ts"
 ];
@@ -40,7 +50,7 @@ function runNode(args, env = process.env) {
 
 async function runGroup(specs, reportPath) {
   return runNode(
-    ["scripts/run-playwright-e2e.mjs", ...specs, ...COMMON_ARGS],
+    [playwrightRunner, ...specs, ...COMMON_ARGS],
     {
       ...process.env,
       CI_TEST_REPORT_PATH: reportPath
