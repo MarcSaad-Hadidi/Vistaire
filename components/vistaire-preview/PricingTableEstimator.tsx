@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useState } from "react";
+import { type ChangeEvent, useState } from "react";
 import type { Locale } from "@/lib/i18n";
 import {
   INCLUDED_TABLE_COUNT,
@@ -30,7 +30,8 @@ const COPY = {
     disclaimer:
       "Estimation indicative — le prix final sera confirmé dans votre devis après analyse de votre établissement et de vos besoins.",
     startingAt: "À partir de",
-    estimateFor: (tableCount: number) => `Estimation pour ${tableCount} tables`,
+    estimateFor: (tableCount: number) =>
+      `Estimation pour ${tableCount} table${tableCount === 1 ? "" : "s"}`,
     setup: "Mise en place unique",
     estimatedSetup: "Mise en place estimée"
   },
@@ -47,7 +48,8 @@ const COPY = {
     disclaimer:
       "Indicative estimate — final pricing will be confirmed in your quote after reviewing your venue and project requirements.",
     startingAt: "Starting at",
-    estimateFor: (tableCount: number) => `Estimate for ${tableCount} tables`,
+    estimateFor: (tableCount: number) =>
+      `Estimate for ${tableCount} table${tableCount === 1 ? "" : "s"}`,
     setup: "One-time setup",
     estimatedSetup: "Estimated setup"
   }
@@ -158,7 +160,7 @@ export function PricingTableEstimator({
     setInputValue(String(normalized));
   };
 
-  const handleInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleInputChange = (event: ChangeEvent<HTMLInputElement>) => {
     const rawValue = event.currentTarget.value;
     setInputValue(rawValue);
 
