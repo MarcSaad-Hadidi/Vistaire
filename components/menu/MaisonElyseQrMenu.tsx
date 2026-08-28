@@ -13,7 +13,10 @@ import {
 } from "react";
 import { GoogleReviewCard } from "@/components/menu/GoogleReviewCard";
 import { trackPublicMenuEvent } from "@/lib/analytics/client";
-import type { MenuExchangeRates } from "@/lib/currency/formatMenuPrice";
+import {
+  isCurrencyConversionAvailable,
+  type MenuExchangeRates
+} from "@/lib/currency/formatMenuPrice";
 import { isSafe3dAssetUrl } from "@/lib/dish3dManifest";
 import {
   normalizePublicMenuLocale,
@@ -632,10 +635,6 @@ export function MaisonElyseQrMenu({
   );
   const [shouldPersistCurrencyInLinks, setShouldPersistCurrencyInLinks] =
     useState(() => Boolean(queryCurrency));
-  const activeCurrency = normalizeTrouvableCurrency(
-    selectedCurrency,
-    activeMenu.settings
-  );
   const restaurantDisplayName = activeMenu.name.trim() || "Restaurant";
   const menuOpenedTrackedRef = useRef(false);
   useEffect(() => {
@@ -663,10 +662,54 @@ export function MaisonElyseQrMenu({
     () => getTrouvableCurrencyOptions(activeMenu.settings),
     [activeMenu.settings]
   );
+  const availableCurrencyOptions = useMemo(() => {
+    const pricedDishes = activeMenu.dishes.filter(
+      (dish) => Number.isFinite(dish.priceCents) && dish.priceCents > 0
+    );
+    const currencySources =
+      pricedDishes.length > 0
+        ? pricedDishes
+        : [
+            {
+              priceCurrency: activeMenu.settings.baseCurrency,
+              baseCurrency: activeMenu.settings.baseCurrency
+            }
+          ];
+
+    return currencyOptions.filter((option) =>
+      currencySources.every((dish) =>
+        isCurrencyConversionAvailable({
+          sourceCurrency:
+            dish.priceCurrency || activeMenu.settings.baseCurrency,
+          targetCurrency: option.code,
+          baseCurrency:
+            exchangeRates?.base ??
+            dish.baseCurrency ??
+            activeMenu.settings.baseCurrency,
+          rates: exchangeRates?.rates
+        })
+      )
+    );
+  }, [activeMenu.dishes, activeMenu.settings.baseCurrency, currencyOptions, exchangeRates]);
+  const normalizedSelectedCurrency = normalizeTrouvableCurrency(
+    selectedCurrency,
+    activeMenu.settings
+  );
+  const defaultCurrency = normalizeTrouvableCurrency(
+    undefined,
+    activeMenu.settings
+  );
+  const activeCurrency =
+    availableCurrencyOptions.find(
+      (option) => option.code === normalizedSelectedCurrency
+    )?.code ??
+    availableCurrencyOptions.find((option) => option.code === defaultCurrency)
+      ?.code ??
+    availableCurrencyOptions[0]?.code ??
+    defaultCurrency;
   const canChangeCurrency =
     activeMenu.settings.allowCurrencySelector &&
-    currencyOptions.length > 1 &&
-    Boolean(exchangeRates);
+    availableCurrencyOptions.length > 1;
   const activeQuery = useMemo(() => {
     const nextQuery: PublicMenuContextQuery = { ...(query ?? {}) };
     if (shouldPersistLocaleInLinks) nextQuery.lang = activeLocale;
@@ -912,12 +955,38 @@ export function MaisonElyseQrMenu({
     if (displayMode !== "public" || queryCurrency) return;
     const frameId = window.requestAnimationFrame(() => {
       const storedCurrency = getStoredMenuCurrency(activeMenu.settings);
-      if (!storedCurrency || storedCurrency === activeCurrency) return;
-      setSelectedCurrency(storedCurrency);
+      if (!storedCurrency) return;
+      const resolvedStoredCurrency =
+        availableCurrencyOptions.find(
+          (option) => option.code === storedCurrency
+        )?.code ?? activeCurrency;
+      if (resolvedStoredCurrency !== storedCurrency) {
+        try {
+          window.localStorage.setItem(
+            TROUVABLE_CURRENCY_STORAGE_KEY,
+            resolvedStoredCurrency
+          );
+        } catch {
+          // The sanitized in-memory fallback remains authoritative for this session.
+        }
+      }
+      if (resolvedStoredCurrency === activeCurrency) {
+        if (storedCurrency !== activeCurrency) {
+          setShouldPersistCurrencyInLinks(true);
+        }
+        return;
+      }
+      setSelectedCurrency(resolvedStoredCurrency);
       setShouldPersistCurrencyInLinks(true);
     });
     return () => window.cancelAnimationFrame(frameId);
-  }, [activeCurrency, activeMenu.settings, displayMode, queryCurrency]);
+  }, [
+    activeCurrency,
+    activeMenu.settings,
+    availableCurrencyOptions,
+    displayMode,
+    queryCurrency
+  ]);
 
   useEffect(() => {
     if (displayMode !== "public") return;
@@ -933,22 +1002,27 @@ export function MaisonElyseQrMenu({
       }
 
       const rawCurrency = currentUrl.searchParams.get("currency");
-      if (rawCurrency?.trim()) {
-        setSelectedCurrency(
-          normalizeTrouvableCurrency(rawCurrency, menu.settings)
-        );
-        setShouldPersistCurrencyInLinks(true);
-      } else {
-        setSelectedCurrency(
-          normalizeTrouvableCurrency(undefined, menu.settings)
-        );
-        setShouldPersistCurrencyInLinks(false);
-      }
+      const requestedCurrency = rawCurrency?.trim()
+        ? normalizeTrouvableCurrency(rawCurrency, activeMenu.settings)
+        : getStoredMenuCurrency(activeMenu.settings);
+      const resolvedCurrency = requestedCurrency
+        ? availableCurrencyOptions.find(
+            (option) => option.code === requestedCurrency
+          )?.code ?? activeCurrency
+        : activeCurrency;
+      setSelectedCurrency(resolvedCurrency);
+      setShouldPersistCurrencyInLinks(Boolean(requestedCurrency));
     };
 
     window.addEventListener("popstate", handleHistoryNavigation);
     return () => window.removeEventListener("popstate", handleHistoryNavigation);
-  }, [applyExplicitLocale, displayMode, menu.settings]);
+  }, [
+    activeCurrency,
+    activeMenu.settings,
+    applyExplicitLocale,
+    availableCurrencyOptions,
+    displayMode
+  ]);
 
   useEffect(() => {
     if (displayMode !== "public") return;
@@ -1247,6 +1321,11 @@ export function MaisonElyseQrMenu({
   }
 
   function selectCurrency(nextCurrency: TrouvableCurrency) {
+    if (
+      !availableCurrencyOptions.some((option) => option.code === nextCurrency)
+    ) {
+      return;
+    }
     const normalized = normalizeTrouvableCurrency(
       nextCurrency,
       activeMenu.settings
@@ -1499,7 +1578,7 @@ export function MaisonElyseQrMenu({
             </div>
           ) : renderedSheet === "currency" ? (
             <div className={styles.sheetList}>
-              {currencyOptions.map((option) => (
+              {availableCurrencyOptions.map((option) => (
                 <button
                   aria-pressed={activeCurrency === option.code}
                   className={
