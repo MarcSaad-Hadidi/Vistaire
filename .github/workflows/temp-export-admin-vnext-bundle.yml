@@ -28,19 +28,42 @@ jobs:
           git show-ref --verify refs/remotes/origin/main
           git show-ref --verify refs/remotes/origin/feat/admin-vnext-integration
 
-      - name: Create complete Git bundle
+      - name: Create and split complete Git bundle
         run: |
           git bundle create /tmp/vistaire-admin-vnext.bundle \
             refs/remotes/origin/main \
             refs/remotes/origin/feat/admin-vnext-integration
           git bundle verify /tmp/vistaire-admin-vnext.bundle
-          du -h /tmp/vistaire-admin-vnext.bundle
+          split -b 400m -d -a 2 /tmp/vistaire-admin-vnext.bundle /tmp/vistaire-admin-vnext.bundle.part-
+          test -f /tmp/vistaire-admin-vnext.bundle.part-00
+          test -f /tmp/vistaire-admin-vnext.bundle.part-01
+          test -f /tmp/vistaire-admin-vnext.bundle.part-02
+          sha256sum /tmp/vistaire-admin-vnext.bundle /tmp/vistaire-admin-vnext.bundle.part-*
+          du -h /tmp/vistaire-admin-vnext.bundle /tmp/vistaire-admin-vnext.bundle.part-*
 
-      - name: Upload temporary bundle
+      - name: Upload temporary bundle part 00
         uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
         with:
-          name: temp-vistaire-admin-vnext-full-bundle-${{ github.run_id }}
-          path: /tmp/vistaire-admin-vnext.bundle
+          name: temp-vistaire-admin-vnext-bundle-part-00-${{ github.run_id }}
+          path: /tmp/vistaire-admin-vnext.bundle.part-00
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 1
+
+      - name: Upload temporary bundle part 01
+        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
+        with:
+          name: temp-vistaire-admin-vnext-bundle-part-01-${{ github.run_id }}
+          path: /tmp/vistaire-admin-vnext.bundle.part-01
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 1
+
+      - name: Upload temporary bundle part 02
+        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
+        with:
+          name: temp-vistaire-admin-vnext-bundle-part-02-${{ github.run_id }}
+          path: /tmp/vistaire-admin-vnext.bundle.part-02
           if-no-files-found: error
           compression-level: 0
           retention-days: 1
