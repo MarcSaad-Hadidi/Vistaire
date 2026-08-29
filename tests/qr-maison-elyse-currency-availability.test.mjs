@@ -173,6 +173,31 @@ test("Maison Arabic shared content is RTL without mirroring Maison or Google Rev
   assert.match(googleReviewSource, /<span key=\{item\} dir=\{textDirection\}>/);
 });
 
+test("Maison filter sheet keeps its grid LTR while localized control text owns bidi direction", async () => {
+  const menuSource = await readFile("components/menu/MaisonElyseQrMenu.tsx", "utf8");
+
+  assert.match(
+    menuSource,
+    /className=\{styles\.filterGrid\}[\s\S]{0,180}dir="ltr"/
+  );
+  assert.doesNotMatch(
+    menuSource,
+    /className=\{styles\.filterGrid\}[\s\S]{0,180}dir=\{textDirection\}/
+  );
+  assert.match(
+    menuSource,
+    /className=\{styles\.sheetReset\}[\s\S]{0,220}<span dir=\{textDirection\}>\{copy\.resetFilters\}<\/span>/
+  );
+  assert.match(
+    menuSource,
+    /<span dir=\{textDirection\}>\{filter\.label\}<\/span>/
+  );
+  assert.match(
+    menuSource,
+    /className=\{styles\.sheetApply\}[\s\S]{0,220}<span dir=\{textDirection\}>\{copy\.apply\}<\/span>/
+  );
+});
+
 test("Sauge keeps book chrome LTR and gives text its own bidi direction", async () => {
   const [bookSource, pagesSource] = await Promise.all([
     readFile("components/menu/unique/sauge-noire/SaugeNoireBookMenu.tsx", "utf8"),
