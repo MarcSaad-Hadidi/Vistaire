@@ -11,7 +11,7 @@ permissions:
 jobs:
   export-bundle:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 30
     steps:
       - name: Checkout full repository history
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
@@ -28,18 +28,19 @@ jobs:
           git show-ref --verify refs/remotes/origin/main
           git show-ref --verify refs/remotes/origin/feat/admin-vnext-integration
 
-      - name: Create filtered Git bundle
+      - name: Create complete Git bundle
         run: |
           git bundle create /tmp/vistaire-admin-vnext.bundle \
-            --filter=blob:limit=5m \
             refs/remotes/origin/main \
             refs/remotes/origin/feat/admin-vnext-integration
           git bundle verify /tmp/vistaire-admin-vnext.bundle
+          du -h /tmp/vistaire-admin-vnext.bundle
 
       - name: Upload temporary bundle
         uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
         with:
-          name: temp-vistaire-admin-vnext-bundle-${{ github.run_id }}
+          name: temp-vistaire-admin-vnext-full-bundle-${{ github.run_id }}
           path: /tmp/vistaire-admin-vnext.bundle
           if-no-files-found: error
+          compression-level: 0
           retention-days: 1
