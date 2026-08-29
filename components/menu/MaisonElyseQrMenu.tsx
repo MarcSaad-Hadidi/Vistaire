@@ -1620,14 +1620,14 @@ export function MaisonElyseQrMenu({
                   type="button"
                   onClick={resetFilters}
                 >
-                  {copy.resetFilters}
+                  <span dir={textDirection}>{copy.resetFilters}</span>
                 </button>
               ) : null}
               <div
                 className={styles.filterGrid}
                 role="group"
                 aria-label={copy.filterGroupLabel}
-                dir={textDirection}
+                dir="ltr"
               >
                 {filterOptions.map((filter) => (
                   <button
@@ -1639,7 +1639,7 @@ export function MaisonElyseQrMenu({
                     onClick={() => toggleFilter(filter.id)}
                     type="button"
                   >
-                    {filter.label}
+                    <span dir={textDirection}>{filter.label}</span>
                   </button>
                 ))}
               </div>
@@ -1648,7 +1648,7 @@ export function MaisonElyseQrMenu({
                 onClick={() => setActiveSheet(null)}
                 type="button"
               >
-                {copy.apply}
+                <span dir={textDirection}>{copy.apply}</span>
               </button>
             </>
           )}
