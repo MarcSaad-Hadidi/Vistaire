@@ -1,0 +1,45 @@
+name: Temporary Admin vNext repository bundle export
+
+on:
+  push:
+    branches:
+      - feat/admin-vnext-integration
+
+permissions:
+  contents: read
+
+jobs:
+  export-bundle:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout full repository history
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 0
+          lfs: false
+          persist-credentials: true
+
+      - name: Fetch delivery and main refs
+        run: |
+          git fetch --no-tags origin \
+            +refs/heads/main:refs/remotes/origin/main \
+            +refs/heads/feat/admin-vnext-integration:refs/remotes/origin/feat/admin-vnext-integration
+          git show-ref --verify refs/remotes/origin/main
+          git show-ref --verify refs/remotes/origin/feat/admin-vnext-integration
+
+      - name: Create filtered Git bundle
+        run: |
+          git bundle create /tmp/vistaire-admin-vnext.bundle \
+            --filter=blob:limit=5m \
+            refs/remotes/origin/main \
+            refs/remotes/origin/feat/admin-vnext-integration
+          git bundle verify /tmp/vistaire-admin-vnext.bundle
+
+      - name: Upload temporary bundle
+        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
+        with:
+          name: temp-vistaire-admin-vnext-bundle-${{ github.run_id }}
+          path: /tmp/vistaire-admin-vnext.bundle
+          if-no-files-found: error
+          retention-days: 1
