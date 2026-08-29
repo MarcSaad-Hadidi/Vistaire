@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
 import { isCurrencyConversionAvailable } from "../lib/currency/formatMenuPrice.ts";
+import { ALLERGEN_FILTERS } from "../lib/menu/allergens.ts";
 
 function canConvert(targetCurrency, rates) {
   return isCurrencyConversionAvailable({
@@ -174,21 +175,29 @@ test("Sauge keeps book chrome LTR and gives text its own bidi direction", async 
   assert.match(pagesSource, /<span dir="auto">\{dish\.name\}<\/span>/);
 });
 
-test("Maison dietary filters use the resolved locale copy instead of the FR EN allergen registry labels", async () => {
-  const menuSource = await readFile("components/menu/MaisonElyseQrMenu.tsx", "utf8");
+test("Maison dietary filters expose complete localized labels for every supported locale", async () => {
+  const supportedLanguages = ["fr", "en", "es", "it", "de", "el", "ar"];
 
-  for (const mapping of [
-    "dairyFree: resolved.dairyFree",
-    "eggFree: resolved.eggFree",
-    "fishFree: resolved.fishFree",
-    "glutenFree: resolved.glutenFree",
-    "nutFree: resolved.nutFree",
-    "sesameFree: resolved.sesameFree",
-    "shellfishFree: resolved.shellfishFree",
-    "soyFree: resolved.soyFree"
-  ]) {
-    assert.ok(menuSource.includes(mapping), `missing localized filter mapping: ${mapping}`);
+  for (const filter of ALLERGEN_FILTERS) {
+    for (const language of supportedLanguages) {
+      const label = filter.labels[language];
+      assert.equal(
+        typeof label,
+        "string",
+        `missing ${language} label for ${filter.id}`
+      );
+      assert.ok(label.trim(), `empty ${language} label for ${filter.id}`);
+    }
   }
-  assert.doesNotMatch(menuSource, /ALLERGEN_FILTER_LABELS/);
-  assert.doesNotMatch(menuSource, /option\.labels\[localeLanguage\(activeLocale\)\]/);
+
+  const spanishDairy = ALLERGEN_FILTERS.find((filter) => filter.id === "dairy-free");
+  const arabicShellfish = ALLERGEN_FILTERS.find(
+    (filter) => filter.id === "shellfish-free"
+  );
+  assert.equal(spanishDairy?.labels.es, "Declarado sin lácteos");
+  assert.equal(arabicShellfish?.labels.ar, "معلن خلوه من القشريات والمحار");
+
+  const menuSource = await readFile("components/menu/MaisonElyseQrMenu.tsx", "utf8");
+  assert.match(menuSource, /ALLERGEN_FILTERS/);
+  assert.match(menuSource, /labels\[localeLanguage\(locale\)\]/);
 });
