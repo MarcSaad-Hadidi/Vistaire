@@ -80,6 +80,22 @@ test("Maison menu and direct dish detail consume the shared availability contrac
   assert.match(detailSource, /explicitCurrency \?\? storedCurrency \?\? undefined/);
 });
 
+test("Maison previews forward their available exchange rates to the Maison renderer", async () => {
+  const [ownerPreviewSource, comparisonPreviewSource] = await Promise.all([
+    readFile("components/owner/OwnerMenuLivePreview.tsx", "utf8"),
+    readFile("components/landing/comparison/MaisonElyseComparisonPreview.tsx", "utf8")
+  ]);
+
+  assert.match(
+    ownerPreviewSource,
+    /appearance\.template === "maison-elyse"[\s\S]{0,700}<MaisonElyseQrMenu[\s\S]{0,500}exchangeRates=\{exchangeRates\}/
+  );
+  assert.match(
+    comparisonPreviewSource,
+    /<MaisonElyseQrMenu[\s\S]{0,500}exchangeRates=\{menuUi\.exchangeRates\}/
+  );
+});
+
 test("Maison phone-preview dish loaders stay localized for all supported languages", async () => {
   const menuSource = await readFile("components/menu/MaisonElyseQrMenu.tsx", "utf8");
 
