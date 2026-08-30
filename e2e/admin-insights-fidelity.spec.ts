@@ -43,9 +43,10 @@ test("desktop Intelligence preserves the reference hierarchy without unsupported
   await enterLocalPreview(page);
 
   await expect(page.getByRole("heading", { name: /Intelligence menu/ })).toBeVisible();
-  await expect(page.locator("article").filter({ has: page.getByText(/Observation|Comparaison|Catalogue/) })).toHaveCount(3);
+  await expect(page.locator("article").filter({ has: page.getByText(/Signal observé|Tendance de période|Découverte du catalogue/) })).toHaveCount(3);
   await expect(page.getByText("Carte d’attention Vistaire")).toBeVisible();
-  await expect(page.getByText("Aucun classement de recherches k-anonyme n’est disponible dans ce bundle.")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Top recherches" })).toBeVisible();
+  await expect(page.getByText("homard bleu", { exact: true }).first()).toBeVisible();
   await expect(page.getByText("Funnel non mesuré")).toBeVisible();
   await expect(page.locator("body")).not.toContainText(/12\s?458|18[,.]6\s?%|9[,.]0\s?%/);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);

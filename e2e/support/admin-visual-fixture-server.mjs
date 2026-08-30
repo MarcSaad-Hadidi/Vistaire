@@ -76,7 +76,7 @@ function filteredRows(url) {
 }
 
 const port = Number(process.env.VISTAIRE_ADMIN_VISUAL_FIXTURE_PORT || 3110);
-http.createServer((request, response) => {
+const server = http.createServer((request, response) => {
   const url = new URL(request.url, "http://localhost");
   if (url.pathname.startsWith("/storage/v1/object/")) {
     const asset = storageAsset(url);
@@ -92,4 +92,10 @@ http.createServer((request, response) => {
   const page = paginateAdminVisualFixtureRows(rows, request.headers.range, { offset: url.searchParams.get("offset"), limit: url.searchParams.get("limit") });
   response.writeHead(200, { "content-type": "application/json", "content-range": page.contentRange, "cache-control": "no-store" });
   response.end(JSON.stringify(page.rows));
-}).listen(port, "127.0.0.1", () => console.log(`admin visual fixture ready on ${port}`));
+});
+
+for (const signal of ["SIGINT", "SIGTERM"]) {
+  process.once(signal, () => server.close(() => process.exit(0)));
+}
+
+server.listen(port, "127.0.0.1", () => console.log(`admin visual fixture ready on ${port}`));

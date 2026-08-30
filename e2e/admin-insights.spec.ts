@@ -9,7 +9,12 @@ function watchPageHealth(page: Page) {
   const heavyAssets: string[] = [];
   page.on("console", (message) => { if (message.type() === "error") runtimeErrors.push(message.text()); });
   page.on("pageerror", (error) => runtimeErrors.push(error.message));
-  page.on("requestfailed", (request) => networkFailures.push(request.failure()?.errorText ?? "request failed"));
+  page.on("requestfailed", (request) => {
+    const failure = request.failure()?.errorText ?? "request failed";
+    const url = new URL(request.url());
+    const cancelledBySameOriginNavigation = failure === "net::ERR_ABORTED" && url.origin === appOrigin;
+    if (!cancelledBySameOriginNavigation) networkFailures.push(`${failure} ${url.pathname}`);
+  });
   page.on("response", (response) => {
     if (response.status() === 404 || response.status() >= 500) networkFailures.push(`${response.status()} ${new URL(response.url()).pathname}`);
   });

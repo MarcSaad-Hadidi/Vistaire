@@ -154,7 +154,9 @@ test("the repository is allowlisted, scoped and never reads synthetic operations
   assert.doesNotMatch(source, /select\(["']\*["']\)|internal_notes?|personal_contact|support_tickets?|incidents?/i);
   assert.match(source, /restaurant_id:\s*input\.restaurantId/);
   assert.match(source, /menu_id:\s*input\.menuId/);
-  assert.match(source, /id,name,slug,location,city,cuisine_type,contact_phone,contact_email/);
+  assert.match(source, /id,name,slug,location,cuisine_type,contact_phone,contact_email/);
+  assert.match(source, /image_url,has_immersive_view,allergens,allergen_declarations,metadata/);
+  assert.doesNotMatch(source, /image_url,model3d_url|has_immersive_view,ingredients/);
   assert.match(source, /allergen_declarations/);
   assert.match(source, /normalizeAllergenData\(row\.allergen_declarations/);
   assert.doesNotMatch(source, /allergens\.length\s*>\s*0\s*\?\s*["']declared/);

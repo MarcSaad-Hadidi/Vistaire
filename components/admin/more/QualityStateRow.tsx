@@ -12,7 +12,7 @@ export function QualityStateRow({ label, state, copy }: { label: string; state: 
   if (state.kind === "unavailable" && state.reason === "not-applicable") value = copy.states.notApplicable;
   return (
     <div className={styles.stateRow} data-quality-state={state.kind}>
-      <div><strong>{label}</strong>{detail ? <span>{detail}</span> : null}</div>
+      <div><strong>{label}</strong>{detail ? <span>{detail}</span> : null}{(state.kind === "ready" || state.kind === "partial") && state.total > 0 ? <progress className={styles.qualityProgress} max={state.total} value={state.completed} aria-label={`${label}: ${state.completed} / ${state.total}`}/>: null}</div>
       <AdminStatusBadge tone={tone}>{value}</AdminStatusBadge>
     </div>
   );

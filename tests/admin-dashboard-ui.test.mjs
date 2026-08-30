@@ -160,7 +160,8 @@ test("admin visual system is scoped, locally typeset and accessible", async () =
   assert.match(nav, /<nav[^>]+aria-label=/);
   assert.match(shell, /active \? <div hidden><AdminTabs active=\{active\} \/><\/div> : null/);
   assert.match(nav, /D.connexion/);
-  assert.doesNotMatch(source, /Param.tres|Assistant|\/owner|sidebar/i);
+  assert.doesNotMatch(source, /Param.tres|Assistant|\/owner/i);
+  assert.match(shell, /styles\.sidebar/);
 
   assert.match(css, /\.adminRoot\s*\{/);
   for (const token of ["--admin-bg", "--admin-surface", "--admin-border", "--admin-accent", "--admin-text", "--admin-space-2"]) {
@@ -202,15 +203,17 @@ test("admin compact controls preserve 44px hit areas and direct tooltip semantic
   assert.doesNotMatch(primitives, /label\.toLowerCase\(\)/);
 });
 
-test("shared admin shell exposes the approved menu actions on every route", async () => {
+test("shared admin shell exposes approved default actions and supports route-specific header actions", async () => {
   const shell = await readFile("components/admin/system/AdminShell.tsx", "utf8");
   const menuActions = await readFile("components/admin/AdminMenuActions.tsx", "utf8");
-  for (const label of ["Ouvrir le menu client", "Copier le lien du menu", "Déconnexion"]) {
+  for (const label of ["Voir la carte", "View menu", "Rafraîchir", "Refresh", "Copier le lien du menu", "Copy menu link"]) {
     assert.match(menuActions, new RegExp(label));
   }
-  assert.match(shell, /<AdminMenuActions menuPath=\{menuPath\}/);
+  assert.match(shell, /<AdminMenuActions locale=\{preferences\.locale\} menuPath=\{menuPath\}/);
+  assert.match(shell, /headerActions\?:\s*ReactNode/);
+  assert.match(shell, /headerActions \?\? <AdminMenuActions/);
+  assert.match(shell, /<AdminLogoutButton locale=\{preferences\.locale\}/);
   assert.match(shell, /<AdminTabs active=\{active\}/);
-  assert.doesNotMatch(shell, /actions\?:\s*ReactNode/);
 });
 
 test("Today composes honest evidence panels with accessible exact values", async () => {
@@ -273,7 +276,7 @@ test("vNext browser proofs preserve responsive evidence fidelity and reject heav
     read("e2e/admin-insights.spec.ts")
   ]);
   assert.match(css, /\.bottomIntelligenceGrid/);
-  assert.match(attentionMap, /volume d.ouvertures observées/);
+  assert.match(attentionMap, /consultations de plats observées/);
   assert.match(today, /<TodayPulse model=\{model\}/);
   assert.match(insights, /metricState/);
   for (const source of [todayE2e, insightsE2e]) {
@@ -462,7 +465,7 @@ test("insights never exposes internal menu identifiers as presentation labels", 
     read("components/admin/insights/InsightsRecommendations.tsx")
   ]);
   assert.doesNotMatch(`${page}\n${attentionMap}\n${recommendations}`, /bundle\.scope\.(?:restaurantId|menuId)|presentation\.(?:restaurantId|menuId)|session_id/);
-  assert.match(attentionMap, /record\.state\.value/);
+  assert.match(page, /record\.state\.value/);
   assert.match(recommendations, /block\.evidenceIds/);
 });
 

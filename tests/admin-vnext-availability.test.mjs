@@ -61,6 +61,10 @@ test("availability UI owns premium operational hierarchy and honest degraded sta
   assert.match(page, /canWrite=\{canWrite\}/);
   assert.match(page, /AvailabilityScheduleList/);
   assert.match(page, /canWrite=\{canWrite && capability\.kind === "available"\}/);
+  assert.match(page, /const PAGE_SIZE = 6/);
+  assert.match(page, /pageDishes\.map/);
+  assert.match(page, /aria-label="Pagination du catalogue"/);
+  assert.match(page, /canWrite && capability\.kind === "available" && selected/);
   assert.doesNotMatch(page, /capability\.kind === "available" \? "Aucun retour/);
   assert.doesNotMatch(`${page}\n${form}`, /localStorage|sessionStorage/);
   assert.match(css, /@media \(max-width:\s*700px\)/);

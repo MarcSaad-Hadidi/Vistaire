@@ -24,6 +24,7 @@ export const ADMIN_ASSISTANT_CLAIMS_RESPONSE_FORMAT = {
       properties: {
         claims: {
           type: "array",
+          minItems: 1,
           items: {
             type: "object",
             additionalProperties: false,
@@ -52,7 +53,7 @@ function parseClaims(content: unknown, allowedEvidenceIds: ReadonlySet<string>):
   if (Object.keys(root).length !== 1 || !Array.isArray(root.claims)) return null;
   if (!root.claims.every(isAssistantClaim)) return null;
   const claims = root.claims as AssistantClaim[];
-  if (claims.length > 8 || claims.some((claim) => claim.evidenceIds.some((id) => !allowedEvidenceIds.has(id)))) return null;
+  if (claims.length < 1 || claims.length > 8 || claims.some((claim) => claim.evidenceIds.some((id) => !allowedEvidenceIds.has(id)))) return null;
   return claims;
 }
 

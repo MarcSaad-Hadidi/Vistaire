@@ -40,10 +40,28 @@ function count(record: AdminEvidenceRecord): number | null {
   return value.count;
 }
 
+function ranking(record: AdminEvidenceRecord): readonly Readonly<{ label: string; count: number; rank: number }>[] | null {
+  if (record.state.kind !== "available" || !Array.isArray(record.state.value)) return null;
+  const entries = record.state.value.map((value, index) => {
+    if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+    const candidate = value as Record<string, unknown>;
+    const key = typeof candidate.key === "string" ? candidate.key : typeof candidate.term === "string" ? candidate.term : null;
+    if (!key || typeof candidate.count !== "number" || !Number.isFinite(candidate.count)) return null;
+    const rank = typeof candidate.rank === "number" && Number.isFinite(candidate.rank) ? candidate.rank : index + 1;
+    return { label: key.replaceAll("-", " "), count: candidate.count, rank };
+  });
+  return entries.length > 0 && entries.every((entry) => entry !== null)
+    ? entries as readonly Readonly<{ label: string; count: number; rank: number }>[]
+    : null;
+}
+
 function label(record: AdminEvidenceRecord, locale: Locale): string {
   const labels: Record<string, readonly [string, string]> = {
     "observed-menu-opens": ["Ouvertures du menu", "Menu opens"],
-    "catalog-dishes": ["Plats au menu", "Menu dishes"]
+    "catalog-dishes": ["Plats au menu", "Menu dishes"],
+    "dish-ranking": ["Classement des plats", "Dish ranking"],
+    "category-ranking": ["Classement des catégories", "Category ranking"],
+    "private-search-ranking": ["Classement des recherches", "Search ranking"]
   };
   return labels[record.metricId]?.[locale === "fr" ? 0 : 1] ?? record.labelKey;
 }
@@ -67,9 +85,15 @@ function renderClaim(locale: Locale, bundle: AdminEvidenceBundle, claim: Assista
     return { kind: "comparison", label: label(current, locale), value: new Intl.NumberFormat(locale === "fr" ? "fr-CA" : "en-CA").format(currentValue), direction: delta > 0 ? "up" : delta < 0 ? "down" : "flat", delta, evidenceIds: records.map((record) => record.evidenceId) };
   }
   const record = records[0];
+  if (claim.claimType === "rank-observation") {
+    const entries = ranking(record);
+    return entries === null
+      ? unavailable(record, locale)
+      : { kind: "ranking", label: label(record, locale), ranking: entries, evidenceIds: [record.evidenceId] };
+  }
   const value = count(record);
   if (value === null) return unavailable(record, locale);
-  const kind = claim.claimType === "rank-observation" ? "ranking" : claim.claimType === "attention-observation" ? "attention" : "observation";
+  const kind = claim.claimType === "attention-observation" ? "attention" : "observation";
   return { kind, label: label(record, locale), value: new Intl.NumberFormat(locale === "fr" ? "fr-CA" : "en-CA").format(value), evidenceIds: [record.evidenceId] };
 }
 

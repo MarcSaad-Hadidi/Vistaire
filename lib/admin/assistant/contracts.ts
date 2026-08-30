@@ -18,6 +18,7 @@ export type AssistantRenderedBlock = Readonly<{
   kind: "observation" | "comparison" | "ranking" | "attention" | "unavailable";
   label: string;
   value?: string;
+  ranking?: readonly Readonly<{ label: string; count: number; rank: number }>[];
   direction?: "up" | "down" | "flat";
   delta?: number;
   evidenceIds: readonly EvidenceId[];

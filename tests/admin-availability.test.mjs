@@ -549,9 +549,9 @@ test("availability list renders measured rows, imagery, status and toggle feedba
   assert.match(list, /AdminStatusBadge/);
   assert.match(control, /AdminToggle/);
   assert.match(list, /AdminToast/);
-  assert.match(css, /grid-template-columns:\s*160px/);
-  assert.match(css, /min-height:\s*80px/);
-  assert.match(css, /\.row\s+:global\(\[data-admin-dish-thumbnail\]\)[^}]*height:\s*72px/s);
+  assert.match(css, /grid-template-columns:\s*22px 54px minmax\(115px,1fr\)/);
+  assert.match(css, /min-height:\s*66px/);
+  assert.match(css, /\.row\s+:global\(\[data-admin-dish-thumbnail\]\)[^}]*height:\s*48px/s);
   assert.doesNotMatch(css, /margin-top:\s*-/);
   assert.match(list, /SearchIcon/);
   assert.match(list, /MenuOpenIcon/);

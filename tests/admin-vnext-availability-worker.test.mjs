@@ -17,6 +17,7 @@ test("schedule and worker routes are narrow and fail closed", async () => {
   const schedule = await readFile("app/admin/api/dishes/[dishId]/availability/schedule/route.ts", "utf8");
   const cancel = await readFile("app/admin/api/dishes/[dishId]/availability/schedule/[scheduleId]/route.ts", "utf8");
   const worker = await readFile("app/api/internal/admin-availability-worker/route.ts", "utf8");
+  const repository = await readFile("lib/admin/availability/repository.ts", "utf8");
   assert.match(schedule, /dish:availability:write/);
   assert.match(schedule, /ADMIN_AVAILABILITY_SCHEDULING_ENABLED/);
   assert.doesNotMatch(schedule, /body\.restaurantId|body\.timezone/);
@@ -34,6 +35,7 @@ test("schedule and worker routes are narrow and fail closed", async () => {
   assert.match(schedule, /revalidatePath\(scope\.publicMenuPath\)/);
   assert.match(cancel, /readPublishedMenuScope/);
   assert.match(cancel, /revalidatePath\(scope\.publicMenuPath\)/);
+  assert.match(repository, /\.in\(["']status["'],\s*\[["']pending["'],\s*["']failed["']\]\)[\s\S]*\.limit\(100\)/);
 });
 
 test("availability SQL gates exercise behavior rather than source shape only", async () => {
@@ -52,4 +54,11 @@ test("availability SQL gates exercise behavior rather than source shape only", a
   assert.match(migration, /mark_admin_availability_worker_attempt/i);
   assert.match(migration, /p_dish_id uuid,\s*p_schedule_id uuid/i);
   assert.match(migration, /status\s*=\s*case[\s\S]+then 'failed'[\s\S]+else 'pending'/i);
+  assert.match(migration, /v_had_failure\s*:=\s*true[\s\S]+if not v_had_failure then[\s\S]+last_success_at\s*=\s*now\(\)/i);
+  assert.match(migration, /qr_codes[\s\S]+requester_qr_id[\s\S]+status='active'[\s\S]+target_kind='admin'[\s\S]+target_path='\/admin'/i);
+  assert.match(migration, /menus[\s\S]+menu_id[\s\S]+restaurant_id[\s\S]+status='published'/i);
+  assert.match(lifecycle, /failed jobs do not advance worker success/i);
+  assert.match(lifecycle, /healthy empty cycle advances worker success/i);
+  assert.match(lifecycle, /revoked QR cannot apply a queued availability mutation/i);
+  assert.match(lifecycle, /unpublished menu cannot receive a queued availability mutation/i);
 });

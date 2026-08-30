@@ -29,13 +29,13 @@ const stringList = (value: unknown): string[] | null => Array.isArray(value)
   : null;
 
 export async function readProfile(input: { restaurantId: string }) {
-  const result = await read("restaurants", "id,name,slug,location,city,cuisine_type,contact_phone,contact_email", { id: input.restaurantId }, 2);
+  const result = await read("restaurants", "id,name,slug,location,cuisine_type,contact_phone,contact_email", { id: input.restaurantId }, 2);
   if (!result.ok) return result;
   if (result.rows.length > 1 || result.rows.some((row) => text(row, "id") !== input.restaurantId)) return { ok: false as const, code: "scope-integrity" as const, retryable: false };
   const row = result.rows[0];
   return { ok: true as const, profile: row ? {
     restaurantId: text(row, "id"), name: text(row, "name"), slug: text(row, "slug"),
-    location: text(row, "location") || text(row, "city"), cuisineType: text(row, "cuisine_type"),
+    location: text(row, "location"), cuisineType: text(row, "cuisine_type"),
     contactPhone: text(row, "contact_phone"), contactEmail: text(row, "contact_email")
   } : null };
 }
@@ -58,7 +58,7 @@ export async function readQr(input: { restaurantId: string; qrId: string | null 
 export async function readDishes(input: { restaurantId: string; menuId: string }) {
   const result = await read(
     "menu_dishes",
-    "id,restaurant_id,menu_id,name,short_description,description,image_url,model3d_url,web_model_3d_url,ar_model_3d_url,usdz_url,ar_usdz_url,has_immersive_view,ingredients,allergens,allergen_declarations,metadata",
+    "id,restaurant_id,menu_id,name,short_description,description,image_url,has_immersive_view,allergens,allergen_declarations,metadata",
     { restaurant_id: input.restaurantId, menu_id: input.menuId },
     1001
   );
@@ -71,14 +71,14 @@ export async function readDishes(input: { restaurantId: string; menuId: string }
     return {
       restaurantId: text(row, "restaurant_id"), menuId: text(row, "menu_id"), id: text(row, "id"),
       name: text(row, "name"),
-      hasPhoto: Boolean(text(row, "image_url") || text(metadata, "photoStoragePath")),
+      hasPhoto: Boolean(text(row, "image_url") || text(metadata, "photoStoragePath") || text(metadata, "photo_storage_path")),
       hasDescription: Boolean(text(row, "short_description") || text(row, "description")),
       allergenStatus: allergenData.source === "structured" &&
         !allergenData.reviewRequired &&
         allergenData.declarations.length === ALLERGEN_REGISTRY.length
         ? "declared" as const
         : "unknown" as const,
-      hasImmersiveAsset: Boolean(row.has_immersive_view || ["model3d_url", "web_model_3d_url", "ar_model_3d_url", "usdz_url", "ar_usdz_url"].some((key) => text(row, key)))
+      hasImmersiveAsset: Boolean(row.has_immersive_view || ["model3dUrl", "model_3d_url", "webModel3dUrl", "web_model_3d_url", "arModel3dUrl", "ar_model_3d_url", "usdzUrl", "usdz_url", "arUsdzUrl", "ar_usdz_url", "webModel3dStoragePath", "web_model_3d_storage_path", "arModel3dStoragePath", "ar_model_3d_storage_path", "arUsdzStoragePath", "ar_usdz_storage_path", "usdzStoragePath", "usdz_storage_path"].some((key) => text(metadata, key)))
     };
   }) };
 }

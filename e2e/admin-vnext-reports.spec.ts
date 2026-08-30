@@ -14,7 +14,8 @@ async function installLocalNetworkGuard(page: Page) {
   });
   await page.routeWebSocket("**/*", async (webSocketRoute) => {
     const target = new URL(webSocketRoute.url());
-    if (target.origin !== appOrigin) {
+    const targetOrigin = target.origin.replace(/^ws/, "http");
+    if (targetOrigin !== appOrigin) {
       await webSocketRoute.close({ code: 1008, reason: "Non-local connection blocked" });
       throw new Error(`Reports blocked a non-local WebSocket to ${target.protocol}//blocked.invalid`);
     }
@@ -30,7 +31,18 @@ async function enterReports(page: Page) {
     await expect(preview).toBeHidden({ timeout: 30_000 });
   }
   await page.goto("/admin/reports", { waitUntil: "networkidle" });
-  await expect(page.getByRole("heading", { name: "Bilan du service", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /^Bilan du service/ })).toBeVisible();
+}
+
+async function openDisplayPreferences(page: Page) {
+  const summaries = page.locator('summary[aria-label="Préférences d’affichage"], summary[aria-label="Display preferences"]');
+  for (let index = 0; index < await summaries.count(); index += 1) {
+    if (await summaries.nth(index).isVisible()) {
+      await summaries.nth(index).click();
+      return;
+    }
+  }
+  throw new Error("Visible display preferences disclosure not found.");
 }
 
 test.beforeEach(async ({ page }) => {
@@ -57,7 +69,7 @@ test("private report filters, evidence states and CSV export stay server backed"
   const exportResponse = await page.request.get("/admin/api/reports/export?range=30d&service=dinner");
   expect(exportResponse.status()).toBe(200);
   expect(exportResponse.headers()["cache-control"]).toBe("private, no-store");
-  expect(exportResponse.headers()["vary"]).toBe("Cookie");
+  expect(exportResponse.headers()["vary"].split(",").map((value) => value.trim())).toContain("Cookie");
   expect(exportResponse.headers()["x-content-type-options"]).toBe("nosniff");
   expect(exportResponse.headers()["content-disposition"]).toMatch(/^attachment; filename="bilan-vistaire-\d{4}-\d{2}-\d{2}\.csv"$/);
   const bytes = await exportResponse.body();
@@ -83,7 +95,7 @@ test("reports remain accessible in both locales, themes, print and target viewpo
   ]) {
     await page.setViewportSize(viewport);
     await expect(page.locator("html")).toHaveJSProperty("scrollWidth", await page.locator("html").evaluate((node) => node.clientWidth));
-    await expect(page.getByRole("heading", { name: "Bilan du service", exact: true })).toBeVisible();
+    await expect(page.getByRole("heading", { name: /^Bilan du service/ })).toBeVisible();
   }
 
   await page.getByRole("button", { name: "Imprimer le rapport" }).focus();
@@ -95,8 +107,10 @@ test("reports remain accessible in both locales, themes, print and target viewpo
   await expect(page.getByText("Preuves et fiabilité", { exact: true })).toBeVisible();
   await page.emulateMedia({ media: "screen" });
 
+  await openDisplayPreferences(page);
   await page.getByRole("button", { name: "English" }).click();
-  await expect(page.getByRole("heading", { name: "Service report", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /^Service report/ })).toBeVisible();
+  await openDisplayPreferences(page);
   await page.getByRole("button", { name: "Dark" }).click();
   await expect(page.locator('[data-admin-theme="dark"]')).toBeVisible();
   await expect(page.getByRole("link", { name: "Export CSV" })).toHaveAttribute("href", /\/admin\/api\/reports\/export\?range=/);

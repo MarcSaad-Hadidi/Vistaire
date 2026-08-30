@@ -46,6 +46,7 @@ test("Mistral transport uses Chat Completions and the exact closed JSON schema",
   assert.equal(body.response_format.json_schema.strict, true);
   assert.equal(body.response_format.json_schema.schema.additionalProperties, false);
   const item = body.response_format.json_schema.schema.properties.claims.items;
+  assert.equal(body.response_format.json_schema.schema.properties.claims.minItems, 1);
   assert.equal(item.additionalProperties, false);
   assert.deepEqual(item.required, ["claimType", "evidenceIds"]);
   assert.deepEqual(item.properties.claimType.enum, ["metric-observation", "period-comparison", "rank-observation", "attention-observation"]);
@@ -64,6 +65,7 @@ test("missing config, non-2xx and malformed structured output return null withou
 
 test("validator rejects unknown evidence, prose, extra fields, prefixes and fences without a second call", async () => {
   const invalid = [
+    { claims: [] },
     { claims: [{ claimType: "metric-observation", evidenceIds: ["ev:unknown"] }] },
     { claims: [{ claimType: "metric-observation", evidenceIds: [evidenceId], prose: "twelve" }] },
     { claims: [{ claimType: "metric-observation", evidenceIds: [evidenceId] }], prose: "extra" },

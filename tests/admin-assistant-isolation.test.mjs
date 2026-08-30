@@ -26,7 +26,9 @@ function evidenceBundle() {
     generatedAt: observationWindow.observedAt,
     records: [
       { metricId: "observed-menu-opens", definitionVersion: "v1", labelKey: "metrics.observed-menu-opens", period: "current", state: { kind: "available", value: { count: 9 } }, provenance: {}, freshness: {}, sample: {}, privacy: { classification: "aggregate", promptUnsafe: false }, audiences: ["ui", "mistral"] },
-      { metricId: "observed-menu-opens", definitionVersion: "v1", labelKey: "metrics.observed-menu-opens", period: "previous", state: { kind: "available", value: { count: 7 } }, provenance: {}, freshness: {}, sample: {}, privacy: { classification: "aggregate", promptUnsafe: false }, audiences: ["ui", "mistral"] }
+      { metricId: "observed-menu-opens", definitionVersion: "v1", labelKey: "metrics.observed-menu-opens", period: "previous", state: { kind: "available", value: { count: 7 } }, provenance: {}, freshness: {}, sample: {}, privacy: { classification: "aggregate", promptUnsafe: false }, audiences: ["ui", "mistral"] },
+      { metricId: "dish-ranking", definitionVersion: "v1", labelKey: "metrics.dish-ranking", period: "current", state: { kind: "available", value: [{ key: "rossini", count: 5, rank: 1 }] }, provenance: {}, freshness: {}, sample: {}, privacy: { classification: "aggregate", promptUnsafe: false }, audiences: ["ui", "mistral"] },
+      { metricId: "private-search-ranking", definitionVersion: "v1", labelKey: "metrics.private-search-ranking", period: "current", state: { kind: "available", value: [{ key: "sans-gluten", count: 4, rank: 1 }] }, provenance: {}, freshness: {}, sample: {}, privacy: { classification: "aggregate", promptUnsafe: false }, audiences: ["ui", "mistral"] }
     ]
   });
 }
@@ -88,7 +90,7 @@ test("assistant pipeline never calls Mistral unless distributed quota allows it"
   }
 });
 
-test("assistant blocks likely personal data before quota and never forwards free-form text to Mistral", async () => {
+test("assistant blocks likely personal data before quota and sends only allowlisted intent evidence to Mistral", async () => {
   for (const question of [
     "Le client Jean Dupont cherche quels plats ?",
     "Que cherche le client au 12 rue Royale ?",
@@ -112,19 +114,28 @@ test("assistant blocks likely personal data before quota and never forwards free
     assert.equal(modelCalls, 0);
   }
 
-  let modelQuestion = "";
+  const modelInputs = [];
   let loadedRange = "";
   await getAdminAssistantAnswerWithDependencies(
-    { access, range: "30d", mode: "question", locale: "fr", question: "Quels plats attirent le plus les clients ?" },
+    { access, range: "30d", mode: "question", locale: "fr", question: "  Quels plats   attirent le plus les clients ?  " },
     {
       loadBundle: async (_access, range) => { loadedRange = range; return { ok: true, bundle: evidenceBundle() }; },
       consumeQuota: async () => ({ state: "allowed", remaining: 3, resetAt: "2026-08-11T20:01:00.000Z" }),
-      generateClaims: async (input) => { modelQuestion = input.question; return []; }
+      generateClaims: async (input) => { modelInputs.push(input); return []; }
+    }
+  );
+  await getAdminAssistantAnswerWithDependencies(
+    { access, range: "today", mode: "question", locale: "fr", question: "Que recherchent les clients dans le menu ?" },
+    {
+      loadBundle: async () => ({ ok: true, bundle: evidenceBundle() }),
+      consumeQuota: async () => ({ state: "allowed", remaining: 2, resetAt: "2026-08-11T20:01:00.000Z" }),
+      generateClaims: async (input) => { modelInputs.push(input); return []; }
     }
   );
   assert.equal(loadedRange, "30d");
-  assert.doesNotMatch(modelQuestion, /Quels plats attirent/);
-  assert.match(modelQuestion, /signaux mesurés/i);
+  assert.deepEqual(modelInputs.map((input) => input.question), ["intent:dish-performance", "intent:search-demand"]);
+  assert.deepEqual(modelInputs.map((input) => Object.values(input.evidence.records).map((record) => record.metricId)), [["dish-ranking"], ["private-search-ranking"]]);
+  assert.doesNotMatch(JSON.stringify(modelInputs), /Quels plats|Que recherchent/i);
 });
 
 test("assistant pipeline renders only evidence-bound claims after quota allowance", async () => {

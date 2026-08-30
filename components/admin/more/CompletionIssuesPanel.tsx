@@ -5,7 +5,7 @@ import { completionIssueCopy } from "@/lib/admin/more/moreQualityCopy";
 import styles from "./AdminMoreQuality.module.css";
 
 export function CompletionIssuesPanel({ model }: { model: AdminMoreQualityModel }) {
-  const visible = model.completionIssues.slice(0, 8);
+  const visible = model.completionIssues.slice(0, 3);
   const hiddenCount = model.completionIssues.length - visible.length;
   return (
     <AdminPanel title={model.copy.issuesTitle} className={styles.issuesPanel}>

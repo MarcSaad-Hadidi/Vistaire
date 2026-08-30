@@ -9,7 +9,25 @@ async function enterLocalPreview(page: Page) {
     await expect(page).toHaveURL(/\/admin$/);
     await page.waitForLoadState("networkidle");
   }
-  await expect(page.getByRole("heading", { name: "Maison Élysée", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1, name: /Aujourd’hui/ })).toBeVisible();
+}
+
+async function openDisplayPreferences(page: Page) {
+  const summaries = page.locator('summary[aria-label="Préférences d’affichage"], summary[aria-label="Display preferences"]');
+  await expect.poll(async () => {
+    let visible = 0;
+    for (let index = 0; index < await summaries.count(); index += 1) {
+      if (await summaries.nth(index).isVisible()) visible += 1;
+    }
+    return visible;
+  }).toBeGreaterThan(0);
+  for (let index = 0; index < await summaries.count(); index += 1) {
+    if (await summaries.nth(index).isVisible()) {
+      await summaries.nth(index).click();
+      return;
+    }
+  }
+  throw new Error("Visible display preferences disclosure disappeared before activation.");
 }
 
 test.beforeEach(async ({ page }) => {
@@ -35,7 +53,7 @@ test.beforeEach(async ({ page }) => {
   });
 });
 
-test("five admin destinations remain visible without horizontal overflow", async ({ page }) => {
+test("five admin destinations and the desktop quality shortcut remain visible without horizontal overflow", async ({ page }) => {
   await enterLocalPreview(page);
 
   const expected = [
@@ -55,7 +73,10 @@ test("five admin destinations remain visible without horizontal overflow", async
     await page.goto("/admin", { waitUntil: "networkidle" });
     const visibleNav = page.locator(`[data-admin-nav="${viewport.visible}"]`);
     await expect(visibleNav).toBeVisible();
-    await expect(visibleNav.locator("a")).toHaveCount(5);
+    await expect(visibleNav.locator("a")).toHaveCount(viewport.visible === "desktop" ? 6 : 5);
+    if (viewport.visible === "desktop") {
+      await expect(visibleNav.getByRole("link", { name: "Qualité", exact: true })).toHaveAttribute("href", "/admin/more#quality");
+    }
     for (const [href, label] of expected) {
       await expect(visibleNav.getByRole("link", { name: label, exact: true })).toHaveAttribute("href", href);
     }
@@ -65,8 +86,10 @@ test("five admin destinations remain visible without horizontal overflow", async
 
 test("preferences persist in SSR-scoped admin cookies", async ({ page }) => {
   await enterLocalPreview(page);
+  await openDisplayPreferences(page);
   await page.getByRole("button", { name: "English" }).click();
   await expect(page.locator('[data-admin-locale="en"]')).toBeVisible();
+  await openDisplayPreferences(page);
   await page.getByRole("button", { name: "Dark" }).click();
   await page.reload({ waitUntil: "networkidle" });
   await expect(page.locator('[data-admin-theme="dark"]')).toBeVisible();

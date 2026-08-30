@@ -14,11 +14,26 @@ export const dynamic = "force-dynamic";
 
 const MAX_BODY_BYTES = 16_000;
 
+function incomingRequestOrigin(request: NextRequest) {
+  const forwardedHost = request.headers.get("x-forwarded-host")?.split(",", 1)[0].trim();
+  const host = forwardedHost || request.headers.get("host")?.trim();
+  const forwardedProtocol = request.headers.get("x-forwarded-proto")?.split(",", 1)[0].trim();
+  const protocol = forwardedProtocol === "http" || forwardedProtocol === "https"
+    ? forwardedProtocol
+    : request.nextUrl.protocol.replace(/:$/, "");
+  if (!host || (protocol !== "http" && protocol !== "https")) return request.nextUrl.origin;
+  try {
+    return new URL(`${protocol}://${host}`).origin;
+  } catch {
+    return request.nextUrl.origin;
+  }
+}
+
 export async function POST(request: NextRequest) {
   if (!isAnalyticsRequestSameOrigin({
     secFetchSite: request.headers.get("sec-fetch-site"),
     origin: request.headers.get("origin"),
-    expectedOrigin: request.nextUrl.origin
+    expectedOrigin: incomingRequestOrigin(request)
   })) {
     return NextResponse.json<AnalyticsApiResponse>(
       { ok: false, error: "Cross-site analytics payload refused." },

@@ -71,15 +71,24 @@ test("Today exposes honest evidence states across responsive FR/EN light/dark vi
     await expect(page.getByRole("heading", { level: 1 })).toHaveCount(1);
     await expect(page.locator('[data-today-region="pulse"] article')).toHaveCount(6);
     await expect(page.locator('[data-today-region="menu-health"] [data-evidence-id]')).toBeVisible();
-    await expect(page.locator('[data-today-region="activity"] [data-evidence-kind="unmeasured"]')).toBeVisible();
+    await expect(page.locator('[data-today-region="activity"] [data-chart-frame][data-chart-kind="line"]')).toBeVisible();
+    await expect(page.locator('[data-today-region="activity"] [data-evidence-kind="unmeasured"]')).toHaveCount(0);
+    await expect(page.locator('[data-today-region="pulse"] [data-kpi-sparkline]')).toHaveCount(4);
+    await expect(page.locator('[data-today-region="top-dishes"] progress')).toHaveCount(5);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
+    if (viewport.width === 1448) {
+      await expect(page.locator("footer").last()).toBeInViewport();
+    }
   }
 
+  await page.locator('summary[aria-label="Préférences d’affichage"]').first().click();
   await page.getByRole("button", { name: "English" }).click();
   await expect(page.getByRole("heading", { level: 1, name: /Today — Service command centre/ })).toBeVisible();
+  await page.locator('summary[aria-label="Display preferences"]').first().click();
   await page.getByRole("button", { name: "Dark" }).click();
   await expect(page.locator('[data-admin-theme="dark"]')).toBeVisible();
-  await expect(page.locator('[data-today-region="activity"] [role="status"]')).toContainText("not yet measured");
+  await expect(page.locator('[data-today-region="activity"] [data-chart-frame][data-chart-kind="line"]')).toBeVisible();
+  await expect(page.locator('[data-today-region="activity"] [data-evidence-kind="unmeasured"]')).toHaveCount(0);
   healthy();
 });
 

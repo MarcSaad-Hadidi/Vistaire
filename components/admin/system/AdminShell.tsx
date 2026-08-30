@@ -1,13 +1,15 @@
 import type { ReactNode } from "react";
 import { headers } from "next/headers";
+import Link from "next/link";
 import {
   type AdminRouteId,
   type LegacyAdminRoute,
   normalizeLegacyAdminRoute
 } from "@/lib/admin/foundationRoutes";
 import { readAdminPreferencesFromHeaders } from "@/lib/admin/preferences";
-import { AdminMenuActions } from "../AdminMenuActions";
-import { AdminNav } from "./AdminNav";
+import { AdminCopyMenuButton, AdminMenuActions } from "../AdminMenuActions";
+import { AdminLogoutButton, AdminNav } from "./AdminNav";
+import { AdminPreferencesControls } from "./AdminPreferencesControls";
 import { AdminTabs } from "./AdminPrimitives";
 import styles from "./AdminSystem.module.css";
 
@@ -21,6 +23,7 @@ export type AdminShellProps = AdminShellRouteProps & {
   pageTitle?: string;
   pageDescription?: string;
   headerDetails?: ReactNode;
+  headerActions?: ReactNode;
   headerStatus?: ReactNode;
   children: ReactNode;
 };
@@ -29,7 +32,7 @@ export async function AdminShell(props: AdminShellProps) {
   const preferences = readAdminPreferencesFromHeaders(await headers());
   const {
     restaurantName, menuPath, pageTitle, pageDescription,
-    headerDetails, headerStatus, children
+    headerDetails, headerActions, headerStatus, children
   } = props;
   const active = "active" in props ? props.active : undefined;
   let canonicalActive: AdminRouteId;
@@ -47,31 +50,56 @@ export async function AdminShell(props: AdminShellProps) {
       ? styles.overviewDashboard
       : canonicalActive === "availability"
         ? styles.availabilityDashboard
-        : "";
+        : canonicalActive === "reports"
+          ? styles.reportsDashboard
+          : "";
 
   return (
     <div className={`${styles.dashboard} ${routeClass}`}>
-      <header className={styles.header} {...(insights ? { "data-insights-header": true } : {})}>
-        <div className={styles.headerIdentity}>
-          <p className={styles.brand}>{pageTitle ? restaurantName : "Dashboard restaurant"}</p>
-          <h1>{pageTitle ?? restaurantName}</h1>
-          <div className={styles.headerLower}>
-            <p className={styles.subtitle} data-admin-subtitle>
-              {pageDescription ?? (insights
-                ? "Analyses détaillées et insights avancés sur l’activité de votre menu"
-                : "Insights en temps réel sur l’activité de votre menu")}
-            </p>
-            {headerDetails}
+      <aside className={styles.sidebar} aria-label={preferences.locale === "fr" ? "Navigation Vistaire" : "Vistaire navigation"}>
+        <Link className={styles.wordmark} href="/admin">VISTAIRE</Link>
+        <AdminNav active={canonicalActive} locale={preferences.locale} variant="desktop" />
+        <AdminPreferencesControls preferences={preferences} />
+        <div className={styles.restaurantRail}>
+          <span className={styles.restaurantMark} aria-hidden="true">V</span>
+          <span><strong>{restaurantName}</strong><small>{preferences.locale === "fr" ? "Espace privé" : "Private workspace"}</small></span>
+          <AdminCopyMenuButton locale={preferences.locale} menuPath={menuPath} />
+          <AdminLogoutButton locale={preferences.locale} />
+        </div>
+      </aside>
+      <div className={styles.workspace}>
+        <header className={styles.header} {...(insights ? { "data-insights-header": true } : {})}>
+          <div className={styles.headerIdentity}>
+            <div className={styles.restaurantHeader}>
+              <p className={styles.brand}>{pageTitle ? restaurantName : "Dashboard restaurant"}</p>
+              <span className={styles.onlineStatus}>{preferences.locale === "fr" ? "Menu en ligne" : "Menu online"}</span>
+            </div>
+            <h1>{pageTitle ?? restaurantName}</h1>
+            <div className={styles.headerLower}>
+              <p className={styles.subtitle} data-admin-subtitle>
+                {pageDescription ?? (insights
+                  ? "Analyses détaillées et insights avancés sur l’activité de votre menu"
+                  : "Insights en temps réel sur l’activité de votre menu")}
+              </p>
+              {headerDetails}
+            </div>
           </div>
-        </div>
-        <div className={styles.headerControls}>
-          <AdminMenuActions menuPath={menuPath} />
-          {headerStatus}
-        </div>
-      </header>
-      {active ? <div hidden><AdminTabs active={active} /></div> : null}
-      <AdminNav active={canonicalActive} locale={preferences.locale} variant="desktop" />
-      <main className={styles.main}>{children}</main>
+          <div className={styles.headerControls}>
+            {headerActions ?? <AdminMenuActions locale={preferences.locale} menuPath={menuPath} />}
+            {headerStatus}
+          </div>
+        </header>
+        {active ? <div hidden><AdminTabs active={active} /></div> : null}
+        <main className={styles.main}>{children}</main>
+        <footer className={styles.trustFooter}>
+          <span><strong>{preferences.locale === "fr" ? "Données privées" : "Private data"}</strong><small>{preferences.locale === "fr" ? "Accès réservé au restaurant" : "Restaurant-only access"}</small></span>
+          <span><strong>{preferences.locale === "fr" ? "Préférences protégées" : "Protected preferences"}</strong><small>HttpOnly · SameSite</small></span>
+          <span><strong>{preferences.locale === "fr" ? "Piloté par Vistaire" : "Powered by Vistaire"}</strong><small>{preferences.locale === "fr" ? "Mesures fondées sur les preuves" : "Evidence-based measurements"}</small></span>
+        </footer>
+      </div>
+      <div className={styles.mobilePreferences}>
+        <AdminPreferencesControls preferences={preferences} />
+      </div>
       <AdminNav active={canonicalActive} locale={preferences.locale} variant="mobile" />
     </div>
   );

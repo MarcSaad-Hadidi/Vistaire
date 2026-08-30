@@ -31,12 +31,14 @@ test("Intelligence UI renders only canonical evidence and explicit absence state
 });
 
 test("attention visualization has equivalent text and no unsupported conversion value", async () => {
-  const [map, funnel] = await Promise.all([
+  const [page, map, funnel] = await Promise.all([
+    source("components/admin/insights/AdminInsightsPage.tsx"),
     source("components/admin/insights/InsightsAttentionMap.tsx"),
     source("components/admin/insights/InsightsConversionState.tsx")
   ]);
+  assert.match(page, /<InsightsAttentionMap ranking=\{dishRanking\}/);
   assert.match(map, /figcaption/);
-  assert.match(map, /volume d’ouvertures observées/);
+  assert.match(map, /consultations de plats observées/);
   assert.match(funnel, /data-evidence-state="unmeasured"/);
   assert.doesNotMatch(`${map}\n${funnel}`, /9[,.]0\s*%|18[,.]6\s*%|12\s*458/);
 });
@@ -62,6 +64,9 @@ test("assistant request carries locale and never a restaurant or menu identifier
   const drawer = await source("components/admin/insights/AdminAssistantDrawer.tsx");
   assert.match(drawer, /mode: "question", locale, range, question: clean/);
   assert.doesNotMatch(drawer, /restaurantId|menuId|session_id/);
+  assert.match(drawer, /block\.ranking\s*\?/);
+  assert.match(drawer, /block\.ranking\.map/);
+  assert.match(drawer, /assistantRanking/);
 });
 
 test("all Intelligence E2E specs are hermetic, token-free and cannot silently skip", async () => {

@@ -5,7 +5,8 @@ import {
   LogoutIcon,
   MoreIcon,
   OverviewIcon,
-  ReportsIcon
+  ReportsIcon,
+  CheckIcon
 } from "./AdminIcons";
 import {
   ADMIN_ROUTES,
@@ -40,23 +41,32 @@ export function AdminNav({ active, locale, variant }: AdminNavProps) {
       className={variant === "desktop" ? styles.desktopNav : styles.mobileNav}
       data-admin-nav={variant}
     >
-      {ADMIN_ROUTES.map((route) => (
-        <Link
-          aria-current={active === route.id ? "page" : undefined}
-          data-route-availability={route.availability}
-          href={route.href}
-          key={route.id}
-          prefetch={route.availability === "integrated" ? undefined : false}
-        >
-          {iconForAdminRoute(route.id)}
-          <span>{route.label[locale]}</span>
-        </Link>
-      ))}
+      {ADMIN_ROUTES.flatMap((route) => {
+        const link = <Link
+            aria-current={active === route.id ? "page" : undefined}
+            data-route-availability={route.availability}
+            href={route.href}
+            key={route.id}
+            prefetch={route.availability === "integrated" ? undefined : false}
+          >
+            {iconForAdminRoute(route.id)}
+            <span>{route.label[locale]}</span>
+          </Link>;
+        if (variant !== "desktop" || route.id !== "more") return [link];
+        return [
+          <Link href="/admin/more#quality" key="quality" prefetch={false}>
+            <CheckIcon />
+            <span>{locale === "fr" ? "Qualité" : "Quality"}</span>
+          </Link>,
+          link
+        ];
+      })}
     </nav>
   );
 }
 
-export function AdminLogoutButton() {
-  return <form action="/admin/logout" method="post"><button className={styles.iconButton} type="submit" aria-label="Déconnexion" title="Déconnexion"><LogoutIcon /></button></form>;
+export function AdminLogoutButton({ locale = "fr" }: { locale?: AdminLocale }) {
+  const label = locale === "fr" ? "Déconnexion" : "Sign out";
+  return <form action="/admin/logout" method="post"><button className={styles.iconButton} type="submit" aria-label={label} title={label}><LogoutIcon /></button></form>;
 }
 

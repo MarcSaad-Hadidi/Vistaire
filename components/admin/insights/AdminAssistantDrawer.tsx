@@ -9,6 +9,7 @@ type AssistantBlock = Readonly<{
   kind: string;
   label: string;
   value?: string;
+  ranking?: readonly Readonly<{ label: string; count: number; rank: number }>[];
   delta?: number;
   evidenceIds: readonly string[];
 }>;
@@ -28,6 +29,7 @@ export function AdminAssistantDrawer({ locale, range, onClose }: { locale: Admin
   const [response, setResponse] = useState<AssistantResponse | null>(null);
   const [pending, startTransition] = useTransition();
   const fr = locale === "fr";
+  const number = new Intl.NumberFormat(fr ? "fr-CA" : "en-CA");
 
   useEffect(() => {
     const previous = document.activeElement instanceof HTMLElement ? document.activeElement : null;
@@ -76,7 +78,7 @@ export function AdminAssistantDrawer({ locale, range, onClose }: { locale: Admin
         <button type="submit" disabled={pending}>{pending ? (fr ? "Lecture…" : "Reading…") : (fr ? "Analyser" : "Analyze")}</button>
       </form>
       <div className={styles.drawerAnswer} aria-live="polite" aria-busy={pending}>
-        {response?.blocks?.map((block, index) => <article key={`${block.kind}-${index}`}><strong>{block.label}</strong>{block.value ? <p>{block.value}{block.delta !== undefined ? ` · ${block.delta > 0 ? "+" : ""}${block.delta}` : ""}</p> : null}<small>{block.evidenceIds.join(", ")}</small></article>)}
+        {response?.blocks?.map((block, index) => <article key={`${block.kind}-${index}`}><strong>{block.label}</strong>{block.value ? <p>{block.value}{block.delta !== undefined ? ` · ${block.delta > 0 ? "+" : ""}${block.delta}` : ""}</p> : null}{block.ranking ? <ol className={styles.assistantRanking}>{block.ranking.map((entry) => <li key={`${entry.rank}-${entry.label}`}><span>{entry.rank}. {entry.label}</span><strong>{number.format(entry.count)}</strong></li>)}</ol> : null}<small className={styles.srOnly}>{block.evidenceIds.join(", ")}</small></article>)}
         {response?.source ? <p className={styles.answerSource}>{fr ? "Source" : "Source"}: {response.source}</p> : null}
         {response?.error ? <p role="alert">{response.error}</p> : null}
       </div>

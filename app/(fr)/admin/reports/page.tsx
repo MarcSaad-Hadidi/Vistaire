@@ -1,5 +1,6 @@
 import { headers } from "next/headers";
 import { AdminReportsPage } from "@/components/admin/reports/AdminReportsPage";
+import { ReportActions } from "@/components/admin/reports/ReportActions";
 import { AdminShell } from "@/components/admin/system/AdminShell";
 import { AdminShellState } from "@/components/admin/system/AdminShellState";
 import { requireAdminRestaurantAccess } from "@/lib/admin/access";
@@ -26,16 +27,26 @@ export default async function AdminReportsRoute({ searchParams }: { searchParams
     service: filters.service,
     bundle: dataResult.bundle
   });
+  const serviceLabel = report.service === "dinner"
+    ? (preferences.locale === "fr" ? "Dîner" : "Dinner")
+    : report.service === "lunch"
+      ? (preferences.locale === "fr" ? "Déjeuner" : "Lunch")
+      : (preferences.locale === "fr" ? "Tous les services" : "All services");
+  const periodLabel = new Intl.DateTimeFormat(preferences.locale === "fr" ? "fr-CA" : "en-CA", {
+    timeZone: report.window.timezone,
+    dateStyle: "medium"
+  }).format(new Date(report.window.current.to));
   return (
     <AdminShell
       activeRoute="reports"
       restaurantName={dataResult.presentation.restaurantName}
       menuPath={dataResult.presentation.publicMenuPath}
-      pageTitle={preferences.locale === "fr" ? "Bilan du service" : "Service report"}
+      pageTitle={`${preferences.locale === "fr" ? "Bilan du service" : "Service report"} — ${serviceLabel}`}
       pageDescription={preferences.locale === "fr"
         ? "Une lecture fondée uniquement sur les interactions observées et leurs preuves."
         : "A view based only on observed interactions and their evidence."}
-      headerDetails={<span>{preferences.locale === "fr" ? "Rapports privés" : "Private reports"}</span>}
+      headerDetails={<span>{periodLabel} · {report.window.timezone}</span>}
+      headerActions={<ReportActions locale={report.locale} range={report.range} service={report.service} />}
     >
       <AdminReportsPage report={report} />
     </AdminShell>

@@ -21,10 +21,11 @@ function StatusCard({ label, state, model, icon }: { label: string; state: MoreQ
   return (
     <article className={styles.statusCard} data-quality-state={state.kind}>
       <span className={styles.statusIcon}>{icon}</span>
-      <div>
+      <div className={styles.statusBody}>
         <p className={styles.statusLabel}>{label}</p>
         <strong className={styles.statusValue}>{display.value}</strong>
         {display.detail ? <p className={styles.statusDetail}>{display.detail}</p> : null}
+        {(state.kind === "ready" || state.kind === "partial") && state.total > 0 ? <progress className={styles.statusProgress} max={state.total} value={state.completed} aria-label={`${label}: ${state.completed} / ${state.total}`}/>: null}
       </div>
     </article>
   );

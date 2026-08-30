@@ -33,7 +33,7 @@ export async function readAvailabilityOperations(input: { restaurantId: string; 
   const admin = getSupabaseAdminClient();
   if (!admin.ok) return { kind: "error", retryable: true };
   const [scheduleRead, historyRead] = await Promise.all([
-    admin.client.from("admin_dish_availability_schedules").select("id,dish_id,final_available,scheduled_for,timezone,status").eq("restaurant_id", input.restaurantId).eq("menu_id", input.menuId).order("scheduled_for", { ascending: true }).limit(100),
+    admin.client.from("admin_dish_availability_schedules").select("id,dish_id,final_available,scheduled_for,timezone,status").eq("restaurant_id", input.restaurantId).eq("menu_id", input.menuId).in("status", ["pending", "failed"]).order("scheduled_for", { ascending: true }).limit(100),
     admin.client.from("admin_dish_availability_events").select("id,dish_id,previous_available,final_available,actor_kind,created_at").eq("restaurant_id", input.restaurantId).eq("menu_id", input.menuId).order("created_at", { ascending: false }).limit(50)
   ]);
   const failure = scheduleRead.error ?? historyRead.error;

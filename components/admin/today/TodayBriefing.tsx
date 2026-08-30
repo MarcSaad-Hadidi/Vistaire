@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { AlertIcon, InfoIcon, TrendIcon } from "@/components/admin/system/AdminIcons";
 import { AdminPanel, AdminStatusBadge } from "@/components/admin/system/AdminPrimitives";
 import type { TodayViewModel } from "./todayViewModel";
 import { TODAY_COPY, todayStateLabel } from "./todayCopy";
@@ -21,7 +22,10 @@ export function TodayBriefing({ model }: { model: TodayViewModel }) {
     >
       <ul className={styles.briefingList}>
         {model.briefing.map((item) => (
-          <li data-evidence-id={item.evidenceId ?? undefined} key={item.metricId}>
+          <li data-evidence-id={item.evidenceId ?? undefined} data-metric-id={item.metricId} key={item.metricId}>
+            <span className={styles.briefingIcon} aria-hidden="true">
+              {item.metricId === "observed-menu-opens" ? <AlertIcon /> : item.metricId === "dish-ranking" ? <TrendIcon /> : <InfoIcon />}
+            </span>
             <div>
               <AdminStatusBadge tone={item.state.kind === "available" ? "available" : "neutral"}>
                 {item.state.kind === "available" ? copy.currentPeriod : todayStateLabel(model.locale, item.state)}

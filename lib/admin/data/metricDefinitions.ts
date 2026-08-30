@@ -20,7 +20,9 @@ const unmeasured = new Set<AdminMetricId>([
 const signals: Partial<Record<AdminMetricId, AdminSignalId>> = {
   "observed-menu-opens": "menu_opened", "observed-dish-opens": "dish_opened",
   "observed-immersive-intents": "dish_3d_clicked", "observed-ar-intents": "dish_ar_clicked",
-  "private-search-ranking": "search_used"
+  "observed-sessions": "menu_opened", "dish-ranking": "dish_opened",
+  "category-ranking": "dish_opened", "activity-series": "menu_opened",
+  "time-distribution": "dish_opened", "private-search-ranking": "search_used"
 };
 
 export const ADMIN_METRIC_DEFINITIONS: readonly AdminMetricDefinition[] = ADMIN_METRIC_IDS.map((id) => ({
@@ -31,7 +33,7 @@ export const ADMIN_METRIC_DEFINITIONS: readonly AdminMetricDefinition[] = ADMIN_
   measurement: unmeasured.has(id) ? "unmeasured" : "measured",
   ...(signals[id] ? { signal: signals[id] } : {}),
   requiredRenderers: signals[id] ? ["public-menu", "maison-elyse", "trouvable"] : [],
-  minimumSample: id.includes("ranking") ? 3 : 0,
+  minimumSample: id === "private-search-ranking" ? 3 : 0,
   audiences: ["ui", "export", "mistral"]
 }));
 

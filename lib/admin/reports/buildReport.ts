@@ -117,6 +117,25 @@ function panel<T>(bundle: AdminEvidenceBundle, locale: AdminReportLocale, servic
   return service === "all" ? evidence<T>(locale, service, record) : evidence<T>(locale, service, record, unavailableState);
 }
 
+function searchPanel(bundle: AdminEvidenceBundle, locale: AdminReportLocale, service: AdminReportService): AdminReportPanel<readonly SearchTermEvidence[]> {
+  const ranking = panel<AdminRankingPayload>(bundle, locale, service, "private-search-ranking");
+  if (ranking.state.kind !== "available") {
+    return { state: ranking.state, value: null, evidenceIds: ranking.evidenceIds, copy: ranking.copy };
+  }
+  const value = ranking.state.value.flatMap((item) => {
+    const candidate = item as Readonly<{ key?: unknown; term?: unknown; count?: unknown }>;
+    const term = typeof candidate.term === "string" ? candidate.term : typeof candidate.key === "string" ? candidate.key : null;
+    return term && typeof candidate.count === "number" && Number.isFinite(candidate.count)
+      ? [{ term, count: candidate.count }]
+      : [];
+  });
+  if (value.length !== ranking.state.value.length) {
+    const state = { kind: "error", code: "scope-integrity", retryable: false } as const;
+    return { state, value: null, evidenceIds: ranking.evidenceIds, copy: reportStateCopy(locale, state, service) };
+  }
+  return { ...ranking, state: { kind: "available", value }, value };
+}
+
 function formatPercent(locale: AdminReportLocale, rate: number): string {
   return new Intl.NumberFormat(locale === "fr" ? "fr-CA" : "en-CA", { style: "percent", maximumFractionDigits: 0 }).format(rate);
 }
@@ -142,7 +161,7 @@ export function buildAdminReport(input: {
     });
   const timeline = panel<AdminSeriesPayload>(input.bundle, input.locale, input.service, "activity-series");
   const topDishes = panel<AdminRankingPayload>(input.bundle, input.locale, input.service, "dish-ranking");
-  const searches = panel<readonly SearchTermEvidence[]>(input.bundle, input.locale, input.service, "private-search-ranking");
+  const searches = searchPanel(input.bundle, input.locale, input.service);
   const availabilityChanges = evidence<readonly { label: string; state: string; occurredAt?: string }[]>(input.locale, input.service, null, unavailableState);
   const requiredEvidence = [
     ...metrics.map((item) => item.current),

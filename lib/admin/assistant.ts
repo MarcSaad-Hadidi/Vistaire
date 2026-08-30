@@ -1,5 +1,5 @@
 import type { AdminRestaurantAccessResult } from "./accessCore.ts";
-import type { AdminRange } from "./data/contracts.ts";
+import type { AdminMetricId, AdminRange } from "./data/contracts.ts";
 import {
   projectEvidenceForAudience,
   type AdminEvidenceBundle
@@ -42,6 +42,28 @@ export type AdminAssistantDependencies = Readonly<{
 
 const MAX_QUESTION_LENGTH = 220;
 
+export type AdminAssistantIntent =
+  | "overview"
+  | "menu-activity"
+  | "dish-performance"
+  | "search-demand"
+  | "category-performance"
+  | "immersive-engagement"
+  | "availability"
+  | "conversion"
+  | "mobile-quality";
+
+const INTENT_METRICS: Readonly<Record<Exclude<AdminAssistantIntent, "overview">, readonly AdminMetricId[]>> = {
+  "menu-activity": ["observed-menu-opens", "observed-sessions", "active-sessions", "average-duration", "activity-series", "time-distribution"],
+  "dish-performance": ["catalog-dishes", "observed-dish-opens", "dish-ranking"],
+  "search-demand": ["private-search-ranking", "searches-without-results", "filter-usage"],
+  "category-performance": ["category-ranking"],
+  "immersive-engagement": ["catalog-immersive-assets", "observed-immersive-intents", "observed-ar-intents", "3d-success", "ar-success"],
+  availability: ["catalog-dishes"],
+  conversion: ["funnel", "observed-menu-opens", "observed-dish-opens"],
+  "mobile-quality": ["catalog-photos", "mobile-performance", "asset-errors"]
+};
+
 type AssistantRuntimeEnvironment = Readonly<Record<string, string | undefined>>;
 
 export function isAdminAssistantRuntimeEnabled(
@@ -64,6 +86,30 @@ export function containsLikelyPersonalData(value: string): boolean {
 function normalizeQuestion(value: unknown): string {
   if (typeof value !== "string") return "";
   return value.replace(/\s+/g, " ").trim().slice(0, MAX_QUESTION_LENGTH);
+}
+
+export function classifyAdminAssistantIntent(question: string): AdminAssistantIntent {
+  const normalized = normalizeQuestion(question).normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase();
+  if (/\b(?:indisponib|disponib|rupture|stock|available|unavailable)\w*/.test(normalized)) return "availability";
+  if (/\b(?:recherch|search|filtr|sans resultat|no result)\w*/.test(normalized)) return "search-demand";
+  if (/\b(?:categor|categorie|category|categories)\w*/.test(normalized)) return "category-performance";
+  if (/\b(?:3d|ar|immers|realite augmentee|augmented reality)\w*/.test(normalized)) return "immersive-engagement";
+  if (/\b(?:conversion|funnel|choix final|final choice)\w*/.test(normalized)) return "conversion";
+  if (/\b(?:mobile|photo|asset|qualite|quality|chargement|loading)\w*/.test(normalized)) return "mobile-quality";
+  if (/\b(?:plat|plats|dish|dishes|consult|favori|favorite|populaire|popular)\w*/.test(normalized)) return "dish-performance";
+  if (/\b(?:menu|activit|session|service|ouverture|open|heure|hour|moment)\w*/.test(normalized)) return "menu-activity";
+  return "overview";
+}
+
+function projectEvidenceForIntent(bundle: AdminEvidenceBundle, intent: AdminAssistantIntent) {
+  const projection = projectEvidenceForAudience(bundle, "mistral");
+  if (intent === "overview") return projection;
+  const admitted = new Set<AdminMetricId>(INTENT_METRICS[intent]);
+  return {
+    records: Object.fromEntries(
+      Object.entries(projection.records).filter(([, record]) => admitted.has(record.metricId))
+    )
+  };
 }
 
 export function validateAdminAssistantRequest(input: unknown):
@@ -152,14 +198,13 @@ export async function getAdminAssistantAnswerWithDependencies(
     };
   }
 
+  const intent = input.mode === "question" ? classifyAdminAssistantIntent(question) : "overview";
   const claims = await dependencies.generateClaims({
     locale: input.locale,
-    question: input.locale === "fr"
-      ? "Sélectionne les claims pertinents parmi les signaux mesurés."
-      : "Select relevant claims from the measured signals.",
-    evidence: projectEvidenceForAudience(loaded.bundle, "mistral")
+    question: `intent:${intent}`,
+    evidence: projectEvidenceForIntent(loaded.bundle, intent)
   });
-  if (!claims) return { answer: fallback, status: "model-unavailable" };
+  if (!claims || claims.length === 0) return { answer: fallback, status: "model-unavailable" };
 
   try {
     return {

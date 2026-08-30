@@ -159,6 +159,8 @@ test("Today sections compose Foundation primitives and expose named regions", as
     assert.match(all, new RegExp(`data-today-region=["']${landmark}["']`));
   }
   assert.match(all, /InteractiveLineChart/);
+  assert.match(all, /Sparkline/);
+  assert.match(all, /<progress/);
   assert.match(all, /exactValues|points\.map/);
   assert.match(all, /aria-live=/);
   assert.match(sources[1], /todayStateLabel\(model\.locale, item\.state\)/);

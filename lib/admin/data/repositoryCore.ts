@@ -85,7 +85,7 @@ export function createProductionAdminRepositoryCore(execute: AdminRepositoryExec
         equals: common, order: [{ column: "display_order", ascending: true }, { column: "id", ascending: true }], limit: 1_001
       });
       const dishes = await run({
-        table: "menu_dishes", columns: "id,restaurant_id,menu_id,category_id,slug,name,available,image_url,model_3d_url,ar_model_3d_url,updated_at",
+        table: "menu_dishes", columns: "id,restaurant_id,menu_id,category_id,slug,name,is_available,image_url,has_immersive_view,metadata,updated_at",
         equals: common, order: [{ column: "id", ascending: true }], limit: 1_001
       });
       if (!categories.ok || !dishes.ok) return { ok: false as const, code: "query" as const, retryable: true };

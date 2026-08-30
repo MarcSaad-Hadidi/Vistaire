@@ -26,6 +26,25 @@ function bundle(states = {}) {
   });
 }
 
+function rankingBundle() {
+  return buildAdminEvidenceBundle({
+    scope, window, generatedAt: window.observedAt,
+    records: [
+      {
+        metricId: "dish-ranking",
+        definitionVersion: "admin-vnext-observed-v1",
+        labelKey: "metrics.dish-ranking",
+        period: "current",
+        state: { kind: "available", value: [
+          { key: "filet-rossini", count: 412, rank: 1 },
+          { key: "risotto-cepes", count: 243, rank: 2 }
+        ] },
+        provenance: {}, freshness: {}, sample: {}, privacy: { classification: "aggregate" }, audiences: ["ui", "mistral"]
+      }
+    ]
+  });
+}
+
 test("assistant claim catalog is closed and never accepts prose", () => {
   assert.deepEqual([...APPROVED_CLAIM_TYPES], ["metric-observation", "period-comparison", "rank-observation", "attention-observation"]);
   assert.equal(APPROVED_CLAIM_TYPES.includes("free-prose"), false);
@@ -47,6 +66,24 @@ test("comparison claim derives direction and delta from two admitted records", (
   const answer = renderAssistantClaims({ locale: "fr", bundle: evidence, claims: [{ claimType: "period-comparison", evidenceIds: records.map((record) => record.evidenceId) }] });
   assert.equal(answer.blocks[0].direction, "up");
   assert.equal(answer.blocks[0].delta, 192);
+});
+
+test("rank observation renders every valid ranking entry instead of a scalar insufficiency", () => {
+  const evidence = rankingBundle();
+  const ranking = Object.values(evidence.records)[0];
+  const answer = renderAssistantClaims({
+    locale: "fr",
+    bundle: evidence,
+    claims: [{ claimType: "rank-observation", evidenceIds: [ranking.evidenceId] }]
+  });
+
+  assert.equal(answer.blocks[0].kind, "ranking");
+  assert.equal(answer.blocks[0].label, "Classement des plats");
+  assert.deepEqual(answer.blocks[0].ranking, [
+    { label: "filet rossini", count: 412, rank: 1 },
+    { label: "risotto cepes", count: 243, rank: 2 }
+  ]);
+  assert.equal(Object.hasOwn(answer.blocks[0], "value"), false);
 });
 
 test("insufficient evidence renders absence without a fabricated value", () => {

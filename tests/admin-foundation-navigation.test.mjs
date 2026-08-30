@@ -4,7 +4,7 @@ import test from "node:test";
 
 const read = (path) => readFile(new URL(`../${path}`, import.meta.url), "utf8");
 
-test("admin navigation consumes one five-route contract in desktop and mobile variants", async () => {
+test("admin navigation consumes one five-route contract in a desktop rail and mobile bar", async () => {
   const [nav, icons, css] = await Promise.all([
     read("components/admin/system/AdminNav.tsx"),
     read("components/admin/system/AdminIcons.tsx"),
@@ -13,7 +13,7 @@ test("admin navigation consumes one five-route contract in desktop and mobile va
 
   assert.equal((nav.match(/from ["']@\/lib\/admin\/foundationRoutes["']/g) ?? []).length, 1);
   assert.match(nav, /export type AdminNavProps\s*=\s*\{[\s\S]*active:\s*AdminRouteId;[\s\S]*locale:\s*AdminLocale;[\s\S]*variant:\s*["']desktop["']\s*\|\s*["']mobile["']/);
-  assert.match(nav, /ADMIN_ROUTES\.map\s*\(/);
+  assert.match(nav, /ADMIN_ROUTES\.flatMap\s*\(/);
   assert.match(nav, /data-admin-nav=\{variant\}/);
   assert.match(nav, /data-route-availability=\{route\.availability\}/);
   assert.match(nav, /prefetch=\{route\.availability === ["']integrated["'] \? undefined : false\}/);
@@ -21,7 +21,9 @@ test("admin navigation consumes one five-route contract in desktop and mobile va
   assert.match(nav, /styles\.mobileNav/);
   assert.match(icons, /export function ReportsIcon\b/);
   assert.match(icons, /export function MoreIcon\b/);
-  assert.match(css, /\.desktopNav\s*\{[^}]*grid-template-columns:\s*repeat\(5,/s);
+  assert.match(css, /\.sidebar\s*\{[^}]*width:\s*183px/s);
+  assert.match(css, /\.desktopNav\s*\{[^}]*display:\s*grid/s);
+  assert.match(nav, /href="\/admin\/more#quality"/);
   assert.match(css, /\.mobileNav\s*\{[^}]*grid-template-columns:\s*repeat\(5,/s);
   assert.match(css, /\.mobileNav a\s*\{[^}]*min-height:\s*(?:44|5\d)px/s);
   assert.doesNotMatch(css, /overflow-x:\s*auto/);

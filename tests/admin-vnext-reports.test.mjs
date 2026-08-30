@@ -149,7 +149,7 @@ test("reports route validates access and composes the v2 evidence model", async 
   assert.match(page, /<AdminShell[\s\S]*activeRoute=["']reports["']/);
   assert.match(page, /restaurantName=\{dataResult\.presentation\.restaurantName\}/);
   assert.match(page, /menuPath=\{dataResult\.presentation\.publicMenuPath\}/);
-  assert.match(page, /pageTitle=\{preferences\.locale === ["']fr["'] \? ["']Bilan du service["']/);
+  assert.match(page, /pageTitle=\{`\$\{preferences\.locale === ["']fr["'] \? ["']Bilan du service["'][\s\S]*\$\{serviceLabel\}`\}/);
   assert.doesNotMatch(page, /loadAdminDashboardData|legacyRange|identityResult/);
   assert.doesNotMatch(page, /getSupabase|createClient|\.from\(/);
   const searchParamContract = page.match(/type ReportsSearchParams\s*=\s*\{[^}]+\}/)?.[0] ?? "";
@@ -170,6 +170,8 @@ test("reports page exposes named evidence regions and responsive print-safe stru
   for (const label of ["points clés", "chronologie", "top plats", "recherches", "fiabilité"]) {
     assert.match(page, new RegExp(label, "i"));
   }
+  assert.match(page, /Ce qui a changé/);
+  assert.match(page, /Résumé Vistaire/);
   assert.doesNotMatch(page, /<h1\b/);
   assert.match(css, /@media\s*\(max-width:\s*430px\)/);
   assert.match(css, /@media\s+print/);
@@ -179,9 +181,9 @@ test("reports page exposes named evidence regions and responsive print-safe stru
 });
 
 test("report actions stay local, accessible and degrade without browser APIs", async () => {
-  const [actions, page] = await Promise.all([
+  const [actions, route] = await Promise.all([
     readFile(new URL("../components/admin/reports/ReportActions.tsx", import.meta.url), "utf8"),
-    readFile(new URL("../components/admin/reports/AdminReportsPage.tsx", import.meta.url), "utf8")
+    readFile(new URL("../app/(fr)/admin/reports/page.tsx", import.meta.url), "utf8")
   ]);
   assert.match(actions, /^[\s\S]*["']use client["']/);
   assert.match(actions, /href=\{exportHref\}/);
@@ -191,7 +193,7 @@ test("report actions stay local, accessible and degrade without browser APIs", a
   assert.match(actions, /navigator\.clipboard\.writeText\(window\.location\.href\)/);
   assert.match(actions, /aria-live=["']polite["']/);
   assert.doesNotMatch(actions, /fetch\(|https?:\/\/|report\s*:/i);
-  assert.match(page, /<ReportActions\b/);
+  assert.match(route, /headerActions=\{<ReportActions\b/);
 });
 
 test("Reports Playwright proof is hermetic, assertion-bearing and unskipped", async () => {

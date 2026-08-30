@@ -87,3 +87,19 @@ test("menu selection is published-primary and deterministic", async () => {
   ] }));
   assert.equal((await repository.readMenu({ restaurantId: "r1" })).menu.id, "published");
 });
+
+test("catalog reads the canonical availability column for the scoped menu", async () => {
+  const requests = [];
+  const repository = createProductionAdminRepositoryCore(async (request) => {
+    requests.push(request);
+    return { rows: [] };
+  });
+  await repository.readCatalog(scope);
+  assert.equal(requests[1].table, "menu_dishes");
+  assert.match(requests[1].columns, /(?:^|,)is_available(?:,|$)/);
+  assert.match(requests[1].columns, /(?:^|,)has_immersive_view(?:,|$)/);
+  assert.match(requests[1].columns, /(?:^|,)metadata(?:,|$)/);
+  assert.doesNotMatch(requests[1].columns, /(?:^|,)available(?:,|$)/);
+  assert.doesNotMatch(requests[1].columns, /model_3d_url|ar_model_3d_url/);
+  assert.deepEqual(requests[1].equals, { restaurant_id: "r1", menu_id: "m1" });
+});

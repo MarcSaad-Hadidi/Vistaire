@@ -37,9 +37,9 @@ export function ReportActions({ locale, range, service }: { locale: "fr" | "en";
   }
 
   return <div className={styles.actions} data-report-print-hidden>
+    <button onClick={shareReport} type="button" aria-label={fr ? "Partager le lien privé" : "Share private link"}>{fr ? "Partager le bilan" : "Share report"}</button>
     <Link className={styles.actionPrimary} download href={exportHref}>{fr ? "Exporter le CSV" : "Export CSV"}</Link>
     <button onClick={printReport} type="button" aria-label={fr ? "Imprimer le rapport" : "Print report"}>{fr ? "Imprimer" : "Print"}</button>
-    <button onClick={shareReport} type="button" aria-label={fr ? "Partager le lien privé" : "Share private link"}>{fr ? "Partager" : "Share"}</button>
     <span className={styles.actionMessage} aria-live="polite">{message}</span>
   </div>;
 }

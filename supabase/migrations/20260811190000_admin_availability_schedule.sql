@@ -136,24 +136,33 @@ $$;
 
 create or replace function public.run_due_admin_dish_availability(p_worker_id text, p_batch_size integer default 25)
 returns integer language plpgsql security definer set search_path = '' as $$
-declare v_job public.admin_dish_availability_schedules; v_previous boolean; v_count integer := 0;
+declare v_job public.admin_dish_availability_schedules; v_previous boolean; v_count integer := 0; v_had_failure boolean := false;
 begin
   if p_worker_id <> 'primary' then raise exception 'invalid worker'; end if;
   if not pg_try_advisory_xact_lock(hashtext('admin-availability-worker')) then return 0; end if;
   for v_job in select * from public.admin_dish_availability_schedules where status='pending' and scheduled_for <= now() order by scheduled_for,id for update skip locked limit greatest(1,least(p_batch_size,100)) loop
     begin
+      perform 1 from public.restaurants r where r.id=v_job.restaurant_id;
+      if not found then raise exception 'worker restaurant scope mismatch'; end if;
+      perform 1 from public.qr_codes q where q.id=v_job.requester_qr_id and q.restaurant_id=v_job.restaurant_id and q.status='active' and q.target_kind='admin' and q.target_path='/admin' for update;
+      if not found then raise exception 'worker authorization revoked'; end if;
+      perform 1 from public.menus m where m.id=v_job.menu_id and m.restaurant_id=v_job.restaurant_id and m.status='published' for update;
+      if not found then raise exception 'worker menu scope mismatch'; end if;
       select is_available into strict v_previous from public.menu_dishes where id=v_job.dish_id and restaurant_id=v_job.restaurant_id and menu_id=v_job.menu_id for update;
       update public.menu_dishes set is_available=v_job.final_available,updated_at=now() where id=v_job.dish_id and restaurant_id=v_job.restaurant_id and menu_id=v_job.menu_id;
       insert into public.admin_dish_availability_events(restaurant_id,menu_id,dish_id,previous_available,final_available,actor_kind,requester_qr_id,schedule_id) values(v_job.restaurant_id,v_job.menu_id,v_job.dish_id,v_previous,v_job.final_available,'schedule_worker',v_job.requester_qr_id,v_job.id);
       update public.admin_dish_availability_schedules set status='applied',attempts=attempts+1,applied_at=now(),error_at=null where id=v_job.id;
       v_count := v_count + 1;
     exception when others then
+      v_had_failure := true;
       update public.admin_dish_availability_schedules
       set attempts=attempts+1,error_at=now(),status=case when attempts+1 >= 3 then 'failed' else 'pending' end
       where id=v_job.id;
     end;
   end loop;
-  update public.admin_availability_workers set last_success_at=now() where worker_id=p_worker_id;
+  if not v_had_failure then
+    update public.admin_availability_workers set last_success_at=now() where worker_id=p_worker_id;
+  end if;
   return v_count;
 end;
 $$;

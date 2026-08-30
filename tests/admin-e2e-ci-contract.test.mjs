@@ -410,8 +410,9 @@ test("full-menu admin image coverage has a dedicated non-skipping cross-browser 
   assert.match(sharedRunner, /Admin E2E teardown left a fixture or app listener running/);
   assert.match(workflow, /Admin dish image browser suite \(Chromium\)[\s\S]*VISTAIRE_ADMIN_FULL_MENU_PROJECT: chromium[\s\S]*npm run test:admin:full-menu/);
   assert.match(workflow, /Admin dish image browser suite \(WebKit\)[\s\S]*VISTAIRE_ADMIN_FULL_MENU_PROJECT: webkit[\s\S]*npm run test:admin:full-menu/);
-  assert.match(spec, /toHaveCount\(12\)/);
-  assert.match(spec, /data-available="false"/);
+  assert.match(spec, /forEachAvailabilityPage/);
+  assert.match(spec, /toHaveLength\(12\)/);
+  assert.match(spec, /some\(\(\{ available \}\) => available === "false"\)/);
 });
 
 test("default E2E isolates fixture-only admin specs", async () => {

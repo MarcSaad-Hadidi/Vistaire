@@ -119,6 +119,14 @@ function findUiEvidence(
 }
 
 function numericCount(value: unknown): number | null {
+  if (Array.isArray(value)) {
+    const counts = value.map((item) => item && typeof item === "object" && !Array.isArray(item)
+      ? (item as { count?: unknown }).count
+      : null);
+    return counts.length > 0 && counts.every((count): count is number => typeof count === "number" && Number.isFinite(count))
+      ? counts.reduce((sum, count) => sum + count, 0)
+      : null;
+  }
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
   const count = (value as { count?: unknown }).count;
   return typeof count === "number" && Number.isFinite(count) ? count : null;

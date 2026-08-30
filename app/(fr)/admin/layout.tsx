@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { headers } from "next/headers";
 import styles from "@/components/admin/system/AdminSystem.module.css";
-import { AdminPreferencesControls } from "@/components/admin/system/AdminPreferencesControls";
 import { readAdminPreferencesFromHeaders } from "@/lib/admin/preferences";
 
 export const metadata: Metadata = {
@@ -19,7 +18,6 @@ export default async function AdminLayout({ children }: { children: React.ReactN
       data-admin-theme={preferences.theme}
       lang={preferences.locale === "fr" ? "fr-CA" : "en-CA"}
     >
-      <AdminPreferencesControls preferences={preferences} />
       {children}
     </div>
   );

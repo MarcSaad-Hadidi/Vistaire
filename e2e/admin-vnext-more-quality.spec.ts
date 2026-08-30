@@ -14,7 +14,8 @@ async function installLocalNetworkGuard(page: Page) {
   });
   await page.routeWebSocket("**/*", async (webSocketRoute) => {
     const target = new URL(webSocketRoute.url());
-    if (target.origin !== appOrigin) {
+    const targetOrigin = target.origin.replace(/^ws/, "http");
+    if (targetOrigin !== appOrigin) {
       await webSocketRoute.close({ code: 1008, reason: "Non-local connection blocked" });
       throw new Error(`Quality blocked a non-local WebSocket to ${target.protocol}//blocked.invalid`);
     }
@@ -31,6 +32,17 @@ async function enterQuality(page: Page) {
   }
   await page.goto("/admin/more", { waitUntil: "networkidle" });
   await expect(page.getByRole("heading", { name: "Centre de qualité Vistaire", exact: true })).toBeVisible();
+}
+
+async function openDisplayPreferences(page: Page) {
+  const summaries = page.locator('summary[aria-label="Préférences d’affichage"], summary[aria-label="Display preferences"]');
+  for (let index = 0; index < await summaries.count(); index += 1) {
+    if (await summaries.nth(index).isVisible()) {
+      await summaries.nth(index).click();
+      return;
+    }
+  }
+  throw new Error("Visible display preferences disclosure not found.");
 }
 
 test.beforeEach(async ({ page }) => {
@@ -74,9 +86,11 @@ test("quality center stays accessible in both locales, themes and target viewpor
   const support = page.getByRole("link", { name: "Contacter Vistaire" });
   await support.focus();
   await expect(support).toBeFocused();
+  await openDisplayPreferences(page);
   await page.getByRole("button", { name: "English" }).click();
   await expect(page.getByRole("heading", { name: "Vistaire quality center", exact: true })).toBeVisible();
   await expect(page.getByText("Not measured", { exact: true })).toHaveCount(4);
+  await openDisplayPreferences(page);
   await page.getByRole("button", { name: "Dark" }).click();
   await expect(page.locator('[data-admin-theme="dark"]')).toBeVisible();
 });
