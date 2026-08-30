@@ -109,6 +109,136 @@ function creationClient({
   };
 }
 
+function fallbackLifecycleClient(entries, events) {
+  const queues = new Map(
+    Object.entries(entries).map(([table, values]) => [table, [...values]])
+  );
+
+  return {
+    from(table) {
+      const entry = queues.get(table)?.shift();
+      assert.ok(entry, `Unexpected fallback creation query for ${table}`);
+      const builder = {
+        insert() {
+          return builder;
+        },
+        update() {
+          return builder;
+        },
+        select() {
+          return builder;
+        },
+        eq() {
+          return builder;
+        },
+        async single() {
+          events.push(entry.event);
+          return entry.result;
+        },
+        then(resolve, reject) {
+          events.push(entry.event);
+          return Promise.resolve(entry.result).then(resolve, reject);
+        }
+      };
+      return builder;
+    }
+  };
+}
+
+function fallbackLifecycleDependencies(events, dishError = null) {
+  return {
+    admin: {
+      ok: true,
+      client: fallbackLifecycleClient(
+        {
+          restaurants: [
+            {
+              event: "commit:restaurant",
+              result: {
+                data: {
+                  id: persistedId,
+                  name: "Le Comptoir d'ete",
+                  slug: "le-comptoir-d-ete",
+                  status: "setup_needed",
+                  contact_email: "camille@example.com"
+                },
+                error: null
+              }
+            },
+            {
+              event: "commit:restaurant-metadata",
+              result: { data: null, error: null }
+            }
+          ],
+          menus: [
+            {
+              event: "commit:menu",
+              result: {
+                data: {
+                  id: "22222222-3333-4444-8555-666666666666",
+                  restaurant_id: persistedId,
+                  status: "published"
+                },
+                error: null
+              }
+            }
+          ],
+          menu_ui_configs: [
+            {
+              event: "commit:ui-draft",
+              result: { data: { id: "ui-draft" }, error: null }
+            }
+          ],
+          menu_dishes: [
+            {
+              event: dishError ? "fail:dishes" : "commit:dishes",
+              result: { data: null, error: dishError }
+            }
+          ]
+        },
+        events
+      )
+    },
+    getColumns: async (table) => {
+      if (table === "restaurants") {
+        return new Set([
+          "name",
+          "slug",
+          "status",
+          "contact_email",
+          "media_base_path"
+        ]);
+      }
+      if (table === "menus") {
+        return new Set([
+          "restaurant_id",
+          "name",
+          "slug",
+          "status",
+          "is_primary",
+          "settings_json"
+        ]);
+      }
+      if (table === "menu_ui_configs") {
+        return new Set(["restaurant_id", "theme", "config_json", "status"]);
+      }
+      return new Set([
+        "restaurant_id",
+        "restaurant_slug",
+        "name",
+        "description",
+        "category_name",
+        "price",
+        "available",
+        "sort_order"
+      ]);
+    },
+    onPublicCommit: async (commit) => {
+      events.push(`invalidate:${commit.kind}`);
+    }
+  };
+}
+
 test("validates restaurant creation input with normalized slug and setup fallback", () => {
   const result = validateCreateRestaurantInput({
     ...validInput,
@@ -676,8 +806,77 @@ test("restaurant creation reports menu dish persistence warnings without faking 
   assert.match(result.warnings.join("\n"), /plats n'ont pas pu etre persistes/i);
 });
 
+test("fallback creation invalidates every public partial commit but not its draft UI insert", async () => {
+  const events = [];
+  const result = await createRestaurantRecord(
+    {
+      ...validInput,
+      sections: [{ name: "Plats", description: "", order: 1 }],
+      dishes: [
+        {
+          name: "Bar de ligne",
+          section: "Plats",
+          price: 34,
+          description: "Fenouil confit.",
+          available: true,
+          photoStatus: "planned"
+        }
+      ]
+    },
+    fallbackLifecycleDependencies(events)
+  );
+
+  assert.equal(result.ok, true);
+  assert.deepEqual(events, [
+    "commit:restaurant",
+    "invalidate:restaurant",
+    "commit:restaurant-metadata",
+    "invalidate:restaurant-metadata",
+    "commit:menu",
+    "invalidate:menu",
+    "commit:ui-draft",
+    "commit:dishes",
+    "invalidate:dishes"
+  ]);
+});
+
+test("fallback creation keeps earlier invalidations when its later dish write fails", async () => {
+  const events = [];
+  const result = await createRestaurantRecord(
+    {
+      ...validInput,
+      sections: [{ name: "Plats", description: "", order: 1 }],
+      dishes: [
+        {
+          name: "Bar de ligne",
+          section: "Plats",
+          price: 34,
+          description: "Fenouil confit.",
+          available: true,
+          photoStatus: "planned"
+        }
+      ]
+    },
+    fallbackLifecycleDependencies(events, { message: "dish insert failed" })
+  );
+
+  assert.equal(result.ok, true);
+  assert.equal(result.dishesPersisted, false);
+  assert.deepEqual(events, [
+    "commit:restaurant",
+    "invalidate:restaurant",
+    "commit:restaurant-metadata",
+    "invalidate:restaurant-metadata",
+    "commit:menu",
+    "invalidate:menu",
+    "commit:ui-draft",
+    "fail:dishes"
+  ]);
+});
+
 test("restaurant POST route is guarded and exposes persistence metadata", async () => {
   const source = await readFile("app/api/restaurants/route.ts", "utf8");
+  const dataSource = await readFile("lib/owner/data.ts", "utf8");
 
   assert.match(source, /requireVistaireOwnerApi/);
   assert.match(source, /requireSameOriginOwnerMutation\(request\)/);
@@ -692,6 +891,9 @@ test("restaurant POST route is guarded and exposes persistence metadata", async 
   assert.match(source, /qrCodesHref: created\.qrCodesHref/);
   assert.match(source, /warnings: created\.warnings/);
   assert.match(source, /status: created\.status/);
+  assert.match(dataSource, /createRestaurantLifecyclePublicCommitHook/);
+  assert.match(dataSource, /invalidateCommittedPublicMutation/);
+  assert.match(dataSource, /onPublicCommit: invalidateRestaurantLifecyclePublicCommit/);
 });
 
 test("restaurant creation wizard lets owners choose menu languages locally", async () => {
@@ -757,7 +959,7 @@ test("restaurant creation wizard keeps structure before dishes and style after d
 
 test("restaurant creation wizard keeps price decimals and targeted post-create links", async () => {
   const form = await readFile("components/owner/RestaurantCreateForm.tsx", "utf8");
-  const page = await readFile("app/owner/restaurants/create/page.tsx", "utf8");
+  const page = await readFile("app/(fr)/owner/restaurants/create/page.tsx", "utf8");
   const formatted = new Intl.NumberFormat("fr-CA", {
     style: "currency",
     currency: "CAD",

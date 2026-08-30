@@ -9,10 +9,12 @@ import type {
   ArFallbackReason,
   DishModelViewerProps
 } from "@/components/dish/DishModelViewer";
-import { getPublicMenuAnalyticsContext } from "@/lib/analytics/client";
+import {
+  getPublicMenuAnalyticsContext,
+  type PublicMenuAnalyticsContext
+} from "@/lib/analytics/client";
 import type { ArHandoffPlatform } from "@/lib/menu/arBrowserHandoff";
 import type {
-  GoogleReviewCta,
   PublicMenu,
   PublicMenuDish
 } from "@/lib/menu/publicMenuCore";
@@ -37,6 +39,7 @@ type TrouvableImmersivePanelBodyProps = {
   manualDishUrlId: string;
   manualDishUrlRef: RefObject<HTMLInputElement | null>;
   menu: PublicMenu;
+  analyticsContext?: PublicMenuAnalyticsContext;
   modelControlsId: string;
   modelViewerComponent: DishModelViewerComponent | null;
   modelViewerLoadFailed: boolean;
@@ -46,22 +49,8 @@ type TrouvableImmersivePanelBodyProps = {
   onReturnToDish: () => void;
   onSelectManualDishUrl: () => void;
   showArBrowserHelp: boolean;
-};
-
-type TrouvableDishReviewPanelBodyProps = {
-  copy: TrouvableCopy;
-  dish: PublicMenuDish | null;
-  fallbackInitial: string;
-  googleReviewCta: GoogleReviewCta | null;
-  onPostReview: () => void;
-  onRatingChange: (rating: number) => void;
-  onReviewTextChange: (value: string) => void;
-  placeholder: string;
-  rating: number;
-  starsLabel: string;
-  text: string;
-  title: string;
-  titleId: string;
+  showArDeviceHelp?: boolean;
+  showArAssetHelp?: boolean;
 };
 
 type TrouvableDishDetailSurfaceProps = {
@@ -80,7 +69,6 @@ type TrouvableDishDetailSurfaceProps = {
   modelExpanded: boolean;
   onClose?: () => void;
   onOpenDetails: () => void;
-  onOpenReview: () => void;
   onToggleModel: () => void;
   price: string;
   secondaryEyebrow?: string;
@@ -135,6 +123,7 @@ export function TrouvableImmersivePanelBody({
   manualDishUrlId,
   manualDishUrlRef,
   menu,
+  analyticsContext,
   modelControlsId,
   modelViewerComponent: ModelViewerComponent,
   modelViewerLoadFailed,
@@ -143,9 +132,16 @@ export function TrouvableImmersivePanelBody({
   onCopyDishUrl,
   onReturnToDish,
   onSelectManualDishUrl,
-  showArBrowserHelp
+  showArBrowserHelp,
+  showArDeviceHelp = false,
+  showArAssetHelp = false
 }: TrouvableImmersivePanelBodyProps) {
   const platformCopy = copy.arBrowserFallback[arHandoffPlatform];
+  const deviceCopy = copy.arBrowserFallback.device;
+  const assetCopy = {
+    title: copy.modelViewer.arAssetUnavailableTitle,
+    body: copy.modelViewer.arAssetUnavailableBody
+  };
 
   return (
     <>
@@ -157,7 +153,7 @@ export function TrouvableImmersivePanelBody({
         {ModelViewerComponent ? (
           <ModelViewerComponent
             dish={modelViewerDishFromPublicDish(dish)}
-            analyticsContext={getPublicMenuAnalyticsContext(menu) ?? undefined}
+            analyticsContext={analyticsContext ?? getPublicMenuAnalyticsContext(menu) ?? undefined}
             minimalChrome
             quietChrome
             copy={{
@@ -168,6 +164,7 @@ export function TrouvableImmersivePanelBody({
             onReturnToDish={onReturnToDish}
             onArFallbackNeeded={onArFallbackNeeded}
             onArFallbackCleared={onArFallbackCleared}
+            fallbackPresentation="external"
           />
         ) : modelViewerLoadFailed ? (
           <div className={styles.modelLoading} role="status">
@@ -179,10 +176,50 @@ export function TrouvableImmersivePanelBody({
           </div>
         )}
       </div>
+      {showArAssetHelp ? (
+        <aside
+          className={styles.arBrowserFallback}
+          aria-labelledby={`${fallbackTitleId}-asset`}
+          data-ar-experience="asset-unavailable"
+          role="status"
+          aria-live="polite"
+          dir="auto"
+        >
+          <span className={styles.arBrowserFallbackIcon} aria-hidden="true">
+            <BrowserHandoffIcon />
+          </span>
+          <div className={styles.arBrowserFallbackContent}>
+            <h3 id={`${fallbackTitleId}-asset`}>{assetCopy.title}</h3>
+            <p>{assetCopy.body}</p>
+          </div>
+        </aside>
+      ) : null}
+      {showArDeviceHelp ? (
+        <aside
+          className={styles.arBrowserFallback}
+          aria-labelledby={`${fallbackTitleId}-device`}
+          data-ar-experience="unsupported-device"
+          role="alert"
+          aria-live="assertive"
+          dir="auto"
+        >
+          <span className={styles.arBrowserFallbackIcon} aria-hidden="true">
+            <BrowserHandoffIcon />
+          </span>
+          <div className={styles.arBrowserFallbackContent}>
+            <h3 id={`${fallbackTitleId}-device`}>{deviceCopy.title}</h3>
+            <p>{deviceCopy.body}</p>
+          </div>
+        </aside>
+      ) : null}
       {showArBrowserHelp ? (
         <aside
           className={styles.arBrowserFallback}
           aria-labelledby={fallbackTitleId}
+          data-ar-experience="handoff"
+          data-ar-recommended-browser={arHandoffPlatform === "other" ? undefined : arHandoffPlatform === "ios" ? "safari" : "chrome"}
+          role="status"
+          aria-live="polite"
           dir="auto"
         >
           <span className={styles.arBrowserFallbackIcon} aria-hidden="true">
@@ -241,79 +278,6 @@ export function TrouvableImmersivePanelBody({
   );
 }
 
-export function TrouvableDishReviewPanelBody({
-  copy,
-  dish,
-  fallbackInitial,
-  googleReviewCta,
-  onPostReview,
-  onRatingChange,
-  onReviewTextChange,
-  placeholder,
-  rating,
-  starsLabel,
-  text,
-  title,
-  titleId
-}: TrouvableDishReviewPanelBodyProps) {
-  return (
-    <>
-      <div className={styles.reviewDishGhost} aria-hidden="true">
-        {dish?.imageUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img alt="" src={dish.imageUrl} />
-        ) : (
-          <span>{dish ? dish.name.slice(0, 1) : fallbackInitial}</span>
-        )}
-      </div>
-      <div className={styles.reviewPanel}>
-        <h2 id={titleId}>{title}</h2>
-        <div className={styles.reviewStars} aria-label={starsLabel}>
-          {[1, 2, 3, 4, 5].map((nextRating) => (
-            <button
-              key={nextRating}
-              type="button"
-              aria-label={`${nextRating} ${starsLabel}`}
-              aria-pressed={rating >= nextRating}
-              onClick={() => onRatingChange(nextRating)}
-            >
-              ★
-            </button>
-          ))}
-        </div>
-        <label className={styles.reviewTextarea}>
-          <span>{copy.reviewComment}</span>
-          <textarea
-            maxLength={300}
-            placeholder={placeholder}
-            value={text}
-            onChange={(event) => onReviewTextChange(event.target.value)}
-          />
-        </label>
-        {googleReviewCta ? (
-          <a
-            className={styles.reviewPostButton}
-            data-google-review-action="true"
-            href={googleReviewCta.href}
-            target="_blank"
-            rel="noopener noreferrer"
-            onClick={onPostReview}
-          >
-            {copy.reviewPost}
-          </a>
-        ) : (
-          <button className={styles.reviewPostButton} type="button" disabled>
-            {copy.reviewPost}
-          </button>
-        )}
-        {!googleReviewCta ? (
-          <p className={styles.reviewNote}>{copy.reviewMissing}</p>
-        ) : null}
-      </div>
-    </>
-  );
-}
-
 export function TrouvableDishDetailSurface({
   actionContent,
   children,
@@ -330,7 +294,6 @@ export function TrouvableDishDetailSurface({
   modelExpanded,
   onClose,
   onOpenDetails,
-  onOpenReview,
   onToggleModel,
   price,
   secondaryEyebrow,
@@ -417,15 +380,6 @@ export function TrouvableDishDetailSurface({
           <p className={styles.modelUnavailable}>{copy.immersiveUnavailable}</p>
         ) : null}
         {children}
-        <button
-          type="button"
-          className={styles.reviewTrigger}
-          aria-haspopup="dialog"
-          onClick={onOpenReview}
-        >
-          <span aria-hidden="true">★</span>
-          {copy.review}
-        </button>
       </div>
     </>
   );

@@ -60,8 +60,9 @@ function createFixture({
     },
     async createSignedUrl(storagePath, expiresIn) {
       calls.signed.push({ storagePath, expiresIn });
+      const effectiveError = signError || (objectExists ? null : { status: 404, message: "Object not found" });
       return {
-        data: signError
+        data: effectiveError
           ? null
           : {
               signedUrl:
@@ -69,7 +70,7 @@ function createFixture({
                   ? signedUrl("vistaire-media", storagePath)
                   : signedUrlOverride
             },
-        error: signError
+        error: effectiveError
       };
     }
   };
@@ -176,7 +177,7 @@ test("authorized admin GET and HEAD redirect available and unavailable photos", 
         "private, no-store"
       );
       assert.deepEqual(fixture.calls.signed, [
-        { storagePath: PHOTO_PATH, expiresIn: 600 }
+        { storagePath: PHOTO_PATH, expiresIn: 300 }
       ]);
       assert.deepEqual(fixture.calls.storageFrom, ["vistaire-media"]);
       assert.ok(fixture.calls.eq.some(([column, value]) => column === "restaurant_id" && value === RESTAURANT_ID));
@@ -198,7 +199,7 @@ test("authorized admin keeps legacy photos working without a SHA version", async
   assert.equal(response.status, 307);
   assert.equal(response.headers.get("cache-control"), "private, no-store");
   assert.deepEqual(fixture.calls.signed, [
-    { storagePath: PHOTO_PATH, expiresIn: 600 }
+    { storagePath: PHOTO_PATH, expiresIn: 300 }
   ]);
 });
 
@@ -280,7 +281,7 @@ test("admin route rejects stale, malformed, missing, or unsafe photo assets", as
 
 test("admin route maps Storage outages, missing objects, and bad origins safely", async () => {
   process.env.NEXT_PUBLIC_SUPABASE_URL = SUPABASE_ORIGIN;
-  const unavailable = createFixture({ infoError: { status: 500 } });
+  const unavailable = createFixture({ signError: { status: 500 } });
   installFixture(unavailable);
   await assertError(
     await invoke(adminRoute, "GET", `/admin/api/menu-dishes/${DISH_ID}/photo?v=${PHOTO_SHA256}`),
@@ -328,10 +329,17 @@ test("admin photo URL boundary rewrites only canonical public photo routes", asy
     `/admin/api/menu-dishes/${DISH_ID}/photo?v=${PHOTO_SHA256}`
   );
   assert.equal(
+    buildAdminDishPhotoPath(DISH_ID, {
+      assetVersion: PHOTO_SHA256,
+      variant: "card"
+    }),
+    `/admin/api/menu-dishes/${DISH_ID}/photo?v=${PHOTO_SHA256}&variant=card`
+  );
+  assert.equal(
     buildAdminDishPhotoUrl(
       `/api/public/menu-dishes/${DISH_ID}/photo?v=${PHOTO_SHA256}`
     ),
-    `/admin/api/menu-dishes/${DISH_ID}/photo?v=${PHOTO_SHA256}`
+    `/admin/api/menu-dishes/${DISH_ID}/photo?v=${PHOTO_SHA256}&variant=thumbnail`
   );
   assert.equal(
     isAdminDishPhotoUrl(

@@ -322,7 +322,7 @@ test("public unique welcome copy has no technical pending language", async () =>
 test("owner unique-ui route and CTA exist", async () => {
   const page = await readFile(
     new URL(
-      "../app/owner/restaurants/[restaurantId]/unique-ui/page.tsx",
+      "../app/(fr)/owner/restaurants/[restaurantId]/unique-ui/page.tsx",
       import.meta.url
     ),
     "utf8"

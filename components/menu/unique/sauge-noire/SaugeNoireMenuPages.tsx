@@ -9,6 +9,7 @@ import {
 import type { Locale } from "@/lib/i18n";
 import {
   buildPublicDishPath,
+  getPublicDishImageUrl,
   getPublicMenuCategoryGroups,
   getVisiblePublicMenuCategories,
   type PublicMenu,
@@ -372,7 +373,7 @@ export function SectionPage({
       {sectionNumber === 1 ? <SaugeNoireBotanical variant="sprig" className={styles.sectionBotanical} /> : null}
       {sectionNumber === 7 ? <SaugeNoireBotanical variant="sansAlcoolBranch" className={styles.sectionBotanical} /> : null}
       {featured ? (
-        <DishFeatureCard
+        <SaugeNoireDishFeatureCard
           menu={menu}
           dish={featured}
           locale={locale}
@@ -389,7 +390,7 @@ export function SectionPage({
       ) : null}
       <div className={styles.dishList}>
         {remainingDishes.map((dish) => (
-          <DishRow
+          <SaugeNoireDishRow
             key={dish.id}
             menu={menu}
             dish={dish}
@@ -417,7 +418,7 @@ export function SectionPage({
   );
 }
 
-function DishFeatureCard({
+export function SaugeNoireDishFeatureCard({
   menu,
   dish,
   locale,
@@ -504,7 +505,7 @@ function DishFeatureCard({
   );
 }
 
-function DishRow({
+export function SaugeNoireDishRow({
   menu,
   dish,
   locale,
@@ -625,15 +626,22 @@ function threeDLabel(locale: Locale): string {
 
 function PhotoSlot({ dish, large = false }: { dish: PublicMenuDish; large?: boolean }) {
   const isPhysicalPageMedia = useSaugeNoirePhysicalPageMedia();
+  // Feature cards and rows are list surfaces; keep the detail-only display
+  // derivative out of the initial menu payload. The detail route owns the
+  // full-size image separately.
+  const cardImageUrl = getPublicDishImageUrl(
+    dish,
+    large ? "card" : "thumbnail"
+  );
   return (
     <span className={`${styles.photoSlot} ${large ? styles.photoSlotLarge : ""}`} data-photo-slot={dish.slug}>
-      {dish.imageUrl ? (
+      {cardImageUrl ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img
-          key={`${dish.imageUrl}:${isPhysicalPageMedia ? "physical" : "canonical"}`}
-          src={isPhysicalPageMedia ? undefined : dish.imageUrl}
+          key={`${cardImageUrl}:${isPhysicalPageMedia ? "physical" : "canonical"}`}
+          src={isPhysicalPageMedia ? undefined : cardImageUrl}
           data-sauge-deferred-src={
-            isPhysicalPageMedia ? dish.imageUrl : undefined
+            isPhysicalPageMedia ? cardImageUrl : undefined
           }
           alt=""
           loading={isPhysicalPageMedia ? "lazy" : large ? "eager" : "lazy"}

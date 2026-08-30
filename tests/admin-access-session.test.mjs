@@ -154,7 +154,7 @@ test("admin access tokens fail closed for weak secrets and malformed identity", 
 test("admin authorization derives restaurant scope from the cookie only", async () => {
   const access = await readFile("lib/admin/access.ts", "utf8");
   const accessCore = await readFile("lib/admin/accessCore.ts", "utf8");
-  const adminPage = await readFile("app/admin/page.tsx", "utf8");
+  const adminPage = await readFile("app/(fr)/admin/page.tsx", "utf8");
 
   assert.match(access, /ADMIN_ACCESS_COOKIE_NAME/);
   assert.match(access, /VISTAIRE_ADMIN_SESSION_SECRET/);

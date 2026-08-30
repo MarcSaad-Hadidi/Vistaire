@@ -1,8 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
-import {
-  getDemoRestaurantId,
-  getRestaurantInsights
-} from "@/lib/analytics/insights";
+import { getRestaurantInsights } from "@/lib/analytics/insights";
+import { getDemoRestaurantId } from "@/lib/maisonElyseIdentity";
 import { requireVistaireOwnerApi } from "@/lib/auth/ownerApi";
 
 export const runtime = "nodejs";

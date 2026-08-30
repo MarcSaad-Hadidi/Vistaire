@@ -5,7 +5,6 @@ import Link from "next/link";
 import type { CurrencyCode, Dish } from "@/lib/demoMenuData";
 import { getDishCardImageObjectPosition } from "@/lib/demoMenuData";
 import { trackMenuEvent } from "@/lib/analytics/client";
-import { prepareDishAssetIntent } from "@/lib/dishAssetWarmup";
 import { dishHasImmersiveAsset } from "@/lib/menuQuery";
 import { formatPrice } from "@/lib/formatPrice";
 import { AllergenBadge } from "@/components/dish/AllergenBadge";
@@ -104,9 +103,6 @@ export function DishCard({ dish, currency, priorityImage = false }: DishCardProp
   const { isPhoneSimulation } = useDemoSimulation();
   const unavailable = !dish.isAvailable;
   const has3d = dishHasImmersiveAsset(dish);
-  const handleDishIntentWarmup = () => {
-    if (has3d) prepareDishAssetIntent(dish);
-  };
 
   if (isPhoneSimulation) {
     return (
@@ -176,10 +172,6 @@ export function DishCard({ dish, currency, priorityImage = false }: DishCardProp
               <Link
                 href={"/demo"}
                 prefetch={false}
-                onPointerEnter={handleDishIntentWarmup}
-                onPointerDown={handleDishIntentWarmup}
-                onTouchStart={handleDishIntentWarmup}
-                onFocus={handleDishIntentWarmup}
                 onClick={() => {
                   trackMenuEvent({
                     eventName: "cta_clicked",
@@ -267,10 +259,6 @@ export function DishCard({ dish, currency, priorityImage = false }: DishCardProp
             <Link
               href={"/demo"}
               prefetch={false}
-              onPointerEnter={handleDishIntentWarmup}
-              onPointerDown={handleDishIntentWarmup}
-              onTouchStart={handleDishIntentWarmup}
-              onFocus={handleDishIntentWarmup}
               onClick={() => {
                 trackMenuEvent({
                   eventName: "cta_clicked",

@@ -201,13 +201,30 @@ test("publishes bilingual sitemap entries with hreflang alternates", async () =>
   assert.equal(byPath.has("/en/demo"), false);
 });
 
-test("sets English document language from the request path", () => {
-  const layoutSource = readFileSync(join(process.cwd(), "app", "layout.tsx"), "utf8");
+test("uses literal request-independent root languages without Proxy locale injection", () => {
+  const frenchLayoutSource = readFileSync(
+    join(process.cwd(), "app", "(fr)", "layout.tsx"),
+    "utf8"
+  );
+  const englishLayoutSource = readFileSync(
+    join(process.cwd(), "app", "(en)", "layout.tsx"),
+    "utf8"
+  );
   const proxySource = readFileSync(join(process.cwd(), "proxy.ts"), "utf8");
 
-  assert.match(proxySource, /VISTAIRE_LOCALE_HEADER/);
-  assert.match(layoutSource, /headers\(\)/);
-  assert.match(layoutSource, /lang=\{documentLanguage\}/);
+  assert.match(frenchLayoutSource, /<html lang="fr-CA"/);
+  assert.match(englishLayoutSource, /<html lang="en-CA"/);
+
+  for (const layoutSource of [frenchLayoutSource, englishLayoutSource]) {
+    assert.doesNotMatch(layoutSource, /from ["']next\/headers["']/);
+    assert.doesNotMatch(
+      layoutSource,
+      /\b(?:headers|cookies|connection|draftMode)\s*\(/
+    );
+  }
+
+  assert.doesNotMatch(proxySource, /VISTAIRE_LOCALE_HEADER|x-vistaire-locale/);
+  assert.doesNotMatch(proxySource, /\bgetLocaleFromPath\b/);
 });
 
 test("keeps deleted dev review routes out of public sitemap", async () => {

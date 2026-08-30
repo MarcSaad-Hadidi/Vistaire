@@ -57,7 +57,6 @@
 .page[data-user-theme="light"] .dishArrow,
 .page[data-user-theme="light"] .categoryHeader > span:last-child,
 .page[data-user-theme="light"] .dishPrice,
-.page[data-user-theme="light"] .reviewTrigger span,
 .page[data-user-theme="light"] .categoryRail svg,
 .page[data-user-theme="light"] .backToTop {
   color: var(--trouvable-gold);
@@ -136,7 +135,6 @@
 }
 
 .page[data-user-theme="light"] .dishOverlay,
-.page[data-user-theme="light"] .reviewOverlay,
 .page[data-user-theme="light"] .stackedOverlay {
   background: color-mix(in srgb, var(--menu-bg, #fbf7ef) 78%, transparent);
 }
@@ -760,14 +758,12 @@
     var(--vistaire-motion-ease, cubic-bezier(0.22, 1, 0.36, 1)) both;
 }
 
-.overlay[data-sheet-state="open"] .sheet:not(.detailSheet),
-.overlay[data-sheet-state="open"] .reviewSheet {
+.overlay[data-sheet-state="open"] .sheet:not(.detailSheet) {
   animation: menuSheetEnter var(--vistaire-sheet-duration, 240ms)
     var(--vistaire-motion-ease, cubic-bezier(0.22, 1, 0.36, 1)) both;
 }
 
-.overlay[data-sheet-state="closing"] .sheet:not(.detailSheet),
-.overlay[data-sheet-state="closing"] .reviewSheet {
+.overlay[data-sheet-state="closing"] .sheet:not(.detailSheet) {
   animation: menuSheetExit var(--vistaire-sheet-duration, 240ms)
     var(--vistaire-motion-ease, cubic-bezier(0.22, 1, 0.36, 1)) both;
 }
@@ -3418,52 +3414,6 @@
   font-weight: 900;
 }
 
-.reviewTrigger {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 14px;
-  min-height: 58px;
-  width: fit-content;
-  border: 1px solid rgba(255, 255, 255, 0.48);
-  border-radius: 999px;
-  background: #050505;
-  color: #fff;
-  cursor: pointer;
-  font: inherit;
-  font-size: 18px;
-  font-weight: 900;
-  letter-spacing: 0.14em;
-  padding: 0 30px;
-  text-transform: uppercase;
-}
-
-.reviewTrigger span {
-  color: var(--trouvable-gold);
-  font-size: 22px;
-}
-
-.reviewOverlay {
-  align-items: stretch;
-  overflow: auto;
-  background: #000;
-  padding: 0;
-}
-
-.reviewSheet {
-  position: relative;
-  display: grid;
-  align-content: end;
-  min-height: 100svh;
-  width: 100%;
-  max-width: 640px;
-  margin: 0 auto;
-  overflow: hidden;
-  background: #000;
-  color: #fff;
-  padding: 24px 22px 34px;
-}
-
 .stackedOverlay {
   z-index: 60;
   align-items: flex-end;
@@ -3473,8 +3423,7 @@
   padding: 18px 18px 0;
 }
 
-.stackedOverlay .sheet,
-.stackedOverlay .reviewSheet {
+.stackedOverlay .sheet {
   width: min(100%, 640px);
   max-height: min(84svh, 720px);
   min-height: 0;
@@ -3483,228 +3432,23 @@
   background: #000;
 }
 
-.stackedOverlay .reviewSheet {
-  align-content: end;
-}
-
-.overlay[data-sheet-state="open"] .reviewPanel {
-  animation: sectionBodyEnter var(--vistaire-motion-duration, 220ms)
-    var(--vistaire-motion-ease, cubic-bezier(0.22, 1, 0.36, 1)) both;
-}
-
-.reviewDishGhost {
-  position: absolute;
-  inset: 8% 0 38%;
-  display: grid;
-  place-items: center;
-  opacity: 0.28;
-  pointer-events: none;
-  filter: blur(9px);
-}
-
-.reviewDishGhost img {
-  width: min(92vw, 560px);
-  max-height: 48svh;
-  object-fit: contain;
-}
-
-.reviewDishGhost span {
-  display: grid;
-  width: min(62vw, 330px);
-  aspect-ratio: 1;
-  place-items: center;
-  border-radius: 999px;
-  background: radial-gradient(
-    circle,
-    rgba(222, 194, 75, 0.34),
-    rgba(128, 92, 43, 0.18) 44%,
-    transparent 72%
-  );
-  color: rgba(222, 194, 75, 0.5);
-  font-family: var(--trouvable-font-display);
-  font-size: min(34vw, 160px);
-  filter: blur(8px);
-}
-
-.reviewPanel {
-  position: relative;
-  z-index: 1;
-  display: grid;
-  gap: 30px;
-  border-top: 2px solid rgba(222, 194, 75, 0.74);
-  border-radius: 34px 34px 0 0;
-  background: linear-gradient(180deg, rgba(0, 0, 0, 0.94), #000 28%);
-  padding: 58px 44px 0;
-  text-align: center;
-}
-
-.reviewPanel h2 {
-  margin: 0;
-  color: #fff;
-  font-family: var(--trouvable-font-display);
-  font-size: clamp(42px, 11vw, 60px);
-  font-weight: 600;
-  line-height: 1;
-}
-
-.reviewStars {
-  --review-star-active: #c98f16;
-  --review-star-active-shadow: rgba(201, 143, 22, 0.38);
-  --review-star-inactive: rgba(255, 255, 255, 0.24);
-  display: flex;
-  justify-content: center;
-  gap: 18px;
-}
-
-.reviewStars button {
-  border: 0;
-  background: transparent;
-  color: var(--review-star-inactive);
-  cursor: pointer;
-  font-size: 48px;
-  line-height: 1;
-  padding: 0;
-  transition:
-    color var(--vistaire-motion-duration, 220ms)
-      var(--vistaire-motion-ease, cubic-bezier(0.22, 1, 0.36, 1)),
-    filter var(--vistaire-motion-duration, 220ms)
-      var(--vistaire-motion-ease, cubic-bezier(0.22, 1, 0.36, 1)),
-    transform 180ms var(--vistaire-motion-ease, cubic-bezier(0.22, 1, 0.36, 1));
-}
-
-.reviewStars button:active {
-  transform: scale(0.94);
-}
-
-.reviewStars button:focus-visible {
-  outline: 2px solid color-mix(in srgb, var(--review-star-active) 70%, transparent);
-  outline-offset: 4px;
-}
-
-.reviewStars button[aria-pressed="true"] {
-  color: var(--review-star-active);
-  filter: drop-shadow(0 0 13px var(--review-star-active-shadow));
-}
-
-.reviewTextarea {
-  display: grid;
-  text-align: left;
-}
-
-.reviewTextarea span {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip: rect(0 0 0 0);
-  white-space: nowrap;
-}
-
-.reviewTextarea textarea {
-  min-height: 152px;
-  resize: vertical;
-  border: 0;
-  border-radius: 24px;
-  background: #121212;
-  color: #fff;
-  font: inherit;
-  font-size: 22px;
-  padding: 30px;
-}
-
-.reviewTextarea textarea::placeholder {
-  color: rgba(255, 255, 255, 0.54);
-}
-
-.reviewPostButton {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  justify-self: stretch;
-  min-height: 74px;
-  width: 100%;
-  border: 0;
-  border-radius: 999px;
-  background: linear-gradient(145deg, #f0d94f, #caa52c);
-  color: #050505;
-  cursor: pointer;
-  font: inherit;
-  font-size: 22px;
-  font-weight: 900;
-  letter-spacing: 0.18em;
-  padding: 0 24px;
-  text-decoration: none;
-  box-shadow: 0 22px 50px rgba(202, 165, 44, 0.18);
-}
-
-.reviewPostButton:disabled {
-  cursor: not-allowed;
-  opacity: 0.55;
-}
-
-.reviewNote {
-  margin: 4px 0 0;
-  color: rgba(255, 255, 255, 0.64);
-  font-size: 11px;
-  font-weight: 700;
-  line-height: 1.4;
-}
-
 @media (max-width: 520px) {
   .moreDetailsButton {
     min-height: 26px;
     font-size: 14px;
   }
 
-  .reviewTrigger {
-    min-height: 48px;
-    gap: 10px;
-    font-size: 14px;
-    padding-inline: 22px;
-  }
-
-  .reviewSheet {
-    padding: 18px 18px 34px;
-  }
-
   .stackedOverlay {
     padding: 10px 10px 0;
   }
 
-  .stackedOverlay .sheet,
-  .stackedOverlay .reviewSheet {
+  .stackedOverlay .sheet {
     max-height: 86svh;
   }
 
   .detailsSubSheet {
     gap: 14px;
     padding: 20px 16px 24px;
-  }
-
-  .reviewPanel {
-    gap: 24px;
-    border-radius: 30px 30px 0 0;
-    padding: 48px 22px 0;
-  }
-
-  .reviewStars {
-    gap: 12px;
-  }
-
-  .reviewStars button {
-    font-size: 38px;
-  }
-
-  .reviewTextarea textarea {
-    min-height: 132px;
-    border-radius: 20px;
-    font-size: 18px;
-    padding: 24px;
-  }
-
-  .reviewPostButton {
-    min-height: 64px;
-    font-size: 17px;
   }
 }
 
@@ -3920,8 +3664,6 @@
 .page[data-user-theme="light"] .dishOverlay,
 .page[data-user-theme="light"] .detailSheet,
 .page[data-user-theme="light"].standaloneDetailPage,
-.page[data-user-theme="light"] .reviewOverlay,
-.page[data-user-theme="light"] .reviewSheet,
 .page[data-user-theme="light"] .detailsSubSheet {
   background: #f5efe4;
   color: #17120b;
@@ -3951,8 +3693,7 @@
 .page[data-user-theme="light"] .dishTopline strong,
 .page[data-user-theme="light"] .detailBody h1,
 .page[data-user-theme="light"] .detailBody .sheetHeader h2,
-.page[data-user-theme="light"] .sheetHeader h2,
-.page[data-user-theme="light"] .reviewPanel h2 {
+.page[data-user-theme="light"] .sheetHeader h2 {
   color: #17120b;
   text-shadow: none;
 }
@@ -3967,8 +3708,7 @@
 .page[data-user-theme="light"] .emptyState span,
 .page[data-user-theme="light"] .selectionList span,
 .page[data-user-theme="light"] .resultStatus,
-.page[data-user-theme="light"] .modelUnavailable,
-.page[data-user-theme="light"] .reviewNote {
+.page[data-user-theme="light"] .modelUnavailable {
   color: rgba(35, 26, 13, 0.66);
 }
 
@@ -3986,8 +3726,7 @@
 .page[data-user-theme="light"] .topicGroup label,
 .page[data-user-theme="light"] .choiceButton,
 .page[data-user-theme="light"] .detailBack,
-.page[data-user-theme="light"] .dishArrow,
-.page[data-user-theme="light"] .reviewTextarea textarea {
+.page[data-user-theme="light"] .dishArrow {
   border-color: rgba(35, 26, 13, 0.18);
   background: #fff9ef;
   color: #17120b;
@@ -4151,36 +3890,6 @@
 .page[data-user-theme="light"] .cardDetailsTrigger {
   border-bottom-color: rgba(35, 26, 13, 0.38);
   color: rgba(35, 26, 13, 0.72);
-}
-
-.page[data-user-theme="light"] .reviewPanel {
-  background: linear-gradient(180deg, rgba(255, 249, 239, 0.96), #fff9ef 28%);
-}
-
-.page[data-user-theme="light"] .reviewTrigger {
-  border-color: rgba(35, 26, 13, 0.22);
-  background: rgba(255, 249, 239, 0.88);
-  color: #17120b;
-}
-
-.page[data-user-theme="light"] .reviewTrigger span {
-  color: #8f6d14;
-}
-
-.page[data-user-theme="light"] .reviewStars button {
-  --review-star-active: #9f6900;
-  --review-star-active-shadow: rgba(159, 105, 0, 0.34);
-  --review-star-inactive: rgba(35, 26, 13, 0.26);
-  color: var(--review-star-inactive);
-}
-
-.page[data-user-theme="light"] .reviewStars button[aria-pressed="true"] {
-  color: var(--review-star-active);
-  filter: drop-shadow(0 1px 4px var(--review-star-active-shadow));
-}
-
-.page[data-user-theme="light"] .reviewTextarea textarea::placeholder {
-  color: rgba(35, 26, 13, 0.5);
 }
 
 .page[data-user-theme="light"] .inlineModelViewer,
@@ -4589,9 +4298,8 @@
     padding: 10px;
   }
 
-  .page.phonePreview .overlay:not(.dishOverlay):not(.reviewOverlay) .sheet,
-  .page.phonePreview .stackedOverlay .sheet,
-  .page.phonePreview .stackedOverlay .reviewSheet {
+  .page.phonePreview .overlay:not(.dishOverlay) .sheet,
+  .page.phonePreview .stackedOverlay .sheet {
     width: 100%;
     max-height: calc(100% - 10px);
     border-radius: 22px 22px 0 0;
@@ -4703,28 +4411,6 @@
     min-height: 220px;
     border-radius: 18px;
   }
-
-  .page.phonePreview .reviewOverlay {
-    align-items: stretch;
-    padding: 0;
-  }
-
-  .page.phonePreview .reviewSheet {
-    min-height: 100%;
-    max-height: none;
-    overflow: auto;
-    padding: 16px 14px 24px;
-  }
-
-  .page.phonePreview .reviewPanel {
-    gap: 18px;
-    border-radius: 22px 22px 0 0;
-    padding: 34px 14px 0;
-  }
-
-  .page.phonePreview .reviewPanel h2 {
-    font-size: 28px;
-  }
 }
 
 @scope (.page[data-palette-source="restaurant"]) {
@@ -4795,7 +4481,6 @@
 .page[data-user-theme="light"] .dishArrow,
 .page[data-user-theme="light"] .categoryHeader > span:last-child,
 .page[data-user-theme="light"] .dishPrice,
-.page[data-user-theme="light"] .reviewTrigger span,
 .page[data-user-theme="light"] .categoryRail svg {
   color: var(--menu-accent, #8f6d14) !important;
 }
@@ -4853,8 +4538,6 @@
 .page[data-user-theme="light"] .dishOverlay,
 .page[data-user-theme="light"] .detailSheet,
 .page[data-user-theme="light"] .standaloneDetailPage,
-.page[data-user-theme="light"] .reviewOverlay,
-.page[data-user-theme="light"] .reviewSheet,
 .page[data-user-theme="light"] .detailsSubSheet {
   background: var(--trouvable-light-bg) !important;
   border-color: var(--trouvable-light-border) !important;
@@ -4871,8 +4554,7 @@
 .page[data-user-theme="light"] .topicGroup label,
 .page[data-user-theme="light"] .detailVisual,
 .page[data-user-theme="light"] .detailList,
-.page[data-user-theme="light"] .houseNote,
-.page[data-user-theme="light"] .reviewTextarea textarea {
+.page[data-user-theme="light"] .houseNote {
   background: var(--trouvable-light-surface) !important;
   border-color: var(--trouvable-light-border) !important;
   color: var(--trouvable-light-text) !important;
@@ -4917,7 +4599,6 @@
 .page[data-user-theme="light"] .dishArrow,
 .page[data-user-theme="light"] .categoryHeader > span:last-child,
 .page[data-user-theme="light"] .dishPrice,
-.page[data-user-theme="light"] .reviewTrigger span,
 .page[data-user-theme="light"] .categoryRail svg,
 .page[data-user-theme="light"] .heroBotanical {
   color: var(--menu-accent, #8f6d14) !important;
@@ -4936,13 +4617,11 @@
 .page[data-user-theme="light"] .categoryHeader > span:first-child,
 .page[data-user-theme="light"] .dishDescription,
 .page[data-user-theme="light"] .resultStatus,
-.page[data-user-theme="light"] .reviewNote,
 .page[data-user-theme="light"] .searchField input::placeholder {
   color: var(--trouvable-light-muted) !important;
 }
 
 .page[data-user-theme="light"] .dishOverlay,
-.page[data-user-theme="light"] .reviewOverlay,
 .page[data-user-theme="light"] .stackedOverlay {
   background: color-mix(in srgb, var(--trouvable-light-bg) 78%, transparent) !important;
 }
@@ -5053,7 +4732,6 @@
 }
 
 .comparisonPreview .dishOverlay,
-.comparisonPreview .reviewOverlay,
 .comparisonPreview .stackedOverlay {
   display: none;
 }

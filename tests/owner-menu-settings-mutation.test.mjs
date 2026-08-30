@@ -15,6 +15,7 @@ function menuSettingsClient({
   settingsJson = null,
   metadataSelectError = null,
   metadataUpdateError = null,
+  uiConfigReadThrows = false,
   uiConfig = {
     id: "44444444-4444-4444-8444-444444444444",
     theme: "fresh-homemade",
@@ -84,6 +85,10 @@ function menuSettingsClient({
                     calls.push({ table, action: "eq", column: column2, value: value2 });
                     return {
                       async maybeSingle() {
+                        if (uiConfigReadThrows) {
+                          calls.push({ table, action: "sync-throw" });
+                          throw new Error("never-print-this-ui-sync-sentinel");
+                        }
                         return { data: uiConfig, error: null };
                       }
                     };
@@ -469,4 +474,92 @@ test("entering unique without RPC fails closed before partial writes", async () 
     ),
     false
   );
+});
+
+test("normal and legacy public settings invalidate after commit and before draft sync", async () => {
+  for (const [name, options, commitField] of [
+    ["normal", {}, "settings_json"],
+    [
+      "legacy",
+      {
+        primaryError: {
+          code: "42703",
+          message: "column menus.settings_json does not exist"
+        }
+      },
+      "metadata"
+    ]
+  ]) {
+    const client = menuSettingsClient(options);
+    const result = await updateOwnerMenuSettings({
+      client,
+      restaurantId: RESTAURANT_ID,
+      settings,
+      onPublicCommit: async () => {
+        client.calls.push({ action: "invalidate" });
+      }
+    });
+
+    assert.equal(result.ok, true, name);
+    const commitIndex = client.calls.findIndex(
+      (call) => call.action === "update" && Object.hasOwn(call.row, commitField)
+    );
+    const invalidateIndex = client.calls.findIndex(
+      (call) => call.action === "invalidate"
+    );
+    const syncIndex = client.calls.findIndex(
+      (call, index) =>
+        index > commitIndex && call.table === "menu_ui_configs" && call.action === "select"
+    );
+    assert.ok(commitIndex >= 0, name);
+    assert.ok(commitIndex < invalidateIndex, name);
+    assert.ok(invalidateIndex < syncIndex, name);
+  }
+});
+
+test("atomic unique settings invalidate immediately after the committed RPC", async () => {
+  const client = menuSettingsClient();
+  const events = [];
+  client.rpc = async () => {
+    events.push("rpc:commit");
+    return {
+      data: { ok: true, menuId: MENU_ID },
+      error: null
+    };
+  };
+
+  const result = await updateOwnerMenuSettings({
+    client,
+    restaurantId: RESTAURANT_ID,
+    settings: { ...settings, publicMenuStyle: "unique" },
+    onPublicCommit: async () => {
+      events.push("invalidate");
+    }
+  });
+
+  assert.equal(result.ok, true);
+  assert.deepEqual(events, ["rpc:commit", "invalidate"]);
+});
+
+test("post-commit draft sync throws stay controlled and reschedule invalidation", async () => {
+  const client = menuSettingsClient({ uiConfigReadThrows: true });
+  const result = await updateOwnerMenuSettings({
+    client,
+    restaurantId: RESTAURANT_ID,
+    settings,
+    onPublicCommit: async () => {
+      client.calls.push({ action: "invalidate" });
+    }
+  });
+
+  assert.equal(result.ok, true);
+  assert.equal(
+    client.calls.filter((call) => call.action === "invalidate").length,
+    2
+  );
+  assert.ok(
+    client.calls.findIndex((call) => call.action === "invalidate") <
+      client.calls.findIndex((call) => call.action === "sync-throw")
+  );
+  assert.doesNotMatch(JSON.stringify(result), /never-print-this/);
 });

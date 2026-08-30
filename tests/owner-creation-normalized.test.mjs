@@ -182,6 +182,36 @@ test("restaurant creation calls transactional RPC with normalized menu graph", a
   assert.equal(result.persistedDishCount, 2);
 });
 
+test("transactional creation invalidates its committed slug before rejecting a malformed RPC response", async () => {
+  const events = [];
+  const result = await createRestaurantRecord(workflowInput, {
+    admin: {
+      ok: true,
+      client: rpcClient({
+        onRpc() {
+          events.push("rpc:committed");
+        },
+        data: { ok: true, restaurant: null }
+      })
+    },
+    getColumns: async () => new Set(),
+    onPublicCommit: async (commit) => {
+      events.push(`invalidate:${commit.kind}:${commit.restaurantSlug}`);
+    }
+  });
+
+  assert.deepEqual(events, [
+    "rpc:committed",
+    "invalidate:transaction:le-comptoir-decimal"
+  ]);
+  assert.deepEqual(result, {
+    ok: false,
+    status: 502,
+    error:
+      "Creation invalide : Supabase n'a pas retourne d'identifiant Supabase UUID."
+  });
+});
+
 test("restaurant creation rejects settings defaults outside enabled options", () => {
   const result = validateCreateRestaurantInput({
     ...workflowInput,

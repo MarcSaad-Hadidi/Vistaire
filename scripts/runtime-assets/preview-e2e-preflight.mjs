@@ -10,6 +10,14 @@ const REQUIRED_VALUES = [
   "VISTAIRE_RUNTIME_STORAGE_HOST"
 ];
 
+function isAllowedPreviewHostname(hostname) {
+  return (
+    hostname === "preview.example.test" ||
+    hostname.endsWith(".vercel.app") ||
+    hostname.endsWith(".vercel.sh")
+  );
+}
+
 const missing = [
   ...REQUIRED_EXACT
     .filter(([name, value]) => process.env[name] !== value)
@@ -23,13 +31,18 @@ if (baseUrl) {
   try {
     const parsed = new URL(baseUrl);
     const hostname = parsed.hostname.toLowerCase();
-    invalidBaseUrl =
-      parsed.protocol !== "https:" ||
+    const productionOptIn =
+      process.env.VISTAIRE_ALLOW_PRODUCTION_RUNTIME_E2E === "1";
+    const loopback =
       hostname === "localhost" ||
       hostname.endsWith(".localhost") ||
       hostname === "[::1]" ||
       hostname === "::1" ||
       hostname.startsWith("127.");
+    invalidBaseUrl =
+      parsed.protocol !== "https:" ||
+      loopback ||
+      (!productionOptIn && !isAllowedPreviewHostname(hostname));
   } catch {
     invalidBaseUrl = true;
   }

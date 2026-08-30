@@ -7,14 +7,14 @@ const {
   DISH_SWIPE_AXIS_RATIO
 } = await import("../lib/menu/dishReviewSwipe.ts");
 
-test("resolveDishSwipeGesture opens review on upward vertical swipe", () => {
+test("resolveDishSwipeGesture does not open a review flow on upward swipe", () => {
   assert.equal(
     resolveDishSwipeGesture(0, -DISH_SWIPE_MIN_DISTANCE - 4, 0),
-    "reviewOpen"
+    null
   );
   assert.equal(
     resolveDishSwipeGesture(12, -DISH_SWIPE_MIN_DISTANCE - 8, 0),
-    "reviewOpen"
+    null
   );
 });
 

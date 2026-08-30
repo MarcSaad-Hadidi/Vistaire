@@ -40,8 +40,8 @@ test("rejects external, malformed, unrelated, and oversized QR access input", as
 });
 
 test("production access form delegates to the existing q exchange without cookies", async () => {
-  const route = await readFile("app/admin/access/route.ts", "utf8");
-  const page = await readFile("app/admin/page.tsx", "utf8");
+  const route = await readFile("app/(fr)/admin/access/route.ts", "utf8");
+  const page = await readFile("app/(fr)/admin/page.tsx", "utf8");
 
   assert.match(route, /parseAdminQrAccessRequest/);
   assert.doesNotMatch(route, /request\.formData\(\)/);

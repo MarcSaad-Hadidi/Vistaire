@@ -3,6 +3,28 @@ import { rows } from "./sauge-noire-fixture-data.mjs";
 import { buildFixtureDishSvg } from "./fixture-dish-images.mjs";
 
 const port = Number(process.env.VISTAIRE_SAUGE_NOIRE_FIXTURE_PORT || 55434);
+
+function createFixturePhotoToken() {
+  const payload = Buffer.from(JSON.stringify({
+    exp: Math.floor(Date.now() / 1000) + 270
+  })).toString("base64url");
+  return `e30.${payload}.fixture-signature`;
+}
+
+function isFixturePhotoToken(value) {
+  if (typeof value !== "string") return false;
+  const segments = value.split(".");
+  if (segments.length !== 3 || segments[0] !== "e30" || segments[2] !== "fixture-signature") {
+    return false;
+  }
+  try {
+    const payload = JSON.parse(Buffer.from(segments[1], "base64url").toString("utf8"));
+    return Number.isSafeInteger(payload.exp) && payload.exp >= Math.floor(Date.now() / 1000);
+  } catch {
+    return false;
+  }
+}
+
 function fixtureImageForPath(pathname) {
   const storageMatch = decodeURIComponent(pathname).match(
     /(restaurants\/[^/]+\/photos\/originals\/[^/?]+\.png)/
@@ -81,14 +103,14 @@ const server = http.createServer((request, response) => {
       "cache-control": "no-store"
     });
     response.end(
-      JSON.stringify({ signedURL: `${signedPath}?token=fixture-photo-token` })
+      JSON.stringify({ signedURL: `${signedPath}?token=${createFixturePhotoToken()}` })
     );
     return;
   }
   if (
     request.method === "GET" &&
     url.pathname.startsWith("/storage/v1/object/sign/vistaire-media/") &&
-    url.searchParams.get("token") === "fixture-photo-token"
+    isFixturePhotoToken(url.searchParams.get("token"))
   ) {
     const image = fixtureImageForPath(url.pathname);
     if (!image) {

@@ -79,7 +79,9 @@ const dish = ({
   metadata,
   web_model_3d_url: webModel3dUrl,
   model_3d_url: webModel3dUrl,
-  ar_model_3d_url: "",
+  ar_model_3d_url: webModel3dUrl
+    ? "/models/demo/ar-lite/homard-bisque-ar-lite-meshy.glb"
+    : "",
   ar_usdz_url: ""
 });
 
@@ -313,13 +315,18 @@ const maisonDish = {
   ar_usdz_url: ""
 };
 
+const TROUVABLE_GOOGLE_REVIEW_URL =
+  "https://search.google.com/local/writereview?placeid=ChIJTrouvableDemoVistaire";
+
 const trouvableRestaurant = {
   id: trouvableRestaurantId,
   name: "Trouvable",
   slug: "trouvable",
   location: "Montreal",
   cuisine_type: "Bistro moderne",
-  status: "active"
+  status: "active",
+  google_review_enabled: true,
+  google_review_url: TROUVABLE_GOOGLE_REVIEW_URL
 };
 
 const trouvableMenu = {
@@ -395,7 +402,16 @@ const maisonFixture = {
   menus: [maisonMenu],
   menu_categories: [maisonCategory],
   menu_dishes: [maisonDish],
-  menu_ui_configs: []
+  menu_ui_configs: [
+    {
+      id: "55555555-5555-4555-8555-555555555552",
+      restaurant_id: maisonRestaurantId,
+      status: "published",
+      theme: "premium-gastronomic",
+      updated_at: "2026-07-27T12:00:00.000Z",
+      config_json: { schemaVersion: 2, theme: "premium-gastronomic" }
+    }
+  ]
 };
 
 const trouvableFixture = {
@@ -403,7 +419,16 @@ const trouvableFixture = {
   menus: [trouvableMenu],
   menu_categories: [trouvableCategory],
   menu_dishes: [trouvableDish],
-  menu_ui_configs: []
+  menu_ui_configs: [
+    {
+      id: "55555555-5555-4555-8555-555555555553",
+      restaurant_id: trouvableRestaurantId,
+      status: "published",
+      theme: "fresh-homemade",
+      updated_at: "2026-07-27T12:00:00.000Z",
+      config_json: { schemaVersion: 2, theme: "fresh-homemade" }
+    }
+  ]
 };
 
 const saugeNoireFixture = {

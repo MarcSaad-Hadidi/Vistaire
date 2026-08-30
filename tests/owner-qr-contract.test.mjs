@@ -39,7 +39,7 @@ test("owner QR manager exposes restaurant, QR type, destination, and safety badg
 });
 
 test("owner QR page can be preselected from restaurant creation success", async () => {
-  const page = await readFile("app/owner/qr-codes/page.tsx", "utf8");
+  const page = await readFile("app/(fr)/owner/qr-codes/page.tsx", "utf8");
   const manager = await readFile("components/owner/OwnerQrManager.tsx", "utf8");
   const createForm = await readFile("components/owner/RestaurantCreateForm.tsx", "utf8");
 
@@ -131,7 +131,7 @@ test("QR scan RPC is not executable by public browser roles", async () => {
 });
 
 test("QR exchange sets only the path-scoped restaurant admin session", async () => {
-  const route = await readFile("app/q/[token]/route.ts", "utf8");
+  const route = await readFile("app/(fr)/q/[token]/route.ts", "utf8");
   const session = await readFile("lib/admin/accessSessionCore.ts", "utf8");
   const combined = `${route}\n${session}`;
 

@@ -14,7 +14,10 @@ const instrumentationClientPath = new URL(
   "../instrumentation-client.ts",
   import.meta.url
 );
-const layoutPath = new URL("../app/layout.tsx", import.meta.url);
+const layoutPath = new URL(
+  "../components/layout/VistaireDocumentShell.tsx",
+  import.meta.url
+);
 const packagePath = new URL("../package.json", import.meta.url);
 const lockfilePath = new URL("../package-lock.json", import.meta.url);
 
@@ -50,7 +53,7 @@ test("Microsoft Clarity is enabled only for Vercel production", async () => {
   assert.doesNotMatch(component, /NODE_ENV/);
 });
 
-test("the root layout loads Microsoft Clarity exactly once", async () => {
+test("the shared document shell loads Microsoft Clarity exactly once", async () => {
   const [clientComponent, layout] = await Promise.all([
     readSource(clientComponentPath),
     readSource(layoutPath)

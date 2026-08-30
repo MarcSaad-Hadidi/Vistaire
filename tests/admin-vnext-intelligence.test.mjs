@@ -6,7 +6,7 @@ const source = (path) => readFile(path, "utf8");
 
 test("Intelligence route derives scope from live access and loads the v2 evidence bundle", async () => {
   const [route, page] = await Promise.all([
-    source("app/admin/insights/page.tsx"),
+    source("app/(fr)/admin/insights/page.tsx"),
     source("components/admin/insights/AdminInsightsPage.tsx")
   ]);
   assert.match(route, /requireAdminRestaurantAccess\("dashboard:read"\)/);

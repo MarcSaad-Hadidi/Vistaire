@@ -62,6 +62,7 @@ function buildPreviewDish(
     displayPriceMode,
     imageUrl,
     thumbnailUrl: imageUrl,
+    cardUrl: imageUrl,
     hasPhoto: Boolean(imageUrl),
     photoStatus: imageUrl ? "ready" : draft.photoStatus,
     hasImmersive: false,

@@ -3,7 +3,8 @@ export type RequestClassification =
   | "platform-cancellation"
   | "healthy-media-cancellation"
   | "explicit-prefetch-cancellation"
-  | "http-error";
+  | "http-error"
+  | "supabase-production-egress";
 
 export type MediaState = {
   healthy: boolean;
@@ -49,12 +50,14 @@ export const REQUEST_CLASSIFICATIONS: Readonly<{
   HEALTHY_MEDIA_CANCELLATION: "healthy-media-cancellation";
   EXPLICIT_PREFETCH_CANCELLATION: "explicit-prefetch-cancellation";
   HTTP_ERROR: "http-error";
+  SUPABASE_PRODUCTION_EGRESS: "supabase-production-egress";
 }>;
 export function pickPrefetchHeaders(headers?: Record<string, string | undefined>): Record<string, string>;
 export function hasExplicitPrefetchMarker(headers?: Record<string, string | undefined>): boolean;
 export function isMediaCurrentSrcCoherent(currentSrc: string, sources: string[], baseUrl: string): boolean;
 export function classifyFailedRequest(input: FailedRequestInput): RequestDiagnostic;
 export function classifyFailedResponse(input: FailedRequestInput & { status: number }): RequestDiagnostic;
+export function classifySuccessfulResponse(input: { url: string; status?: number; [key: string]: unknown }): RequestDiagnostic | null;
 export function classifyRuntimeSignal(input: { kind: "console" | "pageerror"; message: string }): {
   kind: "console error" | "pageerror";
   message: string;

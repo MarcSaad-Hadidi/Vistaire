@@ -38,6 +38,7 @@ import {
 } from "@/lib/menu/allergens";
 import {
   buildPublicDishPath,
+  getPublicDishImageUrl,
   getPublicMenuCategoryGroups,
   getVisiblePublicMenuCategories,
   type PublicMenu,
@@ -545,7 +546,7 @@ function dishBadges(dish: PublicMenuDish, locale: PublicMenuLocale): string[] {
   return badges.slice(0, 4);
 }
 
-function DishCard({
+export function MaisonElyseDishCard({
   disableNavigation = false,
   dish,
   locale,
@@ -571,7 +572,7 @@ function DishCard({
       <span className={styles.dishImage} aria-hidden="true">
         {dish.imageUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img loading="lazy" src={dish.thumbnailUrl || dish.imageUrl} alt="" />
+          <img loading="lazy" src={getPublicDishImageUrl(dish, "thumbnail")} alt="" />
         ) : (
           <span>{menu.name.slice(0, 1)}</span>
         )}
@@ -682,7 +683,7 @@ function DishSection({
       </div>
       <ul className={styles.dishList}>
         {dishes.map((dish) => (
-          <DishCard
+          <MaisonElyseDishCard
             disableNavigation={disableNavigation}
             dish={dish}
             key={dish.id}

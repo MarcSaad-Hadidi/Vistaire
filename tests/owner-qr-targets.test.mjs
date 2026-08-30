@@ -156,7 +156,7 @@ test("restaurant dashboard copies the configured menu URL used by QR", async () 
 
 test("restaurant preview iframe uses configured client URL before derived slug path", async () => {
   const source = await readFile(
-    "app/owner/restaurants/[restaurantId]/preview/page.tsx",
+    "app/(fr)/owner/restaurants/[restaurantId]/preview/page.tsx",
     "utf8"
   );
 

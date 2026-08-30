@@ -21,7 +21,7 @@ async function loadAnalyticsPanel() {
 
 test("admin has a private dedicated shell without marketing or heavy media", async () => {
   const [layout, page, dashboard, css] = await Promise.all([
-    read("app/admin/layout.tsx"), read("app/admin/page.tsx"),
+    read("app/(fr)/admin/layout.tsx"), read("app/(fr)/admin/page.tsx"),
     read("components/admin/AdminRestaurantDashboard.tsx"),
     read("components/admin/AdminDashboard.module.css")
   ]);
@@ -35,7 +35,7 @@ test("admin has a private dedicated shell without marketing or heavy media", asy
 });
 
 test("page strictly allowlists server ranges and derives its observation timezone server-side", async () => {
-  const [page, parser, loader] = await Promise.all([read("app/admin/page.tsx"), read("lib/admin/pageSearchParams.ts"), read("lib/admin/data/loadAdminData.ts")]);
+  const [page, parser, loader] = await Promise.all([read("app/(fr)/admin/page.tsx"), read("lib/admin/pageSearchParams.ts"), read("lib/admin/data/loadAdminData.ts")]);
   assert.match(page, /const params = await searchParams/);
   assert.match(page, /parseAdminPageSearchParams\(params[\s\S]*\)/);
   assert.match(page, /loadAdminDataBundle\(access, range\)/);
@@ -150,8 +150,8 @@ test("admin visual system is scoped, locally typeset and accessible", async () =
     read("components/admin/system/AdminPresentationPrimitives.tsx"),
     read("components/admin/system/AdminIcons.tsx"),
     read("components/admin/system/AdminSystem.module.css"),
-    read("app/admin/layout.tsx"),
-    read("app/admin/loading.tsx")
+    read("app/(fr)/admin/layout.tsx"),
+    read("app/(fr)/admin/loading.tsx")
   ]);
   const primitives = `${primitivesEntry}\n${presentationPrimitives}`;
   const source = `${shell}\n${nav}\n${primitives}\n${icons}\n${layout}\n${loading}`;
@@ -215,7 +215,7 @@ test("shared admin shell exposes the approved menu actions on every route", asyn
 
 test("Today composes honest evidence panels with accessible exact values", async () => {
   const [page, today, activity, pulse, quickActions, css] = await Promise.all([
-    read("app/admin/page.tsx"),
+    read("app/(fr)/admin/page.tsx"),
     read("components/admin/today/AdminTodayPage.tsx"),
     read("components/admin/today/TodayActivity.tsx"),
     read("components/admin/today/TodayPulse.tsx"),
@@ -241,7 +241,7 @@ test("Today composes honest evidence panels with accessible exact values", async
 
 test("Intelligence renders only canonical evidence with equivalent text alternatives", async () => {
   const [page, insights, attentionMap, conversion, recommendations, css] = await Promise.all([
-    read("app/admin/insights/page.tsx"),
+    read("app/(fr)/admin/insights/page.tsx"),
     read("components/admin/insights/AdminInsightsPage.tsx"),
     read("components/admin/insights/InsightsAttentionMap.tsx"),
     read("components/admin/insights/InsightsConversionState.tsx"),
@@ -394,7 +394,7 @@ test("vNext pages expose premium evidence without unsupported commercial analyti
   assert.match(availability, /data-admin-menu-dish/);
 });
 
-test("full-menu parity exposes the same stable identity fields on admin and public dishes", async () => {
+test("full-menu parity exposes stable identity while keeping unavailable dishes private", async () => {
   const [admin, publicMenu, e2e] = await Promise.all([
     read("components/admin/availability/AdminAvailabilityList.tsx"),
     read("components/menu/PublicMenuRenderer.tsx"),
@@ -404,7 +404,8 @@ test("full-menu parity exposes the same stable identity fields on admin and publ
     assert.match(admin, new RegExp(attribute));
     assert.match(publicMenu, new RegExp(attribute));
   }
-  assert.match(e2e, /expect\(publicDishes\)\.toEqual\(adminDishes\)/);
+  assert.match(e2e, /adminDishes\.filter\(\(\{ available \}\) => available === "true"\)/);
+  assert.match(e2e, /expect\(publicDishes\)\.toEqual\(availableAdminDishes\)/);
 });
 
 test("insights summary excludes availability and centralized evidence copy never leaks internal reasons", async () => {

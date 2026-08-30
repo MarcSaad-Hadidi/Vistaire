@@ -320,6 +320,7 @@ function localDish(args: {
     displayPriceMode: "auto",
     imageUrl: "",
     thumbnailUrl: "",
+    cardUrl: "",
     hasPhoto: false,
     photoStatus: "missing",
     hasImmersive: false,

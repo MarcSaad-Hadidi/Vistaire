@@ -200,7 +200,18 @@ export function resolveSiteUrl(value?: string | null): URL {
   }
 }
 
-export function getSiteUrl(env: SiteUrlEnv = process.env): URL {
+function defaultSiteUrlEnv(): SiteUrlEnv {
+  return {
+    NEXT_PUBLIC_SITE_URL: process.env.NEXT_PUBLIC_SITE_URL,
+    NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
+    SITE_URL: process.env.SITE_URL,
+    VERCEL_PROJECT_PRODUCTION_URL:
+      process.env.VERCEL_PROJECT_PRODUCTION_URL,
+    VERCEL_URL: process.env.VERCEL_URL
+  };
+}
+
+export function getSiteUrl(env: SiteUrlEnv = defaultSiteUrlEnv()): URL {
   for (const key of SITE_URL_ENV_KEYS) {
     const candidate = env[key];
     if (candidate) return resolveSiteUrl(candidate);

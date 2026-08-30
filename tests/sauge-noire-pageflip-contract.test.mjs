@@ -38,11 +38,11 @@ const readingSurfaceStylesPath = new URL(
   "../components/menu/unique/sauge-noire/SaugeNoireReadingSurface.module.css",
   import.meta.url
 );
-const menuLayoutPath = new URL("../app/menu/[slug]/layout.tsx", import.meta.url);
+const menuLayoutPath = new URL("../app/(fr)/menu/[slug]/layout.tsx", import.meta.url);
 const playwrightConfigPath = new URL("../playwright.config.ts", import.meta.url);
-const publicMenuPath = new URL("../app/menu/[slug]/page.tsx", import.meta.url);
+const publicMenuPath = new URL("../app/(fr)/menu/[slug]/page.tsx", import.meta.url);
 const ownerPreviewPath = new URL(
-  "../app/owner/restaurants/[restaurantId]/unique-ui/preview/page.tsx",
+  "../app/(fr)/owner/restaurants/[restaurantId]/unique-ui/preview/page.tsx",
   import.meta.url
 );
 const stylesPath = new URL(
@@ -616,6 +616,10 @@ test("the Sauge browser fixture exposes one lightweight local 3D model", async (
   );
   assert.equal(truite?.web_model_3d_url, "/models/demo/maison-elyse-n1.glb");
   assert.equal(truite?.model_3d_url, truite?.web_model_3d_url);
+  assert.equal(
+    truite?.ar_model_3d_url,
+    "/models/demo/ar-lite/homard-bisque-ar-lite-meshy.glb"
+  );
   assert.equal(
     saugeNoireFixture.menu_dishes.filter((dish) => dish.web_model_3d_url).length,
     1

@@ -4,15 +4,20 @@ import {
   requireVistaireOwnerApi
 } from "@/lib/auth/ownerApi";
 import {
+  createRestaurantLifecyclePublicCommitHook,
   updateRestaurantStatusRecord,
   validateRestaurantStatusAction
 } from "@/lib/owner/restaurantStatus";
+import { invalidateCommittedPublicMutation } from "@/lib/owner/menuMutationRevalidation";
 import { getSupabaseAdminClient } from "@/utils/supabase/admin";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 type RestaurantStatusAdmin = Parameters<typeof updateRestaurantStatusRecord>[2]["admin"];
+
+const invalidateRestaurantLifecyclePublicCommit =
+  createRestaurantLifecyclePublicCommitHook(invalidateCommittedPublicMutation);
 
 function getRestaurantStatusAdmin(): RestaurantStatusAdmin {
   return getSupabaseAdminClient() as RestaurantStatusAdmin;
@@ -46,7 +51,8 @@ export async function PATCH(
   }
 
   const updated = await updateRestaurantStatusRecord(restaurantId, validated.action, {
-    admin: getRestaurantStatusAdmin()
+    admin: getRestaurantStatusAdmin(),
+    onPublicCommit: invalidateRestaurantLifecyclePublicCommit
   });
 
   if (!updated.ok) {

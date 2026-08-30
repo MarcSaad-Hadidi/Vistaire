@@ -19,7 +19,7 @@ test("AdminShellState exposes four localized states with exact live-region seman
 });
 
 test("admin loading delegates to the localized generic state", async () => {
-  const loading = await read("app/admin/loading.tsx");
+  const loading = await read("app/(fr)/admin/loading.tsx");
   assert.match(loading, /await headers\(\)/);
   assert.match(loading, /readAdminPreferencesFromHeaders/);
   assert.match(loading, /<AdminShellState kind="loading" locale=\{preferences\.locale\}/);

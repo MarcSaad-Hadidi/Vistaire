@@ -297,7 +297,11 @@ test("dish model DELETE route is guarded, scoped, and cleans only server-side mo
   assert.match(route, /collectDishModelStorageTargets\(dish\.metadata, restaurantId\)/);
   assert.match(route, /storage\.from\(bucket\)\.remove\(paths\)/);
   assert.match(route, /cleanDishModelMetadata\(dish\.metadata\)/);
-  assert.match(route, /has_immersive_view: isFullDelete \? false : stillImmersive/);
+  assert.match(
+    route,
+    /const nextHasImmersiveView = isFullDelete \? false : stillImmersive/
+  );
+  assert.match(route, /has_immersive_view: nextHasImmersiveView/);
   assert.doesNotMatch(route, /request\.json\(\).*StoragePath/s);
 });
 

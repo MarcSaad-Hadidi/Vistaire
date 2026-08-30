@@ -21,6 +21,7 @@ export type CleanupReplacedDishAssetsReport = {
   candidates: DishAssetRef[];
   deleted: DishAssetRef[];
   skippedStillReferenced: DishAssetRef[];
+  skippedConcurrentReuseRisk: DishAssetRef[];
   skippedUnsafeBucket: DishAssetRef[];
   skippedUnsafePrefix: DishAssetRef[];
   skippedMissingPath: DishAssetRef[];
@@ -33,6 +34,12 @@ type CleanupReplacedDishAssetsArgs = {
   restaurantId: string;
   previousMetadata: unknown;
   nextMetadata: unknown;
+  /**
+   * When the dish row was already deleted, pass its post-delete metadata
+   * instead of attempting to re-read a row that no longer exists. The helper
+   * still performs the mandatory cross-dish lookup and remains fail-safe.
+   */
+  currentMetadata?: unknown;
   reason: string;
 };
 
@@ -43,6 +50,8 @@ type MetadataCandidate = {
   defaultBucket: string;
   requiredPrefix: (restaurantId: string) => string;
 };
+
+const PHOTO_DERIVATIVE_VARIANTS = ["thumbnail", "card", "display"] as const;
 
 const MEDIA_BUCKET = "vistaire-media";
 const MODEL_BUCKET = "vistaire-3d";
@@ -138,6 +147,7 @@ function emptyReport(): CleanupReplacedDishAssetsReport {
     candidates: [],
     deleted: [],
     skippedStillReferenced: [],
+    skippedConcurrentReuseRisk: [],
     skippedUnsafeBucket: [],
     skippedUnsafePrefix: [],
     skippedMissingPath: [],
@@ -187,6 +197,24 @@ export function extractDishAssetRefsFromMetadata(
     refs.push(ref);
   }
 
+  const photoDerivatives = getMetadataObject(metadata.photoDerivatives);
+  for (const variant of PHOTO_DERIVATIVE_VARIANTS) {
+    const derivative = getMetadataObject(photoDerivatives[variant]);
+    const path = getString(derivative, "storagePath");
+    if (!path) continue;
+    const ref: DishAssetRef = {
+      kind: "photo",
+      bucket: MEDIA_BUCKET,
+      path,
+      metadataKeys: ["photoDerivatives", variant, "storagePath"],
+      requiredPrefix: `restaurants/${restaurantId}/photos/derivatives/`
+    };
+    const refIdentity = identity(ref);
+    if (seen.has(refIdentity)) continue;
+    seen.add(refIdentity);
+    refs.push(ref);
+  }
+
   return refs;
 }
 
@@ -199,7 +227,20 @@ function isSafeBucket(ref: DishAssetRef): boolean {
 }
 
 function isSafePrefix(ref: DishAssetRef): boolean {
-  return !hasDangerousPathShape(ref.path) && ref.path.startsWith(ref.requiredPrefix);
+  if (hasDangerousPathShape(ref.path) || !ref.path.startsWith(ref.requiredPrefix)) {
+    return false;
+  }
+  if (ref.requiredPrefix.includes("/photos/derivatives/")) {
+    return new RegExp(
+      `^${escapeRegExp(ref.requiredPrefix)}[a-f0-9]{64}/(?:dish-photo-v2/)?(?:thumbnail|card|display)(?:-[a-f0-9]{64})?\\.webp$`,
+      "i"
+    ).test(ref.path);
+  }
+  return true;
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 async function fetchCurrentDishRefs(args: {
@@ -228,7 +269,7 @@ async function fetchCurrentDishRefs(args: {
   }
 }
 
-async function fetchOtherActiveDishRefs(args: {
+async function fetchOtherDishRefs(args: {
   client: SupabaseClient;
   dishId: string;
   restaurantId: string;
@@ -236,7 +277,7 @@ async function fetchOtherActiveDishRefs(args: {
   try {
     const rows = await args.client
       .from("menu_dishes")
-      .select("id,metadata,is_available")
+      .select("id,metadata")
       .eq("restaurant_id", args.restaurantId)
       .neq("id", args.dishId);
     if (rows.error || !Array.isArray(rows.data)) {
@@ -244,8 +285,7 @@ async function fetchOtherActiveDishRefs(args: {
     }
 
     const refs: DishAssetRef[] = [];
-    for (const row of rows.data as Array<{ metadata?: unknown; is_available?: boolean | null }>) {
-      if (row.is_available === false) continue;
+    for (const row of rows.data as Array<{ metadata?: unknown }>) {
       refs.push(...extractDishAssetRefsFromMetadata(row.metadata, args.restaurantId));
     }
     return { refs };
@@ -266,7 +306,12 @@ export async function cleanupReplacedDishAssets(
   report.candidates = previousRefs.filter((ref) => !isRefInSet(ref, suppliedNextIdentities));
   if (report.candidates.length === 0) return report;
 
-  const current = await fetchCurrentDishRefs(args);
+  const current =
+    args.currentMetadata === undefined
+      ? await fetchCurrentDishRefs(args)
+      : {
+          refs: extractDishAssetRefsFromMetadata(args.currentMetadata, args.restaurantId)
+        };
   if (current.error) {
     report.errors.push({ bucket: "", paths: [], message: current.error });
     report.skippedStillReferenced.push(...report.candidates);
@@ -274,7 +319,7 @@ export async function cleanupReplacedDishAssets(
   }
 
   const activeCurrentIdentities = new Set(current.refs.map(identity));
-  const other = await fetchOtherActiveDishRefs(args);
+  const other = await fetchOtherDishRefs(args);
   if (other.error) {
     report.errors.push({ bucket: "", paths: [], message: other.error });
     report.skippedStillReferenced.push(...report.candidates);
@@ -295,6 +340,14 @@ export async function cleanupReplacedDishAssets(
     }
     if (!isSafePrefix(ref)) {
       report.skippedUnsafePrefix.push(ref);
+      continue;
+    }
+    if (ref.kind === "photo") {
+      // Photo originals and derivatives are content-addressed and shared.
+      // Another instance may have reused this path without committing its
+      // metadata yet, which a point-in-time reference scan cannot observe.
+      // Keep it for offline reconciliation instead of risking a dangling ref.
+      report.skippedConcurrentReuseRisk.push(ref);
       continue;
     }
     if (isRefInSet(ref, activeCurrentIdentities) || isRefInSet(ref, otherIdentities)) {

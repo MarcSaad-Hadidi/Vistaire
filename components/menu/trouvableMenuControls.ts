@@ -60,17 +60,17 @@ export const TROUVABLE_STATIC_CAD_RATES: Partial<Record<TrouvableCurrency, numbe
 
 const TROUVABLE_GOOGLE_REVIEW_COPY = {
   fr: {
-    action: "Laisser un avis Google",
+    action: "Laisser un avis sur Google",
     fallbackRestaurant: "le restaurant",
     metaLabel: "Résumé Google",
     note:
       "Aucun avantage n'est offert en échange d'un avis. Votre avis doit refléter votre expérience réelle.",
+    opensInNewTab: "S'ouvre dans un nouvel onglet",
     presentationRatingLabel: "Aperçu Google : {rating}/5",
     presentationReviewCountLabel: "Aperçu : {count} avis",
     ratingLabel: "{rating}/5 sur Google",
     reviewCountLabel: "{count} avis Google",
-    text:
-      "Partagez votre expérience chez {restaurantName}. Votre avis Google aide l'équipe à mieux comprendre chaque visite et à se faire découvrir.",
+    text: "Partagez votre avis directement sur Google. Cela ne prend qu'une minute.",
     title: "Votre expérience compte"
   },
   en: {
@@ -79,12 +79,12 @@ const TROUVABLE_GOOGLE_REVIEW_COPY = {
     metaLabel: "Google summary",
     note:
       "No benefit is offered in exchange for a review. Your review should reflect your real experience.",
+    opensInNewTab: "Opens in a new tab",
     presentationRatingLabel: "Google preview: {rating}/5",
     presentationReviewCountLabel: "Preview: {count} reviews",
     ratingLabel: "{rating}/5 on Google",
     reviewCountLabel: "{count} Google reviews",
-    text:
-      "Share your experience at {restaurantName}. Your Google review helps the team understand each visit and be discovered.",
+    text: "Share your experience directly on Google. It only takes a minute.",
     title: "Your experience matters"
   },
   es: {
@@ -93,26 +93,26 @@ const TROUVABLE_GOOGLE_REVIEW_COPY = {
     metaLabel: "Resumen de Google",
     note:
       "No se ofrece ningún beneficio a cambio de una reseña. Tu reseña debe reflejar tu experiencia real.",
+    opensInNewTab: "Se abre en una pestaña nueva",
     presentationRatingLabel: "Vista previa de Google: {rating}/5",
     presentationReviewCountLabel: "Vista previa: {count} reseñas",
     ratingLabel: "{rating}/5 en Google",
     reviewCountLabel: "{count} reseñas de Google",
-    text:
-      "Comparte tu experiencia en {restaurantName}. Tu reseña de Google ayuda al equipo a entender cada visita y a ser descubierto.",
+    text: "Comparte tu opinión directamente en Google. Solo toma un minuto.",
     title: "Tu experiencia cuenta"
   },
   it: {
-    action: "Lascia una recensione Google",
+    action: "Lascia una recensione su Google",
     fallbackRestaurant: "il ristorante",
     metaLabel: "Riepilogo Google",
     note:
       "Non viene offerto alcun vantaggio in cambio di una recensione. La recensione deve riflettere la tua esperienza reale.",
+    opensInNewTab: "Si apre in una nuova scheda",
     presentationRatingLabel: "Anteprima Google: {rating}/5",
     presentationReviewCountLabel: "Anteprima: {count} recensioni",
     ratingLabel: "{rating}/5 su Google",
     reviewCountLabel: "{count} recensioni Google",
-    text:
-      "Condividi la tua esperienza da {restaurantName}. La tua recensione Google aiuta il team a capire ogni visita e a farsi scoprire.",
+    text: "Condividi la tua esperienza direttamente su Google. Ci vuole solo un minuto.",
     title: "La tua esperienza conta"
   },
   de: {
@@ -121,26 +121,26 @@ const TROUVABLE_GOOGLE_REVIEW_COPY = {
     metaLabel: "Google-Zusammenfassung",
     note:
       "Es wird kein Vorteil im Austausch für eine Bewertung angeboten. Ihre Bewertung sollte Ihre echte Erfahrung widerspiegeln.",
+    opensInNewTab: "Öffnet sich in einem neuen Tab",
     presentationRatingLabel: "Google-Vorschau: {rating}/5",
     presentationReviewCountLabel: "Vorschau: {count} Bewertungen",
     ratingLabel: "{rating}/5 bei Google",
     reviewCountLabel: "{count} Google-Bewertungen",
-    text:
-      "Teilen Sie Ihre Erfahrung bei {restaurantName}. Ihre Google-Bewertung hilft dem Team, jeden Besuch besser zu verstehen und leichter entdeckt zu werden.",
+    text: "Teilen Sie Ihre Erfahrung direkt auf Google. Es dauert nur eine Minute.",
     title: "Ihre Erfahrung zählt"
   },
   el: {
-    action: "Αφήστε αξιολόγηση Google",
+    action: "Αφήστε μια αξιολόγηση στο Google",
     fallbackRestaurant: "το εστιατόριο",
     metaLabel: "Σύνοψη Google",
     note:
       "Δεν προσφέρεται κανένα όφελος ως αντάλλαγμα για αξιολόγηση. Η αξιολόγησή σας πρέπει να αντικατοπτρίζει την πραγματική εμπειρία σας.",
+    opensInNewTab: "Ανοίγει σε νέα καρτέλα",
     presentationRatingLabel: "Προεπισκόπηση Google: {rating}/5",
     presentationReviewCountLabel: "Προεπισκόπηση: {count} αξιολογήσεις",
     ratingLabel: "{rating}/5 στο Google",
     reviewCountLabel: "{count} αξιολογήσεις Google",
-    text:
-      "Μοιραστείτε την εμπειρία σας στο {restaurantName}. Η αξιολόγησή σας στο Google βοηθά την ομάδα να κατανοεί κάθε επίσκεψη και να γίνεται πιο εύκολα ανακαλύψιμη.",
+    text: "Μοιραστείτε την εμπειρία σας απευθείας στο Google. Χρειάζεται μόνο ένα λεπτό.",
     title: "Η εμπειρία σας μετράει"
   },
   ar: {
@@ -149,12 +149,12 @@ const TROUVABLE_GOOGLE_REVIEW_COPY = {
     metaLabel: "ملخص Google",
     note:
       "لا يتم تقديم أي منفعة مقابل التقييم. يجب أن يعكس تقييمك تجربتك الحقيقية.",
+    opensInNewTab: "يفتح في علامة تبويب جديدة",
     presentationRatingLabel: "معاينة Google: {rating}/5",
     presentationReviewCountLabel: "معاينة: {count} تقييم",
     ratingLabel: "{rating}/5 على Google",
     reviewCountLabel: "{count} تقييم Google",
-    text:
-      "شارك تجربتك لدى {restaurantName}. يساعد تقييمك على Google الفريق على فهم كل زيارة والوصول إلى ضيوف جدد.",
+    text: "شارك تجربتك مباشرة على Google. لا يستغرق الأمر سوى دقيقة واحدة.",
     title: "تجربتك مهمة"
   }
 } as const;
@@ -287,7 +287,22 @@ export const TROUVABLE_COPY = {
       arAndroidBrowser:
         "Votre navigateur ne permet pas la réalité augmentée ici. Vous pouvez quand même faire tourner le plat en 3D.",
       arIosHandoff:
-        "Pour placer le plat devant vous, ouvrez cette fiche dans Safari sur iPhone."
+        "Pour placer le plat devant vous, ouvrez cette fiche dans Safari sur iPhone.",
+      arUnsupportedDeviceTitle:
+        "La réalité augmentée n'est pas disponible sur cet appareil",
+      arUnsupportedDeviceBody:
+        "La réalité augmentée n'est pas disponible sur cet appareil pour le moment. Vous pouvez continuer à explorer le plat en 3D.",
+      arAssetUnavailableTitle:
+        "La réalité augmentée n'est pas disponible pour ce plat",
+      arAssetUnavailableBody:
+        "La réalité augmentée n'est pas encore disponible pour ce plat. Vous pouvez continuer à explorer le plat en 3D.",
+      arAndroidHandoffTitle: "Ouvrez cette fiche dans Chrome",
+      arAndroidHandoffBody:
+        "Ce navigateur ne peut pas lancer la réalité augmentée. Copiez le lien de cette fiche, ouvrez Chrome, puis collez-le dans la barre d'adresse.",
+      copyError:
+        "La copie automatique a échoué. Sélectionnez le lien ci-dessous et copiez-le manuellement.",
+      manualCopyLabel: "Lien de la fiche",
+      selectLink: "Sélectionner le lien"
     },
     modelUnavailable: "Vue 3D temporairement indisponible.",
     arBrowserFallback: {
@@ -312,6 +327,13 @@ export const TROUVABLE_COPY = {
         action: "Copier le lien de la fiche",
         success:
           "Lien copié. Ouvrez votre navigateur principal, puis collez-le dans la barre d'adresse."
+      },
+      device: {
+        title: "La réalité augmentée n'est pas disponible sur cet appareil",
+        body:
+          "La réalité augmentée n'est pas disponible sur cet appareil pour le moment. Vous pouvez continuer à explorer le plat en 3D.",
+        action: "Continuer en 3D",
+        success: "Vous pouvez continuer à explorer le plat en 3D."
       },
       copyError:
         "La copie automatique a échoué. Sélectionnez le lien ci-dessous et copiez-le manuellement.",
@@ -343,18 +365,6 @@ export const TROUVABLE_COPY = {
     resetFilters: "R\u00e9initialiser les filtres",
     resultStatus: (view: string, count: number) =>
       `Vue ${view}, ${count} plat${count > 1 ? "s" : ""} affiché${count > 1 ? "s" : ""}`,
-    review: "LAISSER UN AVIS",
-    reviewClose: "Fermer l'avis",
-    reviewComment: "Votre commentaire",
-    reviewExperiencePlaceholder: "Comment s'est passée votre visite ?",
-    reviewExperienceStars: "Note de l'expérience",
-    reviewExperienceTitle: "Noter votre expérience",
-    reviewMissing: "Lien Google Review non configuré pour ce restaurant.",
-    reviewOpened: "Google Review ouvert dans un nouvel onglet.",
-    reviewPlaceholder: "Comment était le goût ?",
-    reviewPost: "Publier l'avis",
-    reviewStars: "Note du plat",
-    reviewTitle: "Noter ce plat",
     searchLabel: "Recherche",
     searchPlaceholder: "Rechercher un plat, ingrédient, tag...",
     selection: "Sélection",
@@ -503,7 +513,20 @@ export const TROUVABLE_COPY = {
       arAndroidBrowser:
         "Your browser does not allow augmented reality here. You can still rotate the dish in 3D.",
       arIosHandoff:
-        "To place the dish in your space, open this dish page in Safari on iPhone."
+        "To place the dish in your space, open this dish page in Safari on iPhone.",
+      arUnsupportedDeviceTitle: "Augmented reality is not available on this device",
+      arUnsupportedDeviceBody:
+        "Augmented reality is not available on this device right now. You can keep exploring the dish in 3D.",
+      arAssetUnavailableTitle: "Augmented reality is not available for this dish",
+      arAssetUnavailableBody:
+        "Augmented reality is not available for this dish yet. You can keep exploring it in 3D.",
+      arAndroidHandoffTitle: "Open this dish page in Chrome",
+      arAndroidHandoffBody:
+        "This browser cannot launch augmented reality. Copy this dish page link, open Chrome, then paste it into the address bar.",
+      copyError:
+        "Automatic copying failed. Select the link below and copy it manually.",
+      manualCopyLabel: "Dish page link",
+      selectLink: "Select link"
     },
     modelUnavailable: "3D view is temporarily unavailable.",
     arBrowserFallback: {
@@ -528,6 +551,13 @@ export const TROUVABLE_COPY = {
         action: "Copy dish page link",
         success:
           "Link copied. Open your main browser, then paste it into the address bar."
+      },
+      device: {
+        title: "Augmented reality is not available on this device",
+        body:
+          "Augmented reality is not available on this device right now. You can keep exploring the dish in 3D.",
+        action: "Continue in 3D",
+        success: "You can keep exploring the dish in 3D."
       },
       copyError:
         "Automatic copying failed. Select the link below and copy it manually.",
@@ -559,18 +589,6 @@ export const TROUVABLE_COPY = {
     resetFilters: "Reset filters",
     resultStatus: (view: string, count: number) =>
       `${view} view, ${count} dish${count > 1 ? "es" : ""} shown`,
-    review: "TAP TO REVIEW",
-    reviewClose: "Close review",
-    reviewComment: "Your comment",
-    reviewExperiencePlaceholder: "How was your visit?",
-    reviewExperienceStars: "Experience rating",
-    reviewExperienceTitle: "Rate your experience",
-    reviewMissing: "Google Review link is not configured for this restaurant.",
-    reviewOpened: "Google Review opened in a new tab.",
-    reviewPlaceholder: "How was the taste?",
-    reviewPost: "POST REVIEW",
-    reviewStars: "Dish rating",
-    reviewTitle: "Rate this Dish",
     searchLabel: "Search",
     searchPlaceholder: "Search dish, ingredient, tag...",
     selection: "Selection",
@@ -720,7 +738,20 @@ export const TROUVABLE_COPY = {
       arAndroidBrowser:
         "Tu navegador no permite la realidad aumentada aqui. Aun asi puedes girar el plato en 3D.",
       arIosHandoff:
-        "Para colocar el plato delante de ti, abre esta ficha en Safari en iPhone."
+        "Para colocar el plato delante de ti, abre esta ficha en Safari en iPhone.",
+      arUnsupportedDeviceTitle: "La realidad aumentada no está disponible en este aparato",
+      arUnsupportedDeviceBody:
+        "La realidad aumentada no está disponible en este aparato por el momento. Puedes seguir explorando el plato en 3D.",
+      arAssetUnavailableTitle: "La realidad aumentada no está disponible para este plato",
+      arAssetUnavailableBody:
+        "La realidad aumentada aún no está disponible para este plato. Puedes seguir explorándolo en 3D.",
+      arAndroidHandoffTitle: "Abre esta ficha en Chrome",
+      arAndroidHandoffBody:
+        "Este navegador no puede iniciar la realidad aumentada. Copia el enlace, abre Chrome y pégalo en la barra de direcciones.",
+      copyError:
+        "La copia automática ha fallado. Selecciona el enlace de abajo y cópialo manualmente.",
+      manualCopyLabel: "Enlace de la ficha",
+      selectLink: "Seleccionar enlace"
     },
     modelUnavailable: "La vista 3D no esta disponible temporalmente.",
     arBrowserFallback: {
@@ -745,6 +776,13 @@ export const TROUVABLE_COPY = {
         action: "Copiar enlace de la ficha",
         success:
           "Enlace copiado. Abre tu navegador principal y pégalo en la barra de direcciones."
+      },
+      device: {
+        title: "La realidad aumentada no está disponible en este aparato",
+        body:
+          "La realidad aumentada no está disponible en este aparato por el momento. Puedes seguir explorando el plato en 3D.",
+        action: "Continuar en 3D",
+        success: "Puedes seguir explorando el plato en 3D."
       },
       copyError:
         "La copia automática ha fallado. Selecciona el enlace de abajo y cópialo manualmente.",
@@ -776,18 +814,6 @@ export const TROUVABLE_COPY = {
     resetFilters: "Restablecer filtros",
     resultStatus: (view: string, count: number) =>
       `Vista ${view}, ${count} plato${count > 1 ? "s" : ""} visible${count > 1 ? "s" : ""}`,
-    review: "DEJAR RESENA",
-    reviewClose: "Cerrar resena",
-    reviewComment: "Tu comentario",
-    reviewExperiencePlaceholder: "Como fue tu visita?",
-    reviewExperienceStars: "Valoracion de la experiencia",
-    reviewExperienceTitle: "Valorar tu experiencia",
-    reviewMissing: "El enlace de Google Review no esta configurado para este restaurante.",
-    reviewOpened: "Google Review se abrio en una nueva pestana.",
-    reviewPlaceholder: "Que tal el sabor?",
-    reviewPost: "Publicar resena",
-    reviewStars: "Valoracion del plato",
-    reviewTitle: "Valorar este plato",
     searchLabel: "Buscar",
     searchPlaceholder: "Buscar plato, ingrediente, etiqueta...",
     selection: "Seleccion",
@@ -937,7 +963,20 @@ export const TROUVABLE_COPY = {
       arAndroidBrowser:
         "Il tuo browser non consente la realta aumentata qui. Puoi comunque ruotare il piatto in 3D.",
       arIosHandoff:
-        "Per posizionare il piatto davanti a te, apri questa scheda in Safari su iPhone."
+        "Per posizionare il piatto davanti a te, apri questa scheda in Safari su iPhone.",
+      arUnsupportedDeviceTitle: "La realtà aumentata non è disponibile su questo dispositivo",
+      arUnsupportedDeviceBody:
+        "La realtà aumentata non è disponibile su questo dispositivo per il momento. Puoi continuare a esplorare il piatto in 3D.",
+      arAssetUnavailableTitle: "La realtà aumentata non è disponibile per questo piatto",
+      arAssetUnavailableBody:
+        "La realtà aumentata non è ancora disponibile per questo piatto. Puoi continuare a esplorarlo in 3D.",
+      arAndroidHandoffTitle: "Apri questa scheda in Chrome",
+      arAndroidHandoffBody:
+        "Questo browser non può avviare la realtà aumentata. Copia il link, apri Chrome e incollalo nella barra degli indirizzi.",
+      copyError:
+        "La copia automatica non è riuscita. Seleziona il link qui sotto e copialo manualmente.",
+      manualCopyLabel: "Link della scheda",
+      selectLink: "Seleziona link"
     },
     modelUnavailable: "La vista 3D e temporaneamente non disponibile.",
     arBrowserFallback: {
@@ -962,6 +1001,13 @@ export const TROUVABLE_COPY = {
         action: "Copia il link della scheda",
         success:
           "Link copiato. Apri il browser principale e incollalo nella barra degli indirizzi."
+      },
+      device: {
+        title: "La realtà aumentata non è disponibile su questo dispositivo",
+        body:
+          "La realtà aumentata non è disponibile su questo dispositivo per il momento. Puoi continuare a esplorare il piatto in 3D.",
+        action: "Continua in 3D",
+        success: "Puoi continuare a esplorare il piatto in 3D."
       },
       copyError:
         "La copia automatica non è riuscita. Seleziona il link qui sotto e copialo manualmente.",
@@ -993,18 +1039,6 @@ export const TROUVABLE_COPY = {
     resetFilters: "Reimposta filtri",
     resultStatus: (view: string, count: number) =>
       `Vista ${view}, ${count} piatt${count > 1 ? "i" : "o"} visibil${count > 1 ? "i" : "e"}`,
-    review: "LASCIA RECENSIONE",
-    reviewClose: "Chiudi recensione",
-    reviewComment: "Il tuo commento",
-    reviewExperiencePlaceholder: "Com'e stata la visita?",
-    reviewExperienceStars: "Valutazione esperienza",
-    reviewExperienceTitle: "Valuta la tua esperienza",
-    reviewMissing: "Link Google Review non configurato per questo ristorante.",
-    reviewOpened: "Google Review aperto in una nuova scheda.",
-    reviewPlaceholder: "Com'era il gusto?",
-    reviewPost: "Pubblica recensione",
-    reviewStars: "Valutazione piatto",
-    reviewTitle: "Valuta questo piatto",
     searchLabel: "Cerca",
     searchPlaceholder: "Cerca piatto, ingrediente, tag...",
     selection: "Selezione",
@@ -1154,7 +1188,20 @@ export const TROUVABLE_COPY = {
       arAndroidBrowser:
         "Ihr Browser erlaubt hier keine Augmented Reality. Sie können das Gericht trotzdem in 3D drehen.",
       arIosHandoff:
-        "Um das Gericht vor sich zu platzieren, öffnen Sie diese Gerichtseite in Safari auf dem iPhone."
+        "Um das Gericht vor sich zu platzieren, öffnen Sie diese Gerichtseite in Safari auf dem iPhone.",
+      arUnsupportedDeviceTitle: "Augmented Reality ist auf diesem Gerät nicht verfügbar",
+      arUnsupportedDeviceBody:
+        "Augmented Reality ist auf diesem Gerät derzeit nicht verfügbar. Sie können das Gericht weiter in 3D erkunden.",
+      arAssetUnavailableTitle: "Augmented Reality ist für dieses Gericht nicht verfügbar",
+      arAssetUnavailableBody:
+        "Augmented Reality ist für dieses Gericht noch nicht verfügbar. Sie können es weiter in 3D erkunden.",
+      arAndroidHandoffTitle: "Diese Gerichtseite in Chrome öffnen",
+      arAndroidHandoffBody:
+        "Dieser Browser kann Augmented Reality nicht starten. Kopieren Sie den Link, öffnen Sie Chrome und fügen Sie ihn in die Adresszeile ein.",
+      copyError:
+        "Das automatische Kopieren ist fehlgeschlagen. Wählen Sie den Link unten aus und kopieren Sie ihn manuell.",
+      manualCopyLabel: "Link der Gerichtseite",
+      selectLink: "Link auswählen"
     },
     modelUnavailable: "Die 3D-Ansicht ist vorübergehend nicht verfügbar.",
     arBrowserFallback: {
@@ -1179,6 +1226,13 @@ export const TROUVABLE_COPY = {
         action: "Link der Gerichtseite kopieren",
         success:
           "Link kopiert. Öffnen Sie Ihren Hauptbrowser und fügen Sie ihn in die Adresszeile ein."
+      },
+      device: {
+        title: "Augmented Reality ist auf diesem Gerät nicht verfügbar",
+        body:
+          "Augmented Reality ist auf diesem Gerät derzeit nicht verfügbar. Sie können das Gericht weiter in 3D erkunden.",
+        action: "In 3D fortfahren",
+        success: "Sie können das Gericht weiter in 3D erkunden."
       },
       copyError:
         "Das automatische Kopieren ist fehlgeschlagen. Wählen Sie den Link unten aus und kopieren Sie ihn manuell.",
@@ -1210,18 +1264,6 @@ export const TROUVABLE_COPY = {
     resetFilters: "Filter zurücksetzen",
     resultStatus: (view: string, count: number) =>
       `${view}-Ansicht, ${count} ${count === 1 ? "Gericht" : "Gerichte"} angezeigt`,
-    review: "BEWERTEN",
-    reviewClose: "Bewertung schließen",
-    reviewComment: "Ihr Kommentar",
-    reviewExperiencePlaceholder: "Wie war Ihr Besuch?",
-    reviewExperienceStars: "Erlebnisbewertung",
-    reviewExperienceTitle: "Bewerten Sie Ihre Erfahrung",
-    reviewMissing: "Der Google-Review-Link ist für dieses Restaurant nicht konfiguriert.",
-    reviewOpened: "Google Review wurde in einem neuen Tab geöffnet.",
-    reviewPlaceholder: "Wie war der Geschmack?",
-    reviewPost: "BEWERTUNG SENDEN",
-    reviewStars: "Gerichtbewertung",
-    reviewTitle: "Dieses Gericht bewerten",
     searchLabel: "Suche",
     searchPlaceholder: "Gericht, Zutat, Tag suchen...",
     selection: "Auswahl",
@@ -1371,7 +1413,20 @@ export const TROUVABLE_COPY = {
       arAndroidBrowser:
         "Το πρόγραμμα περιήγησής σας δεν επιτρέπει επαυξημένη πραγματικότητα εδώ. Μπορείτε όμως να περιστρέψετε το πιάτο σε 3D.",
       arIosHandoff:
-        "Για να τοποθετήσετε το πιάτο μπροστά σας, ανοίξτε αυτή την καρτέλα στο Safari σε iPhone."
+        "Για να τοποθετήσετε το πιάτο μπροστά σας, ανοίξτε αυτή την καρτέλα στο Safari σε iPhone.",
+      arUnsupportedDeviceTitle: "Η επαυξημένη πραγματικότητα δεν είναι διαθέσιμη σε αυτή τη συσκευή",
+      arUnsupportedDeviceBody:
+        "Η επαυξημένη πραγματικότητα δεν είναι διαθέσιμη σε αυτή τη συσκευή προς το παρόν. Μπορείτε να συνεχίσετε να εξερευνάτε το πιάτο σε 3D.",
+      arAssetUnavailableTitle: "Η επαυξημένη πραγματικότητα δεν είναι διαθέσιμη για αυτό το πιάτο",
+      arAssetUnavailableBody:
+        "Η επαυξημένη πραγματικότητα δεν είναι ακόμη διαθέσιμη για αυτό το πιάτο. Μπορείτε να συνεχίσετε να το εξερευνάτε σε 3D.",
+      arAndroidHandoffTitle: "Ανοίξτε αυτή την καρτέλα στο Chrome",
+      arAndroidHandoffBody:
+        "Αυτό το πρόγραμμα περιήγησης δεν μπορεί να ξεκινήσει την επαυξημένη πραγματικότητα. Αντιγράψτε τον σύνδεσμο, ανοίξτε το Chrome και επικολλήστε τον στη γραμμή διεύθυνσης.",
+      copyError:
+        "Η αυτόματη αντιγραφή απέτυχε. Επιλέξτε τον σύνδεσμο παρακάτω και αντιγράψτε τον χειροκίνητα.",
+      manualCopyLabel: "Σύνδεσμος πιάτου",
+      selectLink: "Επιλογή συνδέσμου"
     },
     modelUnavailable: "Η προβολή 3D είναι προσωρινά μη διαθέσιμη.",
     arBrowserFallback: {
@@ -1396,6 +1451,13 @@ export const TROUVABLE_COPY = {
         action: "Αντιγραφή συνδέσμου πιάτου",
         success:
           "Ο σύνδεσμος αντιγράφηκε. Ανοίξτε το κύριο πρόγραμμα περιήγησης και επικολλήστε τον στη γραμμή διεύθυνσης."
+      },
+      device: {
+        title: "Η επαυξημένη πραγματικότητα δεν είναι διαθέσιμη σε αυτή τη συσκευή",
+        body:
+          "Η επαυξημένη πραγματικότητα δεν είναι διαθέσιμη σε αυτή τη συσκευή προς το παρόν. Μπορείτε να συνεχίσετε να εξερευνάτε το πιάτο σε 3D.",
+        action: "Συνέχεια σε 3D",
+        success: "Μπορείτε να συνεχίσετε να εξερευνάτε το πιάτο σε 3D."
       },
       copyError:
         "Η αυτόματη αντιγραφή απέτυχε. Επιλέξτε τον σύνδεσμο παρακάτω και αντιγράψτε τον χειροκίνητα.",
@@ -1427,18 +1489,6 @@ export const TROUVABLE_COPY = {
     resetFilters: "Επαναφορά φίλτρων",
     resultStatus: (view: string, count: number) =>
       `Προβολή ${view}, εμφανίζονται ${count} ${count === 1 ? "πιάτο" : "πιάτα"}`,
-    review: "ΑΞΙΟΛΟΓΗΣΗ",
-    reviewClose: "Κλείσιμο αξιολόγησης",
-    reviewComment: "Το σχόλιό σας",
-    reviewExperiencePlaceholder: "Πώς ήταν η επίσκεψή σας;",
-    reviewExperienceStars: "Βαθμολογία εμπειρίας",
-    reviewExperienceTitle: "Αξιολογήστε την εμπειρία σας",
-    reviewMissing: "Ο σύνδεσμος αξιολόγησης Google δεν έχει ρυθμιστεί για αυτό το εστιατόριο.",
-    reviewOpened: "Η αξιολόγηση Google άνοιξε σε νέα καρτέλα.",
-    reviewPlaceholder: "Πώς ήταν η γεύση;",
-    reviewPost: "ΔΗΜΟΣΙΕΥΣΗ ΑΞΙΟΛΟΓΗΣΗΣ",
-    reviewStars: "Βαθμολογία πιάτου",
-    reviewTitle: "Αξιολογήστε αυτό το πιάτο",
     searchLabel: "Αναζήτηση",
     searchPlaceholder: "Αναζήτηση πιάτου, υλικού, ετικέτας...",
     selection: "Επιλογή",
@@ -1586,7 +1636,20 @@ export const TROUVABLE_COPY = {
       arAndroidBrowser:
         "متصفحك لا يسمح بالواقع المعزز هنا. يمكنك مع ذلك تدوير الطبق في 3D.",
       arIosHandoff:
-        "لوضع الطبق أمامك، افتح هذه الصفحة في Safari على iPhone."
+        "لوضع الطبق أمامك، افتح هذه الصفحة في Safari على iPhone.",
+      arUnsupportedDeviceTitle: "الواقع المعزز غير متاح على هذا الجهاز",
+      arUnsupportedDeviceBody:
+        "الواقع المعزز غير متاح على هذا الجهاز في الوقت الحالي. يمكنك متابعة استكشاف الطبق في 3D.",
+      arAssetUnavailableTitle: "الواقع المعزز غير متاح لهذا الطبق",
+      arAssetUnavailableBody:
+        "الواقع المعزز غير متاح بعد لهذا الطبق. يمكنك متابعة استكشافه في 3D.",
+      arAndroidHandoffTitle: "افتح صفحة هذا الطبق في Chrome",
+      arAndroidHandoffBody:
+        "لا يمكن لهذا المتصفح تشغيل الواقع المعزز. انسخ الرابط، وافتح Chrome، ثم الصقه في شريط العنوان.",
+      copyError:
+        "تعذر النسخ التلقائي. حدد الرابط أدناه وانسخه يدويا.",
+      manualCopyLabel: "رابط صفحة الطبق",
+      selectLink: "تحديد الرابط"
     },
     modelUnavailable: "عرض 3D غير متاح مؤقتا.",
     arBrowserFallback: {
@@ -1611,6 +1674,13 @@ export const TROUVABLE_COPY = {
         action: "نسخ رابط صفحة الطبق",
         success:
           "تم نسخ الرابط. افتح المتصفح الرئيسي ثم الصقه في شريط العنوان."
+      },
+      device: {
+        title: "الواقع المعزز غير متاح على هذا الجهاز",
+        body:
+          "الواقع المعزز غير متاح على هذا الجهاز في الوقت الحالي. يمكنك متابعة استكشاف الطبق في 3D.",
+        action: "متابعة في 3D",
+        success: "يمكنك متابعة استكشاف الطبق في 3D."
       },
       copyError:
         "تعذر النسخ التلقائي. حدد الرابط أدناه وانسخه يدويا.",
@@ -1642,18 +1712,6 @@ export const TROUVABLE_COPY = {
     resetFilters: "إعادة ضبط الفلاتر",
     resultStatus: (view: string, count: number) =>
       `عرض ${view}، ${count} أطباق معروضة`,
-    review: "اترك تقييما",
-    reviewClose: "إغلاق التقييم",
-    reviewComment: "تعليقك",
-    reviewExperiencePlaceholder: "كيف كانت زيارتك؟",
-    reviewExperienceStars: "تقييم التجربة",
-    reviewExperienceTitle: "قيّم تجربتك",
-    reviewMissing: "رابط Google Review غير معد لهذا المطعم.",
-    reviewOpened: "تم فتح Google Review في تبويب جديد.",
-    reviewPlaceholder: "كيف كان الطعم؟",
-    reviewPost: "نشر التقييم",
-    reviewStars: "تقييم الطبق",
-    reviewTitle: "قيّم هذا الطبق",
     searchLabel: "بحث",
     searchPlaceholder: "ابحث عن طبق أو مكون أو وسم...",
     selection: "الاختيار",

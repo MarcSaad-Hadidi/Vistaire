@@ -63,9 +63,13 @@
   box-shadow: 0 14px 32px rgba(202, 165, 44, 0.22);
 }
 
-.googleReviewAction:disabled {
-  cursor: default;
-  opacity: 0.78;
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
 }
 
 .googleReviewNote {

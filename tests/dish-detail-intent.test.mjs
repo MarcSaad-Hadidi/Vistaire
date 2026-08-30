@@ -26,7 +26,7 @@ test("model viewer keeps iOS Quick Look fallback available when 3D fails", () =>
   );
   assert.match(
     modelViewerSource,
-    /const showIosQuickLookButton = showArReady && canOpenDirectIosQuickLook;/
+    /const showIosQuickLookButton =\s*showArReady &&\s*canOpenDirectIosQuickLook &&\s*arExperience\.kind === "cta" &&\s*arExperience\.platform === "ios";/
   );
   assert.match(
     modelViewerSource,

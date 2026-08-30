@@ -1,11 +1,13 @@
 import "server-only";
 
+import { cache } from "react";
+
 import {
   getBoolean,
   getString,
   readSupabaseRowsByFilters
 } from "@/lib/analytics/serverRows";
-import { getDemoRestaurantId } from "@/lib/analytics/insights";
+import { getDemoRestaurantId } from "@/lib/maisonElyseIdentity";
 import {
   getAllDishes,
   getCategoryBySlug,
@@ -28,6 +30,10 @@ import {
   publicLocaleToShortLocale,
   serializePublicMenuSettings
 } from "@/lib/menu/publicMenuSettings";
+import {
+  MENU_PROJECTIONS,
+  PUBLIC_MENU_PROJECTIONS
+} from "@/lib/menu/menuSchemaProjections";
 import { applyStoredPublicMenuTranslations } from "@/lib/menu/publicMenuTranslations";
 import { publicMenuSettingsFallbackFromUiConfigRows } from "@/lib/owner/publicMenuSettingsFallback";
 
@@ -37,21 +43,33 @@ function isMissingDisplayOrderError(result: { ok: boolean; error?: string }): bo
   return !result.ok && /display_order|schema cache|does not exist/i.test(result.error ?? "");
 }
 
+// Keep public menu reads explicit. The shared menu projection contract tracks
+// the deployed production schema; legacy slug fallback intentionally retains
+// `*` below because older installations may not expose the relational shape.
+const PUBLIC_RESTAURANT_COLUMNS = PUBLIC_MENU_PROJECTIONS.restaurants;
+const PUBLIC_DISH_COLUMNS = PUBLIC_MENU_PROJECTIONS.dishes;
+const PUBLIC_RESTAURANT_COLUMNS_FALLBACK =
+  PUBLIC_MENU_PROJECTIONS.restaurantsFallback;
+const PUBLIC_DISH_COLUMNS_FALLBACK = PUBLIC_MENU_PROJECTIONS.dishesFallback;
+const PUBLIC_UI_CONFIG_COLUMNS = PUBLIC_MENU_PROJECTIONS.uiConfigs;
+
 async function readDishRows(
   readRows: typeof readSupabaseRowsByFilters,
   filters: Record<string, string>
 ) {
   const ordered = await readRows({
     table: "menu_dishes",
-    columns: "*",
+    columns: filters.restaurant_id ? PUBLIC_DISH_COLUMNS : "*",
     filters,
     orderBy: ["display_order", "id"],
-    limit: 1_000
+    limit: 1_000,
+    fallbackColumns: filters.restaurant_id ? PUBLIC_DISH_COLUMNS_FALLBACK : undefined,
+    fallbackOrderBy: "id"
   });
   if (ordered.ok || !isMissingDisplayOrderError(ordered)) return ordered;
   return readRows({
     table: "menu_dishes",
-    columns: "*",
+    columns: filters.restaurant_id ? PUBLIC_DISH_COLUMNS_FALLBACK : "*",
     filters,
     orderBy: ["id"],
     limit: 1_000
@@ -63,6 +81,11 @@ const DEMO_PUBLIC_MENU_SETTINGS = serializePublicMenuSettings({
   supportedLocales: ["fr-CA", "en-CA"],
   publicMenuStyle: "maison-elyse"
 });
+
+const MAISON_E2E_GOOGLE_REVIEW_URL =
+  "https://search.google.com/local/writereview?placeid=ChIJMaisonElyseDemoVistaire";
+const TROUVABLE_E2E_GOOGLE_REVIEW_URL =
+  "https://search.google.com/local/writereview?placeid=ChIJTrouvableDemoVistaire";
 
 const TROUVABLE_PUBLIC_MENU_SETTINGS = serializePublicMenuSettings({
   ...DEFAULT_PUBLIC_MENU_SETTINGS,
@@ -308,7 +331,15 @@ function demoMenu(slug: string, locale: Locale = "fr"): PublicMenu {
     name: restaurant.name,
     location: restaurant.location,
     cuisineType: restaurant.cuisineType,
-    googleReview: normalizeGoogleReviewConfig(restaurant.googleReview),
+    googleReview: normalizeGoogleReviewConfig(
+      process.env.VISTAIRE_E2E_MAISON_PUBLIC_MENU === "1"
+        ? {
+            ...restaurant.googleReview,
+            presentationOnly: false,
+            googleReviewUrl: MAISON_E2E_GOOGLE_REVIEW_URL
+          }
+        : restaurant.googleReview
+    ),
     settings: DEMO_PUBLIC_MENU_SETTINGS,
     activeLocale: locale === "en" ? "en-CA" : "fr-CA",
     translationLocales: [
@@ -333,6 +364,7 @@ function demoMenu(slug: string, locale: Locale = "fr"): PublicMenu {
       displayPriceMode: "auto",
       imageUrl: dish.image ?? "",
       thumbnailUrl: dish.image ?? "",
+      cardUrl: dish.image ?? "",
       hasPhoto: Boolean(dish.image),
       photoStatus: dish.image ? "ready" : "missing",
       has3d: Boolean(
@@ -411,10 +443,14 @@ function trouvableDemoMenu(
       : isEnglish
         ? "Premium brunch and evening plates"
         : "Brunch premium et assiettes du soir",
-    googleReview: normalizeGoogleReviewConfig({
-      enabled: false,
-      googleReviewUrl: ""
-    }),
+    googleReview: normalizeGoogleReviewConfig(
+      e2eImmersiveFixture
+        ? {
+            enabled: true,
+            googleReviewUrl: TROUVABLE_E2E_GOOGLE_REVIEW_URL
+          }
+        : { enabled: false, googleReviewUrl: "" }
+    ),
     settings: TROUVABLE_PUBLIC_MENU_SETTINGS,
     activeLocale: activePublicLocale,
     translationStatus: {
@@ -458,6 +494,7 @@ function trouvableDemoMenu(
         displayPriceMode: "auto",
         imageUrl: dish.imageUrl,
         thumbnailUrl: dish.imageUrl,
+        cardUrl: dish.imageUrl,
         hasPhoto: true,
         photoStatus: "ready",
         has3d: Boolean(e2eImmersiveAssets),
@@ -556,46 +593,86 @@ type PublicMenuDependencies = {
   nodeEnv: string | undefined;
 };
 
-const LOCAL_PUBLIC_MENU_CACHE_TTL_MS = 30_000;
-const localPublicMenuCache = new Map<
-  string,
-  { expiresAt: number; promise: Promise<PublicMenu | null> }
->();
+export type PublicMenuReadOptions = {
+  bypassMaisonE2eFixture?: boolean;
+};
 
-export async function getPublicMenuBySlug(
+export type PublicMenuReadOutcome =
+  | { status: "live"; menu: PublicMenu }
+  | { status: "not_found" }
+  | { status: "temporarily_unavailable" };
+
+const defaultPublicMenuDependencies: PublicMenuDependencies = {
+  readRows: readSupabaseRowsByFilters,
+  nodeEnv: process.env.NODE_ENV
+};
+const publicMenuReadFlights = new Map<
+  string,
+  Promise<PublicMenuReadOutcome>
+>();
+const publicMenuDependencyScopes = new WeakMap<
+  typeof readSupabaseRowsByFilters,
+  number
+>();
+let nextPublicMenuDependencyScope = 1;
+
+function publicMenuDependencyScope(
+  readRows: typeof readSupabaseRowsByFilters
+): string {
+  if (readRows === readSupabaseRowsByFilters) return "default";
+  const existing = publicMenuDependencyScopes.get(readRows);
+  if (existing) return `test-${existing}`;
+  const created = nextPublicMenuDependencyScope++;
+  publicMenuDependencyScopes.set(readRows, created);
+  return `test-${created}`;
+}
+
+function publicMenuReadFlightKey(
+  slug: string,
+  locale: string,
+  dependencies: PublicMenuDependencies,
+  options: PublicMenuReadOptions
+): string {
+  return JSON.stringify([
+    publicMenuDependencyScope(dependencies.readRows),
+    slug,
+    locale,
+    Boolean(options.bypassMaisonE2eFixture)
+  ]);
+}
+
+function coalescePublicMenuRead(
+  key: string,
+  read: () => Promise<PublicMenuReadOutcome>
+): Promise<PublicMenuReadOutcome> {
+  const active = publicMenuReadFlights.get(key);
+  if (active) return active;
+
+  const flightReference: { current?: Promise<PublicMenuReadOutcome> } = {};
+  const flight = Promise.resolve()
+    .then(read)
+    .finally(() => {
+      if (publicMenuReadFlights.get(key) === flightReference.current) {
+        publicMenuReadFlights.delete(key);
+      }
+    });
+  flightReference.current = flight;
+  publicMenuReadFlights.set(key, flight);
+  return flight;
+}
+
+async function getPublicMenuBySlugUncached(
   rawSlug: string,
   locale: Locale | string = DEFAULT_LOCALE,
-  dependencies: PublicMenuDependencies = { readRows: readSupabaseRowsByFilters, nodeEnv: process.env.NODE_ENV }
+  dependencies: PublicMenuDependencies = defaultPublicMenuDependencies,
+  options: PublicMenuReadOptions = {}
 ): Promise<PublicMenu | null> {
   const slug = slugifyRestaurantSlug(rawSlug);
   const resolvedPublicLocale = normalizePublicMenuLocale(locale);
   const resolvedLocale = publicLocaleToShortLocale(resolvedPublicLocale);
   if (!slug) return null;
 
-  const canUseLocalCache =
-    dependencies.nodeEnv !== "production" &&
-    dependencies.readRows === readSupabaseRowsByFilters;
-  const cacheKey = `${slug}:${String(locale)}`;
-  if (canUseLocalCache) {
-    const cached = localPublicMenuCache.get(cacheKey);
-    if (cached && cached.expiresAt > Date.now()) return cached.promise;
-    if (cached) localPublicMenuCache.delete(cacheKey);
-  }
-
-  const readMenu = async (): Promise<PublicMenu | null> => {
-
-    // The dedicated public-menu matrix needs the complete tracked Maison data
-    // even when the shared CI Supabase fixture exposes only its landing card.
-    if (
-      slug === "maison-elyse" &&
-      dependencies.readRows === readSupabaseRowsByFilters &&
-      process.env.VISTAIRE_OWNER_E2E_AUTH_BYPASS === "1" &&
-      process.env.VISTAIRE_E2E_MAISON_PUBLIC_MENU === "1"
-    ) {
-      return demoMenu(slug, resolvedLocale);
-    }
-
-    const localDemo = () => {
+  const localDemo = () => {
     if (
       dependencies.nodeEnv === "production" &&
       (slug !== "trouvable" || process.env.VISTAIRE_E2E_TROUVABLE_3D !== "1")
@@ -609,25 +686,41 @@ export async function getPublicMenuBySlug(
     return null;
   };
 
-    const restaurantsResult = await dependencies.readRows<PublicMenuRow>({ table: "restaurants", columns: "*", filters: { slug }, orderBy: "id", limit: 1 });
-    if (!restaurantsResult.ok || restaurantsResult.rows.length === 0) {
-      return localDemo();
-    }
+  // The dedicated public-menu matrix needs the complete tracked Maison data
+  // even when the shared CI Supabase fixture exposes only its landing card.
+  // This explicit test fixture stays outside the shared in-flight read.
+  if (
+    slug === "maison-elyse" &&
+    !options.bypassMaisonE2eFixture &&
+    dependencies.readRows === readSupabaseRowsByFilters &&
+    process.env.VISTAIRE_OWNER_E2E_AUTH_BYPASS === "1" &&
+    process.env.VISTAIRE_E2E_MAISON_PUBLIC_MENU === "1"
+  ) {
+    return demoMenu(slug, resolvedLocale);
+  }
+
+  const readMenu = async (): Promise<PublicMenuReadOutcome> => {
+
+    const restaurantsResult = await dependencies.readRows<PublicMenuRow>({ table: "restaurants", columns: PUBLIC_RESTAURANT_COLUMNS, fallbackColumns: PUBLIC_RESTAURANT_COLUMNS_FALLBACK, filters: { slug }, orderBy: "id", limit: 1 });
+    if (!restaurantsResult.ok) return { status: "temporarily_unavailable" };
+    if (restaurantsResult.rows.length === 0) return { status: "not_found" };
 
     const match = restaurantsResult.rows.find((row) => getPublicMenuRowSlug(row) === slug);
-    if (!match) return localDemo();
+    if (!match) return { status: "not_found" };
 
     const restaurantId = getString(match, ["id", "restaurant_id"], "");
-    if (!restaurantId) return null;
+    if (!restaurantId) return { status: "temporarily_unavailable" };
     const isDemoRestaurant = restaurantId === getDemoRestaurantId();
 
     const [menusResult, categoriesResult, dishesResult, uiConfigsResult] = await Promise.all([
-      dependencies.readRows<PublicMenuRow>({ table: "menus", columns: "*", filters: { restaurant_id: restaurantId }, orderBy: "id", limit: 500 }),
-      dependencies.readRows<PublicMenuRow>({ table: "menu_categories", columns: "*", filters: { restaurant_id: restaurantId }, orderBy: "display_order", limit: 1_000 }),
+      dependencies.readRows<PublicMenuRow>({ table: "menus", columns: MENU_PROJECTIONS.menus, fallbackColumns: MENU_PROJECTIONS.legacyMenus, filters: { restaurant_id: restaurantId }, orderBy: "id", limit: 500, fallbackOrderBy: "id" }),
+      dependencies.readRows<PublicMenuRow>({ table: "menu_categories", columns: MENU_PROJECTIONS.menuCategories, filters: { restaurant_id: restaurantId }, orderBy: ["display_order", "id"], limit: 1_000 }),
       readDishRows(dependencies.readRows, { restaurant_id: restaurantId }),
-      dependencies.readRows<PublicMenuRow>({ table: "menu_ui_configs", columns: "*", filters: { restaurant_id: restaurantId }, orderBy: "id", limit: 1_000 })
+      dependencies.readRows<PublicMenuRow>({ table: "menu_ui_configs", columns: PUBLIC_UI_CONFIG_COLUMNS, filters: { restaurant_id: restaurantId }, orderBy: "id", limit: 1_000 })
     ]);
-    if (!menusResult.ok || !categoriesResult.ok || !dishesResult.ok) return localDemo();
+    if (!menusResult.ok || !categoriesResult.ok || !dishesResult.ok) {
+      return { status: "temporarily_unavailable" };
+    }
     const primaryMenu = findPrimaryMenu(menusResult.rows, restaurantId);
     let dishRows = dishesResult.rows;
     if (!primaryMenu && dishRows.length === 0) {
@@ -647,7 +740,7 @@ export async function getPublicMenuBySlug(
     const hasScopedDishRows = dishRows.length > 0;
 
     if (isDemoRestaurant && !primaryMenu && !hasScopedDishRows) {
-      return localDemo();
+      return { status: "not_found" };
     }
 
     if (primaryMenu) {
@@ -657,33 +750,67 @@ export async function getPublicMenuBySlug(
         menuRow: primaryMenu,
         categoryRows: categoriesResult.rows,
         dishRows,
-        includeUnavailableDishes: true,
+        includeUnavailableDishes: false,
         legacyPublicMenuSettings,
         legacyMenuLanguages
       });
-      return applyStoredPublicMenuTranslations(menu, resolvedPublicLocale);
+      return {
+        status: "live",
+        menu: await applyStoredPublicMenuTranslations(menu, resolvedPublicLocale)
+      };
     }
 
     const menu = buildSupabasePublicMenu(
       slug,
       match,
       dishRows,
-      { includeUnavailableDishes: true, legacyPublicMenuSettings, legacyMenuLanguages }
+      { includeUnavailableDishes: false, legacyPublicMenuSettings, legacyMenuLanguages }
     );
-    return applyStoredPublicMenuTranslations(menu, resolvedPublicLocale);
+    return {
+      status: "live",
+      menu: await applyStoredPublicMenuTranslations(menu, resolvedPublicLocale)
+    };
   };
 
-  if (!canUseLocalCache) return readMenu();
+  const outcome = await coalescePublicMenuRead(
+    publicMenuReadFlightKey(
+      slug,
+      resolvedPublicLocale,
+      dependencies,
+      options
+    ),
+    readMenu
+  );
+  return outcome.status === "live" ? outcome.menu : localDemo();
+}
 
-  const promise = readMenu();
-  localPublicMenuCache.set(cacheKey, {
-    expiresAt: Date.now() + LOCAL_PUBLIC_MENU_CACHE_TTL_MS,
-    promise
-  });
-  void promise.then((menu) => {
-    if (!menu) localPublicMenuCache.delete(cacheKey);
-  }).catch(() => {
-    localPublicMenuCache.delete(cacheKey);
-  });
-  return promise;
+// React's request cache deduplicates metadata/page/render callers without
+// sharing a menu between users or deployments. Custom dependency readers used
+// by contract tests intentionally bypass this wrapper.
+const getPublicMenuBySlugRequestCached = cache(
+  async (slug: string, locale: string, bypassMaisonE2eFixture: boolean) =>
+    getPublicMenuBySlugUncached(
+      slug,
+      locale,
+      defaultPublicMenuDependencies,
+      { bypassMaisonE2eFixture }
+    )
+);
+
+export async function getPublicMenuBySlug(
+  rawSlug: string,
+  locale: Locale | string = DEFAULT_LOCALE,
+  dependencies?: PublicMenuDependencies,
+  options: PublicMenuReadOptions = {}
+): Promise<PublicMenu | null> {
+  if (!dependencies) {
+    const slug = slugifyRestaurantSlug(rawSlug);
+    if (!slug) return null;
+    return getPublicMenuBySlugRequestCached(
+      slug,
+      normalizePublicMenuLocale(locale),
+      Boolean(options.bypassMaisonE2eFixture)
+    );
+  }
+  return getPublicMenuBySlugUncached(rawSlug, locale, dependencies, options);
 }

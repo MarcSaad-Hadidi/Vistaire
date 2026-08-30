@@ -10,6 +10,11 @@ import {
 } from "@/lib/owner/uniqueMenuDesignStore";
 import { requireOwnerRestaurantCapability } from "@/lib/owner/demoCapabilities";
 import { isUniqueMenuDesignAction } from "@/lib/menu/uniqueMenuDesign";
+import {
+  invalidateCommittedPublicMutation,
+  resolvePublicMutationIdentity
+} from "@/lib/owner/menuMutationRevalidation";
+import { getSupabaseAdminClient } from "@/utils/supabase/admin";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -111,13 +116,23 @@ export async function POST(request: NextRequest) {
       { status: 400 }
     );
   }
+  const admin = getSupabaseAdminClient();
+  const mutationIdentity = admin.ok
+    ? await resolvePublicMutationIdentity({
+        client: admin.client,
+        restaurantId
+      })
+    : null;
 
   const result = await mutateUniqueMenuDesignLifecycle({
     restaurantId,
     action,
     expectedDesignId: expectedDesignId || null,
     expectedVersion,
-    rendererKey
+    rendererKey,
+    onPublicCommit: async () => {
+      await invalidateCommittedPublicMutation(mutationIdentity);
+    }
   });
 
   if (!result.ok) {

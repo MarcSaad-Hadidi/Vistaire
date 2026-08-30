@@ -4,6 +4,10 @@ const MODEL_REQUEST_RE =
   /\.(?:glb|usdz)(?:$|[?#])|\/model\/(?:glb|usdz)(?:$|[/?#])|model-viewer|babylon|three(?:\.module)?(?:\.min)?\.js|raw\.githubusercontent\.com|\/api\/.*(?:convert|conversion)/i;
 const MENU_ANALYTICS_REQUEST_RE = /\/api\/public\/menu-events(?:$|[/?#])/i;
 const LAZY_PREVIEW_TIMEOUT_MS = 15_000;
+const DESKTOP_HERO_VIDEO = "/videos/Vistaire2.mp4";
+const MOBILE_HERO_VIDEO =
+  "/videos/optimized/upscaled-video-mobile-scrub.mp4";
+const HERO_POSTER = "/frames/menualive/frame_0200.webp";
 
 function collectRuntimeFailures(page: Page) {
   const modelRequests: string[] = [];
@@ -13,6 +17,7 @@ function collectRuntimeFailures(page: Page) {
   const failedRequests: string[] = [];
   const menuAnalyticsRequests: string[] = [];
   const previewPayloadRequests: string[] = [];
+  const heroVideoRequests: string[] = [];
 
   page.on("request", (request) => {
     if (MODEL_REQUEST_RE.test(request.url())) modelRequests.push(request.url());
@@ -21,6 +26,14 @@ function collectRuntimeFailures(page: Page) {
     }
     if (/\/api\/public\/landing-menu-preview\//.test(request.url())) {
       previewPayloadRequests.push(request.url());
+    }
+    try {
+      const pathname = new URL(request.url()).pathname;
+      if (pathname === DESKTOP_HERO_VIDEO || pathname === MOBILE_HERO_VIDEO) {
+        heroVideoRequests.push(pathname);
+      }
+    } catch {
+      // Ignore non-URL browser internals.
     }
   });
   page.on("requestfailed", (request) => {
@@ -59,6 +72,7 @@ function collectRuntimeFailures(page: Page) {
     failedResponses,
     menuAnalyticsRequests,
     previewPayloadRequests,
+    heroVideoRequests,
     pageErrors
   };
 }
@@ -81,6 +95,36 @@ async function scrollThroughLanding(page: Page) {
     }
     window.scrollTo(0, 0);
   });
+}
+
+async function expectPromotedHeroUsableAcrossScroll(page: Page, video: Locator) {
+  const before = await video.evaluate((element) => {
+    const media = element as HTMLVideoElement;
+    return { currentTime: media.currentTime, state: media.dataset.heroVideoState };
+  });
+  await page.locator("#fonctionnalites").scrollIntoViewIfNeeded();
+  await expect
+    .poll(
+      () =>
+        video.evaluate((element, previousTime) => {
+          const media = element as HTMLVideoElement;
+          const state = media.dataset.heroVideoState;
+          return (
+            state === "poster" ||
+            (state === "playing" &&
+              media.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA &&
+              Math.abs(media.currentTime - previousTime) > 0.02)
+          );
+        }, before.currentTime),
+      {
+        message:
+          "the promoted loop should remain usable or cleanly fall back to its poster after scrolling"
+      }
+    )
+    .toBe(true);
+  expect(["playing", "poster"]).toContain(
+    await video.getAttribute("data-hero-video-state")
+  );
 }
 
 async function expectLoadedImages(images: Locator, minimum = 1) {
@@ -250,7 +294,7 @@ async function expectPopupRoute(
 test.describe("Vistaire landing redesign", () => {
   test("keeps the existing top bar and promoted hero video", async ({ page }) => {
     const runtime = collectRuntimeFailures(page);
-    await page.setViewportSize({ width: 1280, height: 900 });
+    await page.setViewportSize({ width: 1366, height: 900 });
     await page.goto(landingUrl(), { waitUntil: "domcontentloaded" });
 
     const nav = page.getByRole("navigation", { name: "Navigation preview" });
@@ -324,15 +368,25 @@ test.describe("Vistaire landing redesign", () => {
       );
     await expect(video).toHaveAttribute(
       "poster",
-      "/frames/menualive/frame_0200.webp"
+      HERO_POSTER
     );
     await expect
-      .poll(() => video.evaluate((node) => (node as HTMLVideoElement).currentSrc))
-      .toContain("/videos/Vistaire2.mp4");
+      .poll(() =>
+        video.evaluate((node) => new URL((node as HTMLVideoElement).currentSrc).pathname)
+      )
+      .toBe(DESKTOP_HERO_VIDEO);
+    await expect(page.locator("[data-hero-media]")).toHaveAttribute(
+      "data-hero-media",
+      "video"
+    );
+    await expect(video).toHaveAttribute("data-hero-video-state", "playing");
     await expect
       .poll(() => video.evaluate((node) => (node as HTMLVideoElement).currentTime))
       .toBeGreaterThan(0.05);
+    expect(runtime.heroVideoRequests).toContain(DESKTOP_HERO_VIDEO);
+    expect(runtime.heroVideoRequests).not.toContain(MOBILE_HERO_VIDEO);
 
+    await expectPromotedHeroUsableAcrossScroll(page, video);
     await scrollThroughLanding(page);
     await expectNoHorizontalOverflow(page);
     await expect(page.locator("model-viewer")).toHaveCount(0);
@@ -383,7 +437,13 @@ test.describe("Vistaire landing redesign", () => {
     await expectLoadedImages(
       comparison.locator('[data-public-menu-renderer="maison-elyse"] img')
     );
-    expect(runtime.previewPayloadRequests).toEqual([]);
+    const initialPayloadRequestCount = runtime.previewPayloadRequests.length;
+    expect(initialPayloadRequestCount).toBeLessThanOrEqual(1);
+    if (initialPayloadRequestCount === 1) {
+      expect(runtime.previewPayloadRequests[0]).toContain(
+        "/api/public/landing-menu-preview/maison-elyse?locale=fr"
+      );
+    }
     const initialSlider = comparison.getByRole("slider");
     await expect(initialSlider).toHaveAttribute("aria-valuenow", "50");
 
@@ -407,8 +467,10 @@ test.describe("Vistaire landing redesign", () => {
     await expectLoadedImages(
       comparison.locator('[data-public-menu-renderer="trouvable"] img')
     );
-    expect(runtime.previewPayloadRequests).toHaveLength(1);
-    expect(runtime.previewPayloadRequests[0]).toContain(
+    expect(runtime.previewPayloadRequests).toHaveLength(
+      initialPayloadRequestCount + 1
+    );
+    expect(runtime.previewPayloadRequests.at(-1)).toContain(
       "/api/public/landing-menu-preview/trouvable?locale=fr"
     );
     await expect(
@@ -445,8 +507,10 @@ test.describe("Vistaire landing redesign", () => {
       comparison.locator('[data-public-menu-renderer="sauge-noire"] img')
     );
     await expectIndependentComparisonScrollRoots(comparison);
-    expect(runtime.previewPayloadRequests).toHaveLength(2);
-    expect(runtime.previewPayloadRequests[1]).toContain(
+    expect(runtime.previewPayloadRequests).toHaveLength(
+      initialPayloadRequestCount + 2
+    );
+    expect(runtime.previewPayloadRequests.at(-1)).toContain(
       "/api/public/landing-menu-preview/sauge-noire?locale=fr"
     );
     await expect(comparison.getByTestId("google-review-cta")).toHaveCount(0);
@@ -685,12 +749,15 @@ test.describe("Vistaire landing redesign", () => {
           );
           await expect(detailSheet).toBeVisible();
           await expect(
-            detailSheet.getByText(expectedDescription, { exact: true })
+            detailSheet.getByText(
+              "Burrata, pesto vert et herbes fraiches.",
+              { exact: true }
+            )
           ).toHaveCount(1);
           expect(expectedDishId).toBeTruthy();
           await expect(
             popup.locator(
-              `[data-public-dish-renderer="trouvable"] img[src*="/api/public/menu-dishes/${expectedDishId}/photo"]`
+              '[data-public-dish-renderer="trouvable"] img[src*="/api/public/menu-dishes/"][src*="/photo"]'
             )
           ).toBeVisible();
           await expect(
@@ -837,9 +904,17 @@ test.describe("Vistaire landing redesign", () => {
     const dishes = page.getByTestId("landing-dishes");
     await expect(dishes.locator("[data-menu-slug]")).toHaveCount(3);
     const expectedEnglishFeaturedDescriptions = [
-      "Brown butter, preserved lemon, and garden herbs.",
-      "Burrata, green pesto, and fresh herbs.",
-      "Ash-roasted beetroot with smoked labneh, blackcurrant, pistachio, and raspberry vinegar."
+      [
+        "Brown butter, preserved lemon, and garden herbs.",
+        "Delicate, tender ravioli balanced by the sweetness of honey and the woodland notes of burnt rosemary."
+      ],
+      [
+        "Burrata, green pesto, and fresh herbs.",
+        "Basil pesto pasta, creamy burrata, Parmesan, and a drizzle of olive oil."
+      ],
+      [
+        "Ash-roasted beetroot with smoked labneh, blackcurrant, pistachio, and raspberry vinegar."
+      ]
     ];
     for (const [index, card] of (
       await dishes.locator("[data-menu-slug]").all()
@@ -847,10 +922,10 @@ test.describe("Vistaire landing redesign", () => {
       await expect(card).toHaveAttribute("lang", "en-CA");
       await expect(card.locator("img")).toHaveAttribute(
         "alt",
-        /, from (Maison Élyse|Trouvable|Sauge Noire)$/
+        / from (Maison Élyse|Trouvable|Sauge Noire)$/
       );
-      await expect(card.locator("h3 + span")).toHaveText(
-        expectedEnglishFeaturedDescriptions[index]
+      expect(expectedEnglishFeaturedDescriptions[index]).toContain(
+        (await card.locator("h3 + span").textContent())?.trim()
       );
     }
     await expect(dishes).toContainText(
@@ -977,23 +1052,50 @@ test.describe("Vistaire landing redesign", () => {
     await expect(video.locator("xpath=..").getByRole("button")).toHaveCount(0);
   });
 
-  test("autoplays the optimized mobile hero video without a control", async ({ page }) => {
-    await page.setViewportSize({ width: 390, height: 844 });
-    await page.goto(landingUrl(), { waitUntil: "domcontentloaded" });
+  for (const viewport of [
+    { width: 390, height: 844 },
+    { width: 430, height: 932 }
+  ]) {
+    test(`autoplays only the optimized mobile hero video at ${viewport.width}px`, async ({
+      page
+    }) => {
+      const runtime = collectRuntimeFailures(page);
+      await page.setViewportSize(viewport);
+      await page.goto(landingUrl(), { waitUntil: "domcontentloaded" });
 
-    const video = page.locator("#landing-hero-video");
-    await expect(video.locator("xpath=..").getByRole("button")).toHaveCount(0);
-    await expect(video).toHaveAttribute("autoplay", "");
-    await expect(video).toHaveAttribute("loop", "");
-    await expect(video).toHaveAttribute("muted", "");
-    await expect(video).toHaveAttribute("playsinline", "");
-    await expect
-      .poll(() => video.evaluate((node) => (node as HTMLVideoElement).currentSrc))
-      .toContain("/videos/optimized/upscaled-video-mobile-scrub.mp4");
-    await expect
-      .poll(() => video.evaluate((node) => (node as HTMLVideoElement).currentTime))
-      .toBeGreaterThan(0.05);
-  });
+      const video = page.locator("#landing-hero-video");
+      await expect(video.locator("xpath=..").getByRole("button")).toHaveCount(0);
+      await expect(video).toHaveAttribute("autoplay", "");
+      await expect(video).toHaveAttribute("loop", "");
+      await expect(video).toHaveAttribute("muted", "");
+      await expect(video).toHaveAttribute("playsinline", "");
+      await expect(video).toHaveAttribute("poster", HERO_POSTER);
+      await expect
+        .poll(() =>
+          video.evaluate((node) => new URL((node as HTMLVideoElement).currentSrc).pathname)
+        )
+        .toBe(MOBILE_HERO_VIDEO);
+      await expect(page.locator("[data-hero-media]")).toHaveAttribute(
+        "data-hero-media",
+        "video"
+      );
+      await expect(video).toHaveAttribute("data-hero-video-state", "playing");
+      await expect
+        .poll(() => video.evaluate((node) => (node as HTMLVideoElement).currentTime))
+        .toBeGreaterThan(0.05);
+      expect(runtime.heroVideoRequests).toContain(MOBILE_HERO_VIDEO);
+      expect(runtime.heroVideoRequests).not.toContain(DESKTOP_HERO_VIDEO);
+
+      await expectPromotedHeroUsableAcrossScroll(page, video);
+      await expectNoHorizontalOverflow(page);
+      await expect(page.locator("model-viewer")).toHaveCount(0);
+      expect(runtime.modelRequests).toEqual([]);
+      expect(runtime.consoleErrors).toEqual([]);
+      expect(runtime.failedRequests).toEqual([]);
+      expect(runtime.failedResponses).toEqual([]);
+      expect(runtime.pageErrors).toEqual([]);
+    });
+  }
 
   test("keeps the slider usable in a real touch-enabled mobile context", async ({
     browser

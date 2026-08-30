@@ -8,6 +8,7 @@ import {
   parseModelLabInspectionMaxBytes,
   parseModelLabOptimizationMaxBytes
 } from "./lib/owner/modelLab/modelLabLimits.ts";
+import { buildHomeAgentLinkHeader } from "./lib/agent-discovery/homeResponseHeaders.ts";
 
 const PROJECT_ROOT = dirname(fileURLToPath(import.meta.url));
 const MODEL_LAB_INSPECTION_LIMIT_FOR_PROXY = parseModelLabInspectionMaxBytes(process.env);
@@ -33,17 +34,8 @@ const STATIC_ASSET_HEADERS = [
   { key: "Cache-Control", value: "public, max-age=31536000, immutable" },
 ] as const;
 
-const AGENT_DISCOVERY_LINK_HEADER = [
-  '</.well-known/api-catalog>; rel="api-catalog"; type="application/linkset+json"',
-  '</.well-known/agent-skills/index.json>; rel="service-desc"; type="application/json"',
-  '</.well-known/mcp/server-card.json>; rel="service-desc"; type="application/json"',
-  '</auth.md>; rel="service-doc"; type="text/markdown"',
-  '</docs/api>; rel="service-doc"; type="text/html"',
-].join(", ");
-
 const HOMEPAGE_AGENT_DISCOVERY_HEADERS = [
-  { key: "Link", value: AGENT_DISCOVERY_LINK_HEADER },
-  { key: "Vary", value: "Accept" },
+  { key: "Link", value: buildHomeAgentLinkHeader() },
 ] as const;
 
 const GLB_MODEL_HEADERS = [

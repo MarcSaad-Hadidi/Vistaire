@@ -9,10 +9,16 @@ import {
 export const dynamic = "force-dynamic";
 
 const RESPONSE_HEADERS = {
-  "Cache-Control": "public, max-age=0, s-maxage=60, stale-while-revalidate=300",
+  "Cache-Control": "private, no-store, max-age=0",
+  "CDN-Cache-Control": "private, no-store",
+  "Vercel-CDN-Cache-Control": "private, no-store",
   "Content-Security-Policy": "default-src 'none'; frame-ancestors 'none'",
   "X-Content-Type-Options": "nosniff"
 } as const;
+
+function privateJson(body: unknown, status = 200) {
+  return NextResponse.json(body, { status, headers: RESPONSE_HEADERS });
+}
 
 function requestedLocale(request: NextRequest): Locale | null {
   const value = request.nextUrl.searchParams.get("locale");
@@ -26,7 +32,7 @@ export async function GET(
   const { experienceId } = await context.params;
   const locale = requestedLocale(request);
   if (!isLandingExperienceId(experienceId) || !locale) {
-    return NextResponse.json(
+    return privateJson(
       {
         ok: false,
         error: {
@@ -34,7 +40,7 @@ export async function GET(
           message: "Invalid landing menu preview request."
         }
       },
-      { status: 400, headers: { "Cache-Control": "private, no-store" } }
+      400
     );
   }
 
@@ -43,7 +49,7 @@ export async function GET(
     payload = await getLandingMenuPreviewPayload(experienceId, locale);
   } catch (error) {
     if (error instanceof LandingMenuPreviewError) {
-      return NextResponse.json(
+      return privateJson(
         {
           ok: false,
           error: {
@@ -52,21 +58,15 @@ export async function GET(
             details: error.details
           }
         },
-        {
-          status: error.status,
-          headers: {
-            ...RESPONSE_HEADERS,
-            "Cache-Control": "private, no-store"
-          }
-        }
+        error.status
       );
     }
     console.error("Landing menu preview resolution failed.", {
-      error,
+      errorType: error instanceof Error ? error.name : typeof error,
       experienceId,
       locale
     });
-    return NextResponse.json(
+    return privateJson(
       {
         ok: false,
         error: {
@@ -74,17 +74,11 @@ export async function GET(
           message: "Landing menu preview temporarily unavailable."
         }
       },
-      {
-        status: 503,
-        headers: {
-          ...RESPONSE_HEADERS,
-          "Cache-Control": "private, no-store"
-        }
-      }
+      503
     );
   }
   if (!payload) {
-    return NextResponse.json(
+    return privateJson(
       {
         ok: false,
         error: {
@@ -92,12 +86,9 @@ export async function GET(
           message: "Landing menu preview unavailable."
         }
       },
-      { status: 404, headers: { "Cache-Control": "private, no-store" } }
+      404
     );
   }
 
-  return NextResponse.json(
-    { ok: true, payload },
-    { headers: RESPONSE_HEADERS }
-  );
+  return privateJson({ ok: true, payload });
 }

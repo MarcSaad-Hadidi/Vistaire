@@ -13,6 +13,7 @@ const dishId = "22222222-3333-4444-8555-666666666666";
 function createCleanupClient({
   currentMetadata = {},
   otherRows = [],
+  otherRowsError = null,
   removeError = null,
   removeThrows = false
 } = {}) {
@@ -51,7 +52,9 @@ function createCleanupClient({
             then(resolve, reject) {
               Promise.resolve(
                 state.otherRows
-                  ? { data: otherRows, error: null }
+                  ? otherRowsError
+                    ? { data: null, error: { message: otherRowsError } }
+                    : { data: otherRows, error: null }
                   : { data: [{ metadata: currentMetadata }], error: null }
               ).then(resolve, reject);
             }
@@ -116,7 +119,7 @@ test("cleanupReplacedDishAssets does not delete when previous and next exact pat
   assert.deepEqual(client.removed, []);
 });
 
-test("cleanupReplacedDishAssets deletes only old exact paths when replacement differs", async () => {
+test("cleanupReplacedDishAssets defers old photo deletion for cross-instance safety", async () => {
   const previousMetadata = {
     photoStorageBucket: "vistaire-media",
     photoStoragePath: `restaurants/${restaurantId}/photos/originals/sole-old.webp`
@@ -136,16 +139,12 @@ test("cleanupReplacedDishAssets deletes only old exact paths when replacement di
     reason: "test"
   });
 
+  assert.deepEqual(report.deleted, []);
   assert.deepEqual(
-    report.deleted.map((ref) => `${ref.bucket}:${ref.path}`),
+    report.skippedConcurrentReuseRisk.map((ref) => `${ref.bucket}:${ref.path}`),
     [`vistaire-media:restaurants/${restaurantId}/photos/originals/sole-old.webp`]
   );
-  assert.deepEqual(client.removed, [
-    {
-      bucket: "vistaire-media",
-      paths: [`restaurants/${restaurantId}/photos/originals/sole-old.webp`]
-    }
-  ]);
+  assert.deepEqual(client.removed, []);
 });
 
 test("cleanupReplacedDishAssets protects unsafe buckets, prefixes, and dangerous path shapes", async () => {
@@ -174,7 +173,7 @@ test("cleanupReplacedDishAssets protects unsafe buckets, prefixes, and dangerous
   assert.deepEqual(client.removed, []);
 });
 
-test("cleanupReplacedDishAssets skips old assets still referenced by another active dish", async () => {
+test("cleanupReplacedDishAssets skips old assets still referenced by another dish", async () => {
   const oldPath = `restaurants/${restaurantId}/models/web/shared.glb`;
   const previousMetadata = {
     webModel3dStorageBucket: "vistaire-3d",
@@ -199,6 +198,119 @@ test("cleanupReplacedDishAssets skips old assets still referenced by another act
   });
 
   assert.equal(report.skippedStillReferenced.length, 1);
+  assert.deepEqual(client.removed, []);
+});
+
+test("cleanupReplacedDishAssets preserves every shared photo path for offline reconciliation", async () => {
+  const sourceSha = "a".repeat(64);
+  const originalA = `restaurants/${restaurantId}/photos/originals/sole-a-${sourceSha.slice(0, 12)}.webp`;
+  const originalB = `restaurants/${restaurantId}/photos/originals/sole-b-${sourceSha.slice(0, 12)}.webp`;
+  const thumbnail = `restaurants/${restaurantId}/photos/derivatives/${sourceSha}/thumbnail.webp`;
+  const display = `restaurants/${restaurantId}/photos/derivatives/${sourceSha}/display.webp`;
+  const previousMetadata = {
+    photoStorageBucket: "vistaire-media",
+    photoStoragePath: originalA,
+    photoSha256: sourceSha,
+    photoDerivatives: {
+      thumbnail: { storagePath: thumbnail },
+      display: { storagePath: display }
+    }
+  };
+  const otherMetadata = {
+    photoStorageBucket: "vistaire-media",
+    photoStoragePath: originalB,
+    photoSha256: sourceSha,
+    photoDerivatives: {
+      thumbnail: { storagePath: thumbnail },
+      display: { storagePath: display }
+    }
+  };
+  const client = createCleanupClient({
+    currentMetadata: {},
+    otherRows: [{ metadata: otherMetadata }]
+  });
+
+  const report = await cleanupReplacedDishAssets({
+    client,
+    dishId,
+    restaurantId,
+    previousMetadata,
+    nextMetadata: {},
+    reason: "dish-photo-delete"
+  });
+
+  assert.deepEqual(report.deleted, []);
+  assert.deepEqual(
+    report.skippedConcurrentReuseRisk.map((ref) => ref.path).sort(),
+    [originalA, thumbnail, display].sort()
+  );
+  assert.deepEqual(client.removed, []);
+});
+
+test("cleanupReplacedDishAssets never deletes unique-looking photo paths inline", async () => {
+  const sourceSha = "b".repeat(64);
+  const original = `restaurants/${restaurantId}/photos/originals/sole-${sourceSha.slice(0, 12)}.webp`;
+  const thumbnail = `restaurants/${restaurantId}/photos/derivatives/${sourceSha}/thumbnail.webp`;
+  const display = `restaurants/${restaurantId}/photos/derivatives/${sourceSha}/display.webp`;
+  const previousMetadata = {
+    photoStorageBucket: "vistaire-media",
+    photoStoragePath: original,
+    photoSha256: sourceSha,
+    photoDerivatives: {
+      thumbnail: { storagePath: thumbnail },
+      display: { storagePath: display }
+    }
+  };
+  const client = createCleanupClient({ currentMetadata: {} });
+
+  const report = await cleanupReplacedDishAssets({
+    client,
+    dishId,
+    restaurantId,
+    previousMetadata,
+    nextMetadata: {},
+    reason: "dish-photo-delete"
+  });
+
+  assert.deepEqual(report.deleted, []);
+  assert.deepEqual(
+    report.skippedConcurrentReuseRisk.map((ref) => ref.path).sort(),
+    [original, thumbnail, display].sort()
+  );
+  assert.deepEqual(client.removed, []);
+});
+
+test("cleanupReplacedDishAssets preserves every uncertain photo object when cross-dish lookup fails", async () => {
+  const sourceSha = "c".repeat(64);
+  const original = `restaurants/${restaurantId}/photos/originals/sole-${sourceSha.slice(0, 12)}.webp`;
+  const thumbnail = `restaurants/${restaurantId}/photos/derivatives/${sourceSha}/thumbnail.webp`;
+  const display = `restaurants/${restaurantId}/photos/derivatives/${sourceSha}/display.webp`;
+  const previousMetadata = {
+    photoStorageBucket: "vistaire-media",
+    photoStoragePath: original,
+    photoSha256: sourceSha,
+    photoDerivatives: {
+      thumbnail: { storagePath: thumbnail },
+      display: { storagePath: display }
+    }
+  };
+  const client = createCleanupClient({
+    currentMetadata: {},
+    otherRowsError: "database unavailable"
+  });
+
+  const report = await cleanupReplacedDishAssets({
+    client,
+    dishId,
+    restaurantId,
+    previousMetadata,
+    nextMetadata: {},
+    reason: "dish-photo-delete"
+  });
+
+  assert.equal(report.errors.length, 1);
+  assert.equal(report.deleted.length, 0);
+  assert.equal(report.skippedStillReferenced.length, 3);
   assert.deepEqual(client.removed, []);
 });
 
@@ -307,6 +419,6 @@ test("public photo, GLB, and USDZ routes redirect active metadata objects throug
   assert.match(redirectHelper, /arUsdzStoragePath/);
   assert.match(redirectHelper, /modelAssetVersion/);
   assert.match(redirectHelper, /storage\.info\(storagePath\)/);
-  assert.match(redirectHelper, /storage\.createSignedUrl\(storagePath, SIGNED_URL_TTL_SECONDS\)/);
+  assert.match(redirectHelper, /storage\.createSignedUrl\((?:storagePath|targetPath), SIGNED_URL_TTL_SECONDS\)/);
   assert.doesNotMatch(redirectHelper, /\.download\s*\(|\.arrayBuffer\s*\(/);
 });

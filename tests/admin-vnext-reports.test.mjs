@@ -141,7 +141,7 @@ test("absence states and service slices remain explicit instead of estimating", 
 });
 
 test("reports route validates access and composes the v2 evidence model", async () => {
-  const page = await readFile(new URL("../app/admin/reports/page.tsx", import.meta.url), "utf8");
+  const page = await readFile(new URL("../app/(fr)/admin/reports/page.tsx", import.meta.url), "utf8");
   assert.match(page, /requireAdminRestaurantAccess\(["']dashboard:read["']\)/);
   assert.match(page, /parseAdminReportFilters\(/);
   assert.match(page, /loadAdminDataBundle\(/);
@@ -209,7 +209,7 @@ test("Reports Playwright proof is hermetic, assertion-bearing and unskipped", as
 
 test("Reports source and proofs contain no mojibake", async () => {
   const files = [
-    "app/admin/reports/page.tsx",
+    "app/(fr)/admin/reports/page.tsx",
     "app/admin/api/reports/export/route.ts",
     "components/admin/reports/AdminReportsPage.tsx",
     "components/admin/reports/ReportActions.tsx",

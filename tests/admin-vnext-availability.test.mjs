@@ -45,7 +45,7 @@ test("view model preserves server totals, locale and timezone without inventing 
 });
 
 test("availability UI owns premium operational hierarchy and honest degraded state", async () => {
-  const route = await readFile("app/admin/availability/page.tsx", "utf8");
+  const route = await readFile("app/(fr)/admin/availability/page.tsx", "utf8");
   const page = await readFile("components/admin/availability/AdminAvailabilityList.tsx", "utf8");
   const notice = await readFile("components/admin/availability/AvailabilityCapabilityNotice.tsx", "utf8");
   const form = await readFile("components/admin/availability/AvailabilityScheduleForm.tsx", "utf8");

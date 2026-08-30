@@ -132,7 +132,7 @@ test("the loader enforces production restaurant and menu scope and rejects forei
 });
 
 test("the route composes validated access, Data Foundation and the scoped Quality loader", async () => {
-  const source = await readFile(new URL("../app/admin/more/page.tsx", import.meta.url), "utf8");
+  const source = await readFile(new URL("../app/(fr)/admin/more/page.tsx", import.meta.url), "utf8");
   assert.match(source, /requireAdminRestaurantAccess\(["']dashboard:read["']\)/);
   assert.match(source, /loadAdminDataBundle\(/);
   assert.match(source, /loadMoreQualityData\(/);

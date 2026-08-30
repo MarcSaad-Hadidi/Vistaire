@@ -2,9 +2,9 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 import assert from "node:assert/strict";
 
-const pagePath = "app/menu/[slug]/page.tsx";
-const dishPagePath = "app/menu/[slug]/dishes/[dishSlug]/page.tsx";
-const typographyPath = "app/menu/[slug]/trouvableTypography.ts";
+const pagePath = "app/(fr)/menu/[slug]/page.tsx";
+const dishPagePath = "app/(fr)/menu/[slug]/dishes/[dishSlug]/page.tsx";
+const typographyPath = "app/(fr)/menu/[slug]/trouvableTypography.ts";
 const componentPath = "components/menu/TrouvablePremiumMenuExperience.tsx";
 const dishDetailPath = "components/menu/TrouvableDishDetailExperience.tsx";
 const cssPath = "components/menu/TrouvablePremiumMenuExperience.module.css";
@@ -13,6 +13,51 @@ const helperPath = "lib/menu/trouvableMenuExperience.ts";
 const controlsPath = "components/menu/trouvableMenuControls.ts";
 const publicMenuPath = "lib/menu/publicMenu.ts";
 const renderContextPath = "lib/menu/publicMenuRenderContext.ts";
+
+function assertTrouvableDishNameIdentity(source) {
+  const match = source.match(
+    /dishes:\s*TROUVABLE_DISHES\.map\(\(dish\)\s*=>\s*\{[\s\S]*?\breturn\s*\{([\s\S]*?)\}\s*;\s*\}\)/
+  );
+  assert.ok(match, "Trouvable demo dish mapping must return a dish object");
+  const dishMapping = match[1];
+
+  assert.match(
+    dishMapping,
+    /^\s*id:\s*dish\.slug,\s*slug:\s*dish\.slug,\s*name:\s*dish\.nameFr,/
+  );
+  assert.equal(
+    dishMapping.match(/(?:^|,)\s*name\s*:/g)?.length ?? 0,
+    1,
+    "Trouvable demo dishes must declare one name property"
+  );
+  assert.doesNotMatch(
+    dishMapping,
+    /name\s*:\s*(?:dish\.name(?:El|En)|(?:isGreek|isEnglish)\b)/
+  );
+  assert.doesNotMatch(
+    dishMapping,
+    /\.\.\.\s*(?:dish|(?:localized|translated)\w*)\b/i
+  );
+}
+
+function assertTrouvableHeroHeadingSemantics(source) {
+  assert.match(
+    source,
+    /export function TrouvablePremiumMenuExperience\(\{[^}]*\bdisplayMode\s*=\s*"public"[^}]*\}:\s*TrouvablePremiumMenuExperienceProps\)/
+  );
+  assert.match(
+    source,
+    /const isEmbeddedPreview\s*=\s*displayMode\s*!==\s*"public";/
+  );
+  assert.match(
+    source,
+    /const HeroHeading\s*=\s*isEmbeddedPreview\s*\?\s*"h2"\s*:\s*"h1";/
+  );
+  assert.match(
+    source,
+    /<HeroHeading\b(?=[^>]*\sid\s*=\s*"trouvable-hero-title")[^>]*>\s*\{menu\.name\}\s*<\/HeroHeading>/
+  );
+}
 
 test("public Trouvable menu is centralized in a targeted premium experience", async () => {
   const [page, helper, renderContext] = await Promise.all([
@@ -39,7 +84,7 @@ test("public /menu/trouvable reads Supabase before the local Trouvable demo fall
   const supabaseReadIndex = source.indexOf(
     'const restaurantsResult = await dependencies.readRows<PublicMenuRow>'
   );
-  const fallbackIndex = source.indexOf("return localDemo();", supabaseReadIndex);
+  const fallbackIndex = source.indexOf("localDemo()", supabaseReadIndex);
 
   assert.ok(supabaseReadIndex > 0, "Trouvable must reach the Supabase restaurant read");
   assert.ok(
@@ -48,18 +93,27 @@ test("public /menu/trouvable reads Supabase before the local Trouvable demo fall
   );
   assert.match(source, /TROUVABLE_PUBLIC_MENU_SETTINGS/);
   assert.match(source, /supportedLocales:\s*\["fr-CA",\s*"en-CA",\s*"es-ES",\s*"it-IT",\s*"el-GR",\s*"ar"\]/);
-  assert.match(
-    source,
-    /name:\s*isGreek\s*\?\s*dish\.nameEl\s*:\s*isEnglish\s*\?\s*dish\.nameEn\s*:\s*dish\.nameFr/
-  );
-  assert.doesNotMatch(source, /name:\s*isEnglish\s*\?\s*dish\.nameEn/);
-  assert.match(source, /!restaurantsResult\.ok \|\| restaurantsResult\.rows\.length === 0/);
+  assertTrouvableDishNameIdentity(source);
+  assert.match(source, /if \(!restaurantsResult\.ok\) return \{ status: "temporarily_unavailable" \}/);
+  assert.match(source, /if \(restaurantsResult\.rows\.length === 0\) return \{ status: "not_found" \}/);
   assert.match(source, /dependencies\.nodeEnv === "production"/);
   assert.match(source, /filters: \{ slug \}/);
   assert.match(source, /filters: \{ restaurant_id: restaurantId \}/);
   assert.doesNotMatch(source, /readSupabaseRows\(/);
   assert.match(source, /dejeuner-classique-maison/);
   assert.match(source, /publicMenuStyle:\s*"trouvable"/);
+
+  for (const source of [
+    `const unrelated = { name: dish.nameFr };
+     dishes: TROUVABLE_DISHES.map((dish) => {
+       return { id: dish.slug, slug: dish.slug, name: dish.nameEn, description: dish.descriptionEn };
+     })`,
+    `dishes: TROUVABLE_DISHES.map((dish) => {
+       return { id: dish.slug, slug: dish.slug, name: dish.nameFr, ...localizedDish, description: dish.descriptionEn };
+     })`
+  ]) {
+    assert.throws(() => assertTrouvableDishNameIdentity(source));
+  }
 });
 
 test("Trouvable premium menu keeps 3D assets behind explicit viewer intent", async () => {
@@ -202,11 +256,11 @@ test("Trouvable premium menu wires functional currency, language, theme, and gre
   assert.match(controls, /getTrouvableTextDirection/);
   assert.match(controls, /sans gluten/i);
   assert.match(controls, /fruits à coque/i);
-  assert.match(source, /openRestaurantReviewSheet/);
-  assert.match(source, /openSheet\("experienceReview"\)/);
-  assert.match(source, /copy\.reviewExperienceTitle/);
-  assert.match(source, /copy\.reviewExperiencePlaceholder/);
-  assert.match(source, /onReviewRequest=\{openRestaurantReviewSheet\}/);
+  assert.doesNotMatch(source, /openRestaurantReviewSheet/);
+  assert.doesNotMatch(source, /openSheet\("experienceReview"\)/);
+  assert.doesNotMatch(source, /onReviewRequest/);
+  assert.doesNotMatch(source, /reviewRating|setReviewText/);
+  assert.match(source, /<GoogleReviewCard/);
   assert.match(source, /hasPublicMenu3d\(selectedDish\)/);
   assert.doesNotMatch(source, /badges\.add\("4D"\)/);
   assert.match(controls, /TROUVABLE_STATIC_CAD_RATES/);
@@ -237,28 +291,27 @@ test("Trouvable standalone dish detail keeps locale URL navigation and layout di
   );
 });
 
-test("Trouvable dish details and reviews are stacked sub-sheets above the dish", async () => {
+test("Trouvable dish details stay stacked above the dish without a local review sheet", async () => {
   const source = await readFile(componentPath, "utf8");
   const detailSource = await readFile(dishDetailPath, "utf8");
 
-  assert.match(source, /type DishSubSheet = "details" \| "review" \| null/);
+  assert.match(source, /type DishSubSheet = "details" \| null/);
   assert.match(source, /renderDishDetailsSubSheet/);
   assert.match(source, /setDishSubSheet\("details"\)/);
-  assert.match(source, /activeSheet === "dish" && dishSubSheet === "review"/);
+  assert.doesNotMatch(source, /dishSubSheet === "review"/);
   assert.match(source, /closeDishSubSheet/);
   assert.match(source, /const subSheetRef = useRef<HTMLElement \| null>\(null\)/);
   assert.match(source, /if \(activeSheet === "dish" && dishSubSheet\) \{\s*closeDishSubSheet\(\);/);
-  assert.match(source, /ref=\{isDishStackReview \? subSheetRef : sheetRef\}/);
-  assert.match(source, /panelRef=\{subSheetRef\}/);
   assert.match(source, /trouvable-dish-more-details-/);
   assert.match(source, /PremiumDishDetailsSheet/);
   assert.doesNotMatch(source, /dishDetailsExpanded/);
+  assert.doesNotMatch(source, /renderReviewSheet/);
+  assert.doesNotMatch(source, /experienceReview/);
 
-  assert.match(detailSource, /type DishDetailSubSheet = "details" \| "review" \| null/);
+  assert.match(detailSource, /type DishDetailSubSheet = "details" \| null/);
   assert.match(detailSource, /activeSubSheet === "details"/);
-  assert.match(detailSource, /activeSubSheet === "review"/);
+  assert.doesNotMatch(detailSource, /activeSubSheet === "review"/);
   assert.match(detailSource, /setActiveSubSheet\(null\)/);
-  assert.match(detailSource, /styles\.stackedOverlay/);
   assert.doesNotMatch(detailSource, /showMoreDetails/);
   assert.doesNotMatch(detailSource, /showReviewSheet/);
 });
@@ -284,13 +337,16 @@ test("Trouvable dish swipe guards interactive controls and 3D surfaces", async (
     assert.ok(detailSource.includes(`"${selector}"`), `dish detail missing guard ${selector}`);
   }
 
+  const surfaceSource = await readFile(
+    "components/menu/TrouvableDishDetailSurface.tsx",
+    "utf8"
+  );
   assert.match(source, /isDishSwipeGuardedTarget\(event\.target,\s*event\.currentTarget\)/);
   assert.match(
     detailSource,
     /isDishSwipeGuardedTarget\(event\.target,\s*event\.currentTarget\)/
   );
-  assert.match(source, /data-no-dish-swipe="true"/);
-  assert.match(detailSource, /data-no-dish-swipe="true"/);
+  assert.match(surfaceSource, /data-no-dish-swipe="true"/);
   assert.doesNotMatch(
     source,
     /className=\{styles\.menuPanel\}[\s\S]{0,180}onPointerDown=\{handleMenuCategoryPointerDown\}/
@@ -416,41 +472,43 @@ test("Trouvable all category stays global while filters and searches resolve dis
   );
 });
 
-test("Trouvable review sheets track Google review outbound clicks", async () => {
-  const [source, detailSource, tracking] = await Promise.all([
+test("Trouvable Google Review CTA tracks outbound clicks from the shared card", async () => {
+  const [source, detailSource, tracking, card] = await Promise.all([
     readFile(componentPath, "utf8"),
     readFile(dishDetailPath, "utf8"),
-    readFile(googleReviewTrackingPath, "utf8")
+    readFile(googleReviewTrackingPath, "utf8"),
+    readFile("components/menu/GoogleReviewCard.tsx", "utf8")
   ]);
 
-  assert.match(source, /trackGoogleReviewClick/);
-  assert.match(source, /dishSlug:\s*reviewDish\?\.slug/);
-  assert.match(detailSource, /trackGoogleReviewClick/);
-  assert.match(detailSource, /dishSlug:\s*activeDish\.slug/);
+  assert.match(source, /<GoogleReviewCard/);
+  assert.match(detailSource, /<GoogleReviewCard/);
+  assert.doesNotMatch(source, /onReviewRequest/);
+  assert.doesNotMatch(detailSource, /onReviewRequest/);
+  assert.match(card, /trackGoogleReviewClick/);
   assert.match(tracking, /trackMenuEvent/);
   assert.match(tracking, /ctaName:\s*"google_review"/);
   assert.match(tracking, /destination:\s*"google_review"/);
 });
 
-test("Trouvable review sheets dismiss from backdrop and hide visible close control", async () => {
+test("Trouvable no longer uses a local review sheet or swipe-to-review shortcut", async () => {
   const [source, detailSource, css] = await Promise.all([
     readFile(componentPath, "utf8"),
     readFile(dishDetailPath, "utf8"),
     readFile(cssPath, "utf8")
   ]);
 
-  assert.match(source, /reviewOverlay\} \$\{styles\.stackedOverlay\}/);
-  assert.match(source, /if \(event\.target === event\.currentTarget\) closeReview\(\)/);
-  assert.doesNotMatch(source, /className=\{styles\.reviewClose\}/);
+  assert.doesNotMatch(source, /reviewOverlay/);
+  assert.doesNotMatch(source, /renderReviewSheet/);
+  assert.doesNotMatch(source, /gesture === "reviewOpen"/);
   assert.match(source, /resolveDishSwipeGesture/);
-  assert.match(source, /gesture === "reviewOpen"/);
   assert.match(source, /event\.key === "Escape"/);
   assert.match(detailSource, /resolveDishSwipeGesture/);
-  assert.match(detailSource, /if \(event\.target === event\.currentTarget\) setActiveSubSheet\(null\)/);
+  assert.doesNotMatch(detailSource, /gesture === "reviewOpen"/);
   assert.doesNotMatch(detailSource, /className=\{styles\.reviewClose\}/);
-  assert.match(detailSource, /if \(event\.key !== "Escape"\) return/);
-  assert.match(css, /\.reviewTrigger span[\s\S]*var\(--trouvable-gold\)/);
-  assert.doesNotMatch(css, /\.reviewClose/);
+  assert.doesNotMatch(css, /\.reviewStars/);
+  assert.doesNotMatch(css, /\.reviewTextarea/);
+  assert.doesNotMatch(css, /\.reviewPostButton/);
+  assert.doesNotMatch(css, /\.reviewTrigger/);
 });
 
 test("Trouvable hero includes animated botanical ornamentation", async () => {
@@ -509,7 +567,7 @@ test("Trouvable public UI labels use extensible localized copy", async () => {
   assert.match(source, /placeholder=\{copy\.tablePlaceholder\}/);
   assert.match(source, /localizedUiCopy=\{menu\.localizedUiCopy\}/);
   assert.match(source, /aria-labelledby="trouvable-hero-title"/);
-  assert.match(source, /<h1 id="trouvable-hero-title">\{menu\.name\}<\/h1>/);
+  assertTrouvableHeroHeadingSemantics(source);
   assert.doesNotMatch(source, /label:\s*"3D \/ AR"/);
   assert.doesNotMatch(source, /placeholder="Ex\. 12"/);
   assert.doesNotMatch(source, /Table \$\{tableNumber\.trim\(\)\}/);
@@ -595,7 +653,10 @@ test("Trouvable premium menu styles are mobile-first and overflow-safe", async (
   assert.match(css, /\.sheetApply/);
   assert.match(css, /content:\s*"\\263e"/);
   assert.match(css, /content:\s*"\\2600"/);
-  assert.match(css, /\.hero h1[\s\S]*font-style:\s*italic/);
+  assert.match(
+    css,
+    /\.hero :is\(h1, h2\)\s*\{[^}]*font-style:\s*italic[^}]*\}/
+  );
   assert.match(css, /\.brandBlock strong[\s\S]*font-size:\s*clamp\(14px,\s*3\.8vw,\s*20px\)/);
   assert.doesNotMatch(css, /BT Suave/);
   assert.doesNotMatch(css, /Neue Montreal/);
@@ -642,8 +703,28 @@ test("Trouvable welcome copy places the restaurant connector before the name", a
 
   assert.match(source, /getTrouvableGreetingPeriodForDate\([\s\S]*menu\.settings\.timezone/);
   assert.match(source, /formatTrouvableGreetingLead\([\s\S]*greetingText[\s\S]*greetingPeriod/);
-  assert.match(source, /<p>\{greetingLead\}<\/p>/);
-  assert.match(source, /<h1 id="trouvable-hero-title">\{menu\.name\}<\/h1>/);
+  assert.match(source, /const HeroHeading = isEmbeddedPreview \? "h2" : "h1";/);
+  assert.match(
+    source,
+    /<p>\{greetingLead\}<\/p>\s*<HeroHeading id="trouvable-hero-title">\{menu\.name\}<\/HeroHeading>/
+  );
+
+  for (const source of [
+    `export function TrouvablePremiumMenuExperience({
+       displayMode = "embedded"
+     }: TrouvablePremiumMenuExperienceProps) {}
+     const isEmbeddedPreview = displayMode !== "public";
+     const HeroHeading = isEmbeddedPreview ? "h2" : "h1";
+     <HeroHeading id="trouvable-hero-title">{menu.name}</HeroHeading>`,
+    `export function TrouvablePremiumMenuExperience({
+       displayMode = "public"
+     }: TrouvablePremiumMenuExperienceProps) {}
+     const isEmbeddedPreview = false;
+     const HeroHeading = isEmbeddedPreview ? "h2" : "h1";
+     <HeroHeading id="trouvable-hero-title">{menu.name}</HeroHeading>`
+  ]) {
+    assert.throws(() => assertTrouvableHeroHeadingSemantics(source));
+  }
 });
 
 test("Trouvable back-to-top control matches the compact reference and adapts to light theme", async () => {
@@ -661,19 +742,25 @@ test("Trouvable back-to-top control matches the compact reference and adapts to 
   );
 });
 
-test("Trouvable typography uses optimized next/font variables for display and UI", async () => {
+test("Trouvable typography keeps a hermetic class-name interface and CSS fallback stacks", async () => {
   const page = await readFile(pagePath, "utf8");
   const dishPage = await readFile(dishPagePath, "utf8");
   const source = await readFile(componentPath, "utf8");
   const detailSource = await readFile(dishDetailPath, "utf8");
   const typography = await readFile(typographyPath, "utf8");
+  const css = await readFile(cssPath, "utf8");
 
-  assert.match(typography, /from "next\/font\/google"/);
-  assert.match(typography, /Inter\(/);
-  assert.match(typography, /Noto_Serif_Display\(/);
-  assert.match(typography, /variable:\s*"--trouvable-font-ui"/);
-  assert.match(typography, /variable:\s*"--trouvable-font-display"/);
-  assert.match(typography, /style:\s*\["normal", "italic"\]/);
+  assert.doesNotMatch(typography, /next\/font\/(?:google|local)/);
+  assert.doesNotMatch(css, /fonts\.googleapis\.com/i);
+  assert.match(
+    typography,
+    /export const trouvableTypographyClassName:\s*string\s*=\s*"";/
+  );
+  assert.match(css, /--trouvable-font-ui:\s*Inter,\s*sans-serif/);
+  assert.match(
+    css,
+    /--trouvable-font-display:\s*"Noto Serif Display",\s*Georgia,\s*serif/
+  );
   assert.match(page, /typographyClassName=\{trouvableTypographyClassName\}/);
   assert.match(dishPage, /typographyClassName=\{trouvableTypographyClassName\}/);
   assert.match(source, /typographyClassName/);

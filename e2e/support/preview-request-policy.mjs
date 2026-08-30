@@ -16,8 +16,24 @@ export const REQUEST_CLASSIFICATIONS = Object.freeze({
   PLATFORM_CANCELLATION: "platform-cancellation",
   HEALTHY_MEDIA_CANCELLATION: "healthy-media-cancellation",
   EXPLICIT_PREFETCH_CANCELLATION: "explicit-prefetch-cancellation",
-  HTTP_ERROR: "http-error"
+  HTTP_ERROR: "http-error",
+  SUPABASE_PRODUCTION_EGRESS: "supabase-production-egress"
 });
+
+export const PRODUCTION_SUPABASE_ORIGIN =
+  "https://bkpewsjvxswqruwqljcy.supabase.co";
+
+export function isSupabaseOrigin(value) {
+  try {
+    const parsed = new URL(value);
+    return (
+      parsed.origin === PRODUCTION_SUPABASE_ORIGIN ||
+      /(^|\.)supabase\.(?:co|com)$/i.test(parsed.hostname)
+    );
+  } catch {
+    return false;
+  }
+}
 
 function normalizeHeaderValue(value) {
   return String(value ?? "").trim();
@@ -215,6 +231,21 @@ export function classifyFailedResponse(input) {
     REQUEST_CLASSIFICATIONS.HTTP_ERROR,
     false,
     `HTTP ${status} response is blocking`
+  );
+}
+
+/**
+ * Successful cross-origin Supabase responses are still an egress regression.
+ * Preview smoke historically ignored all successful cross-origin responses,
+ * allowing a misconfigured production URL to pass the gate.
+ */
+export function classifySuccessfulResponse(input) {
+  if (!isSupabaseOrigin(input.url)) return null;
+  return baseDiagnostic(
+    input,
+    REQUEST_CLASSIFICATIONS.SUPABASE_PRODUCTION_EGRESS,
+    false,
+    "Supabase production/cross-origin response is forbidden in Preview"
   );
 }
 

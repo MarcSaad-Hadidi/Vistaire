@@ -186,7 +186,7 @@ test("Today CSS is mobile-first, uses shared tokens and reserves bottom navigati
 
 test("Today server route derives scope from access and loads one v2 evidence bundle", async () => {
   const [route, page] = await Promise.all([
-    readFile("app/admin/page.tsx", "utf8"),
+    readFile("app/(fr)/admin/page.tsx", "utf8"),
     readFile("components/admin/today/AdminTodayPage.tsx", "utf8")
   ]);
   assert.match(route, /requireAdminRestaurantAccess\("dashboard:read"\)/);

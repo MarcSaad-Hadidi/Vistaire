@@ -89,7 +89,7 @@ test("menu-card asset intent does not fetch large demo GLB or USDZ files", async
   assert.deepEqual(env.fetchCalls, []);
 });
 
-test("menu-card asset intent can warm very small GLB assets but not source-only USDZ", async () => {
+test("menu-card asset intent never warms GLB or USDZ before explicit viewer intent", async () => {
   const env = installBrowserLikeEnvironment();
 
   prepareDishAssetIntent({
@@ -98,9 +98,7 @@ test("menu-card asset intent can warm very small GLB assets but not source-only 
   });
   await env.settleWarmupQueue();
 
-  assert.deepEqual(env.fetchCalls, [
-    "http://localhost:3000/models/demo/maison-elyse-n1.glb"
-  ]);
+  assert.deepEqual(env.fetchCalls, []);
 });
 
 test("iPhone Quick Look prefetch warms only the current dish AR-lite USDZ with a stable URL", async () => {

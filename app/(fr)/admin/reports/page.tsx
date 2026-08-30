@@ -1,0 +1,43 @@
+import { headers } from "next/headers";
+import { AdminReportsPage } from "@/components/admin/reports/AdminReportsPage";
+import { AdminShell } from "@/components/admin/system/AdminShell";
+import { AdminShellState } from "@/components/admin/system/AdminShellState";
+import { requireAdminRestaurantAccess } from "@/lib/admin/access";
+import { buildAdminReport, parseAdminReportFilters } from "@/lib/admin/reports/buildReport";
+import { loadAdminDataBundle } from "@/lib/admin/data/loadAdminData";
+import { readAdminPreferencesFromHeaders } from "@/lib/admin/preferences";
+
+export const dynamic = "force-dynamic";
+
+type ReportsSearchParams = { range?: string | string[]; service?: string | string[] };
+
+export default async function AdminReportsRoute({ searchParams }: { searchParams?: Promise<ReportsSearchParams> }) {
+  const preferences = readAdminPreferencesFromHeaders(await headers());
+  const access = await requireAdminRestaurantAccess("dashboard:read");
+  if (!access.ok) return <AdminShellState kind="forbidden" locale={preferences.locale} />;
+
+  const filters = parseAdminReportFilters((await searchParams) ?? {});
+  const dataResult = await loadAdminDataBundle(access, filters.range);
+  if (!dataResult.ok) return <AdminShellState kind="error" locale={preferences.locale} />;
+
+  const report = buildAdminReport({
+    locale: preferences.locale,
+    range: filters.range,
+    service: filters.service,
+    bundle: dataResult.bundle
+  });
+  return (
+    <AdminShell
+      activeRoute="reports"
+      restaurantName={dataResult.presentation.restaurantName}
+      menuPath={dataResult.presentation.publicMenuPath}
+      pageTitle={preferences.locale === "fr" ? "Bilan du service" : "Service report"}
+      pageDescription={preferences.locale === "fr"
+        ? "Une lecture fondée uniquement sur les interactions observées et leurs preuves."
+        : "A view based only on observed interactions and their evidence."}
+      headerDetails={<span>{preferences.locale === "fr" ? "Rapports privés" : "Private reports"}</span>}
+    >
+      <AdminReportsPage report={report} />
+    </AdminShell>
+  );
+}

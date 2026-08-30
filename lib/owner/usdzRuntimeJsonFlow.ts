@@ -101,6 +101,25 @@ export type UsdzRuntimePreparedUpload = {
   usdzSourceStored: false;
 };
 
+function deferredCleanupReport(): CleanupReplacedDishAssetsReport {
+  return {
+    candidates: [],
+    deleted: [],
+    skippedStillReferenced: [],
+    skippedUnsafeBucket: [],
+    skippedUnsafePrefix: [],
+    skippedMissingPath: [],
+    skippedConcurrentReuseRisk: [],
+    errors: [
+      {
+        bucket: "",
+        paths: [],
+        message: "Nettoyage differe apres publication du modele."
+      }
+    ]
+  };
+}
+
 function base64UrlEncode(value: string): string {
   return Buffer.from(value, "utf8").toString("base64url");
 }
@@ -707,6 +726,7 @@ export async function completeUsdzRuntimeSignedUpload(args: {
   adminClient: SupabaseClient;
   input: UsdzRuntimeCompleteInput;
   env?: NodeJS.ProcessEnv;
+  onPublicCommit?: () => void | Promise<void>;
 }): Promise<{
   status: "ready";
   jobId: string;
@@ -874,14 +894,22 @@ export async function completeUsdzRuntimeSignedUpload(args: {
       throw new Error("Plat impossible a mettre a jour avec le runtime USDZ.");
     }
 
-    const cleanup = await cleanupReplacedDishAssets({
-      client: args.adminClient,
-      dishId: verified.claims.dishId,
-      restaurantId: verified.claims.restaurantId,
-      previousMetadata: freshMetadata,
-      nextMetadata: merged,
-      reason: "usdz-runtime-replacement"
-    });
+    await args.onPublicCommit?.();
+
+    let cleanup: CleanupReplacedDishAssetsReport;
+    try {
+      cleanup = await cleanupReplacedDishAssets({
+        client: args.adminClient,
+        dishId: verified.claims.dishId,
+        restaurantId: verified.claims.restaurantId,
+        previousMetadata: freshMetadata,
+        nextMetadata: merged,
+        reason: "usdz-runtime-replacement"
+      });
+    } catch {
+      await args.onPublicCommit?.();
+      cleanup = deferredCleanupReport();
+    }
 
     return {
       status: "ready",

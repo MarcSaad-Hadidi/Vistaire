@@ -360,8 +360,8 @@ test("Maison Elyse detail keeps its restaurant-specific return label", async () 
 test("Maison demo showcase projects localized menus by canonical public locale", async () => {
   const [showcase, demo, englishDemo, projection, landingData] = await Promise.all([
     readFile("components/vistaire-preview/DemoPhoneShowcase.tsx", "utf8"),
-    readFile("app/demo/page.tsx", "utf8"),
-    readFile("app/en/vistaire-menu/page.tsx", "utf8"),
+    readFile("app/(fr)/demo/page.tsx", "utf8"),
+    readFile("app/(en)/en/vistaire-menu/page.tsx", "utf8"),
     readFile("lib/landing/landingMenuUiPreview.ts", "utf8"),
     readFile("lib/landing/menuExperiences.ts", "utf8")
   ]);
@@ -381,7 +381,10 @@ test("Maison Elyse server context loads every ready locale for reload persistenc
   assert.match(source, /translationLocales/);
   assert.match(source, /settings\.supportedLocales\.filter/);
   assert.match(source, /status === "up_to_date"/);
-  assert.match(source, /getPublicMenuBySlug\(slug, candidate\)/);
+  assert.match(
+    source,
+    /getPublicMenuBySlug\(\s*slug,\s*candidate,[\s\S]*?bypassMaisonE2eFixture/
+  );
 });
 
 test("Maison menu root and text zones follow the resolved menu direction", async () => {

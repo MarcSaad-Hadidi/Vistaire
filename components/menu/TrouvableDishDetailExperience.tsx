@@ -12,26 +12,27 @@ import {
   type CSSProperties,
   type PointerEvent
 } from "react";
-import type {
-  PublicMenu,
-  PublicMenuContextQuery,
-  PublicMenuDish
+import {
+  buildPublicDishPath,
+  type PublicMenu,
+  type PublicMenuContextQuery,
+  type PublicMenuDish
 } from "@/lib/menu/publicMenuCore";
 import type { MenuUiConfig } from "@/lib/menu/menuUiConfig";
 import type { MenuExchangeRates } from "@/lib/currency/formatMenuPrice";
-import {
-  buildPublicDishPath,
-  getGoogleReviewCta
-} from "@/lib/menu/publicMenuCore";
 import { buildPublicMenuPath } from "@/lib/owner/menuUrlCore";
 import type { DishModelViewerProps } from "@/components/dish/DishModelViewer";
-import { trackPublicMenuEvent } from "@/lib/analytics/client";
+import {
+  getPublicMenuAnalyticsContext,
+  trackPublicMenuEvent
+} from "@/lib/analytics/client";
 import { isSafe3dAssetUrl } from "@/lib/dish3dManifest";
 import {
   copyTextToClipboard,
   detectArHandoffPlatform,
   type ArHandoffPlatform
 } from "@/lib/menu/arBrowserHandoff";
+import { arFallbackUiMode } from "@/lib/ar/arExperience";
 import {
   TROUVABLE_CURRENCY_STORAGE_KEY,
   TROUVABLE_LOCALE_STORAGE_KEY,
@@ -46,7 +47,7 @@ import {
   type TrouvableLocale,
   type TrouvableTheme
 } from "./trouvableMenuControls";
-import { trackGoogleReviewClick } from "./googleReviewTracking";
+import { GoogleReviewCard } from "./GoogleReviewCard";
 import {
   getDishSwipeScrollTop,
   resolveDishSwipeGesture
@@ -55,7 +56,6 @@ import { PremiumDishDetailsSheet } from "./PremiumDishDetailsSheet";
 import { getTrouvablePaletteSource } from "@/lib/menu/trouvableMenuExperience";
 import {
   TrouvableDishDetailSurface,
-  TrouvableDishReviewPanelBody,
   TrouvableImmersivePanelBody
 } from "./TrouvableDishDetailSurface";
 import { useTrouvableDocumentLanguage } from "./useTrouvableDocumentLanguage";
@@ -84,7 +84,7 @@ type SwipeStart = {
   pointerId: number;
   scrollTop: number;
 } | null;
-type DishDetailSubSheet = "details" | "review" | null;
+type DishDetailSubSheet = "details" | null;
 const AR_COPY_STATUS_RESET_MS = 4_000;
 
 function hasPublic3d(dish: PublicMenuDish): boolean {
@@ -141,8 +141,6 @@ export function TrouvableDishDetailExperience({
   const [swipeStart, setSwipeStart] = useState<SwipeStart>(null);
   const [showModelViewer, setShowModelViewer] = useState(false);
   const [activeSubSheet, setActiveSubSheet] = useState<DishDetailSubSheet>(null);
-  const [reviewRating, setReviewRating] = useState(0);
-  const [reviewText, setReviewText] = useState("");
   const [selectedLocale, setSelectedLocale] = useState<TrouvableLocale>(() =>
     normalizeTrouvableReadyLocaleForSettings(
       query?.lang,
@@ -162,6 +160,8 @@ export function TrouvableDishDetailExperience({
     useState<DishModelViewerComponent | null>(null);
   const [modelViewerLoadFailed, setModelViewerLoadFailed] = useState(false);
   const [showArBrowserHelp, setShowArBrowserHelp] = useState(false);
+  const [showArDeviceHelp, setShowArDeviceHelp] = useState(false);
+  const [showArAssetHelp, setShowArAssetHelp] = useState(false);
   const [arHandoffPlatform] = useState<ArHandoffPlatform>(() => {
     if (typeof navigator === "undefined") return "other";
     const navigatorWithData = navigator as Navigator & {
@@ -255,6 +255,8 @@ export function TrouvableDishDetailExperience({
       arCopyResetTimeoutRef.current = null;
     }
     setShowArBrowserHelp(false);
+    setShowArDeviceHelp(false);
+    setShowArAssetHelp(false);
     setArCopyStatus("idle");
     setManualDishUrl("");
   }, []);
@@ -293,7 +295,7 @@ export function TrouvableDishDetailExperience({
     setManualDishUrl(absoluteDishUrl);
     setArCopyStatus("error");
   }
-  const googleReviewCta = getGoogleReviewCta(menu.googleReview);
+  const analyticsContext = getPublicMenuAnalyticsContext(menu);
 
   const replaceLocaleInUrl = useCallback(
     (nextLocale: TrouvableLocale) => {
@@ -312,8 +314,6 @@ export function TrouvableDishDetailExperience({
       setShowModelViewer(false);
       setActiveSubSheet(null);
       resetArHandoffState();
-      setReviewRating(0);
-      setReviewText("");
     });
 
     return () => window.cancelAnimationFrame(animationFrameId);
@@ -435,20 +435,12 @@ export function TrouvableDishDetailExperience({
       setShowModelViewer(false);
       resetArHandoffState();
       setActiveSubSheet(null);
-      setReviewRating(0);
-      setReviewText("");
       window.history.replaceState(
         null,
         "",
         buildPublicDishPath(menu.slug, nextDish.slug, localizedQuery)
       );
     }
-  }
-
-  function openReviewSheet() {
-    setReviewRating(0);
-    setReviewText("");
-    setActiveSubSheet("review");
   }
 
   function handlePointerUp(event: PointerEvent<HTMLElement>) {
@@ -468,27 +460,10 @@ export function TrouvableDishDetailExperience({
     const scrollDelta =
       getDishSwipeScrollTop(event.currentTarget) - start.scrollTop;
     const gesture = resolveDishSwipeGesture(deltaX, deltaY, scrollDelta);
-    if (gesture === "reviewOpen") {
-      openReviewSheet();
-      return;
-    }
     if (gesture === "next" || gesture === "previous") {
       selectAdjacentDish(gesture === "next" ? 1 : -1);
     }
   }
-
-  useEffect(() => {
-    if (activeSubSheet !== "review") return;
-
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key !== "Escape") return;
-      event.preventDefault();
-      setActiveSubSheet(null);
-    }
-
-    document.addEventListener("keydown", handleKeyDown);
-    return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [activeSubSheet]);
 
   const paletteSource = getTrouvablePaletteSource(menu);
 
@@ -623,7 +598,6 @@ export function TrouvableDishDetailExperience({
           modelControlsId="trouvable-public-model"
           modelExpanded={showModelViewer}
           onOpenDetails={() => setActiveSubSheet("details")}
-          onOpenReview={openReviewSheet}
           onToggleModel={toggleModelViewer}
           price={activePrice}
           secondaryEyebrow={activeDish.category}
@@ -643,16 +617,20 @@ export function TrouvableDishDetailExperience({
               manualDishUrlId={manualDishUrlId}
               manualDishUrlRef={manualDishUrlRef}
               menu={menu}
+              analyticsContext={analyticsContext ?? undefined}
               modelControlsId="trouvable-public-model"
               modelViewerComponent={ModelViewerComponent}
               modelViewerLoadFailed={modelViewerLoadFailed}
               onArFallbackCleared={resetArHandoffState}
               onArFallbackNeeded={(reason) => {
-                if (reason === "missing-ios-usdz") {
+                const mode = arFallbackUiMode(reason);
+                if (mode === "none") {
                   resetArHandoffState();
                   return;
                 }
-                setShowArBrowserHelp(true);
+                setShowArBrowserHelp(mode === "browser");
+                setShowArDeviceHelp(mode === "device");
+                setShowArAssetHelp(mode === "asset");
               }}
               onCopyDishUrl={() => void copyDishUrl()}
               onReturnToDish={() => {
@@ -661,6 +639,8 @@ export function TrouvableDishDetailExperience({
               }}
               onSelectManualDishUrl={selectManualDishUrl}
               showArBrowserHelp={showArBrowserHelp}
+              showArDeviceHelp={showArDeviceHelp}
+              showArAssetHelp={showArAssetHelp}
             />
           ) : null}
 
@@ -679,43 +659,16 @@ export function TrouvableDishDetailExperience({
         />
       ) : null}
 
-      {activeSubSheet === "review" ? (
-        <div
-          className={`${styles.overlay} ${styles.reviewOverlay} ${styles.stackedOverlay}`}
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="trouvable-route-review-title"
-          onClick={(event) => {
-            if (event.target === event.currentTarget) setActiveSubSheet(null);
-          }}
-          data-no-dish-swipe="true"
-        >
-          <section className={styles.reviewSheet} tabIndex={-1}>
-            <TrouvableDishReviewPanelBody
-              copy={copy}
-              dish={activeDish}
-              fallbackInitial={menu.name.slice(0, 1)}
-              googleReviewCta={googleReviewCta}
-              onPostReview={() =>
-                trackGoogleReviewClick({
-                  dishSlug: activeDish.slug,
-                  menuId: menu.menuId,
-                  restaurantId: menu.restaurantId,
-                  source: menu.source
-                })
-              }
-              onRatingChange={setReviewRating}
-              onReviewTextChange={setReviewText}
-              placeholder={copy.reviewPlaceholder}
-              rating={reviewRating}
-              starsLabel={copy.reviewStars}
-              text={reviewText}
-              title={copy.reviewTitle}
-              titleId="trouvable-route-review-title"
-            />
-          </section>
-        </div>
-      ) : null}
+      <GoogleReviewCard
+        dishSlug={activeDish.slug}
+        googleReview={menu.googleReview}
+        locale={selectedLocale}
+        localizedUiCopy={menu.localizedUiCopy}
+        menuId={menu.menuId}
+        restaurantId={menu.restaurantId}
+        restaurantName={menu.name}
+        source={menu.source}
+      />
     </main>
   );
 }

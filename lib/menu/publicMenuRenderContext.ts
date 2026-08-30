@@ -1,10 +1,20 @@
 import "server-only";
 
 import { getExchangeRates } from "@/lib/currency/exchangeRates";
+import type { MenuExchangeRates } from "@/lib/currency/formatMenuPrice";
 import { type Locale } from "@/lib/i18n";
-import { type PublicMenuLocale } from "@/lib/menu/publicMenuSettings";
-import { menuUiConfigForRestaurant, type MenuUiConfig } from "@/lib/menu/menuUiConfig";
-import { getPublicMenuBySlug } from "@/lib/menu/publicMenu";
+import {
+  defaultMenuUiConfigRecord,
+  mapMenuUiConfigRow,
+  menuUiConfigForRestaurant,
+  type MenuUiConfig,
+  type MenuUiConfigRecord,
+  type MenuUiConfigRow
+} from "@/lib/menu/menuUiConfig";
+import {
+  getPublicMenuBySlug,
+  type PublicMenuReadOptions
+} from "@/lib/menu/publicMenu";
 import {
   type PublicMenu,
   type PublicMenuContextQuery
@@ -14,13 +24,17 @@ import {
   type ResolvedPublicMenuExperience
 } from "@/lib/menu/publicMenuExperienceRoute";
 import {
+  resolveStablePublicMenuUiConfigReadiness,
+  type StablePublicMenuUiConfigReadState
+} from "@/lib/menu/publicMenuStableUiConfig";
+import {
   normalizePublicMenuLocale,
   normalizePublicMenuLocalePreference,
-  publicLocaleToShortLocale
+  publicLocaleToShortLocale,
+  type PublicMenuLocale
 } from "@/lib/menu/publicMenuSettings";
 import { resolvePublicMenuUiConfig } from "@/lib/menu/trouvableMenuExperience";
-import { getPublishedMenuUiConfigForRestaurant } from "@/lib/owner/menuUiConfigStore";
-import type { MenuExchangeRates } from "@/lib/currency/formatMenuPrice";
+import { getSupabaseAdminClient } from "@/utils/supabase/admin";
 
 export type PublicMenuRenderQuery = {
   lang?: string;
@@ -47,22 +61,79 @@ type PublicMenuBaseRenderContext = Omit<
   "exchangeRates" | "localizedMenus"
 >;
 
+export type PublicMenuStableRenderContext = PublicMenuBaseRenderContext & {
+  localizedMenus: Partial<Record<PublicMenuLocale, PublicMenu>>;
+  stableCacheReadiness: {
+    // Compatibility name: this is true when the effective public UI config is
+    // stable for landing-cache rendering, including code-owned built-in fallbacks.
+    publishedUiConfig: boolean;
+    localizedMenusComplete: boolean;
+  };
+};
+
 export type PublicDishRenderContext = PublicMenuBaseRenderContext & {
   exchangeRates: MenuExchangeRates | null;
 };
 
+type PublishedMenuUiConfigLoad = {
+  record: MenuUiConfigRecord;
+  readState: StablePublicMenuUiConfigReadState;
+};
+
+async function getPublishedMenuUiConfigForRestaurantWithReadState(
+  restaurantId: string,
+  fallbackConfig: MenuUiConfig
+): Promise<PublishedMenuUiConfigLoad> {
+  const fallbackRecord = () =>
+    defaultMenuUiConfigRecord({ restaurantId, config: fallbackConfig });
+  const admin = getSupabaseAdminClient();
+
+  if (!admin.ok) {
+    return { record: fallbackRecord(), readState: "unavailable" };
+  }
+
+  const { data, error } = await admin.client
+    .from("menu_ui_configs")
+    .select("*")
+    .eq("restaurant_id", restaurantId)
+    .eq("status", "published")
+    .order("updated_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) {
+    return { record: fallbackRecord(), readState: "unavailable" };
+  }
+
+  if (!data) {
+    return { record: fallbackRecord(), readState: "not-found" };
+  }
+
+  return {
+    record: mapMenuUiConfigRow(data as MenuUiConfigRow, fallbackConfig),
+    readState: "published"
+  };
+}
+
 async function resolvePublicMenuBaseRenderContext({
   query,
-  slug
+  slug,
+  publicMenuReadOptions = {}
 }: {
   query: PublicMenuRenderQuery;
   slug: string;
-}): Promise<PublicMenuBaseRenderContext | null> {
+  publicMenuReadOptions?: PublicMenuReadOptions;
+}): Promise<{
+  renderContext: PublicMenuBaseRenderContext;
+  publishedUiConfig: boolean;
+} | null> {
   const hasLangParam =
     typeof query.lang === "string" && query.lang.trim().length > 0;
   const initialMenu = await getPublicMenuBySlug(
     slug,
-    hasLangParam ? query.lang : undefined
+    hasLangParam ? query.lang : undefined,
+    undefined,
+    publicMenuReadOptions
   );
   if (!initialMenu) return null;
 
@@ -105,40 +176,82 @@ async function resolvePublicMenuBaseRenderContext({
     name: initialMenu.name,
     slug: initialMenu.slug
   });
-  const configRecord = await getPublishedMenuUiConfigForRestaurant(
+  const configLoad = await getPublishedMenuUiConfigForRestaurantWithReadState(
     initialMenu.restaurantId,
     fallbackConfig
   );
+  const configRecord = configLoad.record;
   const config = resolvePublicMenuUiConfig(initialMenu, configRecord.config);
   const experience = resolvePublicMenuExperience(initialMenu, config, {
     allowPendingUniquePreview:
       process.env.NODE_ENV !== "production" &&
       process.env.VISTAIRE_UNIQUE_MENU_PREVIEW === "1"
   });
+  const stablePublicUiConfig = resolveStablePublicMenuUiConfigReadiness({
+    configRecord,
+    experienceKind: experience.kind,
+    readState: configLoad.readState
+  });
 
   return {
-    menu,
-    config,
-    context,
-    query: {
-      ...menuQuery,
-      ...(experience.kind === "trouvable" && !hasLangParam
-        ? { lang: undefined }
-        : {})
-    },
-    locale,
-    publicLocale,
-    experience
+    publishedUiConfig: stablePublicUiConfig.ready,
+    renderContext: {
+      menu,
+      config,
+      context,
+      query: {
+        ...menuQuery,
+        ...(experience.kind === "trouvable" && !hasLangParam
+          ? { lang: undefined }
+          : {})
+      },
+      locale,
+      publicLocale,
+      experience
+    }
   };
+}
+
+export function arePublicMenuTranslationsReadyForStableCache(
+  menu: Pick<PublicMenu, "settings" | "translationLocales">
+): boolean {
+  const statuses = menu.translationLocales ?? [];
+  if (!statuses.length) return false;
+
+  const configuredLocales = new Set([
+    ...menu.settings.supportedLocales,
+    ...statuses.map((status) => status.locale)
+  ]);
+  const isReady = (locale: string, status: string) =>
+    locale === menu.settings.defaultLocale
+      ? status === "source" || status === "up_to_date"
+      : status === "up_to_date";
+
+  return (
+    statuses.every((status) => isReady(status.locale, status.status)) &&
+    [...configuredLocales].every((locale) =>
+      statuses.some(
+        (status) => status.locale === locale && isReady(locale, status.status)
+      )
+    )
+  );
 }
 
 async function resolveLocalizedMenus(
   renderContext: PublicMenuBaseRenderContext,
-  slug: string
-): Promise<Partial<Record<PublicMenuLocale, PublicMenu>>> {
-  if (renderContext.experience.kind !== "maison-elyse") return {};
+  slug: string,
+  publicMenuReadOptions: PublicMenuReadOptions = {}
+): Promise<{
+  localizedMenus: Partial<Record<PublicMenuLocale, PublicMenu>>;
+  complete: boolean;
+}> {
+  if (renderContext.experience.kind !== "maison-elyse") {
+    return { localizedMenus: {}, complete: true };
+  }
 
   const { settings, translationLocales = [] } = renderContext.menu;
+  const translationProvenanceComplete =
+    arePublicMenuTranslationsReadyForStableCache(renderContext.menu);
   const readyLocales = settings.supportedLocales.filter((candidate) => {
     const status = translationLocales.find((item) => item.locale === candidate)?.status;
     return (
@@ -153,34 +266,105 @@ async function resolveLocalizedMenus(
       const resolved =
         candidate === renderContext.publicLocale
           ? renderContext.menu
-          : await getPublicMenuBySlug(slug, candidate);
-      if (!resolved?.activeLocale) return null;
+          : await getPublicMenuBySlug(
+              slug,
+              candidate,
+              undefined,
+              publicMenuReadOptions
+            );
+      if (!resolved?.activeLocale) {
+        return { cacheReady: false, entry: null };
+      }
 
       const candidateLocale = normalizePublicMenuLocale(candidate);
       const resolvedLocale = normalizePublicMenuLocale(
         resolved.activeLocale,
         resolved.settings.defaultLocale
       );
-      return resolvedLocale === candidateLocale
-        ? ([candidateLocale, resolved] as const)
-        : null;
+      const entry =
+        resolvedLocale === candidateLocale
+          ? ([candidateLocale, resolved] as const)
+          : null;
+      const status = resolved.translationStatus?.status;
+      const translationReady =
+        candidateLocale === settings.defaultLocale
+          ? status === "source" || status === "up_to_date"
+          : status === "up_to_date";
+      const sameIdentity =
+        resolved.slug === renderContext.menu.slug &&
+        resolved.restaurantId === renderContext.menu.restaurantId &&
+        (!renderContext.menu.menuId ||
+          resolved.menuId === renderContext.menu.menuId);
+      return {
+        cacheReady:
+          Boolean(entry) &&
+          resolved.source === "supabase" &&
+          sameIdentity &&
+          translationReady,
+        entry
+      };
     })
   );
 
-  return Object.fromEntries(
-    resolvedMenus.filter(
-      (entry): entry is readonly [PublicMenuLocale, PublicMenu] => Boolean(entry)
-    )
+  const entries = resolvedMenus.filter(
+    (
+      result
+    ): result is {
+      cacheReady: boolean;
+      entry: readonly [PublicMenuLocale, PublicMenu];
+    } => Boolean(result.entry)
   );
+  return {
+    localizedMenus: Object.fromEntries(entries.map((result) => result.entry)),
+    complete:
+      translationProvenanceComplete &&
+      resolvedMenus.length === locales.length &&
+      resolvedMenus.every((result) => result.cacheReady)
+  };
 }
 
-function getRenderContextExchangeRates(
-  renderContext: PublicMenuBaseRenderContext
+export function resolvePublicMenuExchangeRates(
+  menu: Pick<PublicMenu, "settings">
 ): Promise<MenuExchangeRates> {
   return getExchangeRates({
-    baseCurrency: renderContext.menu.settings.baseCurrency,
-    supportedCurrencies: renderContext.menu.settings.supportedCurrencies
+    baseCurrency: menu.settings.baseCurrency,
+    supportedCurrencies: menu.settings.supportedCurrencies
   });
+}
+
+export async function resolvePublicMenuStableRenderContext({
+  query,
+  slug
+}: {
+  query: PublicMenuRenderQuery;
+  slug: string;
+}): Promise<PublicMenuStableRenderContext | null> {
+  // The landing graph must read the Supabase-backed card even when the E2E
+  // public-menu matrix enables its complete tracked Maison demo fixture.
+  const publicMenuReadOptions: PublicMenuReadOptions = {
+    bypassMaisonE2eFixture: true
+  };
+  const base = await resolvePublicMenuBaseRenderContext({
+    query,
+    slug,
+    publicMenuReadOptions
+  });
+  if (!base) return null;
+  const { renderContext } = base;
+  const localized = await resolveLocalizedMenus(
+    renderContext,
+    slug,
+    publicMenuReadOptions
+  );
+
+  return {
+    ...renderContext,
+    localizedMenus: localized.localizedMenus,
+    stableCacheReadiness: {
+      publishedUiConfig: base.publishedUiConfig,
+      localizedMenusComplete: localized.complete
+    }
+  };
 }
 
 export async function resolvePublicMenuRenderContext({
@@ -190,18 +374,19 @@ export async function resolvePublicMenuRenderContext({
   query: PublicMenuRenderQuery;
   slug: string;
 }): Promise<PublicMenuRenderContext | null> {
-  const renderContext = await resolvePublicMenuBaseRenderContext({ query, slug });
-  if (!renderContext) return null;
+  const base = await resolvePublicMenuBaseRenderContext({ query, slug });
+  if (!base) return null;
+  const { renderContext } = base;
 
-  const [exchangeRates, localizedMenus] = await Promise.all([
-    getRenderContextExchangeRates(renderContext),
+  const [exchangeRates, localized] = await Promise.all([
+    resolvePublicMenuExchangeRates(renderContext.menu),
     resolveLocalizedMenus(renderContext, slug)
   ]);
 
   return {
     ...renderContext,
     exchangeRates,
-    localizedMenus
+    localizedMenus: localized.localizedMenus
   };
 }
 
@@ -212,14 +397,15 @@ export async function resolvePublicDishRenderContext({
   query: PublicMenuRenderQuery;
   slug: string;
 }): Promise<PublicDishRenderContext | null> {
-  const renderContext = await resolvePublicMenuBaseRenderContext({ query, slug });
-  if (!renderContext) return null;
+  const base = await resolvePublicMenuBaseRenderContext({ query, slug });
+  if (!base) return null;
+  const { renderContext } = base;
 
   const { experience } = renderContext;
   const exchangeRates =
     experience.kind === "trouvable" ||
     experience.kind === "unique-registered"
-      ? await getRenderContextExchangeRates(renderContext)
+      ? await resolvePublicMenuExchangeRates(renderContext.menu)
       : null;
 
   return {

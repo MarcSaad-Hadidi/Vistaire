@@ -49,7 +49,7 @@ test("SEO route segment", () => assert.equal(classify(["app/seo/page.tsx"]).seo,
 test("SQL migration", () => assert.equal(classify(["supabase/migrations/20260101_menu.sql"]).database, true));
 test("translation", () => assert.equal(classify(["lib/translation/catalog.ts"]).translations, true));
 test("QR", () => assert.equal(classify(["app/api/owner/qr-codes/route.ts"]).qr, true));
-test("admin", () => assert.equal(classify(["app/admin/restaurants/page.tsx"]).admin, true));
+test("admin", () => assert.equal(classify(["app/(fr)/admin/restaurants/page.tsx"]).admin, true));
 test("shared menu", () => assert.equal(classify(["components/menu/MenuCard.tsx"]).menu_shared, true));
 test("Trouvable belongs to shared menu", () => assert.equal(classify(["components/trouvable/Category.tsx"]).menu_shared, true));
 test("Sauge renderer", () => assert.equal(classify(["components/menu/unique/sauge-noire/Renderer.tsx"]).sauge_renderer, true));
@@ -74,8 +74,8 @@ test("public navigation chrome changes run the core browser family", () => {
 
 test("restaurateur preview routes, fixture, components, and browser spec share one public family", () => {
   for (const path of [
-    "app/apercu-restaurateur/page.tsx",
-    "app/en/restaurant-preview/page.tsx",
+    "app/(fr)/apercu-restaurateur/page.tsx",
+    "app/(en)/en/restaurant-preview/page.tsx",
     "components/vistaire-preview/RestaurateurDashboardDemo.tsx",
     "lib/restaurateurPreview/fixture.ts",
     "e2e/restaurateur-preview.spec.ts"
@@ -99,15 +99,41 @@ test("public navigation remains covered when a QR preview change overlaps", () =
 });
 test("public navigation callsites stay in the core browser family", () => {
   for (const path of [
-    "app/demo/page.tsx",
-    "app/en/pricing-digital-restaurant-menu/page.tsx",
-    "app/en/vistaire-menu/page.tsx",
+    "app/(fr)/demo/page.tsx",
+    "app/(en)/en/pricing-digital-restaurant-menu/page.tsx",
+    "app/(en)/en/vistaire-menu/page.tsx",
     "components/landing/VistaireLanding.tsx",
     "components/seo/SeoGeoAeoPage.tsx"
   ]) {
     const result = classify([path]);
     assert.equal(result.public_navigation, true, path);
     assert.equal(result.run_core, true, path);
+  }
+});
+
+test("locale-grouped application paths retain their specialized CI families", () => {
+  const cases = [
+    ["grouped SEO", "app/(fr)/(seo)/menu-digital-restaurant/page.tsx", ["run_seo"]],
+    ["grouped landing", "app/(fr)/page.tsx", ["run_landing"]],
+    ["grouped menu", "app/(fr)/menu/[slug]/page.tsx", ["run_menu", "run_webkit"]],
+    ["grouped admin", "app/(fr)/admin/page.tsx", ["run_admin_qr"]],
+    ["grouped owner", "app/(fr)/owner/page.tsx", ["run_admin_qr"]],
+    [
+      "grouped public preview",
+      "app/(fr)/apercu-restaurateur/page.tsx",
+      ["run_core", "run_webkit"]
+    ],
+    ["French document root", "app/(fr)/layout.tsx", ["run_core"]],
+    ["English document root", "app/(en)/layout.tsx", ["run_core"]]
+  ];
+
+  for (const [name, file, browserFamilies] of cases) {
+    const result = classify([file]);
+    assert.equal(result.run_static, true, `${name}: static contract`);
+    assert.equal(result.run_build, true, `${name}: build`);
+    for (const family of browserFamilies) {
+      assert.equal(result[family], true, `${name}: ${family}`);
+    }
   }
 });
 test("workflow forces full CI", () => assert.equal(classify([".github/workflows/app-ci.yml"]).full_ci, true));

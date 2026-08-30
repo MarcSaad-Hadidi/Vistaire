@@ -714,6 +714,16 @@ for (const viewport of [
           .poll(() => new URL(page.url()).pathname, { timeout: 15_000 })
           .not.toBe(sourcePathname);
         await expectSettledSurface(page);
+        await expect
+          .poll(
+            async () => {
+              const latest = await probeSnapshot(page);
+              const owner = expectUsableSingleOwner(latest, "dish");
+              return owner.scrollHeight - owner.clientHeight;
+            },
+            { timeout: 5_000 }
+          )
+          .toBeGreaterThan(0);
         const final = await probeSnapshot(page);
         const finalOwner = expectUsableSingleOwner(final, "dish");
         expect(finalOwner.id).toBe(startingOwner.id);

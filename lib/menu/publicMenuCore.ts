@@ -40,6 +40,7 @@ export type PublicMenuDish = {
   dietaryType?: string;
   imageUrl: string;
   thumbnailUrl: string;
+  cardUrl: string;
   hasPhoto: boolean;
   photoStatus: "ready" | "missing" | "planned" | "draft" | "unknown";
   hasImmersive: boolean;
@@ -115,6 +116,17 @@ export type PublicMenuDish = {
   houseNote: string;
   tags: string[];
 };
+
+export type PublicDishImageSurface = "thumbnail" | "card" | "display";
+
+export function getPublicDishImageUrl(
+  dish: Pick<PublicMenuDish, "imageUrl" | "thumbnailUrl" | "cardUrl">,
+  surface: PublicDishImageSurface
+): string {
+  if (surface === "thumbnail") return dish.thumbnailUrl || dish.imageUrl;
+  if (surface === "card") return dish.cardUrl || dish.imageUrl;
+  return dish.imageUrl;
+}
 
 /**
  * Historical translation hashes were generated before presentation-only list
@@ -427,7 +439,13 @@ export function getGoogleReviewCta(
   config: GoogleReviewConfig | null | undefined
 ): GoogleReviewCta | null {
   const normalized = normalizeGoogleReviewConfig(config);
-  if (!normalized.enabled || !normalized.googleReviewUrl) return null;
+  if (
+    !normalized.enabled ||
+    normalized.presentationOnly ||
+    !normalized.googleReviewUrl
+  ) {
+    return null;
+  }
 
   return {
     href: normalized.googleReviewUrl,
@@ -772,26 +790,98 @@ function getOptionalNumberFromSources(
 }
 
 const PHOTO_SHA256_PATTERN = /^[a-f0-9]{64}$/i;
+const CARD_DERIVATIVE_MAX_DIMENSION = 768;
+
+function hasValidV2CardDerivative(
+  metadata: PublicMenuRow,
+  restaurantId: string,
+  photoSha256: string
+): boolean {
+  const derivatives = getObject(metadata, ["photoDerivatives", "photo_derivatives"]);
+  const card = getObject(derivatives, ["card"]);
+  const sourceSha256 = getString(card, ["sourceSha256", "source_sha256"], "").toLowerCase();
+  const outputSha256 = getString(card, ["outputSha256", "output_sha256", "sha256"], "").toLowerCase();
+  const legacySha256 = getString(card, ["sha256"], "").toLowerCase();
+  const rawStoragePath = card.storagePath ?? card.storage_path;
+  const storagePath = typeof rawStoragePath === "string" ? rawStoragePath : "";
+  const normalizedPhotoSha256 = photoSha256.toLowerCase();
+  const expectedStoragePath = `restaurants/${restaurantId}/photos/derivatives/${normalizedPhotoSha256}/dish-photo-v2/card-${outputSha256}.webp`;
+  const width = getNumber(card, ["width"], 0);
+  const height = getNumber(card, ["height"], 0);
+  const bytes = getNumber(card, ["bytes"], 0);
+  const generatedAt = getString(card, ["generatedAt", "generated_at"], "");
+
+  return (
+    card.schemaVersion === 2 &&
+    card.recipeId === "dish-photo-v2" &&
+    card.variant === "card" &&
+    Boolean(restaurantId) &&
+    PHOTO_SHA256_PATTERN.test(photoSha256) &&
+    sourceSha256 === normalizedPhotoSha256 &&
+    PHOTO_SHA256_PATTERN.test(outputSha256) &&
+    (!legacySha256 || legacySha256 === outputSha256) &&
+    storagePath === expectedStoragePath &&
+    card.contentType === "image/webp" &&
+    card.format === "webp" &&
+    Number.isInteger(width) &&
+    width > 0 &&
+    width <= CARD_DERIVATIVE_MAX_DIMENSION &&
+    Number.isInteger(height) &&
+    height > 0 &&
+    height <= CARD_DERIVATIVE_MAX_DIMENSION &&
+    Number.isInteger(bytes) &&
+    bytes > 0 &&
+    Number.isFinite(Date.parse(generatedAt)) &&
+    Boolean(getString(card, ["encoder"], ""))
+  );
+}
+
+function canonicalDishPhotoVariantUrl(
+  dishId: string,
+  photoSha256: string,
+  variant: "card"
+): string {
+  if (!PHOTO_SHA256_PATTERN.test(photoSha256)) return "";
+  return `/api/public/menu-dishes/${dishId}/photo?v=${photoSha256.toLowerCase()}&variant=${variant}`;
+}
 
 function versionCanonicalDishPhotoUrl(
   imageUrl: string,
   dishId: string,
-  photoSha256: string
+  photoSha256: string,
+  variant?: "thumbnail" | "display"
 ): string {
   const canonicalPath = `/api/public/menu-dishes/${dishId}/photo`;
+  let parsed: URL;
+  try {
+    parsed = new URL(imageUrl, "https://menu.vistaire.invalid");
+  } catch {
+    return imageUrl;
+  }
   if (
-    imageUrl !== canonicalPath ||
-    !PHOTO_SHA256_PATTERN.test(photoSha256)
+    parsed.origin !== "https://menu.vistaire.invalid" ||
+    parsed.pathname !== canonicalPath
   ) {
     return imageUrl;
   }
-  return `${canonicalPath}?v=${photoSha256.toLowerCase()}`;
+  const existingVersion = parsed.searchParams.get("v")?.trim() ?? "";
+  const version = PHOTO_SHA256_PATTERN.test(photoSha256)
+    ? photoSha256.toLowerCase()
+    : PHOTO_SHA256_PATTERN.test(existingVersion)
+      ? existingVersion.toLowerCase()
+      : "";
+  if (!version) return imageUrl;
+  const params = new URLSearchParams(parsed.searchParams);
+  params.set("v", version);
+  if (variant) params.set("variant", variant);
+  return `${canonicalPath}?${params.toString()}`;
 }
 
 function mapDishRow(
   row: PublicMenuRow,
   index: number,
-  settings: PublicMenuSettings
+  settings: PublicMenuSettings,
+  restaurantId: string
 ): PublicMenuDish {
   const metadata = getObject(row, ["metadata", "meta"]);
   const name = getString(row, ["name", "dish_name", "title"], "Plat");
@@ -838,7 +928,8 @@ function mapDishRow(
   const imageUrl = versionCanonicalDishPhotoUrl(
     rawImageUrl,
     dishId,
-    photoSha256
+    photoSha256,
+    "display"
   );
   const rawThumbnailUrl =
     getSafeStringFromSources(row, metadata, [
@@ -848,8 +939,12 @@ function mapDishRow(
   const thumbnailUrl = versionCanonicalDishPhotoUrl(
     rawThumbnailUrl,
     dishId,
-    photoSha256
+    photoSha256,
+    "thumbnail"
   );
+  const cardUrl = hasValidV2CardDerivative(metadata, restaurantId, photoSha256)
+    ? canonicalDishPhotoVariantUrl(dishId, photoSha256, "card")
+    : imageUrl;
   const model3dUrl = getSafeStringFromSources(row, metadata, ["model3dUrl", "model3d_url"]);
   const webModel3dUrl =
     getSafeStringFromSources(row, metadata, ["webModel3dUrl", "web_model_3d_url"]) ||
@@ -1042,6 +1137,7 @@ function mapDishRow(
     ...(dietaryType ? { dietaryType } : {}),
     imageUrl,
     thumbnailUrl,
+    cardUrl,
     hasPhoto: Boolean(imageUrl),
     photoStatus:
       imageUrl
@@ -1420,7 +1516,7 @@ export function buildSupabasePublicMenu(
     .map((row, index) => ({ row, index, order: dishSortOrder(row, index) }))
     .sort(compareDishEntries)
     .slice(0, 200)
-    .map(({ row, index }) => mapDishRow(row, index, settings));
+    .map(({ row, index }) => mapDishRow(row, index, settings, restaurantId));
 
   return {
     restaurantId,
@@ -1499,7 +1595,7 @@ export function buildRelationalSupabasePublicMenu(args: {
     })
     .sort(compareDishEntries)
     .slice(0, 200)
-    .map(({ row, index }) => mapDishRow(row, index, settings));
+    .map(({ row, index }) => mapDishRow(row, index, settings, restaurantId));
 
   return {
     restaurantId,

@@ -8,7 +8,10 @@ import {
   deleteOwnerMenuCategory,
   updateOwnerMenuCategory
 } from "@/lib/owner/menuMutations";
-import { revalidateOwnerMenuMutationPaths } from "@/lib/owner/menuMutationRevalidation";
+import {
+  invalidateCommittedPublicMutation,
+  resolvePublicMutationIdentity
+} from "@/lib/owner/menuMutationRevalidation";
 import { getSupabaseAdminClient } from "@/utils/supabase/admin";
 import { requireOwnerRestaurantCapability } from "@/lib/owner/demoCapabilities";
 
@@ -57,10 +60,18 @@ export async function POST(
     return NextResponse.json({ ok: false, error: capability.error }, { status: capability.status });
   }
 
+  const publicIdentity = await resolvePublicMutationIdentity({
+    client: admin.client,
+    restaurantId
+  });
+
   const result = await createOwnerMenuCategory({
     client: admin.client,
     restaurantId,
-    input: await readJsonBody(request)
+    input: await readJsonBody(request),
+    onPublicCommit: async () => {
+      await invalidateCommittedPublicMutation(publicIdentity);
+    }
   });
 
   if (!result.ok) {
@@ -69,11 +80,6 @@ export async function POST(
       { status: result.status }
     );
   }
-
-  await revalidateOwnerMenuMutationPaths({
-    client: admin.client,
-    restaurantId
-  });
 
   return NextResponse.json({ ok: true, category: result.record });
 }
@@ -108,10 +114,18 @@ export async function DELETE(
     return NextResponse.json({ ok: false, error: capability.error }, { status: capability.status });
   }
 
+  const publicIdentity = await resolvePublicMutationIdentity({
+    client: admin.client,
+    restaurantId
+  });
+
   const result = await deleteOwnerMenuCategory({
     client: admin.client,
     restaurantId,
-    input: await readJsonBody(request)
+    input: await readJsonBody(request),
+    onPublicCommit: async () => {
+      await invalidateCommittedPublicMutation(publicIdentity);
+    }
   });
 
   if (!result.ok) {
@@ -120,11 +134,6 @@ export async function DELETE(
       { status: result.status }
     );
   }
-
-  await revalidateOwnerMenuMutationPaths({
-    client: admin.client,
-    restaurantId
-  });
 
   return NextResponse.json({ ok: true, category: result.record });
 }
@@ -159,10 +168,18 @@ export async function PATCH(
     return NextResponse.json({ ok: false, error: capability.error }, { status: capability.status });
   }
 
+  const publicIdentity = await resolvePublicMutationIdentity({
+    client: admin.client,
+    restaurantId
+  });
+
   const result = await updateOwnerMenuCategory({
     client: admin.client,
     restaurantId,
-    input: await readJsonBody(request)
+    input: await readJsonBody(request),
+    onPublicCommit: async () => {
+      await invalidateCommittedPublicMutation(publicIdentity);
+    }
   });
 
   if (!result.ok) {
@@ -171,11 +188,6 @@ export async function PATCH(
       { status: result.status }
     );
   }
-
-  await revalidateOwnerMenuMutationPaths({
-    client: admin.client,
-    restaurantId
-  });
 
   return NextResponse.json({ ok: true, category: result.record });
 }

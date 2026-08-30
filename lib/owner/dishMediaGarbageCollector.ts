@@ -18,8 +18,8 @@ export type DishMediaStorageTarget =
   | {
       bucket: typeof DISH_PHOTO_STORAGE_BUCKET;
       path: string;
-      kind: "photo";
-      metadataPathKey: "photoStoragePath";
+      kind: "photo" | "photo-derivative";
+      metadataPathKey: string;
     };
 
 export type DishMediaSkippedTarget =
@@ -27,8 +27,8 @@ export type DishMediaSkippedTarget =
   | {
       bucket: string;
       path: string;
-      kind: "photo";
-      metadataPathKey: "photoStoragePath";
+      kind: "photo" | "photo-derivative";
+      metadataPathKey: string;
       reason: "empty" | "unsafe_bucket" | "unsafe_path" | "duplicate";
     };
 
@@ -96,35 +96,54 @@ export function isSafeDishPhotoStoragePath(path: string, restaurantId: string): 
   );
 }
 
+export function isSafeDishPhotoDerivativeStoragePath(
+  path: string,
+  restaurantId: string
+): boolean {
+  const normalizedRestaurantId = normalizeStorageSafeIdentifier(restaurantId);
+  return new RegExp(
+    `^restaurants/${normalizedRestaurantId}/photos/derivatives/[a-f0-9]{64}/(?:dish-photo-v2/)?(?:thumbnail|card|display)(?:-[a-f0-9]{64})?\\.webp$`,
+    "i"
+  ).test(path);
+}
+
 export function collectDishPhotoStorageTarget(
   metadataValue: unknown,
   restaurantId: string
 ): DishMediaStorageCollection {
   const metadata = getObjectMetadata(metadataValue);
   const path = getStringMetadata(metadata, "photoStoragePath");
-  if (!path) return { targets: [], skipped: [], warnings: [] };
+  const targets: DishMediaStorageTarget[] = [];
+  const skipped: DishMediaSkippedTarget[] = [];
+  const warnings: string[] = [];
 
   const bucket = getStringMetadata(metadata, "photoStorageBucket") || DISH_PHOTO_STORAGE_BUCKET;
-  if (bucket !== DISH_PHOTO_STORAGE_BUCKET) {
-    return {
-      targets: [],
-      skipped: [{ bucket, path, kind: "photo", metadataPathKey: "photoStoragePath", reason: "unsafe_bucket" }],
-      warnings: [`Photo Storage bucket ignored: ${bucket}.`]
-    };
-  }
-  if (!isSafeDishPhotoStoragePath(path, restaurantId)) {
-    return {
-      targets: [],
-      skipped: [{ bucket, path, kind: "photo", metadataPathKey: "photoStoragePath", reason: "unsafe_path" }],
-      warnings: [`Photo Storage path ignored: ${path}.`]
-    };
+  if (path) {
+    if (bucket !== DISH_PHOTO_STORAGE_BUCKET) {
+      skipped.push({ bucket, path, kind: "photo", metadataPathKey: "photoStoragePath", reason: "unsafe_bucket" });
+      warnings.push(`Photo Storage bucket ignored: ${bucket}.`);
+    } else if (!isSafeDishPhotoStoragePath(path, restaurantId)) {
+      skipped.push({ bucket, path, kind: "photo", metadataPathKey: "photoStoragePath", reason: "unsafe_path" });
+      warnings.push(`Photo Storage path ignored: ${path}.`);
+    } else {
+      targets.push({ bucket: DISH_PHOTO_STORAGE_BUCKET, path, kind: "photo", metadataPathKey: "photoStoragePath" });
+    }
   }
 
-  return {
-    targets: [{ bucket: DISH_PHOTO_STORAGE_BUCKET, path, kind: "photo", metadataPathKey: "photoStoragePath" }],
-    skipped: [],
-    warnings: []
-  };
+  const derivatives = getObjectMetadata(metadata.photoDerivatives);
+  for (const variant of ["thumbnail", "card", "display"] as const) {
+    const derivative = getObjectMetadata(derivatives[variant]);
+    const derivativePath = getStringMetadata(derivative, "storagePath");
+    if (!derivativePath) continue;
+    if (!isSafeDishPhotoDerivativeStoragePath(derivativePath, restaurantId)) {
+      skipped.push({ bucket: DISH_PHOTO_STORAGE_BUCKET, path: derivativePath, kind: "photo-derivative", metadataPathKey: `photoDerivatives.${variant}.storagePath`, reason: "unsafe_path" });
+      warnings.push(`Photo derive ignore: ${derivativePath}.`);
+      continue;
+    }
+    targets.push({ bucket: DISH_PHOTO_STORAGE_BUCKET, path: derivativePath, kind: "photo-derivative", metadataPathKey: `photoDerivatives.${variant}.storagePath` });
+  }
+
+  return { targets, skipped, warnings };
 }
 
 export function collectDishMediaStorageTargets(

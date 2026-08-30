@@ -66,11 +66,12 @@ test("details popup opens from the dish sheet without a card-level trigger", asy
   assert.match(surfaceSource, /copy\.viewDetails/);
 });
 
-test("review popup remains separate from premium details sheet", async () => {
+test("Google Review stays on the shared card instead of a local review popup", async () => {
   const menuSource = await readFile(menuPath, "utf8");
 
-  assert.match(menuSource, /renderReviewSheet/);
-  assert.match(menuSource, /dishSubSheet === "review"/);
+  assert.match(menuSource, /<GoogleReviewCard/);
+  assert.doesNotMatch(menuSource, /renderReviewSheet/);
+  assert.doesNotMatch(menuSource, /dishSubSheet === "review"/);
   assert.match(menuSource, /PremiumDishDetailsSheet/);
   assert.match(menuSource, /dishSubSheet === "details"/);
 });
@@ -100,7 +101,6 @@ test("Trouvable menu sheet and direct route share one dish detail content surfac
     /dish\.options/,
     /AllergenWarning/,
     /copy\.viewDetails/,
-    /copy\.review/,
     /copy\.threeD/
   ]) {
     assert.match(surfaceSource, contract);
@@ -112,7 +112,7 @@ test("Trouvable menu sheet and direct route share one dish detail content surfac
   assert.match(detailSource, /<PremiumDishDetailsSheet[\s\S]*dish=\{activeDish\}/);
 });
 
-test("Trouvable wrappers share immersive and review panel bodies while owning their wrappers", async () => {
+test("Trouvable wrappers share the immersive panel while Google Review uses the shared card", async () => {
   const [menuSource, detailSource, surfaceSource] = await Promise.all([
     readFile(menuPath, "utf8"),
     readFile(detailPath, "utf8"),
@@ -121,7 +121,8 @@ test("Trouvable wrappers share immersive and review panel bodies while owning th
 
   for (const source of [menuSource, detailSource]) {
     assert.match(source, /<TrouvableImmersivePanelBody/);
-    assert.match(source, /<TrouvableDishReviewPanelBody/);
+    assert.match(source, /<GoogleReviewCard/);
+    assert.doesNotMatch(source, /<TrouvableDishReviewPanelBody/);
     assert.doesNotMatch(source, /className=\{styles\.reviewPanel\}/);
     assert.doesNotMatch(source, /className=\{styles\.inlineModelViewer\}/);
   }
@@ -130,32 +131,23 @@ test("Trouvable wrappers share immersive and review panel bodies while owning th
     surfaceSource,
     /export function TrouvableImmersivePanelBody/
   );
-  assert.match(
-    surfaceSource,
-    /export function TrouvableDishReviewPanelBody/
-  );
+  assert.doesNotMatch(surfaceSource, /TrouvableDishReviewPanelBody/);
+  assert.doesNotMatch(surfaceSource, /className=\{styles\.reviewPanel\}/);
   assert.match(surfaceSource, /className=\{styles\.inlineModelViewer\}/);
   assert.match(surfaceSource, /className=\{styles\.arBrowserFallback\}/);
-  assert.match(surfaceSource, /className=\{styles\.reviewPanel\}/);
-  assert.match(surfaceSource, /data-google-review-action="true"/);
+  assert.doesNotMatch(surfaceSource, /data-google-review-action="true"/);
 
   assert.match(menuSource, /role="dialog"/);
-  assert.match(detailSource, /role="dialog"/);
-  assert.match(menuSource, /className=\{styles\.reviewSheet\}/);
-  assert.match(detailSource, /className=\{styles\.reviewSheet\}/);
+  assert.match(await readFile(sheetPath, "utf8"), /role="dialog"/);
+  assert.doesNotMatch(menuSource, /className=\{styles\.reviewSheet\}/);
+  assert.doesNotMatch(detailSource, /className=\{styles\.reviewSheet\}/);
 });
 
-test("review stars keep selected state visible in light and dark themes", async () => {
+test("removed local review star styles stay gone", async () => {
   const css = await readFile(menuCssPath, "utf8");
 
-  assert.match(css, /\.reviewStars button\[aria-pressed="true"\]/);
-  assert.match(css, /--review-star-active:\s*#c98f16/);
-  assert.match(css, /--review-star-inactive:\s*rgba\(255,\s*255,\s*255,\s*0\.24\)/);
-  assert.match(css, /--review-star-active-shadow:\s*rgba\(201,\s*143,\s*22,\s*0\.38\)/);
-  assert.match(
-    css,
-    /\.page\[data-user-theme="light"\] \.reviewStars button\[aria-pressed="true"\]/
-  );
-  assert.match(css, /--review-star-active:\s*#9f6900/);
-  assert.match(css, /--review-star-inactive:\s*rgba\(35,\s*26,\s*13,\s*0\.26\)/);
+  assert.doesNotMatch(css, /\.reviewStars button\[aria-pressed="true"\]/);
+  assert.doesNotMatch(css, /--review-star-active:/);
+  assert.doesNotMatch(css, /\.reviewTextarea/);
+  assert.doesNotMatch(css, /\.reviewPostButton/);
 });

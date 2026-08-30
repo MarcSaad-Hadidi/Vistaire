@@ -53,7 +53,7 @@ test("validated admin cookies become trusted internal headers only on admin path
   const admin = await proxy(new NextRequest("https://www.vistaire.ca/admin/insights", { headers: { cookie } }), undefined);
   assert.equal(admin.headers.get("x-middleware-request-x-vistaire-admin-locale"), "en");
   assert.equal(admin.headers.get("x-middleware-request-x-vistaire-admin-theme"), "dark");
-  assert.equal(admin.headers.get("x-middleware-request-x-vistaire-locale"), "en");
+  assert.equal(admin.headers.get("x-middleware-request-x-vistaire-locale"), null);
   const publicPage = await proxy(new NextRequest("https://www.vistaire.ca/en", { headers: { cookie } }), undefined);
   assert.equal(publicPage.headers.get("x-middleware-request-x-vistaire-admin-locale"), null);
   assert.equal(publicPage.headers.get("x-middleware-request-x-vistaire-admin-theme"), null);
@@ -61,7 +61,7 @@ test("validated admin cookies become trusted internal headers only on admin path
 
 test("admin preferences are rendered from trusted headers during SSR", async () => {
   const [layout, shell, controls, css] = await Promise.all([
-    readFile("app/admin/layout.tsx", "utf8"),
+    readFile("app/(fr)/admin/layout.tsx", "utf8"),
     readFile("components/admin/system/AdminShell.tsx", "utf8"),
     readFile("components/admin/system/AdminPreferencesControls.tsx", "utf8"),
     readFile("components/admin/system/AdminSystem.module.css", "utf8")
