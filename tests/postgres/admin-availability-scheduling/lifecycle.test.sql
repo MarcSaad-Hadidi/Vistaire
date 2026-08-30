@@ -46,6 +46,9 @@ select pg_temp.assert_true((select count(*)=2 from public.admin_dish_availabilit
 select pg_temp.assert_true((select is_available=false from public.menu_dishes where id='a1100000-0000-4000-8000-000000000021'),'revoked QR cannot apply a queued availability mutation');
 select pg_temp.assert_true((select is_available=true from public.menu_dishes where id='a1100000-0000-4000-8000-000000000022'),'unpublished menu cannot receive a queued availability mutation');
 select pg_temp.assert_true((select last_success_at='2000-01-01T00:00:00Z'::timestamptz from public.admin_availability_workers where worker_id='primary'),'invalid queued authority does not advance worker success');
+update public.admin_dish_availability_schedules
+set status='cancelled'
+where idempotency_key in ('availability-revoked-due','availability-draft-due01');
 update public.menus set status='published' where id='a1100000-0000-4000-8000-000000000012';
 
 do $$ declare denied boolean := false; begin
