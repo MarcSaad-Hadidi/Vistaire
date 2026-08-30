@@ -157,11 +157,30 @@ test("HTTP fixture projects English public menus into landing payloads", async (
     assert.equal(frenchContext.experience.kind, "maison-elyse");
     assert.doesNotThrow(() => assertLandingMenuPreviewReady(frenchContext, "fr"));
 
-    const stableContext = await resolvePublicMenuStableRenderContext({
-      slug: "maison-elyse",
-      query: { lang: "en-CA" }
-    });
+    const previousMaisonFixture = process.env.VISTAIRE_E2E_MAISON_PUBLIC_MENU;
+    const previousOwnerBypass = process.env.VISTAIRE_OWNER_E2E_AUTH_BYPASS;
+    let stableContext;
+    process.env.VISTAIRE_E2E_MAISON_PUBLIC_MENU = "1";
+    process.env.VISTAIRE_OWNER_E2E_AUTH_BYPASS = "1";
+    try {
+      stableContext = await resolvePublicMenuStableRenderContext({
+        slug: "maison-elyse",
+        query: { lang: "en-CA" }
+      });
+    } finally {
+      if (previousMaisonFixture === undefined) {
+        delete process.env.VISTAIRE_E2E_MAISON_PUBLIC_MENU;
+      } else {
+        process.env.VISTAIRE_E2E_MAISON_PUBLIC_MENU = previousMaisonFixture;
+      }
+      if (previousOwnerBypass === undefined) {
+        delete process.env.VISTAIRE_OWNER_E2E_AUTH_BYPASS;
+      } else {
+        process.env.VISTAIRE_OWNER_E2E_AUTH_BYPASS = previousOwnerBypass;
+      }
+    }
     assert.ok(stableContext);
+    assert.equal(stableContext.menu.source, "supabase");
     assert.deepEqual(stableContext.stableCacheReadiness, {
       publishedUiConfig: true,
       localizedMenusComplete: true

@@ -55,9 +55,10 @@ test("Maison Elyse public locale regression runs in Chromium and WebKit CI", () 
 });
 
 test("Maison public browser tests opt into the complete tracked menu fixture", async () => {
-  const [runner, publicMenu] = await Promise.all([
+  const [runner, publicMenu, renderContext] = await Promise.all([
     readFile(new URL("../scripts/run-playwright-e2e.mjs", import.meta.url), "utf8"),
-    readFile(new URL("../lib/menu/publicMenu.ts", import.meta.url), "utf8")
+    readFile(new URL("../lib/menu/publicMenu.ts", import.meta.url), "utf8"),
+    readFile(new URL("../lib/menu/publicMenuRenderContext.ts", import.meta.url), "utf8")
   ]);
 
   assert.match(runner, /endsWith\("e2e\/maison-elyse-public-menu\.spec\.ts"\)/);
@@ -66,5 +67,9 @@ test("Maison public browser tests opt into the complete tracked menu fixture", a
   assert.match(
     publicMenu,
     /slug === "maison-elyse"[\s\S]*?dependencies\.readRows === readSupabaseRowsByFilters[\s\S]*?VISTAIRE_OWNER_E2E_AUTH_BYPASS === "1"[\s\S]*?VISTAIRE_E2E_MAISON_PUBLIC_MENU === "1"[\s\S]*?return demoMenu\(slug, resolvedLocale\)/
+  );
+  assert.match(
+    renderContext,
+    /resolvePublicMenuStableRenderContext[\s\S]*?bypassMaisonE2eFixture:\s*true/
   );
 });
