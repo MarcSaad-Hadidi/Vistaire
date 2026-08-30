@@ -43,4 +43,3 @@ export function ReportActions({ locale, range, service }: { locale: "fr" | "en";
     <span className={styles.actionMessage} aria-live="polite">{message}</span>
   </div>;
 }
-

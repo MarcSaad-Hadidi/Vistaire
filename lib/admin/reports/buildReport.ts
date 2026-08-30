@@ -116,7 +116,6 @@ function panel<T>(bundle: AdminEvidenceBundle, locale: AdminReportLocale, servic
   const record = recordFor(bundle, metricId, "current");
   return service === "all" ? evidence<T>(locale, service, record) : evidence<T>(locale, service, record, unavailableState);
 }
-
 function searchPanel(bundle: AdminEvidenceBundle, locale: AdminReportLocale, service: AdminReportService): AdminReportPanel<readonly SearchTermEvidence[]> {
   const ranking = panel<AdminRankingPayload>(bundle, locale, service, "private-search-ranking");
   if (ranking.state.kind !== "available") {
@@ -206,4 +205,3 @@ export function buildAdminReport(input: {
     recommendations
   };
 }
-

@@ -16,7 +16,6 @@ export type AdminReportComparisonValue = Readonly<{
   delta: number;
   changeRate: number | null;
 }>;
-
 export type AdminReportEvidence<T> = Readonly<{
   state: AdminMetricState<T>;
   value: T | null;
@@ -70,4 +69,3 @@ export type AdminReportModel = Readonly<{
   reliability: AdminReportReliability;
   recommendations: readonly AdminReportRecommendation[];
 }>;
-

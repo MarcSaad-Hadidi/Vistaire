@@ -15,4 +15,3 @@ export function ReportMetricGrid({ report }: { report: AdminReportModel }) {
     return <article className={styles.metric} data-evidence-ids={[...metric.current.evidenceIds, ...metric.comparison.evidenceIds].join(",")} data-state={metric.current.state.kind} key={metric.metricId}><span className={styles.metricDot} aria-hidden="true"/><p>{metric.label}</p><strong>{count === undefined || count === null ? "—" : number(report.locale, count)}</strong><small>{trend ? `${trend} · ${metric.comparison.copy}` : metric.current.copy}</small></article>;
   })}</div>;
 }
-

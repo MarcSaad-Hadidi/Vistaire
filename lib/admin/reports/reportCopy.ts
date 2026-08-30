@@ -23,7 +23,6 @@ const labels = {
 export function reportMetricLabel(locale: AdminReportLocale, metricId: string): string {
   return (labels[locale] as Record<string, string>)[metricId] ?? (locale === "fr" ? "Signal observé" : "Observed signal");
 }
-
 export function reportStateCopy(locale: AdminReportLocale, state: AdminMetricState<unknown>, service: AdminReportService): string {
   if (service !== "all" && state.kind === "unmeasured" && state.reason === "unsupported-signal") {
     return locale === "fr"
@@ -46,4 +45,3 @@ export function comparisonCopy(locale: AdminReportLocale, changeRate: number | n
   }
   return locale === "fr" ? "Comparé à la période alignée." : "Compared with the aligned period.";
 }
-

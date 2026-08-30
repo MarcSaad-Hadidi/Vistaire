@@ -20,4 +20,3 @@ export function ReportFilters({ report }: { report: AdminReportModel }) {
     </nav>
   );
 }
-
