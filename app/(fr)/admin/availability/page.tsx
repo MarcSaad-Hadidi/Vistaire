@@ -18,5 +18,5 @@ export default async function AvailabilityPage() {
     readAvailabilityOperations({ restaurantId: access.restaurantId, menuId: scoped.bundle.scope.menuId })
   ]);
   const capability = canWrite ? detectedCapability : { kind: "unavailable" as const, reason: "write-access-required" as const };
-  return <AdminAvailabilityPage data={result.data} presentation={scoped.presentation} capability={capability} canWrite={canWrite} operations={operations} timezone={scoped.bundle.scope.timezone} />;
+  return <AdminAvailabilityPage data={result.data} presentation={scoped.presentation} capability={capability} canWrite={canWrite} operations={operations} timezone={scoped.bundle.scope.timezone} observedAt={scoped.bundle.window.observedAt} />;
 }

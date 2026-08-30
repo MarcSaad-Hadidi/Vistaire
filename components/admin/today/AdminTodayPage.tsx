@@ -15,10 +15,13 @@ import styles from "./AdminToday.module.css";
 export type AdminTodayPageProps = Readonly<{
   model: TodayViewModel;
   restaurantName: string;
+  restaurantId?: string;
   menuPath: string;
+  observedAt?: string;
+  timezone?: string;
 }>;
 
-export function AdminTodayPage({ model, restaurantName, menuPath }: AdminTodayPageProps) {
+export function AdminTodayPage({ model, restaurantName, restaurantId, menuPath, observedAt, timezone }: AdminTodayPageProps) {
   const copy = TODAY_COPY[model.locale];
   return (
     <AdminShell
@@ -27,6 +30,9 @@ export function AdminTodayPage({ model, restaurantName, menuPath }: AdminTodayPa
       pageDescription={copy.pageSubtitle}
       pageTitle={copy.pageTitle}
       restaurantName={restaurantName}
+      restaurantId={restaurantId}
+      observedAt={observedAt}
+      timezone={timezone}
     >
       <div className={styles.today}>
         <TodayBriefing model={model} />

@@ -137,7 +137,8 @@ test("the route composes validated access, Data Foundation and the scoped Qualit
   assert.match(source, /loadAdminDataBundle\(/);
   assert.match(source, /loadMoreQualityData\(/);
   assert.match(source, /activeRoute=["']more["']/);
-  assert.doesNotMatch(source, /searchParams|restaurantId=|menuId=|getSupabase|\.from\(/);
+  assert.match(source, /restaurantId=\{dataResult\.presentation\.restaurantId\}/);
+  assert.doesNotMatch(source, /searchParams|[?&]restaurantId=|[?&]menuId=|getSupabase|\.from\(/);
 });
 
 test("the Quality page exposes honest named regions and a safe support mail link", async () => {

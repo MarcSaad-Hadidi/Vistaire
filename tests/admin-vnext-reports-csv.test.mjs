@@ -65,7 +65,7 @@ test("private report responses apply cache and MIME hardening to success and err
 });
 
 test("export route rebuilds server evidence and never accepts client calculations", async () => {
-  const route = await readFile(new URL("../app/admin/api/reports/export/route.ts", import.meta.url), "utf8");
+  const route = await readFile(new URL("../app/(fr)/admin/api/reports/export/route.ts", import.meta.url), "utf8");
   assert.match(route, /requireAdminRestaurantAccess\(["']dashboard:read["']\)/);
   assert.match(route, /loadAdminDataBundle\(/);
   assert.match(route, /projectEvidenceForAudience\([^,]+,\s*["']export["']\)/);

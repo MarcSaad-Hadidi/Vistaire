@@ -116,7 +116,7 @@ test("loader derives restaurant, menu, source and timezone server-side with one 
   const deps = dependencies();
   const result = await loadAdminDataBundleWithDependencies({ access, range: "today" }, deps.value);
   assert.equal(result.ok, true);
-  assert.deepEqual(result.presentation, { restaurantName: "Maison Élyse", publicMenuPath: "/menu/maison-elyse" });
+  assert.deepEqual(result.presentation, { restaurantId: "r1", restaurantName: "Maison Élyse", publicMenuPath: "/menu/maison-elyse" });
   assert.deepEqual(result.bundle.scope, { restaurantId: "r1", menuId: "m1", source: "production", timezone: "America/Toronto" });
   assert.equal(deps.calls.filter((call) => call === "now").length, 1);
   assert.deepEqual(deps.calls[0], ["restaurant", { restaurantId: "r1" }]);

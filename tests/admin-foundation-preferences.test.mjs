@@ -30,7 +30,7 @@ registerHooks({
 });
 
 const preferences = await import("../lib/admin/preferences.ts");
-const { POST } = await import("../app/admin/preferences/route.ts");
+const { POST } = await import("../app/(fr)/admin/preferences/route.ts");
 const { NextRequest } = await import("next/server.js");
 
 test("admin preferences accept only closed locale and theme unions", () => {

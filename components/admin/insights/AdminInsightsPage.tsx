@@ -12,7 +12,7 @@ import { InsightsEvidenceCharts } from "./InsightsEvidenceCharts";
 import { InsightsRecommendations } from "./InsightsRecommendations";
 import styles from "./AdminInsights.module.css";
 
-type Presentation = Readonly<{ restaurantName: string; publicMenuPath: string }>;
+type Presentation = Readonly<{ restaurantId?: string; restaurantName: string; publicMenuPath: string }>;
 const number = new Intl.NumberFormat("fr-CA");
 
 function count(record: AdminEvidenceRecord | undefined): number | null {
@@ -63,6 +63,7 @@ export function AdminInsightsPage({
   const previous = find(bundle, "observed-menu-opens", "previous");
   const dishes = find(bundle, "catalog-dishes", "snapshot");
   const dishRanking = ranking(find(bundle, "dish-ranking", "current"));
+  const categoryRanking = ranking(find(bundle, "category-ranking", "current"));
   const searchRanking = ranking(find(bundle, "private-search-ranking", "current"));
   const currentCount = count(current);
   const previousCount = count(previous);
@@ -74,13 +75,17 @@ export function AdminInsightsPage({
     source: "rules"
   });
   const fr = locale === "fr";
+  const { restaurantId, restaurantName, publicMenuPath } = presentation;
 
   return <AdminShell
-    restaurantName={presentation.restaurantName}
-    menuPath={presentation.publicMenuPath}
+    restaurantName={restaurantName}
+    restaurantId={restaurantId}
+    menuPath={publicMenuPath}
     activeRoute="intelligence"
     pageTitle={fr ? "Intelligence menu — Comprendre l’attention des convives" : "Menu intelligence — Understand guest attention"}
     pageDescription={fr ? "Analysez les signaux observés et les zones encore non mesurées, sans inventer de ventes." : "Review observed signals and unmeasured areas without inferred sales."}
+    observedAt={bundle.window.observedAt}
+    timezone={bundle.window.timezone}
   >
     <section className={styles.insightsToolbar} aria-label={fr ? "Filtres d’analyse" : "Analysis filters"}>
       <div className={styles.toolbarGroup}>
@@ -94,6 +99,10 @@ export function AdminInsightsPage({
       <div className={styles.toolbarGroup}>
         <span>{fr ? "Canaux" : "Channels"}</span>
         <button type="button" disabled title={fr ? "Aucune preuve ventilée par canal" : "No channel-level evidence"}>{fr ? "Tous les canaux · non ventilé" : "All channels · not segmented"}</button>
+      </div>
+      <div className={styles.toolbarGroup}>
+        <span>{fr ? "Comparer" : "Compare"}</span>
+        <button type="button" disabled>{fr ? "Période alignée précédente" : "Previous aligned period"}</button>
       </div>
     </section>
     <section className={styles.essential} aria-labelledby="intelligence-essential">
@@ -118,6 +127,7 @@ export function AdminInsightsPage({
 
     <div className={styles.bottomIntelligenceGrid}>
       <AdminPanel title={fr ? "Scorecards des plats" : "Dish scorecards"}>{dishRanking.length ? <ol className={styles.dishScorecards}>{dishRanking.slice(0, 5).map((row) => <li key={`${row.rank}-${row.label}`}><span>{row.rank}</span><strong>{row.label}</strong><b>{number.format(row.count)}</b></li>)}</ol> : <dl className={styles.scorecards}><div><dt>{fr ? "Ouvertures actuelles" : "Current opens"}</dt><dd>{metricState(current, locale)}</dd></div><div><dt>{fr ? "Ouvertures précédentes" : "Previous opens"}</dt><dd>{metricState(previous, locale)}</dd></div><div><dt>{fr ? "Plats au catalogue" : "Catalog dishes"}</dt><dd>{metricState(dishes, locale)}</dd></div></dl>}</AdminPanel>
+      <AdminPanel title={fr ? "Performance par catégorie" : "Category performance"}>{categoryRanking.length ? <ol className={styles.dishScorecards}>{categoryRanking.slice(0, 5).map((row) => <li key={`${row.rank}-${row.label}`}><span>{row.rank}</span><strong>{row.label}</strong><b>{number.format(row.count)}</b></li>)}</ol> : <div className={styles.emptyState}><strong>{fr ? "Non mesuré" : "Unmeasured"}</strong><p>{fr ? "Aucun classement de catégories n’est disponible dans ce bundle." : "No category ranking is available in this bundle."}</p></div>}</AdminPanel>
       <AdminPanel title={fr ? "Recommandations Vistaire" : "Vistaire recommendations"}><InsightsRecommendations answer={claims} locale={locale}/></AdminPanel>
       <AdminPanel className={styles.assistantPanel} title={fr ? "Assistant Vistaire" : "Vistaire Assistant"}>{assistantEnabled ? <AdminAssistant locale={locale} range={bundle.window.range}/> : <div className={styles.emptyState}><strong>{fr ? "Assistant en validation" : "Assistant under validation"}</strong><p>{fr ? "Le drawer sera activé lorsque le quota distribué et les gates IA seront validés." : "The drawer will activate after distributed quota and AI gates are validated."}</p></div>}</AdminPanel>
     </div>

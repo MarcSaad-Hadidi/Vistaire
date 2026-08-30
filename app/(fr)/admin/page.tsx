@@ -25,5 +25,8 @@ export default async function AdminPage({ searchParams }: { searchParams?: Promi
     menuPath={result.presentation.publicMenuPath}
     model={model}
     restaurantName={result.presentation.restaurantName}
+    restaurantId={result.presentation.restaurantId}
+    observedAt={result.bundle.window.observedAt}
+    timezone={result.bundle.window.timezone}
   />;
 }

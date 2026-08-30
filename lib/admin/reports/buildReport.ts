@@ -34,7 +34,11 @@ export function parseAdminReportFilters(input: Readonly<{ range?: unknown; servi
   service: AdminReportService;
 } {
   const range = input.range === "today" || input.range === "7d" || input.range === "30d" ? input.range : "today";
-  const service = input.service === "all" || input.service === "lunch" || input.service === "dinner" ? input.service : "all";
+  const service = input.service === "all" || input.service === "lunch" || input.service === "dinner"
+    ? input.service
+    : input.service === undefined
+      ? "dinner"
+      : "all";
   return { range, service };
 }
 

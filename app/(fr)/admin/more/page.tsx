@@ -25,9 +25,12 @@ export default async function AdminMoreQualityRoute() {
     <AdminShell
       activeRoute="more"
       restaurantName={dataResult.presentation.restaurantName}
+      restaurantId={dataResult.presentation.restaurantId}
       menuPath={dataResult.presentation.publicMenuPath}
       pageTitle={copy.title}
       pageDescription={copy.description}
+      observedAt={dataResult.bundle.window.observedAt}
+      timezone={dataResult.bundle.window.timezone}
       headerDetails={<span>{preferences.locale === "fr" ? "Qualité du catalogue" : "Catalog quality"}</span>}
     >
       <AdminMoreQualityPage model={qualityResult.model} />

@@ -40,12 +40,15 @@ export default async function AdminReportsRoute({ searchParams }: { searchParams
     <AdminShell
       activeRoute="reports"
       restaurantName={dataResult.presentation.restaurantName}
+      restaurantId={dataResult.presentation.restaurantId}
       menuPath={dataResult.presentation.publicMenuPath}
       pageTitle={`${preferences.locale === "fr" ? "Bilan du service" : "Service report"} — ${serviceLabel}`}
       pageDescription={preferences.locale === "fr"
-        ? "Une lecture fondée uniquement sur les interactions observées et leurs preuves."
-        : "A view based only on observed interactions and their evidence."}
-      headerDetails={<span>{periodLabel} · {report.window.timezone}</span>}
+        ? `${periodLabel} · ${serviceLabel} | Comparé à la période alignée précédente`
+        : `${periodLabel} · ${serviceLabel} | Compared with the aligned previous period`}
+      observedAt={report.window.observedAt}
+      timezone={report.window.timezone}
+      headerDetails={<span>{report.window.timezone}</span>}
       headerActions={<ReportActions locale={report.locale} range={report.range} service={report.service} />}
     >
       <AdminReportsPage report={report} />

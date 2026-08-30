@@ -8,19 +8,19 @@
   --admin-sidebar: #fffdf9;
   --admin-surface: #fffdfa;
   --admin-surface-raised: #f8f4ed;
-  --admin-border: #e6dfd4;
+  --admin-border: #e9e3d9;
   --admin-border-soft: #efeae2;
-  --admin-accent: #9a5b08;
-  --admin-accent-strong: #7d4506;
+  --admin-accent: #b97818;
+  --admin-accent-strong: #8f5c12;
   --admin-accent-soft: #fbf2e4;
   --admin-on-accent: #fffdf8;
   --admin-text: #22201c;
   --admin-muted: #777168;
-  --admin-success: #28783b;
+  --admin-success: #2f8c46;
   --admin-danger: #d52d2d;
   --admin-info: #3f5e9e;
   --admin-purple: #7c6ba8;
-  --admin-radius: 10px;
+  --admin-radius: 12px;
   --admin-space-1: 4px;
   --admin-space-2: 8px;
   --admin-space-3: 12px;
@@ -55,6 +55,8 @@
   --admin-muted: #aaa195;
   --admin-success: #75b37f;
   --admin-danger: #ea8376;
+  --admin-info: #8aa2d6;
+  --admin-purple: #b3a5d8;
 }
 
 .dashboard { min-height: 100svh; padding-left: 183px; }
@@ -70,8 +72,11 @@
 .onlineStatus { display: inline-flex; min-height: 25px; align-items: center; gap: 7px; padding: 3px 10px; border: 1px solid color-mix(in srgb, var(--admin-success) 25%, transparent); border-radius: 999px; color: var(--admin-success); background: color-mix(in srgb, var(--admin-success) 6%, var(--admin-surface)); font-size: 11px; }
 .onlineStatus::before { width: 6px; height: 6px; border-radius: 50%; background: currentColor; content: ""; }
 .header h1 { margin: 8px 0 0; font-family: var(--admin-display); font-size: clamp(31px, 2.5vw, 37px); font-weight: 400; letter-spacing: -.02em; line-height: 1.02; }
-.headerLower { display: flex; align-items: center; gap: 16px; min-width: 0; }
+.headerLower { display: flex; align-items: center; flex-wrap: wrap; gap: 10px 16px; min-width: 0; }
 .subtitle { margin: 5px 0 0; color: var(--admin-muted); font-size: 12px; }
+.headerMeta { display: inline-flex; min-height: 25px; align-items: center; gap: 8px; color: var(--admin-muted); font-size: 11px; }
+.headerMeta time { color: var(--admin-text); }
+.headerMetaDot { width: 6px; height: 6px; border-radius: 50%; background: var(--admin-accent); }
 .main { min-width: 0; margin-bottom: 14px; }
 
 .desktopNav { display: grid; gap: 4px; margin: 52px 12px 0; }
@@ -86,7 +91,7 @@
 .restaurantMark { display: grid; width: 30px; height: 36px; place-items: center; border: 1px solid var(--admin-border); border-radius: 8px; color: var(--admin-accent); font-family: var(--admin-display); font-size: 20px; background: var(--admin-surface); }
 .restaurantRail strong, .restaurantRail small { display: block; overflow-wrap: anywhere; }
 .restaurantRail strong { font-size: 9px; font-weight: 400; line-height: 1.08; }
-.restaurantRail small { margin-top: 2px; color: var(--admin-muted); font-size: 9px; }
+.restaurantRail small { margin-top: 2px; overflow: hidden; color: var(--admin-muted); font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }
 .restaurantRail form { justify-self: end; }
 
 .adminPreferences { position: relative; margin: 8px 15px 0; color: var(--admin-muted); }
@@ -170,7 +175,7 @@
 .shellStateAction { margin-top: 20px; }
 .mobileNav { position: fixed; z-index: 20; right: 0; bottom: 0; left: 0; display: none; min-height: 76px; grid-template-columns: repeat(5, minmax(0, 1fr)); padding: 7px max(8px, env(safe-area-inset-right)) max(7px, env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-left)); border-top: 1px solid var(--admin-border); background: color-mix(in srgb, var(--admin-sidebar) 96%, transparent); backdrop-filter: blur(18px); }
 .mobilePreferences { display: none; }
-.trustFooter { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 16px; margin-top: auto; padding: 13px 18px; border: 1px solid var(--admin-border); border-radius: 10px; background: var(--admin-surface); }
+.trustFooter { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 16px; margin-top: auto; padding: 13px 18px; border: 1px solid var(--admin-border); border-radius: 10px; background: color-mix(in srgb, var(--admin-accent-soft) 55%, var(--admin-surface)); }
 .trustFooter span { display: grid; gap: 2px; }
 .trustFooter strong { font-size: 10px; font-weight: 700; }
 .trustFooter small { color: var(--admin-muted); font-size: 9px; }

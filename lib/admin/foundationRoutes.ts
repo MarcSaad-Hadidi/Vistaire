@@ -28,8 +28,8 @@ export const ADMIN_ROUTES = Object.freeze([
   { id: "today", href: ADMIN_ROUTE_PATHS.today, label: { fr: "Aujourd’hui", en: "Today" }, availability: "integrated" },
   { id: "availability", href: ADMIN_ROUTE_PATHS.availability, label: { fr: "Disponibilités", en: "Availability" }, availability: "integrated" },
   { id: "intelligence", href: ADMIN_ROUTE_PATHS.intelligence, label: { fr: "Intelligence", en: "Intelligence" }, availability: "integrated" },
-  { id: "reports", href: ADMIN_ROUTE_PATHS.reports, label: { fr: "Rapports", en: "Reports" }, availability: "deferred" },
-  { id: "more", href: ADMIN_ROUTE_PATHS.more, label: { fr: "Plus", en: "More" }, availability: "deferred" }
+  { id: "reports", href: ADMIN_ROUTE_PATHS.reports, label: { fr: "Rapports", en: "Reports" }, availability: "integrated" },
+  { id: "more", href: ADMIN_ROUTE_PATHS.more, label: { fr: "Plus", en: "More" }, availability: "integrated" }
 ] as const satisfies readonly AdminRouteDefinition[]);
 
 export function normalizeLegacyAdminRoute(route: LegacyAdminRoute): AdminRouteId {

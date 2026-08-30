@@ -19,9 +19,12 @@ type AdminShellRouteProps =
 
 export type AdminShellProps = AdminShellRouteProps & {
   restaurantName: string;
+  restaurantId?: string;
   menuPath: string;
   pageTitle?: string;
   pageDescription?: string;
+  observedAt?: string;
+  timezone?: string;
   headerDetails?: ReactNode;
   headerActions?: ReactNode;
   headerStatus?: ReactNode;
@@ -31,8 +34,8 @@ export type AdminShellProps = AdminShellRouteProps & {
 export async function AdminShell(props: AdminShellProps) {
   const preferences = readAdminPreferencesFromHeaders(await headers());
   const {
-    restaurantName, menuPath, pageTitle, pageDescription,
-    headerDetails, headerActions, headerStatus, children
+    restaurantName, restaurantId, menuPath, pageTitle, pageDescription,
+    observedAt, timezone, headerDetails, headerActions, headerStatus, children
   } = props;
   const active = "active" in props ? props.active : undefined;
   let canonicalActive: AdminRouteId;
@@ -62,7 +65,10 @@ export async function AdminShell(props: AdminShellProps) {
         <AdminPreferencesControls preferences={preferences} />
         <div className={styles.restaurantRail}>
           <span className={styles.restaurantMark} aria-hidden="true">V</span>
-          <span><strong>{restaurantName}</strong><small>{preferences.locale === "fr" ? "Espace privé" : "Private workspace"}</small></span>
+          <span>
+            <strong>{restaurantName}</strong>
+            <small title={restaurantId || undefined}>{restaurantId ? `ID : ${restaurantId}` : (preferences.locale === "fr" ? "Espace privé" : "Private workspace")}</small>
+          </span>
           <AdminCopyMenuButton locale={preferences.locale} menuPath={menuPath} />
           <AdminLogoutButton locale={preferences.locale} />
         </div>
@@ -81,6 +87,21 @@ export async function AdminShell(props: AdminShellProps) {
                   ? "Analyses détaillées et insights avancés sur l’activité de votre menu"
                   : "Insights en temps réel sur l’activité de votre menu")}
               </p>
+              {observedAt ? (
+                <p className={styles.headerMeta}>
+                  <span className={styles.headerMetaDot} aria-hidden="true" />
+                  <time dateTime={observedAt}>
+                    {new Intl.DateTimeFormat(preferences.locale === "fr" ? "fr-FR" : "en-CA", {
+                      weekday: "long",
+                      day: "numeric",
+                      month: "long",
+                      hour: "2-digit",
+                      minute: "2-digit",
+                      timeZone: timezone
+                    }).format(new Date(observedAt))}
+                  </time>
+                </p>
+              ) : null}
               {headerDetails}
             </div>
           </div>
@@ -92,8 +113,8 @@ export async function AdminShell(props: AdminShellProps) {
         {active ? <div hidden><AdminTabs active={active} /></div> : null}
         <main className={styles.main}>{children}</main>
         <footer className={styles.trustFooter}>
-          <span><strong>{preferences.locale === "fr" ? "Données privées" : "Private data"}</strong><small>{preferences.locale === "fr" ? "Accès réservé au restaurant" : "Restaurant-only access"}</small></span>
-          <span><strong>{preferences.locale === "fr" ? "Préférences protégées" : "Protected preferences"}</strong><small>HttpOnly · SameSite</small></span>
+          <span><strong>{preferences.locale === "fr" ? "Données sécurisées" : "Secured data"}</strong><small>{preferences.locale === "fr" ? "Accès réservé au restaurant" : "Restaurant-only access"}</small></span>
+          <span><strong>{preferences.locale === "fr" ? "Conformité RGPD" : "GDPR compliance"}</strong><small>HttpOnly · SameSite</small></span>
           <span><strong>{preferences.locale === "fr" ? "Piloté par Vistaire" : "Powered by Vistaire"}</strong><small>{preferences.locale === "fr" ? "Mesures fondées sur les preuves" : "Evidence-based measurements"}</small></span>
         </footer>
       </div>

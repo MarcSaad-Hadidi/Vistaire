@@ -49,6 +49,7 @@ function bundle(records) {
 
 test("report filters are closed allowlists", () => {
   assert.deepEqual(parseAdminReportFilters({ range: "30d", service: "dinner" }), { range: "30d", service: "dinner" });
+  assert.deepEqual(parseAdminReportFilters({}), { range: "today", service: "dinner" });
   assert.deepEqual(parseAdminReportFilters({ range: "forever", service: "brunch" }), { range: "today", service: "all" });
   assert.deepEqual(parseAdminReportFilters({ range: ["7d"], service: ["lunch"] }), { range: "today", service: "all" });
 });
@@ -212,7 +213,7 @@ test("Reports Playwright proof is hermetic, assertion-bearing and unskipped", as
 test("Reports source and proofs contain no mojibake", async () => {
   const files = [
     "app/(fr)/admin/reports/page.tsx",
-    "app/admin/api/reports/export/route.ts",
+    "app/(fr)/admin/api/reports/export/route.ts",
     "components/admin/reports/AdminReportsPage.tsx",
     "components/admin/reports/ReportActions.tsx",
     "components/admin/reports/ReportAvailabilityChanges.tsx",

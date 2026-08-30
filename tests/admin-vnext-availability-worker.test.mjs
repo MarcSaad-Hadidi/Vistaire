@@ -14,8 +14,8 @@ test("Toronto DST conversion rejects gaps and requires fold disambiguation", asy
 });
 
 test("schedule and worker routes are narrow and fail closed", async () => {
-  const schedule = await readFile("app/admin/api/dishes/[dishId]/availability/schedule/route.ts", "utf8");
-  const cancel = await readFile("app/admin/api/dishes/[dishId]/availability/schedule/[scheduleId]/route.ts", "utf8");
+  const schedule = await readFile("app/(fr)/admin/api/dishes/[dishId]/availability/schedule/route.ts", "utf8");
+  const cancel = await readFile("app/(fr)/admin/api/dishes/[dishId]/availability/schedule/[scheduleId]/route.ts", "utf8");
   const worker = await readFile("app/api/internal/admin-availability-worker/route.ts", "utf8");
   const repository = await readFile("lib/admin/availability/repository.ts", "utf8");
   assert.match(schedule, /dish:availability:write/);

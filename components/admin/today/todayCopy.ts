@@ -4,9 +4,9 @@ import type { AdminMetricId, AdminMetricState } from "../../../lib/admin/data/co
 export const TODAY_COPY = {
   fr: {
     pageTitle: "Aujourd’hui — Centre de pilotage du service",
-    pageSubtitle: "Votre centre de commandement en temps réel pour un service d’exception.",
+    pageSubtitle: "Votre centre de commandement en temps réel pour un dîner d’exception.",
     briefing: "Briefing live du service",
-    pulse: "Pouls du service",
+    pulse: "Pulse du service",
     activity: "Progression du service",
     alerts: "Centre d’alertes",
     topDishes: "Top plats du service",

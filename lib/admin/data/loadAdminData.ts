@@ -239,6 +239,7 @@ export async function loadAdminDataBundleWithDependencies(
     bundle,
     timezoneResolution,
     presentation: {
+      restaurantId: restaurantRead.restaurant.id,
       restaurantName: restaurantRead.restaurant.name.trim(),
       publicMenuPath: `/menu/${encodeURIComponent(restaurantRead.restaurant.slug.trim())}`
     }

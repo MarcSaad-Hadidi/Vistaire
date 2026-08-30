@@ -17,8 +17,8 @@ test("admin vNext exposes the exact five-route contract", () => {
       { id: "today", href: "/admin", availability: "integrated" },
       { id: "availability", href: "/admin/availability", availability: "integrated" },
       { id: "intelligence", href: "/admin/insights", availability: "integrated" },
-      { id: "reports", href: "/admin/reports", availability: "deferred" },
-      { id: "more", href: "/admin/more", availability: "deferred" }
+      { id: "reports", href: "/admin/reports", availability: "integrated" },
+      { id: "more", href: "/admin/more", availability: "integrated" }
     ]
   );
   assert.equal(Object.isFrozen(routes.ADMIN_ROUTE_PATHS), true);
