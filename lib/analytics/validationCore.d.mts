@@ -1,5 +1,7 @@
 import type { AnalyticsEventPayload } from "@/lib/analytics/types";
 
+export const ADMIN_INSTRUMENTATION_VERSION: "admin-vnext-observed-v1";
+
 export type ValidationResult =
   | { ok: true; payload: AnalyticsEventPayload }
   | { ok: false; error: string };

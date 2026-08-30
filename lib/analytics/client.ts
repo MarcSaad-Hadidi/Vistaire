@@ -4,7 +4,7 @@ import type {
   AnalyticsEventName,
   AnalyticsEventPayload
 } from "./types.ts";
-import { ADMIN_INSTRUMENTATION_VERSION } from "../admin/data/instrumentation.ts";
+import { ADMIN_INSTRUMENTATION_VERSION } from "./validationCore.mjs";
 
 type TrackMenuEventInput = Partial<
   Omit<AnalyticsEventPayload, "eventName" | "sessionId" | "source">
