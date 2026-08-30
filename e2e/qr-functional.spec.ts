@@ -348,7 +348,7 @@ test("QR fonctionnel: creation owner admin, echange HttpOnly et dashboard restau
     environment.fixture.liveQrReads
   );
   await expect(
-    page.getByText("Restaurant Fixture QR", { exact: true })
+    page.getByRole("banner").getByText("Restaurant Fixture QR", { exact: true })
   ).toBeVisible();
   await expect(page.getByText("Restaurant Hors Scope")).toHaveCount(0);
   expect(environment.fixture.adminScopeVerified()).toBe(true);
