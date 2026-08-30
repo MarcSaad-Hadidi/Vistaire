@@ -593,6 +593,10 @@ type PublicMenuDependencies = {
   nodeEnv: string | undefined;
 };
 
+export type PublicMenuReadOptions = {
+  bypassMaisonE2eFixture?: boolean;
+};
+
 export type PublicMenuReadOutcome =
   | { status: "live"; menu: PublicMenu }
   | { status: "not_found" }
@@ -626,12 +630,14 @@ function publicMenuDependencyScope(
 function publicMenuReadFlightKey(
   slug: string,
   locale: string,
-  dependencies: PublicMenuDependencies
+  dependencies: PublicMenuDependencies,
+  options: PublicMenuReadOptions
 ): string {
   return JSON.stringify([
     publicMenuDependencyScope(dependencies.readRows),
     slug,
-    locale
+    locale,
+    Boolean(options.bypassMaisonE2eFixture)
   ]);
 }
 
@@ -658,7 +664,8 @@ function coalescePublicMenuRead(
 async function getPublicMenuBySlugUncached(
   rawSlug: string,
   locale: Locale | string = DEFAULT_LOCALE,
-  dependencies: PublicMenuDependencies = defaultPublicMenuDependencies
+  dependencies: PublicMenuDependencies = defaultPublicMenuDependencies,
+  options: PublicMenuReadOptions = {}
 ): Promise<PublicMenu | null> {
   const slug = slugifyRestaurantSlug(rawSlug);
   const resolvedPublicLocale = normalizePublicMenuLocale(locale);
@@ -684,6 +691,7 @@ async function getPublicMenuBySlugUncached(
   // This explicit test fixture stays outside the shared in-flight read.
   if (
     slug === "maison-elyse" &&
+    !options.bypassMaisonE2eFixture &&
     dependencies.readRows === readSupabaseRowsByFilters &&
     process.env.VISTAIRE_OWNER_E2E_AUTH_BYPASS === "1" &&
     process.env.VISTAIRE_E2E_MAISON_PUBLIC_MENU === "1"
@@ -765,7 +773,12 @@ async function getPublicMenuBySlugUncached(
   };
 
   const outcome = await coalescePublicMenuRead(
-    publicMenuReadFlightKey(slug, resolvedPublicLocale, dependencies),
+    publicMenuReadFlightKey(
+      slug,
+      resolvedPublicLocale,
+      dependencies,
+      options
+    ),
     readMenu
   );
   return outcome.status === "live" ? outcome.menu : localDemo();
@@ -775,22 +788,29 @@ async function getPublicMenuBySlugUncached(
 // sharing a menu between users or deployments. Custom dependency readers used
 // by contract tests intentionally bypass this wrapper.
 const getPublicMenuBySlugRequestCached = cache(
-  async (slug: string, locale: string) =>
-    getPublicMenuBySlugUncached(slug, locale, defaultPublicMenuDependencies)
+  async (slug: string, locale: string, bypassMaisonE2eFixture: boolean) =>
+    getPublicMenuBySlugUncached(
+      slug,
+      locale,
+      defaultPublicMenuDependencies,
+      { bypassMaisonE2eFixture }
+    )
 );
 
 export async function getPublicMenuBySlug(
   rawSlug: string,
   locale: Locale | string = DEFAULT_LOCALE,
-  dependencies?: PublicMenuDependencies
+  dependencies?: PublicMenuDependencies,
+  options: PublicMenuReadOptions = {}
 ): Promise<PublicMenu | null> {
   if (!dependencies) {
     const slug = slugifyRestaurantSlug(rawSlug);
     if (!slug) return null;
     return getPublicMenuBySlugRequestCached(
       slug,
-      normalizePublicMenuLocale(locale)
+      normalizePublicMenuLocale(locale),
+      Boolean(options.bypassMaisonE2eFixture)
     );
   }
-  return getPublicMenuBySlugUncached(rawSlug, locale, dependencies);
+  return getPublicMenuBySlugUncached(rawSlug, locale, dependencies, options);
 }
