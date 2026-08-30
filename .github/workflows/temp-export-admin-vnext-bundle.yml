@@ -1,4 +1,4 @@
-name: Temporary Admin vNext Node runtime export
+name: Temporary Admin vNext exact-head bundle export
 
 on:
   push:
@@ -9,39 +9,41 @@ permissions:
   contents: read
 
 jobs:
-  export-node-runtime:
+  export-incremental-bundle:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
       - name: Checkout delivery branch
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
-          fetch-depth: 1
+          fetch-depth: 0
           lfs: false
           persist-credentials: false
 
-      - name: Setup project CI Node runtime
-        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
-        with:
-          node-version: 24.13.0
-
-      - name: Archive exact Node runtime
+      - name: Fetch exact delivery and main refs
         run: |
-          node --version
-          npm --version
-          node_root="$(dirname "$(dirname "$(node -p 'process.execPath')")")"
-          node_parent="$(dirname "$node_root")"
-          node_dir="$(basename "$node_root")"
-          printf 'NODE_ROOT=%s\n' "$node_root"
-          tar --zstd -C "$node_parent" -cf /tmp/vistaire-node24-runtime.tar.zst "$node_dir"
-          sha256sum /tmp/vistaire-node24-runtime.tar.zst
-          du -h /tmp/vistaire-node24-runtime.tar.zst
+          git fetch --no-tags --prune origin \
+            '+refs/heads/feat/admin-vnext-integration:refs/remotes/origin/feat/admin-vnext-integration' \
+            '+refs/heads/main:refs/remotes/origin/main'
+          git rev-parse refs/remotes/origin/feat/admin-vnext-integration
+          git rev-parse refs/remotes/origin/main
 
-      - name: Upload temporary Node runtime
+      - name: Create incremental Git bundle
+        run: |
+          git bundle create /tmp/vistaire-admin-vnext-incremental.bundle \
+            refs/remotes/origin/feat/admin-vnext-integration \
+            refs/remotes/origin/main \
+            ^b250d647c644f13405478bb8ae4b63fe9e8953c2 \
+            ^1105d9d968fdf4e91518e95b66c91a24c7b4bfcf
+          git bundle list-heads /tmp/vistaire-admin-vnext-incremental.bundle
+          sha256sum /tmp/vistaire-admin-vnext-incremental.bundle
+          du -h /tmp/vistaire-admin-vnext-incremental.bundle
+
+      - name: Upload exact-head incremental bundle
         uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
         with:
-          name: temp-vistaire-node24-runtime-${{ github.run_id }}
-          path: /tmp/vistaire-node24-runtime.tar.zst
+          name: temp-vistaire-admin-vnext-incremental-${{ github.run_id }}
+          path: /tmp/vistaire-admin-vnext-incremental.bundle
           if-no-files-found: error
           compression-level: 0
           retention-days: 1
