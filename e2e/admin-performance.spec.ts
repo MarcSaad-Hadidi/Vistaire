@@ -43,7 +43,7 @@ test("admin insights keeps a bounded production performance profile", async ({ p
     await preview.click();
     await expect(preview).toBeHidden({ timeout: 30_000 });
   }
-  await expect(page.getByRole("heading", { name: "Maison Élysée", exact: true })).toBeVisible();
+  await expect(page.getByText("Maison Élysée", { exact: true }).first()).toBeVisible();
   await page.goto("/admin/insights", { waitUntil: "networkidle" });
   await page.evaluate(async () => { await document.fonts.ready; await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))); });
 

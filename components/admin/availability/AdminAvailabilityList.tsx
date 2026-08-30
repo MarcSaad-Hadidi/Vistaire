@@ -126,7 +126,7 @@ export function AdminAvailabilityList({ dishes, capability, canWrite, operations
     </div><aside className={styles.rail} aria-label="Opérations de disponibilité">
       <section className={styles.railCard} aria-labelledby="bulk-actions-title">
         <h2 id="bulk-actions-title">Actions groupées</h2>
-        <p>{canWrite ? "Les actions s’appliquent plat par plat via le même contrat d’écriture." : "Ces actions restent visibles, mais cet accès est en lecture seule."}</p>
+        <p>{canWrite ? "Les actions s’appliquent plat par plat via le même contrat d’écriture." : "Ces actions restent visibles, mais elles restent inactives sans droit d’écriture."}</p>
         <div className={styles.bulkActions}>
           <button type="button" disabled={!canWrite || bulkPending} onClick={() => applyBulk(true)}>Tout rendre disponible</button>
           <button type="button" disabled={!canWrite || bulkPending} onClick={() => applyBulk(false)}>Tout rendre indisponible</button>

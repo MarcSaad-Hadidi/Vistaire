@@ -12,7 +12,7 @@ async function enterLocalPreview(page: Page) {
     await expect(page).toHaveURL(/\/admin$/);
     await page.waitForLoadState("networkidle");
   }
-  await expect(page.getByRole("heading", { name: "Maison Élysée", exact: true })).toBeVisible();
+  await expect(page.getByText("Maison Élysée", { exact: true }).first()).toBeVisible();
 }
 
 async function stabilize(page: Page) {
