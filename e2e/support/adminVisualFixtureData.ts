@@ -29,7 +29,7 @@ const searchTerms = ["homard bleu", "risotto cèpes", "tartare saumon", "raviole
 const fullMenuDishWeights = [18, 16, 14, 12, 10, 9, 7, 5, 4, 2, 2, 1];
 const pixelDishWeights = [812, 652, 498, 381, 412, 35, ...Array.from({ length: 28 }, () => 34)];
 const searchWeights = [128, 96, 74, 62, 51, 40, 38, 37, 36];
-const currentDayWeights = [5, 12, 11, 17, 20, 23, 12];
+const currentDayWeights = [6, 8, 10, 12, 14, 22, 28];
 const previousDayWeights = [6, 11, 12, 17, 20, 22, 12];
 const serviceHours = [12, 13, 19, 20, 14, 18, 21, 11, 15, 17];
 const serviceWeights = [7, 13, 18, 17, 10, 14, 9, 3, 5, 4];
@@ -54,6 +54,10 @@ export function filterAdminVisualFixtureRows<T extends Record<string, unknown>>(
     if (operator === "eq") filtered = filtered.filter((row) => String(row[column] ?? "") === value);
     if (operator === "gte") filtered = filtered.filter((row) => String(row[column] ?? "") >= value);
     if (operator === "lt") filtered = filtered.filter((row) => String(row[column] ?? "") < value);
+    if (operator === "in") {
+      const allowed = value.replace(/^\(/, "").replace(/\)$/, "").split(",").map((item) => item.trim().replace(/^"(.*)"$/, "$1"));
+      filtered = filtered.filter((row) => allowed.includes(String(row[column] ?? "")));
+    }
   }
   return filtered;
 }
@@ -184,15 +188,48 @@ export function buildAdminVisualFixtureTables({ scenario = "pixel-reference" }: 
   const foreign = { restaurant_id: "foreign-restaurant", menu_id: "foreign-menu", source: "demo" };
   analytics_events.push({ id: "foreign-event", event_name: "menu_opened", created_at: "2026-07-09T12:00:00Z", ...foreign });
   analytics_events.push({ id: "foreign-menu-event", restaurant_id: restaurantId, menu_id: foreign.menu_id, source: "production", event_name: "menu_opened", created_at: "2026-07-09T12:00:00Z" });
+  const unavailableDishes = menu_dishes.filter((dish) => !dish.is_available);
+  const scheduledReturns = [
+    { hour: "20:00:00.000Z", status: "pending" },
+    { hour: "21:30:00.000Z", status: "pending" },
+    { hour: "22:15:00.000Z", status: "failed" }
+  ];
+  const admin_dish_availability_schedules = scheduledReturns.flatMap((item, index) => {
+    const dish = unavailableDishes[index];
+    return dish ? [{
+      id: `schedule-${index + 1}`,
+      restaurant_id: restaurantId,
+      menu_id: menuId,
+      dish_id: dish.id,
+      final_available: true,
+      scheduled_for: `2026-07-10T${item.hour}`,
+      timezone: "America/Toronto",
+      status: item.status
+    }] : [];
+  });
+  const historyActors = ["admin_qr", "schedule_worker", "admin_qr", "admin_qr"] as const;
+  const historyTimes = ["2026-07-09T22:12:00.000Z", "2026-07-09T20:40:00.000Z", "2026-07-09T18:05:00.000Z", "2026-07-08T23:18:00.000Z"];
+  const admin_dish_availability_events = unavailableDishes.length === 0 ? [] : historyTimes.map((created_at, index) => ({
+    id: `history-${index + 1}`,
+    restaurant_id: restaurantId,
+    menu_id: menuId,
+    dish_id: unavailableDishes[index % unavailableDishes.length].id,
+    previous_available: true,
+    final_available: false,
+    actor_kind: historyActors[index],
+    created_at
+  }));
   return {
     restaurantId,
     menuId,
-    restaurants: [{ id: restaurantId, name: "Maison Élysée", slug: "maison-elyse", city: "Montréal", cuisine_type: "Cuisine française contemporaine" }, { id: foreign.restaurant_id, name: "Foreign" }],
+    restaurants: [{ id: restaurantId, name: "Maison Élysée", slug: "maison-elyse", city: "Montréal", location: "Montréal", cuisine_type: "Cuisine française contemporaine" }, { id: foreign.restaurant_id, name: "Foreign" }],
     menus: [{ id: menuId, restaurant_id: restaurantId, status: "published", is_primary: true, settings_json: { timezone: "America/Toronto" }, updated_at: "2026-07-10T10:24:00Z" }, { id: ADMIN_VISUAL_OTHER_MENU_ID, restaurant_id: restaurantId, status: "draft", is_primary: false }, { id: foreign.menu_id, restaurant_id: foreign.restaurant_id, status: "published" }],
     qr_codes: [{ id: ADMIN_VISUAL_QR_ID, restaurant_id: restaurantId, target_kind: "admin", target_path: "/admin", status: "active" }],
     menu_categories: [...menu_categories, { id: "other-menu-category", name: "Autre menu", slug: "other-menu", display_order: 1, restaurant_id: restaurantId, menu_id: ADMIN_VISUAL_OTHER_MENU_ID }, { id: "foreign-category", name: "Foreign", slug: "foreign", display_order: 999, ...foreign }],
     menu_dishes: [...menu_dishes, { id: "other-menu-dish", name: "Plat d’un autre menu", slug: "other-menu-dish", category_id: "other-menu-category", image_url: "", is_available: true, restaurant_id: restaurantId, menu_id: ADMIN_VISUAL_OTHER_MENU_ID }, { id: "foreign-dish", name: "Foreign", slug: "foreign", category_id: "foreign-category", image_url: "", is_available: true, ...foreign }],
     analytics_events,
+    admin_dish_availability_schedules,
+    admin_dish_availability_events,
     foreign
   };
 }

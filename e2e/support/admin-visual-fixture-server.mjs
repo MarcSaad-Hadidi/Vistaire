@@ -11,7 +11,9 @@ const tables = {
   menus: fixture.menus,
   menu_categories: fixture.menu_categories,
   menu_dishes: fixture.menu_dishes,
-  analytics_events: fixture.analytics_events
+  analytics_events: fixture.analytics_events,
+  admin_dish_availability_schedules: fixture.admin_dish_availability_schedules,
+  admin_dish_availability_events: fixture.admin_dish_availability_events
 };
 
 const demoImages = new Map(
@@ -72,7 +74,15 @@ function sendStorageResponse(request, response, asset) {
 
 function filteredRows(url) {
   const table = url.pathname.split("/").filter(Boolean).pop();
-  return filterAdminVisualFixtureRows(tables[table] ?? [], url.searchParams);
+  const rows = filterAdminVisualFixtureRows(tables[table] ?? [], url.searchParams);
+  const order = url.searchParams.get("order");
+  if (!order) return rows;
+  const [column, direction] = order.split(".");
+  const ascending = direction !== "desc";
+  return [...rows].sort((left, right) => {
+    const comparison = String(left[column] ?? "").localeCompare(String(right[column] ?? ""));
+    return ascending ? comparison : -comparison;
+  });
 }
 
 const port = Number(process.env.VISTAIRE_ADMIN_VISUAL_FIXTURE_PORT || 3110);

@@ -145,6 +145,8 @@ test("reports route validates access and composes the v2 evidence model", async 
   const page = await readFile(new URL("../app/(fr)/admin/reports/page.tsx", import.meta.url), "utf8");
   assert.match(page, /requireAdminRestaurantAccess\(["']dashboard:read["']\)/);
   assert.match(page, /parseAdminReportFilters\(/);
+  assert.match(page, /VISTAIRE_ADMIN_VISUAL_FIXTURE/);
+  assert.match(page, /service:\s*params\.service\s*\?\?/);
   assert.match(page, /loadAdminDataBundle\(/);
   assert.match(page, /buildAdminReport\(/);
   assert.match(page, /<AdminShell[\s\S]*activeRoute=["']reports["']/);

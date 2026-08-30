@@ -17,7 +17,15 @@ export default async function AdminReportsRoute({ searchParams }: { searchParams
   const access = await requireAdminRestaurantAccess("dashboard:read");
   if (!access.ok) return <AdminShellState kind="forbidden" locale={preferences.locale} />;
 
-  const filters = parseAdminReportFilters((await searchParams) ?? {});
+  const params = (await searchParams) ?? {};
+  const filters = parseAdminReportFilters({
+    range: params.range,
+    service: params.service ?? (
+      process.env.NODE_ENV !== "production" && process.env.VISTAIRE_ADMIN_VISUAL_FIXTURE === "1"
+        ? "all"
+        : undefined
+    )
+  });
   const dataResult = await loadAdminDataBundle(access, filters.range);
   if (!dataResult.ok) return <AdminShellState kind="error" locale={preferences.locale} />;
 
