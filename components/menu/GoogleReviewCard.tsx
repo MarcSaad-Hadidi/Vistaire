@@ -56,6 +56,14 @@ function formatReviewCount(count: number, resolvedLocale: string): string {
   return new Intl.NumberFormat(resolvedLocale).format(count);
 }
 
+function getTextDirection(locale: string): "ltr" | "rtl" {
+  try {
+    return new Intl.Locale(locale).language.toLowerCase() === "ar" ? "rtl" : "ltr";
+  } catch {
+    return locale.toLowerCase().startsWith("ar") ? "rtl" : "ltr";
+  }
+}
+
 export function GoogleReviewCard({
   dishSlug,
   googleReview,
@@ -68,6 +76,7 @@ export function GoogleReviewCard({
   source
 }: GoogleReviewCardProps) {
   const resolvedLocale = normalizePublicMenuLocale(locale);
+  const textDirection = getTextDirection(resolvedLocale);
   const copy = resolveGoogleReviewCopy(resolvedLocale, localizedUiCopy);
   const normalizedGoogleReview = normalizeGoogleReviewConfig(googleReview);
   const cta = getGoogleReviewCta(normalizedGoogleReview);
@@ -117,8 +126,9 @@ export function GoogleReviewCard({
       data-google-review-card="true"
       data-no-dish-swipe="true"
       aria-labelledby="google-review-title"
+      dir="ltr"
     >
-      <div className={styles.googleReviewCopy}>
+      <div className={styles.googleReviewCopy} dir={textDirection}>
         <h2 id="google-review-title">{copy.title}</h2>
         {cta ? (
           <p>
@@ -132,7 +142,7 @@ export function GoogleReviewCard({
       {metadata.length ? (
         <div className={styles.googleReviewMeta} aria-label={copy.metaLabel}>
           {metadata.map((item) => (
-            <span key={item}>{item}</span>
+            <span key={item} dir={textDirection}>{item}</span>
           ))}
         </div>
       ) : null}
@@ -147,12 +157,14 @@ export function GoogleReviewCard({
           aria-label={`${copy.action}. ${copy.opensInNewTab}`}
           onClick={trackOutboundClick}
         >
-          {copy.action}
+          <span dir={textDirection}>{copy.action}</span>
           <span className={styles.srOnly}>{copy.opensInNewTab}</span>
         </a>
       ) : null}
 
-      {cta && showNote ? <p className={styles.googleReviewNote}>{copy.note}</p> : null}
+      {cta && showNote ? (
+        <p className={styles.googleReviewNote} dir={textDirection}>{copy.note}</p>
+      ) : null}
     </aside>
   );
 }

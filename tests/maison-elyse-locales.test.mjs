@@ -320,6 +320,7 @@ test("Maison Elyse language options use configured ready locales only", async ()
   assert.match(localization, /getMaisonElyseLanguageOptions/);
   assert.match(localization, /status === "up_to_date"/);
   assert.match(localization, /status === "source"/);
+  assert.match(localization, /hasMaisonElyseEditorialCopy/);
   assert.match(menu, /getMaisonElyseLanguageOptions\(/);
   assert.doesNotMatch(menu, /const LANGUAGE_OPTIONS\s*=/);
 });
@@ -336,25 +337,27 @@ test("Maison Elyse UI copy resolves exact/base/pack sources with diagnostics", a
   assert.match(resolverSource, /usedNeutralFallback/);
 });
 
-test("Maison Elyse keeps its branded collection cover copy", async () => {
-  const source = await readFile(menuPath, "utf8");
+test("Maison Elyse keeps its branded collection cover copy in every built-in locale", async () => {
+  const source = await readFile(localizationPath, "utf8");
 
-  // The shared Trouvable resolver owns generic navigation copy. Its
-  // `categories` and `activeCategoryAll` values must not replace Maison's
-  // cover lockup, which is part of the public restaurant experience.
-  assert.doesNotMatch(source, /collectionKicker:\s*resolved\.categories/);
-  assert.doesNotMatch(source, /collectionTitle:\s*resolved\.activeCategoryAll/);
-  assert.doesNotMatch(source, /collectionBody:\s*resolved\.heroBlurb/);
   assert.match(source, /collectionKicker:\s*"LA COLLECTION"/);
   assert.match(source, /collectionKicker:\s*"THE COLLECTION"/);
+  assert.match(source, /collectionKicker:\s*"LA COLECCIÓN"/);
+  assert.match(source, /collectionTitle:\s*"القائمة"/);
+  assert.match(source, /getMaisonElyseEditorialCopy/);
 });
 
-test("Maison Elyse detail keeps its restaurant-specific return label", async () => {
-  const source = await readFile("components/menu/MaisonElyseDishDetail.tsx", "utf8");
+test("Maison Elyse detail keeps a restaurant-specific localized return label", async () => {
+  const [localization, detail] = await Promise.all([
+    readFile(localizationPath, "utf8"),
+    readFile("components/menu/MaisonElyseDishDetail.tsx", "utf8")
+  ]);
 
-  assert.doesNotMatch(source, /backToMenu:\s*resolved\.backToMenu/);
-  assert.match(source, /backToMenu:\s*"Retour à la carte"/);
-  assert.match(source, /backToMenu:\s*"Back to menu"/);
+  assert.match(localization, /detailBackToMenu:\s*"Retour à la carte"/);
+  assert.match(localization, /detailBackToMenu:\s*"Back to menu"/);
+  assert.match(localization, /detailBackToMenu:\s*"Volver a la carta"/);
+  assert.match(localization, /detailBackToMenu:\s*"العودة إلى القائمة"/);
+  assert.match(detail, /editorial\.detailBackToMenu/);
 });
 
 test("Maison demo showcase projects localized menus by canonical public locale", async () => {
@@ -387,10 +390,11 @@ test("Maison Elyse server context loads every ready locale for reload persistenc
   );
 });
 
-test("Maison menu root and text zones follow the resolved menu direction", async () => {
+test("Maison menu chrome stays LTR while text zones follow the resolved text direction", async () => {
   const source = await readFile(menuPath, "utf8");
 
   assert.match(source, /data-text-direction=\{textDirection\}/);
-  assert.match(source, /dir=\{textDirection\}/);
-  assert.doesNotMatch(source, /dir="rtl"/);
+  assert.match(source, /dir="ltr"/);
+  assert.match(source, /className=\{styles\.dishCopy\} dir=\{textDirection\}/);
+  assert.doesNotMatch(source, /lang=\{activeLocale\}\s+dir=\{textDirection\}/);
 });

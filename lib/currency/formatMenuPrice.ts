@@ -28,6 +28,29 @@ export type MenuPriceInput = {
   fallbackLabel?: string;
 };
 
+export function isCurrencyConversionAvailable(args: {
+  sourceCurrency: PublicMenuCurrency | string;
+  targetCurrency: PublicMenuCurrency | string;
+  baseCurrency?: PublicMenuCurrency | string;
+  rates?: Partial<Record<PublicMenuCurrency, number>>;
+}): boolean {
+  const sourceCurrency = normalizePublicMenuCurrency(args.sourceCurrency);
+  const targetCurrency = normalizePublicMenuCurrency(args.targetCurrency);
+  const baseCurrency = normalizePublicMenuCurrency(args.baseCurrency, sourceCurrency);
+  if (sourceCurrency === targetCurrency) return true;
+
+  const rates = args.rates ?? {};
+  const sourceRate = sourceCurrency === baseCurrency ? 1 : Number(rates[sourceCurrency]);
+  const targetRate = targetCurrency === baseCurrency ? 1 : Number(rates[targetCurrency]);
+
+  return (
+    Number.isFinite(sourceRate) &&
+    sourceRate > 0 &&
+    Number.isFinite(targetRate) &&
+    targetRate > 0
+  );
+}
+
 export function convertMenuPriceCents(args: {
   priceCents: number;
   sourceCurrency: PublicMenuCurrency | string;
@@ -40,12 +63,11 @@ export function convertMenuPriceCents(args: {
   const targetCurrency = normalizePublicMenuCurrency(args.targetCurrency);
   const baseCurrency = normalizePublicMenuCurrency(args.baseCurrency, sourceCurrency);
   if (sourceCurrency === targetCurrency) return Math.round(args.priceCents);
+  if (!isCurrencyConversionAvailable(args)) return null;
 
   const rates = args.rates ?? {};
   const sourceRate = sourceCurrency === baseCurrency ? 1 : Number(rates[sourceCurrency]);
   const targetRate = targetCurrency === baseCurrency ? 1 : Number(rates[targetCurrency]);
-  if (!Number.isFinite(sourceRate) || sourceRate <= 0) return null;
-  if (!Number.isFinite(targetRate) || targetRate <= 0) return null;
 
   return Math.round((args.priceCents / sourceRate) * targetRate);
 }

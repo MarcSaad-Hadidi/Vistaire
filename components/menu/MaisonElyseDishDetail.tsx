@@ -7,10 +7,16 @@ import type {
   DishModelViewerCopy,
   DishModelViewerProps
 } from "@/components/dish/DishModelViewer";
+import {
+  isCurrencyConversionAvailable,
+  type MenuExchangeRates
+} from "@/lib/currency/formatMenuPrice";
 import { isSafe3dAssetUrl } from "@/lib/dish3dManifest";
 import type { PublicMenuLocale } from "@/lib/menu/publicMenuSettings";
 import {
+  getMaisonElyseCategoryKind,
   getMaisonElyseCategoryLabel,
+  getMaisonElyseEditorialCopy,
   getMaisonElyseTextDirection,
   resolveMaisonElyseCopy
 } from "@/lib/menu/maisonElyseLocalization";
@@ -28,6 +34,12 @@ import {
   trackPublicMenuEvent
 } from "@/lib/analytics/client";
 import { maisonElyseThemeStyle } from "@/lib/menu/maisonElyseTheme";
+import {
+  TROUVABLE_CURRENCY_STORAGE_KEY,
+  formatTrouvableDishPrice,
+  normalizeTrouvableCurrency,
+  type TrouvableCurrency
+} from "./trouvableMenuControls";
 import styles from "./MaisonElyseDishDetail.module.css";
 
 const MODEL_VIEWER_ID = "maison-elyse-dish-model-viewer";
@@ -41,29 +53,10 @@ const loadDishModelViewer = () =>
     (mod) => mod.DishModelViewer
   );
 
-const LazyDishModelViewerFr = dynamic<DishModelViewerProps>(
-  loadDishModelViewer,
-  {
-    ssr: false,
-    loading: () => (
-      <div className={styles.modelLoading} role="status" aria-live="polite">
-        Préparation de la vue immersive...
-      </div>
-    )
-  }
-);
-
-const LazyDishModelViewerEn = dynamic<DishModelViewerProps>(
-  loadDishModelViewer,
-  {
-    ssr: false,
-    loading: () => (
-      <div className={styles.modelLoading} role="status" aria-live="polite">
-        Preparing the immersive view...
-      </div>
-    )
-  }
-);
+const LazyDishModelViewer = dynamic<DishModelViewerProps>(loadDishModelViewer, {
+  ssr: false,
+  loading: () => null
+});
 
 type MaisonElyseDishDetailProps = {
   menu: PublicMenu;
@@ -72,96 +65,96 @@ type MaisonElyseDishDetailProps = {
   displayMode?: "public" | "phone-preview";
   locale?: Locale;
   config?: MenuUiConfig;
+  currency?: TrouvableCurrency;
+  exchangeRates?: MenuExchangeRates;
   onBackToMenu?: () => void;
 };
 
-const DETAIL_COPY: Record<
-  "fr" | "en",
-  {
-    allergens: string;
-    ariaDetail: string;
-    badgesAria: string;
-    backToMenu: string;
-    dishImageAlt: (dishName: string) => string;
-    fallbackImage: string;
-    fallbackList: string;
-    hide3d: string;
-    hidePreview: string;
-    immersiveBody3d: string;
-    immersiveBodyAr: string;
-    immersiveKicker: string;
-    immersivePreview3d: string;
-    immersivePreviewAr: string;
-    ingredients: string;
-    noCategory: string;
-    note: string;
-    options: string;
-    openAr: string;
-    show3d: string;
-    title3d: string;
-    titleAr: string;
-    topNavAria: string;
-    unavailableBadge: string;
-    recommendedBadge: string;
-  }
-> = {
+const DETAIL_COPY = {
   fr: {
     badgesAria: "Badges du plat",
-    allergens: "Allergènes",
     ariaDetail: "Détail du plat",
-    backToMenu: "Retour à la carte",
-    dishImageAlt: (dishName) => `Image du plat ${dishName}`,
+    dishImageAlt: (dishName: string) => `Image du plat ${dishName}`,
     fallbackImage: "Image du plat à venir",
     fallbackList: "À préciser avec l'équipe en salle.",
-    hide3d: "Masquer la 3D",
-    hidePreview: "Masquer l'aperçu",
-    immersiveBody3d: "La vue 3D se lance uniquement après votre action.",
-    immersiveBodyAr:
-      "Une fois le plat chargé, vous pouvez le placer devant vous sur un téléphone compatible.",
-    immersiveKicker: "Aperçu immersif",
-    immersivePreview3d: "Aperçu disponible sans chargement initial.",
-    immersivePreviewAr: "Le bouton AR apparaît après le chargement du plat.",
-    ingredients: "Ingrédients",
-    noCategory: "La carte",
     note: "Note du chef",
-    options: "Options",
     openAr: "Ouvrir l'aperçu AR",
     show3d: "Voir en 3D",
     title3d: "Voir le plat en 3D",
-    titleAr: "Réalité augmentée",
-    topNavAria: "Navigation fiche plat",
-    unavailableBadge: "Indisponible",
-    recommendedBadge: "Recommandé"
+    topNavAria: "Navigation fiche plat"
   },
   en: {
     badgesAria: "Dish badges",
-    allergens: "Allergens",
     ariaDetail: "Dish details",
-    backToMenu: "Back to menu",
-    dishImageAlt: (dishName) => `Dish image: ${dishName}`,
+    dishImageAlt: (dishName: string) => `Dish image: ${dishName}`,
     fallbackImage: "Dish image coming soon",
     fallbackList: "Ask the dining room team for details.",
-    hide3d: "Hide 3D",
-    hidePreview: "Hide preview",
-    immersiveBody3d: "The 3D view only loads after your action.",
-    immersiveBodyAr:
-      "Once the dish has loaded, you can place it in front of you on a compatible phone.",
-    immersiveKicker: "Immersive preview",
-    immersivePreview3d: "Preview available without initial loading.",
-    immersivePreviewAr: "The AR button appears after the dish loads.",
-    ingredients: "Ingredients",
-    noCategory: "Menu",
     note: "Chef's note",
-    options: "Options",
     openAr: "Open AR preview",
     show3d: "View in 3D",
     title3d: "View the dish in 3D",
-    titleAr: "Augmented reality",
-    topNavAria: "Dish navigation",
-    unavailableBadge: "Unavailable",
-    recommendedBadge: "Recommended"
+    topNavAria: "Dish navigation"
   }
-};
+} as const;
+
+function localeLanguage(locale: string): string {
+  try {
+    return new Intl.Locale(locale).language.toLowerCase();
+  } catch {
+    return locale.toLowerCase().split("-")[0] ?? "fr";
+  }
+}
+
+function getStoredMenuCurrency(
+  settings: PublicMenu["settings"]
+): TrouvableCurrency | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const stored = window.localStorage.getItem(TROUVABLE_CURRENCY_STORAGE_KEY);
+    return stored ? normalizeTrouvableCurrency(stored, settings) : null;
+  } catch {
+    return null;
+  }
+}
+
+function resolveAvailableDishCurrency({
+  dish,
+  exchangeRates,
+  menu,
+  requestedCurrency
+}: {
+  dish: PublicMenuDish;
+  exchangeRates?: MenuExchangeRates;
+  menu: PublicMenu;
+  requestedCurrency?: TrouvableCurrency | string;
+}): TrouvableCurrency {
+  const defaultCurrency = normalizeTrouvableCurrency(undefined, menu.settings);
+  const normalizedRequested = normalizeTrouvableCurrency(
+    requestedCurrency,
+    menu.settings
+  );
+  const candidates = Array.from(
+    new Set<TrouvableCurrency>([
+      normalizedRequested,
+      defaultCurrency,
+      ...menu.settings.supportedCurrencies,
+      dish.priceCurrency
+    ])
+  );
+  const baseCurrency =
+    exchangeRates?.base ?? dish.baseCurrency ?? menu.settings.baseCurrency;
+
+  return (
+    candidates.find((targetCurrency) =>
+      isCurrencyConversionAvailable({
+        sourceCurrency: dish.priceCurrency || menu.settings.baseCurrency,
+        targetCurrency,
+        baseCurrency,
+        rates: exchangeRates?.rates
+      })
+    ) ?? dish.priceCurrency
+  );
+}
 
 function cleanDisplayText(value: string): string {
   return value
@@ -204,19 +197,15 @@ function slugify(value: string): string {
     .slice(0, 80);
 }
 
-function localeLanguage(locale: string): string {
-  try {
-    return new Intl.Locale(locale).language.toLowerCase();
-  } catch {
-    return locale.toLowerCase().split("-")[0] ?? "fr";
-  }
-}
-
-function categoryLabel(category: string, locale: PublicMenuLocale): string {
-  const cleaned = cleanDisplayText(category);
+function categoryLabel(dish: PublicMenuDish, locale: PublicMenuLocale): string {
   return (
-    getMaisonElyseCategoryLabel(cleaned, locale) ||
-    DETAIL_COPY[localeLanguage(locale) === "fr" ? "fr" : "en"].noCategory
+    getMaisonElyseCategoryLabel(
+      {
+        label: cleanDisplayText(dish.category),
+        slug: dish.categorySlug
+      },
+      locale
+    ) || resolveMaisonElyseCopy(locale).copy.activeCategoryAll
   );
 }
 
@@ -242,12 +231,26 @@ function hasRealAr(dish: PublicMenuDish): boolean {
   );
 }
 
-function dishBadges(dish: PublicMenuDish, locale: PublicMenuLocale, copy: DetailCopy): string[] {
+function dishBadges(dish: PublicMenuDish, copy: DetailCopy): string[] {
   const badges: string[] = [];
   const tagText = normalizeText(dish.tags.join(" "));
+  const categoryKind = getMaisonElyseCategoryKind({
+    label: dish.category,
+    slug: dish.categorySlug
+  });
 
-  if (tagText.includes("signature")) badges.push("Signature");
-  if (tagText.includes("recommande") || tagText.includes("recommended")) {
+  if (
+    dish.isSignature ||
+    categoryKind === "signature" ||
+    tagText.includes("signature")
+  ) {
+    badges.push(copy.signatureBadge);
+  }
+  if (
+    dish.isRecommended ||
+    tagText.includes("recommande") ||
+    tagText.includes("recommended")
+  ) {
     badges.push(copy.recommendedBadge);
   }
   if (hasReal3d(dish)) badges.push("3D");
@@ -257,13 +260,9 @@ function dishBadges(dish: PublicMenuDish, locale: PublicMenuLocale, copy: Detail
   return Array.from(new Set(badges)).slice(0, 5);
 }
 
-function displayList(
-  items: string[]
-): string[] {
+function displayList(items: string[]): string[] {
   return items
-    .map((item) => {
-      return cleanDisplayText(item);
-    })
+    .map((item) => cleanDisplayText(item))
     .filter(Boolean);
 }
 
@@ -321,7 +320,33 @@ function DetailList({ emptyText, items }: { emptyText: string; items: string[] }
   );
 }
 
-type DetailCopy = (typeof DETAIL_COPY)["fr"] & {
+type DetailCopy = {
+  allergens: string;
+  ariaDetail: string;
+  badgesAria: string;
+  backToMenu: string;
+  dishImageAlt: (dishName: string) => string;
+  fallbackImage: string;
+  fallbackList: string;
+  hide3d: string;
+  hidePreview: string;
+  immersiveBody3d: string;
+  immersiveBodyAr: string;
+  immersiveKicker: string;
+  immersivePreview3d: string;
+  immersivePreviewAr: string;
+  ingredients: string;
+  noCategory: string;
+  note: string;
+  options: string;
+  openAr: string;
+  recommendedBadge: string;
+  signatureBadge: string;
+  show3d: string;
+  title3d: string;
+  titleAr: string;
+  topNavAria: string;
+  unavailableBadge: string;
   modelViewer: Required<DishModelViewerCopy>;
 };
 
@@ -330,25 +355,32 @@ function buildDetailCopy(
   localizedUiCopy?: Record<string, unknown>
 ): DetailCopy {
   const language = localeLanguage(locale);
-  const fallback = DETAIL_COPY[language === "fr" ? "fr" : "en"];
+  const maisonDefault = language === "fr" ? DETAIL_COPY.fr : language === "en" ? DETAIL_COPY.en : null;
   const resolvedResult = resolveMaisonElyseCopy(locale, localizedUiCopy);
   const resolved = resolvedResult.copy;
   const neutral = resolveMaisonElyseCopy(locale).copy;
-  const preserveMaisonDefaults =
-    resolvedResult.resolution.builtInLocale === (language === "fr" ? "fr" : "en");
   const sharedOrMaison = <T,>(value: T, neutralValue: T, maisonValue: T): T =>
-    preserveMaisonDefaults && Object.is(value, neutralValue) ? maisonValue : value;
+    maisonDefault && Object.is(value, neutralValue) ? maisonValue : value;
+  const editorial = getMaisonElyseEditorialCopy(locale);
+
   return {
-    ...fallback,
     allergens: resolved.allergens,
-    ariaDetail: sharedOrMaison(resolved.details, neutral.details, fallback.ariaDetail),
-    // Maison Élyse keeps its restaurant-specific return label. The shared
-    // Trouvable copy says “Retour au menu”, while this experience's contract
-    // is the more specific “Retour à la carte” (with the matching English
-    // “Back to menu” fallback).
-    dishImageAlt: sharedOrMaison(resolved.modelAlt, neutral.modelAlt, fallback.dishImageAlt),
-    fallbackImage: resolved.detailFallback,
-    fallbackList: resolved.detailFallback,
+    ariaDetail: maisonDefault
+      ? sharedOrMaison(resolved.details, neutral.details, maisonDefault.ariaDetail)
+      : resolved.details,
+    badgesAria: maisonDefault
+      ? sharedOrMaison(resolved.tags, neutral.tags, maisonDefault.badgesAria)
+      : resolved.tags,
+    backToMenu: editorial.detailBackToMenu,
+    dishImageAlt: maisonDefault
+      ? sharedOrMaison(resolved.modelAlt, neutral.modelAlt, maisonDefault.dishImageAlt)
+      : resolved.modelAlt,
+    fallbackImage: maisonDefault
+      ? sharedOrMaison(resolved.detailFallback, neutral.detailFallback, maisonDefault.fallbackImage)
+      : resolved.detailFallback,
+    fallbackList: maisonDefault
+      ? sharedOrMaison(resolved.detailFallback, neutral.detailFallback, maisonDefault.fallbackList)
+      : resolved.detailFallback,
     hide3d: resolved.modelViewer.close,
     hidePreview: resolved.close,
     immersiveBody3d: resolved.modelViewer.slowNetworkBody,
@@ -358,23 +390,34 @@ function buildDetailCopy(
     immersivePreviewAr: resolved.modelViewer.arIosHandoff,
     ingredients: resolved.ingredients,
     noCategory: resolved.activeCategoryAll,
-    note: sharedOrMaison(
-      resolved.detailHouseNoteLabel,
-      neutral.detailHouseNoteLabel,
-      fallback.note
-    ),
+    note: maisonDefault
+      ? sharedOrMaison(
+          resolved.detailHouseNoteLabel,
+          neutral.detailHouseNoteLabel,
+          maisonDefault.note
+        )
+      : resolved.detailHouseNoteLabel,
     modelViewer: {
       loadingTitle: resolved.modelPreparing,
       ...resolved.modelViewer,
       modelAlt: resolved.modelAlt
     },
     options: resolved.options,
-    openAr: sharedOrMaison(resolved.viewAr, neutral.viewAr, fallback.openAr),
+    openAr: maisonDefault
+      ? sharedOrMaison(resolved.viewAr, neutral.viewAr, maisonDefault.openAr)
+      : resolved.viewAr,
     recommendedBadge: resolved.recommendation,
-    show3d: sharedOrMaison(resolved.threeD, neutral.threeD, fallback.show3d),
-    title3d: sharedOrMaison(resolved.threeD, neutral.threeD, fallback.title3d),
+    signatureBadge: resolved.signature,
+    show3d: maisonDefault
+      ? sharedOrMaison(resolved.threeD, neutral.threeD, maisonDefault.show3d)
+      : resolved.threeD,
+    title3d: maisonDefault
+      ? sharedOrMaison(resolved.threeD, neutral.threeD, maisonDefault.title3d)
+      : resolved.threeD,
     titleAr: resolved.modelViewer.safariTitle,
-    topNavAria: sharedOrMaison(resolved.details, neutral.details, fallback.topNavAria),
+    topNavAria: maisonDefault
+      ? sharedOrMaison(resolved.details, neutral.details, maisonDefault.topNavAria)
+      : resolved.details,
     unavailableBadge: resolved.soldOut
   };
 }
@@ -386,20 +429,41 @@ export function MaisonElyseDishDetail({
   displayMode = "public",
   locale = "fr-CA",
   config,
+  currency,
+  exchangeRates,
   onBackToMenu
 }: MaisonElyseDishDetailProps) {
   const copy = buildDetailCopy(locale, menu.localizedUiCopy);
   const [showModelViewer, setShowModelViewer] = useState(false);
+  const explicitCurrency = currency ?? query?.currency;
+  const [storedCurrency, setStoredCurrency] = useState<TrouvableCurrency | null>(null);
   const analyticsContext = getPublicMenuAnalyticsContext(menu);
-  const menuHref = buildFullMenuHref(menu, query);
   const restaurantName = cleanDisplayText(menu.name) || "Restaurant";
   const dishName = cleanDisplayText(dish.name);
   const dishDescription = cleanDisplayText(dish.description);
-  const displayCategory = categoryLabel(dish.category, locale);
+  const textDirection = getMaisonElyseTextDirection(locale);
+  const activeCurrency = resolveAvailableDishCurrency({
+    dish,
+    exchangeRates,
+    menu,
+    requestedCurrency: explicitCurrency ?? storedCurrency ?? undefined
+  });
+  const effectiveQuery: PublicMenuContextQuery =
+    explicitCurrency || storedCurrency
+      ? { ...(query ?? {}), currency: activeCurrency }
+      : { ...(query ?? {}) };
+  const menuHref = buildFullMenuHref(menu, effectiveQuery);
+  const priceLabel = formatTrouvableDishPrice(
+    dish,
+    activeCurrency,
+    locale,
+    exchangeRates
+  );
+  const displayCategory = categoryLabel(dish, locale);
   const has3d = hasReal3d(dish);
   const hasAr = hasRealAr(dish);
   const canOpenImmersive = displayMode === "public" && (has3d || hasAr);
-  const badges = dishBadges(dish, locale, copy);
+  const badges = dishBadges(dish, copy);
   const ingredients = displayList(dish.ingredients);
   const options = displayList(dish.options);
   const houseNote = cleanDisplayText(dish.houseNote);
@@ -410,10 +474,32 @@ export function MaisonElyseDishDetail({
     : has3d
       ? copy.show3d
       : copy.openAr;
-  const LazyDishModelViewer =
-    localeLanguage(locale) === "fr"
-      ? LazyDishModelViewerFr
-      : LazyDishModelViewerEn;
+
+  useEffect(() => {
+    if (displayMode !== "public" || explicitCurrency) return;
+    const frameId = window.requestAnimationFrame(() => {
+      const stored = getStoredMenuCurrency(menu.settings);
+      if (!stored) return;
+      const resolvedStored = resolveAvailableDishCurrency({
+        dish,
+        exchangeRates,
+        menu,
+        requestedCurrency: stored
+      });
+      setStoredCurrency(resolvedStored);
+      if (resolvedStored !== stored) {
+        try {
+          window.localStorage.setItem(
+            TROUVABLE_CURRENCY_STORAGE_KEY,
+            resolvedStored
+          );
+        } catch {
+          // The sanitized in-memory fallback remains authoritative for this visit.
+        }
+      }
+    });
+    return () => window.cancelAnimationFrame(frameId);
+  }, [dish, displayMode, exchangeRates, explicitCurrency, menu]);
 
   useEffect(() => {
     if (displayMode !== "public") return;
@@ -434,8 +520,9 @@ export function MaisonElyseDishDetail({
 
   return (
     <main
-      dir={getMaisonElyseTextDirection(locale)}
+      dir="ltr"
       lang={locale}
+      data-text-direction={textDirection}
       data-public-dish-renderer={
         displayMode === "public" ? "maison-elyse" : undefined
       }
@@ -447,11 +534,11 @@ export function MaisonElyseDishDetail({
       <nav className={styles.topNav} aria-label={copy.topNavAria}>
         {onBackToMenu ? (
           <button type="button" onClick={onBackToMenu}>
-            {copy.backToMenu}
+            <span dir={textDirection}>{copy.backToMenu}</span>
           </button>
         ) : (
           <Link href={menuHref} prefetch={false}>
-            {copy.backToMenu}
+            <span dir={textDirection}>{copy.backToMenu}</span>
           </Link>
         )}
         <span>{restaurantName}</span>
@@ -471,17 +558,17 @@ export function MaisonElyseDishDetail({
           {!dish.imageUrl ? (
             <div className={styles.imageFallback}>
               <span>{restaurantName.slice(0, 1)}</span>
-              <p>{copy.fallbackImage}</p>
+              <p dir={textDirection}>{copy.fallbackImage}</p>
             </div>
           ) : null}
         </div>
 
         <section className={styles.content} aria-label={copy.ariaDetail}>
-          <header className={styles.heading}>
+          <header className={styles.heading} dir={textDirection}>
             <p className={styles.kicker}>{displayCategory}</p>
             <h1>{dishName}</h1>
-            {dish.priceLabel ? (
-              <p className={styles.price}>{dish.priceLabel}</p>
+            {priceLabel ? (
+              <p className={styles.price}>{priceLabel}</p>
             ) : null}
             {dishDescription ? (
               <p className={styles.description}>{dishDescription}</p>
@@ -491,7 +578,7 @@ export function MaisonElyseDishDetail({
           {badges.length > 0 ? (
             <div className={styles.badges} aria-label={copy.badgesAria}>
               {badges.map((badge) => (
-                <span key={badge}>{badge}</span>
+                <span key={badge} dir="auto">{badge}</span>
               ))}
             </div>
           ) : null}
@@ -504,7 +591,7 @@ export function MaisonElyseDishDetail({
               }`}
             >
               <div className={styles.modelPanelHeader}>
-                <div>
+                <div dir={textDirection}>
                   <p className={styles.kicker}>{copy.immersiveKicker}</p>
                   <h2 id="maison-elyse-immersive-heading">
                     {has3d ? copy.title3d : copy.titleAr}
@@ -520,7 +607,7 @@ export function MaisonElyseDishDetail({
                   onClick={toggleModelViewer}
                   type="button"
                 >
-                  {actionLabel}
+                  <span dir={textDirection}>{actionLabel}</span>
                 </button>
               </div>
 
@@ -537,7 +624,7 @@ export function MaisonElyseDishDetail({
                 ) : (
                   <div className={styles.modelPreview} aria-hidden="true">
                     <span>{has3d ? "3D" : "AR"}</span>
-                    <small>
+                    <small dir={textDirection}>
                       {hasAr ? copy.immersivePreviewAr : copy.immersivePreview3d}
                     </small>
                   </div>
@@ -547,20 +634,20 @@ export function MaisonElyseDishDetail({
           ) : null}
 
           <div className={styles.detailSections}>
-            <section>
+            <section dir={textDirection}>
               <h2>{copy.ingredients}</h2>
               <DetailList emptyText={copy.fallbackList} items={ingredients} />
             </section>
 
             <AllergenDisclosure dish={dish} locale={locale} />
 
-            <section>
+            <section dir={textDirection}>
               <h2>{copy.options}</h2>
               <DetailList emptyText={copy.fallbackList} items={options} />
             </section>
 
             {houseNote ? (
-              <section className={styles.houseNote}>
+              <section className={styles.houseNote} dir={textDirection}>
                 <h2>{copy.note}</h2>
                 <p>{houseNote}</p>
               </section>

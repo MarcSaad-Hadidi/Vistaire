@@ -188,6 +188,7 @@ export function OwnerMenuLivePreview({
         menu={menu}
         config={config}
         locale={locale}
+        exchangeRates={exchangeRates}
         query={{ lang: publicMenuSettings.defaultLocale, view: "carte" }}
         showGoogleReview={false}
       />

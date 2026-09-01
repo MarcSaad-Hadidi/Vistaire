@@ -52,6 +52,7 @@ export default async function PublicMenuPage({
       <MaisonElyseQrMenu
         menu={menu}
         config={config}
+        exchangeRates={exchangeRates}
         locale={publicLocale}
         localizedMenus={localizedMenus}
         context={context}

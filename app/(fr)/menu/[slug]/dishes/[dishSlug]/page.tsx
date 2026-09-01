@@ -78,6 +78,8 @@ export default async function PublicDishPage({
   }
 
   if (experience.kind === "maison-elyse") {
+    if (!exchangeRates) notFound();
+
     return (
       <MaisonElyseDishDetail
         dish={dish}
@@ -85,6 +87,7 @@ export default async function PublicDishPage({
         menu={menu}
         query={menuQuery}
         config={config}
+        exchangeRates={exchangeRates}
       />
     );
   }
