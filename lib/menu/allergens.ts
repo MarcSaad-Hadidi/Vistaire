@@ -233,19 +233,118 @@ export type NormalizedAllergenData = {
 };
 
 export const ALLERGEN_FILTERS = [
-  { id: "gluten-free", allergenId: "gluten", allergenIds: ["gluten"], labels: { fr: "Déclaré sans gluten", en: "Declared gluten-free" } },
-  { id: "dairy-free", allergenId: "dairy", allergenIds: ["dairy"], labels: { fr: "Déclaré sans produits laitiers", en: "Declared dairy-free" } },
-  { id: "nut-free", allergenId: "tree_nuts", allergenIds: ["tree_nuts"], labels: { fr: "Déclaré sans fruits à coque", en: "Declared tree-nut-free" } },
+  {
+    id: "gluten-free",
+    allergenId: "gluten",
+    allergenIds: ["gluten"],
+    labels: {
+      fr: "Déclaré sans gluten",
+      en: "Declared gluten-free",
+      es: "Declarado sin gluten",
+      it: "Dichiarato senza glutine",
+      de: "Als glutenfrei deklariert",
+      el: "Δηλωμένο χωρίς γλουτένη",
+      ar: "معلن خلوه من الغلوتين"
+    }
+  },
+  {
+    id: "dairy-free",
+    allergenId: "dairy",
+    allergenIds: ["dairy"],
+    labels: {
+      fr: "Déclaré sans produits laitiers",
+      en: "Declared dairy-free",
+      es: "Declarado sin lácteos",
+      it: "Dichiarato senza latticini",
+      de: "Als milchfrei deklariert",
+      el: "Δηλωμένο χωρίς γαλακτοκομικά",
+      ar: "معلن خلوه من الألبان"
+    }
+  },
+  {
+    id: "nut-free",
+    allergenId: "tree_nuts",
+    allergenIds: ["tree_nuts"],
+    labels: {
+      fr: "Déclaré sans fruits à coque",
+      en: "Declared tree-nut-free",
+      es: "Declarado sin frutos secos",
+      it: "Dichiarato senza frutta a guscio",
+      de: "Als nussfrei deklariert",
+      el: "Δηλωμένο χωρίς ξηρούς καρπούς",
+      ar: "معلن خلوه من المكسرات"
+    }
+  },
   {
     id: "shellfish-free",
     allergenId: "shellfish",
     allergenIds: ["crustaceans", "molluscs"],
-    labels: { fr: "Déclaré sans crustacés ni mollusques", en: "Declared shellfish-free" }
+    labels: {
+      fr: "Déclaré sans crustacés ni mollusques",
+      en: "Declared shellfish-free",
+      es: "Declarado sin mariscos",
+      it: "Dichiarato senza crostacei",
+      de: "Als schalentierfrei deklariert",
+      el: "Δηλωμένο χωρίς οστρακοειδή",
+      ar: "معلن خلوه من القشريات والمحار"
+    }
   },
-  { id: "egg-free", allergenId: "eggs", allergenIds: ["eggs"], labels: { fr: "Déclaré sans œufs", en: "Declared egg-free" } },
-  { id: "sesame-free", allergenId: "sesame", allergenIds: ["sesame"], labels: { fr: "Déclaré sans sésame", en: "Declared sesame-free" } },
-  { id: "soy-free", allergenId: "soy", allergenIds: ["soy"], labels: { fr: "Déclaré sans soja", en: "Declared soy-free" } },
-  { id: "fish-free", allergenId: "fish", allergenIds: ["fish"], labels: { fr: "Déclaré sans poisson", en: "Declared fish-free" } }
+  {
+    id: "egg-free",
+    allergenId: "eggs",
+    allergenIds: ["eggs"],
+    labels: {
+      fr: "Déclaré sans œufs",
+      en: "Declared egg-free",
+      es: "Declarado sin huevo",
+      it: "Dichiarato senza uova",
+      de: "Als eifrei deklariert",
+      el: "Δηλωμένο χωρίς αυγά",
+      ar: "معلن خلوه من البيض"
+    }
+  },
+  {
+    id: "sesame-free",
+    allergenId: "sesame",
+    allergenIds: ["sesame"],
+    labels: {
+      fr: "Déclaré sans sésame",
+      en: "Declared sesame-free",
+      es: "Declarado sin sésamo",
+      it: "Dichiarato senza sesamo",
+      de: "Als sesamfrei deklariert",
+      el: "Δηλωμένο χωρίς σουσάμι",
+      ar: "معلن خلوه من السمسم"
+    }
+  },
+  {
+    id: "soy-free",
+    allergenId: "soy",
+    allergenIds: ["soy"],
+    labels: {
+      fr: "Déclaré sans soja",
+      en: "Declared soy-free",
+      es: "Declarado sin soja",
+      it: "Dichiarato senza soia",
+      de: "Als sojafrei deklariert",
+      el: "Δηλωμένο χωρίς σόγια",
+      ar: "معلن خلوه من الصويا"
+    }
+  },
+  {
+    id: "fish-free",
+    allergenId: "fish",
+    allergenIds: ["fish"],
+    labels: {
+      fr: "Déclaré sans poisson",
+      en: "Declared fish-free",
+      es: "Declarado sin pescado",
+      it: "Dichiarato senza pesce",
+      de: "Als fischfrei deklariert",
+      el: "Δηλωμένο χωρίς ψάρι",
+      ar: "معلن خلوه من السمك"
+    }
+  }
 ] as const;
 
 export type AllergenFilterId = (typeof ALLERGEN_FILTERS)[number]["id"];

@@ -122,6 +122,7 @@ export function SaugeNoireMenuPages({
       data-sauge-comparison-pages="true"
       data-display-mode={displayMode}
       data-public-menu-renderer="sauge-noire"
+      dir="ltr"
     >
       <CoverPage
         copy={copy}
@@ -220,15 +221,15 @@ export function CoverPage({
         <SaugeNoireBotanical className={styles.coverBotanical} />
         <div className={styles.coverTitle} data-sauge-static-element="wordmark">
           <Heading>SAUGE<br />NOIRE</Heading>
-          <p>{copy.tagline}</p>
+          <p dir="auto">{copy.tagline}</p>
         </div>
         <Rule />
-        <p className={styles.coverMenuTitle} data-sauge-static-element="menu-title">{copy.menu}</p>
+        <p className={styles.coverMenuTitle} data-sauge-static-element="menu-title" dir="auto">{copy.menu}</p>
         <span className={styles.coverUnderline} aria-hidden="true" data-sauge-static-element="underline" />
-        <p className={styles.coverCity} data-sauge-static-element="city">{copy.city}</p>
+        <p className={styles.coverCity} data-sauge-static-element="city" dir="auto">{copy.city}</p>
         <span className={styles.coverDot} aria-hidden="true" data-sauge-static-element="dot" />
         <p className={styles.coverYear} data-sauge-static-element="year">{romanYear(new Date().getFullYear())}</p>
-        <span className={styles.coverOpen} data-sauge-static-element="open">{copy.open}</span>
+        <span className={styles.coverOpen} data-sauge-static-element="open" dir="auto">{copy.open}</span>
         <Arrow />
       </button>
     </section>
@@ -264,9 +265,9 @@ export function ContentsPage({
       data-sauge-static-page="contents"
     >
       <SaugeNoireBotanical className={styles.contentsBotanical} />
-      <Heading data-sauge-typography-role="title">{copy.contents}</Heading>
+      <Heading data-sauge-typography-role="title" dir="auto">{copy.contents}</Heading>
       <Rule />
-      <p className={styles.instruction} data-sauge-static-element="instruction">{copy.touchSection}</p>
+      <p className={styles.instruction} data-sauge-static-element="instruction" dir="auto">{copy.touchSection}</p>
       <nav className={styles.contentsList} aria-label={copy.contents}>
         {categories.map((category, index) => (
           <button
@@ -276,7 +277,7 @@ export function ContentsPage({
             disabled={!interactive}
             onClick={interactive ? () => onSelect(index) : undefined}
           >
-            <span>{category.label}</span>
+            <span dir="auto">{category.label}</span>
             <b>{String(index + 1).padStart(2, "0")}</b>
           </button>
         ))}
@@ -285,7 +286,7 @@ export function ContentsPage({
           disabled={!interactive}
           onClick={interactive ? onSelectEnding : undefined}
         >
-          <span>{copy.thanks}</span>
+          <span dir="auto">{copy.thanks}</span>
           <b>08</b>
         </button>
       </nav>
@@ -367,7 +368,7 @@ export function SectionPage({
       </div>
       <div className={styles.sectionTitleRow}>
         {sectionNumber === 2 ? <SaugeNoireBotanical variant="sideSprig" className={styles.titleBranchLeft} /> : null}
-        <Heading data-sauge-typography-role="title">{category.label.toUpperCase()}</Heading>
+        <Heading data-sauge-typography-role="title" dir="auto">{category.label.toUpperCase()}</Heading>
         {sectionNumber === 2 ? <SaugeNoireBotanical variant="sideSprig" className={styles.titleBranchRight} /> : null}
       </div>
       {sectionNumber === 1 ? <SaugeNoireBotanical variant="sprig" className={styles.sectionBotanical} /> : null}
@@ -456,10 +457,10 @@ export function SaugeNoireDishFeatureCard({
       <PhotoSlot dish={dish} large />
       <div className={styles.featureCopy}>
         <div className={styles.featureTitle}>
-          <h2>{dish.name}</h2>
+          <h2 dir="auto">{dish.name}</h2>
           {dish.has3d ? <SaugeNoire3dIndicator label={threeDLabel(locale)} /> : null}
         </div>
-        {variant !== "compact" && dish.description ? <p>{dish.description}</p> : null}
+        {variant !== "compact" && dish.description ? <p dir="auto">{dish.description}</p> : null}
         <Rule />
         <strong
           data-sauge-visible-price="true"
@@ -469,7 +470,7 @@ export function SaugeNoireDishFeatureCard({
           {formatDishPrice(dish, currency, locale, exchangeRates)}
         </strong>
       </div>
-      <span className={styles.srOnly}>{copy.menu}</span>
+      <span className={styles.srOnly} dir="auto">{copy.menu}</span>
     </>
   );
 
@@ -540,7 +541,7 @@ export function SaugeNoireDishRow({
     <>
       <PhotoSlot dish={dish} />
       <span className={styles.dishRowName}>
-        <span>{dish.name}</span>
+        <span dir="auto">{dish.name}</span>
         {dish.has3d ? <SaugeNoire3dIndicator label={threeDLabel(locale)} /> : null}
       </span>
       <span
@@ -620,7 +621,9 @@ function threeDLabel(locale: Locale): string {
   if (language === "en") return "3D view available";
   if (language === "es") return "Vista 3D disponible";
   if (language === "it") return "Vista 3D disponibile";
-  if (language === "ar") return "Ø¹Ø±Ø¶ 3D Ù…ØªØ§Ø­";
+  if (language === "de") return "3D-Ansicht verfügbar";
+  if (language === "el") return "Διαθέσιμη προβολή 3D";
+  if (language === "ar") return "عرض ثلاثي الأبعاد متاح";
   return "Vue 3D disponible";
 }
 
@@ -674,10 +677,10 @@ export function EndingPage({
       aria-label={copy.thanks}
       data-sauge-static-page="ending"
     >
-      <Heading>{copy.thanks.toUpperCase()}</Heading>
+      <Heading dir="auto">{copy.thanks.toUpperCase()}</Heading>
       <SaugeNoireBotanical className={styles.endingBotanical} />
       <div className={styles.endingWordmark} data-sauge-static-element="wordmark">SAUGE<br />NOIRE</div>
-      <p data-sauge-static-element="tagline">{copy.tagline}</p>
+      <p data-sauge-static-element="tagline" dir="auto">{copy.tagline}</p>
       <Rule />
       <p className={styles.endingCity} data-sauge-static-element="city">Montréal, Québec</p>
       <span className={styles.coverDot} aria-hidden="true" data-sauge-static-element="dot" />
@@ -691,7 +694,7 @@ export function EndingPage({
         >
           <span className={styles.googleReviewBrand}>
             <span className={styles.googleReviewMark} data-testid="google-review-mark" aria-hidden="true">G</span>
-            {copy.googleReview}
+            <span dir="auto">{copy.googleReview}</span>
           </span>
           <span className={styles.googleReviewArrow} data-testid="google-review-arrow" aria-hidden="true">
             <svg viewBox="0 0 20 20" focusable="false">
@@ -707,9 +710,9 @@ export function EndingPage({
         onClick={interactive ? onRestart : undefined}
         data-sauge-static-element="restart"
       >
-        {copy.menu}
+        <span dir="auto">{copy.menu}</span>
       </button>
-      <p className={styles.endingSoon} data-sauge-static-element="message">{copy.soon}</p>
+      <p className={styles.endingSoon} data-sauge-static-element="message" dir="auto">{copy.soon}</p>
     </section>
   );
 }
@@ -732,7 +735,7 @@ function PageFooter({
   return (
     <footer className={styles.pageFooter} data-sauge-static-element="footer">
       <Rule />
-      <p>{copy}</p>
+      <p dir="auto">{copy}</p>
       <div className={styles.doubleArrowControl}>
         <button
           type="button"

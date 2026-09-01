@@ -273,7 +273,9 @@ export function SaugeNoireBookMenu({
     const previousDir = root.getAttribute("dir");
     const language = activeLocaleValue.trim() || "fr-CA";
     root.lang = language;
-    root.dir = copyLocale(language) === "ar" ? "rtl" : "ltr";
+    // Keep the book/chrome in the same visual order for every locale. Arabic
+    // glyphs remain Arabic; direction belongs to text, not the whole layout.
+    root.dir = "ltr";
 
     return () => {
       root.lang = previousLang;
@@ -789,6 +791,9 @@ export function SaugeNoireBookMenu({
   return (
     <main
       className={styles.book}
+      dir="ltr"
+      lang={activeLocaleValue}
+      data-text-direction={copyLocale(activeLocaleValue) === "ar" ? "rtl" : "ltr"}
       data-display-mode={mode}
       data-menu-ui="sauge-noire"
       data-public-menu-renderer="sauge-noire"

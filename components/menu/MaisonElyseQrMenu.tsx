@@ -13,14 +13,20 @@ import {
 } from "react";
 import { GoogleReviewCard } from "@/components/menu/GoogleReviewCard";
 import { trackPublicMenuEvent } from "@/lib/analytics/client";
+import {
+  isCurrencyConversionAvailable,
+  type MenuExchangeRates
+} from "@/lib/currency/formatMenuPrice";
 import { isSafe3dAssetUrl } from "@/lib/dish3dManifest";
 import {
   normalizePublicMenuLocale,
   type PublicMenuLocale
 } from "@/lib/menu/publicMenuSettings";
 import {
+  getMaisonElyseCategoryEditorial,
   getMaisonElyseCategoryKind,
   getMaisonElyseCategoryLabel,
+  getMaisonElyseEditorialCopy,
   getMaisonElyseLanguageOptions,
   getMaisonElyseTextDirection,
   resolveMaisonElyseCategoryDescription,
@@ -47,6 +53,15 @@ import {
   type PublicMenuDish
 } from "@/lib/menu/publicMenuCore";
 import type { MenuUiConfig } from "@/lib/menu/menuUiConfig";
+import {
+  TROUVABLE_CURRENCY_STORAGE_KEY,
+  formatTrouvableDishPrice,
+  getTrouvableCurrencyOption,
+  getTrouvableCurrencyOptionLabel,
+  getTrouvableCurrencyOptions,
+  normalizeTrouvableCurrency,
+  type TrouvableCurrency
+} from "./trouvableMenuControls";
 import styles from "./MaisonElyseQrMenu.module.css";
 
 const loadPhonePreviewDishDetail = () =>
@@ -54,29 +69,26 @@ const loadPhonePreviewDishDetail = () =>
     (mod) => mod.MaisonElyseDishDetail
   );
 
-const PhonePreviewDishDetailFr = dynamic(
-  loadPhonePreviewDishDetail,
-  {
+function createPhonePreviewDishDetail(loadingText: string) {
+  return dynamic(loadPhonePreviewDishDetail, {
     ssr: false,
     loading: () => (
       <div className={styles.detailLoading} role="status" aria-live="polite">
-        Chargement de la fiche...
+        {loadingText}
       </div>
     )
-  }
-);
+  });
+}
 
-const PhonePreviewDishDetailEn = dynamic(
-  loadPhonePreviewDishDetail,
-  {
-    ssr: false,
-    loading: () => (
-      <div className={styles.detailLoading} role="status" aria-live="polite">
-        Loading dish details...
-      </div>
-    )
-  }
-);
+const PHONE_PREVIEW_DISH_DETAILS = {
+  fr: createPhonePreviewDishDetail("Chargement de la fiche..."),
+  en: createPhonePreviewDishDetail("Loading dish details..."),
+  es: createPhonePreviewDishDetail("Cargando los detalles del plato..."),
+  it: createPhonePreviewDishDetail("Caricamento dei dettagli del piatto..."),
+  de: createPhonePreviewDishDetail("Gerichtdetails werden geladen..."),
+  el: createPhonePreviewDishDetail("Φόρτωση λεπτομερειών πιάτου..."),
+  ar: createPhonePreviewDishDetail("جارٍ تحميل تفاصيل الطبق...")
+} as const;
 
 const ALLOWED_3D_CDN_ORIGINS = (process.env.NEXT_PUBLIC_VISTAIRE_3D_CDN_ORIGINS ?? "")
   .split(/[,\s]+/)
@@ -85,6 +97,7 @@ const ALLOWED_3D_CDN_ORIGINS = (process.env.NEXT_PUBLIC_VISTAIRE_3D_CDN_ORIGINS 
 
 type MaisonElyseQrMenuProps = {
   menu: PublicMenu;
+  exchangeRates?: MenuExchangeRates;
   context?: string;
   query?: PublicMenuContextQuery;
   displayMode?: "public" | "phone-preview" | "comparison-preview";
@@ -105,7 +118,7 @@ type FilterId =
   | AllergenFilterId;
 type DietaryFilterId = AllergenFilterId;
 
-type SheetId = "menu" | "filter" | "language" | null;
+type SheetId = "menu" | "filter" | "language" | "currency" | null;
 
 const ALL_CATEGORY_ID = "all";
 // Kept slightly above the CSS sheet animation duration so the exit finishes before unmount.
@@ -115,10 +128,10 @@ const ALLERGEN_FILTER_LABELS = Object.fromEntries(
   ALLERGEN_FILTERS.map((filter) => [filter.id, filter.labels])
 ) as unknown as Record<AllergenFilterId, Record<string, string>>;
 const FILTER_OPTIONS: Array<{ id: FilterId; labels: Record<string, string> }> = [
-  { id: "signature", labels: { fr: "Signature", en: "Signature" } },
-  { id: "recommended", labels: { fr: "Recommandés", en: "Recommended" } },
-  { id: "immersive", labels: { fr: "3D / AR", en: "3D / AR" } },
-  { id: "available", labels: { fr: "Disponibles", en: "Available" } },
+  { id: "signature", labels: {} },
+  { id: "recommended", labels: {} },
+  { id: "immersive", labels: {} },
+  { id: "available", labels: {} },
   ...ALLERGEN_FILTERS.map((filter) => ({
     id: filter.id as AllergenFilterId,
     labels: ALLERGEN_FILTER_LABELS[filter.id]
@@ -126,113 +139,42 @@ const FILTER_OPTIONS: Array<{ id: FilterId; labels: Record<string, string> }> = 
 ];
 const BACK_TO_TOP_SCROLL_THRESHOLD = 520;
 
-const MENU_COPY: Record<
-  "fr" | "en",
-  {
-    activeFilterPrefix: string;
-    allMenu: string;
-    apply: string;
-    backToTop: string;
-    bottomFilter: string;
-    bottomMenu: string;
-    close: string;
-    collectionBody: string;
-    collectionKicker: string;
-    collectionTitle: string;
-    dishDetails: string;
-    emptySelection: string;
-    filterDialogLabel: string;
-    filterFallback: string;
-    filterGroupLabel: string;
-    languageDialogLabel: string;
-    languageToggleAria: string;
-    menuDialogLabel: string;
-    menuToggleAria: string;
-    navAria: string;
-    preferences: string;
-    recommendedBadge: string;
-    reset: string;
-    resetFilters: string;
-    recommendation: string;
-    signature: string;
-    immersiveFilterLabel: string;
-    available: string;
-    sections: string;
-    sheetNavigation: string;
-    unavailableBadge: string;
-  }
-> = {
-  fr: {
-    activeFilterPrefix: "Filtre actif",
-    allMenu: "Toute la carte",
-    apply: "Appliquer",
-    backToTop: "Retour en haut",
-    bottomFilter: "Filtrer",
-    bottomMenu: "La carte",
-    close: "Fermer",
-    collectionBody:
-      "Une sélection de créations servies par section, pensées pour être explorées directement à table.",
-    collectionKicker: "LA COLLECTION",
-    collectionTitle: "LA CARTE",
-    dishDetails: "Voir la fiche plat.",
-    emptySelection: "Aucun plat dans cette sélection",
-    filterDialogLabel: "Filtrer la carte",
-    filterFallback: "Filtre",
-    filterGroupLabel: "Filtres",
-    languageDialogLabel: "Langue du menu",
-    languageToggleAria: "Choisir la langue du menu",
-    menuDialogLabel: "La carte",
-    menuToggleAria: "Ouvrir la navigation de la carte",
-    navAria: "Navigation carte et filtres",
-    preferences: "Préférences",
-    recommendedBadge: "Recommandé",
-    recommendation: "Recommandé",
-    signature: "Signature",
-    immersiveFilterLabel: "3D / AR",
-    available: "Disponibles",
-    reset: "Réinitialiser",
-    resetFilters: "Réinitialiser les filtres",
-    sections: "Sections",
-    sheetNavigation: "Navigation",
-    unavailableBadge: "Indisponible",
-  },
-  en: {
-    activeFilterPrefix: "Active filter",
-    allMenu: "Full menu",
-    apply: "Apply",
-    backToTop: "Back to top",
-    bottomFilter: "Filter",
-    bottomMenu: "Menu",
-    close: "Close",
-    collectionBody:
-      "A section-by-section selection of house creations designed to be explored at the table.",
-    collectionKicker: "THE COLLECTION",
-    collectionTitle: "THE MENU",
-    dishDetails: "View dish details.",
-    emptySelection: "No dish in this selection",
-    filterDialogLabel: "Filter the menu",
-    filterFallback: "Filter",
-    filterGroupLabel: "Filters",
-    languageDialogLabel: "Menu language",
-    languageToggleAria: "Choose menu language",
-    menuDialogLabel: "Menu",
-    menuToggleAria: "Open menu navigation",
-    navAria: "Menu and filter navigation",
-    preferences: "Preferences",
-    recommendedBadge: "Recommended",
-    recommendation: "Recommended",
-    signature: "Signature",
-    immersiveFilterLabel: "3D / AR",
-    available: "Available",
-    reset: "Reset",
-    resetFilters: "Reset filters",
-    sections: "Sections",
-    sheetNavigation: "Navigation",
-    unavailableBadge: "Unavailable",
-  }
+type MaisonMenuCopy = {
+  activeFilterPrefix: string;
+  allMenu: string;
+  apply: string;
+  backToTop: string;
+  badgesAria: string;
+  bottomFilter: string;
+  bottomMenu: string;
+  close: string;
+  collectionBody: string;
+  collectionKicker: string;
+  collectionTitle: string;
+  currencyDialogLabel: string;
+  currencyKicker: string;
+  currencyToggleAria: string;
+  dishDetails: string;
+  emptySelection: string;
+  filterDialogLabel: string;
+  filterFallback: string;
+  filterGroupLabel: string;
+  languageDialogLabel: string;
+  languageToggleAria: string;
+  menuDialogLabel: string;
+  menuToggleAria: string;
+  navAria: string;
+  preferences: string;
+  recommendation: string;
+  reset: string;
+  resetFilters: string;
+  signature: string;
+  immersiveFilterLabel: string;
+  available: string;
+  sections: string;
+  sheetNavigation: string;
+  unavailableBadge: string;
 };
-
-type MaisonMenuCopy = (typeof MENU_COPY)["fr"];
 
 function localeLanguage(locale: string): string {
   try {
@@ -246,67 +188,40 @@ function buildMaisonMenuCopy(
   locale: PublicMenuLocale,
   localizedUiCopy?: Record<string, unknown>
 ): MaisonMenuCopy {
-  const language = localeLanguage(locale);
-  const fallback = MENU_COPY[language === "fr" ? "fr" : "en"];
-  const resolvedResult = resolveMaisonElyseCopy(locale, localizedUiCopy);
-  const resolved = resolvedResult.copy;
-  const neutral = resolveMaisonElyseCopy(locale).copy;
-  const preserveMaisonDefaults =
-    resolvedResult.resolution.builtInLocale === (language === "fr" ? "fr" : "en");
-  const sharedOrMaison = <T,>(value: T, neutralValue: T, maisonValue: T): T =>
-    preserveMaisonDefaults && Object.is(value, neutralValue) ? maisonValue : value;
+  const resolved = resolveMaisonElyseCopy(locale, localizedUiCopy).copy;
+  const editorial = getMaisonElyseEditorialCopy(locale);
   return {
-    ...fallback,
     activeFilterPrefix: resolved.activeFilterPrefix,
-    allMenu: sharedOrMaison(
-      resolved.activeCategoryAll,
-      neutral.activeCategoryAll,
-      fallback.allMenu
-    ),
+    allMenu: editorial.allMenu,
     apply: resolved.filterApply,
     backToTop: resolved.backToTop,
+    badgesAria: resolved.tags,
     bottomFilter: resolved.filterButton,
-    bottomMenu: sharedOrMaison(
-      resolved.activeCategoryAll,
-      neutral.activeCategoryAll,
-      fallback.bottomMenu
-    ),
+    bottomMenu: editorial.bottomMenu,
     close: resolved.close,
-    // Keep the Maison Élyse cover editorial distinct from the shared
-    // Trouvable UI-copy contract. `categories` and `activeCategoryAll` are
-    // navigation labels ("CATÉGORIES" / "La carte"), not the Maison cover
-    // lockup ("LA COLLECTION" / "LA CARTE"). Mapping them here silently
-    // replaced the canonical Maison copy and broke the public menu smoke.
+    collectionBody: editorial.collectionBody,
+    collectionKicker: editorial.collectionKicker,
+    collectionTitle: editorial.collectionTitle,
+    currencyDialogLabel: resolved.currencyTitle,
+    currencyKicker: resolved.currencyKicker,
+    currencyToggleAria: resolved.currencyAria,
     dishDetails: resolved.viewDetails,
     emptySelection: resolved.noResultsTitle,
-    filterDialogLabel: sharedOrMaison(
-      resolved.filterTitle,
-      neutral.filterTitle,
-      fallback.filterDialogLabel
-    ),
+    filterDialogLabel: editorial.filterDialogLabel,
     filterFallback: resolved.filterFallback,
     filterGroupLabel: resolved.filterGroupLabel,
     languageDialogLabel: resolved.languageTitle,
     languageToggleAria: resolved.languageAria,
-    menuDialogLabel: sharedOrMaison(
-      resolved.menuAria,
-      neutral.menuAria,
-      fallback.menuDialogLabel
-    ),
-    menuToggleAria: sharedOrMaison(
-      resolved.menuAria,
-      neutral.menuAria,
-      fallback.menuToggleAria
-    ),
-    navAria: sharedOrMaison(resolved.menuAria, neutral.menuAria, fallback.navAria),
+    menuDialogLabel: editorial.menuDialogLabel,
+    menuToggleAria: editorial.menuToggleAria,
+    navAria: editorial.navAria,
     preferences: resolved.languageKicker,
-    recommendedBadge: resolved.recommendation,
     recommendation: resolved.recommendation,
+    reset: resolved.reset,
+    resetFilters: resolved.resetFilters,
     signature: resolved.signature,
     immersiveFilterLabel: resolved.immersiveFilterLabel,
     available: resolved.available,
-    reset: resolved.reset,
-    resetFilters: resolved.resetFilters,
     sections: resolved.categories,
     sheetNavigation: resolved.categories,
     unavailableBadge: resolved.soldOut
@@ -328,8 +243,11 @@ function BackToTopIcon() {
   );
 }
 
-function displayCategoryLabel(label: string, locale: PublicMenuLocale = "fr-CA"): string {
-  return getMaisonElyseCategoryLabel(label, locale);
+function displayCategoryLabel(
+  category: Pick<PublicMenuCategory, "label" | "slug">,
+  locale: PublicMenuLocale = "fr-CA"
+): string {
+  return getMaisonElyseCategoryLabel(category, locale);
 }
 
 function sectionDomId(category: Pick<PublicMenuCategory, "id" | "slug">): string {
@@ -337,78 +255,15 @@ function sectionDomId(category: Pick<PublicMenuCategory, "id" | "slug">): string
   return `section-${encodeURIComponent(stableIdentity)}`;
 }
 
-function categoryEditorial(label: string, locale: PublicMenuLocale = "fr-CA"): {
+function categoryEditorial(
+  category: Pick<PublicMenuCategory, "label" | "slug">,
+  locale: PublicMenuLocale = "fr-CA"
+): {
   kicker: string;
   title: string;
   description: string;
 } {
-  const displayLabel = displayCategoryLabel(label, locale);
-  const categoryKind = getMaisonElyseCategoryKind(label);
-
-  if (categoryKind === "starter") {
-    return localeLanguage(locale) === "en"
-      ? {
-          kicker: "TO START",
-          title: "Starters",
-          description: "The first house plates: precise, generous and seasonal."
-        }
-      : {
-          kicker: "POUR COMMENCER",
-          title: "Entrées",
-          description: "Les premières assiettes de la maison, précises et généreuses."
-        };
-  }
-
-  if (categoryKind === "signature") {
-    return localeLanguage(locale) === "en"
-      ? {
-          kicker: "SIGNATURE",
-          title: "Signature dishes",
-          description: "The emblematic Maison Élyse creations."
-        }
-      : {
-          kicker: "LA SIGNATURE",
-          title: "Plats signatures",
-          description: "Les créations emblématiques de Maison Élyse."
-        };
-  }
-
-  if (categoryKind === "dessert") {
-    return localeLanguage(locale) === "en"
-      ? {
-          kicker: "SWEET FINISH",
-          title: "Desserts",
-          description: "A final pastry note: fresh, delicate and elegant."
-        }
-      : {
-          kicker: "LA DOUCEUR",
-          title: "Desserts",
-          description: "Une dernière note pâtissière, fraîche et élégante."
-        };
-  }
-
-  if (categoryKind === "cocktail" || categoryKind === "drink") {
-    return localeLanguage(locale) === "en"
-      ? {
-          kicker: "THE BAR",
-          title: displayLabel,
-          description: "Cocktails and drinks designed to pair with the menu."
-        }
-      : {
-          kicker: "LE BAR",
-          title: displayLabel,
-          description: "Cocktails et boissons pensés pour accompagner la carte."
-        };
-  }
-
-  return {
-    kicker: "Maison Élyse",
-    title: displayLabel,
-    description:
-      localeLanguage(locale) === "en"
-        ? "The selection of the moment."
-        : "La sélection du moment."
-  };
+  return getMaisonElyseCategoryEditorial(category, locale);
 }
 
 function personalizeBranding<T>(value: T, restaurantName: string): T {
@@ -431,8 +286,11 @@ function personalizeBranding<T>(value: T, restaurantName: string): T {
   return value;
 }
 
-function getFilterLabel(filter: FilterId, locale: PublicMenuLocale = "fr-CA"): string {
-  const copy = buildMaisonMenuCopy(locale);
+function getFilterLabel(
+  filter: FilterId,
+  locale: PublicMenuLocale,
+  copy: MaisonMenuCopy
+): string {
   if (filter === "all") return copy.allMenu;
   const localizedLabels: Partial<Record<FilterId, string>> = {
     signature: copy.signature,
@@ -464,8 +322,20 @@ function getStoredMenuLocale(): PublicMenuLocale | null {
   }
 }
 
-function categoryRank(label: string): number {
-  const categoryKind = getMaisonElyseCategoryKind(label);
+function getStoredMenuCurrency(
+  settings: PublicMenu["settings"]
+): TrouvableCurrency | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const stored = window.localStorage.getItem(TROUVABLE_CURRENCY_STORAGE_KEY);
+    return stored ? normalizeTrouvableCurrency(stored, settings) : null;
+  } catch {
+    return null;
+  }
+}
+
+function categoryRank(category: Pick<PublicMenuCategory, "label" | "slug">): number {
+  const categoryKind = getMaisonElyseCategoryKind(category);
   if (categoryKind === "starter") return 0;
   if (categoryKind === "signature") return 1;
   if (categoryKind === "dessert") return 2;
@@ -474,7 +344,7 @@ function categoryRank(label: string): number {
 }
 
 function categorySort(a: PublicMenuCategory, b: PublicMenuCategory): number {
-  return categoryRank(a.label) - categoryRank(b.label);
+  return categoryRank(a) - categoryRank(b);
 }
 
 function hasReal3d(dish: PublicMenuDish): boolean {
@@ -500,13 +370,20 @@ function hasRealAr(dish: PublicMenuDish): boolean {
 }
 
 function isSignatureDish(dish: PublicMenuDish): boolean {
-  return (
-    normalizeText(dish.category).includes("signature") ||
-    dish.tags.some((tag) => normalizeText(tag).includes("signature"))
-  );
+  if (dish.isSignature) return true;
+  if (
+    getMaisonElyseCategoryKind({
+      label: dish.category,
+      slug: dish.categorySlug
+    }) === "signature"
+  ) {
+    return true;
+  }
+  return dish.tags.some((tag) => normalizeText(tag).includes("signature"));
 }
 
 function isRecommendedDish(dish: PublicMenuDish): boolean {
+  if (dish.isRecommended) return true;
   return dish.tags.some((tag) => {
     const normalized = normalizeText(tag);
     return normalized.includes("recommande") || normalized.includes("recommended");
@@ -535,38 +412,47 @@ function shortDescription(dish: PublicMenuDish): string {
   return `${dish.description.slice(0, 129).trim()}...`;
 }
 
-function dishBadges(dish: PublicMenuDish, locale: PublicMenuLocale): string[] {
-  const copy = MENU_COPY[localeLanguage(locale) === "fr" ? "fr" : "en"];
+function dishBadges(dish: PublicMenuDish, copy: MaisonMenuCopy): string[] {
   const badges: string[] = [];
-  if (isSignatureDish(dish)) badges.push("Signature");
-  if (isRecommendedDish(dish)) badges.push(copy.recommendedBadge);
+  if (isSignatureDish(dish)) badges.push(copy.signature);
+  if (isRecommendedDish(dish)) badges.push(copy.recommendation);
   if (hasReal3d(dish)) badges.push("3D");
   if (hasRealAr(dish)) badges.push("AR");
   if (!dish.available) badges.push(copy.unavailableBadge);
-  return badges.slice(0, 4);
+  return Array.from(new Set(badges)).slice(0, 4);
 }
 
 export function MaisonElyseDishCard({
+  copy,
+  currency,
   disableNavigation = false,
   dish,
+  exchangeRates,
   locale,
   menu,
   onSelectDish,
   query
 }: {
+  copy: MaisonMenuCopy;
+  currency: TrouvableCurrency;
   disableNavigation?: boolean;
   dish: PublicMenuDish;
+  exchangeRates?: MenuExchangeRates;
   locale: PublicMenuLocale;
   menu: PublicMenu;
   onSelectDish?: (dish: PublicMenuDish) => void;
   query?: PublicMenuContextQuery;
 }) {
-  const badges = dishBadges(dish, locale);
+  const badges = dishBadges(dish, copy);
   const textDirection = getMaisonElyseTextDirection(locale);
+  const priceLabel = formatTrouvableDishPrice(
+    dish,
+    currency,
+    locale,
+    exchangeRates
+  );
   const href = buildPublicDishPath(menu.slug, dish.slug, query);
-  const ariaLabel = `${dish.name}. ${dish.priceLabel || ""} ${
-    MENU_COPY[localeLanguage(locale) === "fr" ? "fr" : "en"].dishDetails
-  }`;
+  const ariaLabel = `${dish.name}. ${priceLabel || ""} ${copy.dishDetails}`;
   const content = (
     <>
       <span className={styles.dishImage} aria-hidden="true">
@@ -583,14 +469,14 @@ export function MaisonElyseDishCard({
           <span className={styles.dishDescription}>{shortDescription(dish)}</span>
         ) : null}
         {badges.length > 0 ? (
-          <span className={styles.badges} aria-label={`Badges: ${badges.join(", ")}`}>
+          <span className={styles.badges} aria-label={`${copy.badgesAria}: ${badges.join(", ")}`}>
             {badges.map((badge) => (
               <span key={badge}>{badge}</span>
             ))}
           </span>
         ) : null}
-        {dish.priceLabel ? (
-          <strong className={styles.dishPrice}>{dish.priceLabel}</strong>
+        {priceLabel ? (
+          <strong className={styles.dishPrice}>{priceLabel}</strong>
         ) : null}
       </span>
     </>
@@ -639,18 +525,24 @@ export function MaisonElyseDishCard({
 
 function DishSection({
   category,
+  copy,
+  currency,
   descriptionDishes,
   disableNavigation = false,
   dishes,
+  exchangeRates,
   locale,
   menu,
   onSelectDish,
   query
 }: {
   category: PublicMenuCategory;
+  copy: MaisonMenuCopy;
+  currency: TrouvableCurrency;
   descriptionDishes: PublicMenuDish[];
   disableNavigation?: boolean;
   dishes: PublicMenuDish[];
+  exchangeRates?: MenuExchangeRates;
   locale: PublicMenuLocale;
   menu: PublicMenu;
   onSelectDish?: (dish: PublicMenuDish) => void;
@@ -659,7 +551,7 @@ function DishSection({
   const sectionId = sectionDomId(category);
   const headingId = `${sectionId}-heading`;
   const editorial = personalizeBranding(
-    categoryEditorial(category.label, locale),
+    categoryEditorial(category, locale),
     menu.name
   );
   const description = resolveMaisonElyseCategoryDescription(
@@ -684,8 +576,11 @@ function DishSection({
       <ul className={styles.dishList}>
         {dishes.map((dish) => (
           <MaisonElyseDishCard
+            copy={copy}
+            currency={currency}
             disableNavigation={disableNavigation}
             dish={dish}
+            exchangeRates={exchangeRates}
             key={dish.id}
             locale={locale}
             menu={menu}
@@ -700,6 +595,7 @@ function DishSection({
 
 export function MaisonElyseQrMenu({
   displayMode = "public",
+  exchangeRates,
   locale = "fr-CA",
   localizedMenus,
   config,
@@ -731,6 +627,14 @@ export function MaisonElyseQrMenu({
   );
   const activeLocale = localeResolution.locale;
   const activeMenu = localeResolution.menu;
+  const queryCurrency = query?.currency?.toString().trim()
+    ? normalizeTrouvableCurrency(query.currency, activeMenu.settings)
+    : null;
+  const [selectedCurrency, setSelectedCurrency] = useState<TrouvableCurrency>(
+    () => queryCurrency ?? normalizeTrouvableCurrency(undefined, menu.settings)
+  );
+  const [shouldPersistCurrencyInLinks, setShouldPersistCurrencyInLinks] =
+    useState(() => Boolean(queryCurrency));
   const restaurantDisplayName = activeMenu.name.trim() || "Restaurant";
   const menuOpenedTrackedRef = useRef(false);
   useEffect(() => {
@@ -754,16 +658,70 @@ export function MaisonElyseQrMenu({
       ),
     [activeMenu.settings, activeMenu.translationLocales]
   );
-  const activeQuery = useMemo(
-    () =>
-      shouldPersistLocaleInLinks
-        ? {
-            ...(query ?? {}),
-            lang: activeLocale
-          }
-        : query,
-    [activeLocale, query, shouldPersistLocaleInLinks]
+  const currencyOptions = useMemo(
+    () => getTrouvableCurrencyOptions(activeMenu.settings),
+    [activeMenu.settings]
   );
+  const availableCurrencyOptions = useMemo(() => {
+    const pricedDishes = activeMenu.dishes.filter(
+      (dish) => Number.isFinite(dish.priceCents) && dish.priceCents > 0
+    );
+    const currencySources =
+      pricedDishes.length > 0
+        ? pricedDishes
+        : [
+            {
+              priceCurrency: activeMenu.settings.baseCurrency,
+              baseCurrency: activeMenu.settings.baseCurrency
+            }
+          ];
+
+    return currencyOptions.filter((option) =>
+      currencySources.every((dish) =>
+        isCurrencyConversionAvailable({
+          sourceCurrency:
+            dish.priceCurrency || activeMenu.settings.baseCurrency,
+          targetCurrency: option.code,
+          baseCurrency:
+            exchangeRates?.base ??
+            dish.baseCurrency ??
+            activeMenu.settings.baseCurrency,
+          rates: exchangeRates?.rates
+        })
+      )
+    );
+  }, [activeMenu.dishes, activeMenu.settings.baseCurrency, currencyOptions, exchangeRates]);
+  const normalizedSelectedCurrency = normalizeTrouvableCurrency(
+    selectedCurrency,
+    activeMenu.settings
+  );
+  const defaultCurrency = normalizeTrouvableCurrency(
+    undefined,
+    activeMenu.settings
+  );
+  const activeCurrency =
+    availableCurrencyOptions.find(
+      (option) => option.code === normalizedSelectedCurrency
+    )?.code ??
+    availableCurrencyOptions.find((option) => option.code === defaultCurrency)
+      ?.code ??
+    availableCurrencyOptions[0]?.code ??
+    defaultCurrency;
+  const canChangeCurrency =
+    activeMenu.settings.allowCurrencySelector &&
+    availableCurrencyOptions.length > 1;
+  const activeQuery = useMemo(() => {
+    const nextQuery: PublicMenuContextQuery = { ...(query ?? {}) };
+    if (shouldPersistLocaleInLinks) nextQuery.lang = activeLocale;
+    if (shouldPersistCurrencyInLinks) nextQuery.currency = activeCurrency;
+    return nextQuery;
+  }, [
+    activeCurrency,
+    activeLocale,
+    query,
+    shouldPersistCurrencyInLinks,
+    shouldPersistLocaleInLinks
+  ]);
   const filterOptions = useMemo(
     () =>
       FILTER_OPTIONS.map((option) => ({
@@ -994,21 +952,77 @@ export function MaisonElyseQrMenu({
   ]);
 
   useEffect(() => {
+    if (displayMode !== "public" || queryCurrency) return;
+    const frameId = window.requestAnimationFrame(() => {
+      const storedCurrency = getStoredMenuCurrency(activeMenu.settings);
+      if (!storedCurrency) return;
+      const resolvedStoredCurrency =
+        availableCurrencyOptions.find(
+          (option) => option.code === storedCurrency
+        )?.code ?? activeCurrency;
+      if (resolvedStoredCurrency !== storedCurrency) {
+        try {
+          window.localStorage.setItem(
+            TROUVABLE_CURRENCY_STORAGE_KEY,
+            resolvedStoredCurrency
+          );
+        } catch {
+          // The sanitized in-memory fallback remains authoritative for this session.
+        }
+      }
+      if (resolvedStoredCurrency === activeCurrency) {
+        if (storedCurrency !== activeCurrency) {
+          setShouldPersistCurrencyInLinks(true);
+        }
+        return;
+      }
+      setSelectedCurrency(resolvedStoredCurrency);
+      setShouldPersistCurrencyInLinks(true);
+    });
+    return () => window.cancelAnimationFrame(frameId);
+  }, [
+    activeCurrency,
+    activeMenu.settings,
+    availableCurrencyOptions,
+    displayMode,
+    queryCurrency
+  ]);
+
+  useEffect(() => {
     if (displayMode !== "public") return;
 
     const handleHistoryNavigation = () => {
-      const rawLocale = new URL(window.location.href).searchParams.get("lang");
+      const currentUrl = new URL(window.location.href);
+      const rawLocale = currentUrl.searchParams.get("lang");
       if (!rawLocale?.trim()) {
         manualLocaleRef.current = null;
         lastSeenQueryLocaleRef.current = null;
-        return;
+      } else {
+        applyExplicitLocale(normalizePublicMenuLocale(rawLocale));
       }
-      applyExplicitLocale(normalizePublicMenuLocale(rawLocale));
+
+      const rawCurrency = currentUrl.searchParams.get("currency");
+      const requestedCurrency = rawCurrency?.trim()
+        ? normalizeTrouvableCurrency(rawCurrency, activeMenu.settings)
+        : getStoredMenuCurrency(activeMenu.settings);
+      const resolvedCurrency = requestedCurrency
+        ? availableCurrencyOptions.find(
+            (option) => option.code === requestedCurrency
+          )?.code ?? activeCurrency
+        : activeCurrency;
+      setSelectedCurrency(resolvedCurrency);
+      setShouldPersistCurrencyInLinks(Boolean(requestedCurrency));
     };
 
     window.addEventListener("popstate", handleHistoryNavigation);
     return () => window.removeEventListener("popstate", handleHistoryNavigation);
-  }, [applyExplicitLocale, displayMode]);
+  }, [
+    activeCurrency,
+    activeMenu.settings,
+    applyExplicitLocale,
+    availableCurrencyOptions,
+    displayMode
+  ]);
 
   useEffect(() => {
     if (displayMode !== "public") return;
@@ -1267,6 +1281,17 @@ export function MaisonElyseQrMenu({
     );
   }
 
+  function writeCurrencyToUrl(nextCurrency: TrouvableCurrency) {
+    if (displayMode !== "public") return;
+    const currentUrl = new URL(window.location.href);
+    currentUrl.searchParams.set("currency", nextCurrency);
+    window.history.replaceState(
+      window.history.state,
+      "",
+      `${currentUrl.pathname}?${currentUrl.searchParams.toString()}${currentUrl.hash}`
+    );
+  }
+
   function selectLanguage(nextLocale: PublicMenuLocale) {
     const resolved = resolveMaisonElyseLocalizedMenu({
       fallbackLocale: propLocale,
@@ -1293,6 +1318,32 @@ export function MaisonElyseQrMenu({
     }
 
     writeLocaleToUrl(resolved.locale);
+  }
+
+  function selectCurrency(nextCurrency: TrouvableCurrency) {
+    if (
+      !availableCurrencyOptions.some((option) => option.code === nextCurrency)
+    ) {
+      return;
+    }
+    const normalized = normalizeTrouvableCurrency(
+      nextCurrency,
+      activeMenu.settings
+    );
+    setSelectedCurrency(normalized);
+    setShouldPersistCurrencyInLinks(true);
+    setActiveSheet(null);
+    if (displayMode === "public") {
+      try {
+        window.localStorage.setItem(
+          TROUVABLE_CURRENCY_STORAGE_KEY,
+          normalized
+        );
+      } catch {
+        // The in-memory selection is enough for this session.
+      }
+    }
+    writeCurrencyToUrl(normalized);
   }
 
   function toggleSheet(sheet: Exclude<SheetId, null>, trigger: HTMLButtonElement) {
@@ -1339,6 +1390,11 @@ export function MaisonElyseQrMenu({
     toggleSheet("language", trigger);
   }
 
+  function toggleCurrencySheet(trigger: HTMLButtonElement) {
+    if (isComparisonPreview || !canChangeCurrency) return;
+    toggleSheet("currency", trigger);
+  }
+
   function scrollPhonePreviewToTop() {
     const scrollTargets = getPhonePreviewScrollTargets();
     if (scrollTargets.length === 0) return;
@@ -1369,10 +1425,6 @@ export function MaisonElyseQrMenu({
 
   const phonePreviewDishSelect =
     displayMode === "phone-preview" ? openDishInPhonePreview : undefined;
-  const PhonePreviewDishDetail =
-    localeLanguage(activeLocale) === "fr"
-      ? PhonePreviewDishDetailFr
-      : PhonePreviewDishDetailEn;
   const currentLanguage =
     languageOptions.find((option) => option.id === activeLocale) ??
     languageOptions[0] ?? {
@@ -1380,6 +1432,12 @@ export function MaisonElyseQrMenu({
       label: activeLocale,
       shortLabel: activeLocale
     };
+  const phonePreviewLanguage = localeLanguage(activeLocale);
+  const PhonePreviewDishDetail =
+    PHONE_PREVIEW_DISH_DETAILS[
+      phonePreviewLanguage as keyof typeof PHONE_PREVIEW_DISH_DETAILS
+    ] ?? PHONE_PREVIEW_DISH_DETAILS.en;
+  const currentCurrency = getTrouvableCurrencyOption(activeCurrency);
   const prefersReducedMotion = usePrefersReducedMotion();
   const textDirection = getMaisonElyseTextDirection(activeLocale);
   const sheetPresence = useTransitionPresence(activeSheet, {
@@ -1391,11 +1449,17 @@ export function MaisonElyseQrMenu({
   const activeSheetLabel =
     renderedSheet === "language"
       ? copy.languageDialogLabel
-      : renderedSheet === "menu"
-        ? copy.menuDialogLabel
-        : copy.filterDialogLabel;
+      : renderedSheet === "currency"
+        ? copy.currencyDialogLabel
+        : renderedSheet === "menu"
+          ? copy.menuDialogLabel
+          : copy.filterDialogLabel;
   const activeSheetKicker =
-    renderedSheet === "menu" ? copy.sheetNavigation : copy.preferences;
+    renderedSheet === "menu"
+      ? copy.sheetNavigation
+      : renderedSheet === "currency"
+        ? copy.currencyKicker
+        : copy.preferences;
 
   function renderLanguageToggle(className = "") {
     return (
@@ -1409,6 +1473,26 @@ export function MaisonElyseQrMenu({
         type="button"
       >
         {currentLanguage.shortLabel}
+      </button>
+    );
+  }
+
+  function renderCurrencyToggle(className = "") {
+    const label = getTrouvableCurrencyOptionLabel(
+      currentCurrency,
+      activeLocale
+    );
+    return (
+      <button
+        aria-controls={sheetDialogId}
+        aria-expanded={activeSheet === "currency"}
+        aria-label={`${copy.currencyToggleAria} (${label})`}
+        className={`${styles.languageToggle} ${className}`}
+        disabled={isComparisonPreview || !canChangeCurrency}
+        onClick={(event) => toggleCurrencySheet(event.currentTarget)}
+        type="button"
+      >
+        {currentCurrency.code}
       </button>
     );
   }
@@ -1442,6 +1526,7 @@ export function MaisonElyseQrMenu({
           aria-labelledby={sheetHeadingId}
           aria-modal="true"
           className={styles.bottomSheet}
+          dir="ltr"
           id={sheetDialogId}
           onClick={(event) => event.stopPropagation()}
           onKeyDown={handleSheetKeyDown}
@@ -1450,7 +1535,7 @@ export function MaisonElyseQrMenu({
         >
           <div className={styles.sheetHandle} aria-hidden="true" />
           <div className={styles.sheetHeader}>
-            <div>
+            <div dir={textDirection}>
               <p className={styles.kicker}>{activeSheetKicker}</p>
               <h3 id={sheetHeadingId}>{activeSheetLabel}</h3>
             </div>
@@ -1469,7 +1554,7 @@ export function MaisonElyseQrMenu({
                 type="button"
                 onClick={showAll}
               >
-                <span>{copy.allMenu}</span>
+                <span dir={textDirection}>{copy.allMenu}</span>
               </button>
               {categories.map((category) => {
                 return (
@@ -1484,10 +1569,31 @@ export function MaisonElyseQrMenu({
                     type="button"
                     onClick={() => openCategoryInFullMenu(category.id)}
                   >
-                    <span>{displayCategoryLabel(category.label, activeLocale)}</span>
+                    <span dir={textDirection}>
+                      {displayCategoryLabel(category, activeLocale)}
+                    </span>
                   </button>
                 );
               })}
+            </div>
+          ) : renderedSheet === "currency" ? (
+            <div className={styles.sheetList}>
+              {availableCurrencyOptions.map((option) => (
+                <button
+                  aria-pressed={activeCurrency === option.code}
+                  className={
+                    activeCurrency === option.code ? styles.isActive : undefined
+                  }
+                  key={option.code}
+                  onClick={() => selectCurrency(option.code)}
+                  type="button"
+                >
+                  <span dir={textDirection}>
+                    {getTrouvableCurrencyOptionLabel(option, activeLocale)}
+                  </span>
+                  <small>{option.code}</small>
+                </button>
+              ))}
             </div>
           ) : renderedSheet === "language" ? (
             <div className={styles.sheetList}>
@@ -1501,7 +1607,7 @@ export function MaisonElyseQrMenu({
                   onClick={() => selectLanguage(option.id)}
                   type="button"
                 >
-                  <span>{option.label}</span>
+                  <span dir="auto">{option.label}</span>
                   <small>{option.shortLabel}</small>
                 </button>
               ))}
@@ -1514,13 +1620,14 @@ export function MaisonElyseQrMenu({
                   type="button"
                   onClick={resetFilters}
                 >
-                  {copy.resetFilters}
+                  <span dir={textDirection}>{copy.resetFilters}</span>
                 </button>
               ) : null}
               <div
                 className={styles.filterGrid}
                 role="group"
                 aria-label={copy.filterGroupLabel}
+                dir="ltr"
               >
                 {filterOptions.map((filter) => (
                   <button
@@ -1532,7 +1639,7 @@ export function MaisonElyseQrMenu({
                     onClick={() => toggleFilter(filter.id)}
                     type="button"
                   >
-                    {filter.label}
+                    <span dir={textDirection}>{filter.label}</span>
                   </button>
                 ))}
               </div>
@@ -1541,7 +1648,7 @@ export function MaisonElyseQrMenu({
                 onClick={() => setActiveSheet(null)}
                 type="button"
               >
-                {copy.apply}
+                <span dir={textDirection}>{copy.apply}</span>
               </button>
             </>
           )}
@@ -1560,6 +1667,8 @@ export function MaisonElyseQrMenu({
         locale={activeLocale}
         menu={activeMenu}
         config={config}
+        currency={activeCurrency}
+        exchangeRates={exchangeRates}
         onBackToMenu={closeDishInPhonePreview}
         query={activeQuery}
       />
@@ -1575,7 +1684,7 @@ export function MaisonElyseQrMenu({
       data-menu-ui="maison-elyse"
       data-public-menu-renderer="maison-elyse"
       lang={activeLocale}
-      dir={textDirection}
+      dir="ltr"
       data-text-direction={textDirection}
       style={maisonElyseThemeStyle(config)}
     >
@@ -1597,6 +1706,7 @@ export function MaisonElyseQrMenu({
                 <div className={styles.menuCoverTopbar}>
                   <span className={styles.menuRestaurantName}>{restaurantDisplayName}</span>
                   <div className={styles.menuTopbarActions}>
+                    {renderCurrencyToggle()}
                     {renderLanguageToggle()}
                     <button
                       aria-controls={sheetDialogId}
@@ -1623,7 +1733,7 @@ export function MaisonElyseQrMenu({
               {hasActiveFilter ? (
                 <div className={styles.activeFilterNotice} role="status">
                   <span dir={textDirection}>
-                    {copy.activeFilterPrefix} : {getFilterLabel(activeFilter, activeLocale)}
+                    {copy.activeFilterPrefix} : {getFilterLabel(activeFilter, activeLocale, copy)}
                   </span>
                   <button type="button" onClick={resetFilters}>
                     {copy.reset}
@@ -1637,9 +1747,12 @@ export function MaisonElyseQrMenu({
                     {visibleDishSections.map((section) => (
                       <DishSection
                         category={section.category}
+                        copy={copy}
+                        currency={activeCurrency}
                         descriptionDishes={section.descriptionDishes}
                         disableNavigation={isComparisonPreview}
                         dishes={section.dishes}
+                        exchangeRates={exchangeRates}
                         key={section.category.id}
                         locale={activeLocale}
                         menu={activeMenu}
@@ -1652,9 +1765,12 @@ export function MaisonElyseQrMenu({
                   selectedCategory ? (
                     <DishSection
                       category={selectedCategory}
+                      copy={copy}
+                      currency={activeCurrency}
                       descriptionDishes={baseDishes}
                       disableNavigation={isComparisonPreview}
                       dishes={visibleDishes}
+                      exchangeRates={exchangeRates}
                       locale={activeLocale}
                       menu={activeMenu}
                       onSelectDish={phonePreviewDishSelect}

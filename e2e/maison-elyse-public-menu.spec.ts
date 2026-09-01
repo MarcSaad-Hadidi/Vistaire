@@ -353,7 +353,7 @@ test.describe("Maison Elyse public QR menu", () => {
 
     await expect(page.getByRole("heading", { level: 1, name: /Homard bleu/i })).toBeVisible();
     await expect(page.getByRole("img", { name: /Image du plat Homard bleu/i })).toBeVisible();
-    await expect(page.getByText(/\$\s*104/)).toBeVisible();
+    await expect(page.getByText(/104\s*\$/)).toBeVisible();
     await expect(page.getByText("PLATS SIGNATURES")).toBeVisible();
     await expect(page.getByRole("heading", { name: /Ingr.dients/i })).toBeVisible();
     await expect(page.getByRole("heading", { name: /Allerg.nes/i })).toBeVisible();

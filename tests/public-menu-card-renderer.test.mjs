@@ -225,6 +225,14 @@ test("renders display media for a dish detail and thumbnail media for compact ro
 test("renders branded small and card surfaces without selecting display media", () => {
   const maisonMarkup = renderToStaticMarkup(
     React.createElement(MaisonElyseDishCard, {
+      copy: {
+        badgesAria: "Badges",
+        dishDetails: "Détails",
+        recommendation: "Recommandé",
+        signature: "Signature",
+        unavailableBadge: "Indisponible"
+      },
+      currency: "CAD",
       disableNavigation: true,
       dish: surfaceDish,
       locale: "fr-CA",

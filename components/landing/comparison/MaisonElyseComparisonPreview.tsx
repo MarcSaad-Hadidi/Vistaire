@@ -34,6 +34,7 @@ export function MaisonElyseComparisonPreview({
       locale={locale}
       localizedMenus={localizedMenus}
       menu={menu}
+      exchangeRates={menuUi.exchangeRates}
       query={menuUi.query}
       showGoogleReview={false}
     />
