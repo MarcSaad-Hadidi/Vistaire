@@ -1,0 +1,259 @@
+.estimator {
+  display: grid;
+  width: var(--pricing-width);
+  grid-template-columns: minmax(0, 1.15fr) minmax(320px, 0.85fr);
+  gap: 20px 36px;
+  align-items: center;
+  margin: 0 auto clamp(34px, 4vw, 52px);
+  border: 1px solid rgba(232, 207, 155, 0.34);
+  border-radius: 18px;
+  background:
+    linear-gradient(145deg, rgba(255, 250, 240, 0.07), rgba(255, 250, 240, 0.012) 44%),
+    rgba(9, 5, 3, 0.34);
+  padding: clamp(24px, 3.4vw, 42px);
+  box-shadow:
+    0 26px 66px rgba(0, 0, 0, 0.3),
+    inset 0 1px 0 rgba(255, 250, 240, 0.11);
+  -webkit-backdrop-filter: blur(10px) saturate(110%);
+  backdrop-filter: blur(10px) saturate(110%);
+}
+
+.estimatorCopy {
+  min-width: 0;
+}
+
+.estimatorCopy h2 {
+  max-width: 640px;
+  margin: 12px 0 0;
+  color: #fffaf0;
+  font-family: var(--pricing-display);
+  font-size: clamp(36px, 4vw, 54px);
+  font-weight: 400;
+  letter-spacing: -0.026em;
+  line-height: 0.98;
+  text-wrap: balance;
+}
+
+.question {
+  margin: 15px 0 0;
+  color: rgba(247, 234, 215, 0.78);
+  font-size: 13.5px;
+  line-height: 1.5;
+}
+
+.estimatorControl {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  align-items: center;
+}
+
+.stepper {
+  display: grid;
+  width: min(100%, 330px);
+  grid-template-columns: 52px minmax(0, 1fr) 52px;
+  align-items: stretch;
+  overflow: hidden;
+  border: 1px solid rgba(232, 207, 155, 0.48);
+  border-radius: 12px;
+  background: rgba(10, 6, 4, 0.56);
+  box-shadow: inset 0 1px 0 rgba(255, 250, 240, 0.07);
+}
+
+.stepperButton {
+  display: inline-flex;
+  min-width: 52px;
+  min-height: 52px;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  background: rgba(232, 207, 155, 0.05);
+  color: #f2d9a6;
+  cursor: pointer;
+  font-family: var(--pricing-body);
+  font-size: 24px;
+  line-height: 1;
+  transition:
+    background-color 160ms ease,
+    color 160ms ease;
+}
+
+.stepperButton:first-child {
+  border-right: 1px solid rgba(232, 207, 155, 0.2);
+}
+
+.stepperButton:last-child {
+  border-left: 1px solid rgba(232, 207, 155, 0.2);
+}
+
+.stepperButton:hover:not(:disabled) {
+  background: rgba(232, 207, 155, 0.13);
+  color: #fffaf0;
+}
+
+.stepperButton:disabled {
+  color: rgba(247, 234, 215, 0.26);
+  cursor: not-allowed;
+}
+
+.stepperButton:focus-visible,
+.tableInput:focus-visible {
+  position: relative;
+  z-index: 1;
+  outline: 2px solid rgba(232, 207, 155, 0.96);
+  outline-offset: -3px;
+}
+
+.inputLabel {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 0 9px;
+  color: #fffaf0;
+}
+
+.tableInput {
+  width: 76px;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  color: #fffaf0;
+  font-family: var(--pricing-display);
+  font-size: 30px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 400;
+  line-height: 1;
+  text-align: right;
+  appearance: textfield;
+}
+
+.tableInput::-webkit-inner-spin-button,
+.tableInput::-webkit-outer-spin-button {
+  margin: 0;
+  appearance: none;
+}
+
+.tableUnit {
+  color: rgba(247, 234, 215, 0.66);
+  font-size: 11px;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.summary {
+  min-height: 20px;
+  margin: 12px 0 0;
+  color: rgba(232, 207, 155, 0.9);
+  font-size: 11.5px;
+  line-height: 1.45;
+  text-align: center;
+}
+
+.disclaimer {
+  grid-column: 1 / -1;
+  margin: 0;
+  border-top: 1px solid rgba(232, 207, 155, 0.14);
+  padding-top: 18px;
+  color: rgba(247, 234, 215, 0.58);
+  font-size: 10.5px;
+  line-height: 1.55;
+  text-align: center;
+}
+
+.dynamicPricePrefix {
+  display: flex;
+  min-height: 29px;
+  align-items: flex-end;
+  justify-content: center;
+  line-height: 1.25;
+  text-align: center;
+}
+
+.dynamicSetupLabel {
+  min-height: 13px;
+}
+
+.priceValue {
+  font-variant-numeric: tabular-nums;
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  margin: -1px;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  clip-path: inset(50%);
+}
+
+@media (max-width: 900px) {
+  .estimator {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .estimatorCopy {
+    max-width: 700px;
+    text-align: center;
+    margin-inline: auto;
+  }
+
+  .estimatorCopy h2 {
+    margin-inline: auto;
+  }
+
+  .estimatorControl {
+    margin-top: 4px;
+  }
+}
+
+@media (max-width: 640px) {
+  .estimator {
+    gap: 22px;
+    border-radius: 16px;
+    padding: 26px 16px 20px;
+  }
+
+  .estimatorCopy h2 {
+    font-size: 40px;
+  }
+
+  .question {
+    font-size: 13px;
+  }
+
+  .stepper {
+    width: 100%;
+    grid-template-columns: 54px minmax(0, 1fr) 54px;
+  }
+
+  .stepperButton {
+    min-width: 54px;
+    min-height: 54px;
+  }
+
+  .tableInput {
+    width: min(82px, 36vw);
+    font-size: 29px;
+  }
+
+  .disclaimer {
+    padding-top: 16px;
+    text-align: left;
+  }
+}
+
+@supports not ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
+  .estimator {
+    background: rgba(21, 13, 8, 0.96);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stepperButton {
+    transition: none;
+  }
+}

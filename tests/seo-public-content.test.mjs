@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import "./pricing-table-estimator.test.mjs";
 
 const PUBLIC_SEO_COPY_TARGETS = [
   "components/seo/SeoGeoAeoPage.tsx",

@@ -2,7 +2,8 @@ import Image from "next/image";
 import Link from "next/link";
 import restaurantBackground from "@/Framer/PhotoRestoComplet5.png";
 import type { Locale } from "@/lib/i18n";
-import { getPricingPage, type PricingCollection } from "@/lib/pricingPage";
+import { getPricingPage } from "@/lib/pricingPage";
+import { PricingTableEstimator } from "./PricingTableEstimator";
 import { RestaurateurDashboardDemo } from "./RestaurateurDashboardDemo";
 import {
   getVistaireChromeRoutes,
@@ -14,8 +15,6 @@ import styles from "./VistairePricingPreview.module.css";
 
 const UI_COPY = {
   fr: {
-    startingAt: "À partir de",
-    setup: "Mise en place unique",
     collectionsLabel: "Collections physiques Vistaire",
     includedLabel: "Ce qui est inclus dans chaque offre Vistaire",
     pilotagePreview: "Aperçu du vrai dashboard Vistaire",
@@ -25,8 +24,6 @@ const UI_COPY = {
     variablesLabel: "Variables du devis"
   },
   en: {
-    startingAt: "Starting at",
-    setup: "One-time setup",
     collectionsLabel: "Vistaire physical collections",
     includedLabel: "What every Vistaire offer includes",
     pilotagePreview: "Preview of the real Vistaire dashboard",
@@ -62,60 +59,6 @@ function CheckIcon() {
         strokeWidth="1.35"
       />
     </svg>
-  );
-}
-
-function CollectionCard({
-  collection,
-  locale
-}: {
-  collection: PricingCollection;
-  locale: Locale;
-}) {
-  const copy = UI_COPY[locale];
-  const displayName = collection.name.replace(/^Vistaire\s/, "");
-
-  return (
-    <article
-      className={
-        collection.featured
-          ? `${styles.collectionCard} ${styles.collectionCardFeatured}`
-          : styles.collectionCard
-      }
-      data-pricing-collection={collection.id}
-      id={`collection-${collection.id}`}
-    >
-      <header className={styles.collectionHeader}>
-        <p>{collection.label}</p>
-        <h2 aria-label={collection.name}>{displayName}</h2>
-        <span>{collection.positioning}</span>
-      </header>
-
-      <figure className={styles.collectionVisual}>
-        <Image
-          alt={collection.imageAlt}
-          className={styles.collectionImage}
-          fill
-          quality={90}
-          sizes="(max-width: 767px) calc(100vw - 40px), (max-width: 1099px) 45vw, 24vw"
-          src={collection.image}
-          style={{ objectPosition: collection.imagePosition }}
-        />
-        <span aria-hidden="true" className={styles.collectionImageShade} />
-      </figure>
-
-      <div className={styles.collectionDetails}>
-        <p className={styles.pricePrefix}>{copy.startingAt}</p>
-        <p className={styles.setupPrice}>{collection.setupPrice}</p>
-        <p className={styles.setupLabel}>{copy.setup}</p>
-        <p className={styles.monthlyPrice}>{collection.monthlyPrice}</p>
-        <p className={styles.collectionDescription}>{collection.description}</p>
-        <Link className={styles.collectionLink} href={collection.cta.href} prefetch={false}>
-          {collection.cta.label}
-          <ArrowIcon />
-        </Link>
-      </div>
-    </article>
   );
 }
 
@@ -160,11 +103,7 @@ export function VistairePricingPreview({
       </section>
 
       <section aria-label={copy.collectionsLabel} className={styles.collectionsSection}>
-        <div className={styles.collectionGrid}>
-          {page.collections.map((collection) => (
-            <CollectionCard collection={collection} key={collection.id} locale={locale} />
-          ))}
-        </div>
+        <PricingTableEstimator collections={page.collections} locale={locale} />
       </section>
 
       <section
