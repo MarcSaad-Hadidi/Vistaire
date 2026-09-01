@@ -381,7 +381,10 @@ test("Maison Elyse server context loads every ready locale for reload persistenc
   assert.match(source, /translationLocales/);
   assert.match(source, /settings\.supportedLocales\.filter/);
   assert.match(source, /status === "up_to_date"/);
-  assert.match(source, /getPublicMenuBySlug\(slug, candidate\)/);
+  assert.match(
+    source,
+    /getPublicMenuBySlug\(\s*slug,\s*candidate,[\s\S]*?bypassMaisonE2eFixture/
+  );
 });
 
 test("Maison menu root and text zones follow the resolved menu direction", async () => {

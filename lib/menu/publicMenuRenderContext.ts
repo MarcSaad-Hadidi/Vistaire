@@ -11,7 +11,10 @@ import {
   type MenuUiConfigRecord,
   type MenuUiConfigRow
 } from "@/lib/menu/menuUiConfig";
-import { getPublicMenuBySlug } from "@/lib/menu/publicMenu";
+import {
+  getPublicMenuBySlug,
+  type PublicMenuReadOptions
+} from "@/lib/menu/publicMenu";
 import {
   type PublicMenu,
   type PublicMenuContextQuery
@@ -114,10 +117,12 @@ async function getPublishedMenuUiConfigForRestaurantWithReadState(
 
 async function resolvePublicMenuBaseRenderContext({
   query,
-  slug
+  slug,
+  publicMenuReadOptions = {}
 }: {
   query: PublicMenuRenderQuery;
   slug: string;
+  publicMenuReadOptions?: PublicMenuReadOptions;
 }): Promise<{
   renderContext: PublicMenuBaseRenderContext;
   publishedUiConfig: boolean;
@@ -126,7 +131,9 @@ async function resolvePublicMenuBaseRenderContext({
     typeof query.lang === "string" && query.lang.trim().length > 0;
   const initialMenu = await getPublicMenuBySlug(
     slug,
-    hasLangParam ? query.lang : undefined
+    hasLangParam ? query.lang : undefined,
+    undefined,
+    publicMenuReadOptions
   );
   if (!initialMenu) return null;
 
@@ -232,7 +239,8 @@ export function arePublicMenuTranslationsReadyForStableCache(
 
 async function resolveLocalizedMenus(
   renderContext: PublicMenuBaseRenderContext,
-  slug: string
+  slug: string,
+  publicMenuReadOptions: PublicMenuReadOptions = {}
 ): Promise<{
   localizedMenus: Partial<Record<PublicMenuLocale, PublicMenu>>;
   complete: boolean;
@@ -258,7 +266,12 @@ async function resolveLocalizedMenus(
       const resolved =
         candidate === renderContext.publicLocale
           ? renderContext.menu
-          : await getPublicMenuBySlug(slug, candidate);
+          : await getPublicMenuBySlug(
+              slug,
+              candidate,
+              undefined,
+              publicMenuReadOptions
+            );
       if (!resolved?.activeLocale) {
         return { cacheReady: false, entry: null };
       }
@@ -326,10 +339,23 @@ export async function resolvePublicMenuStableRenderContext({
   query: PublicMenuRenderQuery;
   slug: string;
 }): Promise<PublicMenuStableRenderContext | null> {
-  const base = await resolvePublicMenuBaseRenderContext({ query, slug });
+  // The landing graph must read the Supabase-backed card even when the E2E
+  // public-menu matrix enables its complete tracked Maison demo fixture.
+  const publicMenuReadOptions: PublicMenuReadOptions = {
+    bypassMaisonE2eFixture: true
+  };
+  const base = await resolvePublicMenuBaseRenderContext({
+    query,
+    slug,
+    publicMenuReadOptions
+  });
   if (!base) return null;
   const { renderContext } = base;
-  const localized = await resolveLocalizedMenus(renderContext, slug);
+  const localized = await resolveLocalizedMenus(
+    renderContext,
+    slug,
+    publicMenuReadOptions
+  );
 
   return {
     ...renderContext,

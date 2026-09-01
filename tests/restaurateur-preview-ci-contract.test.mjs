@@ -11,7 +11,6 @@ const root = new URL("../", import.meta.url);
 const read = (path) => readFile(new URL(path, root), "utf8");
 const packageJson = JSON.parse(await read("package.json"));
 const workflow = await read(".github/workflows/app-ci.yml");
-const webkitCriticalRunner = await read("scripts/run-webkit-critical-e2e.mjs");
 
 const previewOwnedPaths = [
   "app/(fr)/apercu-restaurateur/page.tsx",
@@ -68,26 +67,18 @@ test("every shared Prompt 7 dependency selects public Chromium and critical WebK
 });
 
 test("the Prompt 7 browser contract executes with fail-closed CI options", () => {
-  const coreScript = packageJson.scripts?.["test:ci:e2e:core"];
-  const webkitScript = packageJson.scripts?.["test:ci:e2e:webkit"];
+  for (const scriptName of ["test:ci:e2e:core", "test:ci:e2e:webkit"]) {
+    const script = packageJson.scripts?.[scriptName];
+    assert.equal(typeof script, "string", `${scriptName} must exist`);
+    assert.match(script, /e2e\/restaurateur-preview\.spec\.ts/);
+    assert.match(script, /--workers=1/);
+    assert.match(script, /--retries=0/);
+    assert.match(script, /--forbid-only/);
+    assert.match(script, /forbid-skipped-tests-reporter\.ts/);
+  }
 
-  assert.equal(typeof coreScript, "string", "test:ci:e2e:core must exist");
-  assert.match(coreScript, /e2e\/restaurateur-preview\.spec\.ts/);
-  assert.match(coreScript, /--project=chromium/);
-  assert.match(coreScript, /--workers=1/);
-  assert.match(coreScript, /--retries=0/);
-  assert.match(coreScript, /--forbid-only/);
-  assert.match(coreScript, /forbid-skipped-tests-reporter\.ts/);
-
-  assert.equal(typeof webkitScript, "string", "test:ci:e2e:webkit must exist");
-  assert.match(webkitScript, /scripts\/run-webkit-critical-e2e\.mjs/);
-  assert.match(webkitScript, /scripts\/run-playwright-e2e\.mjs/);
-  assert.match(webkitCriticalRunner, /e2e\/restaurateur-preview\.spec\.ts/);
-  assert.match(webkitCriticalRunner, /--project=webkit/);
-  assert.match(webkitCriticalRunner, /--workers=1/);
-  assert.match(webkitCriticalRunner, /--retries=0/);
-  assert.match(webkitCriticalRunner, /--forbid-only/);
-  assert.match(webkitCriticalRunner, /forbid-skipped-tests-reporter\.ts/);
+  assert.match(packageJson.scripts["test:ci:e2e:core"], /--project=chromium/);
+  assert.match(packageJson.scripts["test:ci:e2e:webkit"], /--project=webkit/);
 });
 
 test("Prompt 7 Node contracts run in static-quality and the execution lock runs before install", () => {
