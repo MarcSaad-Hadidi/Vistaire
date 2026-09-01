@@ -1,0 +1,3 @@
+select pg_temp.assert_true(('2026-11-01 01:30 EDT'::timestamptz) <> ('2026-11-01 01:30 EST'::timestamptz),'Toronto fold has two absolute instants');
+select pg_temp.assert_true((('2026-11-01 01:30 EDT'::timestamptz) at time zone 'America/Toronto') = (('2026-11-01 01:30 EST'::timestamptz) at time zone 'America/Toronto'),'both fold instants display at the requested local time');
+select pg_temp.assert_true((('2026-03-08 02:30'::timestamp at time zone 'America/Toronto') at time zone 'America/Toronto') <> '2026-03-08 02:30'::timestamp,'Toronto gap cannot round-trip and must be rejected before persistence');
