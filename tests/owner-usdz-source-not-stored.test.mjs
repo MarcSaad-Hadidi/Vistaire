@@ -1744,6 +1744,30 @@ test("physical scale targets use footprint for solid dishes and height for burge
   assert.doesNotMatch(blenderOptimizer, /"platter": \{"dimension": "width"/);
 });
 
+test("physical scale targets match the approved Vistaire preset sizes", () => {
+  const expectedTargets = {
+    burger: { dimension: "height", targetMeters: 0.15, minMeters: 0.10, maxMeters: 0.22 },
+    pizza: { dimension: "footprint", targetMeters: 0.32, minMeters: 0.22, maxMeters: 0.40 },
+    plate: { dimension: "footprint", targetMeters: 0.18, minMeters: 0.17, maxMeters: 0.19 },
+    bowl: { dimension: "footprint", targetMeters: 0.18, minMeters: 0.12, maxMeters: 0.25 },
+    dessert: { dimension: "footprint", targetMeters: 0.12, minMeters: 0.08, maxMeters: 0.18 },
+    drink: { dimension: "height", targetMeters: 0.18, minMeters: 0.12, maxMeters: 0.25 },
+    platter: { dimension: "footprint", targetMeters: 0.32, minMeters: 0.22, maxMeters: 0.45 },
+    fallback: { dimension: "footprint", targetMeters: 0.15, minMeters: 0.14, maxMeters: 0.16 }
+  };
+  const pythonTargets = extractPhysicalScaleTargets(worker, "DISH_PHYSICAL_SCALE_TARGETS");
+  const blenderTargets = extractPhysicalScaleTargets(blenderOptimizer, "DISH_SCALE_TARGETS");
+
+  assert.deepEqual(pythonTargets, expectedTargets);
+  assert.deepEqual(blenderTargets, expectedTargets);
+  assert.deepEqual(pythonTargets.dessert, {
+    dimension: "footprint",
+    targetMeters: 0.12,
+    minMeters: 0.08,
+    maxMeters: 0.18
+  });
+});
+
 test("Blender and Python physical scale target maps stay in parity", () => {
   assert.deepEqual(
     extractPhysicalScaleTargets(blenderOptimizer, "DISH_SCALE_TARGETS"),
