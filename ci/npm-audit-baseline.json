@@ -2,5 +2,30 @@
   "schema_version": 1,
   "owner": "Vistaire maintainers",
   "lockfile_sha256": "92f1130dacb88a346a59787768bd1efeaf224979350a7aa33ad11adddf4ed8d6",
-  "entries": []
+  "entries": [
+    {
+      "advisory_id": "GHSA-73wf-gq98-2v4g",
+      "package": "browserslist",
+      "dependency_path": "node_modules/browserslist",
+      "scope": "dev",
+      "severity": "high",
+      "exploitability": "Build-time only in Vistaire: requires attacker-controlled browserslist-stats.json input; browserslist is dev-only and is not shipped in the production runtime.",
+      "owner": "Vistaire maintainers",
+      "issue": "#227",
+      "reason": "Temporary, explicit risk acceptance while the npm lockfile is regenerated with browserslist >= 4.28.7. Runtime exposure is absent; CI remains read-only for PR-controlled code.",
+      "expires_on": "2026-09-08"
+    },
+    {
+      "advisory_id": "GHSA-c83g-rgw3-j3cx",
+      "package": "browserslist",
+      "dependency_path": "node_modules/browserslist",
+      "scope": "dev",
+      "severity": "high",
+      "exploitability": "Build-time only in Vistaire: the reported memory-growth path requires sustained attacker-controlled distinct Browserslist queries, while Vistaire build tooling uses static project configuration.",
+      "owner": "Vistaire maintainers",
+      "issue": "#227",
+      "reason": "Temporary, explicit risk acceptance while the npm lockfile is regenerated with browserslist >= 4.28.7. The package is dev-only and not part of the deployed runtime.",
+      "expires_on": "2026-09-08"
+    }
+  ]
 }
