@@ -30,6 +30,16 @@ export function parsePrivacyConsent(raw: string | null): PrivacyConsent | null {
   }
 }
 
+export function clearVistaireAnalyticsSession(): void {
+  if (typeof window === "undefined") return;
+
+  try {
+    window.sessionStorage.removeItem(VISTAIRE_ANALYTICS_SESSION_KEY);
+  } catch {
+    // Storage can be unavailable in hardened/private browser contexts.
+  }
+}
+
 export function readPrivacyConsent(): PrivacyConsent | null {
   if (typeof window === "undefined") return null;
 
@@ -57,7 +67,7 @@ export function writePrivacyConsent(analytics: boolean): PrivacyConsent | null {
     );
 
     if (!analytics) {
-      window.sessionStorage.removeItem(VISTAIRE_ANALYTICS_SESSION_KEY);
+      clearVistaireAnalyticsSession();
     }
 
     window.dispatchEvent(

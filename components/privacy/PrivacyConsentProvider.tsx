@@ -12,7 +12,7 @@ import type { Locale } from "@/lib/i18n";
 import {
   PRIVACY_CONSENT_CHANGED_EVENT,
   PRIVACY_CONSENT_STORAGE_KEY,
-  VISTAIRE_ANALYTICS_SESSION_KEY,
+  clearVistaireAnalyticsSession,
   parsePrivacyConsent,
   readPrivacyConsent,
   writePrivacyConsent,
@@ -52,7 +52,7 @@ export function PrivacyConsentProvider({
       if (event.key !== PRIVACY_CONSENT_STORAGE_KEY) return;
       const nextConsent = parsePrivacyConsent(event.newValue);
       if (nextConsent?.analytics !== true) {
-        window.sessionStorage.removeItem(VISTAIRE_ANALYTICS_SESSION_KEY);
+        clearVistaireAnalyticsSession();
       }
       setConsent(nextConsent);
     };

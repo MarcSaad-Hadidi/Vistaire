@@ -72,8 +72,7 @@ test("the shared document shell owns one privacy consent provider", async () => 
 
   assert.match(provider, /createContext/);
   assert.match(provider, /PrivacyConsentBanner/);
-  assert.match(provider, /VISTAIRE_ANALYTICS_SESSION_KEY/);
-  assert.match(provider, /sessionStorage\.removeItem\(VISTAIRE_ANALYTICS_SESSION_KEY\)/);
+  assert.match(provider, /clearVistaireAnalyticsSession/);
   assert.equal(shell.match(/<PrivacyConsentProvider/g)?.length ?? 0, 1);
   assert.equal(shell.match(/<\/PrivacyConsentProvider>/g)?.length ?? 0, 1);
   assert.match(shell, /locale=\{locale\}/);
@@ -123,7 +122,8 @@ test("public legal and privacy controls are discoverable before collection in bo
   assert.match(contactNotice, /politique-de-confidentialite/);
   assert.match(contactNotice, /privacy-policy/);
   assert.ok(
-    contactNotice.indexOf("privacyHref") < contactNotice.indexOf("<VistaireContactForm"),
+    contactNotice.indexOf("<p className={styles.formNote}>") <
+      contactNotice.indexOf("<VistaireContactForm"),
     "privacy notice must be rendered before the contact form"
   );
 
