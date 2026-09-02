@@ -64,6 +64,20 @@ test("privacy consent defaults to no analytics until an explicit valid choice ex
   );
 });
 
+test("privacy controls stay available on sign-in while internal app routes remain excluded", async () => {
+  const { shouldShowPrivacyControls } = await import(
+    "../lib/privacy/privacyRoutes.ts"
+  );
+
+  assert.equal(shouldShowPrivacyControls("/"), true);
+  assert.equal(shouldShowPrivacyControls("/sign-in"), true);
+  assert.equal(shouldShowPrivacyControls("/sign-in/verify"), true);
+  assert.equal(shouldShowPrivacyControls("/admin"), false);
+  assert.equal(shouldShowPrivacyControls("/admin/restaurants"), false);
+  assert.equal(shouldShowPrivacyControls("/owner"), false);
+  assert.equal(shouldShowPrivacyControls("/todos/123"), false);
+});
+
 test("the shared document shell owns one privacy consent provider", async () => {
   const [provider, shell] = await Promise.all([
     readSource(providerPath),
@@ -121,6 +135,7 @@ test("public legal and privacy controls are discoverable before collection in bo
   assert.match(utilityBar, /conditions-utilisation/);
   assert.match(utilityBar, /terms-of-use/);
   assert.match(utilityBar, /PrivacySettingsButton/);
+  assert.match(utilityBar, /shouldShowPrivacyControls/);
   assert.match(contactNotice, /politique-de-confidentialite/);
   assert.match(contactNotice, /privacy-policy/);
   assert.ok(

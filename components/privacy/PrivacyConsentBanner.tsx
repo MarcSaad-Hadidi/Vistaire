@@ -3,9 +3,9 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
-import { shouldLoadMicrosoftClarity } from "@/lib/analytics/microsoftClarityRoutes";
 import type { Locale } from "@/lib/i18n";
 import type { PrivacyConsent } from "@/lib/privacy/consent";
+import { shouldShowPrivacyControls } from "@/lib/privacy/privacyRoutes";
 import styles from "./PrivacyConsent.module.css";
 
 const copy = {
@@ -69,7 +69,7 @@ export function PrivacyConsentBanner({
   const privacyHref =
     locale === "en" ? "/en/privacy-policy" : "/politique-de-confidentialite";
 
-  if (!shouldLoadMicrosoftClarity(pathname)) return null;
+  if (!shouldShowPrivacyControls(pathname)) return null;
 
   return (
     <section
