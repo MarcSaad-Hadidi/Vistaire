@@ -48,7 +48,7 @@ export default function PolitiqueConfidentialitePage() {
         </p>
         <h3>Données techniques et de sécurité</h3>
         <p>
-          Des renseignements techniques nécessaires au fonctionnement et à la sécurité peuvent être traités, par exemple des en-têtes de requête, l’adresse IP ou des journaux techniques. Le formulaire Vistaire utilise notamment une information dérivée de l’adresse IP de façon transitoire pour limiter les abus et les envois excessifs.
+          Des renseignements techniques nécessaires au fonctionnement et à la sécurité peuvent être traités, par exemple des en-têtes de requête, l’adresse IP ou des journaux techniques. Le formulaire Vistaire peut utiliser l’adresse IP de façon transitoire pour limiter les abus et les envois excessifs.
         </p>
         <h3>Analyse facultative</h3>
         <p>

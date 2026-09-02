@@ -48,7 +48,7 @@ export default function PrivacyPolicyPage() {
         </p>
         <h3>Technical and security information</h3>
         <p>
-          Technical information required to operate and secure the service may be processed, including request headers, IP addresses or technical logs. The Vistaire contact form uses information derived from the IP address transiently to reduce abuse and excessive submissions.
+          Technical information required to operate and secure the service may be processed, including request headers, IP addresses or technical logs. The Vistaire contact form may use the IP address transiently to reduce abuse and excessive submissions.
         </p>
         <h3>Optional analytics</h3>
         <p>
