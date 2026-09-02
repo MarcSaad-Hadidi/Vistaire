@@ -40,16 +40,18 @@ export function clearVistaireAnalyticsSession(): void {
   }
 }
 
-export function readPrivacyConsent(): PrivacyConsent | null {
+export function readPrivacyConsentRaw(): string | null {
   if (typeof window === "undefined") return null;
 
   try {
-    return parsePrivacyConsent(
-      window.localStorage.getItem(PRIVACY_CONSENT_STORAGE_KEY)
-    );
+    return window.localStorage.getItem(PRIVACY_CONSENT_STORAGE_KEY);
   } catch {
     return null;
   }
+}
+
+export function readPrivacyConsent(): PrivacyConsent | null {
+  return parsePrivacyConsent(readPrivacyConsentRaw());
 }
 
 export function writePrivacyConsent(analytics: boolean): PrivacyConsent | null {

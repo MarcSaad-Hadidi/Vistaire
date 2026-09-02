@@ -3,9 +3,9 @@
 import {
   createContext,
   useContext,
-  useEffect,
   useMemo,
   useState,
+  useSyncExternalStore,
   type ReactNode
 } from "react";
 import type { Locale } from "@/lib/i18n";
@@ -14,7 +14,7 @@ import {
   PRIVACY_CONSENT_STORAGE_KEY,
   clearVistaireAnalyticsSession,
   parsePrivacyConsent,
-  readPrivacyConsent,
+  readPrivacyConsentRaw,
   writePrivacyConsent,
   type PrivacyConsent
 } from "@/lib/privacy/consent";
@@ -33,6 +33,41 @@ const PrivacyConsentContext = createContext<PrivacyConsentContextValue | null>(
   null
 );
 
+function subscribeToPrivacyConsent(onStoreChange: () => void) {
+  const syncFromStorage = (event: StorageEvent) => {
+    if (event.key !== PRIVACY_CONSENT_STORAGE_KEY) return;
+    if (parsePrivacyConsent(event.newValue)?.analytics !== true) {
+      clearVistaireAnalyticsSession();
+    }
+    onStoreChange();
+  };
+  const syncFromCustomEvent = () => onStoreChange();
+
+  window.addEventListener("storage", syncFromStorage);
+  window.addEventListener(PRIVACY_CONSENT_CHANGED_EVENT, syncFromCustomEvent);
+
+  return () => {
+    window.removeEventListener("storage", syncFromStorage);
+    window.removeEventListener(PRIVACY_CONSENT_CHANGED_EVENT, syncFromCustomEvent);
+  };
+}
+
+function subscribeToHydration() {
+  return () => undefined;
+}
+
+function getHydratedSnapshot() {
+  return true;
+}
+
+function getServerHydratedSnapshot() {
+  return false;
+}
+
+function getServerConsentSnapshot() {
+  return null;
+}
+
 export function PrivacyConsentProvider({
   children,
   locale
@@ -40,41 +75,18 @@ export function PrivacyConsentProvider({
   children: ReactNode;
   locale: Locale;
 }) {
-  const [consent, setConsent] = useState<PrivacyConsent | null>(null);
-  const [hydrated, setHydrated] = useState(false);
+  const rawConsent = useSyncExternalStore(
+    subscribeToPrivacyConsent,
+    readPrivacyConsentRaw,
+    getServerConsentSnapshot
+  );
+  const hydrated = useSyncExternalStore(
+    subscribeToHydration,
+    getHydratedSnapshot,
+    getServerHydratedSnapshot
+  );
+  const consent = useMemo(() => parsePrivacyConsent(rawConsent), [rawConsent]);
   const [preferencesOpen, setPreferencesOpen] = useState(false);
-
-  useEffect(() => {
-    setConsent(readPrivacyConsent());
-    setHydrated(true);
-
-    const syncFromStorage = (event: StorageEvent) => {
-      if (event.key !== PRIVACY_CONSENT_STORAGE_KEY) return;
-      const nextConsent = parsePrivacyConsent(event.newValue);
-      if (nextConsent?.analytics !== true) {
-        clearVistaireAnalyticsSession();
-      }
-      setConsent(nextConsent);
-    };
-    const syncFromCustomEvent = (event: Event) => {
-      const nextConsent = (event as CustomEvent<PrivacyConsent>).detail;
-      if (nextConsent) setConsent(nextConsent);
-    };
-
-    window.addEventListener("storage", syncFromStorage);
-    window.addEventListener(
-      PRIVACY_CONSENT_CHANGED_EVENT,
-      syncFromCustomEvent as EventListener
-    );
-
-    return () => {
-      window.removeEventListener("storage", syncFromStorage);
-      window.removeEventListener(
-        PRIVACY_CONSENT_CHANGED_EVENT,
-        syncFromCustomEvent as EventListener
-      );
-    };
-  }, []);
 
   const value = useMemo<PrivacyConsentContextValue>(
     () => ({
@@ -85,12 +97,7 @@ export function PrivacyConsentProvider({
       openPreferences: () => setPreferencesOpen(true),
       saveAnalyticsConsent: (analytics: boolean) => {
         const persisted = writePrivacyConsent(analytics);
-        setConsent(
-          persisted ?? {
-            version: 1,
-            analytics: false
-          }
-        );
+        if (!persisted) return;
         setPreferencesOpen(false);
       }
     }),

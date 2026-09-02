@@ -72,7 +72,9 @@ test("the shared document shell owns one privacy consent provider", async () => 
 
   assert.match(provider, /createContext/);
   assert.match(provider, /PrivacyConsentBanner/);
+  assert.match(provider, /useSyncExternalStore/);
   assert.match(provider, /clearVistaireAnalyticsSession/);
+  assert.doesNotMatch(provider, /useEffect/);
   assert.equal(shell.match(/<PrivacyConsentProvider/g)?.length ?? 0, 1);
   assert.equal(shell.match(/<\/PrivacyConsentProvider>/g)?.length ?? 0, 1);
   assert.match(shell, /locale=\{locale\}/);
