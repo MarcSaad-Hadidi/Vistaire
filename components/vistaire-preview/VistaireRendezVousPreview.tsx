@@ -36,7 +36,7 @@ export function VistaireRendezVousPreview({
           directContact: "Direct contact",
           back: "Back to contact",
           privacyPrefix:
-            "By sending this form, you acknowledge that your request will be handled as described in our",
+            "Before using this form, please review how Vistaire handles the information you provide in our",
           privacyLink: "Privacy policy"
         }
       : {
@@ -53,7 +53,7 @@ export function VistaireRendezVousPreview({
           directContact: "Contact direct",
           back: "Retour au contact",
           privacyPrefix:
-            "En envoyant ce formulaire, vous reconnaissez que votre demande sera traitée comme décrit dans notre",
+            "Avant d’utiliser ce formulaire, consultez la façon dont Vistaire traite les renseignements que vous fournissez dans notre",
           privacyLink: "Politique de confidentialité"
         };
   const privacyHref =
@@ -107,7 +107,6 @@ export function VistaireRendezVousPreview({
                 <p>{copy.exchangeBody}</p>
               </section>
 
-              <VistaireContactForm locale={locale} />
               <p className={styles.formNote}>
                 {copy.privacyPrefix}{" "}
                 <Link href={privacyHref} prefetch={false}>
@@ -115,6 +114,7 @@ export function VistaireRendezVousPreview({
                 </Link>
                 .
               </p>
+              <VistaireContactForm locale={locale} />
 
               <div className={styles.directContact} aria-label="Contact direct">
                 <span>{copy.directContact}</span>

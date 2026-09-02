@@ -87,9 +87,6 @@ export default function PolitiqueConfidentialitePage() {
         <p>
           Lorsque vous acceptez l’analyse, des données d’utilisation peuvent être communiquées à <strong>Microsoft Clarity</strong>. Selon la fonctionnalité utilisée, Vistaire peut aussi s’appuyer sur des fournisseurs techniques d’hébergement, de base de données ou d’authentification, notamment Vercel, Supabase et Clerk, uniquement dans la mesure nécessaire à l’exploitation du service concerné.
         </p>
-        <p>
-          Nous ne vendons pas les renseignements personnels recueillis par le site.
-        </p>
       </section>
 
       <section>

@@ -87,7 +87,6 @@ export default function PrivacyPolicyPage() {
         <p>
           When you accept analytics, usage data may be disclosed to <strong>Microsoft Clarity</strong>. Depending on the feature used, Vistaire may also rely on technical hosting, database or authentication providers, including Vercel, Supabase and Clerk, only to the extent needed to operate the relevant service.
         </p>
-        <p>We do not sell personal information collected through the website.</p>
       </section>
 
       <section>

@@ -12,6 +12,7 @@ import type { Locale } from "@/lib/i18n";
 import {
   PRIVACY_CONSENT_CHANGED_EVENT,
   PRIVACY_CONSENT_STORAGE_KEY,
+  VISTAIRE_ANALYTICS_SESSION_KEY,
   parsePrivacyConsent,
   readPrivacyConsent,
   writePrivacyConsent,
@@ -49,7 +50,11 @@ export function PrivacyConsentProvider({
 
     const syncFromStorage = (event: StorageEvent) => {
       if (event.key !== PRIVACY_CONSENT_STORAGE_KEY) return;
-      setConsent(parsePrivacyConsent(event.newValue));
+      const nextConsent = parsePrivacyConsent(event.newValue);
+      if (nextConsent?.analytics !== true) {
+        window.sessionStorage.removeItem(VISTAIRE_ANALYTICS_SESSION_KEY);
+      }
+      setConsent(nextConsent);
     };
     const syncFromCustomEvent = (event: Event) => {
       const nextConsent = (event as CustomEvent<PrivacyConsent>).detail;
