@@ -1,6 +1,6 @@
 "use client";
 
-import { hasAnalyticsConsent } from "@/lib/privacy/consent";
+import { hasAnalyticsConsent } from "../privacy/consent.ts";
 import type {
   AnalyticsEventName,
   AnalyticsEventPayload
