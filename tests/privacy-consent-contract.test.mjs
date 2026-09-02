@@ -2,7 +2,6 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
-const consentPath = new URL("../lib/privacy/consent.ts", import.meta.url);
 const providerPath = new URL(
   "../components/privacy/PrivacyConsentProvider.tsx",
   import.meta.url
