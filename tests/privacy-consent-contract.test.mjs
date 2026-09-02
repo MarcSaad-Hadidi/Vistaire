@@ -15,12 +15,12 @@ const shellPath = new URL(
   "../components/layout/VistaireDocumentShell.tsx",
   import.meta.url
 );
-const footerPath = new URL(
-  "../components/vistaire-preview/VistairePreviewChrome.tsx",
+const utilityBarPath = new URL(
+  "../components/privacy/PrivacyUtilityBar.tsx",
   import.meta.url
 );
-const contactFormPath = new URL(
-  "../components/vistaire-preview/VistaireContactForm.tsx",
+const contactNoticePath = new URL(
+  "../components/vistaire-preview/VistaireRendezVousPreview.tsx",
   import.meta.url
 );
 const privacyFrPath = new URL(
@@ -103,23 +103,23 @@ test("Vistaire first-party menu analytics is also opt-in", async () => {
 });
 
 test("public legal and privacy controls are discoverable in both languages", async () => {
-  const [footer, contactForm, privacyFr, privacyEn, termsFr, termsEn] =
+  const [utilityBar, contactNotice, privacyFr, privacyEn, termsFr, termsEn] =
     await Promise.all([
-      readSource(footerPath),
-      readSource(contactFormPath),
+      readSource(utilityBarPath),
+      readSource(contactNoticePath),
       readSource(privacyFrPath),
       readSource(privacyEnPath),
       readSource(termsFrPath),
       readSource(termsEnPath)
     ]);
 
-  assert.match(footer, /politique-de-confidentialite/);
-  assert.match(footer, /privacy-policy/);
-  assert.match(footer, /conditions-utilisation/);
-  assert.match(footer, /terms-of-use/);
-  assert.match(footer, /PrivacySettingsButton/);
-  assert.match(contactForm, /politique-de-confidentialite/);
-  assert.match(contactForm, /privacy-policy/);
+  assert.match(utilityBar, /politique-de-confidentialite/);
+  assert.match(utilityBar, /privacy-policy/);
+  assert.match(utilityBar, /conditions-utilisation/);
+  assert.match(utilityBar, /terms-of-use/);
+  assert.match(utilityBar, /PrivacySettingsButton/);
+  assert.match(contactNotice, /politique-de-confidentialite/);
+  assert.match(contactNotice, /privacy-policy/);
 
   for (const source of [privacyFr, privacyEn]) {
     assert.match(source, /Microsoft Clarity/);

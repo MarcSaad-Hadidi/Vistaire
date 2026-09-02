@@ -1,5 +1,6 @@
 "use client";
 
+import { hasAnalyticsConsent } from "@/lib/privacy/consent";
 import type {
   AnalyticsEventName,
   AnalyticsEventPayload
@@ -89,6 +90,8 @@ function getViewport(): AnalyticsEventPayload["viewport"] {
 
 export function trackMenuEvent(input: TrackMenuEventInput): void {
   if (typeof window === "undefined") return;
+  if (!hasAnalyticsConsent()) return;
+
   const source = input.source ?? "demo";
   const restaurantId =
     input.restaurantId ?? (source === "demo" ? DEMO_RESTAURANT_ID : undefined);
