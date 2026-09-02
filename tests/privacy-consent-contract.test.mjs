@@ -93,7 +93,7 @@ test("Microsoft Clarity is gated by explicit analytics consent and signals conse
 test("Vistaire first-party menu analytics is also opt-in", async () => {
   const source = await readSource(analyticsClientPath);
   const consentCheck = source.indexOf("hasAnalyticsConsent()");
-  const sessionRead = source.indexOf("getSessionId()");
+  const sessionRead = source.indexOf("sessionId: getSessionId()");
   const analyticsFetch = source.indexOf('fetch("/api/analytics/events"');
 
   assert.match(source, /import\s+\{\s*hasAnalyticsConsent\s*\}/);
