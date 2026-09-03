@@ -24,7 +24,7 @@ const COPY = {
     tables: "tables",
     decrease: "Réduire le nombre de tables",
     increase: "Augmenter le nombre de tables",
-    included: "20 supports personnalisés inclus",
+    included: "Jusqu’à 20 supports personnalisés inclus",
     includedWithExtras: (extraTables: number) =>
       `20 supports inclus · ${extraTables} support${extraTables > 1 ? "s" : ""} supplémentaire${extraTables > 1 ? "s" : ""}`,
     disclaimer:
@@ -42,7 +42,7 @@ const COPY = {
     tables: "tables",
     decrease: "Decrease the number of tables",
     increase: "Increase the number of tables",
-    included: "20 personalized displays included",
+    included: "Up to 20 personalized displays included",
     includedWithExtras: (extraTables: number) =>
       `20 displays included · ${extraTables} additional display${extraTables === 1 ? "" : "s"}`,
     disclaimer:
