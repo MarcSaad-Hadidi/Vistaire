@@ -14,13 +14,13 @@ export const SAMPLE_MENU_PATH_EN = "/en/vistaire-menu";
 export const pricingMetadata = {
   title: "Tarifs Vistaire | Supports QR et menu digital restaurant",
   description:
-    "Une offre Vistaire à 200 $ CAD par mois, quatre collections de supports QR dès 2 000 $ CAD, 5 plats 3D inclus et Pilotage en option."
+    "Découvrez les quatre collections de supports QR Vistaire dès 2 000 $ CAD, avec menu digital restaurant à 200 $ par mois et Pilotage en option."
 } as const;
 
 export const pricingMetadataEn = {
   title: "Vistaire Pricing | QR Displays & Digital Restaurant Menu",
   description:
-    "One Vistaire offer at $200 CAD per month, four physical QR display collections from $2,000 CAD, 5 included 3D dishes and optional Pilotage."
+    "Explore four Vistaire QR display collections from $2,000 CAD, with a digital restaurant menu at $200 per month and optional Pilotage controls."
 } as const;
 
 export type PricingCollectionId =
