@@ -39,6 +39,11 @@ const termsEnPath = new URL(
   "../app/(en)/en/terms-of-use/page.tsx",
   import.meta.url
 );
+const playwrightConfigPath = new URL("../playwright.config.ts", import.meta.url);
+const privacyFixturePath = new URL(
+  "../e2e/support/privacy-consent.ts",
+  import.meta.url
+);
 
 async function readSource(path) {
   return readFile(path, "utf8").catch(() => "");
@@ -107,13 +112,43 @@ test("Microsoft Clarity is gated by explicit analytics consent and signals conse
   assert.match(source, /["']consent["'],\s*false/);
 });
 
+test("public E2E contexts start with an explicit rejected consent state", async () => {
+  const [config, fixture] = await Promise.all([
+    readSource(playwrightConfigPath),
+    readSource(privacyFixturePath)
+  ]);
+  const { PRIVACY_CONSENT_STORAGE_KEY, PRIVACY_CONSENT_VERSION } = await import(
+    "../lib/privacy/consent.ts"
+  );
+  const { privacyRejectedStorageState, privacyEmptyStorageState } = await import(
+    "../e2e/support/privacy-consent.ts"
+  );
+  const rejected = privacyRejectedStorageState("http://127.0.0.1:3000");
+  const empty = privacyEmptyStorageState();
+
+  assert.match(config, /storageState:\s*privacyRejectedStorageState\(baseURL\)/);
+  assert.match(fixture, /PRIVACY_CONSENT_STORAGE_KEY/);
+  assert.deepEqual(empty, { cookies: [], origins: [] });
+  assert.deepEqual(rejected.cookies, []);
+  assert.equal(rejected.origins.length, 1);
+  assert.deepEqual(rejected.origins[0], {
+    origin: "http://127.0.0.1:3000",
+    localStorage: [
+      {
+        name: PRIVACY_CONSENT_STORAGE_KEY,
+        value: JSON.stringify({ version: PRIVACY_CONSENT_VERSION, analytics: false })
+      }
+    ]
+  });
+});
+
 test("Vistaire first-party menu analytics is also opt-in", async () => {
   const source = await readSource(analyticsClientPath);
   const consentCheck = source.indexOf("hasAnalyticsConsent()");
   const sessionRead = source.indexOf("sessionId: getSessionId()");
   const analyticsFetch = source.indexOf('fetch("/api/analytics/events"');
 
-  assert.match(source, /import\s+\{\s*hasAnalyticsConsent\s*\}/);
+  assert.match(source, /hasAnalyticsConsent/);
   assert.ok(consentCheck >= 0, "analytics consent check is missing");
   assert.ok(sessionRead > consentCheck, "session id must not be created before consent");
   assert.ok(analyticsFetch > consentCheck, "analytics request must not be sent before consent");

@@ -1,6 +1,9 @@
 "use client";
 
-import { hasAnalyticsConsent } from "../privacy/consent.ts";
+import {
+  hasAnalyticsConsent,
+  VISTAIRE_ANALYTICS_SESSION_KEY
+} from "../privacy/consent.ts";
 import type {
   AnalyticsEventName,
   AnalyticsEventPayload
@@ -13,7 +16,7 @@ type TrackMenuEventInput = Partial<
   source?: AnalyticsEventPayload["source"];
 };
 
-const SESSION_KEY = "vistaire.analytics.sessionId.v1";
+const SESSION_KEY = VISTAIRE_ANALYTICS_SESSION_KEY;
 const DEMO_RESTAURANT_ID =
   process.env.NEXT_PUBLIC_DEMO_RESTAURANT_ID ??
   "11111111-1111-1111-1111-111111111111";
