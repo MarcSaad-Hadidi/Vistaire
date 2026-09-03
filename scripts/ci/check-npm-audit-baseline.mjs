@@ -25,7 +25,10 @@ const lockfileHash = createHash("sha256")
   .update(readFileSync("package-lock.json", "utf8").replace(/\r\n/g, "\n"))
   .digest("hex");
 if (lockfileHash !== String(baseline.lockfile_sha256).toLowerCase()) {
-  throw new Error("package-lock.json changed since the audit baseline was recorded; refresh the baseline deliberately");
+  console.error(
+    `package-lock.json changed since the audit baseline was recorded; expected=${String(baseline.lockfile_sha256).toLowerCase()} current=${lockfileHash}`
+  );
+  process.exitCode = 1;
 }
 
 const today = new Date().toISOString().slice(0, 10);
