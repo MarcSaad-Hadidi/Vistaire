@@ -1,0 +1,501 @@
+.threeDSection,
+.workflowSection,
+.termsSection {
+  position: relative;
+  z-index: 2;
+  width: var(--pricing-width);
+  margin-inline: auto;
+}
+
+.threeDSection {
+  margin-top: clamp(24px, 4vw, 58px);
+  padding: clamp(28px, 4vw, 54px);
+  overflow: hidden;
+  border: 1px solid var(--pricing-border);
+  border-radius: 30px;
+  background:
+    radial-gradient(circle at 88% 12%, rgba(232, 207, 155, 0.12), transparent 32%),
+    linear-gradient(145deg, rgba(28, 18, 12, 0.94), rgba(13, 9, 6, 0.9));
+  box-shadow: 0 28px 80px rgba(0, 0, 0, 0.22);
+}
+
+.sectionIntro,
+.workflowIntro {
+  max-width: 760px;
+}
+
+.sectionIntro h2,
+.workflowIntro h2,
+.termsIntro h2 {
+  margin: 10px 0 0;
+  color: var(--pricing-cream);
+  font-family: var(--pricing-display);
+  font-size: clamp(34px, 4vw, 58px);
+  font-weight: 400;
+  letter-spacing: -0.035em;
+  line-height: 0.98;
+}
+
+.sectionIntro > p:last-child,
+.workflowIntro > p:last-child {
+  max-width: 690px;
+  margin: 18px 0 0;
+  color: var(--pricing-muted);
+  font-size: clamp(15px, 1.4vw, 18px);
+  line-height: 1.55;
+}
+
+.threeDPackGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: clamp(30px, 4vw, 48px);
+}
+
+.threeDPack {
+  min-width: 0;
+  padding: clamp(20px, 2.5vw, 30px);
+  border: 1px solid rgba(232, 207, 155, 0.2);
+  border-radius: 20px;
+  background: rgba(255, 248, 235, 0.045);
+}
+
+.threeDPack span,
+.threeDIndividual span {
+  display: block;
+  color: rgba(255, 248, 235, 0.74);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  line-height: 1.3;
+  text-transform: uppercase;
+}
+
+.threeDPack strong {
+  display: block;
+  margin-top: 18px;
+  color: var(--pricing-cream);
+  font-family: var(--pricing-display);
+  font-size: clamp(31px, 3.3vw, 47px);
+  font-weight: 400;
+  letter-spacing: -0.035em;
+  line-height: 1;
+}
+
+.threeDIndividual {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  margin-top: 12px;
+  padding: 20px clamp(20px, 2.5vw, 30px);
+  border: 1px solid rgba(232, 207, 155, 0.18);
+  border-radius: 20px;
+  background: rgba(232, 207, 155, 0.08);
+}
+
+.threeDIndividual p {
+  margin: 7px 0 0;
+  color: var(--pricing-muted);
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.threeDIndividual strong {
+  flex: 0 0 auto;
+  color: var(--pricing-champagne);
+  font-family: var(--pricing-display);
+  font-size: clamp(26px, 3vw, 38px);
+  font-weight: 400;
+  letter-spacing: -0.025em;
+  line-height: 1;
+  text-align: right;
+}
+
+.threeDNote {
+  max-width: 930px;
+  margin: 20px 0 0;
+  padding-left: 16px;
+  border-left: 1px solid rgba(232, 207, 155, 0.4);
+  color: rgba(247, 234, 215, 0.68);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.workflowSection {
+  margin-top: clamp(42px, 6vw, 84px);
+  padding: clamp(32px, 5vw, 68px);
+  overflow: hidden;
+  border: 1px solid rgba(232, 207, 155, 0.3);
+  border-radius: 32px;
+  background:
+    radial-gradient(circle at 12% 0%, rgba(232, 207, 155, 0.12), transparent 30%),
+    linear-gradient(155deg, rgba(15, 11, 8, 0.97), rgba(27, 18, 12, 0.94));
+  box-shadow: 0 28px 90px rgba(0, 0, 0, 0.24);
+}
+
+.workflowTimeline {
+  position: relative;
+  margin-top: clamp(38px, 5vw, 58px);
+}
+
+.workflowTrack {
+  position: absolute;
+  top: 20px;
+  right: 10%;
+  left: 10%;
+  height: 1px;
+  pointer-events: none;
+}
+
+.workflowTrackBase,
+.workflowProgress {
+  position: absolute;
+  inset: 0;
+  display: block;
+}
+
+.workflowTrackBase {
+  background: rgba(232, 207, 155, 0.18);
+}
+
+.workflowProgress {
+  background: linear-gradient(90deg, rgba(232, 207, 155, 0.48), #f5dfb3);
+  box-shadow: 0 0 16px rgba(232, 207, 155, 0.22);
+  transform: scaleX(1);
+  transform-origin: left center;
+}
+
+.workflowList {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: clamp(14px, 2vw, 28px);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.workflowStep {
+  min-width: 0;
+  text-align: center;
+}
+
+.workflowMarker {
+  display: grid;
+  width: 41px;
+  height: 41px;
+  margin-inline: auto;
+  place-items: center;
+  border: 1px solid rgba(232, 207, 155, 0.46);
+  border-radius: 999px;
+  background: #181009;
+  color: var(--pricing-champagne);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  box-shadow: 0 0 0 6px rgba(19, 12, 8, 0.92);
+}
+
+.workflowStepCopy {
+  margin-top: 19px;
+}
+
+.workflowStepCopy h3 {
+  margin: 0;
+  color: var(--pricing-cream);
+  font-size: clamp(14px, 1.15vw, 16px);
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.workflowStepCopy p {
+  margin: 9px 0 0;
+  color: rgba(247, 234, 215, 0.68);
+  font-size: 13px;
+  line-height: 1.48;
+}
+
+.workflowLeadTime {
+  max-width: 920px;
+  margin: clamp(34px, 4vw, 50px) 0 0;
+  padding: 18px 20px;
+  border: 1px solid rgba(232, 207, 155, 0.18);
+  border-radius: 16px;
+  background: rgba(232, 207, 155, 0.07);
+  color: rgba(255, 248, 235, 0.82);
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.workflowSection[data-motion="ready"] .workflowProgress {
+  transform: scaleX(0);
+}
+
+.workflowSection[data-motion="ready"] .workflowStep {
+  opacity: 0.42;
+  transform: translateY(9px);
+}
+
+.workflowSection[data-motion="visible"] .workflowProgress {
+  transform: scaleX(1);
+  transition: transform 900ms cubic-bezier(0.2, 0.72, 0.2, 1);
+}
+
+.workflowSection[data-motion="visible"] .workflowStep {
+  opacity: 1;
+  transform: translateY(0);
+  transition:
+    opacity 420ms ease,
+    transform 520ms cubic-bezier(0.2, 0.72, 0.2, 1);
+}
+
+.workflowSection[data-motion="visible"] .workflowStep:nth-child(1) {
+  transition-delay: 100ms;
+}
+
+.workflowSection[data-motion="visible"] .workflowStep:nth-child(2) {
+  transition-delay: 220ms;
+}
+
+.workflowSection[data-motion="visible"] .workflowStep:nth-child(3) {
+  transition-delay: 340ms;
+}
+
+.workflowSection[data-motion="visible"] .workflowStep:nth-child(4) {
+  transition-delay: 460ms;
+}
+
+.workflowSection[data-motion="visible"] .workflowStep:nth-child(5) {
+  transition-delay: 580ms;
+}
+
+.termsSection {
+  margin-top: clamp(36px, 5vw, 72px);
+  margin-bottom: clamp(30px, 4vw, 54px);
+  padding: clamp(28px, 4vw, 48px);
+  border: 1px solid rgba(232, 207, 155, 0.24);
+  border-radius: 26px;
+  background: rgba(17, 11, 7, 0.72);
+}
+
+.termsIntro {
+  max-width: 720px;
+}
+
+.termsIntro h2 {
+  font-size: clamp(30px, 3.5vw, 48px);
+}
+
+.termsGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0 32px;
+  margin: 30px 0 0;
+  padding: 0;
+  border-top: 1px solid rgba(232, 207, 155, 0.16);
+  list-style: none;
+}
+
+.termsGrid li {
+  display: grid;
+  grid-template-columns: 7px minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+  padding: 17px 0;
+  border-bottom: 1px solid rgba(232, 207, 155, 0.13);
+}
+
+.termsGrid li > span {
+  width: 5px;
+  height: 5px;
+  margin-top: 7px;
+  border-radius: 999px;
+  background: var(--pricing-champagne);
+}
+
+.termsGrid p {
+  margin: 0;
+  color: rgba(255, 248, 235, 0.78);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+@media (max-width: 900px) {
+  .threeDPackGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .threeDPack {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 20px;
+  }
+
+  .threeDPack strong {
+    margin-top: 0;
+    font-size: clamp(28px, 7vw, 38px);
+    text-align: right;
+  }
+
+  .workflowTimeline {
+    margin-top: 34px;
+  }
+
+  .workflowTrack {
+    top: 20px;
+    bottom: 20px;
+    left: 20px;
+    right: auto;
+    width: 1px;
+    height: auto;
+  }
+
+  .workflowProgress {
+    transform: scaleY(1);
+    transform-origin: center top;
+  }
+
+  .workflowSection[data-motion="ready"] .workflowProgress {
+    transform: scaleY(0);
+  }
+
+  .workflowSection[data-motion="visible"] .workflowProgress {
+    transform: scaleY(1);
+  }
+
+  .workflowList {
+    grid-template-columns: 1fr;
+    gap: 27px;
+  }
+
+  .workflowStep {
+    display: grid;
+    grid-template-columns: 41px minmax(0, 1fr);
+    gap: 16px;
+    align-items: start;
+    text-align: left;
+  }
+
+  .workflowMarker {
+    margin: 0;
+  }
+
+  .workflowStepCopy {
+    margin-top: 1px;
+  }
+
+  .workflowStepCopy h3 {
+    font-size: 16px;
+  }
+
+  .workflowStepCopy p {
+    max-width: 610px;
+    margin-top: 7px;
+  }
+}
+
+@media (max-width: 640px) {
+  .threeDSection,
+  .workflowSection,
+  .termsSection {
+    width: min(100% - 24px, 1360px);
+    border-radius: 22px;
+  }
+
+  .threeDSection,
+  .workflowSection,
+  .termsSection {
+    padding: 24px 20px;
+  }
+
+  .sectionIntro h2,
+  .workflowIntro h2 {
+    font-size: clamp(32px, 10vw, 44px);
+  }
+
+  .threeDPack {
+    padding: 18px;
+    border-radius: 16px;
+  }
+
+  .threeDPack span {
+    max-width: 118px;
+  }
+
+  .threeDPack strong {
+    font-size: clamp(26px, 8vw, 34px);
+  }
+
+  .threeDIndividual {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 14px;
+    padding: 18px;
+    border-radius: 16px;
+  }
+
+  .threeDIndividual strong {
+    text-align: left;
+  }
+
+  .threeDNote {
+    padding-left: 13px;
+    font-size: 12.5px;
+  }
+
+  .workflowLeadTime {
+    padding: 16px;
+    font-size: 13px;
+  }
+
+  .termsGrid {
+    grid-template-columns: 1fr;
+    margin-top: 24px;
+  }
+}
+
+@media (max-width: 390px) {
+  .threeDSection,
+  .workflowSection,
+  .termsSection {
+    width: calc(100% - 20px);
+    padding-right: 17px;
+    padding-left: 17px;
+  }
+
+  .threeDPack {
+    gap: 14px;
+  }
+
+  .threeDPack span {
+    max-width: 102px;
+    font-size: 11px;
+  }
+
+  .threeDPack strong {
+    font-size: 27px;
+  }
+
+  .workflowStep {
+    gap: 13px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .workflowSection[data-motion] .workflowProgress,
+  .workflowSection[data-motion] .workflowStep {
+    transition: none !important;
+  }
+
+  .workflowSection[data-motion] .workflowProgress {
+    transform: none !important;
+  }
+
+  .workflowSection[data-motion] .workflowStep {
+    opacity: 1 !important;
+    transform: none !important;
+  }
+}
