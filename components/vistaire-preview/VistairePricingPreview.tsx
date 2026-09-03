@@ -301,9 +301,6 @@ export function VistairePricingPreview({
             {page.finalCta.primary.label}
             <ArrowIcon />
           </Link>
-          <Link className={styles.secondaryButton} href={page.finalCta.secondary.href} prefetch={false}>
-            {page.finalCta.secondary.label}
-          </Link>
         </div>
       </section>
 
