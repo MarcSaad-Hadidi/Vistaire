@@ -3,6 +3,7 @@ import Link from "next/link";
 import restaurantBackground from "@/Framer/PhotoRestoComplet5.png";
 import type { Locale } from "@/lib/i18n";
 import { getPricingPage } from "@/lib/pricingPage";
+import { PricingLaunchWorkflow } from "./PricingLaunchWorkflow";
 import { PricingTableEstimator } from "./PricingTableEstimator";
 import { RestaurateurDashboardDemo } from "./RestaurateurDashboardDemo";
 import {
@@ -11,26 +12,31 @@ import {
   PreviewNav,
   type VistaireRouteMode
 } from "./VistairePreviewChrome";
+import extensionStyles from "./PricingPageExtensions.module.css";
 import styles from "./VistairePricingPreview.module.css";
 
 const UI_COPY = {
   fr: {
     collectionsLabel: "Collections physiques Vistaire",
-    includedLabel: "Ce qui est inclus dans chaque offre Vistaire",
+    includedLabel: "Ce qui est inclus dans l’offre Vistaire",
     pilotagePreview: "Aperçu du vrai dashboard Vistaire",
     pricingEquation: "Abonnement mensuel avec l’option Pilotage",
     dashboardLink: "Explorer l’aperçu restaurateur",
     extrasLabel: "Options complémentaires",
-    variablesLabel: "Variables du devis"
+    variablesLabel: "Variables du devis",
+    threeDPacksLabel: "Packs de productions 3D supplémentaires",
+    commercialTermsLabel: "Conditions commerciales essentielles"
   },
   en: {
     collectionsLabel: "Vistaire physical collections",
-    includedLabel: "What every Vistaire offer includes",
+    includedLabel: "What the Vistaire offer includes",
     pilotagePreview: "Preview of the real Vistaire dashboard",
     pricingEquation: "Monthly subscription with the Pilotage option",
     dashboardLink: "Explore the restaurant preview",
     extrasLabel: "Additional options",
-    variablesLabel: "Quote variables"
+    variablesLabel: "Quote variables",
+    threeDPacksLabel: "Additional 3D production packs",
+    commercialTermsLabel: "Essential commercial terms"
   }
 } as const;
 
@@ -139,6 +145,40 @@ export function VistairePricingPreview({
         <p className={styles.priceDifference}>{page.included.priceDifference}</p>
       </section>
 
+      <section
+        aria-labelledby="pricing-3d-title"
+        className={extensionStyles.threeDSection}
+        data-pricing-3d-addons
+      >
+        <header className={extensionStyles.sectionIntro}>
+          <p className={styles.eyebrow}>{page.threeDAddOns.eyebrow}</p>
+          <h2 id="pricing-3d-title">{page.threeDAddOns.title}</h2>
+          <p>{page.threeDAddOns.body}</p>
+        </header>
+
+        <div
+          aria-label={copy.threeDPacksLabel}
+          className={extensionStyles.threeDPackGrid}
+        >
+          {page.threeDAddOns.packs.map((pack) => (
+            <article className={extensionStyles.threeDPack} key={pack.quantity}>
+              <span>{pack.label}</span>
+              <strong>{pack.price}</strong>
+            </article>
+          ))}
+        </div>
+
+        <div className={extensionStyles.threeDIndividual}>
+          <div>
+            <span>{page.threeDAddOns.individualLabel}</span>
+            <p>{page.threeDAddOns.individualNote}</p>
+          </div>
+          <strong>{page.threeDAddOns.individualPrice}</strong>
+        </div>
+
+        <p className={extensionStyles.threeDNote}>{page.threeDAddOns.replacementNote}</p>
+      </section>
+
       <section className={styles.pilotageSection} data-pricing-pilotage>
         <div className={styles.pilotageInner}>
           <div className={styles.pilotageCopy}>
@@ -203,6 +243,8 @@ export function VistairePricingPreview({
         </div>
       </section>
 
+      <PricingLaunchWorkflow content={page.workflow} />
+
       <section aria-labelledby="pricing-additional-title" className={styles.additionalSection}>
         <div className={styles.additionalInner}>
           <div aria-label={copy.extrasLabel} className={styles.extrasList}>
@@ -224,6 +266,28 @@ export function VistairePricingPreview({
             </ul>
           </div>
         </div>
+      </section>
+
+      <section
+        aria-labelledby="pricing-terms-title"
+        className={extensionStyles.termsSection}
+        data-pricing-commercial-terms
+      >
+        <header className={extensionStyles.termsIntro}>
+          <p className={styles.eyebrow}>{page.commercialTerms.eyebrow}</p>
+          <h2 id="pricing-terms-title">{page.commercialTerms.title}</h2>
+        </header>
+        <ul
+          aria-label={copy.commercialTermsLabel}
+          className={extensionStyles.termsGrid}
+        >
+          {page.commercialTerms.items.map((item) => (
+            <li key={item}>
+              <span aria-hidden="true" />
+              <p>{item}</p>
+            </li>
+          ))}
+        </ul>
       </section>
 
       <section aria-labelledby="pricing-final-title" className={styles.finalCta}>
