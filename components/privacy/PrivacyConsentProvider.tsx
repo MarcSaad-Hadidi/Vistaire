@@ -19,6 +19,7 @@ import {
   type PrivacyConsent
 } from "@/lib/privacy/consent";
 import { PrivacyConsentBanner } from "./PrivacyConsentBanner";
+import { PrivacySettingsActionsProvider } from "./PrivacySettingsButton";
 
 type PrivacyConsentContextValue = {
   analyticsAllowed: boolean;
@@ -105,18 +106,20 @@ export function PrivacyConsentProvider({
   );
 
   return (
-    <PrivacyConsentContext.Provider value={value}>
-      {children}
-      {hydrated && (consent === null || preferencesOpen) ? (
-        <PrivacyConsentBanner
-          consent={consent}
-          locale={locale}
-          onClose={() => setPreferencesOpen(false)}
-          onSave={value.saveAnalyticsConsent}
-          preferencesOpen={preferencesOpen}
-        />
-      ) : null}
-    </PrivacyConsentContext.Provider>
+    <PrivacySettingsActionsProvider openPreferences={value.openPreferences}>
+      <PrivacyConsentContext.Provider value={value}>
+        {children}
+        {hydrated && (consent === null || preferencesOpen) ? (
+          <PrivacyConsentBanner
+            consent={consent}
+            locale={locale}
+            onClose={() => setPreferencesOpen(false)}
+            onSave={value.saveAnalyticsConsent}
+            preferencesOpen={preferencesOpen}
+          />
+        ) : null}
+      </PrivacyConsentContext.Provider>
+    </PrivacySettingsActionsProvider>
   );
 }
 
