@@ -19,6 +19,10 @@ const utilityBarPath = new URL(
   "../components/privacy/PrivacyUtilityBar.tsx",
   import.meta.url
 );
+const previewFooterPath = new URL(
+  "../components/vistaire-preview/VistairePreviewChrome.tsx",
+  import.meta.url
+);
 const contactNoticePath = new URL(
   "../components/vistaire-preview/VistaireRendezVousPreview.tsx",
   import.meta.url
@@ -189,4 +193,19 @@ test("public legal and privacy controls are discoverable before collection in bo
   assert.match(privacyEn, /Privacy Officer/);
   assert.match(termsFr, /conditions/i);
   assert.match(termsEn, /terms/i);
+});
+
+test("the preview footer places legal controls beside the copyright", async () => {
+  const [previewFooter, utilityBar] = await Promise.all([
+    readSource(previewFooterPath),
+    readSource(utilityBarPath)
+  ]);
+
+  assert.match(previewFooter, /data-vistaire-preview-footer/);
+  assert.match(
+    previewFooter,
+    /footerCopyright[\s\S]{0,260}<PrivacyUtilityBar[\s\S]{0,180}variant="footer"/
+  );
+  assert.match(utilityBar, /variant\?: "global" \| "footer"/);
+  assert.match(utilityBar, /variant === "global"/);
 });

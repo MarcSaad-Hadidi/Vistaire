@@ -8,6 +8,7 @@ import {
   getVistaireSocialProfiles
 } from "@/lib/seo";
 import { SEO_GEO_PAGES, SEO_GEO_PAGES_EN } from "@/lib/seoGeoPages";
+import { PrivacyUtilityBar } from "@/components/privacy/PrivacyUtilityBar";
 import styles from "./VistairePreviewChrome.module.css";
 
 type PreviewNavItem = {
@@ -358,6 +359,7 @@ export function PreviewFooter({
       className={`${styles.previewFooter} ${
         width === "wide" ? styles.previewFooterWide : ""
       }`}
+      data-vistaire-preview-footer
       id="contact"
     >
       <section className={styles.footerBrand} aria-label="Vistaire">
@@ -503,6 +505,11 @@ export function PreviewFooter({
             ? "© 2026 Vistaire. All rights reserved."
             : "© 2026 Vistaire. Tous droits réservés."}
         </p>
+        <PrivacyUtilityBar
+          className={styles.footerUtilityLinks}
+          locale={locale}
+          variant="footer"
+        />
         <LanguageSwitcher currentPath={resolvedCurrentPath} locale={locale} />
       </div>
     </footer>

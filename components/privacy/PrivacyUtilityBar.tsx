@@ -7,19 +7,35 @@ import { shouldShowPrivacyControls } from "@/lib/privacy/privacyRoutes";
 import styles from "./PrivacyConsent.module.css";
 import { PrivacySettingsButton } from "./PrivacySettingsButton";
 
-export function PrivacyUtilityBar({ locale }: { locale: Locale }) {
+type PrivacyUtilityBarProps = {
+  className?: string;
+  locale: Locale;
+  variant?: "global" | "footer";
+};
+
+export function PrivacyUtilityBar({
+  className,
+  locale,
+  variant = "global"
+}: PrivacyUtilityBarProps) {
   const pathname = usePathname();
-  if (!shouldShowPrivacyControls(pathname)) return null;
+  if (variant === "global" && !shouldShowPrivacyControls(pathname)) return null;
 
   const privacyHref =
     locale === "en" ? "/en/privacy-policy" : "/politique-de-confidentialite";
   const termsHref =
     locale === "en" ? "/en/terms-of-use" : "/conditions-utilisation";
+  const navClassName = [
+    variant === "global" ? styles.utilityBar : null,
+    className
+  ]
+    .filter(Boolean)
+    .join(" ");
 
   return (
     <nav
       aria-label={locale === "en" ? "Legal and privacy" : "Légal et confidentialité"}
-      className={styles.utilityBar}
+      className={navClassName}
     >
       <Link href={privacyHref} prefetch={false}>
         {locale === "en" ? "Privacy policy" : "Politique de confidentialité"}
