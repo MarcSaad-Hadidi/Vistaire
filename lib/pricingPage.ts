@@ -14,13 +14,13 @@ export const SAMPLE_MENU_PATH_EN = "/en/vistaire-menu";
 export const pricingMetadata = {
   title: "Tarifs Vistaire | Supports QR et menu digital restaurant",
   description:
-    "Découvrez les quatre collections de supports QR Vistaire dès 2 000 $ CAD, avec menu digital restaurant à 200 $ par mois et Pilotage en option."
+    "Une offre Vistaire à 200 $ CAD par mois, quatre collections de supports QR dès 2 000 $ CAD, 5 plats 3D inclus et Pilotage en option."
 } as const;
 
 export const pricingMetadataEn = {
   title: "Vistaire Pricing | QR Displays & Digital Restaurant Menu",
   description:
-    "Explore four Vistaire QR display collections from $2,000 CAD, with a digital restaurant menu at $200 per month and optional Pilotage controls."
+    "One Vistaire offer at $200 CAD per month, four physical QR display collections from $2,000 CAD, 5 included 3D dishes and optional Pilotage."
 } as const;
 
 export type PricingCollectionId =
@@ -54,6 +54,27 @@ export type PricingIncludedGroup = {
   items: string[];
 };
 
+export type PricingThreeDPack = {
+  quantity: number;
+  label: string;
+  priceAmount: number;
+  price: string;
+};
+
+export type PricingWorkflowStep = {
+  index: string;
+  title: string;
+  body: string;
+};
+
+export type PricingWorkflowContent = {
+  eyebrow: string;
+  title: string;
+  body: string;
+  steps: PricingWorkflowStep[];
+  leadTime: string;
+};
+
 export type PricingPageContent = {
   path: string;
   eyebrow: string;
@@ -68,6 +89,18 @@ export type PricingPageContent = {
     priceDifference: string;
   };
   includedGroups: PricingIncludedGroup[];
+  threeDAddOns: {
+    eyebrow: string;
+    title: string;
+    body: string;
+    packs: PricingThreeDPack[];
+    individualLabel: string;
+    individualMinAmount: number;
+    individualMaxAmount: number;
+    individualPrice: string;
+    individualNote: string;
+    replacementNote: string;
+  };
   pilotage: {
     eyebrow: string;
     optionLabel: string;
@@ -82,12 +115,18 @@ export type PricingPageContent = {
     optionPriceLabel: string;
     totalLabel: string;
   };
+  workflow: PricingWorkflowContent;
   additional: {
     eyebrow: string;
     extras: string[];
     startingAtTitle: string;
     startingAtBody: string;
     variables: string[];
+  };
+  commercialTerms: {
+    eyebrow: string;
+    title: string;
+    items: string[];
   };
   finalCta: {
     eyebrow: string;
@@ -198,10 +237,10 @@ export const PRICING_PAGE = {
     }
   ],
   included: {
-    eyebrow: "Inclus dans chaque offre",
-    title: "Une même expérience Vistaire, quel que soit le support.",
+    eyebrow: "Inclus dans l’offre Vistaire",
+    title: "Une seule offre Vistaire, avec l’essentiel inclus.",
     body:
-      "Chaque collection réunit la carte digitale, les supports personnalisés et l’accompagnement nécessaire pour prendre place naturellement dans votre restaurant.",
+      "Quelle que soit la collection choisie, vous profitez du même menu digital, des mêmes services et du même accompagnement Vistaire.",
     priceDifference:
       "La différence de prix entre les collections provient principalement du support physique choisi et de son positionnement premium."
   },
@@ -232,6 +271,7 @@ export const PRICING_PAGE = {
       index: "03",
       title: "Mise en place",
       items: [
+        "Prise de photos des plats sur place par Vistaire",
         "Hébergement",
         "Maintenance",
         "Configuration initiale",
@@ -239,6 +279,39 @@ export const PRICING_PAGE = {
       ]
     }
   ],
+  threeDAddOns: {
+    eyebrow: "Productions 3D supplémentaires",
+    title: "Faites évoluer vos expériences 3D avec votre carte.",
+    body:
+      "Les 5 premières expériences 3D prévues dans l’offre Vistaire sont incluses. Les nouvelles productions au-delà de ce volume sont facturées séparément.",
+    packs: [
+      {
+        quantity: 5,
+        label: "+5 plats 3D",
+        priceAmount: 149,
+        price: "149 $ CAD"
+      },
+      {
+        quantity: 10,
+        label: "+10 plats 3D",
+        priceAmount: 249,
+        price: "249 $ CAD"
+      },
+      {
+        quantity: 20,
+        label: "+20 plats 3D",
+        priceAmount: 449,
+        price: "449 $ CAD"
+      }
+    ],
+    individualLabel: "1 plat 3D supplémentaire",
+    individualMinAmount: 35,
+    individualMaxAmount: 50,
+    individualPrice: "35 à 50 $ CAD",
+    individualNote: "Selon la complexité de la nouvelle production 3D.",
+    replacementNote:
+      "Un nouveau plat nécessitant une nouvelle production 3D est une nouvelle production facturable, y compris s’il remplace un ancien plat. Une correction d’un modèle 3D défectueux imputable à Vistaire n’est pas traitée comme une nouvelle production."
+  },
   pilotage: {
     eyebrow: "Vistaire Pilotage",
     optionLabel: "Option",
@@ -264,13 +337,53 @@ export const PRICING_PAGE = {
     optionPriceLabel: "Pilotage — + 100 $ / mois",
     totalLabel: "Total — 300 $ / mois"
   },
-  additional: {
-    eyebrow: "Sur mesure",
-    extras: [
-      "Supports supplémentaires ou de remplacement sur devis.",
-      "Expériences 3D supplémentaires sur devis."
+  workflow: {
+    eyebrow: "De votre restaurant à la mise en ligne",
+    title: "Un lancement cadré, validé à chaque étape.",
+    body:
+      "Vistaire prend en charge la préparation, les maquettes et la production. Votre restaurant valide les éléments clés avant toute fabrication finale.",
+    steps: [
+      {
+        index: "01",
+        title: "Prise de photos & préparation",
+        body:
+          "Vistaire réalise la prise de photos des plats sur place et collecte les éléments nécessaires au projet."
+      },
+      {
+        index: "02",
+        title: "Création des maquettes",
+        body:
+          "Nous préparons la maquette du menu numérique et celle des supports physiques personnalisés."
+      },
+      {
+        index: "03",
+        title: "Validation du restaurant",
+        body:
+          "Vous vérifiez et approuvez les maquettes avant le lancement de toute production finale."
+      },
+      {
+        index: "04",
+        title: "Production",
+        body:
+          "Après validation, Vistaire lance la fabrication des supports et finalise le menu digital."
+      },
+      {
+        index: "05",
+        title: "Mise en ligne",
+        body:
+          "Vistaire active le menu et le service une fois les éléments de lancement prêts."
+      }
     ],
-    startingAtTitle: "Pourquoi nos prix commencent-ils par « À partir de » ?",
+    leadTime:
+      "Une fois le menu et les maquettes des supports validés, et les éléments nécessaires reçus, la mise en place complète prend généralement environ deux semaines. Ce délai peut varier selon la complexité et les délais de production."
+  },
+  additional: {
+    eyebrow: "Besoins complémentaires",
+    extras: [
+      "Supports au-delà de 20 ou de remplacement : estimation selon la collection et le besoin."
+    ],
+    startingAtTitle:
+      "Pourquoi les frais de mise en place sont-ils indiqués « À partir de » ?",
     startingAtBody:
       "Chaque projet est ajusté à la réalité de l’établissement et à la quantité de contenu à préparer.",
     variables: [
@@ -282,6 +395,18 @@ export const PRICING_PAGE = {
       "établissements",
       "supports",
       "complexité du projet"
+    ]
+  },
+  commercialTerms: {
+    eyebrow: "Conditions essentielles",
+    title: "Les repères commerciaux à connaître.",
+    items: [
+      "Prix en dollars canadiens; taxes en sus.",
+      "Frais de mise en place payables à 100 % avant le début du projet.",
+      "Engagement initial de 12 mois.",
+      "L’abonnement mensuel débute à l’activation du service.",
+      "Le tarif mensuel convenu reste fixe pendant la période initiale de 12 mois.",
+      "Les conditions applicables à la période suivante sont établies et communiquées au renouvellement."
     ]
   },
   finalCta: {
@@ -387,10 +512,10 @@ export const PRICING_PAGE_EN = {
     }
   ],
   included: {
-    eyebrow: "Included in every offer",
-    title: "The same Vistaire experience, whichever display you choose.",
+    eyebrow: "Included in the Vistaire offer",
+    title: "One Vistaire offer, with the essentials included.",
     body:
-      "Every collection brings together the digital menu, personalized displays and guided setup needed to belong naturally in your restaurant.",
+      "Whichever collection you choose, you receive the same digital menu, services and guided Vistaire setup.",
     priceDifference:
       "The price difference between collections comes primarily from the physical display selected and its premium positioning."
   },
@@ -421,6 +546,7 @@ export const PRICING_PAGE_EN = {
       index: "03",
       title: "Delivery and care",
       items: [
+        "On-site dish photography by Vistaire",
         "Hosting",
         "Maintenance",
         "Initial configuration",
@@ -428,6 +554,39 @@ export const PRICING_PAGE_EN = {
       ]
     }
   ],
+  threeDAddOns: {
+    eyebrow: "Additional 3D productions",
+    title: "Keep your 3D experiences aligned with your menu.",
+    body:
+      "The first 5 3D experiences planned in the Vistaire offer are included. New productions beyond that volume are billed separately.",
+    packs: [
+      {
+        quantity: 5,
+        label: "+5 3D dishes",
+        priceAmount: 149,
+        price: "$149 CAD"
+      },
+      {
+        quantity: 10,
+        label: "+10 3D dishes",
+        priceAmount: 249,
+        price: "$249 CAD"
+      },
+      {
+        quantity: 20,
+        label: "+20 3D dishes",
+        priceAmount: 449,
+        price: "$449 CAD"
+      }
+    ],
+    individualLabel: "1 additional 3D dish",
+    individualMinAmount: 35,
+    individualMaxAmount: 50,
+    individualPrice: "$35 to $50 CAD",
+    individualNote: "Depending on the complexity of the new 3D production.",
+    replacementNote:
+      "A new dish that requires a new 3D production is a billable new production, including when it replaces an older dish. A correction to a defective 3D model attributable to Vistaire is not treated as a new production."
+  },
   pilotage: {
     eyebrow: "Vistaire Pilotage",
     optionLabel: "Option",
@@ -453,13 +612,52 @@ export const PRICING_PAGE_EN = {
     optionPriceLabel: "Pilotage — + $100 / month",
     totalLabel: "Total — $300 / month"
   },
-  additional: {
-    eyebrow: "Tailored",
-    extras: [
-      "Additional or replacement displays are quoted separately.",
-      "Additional 3D experiences are quoted separately."
+  workflow: {
+    eyebrow: "From your restaurant to launch",
+    title: "A structured launch, approved at every key step.",
+    body:
+      "Vistaire handles preparation, mockups and production. Your restaurant approves the key elements before final manufacturing.",
+    steps: [
+      {
+        index: "01",
+        title: "Photography & preparation",
+        body:
+          "Vistaire photographs the dishes on site and collects the project materials we need."
+      },
+      {
+        index: "02",
+        title: "Mockup creation",
+        body:
+          "We prepare the digital menu mockup and the personalized physical display mockup."
+      },
+      {
+        index: "03",
+        title: "Restaurant approval",
+        body:
+          "You review and approve the mockups before any final production is launched."
+      },
+      {
+        index: "04",
+        title: "Production",
+        body:
+          "After approval, Vistaire starts display manufacturing and finalizes the digital menu."
+      },
+      {
+        index: "05",
+        title: "Go live",
+        body:
+          "Vistaire activates the menu and service once the launch elements are ready."
+      }
     ],
-    startingAtTitle: "Why do our prices say “Starting at” ?",
+    leadTime:
+      "Once the menu and display mockups are approved and all required materials are received, full setup generally takes about two weeks. Timing may vary with project complexity and production lead times."
+  },
+  additional: {
+    eyebrow: "Additional needs",
+    extras: [
+      "Displays beyond 20 or replacements: estimated according to the collection and project need."
+    ],
+    startingAtTitle: "Why are setup fees shown as “Starting at”?",
     startingAtBody:
       "Every project is adjusted to the venue and the amount of content to prepare.",
     variables: [
@@ -471,6 +669,18 @@ export const PRICING_PAGE_EN = {
       "locations",
       "display quantity",
       "project complexity"
+    ]
+  },
+  commercialTerms: {
+    eyebrow: "Essential terms",
+    title: "The commercial terms to know.",
+    items: [
+      "Prices are in Canadian dollars; taxes are extra.",
+      "Setup fees are payable 100% before the project begins.",
+      "Initial 12-month commitment.",
+      "The monthly subscription starts when the service is activated.",
+      "The agreed monthly rate stays fixed during the initial 12-month period.",
+      "Terms for the following period are established and communicated at renewal."
     ]
   },
   finalCta: {
@@ -564,6 +774,9 @@ function buildPricingServiceJsonLd(
   env?: Record<string, string | undefined>
 ): JsonLdObject {
   const english = locale === "en";
+  const threeDPackValue = page.threeDAddOns.packs
+    .map((pack) => `${pack.label}: ${pack.price}`)
+    .join("; ");
 
   return {
     "@context": "https://schema.org",
@@ -600,6 +813,29 @@ function buildPricingServiceJsonLd(
         value: english
           ? `Optional add-on at $${page.pilotage.monthlyAmount} CAD per month; $${page.pilotage.totalMonthlyAmount} CAD total monthly with Vistaire`
           : `Option à + ${page.pilotage.monthlyAmount} $ CAD par mois; total mensuel de ${page.pilotage.totalMonthlyAmount} $ CAD avec Vistaire`
+      },
+      {
+        "@type": "PropertyValue",
+        name: english
+          ? "On-site dish photography"
+          : "Prise de photos des plats sur place",
+        value: english
+          ? "Performed by Vistaire as part of setup"
+          : "Réalisée par Vistaire dans le cadre de la mise en place"
+      },
+      {
+        "@type": "PropertyValue",
+        name: english
+          ? "Additional 3D production packs"
+          : "Packs de productions 3D supplémentaires",
+        value: threeDPackValue
+      },
+      {
+        "@type": "PropertyValue",
+        name: english
+          ? "Individual additional 3D dish"
+          : "Plat 3D supplémentaire à l’unité",
+        value: page.threeDAddOns.individualPrice
       }
     ],
     hasOfferCatalog: {
