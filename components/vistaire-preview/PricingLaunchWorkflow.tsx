@@ -22,6 +22,15 @@ export function PricingLaunchWorkflow({
 
     if (reducedMotion || !("IntersectionObserver" in window)) return;
 
+    const rect = section.getBoundingClientRect();
+    const alreadyVisible =
+      rect.top <= window.innerHeight * 0.88 && rect.bottom >= 0;
+
+    if (alreadyVisible) {
+      section.dataset.motion = "visible";
+      return;
+    }
+
     section.dataset.motion = "ready";
 
     const observer = new IntersectionObserver(
