@@ -279,7 +279,7 @@ export const PRICING_PAGE = {
     eyebrow: "Productions 3D supplémentaires",
     title: "Faites évoluer vos expériences 3D avec votre carte.",
     body:
-      "Jusqu’à 5 expériences 3D peuvent être incluses dans l’offre Vistaire. Les nouvelles productions au-delà du volume inclus sont facturées séparément.",
+      "Jusqu’à 5 expériences 3D peuvent être incluses dans l’offre Vistaire. Toute nouvelle production qui dépasse le volume inclus est facturée séparément.",
     packs: [
       {
         quantity: 5,
@@ -376,7 +376,7 @@ export const PRICING_PAGE = {
   additional: {
     eyebrow: "Besoins complémentaires",
     extras: [
-      "Supports au-delà de 20 ou de remplacement : estimation selon la collection et le besoin."
+      "Supports supplémentaires après les 20 inclus ou supports de remplacement : estimation selon la collection et le besoin."
     ],
     startingAtTitle:
       "Pourquoi les frais de mise en place sont indiqués « À partir de » ?",
