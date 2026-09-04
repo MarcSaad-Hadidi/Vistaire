@@ -16,6 +16,50 @@ async function expectNoHorizontalOverflow(page: Page) {
     .toBe(true);
 }
 
+async function visibleDashText(page: Page) {
+  return page.evaluate(() => {
+    const matches: string[] = [];
+    const isVisuallyHidden = (element: Element) => {
+      let current: Element | null = element;
+      while (current && current !== document.body) {
+        const style = getComputedStyle(current);
+        if (
+          style.display === "none" ||
+          style.visibility === "hidden" ||
+          Number.parseFloat(style.opacity || "1") === 0
+        ) {
+          return true;
+        }
+        const className = typeof current.className === "string" ? current.className : "";
+        if (className.toLowerCase().includes("sronly")) return true;
+        const rect = current.getBoundingClientRect();
+        const isTinyClippedElement =
+          rect.width <= 2 &&
+          rect.height <= 2 &&
+          (style.position === "absolute" || style.position === "fixed") &&
+          (style.overflow === "hidden" ||
+            style.clip !== "auto" ||
+            style.clipPath !== "none");
+        if (isTinyClippedElement) return true;
+        current = current.parentElement;
+      }
+      return false;
+    };
+
+    const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+    let node = walker.nextNode();
+    while (node) {
+      const text = node.textContent?.replace(/\s+/g, " ").trim() ?? "";
+      const parent = node.parentElement;
+      if (text && /[-–—]/.test(text) && parent && !isVisuallyHidden(parent)) {
+        matches.push(text);
+      }
+      node = walker.nextNode();
+    }
+    return [...new Set(matches)];
+  });
+}
+
 test("CI smoke loads the public landing at Vistaire mobile widths", async ({ page }) => {
   for (const viewport of [
     { width: 390, height: 844 },
@@ -85,7 +129,7 @@ test("CI smoke validates the bilingual Pricing table estimator", async ({ page }
   const scenarios = [
     {
       path: "/tarifs-menu-digital-restaurant",
-      question: "Combien de tables souhaitez-vous équiper ?",
+      question: "Nombre de tables à équiper ?",
       decrement: "Réduire le nombre de tables",
       increment: "Augmenter le nombre de tables",
       initialPrices: ["2 000 $ CAD", "2 050 $ CAD", "2 100 $ CAD", "2 200 $ CAD"],
@@ -173,8 +217,9 @@ test("CI smoke validates the bilingual Pricing table estimator", async ({ page }
     ).toBeVisible();
     await expect(estimator.getByText(scenario.disclaimer, { exact: true })).toBeVisible();
 
+    const dashText = await visibleDashText(page);
+    expect(dashText, dashText.join("\n")).toEqual([]);
     const publicCopy = await page.locator("body").innerText();
-    expect(publicCopy).not.toMatch(/[-–—]/);
     expect(publicCopy).not.toContain("Votre prix final");
     expect(publicCopy).not.toContain("Total à payer");
     expect(publicCopy).not.toContain("Montant dû");
