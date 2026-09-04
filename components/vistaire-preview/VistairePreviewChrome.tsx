@@ -247,7 +247,7 @@ export function PreviewNav({
       className={styles.previewNav}
     >
       <Link
-        aria-label={locale === "en" ? "Vistaire - home" : "Vistaire - accueil"}
+        aria-label={locale === "en" ? "Vistaire home" : "Vistaire accueil"}
         className={styles.navBrand}
         href={routes.home}
         prefetch={false}
@@ -364,12 +364,12 @@ export function PreviewFooter({
         <h2>Vistaire</h2>
         <p className={styles.footerTagline}>
           {locale === "en"
-            ? "Premium digital menu for high-end restaurants."
+            ? "Premium digital menu for high end restaurants."
             : "Carte digitale premium pour restaurants haut de gamme."}
         </p>
         <p className={styles.footerDescription}>
           {locale === "en"
-            ? "A mobile-first experience built to present dishes, replace PDF menus and protect the restaurant brand."
+            ? "A premium mobile experience built to present dishes, replace PDF menus and protect the restaurant brand."
             : "Une expérience mobile pensée pour présenter les plats, remplacer les menus PDF et valoriser la carte d'un restaurant."}
         </p>
       </section>
