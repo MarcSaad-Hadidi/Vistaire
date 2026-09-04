@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { HERO_VIDEO_SOURCES } from "./heroVideoSources";
 import styles from "./LandingHeroMedia.module.css";
 
@@ -10,71 +10,13 @@ const landingVideoSrc = "/videos/Vistaire2.mp4";
 const mobileLandingVideoSrc = HERO_VIDEO_SOURCES.mobile.src;
 const heroCaptionsSrc = "/captions/hero-empty.vtt";
 
-function clamp01(value: number) {
-  if (!Number.isFinite(value)) return 0;
-  return Math.min(1, Math.max(0, value));
-}
-
 export function LandingHeroMedia({
   locale
 }: {
   locale: "fr" | "en";
 }) {
   const [isPlaying, setIsPlaying] = useState(false);
-  const [videoFailed, setVideoFailed] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
-  const scrollFrameRef = useRef<number | null>(null);
-
-  const syncVideoToScroll = useCallback(() => {
-    const video = videoRef.current;
-    const media = video?.parentElement;
-    if (
-      !video ||
-      !media ||
-      !Number.isFinite(video.duration) ||
-      video.duration <= 0
-    ) {
-      return;
-    }
-
-    const rect = media.getBoundingClientRect();
-    const viewportHeight = window.innerHeight || 1;
-    const scrollStart = viewportHeight;
-    const scrollEnd = -Math.max(rect.height, 1);
-    const progress = clamp01(
-      (scrollStart - rect.top) / Math.max(1, scrollStart - scrollEnd)
-    );
-    const targetTime = progress * Math.max(0, video.duration - 0.05);
-
-    if (Math.abs(video.currentTime - targetTime) > 0.06) {
-      video.currentTime = targetTime;
-    }
-  }, []);
-
-  useEffect(() => {
-    const scheduleScrollSync = () => {
-      if (scrollFrameRef.current !== null) return;
-      scrollFrameRef.current = window.requestAnimationFrame(() => {
-        scrollFrameRef.current = null;
-        syncVideoToScroll();
-      });
-    };
-
-    scheduleScrollSync();
-    window.addEventListener("scroll", scheduleScrollSync, { passive: true });
-    window.addEventListener("resize", scheduleScrollSync);
-    window.addEventListener("orientationchange", scheduleScrollSync);
-
-    return () => {
-      window.removeEventListener("scroll", scheduleScrollSync);
-      window.removeEventListener("resize", scheduleScrollSync);
-      window.removeEventListener("orientationchange", scheduleScrollSync);
-      if (scrollFrameRef.current !== null) {
-        window.cancelAnimationFrame(scrollFrameRef.current);
-        scrollFrameRef.current = null;
-      }
-    };
-  }, [syncVideoToScroll]);
 
   useEffect(() => {
     let cancelled = false;
@@ -87,19 +29,13 @@ export function LandingHeroMedia({
       if (playPromise) {
         playPromise
           .then(() => {
-            if (!cancelled) {
-              setVideoFailed(false);
-              setIsPlaying(true);
-              syncVideoToScroll();
-            }
+            if (!cancelled) setIsPlaying(true);
           })
           .catch(() => {
             if (!cancelled) setIsPlaying(false);
           });
       } else {
-        setVideoFailed(false);
         setIsPlaying(true);
-        syncVideoToScroll();
       }
     });
 
@@ -107,7 +43,7 @@ export function LandingHeroMedia({
       cancelled = true;
       window.cancelAnimationFrame(frame);
     };
-  }, [syncVideoToScroll]);
+  }, []);
 
   return (
     <div className={styles.media} data-hero-media={isPlaying ? "video" : "poster"}>
@@ -126,26 +62,17 @@ export function LandingHeroMedia({
         className={styles.video}
         controls={false}
         data-hero-video-state={isPlaying ? "playing" : "poster"}
-        data-video-deferred="false"
-        data-video-failed={videoFailed ? "true" : "false"}
         id="landing-hero-video"
         loop
         muted
-        onError={() => {
-          setVideoFailed(true);
-          setIsPlaying(false);
-        }}
+        onError={() => setIsPlaying(false)}
         onPause={() => setIsPlaying(false)}
-        onPlay={() => {
-          setVideoFailed(false);
-          setIsPlaying(true);
-        }}
+        onPlay={() => setIsPlaying(true)}
         onCanPlay={() => {
           const video = videoRef.current;
           if (!video || !video.paused) return;
           void video.play().catch(() => setIsPlaying(false));
         }}
-        onLoadedMetadata={syncVideoToScroll}
         playsInline
         poster={heroPosterSrc}
         preload="metadata"
