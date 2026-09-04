@@ -6,7 +6,7 @@ import { HERO_VIDEO_SOURCES } from "./heroVideoSources";
 import styles from "./LandingHeroMedia.module.css";
 
 const heroPosterSrc = "/frames/menualive/frame_0200.webp";
-const landingVideoSrc = HERO_VIDEO_SOURCES.desktopHigh.src;
+const landingVideoSrc = "/videos/Vistaire2.mp4";
 const mobileLandingVideoSrc = HERO_VIDEO_SOURCES.mobile.src;
 const heroCaptionsSrc = "/captions/hero-empty.vtt";
 
