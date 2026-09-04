@@ -77,13 +77,18 @@ export function PremiumDishDetailsSheet({
         className={`${sheetStyles.sheet} ${className}`.trim()}
         tabIndex={-1}
       >
+        <span
+          aria-hidden="true"
+          className={sheetStyles.handle}
+          data-sheet-handle
+        />
         <button
           type="button"
           className={sheetStyles.close}
           aria-label={copy.closeDetail}
           onClick={onClose}
         >
-          x
+          ×
         </button>
         <header className={sheetStyles.header}>
           <p className={sheetStyles.kicker}>{dish.name}</p>
