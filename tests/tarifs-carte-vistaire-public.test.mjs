@@ -87,6 +87,20 @@ function findJsonLdType(value, targetType) {
   return undefined;
 }
 
+function collectStringValues(value, strings = []) {
+  if (typeof value === "string") {
+    strings.push(value);
+    return strings;
+  }
+  if (!value || typeof value !== "object") return strings;
+  if (Array.isArray(value)) {
+    for (const item of value) collectStringValues(item, strings);
+    return strings;
+  }
+  for (const child of Object.values(value)) collectStringValues(child, strings);
+  return strings;
+}
+
 function collectPricingDisplayCopy(page) {
   return [
     page.eyebrow,
@@ -188,17 +202,29 @@ test("pricing exposes four physical collections and Pilotage as an add-on", asyn
 
 test("pricing visible copy never uses dash characters", async () => {
   const { PRICING_PAGE, PRICING_PAGE_EN } = await import("../lib/pricingPage.ts");
+  const { RESTAURATEUR_PREVIEW_COPY } = await import(
+    "../lib/restaurateurPreview/copy.ts"
+  );
   const visibleCopy = collectPricingDisplayCopy(PRICING_PAGE)
     .concat(collectPricingDisplayCopy(PRICING_PAGE_EN))
     .join("\n");
+  const dashboardCopy = collectStringValues(RESTAURATEUR_PREVIEW_COPY).join("\n");
   const estimator = readWorkspaceFile(
     "components/vistaire-preview/PricingTableEstimator.tsx"
   );
+  const sharedChrome = readWorkspaceFile(
+    "components/vistaire-preview/VistairePreviewChrome.tsx"
+  );
 
   assert.doesNotMatch(visibleCopy, /[-–—]/);
+  assert.doesNotMatch(dashboardCopy, /[-–—]/);
   assert.doesNotMatch(
     estimator,
     /Estimation indicative —|Indicative estimate —|One-time setup/
+  );
+  assert.doesNotMatch(
+    sharedChrome,
+    /Premium digital menu for high-end restaurants|mobile-first experience/
   );
 });
 
