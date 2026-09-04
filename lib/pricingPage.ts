@@ -250,7 +250,7 @@ export const PRICING_PAGE = {
         "Intégration du menu",
         "Personnalisation selon l’identité du restaurant",
         "Multilingue",
-        "Multi-devises"
+        "Plusieurs devises"
       ]
     },
     {
@@ -329,9 +329,9 @@ export const PRICING_PAGE = {
     ],
     disclosure:
       "Les données affichées dépendent de l’activité enregistrée et respectent les seuils de confidentialité du produit.",
-    standardLabel: "Vistaire — 200 $ / mois",
-    optionPriceLabel: "Pilotage — + 100 $ / mois",
-    totalLabel: "Total — 300 $ / mois"
+    standardLabel: "Vistaire 200 $ / mois",
+    optionPriceLabel: "Pilotage + 100 $ / mois",
+    totalLabel: "Total 300 $ / mois"
   },
   workflow: {
     eyebrow: "De votre restaurant à la mise en ligne",
@@ -450,7 +450,7 @@ export const PRICING_PAGE_EN = {
       label: "Vistaire",
       positioning: "Designed. Sculpted. Made to stand out.",
       description:
-        "A vertical wooden display with a rounded, sculpted upper-right corner.",
+        "A vertical wooden display with a rounded, sculpted upper right corner.",
       setupAmount: 2_050,
       setupPrice: "$2,050 CAD",
       monthlyPrice: "+ $200 CAD / month",
@@ -538,7 +538,7 @@ export const PRICING_PAGE_EN = {
       index: "03",
       title: "Delivery and care",
       items: [
-        "On-site dish photography by Vistaire",
+        "Dish photography at your restaurant by Vistaire",
         "Hosting",
         "Maintenance",
         "Initial configuration",
@@ -596,13 +596,13 @@ export const PRICING_PAGE_EN = {
       "3D / AR interactions",
       "Dish views by category",
       "Activity moments grouped into UTC time ranges",
-      "Today, 7-day and 30-day views with prior-period comparison"
+      "Views for today, 7 days and 30 days, with comparison to the previous period"
     ],
     disclosure:
       "Displayed insights depend on recorded activity and respect the product’s privacy thresholds.",
-    standardLabel: "Vistaire — $200 / month",
-    optionPriceLabel: "Pilotage — + $100 / month",
-    totalLabel: "Total — $300 / month"
+    standardLabel: "Vistaire $200 / month",
+    optionPriceLabel: "Pilotage + $100 / month",
+    totalLabel: "Total $300 / month"
   },
   workflow: {
     eyebrow: "From your restaurant to launch",
@@ -669,9 +669,9 @@ export const PRICING_PAGE_EN = {
     items: [
       "Prices are in Canadian dollars; taxes are extra.",
       "Setup fees are payable 100% before the project begins.",
-      "Initial 12-month commitment.",
+      "Initial commitment of 12 months.",
       "The monthly subscription starts when the service is activated.",
-      "The agreed monthly rate stays fixed during the initial 12-month period.",
+      "The agreed monthly rate stays fixed during the initial period of 12 months.",
       "Terms for the following period are established and communicated at renewal."
     ]
   },
@@ -731,7 +731,7 @@ function buildPricingOfferCatalog(
           "@type": "UnitPriceSpecification",
           price: collection.setupAmount,
           priceCurrency: "CAD",
-          unitText: english ? "one-time setup" : "mise en place unique"
+          unitText: english ? "one time setup" : "mise en place unique"
         },
         {
           "@type": "UnitPriceSpecification",
@@ -791,7 +791,7 @@ function buildPricingServiceJsonLd(
     audience: {
       "@type": "BusinessAudience",
       audienceType: english
-        ? "Independent restaurants, premium bistros and high-end restaurants"
+        ? "Independent restaurants, premium bistros and high end restaurants"
         : "Restaurants indépendants, bistros premium et restaurants haut de gamme"
     },
     additionalProperty: [
@@ -799,13 +799,13 @@ function buildPricingServiceJsonLd(
         "@type": "PropertyValue",
         name: "Vistaire Pilotage",
         value: english
-          ? `Optional add-on at $${page.pilotage.monthlyAmount} CAD per month; $${page.pilotage.totalMonthlyAmount} CAD total monthly with Vistaire`
+          ? `Optional Pilotage option at $${page.pilotage.monthlyAmount} CAD per month; $${page.pilotage.totalMonthlyAmount} CAD total monthly with Vistaire`
           : `Option à + ${page.pilotage.monthlyAmount} $ CAD par mois; total mensuel de ${page.pilotage.totalMonthlyAmount} $ CAD avec Vistaire`
       },
       {
         "@type": "PropertyValue",
         name: english
-          ? "On-site dish photography"
+          ? "Dish photography at the restaurant"
           : "Prise de photos des plats sur place",
         value: english
           ? "Performed by Vistaire as part of setup"
