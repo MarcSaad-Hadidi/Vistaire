@@ -28,7 +28,7 @@ const COPY = {
     includedWithExtras: (extraTables: number) =>
       `20 supports inclus · ${extraTables} support${extraTables > 1 ? "s" : ""} supplémentaire${extraTables > 1 ? "s" : ""}`,
     disclaimer:
-      "Estimation indicative — le prix final sera confirmé dans votre devis après analyse de votre établissement et de vos besoins.",
+      "Estimation indicative. Le prix final sera confirmé dans votre devis après analyse de votre établissement et de vos besoins.",
     startingAt: "À partir de",
     estimateFor: (tableCount: number) =>
       `Estimation pour ${tableCount} table${tableCount === 1 ? "" : "s"}`,
@@ -46,11 +46,11 @@ const COPY = {
     includedWithExtras: (extraTables: number) =>
       `20 displays included · ${extraTables} additional display${extraTables === 1 ? "" : "s"}`,
     disclaimer:
-      "Indicative estimate — final pricing will be confirmed in your quote after reviewing your venue and project requirements.",
+      "Indicative estimate. Final pricing will be confirmed in your quote after reviewing your venue and project requirements.",
     startingAt: "Starting at",
     estimateFor: (tableCount: number) =>
       `Estimate for ${tableCount} table${tableCount === 1 ? "" : "s"}`,
-    setup: "One-time setup",
+    setup: "One time setup",
     estimatedSetup: "Estimated setup"
   }
 } as const;
