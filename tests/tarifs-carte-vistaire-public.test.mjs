@@ -87,6 +87,64 @@ function findJsonLdType(value, targetType) {
   return undefined;
 }
 
+function collectPricingDisplayCopy(page) {
+  return [
+    page.eyebrow,
+    page.h1,
+    page.subtitle,
+    ...page.collections.flatMap((collection) => [
+      collection.name,
+      collection.label,
+      collection.positioning,
+      collection.description,
+      collection.setupPrice,
+      collection.monthlyPrice,
+      collection.imageAlt,
+      collection.cta.label
+    ]),
+    page.included.eyebrow,
+    page.included.title,
+    page.included.body,
+    page.included.priceDifference,
+    ...page.includedGroups.flatMap((group) => [group.title, ...group.items]),
+    page.threeDAddOns.eyebrow,
+    page.threeDAddOns.title,
+    page.threeDAddOns.body,
+    ...page.threeDAddOns.packs.flatMap((pack) => [pack.label, pack.price]),
+    page.threeDAddOns.individualLabel,
+    page.threeDAddOns.individualPrice,
+    page.threeDAddOns.individualNote,
+    page.threeDAddOns.replacementNote,
+    page.pilotage.eyebrow,
+    page.pilotage.optionLabel,
+    page.pilotage.title,
+    page.pilotage.price,
+    page.pilotage.body,
+    ...page.pilotage.features,
+    page.pilotage.disclosure,
+    page.pilotage.standardLabel,
+    page.pilotage.optionPriceLabel,
+    page.pilotage.totalLabel,
+    page.workflow.eyebrow,
+    page.workflow.title,
+    page.workflow.body,
+    ...page.workflow.steps.flatMap((step) => [step.index, step.title, step.body]),
+    page.workflow.leadTime,
+    page.additional.eyebrow,
+    ...page.additional.extras,
+    page.additional.startingAtTitle,
+    page.additional.startingAtBody,
+    ...page.additional.variables,
+    page.commercialTerms.eyebrow,
+    page.commercialTerms.title,
+    ...page.commercialTerms.items,
+    page.finalCta.eyebrow,
+    page.finalCta.title,
+    page.finalCta.body,
+    page.finalCta.primary.label
+  ];
+}
+
 test("pricing public routes share one bilingual production surface", () => {
   for (const file of PUBLIC_FILES_FOR_THIS_TASK) {
     assert.equal(existsSync(join(process.cwd(), file)), true, `${file} should exist`);
@@ -126,6 +184,22 @@ test("pricing exposes four physical collections and Pilotage as an add-on", asyn
     label: "Prendre rendez-vous",
     href: "/prendre-rendez-vous"
   });
+});
+
+test("pricing visible copy never uses dash characters", async () => {
+  const { PRICING_PAGE, PRICING_PAGE_EN } = await import("../lib/pricingPage.ts");
+  const visibleCopy = collectPricingDisplayCopy(PRICING_PAGE)
+    .concat(collectPricingDisplayCopy(PRICING_PAGE_EN))
+    .join("\n");
+  const estimator = readWorkspaceFile(
+    "components/vistaire-preview/PricingTableEstimator.tsx"
+  );
+
+  assert.doesNotMatch(visibleCopy, /[-–—]/);
+  assert.doesNotMatch(
+    estimator,
+    /Estimation indicative —|Indicative estimate —|One-time setup/
+  );
 });
 
 test("pricing publishes final 3D add-ons, on-site photography and launch terms", async () => {
@@ -305,7 +379,7 @@ test("structured data publishes four collections, 3D pricing and keeps Pilotage 
     assert.match(serialized, /50/);
     assert.match(
       JSON.stringify(service.additionalProperty),
-      /On-site dish photography|Prise de photos des plats sur place/
+      /Dish photography at the restaurant|Prise de photos des plats sur place/
     );
     assert.equal(serialized.includes("AggregateRating"), false);
     assert.equal(serialized.includes("Review"), false);
