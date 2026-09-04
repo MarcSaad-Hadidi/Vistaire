@@ -321,6 +321,11 @@ export function PreviewFooter({
 }) {
   const routes = getVistaireChromeRoutes(routeMode, locale);
   const resolvedCurrentPath = currentPath ?? routes.home;
+  const isPricingPage =
+    normalizePathname(resolvedCurrentPath) === normalizePathname(routes.pricing);
+  const contactPhoneDisplay = isPricingPage
+    ? CONTACT_PHONE_DISPLAY.replace(/-/g, " ")
+    : CONTACT_PHONE_DISPLAY;
   const productLinks =
     locale === "en"
       ? [
@@ -470,7 +475,7 @@ export function PreviewFooter({
           contact@vistaire.ca
         </a>
         <a className={styles.footerEmail} href={`tel:${CONTACT_PHONE_TEL}`}>
-          {CONTACT_PHONE_DISPLAY}
+          {contactPhoneDisplay}
         </a>
         <Link
           aria-label={locale === "en" ? "Book a call" : "Prendre rendez-vous"}
