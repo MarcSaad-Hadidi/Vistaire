@@ -411,7 +411,7 @@ export const PRICING_PAGE = {
     body:
       "Nous vous accompagnons dans le choix du support qui s’intègre le mieux à votre établissement.",
     primary: {
-      label: "Prendre rendez-vous",
+      label: "Prendre rendez vous",
       href: "/prendre-rendez-vous"
     }
   }
