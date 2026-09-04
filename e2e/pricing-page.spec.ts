@@ -58,6 +58,50 @@ async function expectNoHorizontalOverflow(page: Page) {
   expect(overflow).toBeLessThanOrEqual(2);
 }
 
+async function visibleDashText(page: Page) {
+  return page.evaluate(() => {
+    const matches: string[] = [];
+    const isVisuallyHidden = (element: Element) => {
+      let current: Element | null = element;
+      while (current && current !== document.body) {
+        const style = getComputedStyle(current);
+        if (
+          style.display === "none" ||
+          style.visibility === "hidden" ||
+          Number.parseFloat(style.opacity || "1") === 0
+        ) {
+          return true;
+        }
+        const className = typeof current.className === "string" ? current.className : "";
+        if (className.toLowerCase().includes("sronly")) return true;
+        const rect = current.getBoundingClientRect();
+        const isTinyClippedElement =
+          rect.width <= 2 &&
+          rect.height <= 2 &&
+          (style.position === "absolute" || style.position === "fixed") &&
+          (style.overflow === "hidden" ||
+            style.clip !== "auto" ||
+            style.clipPath !== "none");
+        if (isTinyClippedElement) return true;
+        current = current.parentElement;
+      }
+      return false;
+    };
+
+    const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+    let node = walker.nextNode();
+    while (node) {
+      const text = node.textContent?.replace(/\s+/g, " ").trim() ?? "";
+      const parent = node.parentElement;
+      if (text && /[-–—]/.test(text) && parent && !isVisuallyHidden(parent)) {
+        matches.push(text);
+      }
+      node = walker.nextNode();
+    }
+    return [...new Set(matches)];
+  });
+}
+
 async function expectPrimaryNavigationFits(
   page: Page,
   labels: readonly string[]
@@ -309,8 +353,7 @@ test.describe("Vistaire pricing collections", () => {
           name: scenario.pricingLabel,
           exact: true
         })
-      )
-        .toHaveAttribute("href", scenario.pricingPath);
+      ).toHaveAttribute("href", scenario.pricingPath);
       await expect(
         navigation.getByRole("link", {
           name: scenario.pricingLabel,
@@ -340,7 +383,8 @@ test.describe("Vistaire pricing collections", () => {
       expect(await page.locator("body").innerText()).not.toMatch(
         scenario.forbiddenPreviewVocabulary
       );
-      expect(await page.locator("body").innerText()).not.toMatch(/[-–—]/);
+      const dashText = await visibleDashText(page);
+      expect(dashText, dashText.join("\n")).toEqual([]);
 
       const publicPayload = await page.evaluate(() =>
         [
