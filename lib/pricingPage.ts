@@ -283,7 +283,7 @@ export const PRICING_PAGE = {
     eyebrow: "Productions 3D supplémentaires",
     title: "Faites évoluer vos expériences 3D avec votre carte.",
     body:
-      "Les 5 premières expériences 3D prévues dans l’offre Vistaire sont incluses. Les nouvelles productions au-delà de ce volume sont facturées séparément.",
+      "Jusqu’à 5 expériences 3D peuvent être incluses dans l’offre Vistaire. Les nouvelles productions au-delà du volume inclus sont facturées séparément.",
     packs: [
       {
         quantity: 5,
@@ -558,7 +558,7 @@ export const PRICING_PAGE_EN = {
     eyebrow: "Additional 3D productions",
     title: "Keep your 3D experiences aligned with your menu.",
     body:
-      "The first 5 3D experiences planned in the Vistaire offer are included. New productions beyond that volume are billed separately.",
+      "Up to 5 3D experiences can be included in the Vistaire offer. New productions beyond the included volume are billed separately.",
     packs: [
       {
         quantity: 5,
