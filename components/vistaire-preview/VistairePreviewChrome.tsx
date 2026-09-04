@@ -290,10 +290,10 @@ export function PreviewNav({
 
       <Link className={styles.navCta} href={routes.appointment} prefetch={false}>
         <span className={styles.navCtaFull}>
-          {locale === "en" ? "Book a call" : "Prendre rendez-vous"}
+          {locale === "en" ? "Book a call" : "Prendre rendez vous"}
         </span>
         <span className={styles.navCtaShort}>
-          {locale === "en" ? "Book" : "Rendez-vous"}
+          {locale === "en" ? "Book" : "Rendez vous"}
         </span>
         <span aria-hidden="true" className={styles.navCtaArrow}>
           ↗
@@ -472,7 +472,7 @@ export function PreviewFooter({
           href={routes.appointment}
           prefetch={false}
         >
-          {locale === "en" ? "Book a call" : "Prendre rendez-vous"}
+          {locale === "en" ? "Book a call" : "Prendre rendez vous"}
         </Link>
         {socialProfiles.length > 0 ? (
           <nav
