@@ -147,11 +147,14 @@ test("Vistaire UI production-readiness contracts stay explicit across public and
     source("components/vistaire-preview/VistairePricingPreview.tsx")
   ]);
 
-  assert.match(hero, /data-video-failed=/);
-  assert.match(hero, /data-video-deferred=/);
-  assert.match(hero, /addEventListener\("scroll"/);
-  assert.match(hero, /\.currentTime\s*=/);
-  assert.match(hero, /\{ passive: true \}/);
+  assert.match(hero, /autoPlay/);
+  assert.match(hero, /loop/);
+  assert.match(hero, /muted/);
+  assert.match(hero, /playsInline/);
+  assert.match(hero, /video\.play\(\)/);
+  assert.doesNotMatch(hero, /addEventListener\("scroll"/);
+  assert.doesNotMatch(hero, /\.currentTime\s*=/);
+  assert.doesNotMatch(hero, /syncVideoToScroll|scrollFrameRef|clamp01/);
   assert.doesNotMatch(hero, /saveData|effectiveType|prefers-reduced-motion/);
 
   assert.doesNotMatch(categoryTabs, /min-h-\[34px\]/);
