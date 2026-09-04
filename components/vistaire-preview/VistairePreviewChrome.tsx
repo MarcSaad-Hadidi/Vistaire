@@ -288,7 +288,12 @@ export function PreviewNav({
 
       <LanguageSwitcher currentPath={resolvedCurrentPath} locale={locale} />
 
-      <Link className={styles.navCta} href={routes.appointment} prefetch={false}>
+      <Link
+        aria-label={locale === "en" ? "Book a call" : "Prendre rendez-vous"}
+        className={styles.navCta}
+        href={routes.appointment}
+        prefetch={false}
+      >
         <span className={styles.navCtaFull}>
           {locale === "en" ? "Book a call" : "Prendre rendez vous"}
         </span>
@@ -468,6 +473,7 @@ export function PreviewFooter({
           {CONTACT_PHONE_DISPLAY}
         </a>
         <Link
+          aria-label={locale === "en" ? "Book a call" : "Prendre rendez-vous"}
           className={styles.footerCta}
           href={routes.appointment}
           prefetch={false}
