@@ -6,7 +6,7 @@ const fr = {
   lead: "Passez de la vue d’ensemble aux disponibilités et aux analyses dans une reproduction fidèle, conçue pour montrer le produit sans ouvrir le système privé.",
   demoLabel: "Données de démonstration",
   demoStatement: "Cette interface reproduit le fonctionnement du dashboard Vistaire avec des données fictives. Aucune donnée client n’est affichée ni modifiée.",
-  appointment: "Prendre rendez-vous",
+  appointment: "Prendre rendez vous",
   sampleMenu: "Voir la carte exemple",
   dashboardEyebrow: "Vistaire · Démonstration",
   dashboardSubtitle: "Lecture synthétique de la carte et de son activité",
