@@ -94,10 +94,10 @@ test("CI smoke validates the bilingual Pricing table estimator", async ({ page }
       amountsAt37: [2680, 2815, 3035, 3135],
       monthly: "+ 200 $ CAD / mois",
       pilotage: "+ 100 $ CAD / mois",
-      pilotageTotal: "Total — 300 $ / mois",
+      pilotageTotal: "Total 300 $ / mois",
       summaryAt37: "20 supports inclus · 17 supports supplémentaires",
       disclaimer:
-        "Estimation indicative — le prix final sera confirmé dans votre devis après analyse de votre établissement et de vos besoins."
+        "Estimation indicative. Le prix final sera confirmé dans votre devis après analyse de votre établissement et de vos besoins."
     },
     {
       path: "/en/pricing-digital-restaurant-menu",
@@ -110,10 +110,10 @@ test("CI smoke validates the bilingual Pricing table estimator", async ({ page }
       amountsAt37: [2680, 2815, 3035, 3135],
       monthly: "+ $200 CAD / month",
       pilotage: "+ $100 CAD / month",
-      pilotageTotal: "Total — $300 / month",
+      pilotageTotal: "Total $300 / month",
       summaryAt37: "20 displays included · 17 additional displays",
       disclaimer:
-        "Indicative estimate — final pricing will be confirmed in your quote after reviewing your venue and project requirements."
+        "Indicative estimate. Final pricing will be confirmed in your quote after reviewing your venue and project requirements."
     }
   ] as const;
 
@@ -174,6 +174,7 @@ test("CI smoke validates the bilingual Pricing table estimator", async ({ page }
     await expect(estimator.getByText(scenario.disclaimer, { exact: true })).toBeVisible();
 
     const publicCopy = await page.locator("body").innerText();
+    expect(publicCopy).not.toMatch(/[-–—]/);
     expect(publicCopy).not.toContain("Votre prix final");
     expect(publicCopy).not.toContain("Total à payer");
     expect(publicCopy).not.toContain("Montant dû");
