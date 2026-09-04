@@ -136,10 +136,6 @@ export type PricingPageContent = {
       label: string;
       href: string;
     };
-    secondary: {
-      label: string;
-      href: string;
-    };
   };
 };
 
@@ -417,10 +413,6 @@ export const PRICING_PAGE = {
     primary: {
       label: "Prendre rendez-vous",
       href: "/prendre-rendez-vous"
-    },
-    secondary: {
-      label: "Parler à un expert",
-      href: "/contact"
     }
   }
 } satisfies PricingPageContent;
@@ -691,10 +683,6 @@ export const PRICING_PAGE_EN = {
     primary: {
       label: "Book a call",
       href: "/en/book-a-call"
-    },
-    secondary: {
-      label: "Talk to an expert",
-      href: "/en/contact"
     }
   }
 } satisfies PricingPageContent;
