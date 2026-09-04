@@ -195,7 +195,7 @@ test("pricing exposes four physical collections and Pilotage as an add-on", asyn
   assert.equal(PRICING_PAGE.collections.find(({ featured }) => featured)?.id, "signature");
   assert.equal(PRICING_PAGE.includedGroups.flatMap(({ items }) => items).length, 15);
   assert.deepEqual(PRICING_PAGE.finalCta.primary, {
-    label: "Prendre rendez-vous",
+    label: "Prendre rendez vous",
     href: "/prendre-rendez-vous"
   });
 });
@@ -224,7 +224,7 @@ test("pricing visible copy never uses dash characters", async () => {
   );
   assert.doesNotMatch(
     sharedChrome,
-    /Premium digital menu for high-end restaurants|mobile-first experience/
+    /Premium digital menu for high-end restaurants|mobile-first experience|Prendre rendez-vous|Rendez-vous/
   );
 });
 
