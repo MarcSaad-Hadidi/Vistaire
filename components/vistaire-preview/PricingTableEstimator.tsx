@@ -20,7 +20,7 @@ const COPY = {
   fr: {
     eyebrow: "Votre établissement",
     title: "Estimez votre mise en place",
-    question: "Combien de tables souhaitez-vous équiper ?",
+    question: "Nombre de tables à équiper ?",
     tables: "tables",
     decrease: "Réduire le nombre de tables",
     increase: "Augmenter le nombre de tables",
