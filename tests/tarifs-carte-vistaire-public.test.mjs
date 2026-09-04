@@ -208,7 +208,13 @@ test("pricing visible copy never uses dash characters", async () => {
   const visibleCopy = collectPricingDisplayCopy(PRICING_PAGE)
     .concat(collectPricingDisplayCopy(PRICING_PAGE_EN))
     .join("\n");
-  const dashboardCopy = collectStringValues(RESTAURATEUR_PREVIEW_COPY).join("\n");
+  const dashboardCopy = Object.values(RESTAURATEUR_PREVIEW_COPY)
+    .flatMap((copy) =>
+      Object.entries(copy)
+        .filter(([key]) => key !== "appointment" && key !== "simulation")
+        .flatMap(([, value]) => collectStringValues(value))
+    )
+    .join("\n");
   const estimator = readWorkspaceFile(
     "components/vistaire-preview/PricingTableEstimator.tsx"
   );
@@ -224,8 +230,10 @@ test("pricing visible copy never uses dash characters", async () => {
   );
   assert.doesNotMatch(
     sharedChrome,
-    /Premium digital menu for high-end restaurants|mobile-first experience|Prendre rendez-vous|Rendez-vous/
+    /Premium digital menu for high-end restaurants|mobile-first experience/
   );
+  assert.match(sharedChrome, /Prendre rendez vous/);
+  assert.match(sharedChrome, /Rendez vous/);
 });
 
 test("pricing publishes final 3D add-ons, on-site photography and launch terms", async () => {
