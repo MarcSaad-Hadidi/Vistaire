@@ -186,13 +186,13 @@ test.describe("Vistaire pricing collections", () => {
         prices: ["2 000 $ CAD", "2 050 $ CAD", "2 100 $ CAD", "2 200 $ CAD"],
         monthly: "+ 200 $ CAD / mois",
         pilotage: "+ 100 $ CAD / mois",
-        total: "Total — 300 $ / mois",
+        total: "Total 300 $ / mois",
         navLinks: ["Accueil", "Carte", "Tarifs", "À propos", "Contact"],
         pricingLabel: "Tarifs",
         pricingPath: "#pricing-title",
         brandLabel: "Vistaire - accueil",
         navCta: "Prendre rendez-vous",
-        appointmentCta: "Prendre rendez-vous",
+        appointmentCta: "Prendre rendez vous",
         appointmentPath: "/prendre-rendez-vous",
         forbiddenPreviewVocabulary: /démo|démonstration/i,
         forbiddenPrices: [
@@ -215,7 +215,7 @@ test.describe("Vistaire pricing collections", () => {
         prices: ["$2,000 CAD", "$2,050 CAD", "$2,100 CAD", "$2,200 CAD"],
         monthly: "+ $200 CAD / month",
         pilotage: "+ $100 CAD / month",
-        total: "Total — $300 / month",
+        total: "Total $300 / month",
         navLinks: ["Home", "Menu", "Pricing", "About", "Contact"],
         pricingLabel: "Pricing",
         pricingPath: "#pricing-title",
@@ -340,6 +340,7 @@ test.describe("Vistaire pricing collections", () => {
       expect(await page.locator("body").innerText()).not.toMatch(
         scenario.forbiddenPreviewVocabulary
       );
+      expect(await page.locator("body").innerText()).not.toMatch(/[-–—]/);
 
       const publicPayload = await page.evaluate(() =>
         [
@@ -430,7 +431,7 @@ test.describe("Vistaire pricing collections", () => {
       await expect(
         page
           .locator('section[aria-labelledby="pricing-final-title"]')
-          .getByRole("link", { name: "Prendre rendez-vous", exact: true })
+          .getByRole("link", { name: "Prendre rendez vous", exact: true })
       ).toHaveAttribute("href", "/prendre-rendez-vous");
       await expectNoHorizontalOverflow(page);
     }
