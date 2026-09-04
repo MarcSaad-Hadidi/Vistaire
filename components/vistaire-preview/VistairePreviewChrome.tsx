@@ -247,7 +247,7 @@ export function PreviewNav({
       className={styles.previewNav}
     >
       <Link
-        aria-label={locale === "en" ? "Vistaire home" : "Vistaire accueil"}
+        aria-label={locale === "en" ? "Vistaire - home" : "Vistaire - accueil"}
         className={styles.navBrand}
         href={routes.home}
         prefetch={false}
