@@ -379,7 +379,7 @@ export const PRICING_PAGE = {
       "Supports au-delà de 20 ou de remplacement : estimation selon la collection et le besoin."
     ],
     startingAtTitle:
-      "Pourquoi les frais de mise en place sont-ils indiqués « À partir de » ?",
+      "Pourquoi les frais de mise en place sont indiqués « À partir de » ?",
     startingAtBody:
       "Chaque projet est ajusté à la réalité de l’établissement et à la quantité de contenu à préparer.",
     variables: [
