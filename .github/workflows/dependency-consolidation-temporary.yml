@@ -55,7 +55,10 @@ jobs:
 
           // Preserve behavior-sensitive runtime/toolchain versions unless their parity is proven.
           pkg.dependencies['@getbrevo/brevo'] = '^5.0.4';
-          pkg.dependencies['@gltf-transform/cli'] = '^4.4.1';
+          pkg.dependencies['@gltf-transform/cli'] = '4.4.1';
+          pkg.dependencies['@gltf-transform/core'] = '4.4.1';
+          pkg.dependencies['@gltf-transform/extensions'] = '4.4.1';
+          pkg.dependencies['@gltf-transform/functions'] = '4.4.1';
           pkg.dependencies['@supabase/ssr'] = '^0.10.3';
           pkg.dependencies.meshoptimizer = '~1.0.1';
           pkg.devDependencies['@types/node'] = '^24.0.0';
