@@ -63,8 +63,8 @@ export function MenuSearchBar({
         spellCheck={false}
         className={
           compact
-            ? "min-h-[42px] w-full rounded-xl border border-white/[0.11] bg-black/50 py-2.5 pl-10 pr-10 text-[14px] leading-snug text-cream shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] placeholder:text-[#6f6358] outline-none ring-0 transition focus:border-champagne/35 focus:bg-black/58 focus:ring-1 focus:ring-champagne/22"
-            : "min-h-11 w-full rounded-full border border-white/12 bg-black/40 py-2.5 pl-10 pr-11 text-sm text-cream placeholder:text-[#7a6c5c] outline-none transition focus:border-champagne/35 focus:bg-black/50 focus:ring-2 focus:ring-champagne/20 sm:text-[15px]"
+            ? "min-h-11 w-full rounded-xl border border-white/[0.11] bg-black/50 py-2.5 pl-10 pr-12 text-[14px] leading-snug text-cream shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] placeholder:text-[#6f6358] outline-none ring-0 transition motion-reduce:transition-none focus:border-champagne/35 focus:bg-black/58 focus:ring-1 focus:ring-champagne/22"
+            : "min-h-11 w-full rounded-full border border-white/12 bg-black/40 py-2.5 pl-10 pr-12 text-sm text-cream placeholder:text-[#7a6c5c] outline-none transition motion-reduce:transition-none focus:border-champagne/35 focus:bg-black/50 focus:ring-2 focus:ring-champagne/20 sm:text-[15px]"
         }
       />
       {value.trim() ? (
@@ -73,8 +73,8 @@ export function MenuSearchBar({
           onClick={() => onChange("")}
           className={
             compact
-              ? "absolute right-2 top-1/2 -translate-y-1/2 rounded-md px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-[#8a7b68] transition hover:bg-white/6 hover:text-cream focus:outline-none focus-visible:ring-2 focus-visible:ring-champagne"
-              : "absolute right-2 top-1/2 -translate-y-1/2 rounded-full px-2.5 py-1 text-xs font-medium text-[#8a7b68] transition hover:bg-white/8 hover:text-cream focus:outline-none focus-visible:ring-2 focus-visible:ring-champagne"
+              ? "absolute right-0 top-1/2 inline-flex min-h-11 min-w-11 -translate-y-1/2 items-center justify-center rounded-xl px-2 text-[10px] font-semibold uppercase tracking-wide text-[#8a7b68] transition motion-reduce:transition-none hover:bg-white/6 hover:text-cream focus:outline-none focus-visible:ring-2 focus-visible:ring-champagne"
+              : "absolute right-0 top-1/2 inline-flex min-h-11 min-w-11 -translate-y-1/2 items-center justify-center rounded-full px-2.5 text-xs font-medium text-[#8a7b68] transition motion-reduce:transition-none hover:bg-white/8 hover:text-cream focus:outline-none focus-visible:ring-2 focus-visible:ring-champagne"
           }
           aria-label="Effacer la recherche"
         >

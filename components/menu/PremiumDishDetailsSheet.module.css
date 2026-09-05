@@ -48,6 +48,15 @@
   outline: none;
 }
 
+.handle {
+  width: 42px;
+  height: 4px;
+  justify-self: center;
+  margin: -6px 0 -8px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.28);
+}
+
 .close {
   position: absolute;
   top: 16px;
@@ -233,6 +242,11 @@
   color: #17120b;
 }
 
+.page[data-user-theme="light"] .handle,
+.overlay[data-user-theme="light"] .handle {
+  background: rgba(35, 26, 13, 0.22);
+}
+
 .page[data-user-theme="light"] .kicker,
 .page[data-user-theme="light"] .houseNoteLabel,
 .overlay[data-user-theme="light"] .kicker,
@@ -328,8 +342,8 @@
 :global([data-display-mode="phone-preview"]) .close {
   top: 12px;
   right: 12px;
-  width: 36px;
-  height: 36px;
+  width: 44px;
+  height: 44px;
 }
 
 :global([data-display-mode="phone-preview"]) .title {
@@ -404,13 +418,13 @@
   :global([data-palette-source="reference"][data-user-theme="dark"]) .close {
     top: 10px;
     right: 10px;
-    width: 36px;
-    height: 36px;
+    width: 44px;
+    height: 44px;
   }
 
   :global([data-palette-source="reference"][data-user-theme="dark"]) .header {
     gap: 4px;
-    padding-right: 44px;
+    padding-right: 52px;
   }
 
   :global([data-palette-source="reference"][data-user-theme="dark"]) .title {

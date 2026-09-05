@@ -23,6 +23,9 @@ export function OwnerDishPhotoUploader({
   const [status, setStatus] = useState(imageUrl ? "Photo prete" : "Photo manquante");
   const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState("");
+  const statusId = `dish-photo-status-${dishId}`;
+  const errorId = `dish-photo-error-${dishId}`;
+  const describedBy = error ? `${statusId} ${errorId}` : statusId;
 
   async function upload(file: File) {
     setIsUploading(true);
@@ -62,7 +65,7 @@ export function OwnerDishPhotoUploader({
   }
 
   return (
-    <div className={styles.tableActions}>
+    <div className={styles.tableActions} aria-busy={isUploading}>
       {imageUrl ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img
@@ -82,6 +85,7 @@ export function OwnerDishPhotoUploader({
         type="file"
         accept="image/jpeg,image/png,image/webp"
         hidden
+        aria-describedby={describedBy}
         onChange={(event) => {
           const file = event.currentTarget.files?.[0];
           if (file) void upload(file);
@@ -91,12 +95,19 @@ export function OwnerDishPhotoUploader({
         type="button"
         className={`${styles.btn} ${styles.btnSmall}`}
         disabled={isUploading}
+        aria-describedby={describedBy}
         onClick={() => inputRef.current?.click()}
       >
         {isUploading ? "Upload..." : imageUrl ? "Remplacer photo" : "Ajouter photo"}
       </button>
-      <span className={styles.cellSub}>{status}</span>
-      {error ? <span className={styles.errorText}>{error}</span> : null}
+      <span id={statusId} className={styles.cellSub} aria-live="polite">
+        {status}
+      </span>
+      {error ? (
+        <span id={errorId} className={styles.errorText} role="alert">
+          {error}
+        </span>
+      ) : null}
     </div>
   );
 }

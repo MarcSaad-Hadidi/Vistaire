@@ -45,19 +45,18 @@ export function CategoryTabs({
       : "flex w-full min-w-0 flex-wrap items-center justify-center gap-x-2 gap-y-2 sm:gap-x-2.5";
 
   /**
-   * Chips : `leading-[1.2]` (et `pb-` légèrement supérieur à `pt-`) pour laisser
-   * respirer les descendantes (« g » de signatures, « p » de Plats, etc.) sans
-   * agrandir visuellement la pill. Pas de `truncate` : `overflow: hidden`
-   * combiné à un line-height serré coupait le bas des lettres.
+   * Les pills conservent un gabarit compact mais exposent une cible tactile
+   * d'au moins 44 px. La transition est volontairement courte et disparaît
+   * lorsque l'utilisateur demande moins de mouvement.
    */
   const chipClass = (selected: boolean) =>
     isViewportInner
-      ? `inline-flex min-h-[34px] max-w-full items-center justify-center whitespace-nowrap rounded-full border px-3 pb-[7px] pt-[5px] text-[12px] font-medium leading-[1.2] tracking-wide transition focus:outline-none focus-visible:ring-2 focus-visible:ring-champagne focus-visible:ring-offset-2 focus-visible:ring-offset-charcoal ${
+      ? `inline-flex min-h-11 max-w-full items-center justify-center whitespace-nowrap rounded-full border px-3 py-2 text-[12px] font-medium leading-[1.2] tracking-wide transition motion-reduce:transition-none focus:outline-none focus-visible:ring-2 focus-visible:ring-champagne focus-visible:ring-offset-2 focus-visible:ring-offset-charcoal ${
           selected
             ? "border-champagne/55 bg-champagne/[0.15] text-cream shadow-[inset_0_1px_0_rgba(255,255,255,0.07)] ring-1 ring-champagne/25"
             : "border-white/[0.12] bg-black/45 text-[#d1c2aa] hover:border-white/22 hover:bg-black/55 hover:text-cream"
         }`
-      : `inline-flex max-w-full items-center justify-center whitespace-nowrap rounded-full border px-3.5 pb-[7px] pt-[5px] text-[12.5px] font-medium leading-[1.2] transition focus:outline-none focus-visible:ring-2 focus-visible:ring-champagne focus-visible:ring-offset-2 focus-visible:ring-offset-charcoal sm:px-4 sm:pb-[8px] sm:pt-[6px] sm:text-sm ${
+      : `inline-flex min-h-11 max-w-full items-center justify-center whitespace-nowrap rounded-full border px-3.5 py-2 text-[12.5px] font-medium leading-[1.2] transition motion-reduce:transition-none focus:outline-none focus-visible:ring-2 focus-visible:ring-champagne focus-visible:ring-offset-2 focus-visible:ring-offset-charcoal sm:px-4 sm:text-sm ${
           selected
             ? "border-champagne/55 bg-champagne/14 text-cream shadow-sm"
             : "border-white/12 bg-black/35 text-[#c9b79d] hover:border-white/22 hover:text-cream"

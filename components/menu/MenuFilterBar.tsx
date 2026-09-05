@@ -81,7 +81,7 @@ export function MenuFilterBar({
               type="button"
               onClick={() => toggle(chip.key)}
               aria-pressed={pressed}
-              className={`inline-flex items-center justify-center whitespace-nowrap rounded-full border px-3 pb-[7px] pt-[5px] text-[11px] font-medium leading-[1.2] transition focus:outline-none focus-visible:ring-2 focus-visible:ring-champagne ${
+              className={`inline-flex min-h-11 items-center justify-center whitespace-nowrap rounded-full border px-3 py-2 text-[11px] font-medium leading-[1.2] transition motion-reduce:transition-none focus:outline-none focus-visible:ring-2 focus-visible:ring-champagne ${
                 pressed
                   ? "border-champagne/50 bg-champagne/[0.13] text-cream ring-1 ring-champagne/20"
                   : "border-white/[0.1] bg-black/40 text-[#b9aa94] hover:border-white/18 hover:bg-black/48"
@@ -115,8 +115,8 @@ export function MenuFilterBar({
           }}
           className={
             compact
-              ? "min-h-[40px] w-full rounded-xl border border-white/[0.11] bg-black/50 px-3.5 py-2 text-[13px] text-cream shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] outline-none focus:border-champagne/35 focus:ring-1 focus:ring-champagne/22"
-              : "min-h-9 min-w-[12rem] rounded-lg border border-white/12 bg-black/40 px-3 py-1.5 text-xs text-cream outline-none focus:border-champagne/35 focus:ring-2 focus:ring-champagne/20 sm:text-sm"
+              ? "min-h-11 w-full rounded-xl border border-white/[0.11] bg-black/50 px-3.5 py-2 text-[13px] text-cream shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] outline-none transition motion-reduce:transition-none focus:border-champagne/35 focus:ring-1 focus:ring-champagne/22"
+              : "min-h-11 min-w-[12rem] rounded-lg border border-white/12 bg-black/40 px-3 py-2 text-xs text-cream outline-none transition motion-reduce:transition-none focus:border-champagne/35 focus:ring-2 focus:ring-champagne/20 sm:text-sm"
           }
         >
           {ALLERGEN_OPTIONS.map((opt) => (
@@ -132,8 +132,8 @@ export function MenuFilterBar({
             onClick={() => onChange(defaultMenuFilterState(), "reset_filters")}
             className={
               compact
-                ? "text-left text-[11px] font-medium text-champagne/90 underline decoration-champagne/30 underline-offset-2 transition hover:text-champagne"
-                : "shrink-0 text-xs font-medium text-champagne/90 underline decoration-champagne/30 underline-offset-4 transition hover:text-champagne sm:text-sm"
+                ? "inline-flex min-h-11 items-center self-start text-left text-[11px] font-medium text-champagne/90 underline decoration-champagne/30 underline-offset-2 transition motion-reduce:transition-none hover:text-champagne focus:outline-none focus-visible:ring-2 focus-visible:ring-champagne"
+                : "inline-flex min-h-11 shrink-0 items-center text-xs font-medium text-champagne/90 underline decoration-champagne/30 underline-offset-4 transition motion-reduce:transition-none hover:text-champagne focus:outline-none focus-visible:ring-2 focus-visible:ring-champagne sm:text-sm"
             }
           >
             Réinitialiser
