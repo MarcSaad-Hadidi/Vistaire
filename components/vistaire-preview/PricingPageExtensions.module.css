@@ -1,0 +1,558 @@
+.threeDSection,
+.workflowSection,
+.termsSection {
+  position: relative;
+  z-index: 2;
+  width: var(--pricing-width);
+  margin-inline: auto;
+}
+
+.threeDSection,
+.workflowSection {
+  overflow: hidden;
+  border: 1px solid rgba(232, 207, 155, 0.28);
+  border-radius: 22px;
+  background: rgba(8, 5, 3, 0.14);
+  padding: clamp(52px, 6vw, 80px) clamp(24px, 4vw, 56px) clamp(40px, 5vw, 64px);
+  box-shadow:
+    0 26px 72px rgba(0, 0, 0, 0.28),
+    inset 0 1px 0 rgba(255, 250, 240, 0.1);
+  -webkit-backdrop-filter: blur(9px) saturate(110%);
+  backdrop-filter: blur(9px) saturate(110%);
+}
+
+.threeDSection {
+  margin-top: 0;
+  margin-bottom: clamp(82px, 9vw, 130px);
+}
+
+.workflowSection {
+  margin-top: clamp(82px, 9vw, 130px);
+  margin-bottom: clamp(82px, 9vw, 130px);
+}
+
+.sectionIntro,
+.workflowIntro {
+  max-width: 780px;
+  margin-inline: auto;
+  text-align: center;
+}
+
+.sectionIntro h2,
+.workflowIntro h2,
+.termsIntro h2 {
+  margin: 13px 0 0;
+  color: #fffaf0;
+  font-family: var(--pricing-display);
+  font-size: clamp(38px, 4.4vw, 60px);
+  font-weight: 400;
+  letter-spacing: -0.035em;
+  line-height: 0.98;
+  text-wrap: balance;
+}
+
+.sectionIntro > p:last-child,
+.workflowIntro > p:last-child {
+  max-width: 680px;
+  margin: 18px auto 0;
+  color: var(--pricing-muted);
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.threeDPackGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0;
+  margin-top: clamp(42px, 5vw, 64px);
+}
+
+.threeDPack {
+  min-width: 0;
+  padding: 0 clamp(24px, 3.2vw, 44px);
+  background: transparent;
+}
+
+.threeDPack:first-child {
+  padding-left: 0;
+}
+
+.threeDPack:last-child {
+  padding-right: 0;
+}
+
+.threeDPack + .threeDPack {
+  border-left: 1px solid rgba(232, 207, 155, 0.2);
+}
+
+.threeDPack span,
+.threeDIndividual span {
+  display: block;
+  color: rgba(232, 207, 155, 0.76);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  line-height: 1.3;
+  text-transform: uppercase;
+}
+
+.threeDPack strong {
+  display: block;
+  margin-top: 20px;
+  border-top: 1px solid rgba(255, 248, 235, 0.09);
+  padding-top: 18px;
+  color: #fffaf0;
+  font-family: var(--pricing-display);
+  font-size: clamp(34px, 3.6vw, 50px);
+  font-weight: 400;
+  letter-spacing: -0.035em;
+  line-height: 1;
+}
+
+.threeDIndividual {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: clamp(24px, 4vw, 56px);
+  align-items: center;
+  margin-top: clamp(34px, 4vw, 48px);
+  border-block: 1px solid rgba(255, 248, 235, 0.09);
+  padding: 22px 0;
+}
+
+.threeDIndividual p {
+  margin: 7px 0 0;
+  color: var(--pricing-muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.threeDIndividual strong {
+  flex: 0 0 auto;
+  color: #fffaf0;
+  font-family: var(--pricing-display);
+  font-size: clamp(29px, 3vw, 42px);
+  font-weight: 400;
+  letter-spacing: -0.025em;
+  line-height: 1;
+  text-align: right;
+}
+
+.threeDNote {
+  max-width: 820px;
+  margin: 28px auto 0;
+  color: rgba(247, 234, 215, 0.62);
+  font-size: 12.5px;
+  line-height: 1.55;
+  text-align: center;
+}
+
+.workflowTimeline {
+  position: relative;
+  margin-top: clamp(42px, 5vw, 64px);
+}
+
+.workflowTrack {
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 0;
+  height: 1px;
+  pointer-events: none;
+}
+
+.workflowTrackBase,
+.workflowProgress {
+  position: absolute;
+  inset: 0;
+  display: block;
+}
+
+.workflowTrackBase {
+  background: rgba(255, 248, 235, 0.09);
+}
+
+.workflowProgress {
+  background: linear-gradient(90deg, rgba(232, 207, 155, 0.34), rgba(232, 207, 155, 0.82));
+  transform: scaleX(1);
+  transform-origin: left center;
+}
+
+.workflowList {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.workflowStep {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+  padding: 25px clamp(16px, 2.2vw, 30px) 0;
+  text-align: left;
+}
+
+.workflowStep:first-child {
+  padding-left: 0;
+}
+
+.workflowStep:last-child {
+  padding-right: 0;
+}
+
+.workflowStep + .workflowStep {
+  border-left: 1px solid rgba(232, 207, 155, 0.2);
+}
+
+.workflowMarker {
+  display: block;
+  width: auto;
+  height: auto;
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  color: rgba(232, 207, 155, 0.58);
+  font-family: var(--pricing-display);
+  font-size: 18px;
+  font-weight: 400;
+  letter-spacing: 0;
+  line-height: 1;
+}
+
+.workflowStepCopy {
+  min-width: 0;
+  margin: 0;
+}
+
+.workflowStepCopy h3 {
+  margin: 0;
+  color: #fffaf0;
+  font-family: var(--pricing-display);
+  font-size: clamp(20px, 1.9vw, 27px);
+  font-weight: 400;
+  letter-spacing: -0.025em;
+  line-height: 1.05;
+}
+
+.workflowStepCopy p {
+  margin: 16px 0 0;
+  border-top: 1px solid rgba(255, 248, 235, 0.09);
+  padding-top: 13px;
+  color: rgba(255, 248, 235, 0.7);
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+
+.workflowLeadTime {
+  max-width: 770px;
+  margin: 45px auto 0;
+  border-top: 1px solid rgba(255, 248, 235, 0.09);
+  padding-top: 20px;
+  color: rgba(247, 234, 215, 0.62);
+  font-size: 12.5px;
+  line-height: 1.55;
+  text-align: center;
+}
+
+.workflowSection[data-motion="ready"] .workflowProgress {
+  transform: scaleX(0);
+}
+
+.workflowSection[data-motion="ready"] .workflowStep {
+  opacity: 0.42;
+  transform: translateY(9px);
+}
+
+.workflowSection[data-motion="visible"] .workflowProgress {
+  transform: scaleX(1);
+  transition: transform 900ms cubic-bezier(0.2, 0.72, 0.2, 1);
+}
+
+.workflowSection[data-motion="visible"] .workflowStep {
+  opacity: 1;
+  transform: translateY(0);
+  transition:
+    opacity 420ms ease,
+    transform 520ms cubic-bezier(0.2, 0.72, 0.2, 1);
+}
+
+.workflowSection[data-motion="visible"] .workflowStep:nth-child(1) {
+  transition-delay: 100ms;
+}
+
+.workflowSection[data-motion="visible"] .workflowStep:nth-child(2) {
+  transition-delay: 220ms;
+}
+
+.workflowSection[data-motion="visible"] .workflowStep:nth-child(3) {
+  transition-delay: 340ms;
+}
+
+.workflowSection[data-motion="visible"] .workflowStep:nth-child(4) {
+  transition-delay: 460ms;
+}
+
+.workflowSection[data-motion="visible"] .workflowStep:nth-child(5) {
+  transition-delay: 580ms;
+}
+
+.termsSection {
+  margin-top: clamp(36px, 5vw, 72px);
+  margin-bottom: clamp(30px, 4vw, 54px);
+  padding: clamp(28px, 4vw, 48px);
+  border: 1px solid rgba(232, 207, 155, 0.24);
+  border-radius: 26px;
+  background: rgba(17, 11, 7, 0.72);
+}
+
+.termsIntro {
+  max-width: 720px;
+}
+
+.termsIntro h2 {
+  font-size: clamp(30px, 3.5vw, 48px);
+}
+
+.termsGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0 32px;
+  margin: 30px 0 0;
+  padding: 0;
+  border-top: 1px solid rgba(232, 207, 155, 0.16);
+  list-style: none;
+}
+
+.termsGrid li {
+  display: grid;
+  grid-template-columns: 7px minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+  padding: 17px 0;
+  border-bottom: 1px solid rgba(232, 207, 155, 0.13);
+}
+
+.termsGrid li > span {
+  width: 5px;
+  height: 5px;
+  margin-top: 7px;
+  border-radius: 999px;
+  background: var(--pricing-champagne);
+}
+
+.termsGrid p {
+  margin: 0;
+  color: rgba(255, 248, 235, 0.78);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+@media (max-width: 900px) {
+  .threeDPackGrid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .threeDPack,
+  .threeDPack:first-child,
+  .threeDPack:last-child {
+    padding: 28px 0;
+  }
+
+  .threeDPack + .threeDPack {
+    border-top: 1px solid rgba(232, 207, 155, 0.2);
+    border-left: 0;
+  }
+
+  .threeDPack strong {
+    max-width: 360px;
+  }
+
+  .workflowTimeline {
+    padding-left: 32px;
+  }
+
+  .workflowTrack {
+    top: 0;
+    right: auto;
+    bottom: 0;
+    left: 8px;
+    width: 1px;
+    height: auto;
+  }
+
+  .workflowProgress {
+    transform: scaleY(1);
+    transform-origin: center top;
+  }
+
+  .workflowSection[data-motion="ready"] .workflowProgress {
+    transform: scaleY(0);
+  }
+
+  .workflowSection[data-motion="visible"] .workflowProgress {
+    transform: scaleY(1);
+  }
+
+  .workflowList {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .workflowStep,
+  .workflowStep:first-child,
+  .workflowStep:last-child {
+    grid-template-columns: 32px minmax(0, 1fr);
+    gap: 14px;
+    padding: 0 0 28px;
+  }
+
+  .workflowStep + .workflowStep {
+    border-top: 1px solid rgba(232, 207, 155, 0.16);
+    border-left: 0;
+    padding-top: 28px;
+  }
+
+  .workflowMarker {
+    padding-top: 2px;
+  }
+
+  .workflowStepCopy h3 {
+    font-size: 25px;
+  }
+
+  .workflowStepCopy p {
+    max-width: 610px;
+  }
+}
+
+@media (max-width: 640px) {
+  .threeDSection,
+  .workflowSection,
+  .termsSection {
+    width: var(--pricing-width);
+    border-radius: 19px;
+  }
+
+  .threeDSection,
+  .workflowSection {
+    margin-bottom: 72px;
+    padding: 38px 18px 30px;
+  }
+
+  .workflowSection {
+    margin-top: 72px;
+  }
+
+  .termsSection {
+    padding: 24px 20px;
+  }
+
+  .sectionIntro,
+  .workflowIntro {
+    text-align: left;
+  }
+
+  .sectionIntro h2,
+  .workflowIntro h2 {
+    font-size: 43px;
+  }
+
+  .sectionIntro > p:last-child,
+  .workflowIntro > p:last-child,
+  .threeDNote,
+  .workflowLeadTime {
+    text-align: left;
+  }
+
+  .threeDPackGrid,
+  .workflowTimeline {
+    margin-top: 30px;
+  }
+
+  .threeDIndividual {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 14px;
+    padding-block: 18px;
+  }
+
+  .threeDIndividual strong {
+    text-align: left;
+  }
+
+  .threeDNote {
+    margin-top: 24px;
+  }
+
+  .workflowTimeline {
+    padding-left: 27px;
+  }
+
+  .workflowTrack {
+    left: 6px;
+  }
+
+  .workflowStep,
+  .workflowStep:first-child,
+  .workflowStep:last-child {
+    grid-template-columns: 28px minmax(0, 1fr);
+    gap: 12px;
+  }
+
+  .workflowStepCopy h3 {
+    font-size: 24px;
+  }
+
+  .workflowStepCopy p {
+    margin-top: 12px;
+    padding-top: 11px;
+  }
+
+  .workflowLeadTime {
+    margin-top: 30px;
+    padding-top: 16px;
+  }
+
+  .termsGrid {
+    grid-template-columns: 1fr;
+    margin-top: 24px;
+  }
+}
+
+@media (max-width: 390px) {
+  .threeDSection,
+  .workflowSection,
+  .termsSection {
+    width: var(--pricing-width);
+  }
+
+  .threeDPack strong {
+    font-size: 36px;
+  }
+
+  .workflowStepCopy h3 {
+    font-size: 22px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .workflowSection[data-motion] .workflowProgress,
+  .workflowSection[data-motion] .workflowStep {
+    transition: none !important;
+  }
+
+  .workflowSection[data-motion] .workflowProgress {
+    transform: none !important;
+  }
+
+  .workflowSection[data-motion] .workflowStep {
+    opacity: 1 !important;
+    transform: none !important;
+  }
+}

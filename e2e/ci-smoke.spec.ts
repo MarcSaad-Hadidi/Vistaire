@@ -16,6 +16,50 @@ async function expectNoHorizontalOverflow(page: Page) {
     .toBe(true);
 }
 
+async function visibleDashText(page: Page) {
+  return page.evaluate(() => {
+    const matches: string[] = [];
+    const isVisuallyHidden = (element: Element) => {
+      let current: Element | null = element;
+      while (current && current !== document.body) {
+        const style = getComputedStyle(current);
+        if (
+          style.display === "none" ||
+          style.visibility === "hidden" ||
+          Number.parseFloat(style.opacity || "1") === 0
+        ) {
+          return true;
+        }
+        const className = typeof current.className === "string" ? current.className : "";
+        if (className.toLowerCase().includes("sronly")) return true;
+        const rect = current.getBoundingClientRect();
+        const isTinyClippedElement =
+          rect.width <= 2 &&
+          rect.height <= 2 &&
+          (style.position === "absolute" || style.position === "fixed") &&
+          (style.overflow === "hidden" ||
+            style.clip !== "auto" ||
+            style.clipPath !== "none");
+        if (isTinyClippedElement) return true;
+        current = current.parentElement;
+      }
+      return false;
+    };
+
+    const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+    let node = walker.nextNode();
+    while (node) {
+      const text = node.textContent?.replace(/\s+/g, " ").trim() ?? "";
+      const parent = node.parentElement;
+      if (text && /[-–—]/.test(text) && parent && !isVisuallyHidden(parent)) {
+        matches.push(text);
+      }
+      node = walker.nextNode();
+    }
+    return [...new Set(matches)];
+  });
+}
+
 test("CI smoke loads the public landing at Vistaire mobile widths", async ({ page }) => {
   for (const viewport of [
     { width: 390, height: 844 },
@@ -85,7 +129,7 @@ test("CI smoke validates the bilingual Pricing table estimator", async ({ page }
   const scenarios = [
     {
       path: "/tarifs-menu-digital-restaurant",
-      question: "Combien de tables souhaitez-vous équiper ?",
+      question: "Nombre de tables à équiper ?",
       decrement: "Réduire le nombre de tables",
       increment: "Augmenter le nombre de tables",
       initialPrices: ["2 000 $ CAD", "2 050 $ CAD", "2 100 $ CAD", "2 200 $ CAD"],
@@ -94,10 +138,10 @@ test("CI smoke validates the bilingual Pricing table estimator", async ({ page }
       amountsAt37: [2680, 2815, 3035, 3135],
       monthly: "+ 200 $ CAD / mois",
       pilotage: "+ 100 $ CAD / mois",
-      pilotageTotal: "Total — 300 $ / mois",
+      pilotageTotal: "Total 300 $ / mois",
       summaryAt37: "20 supports inclus · 17 supports supplémentaires",
       disclaimer:
-        "Estimation indicative — le prix final sera confirmé dans votre devis après analyse de votre établissement et de vos besoins."
+        "Estimation indicative. Le prix final sera confirmé dans votre devis après analyse de votre établissement et de vos besoins."
     },
     {
       path: "/en/pricing-digital-restaurant-menu",
@@ -110,10 +154,10 @@ test("CI smoke validates the bilingual Pricing table estimator", async ({ page }
       amountsAt37: [2680, 2815, 3035, 3135],
       monthly: "+ $200 CAD / month",
       pilotage: "+ $100 CAD / month",
-      pilotageTotal: "Total — $300 / month",
+      pilotageTotal: "Total $300 / month",
       summaryAt37: "20 displays included · 17 additional displays",
       disclaimer:
-        "Indicative estimate — final pricing will be confirmed in your quote after reviewing your venue and project requirements."
+        "Indicative estimate. Final pricing will be confirmed in your quote after reviewing your venue and project requirements."
     }
   ] as const;
 
@@ -173,6 +217,8 @@ test("CI smoke validates the bilingual Pricing table estimator", async ({ page }
     ).toBeVisible();
     await expect(estimator.getByText(scenario.disclaimer, { exact: true })).toBeVisible();
 
+    const dashText = await visibleDashText(page);
+    expect(dashText, dashText.join("\n")).toEqual([]);
     const publicCopy = await page.locator("body").innerText();
     expect(publicCopy).not.toContain("Votre prix final");
     expect(publicCopy).not.toContain("Total à payer");

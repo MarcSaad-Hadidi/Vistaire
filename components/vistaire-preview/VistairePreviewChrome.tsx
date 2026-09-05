@@ -288,12 +288,17 @@ export function PreviewNav({
 
       <LanguageSwitcher currentPath={resolvedCurrentPath} locale={locale} />
 
-      <Link className={styles.navCta} href={routes.appointment} prefetch={false}>
+      <Link
+        aria-label={locale === "en" ? "Book a call" : "Prendre rendez-vous"}
+        className={styles.navCta}
+        href={routes.appointment}
+        prefetch={false}
+      >
         <span className={styles.navCtaFull}>
-          {locale === "en" ? "Book a call" : "Prendre rendez-vous"}
+          {locale === "en" ? "Book a call" : "Prendre rendez vous"}
         </span>
         <span className={styles.navCtaShort}>
-          {locale === "en" ? "Book" : "Rendez-vous"}
+          {locale === "en" ? "Book" : "Rendez vous"}
         </span>
         <span aria-hidden="true" className={styles.navCtaArrow}>
           ↗
@@ -316,6 +321,11 @@ export function PreviewFooter({
 }) {
   const routes = getVistaireChromeRoutes(routeMode, locale);
   const resolvedCurrentPath = currentPath ?? routes.home;
+  const isPricingPage =
+    normalizePathname(resolvedCurrentPath) === normalizePathname(routes.pricing);
+  const contactPhoneDisplay = isPricingPage
+    ? CONTACT_PHONE_DISPLAY.replace(/-/g, " ")
+    : CONTACT_PHONE_DISPLAY;
   const productLinks =
     locale === "en"
       ? [
@@ -364,12 +374,12 @@ export function PreviewFooter({
         <h2>Vistaire</h2>
         <p className={styles.footerTagline}>
           {locale === "en"
-            ? "Premium digital menu for high-end restaurants."
+            ? "Premium digital menu for high end restaurants."
             : "Carte digitale premium pour restaurants haut de gamme."}
         </p>
         <p className={styles.footerDescription}>
           {locale === "en"
-            ? "A mobile-first experience built to present dishes, replace PDF menus and protect the restaurant brand."
+            ? "A premium mobile experience built to present dishes, replace PDF menus and protect the restaurant brand."
             : "Une expérience mobile pensée pour présenter les plats, remplacer les menus PDF et valoriser la carte d'un restaurant."}
         </p>
       </section>
@@ -465,14 +475,15 @@ export function PreviewFooter({
           contact@vistaire.ca
         </a>
         <a className={styles.footerEmail} href={`tel:${CONTACT_PHONE_TEL}`}>
-          {CONTACT_PHONE_DISPLAY}
+          {contactPhoneDisplay}
         </a>
         <Link
+          aria-label={locale === "en" ? "Book a call" : "Prendre rendez-vous"}
           className={styles.footerCta}
           href={routes.appointment}
           prefetch={false}
         >
-          {locale === "en" ? "Book a call" : "Prendre rendez-vous"}
+          {locale === "en" ? "Book a call" : "Prendre rendez vous"}
         </Link>
         {socialProfiles.length > 0 ? (
           <nav
