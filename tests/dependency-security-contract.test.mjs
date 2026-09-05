@@ -22,6 +22,12 @@ function compareVersions(left, right) {
   return 0;
 }
 
+function rangeFloor(range) {
+  const match = /(\d+\.\d+\.\d+)/.exec(String(range));
+  assert.ok(match, `expected a semver range with a concrete floor, received ${range}`);
+  return match[1];
+}
+
 function hasVulnerableBraceExpansionVersion(version) {
   const [major] = versionTuple(version);
   if (major === 1) return compareVersions(version, "1.1.18") < 0;
@@ -61,9 +67,12 @@ test("dependency overrides pin every affected brace-expansion branch to a fixed 
   }
 });
 
-test("PostCSS is pinned above the current advisory ceiling in the full lockfile", () => {
-  assert.equal(packageJson.devDependencies?.postcss, "^8.5.23");
-  assert.equal(packageLock.packages?.[""].devDependencies?.postcss, "^8.5.23");
+test("PostCSS stays above the current advisory ceiling in declarations and the full lockfile", () => {
+  const declaredRange = packageJson.devDependencies?.postcss;
+  const lockedRootRange = packageLock.packages?.[""].devDependencies?.postcss;
+
+  assert.equal(hasVulnerablePostcssVersion(rangeFloor(declaredRange)), false);
+  assert.equal(hasVulnerablePostcssVersion(rangeFloor(lockedRootRange)), false);
 
   const versions = packageVersions("postcss");
   assert.ok(versions.length > 0, "package-lock.json must contain postcss entries");
