@@ -6,6 +6,10 @@ const workflow = await readFile(
   new URL("../.github/workflows/workflow-security.yml", import.meta.url),
   "utf8"
 );
+const mediaBackfillWorkflow = await readFile(
+  new URL("../.github/workflows/media-backfill.yml", import.meta.url),
+  "utf8"
+);
 
 test("workflow security gates are immutable, read-only, and explicit", () => {
   assert.match(workflow, /name: Workflow Security/);
@@ -23,3 +27,29 @@ test("workflow security gates are immutable, read-only, and explicit", () => {
   }
 });
 
+test("dish photo backfill is manual, main-only, and fail-closed for production apply", () => {
+  assert.match(mediaBackfillWorkflow, /name: Dish Photo Derivative Backfill/);
+  assert.match(mediaBackfillWorkflow, /^on:\s*\n\s*workflow_dispatch:/m);
+  assert.doesNotMatch(mediaBackfillWorkflow, /^\s+(?:pull_request|push|schedule):/m);
+  assert.match(mediaBackfillWorkflow, /permissions:\s+contents: read/);
+  assert.match(mediaBackfillWorkflow, /default: dry-run/);
+  assert.match(mediaBackfillWorkflow, /options:\s*\n\s*- dry-run\s*\n\s*- apply/);
+  assert.match(mediaBackfillWorkflow, /APPLY-DISH-PHOTO-BACKFILL/);
+  assert.match(mediaBackfillWorkflow, /github\.event_name == 'workflow_dispatch'/);
+  assert.match(mediaBackfillWorkflow, /github\.ref == 'refs\/heads\/main'/);
+  assert.match(mediaBackfillWorkflow, /persist-credentials: false/);
+  assert.match(mediaBackfillWorkflow, /lfs: false/);
+  assert.match(mediaBackfillWorkflow, /NEXT_PUBLIC_SUPABASE_URL: \$\{\{ secrets\.NEXT_PUBLIC_SUPABASE_URL \}\}/);
+  assert.match(mediaBackfillWorkflow, /SUPABASE_SERVICE_ROLE_KEY: \$\{\{ secrets\.SUPABASE_SERVICE_ROLE_KEY \}\}/);
+  assert.match(mediaBackfillWorkflow, /VISTAIRE_EXPECTED_SUPABASE_PROJECT_REF: \$\{\{ secrets\.VISTAIRE_EXPECTED_SUPABASE_PROJECT_REF \}\}/);
+  assert.match(mediaBackfillWorkflow, /--measure-only/);
+  assert.match(mediaBackfillWorkflow, /--apply --confirm-production/);
+  assert.match(mediaBackfillWorkflow, /--measure-report=/);
+  assert.match(mediaBackfillWorkflow, /VISTAIRE_MEDIA_BACKFILL_ALLOW_APPLY=1/);
+  assert.match(mediaBackfillWorkflow, /VISTAIRE_MEDIA_WRITES_ENABLED=true/);
+  assert.match(mediaBackfillWorkflow, /--verify-only/);
+  assert.doesNotMatch(mediaBackfillWorkflow, /continue-on-error/);
+  for (const match of mediaBackfillWorkflow.matchAll(/uses:\s*([^\s]+)@([^\s#]+)/g)) {
+    assert.match(match[2], /^[0-9a-f]{40}$/, `${match[1]} must use a full commit SHA`);
+  }
+});
