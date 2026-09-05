@@ -56,28 +56,20 @@ test("dish photo backfill is manual, main-only, and fail-closed for production a
   }
 });
 
-test("production apply is restricted to one explicit canary dish", () => {
+test("production apply is restricted to one explicit canary restaurant", () => {
   assert.match(mediaBackfillWorkflow, /canary_restaurant_id:/);
-  assert.match(mediaBackfillWorkflow, /canary_dish_id:/);
   assert.match(mediaBackfillWorkflow, /CANARY_RESTAURANT_ID: \$\{\{ inputs\.canary_restaurant_id \}\}/);
-  assert.match(mediaBackfillWorkflow, /CANARY_DISH_ID: \$\{\{ inputs\.canary_dish_id \}\}/);
-  assert.match(mediaBackfillWorkflow, /Apply blocked: canary restaurant and dish are required/);
+  assert.match(mediaBackfillWorkflow, /Apply blocked: canary restaurant is required/);
   assert.match(mediaBackfillWorkflow, /Apply blocked: canary restaurant id must be a UUID/);
-  assert.match(mediaBackfillWorkflow, /Apply blocked: canary dish id must be a UUID/);
   assert.equal(
     (mediaBackfillWorkflow.match(/--restaurant-id="\$CANARY_RESTAURANT_ID"/g) ?? []).length,
     3,
     "measure, apply, and verify must all use the exact canary restaurant"
-  );
-  assert.equal(
-    (mediaBackfillWorkflow.match(/--dish-id="\$CANARY_DISH_ID"/g) ?? []).length,
-    3,
-    "measure, apply, and verify must all use the exact canary dish"
   );
   const applyBlock = mediaBackfillWorkflow.slice(
     mediaBackfillWorkflow.indexOf("- name: Apply measured derivative backfill"),
     mediaBackfillWorkflow.indexOf("- name: Verify derivative metadata and Storage objects after apply")
   );
   assert.match(applyBlock, /--restaurant-id="\$CANARY_RESTAURANT_ID"/);
-  assert.match(applyBlock, /--dish-id="\$CANARY_DISH_ID"/);
+  assert.doesNotMatch(applyBlock, /--dish-id=/);
 });
