@@ -43,10 +43,8 @@ const GLB_MODEL_HEADERS = [
   ...STATIC_ASSET_HEADERS,
 ] as const;
 
-const OWNER_MODEL_PIPELINE_ROUTES = [
+const OWNER_MODEL_PIPELINE_TRACED_ROUTES = [
   "/api/owner/restaurants/*/dishes/*/model/glb",
-  "/api/owner/restaurants/*/dishes/*/model/viewer-glb",
-  "/api/owner/restaurants/*/dishes/*/model/usdz-runtime",
   "/api/owner/restaurants/*/dishes/*/model/publish",
   "/api/owner/model-lab/optimize",
 ] as const;
@@ -79,7 +77,6 @@ const OWNER_MODEL_PIPELINE_PACKAGE_TRACE_INCLUDES = [
   "node_modules/@isaacs/**/*",
   "node_modules/@pkgjs/**/*",
   "node_modules/@so-ric/**/*",
-  "node_modules/@types/**/*",
   "node_modules/ajv/**/*",
   "node_modules/ansi-escapes/**/*",
   "node_modules/ansi-regex/**/*",
@@ -226,14 +223,14 @@ const OWNER_MODEL_PIPELINE_TRACE_INCLUDES = [
   ...OWNER_MODEL_PIPELINE_PACKAGE_TRACE_INCLUDES,
 ] as const;
 
-const OWNER_MODEL_PIPELINE_TRACE_EXCLUDES = OWNER_MODEL_PIPELINE_ROUTES.reduce<
+const OWNER_MODEL_PIPELINE_TRACE_EXCLUDES = OWNER_MODEL_PIPELINE_TRACED_ROUTES.reduce<
   NonNullable<NextConfig["outputFileTracingExcludes"]>
 >((routes, route) => {
   routes[route] = ["public/**/*"];
   return routes;
 }, {});
 
-const OWNER_MODEL_PIPELINE_TRACE_INCLUDES_BY_ROUTE = OWNER_MODEL_PIPELINE_ROUTES.reduce<
+const OWNER_MODEL_PIPELINE_TRACE_INCLUDES_BY_ROUTE = OWNER_MODEL_PIPELINE_TRACED_ROUTES.reduce<
   NonNullable<NextConfig["outputFileTracingIncludes"]>
 >((routes, route) => {
   routes[route] = [...OWNER_MODEL_PIPELINE_TRACE_INCLUDES];
