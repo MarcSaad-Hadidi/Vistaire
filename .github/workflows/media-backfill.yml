@@ -28,7 +28,6 @@ env:
   NODE_VERSION: 24
   BACKFILL_MODE: ${{ inputs.mode }}
   BACKFILL_CONFIRMATION: ${{ inputs.confirmation }}
-  REPORT_DIR: ${{ runner.temp }}/vistaire-dish-photo-backfill
   VISTAIRE_EXPECTED_SUPABASE_PROJECT_REF: ${{ vars.VISTAIRE_EXPECTED_SUPABASE_PROJECT_REF }}
   VISTAIRE_MEDIA_BACKFILL_ALLOW_APPLY: ${{ vars.VISTAIRE_MEDIA_BACKFILL_ALLOW_APPLY }}
   VISTAIRE_MEDIA_WRITES_ENABLED: ${{ vars.VISTAIRE_MEDIA_WRITES_ENABLED }}
@@ -90,7 +89,9 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          mkdir -p "$REPORT_DIR"
+          report_dir="$RUNNER_TEMP/vistaire-dish-photo-backfill"
+          mkdir -p "$report_dir"
+          echo "REPORT_DIR=$report_dir" >> "$GITHUB_ENV"
 
       - name: Validate configured Supabase production target
         env:
