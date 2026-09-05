@@ -1,4 +1,4 @@
-name: Temporary dependency consolidation diagnostics
+name: Temporary lockfile generator diagnostics
 
 on:
   push:
@@ -9,9 +9,9 @@ permissions:
   contents: read
 
 jobs:
-  trace-closure-diagnosis:
+  lockfile-generator-parity:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
     steps:
       - name: Checkout branch
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
@@ -19,81 +19,42 @@ jobs:
           persist-credentials: false
           fetch-depth: 1
 
-      - name: Diagnose runtime closure edges from current lockfile
+      - name: Setup Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Compare unchanged lockfile regeneration
+        shell: bash
         run: |
-          node <<'NODE'
-          const fs = require('node:fs');
-          const lock = JSON.parse(fs.readFileSync('package-lock.json', 'utf8'));
-          const packages = lock.packages || {};
-          const roots = [
-            '@babylonjs/core',
-            '@babylonjs/loaders',
-            '@babylonjs/serializers',
-            '@gltf-transform/cli',
-            '@gltf-transform/core',
-            '@gltf-transform/extensions',
-            '@gltf-transform/functions',
-            'fflate',
-          ].map((name) => `node_modules/${name}`);
+          set -u
+          baseline_sha="$(sha256sum package-lock.json | awk '{print $1}')"
+          echo "BASELINE_LOCK_SHA=$baseline_sha"
 
-          function resolve(parentPath, name) {
-            const nested = `${parentPath}/node_modules/${name}`;
-            return packages[nested] ? nested : `node_modules/${name}`;
+          try_generator() {
+            label="$1"
+            shift
+            git checkout -- package.json package-lock.json
+            rm -rf node_modules
+            echo "=== $label ==="
+            "$@" install --package-lock-only --ignore-scripts
+            current_sha="$(sha256sum package-lock.json | awk '{print $1}')"
+            if [ "$baseline_sha" = "$current_sha" ]; then
+              echo "${label}_LOCK_IDENTICAL=true"
+            else
+              echo "${label}_LOCK_IDENTICAL=false"
+            fi
+            npm ci --ignore-scripts >/dev/null
+            if node --test tests/owner-gltf-runtime-toolchain.test.mjs >/dev/null; then
+              echo "${label}_TRACE_PARITY=true"
+            else
+              echo "${label}_TRACE_PARITY=false"
+            fi
           }
 
-          const seen = new Set();
-          const queue = roots.map((path) => ({ path, chain: [path] }));
-          const typeEdges = [];
-          while (queue.length) {
-            const current = queue.shift();
-            if (!current || seen.has(current.path)) continue;
-            seen.add(current.path);
-            const entry = packages[current.path];
-            if (!entry) continue;
+          try_generator npm11 npm
+          try_generator npm10 npx --yes npm@10.9.4
+          try_generator npm9 npx --yes npm@9.9.4
 
-            const groups = [
-              ['dependency', entry.dependencies || {}],
-              ['optionalDependency', entry.optionalDependencies || {}],
-              ['peerDependency', entry.peerDependencies || {}],
-            ];
-            for (const [kind, deps] of groups) {
-              for (const name of Object.keys(deps)) {
-                const child = resolve(current.path, name);
-                const peerMeta = kind === 'peerDependency' ? entry.peerDependenciesMeta?.[name] : undefined;
-                const detail = {
-                  parent: current.path,
-                  child,
-                  name,
-                  kind,
-                  peerOptional: peerMeta?.optional === true,
-                  parentDev: entry.dev === true,
-                  parentPeer: entry.peer === true,
-                  childDev: packages[child]?.dev === true,
-                  childPeer: packages[child]?.peer === true,
-                  chain: [...current.chain, `${kind}:${child}`],
-                };
-                if (child.startsWith('node_modules/@types/')) typeEdges.push(detail);
-                if (!seen.has(child)) queue.push({ path: child, chain: detail.chain });
-              }
-            }
-          }
-
-          console.log(`RUNTIME_CLOSURE_SIZE=${seen.size}`);
-          console.log(`TYPE_EDGE_COUNT=${typeEdges.length}`);
-          for (const edge of typeEdges) console.log(JSON.stringify(edge));
-
-          const runtimeOnly = new Set();
-          const runtimeQueue = [...roots];
-          while (runtimeQueue.length) {
-            const path = runtimeQueue.shift();
-            if (!path || runtimeOnly.has(path)) continue;
-            runtimeOnly.add(path);
-            const entry = packages[path];
-            if (!entry) continue;
-            for (const deps of [entry.dependencies || {}, entry.optionalDependencies || {}]) {
-              for (const name of Object.keys(deps)) runtimeQueue.push(resolve(path, name));
-            }
-          }
-          console.log(`DEPENDENCY_OPTIONAL_ONLY_CLOSURE_SIZE=${runtimeOnly.size}`);
-          console.log(`AT_TYPES_IN_DEPENDENCY_OPTIONAL_ONLY=${[...runtimeOnly].filter((p) => p.startsWith('node_modules/@types/')).length}`);
-          NODE
+          git checkout -- package.json package-lock.json
