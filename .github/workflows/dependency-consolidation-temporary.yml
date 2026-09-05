@@ -1,4 +1,4 @@
-name: Temporary dependency consolidation
+name: Temporary dependency consolidation diagnostics
 
 on:
   push:
@@ -6,17 +6,17 @@ on:
       - chore/consolidate-dependency-updates
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  consolidate:
-    if: github.actor != 'github-actions[bot]'
+  lockfile-parity:
     runs-on: ubuntu-latest
-    timeout-minutes: 35
+    timeout-minutes: 25
     steps:
       - name: Checkout branch
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
+          persist-credentials: false
           fetch-depth: 1
 
       - name: Setup Node
@@ -25,194 +25,44 @@ jobs:
           node-version: 24
           cache: npm
 
-      - name: Apply behavior-preserving dependency and CI updates
+      - name: Prove baseline runtime trace
+        run: |
+          npm ci --ignore-scripts
+          node --test tests/owner-gltf-runtime-toolchain.test.mjs
+
+      - name: Compare lockfile generators without dependency changes
         shell: bash
         run: |
-          node <<'NODE'
-          const fs = require('node:fs');
+          set -u
+          baseline_sha="$(sha256sum package-lock.json | awk '{print $1}')"
+          echo "BASELINE_LOCK_SHA=$baseline_sha"
 
-          const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
-          Object.assign(pkg.dependencies, {
-            '@babylonjs/core': '^9.22.1',
-            '@babylonjs/loaders': '^9.22.1',
-            '@babylonjs/serializers': '^9.22.1',
-            '@clerk/nextjs': '^7.8.0',
-            '@google/model-viewer': '^4.3.1',
-            fflate: '^0.8.3',
-            lenis: '^1.3.26',
-            next: '^16.3.2',
-            react: '^19.2.8',
-            'react-dom': '^19.2.8',
-          });
-          Object.assign(pkg.devDependencies, {
-            '@playwright/test': '^1.62.1',
-            eslint: '^9.39.0',
-            'eslint-config-next': '^16.3.2',
-            postcss: '^8.5.26',
-            three: '^0.183.2',
-            typescript: '^5.9.0',
-          });
-
-          // Preserve behavior-sensitive runtime/toolchain versions unless their parity is proven.
-          pkg.dependencies['@getbrevo/brevo'] = '^5.0.4';
-          pkg.dependencies['@gltf-transform/cli'] = '4.4.1';
-          pkg.dependencies['@gltf-transform/core'] = '4.4.1';
-          pkg.dependencies['@gltf-transform/extensions'] = '4.4.1';
-          pkg.dependencies['@gltf-transform/functions'] = '4.4.1';
-          pkg.dependencies['@supabase/ssr'] = '^0.10.3';
-          pkg.dependencies.meshoptimizer = '~1.0.1';
-          pkg.devDependencies['@types/node'] = '^24.0.0';
-          pkg.devDependencies.tailwindcss = '^3.4.18';
-          pkg.devDependencies.autoprefixer = '^10.4.21';
-
-          fs.writeFileSync('package.json', `${JSON.stringify(pkg, null, 2)}\n`);
-
-          const codeqlPath = '.github/workflows/codeql.yml';
-          let codeql = fs.readFileSync(codeqlPath, 'utf8');
-          const oldCodeql = '5595ccaf912efad79be6eef63a5619ff05969be3';
-          const newCodeql = 'db488ddef3bf6cb639b32c2e9a7c0a7ea8271d28';
-          if ((codeql.match(new RegExp(oldCodeql, 'g')) || []).length !== 2) {
-            throw new Error('Expected exactly two CodeQL pins before migration.');
+          try_generator() {
+            label="$1"
+            shift
+            git checkout -- package.json package-lock.json
+            rm -rf node_modules
+            echo "=== $label: regenerate unchanged lockfile ==="
+            "$@" install --package-lock-only --ignore-scripts
+            current_sha="$(sha256sum package-lock.json | awk '{print $1}')"
+            echo "${label}_LOCK_SHA=$current_sha"
+            if [ "$baseline_sha" = "$current_sha" ]; then
+              echo "${label}_LOCK_IDENTICAL=true"
+            else
+              echo "${label}_LOCK_IDENTICAL=false"
+            fi
+            npm ci --ignore-scripts >/dev/null
+            if node --test tests/owner-gltf-runtime-toolchain.test.mjs; then
+              echo "${label}_TRACE_PARITY=true"
+            else
+              echo "${label}_TRACE_PARITY=false"
+            fi
           }
-          fs.writeFileSync(codeqlPath, codeql.replaceAll(oldCodeql, newCodeql));
 
-          const contractPath = 'tests/admin-e2e-ci-contract.test.mjs';
-          let contract = fs.readFileSync(contractPath, 'utf8');
-          const contractPattern = /test\("CodeQL keeps analysis failures blocking and publishes SARIF", async \(\) => \{[\s\S]*?\n\}\);\r?\n\r?\n(?=test\("controlled admin E2E)/;
-          const newContract = `test("CodeQL keeps analysis failures blocking and publishes SARIF", async () => {
-            const workflow = await source(".github/workflows/codeql.yml");
-            const initPin = workflow.match(/uses:\\s*github\\/codeql-action\\/init@([0-9a-f]{40})\\s+# v4/);
-            const analyzePin = workflow.match(/uses:\\s*github\\/codeql-action\\/analyze@([0-9a-f]{40})\\s+# v4/);
+          try_generator npm11 npm
+          try_generator npm10 npx --yes npm@10.9.4
+          try_generator npm9 npx --yes npm@9.9.4
 
-            assert.ok(initPin, "CodeQL init must use an immutable 40-character commit pin");
-            assert.ok(analyzePin, "CodeQL analyze must use an immutable 40-character commit pin");
-            assert.equal(initPin[1], analyzePin[1], "CodeQL init and analyze must use the same action revision");
-            assert.match(workflow, /uses:\\s*actions\\/checkout@[0-9a-f]{40}\\s+# v4\\.4\\.0/);
-            assert.doesNotMatch(workflow, /upload:\\s*never/);
-            assert.match(workflow, /security-events:\\s*write/);
-            assert.doesNotMatch(workflow, /continue-on-error/);
-          });\n\n`;
-          if (!contractPattern.test(contract)) throw new Error('CodeQL contract boundaries drifted; refusing an unsafe replacement.');
-          fs.writeFileSync(contractPath, contract.replace(contractPattern, newContract));
-
-          const securityPath = '.github/workflows/workflow-security.yml';
-          let security = fs.readFileSync(securityPath, 'utf8');
-          security = security
-            .replace('Run actionlint 0.1.3 (immutable action revision)', 'Run actionlint 0.1.13 (immutable action revision)')
-            .replace('devops-actions/actionlint@e7ee33fbf5aa8c9f9ee1145137f3e52e25d6a35b # v0.1.3', 'devops-actions/actionlint@ec02b36684b2f574f1d219ad0a43b082e46bf3e4 # v0.1.13');
-          fs.writeFileSync(securityPath, security);
-          NODE
-
-          cat > .github/dependabot.yml <<'YAML'
-          version: 2
-          updates:
-            - package-ecosystem: npm
-              directory: "/"
-              schedule:
-                interval: weekly
-                day: monday
-                time: "04:00"
-                timezone: UTC
-              open-pull-requests-limit: 10
-              cooldown:
-                default-days: 7
-              groups:
-                three-model-viewer:
-                  patterns:
-                    - "@google/model-viewer"
-                    - "three"
-                production-dependencies:
-                  dependency-type: production
-                  update-types:
-                    - "minor"
-                    - "patch"
-                development-dependencies:
-                  dependency-type: development
-                  update-types:
-                    - "minor"
-                    - "patch"
-
-            - package-ecosystem: github-actions
-              directory: "/"
-              schedule:
-                interval: weekly
-                day: monday
-                time: "04:15"
-                timezone: UTC
-              open-pull-requests-limit: 10
-              cooldown:
-                default-days: 7
-              groups:
-                codeql-actions:
-                  patterns:
-                    - "github/codeql-action/*"
-          YAML
-
-      - name: Regenerate npm lockfile
-        run: npm install --package-lock-only --ignore-scripts
-
-      - name: Validate deterministic install
-        run: npm ci --ignore-scripts
-
-      - name: Refresh audit evidence without accepting new advisories
-        shell: bash
-        run: |
-          npm audit --json > npm-audit.json || test -s npm-audit.json
-          node <<'NODE'
-          const { createHash } = require('node:crypto');
-          const fs = require('node:fs');
-          const baselinePath = 'ci/npm-audit-baseline.json';
-          const baseline = JSON.parse(fs.readFileSync(baselinePath, 'utf8'));
-          const report = JSON.parse(fs.readFileSync('npm-audit.json', 'utf8'));
-          const lockText = fs.readFileSync('package-lock.json', 'utf8').replace(/\r\n/g, '\n');
-          const active = new Set();
-          for (const vulnerability of Object.values(report.vulnerabilities || {})) {
-            for (const via of vulnerability.via || []) {
-              if (typeof via !== 'object' || !via.url) continue;
-              if (!['high', 'critical'].includes(String(via.severity).toLowerCase())) continue;
-              active.add(via.url.split('/').pop());
-            }
-          }
-          baseline.lockfile_sha256 = createHash('sha256').update(lockText).digest('hex');
-          baseline.entries = baseline.entries.filter((entry) => active.has(entry.advisory_id));
-          fs.writeFileSync(baselinePath, `${JSON.stringify(baseline, null, 2)}\n`);
-          NODE
-          node scripts/ci/check-npm-audit-baseline.mjs npm-audit.json ci/npm-audit-baseline.json
-
-      - name: Run security and dependency contract tests
-        run: node --test tests/npm-audit-baseline.test.mjs tests/admin-e2e-ci-contract.test.mjs tests/dependency-security-contract.test.mjs tests/workflow-security-contract.test.mjs
-
-      - name: Run behavior-sensitive regression tests
-        run: |
-          node --test \
-            tests/dish-model-viewer-backdrop.test.mjs \
-            tests/ar-browser-handoff.test.mjs \
-            tests/immersive-variant-selection.test.mjs \
-            tests/owner-gltf-runtime-toolchain.test.mjs \
-            tests/public-menu-core.test.mjs \
-            tests/public-menu-card-renderer.test.mjs \
-            tests/landing-i18n.test.mjs \
-            tests/maison-elyse-i18n-currency-rtl.test.mjs \
-            tests/trouvable-menu-controls.test.mjs \
-            tests/sauge-noire-renderer-contract.test.mjs
-
-      - name: Run static validation
-        run: |
-          npm run lint
-          npm run typecheck
-          npm run assets:check
-          npm run lfs:check
-
-      - name: Build production application
-        run: npm run build
-
-      - name: Commit consolidated maintenance changes
-        shell: bash
-        run: |
-          rm -f npm-audit.json
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add package.json package-lock.json ci/npm-audit-baseline.json .github/dependabot.yml .github/workflows/codeql.yml .github/workflows/workflow-security.yml tests/admin-e2e-ci-contract.test.mjs
-          git diff --cached --check
-          git commit -m "chore: consolidate safe dependency upgrades"
-          git push
+          git checkout -- package.json package-lock.json
+          rm -rf node_modules
+          npm ci --ignore-scripts >/dev/null
