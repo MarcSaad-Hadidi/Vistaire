@@ -11,6 +11,16 @@ on:
         options:
           - dry-run
           - apply
+      canary_restaurant_id:
+        description: Required for apply. Restaurant UUID for the single approved canary dish.
+        required: false
+        default: ""
+        type: string
+      canary_dish_id:
+        description: Required for apply. Dish UUID for the single approved canary.
+        required: false
+        default: ""
+        type: string
       confirmation:
         description: Type APPLY-DISH-PHOTO-BACKFILL only when mode is apply.
         required: false
@@ -28,6 +38,8 @@ env:
   NODE_VERSION: 24
   BACKFILL_MODE: ${{ inputs.mode }}
   BACKFILL_CONFIRMATION: ${{ inputs.confirmation }}
+  CANARY_RESTAURANT_ID: ${{ inputs.canary_restaurant_id }}
+  CANARY_DISH_ID: ${{ inputs.canary_dish_id }}
   VISTAIRE_EXPECTED_SUPABASE_PROJECT_REF: ${{ vars.VISTAIRE_EXPECTED_SUPABASE_PROJECT_REF }}
   VISTAIRE_MEDIA_BACKFILL_ALLOW_APPLY: ${{ vars.VISTAIRE_MEDIA_BACKFILL_ALLOW_APPLY }}
   VISTAIRE_MEDIA_WRITES_ENABLED: ${{ vars.VISTAIRE_MEDIA_WRITES_ENABLED }}
@@ -49,6 +61,19 @@ jobs:
             dry-run)
               ;;
             apply)
+              if [[ -z "$CANARY_RESTAURANT_ID" || -z "$CANARY_DISH_ID" ]]; then
+                echo "Apply blocked: canary restaurant and dish are required." >&2
+                exit 1
+              fi
+              uuid_regex='^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$'
+              if [[ ! "$CANARY_RESTAURANT_ID" =~ $uuid_regex ]]; then
+                echo "Apply blocked: canary restaurant id must be a UUID." >&2
+                exit 1
+              fi
+              if [[ ! "$CANARY_DISH_ID" =~ $uuid_regex ]]; then
+                echo "Apply blocked: canary dish id must be a UUID." >&2
+                exit 1
+              fi
               if [[ "$BACKFILL_CONFIRMATION" != "APPLY-DISH-PHOTO-BACKFILL" ]]; then
                 echo "Apply blocked: exact confirmation phrase is required." >&2
                 exit 1
@@ -137,6 +162,8 @@ jobs:
           set -euo pipefail
           node scripts/backfill-dish-photo-derivatives.mjs \
             --measure-only \
+            --restaurant-id="$CANARY_RESTAURANT_ID" \
+            --dish-id="$CANARY_DISH_ID" \
             --checkpoint="$REPORT_DIR/checkpoint.json" \
             > "$REPORT_DIR/measure.json"
           MEASURE_REPORT="$REPORT_DIR/measure.json" node --input-type=module - <<'NODE'
@@ -144,6 +171,9 @@ jobs:
           const report = JSON.parse(readFileSync(process.env.MEASURE_REPORT, 'utf8'));
           if (report.status !== 'pass' || report.pass !== true) {
             throw new Error(`Capacity measurement did not pass: ${report.reasons?.join(', ') || 'unknown reason'}`);
+          }
+          if (report.rowCount !== 1 || report.sourceCount !== 1) {
+            throw new Error(`Canary scope must resolve to exactly one photo source; got rows=${report.rowCount}, sources=${report.sourceCount}.`);
           }
           console.log(JSON.stringify({
             status: report.status,
@@ -164,6 +194,8 @@ jobs:
           set -euo pipefail
           node scripts/backfill-dish-photo-derivatives.mjs \
             --apply --confirm-production \
+            --restaurant-id="$CANARY_RESTAURANT_ID" \
+            --dish-id="$CANARY_DISH_ID" \
             --measure-report="$REPORT_DIR/measure.json" \
             --checkpoint="$REPORT_DIR/checkpoint.json" \
             | tee "$REPORT_DIR/apply.log"
@@ -178,6 +210,8 @@ jobs:
           set -euo pipefail
           node scripts/backfill-dish-photo-derivatives.mjs \
             --verify-only \
+            --restaurant-id="$CANARY_RESTAURANT_ID" \
+            --dish-id="$CANARY_DISH_ID" \
             --checkpoint="$REPORT_DIR/checkpoint.json" \
             | tee "$REPORT_DIR/verify.log"
 
@@ -193,7 +227,7 @@ jobs:
             if [[ "$BACKFILL_MODE" == "dry-run" ]]; then
               echo '- Production writes requested: no'
             else
-              echo '- Production writes requested: yes; guarded by confirmation, repository opt-ins, fresh capacity measurement, source digest, and checkpoint validation.'
+              echo '- Production writes requested: yes; restricted to one explicit canary dish and guarded by confirmation, repository opt-ins, fresh capacity measurement, source digest, and checkpoint validation.'
             fi
             echo '- Reports/checkpoints remain ephemeral on the runner and are not uploaded from this public repository.'
           } >> "$GITHUB_STEP_SUMMARY"
