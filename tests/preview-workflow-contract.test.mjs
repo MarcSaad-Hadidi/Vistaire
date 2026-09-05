@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
+import { shouldSkipVercelBuild } from "../scripts/vercel-ignore-build.mjs";
 
 const previewWorkflow = await readFile(
   new URL("../.github/workflows/preview-smoke.yml", import.meta.url),
@@ -21,6 +22,14 @@ const reporter = await readFile(
 const requestPolicy = await readFile(
   new URL("../e2e/support/preview-request-policy.mjs", import.meta.url),
   "utf8"
+);
+const nextConfig = await readFile(new URL("../next.config.ts", import.meta.url), "utf8");
+const vercelIgnoreBuildScript = await readFile(
+  new URL("../scripts/vercel-ignore-build.mjs", import.meta.url),
+  "utf8"
+);
+const vercelConfig = JSON.parse(
+  await readFile(new URL("../vercel.json", import.meta.url), "utf8")
 );
 
 function assertPinnedActions(workflow) {
@@ -160,4 +169,53 @@ test("Production Smoke remains a separate trusted deployment check", () => {
   assert.match(productionWorkflow, /e2e\/ci-smoke\.spec\.ts/);
   assert.doesNotMatch(productionWorkflow, /e2e\/preview-smoke\.spec\.ts/);
   assert.doesNotMatch(productionWorkflow, /VERCEL_AUTOMATION_BYPASS_SECRET/);
+});
+
+test("Vercel heavy function tracing excludes lightweight owner model routes", () => {
+  const tracedRoutesStart = nextConfig.indexOf("const OWNER_MODEL_PIPELINE_TRACED_ROUTES");
+  const tracedRoutesEnd = nextConfig.indexOf("const OWNER_MODEL_PIPELINE_SCRIPT_TRACE_INCLUDES");
+  assert.ok(tracedRoutesStart >= 0 && tracedRoutesEnd > tracedRoutesStart);
+
+  const tracedRoutes = nextConfig.slice(tracedRoutesStart, tracedRoutesEnd);
+  assert.ok(tracedRoutes.includes('"/api/owner/restaurants/*/dishes/*/model/glb"'));
+  assert.ok(tracedRoutes.includes('"/api/owner/restaurants/*/dishes/*/model/publish"'));
+  assert.ok(tracedRoutes.includes('"/api/owner/model-lab/optimize"'));
+  assert.ok(!tracedRoutes.includes("viewer-glb"));
+  assert.ok(!tracedRoutes.includes("usdz-runtime"));
+  assert.ok(!nextConfig.includes('"node_modules/@types/**/*"'));
+});
+
+test("Vercel ignored-build filter skips only docs and test-only changes", () => {
+  assert.equal(vercelConfig.ignoreCommand, "node scripts/vercel-ignore-build.mjs");
+  assert.match(
+    vercelIgnoreBuildScript,
+    /execFileSync\("git", \["diff", "--no-renames", "--name-only", previousSha, head\]/
+  );
+  assert.equal(
+    shouldSkipVercelBuild([
+      "docs/reports/example.md",
+      "tests/preview-workflow-contract.test.mjs",
+      "e2e/preview-smoke.spec.ts",
+      ".github/workflows/preview-smoke.yml",
+      "AGENTS.md"
+    ]),
+    true
+  );
+
+  for (const runtimePath of [
+    "app/page.tsx",
+    "components/Hero.tsx",
+    "lib/menu.ts",
+    "public/videos/Vistaire2.mp4",
+    "scripts/check-large-files.mjs",
+    "next.config.ts",
+    "vercel.json",
+    "package-lock.json"
+  ]) {
+    assert.equal(
+      shouldSkipVercelBuild(["docs/readme.md", runtimePath]),
+      false,
+      `must keep Vercel build for ${runtimePath}`
+    );
+  }
 });
