@@ -42,7 +42,7 @@ function readChangedPaths() {
   const head = isCommitSha(currentSha) ? currentSha : "HEAD";
 
   try {
-    const output = execFileSync("git", ["diff", "--name-only", previousSha, head], {
+    const output = execFileSync("git", ["diff", "--no-renames", "--name-only", previousSha, head], {
       encoding: "utf8",
       stdio: ["ignore", "pipe", "pipe"]
     });
