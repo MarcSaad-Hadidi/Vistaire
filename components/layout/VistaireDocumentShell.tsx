@@ -2,6 +2,8 @@ import type React from "react";
 import { WebMcpProvider } from "@/components/agent/WebMcpProvider";
 import { MicrosoftClarity } from "@/components/analytics/MicrosoftClarity";
 import { JsonLd } from "@/components/JsonLd";
+import { PrivacyConsentProvider } from "@/components/privacy/PrivacyConsentProvider";
+import { PrivacyUtilityBar } from "@/components/privacy/PrivacyUtilityBar";
 import type { Locale } from "@/lib/i18n";
 import {
   buildOrganizationJsonLd,
@@ -31,9 +33,12 @@ export function VistaireDocumentShell({
         ]}
       />
       <WebMcpProvider />
-      <MicrosoftClarity>
-        <div id="contenu">{children}</div>
-      </MicrosoftClarity>
+      <PrivacyConsentProvider locale={locale}>
+        <MicrosoftClarity>
+          <div id="contenu">{children}</div>
+        </MicrosoftClarity>
+        <PrivacyUtilityBar locale={locale} />
+      </PrivacyConsentProvider>
     </>
   );
 }

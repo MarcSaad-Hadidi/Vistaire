@@ -34,7 +34,10 @@ export function VistaireRendezVousPreview({
           exchangeBody:
             "Signature dishes, allergens, visuals, readable prices, PDF replacement and cases where 3D/AR brings real value.",
           directContact: "Direct contact",
-          back: "Back to contact"
+          back: "Back to contact",
+          privacyPrefix:
+            "Before using this form, please review how Vistaire handles the information you provide in our",
+          privacyLink: "Privacy policy"
         }
       : {
           formLabel: "Prendre rendez-vous",
@@ -48,8 +51,13 @@ export function VistaireRendezVousPreview({
           exchangeBody:
             "Plats signatures, allergènes, visuels, prix lisibles, remplacement PDF et cas où la 3D/AR apporte une vraie valeur.",
           directContact: "Contact direct",
-          back: "Retour au contact"
+          back: "Retour au contact",
+          privacyPrefix:
+            "Avant d’utiliser ce formulaire, consultez la façon dont Vistaire traite les renseignements que vous fournissez dans notre",
+          privacyLink: "Politique de confidentialité"
         };
+  const privacyHref =
+    locale === "en" ? "/en/privacy-policy" : "/politique-de-confidentialite";
 
   return (
     <main className={styles.page}>
@@ -99,6 +107,13 @@ export function VistaireRendezVousPreview({
                 <p>{copy.exchangeBody}</p>
               </section>
 
+              <p className={styles.formNote}>
+                {copy.privacyPrefix}{" "}
+                <Link href={privacyHref} prefetch={false}>
+                  {copy.privacyLink}
+                </Link>
+                .
+              </p>
               <VistaireContactForm locale={locale} />
 
               <div className={styles.directContact} aria-label="Contact direct">

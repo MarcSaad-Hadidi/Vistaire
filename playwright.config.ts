@@ -1,5 +1,6 @@
 import { randomBytes } from "node:crypto";
 import { defineConfig, devices } from "@playwright/test";
+import { privacyRejectedStorageState } from "./e2e/support/privacy-consent";
 
 const baseURL = process.env.PLAYWRIGHT_BASE_URL ?? "http://127.0.0.1:3000";
 const configuredSupabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim() ?? "";
@@ -96,6 +97,7 @@ export default defineConfig({
   preserveOutput: sensitiveE2E ? "never" : "always",
   use: {
     baseURL,
+    storageState: privacyRejectedStorageState(baseURL),
     locale: "fr-CA",
     timezoneId: "America/Toronto",
     screenshot: sensitiveE2E ? "off" : "only-on-failure",
