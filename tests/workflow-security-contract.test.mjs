@@ -41,13 +41,15 @@ test("dish photo backfill is manual, main-only, and fail-closed for production a
   assert.match(mediaBackfillWorkflow, /lfs: false/);
   assert.match(mediaBackfillWorkflow, /NEXT_PUBLIC_SUPABASE_URL: \$\{\{ secrets\.NEXT_PUBLIC_SUPABASE_URL \}\}/);
   assert.match(mediaBackfillWorkflow, /SUPABASE_SERVICE_ROLE_KEY: \$\{\{ secrets\.SUPABASE_SERVICE_ROLE_KEY \}\}/);
-  assert.match(mediaBackfillWorkflow, /VISTAIRE_EXPECTED_SUPABASE_PROJECT_REF: \$\{\{ secrets\.VISTAIRE_EXPECTED_SUPABASE_PROJECT_REF \}\}/);
+  assert.match(mediaBackfillWorkflow, /VISTAIRE_EXPECTED_SUPABASE_PROJECT_REF: \$\{\{ vars\.VISTAIRE_EXPECTED_SUPABASE_PROJECT_REF \}\}/);
+  assert.match(mediaBackfillWorkflow, /VISTAIRE_MEDIA_BACKFILL_ALLOW_APPLY: \$\{\{ vars\.VISTAIRE_MEDIA_BACKFILL_ALLOW_APPLY \}\}/);
+  assert.match(mediaBackfillWorkflow, /VISTAIRE_MEDIA_WRITES_ENABLED: \$\{\{ vars\.VISTAIRE_MEDIA_WRITES_ENABLED \}\}/);
   assert.match(mediaBackfillWorkflow, /--measure-only/);
   assert.match(mediaBackfillWorkflow, /--apply --confirm-production/);
   assert.match(mediaBackfillWorkflow, /--measure-report=/);
-  assert.match(mediaBackfillWorkflow, /VISTAIRE_MEDIA_BACKFILL_ALLOW_APPLY=1/);
-  assert.match(mediaBackfillWorkflow, /VISTAIRE_MEDIA_WRITES_ENABLED=true/);
   assert.match(mediaBackfillWorkflow, /--verify-only/);
+  assert.doesNotMatch(mediaBackfillWorkflow, /VISTAIRE_MEDIA_BACKFILL_ALLOW_APPLY=1/);
+  assert.doesNotMatch(mediaBackfillWorkflow, /VISTAIRE_MEDIA_WRITES_ENABLED=true/);
   assert.doesNotMatch(mediaBackfillWorkflow, /continue-on-error/);
   for (const match of mediaBackfillWorkflow.matchAll(/uses:\s*([^\s]+)@([^\s#]+)/g)) {
     assert.match(match[2], /^[0-9a-f]{40}$/, `${match[1]} must use a full commit SHA`);
