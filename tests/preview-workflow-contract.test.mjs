@@ -24,6 +24,10 @@ const requestPolicy = await readFile(
   "utf8"
 );
 const nextConfig = await readFile(new URL("../next.config.ts", import.meta.url), "utf8");
+const vercelIgnoreBuildScript = await readFile(
+  new URL("../scripts/vercel-ignore-build.mjs", import.meta.url),
+  "utf8"
+);
 const vercelConfig = JSON.parse(
   await readFile(new URL("../vercel.json", import.meta.url), "utf8")
 );
@@ -183,6 +187,10 @@ test("Vercel heavy function tracing excludes lightweight owner model routes", ()
 
 test("Vercel ignored-build filter skips only docs and test-only changes", () => {
   assert.equal(vercelConfig.ignoreCommand, "node scripts/vercel-ignore-build.mjs");
+  assert.match(
+    vercelIgnoreBuildScript,
+    /execFileSync\("git", \["diff", "--no-renames", "--name-only", previousSha, head\]/
+  );
   assert.equal(
     shouldSkipVercelBuild([
       "docs/reports/example.md",
