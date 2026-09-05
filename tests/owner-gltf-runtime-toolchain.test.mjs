@@ -46,6 +46,10 @@ function dependencyPathForPackage(packages, packagePath, dependencyName) {
   return packages[nestedPath] ? nestedPath : packagePathForName(dependencyName);
 }
 
+function isTypeDeclarationPackage(dependencyName) {
+  return dependencyName.startsWith("@types/");
+}
+
 function collectRuntimePackageClosure(packageLock) {
   const packages = packageLock.packages ?? {};
   const seen = new Set();
@@ -65,6 +69,7 @@ function collectRuntimePackageClosure(packageLock) {
       ...(packageEntry.peerDependencies ?? {})
     };
     for (const dependencyName of Object.keys(dependencies)) {
+      if (isTypeDeclarationPackage(dependencyName)) continue;
       stack.push(dependencyPathForPackage(packages, packagePath, dependencyName));
     }
   }
@@ -115,7 +120,7 @@ test("owner runtime child-process scripts and toolchain are explicitly traced", 
   }
 });
 
-test("owner runtime trace includes the package-lock dependency closure", async () => {
+test("owner runtime trace includes the executable package-lock dependency closure", async () => {
   const nextConfig = await readFile("next.config.ts", "utf8");
   const packageLock = JSON.parse(await readFile("package-lock.json", "utf8"));
   const packageTraceIncludes = extractPackageTraceIncludes(nextConfig);
@@ -131,6 +136,11 @@ test("owner runtime trace includes the package-lock dependency closure", async (
       `${reviewedPackagePath} must be part of the checked runtime closure`
     );
   }
+  assert.equal(
+    runtimePackagePaths.some((packagePath) => packagePath.startsWith("node_modules/@types/")),
+    false,
+    "type declaration packages must not inflate the Vercel runtime trace"
+  );
 
   const missingPackagePaths = runtimePackagePaths.filter(
     (packagePath) =>
