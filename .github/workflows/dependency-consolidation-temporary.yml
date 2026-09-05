@@ -31,8 +31,7 @@ jobs:
           node <<'NODE'
           const fs = require('node:fs');
 
-          const packagePath = 'package.json';
-          const pkg = JSON.parse(fs.readFileSync(packagePath, 'utf8'));
+          const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
           Object.assign(pkg.dependencies, {
             '@babylonjs/core': '^9.22.1',
             '@babylonjs/loaders': '^9.22.1',
@@ -61,7 +60,7 @@ jobs:
             typescript: '^7.0.2',
           });
           delete pkg.devDependencies.autoprefixer;
-          fs.writeFileSync(packagePath, `${JSON.stringify(pkg, null, 2)}\n`);
+          fs.writeFileSync('package.json', `${JSON.stringify(pkg, null, 2)}\n`);
 
           const codeqlPath = '.github/workflows/codeql.yml';
           let codeql = fs.readFileSync(codeqlPath, 'utf8');
@@ -70,22 +69,11 @@ jobs:
           if ((codeql.match(new RegExp(oldCodeql, 'g')) || []).length !== 2) {
             throw new Error('Expected exactly two CodeQL v4.37.6 pins before migration.');
           }
-          codeql = codeql.replaceAll(oldCodeql, newCodeql);
-          fs.writeFileSync(codeqlPath, codeql);
+          fs.writeFileSync(codeqlPath, codeql.replaceAll(oldCodeql, newCodeql));
 
           const contractPath = 'tests/admin-e2e-ci-contract.test.mjs';
           let contract = fs.readFileSync(contractPath, 'utf8');
-          const oldContract = `test("CodeQL keeps analysis failures blocking and publishes SARIF", async () => {
-            const workflow = await source(".github/workflows/codeql.yml");
-            const codeqlV4Commit = "5595ccaf912efad79be6eef63a5619ff05969be3";
-
-            assert.match(workflow, new RegExp(\`uses:\\\\s*github/codeql-action/analyze@\${codeqlV4Commit}\\\\s+# v4\`));
-            assert.match(workflow, new RegExp(\`uses:\\\\s*github/codeql-action/init@\${codeqlV4Commit}\\\\s+# v4\`));
-            assert.match(workflow, /uses:\\s*actions\\/checkout@[0-9a-f]{40}\\s+# v4\\.4\\.0/);
-            assert.doesNotMatch(workflow, /upload:\\s*never/);
-            assert.match(workflow, /security-events:\\s*write/);
-            assert.doesNotMatch(workflow, /continue-on-error/);
-          });`;
+          const contractPattern = /test\("CodeQL keeps analysis failures blocking and publishes SARIF", async \(\) => \{[\s\S]*?\n\}\);\r?\n\r?\n(?=test\("controlled admin E2E)/;
           const newContract = `test("CodeQL keeps analysis failures blocking and publishes SARIF", async () => {
             const workflow = await source(".github/workflows/codeql.yml");
             const initPin = workflow.match(/uses:\\s*github\\/codeql-action\\/init@([0-9a-f]{40})\\s+# v4/);
@@ -98,9 +86,9 @@ jobs:
             assert.doesNotMatch(workflow, /upload:\\s*never/);
             assert.match(workflow, /security-events:\\s*write/);
             assert.doesNotMatch(workflow, /continue-on-error/);
-          });`;
-          if (!contract.includes(oldContract)) throw new Error('CodeQL contract block drifted; refusing an unsafe replacement.');
-          contract = contract.replace(oldContract, newContract);
+          });\n\n`;
+          if (!contractPattern.test(contract)) throw new Error('CodeQL contract boundaries drifted; refusing an unsafe replacement.');
+          contract = contract.replace(contractPattern, newContract);
           fs.writeFileSync(contractPath, contract);
 
           const securityPath = '.github/workflows/workflow-security.yml';
@@ -115,9 +103,7 @@ jobs:
           const oldTailwindHeader = '@tailwind base;\n@tailwind components;\n@tailwind utilities;';
           const newTailwindHeader = `@import "tailwindcss";\n@config "../tailwind.config.ts";\n\n@theme {\n  --default-ring-width: 3px;\n  --default-ring-color: var(--color-blue-500);\n}\n\n@layer base {\n  *,\n  ::after,\n  ::before,\n  ::backdrop,\n  ::file-selector-button {\n    border-color: var(--color-gray-200, currentColor);\n  }\n}`;
           if (!css.includes(oldTailwindHeader)) throw new Error('Tailwind v3 CSS header not found.');
-          css = css.replace(oldTailwindHeader, newTailwindHeader);
-          fs.writeFileSync(cssPath, css);
-
+          fs.writeFileSync(cssPath, css.replace(oldTailwindHeader, newTailwindHeader));
           fs.writeFileSync('postcss.config.js', `module.exports = {\n  plugins: {\n    "@tailwindcss/postcss": {},\n  },\n};\n`);
           NODE
 
