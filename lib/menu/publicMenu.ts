@@ -370,9 +370,9 @@ function demoMenu(slug: string, locale: Locale = "fr"): PublicMenu {
       has3d: Boolean(
         dish.model3dUrl || dish.webModel3dUrl || dish.arModel3dUrl
       ),
-      hasAr: Boolean(dish.arModel3dUrl || dish.usdzUrl || dish.arUsdzUrl),
+      hasAr: Boolean(dish.webModel3dUrl || dish.model3dUrl || dish.arModel3dUrl || dish.usdzUrl || dish.arUsdzUrl),
       hasIosAr: Boolean(dish.usdzUrl || dish.arUsdzUrl),
-      hasAndroidAr: Boolean(dish.arModel3dUrl),
+      hasAndroidAr: Boolean(dish.webModel3dUrl || dish.model3dUrl || dish.arModel3dUrl),
       model3dUrl: dish.model3dUrl ?? "",
       webModel3dUrl: dish.webModel3dUrl ?? dish.model3dUrl ?? "",
       webModel3dBytes: 0,

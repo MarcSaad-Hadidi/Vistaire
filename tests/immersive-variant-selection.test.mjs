@@ -73,7 +73,7 @@ test("variant selector chooses desktop web and mobile preview variants for 3D in
   assert.equal(mobile.shouldLoadModel, true);
 });
 
-test("variant selector offers Android AR only when an AR-lite variant exists", () => {
+test("Android AR prefers AR-lite and falls back to the web GLB", () => {
   const android = select({
     device: "android",
     browser: "chrome",
@@ -97,9 +97,42 @@ test("variant selector offers Android AR only when an AR-lite variant exists", (
     prefersReducedMotion: false
   });
 
-  assert.equal(fallback.kind, "mobile");
+  assert.equal(fallback.kind, "web");
   assert.equal(fallback.shouldLoadModel, true);
-  assert.match(fallback.message, /3D reste disponible/i);
+  assert.equal(fallback.url, baseDish.webModel3dUrl);
+
+  const arLiteOnly = select({
+    manifest: buildDemoDish3dManifest({ ...baseDish, webModel3dUrl: "", model3dUrl: "" }),
+    device: "android", browser: "chrome", userIntent: "ar"
+  });
+  assert.equal(arLiteOnly.kind, "arLite");
+  assert.equal(arLiteOnly.url, baseDish.arModel3dUrl);
+});
+
+test("public API web GLB enables Android without AR-lite and preserves iOS USDZ", () => {
+  const root = "/api/public/menu-dishes/fd64dc12-8bd2-4669-be63-51cf0d50b839/model";
+  const web = `${root}/glb?v=20260722-3d95d7da`;
+  const usdz = `${root}/usdz?v=20260722-3d95d7da`;
+  const manifest = buildDemoDish3dManifest({
+    ...baseDish, model3dUrl: web, webModel3dUrl: web,
+    arModel3dUrl: "", arUsdzUrl: usdz
+  });
+  assert.equal(manifest.variants.arLite, undefined);
+  const preview = select({ manifest, device: "android", userIntent: "view3d" });
+  const ar = select({ manifest, device: "android", userIntent: "ar" });
+  assert.equal(ar.kind, "web");
+  assert.equal(ar.url, web);
+  assert.equal(preview.url, ar.url);
+  const ios = select({ manifest, device: "ios", browser: "safari", userIntent: "ar" });
+  assert.equal(ios.kind, "iosUsdz");
+  assert.equal(ios.url, usdz);
+
+  const unsafe = select({
+    manifest: buildDemoDish3dManifest({ ...baseDish, model3dUrl: "", webModel3dUrl: "https://untrusted.example/model.glb", arModel3dUrl: "" }),
+    device: "android", userIntent: "ar"
+  });
+  assert.equal(unsafe.url, "");
+  assert.notEqual(unsafe.kind, "web");
 });
 
 test("variant selector handles iOS Safari, iOS Chrome, slow network, and unsafe URLs", () => {

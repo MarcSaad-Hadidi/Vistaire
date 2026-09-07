@@ -222,7 +222,7 @@ function hasReal3d(dish: PublicMenuDish): boolean {
 
 function hasRealAr(dish: PublicMenuDish): boolean {
   return (
-    isSafe3dAssetUrl(dish.arModel3dUrl, ALLOWED_3D_CDN_ORIGINS, "arLite") ||
+    hasReal3d(dish) ||
     isSafe3dAssetUrl(
       dish.arUsdzUrl || dish.usdzUrl,
       ALLOWED_3D_CDN_ORIGINS,

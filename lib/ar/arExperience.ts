@@ -46,7 +46,7 @@ export type ArExperiencePhase =
 export type ResolveArExperienceInput = {
   browser: ArBrowserClass;
   modelReady: boolean;
-  hasArLite: boolean;
+  hasAndroidModel: boolean;
   hasUsdz: boolean;
   runtime: ArRuntimeSignal;
   canActivateAR?: boolean | null;
@@ -176,7 +176,7 @@ export function resolveArExperience(
   }
 
   if (input.browser === "android-other") {
-    return input.hasArLite
+    return input.hasAndroidModel
       ? { kind: "handoff", recommendedBrowser: "chrome" }
       : { kind: "asset-unavailable" };
   }
@@ -199,7 +199,7 @@ export function resolveArExperience(
     return { kind: "unsupported-device" };
   }
 
-  if (input.hasArLite) {
+  if (input.hasAndroidModel) {
     return { kind: "cta", platform: "android" };
   }
 
