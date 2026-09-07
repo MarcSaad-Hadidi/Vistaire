@@ -139,7 +139,7 @@ export function buildOwnerPreparationSummary(
     ? dishes.filter((dish) => Boolean(dish.webModel3dUrl)).length
     : restaurant.immersiveDishCount;
   const arModelCount = dishes.length
-    ? dishes.filter((dish) => Boolean(dish.arUsdzUrl || dish.arModel3dUrl)).length
+    ? dishes.filter((dish) => Boolean(dish.webModel3dUrl || dish.model3dUrl || dish.arUsdzUrl || dish.arModel3dUrl)).length
     : restaurant.immersiveDishCount;
   const immersiveDishCount = dishes.length
     ? dishes.filter((dish) => dish.hasImmersive).length

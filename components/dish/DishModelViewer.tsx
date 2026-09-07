@@ -686,7 +686,15 @@ export function DishModelViewer({
     prefersReducedMotion,
     allowedExternalOrigins: ALLOWED_3D_CDN_ORIGINS
   });
-  const modelSrc = modelSelection.shouldLoadModel ? modelSelection.url : "";
+  const androidArReady =
+    (arSelection.kind === "web" || arSelection.kind === "arLite") &&
+    Boolean(arSelection.url);
+  // Scene Viewer reads this element's src. Keep it on the selected Android
+  // asset before the user clicks, without an async source swap during launch.
+  const modelSrc =
+    isAndroid && androidArReady
+      ? arSelection.url
+      : modelSelection.shouldLoadModel ? modelSelection.url : "";
   const hasModel = Boolean(modelSrc);
   const shouldConfirmSlowNetwork =
     modelSelection.requiresConfirmation && !slowNetworkConfirmed;
@@ -694,14 +702,11 @@ export function DishModelViewer({
     arBrowser === "ios-safari" && arSelection.kind === "iosUsdz"
       ? arSelection.url
       : "";
-  const arLiteReady = arSelection.kind === "arLite" && Boolean(arSelection.url);
-  const dishHasArLite = isSafe3dAssetUrl(
-    manifest.variants.arLite?.url ?? "",
-    ALLOWED_3D_CDN_ORIGINS,
-    "arLite"
-  );
+  const dishHasAndroidAr =
+    isSafe3dAssetUrl(manifest.variants.web?.url ?? "", ALLOWED_3D_CDN_ORIGINS, "web") ||
+    isSafe3dAssetUrl(manifest.variants.arLite?.url ?? "", ALLOWED_3D_CDN_ORIGINS, "arLite");
   const iosNativeArEnabled = arBrowser === "ios-safari" && !missingIosAr;
-  const androidNativeArEnabled = arBrowser === "android-chrome" && arLiteReady;
+  const androidNativeArEnabled = arBrowser === "android-chrome" && androidArReady;
   const showNoModelIosHandoff =
     !hasModel && needsIosHandoff && Boolean(iosSrc) && !shouldConfirmSlowNetwork;
 
@@ -906,7 +911,7 @@ export function DishModelViewer({
   const arExperience = resolveArExperience({
     browser: arBrowser,
     modelReady: showArReady,
-    hasArLite: dishHasArLite,
+    hasAndroidModel: dishHasAndroidAr,
     hasUsdz: Boolean(iosSrc),
     runtime: runtimeSignal
     // canActivateAR is intentionally omitted: model-viewer 4.2 reports false

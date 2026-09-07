@@ -115,6 +115,11 @@ test.describe("AR fallback resilience", () => {
         })
       )
       .toBe(true);
+    await expect(page.locator('a[rel="ar"]')).toHaveAttribute(
+      "href", "/models/demo/ar-lite/homard-bisque-ios-quicklook-meshy.usdz",
+      { timeout: 20_000 }
+    );
+    expect(requests.some((url) => new URL(url).pathname.endsWith(".usdz"))).toBe(false);
   });
 
   test("failed GLB still keeps the dish page usable with a retry affordance", async ({
@@ -190,10 +195,22 @@ test.describe("Android AR diagnosis", () => {
   test.describe.configure({ timeout: 90_000 });
   test.use({ viewport: { width: 390, height: 844 } });
 
-  test("Chrome Android shows the AR CTA without a Chrome handoff before any failure", async ({
+  test("Chrome Android launches the web GLB without an AR-lite asset", async ({
     page
   }) => {
     const requests = collectModelAssetRequests(page);
+    const runtimeErrors: string[] = [];
+    page.on("pageerror", (error) => runtimeErrors.push(error.message));
+    // Reproduce a published web-only dish without changing shared demo data.
+    await page.route("**/menu/maison-elyse/dishes/homard-bisque?*", async (route) => {
+      const response = await route.fetch();
+      await route.fulfill({
+        response,
+        body: (await response.text()).replaceAll(
+          "/models/demo/ar-lite/homard-bisque-ar-lite-meshy.glb", ""
+        )
+      });
+    });
     await simulateAndroidBrowser(page, CHROME_ANDROID_UA);
     await openMaisonDishPage(page);
     await expectNoEarlyImmersiveLoad(page, requests);
@@ -202,6 +219,29 @@ test.describe("Android AR diagnosis", () => {
       timeout: 20_000
     });
     await expect(page.getByText("Ouvrez cette fiche dans Chrome")).toHaveCount(0);
+    const viewer = page.locator("model-viewer");
+    const webSrc = "/models/demo/homard-bisque-meshopt-ee44bc60.glb";
+    // React 19 assigns custom-element properties, which need not reflect as attributes.
+    await expect(viewer).toHaveJSProperty("src", webSrc);
+    await expect(viewer).toHaveJSProperty("ar", true);
+    await expect(page.locator('[data-ar-experience="asset-unavailable"]')).toHaveCount(0);
+    expect(requests.some((url) => url.includes("/ar-lite/"))).toBe(false);
+    expect(requests.some((url) => new URL(url).pathname === webSrc)).toBe(true);
+    await viewer.evaluate((element) => {
+      Object.assign(element, {
+        activateAR: () => {
+          element.setAttribute("data-launched-src", String(Reflect.get(element, "src") ?? ""));
+          return Promise.resolve();
+        }
+      });
+    });
+    await page.getByRole("button", { name: "Afficher devant moi" }).click();
+    await expect(viewer).toHaveAttribute("data-launched-src", webSrc);
+    for (const width of [390, 430]) {
+      await page.setViewportSize({ width, height: 844 });
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    }
+    expect(runtimeErrors).toEqual([]);
   });
 
   test("Chrome Android Scene Viewer fallback shows a device message, not Chrome handoff", async ({

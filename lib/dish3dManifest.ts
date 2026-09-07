@@ -370,6 +370,12 @@ export function selectImmersiveVariant({
     }
 
     if (device === "android") {
+      const web = safeVariant(runtimeManifest.variants.web, allowedExternalOrigins, "web");
+      if (browser === "chrome" && web) {
+        return selection("web", web, {
+          reason: "android-scene-viewer-web"
+        });
+      }
       const arLite = safeVariant(runtimeManifest.variants.arLite, allowedExternalOrigins, "arLite");
       if (browser === "chrome" && arLite) {
         return selection("arLite", arLite, {
@@ -379,7 +385,7 @@ export function selectImmersiveVariant({
 
       const fallback = firstAvailable(runtimeManifest, ["mobile", "web"], allowedExternalOrigins);
       return selection("mobile", fallback, {
-        reason: arLite ? "android-browser-fallback" : "android-ar-lite-missing",
+        reason: web || arLite ? "android-browser-fallback" : "android-model-missing",
         message: "La 3D reste disponible ici."
       });
     }
