@@ -139,8 +139,8 @@ export function buildOwnerPreparationSummary(
     ? dishes.filter((dish) => Boolean(dish.webModel3dUrl)).length
     : restaurant.immersiveDishCount;
   const arModelCount = dishes.length
-    ? dishes.filter((dish) => Boolean(dish.webModel3dUrl || dish.model3dUrl || dish.arUsdzUrl || dish.arModel3dUrl)).length
-    : restaurant.immersiveDishCount;
+    ? dishes.filter((dish) => Boolean(dish.arUsdzUrl || dish.usdzUrl)).length
+    : 0;
   const immersiveDishCount = dishes.length
     ? dishes.filter((dish) => dish.hasImmersive).length
     : restaurant.immersiveDishCount;
@@ -270,7 +270,7 @@ export function buildOwnerRestaurantPreparation(
       label: "Médias 3D/AR prêts si inclus",
       detail:
         summary.immersiveDishCount > 0
-          ? `${summary.webModelCount} GLB web · ${summary.arModelCount} AR/iOS.`
+          ? `${summary.webModelCount} GLB web · ${summary.arModelCount} USDZ iOS.`
           : "Aucun modèle 3D/AR requis détecté.",
       status: summary.immersiveDishCount > 0 ? "OK" : "Optionnel",
       tone: summary.immersiveDishCount > 0 ? "ready" : "muted",

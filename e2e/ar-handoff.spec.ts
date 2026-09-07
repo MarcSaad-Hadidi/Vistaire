@@ -251,6 +251,9 @@ test.describe("Android AR diagnosis", () => {
     await openMaisonDishPage(page);
     await open3dViewer(page);
     await expect(page.locator("model-viewer")).toHaveCount(1, { timeout: 20_000 });
+    await expect(page.locator("model-viewer")).toHaveJSProperty(
+      "src", "/models/demo/ar-lite/homard-bisque-ar-lite-meshy.glb"
+    );
     await dispatchSceneViewerFallback(page);
     await expect(
       page.getByRole("heading", {

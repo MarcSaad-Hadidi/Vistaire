@@ -73,15 +73,15 @@ test("variant selector chooses desktop web and mobile preview variants for 3D in
   assert.equal(mobile.shouldLoadModel, true);
 });
 
-test("Android AR prefers the web GLB and keeps AR-lite optional", () => {
+test("Android AR prefers AR-lite and falls back to the web GLB", () => {
   const android = select({
     device: "android",
     browser: "chrome",
     userIntent: "ar"
   });
 
-  assert.equal(android.kind, "web");
-  assert.equal(android.url, baseDish.webModel3dUrl);
+  assert.equal(android.kind, "arLite");
+  assert.equal(android.url, baseDish.arModel3dUrl);
 
   const noArLiteManifest = buildDemoDish3dManifest({
     ...baseDish,

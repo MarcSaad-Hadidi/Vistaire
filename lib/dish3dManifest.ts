@@ -370,16 +370,16 @@ export function selectImmersiveVariant({
     }
 
     if (device === "android") {
-      const web = safeVariant(runtimeManifest.variants.web, allowedExternalOrigins, "web");
-      if (browser === "chrome" && web) {
-        return selection("web", web, {
-          reason: "android-scene-viewer-web"
-        });
-      }
       const arLite = safeVariant(runtimeManifest.variants.arLite, allowedExternalOrigins, "arLite");
       if (browser === "chrome" && arLite) {
         return selection("arLite", arLite, {
           reason: "android-scene-viewer-ar-lite"
+        });
+      }
+      const web = safeVariant(runtimeManifest.variants.web, allowedExternalOrigins, "web");
+      if (browser === "chrome" && web) {
+        return selection("web", web, {
+          reason: "android-scene-viewer-web"
         });
       }
 
