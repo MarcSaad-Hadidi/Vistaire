@@ -20,15 +20,15 @@ const COPY = {
   fr: {
     eyebrow: "Votre établissement",
     title: "Estimez votre mise en place",
-    question: "Combien de tables souhaitez-vous équiper ?",
+    question: "Nombre de tables à équiper ?",
     tables: "tables",
     decrease: "Réduire le nombre de tables",
     increase: "Augmenter le nombre de tables",
-    included: "20 supports personnalisés inclus",
+    included: "Jusqu’à 20 supports personnalisés inclus",
     includedWithExtras: (extraTables: number) =>
       `20 supports inclus · ${extraTables} support${extraTables > 1 ? "s" : ""} supplémentaire${extraTables > 1 ? "s" : ""}`,
     disclaimer:
-      "Estimation indicative — le prix final sera confirmé dans votre devis après analyse de votre établissement et de vos besoins.",
+      "Estimation indicative. Le prix final sera confirmé dans votre devis après analyse de votre établissement et de vos besoins.",
     startingAt: "À partir de",
     estimateFor: (tableCount: number) =>
       `Estimation pour ${tableCount} table${tableCount === 1 ? "" : "s"}`,
@@ -42,15 +42,15 @@ const COPY = {
     tables: "tables",
     decrease: "Decrease the number of tables",
     increase: "Increase the number of tables",
-    included: "20 personalized displays included",
+    included: "Up to 20 personalized displays included",
     includedWithExtras: (extraTables: number) =>
       `20 displays included · ${extraTables} additional display${extraTables === 1 ? "" : "s"}`,
     disclaimer:
-      "Indicative estimate — final pricing will be confirmed in your quote after reviewing your venue and project requirements.",
+      "Indicative estimate. Final pricing will be confirmed in your quote after reviewing your venue and project requirements.",
     startingAt: "Starting at",
     estimateFor: (tableCount: number) =>
       `Estimate for ${tableCount} table${tableCount === 1 ? "" : "s"}`,
-    setup: "One-time setup",
+    setup: "One time setup",
     estimatedSetup: "Estimated setup"
   }
 } as const;

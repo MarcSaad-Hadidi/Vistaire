@@ -6,7 +6,13 @@ import { AdminToast } from "@/components/admin/system/AdminPresentationPrimitive
 import adminStyles from "@/components/admin/system/AdminSystem.module.css";
 import { RESTAURATEUR_PREVIEW_COPY } from "@/lib/restaurateurPreview/copy";
 import { RESTAURATEUR_PREVIEW_FIXTURE } from "@/lib/restaurateurPreview/fixture";
-import type { RestaurateurPreviewLocale, RestaurateurPreviewPeriodId } from "@/lib/restaurateurPreview/types";
+import type {
+  LocalizedText,
+  RestaurateurPreviewFixture,
+  RestaurateurPreviewLocale,
+  RestaurateurPreviewPeriod,
+  RestaurateurPreviewPeriodId
+} from "@/lib/restaurateurPreview/types";
 import { RestaurateurPreviewAvailability } from "./RestaurateurPreviewAvailability";
 import { RestaurateurPreviewOverview } from "./RestaurateurPreviewOverview";
 import styles from "./VistaireRestaurateurDashboardPreview.module.css";
@@ -20,6 +26,61 @@ const RestaurateurPreviewInsights = dynamic(
   { loading: () => <p role="status">…</p> }
 );
 
+function removeVisibleDash(value: string, locale: RestaurateurPreviewLocale) {
+  return value
+    .replace(
+      /(\d+)\s*[-–—]\s*(\d+)/g,
+      locale === "fr" ? "$1 à $2" : "$1 to $2"
+    )
+    .replace(/[-–—]/g, " ")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+}
+
+function sanitizeLocalizedText(value: LocalizedText): LocalizedText {
+  return {
+    fr: removeVisibleDash(value.fr, "fr"),
+    en: removeVisibleDash(value.en, "en")
+  };
+}
+
+function sanitizePilotagePeriod(period: RestaurateurPreviewPeriod): RestaurateurPreviewPeriod {
+  return {
+    ...period,
+    seriesLabels: period.seriesLabels.map(sanitizeLocalizedText),
+    searchBreakdown: period.searchBreakdown.map((item) => ({
+      ...item,
+      term: sanitizeLocalizedText(item.term)
+    })),
+    serviceBreakdown: period.serviceBreakdown.map((item) => ({
+      ...item,
+      label: sanitizeLocalizedText(item.label)
+    }))
+  };
+}
+
+const PILOTAGE_FIXTURE: RestaurateurPreviewFixture = {
+  ...RESTAURATEUR_PREVIEW_FIXTURE,
+  restaurant: {
+    ...RESTAURATEUR_PREVIEW_FIXTURE.restaurant,
+    name: sanitizeLocalizedText(RESTAURATEUR_PREVIEW_FIXTURE.restaurant.name)
+  },
+  categories: RESTAURATEUR_PREVIEW_FIXTURE.categories.map((category) => ({
+    ...category,
+    label: sanitizeLocalizedText(category.label)
+  })),
+  dishes: RESTAURATEUR_PREVIEW_FIXTURE.dishes.map((dish) => ({
+    ...dish,
+    name: removeVisibleDash(dish.name, "fr"),
+    nameEn: removeVisibleDash(dish.nameEn, "en")
+  })),
+  periods: {
+    "24h": sanitizePilotagePeriod(RESTAURATEUR_PREVIEW_FIXTURE.periods["24h"]),
+    "7d": sanitizePilotagePeriod(RESTAURATEUR_PREVIEW_FIXTURE.periods["7d"]),
+    "30d": sanitizePilotagePeriod(RESTAURATEUR_PREVIEW_FIXTURE.periods["30d"])
+  }
+};
+
 export function RestaurateurDashboardDemo({
   initialPeriodId = "24h",
   locale,
@@ -29,7 +90,7 @@ export function RestaurateurDashboardDemo({
   locale: RestaurateurPreviewLocale;
   presentation?: "preview" | "pilotage";
 }) {
-  const fixture = RESTAURATEUR_PREVIEW_FIXTURE;
+  const fixture = presentation === "pilotage" ? PILOTAGE_FIXTURE : RESTAURATEUR_PREVIEW_FIXTURE;
   const copy = RESTAURATEUR_PREVIEW_COPY[locale];
   const usesPilotageCopy = presentation === "pilotage";
   const dashboardEyebrow = usesPilotageCopy ? "Vistaire · Pilotage" : copy.dashboardEyebrow;

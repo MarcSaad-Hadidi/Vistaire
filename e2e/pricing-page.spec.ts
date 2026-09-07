@@ -58,6 +58,50 @@ async function expectNoHorizontalOverflow(page: Page) {
   expect(overflow).toBeLessThanOrEqual(2);
 }
 
+async function visibleDashText(page: Page) {
+  return page.evaluate(() => {
+    const matches: string[] = [];
+    const isVisuallyHidden = (element: Element) => {
+      let current: Element | null = element;
+      while (current && current !== document.body) {
+        const style = getComputedStyle(current);
+        if (
+          style.display === "none" ||
+          style.visibility === "hidden" ||
+          Number.parseFloat(style.opacity || "1") === 0
+        ) {
+          return true;
+        }
+        const className = typeof current.className === "string" ? current.className : "";
+        if (className.toLowerCase().includes("sronly")) return true;
+        const rect = current.getBoundingClientRect();
+        const isTinyClippedElement =
+          rect.width <= 2 &&
+          rect.height <= 2 &&
+          (style.position === "absolute" || style.position === "fixed") &&
+          (style.overflow === "hidden" ||
+            style.clip !== "auto" ||
+            style.clipPath !== "none");
+        if (isTinyClippedElement) return true;
+        current = current.parentElement;
+      }
+      return false;
+    };
+
+    const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+    let node = walker.nextNode();
+    while (node) {
+      const text = node.textContent?.replace(/\s+/g, " ").trim() ?? "";
+      const parent = node.parentElement;
+      if (text && /[-–—]/.test(text) && parent && !isVisuallyHidden(parent)) {
+        matches.push(text);
+      }
+      node = walker.nextNode();
+    }
+    return [...new Set(matches)];
+  });
+}
+
 async function expectPrimaryNavigationFits(
   page: Page,
   labels: readonly string[]
@@ -186,13 +230,13 @@ test.describe("Vistaire pricing collections", () => {
         prices: ["2 000 $ CAD", "2 050 $ CAD", "2 100 $ CAD", "2 200 $ CAD"],
         monthly: "+ 200 $ CAD / mois",
         pilotage: "+ 100 $ CAD / mois",
-        total: "Total — 300 $ / mois",
+        total: "Total 300 $ / mois",
         navLinks: ["Accueil", "Carte", "Tarifs", "À propos", "Contact"],
         pricingLabel: "Tarifs",
         pricingPath: "#pricing-title",
         brandLabel: "Vistaire - accueil",
         navCta: "Prendre rendez-vous",
-        appointmentCta: "Prendre rendez-vous",
+        appointmentCta: "Prendre rendez vous",
         appointmentPath: "/prendre-rendez-vous",
         forbiddenPreviewVocabulary: /démo|démonstration/i,
         forbiddenPrices: [
@@ -215,7 +259,7 @@ test.describe("Vistaire pricing collections", () => {
         prices: ["$2,000 CAD", "$2,050 CAD", "$2,100 CAD", "$2,200 CAD"],
         monthly: "+ $200 CAD / month",
         pilotage: "+ $100 CAD / month",
-        total: "Total — $300 / month",
+        total: "Total $300 / month",
         navLinks: ["Home", "Menu", "Pricing", "About", "Contact"],
         pricingLabel: "Pricing",
         pricingPath: "#pricing-title",
@@ -309,8 +353,7 @@ test.describe("Vistaire pricing collections", () => {
           name: scenario.pricingLabel,
           exact: true
         })
-      )
-        .toHaveAttribute("href", scenario.pricingPath);
+      ).toHaveAttribute("href", scenario.pricingPath);
       await expect(
         navigation.getByRole("link", {
           name: scenario.pricingLabel,
@@ -340,6 +383,8 @@ test.describe("Vistaire pricing collections", () => {
       expect(await page.locator("body").innerText()).not.toMatch(
         scenario.forbiddenPreviewVocabulary
       );
+      const dashText = await visibleDashText(page);
+      expect(dashText, dashText.join("\n")).toEqual([]);
 
       const publicPayload = await page.evaluate(() =>
         [
@@ -430,7 +475,7 @@ test.describe("Vistaire pricing collections", () => {
       await expect(
         page
           .locator('section[aria-labelledby="pricing-final-title"]')
-          .getByRole("link", { name: "Prendre rendez-vous", exact: true })
+          .getByRole("link", { name: "Prendre rendez vous", exact: true })
       ).toHaveAttribute("href", "/prendre-rendez-vous");
       await expectNoHorizontalOverflow(page);
     }
