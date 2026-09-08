@@ -62,8 +62,8 @@ test("dependency overrides pin every affected brace-expansion branch to a fixed 
 });
 
 test("PostCSS is pinned above the current advisory ceiling in the full lockfile", () => {
-  assert.equal(packageJson.devDependencies?.postcss, "^8.5.23");
-  assert.equal(packageLock.packages?.[""].devDependencies?.postcss, "^8.5.23");
+  assert.equal(packageJson.devDependencies?.postcss, "^8.5.26");
+  assert.equal(packageLock.packages?.[""].devDependencies?.postcss, "^8.5.26");
 
   const versions = packageVersions("postcss");
   assert.ok(versions.length > 0, "package-lock.json must contain postcss entries");
