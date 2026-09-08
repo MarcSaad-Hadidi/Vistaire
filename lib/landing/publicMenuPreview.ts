@@ -101,7 +101,7 @@ function pickFeaturedDish(
     ) ??
     candidates.find((dish) => dish.isSignature && Boolean(imageForDish(dish))) ??
     candidates.find((dish) => Boolean(imageForDish(dish))) ??
-    (preferredDish ?? undefined) ??
+    preferredDish ??
     candidates[0]
   );
 }
