@@ -55,6 +55,11 @@ if (serverVersion < 170000 || serverVersion >= 180000) {
 }
 
 migration("tests/postgres/qr-lifecycle/run.sql");
+// Availability scheduling depends on the canonical QR/menu schema installed by
+// the suite above. Apply the production migration, then exercise its real
+// PostgreSQL lifecycle, isolation, concurrency, and DST contracts.
+migration("supabase/migrations/20260811190000_admin_availability_schedule.sql");
+migration("tests/postgres/admin-availability-scheduling/run.sql");
 // The canonical suite installs the production migration once. A second real
 // psql application here is a blocking proof that its complete DDL is rerunnable.
 migration("supabase/migrations/20260717120000_owner_qr_canonical_lifecycle.sql");

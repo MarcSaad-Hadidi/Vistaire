@@ -328,7 +328,7 @@ test("QR fonctionnel: creation owner admin, echange HttpOnly et dashboard restau
   await expect
     .poll(() =>
       page.evaluate(() => ({
-        authorized: (document.body?.innerText ?? "").includes("Restaurant Fixture QR"),
+        authorized: (document.body?.innerText ?? "").toLocaleLowerCase().includes("restaurant fixture qr"),
         accessRequired: (document.body?.innerText ?? "").includes(
           "Accès dashboard restaurant requis"
         ),
@@ -348,7 +348,7 @@ test("QR fonctionnel: creation owner admin, echange HttpOnly et dashboard restau
     environment.fixture.liveQrReads
   );
   await expect(
-    page.getByRole("heading", { name: /Restaurant Fixture QR/i })
+    page.getByRole("banner").getByText("Restaurant Fixture QR", { exact: true })
   ).toBeVisible();
   await expect(page.getByText("Restaurant Hors Scope")).toHaveCount(0);
   expect(environment.fixture.adminScopeVerified()).toBe(true);

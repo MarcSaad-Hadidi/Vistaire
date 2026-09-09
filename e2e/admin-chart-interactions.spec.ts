@@ -35,7 +35,7 @@ async function enterFullMenuPreview(page: Page, testInfo: TestInfo) {
 
   const adminResponse = await page.goto(new URL("/admin", origin).toString(), { waitUntil: "domcontentloaded" });
   expect(adminResponse?.status()).toBe(200);
-  await expect(page.getByRole("heading", { name: /Maison Élysée/ })).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByRole("heading", { level: 1, name: /Aujourd’hui — Centre de pilotage du service/ })).toBeVisible({ timeout: 30_000 });
   await page.waitForLoadState("networkidle");
 }
 
@@ -321,23 +321,45 @@ test("all required viewports stay within the document width", async ({ page }) =
   }
 });
 
+async function forEachAvailabilityPage(page: Page, visit: (rows: ReturnType<Page["locator"]>) => Promise<void>) {
+  const pagination = page.getByRole("navigation", { name: "Pagination du catalogue" });
+  await expect(page.locator("[data-admin-menu-dish]")).toHaveCount(6, { timeout: 30_000 });
+  await expect(pagination).toBeVisible({ timeout: 30_000 });
+  const pageButtons = pagination.getByRole("button", { name: /^Page \d+$/ });
+  const pageCount = await pageButtons.count();
+  expect(pageCount).toBeGreaterThan(0);
+  for (let index = 0; index < pageCount; index += 1) {
+    const pageButton = pagination.getByRole("button", { name: `Page ${index + 1}`, exact: true });
+    await expect.poll(async () => {
+      await pageButton.click();
+      return pageButton.getAttribute("aria-current");
+    }, { timeout: 30_000 }).toBe("page");
+    await visit(page.locator("[data-admin-menu-dish]"));
+  }
+}
+
 test("full-menu admin parity keeps unavailable dishes private while matching available public dishes", async ({ page }, testInfo) => {
   test.skip(process.env.VISTAIRE_ADMIN_FIXTURE_SCENARIO !== "full-menu", "requires the explicit full-menu fixture scenario");
   await enterFullMenuPreview(page, testInfo);
   await page.goto("/admin/availability", { waitUntil: "domcontentloaded" });
-  const rows = page.locator("[data-admin-menu-dish]");
-  await expect(rows).toHaveCount(12);
-  expect(await page.locator('article[data-available="true"]').count()).toBeGreaterThan(0);
-  expect(await page.locator('article[data-available="false"]').count()).toBeGreaterThan(0);
-  const names = await rows.locator("h3").allTextContents();
+  const names: string[] = [];
+  const categories: string[] = [];
+  const adminDishes: Array<{ id: string | null; categoryId: string | null; available: string | null }> = [];
+  await forEachAvailabilityPage(page, async (rows) => {
+    names.push(...await rows.locator("h3").allTextContents());
+    categories.push(...await rows.locator("h3 + p").allTextContents());
+    adminDishes.push(...await rows.evaluateAll((elements) => elements.map((element) => ({
+      id: element.getAttribute("data-dish-id"),
+      categoryId: element.getAttribute("data-category-id"),
+      available: element.getAttribute("data-available"),
+    }))));
+  });
+  expect(adminDishes).toHaveLength(12);
+  expect(adminDishes.some(({ available }) => available === "true")).toBe(true);
+  expect(adminDishes.some(({ available }) => available === "false")).toBe(true);
   expect(new Set(names).size).toBe(12);
-  const categories = await rows.locator("h3 + p").allTextContents();
   expect(new Set(categories).size).toBeGreaterThanOrEqual(4);
-  const adminDishes = await rows.evaluateAll((elements) => elements.map((element) => ({
-    id: element.getAttribute("data-dish-id"),
-    categoryId: element.getAttribute("data-category-id"),
-    available: element.getAttribute("data-available"),
-  })).sort((left, right) => (left.id ?? "").localeCompare(right.id ?? "")));
+  adminDishes.sort((left, right) => (left.id ?? "").localeCompare(right.id ?? ""));
   expect(adminDishes).not.toContainEqual(expect.objectContaining({ id: "other-menu-dish" }));
   expect(adminDishes).not.toContainEqual(expect.objectContaining({ id: "foreign-dish" }));
 
@@ -391,40 +413,47 @@ test("full-menu admin thumbnails fall back without broken-image icons", async ({
 
   await enterFullMenuPreview(page, testInfo);
   await page.goto("/admin/availability", { waitUntil: "domcontentloaded" });
-  const rows = page.locator("[data-admin-menu-dish]");
-  await expect(rows).toHaveCount(12);
-  expect(await page.locator('article[data-available="true"]').count()).toBeGreaterThan(0);
-  expect(await page.locator('article[data-available="false"]').count()).toBeGreaterThan(0);
-  await expect(page.locator("[data-admin-dish-thumbnail-fallback]").first()).toBeVisible();
-  const fallbackRow = rows.filter({ has: page.locator("[data-admin-dish-thumbnail-fallback]") }).first();
-  await expect(fallbackRow.locator("[data-admin-dish-thumbnail] img")).toHaveCount(0);
-
   const naturalWidths = new Map<string, number>();
-  for (const row of await rows.all()) {
-    await row.scrollIntoViewIfNeeded();
-    const dishId = await row.getAttribute("data-dish-id");
-    if (dishId === ADMIN_VISUAL_FULL_MENU_DISH_IDS[0]) {
-      await expect(row.locator("[data-admin-dish-thumbnail-fallback]")).toBeVisible();
-      await expect(row.locator("[data-admin-dish-thumbnail] img")).toHaveCount(0);
-      continue;
+  let rowCount = 0;
+  let hasAvailable = false;
+  let hasUnavailable = false;
+  let fallbackCount = 0;
+  await forEachAvailabilityPage(page, async (rows) => {
+    rowCount += await rows.count();
+    const states = await rows.evaluateAll((elements) => elements.map((element) => element.getAttribute("data-available")));
+    hasAvailable ||= states.includes("true");
+    hasUnavailable ||= states.includes("false");
+    for (const row of await rows.all()) {
+      await row.scrollIntoViewIfNeeded();
+      const dishId = await row.getAttribute("data-dish-id");
+      if (dishId === ADMIN_VISUAL_FULL_MENU_DISH_IDS[0]) {
+        await expect(row.locator("[data-admin-dish-thumbnail-fallback]")).toBeVisible();
+        await expect(row.locator("[data-admin-dish-thumbnail] img")).toHaveCount(0);
+        fallbackCount += 1;
+        continue;
+      }
+      const image = row.locator("[data-admin-dish-thumbnail] img");
+      if (await image.count() === 0) continue;
+      // Trigger lazy loading in this row's viewport, then classify the image by
+      // its own request lifecycle. `complete=false` before this point is lazy,
+      // not broken; after the trigger it must settle with decoded pixels.
+      await image.evaluate((element) => element.scrollIntoView({ block: "center", inline: "nearest" }));
+      await expect.poll(() => image.evaluate((element) =>
+        element instanceof HTMLImageElement && element.complete && element.naturalWidth > 0
+      ), { timeout: 30_000 }).toBe(true);
+      const state = await image.evaluate((element) => ({
+        complete: element instanceof HTMLImageElement && element.complete,
+        naturalWidth: element instanceof HTMLImageElement ? element.naturalWidth : 0
+      }));
+      expect(state.complete).toBe(true);
+      expect(state.naturalWidth).toBeGreaterThan(0);
+      if (dishId) naturalWidths.set(dishId, state.naturalWidth);
     }
-    const image = row.locator("[data-admin-dish-thumbnail] img");
-    if (await image.count() === 0) continue;
-    // Trigger lazy loading in this row's viewport, then classify the image by
-    // its own request lifecycle. `complete=false` before this point is lazy,
-    // not broken; after the trigger it must settle with decoded pixels.
-    await image.evaluate((element) => element.scrollIntoView({ block: "center", inline: "nearest" }));
-    await expect.poll(() => image.evaluate((element) =>
-      element instanceof HTMLImageElement && element.complete && element.naturalWidth > 0
-    ), { timeout: 30_000 }).toBe(true);
-    const state = await image.evaluate((element) => ({
-      complete: element instanceof HTMLImageElement && element.complete,
-      naturalWidth: element instanceof HTMLImageElement ? element.naturalWidth : 0
-    }));
-    expect(state.complete).toBe(true);
-    expect(state.naturalWidth).toBeGreaterThan(0);
-    if (dishId) naturalWidths.set(dishId, state.naturalWidth);
-  }
+  });
+  expect(rowCount).toBe(12);
+  expect(hasAvailable).toBe(true);
+  expect(hasUnavailable).toBe(true);
+  expect(fallbackCount).toBe(1);
 
   const adminCookie = await page.context().cookies();
   expect(adminCookie.some(({ name }) => name === "vistaire_admin_local_preview")).toBe(true);
@@ -466,14 +495,14 @@ test("period changes replace chart evidence and replay bounded animations", asyn
   });
   await page.emulateMedia({ reducedMotion: "no-preference" });
   await enterPreview(page);
-  await page.goto("/admin/insights?range=7d", { waitUntil: "networkidle" });
+  await page.goto("/admin/insights?range=today", { waitUntil: "networkidle" });
   const keysBefore = await page.locator("[data-chart-animation-key]").evaluateAll((elements) => elements.map((element) => element.getAttribute("data-chart-animation-key")));
   await page.evaluate(() => {
     (window as typeof window & { __chartAnimationEvidence?: unknown[] }).__chartAnimationEvidence = [];
   });
-  await page.getByRole("link", { name: "30 j", exact: true }).click();
-  await expect(page).toHaveURL(/range=30d/);
-  await expect(page.getByRole("link", { name: "30 j", exact: true })).toHaveAttribute("aria-current", "page");
+  await page.getByRole("link", { name: "7d", exact: true }).click();
+  await expect(page).toHaveURL(/range=7d/);
+  await expect(page.getByRole("link", { name: "7d", exact: true })).toHaveAttribute("aria-current", "page");
   const keysAfter = await page.locator("[data-chart-animation-key]").evaluateAll((elements) => elements.map((element) => element.getAttribute("data-chart-animation-key")));
   expect(keysAfter).not.toEqual(keysBefore);
   await expect.poll(() => page.evaluate(() => (window as typeof window & { __chartAnimationEvidence?: unknown[] }).__chartAnimationEvidence?.length ?? 0)).toBeGreaterThan(0);

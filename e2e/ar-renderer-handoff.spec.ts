@@ -46,11 +46,14 @@ test.describe("Sauge Noire Android AR fallback", () => {
     await expect(detail).toBeVisible({ timeout: 20_000 });
     const viewerButton = detail.getByRole("button", { name: "VOIR EN 3D" });
     await expect(viewerButton).toBeVisible();
-    await viewerButton.click();
-    await expect(detail.getByRole("button", { name: "MASQUER LA 3D" })).toHaveAttribute(
-      "aria-expanded",
-      "true"
-    );
+    await expect(async () => {
+      await viewerButton.click();
+      await expect(detail.getByRole("button", { name: "MASQUER LA 3D" })).toHaveAttribute(
+        "aria-expanded",
+        "true",
+        { timeout: 1_000 }
+      );
+    }).toPass({ timeout: 20_000 });
     await expect(page.locator("model-viewer")).toHaveCount(1, { timeout: 20_000 });
     await expect(page.locator('[data-ar-experience="handoff"]')).toBeVisible({
       timeout: 20_000

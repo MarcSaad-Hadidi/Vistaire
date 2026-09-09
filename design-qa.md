@@ -26,6 +26,35 @@
 
 final result: passed
 
+# Design QA — Admin vNext PR #206
+
+Date: 2026-08-30
+
+## Comparison target and evidence
+
+- Source references: `E:\Projet perso\NouveauMenu\Dashboard ADMIN\1.png` through `5.png`, each 1448 × 1086 px.
+- Final implementation captures: `.playwright-mcp/admin-vnext-final/today-1448x1086.png`, `availability-1448x1086.png`, `insights-1448x1086.png`, `reports-1448x1086.png`, and `more-1448x1086.png` (temporary QA artifacts removed before delivery).
+- Combined side-by-side comparison: `C:\Users\hadid\.codex\visualizations\2026\08\29\01a04f5c-35bd-7b10-b2ed-a381484c2aca\admin-vnext-reference-comparison.png`.
+- Browser evidence: local Playwright Chromium at 390, 430, 768, 1280 and 1448 px, with French/English, light/dark, keyboard, reduced-motion, console, network and overflow checks.
+
+## Findings
+
+- All five routes preserve the supplied hierarchy, warm premium restaurant direction, shared 183 px desktop sidebar, compact header actions, evidence cards and responsive mobile navigation.
+- Today reproduces the briefing, pulse, six KPI cards, service progression, alerts, ranking and four lower decision panels. Dish thumbnails fall back safely where no verified source image maps to the observed label.
+- Availability reproduces the KPI row, searchable/filterable paginated table and contextual rail. Service filtering and scheduling controls are not presented when their source field or write/scheduling capability is absent.
+- Intelligence reproduces the period controls, three primary signals, search lists, six-bubble attention map, context, funnel, scorecards, recommendations, assistant and detailed interactive evidence charts. Unmeasured device, language, QR-zone and conversion claims stay explicit instead of being inferred.
+- Reports now keeps exactly five primary KPI cards and the three-row reference structure, including `Ce qui a changé`, `Résumé Vistaire`, reliability and recommended actions. Empty report regions state that evidence is unavailable rather than fabricating service-level figures.
+- More reproduces the six quality states, restaurant profile, QR/content/experience groups, completion issues, requests, issue donut and support action using only catalog-backed evidence.
+- Independent final visual review classified all five routes PASS with no P0 or P1 findings. Remaining P2 differences are small vertical offsets, reduced illustration where no verified asset exists, and intentionally compact empty/read-only states.
+
+## Functional checks
+
+- Main controls, route navigation, period changes, availability pagination/toggles, report export/print/share fallback, assistant focus handling, chart pointer/keyboard/touch interactions and display preferences were exercised.
+- No horizontal overflow was found at the required widths. The tested routes produced no unexpected console errors, hydration errors, relevant 404/500 responses or heavy GLB/USDZ/MP4 requests.
+- Real measurement boundaries remain visible: k-anonymous searches, compatible aligned comparisons, server-derived scope, explicit evidence identifiers and unavailable/insufficient/error states.
+
+final result: passed
+
 # Design QA — Pricing included-offer glass panel
 
 Date: 2026-08-11

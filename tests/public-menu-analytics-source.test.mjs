@@ -16,7 +16,7 @@ function assertTrouvableAnalyticsCaller(source) {
 function assertSharedTrouvableViewerAnalytics(source) {
   assert.match(
     source,
-    /<ModelViewerComponent\b[^>]*\sanalyticsContext\s*=\s*\{getPublicMenuAnalyticsContext\(\s*menu\s*\)\s*\?\?\s*undefined\}/
+    /<ModelViewerComponent\b[^>]*\sanalyticsContext\s*=\s*\{(?:analyticsContext\s*\?\?\s*)?getPublicMenuAnalyticsContext\(\s*menu\s*\)\s*\?\?\s*undefined\}/
   );
 }
 

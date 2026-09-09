@@ -69,6 +69,10 @@ test("two relational public menus keep their own identity across menu interactio
       ]
     );
     assert.equal(sent.every((event) => event.source === "production"), true);
+    assert.equal(
+      sent.every((event) => event.metadata?.instrumentationVersion === "admin-vnext-observed-v1"),
+      true
+    );
 
     assert.deepEqual(
       getPublicMenuAnalyticsContext({ ...menus[0], locale: "fr" }),
@@ -200,11 +204,11 @@ test("event validation rejects sensitive metadata and malformed duration payload
   };
 
   assert.equal(
-    validateAnalyticsEvent({ ...base, metadata: { durationMs: 1000, email: "person@example.com" } }).ok,
+    validateAnalyticsEvent({ ...base, metadata: { durationMs: 1000, instrumentationVersion: "admin-vnext-observed-v1", email: "person@example.com" } }).ok,
     false
   );
-  assert.equal(validateAnalyticsEvent({ ...base, metadata: { durationMs: -1 } }).ok, false);
-  assert.equal(validateAnalyticsEvent({ ...base, metadata: { durationMs: 1000 } }).ok, true);
+  assert.equal(validateAnalyticsEvent({ ...base, metadata: { durationMs: -1, instrumentationVersion: "admin-vnext-observed-v1" } }).ok, false);
+  assert.equal(validateAnalyticsEvent({ ...base, metadata: { durationMs: 1000, instrumentationVersion: "admin-vnext-observed-v1" } }).ok, true);
 });
 
 test("analytics route bounds JSON and validates relational context before insertion", async () => {

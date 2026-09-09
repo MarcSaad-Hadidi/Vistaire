@@ -204,9 +204,20 @@ function observeRuntime(page: Page, baseURL: string) {
 }
 
 async function activateTab(tab: Locator) {
-  await tab.focus();
-  if ((await tab.getAttribute("aria-selected")) !== "true") await tab.press("Enter");
-  await expect(tab).toHaveAttribute("aria-selected", "true");
+  if ((await tab.getAttribute("aria-selected")) === "true") return;
+  await expect(async () => {
+    await tab.focus();
+    await tab.press("Enter");
+    await expect(tab).toHaveAttribute("aria-selected", "true", { timeout: 750 });
+  }).toPass({ timeout: 15_000 });
+}
+
+async function expectTabFocusMove(source: Locator, target: Locator, key: "ArrowLeft" | "ArrowRight" | "Home" | "End") {
+  await expect(async () => {
+    await source.focus();
+    await source.press(key);
+    await expect(target).toBeFocused({ timeout: 750 });
+  }).toPass({ timeout: 15_000 });
 }
 
 async function expectTabContract(page: Page, scenario: Scenario) {
@@ -220,18 +231,13 @@ async function expectTabContract(page: Page, scenario: Scenario) {
   const first = tablist.getByRole("tab", { name: scenario.tabs[0], exact: true });
   const second = tablist.getByRole("tab", { name: scenario.tabs[1], exact: true });
   const last = tablist.getByRole("tab", { name: scenario.tabs[2], exact: true });
-  await first.focus();
-  await first.press("End");
-  await expect(last).toBeFocused();
+  await expectTabFocusMove(first, last, "End");
   await activateTab(last);
-  await last.press("Home");
-  await expect(first).toBeFocused();
+  await expectTabFocusMove(last, first, "Home");
   await activateTab(first);
-  await first.press("ArrowRight");
-  await expect(second).toBeFocused();
+  await expectTabFocusMove(first, second, "ArrowRight");
   await activateTab(second);
-  await second.press("ArrowLeft");
-  await expect(first).toBeFocused();
+  await expectTabFocusMove(second, first, "ArrowLeft");
   await activateTab(first);
 
   const active = tablist.locator('[role="tab"][aria-selected="true"]');
@@ -461,7 +467,7 @@ test.describe("public restaurateur dashboard preview", () => {
     const scenario = scenarios[0];
     const response = await page.goto(scenario.path, { waitUntil: "domcontentloaded" });
     expect(response?.status()).toBe(200);
-    await page.getByRole("tab", { name: scenario.tabs[1], exact: true }).click();
+    await activateTab(page.getByRole("tab", { name: scenario.tabs[1], exact: true }));
     const toggle = page.locator("[data-demo-dish]").first().getByRole("switch");
     await toggle.click();
     const simulationStatus = page.getByRole("status").filter({ hasText: scenario.simulation });

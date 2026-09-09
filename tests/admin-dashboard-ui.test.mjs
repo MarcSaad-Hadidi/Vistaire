@@ -34,15 +34,16 @@ test("admin has a private dedicated shell without marketing or heavy media", asy
   assert.doesNotMatch(css, /background-image|url\(/i);
 });
 
-test("page strictly allowlists server ranges and discloses UTC timezone", async () => {
-  const [page, parser, dashboard] = await Promise.all([read("app/(fr)/admin/page.tsx"), read("lib/admin/pageSearchParams.ts"), read("components/admin/AdminRestaurantDashboard.tsx")]);
-  assert.match(page, /parseAdminPageSearchParams\(await searchParams\)/);
-  assert.match(page, /loadAdminDashboardData\(access\.restaurantId, range\)/);
+test("page strictly allowlists server ranges and derives its observation timezone server-side", async () => {
+  const [page, parser, loader] = await Promise.all([read("app/(fr)/admin/page.tsx"), read("lib/admin/pageSearchParams.ts"), read("lib/admin/data/loadAdminData.ts")]);
+  assert.match(page, /const params = await searchParams/);
+  assert.match(page, /parseAdminPageSearchParams\(params[\s\S]*\)/);
+  assert.match(page, /loadAdminDataBundle\(access, range\)/);
   assert.match(parser, /Pick<[^>]+["']range["']/);
   assert.doesNotMatch(parser, /restaurantId|restaurant_id|slug/);
   assert.doesNotMatch(page, /searchParams\?\.|searchParams\[|as\s+RangeLoader/);
-  assert.match(dashboard, /Aujourd.hui[^\n]*UTC|Fen.tre glissante[^\n]*UTC/);
-  assert.match(dashboard, /fuseau horaire[^\n]*pas configur/i);
+  assert.match(loader, /resolveAdminTimeZone\(menuRead\.menu\.settingsJson\)/);
+  assert.match(loader, /resolveAdminObservationWindow\(\{ range: input\.range, observedAt, timezone: scope\.timezone \}\)/);
 });
 
 test("dashboard exposes evidence semantics, chart alternatives and worklist controls", async () => {
@@ -157,11 +158,10 @@ test("admin visual system is scoped, locally typeset and accessible", async () =
 
   assert.match(shell, /<main/);
   assert.match(nav, /<nav[^>]+aria-label=/);
-  assert.match(nav, /Vue d.ensemble/);
-  assert.match(nav, /Disponibilit.s/);
-  assert.match(nav, /Analyses/);
+  assert.match(shell, /active \? <div hidden><AdminTabs active=\{active\} \/><\/div> : null/);
   assert.match(nav, /D.connexion/);
-  assert.doesNotMatch(source, /Param.tres|Assistant|\/owner|sidebar/i);
+  assert.doesNotMatch(source, /Param.tres|Assistant|\/owner/i);
+  assert.match(shell, /styles\.sidebar/);
 
   assert.match(css, /\.adminRoot\s*\{/);
   for (const token of ["--admin-bg", "--admin-surface", "--admin-border", "--admin-accent", "--admin-text", "--admin-space-2"]) {
@@ -179,7 +179,9 @@ test("admin visual system is scoped, locally typeset and accessible", async () =
   assert.match(primitives, /role="alert"/);
   assert.match(primitives, /aria-describedby/);
   assert.match(primitives, /aria-checked/);
-  assert.match(loading, /aria-busy="true"/);
+  assert.match(loading, /<AdminShellState kind="loading"/);
+  const shellState = await read("components/admin/system/AdminShellState.tsx");
+  assert.match(shellState, /aria-busy=\{kind === "loading" \? true : undefined\}/);
 });
 
 test("admin compact controls preserve 44px hit areas and direct tooltip semantics", async () => {
@@ -201,95 +203,90 @@ test("admin compact controls preserve 44px hit areas and direct tooltip semantic
   assert.doesNotMatch(primitives, /label\.toLowerCase\(\)/);
 });
 
-test("shared admin shell exposes the approved menu actions on every route", async () => {
+test("shared admin shell exposes approved default actions and supports route-specific header actions", async () => {
   const shell = await readFile("components/admin/system/AdminShell.tsx", "utf8");
   const menuActions = await readFile("components/admin/AdminMenuActions.tsx", "utf8");
-  for (const label of ["Ouvrir le menu client", "Copier le lien du menu", "Déconnexion"]) {
+  for (const label of ["Voir la carte", "View menu", "Rafraîchir", "Refresh", "Copier le lien du menu", "Copy menu link"]) {
     assert.match(menuActions, new RegExp(label));
   }
-  assert.match(shell, /<AdminMenuActions menuPath=\{menuPath\}/);
+  assert.match(shell, /<AdminMenuActions locale=\{preferences\.locale\} menuPath=\{menuPath\}/);
+  assert.match(shell, /headerActions\?:\s*ReactNode/);
+  assert.match(shell, /headerActions \?\? <AdminMenuActions/);
+  assert.match(shell, /<AdminLogoutButton locale=\{preferences\.locale\}/);
   assert.match(shell, /<AdminTabs active=\{active\}/);
-  assert.doesNotMatch(shell, /actions\?:\s*ReactNode/);
 });
 
-test("overview composes honest evidence panels with accessible exact values", async () => {
-  const [page, overview, activity, top, strip, css] = await Promise.all([
+test("Today composes honest evidence panels with accessible exact values", async () => {
+  const [page, today, activity, pulse, quickActions, css] = await Promise.all([
     read("app/(fr)/admin/page.tsx"),
-    read("components/admin/overview/AdminOverview.tsx"),
-    read("components/admin/overview/AdminActivityChart.tsx"),
-    read("components/admin/overview/AdminTopDishes.tsx"),
-    read("components/admin/overview/AdminAvailabilityStrip.tsx"),
-    read("components/admin/overview/AdminOverview.module.css")
+    read("components/admin/today/AdminTodayPage.tsx"),
+    read("components/admin/today/TodayActivity.tsx"),
+    read("components/admin/today/TodayPulse.tsx"),
+    read("components/admin/today/TodayQuickActions.tsx"),
+    read("components/admin/today/AdminToday.module.css")
   ]);
-  const source = `${page}\n${overview}\n${activity}\n${top}\n${strip}`;
-  assert.match(page, /<AdminOverview/);
+  const source = `${page}\n${today}\n${activity}\n${pulse}\n${quickActions}`;
+  assert.match(page, /<AdminTodayPage/);
   assert.match(source, /AdminShell/);
-  assert.match(source, /href="\/admin\/insights"/);
-  assert.match(source, /href="\/admin\/availability"/);
+  assert.match(quickActions, /\["\/admin\/insights"/);
+  assert.match(quickActions, /\["\/admin\/availability"/);
   assert.match(activity, /InteractiveLineChart/);
-  assert.match(activity, /title="Activit.+ du menu"/);
-  assert.match(source, /AdminEvidenceState/);
+  assert.match(activity, /Valeurs exactes issues du registre/);
+  assert.match(source, /TodayPanelState/);
+  assert.match(source, /data-evidence-id/);
   assert.doesNotMatch(source, /getDemo|Math\.random/);
-  assert.match(css, /grid-template-areas/);
-  assert.match(css, /@media\s*\(max-width:\s*700px\)/);
-  assert.match(css, /\.kpis[^}]*grid-template-columns:\s*repeat\(2/s);
-  assert.doesNotMatch(css, /@media\(max-width:700px\)[\s\S]*\.kpiImmersive\s*\{\s*display:\s*none/);
-  assert.doesNotMatch(css, /data-mobile-secondary|data-narrow-secondary/);
-  assert.match(overview, /data-overview-kpis/);
-  assert.match(top, /data-overview-ranking/);
+  assert.match(css, /@media\s*\(min-width:\s*701px\)/);
+  assert.match(css, /@media\s*\(min-width:\s*1180px\)/);
+  assert.match(pulse, /data-today-region="pulse"/);
+  assert.match(quickActions, /data-today-region="quick-actions"/);
   assert.match(css, /@media\s*\(prefers-reduced-motion:\s*reduce\)/);
 });
 
-test("insights renders nine truthful panels with non-hover exact alternatives", async () => {
-  const [page, insights, heatmap, comparison, breakdowns, css] = await Promise.all([
+test("Intelligence renders only canonical evidence with equivalent text alternatives", async () => {
+  const [page, insights, attentionMap, conversion, recommendations, css] = await Promise.all([
     read("app/(fr)/admin/insights/page.tsx"),
     read("components/admin/insights/AdminInsightsPage.tsx"),
-    read("components/admin/insights/AdminHeatmap.tsx"),
-    read("components/admin/insights/AdminComparisonChart.tsx"),
-    read("components/admin/insights/AdminBreakdowns.tsx"),
+    read("components/admin/insights/InsightsAttentionMap.tsx"),
+    read("components/admin/insights/InsightsConversionState.tsx"),
+    read("components/admin/insights/InsightsRecommendations.tsx"),
     read("components/admin/insights/AdminInsights.module.css")
   ]);
-  const source = `${page}\n${insights}\n${heatmap}\n${comparison}\n${breakdowns}`;
+  const source = `${page}\n${insights}\n${attentionMap}\n${conversion}\n${recommendations}`;
   assert.match(page, /requireAdminRestaurantAccess\("dashboard:read"\)/);
-  assert.match(page, /loadAdminDashboardData\(access\.restaurantId, range\)/);
+  assert.match(page, /loadAdminDataBundle\(access, range\)/);
   assert.match(source, /AdminShell/);
-  assert.match(source, /href="\/admin"/);
-  assert.match(heatmap, /InteractiveHeatmap/);
-  assert.match(comparison, /ComparisonLineChart/);
-  assert.match(source, /AdminEvidenceState/);
-  assert.match(insights, /Top plats consultés/);
-  assert.doesNotMatch(insights, /Plats favoris/);
+  assert.match(insights, /activeRoute="intelligence"/);
+  assert.match(attentionMap, /<figcaption>/);
+  assert.match(conversion, /data-evidence-state="unmeasured"/);
+  assert.match(recommendations, /block\.evidenceIds\.join/);
+  assert.match(insights, /Aucun classement de recherches k-anonyme/);
   assert.doesNotMatch(source, /getDemo|Math\.random/);
-  assert.equal((insights.match(/data-insights-panel/g) ?? []).length, 9);
-  assert.match(css, /\.primaryGrid[^}]*grid-template-columns:[^}]*722fr[^}]*416fr[^}]*402fr/s);
-  assert.match(css, /\.secondaryGrid[^}]*grid-template-columns:[^}]*392fr[^}]*319fr[^}]*369fr[^}]*450fr/s);
+  assert.match(css, /\.intelligenceGrid/);
+  assert.match(css, /@media\(max-width:700px\)/);
   assert.match(css, /@media\s*\(prefers-reduced-motion:\s*reduce\)/);
 });
 
-test("insights review fixes lock bottom proportions, complete heatmap orientation and evidence fidelity", async () => {
-  const [overview, insights, heatmap, css, overviewE2e, insightsE2e] = await Promise.all([
-    read("components/admin/overview/AdminOverview.tsx"),
+test("vNext browser proofs preserve responsive evidence fidelity and reject heavy assets", async () => {
+  const [today, insights, attentionMap, css, todayE2e, insightsE2e] = await Promise.all([
+    read("components/admin/today/AdminTodayPage.tsx"),
     read("components/admin/insights/AdminInsightsPage.tsx"),
-    read("components/admin/insights/AdminHeatmap.tsx"),
+    read("components/admin/insights/InsightsAttentionMap.tsx"),
     read("components/admin/insights/AdminInsights.module.css"),
-    read("e2e/admin-dashboard.spec.ts"),
+    read("e2e/admin-vnext-today.spec.ts"),
     read("e2e/admin-insights.spec.ts")
   ]);
-  assert.match(css, /\.bottomGrid\s*\{[^}]*grid-template-columns:\s*minmax\(0,911fr\)\s+minmax\(0,639fr\)/s);
-  assert.match(heatmap, /Array\.from\(\{ length: 24 \}/);
-  assert.match(heatmap, /const days = \["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"\]/);
-  assert.match(heatmap, /days\.flatMap[\s\S]*hours\.map/);
-  assert.match(heatmap, /rowLabels=\{days\}/);
-  assert.match(heatmap, /columnLabels=\{hours\.map/);
-  assert.doesNotMatch(overview, /Données de (?:service|catégorie) insuffisantes/);
-  assert.doesNotMatch(insights, /Pas assez de données/);
-  for (const source of [overviewE2e, insightsE2e]) {
+  assert.match(css, /\.bottomIntelligenceGrid/);
+  assert.match(attentionMap, /consultations de plats observées/);
+  assert.match(today, /<TodayPulse model=\{model\}/);
+  assert.match(insights, /metricState/);
+  for (const source of [todayE2e, insightsE2e]) {
     assert.match(source, /390[\s\S]*430/);
     assert.match(source, /scrollWidth/);
     assert.match(source, /console/);
-    assert.match(source, /\.glb\|usdz\|mp4/);
     assert.match(source, /reducedMotion/);
   }
+  assert.match(insightsE2e, /requestfailed/);
+  assert.match(insightsE2e, /glb\|usdz\|mp4/);
 });
 
 test("heatmap delegates one normalized Monday-first 24 by 7 matrix to the interactive exact-value primitive", async () => {
@@ -340,88 +337,64 @@ test("overview service preview preserves every service-window count exactly once
   assert.equal(preview.reduce((sum, item) => sum + item.value, 0), windows.reduce((sum, item) => sum + item.count, 0));
 });
 
-test("PR150 insights fidelity uses normal flow, premium copy, controlled top-five views and detailed charts", async () => {
-  const [page, heatmap, breakdowns, rows, css, primitives, sparkline, chartCss] = await Promise.all([
+test("vNext Intelligence uses normal flow, premium copy and explicit evidence states", async () => {
+  const [page, attentionMap, conversion, recommendations, css, drawer] = await Promise.all([
     read("components/admin/insights/AdminInsightsPage.tsx"),
-    read("components/admin/insights/AdminHeatmap.tsx"),
-    read("components/admin/insights/AdminBreakdowns.tsx"),
-    read("components/admin/insights/InsightsRows.tsx"),
+    read("components/admin/insights/InsightsAttentionMap.tsx"),
+    read("components/admin/insights/InsightsConversionState.tsx"),
+    read("components/admin/insights/InsightsRecommendations.tsx"),
     read("components/admin/insights/AdminInsights.module.css"),
-    read("components/admin/system/AdminPresentationPrimitives.tsx"),
-    read("components/admin/charts/Sparkline.tsx"),
-    read("components/admin/charts/Charts.module.css")
+    read("components/admin/insights/AdminAssistantDrawer.tsx")
   ]);
   assert.doesNotMatch(css, /(?:^|[;{])height:\s*0(?:[;}])|margin-(?:top|left):\s*-|transform:\s*translate/);
   assert.doesNotMatch(css, /position:\s*absolute[^}]*top:\s*91px/s);
-  assert.match(css, /grid-template-columns:\s*minmax\(0,\s*722fr\)\s+minmax\(0,\s*416fr\)\s+minmax\(0,\s*402fr\)/);
-  assert.match(page, /adminFreshnessCopy/);
-  assert.match(primitives, /adminEvidenceReasonCopy/);
-  assert.match(page, /metricSeries/);
-  assert.match(page, /changeRate/);
-  assert.match(breakdowns, /slice\(0,\s*5\)/);
-  assert.match(rows, /AdminDishThumbnail/);
-  assert.match(breakdowns, /InteractiveDonut/);
-  assert.match(rows, /Sparkline/);
-  assert.match(page, /Heures affich(?:Ã©|é)es en UTC/);
-  assert.doesNotMatch(heatmap, /Heures affich(?:Ã©|é)es en UTC/);
-  assert.doesNotMatch(`${page}\n${heatmap}`, /(?:PÃ©riode sÃ©lectionnÃ©e|Période sélectionnée)\s*[Â··]\s*UTC/);
-  assert.match(page, /data-insights-kpi/);
-  assert.match(page, /data-insights-summary/);
-  assert.match(page, /data-insights-key-insights/);
-  assert.match(page, /analytics\.kind === "real" \? <div className=\{styles\.summaryMetrics\}/);
-  assert.match(page, /insights\.length >= 2/);
-  assert.match(primitives, /evidence\?: \{ kind: "insufficient" \| "unavailable"; reason: string \}/);
-  assert.match(sparkline, /interactive/);
-  assert.match(sparkline, /role="tooltip"/);
-  assert.match(chartCss, /@keyframes sparklineReveal/);
+  assert.match(css, /\.essentialGrid/);
+  assert.match(css, /\.intelligenceGrid/);
+  assert.match(page, /observed-menu-opens/);
+  assert.match(page, /catalog-dishes/);
+  assert.match(page, /metricState/);
+  assert.match(attentionMap, /<figcaption>/);
+  assert.match(conversion, /Funnel non mesuré/);
+  assert.match(recommendations, /block\.evidenceIds/);
+  assert.match(drawer, /role="dialog"/);
+  assert.match(drawer, /aria-modal="true"/);
 });
 
-test("admin E2E contracts fail closed and measure two-dimensional touch targets", async () => {
-  const sources = await Promise.all([read("e2e/admin-dashboard.spec.ts"), read("e2e/admin-insights.spec.ts")]);
-  for (const source of sources) {
-    assert.match(source, /VISTAIRE_REQUIRE_ADMIN_E2E/);
-    assert.match(source, /function requireAdminFixture/);
-    assert.match(source, /throw new Error/);
-    assert.match(source, /requestfailed/);
-    assert.match(source, /box\.width\)\.toBeGreaterThanOrEqual\(44\)/);
-    assert.match(source, /box\.height\)\.toBeGreaterThanOrEqual\(44\)/);
-  }
+test("Intelligence E2E fails closed and measures two-dimensional touch targets", async () => {
+  const source = await read("e2e/admin-insights.spec.ts");
+  assert.match(source, /VISTAIRE_ADMIN_VISUAL_FIXTURE/);
+  assert.match(source, /toBe\("1"\)/);
+  assert.match(source, /throw new Error/);
+  assert.match(source, /requestfailed/);
+  assert.match(source, /response\.status\(\) === 404 \|\| response\.status\(\) >= 500/);
+  assert.match(source, /box\?\.width \?\? 0\)\.toBeGreaterThanOrEqual\(44\)/);
+  assert.match(source, /box\?\.height \?\? 0\)\.toBeGreaterThanOrEqual\(44\)/);
+  assert.match(source, /glb\|usdz\|mp4/);
 });
 
-test("PR150 pages expose complete premium analytics with controlled visible rankings and exact alternatives", async () => {
-  const [overview, overviewCss, insights, insightsCss, activity, comparison, breakdowns, availability, icons] = await Promise.all([
-    read("components/admin/overview/AdminOverview.tsx"),
-    read("components/admin/overview/AdminOverview.module.css"),
+test("vNext pages expose premium evidence without unsupported commercial analytics", async () => {
+  const [today, todayCss, insights, insightsCss, attentionMap, conversion, recommendations, availability] = await Promise.all([
+    read("components/admin/today/AdminTodayPage.tsx"),
+    read("components/admin/today/AdminToday.module.css"),
     read("components/admin/insights/AdminInsightsPage.tsx"),
     read("components/admin/insights/AdminInsights.module.css"),
-    read("components/admin/insights/InsightsActivityChart.tsx"),
-    read("components/admin/insights/AdminComparisonChart.tsx"),
-    read("components/admin/insights/AdminBreakdowns.tsx"),
-    read("components/admin/availability/AdminAvailabilityList.tsx"),
-    read("components/admin/system/AdminIcons.tsx")
+    read("components/admin/insights/InsightsAttentionMap.tsx"),
+    read("components/admin/insights/InsightsConversionState.tsx"),
+    read("components/admin/insights/InsightsRecommendations.tsx"),
+    read("components/admin/availability/AdminAvailabilityList.tsx")
   ]);
-  assert.match(overview, /Voir les statistiques détaillées/);
-  assert.match(overview, /metricSeries/);
-  assert.match(overview, /MenuOpenIcon/);
-  assert.match(overview, /DishViewsIcon/);
-  assert.match(overview, /label="Ouvertures du menu"[\s\S]*?icon=\{<MenuOpenIcon\/>\}/);
-  assert.match(overview, /label="Consultations de plats"[\s\S]*?icon=\{<DishViewsIcon\/>\}/);
-  assert.match(insights, /kpi\("menu-opens", "Ouvertures du menu", <MenuOpenIcon\/>/);
-  assert.match(insights, /kpi\("dish-opens", "Consultations de plats", <DishViewsIcon\/>/);
-  assert.match(overview, /SearchIcon/);
-  assert.match(overview, /ImmersiveIcon/);
-  assert.match(overview, /AvailableDishIcon/);
-  assert.doesNotMatch(`${overview}\n${overviewCss}\n${insightsCss}`, /nth-child\([^)]*n\s*\+/);
-  assert.match(breakdowns, /slice\(0,\s*5\)/);
-  assert.match(breakdowns, /ExactTable rows=\{rows\}/);
-  assert.doesNotMatch(`${overview}\n${insights}`, /readiness\.counts\.withImmersive/);
-  assert.doesNotMatch(insights, /(?:Ã‰|É)v.nements observ.s|label="P.riode"/);
-  const insightsSurface = `${insights}\n${activity}\n${comparison}\n${breakdowns}`;
-  for (const title of ["Activité du menu sur la période", "Comparaison des périodes", "Moments d’activité", "Top plats consultés", "Top recherches", "Répartition par catégorie", "Répartition par moment de service", "Résumé de la période", "Insights clés"]) assert.match(insightsSurface, new RegExp(title));
+  assert.match(today, /TodayPulse/);
+  assert.match(today, /TodayMenuHealth/);
+  assert.match(insights, /Ce que les preuves permettent d.affirmer/);
+  assert.match(insights, /Aucun classement de recherches k-anonyme/);
+  assert.match(attentionMap, /Aucun score de conversion n.est inféré/);
+  assert.match(conversion, /ne déduit ni ajout au panier/);
+  assert.match(recommendations, /Aucune recommandation sans preuve exploitable/);
+  assert.doesNotMatch(`${today}\n${insights}`, /chiffre d.affaires|clients uniques|\brevenus?\b|\brevenue\b|unique customers/i);
+  assert.doesNotMatch(`${todayCss}\n${insightsCss}`, /nth-child\([^)]*n\s*\+/);
   assert.match(availability, /AdminDishThumbnail/);
-  assert.match(availability, /dish\.priceLabel/);
+  assert.match(availability, /canWrite/);
   assert.match(availability, /data-admin-menu-dish/);
-  assert.match(icons, /export function MenuOpenIcon/);
 });
 
 test("full-menu parity exposes stable identity while keeping unavailable dishes private", async () => {
@@ -439,17 +412,21 @@ test("full-menu parity exposes stable identity while keeping unavailable dishes 
 });
 
 test("insights summary excludes availability and centralized evidence copy never leaks internal reasons", async () => {
-  const [insights, primitives, presentationCopy, neutralPresentationCopy, thumbnailCss] = await Promise.all([
+  const [insights, recommendations, renderer, drawer, thumbnailCss] = await Promise.all([
     read("components/admin/insights/AdminInsightsPage.tsx"),
-    read("components/admin/system/AdminPresentationPrimitives.tsx"),
-    read("lib/admin/analyticsPresentationCopy.ts"),
-    read("lib/adminPresentationCopy.ts").catch(() => ""),
+    read("components/admin/insights/InsightsRecommendations.tsx"),
+    read("lib/admin/assistant/renderClaims.ts"),
+    read("components/admin/insights/AdminAssistantDrawer.tsx"),
     read("components/admin/AdminDishThumbnail.module.css")
   ]);
-  assert.match(insights, /eventIds/);
-  assert.doesNotMatch(insights, /metrics\.reduce/);
-  assert.match(primitives, /adminEvidenceReasonCopy\(reason\)/);
-  for (const reason of ["incompatible-scope", "configuration", "database", "query", "no-relevant-events", "sample-too-small", "instrumentation-unproven", "incompatible-or-empty-period", "source-incomplete"]) assert.match(`${presentationCopy}\n${neutralPresentationCopy}`, new RegExp(`(?:"${reason}"|${reason})\\s*:`));
+  assert.match(insights, /renderAssistantClaims/);
+  assert.match(recommendations, /block\.evidenceIds\.join/);
+  assert.match(renderer, /requireEvidenceReferences/);
+  assert.match(renderer, /ASSISTANT_CLAIM_REQUIREMENTS\[claim\.claimType\]/);
+  assert.doesNotMatch(insights, /availability|metrics\.reduce/i);
+  assert.match(renderer, /Donn.e insuffisante/);
+  assert.match(drawer, /Assistant momentanément indisponible/);
+  assert.doesNotMatch(`${recommendations}\n${drawer}`, /privacy-threshold|instrumentation-unverified|schema-not-deployed|scope-integrity/);
   assert.match(thumbnailCss, /\.compact\{[^}]*width:64px[^}]*flex-basis:64px/s);
   assert.match(thumbnailCss, /@media\(max-width:700px\)\{\.frame:not\(\.compact\)/);
 });
@@ -482,15 +459,14 @@ test("insights comparison preserves both calendar dates behind every aligned day
 });
 
 test("insights never exposes internal menu identifiers as presentation labels", async () => {
-  const [page, breakdowns] = await Promise.all([
+  const [page, attentionMap, recommendations] = await Promise.all([
     read("components/admin/insights/AdminInsightsPage.tsx"),
-    read("components/admin/insights/AdminBreakdowns.tsx")
+    read("components/admin/insights/InsightsAttentionMap.tsx"),
+    read("components/admin/insights/InsightsRecommendations.tsx")
   ]);
-  assert.match(page, /Plat du menu/);
-  assert.match(breakdowns, /Plat du menu/);
-  assert.match(breakdowns, /Cat.gorie du menu/);
-  assert.doesNotMatch(page, /\?\?\s*bestDish\.slug/);
-  assert.doesNotMatch(breakdowns, /\?\?\s*row\.slug/);
+  assert.doesNotMatch(`${page}\n${attentionMap}\n${recommendations}`, /bundle\.scope\.(?:restaurantId|menuId)|presentation\.(?:restaurantId|menuId)|session_id/);
+  assert.match(page, /record\.state\.value/);
+  assert.match(recommendations, /block\.evidenceIds/);
 });
 
 test("search expansion is conditional and reveals additional visible rows", async () => {
@@ -512,36 +488,37 @@ test("unavailable evidence is assertive while insufficient evidence stays polite
   assert.match(primitives, /role=\{unavailable \? "alert" : "status"\}/);
 });
 
-test("insights summary presents a real comparison value when aligned evidence exists", async () => {
+test("insights summary presents a real count delta only when both observed periods exist", async () => {
   const insights = await read("components/admin/insights/AdminInsightsPage.tsx");
-  assert.match(insights, /comparisonSummary/);
-  assert.match(insights, /% ouvertures/);
-  assert.doesNotMatch(insights, /Comparaison<strong>\{panels\?\.dailyComparison\.kind === "supported" \? "Disponible"/);
+  assert.match(insights, /currentCount !== null && previousCount !== null \? currentCount - previousCount : null/);
+  assert.match(insights, /delta === null \? "—"/);
+  assert.doesNotMatch(insights, /% ouvertures|changeRate|comparisonSummary/);
 });
 
-test("UTC disclosure has one visible owner and is not repeated by the heatmap description", async () => {
-  const [page, heatmap] = await Promise.all([
+test("Intelligence does not falsely label restaurant-local evidence as UTC", async () => {
+  const [page, attentionMap, loader] = await Promise.all([
     read("components/admin/insights/AdminInsightsPage.tsx"),
-    read("components/admin/insights/AdminHeatmap.tsx")
+    read("components/admin/insights/InsightsAttentionMap.tsx"),
+    read("lib/admin/data/loadAdminData.ts")
   ]);
-  assert.match(page, /Heures affich.es en UTC/);
-  assert.doesNotMatch(heatmap, /Heures affich.es en UTC/);
+  assert.doesNotMatch(`${page}\n${attentionMap}`, /\bUTC\b/);
+  assert.match(loader, /timezone: scope\.timezone/);
 });
 
-test("interactive analytics expose unique names and explicit selection semantics", async () => {
-  const [page, line, comparison, donut, heatmap] = await Promise.all([
+test("vNext Intelligence exposes named navigation, equivalent figure text and dialog semantics", async () => {
+  const [page, attentionMap, drawer] = await Promise.all([
     read("components/admin/insights/AdminInsightsPage.tsx"),
-    read("components/admin/charts/InteractiveLineChart.tsx"),
-    read("components/admin/charts/ComparisonLineChart.tsx"),
-    read("components/admin/charts/InteractiveDonut.tsx"),
-    read("components/admin/charts/InteractiveHeatmap.tsx")
+    read("components/admin/insights/InsightsAttentionMap.tsx"),
+    read("components/admin/insights/AdminAssistantDrawer.tsx")
   ]);
-  assert.match(page, /label=\{`Tendance quotidienne de \$\{label\}`\}/);
-  for (const source of [line, comparison, donut]) {
-    assert.match(source, /role="button"/);
-    assert.match(source, /aria-pressed=/);
-  }
-  assert.match(heatmap, /aria-selected=/);
+  assert.match(page, /aria-label=\{fr \? "Période analysée" : "Analysis period"\}/);
+  assert.match(page, /aria-current=\{bundle\.window\.range === range \? "page"/);
+  assert.match(attentionMap, /<figure/);
+  assert.match(attentionMap, /<figcaption>/);
+  assert.match(drawer, /role="dialog"/);
+  assert.match(drawer, /aria-modal="true"/);
+  assert.match(drawer, /event\.key === "Escape"/);
+  assert.match(drawer, /event\.key !== "Tab"/);
 });
 
 test("overview groups overflow categories and keeps the exact source available", async () => {

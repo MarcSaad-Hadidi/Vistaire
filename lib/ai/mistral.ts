@@ -3,6 +3,7 @@ import "server-only";
 import type { OwnerRecommendation } from "@/lib/owner/types";
 import { containsForbiddenAdminAssistantContent } from "@/lib/admin/recommendations";
 import type { MenuStyleAdvisorInput } from "@/lib/menu/menuStyleAdvisor";
+export { generateMistralAdminClaims } from "@/lib/admin/assistant/mistralClaims";
 
 type MistralRecommendationPayload = {
   restaurants: Array<{

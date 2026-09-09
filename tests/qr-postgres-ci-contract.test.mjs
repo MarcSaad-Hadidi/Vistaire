@@ -40,8 +40,20 @@ test("the PostgreSQL runner applies the production QR migrations with real psql"
   assert.match(runner, /VISTAIRE_QR_POSTGRES_TEST/);
   assert.match(runner, /server_version_num/);
   assert.match(runner, /tests\/postgres\/qr-lifecycle\/run\.sql/);
+  assert.match(runner, /20260811190000_admin_availability_schedule\.sql/);
+  assert.match(runner, /tests\/postgres\/admin-availability-scheduling\/run\.sql/);
   assert.ok(
     runner.indexOf("tests/postgres/qr-lifecycle/run.sql") <
+      runner.indexOf("20260811190000_admin_availability_schedule.sql"),
+    "availability scheduling must build on the canonical QR/menu fixture"
+  );
+  assert.ok(
+    runner.indexOf("20260811190000_admin_availability_schedule.sql") <
+      runner.indexOf("tests/postgres/admin-availability-scheduling/run.sql"),
+    "the production availability migration must be installed before its SQL suite"
+  );
+  assert.ok(
+    runner.indexOf("tests/postgres/admin-availability-scheduling/run.sql") <
       runner.lastIndexOf("20260717120000_owner_qr_canonical_lifecycle.sql"),
     "the blocking SQL suite must run before the explicit rerun of the production migration"
   );

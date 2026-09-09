@@ -355,3 +355,59 @@ test("pixel fixture carries exact coherent current and previous analytics below 
   assert.deepEqual(reconstructed, boundaryScoped);
   assert.deepEqual(buildAdminVisualFixtureTables(), tables);
 });
+
+test("pixel fixture fills the local service day used by Admin preview", async () => {
+  const { buildAdminVisualFixtureTables } = await import("../e2e/support/adminVisualFixtureData.ts");
+  const tables = buildAdminVisualFixtureTables();
+  const today = tables.analytics_events.filter((event) =>
+    event.restaurant_id === tables.restaurantId &&
+    event.menu_id === tables.menuId &&
+    event.source === "production" &&
+    event.created_at >= "2026-07-09T04:00:00.000Z" &&
+    event.created_at < "2026-07-10T00:00:00.000Z"
+  );
+  const count = (name) => today.filter((event) => event.event_name === name).length;
+  assert.ok(count("menu_opened") >= 80);
+  assert.ok(count("dish_opened") >= 200);
+  assert.ok(new Set(today.filter((event) => event.event_name === "menu_opened").map((event) => event.created_at.slice(11, 13))).size >= 4);
+  const searches = today.filter((event) => event.event_name === "search_used");
+  const sessionsByTerm = Map.groupBy(searches, (event) => event.search_query);
+  assert.ok([...sessionsByTerm.values()].some((rows) => new Set(rows.map((row) => row.session_id)).size >= 3));
+  assert.ok(searches.some((event) => event.search_query === "homard bleu"));
+});
+
+test("pixel fixture exposes scoped availability schedules and history", async () => {
+  const { buildAdminVisualFixtureTables, filterAdminVisualFixtureRows } = await import("../e2e/support/adminVisualFixtureData.ts");
+  const tables = buildAdminVisualFixtureTables();
+  const unavailable = tables.menu_dishes.filter((dish) =>
+    dish.restaurant_id === tables.restaurantId && dish.menu_id === tables.menuId && dish.is_available === false
+  );
+  assert.ok(tables.admin_dish_availability_schedules.length >= 3);
+  assert.ok(tables.admin_dish_availability_events.length >= 4);
+  assert.equal(tables.admin_dish_availability_schedules.every((row) =>
+    row.restaurant_id === tables.restaurantId && row.menu_id === tables.menuId && unavailable.some((dish) => dish.id === row.dish_id)
+  ), true);
+  assert.ok(tables.admin_dish_availability_schedules.some((row) => row.status === "pending" && row.final_available === true));
+  assert.ok(tables.admin_dish_availability_schedules.some((row) => row.status === "failed"));
+  assert.ok(tables.admin_dish_availability_events.every((row) =>
+    row.restaurant_id === tables.restaurantId && row.menu_id === tables.menuId && ["admin_qr", "schedule_worker"].includes(row.actor_kind)
+  ));
+  const pendingOrFailed = filterAdminVisualFixtureRows(tables.admin_dish_availability_schedules, [
+    ["restaurant_id", `eq.${tables.restaurantId}`],
+    ["menu_id", `eq.${tables.menuId}`],
+    ["status", "in.(pending,failed)"]
+  ]);
+  assert.equal(pendingOrFailed.length, tables.admin_dish_availability_schedules.filter((row) => row.status === "pending" || row.status === "failed").length);
+  const server = await readFile("e2e/support/admin-visual-fixture-server.mjs", "utf8");
+  assert.match(server, /admin_dish_availability_schedules:\s*fixture\.admin_dish_availability_schedules/);
+  assert.match(server, /admin_dish_availability_events:\s*fixture\.admin_dish_availability_events/);
+});
+
+test("admin visual preview clock matches the populated service evening", async () => {
+  const [runner, playwright] = await Promise.all([
+    readFile("scripts/run-playwright-e2e.mjs", "utf8"),
+    readFile("playwright.config.ts", "utf8")
+  ]);
+  assert.match(runner, /VISTAIRE_ADMIN_VISUAL_NOW:\s*"2026-07-09T23:59:00\.000Z"/);
+  assert.match(playwright, /VISTAIRE_ADMIN_VISUAL_NOW:\s*"2026-07-09T23:59:00\.000Z"/);
+});

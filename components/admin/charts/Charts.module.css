@@ -644,6 +644,22 @@
     gap: 5px;
     font-size: 10px;
   }
+
+  .tooltip,
+  .tooltip[data-horizontal="start"],
+  .tooltip[data-horizontal="end"] {
+    right: 8px;
+    left: 8px;
+    width: auto;
+    max-width: none;
+    transform: translate(0, calc(-100% - 8px));
+  }
+
+  .tooltip[data-vertical="below"],
+  .tooltip[data-horizontal="start"][data-vertical="below"],
+  .tooltip[data-horizontal="end"][data-vertical="below"] {
+    transform: translate(0, 8px);
+  }
 }
 
 @media(prefers-reduced-motion:reduce) {

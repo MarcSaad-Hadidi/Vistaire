@@ -103,11 +103,13 @@ registerHooks({
 const [
   { config, default: proxy },
   { DEV_OWNER_BYPASS_REQUEST_HEADER, DEV_OWNER_BYPASS_TRUSTED_HEADER },
+  { ADMIN_LOCALE_HEADER, ADMIN_THEME_HEADER },
   { unstable_doesMiddlewareMatch },
   { NextRequest }
 ] = await Promise.all([
   import("../proxy.ts"),
   import("../lib/auth/devOwnerBypass.ts"),
+  import("../lib/admin/preferences.ts"),
   import("next/experimental/testing/server.js"),
   import("next/server.js")
 ]);
@@ -142,7 +144,7 @@ function requestOverrideHeaders(response) {
   );
 }
 
-test("proxy matcher includes only Markdown root negotiation and protected surfaces", () => {
+test("proxy matcher includes Markdown root negotiation, protected surfaces and private Admin preferences", () => {
   for (const accept of ["text/markdown", "Text/Markdown", "text/markdown;q=0"]) {
     assertProxyMatch("/", true, accept);
   }
@@ -156,7 +158,9 @@ test("proxy matcher includes only Markdown root negotiation and protected surfac
     "/api/restaurants/42",
     "/api/owner",
     "/api/owner/x",
-    "/api/analytics/summary"
+    "/api/analytics/summary",
+    "/admin",
+    "/admin/insights"
   ]) {
     assertProxyMatch(pathname, true);
   }
@@ -171,7 +175,6 @@ test("proxy matcher excludes ordinary HTML, public routes, and non-approved APIs
     "/a-propos",
     "/en/about",
     "/menu/maison-elyse",
-    "/admin/restaurants",
     "/sign-in",
     "/q/example",
     "/.well-known/api-catalog",
@@ -187,6 +190,25 @@ test("proxy matcher excludes ordinary HTML, public routes, and non-approved APIs
   ]) {
     assertProxyMatch(pathname, false);
   }
+});
+
+test("Admin request overrides reject spoofed preferences and derive trusted values from scoped cookies", async () => {
+  const response = await proxy(
+    new NextRequest(absoluteUrl("/admin/insights"), {
+      headers: {
+        cookie: "vistaire-admin-locale=en; vistaire-admin-theme=dark",
+        [ADMIN_LOCALE_HEADER]: "fr",
+        [ADMIN_THEME_HEADER]: "light",
+        [DEV_OWNER_BYPASS_TRUSTED_HEADER]: "spoofed"
+      }
+    }),
+    undefined
+  );
+  const overrides = requestOverrideHeaders(response);
+
+  assert.equal(overrides.get(ADMIN_LOCALE_HEADER), "en");
+  assert.equal(overrides.get(ADMIN_THEME_HEADER), "dark");
+  assert.equal(overrides.get(DEV_OWNER_BYPASS_TRUSTED_HEADER), null);
 });
 
 test("proxy representation selection honors q-values and safe methods", async () => {

@@ -27,4 +27,6 @@ export function AvailableDishIcon(props: IconProps) { return <IconFrame {...prop
 export function EventIcon(props: IconProps) { return <IconFrame {...props}><path d="M5 5h14v14H5zM8 3v4M16 3v4M5 9h14M8 13h2M14 13h2" /></IconFrame>; }
 export function PeriodIcon(props: IconProps) { return <IconFrame {...props}><path d="M12 3a9 9 0 1 0 9 9M12 7v5l3 2M16 3h5v5" /></IconFrame>; }
 export function TrendIcon(props: IconProps) { return <IconFrame {...props}><path d="m4 17 5-5 4 3 7-8M15 7h5v5" /></IconFrame>; }
+export function ReportsIcon(props: IconProps) { return <IconFrame {...props}><path d="M6 3.5h9l3 3V20.5H6zM9 10h6M9 14h6M9 18h4" /></IconFrame>; }
+export function MoreIcon(props: IconProps) { return <IconFrame {...props}><circle cx="5" cy="12" r="1.5" /><circle cx="12" cy="12" r="1.5" /><circle cx="19" cy="12" r="1.5" /></IconFrame>; }
 
