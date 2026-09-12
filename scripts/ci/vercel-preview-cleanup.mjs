@@ -1,6 +1,8 @@
 import { listOpenPullRequests, listVercelDeployments } from "./vercel-preview-cleanup-read.mjs";
+import { removeVercelPreview } from "./vercel-preview-cleanup-write.mjs";
 
 export const DEFAULT_GRACE_MS = 60 * 60 * 1000;
+export const MANUAL_APPLY_CONFIRMATION = "DELETE-VERCEL-PREVIEWS";
 
 const TERMINAL_STATES = new Set(["READY", "ERROR", "CANCELED", "BLOCKED"]);
 const ACTIVE_STATES = new Set(["BUILDING", "INITIALIZING", "QUEUED"]);
@@ -142,14 +144,32 @@ function summarizeDecisions(decisions) {
   return reasons;
 }
 
+function validateApplyAuthorization({ mode, confirmation, eventName, eventAction }) {
+  if (mode === "dry-run") return;
+  if (mode !== "apply") throw new Error("mode must be dry-run or apply");
+
+  if (eventName === "workflow_dispatch") {
+    if (confirmation !== MANUAL_APPLY_CONFIRMATION) {
+      throw new Error("Manual apply requires the exact confirmation phrase");
+    }
+    return;
+  }
+  if (eventName === "schedule") return;
+  if (eventName === "pull_request" && eventAction === "closed") return;
+  throw new Error("Automatic apply is allowed only for schedule or closed pull_request events");
+}
+
 export async function runCleanup({
   mode = "dry-run",
+  confirmation = "",
+  eventName = "workflow_dispatch",
+  eventAction = "",
   env = process.env,
   fetchImpl = fetch,
   nowMs = Date.now(),
   graceMs = DEFAULT_GRACE_MS,
 }) {
-  if (mode !== "dry-run") throw new Error("Only dry-run is available through this entry point");
+  validateApplyAuthorization({ mode, confirmation, eventName, eventAction });
 
   const token = requiredEnv(env, "VERCEL_TOKEN");
   const teamId = requiredEnv(env, "VERCEL_TEAM_ID");
@@ -170,12 +190,20 @@ export async function runCleanup({
     graceMs,
   });
 
+  let deleted = 0;
+  if (mode === "apply") {
+    for (const deployment of classified.deleteCandidates) {
+      await removeVercelPreview({ fetchImpl, token, teamId, projectId, deployment });
+      deleted += 1;
+    }
+  }
+
   return {
     mode,
     inspected: deployments.length,
     openPullRequests: openPullRequests.length,
     deleteCandidates: classified.deleteCandidates.length,
-    deleted: 0,
+    deleted,
     reasons: summarizeDecisions(classified.decisions),
   };
 }
