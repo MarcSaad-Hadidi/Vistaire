@@ -34,7 +34,7 @@ test.describe("Sauge Noire Android AR fallback", () => {
   test.describe.configure({ timeout: 90_000 });
   test.use({ viewport: { width: 390, height: 844 } });
 
-  test("shows the Android fallback in the 3D zone without leaving the dish", async ({
+  test("shows the themed Android fallback below 3D without leaving the dish", async ({
     page
   }) => {
     await simulateAndroidBrowser(page, FIREFOX_ANDROID_UA);
@@ -51,11 +51,21 @@ test.describe("Sauge Noire Android AR fallback", () => {
       "aria-expanded",
       "true"
     );
-    await expect(page.locator("model-viewer")).toHaveCount(1, { timeout: 20_000 });
-    await expect(page.locator('[data-ar-experience="handoff"]')).toBeVisible({
-      timeout: 20_000
-    });
-    await expect(page.locator('[data-ar-recommended-browser="chrome"]')).toBeVisible();
+    const viewer = page.locator("model-viewer");
+    const fallback = page.locator('[data-ar-fallback-variant="sauge-noire"]');
+    await expect(viewer).toHaveCount(1, { timeout: 20_000 });
+    await expect(fallback).toBeVisible({ timeout: 20_000 });
+    await expect(fallback).toHaveAttribute("data-ar-experience", "handoff");
+    await expect(fallback).toHaveAttribute("data-ar-recommended-browser", "chrome");
+
+    const viewerBounds = await viewer.boundingBox();
+    const fallbackBounds = await fallback.boundingBox();
+    expect(viewerBounds).not.toBeNull();
+    expect(fallbackBounds).not.toBeNull();
+    expect(fallbackBounds!.y).toBeGreaterThanOrEqual(
+      viewerBounds!.y + viewerBounds!.height
+    );
+
     await expect(page.getByTestId("sauge-noire-dish-detail")).toBeVisible();
   });
 });
