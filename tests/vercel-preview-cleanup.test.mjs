@@ -37,13 +37,14 @@ function openPr(overrides = {}) {
   };
 }
 
-test("classifier never marks production, custom-target, ambiguous, active, or young deployments for deletion", () => {
+test("classifier never marks production, custom-target, ambiguous, incomplete, active, or young deployments for deletion", () => {
   const inputs = [
     deployment({ uid: "prod", target: "production" }),
     deployment({ uid: "staging", target: "staging" }),
     deployment({ uid: "ambiguous-target", target: undefined }),
     deployment({ uid: "wrong-project", projectId: "prj_other" }),
     deployment({ uid: "missing-git", meta: {} }),
+    deployment({ uid: "missing-sha", meta: { githubCommitRef: "feature/example" } }),
     deployment({ uid: "building", readyState: "BUILDING" }),
     deployment({ uid: "young", createdAt: NOW - DEFAULT_GRACE_MS + 1 }),
   ];
@@ -59,6 +60,7 @@ test("classifier never marks production, custom-target, ambiguous, active, or yo
   assert.deepEqual(result.deleteCandidates, []);
   assert.equal(result.decisions.length, inputs.length);
   assert.ok(result.decisions.every((decision) => decision.action === "keep"));
+  assert.equal(result.decisions.find((decision) => decision.uid === "missing-sha")?.reason, "missing-git-sha");
 });
 
 test("classifier preserves the latest preview for an open PR and deletes only older superseded previews", () => {
