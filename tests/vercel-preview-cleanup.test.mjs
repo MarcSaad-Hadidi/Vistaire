@@ -53,6 +53,7 @@ test("classifier never marks production, custom-target, ambiguous, incomplete, a
   const result = classifyDeployments({
     deployments: inputs,
     openPullRequests: [],
+    closedPullRequests: [],
     expectedProjectId: PROJECT_ID,
     nowMs: NOW,
     graceMs: DEFAULT_GRACE_MS,
@@ -71,6 +72,7 @@ test("classifier preserves the latest preview for an open PR and deletes only ol
   const result = classifyDeployments({
     deployments: [old, latest],
     openPullRequests: [openPr()],
+    closedPullRequests: [],
     expectedProjectId: PROJECT_ID,
     nowMs: NOW,
     graceMs: DEFAULT_GRACE_MS,
@@ -91,6 +93,7 @@ test("classifier allows stale terminal previews with no open PR to become delete
   const result = classifyDeployments({
     deployments: stale,
     openPullRequests: [],
+    closedPullRequests: [],
     expectedProjectId: PROJECT_ID,
     nowMs: NOW,
     graceMs: DEFAULT_GRACE_MS,
@@ -214,4 +217,28 @@ test("apply never deletes a Preview deployment that currently serves a productio
   assert.equal(result.deleted, 0);
   assert.equal(result.protectedProductionAliases, 1);
   assert.equal(requests.some((request) => request.method === "DELETE"), false);
+});
+
+test("closed PR preview is protected until 60 minutes after the PR closes", () => {
+  const oldPreview = deployment({
+    uid: "recently-closed-pr-preview",
+    createdAt: NOW - 3 * DEFAULT_GRACE_MS,
+    meta: { githubCommitRef: "feature/recently-closed", githubCommitSha: "sha-closed" },
+  });
+  const result = classifyDeployments({
+    deployments: [oldPreview],
+    openPullRequests: [],
+    closedPullRequests: [{
+      number: 77,
+      state: "closed",
+      closed_at: new Date(NOW - 30 * 60 * 1000).toISOString(),
+      head: { ref: "feature/recently-closed", sha: "sha-closed" },
+    }],
+    expectedProjectId: PROJECT_ID,
+    nowMs: NOW,
+    graceMs: DEFAULT_GRACE_MS,
+  });
+
+  assert.deepEqual(result.deleteCandidates, []);
+  assert.equal(result.decisions[0]?.reason, "closed-pr-grace-period");
 });
