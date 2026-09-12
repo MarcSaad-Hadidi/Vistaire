@@ -373,6 +373,8 @@ function SaugeNoireDish3dSection({
           ) : null}
           <LazyDishModelViewer
             dish={modelViewerDishFromPublicDish(dish)}
+            fallbackPanelVariant="sauge-noire"
+            fallbackPresentation="below"
             minimalChrome
             quietChrome
             copy={viewerCopy}
