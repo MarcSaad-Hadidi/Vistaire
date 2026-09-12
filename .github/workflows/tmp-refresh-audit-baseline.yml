@@ -1,0 +1,76 @@
+name: Temporary refresh npm audit lock hash
+
+on:
+  push:
+    branches:
+      - fix/js-yaml-4-3-2
+    paths:
+      - .github/workflows/tmp-refresh-audit-baseline.yml
+
+permissions:
+  contents: write
+
+jobs:
+  refresh-and-verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout security branch
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: fix/js-yaml-4-3-2
+          fetch-depth: 1
+
+      - name: Setup Node 24
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Refresh only the lockfile hash in the empty audit baseline
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --input-type=module - <<'NODE'
+          import { createHash } from 'node:crypto';
+          import { readFileSync, writeFileSync } from 'node:fs';
+          const lockBytes = readFileSync('package-lock.json');
+          const lockHash = createHash('sha256').update(lockBytes).digest('hex');
+          const path = 'ci/npm-audit-baseline.json';
+          const baseline = JSON.parse(readFileSync(path, 'utf8'));
+          if (!Array.isArray(baseline.entries) || baseline.entries.length !== 0) {
+            throw new Error('Refusing to refresh a non-empty advisory baseline.');
+          }
+          baseline.lockfile_sha256 = lockHash;
+          writeFileSync(path, `${JSON.stringify(baseline, null, 2)}\n`);
+          console.log(`Refreshed lockfile_sha256=${lockHash}`);
+          NODE
+          git diff --check -- ci/npm-audit-baseline.json
+
+      - name: Verify install, zero-vulnerability audit, and baseline contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm ci --ignore-scripts
+          npm audit --json > npm-audit.json
+          node --input-type=module - <<'NODE'
+          import { readFileSync } from 'node:fs';
+          const audit = JSON.parse(readFileSync('npm-audit.json', 'utf8'));
+          const v = audit.metadata?.vulnerabilities ?? {};
+          if ((v.high ?? 0) !== 0 || (v.critical ?? 0) !== 0 || (v.total ?? 0) !== 0) {
+            throw new Error(`Expected zero npm vulnerabilities; got ${JSON.stringify(v)}`);
+          }
+          NODE
+          node scripts/ci/check-npm-audit-baseline.mjs npm-audit.json ci/npm-audit-baseline.json
+
+      - name: Commit verified baseline hash and remove temporary workflow
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm .github/workflows/tmp-refresh-audit-baseline.yml
+          git add ci/npm-audit-baseline.json
+          git diff --cached --check
+          git commit -m "fix(security): refresh npm audit lock hash"
+          git push origin HEAD:fix/js-yaml-4-3-2
