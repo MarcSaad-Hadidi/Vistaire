@@ -1,0 +1,61 @@
+name: Temporary js-yaml lock bump
+
+on:
+  push:
+    branches:
+      - fix/js-yaml-4-3-2
+    paths:
+      - .github/workflows/tmp-js-yaml-lock-bump.yml
+
+permissions:
+  contents: write
+
+jobs:
+  bump-lock:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout security branch
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: fix/js-yaml-4-3-2
+          fetch-depth: 1
+
+      - name: Setup Node 24
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Update only js-yaml in lockfile
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm update js-yaml --package-lock-only --ignore-scripts
+          node --input-type=module - <<'NODE'
+          import { readFileSync } from 'node:fs';
+          const lock = JSON.parse(readFileSync('package-lock.json', 'utf8'));
+          const pkg = lock.packages?.['node_modules/js-yaml'];
+          if (pkg?.version !== '4.3.2') {
+            throw new Error(`Expected js-yaml 4.3.2, got ${pkg?.version ?? 'missing'}`);
+          }
+          console.log(`Resolved js-yaml ${pkg.version}`);
+          NODE
+          changed="$(git diff --name-only)"
+          if [[ "$changed" != "package-lock.json" ]]; then
+            echo "Unexpected files changed by npm update:" >&2
+            printf '%s\n' "$changed" >&2
+            exit 1
+          fi
+          npm audit --audit-level=high
+
+      - name: Commit generated lockfile and remove temporary workflow
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm .github/workflows/tmp-js-yaml-lock-bump.yml
+          git add package-lock.json
+          git commit -m "fix(security): bump js-yaml to 4.3.2"
+          git push origin HEAD:fix/js-yaml-4-3-2
