@@ -264,7 +264,7 @@ test.describe("Android AR diagnosis", () => {
     await expect(page.locator("model-viewer")).toHaveCount(1);
   });
 
-  test("Firefox Android keeps 3D and shows Chrome handoff with a copyable dish URL", async ({
+  test("Firefox Android keeps 3D and shows themed Chrome handoff below the viewer", async ({
     page,
     context,
     baseURL
@@ -275,13 +275,23 @@ test.describe("Android AR diagnosis", () => {
     await simulateAndroidBrowser(page, FIREFOX_ANDROID_UA);
     await openMaisonDishPage(page);
     await open3dViewer(page);
-    await expect(page.locator('[data-ar-recommended-browser="chrome"]')).toBeVisible({
-      timeout: 20_000
-    });
+    const viewer = page.locator("model-viewer");
+    const fallback = page.locator('[data-ar-fallback-variant="maison-elyse"]');
+    await expect(fallback).toBeVisible({ timeout: 20_000 });
+    await expect(fallback).toHaveAttribute("data-ar-recommended-browser", "chrome");
     await expect(page.getByRole("button", { name: "Afficher devant moi" })).toHaveCount(0);
     await expect(
       page.locator("#maison-elyse-dish-model-viewer [data-ar-experience]")
     ).toHaveCount(1);
+
+    const viewerBounds = await viewer.boundingBox();
+    const fallbackBounds = await fallback.boundingBox();
+    expect(viewerBounds).not.toBeNull();
+    expect(fallbackBounds).not.toBeNull();
+    expect(fallbackBounds!.y).toBeGreaterThanOrEqual(
+      viewerBounds!.y + viewerBounds!.height
+    );
+
     await page.getByRole("button", { name: /Copier le lien/i }).click();
     await expect(page.getByText(/Lien copié/i)).toBeVisible();
   });

@@ -617,6 +617,8 @@ export function MaisonElyseDishDetail({
                     analyticsContext={analyticsContext ?? undefined}
                     copy={copy.modelViewer}
                     dish={modelViewerDishFromPublicDish(dish)}
+                    fallbackPanelVariant="maison-elyse"
+                    fallbackPresentation="below"
                     minimalChrome
                     quietChrome
                     onReturnToDish={() => setShowModelViewer(false)}

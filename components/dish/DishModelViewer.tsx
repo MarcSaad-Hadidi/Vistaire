@@ -35,7 +35,10 @@ import { usePrefersReducedMotion } from "@/lib/usePrefersReducedMotion";
 import {
   getSafeCurrentPageUrl
 } from "@/lib/menu/arBrowserHandoff";
-import { ArFallbackPanel } from "@/components/dish/ArFallbackPanel";
+import {
+  ArFallbackPanel,
+  type ArFallbackPanelVariant
+} from "@/components/dish/ArFallbackPanel";
 
 export { configureModelViewerAssetDecoders } from "@/lib/modelViewerAssetDecoders";
 
@@ -193,10 +196,12 @@ export type DishModelViewerProps = {
   onArFallbackNeeded?: (reason: ArFallbackReason) => void;
   onArFallbackCleared?: () => void;
   /**
-   * `inline` (défaut) : le viewer affiche toujours les fallbacks AR critiques.
-   * `external` : le parent rend le panneau (Trouvable) à partir de onArFallbackNeeded.
+   * `inline` (défaut) : le panneau est superposé dans le viewer.
+   * `below` : le panneau partagé est rendu sous le viewer dans le flux normal.
+   * `external` : le parent rend le panneau à partir de onArFallbackNeeded.
    */
-  fallbackPresentation?: "inline" | "external";
+  fallbackPresentation?: "inline" | "below" | "external";
+  fallbackPanelVariant?: ArFallbackPanelVariant;
   analyticsContext?: PublicMenuAnalyticsContext;
 };
 
@@ -622,6 +627,7 @@ export function DishModelViewer({
   onArFallbackNeeded,
   onArFallbackCleared,
   fallbackPresentation = "inline",
+  fallbackPanelVariant = "default",
   analyticsContext
 }: DishModelViewerProps) {
   const copy = resolveModelViewerCopy(customCopy);
@@ -936,7 +942,7 @@ export function DishModelViewer({
   const visibleFallbackPhase =
     showArReady &&
     !handoffDismissed &&
-    fallbackPresentation === "inline" &&
+    fallbackPresentation !== "external" &&
     (arExperience.kind === "handoff" ||
       arExperience.kind === "unsupported-device" ||
       arExperience.kind === "activation-failed" ||
@@ -1071,7 +1077,7 @@ export function DishModelViewer({
               className="relative mt-5 inline-flex min-h-11 items-center justify-center rounded-full border border-champagne/45 bg-champagne px-5 text-sm font-semibold text-[#17100a] transition hover:bg-[#e3c785] focus:outline-none focus-visible:ring-2 focus-visible:ring-champagne"
             />
           ) : null}
-          {showNoModelIosHandoff && fallbackPresentation === "inline" ? (
+          {showNoModelIosHandoff && fallbackPresentation !== "external" ? (
             <div className="mt-5 w-full max-w-md text-left">
               <ArFallbackPanel
                 phase={{ kind: "handoff", recommendedBrowser: "safari" }}
@@ -1082,6 +1088,7 @@ export function DishModelViewer({
                 pageUrl={getCurrentPageUrl()}
                 shareText={copy.shareText}
                 dishName={dish.name}
+                variant={fallbackPanelVariant}
               />
             </div>
           ) : null}
@@ -1179,7 +1186,7 @@ export function DishModelViewer({
               {showLoader ? (
                 <PremiumLoadingState dish={dish} copy={copy} progress={modelProgress} />
               ) : null}
-              {visibleFallbackPhase ? (
+              {visibleFallbackPhase && fallbackPresentation === "inline" ? (
                 <div className="pointer-events-none absolute inset-x-0 bottom-0 z-40 p-3">
                   <div className="pointer-events-auto">
                     <ArFallbackPanel
@@ -1188,11 +1195,25 @@ export function DishModelViewer({
                       pageUrl={getCurrentPageUrl()}
                       shareText={copy.shareText}
                       dishName={dish.name}
+                      variant={fallbackPanelVariant}
                     />
                   </div>
                 </div>
               ) : null}
             </div>
+
+            {visibleFallbackPhase && fallbackPresentation === "below" ? (
+              <div className="mt-3">
+                <ArFallbackPanel
+                  phase={visibleFallbackPhase}
+                  copy={fallbackPanelCopy(visibleFallbackPhase, copy)}
+                  pageUrl={getCurrentPageUrl()}
+                  shareText={copy.shareText}
+                  dishName={dish.name}
+                  variant={fallbackPanelVariant}
+                />
+              </div>
+            ) : null}
 
             {!quietChrome ? (
               <div className="mt-3 space-y-1.5 px-1 text-center text-xs leading-relaxed text-[#bba88f] sm:text-sm">
