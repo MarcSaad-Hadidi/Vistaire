@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
+import { classifyDeployments } from "../scripts/ci/vercel-preview-cleanup.mjs";
 
 const workflow = await readFile(
   new URL("../.github/workflows/workflow-security.yml", import.meta.url),
@@ -72,4 +73,15 @@ test("production apply is restricted to one explicit canary restaurant", () => {
   );
   assert.match(applyBlock, /--restaurant-id="\$CANARY_RESTAURANT_ID"/);
   assert.doesNotMatch(applyBlock, /--dish-id=/);
+});
+
+test("Vercel cleanup classifier keeps production targets", () => {
+  const result = classifyDeployments({
+    deployments: [{ uid: "prod", projectId: "prj_vistaire", target: "production", readyState: "READY", createdAt: 0, meta: { githubCommitRef: "main" } }],
+    openPullRequests: [],
+    expectedProjectId: "prj_vistaire",
+    nowMs: 10_000_000,
+    graceMs: 3_600_000,
+  });
+  assert.deepEqual(result.deleteCandidates, []);
 });
