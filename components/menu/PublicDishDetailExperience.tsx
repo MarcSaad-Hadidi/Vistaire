@@ -114,7 +114,7 @@ function hasPublic3d(dish: PublicMenuDish): boolean {
 
 function hasPublicAr(dish: PublicMenuDish): boolean {
   return (
-    isSafe3dAssetUrl(dish.arModel3dUrl, ALLOWED_3D_CDN_ORIGINS, "arLite") ||
+    hasPublic3d(dish) ||
     isSafe3dAssetUrl(
       dish.arUsdzUrl || dish.usdzUrl,
       ALLOWED_3D_CDN_ORIGINS,

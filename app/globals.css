@@ -1,6 +1,52 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+/* Keep the existing unlayered cascade and configured source directories. */
+@import "tailwindcss/theme.css";
+@import "tailwindcss/preflight.css";
+@import "tailwindcss/utilities.css" source(none);
+@config "../tailwind.config.ts";
+
+@source not inline("supports-[backdrop-filter]:bg-[#080706]/88");
+
+/* These opacity tokens generated no CSS in v3; retain the shipped appearance. */
+@source not inline("bg-[#050403]/74 bg-[#080706]/64 bg-[#080706]/88 bg-[#080706]/96 bg-[#090705]/88 bg-[#0a0706]/88 bg-[#120e0b]/92 bg-[#c9a46f]/8 bg-[#f5ead8]/92 bg-black/88 bg-black/92 bg-champagne/12 bg-champagne/14 bg-champagne/8 bg-champagne/9 bg-white/12 bg-white/18 bg-white/6 bg-white/8 border-[#c9a46f]/28 border-[#f6e1b7]/12 border-champagne/18 border-champagne/28 border-white/12 border-white/14 border-white/16 border-white/18 border-white/22 border-white/28 border-white/8 border-white/9 focus:bg-black/58 focus:ring-champagne/22 from-[#14100d]/96 from-[#15110e]/98 from-black/28 from-black/92 hover:bg-black/48 hover:bg-champagne/12 hover:bg-white/6 hover:bg-white/8 hover:border-champagne/22 hover:border-white/18 hover:border-white/22 ring-white/12 ring-white/8 text-[#f4e5cd]/72 text-[#f4ebdd]/68 text-[#f4ebdd]/82 text-white/12 text-white/32 text-white/36 to-[#080706]/94 to-black/12 via-[#080706]/68 via-[#080706]/72 via-[#080706]/88 via-[#0d0a08]/98");
+
+@theme {
+  --blur-sm: 4px;
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --default-ring-color: rgb(59 130 246 / 0.5);
+}
+
+/* Preserve the preflight, focus and gradient values used before the upgrade. */
+*,
+::before,
+::after {
+  border-color: #e5e7eb;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: #9ca3af;
+  opacity: 1;
+}
+
+button,
+[role="button"] {
+  cursor: pointer;
+}
+
+:disabled {
+  cursor: default;
+}
+
+.outline-none,
+.focus\:outline-none:focus {
+  outline: 2px solid transparent;
+  outline-offset: 2px;
+}
+
+.bg-gradient-to-b { --tw-gradient-position: to bottom; }
+.bg-gradient-to-br { --tw-gradient-position: to bottom right; }
+.bg-gradient-to-t { --tw-gradient-position: to top; }
+.bg-gradient-to-r { --tw-gradient-position: to right; }
 
 :root {
   color-scheme: dark;

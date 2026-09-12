@@ -376,10 +376,16 @@ export function selectImmersiveVariant({
           reason: "android-scene-viewer-ar-lite"
         });
       }
+      const web = safeVariant(runtimeManifest.variants.web, allowedExternalOrigins, "web");
+      if (browser === "chrome" && web) {
+        return selection("web", web, {
+          reason: "android-scene-viewer-web"
+        });
+      }
 
       const fallback = firstAvailable(runtimeManifest, ["mobile", "web"], allowedExternalOrigins);
       return selection("mobile", fallback, {
-        reason: arLite ? "android-browser-fallback" : "android-ar-lite-missing",
+        reason: web || arLite ? "android-browser-fallback" : "android-model-missing",
         message: "La 3D reste disponible ici."
       });
     }

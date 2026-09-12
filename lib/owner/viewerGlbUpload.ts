@@ -136,8 +136,8 @@ export async function runViewerGlbUpload(
   );
 
   let merged = { ...existing, ...patch };
-  // A viewer GLB is never an AR-lite asset: clear any stale AR-lite fields so a
-  // viewer-only dish is not reported as Android AR ready by the public menu.
+  // A web GLB can also launch Android AR. Clear stale references to a separate
+  // AR-lite export when replacing it, rather than relabeling the web asset.
   for (const field of VIEWER_GLB_CLEARED_AR_LITE_FIELDS) {
     delete merged[field];
   }
@@ -186,7 +186,7 @@ export async function runViewerGlbUpload(
     logs: [
       "Owner viewer GLB uploaded (pre-optimized via optimizeglb.com).",
       "No USDZ pipeline was triggered; no USDZ was derived from this GLB.",
-      "No Android AR-lite copy was produced; viewer GLB is web-view only.",
+      "No separate AR-lite copy was produced; Android AR uses the web GLB.",
       "menu_dishes metadata updated with viewer GLB URLs only.",
       cleanup.errors.length > 0
         ? `Storage cleanup partiel: ${cleanup.errors.map((entry) => entry.message).join("; ")}`
