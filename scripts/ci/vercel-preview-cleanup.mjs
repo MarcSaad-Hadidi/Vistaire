@@ -1,4 +1,5 @@
 import {
+  listClosedPullRequests,
   listOpenPullRequests,
   listProductionProjectDomains,
   listVercelDeployments,
@@ -17,6 +18,13 @@ function text(value) {
 
 function timestamp(value) {
   return Number.isFinite(value) && value >= 0 ? Number(value) : null;
+}
+
+function isoTimestamp(value) {
+  const raw = text(value);
+  if (!raw) return null;
+  const parsed = Date.parse(raw);
+  return Number.isFinite(parsed) ? parsed : null;
 }
 
 function deploymentState(deployment) {
@@ -43,13 +51,30 @@ function normalizeOpenPullRequests(openPullRequests) {
   return result;
 }
 
-function matchOpenPullRequest(deployment, openPullRequests) {
+function normalizeClosedPullRequests(closedPullRequests) {
+  const result = [];
+  for (const pullRequest of closedPullRequests ?? []) {
+    if (pullRequest?.state !== "closed") continue;
+    const branch = text(pullRequest?.head?.ref);
+    const sha = text(pullRequest?.head?.sha);
+    if (!branch || !sha || !Number.isInteger(pullRequest?.number)) continue;
+    result.push({
+      number: pullRequest.number,
+      branch,
+      sha,
+      closedAt: isoTimestamp(pullRequest?.closed_at),
+    });
+  }
+  return result;
+}
+
+function matchPullRequest(deployment, pullRequests) {
   const branch = gitBranch(deployment);
   const sha = gitSha(deployment);
   if (!branch || !sha) return null;
-  const shaMatch = openPullRequests.find((pullRequest) => pullRequest.sha === sha);
+  const shaMatch = pullRequests.find((pullRequest) => pullRequest.sha === sha);
   if (shaMatch) return shaMatch;
-  return openPullRequests.find((pullRequest) => pullRequest.branch === branch) ?? null;
+  return pullRequests.find((pullRequest) => pullRequest.branch === branch) ?? null;
 }
 
 function newerDeployment(left, right) {
@@ -62,18 +87,21 @@ function newerDeployment(left, right) {
 export function classifyDeployments({
   deployments,
   openPullRequests,
+  closedPullRequests = [],
   expectedProjectId,
   nowMs = Date.now(),
   graceMs = DEFAULT_GRACE_MS,
 }) {
   if (!Array.isArray(deployments)) throw new Error("deployments must be an array");
   if (!Array.isArray(openPullRequests)) throw new Error("openPullRequests must be an array");
+  if (!Array.isArray(closedPullRequests)) throw new Error("closedPullRequests must be an array");
   if (!text(expectedProjectId)) throw new Error("expectedProjectId is required");
   if (!Number.isFinite(nowMs) || !Number.isFinite(graceMs) || graceMs < 0) {
     throw new Error("nowMs and graceMs must be finite and graceMs must be non-negative");
   }
 
-  const normalizedPullRequests = normalizeOpenPullRequests(openPullRequests);
+  const normalizedOpenPullRequests = normalizeOpenPullRequests(openPullRequests);
+  const normalizedClosedPullRequests = normalizeClosedPullRequests(closedPullRequests);
   const latestByOpenPr = new Map();
 
   for (const deployment of deployments) {
@@ -81,7 +109,7 @@ export function classifyDeployments({
     if (deployment?.target !== null) continue;
     if (!text(deployment?.uid) || !gitBranch(deployment) || !gitSha(deployment)) continue;
     if (timestamp(deployment?.createdAt ?? deployment?.created) === null) continue;
-    const pullRequest = matchOpenPullRequest(deployment, normalizedPullRequests);
+    const pullRequest = matchPullRequest(deployment, normalizedOpenPullRequests);
     if (!pullRequest) continue;
     const current = latestByOpenPr.get(pullRequest.number);
     latestByOpenPr.set(pullRequest.number, current ? newerDeployment(current, deployment) : deployment);
@@ -111,8 +139,9 @@ export function classifyDeployments({
     } else {
       const createdAt = timestamp(deployment?.createdAt ?? deployment?.created);
       const state = deploymentState(deployment);
-      const pullRequest = matchOpenPullRequest(deployment, normalizedPullRequests);
-      const latest = pullRequest ? latestByOpenPr.get(pullRequest.number) : null;
+      const openPullRequest = matchPullRequest(deployment, normalizedOpenPullRequests);
+      const latest = openPullRequest ? latestByOpenPr.get(openPullRequest.number) : null;
+      const closedPullRequest = openPullRequest ? null : matchPullRequest(deployment, normalizedClosedPullRequests);
 
       if (createdAt === null) {
         decision = { uid, action: "keep", reason: "missing-created-at" };
@@ -123,9 +152,15 @@ export function classifyDeployments({
       } else if (!TERMINAL_STATES.has(state)) {
         decision = { uid, action: "keep", reason: "unknown-or-nonterminal-state" };
       } else if (nowMs - createdAt < graceMs) {
-        decision = { uid, action: "keep", reason: "grace-period" };
-      } else if (pullRequest) {
+        decision = { uid, action: "keep", reason: "deployment-grace-period" };
+      } else if (openPullRequest) {
         decision = { uid, action: "delete", reason: "superseded-open-pr-preview", deployment };
+      } else if (closedPullRequest?.closedAt === null) {
+        decision = { uid, action: "keep", reason: "closed-pr-unknown-close-time" };
+      } else if (closedPullRequest && nowMs - closedPullRequest.closedAt < graceMs) {
+        decision = { uid, action: "keep", reason: "closed-pr-grace-period" };
+      } else if (closedPullRequest) {
+        decision = { uid, action: "delete", reason: "closed-pr-preview", deployment };
       } else {
         decision = { uid, action: "delete", reason: "stale-preview-without-open-pr", deployment };
       }
@@ -183,14 +218,16 @@ export async function runCleanup({
   const githubToken = requiredEnv(env, "GITHUB_TOKEN");
   const repository = requiredEnv(env, "GITHUB_REPOSITORY");
 
-  const [deployments, openPullRequests] = await Promise.all([
+  const [deployments, openPullRequests, closedPullRequests] = await Promise.all([
     listVercelDeployments({ fetchImpl, token, teamId, projectId }),
     listOpenPullRequests({ fetchImpl, token: githubToken, repository }),
+    listClosedPullRequests({ fetchImpl, token: githubToken, repository }),
   ]);
 
   const classified = classifyDeployments({
     deployments,
     openPullRequests,
+    closedPullRequests,
     expectedProjectId: projectId,
     nowMs,
     graceMs,
@@ -232,6 +269,7 @@ export async function runCleanup({
     mode,
     inspected: deployments.length,
     openPullRequests: openPullRequests.length,
+    closedPullRequests: closedPullRequests.length,
     deleteCandidates: classified.deleteCandidates.length,
     deleted,
     protectedProductionAliases,
