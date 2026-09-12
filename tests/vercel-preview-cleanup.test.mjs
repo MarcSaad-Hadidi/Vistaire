@@ -173,3 +173,45 @@ test("manual apply requires the exact confirmation phrase before any API request
   );
   assert.equal(requests, 0);
 });
+
+test("apply never deletes a Preview deployment that currently serves a production domain", async () => {
+  const requests = [];
+  const promoted = deployment({ uid: "promoted-preview", meta: { githubCommitRef: "closed/promoted", githubCommitSha: "promoted-sha" } });
+  const fetchImpl = async (url, options = {}) => {
+    const parsed = new URL(url);
+    const method = options.method ?? "GET";
+    requests.push({ pathname: parsed.pathname, method });
+    if (parsed.hostname === "api.vercel.com" && parsed.pathname === "/v7/deployments") {
+      return new Response(JSON.stringify({ deployments: [promoted], pagination: { next: null } }), { status: 200 });
+    }
+    if (parsed.hostname === "api.github.com") return new Response(JSON.stringify([]), { status: 200 });
+    if (parsed.hostname === "api.vercel.com" && parsed.pathname === `/v9/projects/${PROJECT_ID}/domains`) {
+      return new Response(JSON.stringify({ domains: [{ name: "vistaire.ca", projectId: PROJECT_ID, verified: true }], pagination: { next: null } }), { status: 200 });
+    }
+    if (parsed.hostname === "api.vercel.com" && parsed.pathname === "/v2/deployments/promoted-preview/aliases") {
+      return new Response(JSON.stringify({ aliases: [{ alias: "vistaire.ca", uid: "alias-prod", created: "2026-09-12T00:00:00Z" }] }), { status: 200 });
+    }
+    if (method === "DELETE") throw new Error("promoted Preview must never be deleted");
+    throw new Error(`unexpected request ${method} ${parsed}`);
+  };
+
+  const result = await runCleanup({
+    mode: "apply",
+    confirmation: "DELETE-VERCEL-PREVIEWS",
+    eventName: "workflow_dispatch",
+    env: {
+      VERCEL_TOKEN: "vercel-test-token",
+      VERCEL_TEAM_ID: "team_test",
+      VERCEL_PROJECT_ID: PROJECT_ID,
+      GITHUB_TOKEN: "github-test-token",
+      GITHUB_REPOSITORY: "MarcSaad-Hadidi/Vistaire",
+    },
+    fetchImpl,
+    nowMs: NOW,
+  });
+
+  assert.equal(result.deleteCandidates, 1);
+  assert.equal(result.deleted, 0);
+  assert.equal(result.protectedProductionAliases, 1);
+  assert.equal(requests.some((request) => request.method === "DELETE"), false);
+});
