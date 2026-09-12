@@ -42,11 +42,9 @@ function normalizeOpenPullRequests(openPullRequests) {
 function matchOpenPullRequest(deployment, openPullRequests) {
   const branch = gitBranch(deployment);
   const sha = gitSha(deployment);
-  if (!branch) return null;
-  if (sha) {
-    const shaMatch = openPullRequests.find((pullRequest) => pullRequest.sha === sha);
-    if (shaMatch) return shaMatch;
-  }
+  if (!branch || !sha) return null;
+  const shaMatch = openPullRequests.find((pullRequest) => pullRequest.sha === sha);
+  if (shaMatch) return shaMatch;
   return openPullRequests.find((pullRequest) => pullRequest.branch === branch) ?? null;
 }
 
@@ -77,7 +75,7 @@ export function classifyDeployments({
   for (const deployment of deployments) {
     if (deployment?.projectId !== expectedProjectId) continue;
     if (deployment?.target !== null) continue;
-    if (!text(deployment?.uid) || !gitBranch(deployment)) continue;
+    if (!text(deployment?.uid) || !gitBranch(deployment) || !gitSha(deployment)) continue;
     if (timestamp(deployment?.createdAt ?? deployment?.created) === null) continue;
     const pullRequest = matchOpenPullRequest(deployment, normalizedPullRequests);
     if (!pullRequest) continue;
@@ -102,6 +100,8 @@ export function classifyDeployments({
       decision = { uid, action: "keep", reason: "missing-deployment-id" };
     } else if (!gitBranch(deployment)) {
       decision = { uid, action: "keep", reason: "missing-git-branch" };
+    } else if (!gitSha(deployment)) {
+      decision = { uid, action: "keep", reason: "missing-git-sha" };
     } else {
       const createdAt = timestamp(deployment?.createdAt ?? deployment?.created);
       const state = deploymentState(deployment);
