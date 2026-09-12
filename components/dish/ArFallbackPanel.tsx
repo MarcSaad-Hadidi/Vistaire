@@ -87,7 +87,7 @@ const FALLBACK_PANEL_VARIANT_STYLES: Record<
     title: "text-base font-normal leading-tight text-[#26372b] sm:text-lg",
     body: "mt-2 text-sm leading-relaxed text-[#3f5144]",
     primaryAction:
-      "inline-flex min-h-11 items-center justify-center rounded-full border border-[#26372b] bg-[#26372b] px-4 text-xs font-semibold text-[#faf4e9] transition hover:bg-[#324637] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#b47a3c]",
+      "inline-flex min-h-11 w-full items-center justify-center rounded-full border border-[#26372b] bg-[#26372b] px-4 text-xs font-semibold text-[#faf4e9] transition hover:bg-[#324637] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#b47a3c]",
     secondaryAction:
       "inline-flex min-h-11 items-center justify-center rounded-full border border-[#26372b]/30 bg-transparent px-4 text-xs font-semibold text-[#26372b] transition hover:bg-[#26372b]/[0.06] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#b47a3c]",
     error: "text-xs leading-relaxed text-[#5d6b60]",
@@ -131,16 +131,27 @@ export function ArFallbackPanel({
     phase.kind === "activation-failed" ||
     phase.kind === "asset-unavailable";
   const rootRef = useRef<HTMLElement>(null);
-  const canShare = useSyncExternalStore(
+  const browserCanShare = useSyncExternalStore(
     () => () => undefined,
     () => typeof navigator.share === "function",
     () => false
   );
+  const showShareAction = browserCanShare && variant !== "sauge-noire";
   const variantStyles = FALLBACK_PANEL_VARIANT_STYLES[variant];
   const brandedTitleStyle =
     variant === "default"
       ? undefined
       : { fontFamily: '"BT Suave", Georgia, serif' };
+  const primaryActionStyle =
+    variant === "sauge-noire"
+      ? {
+          color: "#faf4e9",
+          fontFamily: '"Neue Montreal", Arial, sans-serif',
+          fontSize: "0.75rem",
+          fontWeight: 700,
+          letterSpacing: "0.08em"
+        }
+      : undefined;
 
   useEffect(() => {
     if (!isAlert) return;
@@ -170,10 +181,11 @@ export function ArFallbackPanel({
       </h3>
       <p className={variantStyles.body}>{copy.body}</p>
       {showHandoffActions ? (
-        <div className={`mt-3 grid gap-2 ${canShare ? "sm:grid-cols-2" : ""}`}>
+        <div className={`mt-3 grid gap-2 ${showShareAction ? "sm:grid-cols-2" : ""}`}>
           <button
             type="button"
             className={variantStyles.primaryAction}
+            style={primaryActionStyle}
             onClick={() => {
               void copyTextToClipboard(pageUrl).then((ok) => {
                 setCopyUi({
@@ -195,7 +207,7 @@ export function ArFallbackPanel({
           >
             {copyConfirmed ? copy.linkCopied : copy.copyLink}
           </button>
-          {canShare ? (
+          {showShareAction ? (
             <button
               type="button"
               className={variantStyles.secondaryAction}
