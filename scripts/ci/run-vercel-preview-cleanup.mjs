@@ -1,4 +1,5 @@
 import { appendFile } from "node:fs/promises";
+import { pathToFileURL } from "node:url";
 import { runCleanup, DEFAULT_GRACE_MS } from "./vercel-preview-cleanup.mjs";
 
 function readGraceMs(env) {
@@ -34,10 +35,12 @@ function summaryLines(summary) {
     `- Mode: ${summary.mode}`,
     `- Inspected deployments: ${summary.inspected}`,
     `- Open pull requests: ${summary.openPullRequests}`,
-    `- Eligible Preview deployments: ${summary.deleteCandidates}`,
+    `- Classifier delete candidates: ${summary.deleteCandidates}`,
+    `- Verified production domains: ${summary.productionDomainCount}`,
+    `- Candidates protected by production aliases: ${summary.protectedProductionAliases}`,
     `- Completed removals: ${summary.deleted}`,
     "- Minimum deployment age: 60 minutes",
-    "- Production and ambiguous targets are never eligible",
+    "- Production, custom-target, promoted and ambiguous deployments are never directly eligible",
     "",
     "### Decisions",
     ...Object.entries(summary.reasons ?? {})
@@ -62,7 +65,7 @@ export async function runFromEnvironment({ env = process.env, fetchImpl = fetch,
   return summary;
 }
 
-if (import.meta.url === new URL(`file://${process.argv[1]}`).href) {
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   runFromEnvironment()
     .then((summary) => console.log(JSON.stringify(summary, null, 2)))
     .catch((error) => {
