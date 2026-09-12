@@ -14,11 +14,11 @@ It does not modify application runtime code, routes, Supabase behavior, public a
 
 The cleanup workflow has three entry points:
 
-1. `pull_request` with `types: [closed]` on `main` to clean after a PR is merged or closed.
-2. A nightly `schedule` sweep to catch stale Preview deployments missed by the close-trigger path.
+1. `pull_request` with `types: [closed]` on `main` to evaluate a PR immediately after merge/close while enforcing the close-time grace period.
+2. An **hourly** `schedule` sweep to pick up deployments once their grace period has elapsed and to recover anything missed by the close-trigger path.
 3. `workflow_dispatch` for manual dry-run or apply.
 
-Automatic destructive runs require the deployment itself to be at least **60 minutes old** before deletion.
+A destructive run requires the deployment itself to be at least **60 minutes old**. If the deployment belongs to a closed PR, that PR must also have been closed for at least **60 minutes**. Therefore a long-lived Preview cannot be deleted immediately when its PR closes.
 
 ## Safety model
 
@@ -33,6 +33,8 @@ Never delete when any of these are true:
 - deployment metadata is incomplete or ambiguous, including missing Git branch/SHA;
 - deployment belongs to another project;
 - deployment is younger than the 60-minute grace period;
+- a matching closed PR was closed less than 60 minutes ago;
+- a matching closed PR has no trustworthy `closed_at` timestamp;
 - deployment is still building/initializing/queued;
 - the matching GitHub pull request is still open and this is its latest Preview deployment;
 - the deployment is marked as promoted;
@@ -42,9 +44,9 @@ Never delete when any of these are true:
 
 Automatic cleanup may delete:
 
-- Preview deployments attached to a merged or closed PR after the grace period;
+- Preview deployments attached to a merged or closed PR only after both the deployment-age and PR-close grace periods have elapsed;
 - older superseded Preview deployments for an open PR, while preserving the latest Preview for that PR;
-- stale Preview deployments for branches with no open PR, after the grace period;
+- stale Preview deployments for branches with no matching open/closed PR, after the deployment-age grace period;
 - obsolete Preview deployments in terminal states such as `ERROR`, `CANCELED`, or `BLOCKED`, subject to the same ownership and grace-period checks.
 
 The workflow never cancels an active build as part of cleanup.
@@ -78,9 +80,9 @@ The Node.js script:
 1. fetches Vercel deployments for the configured project/team;
 2. filters out all non-Preview/ambiguous deployments before any deletion decision;
 3. requires Git metadata from each candidate (`githubCommitRef`, `githubCommitSha`);
-4. queries GitHub for open PRs and maps branch/head SHA to active PRs;
-5. groups deployments by branch/PR and identifies the latest Preview to preserve for each open PR;
-6. applies the 60-minute grace period;
+4. queries GitHub for open and closed PRs;
+5. preserves the latest Preview for each open PR;
+6. enforces the 60-minute deployment-age grace and, for closed PRs, the independent 60-minute `closed_at` grace;
 7. emits deterministic `keep`/`delete` reasons;
 8. in dry-run, performs no DELETE requests;
 9. in apply mode, loads verified Production domains and performs the write-time alias recheck;
@@ -99,7 +101,7 @@ Manual `apply` requires the exact confirmation phrase `DELETE-VERCEL-PREVIEWS`. 
 Each successful run writes a GitHub Actions step summary containing counts for:
 
 - inspected deployments;
-- open pull requests;
+- open and closed pull requests inspected;
 - classifier delete candidates;
 - verified Production domains consulted;
 - candidates protected by a current Production alias;
@@ -113,12 +115,13 @@ A failed API read/write fails the job instead of continuing destructively. The s
 Focused tests cover the safety-critical behavior:
 
 1. Production/custom/ambiguous/incomplete/active/young deployments are never deletable.
-2. Closed-PR and stale orphan Preview deployments become candidates only after the 60-minute grace period.
-3. The latest Preview of each open PR is preserved while older superseded Previews may be removed.
-4. Dry-run never invokes DELETE.
-5. Manual apply is rejected before API access without the exact phrase.
-6. A Preview deployment currently serving a Production domain is protected even when its original target remains Preview/null.
-7. Workflow contract verifies trusted triggers, read-only GitHub permissions, secret handling, schedule/manual mode, pinned actions, trusted checkout, and no `pull_request_target`.
+2. A long-lived Preview from a PR closed less than 60 minutes ago is still protected.
+3. Closed-PR and stale orphan Preview deployments become candidates only after the applicable grace period.
+4. The latest Preview of each open PR is preserved while older superseded Previews may be removed.
+5. Dry-run never invokes DELETE.
+6. Manual apply is rejected before API access without the exact phrase.
+7. A Preview deployment currently serving a Production domain is protected even when its original target remains Preview/null.
+8. Workflow contract verifies trusted triggers, read-only GitHub permissions, secret handling, schedule/manual mode, pinned actions, trusted checkout, and no `pull_request_target`.
 
 Repository validation remains `assets:check`, `lfs:check`, `lint`, `typecheck`, `build`, focused Node tests, Workflow Security, CodeQL, Asset Policy, and App CI.
 
