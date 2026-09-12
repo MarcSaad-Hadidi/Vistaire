@@ -85,17 +85,36 @@ export async function listDeploymentAliases({ fetchImpl = fetch, token, teamId, 
   const authToken = requiredText(token, "Vercel token");
   const scopeTeamId = requiredText(teamId, "Vercel team id");
   const uid = requiredText(deploymentId, "Vercel deployment id");
-  const url = new URL(`https://api.vercel.com/v2/deployments/${encodeURIComponent(uid)}/aliases`);
-  url.searchParams.set("teamId", scopeTeamId);
+  const aliases = [];
+  const seenCursors = new Set();
+  let until = null;
 
-  const data = await requireJson(
-    await fetchImpl(url, { headers: { Authorization: `Bearer ${authToken}` } }),
-    `Vercel alias listing for ${uid}`
-  );
-  if (!Array.isArray(data?.aliases)) {
-    throw new Error(`Vercel alias listing for ${uid} returned an invalid aliases payload`);
+  for (let page = 0; page < 100; page += 1) {
+    const url = new URL(`https://api.vercel.com/v2/deployments/${encodeURIComponent(uid)}/aliases`);
+    url.searchParams.set("teamId", scopeTeamId);
+    url.searchParams.set("limit", "100");
+    if (until !== null) url.searchParams.set("until", String(until));
+
+    const data = await requireJson(
+      await fetchImpl(url, { headers: { Authorization: `Bearer ${authToken}` } }),
+      `Vercel alias listing for ${uid}`
+    );
+    if (!Array.isArray(data?.aliases)) {
+      throw new Error(`Vercel alias listing for ${uid} returned an invalid aliases payload`);
+    }
+    aliases.push(...data.aliases);
+
+    const next = data?.pagination?.next;
+    if (next === null || next === undefined) return aliases;
+    const cursor = Number(next);
+    if (!Number.isFinite(cursor) || seenCursors.has(cursor)) {
+      throw new Error(`Vercel alias listing for ${uid} returned an invalid pagination cursor`);
+    }
+    seenCursors.add(cursor);
+    until = cursor;
   }
-  return data.aliases;
+
+  throw new Error(`Vercel alias listing for ${uid} exceeded the safety pagination limit`);
 }
 
 async function listPullRequestsByState({ fetchImpl = fetch, token, repository, state }) {
