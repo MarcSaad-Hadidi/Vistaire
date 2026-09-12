@@ -91,7 +91,7 @@ test("Vercel cleanup classifier keeps production targets", () => {
   assert.deepEqual(result.deleteCandidates, []);
 });
 
-test("Vercel cleanup apply removes only an eligible stale preview", async () => {
+test("Vercel cleanup apply removes only an eligible stale preview after production-domain preflight", async () => {
   const calls = [];
   const fetchImpl = async (url, options = {}) => {
     const parsed = new URL(url);
@@ -107,6 +107,12 @@ test("Vercel cleanup apply removes only an eligible stale preview", async () => 
       }), { status: 200 });
     }
     if (parsed.hostname === "api.github.com") return new Response(JSON.stringify([]), { status: 200 });
+    if (parsed.hostname === "api.vercel.com" && parsed.pathname === "/v9/projects/prj_vistaire/domains") {
+      return new Response(JSON.stringify({ domains: [{ name: "vistaire.ca", projectId: "prj_vistaire", verified: true }], pagination: { next: null } }), { status: 200 });
+    }
+    if (parsed.hostname === "api.vercel.com" && parsed.pathname === "/v2/deployments/preview/aliases") {
+      return new Response(JSON.stringify({ aliases: [{ alias: "preview-unique.vercel.app", uid: "alias-preview", created: "2026-09-12T00:00:00Z" }] }), { status: 200 });
+    }
     if (parsed.hostname === "api.vercel.com" && parsed.pathname === "/v13/deployments/preview") {
       return new Response(JSON.stringify({ uid: "preview", state: "DELETED" }), { status: 200 });
     }
@@ -131,6 +137,7 @@ test("Vercel cleanup apply removes only an eligible stale preview", async () => 
   });
 
   assert.equal(result.deleted, 1);
+  assert.equal(result.protectedProductionAliases, 0);
   assert.equal(calls.filter((call) => call.method === "DELETE").length, 1);
   assert.equal(calls.some((call) => call.pathname.endsWith("/prod") && call.method === "DELETE"), false);
 });
