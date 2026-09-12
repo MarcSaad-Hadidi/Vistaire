@@ -1,0 +1,220 @@
+name: Dish Photo Derivative Backfill
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: Backfill mode. Dry-run never writes production media.
+        required: true
+        default: dry-run
+        type: choice
+        options:
+          - dry-run
+          - apply
+      canary_restaurant_id:
+        description: Required for apply. Restaurant UUID for the single approved canary restaurant.
+        required: false
+        default: ""
+        type: string
+      confirmation:
+        description: Type APPLY-DISH-PHOTO-BACKFILL only when mode is apply.
+        required: false
+        default: ""
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: vistaire-dish-photo-backfill-production
+  cancel-in-progress: false
+
+env:
+  NODE_VERSION: 24
+  BACKFILL_MODE: ${{ inputs.mode }}
+  BACKFILL_CONFIRMATION: ${{ inputs.confirmation }}
+  CANARY_RESTAURANT_ID: ${{ inputs.canary_restaurant_id }}
+  VISTAIRE_EXPECTED_SUPABASE_PROJECT_REF: ${{ vars.VISTAIRE_EXPECTED_SUPABASE_PROJECT_REF }}
+  VISTAIRE_MEDIA_BACKFILL_ALLOW_APPLY: ${{ vars.VISTAIRE_MEDIA_BACKFILL_ALLOW_APPLY }}
+  VISTAIRE_MEDIA_WRITES_ENABLED: ${{ vars.VISTAIRE_MEDIA_WRITES_ENABLED }}
+
+jobs:
+  backfill:
+    name: Dish photo derivative backfill
+    if: >-
+      github.event_name == 'workflow_dispatch' &&
+      github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Validate trusted manual request
+        shell: bash
+        run: |
+          set -euo pipefail
+          case "$BACKFILL_MODE" in
+            dry-run)
+              ;;
+            apply)
+              if [[ -z "$CANARY_RESTAURANT_ID" ]]; then
+                echo "Apply blocked: canary restaurant is required." >&2
+                exit 1
+              fi
+              uuid_regex='^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$'
+              if [[ ! "$CANARY_RESTAURANT_ID" =~ $uuid_regex ]]; then
+                echo "Apply blocked: canary restaurant id must be a UUID." >&2
+                exit 1
+              fi
+              if [[ "$BACKFILL_CONFIRMATION" != "APPLY-DISH-PHOTO-BACKFILL" ]]; then
+                echo "Apply blocked: exact confirmation phrase is required." >&2
+                exit 1
+              fi
+              if [[ "$VISTAIRE_MEDIA_BACKFILL_ALLOW_APPLY" != "1" ]]; then
+                echo "Apply blocked: repository backfill opt-in is not enabled." >&2
+                exit 1
+              fi
+              if [[ "$VISTAIRE_MEDIA_WRITES_ENABLED" != "true" ]]; then
+                echo "Apply blocked: repository media-write kill switch is not enabled." >&2
+                exit 1
+              fi
+              ;;
+            *)
+              echo "Unsupported backfill mode." >&2
+              exit 1
+              ;;
+          esac
+
+      - name: Checkout exact trusted revision
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 1
+          lfs: false
+          persist-credentials: false
+
+      - name: Setup Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Prepare ephemeral reports
+        shell: bash
+        run: |
+          set -euo pipefail
+          report_dir="$RUNNER_TEMP/vistaire-dish-photo-backfill"
+          mkdir -p "$report_dir"
+          echo "REPORT_DIR=$report_dir" >> "$GITHUB_ENV"
+
+      - name: Validate configured Supabase production target
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          node --input-type=module - <<'NODE'
+          const rawUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim() ?? '';
+          const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim() ?? '';
+          const expectedRef = process.env.VISTAIRE_EXPECTED_SUPABASE_PROJECT_REF?.trim().toLowerCase() ?? '';
+          if (!rawUrl || !serviceRoleKey || !expectedRef) {
+            throw new Error('Production Supabase configuration is incomplete.');
+          }
+          const url = new URL(rawUrl);
+          if (url.protocol !== 'https:' || !url.hostname.endsWith('.supabase.co')) {
+            throw new Error('Production Supabase target must be an HTTPS supabase.co project.');
+          }
+          const actualRef = url.hostname.slice(0, -'.supabase.co'.length).toLowerCase();
+          if (!actualRef || actualRef !== expectedRef) {
+            throw new Error('Configured Supabase project does not match the expected production project ref.');
+          }
+          console.log('Validated configured production Supabase target.');
+          NODE
+
+      - name: Run read-only dry-run inventory
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/backfill-dish-photo-derivatives.mjs \
+            --checkpoint="$REPORT_DIR/checkpoint.json" \
+            | tee "$REPORT_DIR/dry-run.log"
+
+      - name: Measure exact derivative capacity before apply
+        if: ${{ inputs.mode == 'apply' }}
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/backfill-dish-photo-derivatives.mjs \
+            --measure-only \
+            --restaurant-id="$CANARY_RESTAURANT_ID" \
+            --checkpoint="$REPORT_DIR/checkpoint.json" \
+            > "$REPORT_DIR/measure.json"
+          MEASURE_REPORT="$REPORT_DIR/measure.json" node --input-type=module - <<'NODE'
+          import { readFileSync } from 'node:fs';
+          const report = JSON.parse(readFileSync(process.env.MEASURE_REPORT, 'utf8'));
+          if (report.status !== 'pass' || report.pass !== true) {
+            throw new Error(`Capacity measurement did not pass: ${report.reasons?.join(', ') || 'unknown reason'}`);
+          }
+          if (!Number.isInteger(report.rowCount) || report.rowCount < 1 || !Number.isInteger(report.sourceCount) || report.sourceCount < 1) {
+            throw new Error(`Canary restaurant has no valid photo sources; rows=${report.rowCount}, sources=${report.sourceCount}.`);
+          }
+          console.log(JSON.stringify({
+            status: report.status,
+            rowCount: report.rowCount,
+            sourceCount: report.sourceCount,
+            uniqueAdditionalBytes: report.uniqueAdditionalBytes,
+            headroomAfterPercent: report.headroomAfterPercent
+          }, null, 2));
+          NODE
+
+      - name: Apply measured derivative backfill
+        if: ${{ inputs.mode == 'apply' }}
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/backfill-dish-photo-derivatives.mjs \
+            --apply --confirm-production \
+            --restaurant-id="$CANARY_RESTAURANT_ID" \
+            --measure-report="$REPORT_DIR/measure.json" \
+            --checkpoint="$REPORT_DIR/checkpoint.json" \
+            | tee "$REPORT_DIR/apply.log"
+
+      - name: Verify derivative metadata and Storage objects after apply
+        if: ${{ inputs.mode == 'apply' }}
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/backfill-dish-photo-derivatives.mjs \
+            --verify-only \
+            --restaurant-id="$CANARY_RESTAURANT_ID" \
+            --checkpoint="$REPORT_DIR/checkpoint.json" \
+            | tee "$REPORT_DIR/verify.log"
+
+      - name: Publish execution summary
+        if: ${{ always() }}
+        shell: bash
+        run: |
+          {
+            echo '## Dish Photo Derivative Backfill'
+            echo "- Mode: ${BACKFILL_MODE}"
+            echo "- Ref: ${GITHUB_REF}"
+            echo "- SHA: ${GITHUB_SHA}"
+            if [[ "$BACKFILL_MODE" == "dry-run" ]]; then
+              echo '- Production writes requested: no'
+            else
+              echo '- Production writes requested: yes; restricted to one explicit canary restaurant and guarded by confirmation, repository opt-ins, fresh capacity measurement, source digest, and checkpoint validation.'
+            fi
+            echo '- Reports/checkpoints remain ephemeral on the runner and are not uploaded from this public repository.'
+          } >> "$GITHUB_STEP_SUMMARY"
