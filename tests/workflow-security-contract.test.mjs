@@ -11,6 +11,10 @@ const mediaBackfillWorkflow = await readFile(
   new URL("../.github/workflows/media-backfill.yml", import.meta.url),
   "utf8"
 );
+const vercelCleanupWorkflow = await readFile(
+  new URL("../.github/workflows/vercel-preview-cleanup.yml", import.meta.url),
+  "utf8"
+);
 
 test("workflow security gates are immutable, read-only, and explicit", () => {
   assert.match(workflow, /name: Workflow Security/);
@@ -128,4 +132,23 @@ test("Vercel cleanup apply removes only an eligible stale preview", async () => 
   assert.equal(result.deleted, 1);
   assert.equal(calls.filter((call) => call.method === "DELETE").length, 1);
   assert.equal(calls.some((call) => call.pathname.endsWith("/prod") && call.method === "DELETE"), false);
+});
+
+test("Vercel cleanup workflow only runs from trusted events with read-only GitHub permissions", () => {
+  assert.match(vercelCleanupWorkflow, /name: Vercel Preview Cleanup/);
+  assert.match(vercelCleanupWorkflow, /pull_request:\s*\n\s*branches: \[main\]\s*\n\s*types: \[closed\]/);
+  assert.match(vercelCleanupWorkflow, /schedule:\s*\n\s*- cron:/);
+  assert.match(vercelCleanupWorkflow, /workflow_dispatch:/);
+  assert.doesNotMatch(vercelCleanupWorkflow, /pull_request_target/);
+  assert.match(vercelCleanupWorkflow, /permissions:\s*\n\s*contents: read\s*\n\s*pull-requests: read/);
+  assert.match(vercelCleanupWorkflow, /default: dry-run/);
+  assert.match(vercelCleanupWorkflow, /VERCEL_CLEANUP_GRACE_MS: '3600000'/);
+  assert.match(vercelCleanupWorkflow, /VERCEL_TOKEN: \$\{\{ secrets\.VERCEL_TOKEN \}\}/);
+  assert.match(vercelCleanupWorkflow, /ref: \$\{\{ github\.event\.repository\.default_branch \}\}/);
+  assert.match(vercelCleanupWorkflow, /persist-credentials: false/);
+  assert.match(vercelCleanupWorkflow, /lfs: false/);
+  assert.doesNotMatch(vercelCleanupWorkflow, /continue-on-error/);
+  for (const match of vercelCleanupWorkflow.matchAll(/uses:\s*([^\s]+)@([^\s#]+)/g)) {
+    assert.match(match[2], /^[0-9a-f]{40}$/, `${match[1]} must use a full commit SHA`);
+  }
 });
