@@ -1,3 +1,5 @@
+import { listOpenPullRequests, listVercelDeployments } from "./vercel-preview-cleanup-read.mjs";
+
 export const DEFAULT_GRACE_MS = 60 * 60 * 1000;
 
 const TERMINAL_STATES = new Set(["READY", "ERROR", "CANCELED", "BLOCKED"]);
@@ -128,6 +130,52 @@ export function classifyDeployments({
   return { decisions, deleteCandidates };
 }
 
-export async function runCleanup() {
-  throw new Error("runCleanup not implemented yet");
+function requiredEnv(env, name) {
+  const value = text(env?.[name]);
+  if (!value) throw new Error(`${name} is required`);
+  return value;
+}
+
+function summarizeDecisions(decisions) {
+  const reasons = {};
+  for (const decision of decisions) reasons[decision.reason] = (reasons[decision.reason] ?? 0) + 1;
+  return reasons;
+}
+
+export async function runCleanup({
+  mode = "dry-run",
+  env = process.env,
+  fetchImpl = fetch,
+  nowMs = Date.now(),
+  graceMs = DEFAULT_GRACE_MS,
+}) {
+  if (mode !== "dry-run") throw new Error("Only dry-run is available through this entry point");
+
+  const token = requiredEnv(env, "VERCEL_TOKEN");
+  const teamId = requiredEnv(env, "VERCEL_TEAM_ID");
+  const projectId = requiredEnv(env, "VERCEL_PROJECT_ID");
+  const githubToken = requiredEnv(env, "GITHUB_TOKEN");
+  const repository = requiredEnv(env, "GITHUB_REPOSITORY");
+
+  const [deployments, openPullRequests] = await Promise.all([
+    listVercelDeployments({ fetchImpl, token, teamId, projectId }),
+    listOpenPullRequests({ fetchImpl, token: githubToken, repository }),
+  ]);
+
+  const classified = classifyDeployments({
+    deployments,
+    openPullRequests,
+    expectedProjectId: projectId,
+    nowMs,
+    graceMs,
+  });
+
+  return {
+    mode,
+    inspected: deployments.length,
+    openPullRequests: openPullRequests.length,
+    deleteCandidates: classified.deleteCandidates.length,
+    deleted: 0,
+    reasons: summarizeDecisions(classified.decisions),
+  };
 }
