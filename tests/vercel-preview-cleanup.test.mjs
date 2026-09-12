@@ -6,6 +6,7 @@ import {
   classifyDeployments,
   runCleanup,
 } from "../scripts/ci/vercel-preview-cleanup.mjs";
+import { resolveCleanupRequest } from "../scripts/ci/run-vercel-preview-cleanup.mjs";
 
 const NOW = Date.parse("2026-09-12T20:00:00Z");
 const PROJECT_ID = "prj_vistaire";
@@ -130,4 +131,45 @@ test("dry-run never sends a Vercel DELETE request", async () => {
   assert.equal(result.deleteCandidates, 1);
   assert.equal(result.deleted, 0);
   assert.equal(requests.some((request) => request.method === "DELETE"), false);
+});
+
+test("runner selects apply only for trusted automatic events and defaults manual runs to dry-run", () => {
+  assert.deepEqual(resolveCleanupRequest({ GITHUB_EVENT_NAME: "schedule" }), {
+    mode: "apply",
+    confirmation: "",
+    eventName: "schedule",
+    eventAction: "",
+  });
+  assert.deepEqual(resolveCleanupRequest({ GITHUB_EVENT_NAME: "pull_request", VERCEL_CLEANUP_EVENT_ACTION: "closed" }), {
+    mode: "apply",
+    confirmation: "",
+    eventName: "pull_request",
+    eventAction: "closed",
+  });
+  assert.deepEqual(resolveCleanupRequest({ GITHUB_EVENT_NAME: "workflow_dispatch" }), {
+    mode: "dry-run",
+    confirmation: "",
+    eventName: "workflow_dispatch",
+    eventAction: "",
+  });
+  assert.throws(() => resolveCleanupRequest({ GITHUB_EVENT_NAME: "push" }), /Unsupported Vercel cleanup event/);
+});
+
+test("manual apply requires the exact confirmation phrase before any API request", async () => {
+  let requests = 0;
+  await assert.rejects(
+    runCleanup({
+      mode: "apply",
+      confirmation: "wrong",
+      eventName: "workflow_dispatch",
+      env: {},
+      fetchImpl: async () => {
+        requests += 1;
+        throw new Error("should not be called");
+      },
+      nowMs: NOW,
+    }),
+    /exact confirmation phrase/
+  );
+  assert.equal(requests, 0);
 });
