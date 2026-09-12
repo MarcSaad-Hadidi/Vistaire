@@ -1,1 +1,0 @@
-Temporary CI trigger for PR #246. This file is removed immediately in the next commit.
