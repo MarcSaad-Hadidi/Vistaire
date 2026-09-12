@@ -1,4 +1,8 @@
-import { listOpenPullRequests, listVercelDeployments } from "./vercel-preview-cleanup-read.mjs";
+import {
+  listOpenPullRequests,
+  listProductionProjectDomains,
+  listVercelDeployments,
+} from "./vercel-preview-cleanup-read.mjs";
 import { removeVercelPreview } from "./vercel-preview-cleanup-write.mjs";
 
 export const DEFAULT_GRACE_MS = 60 * 60 * 1000;
@@ -102,6 +106,8 @@ export function classifyDeployments({
       decision = { uid, action: "keep", reason: "missing-git-branch" };
     } else if (!gitSha(deployment)) {
       decision = { uid, action: "keep", reason: "missing-git-sha" };
+    } else if (String(deployment?.readySubstate ?? "").toUpperCase() === "PROMOTED") {
+      decision = { uid, action: "keep", reason: "promoted-preview" };
     } else {
       const createdAt = timestamp(deployment?.createdAt ?? deployment?.created);
       const state = deploymentState(deployment);
@@ -191,10 +197,34 @@ export async function runCleanup({
   });
 
   let deleted = 0;
-  if (mode === "apply") {
+  let protectedProductionAliases = 0;
+  let productionDomainCount = 0;
+  if (mode === "apply" && classified.deleteCandidates.length > 0) {
+    const productionDomains = await listProductionProjectDomains({
+      fetchImpl,
+      token,
+      teamId,
+      projectId,
+    });
+    const verifiedProductionDomains = productionDomains.filter(
+      (domain) => domain?.verified !== false && typeof domain?.name === "string" && domain.name.trim()
+    );
+    if (verifiedProductionDomains.length === 0) {
+      throw new Error("No verified production domains were returned; refusing all Preview removals");
+    }
+    productionDomainCount = verifiedProductionDomains.length;
+
     for (const deployment of classified.deleteCandidates) {
-      await removeVercelPreview({ fetchImpl, token, teamId, projectId, deployment });
-      deleted += 1;
+      const removal = await removeVercelPreview({
+        fetchImpl,
+        token,
+        teamId,
+        projectId,
+        deployment,
+        productionDomains: verifiedProductionDomains,
+      });
+      if (removal.deleted) deleted += 1;
+      if (removal.protectedProductionAlias) protectedProductionAliases += 1;
     }
   }
 
@@ -204,6 +234,8 @@ export async function runCleanup({
     openPullRequests: openPullRequests.length,
     deleteCandidates: classified.deleteCandidates.length,
     deleted,
+    protectedProductionAliases,
+    productionDomainCount,
     reasons: summarizeDecisions(classified.decisions),
   };
 }
