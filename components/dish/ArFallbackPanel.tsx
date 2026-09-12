@@ -136,7 +136,7 @@ export function ArFallbackPanel({
     () => typeof navigator.share === "function",
     () => false
   );
-  const showShareAction = browserCanShare && variant !== "sauge-noire";
+  const showShareAction = browserCanShare && variant === "default";
   const variantStyles = FALLBACK_PANEL_VARIANT_STYLES[variant];
   const brandedTitleStyle =
     variant === "default"
