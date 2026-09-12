@@ -98,16 +98,21 @@ export async function listDeploymentAliases({ fetchImpl = fetch, token, teamId, 
   return data.aliases;
 }
 
-export async function listOpenPullRequests({ fetchImpl = fetch, token, repository }) {
+async function listPullRequestsByState({ fetchImpl = fetch, token, repository, state }) {
   const authToken = requiredText(token, "GitHub token");
   const repo = requiredText(repository, "GitHub repository");
+  if (state !== "open" && state !== "closed") throw new Error("GitHub pull request state must be open or closed");
   const pullRequests = [];
 
   for (let page = 1; page <= 100; page += 1) {
     const url = new URL(`https://api.github.com/repos/${repo}/pulls`);
-    url.searchParams.set("state", "open");
+    url.searchParams.set("state", state);
     url.searchParams.set("per_page", "100");
     url.searchParams.set("page", String(page));
+    if (state === "closed") {
+      url.searchParams.set("sort", "updated");
+      url.searchParams.set("direction", "desc");
+    }
 
     const data = await requireJson(
       await fetchImpl(url, {
@@ -117,12 +122,20 @@ export async function listOpenPullRequests({ fetchImpl = fetch, token, repositor
           "X-GitHub-Api-Version": "2022-11-28",
         },
       }),
-      "GitHub open pull request listing"
+      `GitHub ${state} pull request listing`
     );
-    if (!Array.isArray(data)) throw new Error("GitHub pull request listing returned an invalid payload");
+    if (!Array.isArray(data)) throw new Error(`GitHub ${state} pull request listing returned an invalid payload`);
     pullRequests.push(...data);
     if (data.length < 100) return pullRequests;
   }
 
-  throw new Error("GitHub pull request pagination exceeded the safety limit");
+  throw new Error(`GitHub ${state} pull request pagination exceeded the safety limit`);
+}
+
+export function listOpenPullRequests(options) {
+  return listPullRequestsByState({ ...options, state: "open" });
+}
+
+export function listClosedPullRequests(options) {
+  return listPullRequestsByState({ ...options, state: "closed" });
 }
