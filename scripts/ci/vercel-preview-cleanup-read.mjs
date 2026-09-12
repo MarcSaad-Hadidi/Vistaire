@@ -44,6 +44,60 @@ export async function listVercelDeployments({ fetchImpl = fetch, token, teamId, 
   throw new Error("Vercel deployment pagination exceeded the safety limit");
 }
 
+export async function listProductionProjectDomains({ fetchImpl = fetch, token, teamId, projectId }) {
+  const authToken = requiredText(token, "Vercel token");
+  const scopeTeamId = requiredText(teamId, "Vercel team id");
+  const scopeProjectId = requiredText(projectId, "Vercel project id");
+  const domains = [];
+  const seenCursors = new Set();
+  let until = null;
+
+  for (let page = 0; page < 100; page += 1) {
+    const url = new URL(`https://api.vercel.com/v9/projects/${encodeURIComponent(scopeProjectId)}/domains`);
+    url.searchParams.set("teamId", scopeTeamId);
+    url.searchParams.set("production", "true");
+    url.searchParams.set("redirects", "false");
+    url.searchParams.set("limit", "100");
+    if (until !== null) url.searchParams.set("until", String(until));
+
+    const data = await requireJson(
+      await fetchImpl(url, { headers: { Authorization: `Bearer ${authToken}` } }),
+      "Vercel production domain listing"
+    );
+    if (!Array.isArray(data?.domains)) {
+      throw new Error("Vercel production domain listing returned an invalid domains payload");
+    }
+    domains.push(...data.domains);
+
+    const next = data?.pagination?.next;
+    if (next === null || next === undefined) return domains;
+    if (!Number.isFinite(next) || seenCursors.has(next)) {
+      throw new Error("Vercel production domain pagination returned an invalid cursor");
+    }
+    seenCursors.add(next);
+    until = next;
+  }
+
+  throw new Error("Vercel production domain pagination exceeded the safety limit");
+}
+
+export async function listDeploymentAliases({ fetchImpl = fetch, token, teamId, deploymentId }) {
+  const authToken = requiredText(token, "Vercel token");
+  const scopeTeamId = requiredText(teamId, "Vercel team id");
+  const uid = requiredText(deploymentId, "Vercel deployment id");
+  const url = new URL(`https://api.vercel.com/v2/deployments/${encodeURIComponent(uid)}/aliases`);
+  url.searchParams.set("teamId", scopeTeamId);
+
+  const data = await requireJson(
+    await fetchImpl(url, { headers: { Authorization: `Bearer ${authToken}` } }),
+    `Vercel alias listing for ${uid}`
+  );
+  if (!Array.isArray(data?.aliases)) {
+    throw new Error(`Vercel alias listing for ${uid} returned an invalid aliases payload`);
+  }
+  return data.aliases;
+}
+
 export async function listOpenPullRequests({ fetchImpl = fetch, token, repository }) {
   const authToken = requiredText(token, "GitHub token");
   const repo = requiredText(repository, "GitHub repository");
