@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
-import { classifyDeployments } from "../scripts/ci/vercel-preview-cleanup.mjs";
+import { classifyDeployments, runCleanup } from "../scripts/ci/vercel-preview-cleanup.mjs";
 
 const workflow = await readFile(
   new URL("../.github/workflows/workflow-security.yml", import.meta.url),
@@ -84,4 +84,48 @@ test("Vercel cleanup classifier keeps production targets", () => {
     graceMs: 3_600_000,
   });
   assert.deepEqual(result.deleteCandidates, []);
+});
+
+test("Vercel cleanup apply removes only an eligible stale preview", async () => {
+  const calls = [];
+  const fetchImpl = async (url, options = {}) => {
+    const parsed = new URL(url);
+    const method = options.method ?? "GET";
+    calls.push({ pathname: parsed.pathname, method });
+    if (parsed.hostname === "api.vercel.com" && parsed.pathname === "/v7/deployments") {
+      return new Response(JSON.stringify({
+        deployments: [
+          { uid: "preview", projectId: "prj_vistaire", target: null, readyState: "READY", createdAt: 0, meta: { githubCommitRef: "closed/pr", githubCommitSha: "abc" } },
+          { uid: "prod", projectId: "prj_vistaire", target: "production", readyState: "READY", createdAt: 0, meta: { githubCommitRef: "main", githubCommitSha: "def" } },
+        ],
+        pagination: { next: null },
+      }), { status: 200 });
+    }
+    if (parsed.hostname === "api.github.com") return new Response(JSON.stringify([]), { status: 200 });
+    if (parsed.hostname === "api.vercel.com" && parsed.pathname === "/v13/deployments/preview") {
+      return new Response(JSON.stringify({ uid: "preview", state: "DELETED" }), { status: 200 });
+    }
+    throw new Error(`unexpected request ${method} ${parsed}`);
+  };
+
+  const result = await runCleanup({
+    mode: "apply",
+    confirmation: "DELETE-VERCEL-PREVIEWS",
+    eventName: "workflow_dispatch",
+    eventAction: "",
+    env: {
+      VERCEL_TOKEN: "vercel-test-token",
+      VERCEL_TEAM_ID: "team_test",
+      VERCEL_PROJECT_ID: "prj_vistaire",
+      GITHUB_TOKEN: "github-test-token",
+      GITHUB_REPOSITORY: "MarcSaad-Hadidi/Vistaire",
+    },
+    fetchImpl,
+    nowMs: 10_000_000,
+    graceMs: 3_600_000,
+  });
+
+  assert.equal(result.deleted, 1);
+  assert.equal(calls.filter((call) => call.method === "DELETE").length, 1);
+  assert.equal(calls.some((call) => call.pathname.endsWith("/prod") && call.method === "DELETE"), false);
 });
