@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
+import "./media-backfill-workflow.test.mjs";
 
 const workflow = await readFile(
   new URL("../.github/workflows/workflow-security.yml", import.meta.url),
@@ -63,8 +64,8 @@ test("production apply is restricted to one explicit canary restaurant", () => {
   assert.match(mediaBackfillWorkflow, /Apply blocked: canary restaurant id must be a UUID/);
   assert.equal(
     (mediaBackfillWorkflow.match(/--restaurant-id="\$CANARY_RESTAURANT_ID"/g) ?? []).length,
-    3,
-    "measure, apply, and verify must all use the exact canary restaurant"
+    4,
+    "inventory, measure, apply, and verify must all use the exact canary restaurant"
   );
   const applyBlock = mediaBackfillWorkflow.slice(
     mediaBackfillWorkflow.indexOf("- name: Apply measured derivative backfill"),

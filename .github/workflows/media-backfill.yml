@@ -4,15 +4,17 @@ on:
   workflow_dispatch:
     inputs:
       mode:
-        description: Backfill mode. Dry-run never writes production media.
+        description: Read-only inventory, measurement or verification; apply requires separate approval.
         required: true
         default: dry-run
         type: choice
         options:
           - dry-run
           - apply
+          - measure-only
+          - verify-only
       canary_restaurant_id:
-        description: Required for apply. Restaurant UUID for the single approved canary restaurant.
+        description: Required for measure-only, verify-only and apply. Optional scope for dry-run.
         required: false
         default: ""
         type: string
@@ -51,15 +53,25 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          uuid_regex='^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$'
           case "$BACKFILL_MODE" in
             dry-run)
+              if [[ -n "$CANARY_RESTAURANT_ID" && ! "$CANARY_RESTAURANT_ID" =~ $uuid_regex ]]; then
+                echo "Read-only blocked: restaurant id must be a UUID." >&2
+                exit 1
+              fi
+              ;;
+            measure-only|verify-only)
+              if [[ -z "$CANARY_RESTAURANT_ID" || ! "$CANARY_RESTAURANT_ID" =~ $uuid_regex ]]; then
+                echo "Read-only blocked: an explicit restaurant UUID is required." >&2
+                exit 1
+              fi
               ;;
             apply)
               if [[ -z "$CANARY_RESTAURANT_ID" ]]; then
                 echo "Apply blocked: canary restaurant is required." >&2
                 exit 1
               fi
-              uuid_regex='^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$'
               if [[ ! "$CANARY_RESTAURANT_ID" =~ $uuid_regex ]]; then
                 echo "Apply blocked: canary restaurant id must be a UUID." >&2
                 exit 1
@@ -104,8 +116,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          report_dir="$RUNNER_TEMP/vistaire-dish-photo-backfill"
-          mkdir -p "$report_dir"
+          umask 077
+          report_dir="$(mktemp -d "$RUNNER_TEMP/vistaire-dish-photo-backfill.XXXXXX")"
           echo "REPORT_DIR=$report_dir" >> "$GITHUB_ENV"
 
       - name: Validate configured Supabase production target
@@ -120,52 +132,86 @@ jobs:
           if (!rawUrl || !serviceRoleKey || !expectedRef) {
             throw new Error('Production Supabase configuration is incomplete.');
           }
-          const url = new URL(rawUrl);
-          if (url.protocol !== 'https:' || !url.hostname.endsWith('.supabase.co')) {
-            throw new Error('Production Supabase target must be an HTTPS supabase.co project.');
+          let url;
+          try {
+            url = new URL(rawUrl);
+          } catch {
+            throw new Error('Production Supabase target is not a valid URL.');
           }
-          const actualRef = url.hostname.slice(0, -'.supabase.co'.length).toLowerCase();
-          if (!actualRef || actualRef !== expectedRef) {
+          if (!/^[a-z0-9]{20}$/.test(expectedRef) ||
+              url.origin !== `https://${expectedRef}.supabase.co` ||
+              url.username || url.password || url.pathname !== '/' || url.search || url.hash) {
             throw new Error('Configured Supabase project does not match the expected production project ref.');
           }
           console.log('Validated configured production Supabase target.');
           NODE
 
       - name: Run read-only dry-run inventory
+        id: inventory
+        if: ${{ inputs.mode == 'dry-run' || inputs.mode == 'apply' }}
         env:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          VISTAIRE_MEDIA_BACKFILL_ALLOW_APPLY: "0"
+          VISTAIRE_MEDIA_WRITES_ENABLED: "false"
         shell: bash
         run: |
           set -euo pipefail
-          node scripts/backfill-dish-photo-derivatives.mjs \
-            --checkpoint="$REPORT_DIR/checkpoint.json" \
-            | tee "$REPORT_DIR/dry-run.log"
+          umask 077
+          scope=()
+          if [[ -n "$CANARY_RESTAURANT_ID" ]]; then
+            scope+=(--restaurant-id="$CANARY_RESTAURANT_ID")
+          fi
+          if ! node scripts/backfill-dish-photo-derivatives.mjs \
+            --checkpoint="$REPORT_DIR/checkpoint.json" "${scope[@]}" \
+            > "$REPORT_DIR/dry-run.log" 2> "$REPORT_DIR/dry-run.stderr"; then
+            echo "::error::Read-only inventory failed. Inspect the same scoped command in a private operator session; no media writes were requested by this step."
+            exit 1
+          fi
+          echo 'Read-only inventory command completed; detailed output remains private.'
 
       - name: Measure exact derivative capacity before apply
-        if: ${{ inputs.mode == 'apply' }}
+        id: measure
+        if: ${{ inputs.mode == 'apply' || inputs.mode == 'measure-only' }}
         env:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          VISTAIRE_MEDIA_BACKFILL_ALLOW_APPLY: "0"
+          VISTAIRE_MEDIA_WRITES_ENABLED: "false"
         shell: bash
         run: |
           set -euo pipefail
-          node scripts/backfill-dish-photo-derivatives.mjs \
+          umask 077
+          if ! node scripts/backfill-dish-photo-derivatives.mjs \
             --measure-only \
             --restaurant-id="$CANARY_RESTAURANT_ID" \
             --checkpoint="$REPORT_DIR/checkpoint.json" \
-            > "$REPORT_DIR/measure.json"
+            > "$REPORT_DIR/measure.json" 2> "$REPORT_DIR/measure.stderr"; then
+            echo "::error::Read-only capacity measurement failed. Check the authoritative quota, fresh usage and source integrity privately. Apply remains blocked."
+            exit 1
+          fi
           MEASURE_REPORT="$REPORT_DIR/measure.json" node --input-type=module - <<'NODE'
           import { readFileSync } from 'node:fs';
-          const report = JSON.parse(readFileSync(process.env.MEASURE_REPORT, 'utf8'));
-          if (report.status !== 'pass' || report.pass !== true) {
-            throw new Error(`Capacity measurement did not pass: ${report.reasons?.join(', ') || 'unknown reason'}`);
+          let report;
+          try {
+            report = JSON.parse(readFileSync(process.env.MEASURE_REPORT, 'utf8'));
+          } catch {
+            throw new Error('Capacity measurement returned an unreadable report. Apply remains blocked.');
           }
-          if (!Number.isInteger(report.rowCount) || report.rowCount < 1 || !Number.isInteger(report.sourceCount) || report.sourceCount < 1) {
-            throw new Error(`Canary restaurant has no valid photo sources; rows=${report.rowCount}, sources=${report.sourceCount}.`);
+          if (!report || report.status !== 'pass' || report.pass !== true) {
+            throw new Error('Capacity measurement did not pass. Apply remains blocked.');
           }
+          if (!Number.isSafeInteger(report.rowCount) || report.rowCount < 1 || !Number.isSafeInteger(report.sourceCount) || report.sourceCount < 1) {
+            throw new Error('Canary restaurant has no valid photo sources.');
+          }
+          if (!Number.isSafeInteger(report.uniqueAdditionalBytes) || report.uniqueAdditionalBytes < 0 ||
+              !Number.isFinite(report.headroomAfterPercent) || report.headroomAfterPercent < 20 || report.headroomAfterPercent > 100) {
+            throw new Error('Capacity measurement summary is invalid. Apply remains blocked.');
+          }
+          // Only validated aggregate numbers may enter public Actions logs.
+          // Keep the original, complete report unchanged for the apply gate.
           console.log(JSON.stringify({
-            status: report.status,
+            status: 'pass',
             rowCount: report.rowCount,
             sourceCount: report.sourceCount,
             uniqueAdditionalBytes: report.uniqueAdditionalBytes,
@@ -174,6 +220,7 @@ jobs:
           NODE
 
       - name: Apply measured derivative backfill
+        id: apply
         if: ${{ inputs.mode == 'apply' }}
         env:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
@@ -181,40 +228,75 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          node scripts/backfill-dish-photo-derivatives.mjs \
+          umask 077
+          if ! node scripts/backfill-dish-photo-derivatives.mjs \
             --apply --confirm-production \
             --restaurant-id="$CANARY_RESTAURANT_ID" \
             --measure-report="$REPORT_DIR/measure.json" \
             --checkpoint="$REPORT_DIR/checkpoint.json" \
-            | tee "$REPORT_DIR/apply.log"
+            > "$REPORT_DIR/apply.log" 2> "$REPORT_DIR/apply.stderr"; then
+            echo "::error::Apply failed or is incomplete. Reconcile retained objects and reservations privately before any retry; no automatic rollback or retry is authorized."
+            exit 1
+          fi
+          echo 'Apply command completed; post-apply verification must still pass.'
 
       - name: Verify derivative metadata and Storage objects after apply
-        if: ${{ inputs.mode == 'apply' }}
+        id: verify
+        if: ${{ inputs.mode == 'apply' || inputs.mode == 'verify-only' }}
         env:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          VISTAIRE_MEDIA_BACKFILL_ALLOW_APPLY: "0"
+          VISTAIRE_MEDIA_WRITES_ENABLED: "false"
         shell: bash
         run: |
           set -euo pipefail
-          node scripts/backfill-dish-photo-derivatives.mjs \
-            --verify-only \
+          umask 077
+          if ! node scripts/backfill-dish-photo-derivatives.mjs \
+            --verify-only --verify-hash \
             --restaurant-id="$CANARY_RESTAURANT_ID" \
             --checkpoint="$REPORT_DIR/checkpoint.json" \
-            | tee "$REPORT_DIR/verify.log"
+            > "$REPORT_DIR/verify.log" 2> "$REPORT_DIR/verify.stderr"; then
+            echo "::error::Read-only verification failed. Inspect scoped metadata, objects and hash limits in a private operator session."
+            exit 1
+          fi
+          echo 'Bounded hash verification command completed; production observation and coverage review remain separate.'
 
       - name: Publish execution summary
         if: ${{ always() }}
+        env:
+          INVENTORY_OUTCOME: ${{ steps.inventory.outcome }}
+          MEASURE_OUTCOME: ${{ steps.measure.outcome }}
+          APPLY_OUTCOME: ${{ steps.apply.outcome }}
+          VERIFY_OUTCOME: ${{ steps.verify.outcome }}
         shell: bash
         run: |
           {
             echo '## Dish Photo Derivative Backfill'
-            echo "- Mode: ${BACKFILL_MODE}"
+            case "$BACKFILL_MODE" in
+              dry-run|measure-only|verify-only|apply) echo "- Mode: ${BACKFILL_MODE}" ;;
+              *) echo '- Mode: rejected invalid request' ;;
+            esac
             echo "- Ref: ${GITHUB_REF}"
             echo "- SHA: ${GITHUB_SHA}"
-            if [[ "$BACKFILL_MODE" == "dry-run" ]]; then
-              echo '- Production writes requested: no'
+            if [[ "$BACKFILL_MODE" == "apply" ]]; then
+              echo '- Production writes requested: yes; only the approved canary, subject to every existing guard.'
             else
-              echo '- Production writes requested: yes; restricted to one explicit canary restaurant and guarded by confirmation, repository opt-ins, fresh capacity measurement, source digest, and checkpoint validation.'
+              echo '- Production writes requested: no'
             fi
-            echo '- Reports/checkpoints remain ephemeral on the runner and are not uploaded from this public repository.'
+            echo "- Inventory step: ${INVENTORY_OUTCOME:-not-run}"
+            echo "- Measure step: ${MEASURE_OUTCOME:-not-run}"
+            echo "- Apply step: ${APPLY_OUTCOME:-not-run}"
+            echo "- Verify step: ${VERIFY_OUTCOME:-not-run}"
+            echo '- A requested apply is not proof of execution; a command success is not proof of full rollout or TTL observation.'
+            echo '- Detailed stdout/stderr, reports and checkpoints are private, ephemeral and never uploaded. Reproduce diagnostics only in an authorized private operator session.'
           } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Remove ephemeral reports
+        if: ${{ always() }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -n "${REPORT_DIR:-}" && "$REPORT_DIR" == "$RUNNER_TEMP"/vistaire-dish-photo-backfill.* ]]; then
+            rm -rf -- "$REPORT_DIR"
+          fi
