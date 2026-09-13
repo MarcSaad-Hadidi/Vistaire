@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { execFileSync, spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync, existsSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { unzipSync, zipSync, strToU8 } from "fflate";
@@ -21,18 +21,55 @@ function pythonHasToolchain() {
   }
 }
 
-function blenderAvailable() {
-  const blender = process.env.VISTAIRE_USDZ_BLENDER || "blender";
-  try {
-    const probe = spawnSync(blender, ["--version"], { stdio: "ignore" });
-    return probe.status === 0;
-  } catch {
-    return false;
+function windowsBlenderCandidates() {
+  if (process.platform !== "win32") return [];
+  const roots = [
+    process.env.ProgramFiles,
+    process.env.ProgramW6432,
+    process.env["ProgramFiles(x86)"],
+    "C:\\Program Files",
+    "C:\\Program Files (x86)"
+  ].filter(Boolean);
+  const candidates = new Set();
+  for (const root of roots) {
+    const foundation = join(root, "Blender Foundation");
+    if (!existsSync(foundation)) continue;
+    let entries;
+    try {
+      entries = readdirSync(foundation, { withFileTypes: true });
+    } catch {
+      continue;
+    }
+    for (const entry of entries) {
+      if (!entry.isDirectory() || !entry.name.startsWith("Blender ")) continue;
+      const candidate = join(foundation, entry.name, "blender.exe");
+      if (existsSync(candidate)) candidates.add(candidate);
+    }
   }
+  return [...candidates].sort().reverse();
 }
 
-const TOOLCHAIN_AVAILABLE = pythonHasToolchain() && blenderAvailable();
+function resolveBlenderExecutable({
+  configured = process.env.VISTAIRE_USDZ_BLENDER,
+  discoverCandidates = () => ["blender", ...windowsBlenderCandidates()],
+  probe = spawnSync
+} = {}) {
+  const executableCandidates = configured ? [configured] : discoverCandidates();
+  for (const candidate of executableCandidates) {
+    try {
+      const result = probe(candidate, ["--version"], { stdio: "ignore" });
+      if (result.status === 0) return candidate;
+    } catch {
+      // Try the next candidate.
+    }
+  }
+  return null;
+}
+
+const BLENDER = resolveBlenderExecutable();
+const TOOLCHAIN_AVAILABLE = pythonHasToolchain() && BLENDER !== null;
 const TOOLCHAIN_SKIP_REASON = "OpenUSD/Pillow/Blender not available";
+const BLENDER_SKIP_REASON = "Blender with OpenUSD import not available";
 
 const MINIMAL_USDA = `#usda 1.0
 (
@@ -44,6 +81,39 @@ def Xform "Dish"
     def Mesh "Cube"
     {
         point3f[] points = [(-0.1, -0.1, 0), (0.1, -0.1, 0), (0.1, 0.1, 0), (-0.1, 0.1, 0), (-0.1, -0.1, 0.1), (0.1, -0.1, 0.1), (0.1, 0.1, 0.1), (-0.1, 0.1, 0.1)]
+        int[] faceVertexCounts = [4, 4, 4, 4, 4, 4]
+        int[] faceVertexIndices = [0, 1, 2, 3, 4, 7, 6, 5, 0, 4, 5, 1, 1, 5, 6, 2, 2, 6, 7, 3, 3, 7, 4, 0]
+    }
+}
+`;
+
+const OUT_OF_RANGE_FOOTPRINT_USDA = `#usda 1.0
+(
+    defaultPrim = "Dish"
+)
+
+def Xform "Dish"
+{
+    def Mesh "Cube"
+    {
+        point3f[] points = [(-0.4, -0.4, 0), (0.4, -0.4, 0), (0.4, 0.4, 0), (-0.4, 0.4, 0), (-0.4, -0.4, 0.1), (0.4, -0.4, 0.1), (0.4, 0.4, 0.1), (-0.4, 0.4, 0.1)]
+        int[] faceVertexCounts = [4, 4, 4, 4, 4, 4]
+        int[] faceVertexIndices = [0, 1, 2, 3, 4, 7, 6, 5, 0, 4, 5, 1, 1, 5, 6, 2, 2, 6, 7, 3, 3, 7, 4, 0]
+    }
+}
+`;
+
+const LARGE_FOOTPRINT_USDA = `#usda 1.0
+(
+    defaultPrim = "Dish"
+    metersPerUnit = 1
+)
+
+def Xform "Dish"
+{
+    def Mesh "Cube"
+    {
+        point3f[] points = [(-90, -90, 0), (90, -90, 0), (90, 90, 0), (-90, 90, 0), (-90, -90, 1), (90, -90, 1), (90, 90, 1), (-90, 90, 1)]
         int[] faceVertexCounts = [4, 4, 4, 4, 4, 4]
         int[] faceVertexIndices = [0, 1, 2, 3, 4, 7, 6, 5, 0, 4, 5, 1, 1, 5, 6, 2, 2, 6, 7, 3, 3, 7, 4, 0]
     }
@@ -440,6 +510,77 @@ function usdTextBundle(filePath) {
     .join("\n");
 }
 
+function runBlenderPhysicalScaleFixture(dishKind, sourceText = OUT_OF_RANGE_FOOTPRINT_USDA) {
+  const dir = mkdtempSync(join(tmpdir(), `vistaire-blender-${dishKind}-scale-test-`));
+  const source = join(dir, "source.usda");
+  const output = join(dir, "normalized.usdc");
+  const metrics = join(dir, "metrics.json");
+  try {
+    writeFileSync(source, sourceText, "utf8");
+    execFileSync(
+      BLENDER,
+      [
+        "--background",
+        "--python",
+        "scripts/owner/blender_usdz_geometry_optimizer.py",
+        "--",
+        "--input",
+        source,
+        "--output",
+        output,
+        "--metrics",
+        metrics,
+        "--target-triangles",
+        "1000",
+        "--dish-kind",
+        dishKind
+      ],
+      { stdio: "pipe" }
+    );
+    assert.ok(existsSync(output), "Blender must export the normalized USD layer");
+    return JSON.parse(readFileSync(metrics, "utf8")).physicalScale;
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+}
+
+test("Blender test resolver does not hide an invalid configured executable", () => {
+  const probed = [];
+  const resolved = resolveBlenderExecutable({
+    configured: "configured-blender",
+    discoverCandidates() {
+      throw new Error("fallback discovery must not run for a configured executable");
+    },
+    probe(candidate) {
+      probed.push(candidate);
+      return { status: 1 };
+    }
+  });
+
+  assert.equal(resolved, null);
+  assert.deepEqual(probed, ["configured-blender"]);
+});
+
+test("Blender test resolver discovers fallbacks only without a configured executable", () => {
+  let discoveryCalls = 0;
+  const probed = [];
+  const resolved = resolveBlenderExecutable({
+    configured: "",
+    discoverCandidates() {
+      discoveryCalls += 1;
+      return ["fallback-blender"];
+    },
+    probe(candidate) {
+      probed.push(candidate);
+      return { status: 0 };
+    }
+  });
+
+  assert.equal(resolved, "fallback-blender");
+  assert.equal(discoveryCalls, 1);
+  assert.deepEqual(probed, ["fallback-blender"]);
+});
+
 function zipCentralDirectoryEntryNames(filePath) {
   const buffer = readFileSync(filePath);
   const eocdSignature = 0x06054b50;
@@ -610,6 +751,48 @@ test("USDZ physical scale recenters horizontally and grounds the model", { skip:
     rmSync(dir, { recursive: true, force: true });
   }
 });
+
+for (const preset of [
+  { dishKind: "plate", targetMeters: 0.18, minMeters: 0.17, maxMeters: 0.19 },
+  { dishKind: "fallback", targetMeters: 0.15, minMeters: 0.14, maxMeters: 0.16 }
+]) {
+  test(
+    `Blender/OpenUSD normalizes an out-of-range ${preset.dishKind} footprint to ${preset.targetMeters} m`,
+    { skip: !BLENDER ? BLENDER_SKIP_REASON : false },
+    () => {
+      const physicalScale = runBlenderPhysicalScaleFixture(preset.dishKind);
+
+      assert.equal(physicalScale.status, "normalized");
+      assert.equal(physicalScale.dimension, "footprint");
+      assert.equal(physicalScale.targetMeters, preset.targetMeters);
+      assert.equal(physicalScale.minMeters, preset.minMeters);
+      assert.equal(physicalScale.maxMeters, preset.maxMeters);
+      assert.ok(
+        physicalScale.footprintBeforeMeters < preset.minMeters
+          || physicalScale.footprintBeforeMeters > preset.maxMeters,
+        `fixture must start out of range, got ${physicalScale.footprintBeforeMeters} m`
+      );
+      assert.ok(
+        Math.abs(physicalScale.footprintAfterMeters - preset.targetMeters) <= 0.001,
+        `expected ${preset.targetMeters} m, got ${physicalScale.footprintAfterMeters} m`
+      );
+    }
+  );
+}
+
+test(
+  "Blender/OpenUSD accepts a valid fallback downscale at or below the legacy epsilon",
+  { skip: !BLENDER ? BLENDER_SKIP_REASON : false },
+  () => {
+    const physicalScale = runBlenderPhysicalScaleFixture("fallback", LARGE_FOOTPRINT_USDA);
+
+    assert.equal(physicalScale.footprintBeforeMeters, 180);
+    assert.ok(physicalScale.scaleFactor > 0);
+    assert.ok(physicalScale.scaleFactor <= 0.001);
+    assert.equal(physicalScale.footprintAfterMeters, 0.15);
+    assert.equal(physicalScale.status, "normalized");
+  }
+);
 
 test("USDZ runtime optimizer CLI accepts platter dish kind", () => {
   const result = spawnSync(
