@@ -86,9 +86,12 @@ function matchPullRequest(deployment, pullRequests) {
   const sha = gitSha(deployment);
   const repository = gitRepository(deployment);
   if (!branch || !sha || !repository) return null;
+
   const sameRepository = pullRequests.filter((pullRequest) => pullRequest.repository === repository);
-  const shaMatch = sameRepository.find((pullRequest) => pullRequest.sha === sha);
-  if (shaMatch) return shaMatch;
+  const exact = sameRepository.find(
+    (pullRequest) => pullRequest.branch === branch && pullRequest.sha === sha
+  );
+  if (exact) return exact;
   return sameRepository.find((pullRequest) => pullRequest.branch === branch) ?? null;
 }
 
@@ -217,6 +220,12 @@ function validateApplyAuthorization({ mode, confirmation, eventName, eventAction
   throw new Error("Automatic apply is allowed only for schedule or closed pull_request events");
 }
 
+function verifiedProductionDomains(domains) {
+  return domains.filter(
+    (domain) => domain?.verified !== false && typeof domain?.name === "string" && domain.name.trim()
+  );
+}
+
 export async function runCleanup({
   mode = "dry-run",
   confirmation = "",
@@ -253,29 +262,24 @@ export async function runCleanup({
   let deleted = 0;
   let protectedProductionAliases = 0;
   let productionDomainCount = 0;
-  if (mode === "apply" && classified.deleteCandidates.length > 0) {
-    const productionDomains = await listProductionProjectDomains({
-      fetchImpl,
-      token,
-      teamId,
-      projectId,
-    });
-    const verifiedProductionDomains = productionDomains.filter(
-      (domain) => domain?.verified !== false && typeof domain?.name === "string" && domain.name.trim()
-    );
-    if (verifiedProductionDomains.length === 0) {
-      throw new Error("No verified production domains were returned; refusing all Preview removals");
-    }
-    productionDomainCount = verifiedProductionDomains.length;
 
+  if (mode === "apply") {
     for (const deployment of classified.deleteCandidates) {
+      const productionDomains = verifiedProductionDomains(
+        await listProductionProjectDomains({ fetchImpl, token, teamId, projectId })
+      );
+      if (productionDomains.length === 0) {
+        throw new Error("No verified production domains were returned; refusing Preview removal");
+      }
+      productionDomainCount = Math.max(productionDomainCount, productionDomains.length);
+
       const removal = await removeVercelPreview({
         fetchImpl,
         token,
         teamId,
         projectId,
         deployment,
-        productionDomains: verifiedProductionDomains,
+        productionDomains,
       });
       if (removal.deleted) deleted += 1;
       if (removal.protectedProductionAlias) protectedProductionAliases += 1;
