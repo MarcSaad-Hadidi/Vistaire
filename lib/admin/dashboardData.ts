@@ -13,6 +13,8 @@ export type AdminDashboardData = {
   analytics: AdminAnalyticsState;
 };
 export type AdminDashboardLoadResult = { ok: true; data: AdminDashboardData } | { ok: false; reason: "restaurant-lookup-failed" | "restaurant-not-found" | "menu-lookup-failed" };
+export type AdminMenuData = Pick<AdminDashboardData, "restaurant" | "menu">;
+type AdminMenuLoadResult = { ok: true; data: AdminMenuData; partialSource: boolean } | Extract<AdminDashboardLoadResult, { ok: false }>;
 
 type Dependencies = {
   readRows: typeof readSupabaseRowsByFilters;
@@ -29,7 +31,11 @@ export async function loadAdminDashboardData(restaurantId: string, range: AdminD
   return loadAdminDashboardDataWithDependencies(restaurantId, range, { readRows: readSupabaseRowsByFilters, readEvents: readAnalyticsEventsForPeriod, now: () => resolveAdminDashboardNow(process.env.NODE_ENV, process.env.VISTAIRE_ADMIN_VISUAL_NOW, new Date()) });
 }
 
-export async function loadAdminDashboardDataWithDependencies(restaurantId: string, range: AdminDashboardRange, dependencies: Dependencies): Promise<AdminDashboardLoadResult> {
+export async function loadAdminMenuData(restaurantId: string): Promise<AdminMenuLoadResult> {
+  return loadAdminMenuDataWithDependencies(restaurantId, { readRows: readSupabaseRowsByFilters });
+}
+
+export async function loadAdminMenuDataWithDependencies(restaurantId: string, dependencies: Pick<Dependencies, "readRows">): Promise<AdminMenuLoadResult> {
   const restaurantResult = await dependencies.readRows({ table: "restaurants", columns: "id,name,slug,city,cuisine_type", filters: { id: restaurantId }, orderBy: "id", limit: 1 });
   if (!restaurantResult.ok) return { ok: false, reason: "restaurant-lookup-failed" };
   const restaurantRow = restaurantResult.rows[0];
@@ -48,6 +54,16 @@ export async function loadAdminDashboardDataWithDependencies(restaurantId: strin
   const menu = buildRelationalSupabasePublicMenu({ slug: getString(restaurantRow, ["slug"]), restaurantRow, categoryRows, dishRows, includeUnavailableDishes: true });
   const categories = categoryRows.map(toCategory);
   const dishes = menu.dishes.map(toDish);
+  const readiness = buildAdminMenuReadiness(categories, dishes);
+  const publicMenuPath = `/menu/${menu.slug}`;
+  return { ok: true, partialSource: !categoriesResult.ok || !dishesResult.ok, data: { restaurant: { id: restaurantId, name: getString(restaurantRow, ["name"], "Restaurant"), slug: menu.slug, location: getNullableString(restaurantRow, ["city", "location"]), cuisineType: getNullableString(restaurantRow, ["cuisine_type"]), timezone: null, publicMenuPath }, menu: { id: selectedMenu.id, status: selectedMenu.status, categories, dishes, readiness } } };
+}
+
+export async function loadAdminDashboardDataWithDependencies(restaurantId: string, range: AdminDashboardRange, dependencies: Dependencies): Promise<AdminDashboardLoadResult> {
+  const result = await loadAdminMenuDataWithDependencies(restaurantId, dependencies);
+  if (!result.ok) return result;
+  const selectedMenu = result.data.menu;
+  const { categories, readiness } = selectedMenu;
   const observedAt = dependencies.now();
   const window = resolveAdminObservationWindow(range, observedAt);
   const [currentEventRead, previousEventRead] = await Promise.all([
@@ -57,7 +73,5 @@ export async function loadAdminDashboardDataWithDependencies(restaurantId: strin
   const currentEvents = currentEventRead.ok ? currentEventRead.rows : [];
   const previousEvents = previousEventRead.ok ? previousEventRead.rows : [];
   const lastUpdatedAt = currentEvents.reduce<string | null>((latest, row) => { const value = getNullableString(row, ["created_at"]); return value && (!latest || value > latest) ? value : latest; }, null);
-  const readiness = buildAdminMenuReadiness(categories, dishes);
-  const publicMenuPath = `/menu/${menu.slug}`;
-  return { ok: true, data: { restaurant: { id: restaurantId, name: getString(restaurantRow, ["name"], "Restaurant"), slug: menu.slug, location: getNullableString(restaurantRow, ["city", "location"]), cuisineType: getNullableString(restaurantRow, ["cuisine_type"]), timezone: null, publicMenuPath }, menu: { id: selectedMenu.id, status: selectedMenu.status, categories, dishes, readiness }, analytics: buildAdminAnalyticsState({ observationWindow: window, observedAt, events:currentEvents, previousEvents, analyticsScope:{restaurantId,menuId:selectedMenu.id,source:"production",metricDefinition:"all-events-v1"}, selectedMenuCategories:categories.map(({slug,label})=>({slug,label})), availableDishCount:readiness.counts.available, lastUpdatedAt, databaseError: !currentEventRead.ok || !previousEventRead.ok, truncated: (currentEventRead.ok && currentEventRead.truncated) || (previousEventRead.ok && previousEventRead.truncated), partialSource: !categoriesResult.ok || !dishesResult.ok }) } };
+  return { ok: true, data: { ...result.data, analytics: buildAdminAnalyticsState({ observationWindow: window, observedAt, events:currentEvents, previousEvents, analyticsScope:{restaurantId,menuId:selectedMenu.id,source:"production",metricDefinition:"all-events-v1"}, selectedMenuCategories:categories.map(({slug,label})=>({slug,label})), availableDishCount:readiness.counts.available, lastUpdatedAt, databaseError: !currentEventRead.ok || !previousEventRead.ok, truncated: (currentEventRead.ok && currentEventRead.truncated) || (previousEventRead.ok && previousEventRead.truncated), partialSource: result.partialSource }) } };
 }
