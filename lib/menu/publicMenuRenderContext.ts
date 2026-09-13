@@ -1,5 +1,6 @@
 import "server-only";
 
+import { readSupabaseRowsByFilters } from "@/lib/analytics/serverRows";
 import { getExchangeRates } from "@/lib/currency/exchangeRates";
 import type { MenuExchangeRates } from "@/lib/currency/formatMenuPrice";
 import { type Locale } from "@/lib/i18n";
@@ -34,7 +35,7 @@ import {
   type PublicMenuLocale
 } from "@/lib/menu/publicMenuSettings";
 import { resolvePublicMenuUiConfig } from "@/lib/menu/trouvableMenuExperience";
-import { getSupabaseAdminClient } from "@/utils/supabase/admin";
+import { PUBLIC_MENU_PROJECTIONS } from "@/lib/menu/menuSchemaProjections";
 
 export type PublicMenuRenderQuery = {
   lang?: string;
@@ -86,25 +87,20 @@ async function getPublishedMenuUiConfigForRestaurantWithReadState(
 ): Promise<PublishedMenuUiConfigLoad> {
   const fallbackRecord = () =>
     defaultMenuUiConfigRecord({ restaurantId, config: fallbackConfig });
-  const admin = getSupabaseAdminClient();
-
-  if (!admin.ok) {
+  // The published partial unique index permits one row per restaurant.
+  // Keep this query identical to the public menu loader for request deduping.
+  const result = await readSupabaseRowsByFilters<MenuUiConfigRow>({
+    table: "menu_ui_configs",
+    columns: PUBLIC_MENU_PROJECTIONS.uiConfigs,
+    filters: { restaurant_id: restaurantId, status: "published" },
+    orderBy: "id",
+    limit: 1
+  });
+  if (!result.ok) {
     return { record: fallbackRecord(), readState: "unavailable" };
   }
 
-  const { data, error } = await admin.client
-    .from("menu_ui_configs")
-    .select("*")
-    .eq("restaurant_id", restaurantId)
-    .eq("status", "published")
-    .order("updated_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-
-  if (error) {
-    return { record: fallbackRecord(), readState: "unavailable" };
-  }
-
+  const data = result.rows[0];
   if (!data) {
     return { record: fallbackRecord(), readState: "not-found" };
   }

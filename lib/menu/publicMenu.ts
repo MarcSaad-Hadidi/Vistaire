@@ -716,7 +716,7 @@ async function getPublicMenuBySlugUncached(
       dependencies.readRows<PublicMenuRow>({ table: "menus", columns: MENU_PROJECTIONS.menus, fallbackColumns: MENU_PROJECTIONS.legacyMenus, filters: { restaurant_id: restaurantId }, orderBy: "id", limit: 500, fallbackOrderBy: "id" }),
       dependencies.readRows<PublicMenuRow>({ table: "menu_categories", columns: MENU_PROJECTIONS.menuCategories, filters: { restaurant_id: restaurantId }, orderBy: ["display_order", "id"], limit: 1_000 }),
       readDishRows(dependencies.readRows, { restaurant_id: restaurantId }),
-      dependencies.readRows<PublicMenuRow>({ table: "menu_ui_configs", columns: PUBLIC_UI_CONFIG_COLUMNS, filters: { restaurant_id: restaurantId }, orderBy: "id", limit: 1_000 })
+      dependencies.readRows<PublicMenuRow>({ table: "menu_ui_configs", columns: PUBLIC_UI_CONFIG_COLUMNS, filters: { restaurant_id: restaurantId, status: "published" }, orderBy: "id", limit: 1 })
     ]);
     if (!menusResult.ok || !categoriesResult.ok || !dishesResult.ok) {
       return { status: "temporarily_unavailable" };
@@ -729,11 +729,16 @@ async function getPublicMenuBySlugUncached(
       });
       if (legacyDishesResult.ok) dishRows = legacyDishesResult.rows;
     }
-    const legacyMenuLanguages = uiConfigsResult.ok
-      ? findLegacyMenuLanguages(uiConfigsResult.rows, restaurantId)
+    // Match the renderer's public query so Next deduplicates its transport.
+    // Only restaurants without a published row need legacy draft languages.
+    const settingsUiConfigsResult = uiConfigsResult.ok && uiConfigsResult.rows.length === 0
+      ? await dependencies.readRows<PublicMenuRow>({ table: "menu_ui_configs", columns: PUBLIC_UI_CONFIG_COLUMNS, filters: { restaurant_id: restaurantId }, orderBy: "id", limit: 1_000 })
+      : uiConfigsResult;
+    const legacyMenuLanguages = settingsUiConfigsResult.ok
+      ? findLegacyMenuLanguages(settingsUiConfigsResult.rows, restaurantId)
       : undefined;
-    const legacyPublicMenuSettings = uiConfigsResult.ok
-      ? publicMenuSettingsFallbackFromUiConfigRows(uiConfigsResult.rows, restaurantId, {
+    const legacyPublicMenuSettings = settingsUiConfigsResult.ok
+      ? publicMenuSettingsFallbackFromUiConfigRows(settingsUiConfigsResult.rows, restaurantId, {
           includeDraft: false
         }) ?? undefined
       : undefined;

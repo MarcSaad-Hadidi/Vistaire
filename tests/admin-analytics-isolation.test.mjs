@@ -163,8 +163,9 @@ test("public menus scope every Supabase read and keep local demos out of product
     { table: "menus", filters: { restaurant_id: "restaurant-1" } },
     { table: "menu_categories", filters: { restaurant_id: "restaurant-1" } },
     { table: "menu_dishes", filters: { restaurant_id: "restaurant-1" } },
-    { table: "menu_ui_configs", filters: { restaurant_id: "restaurant-1" } },
-    { table: "menu_dishes", filters: { restaurant_slug: "chez-vistaire" } }
+    { table: "menu_ui_configs", filters: { restaurant_id: "restaurant-1", status: "published" } },
+    { table: "menu_dishes", filters: { restaurant_slug: "chez-vistaire" } },
+    { table: "menu_ui_configs", filters: { restaurant_id: "restaurant-1" } }
   ]);
 
   const unavailable = async () => ({ ok: false, error: "database unavailable", rows: [] });
@@ -247,6 +248,46 @@ test("admin dashboard fails closed when the scoped menu lookup fails", async () 
 
   assert.deepEqual(result, { ok: false, reason: "menu-lookup-failed" });
   assert.deepEqual(calls, ["restaurants", "menus"]);
+});
+
+test("availability loads the same scoped menu without reading discarded analytics", async () => {
+  const { loadAdminMenuDataWithDependencies, loadAdminDashboardDataWithDependencies } = await import("../lib/admin/dashboardData.ts");
+  const calls = [];
+  let eventReads = 0;
+  let clockReads = 0;
+  const dependencies = {
+    readRows: async ({ table, filters }) => {
+      calls.push({ table, filters });
+      if (table === "restaurants") return { ok: true, rows: [{ id: "restaurant-1", name: "Chez Vistaire", slug: "chez-vistaire" }] };
+      if (table === "menus") return { ok: true, rows: [{ id: "menu-1", status: "published", is_primary: true }] };
+      if (table === "menu_categories") return { ok: true, rows: [{ id: "cat-1", restaurant_id: "restaurant-1", menu_id: "menu-1", name: "Plats", slug: "plats" }] };
+      if (table === "menu_dishes") return { ok: true, rows: [{ id: "dish-1", restaurant_id: "restaurant-1", menu_id: "menu-1", category_id: "cat-1", name: "Plat du jour", price_cents: 2400, is_available: false }] };
+      throw new Error(`unexpected table: ${table}`);
+    },
+    readEvents: async () => {
+      eventReads += 1;
+      return { ok: true, rows: [], truncated: false };
+    },
+    now: () => { clockReads += 1; return new Date("2026-07-10T12:00:00.000Z"); }
+  };
+  const availability = await loadAdminMenuDataWithDependencies("restaurant-1", dependencies);
+  assert.equal(availability.ok, true);
+  assert.equal(eventReads, 0);
+  assert.equal(clockReads, 0);
+  assert.equal(Object.hasOwn(availability.data, "analytics"), false);
+  assert.equal(availability.data.menu.dishes.length, 1);
+  assert.equal(availability.data.menu.dishes[0].available, false);
+  assert.deepEqual(calls, [
+    { table: "restaurants", filters: { id: "restaurant-1" } },
+    { table: "menus", filters: { restaurant_id: "restaurant-1" } },
+    { table: "menu_categories", filters: { restaurant_id: "restaurant-1", menu_id: "menu-1" } },
+    { table: "menu_dishes", filters: { restaurant_id: "restaurant-1", menu_id: "menu-1" } }
+  ]);
+  const dashboard = await loadAdminDashboardDataWithDependencies("restaurant-1", "today-utc", dependencies);
+  assert.equal(dashboard.ok, true);
+  assert.equal(eventReads, 2);
+  assert.equal(clockReads, 1);
+  assert.deepEqual({ restaurant: dashboard.data.restaurant, menu: dashboard.data.menu }, availability.data);
 });
 
 test("Maison Elysee preview does not substitute fictional analytics", async () => {
