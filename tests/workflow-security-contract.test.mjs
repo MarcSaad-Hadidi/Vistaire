@@ -100,8 +100,8 @@ test("Vercel cleanup apply removes only an eligible stale preview after producti
     if (parsed.hostname === "api.vercel.com" && parsed.pathname === "/v7/deployments") {
       return new Response(JSON.stringify({
         deployments: [
-          { uid: "preview", projectId: "prj_vistaire", target: null, readyState: "READY", createdAt: 0, meta: { githubCommitRef: "closed/pr", githubCommitSha: "abc" } },
-          { uid: "prod", projectId: "prj_vistaire", target: "production", readyState: "READY", createdAt: 0, meta: { githubCommitRef: "main", githubCommitSha: "def" } },
+          { uid: "preview", projectId: "prj_vistaire", target: null, readyState: "READY", createdAt: 0, meta: { githubCommitRef: "closed/pr", githubCommitSha: "abc", githubCommitOrg: "MarcSaad-Hadidi", githubCommitRepo: "Vistaire" } },
+          { uid: "prod", projectId: "prj_vistaire", target: "production", readyState: "READY", createdAt: 0, meta: { githubCommitRef: "main", githubCommitSha: "def", githubCommitOrg: "MarcSaad-Hadidi", githubCommitRepo: "Vistaire" } },
         ],
         pagination: { next: null },
       }), { status: 200 });
@@ -111,7 +111,7 @@ test("Vercel cleanup apply removes only an eligible stale preview after producti
       return new Response(JSON.stringify({ domains: [{ name: "vistaire.ca", projectId: "prj_vistaire", verified: true }], pagination: { next: null } }), { status: 200 });
     }
     if (parsed.hostname === "api.vercel.com" && parsed.pathname === "/v2/deployments/preview/aliases") {
-      return new Response(JSON.stringify({ aliases: [{ alias: "preview-unique.vercel.app", uid: "alias-preview", created: "2026-09-12T00:00:00Z" }] }), { status: 200 });
+      return new Response(JSON.stringify({ aliases: [{ alias: "preview-unique.vercel.app", uid: "alias-preview", created: "2026-09-12T00:00:00Z" }], pagination: { next: null } }), { status: 200 });
     }
     if (parsed.hostname === "api.vercel.com" && parsed.pathname === "/v13/deployments/preview") {
       return new Response(JSON.stringify({ uid: "preview", state: "DELETED" }), { status: 200 });
