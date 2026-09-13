@@ -39,14 +39,25 @@ function gitSha(deployment) {
   return text(deployment?.meta?.githubCommitSha);
 }
 
+function gitRepository(deployment) {
+  const org = text(deployment?.meta?.githubCommitOrg);
+  const repo = text(deployment?.meta?.githubCommitRepo);
+  return org && repo ? `${org}/${repo}`.toLowerCase() : null;
+}
+
+function pullRequestRepository(pullRequest) {
+  return text(pullRequest?.head?.repo?.full_name)?.toLowerCase() ?? null;
+}
+
 function normalizeOpenPullRequests(openPullRequests) {
   const result = [];
   for (const pullRequest of openPullRequests ?? []) {
     if (pullRequest?.state !== "open") continue;
     const branch = text(pullRequest?.head?.ref);
     const sha = text(pullRequest?.head?.sha);
-    if (!branch || !sha || !Number.isInteger(pullRequest?.number)) continue;
-    result.push({ number: pullRequest.number, branch, sha });
+    const repository = pullRequestRepository(pullRequest);
+    if (!branch || !sha || !repository || !Number.isInteger(pullRequest?.number)) continue;
+    result.push({ number: pullRequest.number, branch, sha, repository });
   }
   return result;
 }
@@ -57,11 +68,13 @@ function normalizeClosedPullRequests(closedPullRequests) {
     if (pullRequest?.state !== "closed") continue;
     const branch = text(pullRequest?.head?.ref);
     const sha = text(pullRequest?.head?.sha);
-    if (!branch || !sha || !Number.isInteger(pullRequest?.number)) continue;
+    const repository = pullRequestRepository(pullRequest);
+    if (!branch || !sha || !repository || !Number.isInteger(pullRequest?.number)) continue;
     result.push({
       number: pullRequest.number,
       branch,
       sha,
+      repository,
       closedAt: isoTimestamp(pullRequest?.closed_at),
     });
   }
@@ -71,10 +84,12 @@ function normalizeClosedPullRequests(closedPullRequests) {
 function matchPullRequest(deployment, pullRequests) {
   const branch = gitBranch(deployment);
   const sha = gitSha(deployment);
-  if (!branch || !sha) return null;
-  const shaMatch = pullRequests.find((pullRequest) => pullRequest.sha === sha);
+  const repository = gitRepository(deployment);
+  if (!branch || !sha || !repository) return null;
+  const sameRepository = pullRequests.filter((pullRequest) => pullRequest.repository === repository);
+  const shaMatch = sameRepository.find((pullRequest) => pullRequest.sha === sha);
   if (shaMatch) return shaMatch;
-  return pullRequests.find((pullRequest) => pullRequest.branch === branch) ?? null;
+  return sameRepository.find((pullRequest) => pullRequest.branch === branch) ?? null;
 }
 
 function newerDeployment(left, right) {
@@ -107,7 +122,7 @@ export function classifyDeployments({
   for (const deployment of deployments) {
     if (deployment?.projectId !== expectedProjectId) continue;
     if (deployment?.target !== null) continue;
-    if (!text(deployment?.uid) || !gitBranch(deployment) || !gitSha(deployment)) continue;
+    if (!text(deployment?.uid) || !gitBranch(deployment) || !gitSha(deployment) || !gitRepository(deployment)) continue;
     if (timestamp(deployment?.createdAt ?? deployment?.created) === null) continue;
     const pullRequest = matchPullRequest(deployment, normalizedOpenPullRequests);
     if (!pullRequest) continue;
@@ -134,6 +149,8 @@ export function classifyDeployments({
       decision = { uid, action: "keep", reason: "missing-git-branch" };
     } else if (!gitSha(deployment)) {
       decision = { uid, action: "keep", reason: "missing-git-sha" };
+    } else if (!gitRepository(deployment)) {
+      decision = { uid, action: "keep", reason: "missing-git-repository" };
     } else if (String(deployment?.readySubstate ?? "").toUpperCase() === "PROMOTED") {
       decision = { uid, action: "keep", reason: "promoted-preview" };
     } else {
