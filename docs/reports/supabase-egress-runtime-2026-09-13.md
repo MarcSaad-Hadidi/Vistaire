@@ -31,6 +31,7 @@ Storage occupancy is not egress. Browser response bytes are not automatically Su
 | `tests/public-menu-request-reads.test.mjs` | Exercise real Supabase SDK plus Next dedupe fetch under React server rendering; assert count, projection, locales, tenant isolation, fresh requests, legacy fallback and failure behavior |
 | `tests/admin-analytics-isolation.test.mjs` | Assert identical menu data with no analytics reads; retain scoped public-query assertions |
 | `tests/admin-availability.test.mjs` | Update the loader-name contract while preserving access and mutation assertions |
+| `tests/demo-restaurant-experiences-contract.test.mjs` | Adapt the existing source assertion to the rows-helper syntax; continue requiring the restaurant-scoped published filter |
 | `package.json` | Run the new regression test in the existing Supabase suite already used by CI; no dependency or lockfile change |
 | This report | Publish sanitized measurements, limitations, backfill gate and rollout instructions |
 
@@ -122,6 +123,8 @@ Installation: `npm ci --no-audit --no-fund`, 591 packages, lockfile unchanged. C
 - Existing Sauge 3D state-reset suite: 4/4 passed after correction, at 390/430 in Chromium/WebKit.
 - Existing `ar-renderer-handoff.spec.ts`: 1/1 passed in Chromium with Android user-agent simulation; copy-only fallback after explicit 3D opening remained functional. This is not physical-device AR validation.
 - Independent final code review: no P0/P1/P2 findings. The orchestrator also read the integrated diff directly.
+
+The first remote CI run passed build, database contracts, security, and the Supabase/Admin suites, then caught a landing source-contract assertion still expecting the former `.eq("status", "published")` syntax. It was updated to require the equivalent helper filter **including restaurant scope**; the assertion was preserved, not deleted. The final PR records the replacement head and check results.
 
 The bare `npm run test:e2e` was not run as an exhaustive suite. Existing targeted specs were run directly through the installed Playwright CLI to reuse the already-running production fixture server: the normal wrapper tried to bind that same fixture port and failed EADDRINUSE. Initial sandbox browser launch failed EPERM; the authorized execution with cache access succeeded. The temporary Admin probe's first run used an incorrect accessible-name selector for a status message; verifying its actual text fixed only the private probe. No production or existing E2E assertion was changed.
 
