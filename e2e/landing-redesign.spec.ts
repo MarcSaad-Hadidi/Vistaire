@@ -1,4 +1,5 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
+import { privacyRejectedStorageState } from "./support/privacy-consent";
 
 const MODEL_REQUEST_RE =
   /\.(?:glb|usdz)(?:$|[?#])|\/model\/(?:glb|usdz)(?:$|[/?#])|model-viewer|babylon|three(?:\.module)?(?:\.min)?\.js|raw\.githubusercontent\.com|\/api\/.*(?:convert|conversion)/i;
@@ -1104,6 +1105,9 @@ test.describe("Vistaire landing redesign", () => {
       hasTouch: true,
       isMobile: true,
       locale: "fr-CA",
+      storageState: privacyRejectedStorageState(
+        process.env.PLAYWRIGHT_BASE_URL ?? "http://127.0.0.1:3000"
+      ),
       viewport: { width: 390, height: 844 }
     });
     const page = await context.newPage();

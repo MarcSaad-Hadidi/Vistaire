@@ -1,5 +1,9 @@
 "use client";
 
+import {
+  hasAnalyticsConsent,
+  VISTAIRE_ANALYTICS_SESSION_KEY
+} from "../privacy/consent.ts";
 import type {
   AnalyticsEventName,
   AnalyticsEventPayload
@@ -12,7 +16,7 @@ type TrackMenuEventInput = Partial<
   source?: AnalyticsEventPayload["source"];
 };
 
-const SESSION_KEY = "vistaire.analytics.sessionId.v1";
+const SESSION_KEY = VISTAIRE_ANALYTICS_SESSION_KEY;
 const DEMO_RESTAURANT_ID =
   process.env.NEXT_PUBLIC_DEMO_RESTAURANT_ID ??
   "11111111-1111-1111-1111-111111111111";
@@ -89,6 +93,8 @@ function getViewport(): AnalyticsEventPayload["viewport"] {
 
 export function trackMenuEvent(input: TrackMenuEventInput): void {
   if (typeof window === "undefined") return;
+  if (!hasAnalyticsConsent()) return;
+
   const source = input.source ?? "demo";
   const restaurantId =
     input.restaurantId ?? (source === "demo" ? DEMO_RESTAURANT_ID : undefined);
