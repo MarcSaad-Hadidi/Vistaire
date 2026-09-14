@@ -144,19 +144,19 @@
     }
   },
   "devDependencies": {
-    "@eslint/eslintrc": "^3.3.6",
-    "@playwright/test": "^1.62.1",
+    "@eslint/eslintrc": "^3.3.7",
+    "@playwright/test": "^1.63.0",
     "@tailwindcss/postcss": "^4.3.3",
-    "@types/node": "^26.4.0",
+    "@types/node": "^26.4.1",
     "@types/qrcode": "^1.5.6",
     "@types/react": "^19.2.18",
-    "@types/react-dom": "^19.2.5",
-    "autoprefixer": "^10.5.4",
-    "eslint": "9.39.5",
+    "@types/react-dom": "^19.2.7",
+    "autoprefixer": "^10.5.5",
+    "eslint": "10.10.0",
     "eslint-config-next": "^16.3.4",
-    "postcss": "^8.5.26",
+    "postcss": "^8.5.28",
     "tailwindcss": "^4.3.3",
-    "three": "0.183.2",
-    "typescript": "6.0.3"
+    "three": "0.185.1",
+    "typescript": "7.0.2"
   }
 }
