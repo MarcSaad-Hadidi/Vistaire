@@ -78,6 +78,13 @@ The measured Model Lab NFT manifest fell from 15,133 entries /
 only a nested meshoptimizer copy under the CLI directory, not the CLI itself.
 These are local trace sums, including duplicate manifest entries, not deployed
 compressed function sizes. The final integration measurement is authoritative.
+
+Integration, using the same worktree and clean npm install as the baseline,
+measured 612 entries / 26,991,979 bytes for Model Lab (-79.84%). Meshy measured
+15,228 entries / 135,461,062 bytes for GLB and 135,460,812 bytes for publish:
+only the 2,885-byte Model Lab worker is removed from those routes. This
+installation contains the same platform optional packages as the baseline;
+the isolated worktree figures below are not used as the before/after claim.
 The second build after the final clean npm install reproduced these figures.
 
 The local Meshy trace grew because this installation contains optional Sharp
