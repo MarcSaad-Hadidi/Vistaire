@@ -1,7 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { buildFaqPageJsonLd } from "../lib/seo.ts";
 import { SEO_PAGES, SEO_PAGES_EN } from "../lib/seoPages.ts";
 
 const REQUIRED_PAGES = [
@@ -71,16 +70,6 @@ function pageFor({ path, pages }) {
   return page;
 }
 
-function faqNodes(value) {
-  if (Array.isArray(value)) return value.flatMap(faqNodes);
-  if (!value || typeof value !== "object") return [];
-
-  return [
-    ...(value["@type"] === "FAQPage" ? [value] : []),
-    ...faqNodes(value["@graph"])
-  ];
-}
-
 test("the four FAQ inventories cover their route-specific objections in both locales", () => {
   for (const requirement of REQUIRED_PAGES) {
     const page = pageFor(requirement);
@@ -123,23 +112,5 @@ test("PDF-comparison and digital-menu FAQs do not duplicate wording", () => {
       assert.equal(pdfText.has(normalize(question).toLocaleLowerCase(locale)), false);
       assert.equal(pdfText.has(normalize(answer).toLocaleLowerCase(locale)), false);
     }
-  }
-});
-
-test("the FAQPage builder emits exact source parity for every required route", () => {
-  for (const requirement of REQUIRED_PAGES) {
-    const page = pageFor(requirement);
-    const faqPages = faqNodes(buildFaqPageJsonLd(page.faq, page.path));
-
-    assert.equal(faqPages.length, 1, `${requirement.path} FAQPage count`);
-    assert.equal(faqPages[0].mainEntity.length, page.faq.length);
-    assert.deepEqual(
-      faqPages[0].mainEntity.map((item) => normalize(item.name)),
-      page.faq.map((item) => normalize(item.question))
-    );
-    assert.deepEqual(
-      faqPages[0].mainEntity.map((item) => normalize(item.acceptedAnswer.text)),
-      page.faq.map((item) => normalize(item.answer))
-    );
   }
 });

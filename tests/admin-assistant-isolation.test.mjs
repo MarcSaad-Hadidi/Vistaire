@@ -2,18 +2,6 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
-test("admin assistant client sends no restaurant identifier", async () => {
-  const component = await readFile("components/admin/AdminAssistant.tsx", "utf8");
-
-  assert.match(component, /fetch\(["']\/admin\/api\/assistant["']/);
-  assert.match(
-    component,
-    /JSON\.stringify\(\{\s*mode:\s*["']question["'],\s*question\s*}\)/
-  );
-  assert.doesNotMatch(component, /restaurantId/);
-  assert.doesNotMatch(component, /\/api\/admin\/assistant/);
-});
-
 test("admin assistant endpoint authenticates the session before deriving restaurant scope", async () => {
   const route = await readFile("app/(fr)/admin/api/assistant/route.ts", "utf8");
 

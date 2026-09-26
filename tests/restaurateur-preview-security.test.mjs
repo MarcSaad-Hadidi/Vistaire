@@ -41,7 +41,6 @@ const allowedAdminComponentModules = new Set([
   "components/admin/charts/ChartFrame",
   "components/admin/charts/Charts.module.css",
   "components/admin/charts/ComparisonLineChart",
-  "components/admin/charts/InteractiveBars",
   "components/admin/charts/InteractiveDonut",
   "components/admin/charts/InteractiveHeatmap",
   "components/admin/charts/InteractiveLineChart",
