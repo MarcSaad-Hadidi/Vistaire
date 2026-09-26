@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import { SmoothScrollProvider } from "@/components/SmoothScrollProvider";
-import { DemoSimulationProvider } from "@/components/menu/DemoSimulationContext";
 import { absoluteUrl } from "@/lib/seo";
 
 export const metadata: Metadata = {
@@ -36,7 +35,7 @@ export default function DemoLayout({
 }>) {
   return (
     <SmoothScrollProvider>
-      <DemoSimulationProvider>{children}</DemoSimulationProvider>
+      {children}
     </SmoothScrollProvider>
   );
 }

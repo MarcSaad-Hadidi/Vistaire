@@ -138,16 +138,6 @@ export function getDishCardImageObjectPosition(dish: Dish): string {
   );
 }
 
-/** Cadrage hero fiche plat. */
-export function getDishDetailImageObjectPosition(dish: Dish): string {
-  return (
-    dish.imageObjectPositionDetail ??
-    dish.imageObjectPosition ??
-    DEFAULT_IMAGE_FOCUS[dish.categorySlug] ??
-    "center 44%"
-  );
-}
-
 const DISHES: Dish[] = [
   {
     id: "dish-1",
@@ -841,12 +831,6 @@ export function getDishesByCategorySlug(
   locale: Locale = "fr"
 ): Dish[] {
   return DISHES.filter((dish) => dish.categorySlug === categorySlug).map((dish) =>
-    localizeDish(dish, locale)
-  );
-}
-
-export function getSignatureDishes(locale: Locale = "fr"): Dish[] {
-  return DISHES.filter((dish) => dish.isSignature).map((dish) =>
     localizeDish(dish, locale)
   );
 }
