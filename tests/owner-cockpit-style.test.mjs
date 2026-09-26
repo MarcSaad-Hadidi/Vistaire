@@ -8,10 +8,10 @@ function readRepoFile(...segments) {
 }
 
 test("owner area uses the studio shell and a simple restaurant portfolio", () => {
-  const layout = readRepoFile("app", "owner", "layout.tsx");
-  const overview = readRepoFile("app", "owner", "page.tsx");
+  const layout = readRepoFile("app", "(fr)", "owner", "layout.tsx");
+  const overview = readRepoFile("app", "(fr)", "owner", "page.tsx");
   const restaurantDashboard = readRepoFile("components", "owner", "OwnerRestaurantDashboard.tsx");
-  const restaurantMedias = readRepoFile("app", "owner", "restaurants", "[restaurantId]", "medias", "page.tsx");
+  const restaurantMedias = readRepoFile("app", "(fr)", "owner", "restaurants", "[restaurantId]", "medias", "page.tsx");
   const mediaManager = readRepoFile("components", "owner", "OwnerRestaurantMediaManager.tsx");
   const nav = readRepoFile("lib", "owner", "nav.ts");
   const shell = readRepoFile("components", "owner", "OwnerShell.tsx");

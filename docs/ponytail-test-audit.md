@@ -344,3 +344,9 @@ Independent review found no P0/P1 and one P2: E2E keyboard coverage did not repl
 No local server, browser, build, PostgreSQL suite or full Node rerun was started here: the orchestrator owns the live fixtures and complete validation of the consolidated revision. The 14 original Node failures remain explicitly recorded; no production changes were made to hide them. The orchestrator's additional baseline reports include WebKit 32 pass/two preview timeouts and admin 14 pass/nine failures/two skipped (old selectors/timeouts and absent full-menu scenarios); all corresponding live admin source mirrors were retained.
 
 No `.next`, `test-results`, `playwright-report`, screenshots, traces or debug files were generated. No secret, media asset, migration, runtime code, package file or CI file was added or modified. Validation logs live outside the repository in the system temporary directory.
+
+## Separately authorized baseline path repair
+
+After the two audit lots, the orchestrator authorized correcting stale filesystem paths in `owner-3d-ar-pipeline.test.mjs`, `owner-3d-visual-review.test.mjs` and `owner-cockpit-style.test.mjs`. Their existing route checks still addressed `app/owner`, although the inspected pages live under the `(fr)` route group. Only those path segments changed; all assertions remain intact and public URLs remain unchanged. These three suites remain KEEP in the baseline inventory because no coverage was removed.
+
+`node --test tests/owner-3d-ar-pipeline.test.mjs tests/owner-3d-visual-review.test.mjs tests/owner-cockpit-style.test.mjs`: before, 10 passed/four failed (207.729 ms); after, 14 passed/zero failed (201.536 ms). This repairs four pre-existing test failures, not product behavior. Two additional path-array lines make the final test/helper reduction 1,120 lines. No additional browser run or build is needed for path literals; consolidated validation remains with the orchestrator.
