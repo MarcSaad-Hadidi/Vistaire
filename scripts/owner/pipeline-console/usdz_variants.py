@@ -43,24 +43,28 @@ TEXTURE_MAX_PX = 1024
 JPEG_QUALITY = 65
 
 # Script Blender exécuté en headless : import USD, normalisation d'échelle
-# physique selon le type de plat (même contrat que le pipeline du repo),
-# décimation Collapse, export USD.
+# physique selon le type de plat, décimation Collapse, export USD.
 # Écrit dans un fichier temporaire à chaque appel (module = un seul fichier).
-# Table DISH_PHYSICAL_SCALE_TARGETS recopiée de
-# scripts/owner/optimize-restaurant-usdz.mjs (ne pas faire diverger).
+# Table et logique recopiées de scripts/owner/blender_usdz_geometry_optimizer.py
+# (DISH_SCALE_TARGETS) : on ne met à l'échelle que si la dimension mesurée
+# sort de [minMeters, maxMeters], vers targetMeters ; type inconnu -> "fallback".
 _BLENDER_SCRIPT = r'''
 import bpy, sys, os, mathutils
 args = sys.argv[sys.argv.index('--') + 1:]
 inp, outdir, ratio, dish_kind = args[0], args[1], float(args[2]), args[3]
 TARGETS = {
-    "burger": ("footprint", 0.11), "plate": ("footprint", 0.27),
-    "bowl": ("footprint", 0.18), "drink": ("height", 0.14),
-    "dessert": ("footprint", 0.12), "small_plate": ("footprint", 0.19),
-    "shareable": ("footprint", 0.30), "default": ("footprint", 0.27),
+    "burger": ("height", 0.15, 0.10, 0.22),
+    "pizza": ("footprint", 0.32, 0.22, 0.40),
+    "plate": ("footprint", 0.26, 0.18, 0.34),
+    "bowl": ("footprint", 0.18, 0.12, 0.25),
+    "dessert": ("footprint", 0.12, 0.08, 0.18),
+    "drink": ("height", 0.18, 0.12, 0.25),
+    "platter": ("footprint", 0.32, 0.22, 0.45),
+    "fallback": ("footprint", 0.20, 0.10, 0.35),
 }
 bpy.ops.wm.read_factory_settings(use_empty=True)
 bpy.ops.wm.usd_import(filepath=inp)
-def _bbox_world():
+def _bounds():
     xs, ys, zs = [], [], []
     for o in bpy.data.objects:
         if o.type != 'MESH':
@@ -69,25 +73,34 @@ def _bbox_world():
         for c in o.bound_box:
             w = m @ mathutils.Vector(c)
             xs.append(w.x); ys.append(w.y); zs.append(w.z)
-    return xs, ys, zs
-# Normalisation : empreinte (max X/Y) ou hauteur (Z) -> taille cible en mètres,
-# puis ancrage au sol (Z min = 0) et centrage X/Y.
-dim, target = TARGETS.get(dish_kind, TARGETS["default"])
-xs, ys, zs = _bbox_world()
-if xs:
+    if not xs:
+        return None
     dx, dy, dz = max(xs) - min(xs), max(ys) - min(ys), max(zs) - min(zs)
-    ref = dz if dim == "height" else max(dx, dy)
-    if ref > 0:
-        s = target / ref
-        roots = [o for o in bpy.data.objects if o.parent is None]
+    return {"dx": dx, "dy": dy, "dz": dz,
+            "footprint": max(dx, dy), "height": dz,
+            "cx": (max(xs) + min(xs)) / 2, "cy": (max(ys) + min(ys)) / 2,
+            "minZ": min(zs)}
+# Normalisation : même contrat que blender_usdz_geometry_optimizer.py.
+kind = dish_kind if dish_kind in TARGETS else "fallback"
+dim, target, min_m, max_m = TARGETS[kind]
+b = _bounds()
+if b and b[dim] > 0:
+    s = target / b[dim] if (b[dim] < min_m or b[dim] > max_m) else 1.0
+    roots = [o for o in bpy.data.objects if o.parent is None]
+    if s != 1.0:
         for o in roots:
             o.scale = (o.scale.x * s, o.scale.y * s, o.scale.z * s)
         bpy.context.view_layer.update()
-        xs, ys, zs = _bbox_world()
-        cx, cy, zmin = (max(xs) + min(xs)) / 2, (max(ys) + min(ys)) / 2, min(zs)
+        b = _bounds()
+    if b and (abs(b["cx"]) > 1e-4 or abs(b["cy"]) > 1e-4):
         for o in roots:
-            o.location = (o.location.x - cx, o.location.y - cy, o.location.z - zmin)
-        print(f"NORMALIZED dish={dish_kind} scale={s:.4f}", flush=True)
+            o.location = (o.location.x - b["cx"], o.location.y - b["cy"], o.location.z)
+        bpy.context.view_layer.update()
+        b = _bounds()
+    if b and abs(b["minZ"]) > 1e-4:
+        for o in roots:
+            o.location = (o.location.x, o.location.y, o.location.z - b["minZ"])
+        print(f"NORMALIZED dish={kind} scale={s:.4f}", flush=True)
 for obj in bpy.data.objects:
     if obj.type == 'MESH':
         mod = obj.modifiers.new(name="DecimateBatch", type='DECIMATE')
@@ -280,9 +293,10 @@ def main() -> int:
     ap.add_argument("--ratios", default=",".join(map(str, RATIOS_DEFAUT)),
                     help="Ratios séparés par des virgules (défaut : 0.5,0.25,0.15,0.10)")
     ap.add_argument("--dish-kind", default="plate",
-                    choices=["burger", "plate", "bowl", "drink", "dessert",
-                             "small_plate", "shareable", "default"],
-                    help="Type de plat pour la normalisation d'échelle physique")
+                    choices=["bowl", "burger", "dessert", "drink",
+                             "fallback", "pizza", "plate", "platter"],
+                    help="Type de plat pour la normalisation d'échelle physique "
+                         "(mêmes choix que le worker du repo)")
     args = ap.parse_args()
     try:
         ratios = [float(x) for x in args.ratios.split(",")]
