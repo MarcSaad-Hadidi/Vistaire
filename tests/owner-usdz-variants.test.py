@@ -1,4 +1,7 @@
 import importlib.util
+import os
+import shutil
+import sys
 from pathlib import Path
 import struct
 import tempfile
@@ -13,6 +16,13 @@ spec.loader.exec_module(variants)
 
 
 class VariantsTests(unittest.TestCase):
+    def test_configured_blender_command_is_resolved_on_path(self):
+        with tempfile.TemporaryDirectory() as temp:
+            executable = Path(temp) / ("blender-custom.exe" if os.name == "nt" else "blender-custom")
+            shutil.copy2(sys.executable, executable)
+            with patch.dict(os.environ, {"BLENDER_BIN": executable.stem if os.name == "nt" else executable.name, "PATH": temp}):
+                self.assertEqual(Path(variants.trouver_blender()), executable)
+
     def test_package_keeps_export_root_first_and_aligns_every_entry(self):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)

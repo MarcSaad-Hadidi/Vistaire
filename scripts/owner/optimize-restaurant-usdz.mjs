@@ -100,7 +100,8 @@ function parsePositiveInt(value, fallback) {
 
 function targetBudgetBytes(profile) {
   const envKey = `VISTAIRE_USDZ_${profile.toUpperCase()}_TARGET_BYTES`;
-  return parsePositiveInt(process.env[envKey], DEFAULT_PROFILE_BUDGETS[profile]);
+  const configuredBudget = profile === "variants" ? Number(variantProfileConfig()?.targetMaxBytes) : DEFAULT_PROFILE_BUDGETS[profile];
+  return parsePositiveInt(process.env[envKey], configuredBudget);
 }
 
 function profileRecipes(profile) {
@@ -580,6 +581,15 @@ async function runVariantsMode({ source, output, reportPath, dishKind, python, s
           recipe: recipe.slug,
           ok: false,
           error: candidate.attempt?.error || "échec de la variante"
+        });
+        continue;
+      }
+      const runtimeBytes = statSync(candidate.runtimePath).size;
+      if (!(runtimeBytes > 0 && runtimeBytes <= candidate.attempt.targetBytes)) {
+        variants.push({
+          recipe: recipe.slug,
+          ok: false,
+          error: `Variante au-dessus du budget : ${runtimeBytes} > ${candidate.attempt.targetBytes} octets.`
         });
         continue;
       }

@@ -142,7 +142,7 @@ def trouver_blender() -> str:
     env = os.environ.get("BLENDER_BIN")
     if env and os.path.isfile(env):
         return env
-    which = shutil.which("blender")
+    which = shutil.which(env or "blender")
     if which:
         return which
     raise RuntimeError(

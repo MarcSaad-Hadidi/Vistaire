@@ -36,6 +36,7 @@ const CONFIG = JSON.parse(readFileSync(join(ROOT, "config.json"), "utf8"));
 
 const HOST = process.env.CONSOLE_HOST || CONFIG.host || "127.0.0.1";
 const PORT = Number(process.env.CONSOLE_PORT || CONFIG.port || 8130);
+const URL_HOST = HOST.includes(":") ? `[${HOST}]` : HOST;
 const MAX_UPLOAD = 250 * 1024 * 1024;
 
 const VARIANTS_PY = resolve(ROOT, CONFIG.variantsScript || "./usdz_variants.py");
@@ -679,7 +680,7 @@ const server = createServer(async (req, res) => {
   res.setHeader("Referrer-Policy", "no-referrer");
   res.setHeader("X-Content-Type-Options", "nosniff");
   try {
-    const url = new URL(req.url, `http://${HOST}:${PORT}`);
+    const url = new URL(req.url, "http://localhost");
     const path = url.pathname;
 
     if (url.searchParams.get("token") !== TOKEN) {
@@ -734,7 +735,7 @@ const server = createServer(async (req, res) => {
 });
 
 server.listen(PORT, HOST, () => {
-  console.log(`Console pipeline USDZ → http://${HOST}:${server.address().port}/?token=${encodeURIComponent(TOKEN)}`);
+  console.log(`Console pipeline USDZ → http://${URL_HOST}:${server.address().port}/?token=${encodeURIComponent(TOKEN)}`);
   console.log(`TOKEN=${TOKEN}`);
 });
 

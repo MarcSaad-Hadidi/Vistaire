@@ -9,6 +9,8 @@ PORT="${CONSOLE_PORT:-$(node -p "require('./config.json').port || 8130")}"
 HOST="${CONSOLE_HOST:-$(node -p "require('./config.json').host || '127.0.0.1'")}"
 LOCAL_HOST="$HOST"
 case "$LOCAL_HOST" in 0.0.0.0|::) LOCAL_HOST=127.0.0.1 ;; esac
+URL_HOST="$LOCAL_HOST"
+case "$URL_HOST" in *:*) URL_HOST="[$URL_HOST]" ;; esac
 SERVER_PID=""
 LT_PID=""
 cleanup() {
@@ -43,7 +45,7 @@ if [ -z "$TOKEN_URL" ]; then
   exit 1
 fi
 
-echo "Console : http://$LOCAL_HOST:$PORT/?token=$TOKEN_URL"
+echo "Console : http://$URL_HOST:$PORT/?token=$TOKEN_URL"
 if [ "${CONSOLE_NO_TUNNEL:-0}" != "1" ]; then
   echo "Ouverture du tunnel public (l’URL contient votre accès privé)..."
   npx --yes localtunnel@2.0.2 --port "$PORT" --local-host "$LOCAL_HOST" > tunnel.log 2>&1 &

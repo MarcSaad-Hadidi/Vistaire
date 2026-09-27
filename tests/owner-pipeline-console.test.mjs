@@ -7,7 +7,7 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 
-async function consoleFixture(t, workerMode = "success") {
+async function consoleFixture(t, workerMode = "success", host = "127.0.0.1") {
   const root = mkdtempSync(join(tmpdir(), "vistaire-console-test-"));
   mkdirSync(join(root, "public"));
   mkdirSync(join(root, "repo/scripts/owner"), { recursive: true });
@@ -48,7 +48,7 @@ async function consoleFixture(t, workerMode = "success") {
     child = spawn(process.execPath, [join(root, "server.mjs")], {
       // Deliberately start outside ROOT: relative config paths must still work.
       cwd: tmpdir(),
-      env: { ...process.env, CONSOLE_PORT: "0", CONSOLE_HOST: "127.0.0.1",
+      env: { ...process.env, CONSOLE_PORT: "0", CONSOLE_HOST: host,
         CONSOLE_TOKEN: token, VISTAIRE_USDZ_PYTHON: "", VISTAIRE_USDZ_BLENDER: "",
         BLENDER_BIN: "", WORKER_MODE: workerMode },
       windowsHide: true,
@@ -57,8 +57,8 @@ async function consoleFixture(t, workerMode = "success") {
     child.stdout.on("data", (d) => { log += d; });
     child.stderr.on("data", (d) => { log += d; });
     for (let i = 0; i < 100; i++) {
-      const m = log.match(/http:\/\/127\.0\.0\.1:(\d+)\//);
-      if (m) { base = "http://127.0.0.1:" + m[1]; return; }
+      const m = log.match(/http:\/\/(?:127\.0\.0\.1|\[::1\]):\d+/);
+      if (m) { base = m[0]; return; }
       assert.equal(child.exitCode, null, log);
       await delay(30);
     }
@@ -147,4 +147,12 @@ test("console: rejects invalid inputs and surfaces optimizer failures without fa
   // Wait for the last worker so fixture cleanup cannot orphan a process.
   const jobs = (await (await c.request("/api/jobs")).json()).jobs;
   await c.finished(jobs.find((j) => j.status === "running").id);
+});
+
+test("console: IPv6 startup URL serves authenticated requests", async (t) => {
+  const c = await consoleFixture(t, "success", "::1");
+  assert.equal(new URL(c.base).hostname, "[::1]");
+  assert.equal((await fetch(c.base + "/api/jobs")).status, 401);
+  assert.equal((await c.request("/")).status, 200);
+  assert.deepEqual((await (await c.request("/api/jobs")).json()).jobs, []);
 });

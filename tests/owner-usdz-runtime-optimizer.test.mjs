@@ -109,6 +109,9 @@ if (mode.startsWith("variants-")) {
     ...(mode === "variants-no-reduction" ? { triangleCountAfter: 1000 } : {})
   });
   if (mode !== "variants-identical") appendFileSync(output, "variant");
+  if (mode === "variants-over-budget" && recipe === "variant-r10") {
+    appendFileSync(output, Buffer.alloc(16 * 1024 * 1024));
+  }
   if (mode === "variants-invalid-runtime" && recipe === "variant-r10") {
     writeFileSync(output, "invalid usdz");
   }
@@ -876,9 +879,10 @@ test("USDZ variants use relative targets and publish every validated candidate",
 });
 
 test("USDZ variants reject invalid geometry/packages and clean partial batches", () => {
-  for (const mode of ["variants-invalid-runtime", "variants-no-reduction", "variants-identical", "variants-probe-failure"]) {
-    const { result, reportJson, variantFiles } = runCliWithFakeWorker(mode, {}, "balanced", ["--variants"]);
+  for (const mode of ["variants-invalid-runtime", "variants-no-reduction", "variants-identical", "variants-probe-failure", "variants-over-budget"]) {
+    const { result, stderrJson, reportJson, variantFiles } = runCliWithFakeWorker(mode, {}, "balanced", ["--variants"]);
     assert.notEqual(result.status, 0, mode);
+    if (mode === "variants-over-budget") assert.match(stderrJson.variants.at(-1).error, /budget.*16777216/);
     assert.equal(reportJson, null, mode);
     assert.deepEqual(variantFiles, [], mode);
   }
