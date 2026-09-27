@@ -10,7 +10,7 @@ if [ -z "$BLENDER_BIN" ] && ! command -v blender >/dev/null 2>&1; then
   echo ""
 fi
 
-PORT=$(python3 -c "import json;print(json.load(open('config.json'))['port'])" 2>/dev/null || echo 8130)
+PORT="${CONSOLE_PORT:-$(python3 -c "import json;print(json.load(open('config.json'))['port'])" 2>/dev/null || echo 8130)}"
 
 # 1) console locale
 node server.mjs > console.log 2>&1 &

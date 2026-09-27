@@ -611,6 +611,7 @@ function handleJobs(res) {
       id: j.id,
       status: j.status,
       mode: j.mode,
+      profile: j.profile,
       fileName: j.fileName,
       dishKind: j.dishKind,
       createdAt: j.createdAt,

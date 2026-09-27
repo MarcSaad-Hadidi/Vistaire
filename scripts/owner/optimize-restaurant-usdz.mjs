@@ -590,8 +590,18 @@ async function runVariantsMode({ source, output, reportPath, dishKind, python, s
   } finally {
     rmSync(workspace, { recursive: true, force: true });
   }
+  const failed = variants.filter((v) => !v.ok);
+  if (failed.length > 0) {
+    // Échec partiel : on retire les fichiers copiés par CE batch pour ne
+    // pas laisser un mélange de sorties à jour et périmées dans outDir.
+    for (const v of variants) {
+      if (v.ok && v.file) {
+        rmSync(join(outDir, v.file), { force: true });
+      }
+    }
+  }
   const manifest = {
-    ok: true,
+    ok: failed.length === 0,
     mode: "variants",
     generatedAt: new Date().toISOString(),
     sourceBytes,
@@ -603,7 +613,6 @@ async function runVariantsMode({ source, output, reportPath, dishKind, python, s
   if (reportPath) {
     writeFileSync(reportPath, `${JSON.stringify(manifest, null, 2)}\n`, "utf8");
   }
-  const failed = variants.filter((v) => !v.ok);
   if (failed.length > 0) {
     emitError(
       `${failed.length} variante(s) en échec : ${failed.map((f) => f.recipe).join(", ")}`,

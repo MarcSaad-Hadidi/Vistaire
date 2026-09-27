@@ -511,7 +511,9 @@ async function refreshHistory() {
   box.innerHTML = "";
   if (!jobs.length) { box.innerHTML = '<div class="empty">Aucun lancement pour l\'instant.</div>'; return; }
   const choiceByJob = {};
-  choices.forEach((c) => (choiceByJob[c.jobId] = c.variant));
+  // /api/choices est trié du plus récent au plus ancien : on garde la
+  // première entrée par job (le choix le plus récent).
+  choices.forEach((c) => { if (!(c.jobId in choiceByJob)) choiceByJob[c.jobId] = c.variant; });
   jobs.slice(0, 8).forEach((j) => {
     const d = document.createElement("div");
     d.className = "hist-item";
@@ -519,7 +521,7 @@ async function refreshHistory() {
     const pillTxt = j.status === "done" ? "terminé" : j.status === "running" ? "en cours" : j.status;
     d.innerHTML = `
       <div><div>${esc(j.fileName)}</div>
-      <div class="meta">${j.mode === "variants" ? "4 variantes" : "profil " + esc(j.mode)} · ${esc(new Date(j.createdAt).toLocaleString("fr-FR"))}
+      <div class="meta">${j.mode === "variants" ? "4 variantes" : "profil " + esc(j.profile || j.mode)} · ${esc(new Date(j.createdAt).toLocaleString("fr-FR"))}
       ${choiceByJob[j.id] ? ` · choix : <b style="color:var(--gold)">${esc(choiceByJob[j.id])}</b>` : ""}</div></div>
       <span class="status-pill ${esc(pill)}">${esc(pillTxt)}</span>`;
     box.appendChild(d);
