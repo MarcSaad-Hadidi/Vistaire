@@ -81,6 +81,10 @@ def _bounds():
             "cx": (max(xs) + min(xs)) / 2, "cy": (max(ys) + min(ys)) / 2,
             "minZ": min(zs)}
 # Normalisation : même contrat que blender_usdz_geometry_optimizer.py.
+# Mise à l'échelle uniforme dans l'espace monde : pour un objet racine
+# (sans parent), monde(v) = loc + R @ (scale * v) ; multiplier loc ET scale
+# par s donne exactement s * monde(v), comme Matrix.Scale(s, 4) du pipeline
+# canonique (qui, lui, transforme les sommets directement).
 kind = dish_kind if dish_kind in TARGETS else "fallback"
 dim, target, min_m, max_m = TARGETS[kind]
 b = _bounds()
@@ -89,6 +93,7 @@ if b and b[dim] > 0:
     roots = [o for o in bpy.data.objects if o.parent is None]
     if s != 1.0:
         for o in roots:
+            o.location = (o.location.x * s, o.location.y * s, o.location.z * s)
             o.scale = (o.scale.x * s, o.scale.y * s, o.scale.z * s)
         bpy.context.view_layer.update()
         b = _bounds()
@@ -100,7 +105,17 @@ if b and b[dim] > 0:
     if b and abs(b["minZ"]) > 1e-4:
         for o in roots:
             o.location = (o.location.x, o.location.y, o.location.z - b["minZ"])
-        print(f"NORMALIZED dish={kind} scale={s:.4f}", flush=True)
+        bpy.context.view_layer.update()
+        b = _bounds()
+    # Validation : après une mise à l'échelle exacte dans l'espace monde,
+    # la dimension doit se trouver dans [min_m, max_m].
+    if b:
+        final = b["footprint"] if dim == "footprint" else b["height"]
+        if not (min_m * 0.999 <= final <= max_m * 1.001):
+            print(f"WARNING dish={kind} final {dim}={final:.4f}m hors "
+                  f"[{min_m},{max_m}]", flush=True)
+        else:
+            print(f"NORMALIZED dish={kind} scale={s:.4f}", flush=True)
 for obj in bpy.data.objects:
     if obj.type == 'MESH':
         mod = obj.modifiers.new(name="DecimateBatch", type='DECIMATE')

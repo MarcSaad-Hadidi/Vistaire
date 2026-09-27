@@ -154,10 +154,11 @@ function assertAllowedWorkerOrigin(origin) {
   }
 }
 
-function runPython(python, args) {
+function runPython(python, args, env) {
   return new Promise((resolvePromise) => {
     const child = spawn(python, [PYTHON_WORKER, ...args], {
       windowsHide: true,
+      env: env ? { ...process.env, ...env } : process.env,
       shell: process.platform === "win32" && /\.(?:cmd|bat)$/i.test(python)
     });
     let stdout = "";
@@ -179,6 +180,59 @@ function runPython(python, args) {
 
 function formatBytes(bytes) {
   return `${Math.max(0, Number(bytes) || 0)} B`;
+}
+
+// Exécute du code Python inline (sonde, pas le worker).
+function runPythonCode(python, code, args) {
+  return new Promise((resolvePromise) => {
+    const child = spawn(python, ["-c", code, ...args], {
+      windowsHide: true,
+      shell: process.platform === "win32" && /\.(?:cmd|bat)$/i.test(python)
+    });
+    let stdout = "";
+    let stderr = "";
+    child.stdout.on("data", (chunk) => {
+      stdout += chunk.toString();
+    });
+    child.stderr.on("data", (chunk) => {
+      stderr += chunk.toString();
+    });
+    child.on("error", (error) => {
+      resolvePromise({ code: -1, stdout, stderr: `${stderr}${error.message}` });
+    });
+    child.on("close", (code) => {
+      resolvePromise({ code: code ?? -1, stdout, stderr });
+    });
+  });
+}
+
+// Compte les triangles d'une scène USD avec la formule exacte du worker
+// (mesh_triangle_count dans optimize_restaurant_usdz.py).
+const COUNT_TRIANGLES_PY = `
+import sys
+from pxr import Usd, UsdGeom
+stage = Usd.Stage.Open(sys.argv[1])
+total = 0
+for prim in stage.Traverse():
+    if prim.IsA(UsdGeom.Mesh):
+        counts = UsdGeom.Mesh(prim).GetFaceVertexCountsAttr().Get() or []
+        for c in counts:
+            if c >= 3:
+                total += max(1, int(c) - 2)
+print(total)
+`;
+
+async function measureSourceTriangles(python, source) {
+  try {
+    const result = await runPythonCode(python, COUNT_TRIANGLES_PY, [source]);
+    const count = parseInt(String(result.stdout).trim(), 10);
+    if (result.code === 0 && Number.isInteger(count) && count > 0) {
+      return count;
+    }
+  } catch {
+    // sonde indisponible : on retombe sur les cibles absolues des recettes
+  }
+  return 0;
 }
 
 function profileLabel(profile) {
@@ -341,7 +395,7 @@ function parseWorkerReport(path) {
   return JSON.parse(readFileSync(path, "utf8"));
 }
 
-async function runCandidate({ python, source, workspace, profile, recipe, dishKind }) {
+async function runCandidate({ python, source, workspace, profile, recipe, dishKind, env }) {
   const recipeSlug = recipe?.slug || `${profile}-default`;
   const runtimePath = join(workspace, `runtime-${profile}-${recipeSlug}.usdz`);
   const reportPath = join(workspace, `report-${profile}-${recipeSlug}.json`);
@@ -359,7 +413,7 @@ async function runCandidate({ python, source, workspace, profile, recipe, dishKi
     recipeSlug,
     "--dish-kind",
     dishKind
-  ]);
+  ], env);
   const attempt = {
     profile,
     recipe: recipeSlug,
@@ -481,16 +535,32 @@ async function runVariantsMode({ source, output, reportPath, dishKind, python, s
   const base = basename(source).replace(/\.usdz$/i, "");
   const workspace = mkdtempSync(join(tmpdir(), "vistaire-usdz-variants-"));
   const variants = [];
+  // Les noms r50/r25/r15/r10 annoncent des ratios RELATIFS à la source.
+  // On mesure les triangles source (même formule que le worker) et on
+  // dérive chaque cible : le worker calcule min(cible/mesuré, decimateRatio),
+  // donc cible = ratio * mesuré produit exactement le ratio annoncé,
+  // quelle que soit la taille de la source. L'override passe par
+  // VISTAIRE_USDZ_VARIANTS_TARGET_TRIANGLES (supporté par le worker).
+  const sourceTriangles = await measureSourceTriangles(python, source);
   try {
     for (const recipe of recipes) {
       const suffix = VARIANT_SUFFIX_BY_SLUG[recipe.slug] || recipe.slug;
+      const ratioMatch = /^r(\d+)$/.exec(suffix);
+      const ratio = ratioMatch ? parseInt(ratioMatch[1], 10) / 100 : 0;
+      const targetTriangles =
+        ratio > 0 && sourceTriangles > 0
+          ? Math.max(1, Math.round(sourceTriangles * ratio))
+          : Number(recipe.targetTriangles) || 0;
       const candidate = await runCandidate({
         python,
         source,
         workspace,
         profile: "variants",
         recipe,
-        dishKind
+        dishKind,
+        env: {
+          VISTAIRE_USDZ_VARIANTS_TARGET_TRIANGLES: String(targetTriangles)
+        }
       });
       if (!candidate.ok || candidate.attempt?.ok === false) {
         variants.push({
@@ -509,6 +579,9 @@ async function runVariantsMode({ source, output, reportPath, dishKind, python, s
         file: fileName,
         bytes: statSync(join(outDir, fileName)).size,
         reductionPercent: rep.reductionPercent ?? 0,
+        ratio: ratio > 0 ? ratio : undefined,
+        sourceTriangles: sourceTriangles > 0 ? sourceTriangles : undefined,
+        targetTriangles,
         triangleCountBefore: rep.triangleCountBefore ?? 0,
         triangleCountAfter: rep.triangleCountAfter ?? 0,
         geometryOptimization: rep.geometryOptimization ?? "skipped"
