@@ -592,12 +592,13 @@ async function runVariantsMode({ source, output, reportPath, dishKind, python, s
   }
   const failed = variants.filter((v) => !v.ok);
   if (failed.length > 0) {
-    // Échec partiel : on retire les fichiers copiés par CE batch pour ne
-    // pas laisser un mélange de sorties à jour et périmées dans outDir.
-    for (const v of variants) {
-      if (v.ok && v.file) {
-        rmSync(join(outDir, v.file), { force: true });
-      }
+    // Échec partiel : on retire TOUS les noms de fichiers attendus du batch
+    // (y compris les suffixes en échec, qui pourraient être des restes d'un
+    // run précédent dans un outDir réutilisé) pour ne pas laisser un mélange
+    // de sorties à jour et périmées.
+    for (const recipe of recipes) {
+      const suffix = VARIANT_SUFFIX_BY_SLUG[recipe.slug] || recipe.slug;
+      rmSync(join(outDir, `${base}_${suffix}.usdz`), { force: true });
     }
   }
   const manifest = {
