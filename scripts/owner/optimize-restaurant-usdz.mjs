@@ -6,6 +6,9 @@
  *   node scripts/owner/optimize-restaurant-usdz.mjs \
  *     --source <tmp source.usdz> --output <tmp runtime.usdz> \
  *     --report <tmp report.json> --profile balanced|premium|light|emergency
+ *   node scripts/owner/optimize-restaurant-usdz.mjs \
+ *     --source <source.usdz> --output <dossier-variantes> \
+ *     --report <manifest.json> --variants --dish-kind plate
  *
  * - Validates the source USDZ structurally (usdz-basic).
  * - Runs the Python worker (OpenUSD + Pillow) that extracts, inspects,
@@ -31,6 +34,7 @@ import { createHash } from "node:crypto";
 import {
   copyFileSync,
   existsSync,
+  mkdirSync,
   mkdtempSync,
   readFileSync,
   rmSync,
@@ -38,7 +42,7 @@ import {
   writeFileSync
 } from "node:fs";
 import { tmpdir } from "node:os";
-import { dirname, join, resolve } from "node:path";
+import { basename, dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { validateUsdzBasic } from "../3d/shared/validators/usdz-basic.mjs";
@@ -439,6 +443,85 @@ async function runCandidate({ python, source, workspace, profile, recipe, dishKi
   };
 }
 
+const VARIANT_SUFFIX_BY_SLUG = {
+  "variant-r50": "r50",
+  "variant-r25": "r25",
+  "variant-r15": "r15",
+  "variant-r10": "r10"
+};
+
+/**
+ * Mode variantes (--variants) : génère une variante par recette du profil
+ * "variants" et les garde TOUTES (aucune auto-sélection).
+ * --output est ici un DOSSIER de sortie.
+ * Sortie : <base>_r50.usdz, <base>_r25.usdz, <base>_r15.usdz,
+ *          <base>_r10.usdz + manifest.json
+ */
+async function runVariantsMode({ source, output, reportPath, dishKind, python, sourceBytes, sourceSha256 }) {
+  const recipes = profileRecipes("variants");
+  if (recipes.length === 0) {
+    emitError("Profil 'variants' introuvable dans usdz-optimization-recipes.json.", "variants");
+  }
+  const outDir = resolve(output);
+  mkdirSync(outDir, { recursive: true });
+  const base = basename(source).replace(/\.usdz$/i, "");
+  const workspace = mkdtempSync(join(tmpdir(), "vistaire-usdz-variants-"));
+  const variants = [];
+  try {
+    for (const recipe of recipes) {
+      const suffix = VARIANT_SUFFIX_BY_SLUG[recipe.slug] || recipe.slug;
+      const candidate = await runCandidate({
+        python,
+        source,
+        workspace,
+        profile: "variants",
+        recipe,
+        dishKind
+      });
+      if (!candidate.ok || candidate.attempt?.ok === false) {
+        variants.push({
+          recipe: recipe.slug,
+          ok: false,
+          error: candidate.attempt?.error || "échec de la variante"
+        });
+        continue;
+      }
+      const fileName = `${base}_${suffix}.usdz`;
+      copyFileSync(candidate.runtimePath, join(outDir, fileName));
+      const rep = candidate.report || {};
+      variants.push({
+        recipe: recipe.slug,
+        ok: true,
+        file: fileName,
+        bytes: statSync(join(outDir, fileName)).size,
+        reductionPercent: rep.reductionPercent ?? 0,
+        triangleCountBefore: rep.triangleCountBefore ?? 0,
+        triangleCountAfter: rep.triangleCountAfter ?? 0,
+        geometryOptimization: rep.geometryOptimization ?? "skipped"
+      });
+    }
+  } finally {
+    rmSync(workspace, { recursive: true, force: true });
+  }
+  const manifest = {
+    ok: true,
+    mode: "variants",
+    generatedAt: new Date().toISOString(),
+    sourceBytes,
+    sourceSha256,
+    outDir,
+    variants
+  };
+  writeFileSync(join(outDir, "manifest.json"), `${JSON.stringify(manifest, null, 2)}\n`, "utf8");
+  if (reportPath) {
+    writeFileSync(reportPath, `${JSON.stringify(manifest, null, 2)}\n`, "utf8");
+  }
+  if (variants.length > 0 && variants.every((v) => !v.ok)) {
+    emitError(`Aucune variante générée : ${variants[0]?.error || "échec"}`, "variants", { variants });
+  }
+  process.stdout.write(`${JSON.stringify({ ok: true, mode: "variants", outDir, variants })}\n`);
+}
+
 async function main() {
   const args = parseArgs(process.argv.slice(2));
   const source = args.source ? resolve(args.source) : "";
@@ -479,6 +562,13 @@ async function main() {
   const sourceSha256 = sha256File(source);
 
   const python = resolvePythonExecutable();
+
+  // Mode variantes : --output = dossier, on garde les 4 variantes.
+  if (args["variants"] === true) {
+    await runVariantsMode({ source, output, reportPath, dishKind, python, sourceBytes, sourceSha256 });
+    return;
+  }
+
   const candidateWorkspace = mkdtempSync(join(resolve(tmpdir()), "vistaire-usdz-candidates-"));
   const attempts = [];
   let chosen = null;

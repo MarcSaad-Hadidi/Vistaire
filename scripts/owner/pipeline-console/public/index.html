@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pipeline USDZ — Console locale</title>
+<style>
+  :root {
+    --bg: #0e0d0b;
+    --surface: #161411;
+    --surface-2: #1c1915;
+    --border: #2a251c;
+    --gold: #d4a24e;
+    --gold-soft: rgba(212, 162, 78, .12);
+    --text: #ece5d8;
+    --muted: #a2987f;
+    --green: #7fb069;
+    --red: #d9635f;
+    --radius: 14px;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: radial-gradient(1200px 600px at 50% -10%, #1e1a13 0%, var(--bg) 55%) fixed, var(--bg);
+    color: var(--text);
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    -webkit-font-smoothing: antialiased;
+    padding: 0 20px 80px;
+  }
+  .wrap { max-width: 1020px; margin: 0 auto; }
+
+  header.top {
+    display: flex; align-items: baseline; justify-content: space-between;
+    padding: 34px 0 8px; flex-wrap: wrap; gap: 12px;
+  }
+  header.top h1 {
+    font-family: Georgia, "Times New Roman", serif;
+    font-weight: 400; font-size: 30px; margin: 0; letter-spacing: .5px;
+  }
+  header.top h1 span { color: var(--gold); }
+  header.top p { margin: 4px 0 0; color: var(--muted); font-size: 14px; }
+  .health { display: flex; gap: 14px; font-size: 13px; color: var(--muted); }
+  .health b { font-weight: 600; }
+  .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; }
+  .dot.ok { background: var(--green); box-shadow: 0 0 8px var(--green); }
+  .dot.ko { background: var(--red); }
+
+  section.card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 26px;
+    margin-top: 22px;
+  }
+  section.card h2 {
+    font-family: Georgia, serif; font-weight: 400; font-size: 19px;
+    margin: 0 0 4px;
+  }
+  section.card .sub { color: var(--muted); font-size: 13.5px; margin: 0 0 18px; }
+  .step { display: inline-block; font-size: 11px; letter-spacing: 2px; color: var(--gold);
+    text-transform: uppercase; margin-bottom: 8px; }
+
+  #dropzone {
+    border: 1.5px dashed #3a3325; border-radius: var(--radius);
+    padding: 44px 20px; text-align: center; cursor: pointer;
+    transition: border-color .2s, background .2s;
+  }
+  #dropzone:hover, #dropzone.over { border-color: var(--gold); background: var(--gold-soft); }
+  #dropzone .big { font-size: 17px; margin-bottom: 6px; }
+  #dropzone .small { color: var(--muted); font-size: 13px; }
+  #dropzone.has-file { border-style: solid; border-color: var(--gold); }
+  .file-chip {
+    display: inline-flex; align-items: center; gap: 10px;
+    background: var(--surface-2); border: 1px solid var(--border);
+    border-radius: 999px; padding: 10px 18px; font-size: 14px;
+  }
+  .file-chip .size { color: var(--gold); font-variant-numeric: tabular-nums; }
+  .file-chip button { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 16px; }
+
+  .chips { display: flex; flex-wrap: wrap; gap: 10px; }
+  .chip {
+    border: 1px solid var(--border); background: var(--surface-2); color: var(--text);
+    border-radius: 999px; padding: 10px 18px; font-size: 14px; cursor: pointer;
+    transition: all .15s;
+  }
+  .chip:hover { border-color: var(--gold); }
+  .chip.active { background: var(--gold); border-color: var(--gold); color: #14110b; font-weight: 600; }
+
+  .modes { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  @media (max-width: 640px) { .modes { grid-template-columns: 1fr; } }
+  .mode-card {
+    border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 20px; cursor: pointer; background: var(--surface-2); transition: all .15s;
+  }
+  .mode-card:hover { border-color: var(--gold); }
+  .mode-card.active { border-color: var(--gold); background: var(--gold-soft); }
+  .mode-card h3 { margin: 0 0 6px; font-size: 16px; }
+  .mode-card p { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.5; }
+  .badge {
+    display: inline-block; font-size: 11px; letter-spacing: 1px; text-transform: uppercase;
+    background: var(--gold); color: #14110b; border-radius: 999px;
+    padding: 3px 10px; font-weight: 700; margin-bottom: 10px;
+  }
+  #profileRow { margin-top: 14px; display: none; }
+  #profileRow.show { display: block; }
+
+  #runBtn {
+    width: 100%; margin-top: 22px; padding: 18px;
+    font-size: 17px; font-weight: 700; letter-spacing: .5px;
+    background: var(--gold); color: #14110b; border: none; border-radius: var(--radius);
+    cursor: pointer; transition: transform .1s, opacity .2s;
+  }
+  #runBtn:hover:not(:disabled) { transform: translateY(-1px); }
+  #runBtn:disabled { opacity: .35; cursor: not-allowed; }
+
+  #runSection, #resultsSection { display: none; }
+  #runSection.show, #resultsSection.show { display: block; }
+
+  .progress-track { height: 8px; background: #241f16; border-radius: 999px; overflow: hidden; }
+  .progress-fill {
+    height: 100%; width: 0%; background: linear-gradient(90deg, #a67c33, var(--gold));
+    border-radius: 999px; transition: width .4s;
+  }
+  .run-status { display: flex; justify-content: space-between; align-items: baseline; margin: 0 0 12px; }
+  .run-status .pct { font-variant-numeric: tabular-nums; color: var(--gold); font-size: 15px; }
+  #log {
+    margin-top: 14px; background: #0b0a08; border: 1px solid var(--border);
+    border-radius: 10px; padding: 14px 16px; max-height: 220px; overflow-y: auto;
+    font-family: ui-monospace, Menlo, monospace; font-size: 12.5px; line-height: 1.7; color: #b8ab90;
+  }
+  #log .err { color: var(--red); }
+
+  .variants-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 14px; }
+  .variant {
+    background: var(--surface-2); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 20px; position: relative;
+    transition: border-color .2s;
+  }
+  .variant.chosen { border-color: var(--gold); box-shadow: 0 0 0 1px var(--gold); }
+  .variant .vlabel { font-family: Georgia, serif; font-size: 18px; margin-bottom: 2px; }
+  .variant .vsuffix {
+    display: inline-block; font-size: 11px; color: var(--muted); border: 1px solid var(--border);
+    border-radius: 6px; padding: 2px 8px; margin-bottom: 12px; letter-spacing: 1px;
+  }
+  .variant .vsize { font-size: 30px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .variant .vsize small { font-size: 14px; font-weight: 400; color: var(--muted); }
+  .variant .vreduc {
+    display: inline-block; margin-top: 8px; font-size: 13px; font-weight: 700;
+    color: var(--green); background: rgba(127, 176, 105, .12);
+    padding: 4px 12px; border-radius: 999px; font-variant-numeric: tabular-nums;
+  }
+  .variant .vtri { margin-top: 8px; font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .variant .actions { display: flex; gap: 8px; margin-top: 16px; }
+  .variant .actions a, .variant .actions button {
+    flex: 1; text-align: center; font-size: 13px; padding: 9px 0; border-radius: 9px;
+    border: 1px solid var(--border); background: var(--surface); color: var(--text);
+    text-decoration: none; cursor: pointer; transition: all .15s;
+  }
+  .variant .actions a:hover, .variant .actions button:hover { border-color: var(--gold); }
+  .variant .actions button.choose { background: var(--gold-soft); border-color: var(--gold); color: var(--gold); font-weight: 700; }
+  .variant .actions button.choose.done { background: var(--gold); color: #14110b; }
+  .choice-flag {
+    position: absolute; top: -11px; right: 14px; background: var(--gold); color: #14110b;
+    font-size: 11px; font-weight: 800; letter-spacing: 1px; padding: 3px 12px; border-radius: 999px;
+    display: none;
+  }
+  .variant.chosen .choice-flag { display: block; }
+
+  .ar-hint {
+    margin-top: 16px; font-size: 13px; color: var(--muted); line-height: 1.6;
+    background: var(--gold-soft); border: 1px solid var(--border); border-radius: 10px; padding: 12px 16px;
+  }
+
+  .hist-list { display: flex; flex-direction: column; gap: 8px; }
+  .hist-item {
+    display: flex; justify-content: space-between; align-items: center; gap: 12px;
+    background: var(--surface-2); border: 1px solid var(--border); border-radius: 10px;
+    padding: 12px 16px; font-size: 13.5px;
+  }
+  .hist-item .meta { color: var(--muted); font-size: 12.5px; }
+  .status-pill { font-size: 11px; letter-spacing: 1px; text-transform: uppercase; padding: 3px 10px; border-radius: 999px; }
+  .status-pill.done { background: rgba(127,176,105,.15); color: var(--green); }
+  .status-pill.running { background: var(--gold-soft); color: var(--gold); }
+  .status-pill.error { background: rgba(217,99,95,.15); color: var(--red); }
+  .empty { color: var(--muted); font-size: 13.5px; }
+
+  .warn {
+    margin-top: 22px; border: 1px solid #4a3a20; background: rgba(212,162,78,.07);
+    border-radius: var(--radius); padding: 14px 18px; font-size: 13.5px; color: #d8c49a;
+    display: none;
+  }
+  .warn.show { display: block; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="top">
+    <div>
+      <h1>Pipeline <span>USDZ</span></h1>
+      <p>Console locale — génère, compare, choisis.</p>
+    </div>
+    <div class="health" id="health">
+      <span><span class="dot" id="dPy"></span>Python <b id="tPy">…</b></span>
+      <span><span class="dot" id="dBl"></span>Blender <b id="tBl">…</b></span>
+    </div>
+  </header>
+
+  <div class="warn" id="blenderWarn">
+    Blender est introuvable — les variantes auront toutes la même taille.
+    Vérifie <b>blender</b> dans le PATH ou <b>config.json</b>.
+  </div>
+
+  <section class="card" id="secSource">
+    <div class="step">01 — Source</div>
+    <h2>Le plat à optimiser</h2>
+    <p class="sub">Dépose ton fichier .usdz (12–15 Mo, c'est instantané en local).</p>
+    <div id="dropzone">
+      <div id="dzEmpty">
+        <div class="big">Glisse ton .usdz ici</div>
+        <div class="small">ou clique pour parcourir tes fichiers</div>
+      </div>
+      <div id="dzFile" style="display:none">
+        <span class="file-chip">
+          <span id="fileName"></span>
+          <span class="size" id="fileSize"></span>
+          <button id="fileRemove" title="Retirer">✕</button>
+        </span>
+      </div>
+    </div>
+    <input type="file" id="fileInput" accept=".usdz" hidden>
+  </section>
+
+  <section class="card" id="secDish">
+    <div class="step">02 — Plat</div>
+    <h2>Type de plat</h2>
+    <p class="sub">Sert à calibrer la taille physique du modèle 3D.</p>
+    <div class="chips" id="dishChips"></div>
+  </section>
+
+  <section class="card" id="secMode">
+    <div class="step">03 — Mode</div>
+    <h2>Comment générer</h2>
+    <p class="sub">Quatre variantes à comparer, ou un seul profil direct.</p>
+    <div class="modes">
+      <div class="mode-card active" data-mode="variants">
+        <div class="badge">Recommandé</div>
+        <h3>4 variantes</h3>
+        <p>Douce, Équilibrée, Poussée, Maximale. Tu compares visuellement et tu choisis la meilleure.</p>
+      </div>
+      <div class="mode-card" data-mode="single" id="singleCard">
+        <h3>Profil unique</h3>
+        <p>Le pipeline choisit tout seul la meilleure recette du profil, comme avant.</p>
+      </div>
+    </div>
+    <div id="profileRow">
+      <p class="sub" style="margin:14px 0 10px">Profil</p>
+      <div class="chips" id="profileChips"></div>
+    </div>
+  </section>
+
+  <button id="runBtn" disabled>Choisir un fichier pour commencer</button>
+
+  <section class="card" id="runSection">
+    <div class="step">04 — Génération</div>
+    <div class="run-status">
+      <h2 id="runTitle" style="margin:0">En cours…</h2>
+      <span class="pct" id="runPct">0 %</span>
+    </div>
+    <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+    <div id="log"></div>
+  </section>
+
+  <section class="card" id="resultsSection">
+    <div class="step">05 — Résultats</div>
+    <h2 id="resultsTitle">Compare et choisis</h2>
+    <p class="sub" id="resultsSub"></p>
+    <div class="variants-grid" id="variantsGrid"></div>
+    <div class="ar-hint">
+      <b>Tester en AR :</b> ouvre cette page sur ton iPhone (même réseau Wi-Fi),
+      puis touche « Voir en AR » sur une variante.
+    </div>
+  </section>
+
+  <section class="card" id="secHist">
+    <div class="step">Historique</div>
+    <h2>Derniers lancements</h2>
+    <p class="sub">Tes choix sont enregistrés pour retrouver quel ratio tu as pris par plat.</p>
+    <div class="hist-list" id="histList"><div class="empty">Aucun lancement pour l'instant.</div></div>
+  </section>
+
+</div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+let selectedFile = null;
+let dishKind = "plate";
+let mode = "variants";
+let profile = "balanced";
+let dishKinds = [];
+let profiles = [];
+
+const fmtMo = (octets) => (octets / 1048576).toLocaleString("fr-FR", { maximumFractionDigits: 1 }) + " Mo";
+const fmtKo = (octets) => Math.round(octets / 1024).toLocaleString("fr-FR") + " Ko";
+
+/* ---------- santé ---------- */
+fetch("/api/health").then((r) => r.json()).then((h) => {
+  const set = (dot, txt, ok, label) => {
+    $(dot).className = "dot " + (ok ? "ok" : "ko");
+    $(txt).textContent = ok ? "OK" : "absent";
+  };
+  set("dPy", "tPy", h.python.ok);
+  set("dBl", "tBl", h.blender.ok);
+  if (!h.blender.ok) $("blenderWarn").classList.add("show");
+  dishKinds = h.dishKinds || [];
+  profiles = h.profiles || [];
+  renderDishChips();
+  renderProfileChips();
+  if (!h.optimizer.ok) {
+    $("singleCard").style.opacity = ".4";
+    $("singleCard").style.pointerEvents = "none";
+    $("singleCard").querySelector("p").textContent = "Indisponible : vistaireRepo non configuré.";
+  }
+});
+
+/* ---------- source ---------- */
+const dz = $("dropzone"), fi = $("fileInput");
+dz.addEventListener("click", (e) => { if (e.target.id !== "fileRemove") fi.click(); });
+["dragover", "dragenter"].forEach((ev) => dz.addEventListener(ev, (e) => { e.preventDefault(); dz.classList.add("over"); }));
+["dragleave", "drop"].forEach((ev) => dz.addEventListener(ev, (e) => { e.preventDefault(); dz.classList.remove("over"); }));
+dz.addEventListener("drop", (e) => {
+  const f = e.dataTransfer.files[0];
+  if (f) setFile(f);
+});
+fi.addEventListener("change", () => { if (fi.files[0]) setFile(fi.files[0]); });
+$("fileRemove").addEventListener("click", (e) => { e.stopPropagation(); setFile(null); });
+
+function setFile(f) {
+  if (f && !f.name.toLowerCase().endsWith(".usdz")) { alert("Seuls les .usdz sont acceptés."); return; }
+  selectedFile = f;
+  $("dzEmpty").style.display = f ? "none" : "block";
+  $("dzFile").style.display = f ? "block" : "none";
+  dz.classList.toggle("has-file", !!f);
+  if (f) {
+    $("fileName").textContent = f.name;
+    $("fileSize").textContent = fmtMo(f.size);
+  }
+  updateRunBtn();
+}
+
+/* ---------- chips ---------- */
+function renderDishChips() {
+  $("dishChips").innerHTML = "";
+  dishKinds.forEach((d) => {
+    const b = document.createElement("button");
+    b.className = "chip" + (d.id === dishKind ? " active" : "");
+    b.textContent = d.label;
+    b.onclick = () => { dishKind = d.id; renderDishChips(); };
+    $("dishChips").appendChild(b);
+  });
+}
+function renderProfileChips() {
+  $("profileChips").innerHTML = "";
+  profiles.forEach((p) => {
+    const b = document.createElement("button");
+    b.className = "chip" + (p === profile ? " active" : "");
+    b.textContent = p;
+    b.onclick = () => { profile = p; renderProfileChips(); };
+    $("profileChips").appendChild(b);
+  });
+}
+document.querySelectorAll(".mode-card").forEach((c) => {
+  c.addEventListener("click", () => {
+    document.querySelectorAll(".mode-card").forEach((x) => x.classList.remove("active"));
+    c.classList.add("active");
+    mode = c.dataset.mode;
+    $("profileRow").classList.toggle("show", mode === "single");
+    updateRunBtn();
+  });
+});
+
+function updateRunBtn() {
+  const btn = $("runBtn");
+  btn.disabled = !selectedFile;
+  btn.textContent = selectedFile
+    ? (mode === "variants" ? "Générer les 4 variantes" : `Optimiser (profil ${profile})`)
+    : "Choisir un fichier pour commencer";
+}
+
+/* ---------- lancement ---------- */
+$("runBtn").addEventListener("click", async () => {
+  if (!selectedFile) return;
+  const fd = new FormData();
+  fd.append("file", selectedFile);
+  fd.append("dishKind", dishKind);
+  fd.append("mode", mode);
+  fd.append("profile", profile);
+
+  $("runSection").classList.add("show");
+  $("resultsSection").classList.remove("show");
+  $("log").innerHTML = "";
+  $("progressFill").style.width = "0%";
+  $("runPct").textContent = "0 %";
+  $("runTitle").textContent = "En cours…";
+  $("runBtn").disabled = true;
+  $("runSection").scrollIntoView({ behavior: "smooth", block: "nearest" });
+
+  const res = await fetch("/api/run", { method: "POST", body: fd });
+  const data = await res.json();
+  if (!data.ok) { addLog("ERREUR : " + data.error, true); $("runBtn").disabled = false; return; }
+  streamJob(data.jobId);
+});
+
+let es = null;
+function streamJob(id) {
+  if (es) es.close();
+  es = new EventSource(`/api/jobs/${id}/stream`);
+  es.onmessage = (ev) => {
+    const m = JSON.parse(ev.data);
+    if (m.type === "log") addLog(m.text, m.err);
+    else if (m.type === "progress") {
+      const pct = Math.round(m.value * 100);
+      $("progressFill").style.width = pct + "%";
+      $("runPct").textContent = pct + " %";
+    }
+    else if (m.type === "done") { onDone(id, m.results); es.close(); }
+    else if (m.type === "error") {
+      $("runTitle").textContent = "Échec";
+      addLog("ERREUR : " + m.error, true);
+      $("runBtn").disabled = false;
+      es.close();
+    }
+    else if (m.type === "choice") markChosen(m.variant);
+  };
+}
+
+function addLog(text, err) {
+  const div = document.createElement("div");
+  if (err) div.className = "err";
+  div.textContent = text;
+  $("log").appendChild(div);
+  $("log").scrollTop = $("log").scrollHeight;
+}
+
+/* ---------- résultats ---------- */
+function onDone(id, results) {
+  $("runTitle").textContent = "Terminé";
+  $("runBtn").disabled = false;
+  const grid = $("variantsGrid");
+  grid.innerHTML = "";
+  $("resultsSub").textContent =
+    results.length > 1
+      ? "Quatre variantes générées depuis ton fichier. Compare les tailles, teste en AR, puis choisis."
+      : "Ton fichier optimisé est prêt.";
+  results.forEach((r) => {
+    const card = document.createElement("div");
+    card.className = "variant";
+    card.dataset.variant = r.variant;
+    card.innerHTML = `
+      <div class="choice-flag">CHOIX</div>
+      <div class="vlabel">${r.label || r.variant}</div>
+      <div class="vsuffix">${r.variant}</div>
+      <div class="vsize">${fmtMo(r.bytes)}<small></small></div>
+      <div class="vreduc">−${r.reduction} %</div>
+      ${r.trianglesAfter ? `<div class="vtri">${r.trianglesBefore.toLocaleString("fr-FR")} → ${r.trianglesAfter.toLocaleString("fr-FR")} triangles</div>` : ""}
+      <div class="actions">
+        <a rel="ar" href="${r.url}">Voir en AR</a>
+        <a href="${r.url}" download="${r.file}">Télécharger</a>
+        <button class="choose">Choisir</button>
+      </div>`;
+    card.querySelector("button.choose").onclick = () => choose(id, r.variant);
+    grid.appendChild(card);
+  });
+  $("resultsSection").classList.add("show");
+  $("resultsSection").scrollIntoView({ behavior: "smooth", block: "nearest" });
+  refreshHistory();
+}
+
+async function choose(id, variant) {
+  const res = await fetch(`/api/jobs/${id}/choose`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ variant }),
+  });
+  const data = await res.json();
+  if (data.ok) { markChosen(variant); refreshHistory(); }
+}
+function markChosen(variant) {
+  document.querySelectorAll(".variant").forEach((c) => {
+    const isIt = c.dataset.variant === variant;
+    c.classList.toggle("chosen", isIt);
+    const b = c.querySelector("button.choose");
+    b.classList.toggle("done", isIt);
+    b.textContent = isIt ? "Choisi ✓" : "Choisir";
+  });
+}
+
+/* ---------- historique ---------- */
+async function refreshHistory() {
+  const [jobsRes, chRes] = await Promise.all([fetch("/api/jobs"), fetch("/api/choices")]);
+  const { jobs } = await jobsRes.json();
+  const { choices } = await chRes.json();
+  const box = $("histList");
+  box.innerHTML = "";
+  if (!jobs.length) { box.innerHTML = '<div class="empty">Aucun lancement pour l\'instant.</div>'; return; }
+  const choiceByJob = {};
+  choices.forEach((c) => (choiceByJob[c.jobId] = c.variant));
+  jobs.slice(0, 8).forEach((j) => {
+    const d = document.createElement("div");
+    d.className = "hist-item";
+    const pill = j.status === "done" ? "done" : j.status === "running" ? "running" : "error";
+    const pillTxt = j.status === "done" ? "terminé" : j.status === "running" ? "en cours" : j.status;
+    d.innerHTML = `
+      <div><div>${j.fileName}</div>
+      <div class="meta">${j.mode === "variants" ? "4 variantes" : "profil " + j.mode} · ${new Date(j.createdAt).toLocaleString("fr-FR")}
+      ${choiceByJob[j.id] ? ` · choix : <b style="color:var(--gold)">${choiceByJob[j.id]}</b>` : ""}</div></div>
+      <span class="status-pill ${pill}">${pillTxt}</span>`;
+    box.appendChild(d);
+  });
+}
+refreshHistory();
+</script>
+</body>
+</html>

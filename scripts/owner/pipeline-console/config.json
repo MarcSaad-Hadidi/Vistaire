@@ -1,0 +1,8 @@
+{
+  "blender": "blender",
+  "host": "127.0.0.1",
+  "port": 8130,
+  "python": "python3",
+  "variantsScript": "./usdz_variants.py",
+  "vistaireRepo": "../../.."
+}
