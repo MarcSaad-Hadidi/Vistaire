@@ -41,6 +41,11 @@ et `CONSOLE_PORT` permettent de remplacer ces paramètres. Redémarre après mod
   (Blender + Pillow) et désactive le profil unique. Un échec de validation de
   l’optimiseur configuré ne déclenche pas ce second moteur.
 
+Les deux moteurs appliquent le budget de taille variants du fichier
+`../usdz-optimization-recipes.json` (16 Mio par fichier par défaut).
+`VISTAIRE_USDZ_VARIANTS_TARGET_BYTES` permet de le remplacer. Un dépassement
+fait échouer le lot et retire ses fichiers et son manifeste.
+
 Une seule génération est acceptée à la fois. Les erreurs restent visibles dans le
 journal. Un choix est enregistré dans `data/choices.json` ; les fichiers ne sont
 ni publiés dans le menu ni envoyés au stockage de production.

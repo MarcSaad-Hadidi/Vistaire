@@ -1,4 +1,5 @@
 import importlib.util
+import json
 import os
 import shutil
 import sys
@@ -43,6 +44,31 @@ class VariantsTests(unittest.TestCase):
             (files / "model.usd").unlink()
             with self.assertRaisesRegex(RuntimeError, "model.usd"):
                 variants._package_usdz(str(files), str(output))
+
+
+    def test_byte_budget_uses_actual_sizes_and_cleans_the_whole_batch(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            source = root / "dish.usdz"
+            source.write_bytes(b"source")
+            output = root / "output"
+            output.mkdir()
+            def generate(_blender, _script, _source, destination, ratio, _kind):
+                with open(destination, "wb") as f:
+                    f.truncate(16 * 1024 * 1024 + 1 if ratio == 0.25 else 7)
+                return 1  # The budget must use the actual file size.
+            with patch.object(variants, "trouver_blender", return_value="blender"), patch.object(variants, "generer_une_variante", side_effect=generate), patch.dict(os.environ, {"VISTAIRE_USDZ_VARIANTS_TARGET_BYTES": ""}):
+                variants.generate_variants(str(source), str(output), [0.5])
+                manifest = json.loads((output / "manifest.json").read_text())
+                self.assertEqual(manifest["variantes"]["0.5"]["octets"], 7)
+                with self.assertRaisesRegex(RuntimeError, "budget.*16777216"):
+                    variants.generate_variants(str(source), str(output), [0.5, 0.25])
+                self.assertEqual(list(output.iterdir()), [])
+                with patch.dict(os.environ, {"VISTAIRE_USDZ_VARIANTS_TARGET_BYTES": "6"}):
+                    with self.assertRaisesRegex(RuntimeError, "budget.*limite 6"):
+                        variants.generate_variants(str(source), str(output), [0.5])
+                self.assertEqual(list(output.iterdir()), [])
+                self.assertEqual(source.read_bytes(), b"source")
 
     def test_failed_batch_removes_stale_outputs_and_rejects_invalid_ratios(self):
         with tempfile.TemporaryDirectory() as temp:

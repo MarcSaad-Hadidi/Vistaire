@@ -301,10 +301,21 @@ def generate_variants(entree: str, out_dir: str,
                     "source_octets": t0, "dish_kind": dish_kind, "variantes": {}}
         base = os.path.splitext(os.path.basename(entree))[0]
         try:
+            recipes_path = os.path.join(os.path.dirname(__file__), "..", "usdz-optimization-recipes.json")
+            with open(recipes_path, encoding="utf-8") as fh:
+                configured_budget = int(json.load(fh)["variants"]["targetMaxBytes"])
+            try:
+                budget = int(os.environ.get("VISTAIRE_USDZ_VARIANTS_TARGET_BYTES", configured_budget))
+            except ValueError:
+                budget = configured_budget
+            if budget <= 0:
+                budget = configured_budget
             for ratio in ratios:
                 sortie = os.path.join(out_dir, f"{base}_{suffixe_ratio(ratio)}.usdz")
-                t1 = generer_une_variante(blender, bl_script, entree, sortie, ratio,
-                                          dish_kind)
+                generer_une_variante(blender, bl_script, entree, sortie, ratio, dish_kind)
+                t1 = os.path.getsize(sortie)
+                if not 0 < t1 <= budget:
+                    raise RuntimeError(f"Variante hors budget : {t1} octets (limite {budget})")
                 resultats[str(ratio)] = sortie
                 manifest["variantes"][str(ratio)] = {
                     "fichier": os.path.basename(sortie),
