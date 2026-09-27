@@ -108,14 +108,16 @@ if b and b[dim] > 0:
         bpy.context.view_layer.update()
         b = _bounds()
     # Validation : après une mise à l'échelle exacte dans l'espace monde,
-    # la dimension doit se trouver dans [min_m, max_m].
+    # la dimension doit se trouver dans [min_m, max_m]. En cas d'échec,
+    # on sort en erreur AVANT "EXPORT DONE" : le runner refuse la variante
+    # au lieu d'empaqueter un modèle mal dimensionné.
     if b:
         final = b["footprint"] if dim == "footprint" else b["height"]
         if not (min_m * 0.999 <= final <= max_m * 1.001):
-            print(f"WARNING dish={kind} final {dim}={final:.4f}m hors "
+            print(f"SCALE_VALIDATION_FAILED dish={kind} final {dim}={final:.4f}m hors "
                   f"[{min_m},{max_m}]", flush=True)
-        else:
-            print(f"NORMALIZED dish={kind} scale={s:.4f}", flush=True)
+            sys.exit(3)
+        print(f"NORMALIZED dish={kind} scale={s:.4f}", flush=True)
 for obj in bpy.data.objects:
     if obj.type == 'MESH':
         mod = obj.modifiers.new(name="DecimateBatch", type='DECIMATE')
@@ -244,8 +246,13 @@ def generer_une_variante(blender: str, bl_script: str, entree: str,
              "--", entree, tmpdir, str(ratio), dish_kind],
             capture_output=True, text=True, timeout=600,
         )
-        if "EXPORT DONE" not in r.stdout:
-            raise RuntimeError(f"Blender a échoué (ratio {ratio}) : {r.stderr[-500:]}")
+        if r.returncode != 0 or "EXPORT DONE" not in r.stdout:
+            detail = r.stderr[-500:]
+            for line in r.stdout.splitlines():
+                if "SCALE_VALIDATION_FAILED" in line:
+                    detail = f"{line.strip()} | {detail}"
+                    break
+            raise RuntimeError(f"Blender a échoué (ratio {ratio}) : {detail}")
         _optimiser_textures(tmpdir)
         # Repackage USDZ conforme (STORED + alignement 64 octets).
         _package_usdz(tmpdir, sortie)

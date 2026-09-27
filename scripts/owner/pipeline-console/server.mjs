@@ -631,9 +631,10 @@ const server = createServer(async (req, res) => {
     const url = new URL(req.url, `http://${HOST}:${PORT}`);
     const path = url.pathname;
 
-    // Le tunnel public expose cette console : tout /api (sauf /api/health,
-    // simple diagnostic) exige le token affiché par ./start.sh.
-    if (path.startsWith("/api/") && path !== "/api/health") {
+    // Le tunnel public expose cette console : tout /api exige le token
+    // affiché par ./start.sh (y compris /api/health, qui lance des
+    // processus locaux à chaque appel). L'UI envoie déjà le token.
+    if (path.startsWith("/api/")) {
       if (url.searchParams.get("token") !== TOKEN) {
         return sendJson(res, 401, { ok: false, error: "Token invalide ou manquant." });
       }
