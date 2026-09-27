@@ -288,18 +288,29 @@ def generate_variants(entree: str, out_dir: str,
         manifest = {"source": os.path.abspath(entree),
                     "source_octets": t0, "dish_kind": dish_kind, "variantes": {}}
         base = os.path.splitext(os.path.basename(entree))[0]
-        for ratio in ratios:
-            sortie = os.path.join(out_dir, f"{base}_{suffixe_ratio(ratio)}.usdz")
-            t1 = generer_une_variante(blender, bl_script, entree, sortie, ratio,
-                                      dish_kind)
-            resultats[str(ratio)] = sortie
-            manifest["variantes"][str(ratio)] = {
-                "fichier": os.path.basename(sortie),
-                "octets": t1,
-                "reduction_pct": round((1 - t1 / t0) * 100),
-            }
-            print(f"OK ratio {ratio} : {t0 // 1024} -> {t1 // 1024} Ko "
-                  f"({os.path.basename(sortie)})", flush=True)
+        try:
+            for ratio in ratios:
+                sortie = os.path.join(out_dir, f"{base}_{suffixe_ratio(ratio)}.usdz")
+                t1 = generer_une_variante(blender, bl_script, entree, sortie, ratio,
+                                          dish_kind)
+                resultats[str(ratio)] = sortie
+                manifest["variantes"][str(ratio)] = {
+                    "fichier": os.path.basename(sortie),
+                    "octets": t1,
+                    "reduction_pct": round((1 - t1 / t0) * 100),
+                }
+                print(f"OK ratio {ratio} : {t0 // 1024} -> {t1 // 1024} Ko "
+                      f"({os.path.basename(sortie)})", flush=True)
+        except Exception:
+            # Échec en cours de batch : on retire TOUS les noms de fichiers
+            # attendus avant de propager, pour ne pas laisser un mélange de
+            # sorties partielles + manifest périmé dans un out_dir réutilisé.
+            for r in ratios:
+                try:
+                    os.remove(os.path.join(out_dir, f"{base}_{suffixe_ratio(r)}.usdz"))
+                except OSError:
+                    pass
+            raise
         with open(os.path.join(out_dir, "manifest.json"), "w") as fh:
             json.dump(manifest, fh, indent=2)
         return resultats
