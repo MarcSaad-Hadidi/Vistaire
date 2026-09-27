@@ -69,7 +69,13 @@ def load_recipe_config() -> dict:
 
 
 RECIPE_CONFIG = load_recipe_config()
-PROFILE_CONFIGS = RECIPE_CONFIG["profiles"]
+PROFILE_CONFIGS = dict(RECIPE_CONFIG["profiles"])
+# Recettes expérimentales "variants" : clé de premier niveau, hors du registre
+# de production partagé (lib/owner/usdzRuntimeModel.ts). Le worker --variants
+# doit néanmoins les accepter : on les expose ici sous le profil "variants".
+_variants_cfg = RECIPE_CONFIG.get("variants")
+if isinstance(_variants_cfg, dict) and isinstance(_variants_cfg.get("recipes"), list):
+    PROFILE_CONFIGS["variants"] = _variants_cfg
 PROFILES: dict[str, dict[str, float | int]] = {
     profile_slug: profile_config["recipes"][0] for profile_slug, profile_config in PROFILE_CONFIGS.items()
 }
