@@ -55,8 +55,8 @@ function effectiveBlender() {
   return /[/\\]/.test(cfg) ? resolve(ROOT, cfg) : cfg;
 }
 
-// Propage le Blender configuré aux processus enfants (le health check et
-// la génération doivent voir le même binaire).
+// Propage le Blender et le Python configurés aux processus enfants
+// (le health check et la génération doivent voir les mêmes binaires).
 function childEnv() {
   const env = { ...process.env };
   const b = effectiveBlender();
@@ -64,6 +64,8 @@ function childEnv() {
     env.BLENDER_BIN = b; // usdz_variants.py
     env.VISTAIRE_USDZ_BLENDER = b; // optimize-restaurant-usdz.mjs
   }
+  const py = CONFIG.python || "python3";
+  if (py !== "python3") env.VISTAIRE_USDZ_PYTHON = py; // venv avec OpenUSD/Pillow
   return env;
 }
 
@@ -302,7 +304,7 @@ function runVariantsViaScript(job, variantsDir) {
   emit(job.id, { type: "log", text: "Moteur : script autonome usdz_variants.py." });
   const child = spawn(
     CONFIG.python || "python3",
-    [VARIANTS_PY, job.sourcePath, "--out-dir", variantsDir],
+    [VARIANTS_PY, job.sourcePath, "--out-dir", variantsDir, "--dish-kind", job.dishKind],
     { cwd: ROOT, env: childEnv() }
   );
   job.proc = child;
@@ -392,7 +394,7 @@ function runSingleJob(job) {
       "--profile", job.profile,
       "--dish-kind", job.dishKind,
     ],
-    { cwd: CONFIG.vistaireRepo }
+    { cwd: CONFIG.vistaireRepo, env: childEnv() }
   );
   job.proc = child;
 

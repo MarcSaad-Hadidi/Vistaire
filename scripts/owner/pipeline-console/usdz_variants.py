@@ -42,14 +42,52 @@ RATIOS_DEFAUT = [0.5, 0.25, 0.15, 0.10]
 TEXTURE_MAX_PX = 1024
 JPEG_QUALITY = 65
 
-# Script Blender exécuté en headless : import USD, décimation Collapse, export USD.
+# Script Blender exécuté en headless : import USD, normalisation d'échelle
+# physique selon le type de plat (même contrat que le pipeline du repo),
+# décimation Collapse, export USD.
 # Écrit dans un fichier temporaire à chaque appel (module = un seul fichier).
+# Table DISH_PHYSICAL_SCALE_TARGETS recopiée de
+# scripts/owner/optimize-restaurant-usdz.mjs (ne pas faire diverger).
 _BLENDER_SCRIPT = r'''
-import bpy, sys, os
+import bpy, sys, os, mathutils
 args = sys.argv[sys.argv.index('--') + 1:]
-inp, outdir, ratio = args[0], args[1], float(args[2])
+inp, outdir, ratio, dish_kind = args[0], args[1], float(args[2]), args[3]
+TARGETS = {
+    "burger": ("footprint", 0.11), "plate": ("footprint", 0.27),
+    "bowl": ("footprint", 0.18), "drink": ("height", 0.14),
+    "dessert": ("footprint", 0.12), "small_plate": ("footprint", 0.19),
+    "shareable": ("footprint", 0.30), "default": ("footprint", 0.27),
+}
 bpy.ops.wm.read_factory_settings(use_empty=True)
 bpy.ops.wm.usd_import(filepath=inp)
+def _bbox_world():
+    xs, ys, zs = [], [], []
+    for o in bpy.data.objects:
+        if o.type != 'MESH':
+            continue
+        m = o.matrix_world
+        for c in o.bound_box:
+            w = m @ mathutils.Vector(c)
+            xs.append(w.x); ys.append(w.y); zs.append(w.z)
+    return xs, ys, zs
+# Normalisation : empreinte (max X/Y) ou hauteur (Z) -> taille cible en mètres,
+# puis ancrage au sol (Z min = 0) et centrage X/Y.
+dim, target = TARGETS.get(dish_kind, TARGETS["default"])
+xs, ys, zs = _bbox_world()
+if xs:
+    dx, dy, dz = max(xs) - min(xs), max(ys) - min(ys), max(zs) - min(zs)
+    ref = dz if dim == "height" else max(dx, dy)
+    if ref > 0:
+        s = target / ref
+        roots = [o for o in bpy.data.objects if o.parent is None]
+        for o in roots:
+            o.scale = (o.scale.x * s, o.scale.y * s, o.scale.z * s)
+        bpy.context.view_layer.update()
+        xs, ys, zs = _bbox_world()
+        cx, cy, zmin = (max(xs) + min(xs)) / 2, (max(ys) + min(ys)) / 2, min(zs)
+        for o in roots:
+            o.location = (o.location.x - cx, o.location.y - cy, o.location.z - zmin)
+        print(f"NORMALIZED dish={dish_kind} scale={s:.4f}", flush=True)
 for obj in bpy.data.objects:
     if obj.type == 'MESH':
         mod = obj.modifiers.new(name="DecimateBatch", type='DECIMATE')
@@ -169,13 +207,13 @@ def _package_usdz(dossier: str, sortie: str) -> None:
 
 
 def generer_une_variante(blender: str, bl_script: str, entree: str,
-                         sortie: str, ratio: float) -> int:
+                         sortie: str, ratio: float, dish_kind: str = "plate") -> int:
     """Génère une variante à `ratio`. Retourne la taille en octets. Lève en cas d'échec."""
     tmpdir = tempfile.mkdtemp(prefix="usdzv_")
     try:
         r = subprocess.run(
             [blender, "--background", "--python", bl_script,
-             "--", entree, tmpdir, str(ratio)],
+             "--", entree, tmpdir, str(ratio), dish_kind],
             capture_output=True, text=True, timeout=600,
         )
         if "EXPORT DONE" not in r.stdout:
@@ -194,7 +232,7 @@ def suffixe_ratio(ratio: float) -> str:
 
 
 def generate_variants(entree: str, out_dir: str,
-                      ratios=None) -> dict:
+                      ratios=None, dish_kind: str = "plate") -> dict:
     """
     Génère une variante .usdz par ratio.
 
@@ -213,11 +251,12 @@ def generate_variants(entree: str, out_dir: str,
             fh.write(_BLENDER_SCRIPT)
         resultats = {}
         manifest = {"source": os.path.abspath(entree),
-                    "source_octets": t0, "variantes": {}}
+                    "source_octets": t0, "dish_kind": dish_kind, "variantes": {}}
         base = os.path.splitext(os.path.basename(entree))[0]
         for ratio in ratios:
             sortie = os.path.join(out_dir, f"{base}_{suffixe_ratio(ratio)}.usdz")
-            t1 = generer_une_variante(blender, bl_script, entree, sortie, ratio)
+            t1 = generer_une_variante(blender, bl_script, entree, sortie, ratio,
+                                      dish_kind)
             resultats[str(ratio)] = sortie
             manifest["variantes"][str(ratio)] = {
                 "fichier": os.path.basename(sortie),
@@ -240,6 +279,10 @@ def main() -> int:
     ap.add_argument("--out-dir", required=True, help="Dossier de sortie des variantes")
     ap.add_argument("--ratios", default=",".join(map(str, RATIOS_DEFAUT)),
                     help="Ratios séparés par des virgules (défaut : 0.5,0.25,0.15,0.10)")
+    ap.add_argument("--dish-kind", default="plate",
+                    choices=["burger", "plate", "bowl", "drink", "dessert",
+                             "small_plate", "shareable", "default"],
+                    help="Type de plat pour la normalisation d'échelle physique")
     args = ap.parse_args()
     try:
         ratios = [float(x) for x in args.ratios.split(",")]
@@ -247,7 +290,8 @@ def main() -> int:
         print("Ratios invalides. Exemple : --ratios 0.5,0.25,0.15,0.10", file=sys.stderr)
         return 2
     try:
-        generate_variants(args.entree, args.out_dir, ratios)
+        generate_variants(args.entree, args.out_dir, ratios,
+                          dish_kind=args.dish_kind)
     except Exception as e:
         print(f"ERREUR : {e}", file=sys.stderr)
         return 1

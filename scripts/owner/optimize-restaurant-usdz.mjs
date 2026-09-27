@@ -108,6 +108,20 @@ function profileRecipes(profile) {
   return Array.isArray(recipes) ? recipes : [];
 }
 
+// Recettes expérimentales "variants" : volontairement HORS de
+// RECIPE_CONFIG.profiles pour ne pas casser le contrat du registre
+// partagé (lib/owner/usdzRuntimeModel.ts ne connaît que les 4 profils
+// de production). Clé de premier niveau "variants".
+function variantProfileConfig() {
+  const cfg = RECIPE_CONFIG.variants;
+  return cfg && typeof cfg === "object" ? cfg : null;
+}
+
+function variantRecipes() {
+  const recipes = variantProfileConfig()?.recipes;
+  return Array.isArray(recipes) ? recipes : [];
+}
+
 function candidateRecipes(requestedProfile, allowProfileFallback = false) {
   const entriesForProfile = (profile) =>
     profileRecipes(profile).map((recipe, index) => ({ profile, recipe, index }));
@@ -458,9 +472,9 @@ const VARIANT_SUFFIX_BY_SLUG = {
  *          <base>_r10.usdz + manifest.json
  */
 async function runVariantsMode({ source, output, reportPath, dishKind, python, sourceBytes, sourceSha256 }) {
-  const recipes = profileRecipes("variants");
+  const recipes = variantRecipes();
   if (recipes.length === 0) {
-    emitError("Profil 'variants' introuvable dans usdz-optimization-recipes.json.", "variants");
+    emitError("Clé 'variants' introuvable dans usdz-optimization-recipes.json.", "variants");
   }
   const outDir = resolve(output);
   mkdirSync(outDir, { recursive: true });

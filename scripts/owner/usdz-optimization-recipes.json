@@ -143,60 +143,60 @@
           "mergeDistance": 0.00012
         }
       ]
-    },
-    "variants": {
-      "label": "Variantes (choix visuel)",
-      "recipes": [
-        {
-          "baseColorMax": 1024,
-          "decimateRatio": 0.5,
-          "jpegQuality": 65,
-          "maxDecimatePasses": 1,
-          "mergeDistance": 8e-05,
-          "minDecimateRatio": 0.05,
-          "normalMax": 1024,
-          "ormMax": 1024,
-          "slug": "variant-r50",
-          "targetTriangles": 90000
-        },
-        {
-          "baseColorMax": 1024,
-          "decimateRatio": 0.5,
-          "jpegQuality": 65,
-          "maxDecimatePasses": 1,
-          "mergeDistance": 8e-05,
-          "minDecimateRatio": 0.05,
-          "normalMax": 1024,
-          "ormMax": 1024,
-          "slug": "variant-r25",
-          "targetTriangles": 45000
-        },
-        {
-          "baseColorMax": 1024,
-          "decimateRatio": 0.5,
-          "jpegQuality": 65,
-          "maxDecimatePasses": 2,
-          "mergeDistance": 8e-05,
-          "minDecimateRatio": 0.05,
-          "normalMax": 1024,
-          "ormMax": 1024,
-          "slug": "variant-r15",
-          "targetTriangles": 27000
-        },
-        {
-          "baseColorMax": 1024,
-          "decimateRatio": 0.5,
-          "jpegQuality": 65,
-          "maxDecimatePasses": 2,
-          "mergeDistance": 0.0001,
-          "minDecimateRatio": 0.02,
-          "normalMax": 1024,
-          "ormMax": 512,
-          "slug": "variant-r10",
-          "targetTriangles": 18000
-        }
-      ],
-      "targetMaxBytes": 16777216
     }
+  },
+  "variants": {
+    "label": "Variantes (choix visuel)",
+    "recipes": [
+      {
+        "baseColorMax": 1024,
+        "decimateRatio": 0.5,
+        "jpegQuality": 65,
+        "maxDecimatePasses": 1,
+        "mergeDistance": 8e-05,
+        "minDecimateRatio": 0.05,
+        "normalMax": 1024,
+        "ormMax": 1024,
+        "slug": "variant-r50",
+        "targetTriangles": 90000
+      },
+      {
+        "baseColorMax": 1024,
+        "decimateRatio": 0.5,
+        "jpegQuality": 65,
+        "maxDecimatePasses": 1,
+        "mergeDistance": 8e-05,
+        "minDecimateRatio": 0.05,
+        "normalMax": 1024,
+        "ormMax": 1024,
+        "slug": "variant-r25",
+        "targetTriangles": 45000
+      },
+      {
+        "baseColorMax": 1024,
+        "decimateRatio": 0.5,
+        "jpegQuality": 65,
+        "maxDecimatePasses": 2,
+        "mergeDistance": 8e-05,
+        "minDecimateRatio": 0.05,
+        "normalMax": 1024,
+        "ormMax": 1024,
+        "slug": "variant-r15",
+        "targetTriangles": 27000
+      },
+      {
+        "baseColorMax": 1024,
+        "decimateRatio": 0.5,
+        "jpegQuality": 65,
+        "maxDecimatePasses": 2,
+        "mergeDistance": 0.0001,
+        "minDecimateRatio": 0.02,
+        "normalMax": 1024,
+        "ormMax": 512,
+        "slug": "variant-r10",
+        "targetTriangles": 18000
+      }
+    ],
+    "targetMaxBytes": 16777216
   }
 }
