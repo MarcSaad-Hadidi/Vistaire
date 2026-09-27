@@ -16,8 +16,8 @@
 import { spawn, execFile } from "node:child_process";
 import { createServer } from "node:http";
 import {
-  appendFileSync,
-  copyFileSync,
+  createReadStream,
+  renameSync,
   existsSync,
   mkdirSync,
   readdirSync,
@@ -25,8 +25,7 @@ import {
   statSync,
   writeFileSync,
 } from "node:fs";
-import { tmpdir } from "node:os";
-import { basename, dirname, extname, join, resolve } from "node:path";
+import { basename, dirname, extname, join, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { randomUUID } from "node:crypto";
 
@@ -40,36 +39,34 @@ const PORT = Number(process.env.CONSOLE_PORT || CONFIG.port || 8130);
 const MAX_UPLOAD = 250 * 1024 * 1024;
 
 const VARIANTS_PY = resolve(ROOT, CONFIG.variantsScript || "./usdz_variants.py");
-const OPTIMIZER_MJS = CONFIG.vistaireRepo
-  ? resolve(CONFIG.vistaireRepo, "scripts/owner/optimize-restaurant-usdz.mjs")
+const REPO = CONFIG.vistaireRepo ? resolve(ROOT, CONFIG.vistaireRepo) : null;
+const OPTIMIZER_MJS = REPO
+  ? resolve(REPO, "scripts/owner/optimize-restaurant-usdz.mjs")
   : null;
 
 // Token anti-accès non autorisé : le tunnel public expose cette console,
-// toutes les routes /api (sauf /api/health) et la page exigent ?token=.
+// toutes les routes /api et la page exigent ?token=.
 // Généré à chaque démarrage, affiché par ./start.sh.
 const TOKEN = process.env.CONSOLE_TOKEN || randomUUID().replace(/-/g, "");
 
+function executablePath(value) {
+  return /[/\\\\]/.test(value) ? resolve(ROOT, value) : value;
+}
 function effectiveBlender() {
-  if (process.env.BLENDER_BIN) return process.env.BLENDER_BIN;
-  const cfg = CONFIG.blender || "blender";
-  return /[/\\]/.test(cfg) ? resolve(ROOT, cfg) : cfg;
+  return executablePath(process.env.BLENDER_BIN || process.env.VISTAIRE_USDZ_BLENDER || CONFIG.blender || "blender");
 }
-
-// Propage le Blender et le Python configurés aux processus enfants
-// (le health check et la génération doivent voir les mêmes binaires).
+function effectivePython() {
+  return executablePath(process.env.VISTAIRE_USDZ_PYTHON || CONFIG.python || "python3");
+}
 function childEnv() {
-  const env = { ...process.env };
-  const b = effectiveBlender();
-  if (b !== "blender") {
-    env.BLENDER_BIN = b; // usdz_variants.py
-    env.VISTAIRE_USDZ_BLENDER = b; // optimize-restaurant-usdz.mjs
-  }
-  const py = CONFIG.python || "python3";
-  if (py !== "python3") env.VISTAIRE_USDZ_PYTHON = py; // venv avec OpenUSD/Pillow
-  return env;
+  return {
+    ...process.env,
+    BLENDER_BIN: effectiveBlender(),
+    VISTAIRE_USDZ_BLENDER: effectiveBlender(),
+    VISTAIRE_USDZ_PYTHON: effectivePython(),
+  };
 }
 
-mkdirSync(join(DATA, "uploads"), { recursive: true });
 mkdirSync(join(DATA, "jobs"), { recursive: true });
 
 const DISH_KINDS = [
@@ -97,6 +94,7 @@ function emit(id, event) {
   const job = jobs.get(id);
   if (!job) return;
   job.log.push(event);
+  if (job.log.length > 200) job.log.shift();
   const subs = subscribers.get(id);
   if (!subs) return;
   const line = `data: ${JSON.stringify(event)}\n\n`;
@@ -109,14 +107,21 @@ function emit(id, event) {
   }
 }
 
+function jobData(job) {
+  const data = { ...job };
+  delete data.proc;
+  return data;
+}
+
 function persistJob(job) {
   try {
     writeFileSync(
-      join(DATA, "jobs", `${job.id}.json`),
-      JSON.stringify({ ...job, log: job.log.slice(-200) }, null, 2)
+      join(DATA, "jobs", `${job.id}.json.tmp`),
+      JSON.stringify(jobData(job), null, 2)
     );
-  } catch {
-    /* non bloquant */
+    renameSync(join(DATA, "jobs", `${job.id}.json.tmp`), join(DATA, "jobs", `${job.id}.json`));
+  } catch (err) {
+    console.error(`Sauvegarde du job ${job.id} impossible : ${err.message}`);
   }
 }
 
@@ -126,7 +131,13 @@ function loadPersistedJobs() {
       if (!f.endsWith(".json")) continue;
       try {
         const job = JSON.parse(readFileSync(join(DATA, "jobs", f), "utf8"));
-        if (job.status === "running") job.status = "interrompu";
+        delete job.proc;
+        for (const result of job.results || []) result.url = result.url.split("?")[0];
+        job.log = (job.log || []).filter((event) => event.type === "log");
+        if (job.status === "running") {
+          job.status = "error";
+          job.error = "Génération interrompue par l’arrêt de la console.";
+        }
         jobs.set(job.id, { ...job, log: job.log || [] });
       } catch {
         /* ignore */
@@ -148,18 +159,38 @@ function sendJson(res, status, payload) {
   res.end(body);
 }
 
-function sendFile(res, path, contentType) {
+function sendFile(req, res, path, contentType) {
+  let stat;
   try {
-    const stat = statSync(path);
-    res.writeHead(200, {
-      "Content-Type": contentType,
-      "Content-Length": stat.size,
-      "Accept-Ranges": "bytes",
-    });
-    res.end(readFileSync(path));
+    stat = statSync(path);
+    if (!stat.isFile()) throw new Error("not a file");
   } catch {
-    sendJson(res, 404, { ok: false, error: "Fichier introuvable." });
+    return sendJson(res, 404, { ok: false, error: "Fichier introuvable." });
   }
+  let start = 0, end = stat.size - 1, status = 200;
+  if (req.headers.range) {
+    const range = /^bytes=(\d*)-(\d*)$/.exec(req.headers.range);
+    if (range && (range[1] || range[2])) {
+      start = range[1] ? Number(range[1]) : Math.max(0, stat.size - Number(range[2]));
+      end = range[1] && range[2] ? Math.min(Number(range[2]), end) : end;
+      status = 206;
+    }
+    if (status !== 206 || start > end || start < 0 || start >= stat.size) {
+      res.writeHead(416, { "Content-Range": `bytes */${stat.size}` });
+      return res.end();
+    }
+  }
+  res.writeHead(status, {
+    "Content-Type": contentType,
+    "Content-Length": end - start + 1,
+    "Accept-Ranges": "bytes",
+    ...(status === 206 ? { "Content-Range": `bytes ${start}-${end}/${stat.size}` } : {}),
+  });
+  if (req.method === "HEAD" || stat.size === 0) return res.end();
+  const stream = createReadStream(path, { start, end });
+  stream.on("error", () => res.destroy());
+  res.on("close", () => stream.destroy());
+  stream.pipe(res);
 }
 
 const MIME = {
@@ -212,8 +243,8 @@ function runVariantsJob(job) {
   mkdirSync(variantsDir, { recursive: true });
   // Par défaut : l'optimiseur du repo (--variants --dish-kind), qui normalise
   // l'échelle physique selon le type de plat et package en USDZ via OpenUSD.
-  // Repli sur le script autonome si l'optimiseur est indisponible ou échoue.
-  if (OPTIMIZER_MJS && existsSync(OPTIMIZER_MJS)) {
+  // Le mode autonome est réservé aux installations sans dépôt configuré.
+  if (OPTIMIZER_MJS) {
     runVariantsViaOptimizer(job, variantsDir);
   } else {
     runVariantsViaScript(job, variantsDir);
@@ -235,7 +266,7 @@ function variantsResultsFromOptimizer(job, manifest) {
         reduction: v.reductionPercent ?? 0,
         trianglesBefore: v.triangleCountBefore ?? 0,
         trianglesAfter: v.triangleCountAfter ?? 0,
-        url: `/api/files/${job.id}/variants/${encodeURIComponent(v.file)}?token=${TOKEN}`,
+        url: `/api/files/${job.id}/variants/${encodeURIComponent(v.file)}`,
       };
     })
     .filter(Boolean);
@@ -254,17 +285,9 @@ function runVariantsViaOptimizer(job, variantsDir) {
       "--variants",
       "--dish-kind", job.dishKind,
     ],
-    { cwd: CONFIG.vistaireRepo, env: childEnv() }
+    { cwd: REPO, env: childEnv(), detached: process.platform !== "win32", windowsHide: true }
   );
   job.proc = child;
-
-  let fellBack = false;
-  const fallbackToScript = (reason) => {
-    if (fellBack) return;
-    fellBack = true;
-    emit(job.id, { type: "log", text: reason, err: true });
-    runVariantsViaScript(job, variantsDir);
-  };
 
   child.stdout.on("data", (d) => {
     const t = d.toString().trim();
@@ -275,17 +298,20 @@ function runVariantsViaOptimizer(job, variantsDir) {
     if (t) emit(job.id, { type: "log", text: t.slice(0, 300), err: true });
   });
   child.on("error", (err) => {
-    fallbackToScript(`Optimiseur indisponible (${err.message}) — repli sur le script autonome.`);
+    job.error = `Optimiseur indisponible : ${err.message}`;
   });
   child.on("close", (code) => {
     if (code !== 0) {
-      fallbackToScript(`Optimiseur en échec (code ${code}) — repli sur le script autonome.`);
+      job.status = "error";
+      job.error ||= `Optimiseur en échec (code ${code}).`;
+      emit(job.id, { type: "error", error: job.error });
+      persistJob(job);
       return;
     }
     try {
       const manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
       job.results = variantsResultsFromOptimizer(job, manifest);
-      if (job.results.length === 0) throw new Error("aucune variante exploitable dans le manifest");
+      if (!manifest.ok || job.results.length !== 4 || new Set(job.results.map((r) => r.variant)).size !== 4) throw new Error("lot de variantes incomplet");
       job.sourceBytes = manifest.sourceBytes || job.sourceBytes;
       job.status = "done";
       job.progress = 1;
@@ -303,9 +329,9 @@ function runVariantsViaOptimizer(job, variantsDir) {
 function runVariantsViaScript(job, variantsDir) {
   emit(job.id, { type: "log", text: "Moteur : script autonome usdz_variants.py." });
   const child = spawn(
-    CONFIG.python || "python3",
+    effectivePython(),
     [VARIANTS_PY, job.sourcePath, "--out-dir", variantsDir, "--dish-kind", job.dishKind],
-    { cwd: ROOT, env: childEnv() }
+    { cwd: ROOT, env: childEnv(), detached: process.platform !== "win32", windowsHide: true }
   );
   job.proc = child;
 
@@ -362,9 +388,10 @@ function runVariantsViaScript(job, variantsDir) {
             file: v.fichier,
             bytes: v.octets,
             reduction: v.reduction_pct,
-            url: `/api/files/${job.id}/variants/${encodeURIComponent(v.fichier)}?token=${TOKEN}`,
+            url: `/api/files/${job.id}/variants/${encodeURIComponent(v.fichier)}`,
           };
         });
+      if (job.results.length !== 4) throw new Error("lot de variantes incomplet");
       job.sourceBytes = manifest.source_octets;
       job.status = "done";
       job.progress = 1;
@@ -394,7 +421,7 @@ function runSingleJob(job) {
       "--profile", job.profile,
       "--dish-kind", job.dishKind,
     ],
-    { cwd: CONFIG.vistaireRepo, env: childEnv() }
+    { cwd: REPO, env: childEnv(), detached: process.platform !== "win32", windowsHide: true }
   );
   job.proc = child;
 
@@ -434,7 +461,7 @@ function runSingleJob(job) {
           reduction: summary.reductionPercent ?? 0,
           trianglesBefore: summary.triangleCountBefore ?? 0,
           trianglesAfter: summary.triangleCountAfter ?? 0,
-          url: `/api/files/${job.id}/runtime.usdz?token=${TOKEN}`,
+          url: `/api/files/${job.id}/runtime.usdz`,
         },
       ];
       job.sourceBytes = summary.sourceBytes || job.sourceBytes;
@@ -453,11 +480,12 @@ function runSingleJob(job) {
 
 /* ---------------- routes ---------------- */
 
+let healthCheck;
 async function handleHealth(res) {
-  const [python, blender] = await Promise.all([
-    checkBin(CONFIG.python || "python3", ["--version"]),
+  const [python, blender] = await (healthCheck ||= Promise.all([
+    checkBin(effectivePython(), ["--version"]),
     checkBin(effectiveBlender(), ["--version"]),
-  ]);
+  ]));
   sendJson(res, 200, {
     ok: true,
     python,
@@ -484,25 +512,33 @@ async function handleRun(req, res) {
   const mode = String(form.get("mode") || "variants");
   const profile = String(form.get("profile") || "balanced");
 
-  if (!(file instanceof File) || !file.name.toLowerCase().endsWith(".usdz")) {
+  if (!(file instanceof File) || !file.name.toLowerCase().endsWith(".usdz") || file.size === 0) {
     sendJson(res, 400, { ok: false, error: "Un fichier .usdz est requis." });
     return;
+  }
+  if (!["single", "variants"].includes(mode) || !PROFILES.includes(profile) || !DISH_KINDS.some((d) => d.id === dishKind)) {
+    return sendJson(res, 400, { ok: false, error: "Mode, profil ou type de plat invalide." });
+  }
+  if (OPTIMIZER_MJS && !existsSync(OPTIMIZER_MJS)) {
+    return sendJson(res, 400, { ok: false, error: "Optimiseur configuré introuvable." });
   }
   if (mode === "single" && !OPTIMIZER_MJS) {
     sendJson(res, 400, { ok: false, error: "Mode profil unique indisponible : vistaireRepo non configuré." });
     return;
   }
-  if (mode === "variants" && !existsSync(VARIANTS_PY)) {
+  if (mode === "variants" && !OPTIMIZER_MJS && !existsSync(VARIANTS_PY)) {
     sendJson(res, 400, { ok: false, error: "Module de variantes introuvable." });
     return;
   }
 
-  const id = randomUUID().slice(0, 8);
+  const sourceBytes = Buffer.from(await file.arrayBuffer());
+  if (stopping) return sendJson(res, 503, { ok: false, error: "Console en cours d’arrêt." });
+  const id = randomUUID();
   const jobDir = join(DATA, "jobs", id);
   mkdirSync(jobDir, { recursive: true });
   const safeName = basename(file.name).replace(/[^a-zA-Z0-9._-]/g, "_");
   const sourcePath = join(jobDir, `source_${safeName}`);
-  writeFileSync(sourcePath, Buffer.from(await file.arrayBuffer()));
+  writeFileSync(sourcePath, sourceBytes);
 
   const job = {
     id,
@@ -563,20 +599,26 @@ function handleChoose(req, res, id) {
     return;
   }
   let body = "";
-  req.on("data", (c) => (body += c));
+  req.on("data", (c) => {
+    if (res.writableEnded) return;
+    if (Buffer.byteLength(body) + c.length > 4096) {
+      sendJson(res, 413, { ok: false, error: "Requête trop volumineuse." });
+      return;
+    }
+    body += c;
+  });
   req.on("end", () => {
+    if (res.writableEnded) return;
     try {
       const { variant } = JSON.parse(body || "{}");
       const found = job.results.find((r) => r.variant === variant);
       if (!found) throw new Error("Variante inconnue.");
-      job.choice = variant;
-      persistJob(job);
       const choicesPath = join(DATA, "choices.json");
       let choices = [];
       try {
         choices = JSON.parse(readFileSync(choicesPath, "utf8"));
-      } catch {
-        /* premier choix */
+      } catch (err) {
+        if (err.code !== "ENOENT") throw err;
       }
       choices.push({
         at: new Date().toISOString(),
@@ -587,7 +629,10 @@ function handleChoose(req, res, id) {
         file: found.file,
         bytes: found.bytes,
       });
-      writeFileSync(choicesPath, JSON.stringify(choices, null, 2));
+      writeFileSync(`${choicesPath}.tmp`, JSON.stringify(choices, null, 2));
+      renameSync(`${choicesPath}.tmp`, choicesPath);
+      job.choice = variant;
+      persistJob(job);
       emit(id, { type: "choice", variant });
       sendJson(res, 200, { ok: true, choice: variant });
     } catch (err) {
@@ -627,24 +672,32 @@ function handleJobs(res) {
 
 loadPersistedJobs();
 
+let acceptingUpload = false;
+let stopping = false;
 const server = createServer(async (req, res) => {
+  res.setHeader("Cache-Control", "no-store");
+  res.setHeader("Referrer-Policy", "no-referrer");
+  res.setHeader("X-Content-Type-Options", "nosniff");
   try {
     const url = new URL(req.url, `http://${HOST}:${PORT}`);
     const path = url.pathname;
 
-    // Le tunnel public expose cette console : tout /api exige le token
-    // affiché par ./start.sh (y compris /api/health, qui lance des
-    // processus locaux à chaque appel). L'UI envoie déjà le token.
-    if (path.startsWith("/api/")) {
-      if (url.searchParams.get("token") !== TOKEN) {
-        return sendJson(res, 401, { ok: false, error: "Token invalide ou manquant." });
-      }
+    if (url.searchParams.get("token") !== TOKEN) {
+      return sendJson(res, 401, { ok: false, error: "Token invalide ou manquant." });
     }
+    if (stopping) return sendJson(res, 503, { ok: false, error: "Console en cours d’arrêt." });
 
-    if (req.method === "GET" && path === "/api/health") return handleHealth(res);
+    if (req.method === "GET" && path === "/api/health") return await handleHealth(res);
     if (req.method === "GET" && path === "/api/choices") return handleChoices(res);
     if (req.method === "GET" && path === "/api/jobs") return handleJobs(res);
-    if (req.method === "POST" && path === "/api/run") return handleRun(req, res);
+    if (req.method === "POST" && path === "/api/run") {
+      if (acceptingUpload || [...jobs.values()].some((j) => j.status === "running")) {
+        return sendJson(res, 409, { ok: false, error: "Une génération est déjà en cours." });
+      }
+      acceptingUpload = true;
+      try { return await handleRun(req, res); }
+      finally { acceptingUpload = false; }
+    }
 
     let m = path.match(/^\/api\/jobs\/([a-zA-Z0-9-]+)\/stream$/);
     if (req.method === "GET" && m) return handleStream(req, res, m[1]);
@@ -656,47 +709,52 @@ const server = createServer(async (req, res) => {
     if (req.method === "GET" && m) {
       const job = getJob(m[1]);
       if (!job) return sendJson(res, 404, { ok: false, error: "Job introuvable." });
-      const { proc, ...safe } = job;
-      return sendJson(res, 200, { ok: true, job: safe });
+      return sendJson(res, 200, { ok: true, job: jobData(job) });
     }
 
     m = path.match(/^\/api\/files\/([a-zA-Z0-9-]+)\/(.+)$/);
-    if (req.method === "GET" && m) {
+    if (["GET", "HEAD"].includes(req.method) && m) {
+      const job = getJob(m[1]);
+      if (!job || job.status !== "done") return sendJson(res, 404, { ok: false });
       const jobDir = join(DATA, "jobs", m[1]);
       const filePath = resolve(join(jobDir, decodeURIComponent(m[2])));
-      if (!filePath.startsWith(resolve(jobDir))) return sendJson(res, 403, { ok: false });
-      return sendFile(res, filePath, MIME[extname(filePath).toLowerCase()] || "application/octet-stream");
+      const allowed = job.results.some((r) =>
+        filePath === resolve(jobDir, job.mode === "variants" ? "variants" : ".", r.file));
+      if (!allowed || !filePath.startsWith(resolve(jobDir) + sep)) return sendJson(res, 403, { ok: false });
+      return sendFile(req, res, filePath, MIME[extname(filePath).toLowerCase()] || "application/octet-stream");
     }
 
-    // statique
-    let filePath = join(PUBLIC, path === "/" ? "index.html" : decodeURIComponent(path.slice(1)));
-    const resolved = resolve(filePath);
-    if (!resolved.startsWith(resolve(PUBLIC))) return sendJson(res, 403, { ok: false });
-    if (!existsSync(resolved) || statSync(resolved).isDirectory()) {
-      filePath = join(PUBLIC, "index.html");
+    if (["GET", "HEAD"].includes(req.method) && ["/", "/index.html"].includes(path)) {
+      return sendFile(req, res, join(PUBLIC, "index.html"), MIME[".html"]);
     }
-    const finalResolved = resolve(filePath);
-    if (finalResolved === join(resolve(PUBLIC), "index.html")) {
-      if (url.searchParams.get("token") !== TOKEN) {
-        res.writeHead(401, { "Content-Type": "text/plain; charset=utf-8" });
-        res.end("Token requis : relance ./start.sh et ouvre l'URL affichée.");
-        return;
-      }
-      const html = readFileSync(finalResolved, "utf8").replaceAll("__CONSOLE_TOKEN__", TOKEN);
-      res.writeHead(200, {
-        "Content-Type": MIME[".html"],
-        "Content-Length": Buffer.byteLength(html),
-      });
-      res.end(html);
-      return;
-    }
-    return sendFile(res, filePath, MIME[extname(filePath).toLowerCase()] || "application/octet-stream");
+    return sendJson(res, 404, { ok: false, error: "Route introuvable." });
   } catch (err) {
     sendJson(res, 500, { ok: false, error: err.message });
   }
 });
 
 server.listen(PORT, HOST, () => {
-  console.log(`Console pipeline USDZ → http://${HOST}:${PORT}/?token=${TOKEN}`);
+  console.log(`Console pipeline USDZ → http://${HOST}:${server.address().port}/?token=${encodeURIComponent(TOKEN)}`);
   console.log(`TOKEN=${TOKEN}`);
 });
+
+// Chaque worker possède son groupe : l’arrêt de la console arrête aussi Blender.
+async function shutdown() {
+  if (stopping) return;
+  stopping = true;
+  server.close();
+  for (const job of jobs.values()) {
+    if (job.status !== "running" || !job.proc?.pid) continue;
+    if (process.platform === "win32") {
+      await new Promise((done) => execFile("taskkill", ["/pid", String(job.proc.pid), "/T", "/F"], { windowsHide: true }, done));
+    } else {
+      try { process.kill(-job.proc.pid, "SIGTERM"); } catch { /* déjà terminé */ }
+    }
+    job.status = "error";
+    job.error = "Génération interrompue par l’arrêt de la console.";
+    persistJob(job);
+  }
+  server.closeAllConnections();
+}
+process.on("SIGTERM", shutdown);
+process.on("SIGINT", shutdown);

@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Pipeline USDZ — Console locale</title>
+<link rel="icon" href="data:,">
 <style>
   :root {
     --bg: #0e0d0b;
@@ -19,6 +20,14 @@
     --radius: 14px;
   }
   * { box-sizing: border-box; }
+  button { font: inherit; }
+  :focus-visible { outline: 2px solid var(--gold); outline-offset: 4px; }
+  #fileName, .hist-item > div { min-width: 0; overflow-wrap: anywhere; }
+  .file-chip { max-width: 100%; flex-wrap: wrap; justify-content: center; }
+  .hist-item { flex-wrap: wrap; }
+  .hist-open { background: var(--surface); color: var(--text); border: 1px solid var(--border); border-radius: 8px; padding: 8px 12px; cursor: pointer; }
+  #log { overflow-wrap: anywhere; }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; scroll-behavior: auto !important; } }
   body {
     margin: 0;
     background: radial-gradient(1200px 600px at 50% -10%, #1e1a13 0%, var(--bg) 55%) fixed, var(--bg);
@@ -90,7 +99,7 @@
   @media (max-width: 640px) { .modes { grid-template-columns: 1fr; } }
   .mode-card {
     border: 1px solid var(--border); border-radius: var(--radius);
-    padding: 20px; cursor: pointer; background: var(--surface-2); transition: all .15s;
+    padding: 20px; cursor: pointer; background: var(--surface-2); transition: all .15s; color: var(--text); text-align: left;
   }
   .mode-card:hover { border-color: var(--gold); }
   .mode-card.active { border-color: var(--gold); background: var(--gold-soft); }
@@ -207,7 +216,7 @@
   </header>
 
   <div class="warn" id="blenderWarn">
-    Blender est introuvable — les variantes auront toutes la même taille.
+    Blender est introuvable — la génération des variantes est indisponible.
     Vérifie <b>blender</b> dans le PATH ou <b>config.json</b>.
   </div>
 
@@ -215,7 +224,7 @@
     <div class="step">01 — Source</div>
     <h2>Le plat à optimiser</h2>
     <p class="sub">Dépose ton fichier .usdz (12–15 Mo, c'est instantané en local).</p>
-    <div id="dropzone">
+    <div id="dropzone" role="button" tabindex="0" aria-label="Choisir un fichier USDZ">
       <div id="dzEmpty">
         <div class="big">Glisse ton .usdz ici</div>
         <div class="small">ou clique pour parcourir tes fichiers</div>
@@ -243,15 +252,15 @@
     <h2>Comment générer</h2>
     <p class="sub">Quatre variantes à comparer, ou un seul profil direct.</p>
     <div class="modes">
-      <div class="mode-card active" data-mode="variants">
+      <button type="button" class="mode-card active" data-mode="variants" aria-pressed="true">
         <div class="badge">Recommandé</div>
         <h3>4 variantes</h3>
         <p>Douce, Équilibrée, Poussée, Maximale. Tu compares visuellement et tu choisis la meilleure.</p>
-      </div>
-      <div class="mode-card" data-mode="single" id="singleCard">
+      </button>
+      <button type="button" class="mode-card" data-mode="single" id="singleCard" aria-pressed="false">
         <h3>Profil unique</h3>
         <p>Le pipeline choisit tout seul la meilleure recette du profil, comme avant.</p>
-      </div>
+      </button>
     </div>
     <div id="profileRow">
       <p class="sub" style="margin:14px 0 10px">Profil</p>
@@ -277,7 +286,7 @@
     <p class="sub" id="resultsSub"></p>
     <div class="variants-grid" id="variantsGrid"></div>
     <div class="ar-hint">
-      <b>Tester en AR :</b> ouvre cette page sur ton iPhone (même réseau Wi-Fi),
+      <b>Tester en AR :</b> ouvre l’URL du tunnel affichée au lancement sur ton iPhone,
       puis touche « Voir en AR » sur une variante.
     </div>
   </section>
@@ -293,9 +302,18 @@
 
 <script>
 const $ = (id) => document.getElementById(id);
-// Injecté par server.mjs à chaque chargement (token généré au démarrage).
-const TOKEN = "__CONSOLE_TOKEN__";
-const api = (p) => (p.includes("?") ? `${p}&token=${TOKEN}` : `${p}?token=${TOKEN}`);
+const TOKEN = new URLSearchParams(location.search).get("token") || "";
+const api = (path) => {
+  const url = new URL(path, location.origin);
+  url.searchParams.set("token", TOKEN);
+  return url.pathname + url.search;
+};
+async function requestJson(path, options) {
+  const res = await fetch(api(path), options);
+  const data = await res.json();
+  if (!res.ok || data.ok === false) throw new Error(data.error || "Requête impossible.");
+  return data;
+}
 const esc = (s) =>
   String(s ?? "").replace(/[&<>"']/g, (c) => ({
     "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
@@ -306,13 +324,14 @@ let mode = "variants";
 let profile = "balanced";
 let dishKinds = [];
 let profiles = [];
+let busy = false;
 
 const fmtMo = (octets) => (octets / 1048576).toLocaleString("fr-FR", { maximumFractionDigits: 1 }) + " Mo";
 const fmtKo = (octets) => Math.round(octets / 1024).toLocaleString("fr-FR") + " Ko";
 
 /* ---------- santé ---------- */
-fetch(api("/api/health")).then((r) => r.json()).then((h) => {
-  const set = (dot, txt, ok, label) => {
+requestJson("/api/health").then((h) => {
+  const set = (dot, txt, ok) => {
     $(dot).className = "dot " + (ok ? "ok" : "ko");
     $(txt).textContent = ok ? "OK" : "absent";
   };
@@ -325,13 +344,14 @@ fetch(api("/api/health")).then((r) => r.json()).then((h) => {
   renderProfileChips();
   if (!h.optimizer.ok) {
     $("singleCard").style.opacity = ".4";
-    $("singleCard").style.pointerEvents = "none";
+    $("singleCard").disabled = true;
     $("singleCard").querySelector("p").textContent = "Indisponible : vistaireRepo non configuré.";
   }
-});
+}).catch((err) => { $("blenderWarn").textContent = err.message; $("blenderWarn").classList.add("show"); });
 
 /* ---------- source ---------- */
 const dz = $("dropzone"), fi = $("fileInput");
+dz.addEventListener("keydown", (e) => { if (e.target === dz && ["Enter", " "].includes(e.key)) { e.preventDefault(); fi.click(); } });
 dz.addEventListener("click", (e) => { if (e.target.id !== "fileRemove") fi.click(); });
 ["dragover", "dragenter"].forEach((ev) => dz.addEventListener(ev, (e) => { e.preventDefault(); dz.classList.add("over"); }));
 ["dragleave", "drop"].forEach((ev) => dz.addEventListener(ev, (e) => { e.preventDefault(); dz.classList.remove("over"); }));
@@ -344,7 +364,9 @@ $("fileRemove").addEventListener("click", (e) => { e.stopPropagation(); setFile(
 
 function setFile(f) {
   if (f && !f.name.toLowerCase().endsWith(".usdz")) { alert("Seuls les .usdz sont acceptés."); return; }
+  if (f && (!f.size || f.size > 250 * 1024 * 1024)) { alert("Choisis un fichier non vide de moins de 250 Mo."); return; }
   selectedFile = f;
+  if (!f) fi.value = "";
   $("dzEmpty").style.display = f ? "none" : "block";
   $("dzFile").style.display = f ? "block" : "none";
   dz.classList.toggle("has-file", !!f);
@@ -362,6 +384,7 @@ function renderDishChips() {
     const b = document.createElement("button");
     b.className = "chip" + (d.id === dishKind ? " active" : "");
     b.textContent = d.label;
+    b.setAttribute("aria-pressed", String(d.id === dishKind));
     b.onclick = () => { dishKind = d.id; renderDishChips(); };
     $("dishChips").appendChild(b);
   });
@@ -372,14 +395,16 @@ function renderProfileChips() {
     const b = document.createElement("button");
     b.className = "chip" + (p === profile ? " active" : "");
     b.textContent = p;
-    b.onclick = () => { profile = p; renderProfileChips(); };
+    b.setAttribute("aria-pressed", String(p === profile));
+    b.onclick = () => { profile = p; renderProfileChips(); updateRunBtn(); };
     $("profileChips").appendChild(b);
   });
 }
 document.querySelectorAll(".mode-card").forEach((c) => {
   c.addEventListener("click", () => {
-    document.querySelectorAll(".mode-card").forEach((x) => x.classList.remove("active"));
+    document.querySelectorAll(".mode-card").forEach((x) => { x.classList.remove("active"); x.setAttribute("aria-pressed", "false"); });
     c.classList.add("active");
+    c.setAttribute("aria-pressed", "true");
     mode = c.dataset.mode;
     $("profileRow").classList.toggle("show", mode === "single");
     updateRunBtn();
@@ -388,7 +413,7 @@ document.querySelectorAll(".mode-card").forEach((c) => {
 
 function updateRunBtn() {
   const btn = $("runBtn");
-  btn.disabled = !selectedFile;
+  btn.disabled = !selectedFile || busy;
   btn.textContent = selectedFile
     ? (mode === "variants" ? "Générer les 4 variantes" : `Optimiser (profil ${profile})`)
     : "Choisir un fichier pour commencer";
@@ -396,7 +421,8 @@ function updateRunBtn() {
 
 /* ---------- lancement ---------- */
 $("runBtn").addEventListener("click", async () => {
-  if (!selectedFile) return;
+  if (!selectedFile || busy) return;
+  busy = true;
   const fd = new FormData();
   fd.append("file", selectedFile);
   fd.append("dishKind", dishKind);
@@ -412,15 +438,22 @@ $("runBtn").addEventListener("click", async () => {
   $("runBtn").disabled = true;
   $("runSection").scrollIntoView({ behavior: "smooth", block: "nearest" });
 
-  const res = await fetch(api("/api/run"), { method: "POST", body: fd });
-  const data = await res.json();
-  if (!data.ok) { addLog("ERREUR : " + data.error, true); $("runBtn").disabled = false; return; }
-  streamJob(data.jobId);
+  try {
+    const data = await requestJson("/api/run", { method: "POST", body: fd });
+    streamJob(data.jobId);
+  } catch (err) {
+    $("runTitle").textContent = "Échec";
+    addLog("ERREUR : " + err.message, true);
+    busy = false;
+    updateRunBtn();
+  }
 });
 
 let es = null;
 function streamJob(id) {
   if (es) es.close();
+  busy = true;
+  updateRunBtn();
   es = new EventSource(api(`/api/jobs/${id}/stream`));
   es.onmessage = (ev) => {
     const m = JSON.parse(ev.data);
@@ -434,10 +467,19 @@ function streamJob(id) {
     else if (m.type === "error") {
       $("runTitle").textContent = "Échec";
       addLog("ERREUR : " + m.error, true);
-      $("runBtn").disabled = false;
+      busy = false;
+      updateRunBtn();
       es.close();
     }
     else if (m.type === "choice") markChosen(m.variant);
+  };
+  es.onerror = () => {
+    $("runTitle").textContent = "Connexion interrompue";
+    addLog("Rouvre ce lancement depuis l’historique pour reprendre le suivi.", true);
+    busy = false;
+    updateRunBtn();
+    es.close();
+    refreshHistory();
   };
 }
 
@@ -452,7 +494,8 @@ function addLog(text, err) {
 /* ---------- résultats ---------- */
 function onDone(id, results) {
   $("runTitle").textContent = "Terminé";
-  $("runBtn").disabled = false;
+  busy = false;
+  updateRunBtn();
   const grid = $("variantsGrid");
   grid.innerHTML = "";
   $("resultsSub").textContent =
@@ -465,14 +508,14 @@ function onDone(id, results) {
     card.dataset.variant = r.variant;
     card.innerHTML = `
       <div class="choice-flag">CHOIX</div>
-      <div class="vlabel">${r.label || r.variant}</div>
-      <div class="vsuffix">${r.variant}</div>
-      <div class="vsize">${fmtMo(r.bytes)}<small></small></div>
-      <div class="vreduc">−${r.reduction} %</div>
+      <div class="vlabel">${esc(r.label || r.variant)}</div>
+      <div class="vsuffix">${esc(r.variant)}</div>
+      <div class="vsize">${r.bytes < 1048576 ? fmtKo(r.bytes) : fmtMo(r.bytes)}<small></small></div>
+      <div class="vreduc">−${esc(r.reduction)} %</div>
       ${r.trianglesAfter ? `<div class="vtri">${r.trianglesBefore.toLocaleString("fr-FR")} → ${r.trianglesAfter.toLocaleString("fr-FR")} triangles</div>` : ""}
       <div class="actions">
-        <a rel="ar" href="${r.url}"><img src="data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw==" alt="" aria-hidden="true" style="width:1px;height:1px;border:0">Voir en AR</a>
-        <a href="${r.url}" download="${r.file}">Télécharger</a>
+        <a rel="ar" href="${esc(api(r.url))}"><img src="data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw==" alt="" aria-hidden="true" style="width:1px;height:1px;border:0">Voir en AR</a>
+        <a href="${esc(api(r.url))}" download="${esc(r.file)}">Télécharger</a>
         <button class="choose">Choisir</button>
       </div>`;
     card.querySelector("button.choose").onclick = () => choose(id, r.variant);
@@ -484,14 +527,17 @@ function onDone(id, results) {
 }
 
 async function choose(id, variant) {
-  const res = await fetch(api(`/api/jobs/${id}/choose`), {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ variant }),
-  });
-  const data = await res.json();
-  if (data.ok) { markChosen(variant); refreshHistory(); }
+  try {
+    await requestJson(`/api/jobs/${id}/choose`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ variant }),
+    });
+    markChosen(variant);
+    refreshHistory();
+  } catch (err) { alert("Choix non enregistré : " + err.message); }
 }
+
 function markChosen(variant) {
   document.querySelectorAll(".variant").forEach((c) => {
     const isIt = c.dataset.variant === variant;
@@ -504,9 +550,8 @@ function markChosen(variant) {
 
 /* ---------- historique ---------- */
 async function refreshHistory() {
-  const [jobsRes, chRes] = await Promise.all([fetch(api("/api/jobs")), fetch(api("/api/choices"))]);
-  const { jobs } = await jobsRes.json();
-  const { choices } = await chRes.json();
+  try {
+  const [{ jobs }, { choices }] = await Promise.all([requestJson("/api/jobs"), requestJson("/api/choices")]);
   const box = $("histList");
   box.innerHTML = "";
   if (!jobs.length) { box.innerHTML = '<div class="empty">Aucun lancement pour l\'instant.</div>'; return; }
@@ -524,8 +569,28 @@ async function refreshHistory() {
       <div class="meta">${j.mode === "variants" ? "4 variantes" : "profil " + esc(j.profile || j.mode)} · ${esc(new Date(j.createdAt).toLocaleString("fr-FR"))}
       ${choiceByJob[j.id] ? ` · choix : <b style="color:var(--gold)">${esc(choiceByJob[j.id])}</b>` : ""}</div></div>
       <span class="status-pill ${esc(pill)}">${esc(pillTxt)}</span>`;
+    const open = document.createElement("button");
+    open.className = "hist-open";
+    open.textContent = "Ouvrir";
+    open.onclick = async () => {
+      try {
+        const { job } = await requestJson(`/api/jobs/${j.id}`);
+        $("runSection").classList.add("show");
+        $("log").innerHTML = "";
+        if (job.status === "done") {
+          if (es) es.close();
+          onDone(job.id, job.results);
+          markChosen(job.choice);
+        } else {
+          $("resultsSection").classList.remove("show");
+          streamJob(job.id);
+        }
+      } catch (err) { alert(err.message); }
+    };
+    d.appendChild(open);
     box.appendChild(d);
   });
+  } catch (err) { $("histList").textContent = "Historique indisponible : " + err.message; }
 }
 refreshHistory();
 </script>

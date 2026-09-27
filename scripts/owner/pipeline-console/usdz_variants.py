@@ -26,6 +26,7 @@ import argparse
 import binascii
 import datetime
 import json
+import math
 import os
 import shutil
 import struct
@@ -49,7 +50,7 @@ JPEG_QUALITY = 65
 # (DISH_SCALE_TARGETS) : on ne met à l'échelle que si la dimension mesurée
 # sort de [minMeters, maxMeters], vers targetMeters ; type inconnu -> "fallback".
 _BLENDER_SCRIPT = r'''
-import bpy, sys, os, mathutils
+import bpy, sys, os, math, mathutils
 args = sys.argv[sys.argv.index('--') + 1:]
 inp, outdir, ratio, dish_kind = args[0], args[1], float(args[2]), args[3]
 TARGETS = {
@@ -80,6 +81,13 @@ def _bounds():
             "footprint": max(dx, dy), "height": dz,
             "cx": (max(xs) + min(xs)) / 2, "cy": (max(ys) + min(ys)) / 2,
             "minZ": min(zs)}
+for obj in bpy.data.objects:
+    if obj.type == 'MESH':
+        mod = obj.modifiers.new(name="DecimateBatch", type='DECIMATE')
+        mod.ratio = ratio
+        bpy.context.view_layer.objects.active = obj
+        bpy.ops.object.modifier_apply(modifier=mod.name)
+bpy.context.view_layer.update()
 # Normalisation : même contrat que blender_usdz_geometry_optimizer.py.
 # Mise à l'échelle uniforme dans l'espace monde : pour un objet racine
 # (sans parent), monde(v) = loc + R @ (scale * v) ; multiplier loc ET scale
@@ -88,6 +96,9 @@ def _bounds():
 kind = dish_kind if dish_kind in TARGETS else "fallback"
 dim, target, min_m, max_m = TARGETS[kind]
 b = _bounds()
+if (not b or not all(math.isfinite(v) for v in b.values()) or b[dim] <= 0
+        or not any(o.type == 'MESH' and len(o.data.polygons) > 0 for o in bpy.data.objects)):
+    raise RuntimeError("SCALE_VALIDATION_FAILED: empty or invalid mesh bounds")
 if b and b[dim] > 0:
     s = target / b[dim] if (b[dim] < min_m or b[dim] > max_m) else 1.0
     roots = [o for o in bpy.data.objects if o.parent is None]
@@ -113,17 +124,13 @@ if b and b[dim] > 0:
     # au lieu d'empaqueter un modèle mal dimensionné.
     if b:
         final = b["footprint"] if dim == "footprint" else b["height"]
-        if not (min_m * 0.999 <= final <= max_m * 1.001):
+        if (not all(math.isfinite(v) for v in b.values())
+                or not (min_m * 0.999 <= final <= max_m * 1.001)
+                or max(abs(b["cx"]), abs(b["cy"]), abs(b["minZ"])) > 0.001):
             print(f"SCALE_VALIDATION_FAILED dish={kind} final {dim}={final:.4f}m hors "
                   f"[{min_m},{max_m}]", flush=True)
             sys.exit(3)
         print(f"NORMALIZED dish={kind} scale={s:.4f}", flush=True)
-for obj in bpy.data.objects:
-    if obj.type == 'MESH':
-        mod = obj.modifiers.new(name="DecimateBatch", type='DECIMATE')
-        mod.ratio = ratio
-        bpy.context.view_layer.objects.active = obj
-        bpy.ops.object.modifier_apply(modifier=mod.name)
 os.makedirs(outdir, exist_ok=True)
 bpy.ops.wm.usd_export(filepath=os.path.join(outdir, "model.usd"))
 print("EXPORT DONE", flush=True)
@@ -187,8 +194,9 @@ def _package_usdz(dossier: str, sortie: str) -> None:
             full = os.path.join(root, n)
             arc = os.path.relpath(full, dossier).replace(os.sep, "/")
             fichiers.append((full, arc))
-    fichiers.sort(key=lambda e: (
-        0 if e[1].lower().endswith((".usd", ".usdc", ".usda")) else 1, e[1]))
+    if not os.path.isfile(os.path.join(dossier, "model.usd")):
+        raise RuntimeError("Blender did not export model.usd")
+    fichiers.sort(key=lambda e: (0 if e[1] == "model.usd" else 1, e[1]))
 
     dt = datetime.datetime.now()
     dosdate = ((dt.year - 1980) << 9) | (dt.month << 5) | dt.day
@@ -274,7 +282,11 @@ def generate_variants(entree: str, out_dir: str,
     Retourne {str(ratio): chemin_sortie}. Écrit aussi un manifest.json
     (tailles avant/après) dans out_dir.
     """
-    ratios = list(ratios) if ratios else list(RATIOS_DEFAUT)
+    ratios = list(RATIOS_DEFAUT) if ratios is None else list(ratios)
+    if not ratios or any(not math.isfinite(r) or not 0 < r < 1 for r in ratios):
+        raise ValueError("Ratios must be finite and strictly between 0 and 1")
+    if len({suffixe_ratio(r) for r in ratios}) != len(ratios):
+        raise ValueError("Ratios must produce distinct output filenames")
     blender = trouver_blender()
     os.makedirs(out_dir, exist_ok=True)
     t0 = os.path.getsize(entree)
@@ -301,6 +313,8 @@ def generate_variants(entree: str, out_dir: str,
                 }
                 print(f"OK ratio {ratio} : {t0 // 1024} -> {t1 // 1024} Ko "
                       f"({os.path.basename(sortie)})", flush=True)
+            with open(os.path.join(out_dir, "manifest.json"), "w", encoding="utf-8") as fh:
+                json.dump(manifest, fh, indent=2)
         except Exception:
             # Échec en cours de batch : on retire TOUS les noms de fichiers
             # attendus avant de propager, pour ne pas laisser un mélange de
@@ -310,9 +324,11 @@ def generate_variants(entree: str, out_dir: str,
                     os.remove(os.path.join(out_dir, f"{base}_{suffixe_ratio(r)}.usdz"))
                 except OSError:
                     pass
+            try:
+                os.remove(os.path.join(out_dir, "manifest.json"))
+            except FileNotFoundError:
+                pass
             raise
-        with open(os.path.join(out_dir, "manifest.json"), "w") as fh:
-            json.dump(manifest, fh, indent=2)
         return resultats
     finally:
         os.unlink(bl_script)

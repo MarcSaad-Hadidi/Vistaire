@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { execFileSync, spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync, existsSync } from "node:fs";
+import { mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync, existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { unzipSync, zipSync, strToU8 } from "fflate";
@@ -51,10 +51,14 @@ def Xform "Dish"
 `;
 
 const FAKE_WORKER = `
-import { copyFileSync, writeFileSync } from "node:fs";
+import { appendFileSync, copyFileSync, writeFileSync } from "node:fs";
 
 const mode = process.env.VISTAIRE_FAKE_USDZ_MODE || "physical-scale-stderr";
 let args = process.argv.slice(2);
+if (args[0]?.endsWith("triangle-probe.py")) {
+  console.log(mode === "variants-probe-failure" ? "0" : "1000");
+  process.exit(0);
+}
 if (args[0] && !args[0].startsWith("--")) args = args.slice(1);
 function arg(name) {
   const index = args.indexOf(name);
@@ -94,6 +98,22 @@ function writeRuntimeReport(extra = {}) {
   }), "utf8");
 }
 
+if (mode.startsWith("variants-")) {
+  const target = Number(process.env.VISTAIRE_USDZ_VARIANTS_TARGET_TRIANGLES);
+  writeRuntimeReport({
+    optimizationApplied: true,
+    geometryOptimization: "done",
+    triangleCountBefore: 1000,
+    triangleCountAfter: target,
+    targetTriangles: target,
+    ...(mode === "variants-no-reduction" ? { triangleCountAfter: 1000 } : {})
+  });
+  if (mode !== "variants-identical") appendFileSync(output, "variant");
+  if (mode === "variants-invalid-runtime" && recipe === "variant-r10") {
+    writeFileSync(output, "invalid usdz");
+  }
+  process.exit(0);
+}
 if (mode === "physical-scale-stderr") {
   console.error(JSON.stringify({ ok: false, error: "Echelle physique invalide apres normalisation Blender.", stage: "physical-scale" }));
   process.exit(2);
@@ -301,7 +321,8 @@ function runCliWithFakeWorker(mode, extraEnv = {}, profile = "premium", extraArg
       result,
       stderrJson: JSON.parse(stderrLine),
       stdoutJson: JSON.parse(stdoutLine),
-      reportJson: existsSync(report) ? JSON.parse(readFileSync(report, "utf8")) : null
+      reportJson: existsSync(report) ? JSON.parse(readFileSync(report, "utf8")) : null,
+      variantFiles: extraArgs.includes("--variants") && existsSync(runtime) ? readdirSync(runtime) : []
     };
   } finally {
     rmSync(dir, { recursive: true, force: true });
@@ -403,6 +424,8 @@ work = out.parent / "offset-rect-work"
 work.mkdir(parents=True, exist_ok=True)
 layer = work / "model.usda"
 stage = Usd.Stage.CreateNew(str(layer))
+UsdGeom.SetStageMetersPerUnit(stage, 1.0)
+UsdGeom.SetStageUpAxis(stage, UsdGeom.Tokens.z)
 root = UsdGeom.Xform.Define(stage, "/Dish")
 stage.SetDefaultPrim(root.GetPrim())
 mesh = UsdGeom.Mesh.Define(stage, "/Dish/Rect")
@@ -549,8 +572,9 @@ test("USDZ runtime optimizer uses the first archive USD layer instead of alphabe
     const runtimeValidation = validateUsdzBasic({ filePath: runtime, productionUrl: false });
     assert.equal(runtimeValidation.ok, true, JSON.stringify(runtimeValidation.fails));
 
-    const runtimeText = usdTextBundle(runtime);
-    assert.match(runtimeText, /SelectedRoot/);
+    assert.equal(JSON.parse(readFileSync(report, "utf8")).rootLayerEntry, "z_root.usda");
+    // Blender may rename Xforms and export binary USDC; both composed cubes must survive.
+    assert.equal(summary.triangleCountAfter, 24);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
@@ -839,5 +863,23 @@ test("Blender optimizer uses recipe-driven decimation limits instead of a hardco
       assert.equal(recipe.minDecimateRatio, 0.05);
       assert.equal(recipe.maxDecimatePasses, 1);
     }
+  }
+});
+
+
+test("USDZ variants use relative targets and publish every validated candidate", () => {
+  const { result, stdoutJson, reportJson, variantFiles } = runCliWithFakeWorker("variants-success", {}, "balanced", ["--variants"]);
+  assert.equal(result.status, 0, result.stderr);
+  assert.deepEqual(stdoutJson.variants.map((variant) => variant.targetTriangles), [500, 250, 150, 100]);
+  assert.equal(reportJson.ok, true);
+  assert.equal(variantFiles.length, 5);
+});
+
+test("USDZ variants reject invalid geometry/packages and clean partial batches", () => {
+  for (const mode of ["variants-invalid-runtime", "variants-no-reduction", "variants-identical", "variants-probe-failure"]) {
+    const { result, reportJson, variantFiles } = runCliWithFakeWorker(mode, {}, "balanced", ["--variants"]);
+    assert.notEqual(result.status, 0, mode);
+    assert.equal(reportJson, null, mode);
+    assert.deepEqual(variantFiles, [], mode);
   }
 });

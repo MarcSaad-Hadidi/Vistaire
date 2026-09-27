@@ -1,76 +1,67 @@
-#!/bin/bash
-# Console locale du pipeline USDZ — avec tunnel public automatique.
-# Chaque lancement ouvre aussi une URL publique pour tester en AR sur iPhone.
+#!/usr/bin/env bash
+# Un groupe par service permet aussi d’arrêter les enfants de npx.
+set -eu
+set -m
+umask 077
 cd "$(dirname "$0")"
 
-# Blender : variable d'env ou PATH
-if [ -z "$BLENDER_BIN" ] && ! command -v blender >/dev/null 2>&1; then
-  echo "Attention : Blender introuvable (ni BLENDER_BIN, ni dans le PATH)."
-  echo "La console démarre quand même, mais la génération des variantes échouera."
-  echo ""
-fi
-
-PORT="${CONSOLE_PORT:-$(python3 -c "import json;print(json.load(open('config.json'))['port'])" 2>/dev/null || echo 8130)}"
-
-# 1) console locale
-node server.mjs > console.log 2>&1 &
-SERVER_PID=$!
+PORT="${CONSOLE_PORT:-$(node -p "require('./config.json').port || 8130")}"
+HOST="${CONSOLE_HOST:-$(node -p "require('./config.json').host || '127.0.0.1'")}"
+LOCAL_HOST="$HOST"
+case "$LOCAL_HOST" in 0.0.0.0|::) LOCAL_HOST=127.0.0.1 ;; esac
+SERVER_PID=""
 LT_PID=""
 cleanup() {
-  [ -n "$SERVER_PID" ] && kill "$SERVER_PID" 2>/dev/null
-  [ -n "$LT_PID" ] && kill "$LT_PID" 2>/dev/null
+  trap - EXIT
+  if [ -n "$LT_PID" ]; then
+    kill -- "-$LT_PID" 2>/dev/null || true
+    wait "$LT_PID" 2>/dev/null || true
+  fi
+  if [ -n "$SERVER_PID" ]; then
+    kill "$SERVER_PID" 2>/dev/null || true
+    wait "$SERVER_PID" 2>/dev/null || true
+  fi
 }
-# Installé dès le premier enfant : un Ctrl+C pendant l'attente du token ou
-# du tunnel (fenêtre d'environ une minute) arrête aussi le serveur et le
-# tunnel, y compris en sortie normale du script.
-trap cleanup INT TERM EXIT
-sleep 2
-if ! kill -0 $SERVER_PID 2>/dev/null; then
-  echo "La console n'a pas démarré. Voir console.log"
-  exit 1
-fi
+trap cleanup EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
 
-# Token d'accès (généré par server.mjs, exigé par l'UI et l'API).
-# On lit toute la ligne TOKEN= : CONSOLE_TOKEN peut contenir des caractères
-# non hexadécimaux, que le serveur accepte tels quels.
-TOKEN=""
-for i in $(seq 1 10); do
-  TOKEN=$(grep -o 'TOKEN=.*' console.log | head -1 | cut -d= -f2-)
-  [ -n "$TOKEN" ] && break
+node server.mjs > console.log 2>&1 &
+SERVER_PID=$!
+TOKEN_URL=""
+for ((i=0; i<20; i++)); do
+  if ! kill -0 "$SERVER_PID" 2>/dev/null; then
+    echo "La console n’a pas démarré. Voir console.log"
+    exit 1
+  fi
+  TOKEN_URL=$(node -e 'const fs=require("fs"); const m=fs.readFileSync("console.log","utf8").match(/^TOKEN=(.*)$/m); if(m) process.stdout.write(encodeURIComponent(m[1]));')
+  [ -n "$TOKEN_URL" ] && break
   sleep 1
 done
-if [ -z "$TOKEN" ]; then
+if [ -z "$TOKEN_URL" ]; then
   echo "Token introuvable dans console.log"
   exit 1
 fi
-# Le token voyage dans l'URL : on l'encode pour les liens affichés
-# (le serveur le décode via URLSearchParams).
-TOKEN_URL=$(python3 -c "import urllib.parse,sys; print(urllib.parse.quote(sys.argv[1], safe=''))" "$TOKEN")
 
-# 2) tunnel public automatique (pour tester en AR sur iPhone)
-echo "Ouverture du tunnel public..."
-npx --yes localtunnel --port "$PORT" > tunnel.log 2>&1 &
-LT_PID=$!
-
-URL=""
-for i in $(seq 1 30); do
-  URL=$(grep -o 'https://[^ ]*\.loca\.lt' tunnel.log | head -1)
-  [ -n "$URL" ] && break
-  sleep 2
-done
-
-echo ""
-echo "=================================="
-echo " Console : http://127.0.0.1:$PORT/?token=$TOKEN_URL"
-if [ -n "$URL" ]; then
-  echo " iPhone  : $URL/?token=$TOKEN_URL"
-  echo ""
-  echo " (1re visite : entre ton IP publique si localtunnel la demande)"
-else
-  echo " Tunnel : échec, voir tunnel.log"
+echo "Console : http://$LOCAL_HOST:$PORT/?token=$TOKEN_URL"
+if [ "${CONSOLE_NO_TUNNEL:-0}" != "1" ]; then
+  echo "Ouverture du tunnel public (l’URL contient votre accès privé)..."
+  npx --yes localtunnel@2.0.2 --port "$PORT" --local-host "$LOCAL_HOST" > tunnel.log 2>&1 &
+  LT_PID=$!
+  URL=""
+  for ((i=0; i<30; i++)); do
+    URL=$(node -e 'const fs=require("fs"); const m=fs.readFileSync("tunnel.log","utf8").match(/https:\/\/[a-z0-9-]+\.loca\.lt/); if(m) process.stdout.write(m[0]);')
+    [ -n "$URL" ] && break
+    kill -0 "$SERVER_PID" 2>/dev/null || exit 1
+    kill -0 "$LT_PID" 2>/dev/null || break
+    sleep 2
+  done
+  if [ -n "$URL" ]; then
+    echo "iPhone : $URL/?token=$TOKEN_URL"
+    echo "Première visite : localtunnel peut demander votre IP publique."
+  else
+    echo "Tunnel indisponible : voir tunnel.log. La console locale reste accessible."
+  fi
 fi
-echo "=================================="
 echo "Ctrl+C pour tout arrêter."
-echo ""
-
-wait $SERVER_PID
+wait "$SERVER_PID"

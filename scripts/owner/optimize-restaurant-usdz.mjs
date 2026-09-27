@@ -182,28 +182,35 @@ function formatBytes(bytes) {
   return `${Math.max(0, Number(bytes) || 0)} B`;
 }
 
-// Exécute du code Python inline (sonde, pas le worker).
-function runPythonCode(python, code, args) {
-  return new Promise((resolvePromise) => {
-    const child = spawn(python, ["-c", code, ...args], {
-      windowsHide: true,
-      shell: process.platform === "win32" && /\.(?:cmd|bat)$/i.test(python)
+// Sonde temporaire compatible avec les lanceurs Python .cmd sous Windows.
+async function runPythonCode(python, code, args) {
+  const workspace = mkdtempSync(join(tmpdir(), "vistaire-usdz-probe-"));
+  const script = join(workspace, "triangle-probe.py");
+  writeFileSync(script, code, "utf8");
+  try {
+    return await new Promise((resolvePromise) => {
+      const child = spawn(python, [script, ...args], {
+        windowsHide: true,
+        shell: process.platform === "win32" && /\.(?:cmd|bat)$/i.test(python)
+      });
+      let stdout = "";
+      let stderr = "";
+      child.stdout.on("data", (chunk) => {
+        stdout += chunk.toString();
+      });
+      child.stderr.on("data", (chunk) => {
+        stderr += chunk.toString();
+      });
+      child.on("error", (error) => {
+        resolvePromise({ code: -1, stdout, stderr: `${stderr}${error.message}` });
+      });
+      child.on("close", (code) => {
+        resolvePromise({ code: code ?? -1, stdout, stderr });
+      });
     });
-    let stdout = "";
-    let stderr = "";
-    child.stdout.on("data", (chunk) => {
-      stdout += chunk.toString();
-    });
-    child.stderr.on("data", (chunk) => {
-      stderr += chunk.toString();
-    });
-    child.on("error", (error) => {
-      resolvePromise({ code: -1, stdout, stderr: `${stderr}${error.message}` });
-    });
-    child.on("close", (code) => {
-      resolvePromise({ code: code ?? -1, stdout, stderr });
-    });
-  });
+  } finally {
+    rmSync(workspace, { recursive: true, force: true });
+  }
 }
 
 // Compte les triangles d'une scène USD avec la formule exacte du worker
@@ -225,12 +232,12 @@ print(total)
 async function measureSourceTriangles(python, source) {
   try {
     const result = await runPythonCode(python, COUNT_TRIANGLES_PY, [source]);
-    const count = parseInt(String(result.stdout).trim(), 10);
+    const count = Number(String(result.stdout).trim());
     if (result.code === 0 && Number.isInteger(count) && count > 0) {
       return count;
     }
   } catch {
-    // sonde indisponible : on retombe sur les cibles absolues des recettes
+    // Un ratio ne peut pas être garanti sans mesure de la source.
   }
   return 0;
 }
@@ -535,14 +542,20 @@ async function runVariantsMode({ source, output, reportPath, dishKind, python, s
   const base = basename(source).replace(/\.usdz$/i, "");
   const workspace = mkdtempSync(join(tmpdir(), "vistaire-usdz-variants-"));
   const variants = [];
-  // Les noms r50/r25/r15/r10 annoncent des ratios RELATIFS à la source.
-  // On mesure les triangles source (même formule que le worker) et on
-  // dérive chaque cible : le worker calcule min(cible/mesuré, decimateRatio),
-  // donc cible = ratio * mesuré produit exactement le ratio annoncé,
-  // quelle que soit la taille de la source. L'override passe par
-  // VISTAIRE_USDZ_VARIANTS_TARGET_TRIANGLES (supporté par le worker).
-  const sourceTriangles = await measureSourceTriangles(python, source);
+  const cleanupOutputs = () => {
+    for (const recipe of recipes) {
+      const suffix = VARIANT_SUFFIX_BY_SLUG[recipe.slug] || recipe.slug;
+      rmSync(join(outDir, `${base}_${suffix}.usdz`), { force: true });
+    }
+    rmSync(join(outDir, "manifest.json"), { force: true });
+    rmSync(reportPath, { force: true });
+  };
   try {
+    // Les suffixes représentent une fraction mesurée de la source.
+    const sourceTriangles = await measureSourceTriangles(python, source);
+    if (sourceTriangles <= 0) {
+      throw new OptimizerStageError("Impossible de mesurer les triangles de la source USDZ.", "geometry");
+    }
     for (const recipe of recipes) {
       const suffix = VARIANT_SUFFIX_BY_SLUG[recipe.slug] || recipe.slug;
       const ratioMatch = /^r(\d+)$/.exec(suffix);
@@ -570,9 +583,28 @@ async function runVariantsMode({ source, output, reportPath, dishKind, python, s
         });
         continue;
       }
+      const rep = candidate.report || {};
+      const runtimeValidation = validateUsdzBasic({
+        filePath: candidate.runtimePath,
+        label: "usdz-variant",
+        productionUrl: false
+      });
+      const before = Number(rep.triangleCountBefore);
+      const after = Number(rep.triangleCountAfter);
+      if (!runtimeValidation.ok || runtimeValidation.metrics.sha256 === sourceSha256 ||
+          rep.geometryOptimization !== "done" ||
+          !Number.isInteger(after) || after <= 0 || !(after < before) || after > targetTriangles ||
+          !["normalized", "unchanged"].includes(rep.physicalScale?.status)) {
+        variants.push({
+          recipe: recipe.slug,
+          ok: false,
+          error: "Variante USDZ invalide : package, géométrie ou échelle physique.",
+          fails: runtimeValidation.fails
+        });
+        continue;
+      }
       const fileName = `${base}_${suffix}.usdz`;
       copyFileSync(candidate.runtimePath, join(outDir, fileName));
-      const rep = candidate.report || {};
       variants.push({
         recipe: recipe.slug,
         ok: true,
@@ -587,41 +619,34 @@ async function runVariantsMode({ source, output, reportPath, dishKind, python, s
         geometryOptimization: rep.geometryOptimization ?? "skipped"
       });
     }
+    const failed = variants.filter((variant) => !variant.ok);
+    if (failed.length > 0) {
+      throw new OptimizerStageError(
+        `${failed.length} variante(s) en échec : ${failed.map((variant) => variant.recipe).join(", ")}`,
+        "variants",
+        { variants }
+      );
+    }
+    const manifest = {
+      ok: true,
+      mode: "variants",
+      generatedAt: new Date().toISOString(),
+      sourceBytes,
+      sourceSha256,
+      outDir,
+      variants
+    };
+    writeFileSync(join(outDir, "manifest.json"), `${JSON.stringify(manifest, null, 2)}\n`, "utf8");
+    if (reportPath) {
+      writeFileSync(reportPath, `${JSON.stringify(manifest, null, 2)}\n`, "utf8");
+    }
+    process.stdout.write(`${JSON.stringify({ ok: true, mode: "variants", outDir, variants })}\n`);
+  } catch (error) {
+    cleanupOutputs();
+    throw error;
   } finally {
     rmSync(workspace, { recursive: true, force: true });
   }
-  const failed = variants.filter((v) => !v.ok);
-  if (failed.length > 0) {
-    // Échec partiel : on retire TOUS les noms de fichiers attendus du batch
-    // (y compris les suffixes en échec, qui pourraient être des restes d'un
-    // run précédent dans un outDir réutilisé) pour ne pas laisser un mélange
-    // de sorties à jour et périmées.
-    for (const recipe of recipes) {
-      const suffix = VARIANT_SUFFIX_BY_SLUG[recipe.slug] || recipe.slug;
-      rmSync(join(outDir, `${base}_${suffix}.usdz`), { force: true });
-    }
-  }
-  const manifest = {
-    ok: failed.length === 0,
-    mode: "variants",
-    generatedAt: new Date().toISOString(),
-    sourceBytes,
-    sourceSha256,
-    outDir,
-    variants
-  };
-  writeFileSync(join(outDir, "manifest.json"), `${JSON.stringify(manifest, null, 2)}\n`, "utf8");
-  if (reportPath) {
-    writeFileSync(reportPath, `${JSON.stringify(manifest, null, 2)}\n`, "utf8");
-  }
-  if (failed.length > 0) {
-    emitError(
-      `${failed.length} variante(s) en échec : ${failed.map((f) => f.recipe).join(", ")}`,
-      "variants",
-      { variants }
-    );
-  }
-  process.stdout.write(`${JSON.stringify({ ok: true, mode: "variants", outDir, variants })}\n`);
 }
 
 async function main() {
@@ -644,6 +669,9 @@ async function main() {
   }
   if (!VALID_DISH_KINDS.has(dishKind)) {
     emitError(`Type de plat invalide: ${dishKind}.`, "args");
+  }
+  if (source === reportPath || output === reportPath) {
+    emitError("Le rapport doit être distinct de la source et de la sortie.", "args");
   }
   if (source === output) {
     emitError("Source et output identiques.", "args");
