@@ -516,8 +516,13 @@ async function runVariantsMode({ source, output, reportPath, dishKind, python, s
   if (reportPath) {
     writeFileSync(reportPath, `${JSON.stringify(manifest, null, 2)}\n`, "utf8");
   }
-  if (variants.length > 0 && variants.every((v) => !v.ok)) {
-    emitError(`Aucune variante générée : ${variants[0]?.error || "échec"}`, "variants", { variants });
+  const failed = variants.filter((v) => !v.ok);
+  if (failed.length > 0) {
+    emitError(
+      `${failed.length} variante(s) en échec : ${failed.map((f) => f.recipe).join(", ")}`,
+      "variants",
+      { variants }
+    );
   }
   process.stdout.write(`${JSON.stringify({ ok: true, mode: "variants", outDir, variants })}\n`);
 }

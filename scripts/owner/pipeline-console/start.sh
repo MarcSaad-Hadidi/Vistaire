@@ -21,6 +21,19 @@ if ! kill -0 $SERVER_PID 2>/dev/null; then
   exit 1
 fi
 
+# Token d'accès (généré par server.mjs, exigé par l'UI et l'API)
+TOKEN=""
+for i in $(seq 1 10); do
+  TOKEN=$(grep -o 'TOKEN=[a-f0-9]*' console.log | head -1 | cut -d= -f2)
+  [ -n "$TOKEN" ] && break
+  sleep 1
+done
+if [ -z "$TOKEN" ]; then
+  echo "Token introuvable dans console.log"
+  kill $SERVER_PID 2>/dev/null
+  exit 1
+fi
+
 # 2) tunnel public automatique (pour tester en AR sur iPhone)
 echo "Ouverture du tunnel public..."
 npx --yes localtunnel --port "$PORT" > tunnel.log 2>&1 &
@@ -35,9 +48,9 @@ done
 
 echo ""
 echo "=================================="
-echo " Console : http://127.0.0.1:$PORT"
+echo " Console : http://127.0.0.1:$PORT/?token=$TOKEN"
 if [ -n "$URL" ]; then
-  echo " iPhone  : $URL"
+  echo " iPhone  : $URL/?token=$TOKEN"
   echo ""
   echo " (1re visite : entre ton IP publique si localtunnel la demande)"
 else

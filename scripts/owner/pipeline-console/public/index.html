@@ -293,6 +293,13 @@
 
 <script>
 const $ = (id) => document.getElementById(id);
+// Injecté par server.mjs à chaque chargement (token généré au démarrage).
+const TOKEN = "__CONSOLE_TOKEN__";
+const api = (p) => (p.includes("?") ? `${p}&token=${TOKEN}` : `${p}?token=${TOKEN}`);
+const esc = (s) =>
+  String(s ?? "").replace(/[&<>"']/g, (c) => ({
+    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
+  }[c]));
 let selectedFile = null;
 let dishKind = "plate";
 let mode = "variants";
@@ -304,7 +311,7 @@ const fmtMo = (octets) => (octets / 1048576).toLocaleString("fr-FR", { maximumFr
 const fmtKo = (octets) => Math.round(octets / 1024).toLocaleString("fr-FR") + " Ko";
 
 /* ---------- santé ---------- */
-fetch("/api/health").then((r) => r.json()).then((h) => {
+fetch(api("/api/health")).then((r) => r.json()).then((h) => {
   const set = (dot, txt, ok, label) => {
     $(dot).className = "dot " + (ok ? "ok" : "ko");
     $(txt).textContent = ok ? "OK" : "absent";
@@ -405,7 +412,7 @@ $("runBtn").addEventListener("click", async () => {
   $("runBtn").disabled = true;
   $("runSection").scrollIntoView({ behavior: "smooth", block: "nearest" });
 
-  const res = await fetch("/api/run", { method: "POST", body: fd });
+  const res = await fetch(api("/api/run"), { method: "POST", body: fd });
   const data = await res.json();
   if (!data.ok) { addLog("ERREUR : " + data.error, true); $("runBtn").disabled = false; return; }
   streamJob(data.jobId);
@@ -414,7 +421,7 @@ $("runBtn").addEventListener("click", async () => {
 let es = null;
 function streamJob(id) {
   if (es) es.close();
-  es = new EventSource(`/api/jobs/${id}/stream`);
+  es = new EventSource(api(`/api/jobs/${id}/stream`));
   es.onmessage = (ev) => {
     const m = JSON.parse(ev.data);
     if (m.type === "log") addLog(m.text, m.err);
@@ -477,7 +484,7 @@ function onDone(id, results) {
 }
 
 async function choose(id, variant) {
-  const res = await fetch(`/api/jobs/${id}/choose`, {
+  const res = await fetch(api(`/api/jobs/${id}/choose`), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ variant }),
@@ -497,7 +504,7 @@ function markChosen(variant) {
 
 /* ---------- historique ---------- */
 async function refreshHistory() {
-  const [jobsRes, chRes] = await Promise.all([fetch("/api/jobs"), fetch("/api/choices")]);
+  const [jobsRes, chRes] = await Promise.all([fetch(api("/api/jobs")), fetch(api("/api/choices"))]);
   const { jobs } = await jobsRes.json();
   const { choices } = await chRes.json();
   const box = $("histList");
@@ -511,10 +518,10 @@ async function refreshHistory() {
     const pill = j.status === "done" ? "done" : j.status === "running" ? "running" : "error";
     const pillTxt = j.status === "done" ? "terminé" : j.status === "running" ? "en cours" : j.status;
     d.innerHTML = `
-      <div><div>${j.fileName}</div>
-      <div class="meta">${j.mode === "variants" ? "4 variantes" : "profil " + j.mode} · ${new Date(j.createdAt).toLocaleString("fr-FR")}
-      ${choiceByJob[j.id] ? ` · choix : <b style="color:var(--gold)">${choiceByJob[j.id]}</b>` : ""}</div></div>
-      <span class="status-pill ${pill}">${pillTxt}</span>`;
+      <div><div>${esc(j.fileName)}</div>
+      <div class="meta">${j.mode === "variants" ? "4 variantes" : "profil " + esc(j.mode)} · ${esc(new Date(j.createdAt).toLocaleString("fr-FR"))}
+      ${choiceByJob[j.id] ? ` · choix : <b style="color:var(--gold)">${esc(choiceByJob[j.id])}</b>` : ""}</div></div>
+      <span class="status-pill ${esc(pill)}">${esc(pillTxt)}</span>`;
     box.appendChild(d);
   });
 }

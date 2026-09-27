@@ -23,9 +23,12 @@ Prérequis :
 """
 
 import argparse
+import binascii
+import datetime
 import json
 import os
 import shutil
+import struct
 import subprocess
 import sys
 import tempfile
@@ -99,6 +102,72 @@ def _optimiser_textures(dossier: str) -> None:
                 pass  # texture illisible : on la garde telle quelle
 
 
+# Alignement exigé par la spec USDZ (§16.4.1.3) : les DONNÉES de chaque
+# fichier doivent commencer sur un multiple de 64 octets. Comme le writer
+# de référence (SdfZipFileWriter), on insère le padding dans le champ
+# "extra" du local header — les lecteurs zip l'ignorent.
+_USDZ_DATA_ALIGNMENT = 64
+_USDZ_ALIGN_EXTRA_ID = 0xBEEF
+
+
+def _package_usdz(dossier: str, sortie: str) -> None:
+    """Repackage un dossier en .usdz conforme : entrées STORED (non compressées),
+    première entrée = le layer USD, données alignées sur 64 octets."""
+    fichiers = []
+    for root, _, names in os.walk(dossier):
+        for n in names:
+            full = os.path.join(root, n)
+            arc = os.path.relpath(full, dossier).replace(os.sep, "/")
+            fichiers.append((full, arc))
+    fichiers.sort(key=lambda e: (
+        0 if e[1].lower().endswith((".usd", ".usdc", ".usda")) else 1, e[1]))
+
+    dt = datetime.datetime.now()
+    dosdate = ((dt.year - 1980) << 9) | (dt.month << 5) | dt.day
+    dostime = (dt.hour << 11) | (dt.minute << 5) | (dt.second // 2)
+
+    central = []
+    with open(sortie, "wb") as out:
+        offset = 0
+        for full, arc in fichiers:
+            with open(full, "rb") as fh:
+                data = fh.read()
+            name_b = arc.encode("utf-8")
+            flags = 0x800 if any(b > 127 for b in name_b) else 0
+            # Padding pour aligner le début des DONNÉES sur 64 octets.
+            extra_start = offset + 30 + len(name_b)
+            pad = _USDZ_DATA_ALIGNMENT - (extra_start % _USDZ_DATA_ALIGNMENT)
+            if pad == _USDZ_DATA_ALIGNMENT:
+                pad = 0
+            elif pad < 4:  # trop petit pour l'en-tête extra (4 octets)
+                pad += _USDZ_DATA_ALIGNMENT
+            extra = (struct.pack("<HH", _USDZ_ALIGN_EXTRA_ID, pad - 4)
+                     + b"\x00" * (pad - 4)) if pad else b""
+            crc = binascii.crc32(data) & 0xFFFFFFFF
+            header_start = offset
+            out.write(struct.pack(
+                "<IHHHHHIIIHH", 0x04034B50, 20, flags, 0,
+                dostime, dosdate, crc, len(data), len(data),
+                len(name_b), len(extra)))
+            out.write(name_b)
+            out.write(extra)
+            assert out.tell() % _USDZ_DATA_ALIGNMENT == 0, \
+                f"données non alignées pour {arc}"
+            out.write(data)
+            central.append(struct.pack(
+                "<IHHHHHHIIIHHHHHII", 0x02014B50, 20, 20, flags, 0,
+                dostime, dosdate, crc, len(data), len(data),
+                len(name_b), len(extra), 0, 0, 0, 0, header_start)
+                + name_b + extra)
+            offset = out.tell()
+        central_start = offset
+        central_data = b"".join(central)
+        out.write(central_data)
+        out.write(struct.pack(
+            "<IHHHHIIH", 0x06054B50, 0, 0,
+            len(central), len(central), len(central_data), central_start, 0))
+
+
 def generer_une_variante(blender: str, bl_script: str, entree: str,
                          sortie: str, ratio: float) -> int:
     """Génère une variante à `ratio`. Retourne la taille en octets. Lève en cas d'échec."""
@@ -112,12 +181,8 @@ def generer_une_variante(blender: str, bl_script: str, entree: str,
         if "EXPORT DONE" not in r.stdout:
             raise RuntimeError(f"Blender a échoué (ratio {ratio}) : {r.stderr[-500:]}")
         _optimiser_textures(tmpdir)
-        # Repackage USDZ : zip non compressé (STORED), comme un USDZ standard.
-        with zipfile.ZipFile(sortie, "w", zipfile.ZIP_STORED) as z:
-            for root, _, files in os.walk(tmpdir):
-                for f in files:
-                    full = os.path.join(root, f)
-                    z.write(full, os.path.relpath(full, tmpdir))
+        # Repackage USDZ conforme (STORED + alignement 64 octets).
+        _package_usdz(tmpdir, sortie)
         return os.path.getsize(sortie)
     finally:
         shutil.rmtree(tmpdir, ignore_errors=True)

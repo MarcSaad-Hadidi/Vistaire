@@ -44,6 +44,29 @@ const OPTIMIZER_MJS = CONFIG.vistaireRepo
   ? resolve(CONFIG.vistaireRepo, "scripts/owner/optimize-restaurant-usdz.mjs")
   : null;
 
+// Token anti-accès non autorisé : le tunnel public expose cette console,
+// toutes les routes /api (sauf /api/health) et la page exigent ?token=.
+// Généré à chaque démarrage, affiché par ./start.sh.
+const TOKEN = process.env.CONSOLE_TOKEN || randomUUID().replace(/-/g, "");
+
+function effectiveBlender() {
+  if (process.env.BLENDER_BIN) return process.env.BLENDER_BIN;
+  const cfg = CONFIG.blender || "blender";
+  return /[/\\]/.test(cfg) ? resolve(ROOT, cfg) : cfg;
+}
+
+// Propage le Blender configuré aux processus enfants (le health check et
+// la génération doivent voir le même binaire).
+function childEnv() {
+  const env = { ...process.env };
+  const b = effectiveBlender();
+  if (b !== "blender") {
+    env.BLENDER_BIN = b; // usdz_variants.py
+    env.VISTAIRE_USDZ_BLENDER = b; // optimize-restaurant-usdz.mjs
+  }
+  return env;
+}
+
 mkdirSync(join(DATA, "uploads"), { recursive: true });
 mkdirSync(join(DATA, "jobs"), { recursive: true });
 
@@ -174,15 +197,113 @@ function checkBin(cmd, args) {
 
 /* ---------------- exécution pipeline ---------------- */
 
+const VARIANT_LABELS = {
+  r50: { label: "Douce", ratio: "0.5" },
+  r25: { label: "Équilibrée", ratio: "0.25" },
+  r15: { label: "Poussée", ratio: "0.15" },
+  r10: { label: "Maximale", ratio: "0.1" },
+};
+
 function runVariantsJob(job) {
   const jobDir = join(DATA, "jobs", job.id);
   const variantsDir = join(jobDir, "variants");
   mkdirSync(variantsDir, { recursive: true });
+  // Par défaut : l'optimiseur du repo (--variants --dish-kind), qui normalise
+  // l'échelle physique selon le type de plat et package en USDZ via OpenUSD.
+  // Repli sur le script autonome si l'optimiseur est indisponible ou échoue.
+  if (OPTIMIZER_MJS && existsSync(OPTIMIZER_MJS)) {
+    runVariantsViaOptimizer(job, variantsDir);
+  } else {
+    runVariantsViaScript(job, variantsDir);
+  }
+}
 
+function variantsResultsFromOptimizer(job, manifest) {
+  return (manifest.variants || [])
+    .map((v) => {
+      const m = String(v.file || "").match(/_([A-Za-z0-9]+)\.usdz$/);
+      const meta = m && VARIANT_LABELS[m[1]];
+      if (!v.ok || !meta) return null;
+      return {
+        variant: m[1],
+        label: meta.label,
+        ratio: meta.ratio,
+        file: v.file,
+        bytes: v.bytes,
+        reduction: v.reductionPercent ?? 0,
+        trianglesBefore: v.triangleCountBefore ?? 0,
+        trianglesAfter: v.triangleCountAfter ?? 0,
+        url: `/api/files/${job.id}/variants/${encodeURIComponent(v.file)}?token=${TOKEN}`,
+      };
+    })
+    .filter(Boolean);
+}
+
+function runVariantsViaOptimizer(job, variantsDir) {
+  emit(job.id, { type: "log", text: "Moteur : optimiseur du repo (--variants --dish-kind)." });
+  const manifestPath = join(variantsDir, "manifest.json");
+  const child = spawn(
+    process.execPath,
+    [
+      OPTIMIZER_MJS,
+      "--source", job.sourcePath,
+      "--output", variantsDir, // en mode --variants, --output = dossier
+      "--report", manifestPath,
+      "--variants",
+      "--dish-kind", job.dishKind,
+    ],
+    { cwd: CONFIG.vistaireRepo, env: childEnv() }
+  );
+  job.proc = child;
+
+  let fellBack = false;
+  const fallbackToScript = (reason) => {
+    if (fellBack) return;
+    fellBack = true;
+    emit(job.id, { type: "log", text: reason, err: true });
+    runVariantsViaScript(job, variantsDir);
+  };
+
+  child.stdout.on("data", (d) => {
+    const t = d.toString().trim();
+    if (t) emit(job.id, { type: "log", text: t.split("\n").pop().slice(0, 300) });
+  });
+  child.stderr.on("data", (d) => {
+    const t = d.toString().trim();
+    if (t) emit(job.id, { type: "log", text: t.slice(0, 300), err: true });
+  });
+  child.on("error", (err) => {
+    fallbackToScript(`Optimiseur indisponible (${err.message}) — repli sur le script autonome.`);
+  });
+  child.on("close", (code) => {
+    if (code !== 0) {
+      fallbackToScript(`Optimiseur en échec (code ${code}) — repli sur le script autonome.`);
+      return;
+    }
+    try {
+      const manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
+      job.results = variantsResultsFromOptimizer(job, manifest);
+      if (job.results.length === 0) throw new Error("aucune variante exploitable dans le manifest");
+      job.sourceBytes = manifest.sourceBytes || job.sourceBytes;
+      job.status = "done";
+      job.progress = 1;
+      emit(job.id, { type: "progress", value: 1 });
+      emit(job.id, { type: "done", results: job.results });
+    } catch (err) {
+      job.status = "error";
+      job.error = `Manifest illisible : ${err.message}`;
+      emit(job.id, { type: "error", error: job.error });
+    }
+    persistJob(job);
+  });
+}
+
+function runVariantsViaScript(job, variantsDir) {
+  emit(job.id, { type: "log", text: "Moteur : script autonome usdz_variants.py." });
   const child = spawn(
     CONFIG.python || "python3",
     [VARIANTS_PY, job.sourcePath, "--out-dir", variantsDir],
-    { cwd: ROOT }
+    { cwd: ROOT, env: childEnv() }
   );
   job.proc = child;
 
@@ -239,7 +360,7 @@ function runVariantsJob(job) {
             file: v.fichier,
             bytes: v.octets,
             reduction: v.reduction_pct,
-            url: `/api/files/${job.id}/variants/${encodeURIComponent(v.fichier)}`,
+            url: `/api/files/${job.id}/variants/${encodeURIComponent(v.fichier)}?token=${TOKEN}`,
           };
         });
       job.sourceBytes = manifest.source_octets;
@@ -311,7 +432,7 @@ function runSingleJob(job) {
           reduction: summary.reductionPercent ?? 0,
           trianglesBefore: summary.triangleCountBefore ?? 0,
           trianglesAfter: summary.triangleCountAfter ?? 0,
-          url: `/api/files/${job.id}/runtime.usdz`,
+          url: `/api/files/${job.id}/runtime.usdz?token=${TOKEN}`,
         },
       ];
       job.sourceBytes = summary.sourceBytes || job.sourceBytes;
@@ -333,7 +454,7 @@ function runSingleJob(job) {
 async function handleHealth(res) {
   const [python, blender] = await Promise.all([
     checkBin(CONFIG.python || "python3", ["--version"]),
-    checkBin(CONFIG.blender || "blender", ["--version"]),
+    checkBin(effectiveBlender(), ["--version"]),
   ]);
   sendJson(res, 200, {
     ok: true,
@@ -508,6 +629,14 @@ const server = createServer(async (req, res) => {
     const url = new URL(req.url, `http://${HOST}:${PORT}`);
     const path = url.pathname;
 
+    // Le tunnel public expose cette console : tout /api (sauf /api/health,
+    // simple diagnostic) exige le token affiché par ./start.sh.
+    if (path.startsWith("/api/") && path !== "/api/health") {
+      if (url.searchParams.get("token") !== TOKEN) {
+        return sendJson(res, 401, { ok: false, error: "Token invalide ou manquant." });
+      }
+    }
+
     if (req.method === "GET" && path === "/api/health") return handleHealth(res);
     if (req.method === "GET" && path === "/api/choices") return handleChoices(res);
     if (req.method === "GET" && path === "/api/jobs") return handleJobs(res);
@@ -542,6 +671,21 @@ const server = createServer(async (req, res) => {
     if (!existsSync(resolved) || statSync(resolved).isDirectory()) {
       filePath = join(PUBLIC, "index.html");
     }
+    const finalResolved = resolve(filePath);
+    if (finalResolved === join(resolve(PUBLIC), "index.html")) {
+      if (url.searchParams.get("token") !== TOKEN) {
+        res.writeHead(401, { "Content-Type": "text/plain; charset=utf-8" });
+        res.end("Token requis : relance ./start.sh et ouvre l'URL affichée.");
+        return;
+      }
+      const html = readFileSync(finalResolved, "utf8").replaceAll("__CONSOLE_TOKEN__", TOKEN);
+      res.writeHead(200, {
+        "Content-Type": MIME[".html"],
+        "Content-Length": Buffer.byteLength(html),
+      });
+      res.end(html);
+      return;
+    }
     return sendFile(res, filePath, MIME[extname(filePath).toLowerCase()] || "application/octet-stream");
   } catch (err) {
     sendJson(res, 500, { ok: false, error: err.message });
@@ -549,5 +693,6 @@ const server = createServer(async (req, res) => {
 });
 
 server.listen(PORT, HOST, () => {
-  console.log(`Console pipeline USDZ → http://${HOST}:${PORT}`);
+  console.log(`Console pipeline USDZ → http://${HOST}:${PORT}/?token=${TOKEN}`);
+  console.log(`TOKEN=${TOKEN}`);
 });
