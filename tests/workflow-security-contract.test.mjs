@@ -73,3 +73,24 @@ test("production apply is restricted to one explicit canary restaurant", () => {
   assert.match(applyBlock, /--restaurant-id="\$CANARY_RESTAURANT_ID"/);
   assert.doesNotMatch(applyBlock, /--dish-id=/);
 });
+
+test("backfill validates an explicit storage backend before production operations", () => {
+  const validation = mediaBackfillWorkflow.split("node --input-type=module - <<'NODE'")[1].split("\n          NODE")[0];
+  const run = (env) => new Function("process", "console", validation)({ env }, { log() {} });
+  const supabase = {
+    NEXT_PUBLIC_SUPABASE_URL: "https://fixture.supabase.co",
+    SUPABASE_SERVICE_ROLE_KEY: "fixture-key",
+    VISTAIRE_EXPECTED_SUPABASE_PROJECT_REF: "fixture"
+  };
+  assert.throws(() => run(supabase), /R2_STORAGE_ENABLED/);
+  assert.doesNotThrow(() => run({ ...supabase, R2_STORAGE_ENABLED: "false" }));
+  assert.throws(() => run({ ...supabase, R2_STORAGE_ENABLED: "true" }), /R2 configuration is incomplete/);
+  const r2 = { ...supabase, R2_STORAGE_ENABLED: "true", R2_S3_ENDPOINT: "https://fixture.r2.cloudflarestorage.com", R2_S3_ACCESS_KEY_ID: "fixture", R2_S3_SECRET_ACCESS_KEY: "fixture" };
+  assert.doesNotThrow(() => run(r2));
+  assert.throws(() => run({ ...r2, R2_S3_ENDPOINT: "http://fixture.invalid" }), /HTTPS origin/);
+  for (const step of mediaBackfillWorkflow.split("      - name:").filter((step) => step.includes("node scripts/backfill-dish-photo-derivatives.mjs"))) {
+    for (const name of ["R2_S3_ENDPOINT", "R2_S3_ACCESS_KEY_ID", "R2_S3_SECRET_ACCESS_KEY"]) {
+      assert.ok(step.includes(name + ": ${{ secrets." + name + " }}"), `${name} must reach each backfill phase`);
+    }
+  }
+});

@@ -28,6 +28,16 @@ lecture image/GLB/USDZ, clés avec espaces/accents, upload photo, upload USDZ,
 repli vers la photo originale si son dérivé manque, et refus des liens expirés.
 Les tests locaux utilisent des objets et identifiants synthétiques.
 
+## Scripts et workflow de backfill
+
+Les backfills photo/Maison Elyse et le runner 3D utilisent le meme adaptateur.
+Le workflow manuel de backfill exige une variable GitHub `R2_STORAGE_ENABLED`
+explicitement `true` ou `false`, identique au deploiement, et les trois secrets
+`R2_S3_*` si R2 est actif. Les scripts locaux doivent recevoir ces memes variables.
+Les protections existantes (confirmation, canary, quota, mesure et verification)
+sont conservees. Le workflow de production n'est pas execute par cette PR.
+L'audit `supabase:usage:audit` reste un inventaire de Supabase, pas un audit R2.
+
 ## Retour arrière
 
 Le flag false restaure le routage Supabase, mais ne recopie aucun objet.

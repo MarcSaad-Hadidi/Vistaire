@@ -1,3 +1,4 @@
+import { storageBucket } from "../lib/storage/backend.ts";
 import { createHash, randomUUID } from "node:crypto";
 import { execFileSync } from "node:child_process";
 import { createRequire } from "node:module";
@@ -419,7 +420,7 @@ async function processPlan(client, plan, checkpoint, runtime) {
     return { status: "dry-run", key, missing: plan.missing.map((variant) => variant.name) };
   }
 
-  const bucket = client.storage.from("vistaire-media");
+  const bucket = storageBucket(client.storage, "vistaire-media");
   if (verifyOnly) {
     const checks = await verifyPlanObjects(bucket, plan, runtime.verifyBudget, verifyHash);
     if (checks.some((check) => check.reasons.length)) {

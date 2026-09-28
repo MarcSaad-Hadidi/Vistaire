@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { storageBucket } from "../../lib/storage/backend.ts";
 import { spawn } from "node:child_process";
 import { createHash, randomUUID } from "node:crypto";
 import { existsSync, lstatSync, readFileSync, readdirSync, statSync } from "node:fs";
@@ -516,7 +517,7 @@ async function uploadArtifacts(client, { job, files, args }) {
     if (!args.uploadArtifacts || bytes.length > maxBytes) continue;
     if (!bucket) throw new Error("VISTAIRE_3D_RUNNER_ARTIFACT_BUCKET or VISTAIRE_3D_SOURCE_BUCKET is required.");
     const storagePath = buildStorageArtifactPath({ jobId: job.id, relativePath: file.relativePath });
-    const upload = await client.storage.from(bucket).upload(storagePath, bytes, {
+    const upload = await storageBucket(client.storage, bucket).upload(storagePath, bytes, {
       cacheControl: "0",
       contentType: mimeTypeFor(file.relativePath),
       upsert: true
