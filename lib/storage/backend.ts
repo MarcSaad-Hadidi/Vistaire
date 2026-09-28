@@ -269,10 +269,7 @@ class R2BucketHandle implements StorageBucketHandle {
     }
   }
 
-  async list(
-    path: string,
-    _options?: { limit?: number; offset?: number; sortBy?: { column: string; order: string } }
-  ): Promise<StorageResult<StorageListItem[]>> {
+  async list(path?: string): Promise<StorageResult<StorageListItem[]>> {
     try {
       const client = getS3Client();
       const prefix = path ? (path.endsWith("/") ? path : `${path}/`) : "";
