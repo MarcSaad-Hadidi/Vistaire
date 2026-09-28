@@ -29,7 +29,10 @@ import { isR2Bucket, r2StorageEnabled } from "./r2Config";
 
 export type StorageErrorShape = {
   message: string;
-  statusCode?: number;
+  code?: string;
+  details?: string;
+  hint?: string;
+  statusCode?: number | string;
 };
 
 export type StorageResult<T> = {
