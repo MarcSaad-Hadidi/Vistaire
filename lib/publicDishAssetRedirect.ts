@@ -14,7 +14,8 @@ import { storageBucket } from "@/lib/storage/backend";
 import {
   isExpectedR2PresignedAssetUrl,
   isR2Bucket,
-  r2StorageEnabled
+  r2StorageEnabled,
+  r2PresignedUrlExpiresAt
 } from "@/lib/storage/r2Config";
 
 export type PublicDishAssetKind = "photo" | "web-glb" | "ar-lite-glb" | "usdz";
@@ -827,6 +828,8 @@ async function redirectDishAsset(args: {
   }
 
   const storage = adminClient.storage.from(bucket);
+  const useR2 = r2StorageEnabled() && isR2Bucket(bucket);
+  const r2Handle = useR2 ? storageBucket(adminClient.storage, bucket) : null;
   try {
     let storageInfoDuration = 0;
     let storageSignDuration = 0;
@@ -838,55 +841,11 @@ async function redirectDishAsset(args: {
       Boolean(activeVersion) &&
       publicSignedUrlCacheEnabled(runtime);
     const sign = async (storagePath = selectedStoragePath): Promise<boolean> => {
-      // Migration R2 : URLs de lecture pré-signées S3 à expiration courte
-      // (équivalent révocable des signed URLs Supabase). L'existence de
-      // l'objet est vérifiée avant le redirect pour retomber sur l'original
-      // si le dérivé est absent de R2. Tous les contrôles de sécurité en
-      // amont (disponibilité du plat, bucket/path, version, dérivés,
-      // règles admin/public) restent inchangés.
-      if (r2StorageEnabled() && isR2Bucket(bucket)) {
-        const r2Handle = storageBucket(adminClient.storage, bucket);
-        const r2SignedAt = runtime.now();
-        const r2TtlSeconds =
-          args.assetVisibilityPolicy.kind === "authorized-admin"
-            ? ADMIN_SIGNED_URL_TTL_SECONDS
-            : Math.min(
-                SIGNED_URL_TTL_SECONDS,
-                Math.floor((publicAccessDeadlineAt - r2SignedAt) / 1_000)
-              );
-        if (
-          args.assetVisibilityPolicy.kind === "public-available-only" &&
-          r2TtlSeconds < MIN_PUBLIC_SIGNED_URL_REMAINING_SECONDS
-        ) {
-          return false;
-        }
-        const r2InfoStartedAt = runtime.performanceNow();
-        const r2Info = await r2Handle.info(storagePath);
-        storageInfoDuration = boundedDuration(r2InfoStartedAt, runtime);
-        if (r2Info.error || !r2Info.data) {
-          signError = r2Info.error ?? { status: 404, message: "Object not found" };
-          return false;
-        }
-        const r2SignStartedAt = runtime.performanceNow();
-        const r2Signed = await r2Handle.createSignedDownloadUrl(
-          storagePath,
-          r2TtlSeconds
-        );
-        storageSignDuration = boundedDuration(r2SignStartedAt, runtime);
-        signError = r2Signed.error;
-        const candidate = r2Signed.data?.signedUrl;
-        if (!r2Signed.error && candidate) {
-          signedUrl = candidate;
-          signedUrlTokenExpiresAt = r2SignedAt + r2TtlSeconds * 1_000;
-          return true;
-        }
-        return false;
-      }
       const cacheKey = canReuseSignedUrl
         ? signedUrlCacheKey({
             bucket,
             storagePath,
-            version: activeVersion
+            version: `${useR2 ? process.env.R2_S3_ENDPOINT : args.supabaseUrl}:${activeVersion}`
           })
         : null;
       if (cacheKey) {
@@ -920,6 +879,15 @@ async function redirectDishAsset(args: {
       }
 
       const signPromise = (async (): Promise<SignedUrlCacheEntry | null> => {
+        if (r2Handle) {
+          const infoStartedAt = runtime.performanceNow();
+          const info = await r2Handle.info(storagePath);
+          storageInfoDuration += boundedDuration(infoStartedAt, runtime);
+          if (info.error || !info.data) {
+            signError = info.error ?? { status: 404, message: "Object not found" };
+            return null;
+          }
+        }
         const storageSignStartedAt = runtime.performanceNow();
         const signedAt = runtime.now();
         const signedUrlTtlSeconds =
@@ -938,8 +906,9 @@ async function redirectDishAsset(args: {
           return null;
         }
         try {
-          const signed =
-            args.assetVisibilityPolicy.kind === "authorized-admin"
+          const signed = r2Handle
+            ? await r2Handle.createSignedDownloadUrl(storagePath, signedUrlTtlSeconds)
+            : args.assetVisibilityPolicy.kind === "authorized-admin"
               ? await storage.createSignedUrl(storagePath, ADMIN_SIGNED_URL_TTL_SECONDS)
               : signedUrlTtlSeconds === SIGNED_URL_TTL_SECONDS
                 ? await storage.createSignedUrl(storagePath, SIGNED_URL_TTL_SECONDS)
@@ -950,15 +919,18 @@ async function redirectDishAsset(args: {
           if (
             !signed.error &&
             candidate &&
-            isExpectedSignedStorageUrl({
-              signedUrl: candidate,
-              supabaseUrl: args.supabaseUrl,
-              bucket,
-              storagePath
-            })
+            (useR2
+              ? isExpectedR2PresignedAssetUrl({ presignedUrl: candidate, bucket, storagePath })
+              : isExpectedSignedStorageUrl({
+                  signedUrl: candidate,
+                  supabaseUrl: args.supabaseUrl,
+                  bucket,
+                  storagePath
+                }))
           ) {
-            const tokenExpiresAt =
-              args.assetVisibilityPolicy.kind === "authorized-admin"
+            const tokenExpiresAt = useR2
+              ? r2PresignedUrlExpiresAt(candidate)
+              : args.assetVisibilityPolicy.kind === "authorized-admin"
                 ? signedAt + signedUrlTtlSeconds * 1_000
                 : signedStorageJwtExpiresAt(candidate);
             const tokenRemainingMs =
@@ -1008,22 +980,7 @@ async function redirectDishAsset(args: {
 
     const directSigning = Boolean(activeVersion);
     const signOriginal = async (): Promise<boolean> => {
-      if (directSigning) return sign();
-      // Migration R2 : contrôle d'existence via HeadObject S3 (équivalent du
-      // storage.info() Supabase) pour les assets legacy non versionnés.
-      // L'erreur est propagée telle quelle (404 vs 503) pour ne pas masquer
-      // une panne R2 derrière un 404.
-      if (r2StorageEnabled() && isR2Bucket(bucket)) {
-        const r2Handle = storageBucket(adminClient.storage, bucket);
-        const storageInfoStartedAt = runtime.performanceNow();
-        const r2Info = await r2Handle.info(selectedStoragePath);
-        storageInfoDuration = boundedDuration(storageInfoStartedAt, runtime);
-        if (r2Info.error || !r2Info.data) {
-          signError = r2Info.error ?? { status: 404, message: "Object not found" };
-          return false;
-        }
-        return sign();
-      }
+      if (directSigning || useR2) return sign();
       const storageInfoStartedAt = runtime.performanceNow();
       const storagePath = selectedStoragePath;
       const objectInfo = await storage.info(storagePath);

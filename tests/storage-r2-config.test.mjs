@@ -156,6 +156,15 @@ test("isExpectedR2PresignedAssetUrl validates the virtual-hosted presigned shape
       env: envArg
     });
   assert.equal(check(valid), true);
+  assert.equal(r2Config.r2PresignedUrlExpiresAt(valid), Date.parse("2026-09-28T00:04:30Z"));
+  for (const invalid of [
+    valid.replace("https:", "http:"),
+    valid.replace("https://", "https://user:pass@"),
+    valid + "#fragment",
+    valid.replace("abc123", ""),
+    valid.replace("20260928T000000Z", "20260230T000000Z"),
+    valid.replace("Expires=270", "Expires=-1")
+  ]) assert.equal(check(invalid), false, invalid);
   // Path-style host forgery is rejected (SDK signs virtual-hosted style).
   assert.equal(
     check(

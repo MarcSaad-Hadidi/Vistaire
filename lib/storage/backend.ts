@@ -144,6 +144,8 @@ function getS3Client(env: NodeJS.ProcessEnv = process.env): S3Client {
   if (!cachedClient || cachedConfigKey !== key) {
     cachedClient = new S3Client({
       region: "auto",
+      // Les octets du futur PUT signé sont inconnus : ne pas signer le CRC32 du vide.
+      requestChecksumCalculation: "WHEN_REQUIRED",
       endpoint: config.endpoint,
       credentials: {
         accessKeyId: config.accessKeyId,
@@ -196,11 +198,15 @@ class R2BucketHandle implements StorageBucketHandle {
       const input: PutObjectCommandInput = {
         Bucket: this.bucket,
         Key: path,
-        Body: body,
+        Body: body instanceof Blob ? new Uint8Array(await body.arrayBuffer()) : body,
         ...(options?.contentType ? { ContentType: options.contentType } : {}),
-        ...(options?.cacheControl ? { CacheControl: options.cacheControl } : {}),
+        ...(options?.cacheControl ? {
+          CacheControl: /^\d+$/.test(options.cacheControl)
+            ? `max-age=${options.cacheControl}`
+            : options.cacheControl
+        } : {}),
         // upsert: false -> échoue si l'objet existe déjà (équivalent Supabase).
-        ...(options?.upsert === false ? { IfNoneMatch: "*" } : {})
+        ...(options?.upsert !== true ? { IfNoneMatch: "*" } : {})
       };
       await client.send(new PutObjectCommand(input));
       return { data: { path }, error: null };
@@ -239,12 +245,15 @@ class R2BucketHandle implements StorageBucketHandle {
       // DeleteObjects accepte 1000 clés max par appel ; l'opération est
       // idempotente (les clés absentes sont un succès, comme côté Supabase).
       for (const group of chunk(cleanPaths, 1000)) {
-        await client.send(
+        const result = await client.send(
           new DeleteObjectsCommand({
             Bucket: this.bucket,
             Delete: { Objects: group.map((Key) => ({ Key })) }
           })
         );
+        if (result.Errors?.length) {
+          throw new Error(`Storage deletion failed: ${result.Errors.map((item) => item.Code || "UnknownError").join(", ")}`);
+        }
       }
       return { data: cleanPaths.map((name) => ({ name })), error: null };
     } catch (error) {
@@ -323,11 +332,11 @@ class R2BucketHandle implements StorageBucketHandle {
   ): Promise<StorageResult<{ signedUrl: string; token: string; path: string }>> {
     try {
       const client = getS3Client();
-      // L'URL pré-signée S3 est auto-suffisante : un simple PUT du fichier
-      // suffit, aucun token séparé n'est nécessaire (token: "").
+      // Le PUT inclut If-None-Match: * (en-tête signé) pour interdire
+      // le remplacement après publication ; aucun token séparé n'est requis.
       const signedUrl = await getSignedUrl(
         client,
-        new PutObjectCommand({ Bucket: this.bucket, Key: path }),
+        new PutObjectCommand({ Bucket: this.bucket, Key: path, IfNoneMatch: "*" }),
         { expiresIn: 3600 }
       );
       return { data: { signedUrl, token: "", path }, error: null };

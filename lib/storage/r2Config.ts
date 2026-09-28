@@ -125,7 +125,10 @@ export function isExpectedR2PresignedAssetUrl(args: {
   } catch {
     return false;
   }
-  if (url.host !== `${args.bucket}.${endpointHost}`) return false;
+  if (
+    url.protocol !== "https:" || url.username || url.password || url.hash ||
+    url.host !== `${args.bucket}.${endpointHost}`
+  ) return false;
   const encodedPath = args.storagePath
     .split("/")
     .map((segment) => encodeR2KeySegment(segment))
@@ -133,7 +136,8 @@ export function isExpectedR2PresignedAssetUrl(args: {
   if (url.pathname !== `/${encodedPath}`) return false;
   return (
     url.searchParams.get("X-Amz-Algorithm") === "AWS4-HMAC-SHA256" &&
-    url.searchParams.has("X-Amz-Signature")
+    Boolean(url.searchParams.get("X-Amz-Signature")) &&
+    r2PresignedUrlExpiresAt(args.presignedUrl) !== null
   );
 }
 
@@ -162,5 +166,21 @@ export async function r2PublicObjectExists(
     return false;
   } finally {
     clearTimeout(timer);
+  }
+}
+
+/** Read the actual SigV4 expiry rather than estimating when the SDK signed. */
+export function r2PresignedUrlExpiresAt(value: string): number | null {
+  try {
+    const query = new URL(value).searchParams;
+    const date = query.get("X-Amz-Date") ?? "";
+    const ttl = query.get("X-Amz-Expires") ?? "";
+    const match = /^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})Z$/.exec(date);
+    if (!match || !/^\d+$/.test(ttl) || Number(ttl) < 1 || Number(ttl) > 604800) return null;
+    const signedAt = Date.parse(`${match[1]}-${match[2]}-${match[3]}T${match[4]}:${match[5]}:${match[6]}Z`);
+    if (!Number.isFinite(signedAt) || new Date(signedAt).toISOString().replace(/[-:]/g, "").replace(".000", "") !== date) return null;
+    return signedAt + Number(ttl) * 1_000;
+  } catch {
+    return null;
   }
 }
