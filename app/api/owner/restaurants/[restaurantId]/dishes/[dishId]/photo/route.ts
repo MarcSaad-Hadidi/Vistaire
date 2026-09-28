@@ -1,3 +1,4 @@
+import { storageBucket } from "@/lib/storage/backend";
 import { randomUUID } from "node:crypto";
 import { NextResponse, type NextRequest } from "next/server";
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -313,7 +314,7 @@ export async function POST(
       sha256: generated.metadata.outputSha256
     });
   }
-  const bucket = admin.client.storage.from(MEDIA_BUCKET);
+  const bucket = storageBucket(admin.client.storage, MEDIA_BUCKET);
   const candidatesToUpload: typeof uploadCandidates = [];
   try {
     for (const candidate of uploadCandidates) {

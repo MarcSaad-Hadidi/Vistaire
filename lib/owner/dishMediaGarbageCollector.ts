@@ -1,3 +1,4 @@
+import { storageBucket } from "@/lib/storage/backend";
 import {
   collectDishModelStorageTargets,
   DISH_MODEL_STORAGE_BUCKET,
@@ -198,7 +199,7 @@ export async function deleteDishMediaStorageTargets(
   if (photoPaths.length > 0) groups.set(DISH_PHOTO_STORAGE_BUCKET, photoPaths);
 
   for (const [bucket, paths] of groups) {
-    const removal = await client.storage.from(bucket).remove(paths);
+    const removal = await storageBucket(client.storage, bucket).remove(paths);
     if (removal.error) {
       const message = removal.error.message || removal.error.details || removal.error.hint || "erreur inconnue";
       report.warnings.push(`Storage ${bucket} non supprime: ${message}`);

@@ -1,3 +1,4 @@
+import { storageBucket } from "@/lib/storage/backend";
 import { isDeepStrictEqual } from "node:util";
 import { NextResponse, type NextRequest } from "next/server";
 import {
@@ -167,7 +168,7 @@ export async function DELETE(
   try {
     for (const [bucket, paths] of groupTargetsByBucket(scoped.targets)) {
       attemptedCount += paths.length;
-      const removal = await admin.client.storage.from(bucket).remove(paths);
+      const removal = await storageBucket(admin.client.storage, bucket).remove(paths);
       if (removal.error) {
         throw new Error("storage_cleanup_failed");
       }

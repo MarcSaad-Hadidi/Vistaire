@@ -1,5 +1,7 @@
 import "server-only";
 
+import { storageBucket } from "@/lib/storage/backend";
+
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
   isExpectedPrivateSourceKey,
@@ -136,7 +138,7 @@ export async function downloadPrivateObject(args: {
   ctx: StorageContext;
   storagePath: string;
 }): Promise<{ ok: true; bytes: Buffer } | CandidateStoreFailure> {
-  const { data, error } = await args.ctx.client.storage.from(args.ctx.bucket).download(args.storagePath);
+  const { data, error } = await storageBucket(args.ctx.client.storage, args.ctx.bucket).download(args.storagePath);
   if (error || !data) {
     logStoreError("private object download failed", error?.message ?? "missing object");
     return { ok: false, code: "storage_unavailable", message: "Private object is unavailable.", status: 503 };
@@ -225,8 +227,7 @@ export async function createOptimizeGlbCandidate(args: {
     visualStatus: "pending"
   };
 
-  const uploadResult = await storage.ctx.client.storage
-    .from(storage.ctx.bucket)
+  const uploadResult = await storageBucket(storage.ctx.client.storage, storage.ctx.bucket)
     .upload(storagePath, args.bytes, {
       cacheControl: "0",
       contentType: "model/gltf-binary",

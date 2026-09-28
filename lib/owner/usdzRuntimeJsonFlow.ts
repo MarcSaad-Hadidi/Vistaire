@@ -1,3 +1,4 @@
+import { storageBucket } from "@/lib/storage/backend";
 import { createHmac, randomUUID, timingSafeEqual } from "node:crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
@@ -596,7 +597,7 @@ export async function prepareUsdzRuntimeSignedUpload(args: {
   const runtimeStoragePath = expected.runtimeStoragePath;
   const reportStoragePath = expected.reportStoragePath;
 
-  const bucket = args.adminClient.storage.from(MODEL_BUCKET);
+  const bucket = storageBucket(args.adminClient.storage, MODEL_BUCKET);
   const runtimeUpload = await bucket.createSignedUploadUrl(runtimeStoragePath);
   if (runtimeUpload.error || !runtimeUpload.data) {
     throw new Error("URL signee runtime USDZ impossible.");
@@ -634,7 +635,7 @@ async function rollbackStorageObjects(
   const cleanPaths = paths.filter((path): path is string => Boolean(path && path.trim()));
   if (cleanPaths.length === 0) return;
   try {
-    await adminClient.storage.from(MODEL_BUCKET).remove(cleanPaths);
+    await storageBucket(adminClient.storage, MODEL_BUCKET).remove(cleanPaths);
   } catch {
     // best-effort rollback; the local worker still removes transient files.
   }
@@ -685,7 +686,7 @@ export async function rollbackUsdzRuntimeSignedUpload(args: {
   }
 
   if (paths.length > 0) {
-    const removal = await args.adminClient.storage.from(MODEL_BUCKET).remove(paths);
+    const removal = await storageBucket(args.adminClient.storage, MODEL_BUCKET).remove(paths);
     if (removal.error) {
       throw new Error("Rollback Storage USDZ impossible.");
     }
@@ -698,7 +699,7 @@ async function downloadStorageBytes(
   adminClient: SupabaseClient,
   path: string
 ): Promise<Buffer> {
-  const downloaded = await adminClient.storage.from(MODEL_BUCKET).download(path);
+  const downloaded = await storageBucket(adminClient.storage, MODEL_BUCKET).download(path);
   if (downloaded.error || !downloaded.data) {
     throw new Error("Objet Storage USDZ introuvable apres upload signe.");
   }

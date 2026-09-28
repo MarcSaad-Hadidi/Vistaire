@@ -10,6 +10,13 @@ import {
   isValidDishPhotoDerivativeMetadata,
   type DishPhotoDerivativeVariant
 } from "@/lib/owner/dishPhotoUpload";
+import {
+  isExpectedR2PublicAssetUrl,
+  isR2Bucket,
+  r2PublicAssetUrl,
+  r2PublicObjectExists,
+  r2StorageEnabled
+} from "@/lib/storage/r2Config";
 
 export type PublicDishAssetKind = "photo" | "web-glb" | "ar-lite-glb" | "usdz";
 export type PublicDishPhotoVariant = DishPhotoDerivativeVariant;
@@ -832,6 +839,19 @@ async function redirectDishAsset(args: {
       Boolean(activeVersion) &&
       publicSignedUrlCacheEnabled(runtime);
     const sign = async (storagePath = selectedStoragePath): Promise<boolean> => {
+      // Migration R2 : les assets publics sont servis via les domaines CDN
+      // Cloudflare au lieu des signed URLs Supabase. Tous les contrôles de
+      // sécurité en amont (disponibilité du plat, bucket/path, version,
+      // dérivés, règles admin/public) restent inchangés.
+      if (r2StorageEnabled() && isR2Bucket(bucket)) {
+        const publicUrl = r2PublicAssetUrl(bucket, storagePath);
+        if (!publicUrl) return false;
+        signedUrl = publicUrl;
+        // L'URL R2 est permanente : on aligne l'expiration sur le TTL public
+        // standard pour que les en-têtes et la logique de cache restent identiques.
+        signedUrlTokenExpiresAt = runtime.now() + SIGNED_URL_TTL_SECONDS * 1_000;
+        return true;
+      }
       const cacheKey = canReuseSignedUrl
         ? signedUrlCacheKey({
             bucket,
@@ -959,6 +979,18 @@ async function redirectDishAsset(args: {
     const directSigning = Boolean(activeVersion);
     const signOriginal = async (): Promise<boolean> => {
       if (directSigning) return sign();
+      // Migration R2 : contrôle d'existence via HEAD public (équivalent du
+      // storage.info() Supabase) pour les assets legacy non versionnés.
+      if (r2StorageEnabled() && isR2Bucket(bucket)) {
+        const storageInfoStartedAt = runtime.performanceNow();
+        const exists = await r2PublicObjectExists(bucket, selectedStoragePath);
+        storageInfoDuration = boundedDuration(storageInfoStartedAt, runtime);
+        if (!exists) {
+          signError = { status: 404, message: "Object not found" };
+          return false;
+        }
+        return sign();
+      }
       const storageInfoStartedAt = runtime.performanceNow();
       const storagePath = selectedStoragePath;
       const objectInfo = await storage.info(storagePath);
@@ -1000,14 +1032,24 @@ async function redirectDishAsset(args: {
       }
     }
 
+    // Migration R2 : l'URL publique Cloudflare remplace la signed URL Supabase ;
+    // la vérification anti-forgery compare à l'URL exacte attendue.
     if (
       !signedUrl ||
-      !isExpectedSignedStorageUrl({
-        signedUrl,
-        supabaseUrl: args.supabaseUrl,
-        bucket,
-        storagePath: selectedStoragePath
-      })
+      !(
+        r2StorageEnabled() && isR2Bucket(bucket)
+          ? isExpectedR2PublicAssetUrl({
+              publicUrl: signedUrl,
+              bucket,
+              storagePath: selectedStoragePath
+            })
+          : isExpectedSignedStorageUrl({
+              signedUrl,
+              supabaseUrl: args.supabaseUrl,
+              bucket,
+              storagePath: selectedStoragePath
+            })
+      )
     ) {
       return publicDishAssetJsonError(args.unavailableMessage, 503);
     }

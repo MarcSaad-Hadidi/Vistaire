@@ -1,5 +1,7 @@
 import "server-only";
 
+import { storageBucket } from "@/lib/storage/backend";
+
 import { randomUUID } from "node:crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
@@ -73,7 +75,7 @@ async function uploadGlb(
   storagePath: string,
   bytes: Buffer
 ): Promise<void> {
-  const uploaded = await adminClient.storage.from(MODEL_BUCKET).upload(storagePath, bytes, {
+  const uploaded = await storageBucket(adminClient.storage, MODEL_BUCKET).upload(storagePath, bytes, {
     contentType: "model/gltf-binary",
     cacheControl: "31536000",
     upsert: true
@@ -92,7 +94,7 @@ async function rollbackUploadedGlb(
   if (!path) return;
   if (protectedPaths.some((protectedPath) => protectedPath.trim() === path)) return;
   try {
-    await adminClient.storage.from(MODEL_BUCKET).remove([path]);
+    await storageBucket(adminClient.storage, MODEL_BUCKET).remove([path]);
   } catch {
     // Best-effort rollback after a failed DB update.
   }
