@@ -179,7 +179,9 @@ test("Vercel heavy function tracing excludes lightweight owner model routes", ()
   const tracedRoutes = nextConfig.slice(tracedRoutesStart, tracedRoutesEnd);
   assert.ok(tracedRoutes.includes('"/api/owner/restaurants/*/dishes/*/model/glb"'));
   assert.ok(tracedRoutes.includes('"/api/owner/restaurants/*/dishes/*/model/publish"'));
-  assert.ok(tracedRoutes.includes('"/api/owner/model-lab/optimize"'));
+  assert.ok(!tracedRoutes.includes('"/api/owner/model-lab/optimize"'));
+  assert.match(nextConfig, /"\/api\/owner\/model-lab\/optimize": MODEL_LAB_TRACE_INCLUDES/);
+  assert.match(nextConfig, /"\/api\/owner\/model-lab\/optimize": \["public\/\*\*\/\*"\]/);
   assert.ok(!tracedRoutes.includes("viewer-glb"));
   assert.ok(!tracedRoutes.includes("usdz-runtime"));
   assert.ok(!nextConfig.includes('"node_modules/@types/**/*"'));

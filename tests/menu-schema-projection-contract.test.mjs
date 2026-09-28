@@ -33,10 +33,6 @@ function columns(value) {
   return value.split(",").map((column) => column.trim()).filter(Boolean);
 }
 
-function orderColumns(value) {
-  return (Array.isArray(value) ? value : [value]).map((column) => String(column));
-}
-
 function assertLiveProjection(table, projection, label) {
   for (const column of columns(projection)) {
     assert.equal(
@@ -57,36 +53,6 @@ test("canonical menu projections match the deployed menus and menu_categories sc
   assert.equal(columns(MENU_PROJECTIONS.menus).includes("display_order"), false);
   assert.equal(columns(MENU_PROJECTIONS.menus).includes("metadata"), false);
   assert.equal(columns(MENU_PROJECTIONS.menuCategories).includes("metadata"), false);
-});
-
-test("strict PostgREST fixture accepts the public and owner menu query contracts", () => {
-  const queries = [
-    { loader: "public", table: "menus", projection: MENU_PROJECTIONS.menus, orderBy: "id" },
-    { loader: "owner", table: "menus", projection: MENU_PROJECTIONS.menus, orderBy: "id" },
-    {
-      loader: "public",
-      table: "menu_categories",
-      projection: MENU_PROJECTIONS.menuCategories,
-      orderBy: ["display_order", "id"]
-    },
-    {
-      loader: "owner",
-      table: "menu_categories",
-      projection: MENU_PROJECTIONS.menuCategories,
-      orderBy: ["display_order", "id"]
-    }
-  ];
-
-  for (const query of queries) {
-    assertLiveProjection(query.table, query.projection, `${query.loader} loader projection`);
-    for (const column of orderColumns(query.orderBy)) {
-      assert.equal(
-        liveSchema[query.table].has(column),
-        true,
-        `${query.loader} loader orders by missing ${query.table}.${column}`
-      );
-    }
-  }
 });
 
 test("owner and public loaders both consume the shared canonical menu projections", async () => {

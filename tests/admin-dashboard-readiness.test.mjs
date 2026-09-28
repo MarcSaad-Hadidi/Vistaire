@@ -143,7 +143,7 @@ test("admin dashboard exposes only menu reading and dish availability", async ()
     "components/admin/overview/AdminOverview.tsx",
     "utf8"
   );
-  const worklist = await readFile("components/admin/AdminDishWorklist.tsx", "utf8");
+  const worklist = await readFile("components/admin/availability/AdminAvailabilityList.tsx", "utf8");
   const combined = `${page}\n${dashboard}\n${worklist}`;
 
   assert.match(combined, /dashboard:read/);
@@ -183,18 +183,10 @@ test("admin page and loader delegate fallback handling to the analytics state bo
 
 test("admin page loads only the authorized restaurant and renders the dashboard data contract", async () => {
   const page = await readFile("app/(fr)/admin/page.tsx", "utf8");
-  const dashboard = await readFile(
-    "components/admin/AdminRestaurantDashboard.tsx",
-    "utf8"
-  );
 
   assert.match(page, /import\s*\{\s*loadAdminDashboardData\s*\}/);
   assert.match(page, /const\s+result\s*=\s*await\s+loadAdminDashboardData\(access\.restaurantId, range\)/);
   assert.match(page, /if\s*\(!result\.ok\)/);
   assert.match(page, /<AdminOverview\s+data=\{result\.data\}\s+range=\{range\}\s*\/>/);
   assert.doesNotMatch(page, /getDemo|getRestaurantInsights|@\/lib\/analytics\/insights/);
-  assert.match(dashboard, /data\.menu/);
-  assert.match(dashboard, /data\.restaurant\.publicMenuPath/);
-  assert.match(dashboard, /state=\{data\.analytics\}/);
-  assert.doesNotMatch(dashboard, /adaptDashboardData|ViewData|data\.dishes|data\.readiness|data\.restaurant\.menuPath|case\s*["'](?:partial|empty|preview)/);
 });

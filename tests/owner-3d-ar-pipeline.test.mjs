@@ -196,10 +196,11 @@ test("owner 3D/AR keeps demo fallback visible when only failed pilot manifests e
 
 test("owner 3D/AR routes are prepared with exact slug/version paths", () => {
   const routes = [
-    ["app", "owner", "3d-ar", "page.tsx"],
-    ["app", "owner", "3d-ar", "[restaurantSlug]", "[menuSlug]", "[dishSlug]", "page.tsx"],
+    ["app", "(fr)", "owner", "3d-ar", "page.tsx"],
+    ["app", "(fr)", "owner", "3d-ar", "[restaurantSlug]", "[menuSlug]", "[dishSlug]", "page.tsx"],
     [
       "app",
+      "(fr)",
       "owner",
       "3d-ar",
       "[restaurantSlug]",
@@ -217,7 +218,7 @@ test("owner 3D/AR routes are prepared with exact slug/version paths", () => {
 
 test("owner 3D/AR pages do not mount model viewers or preload runtime model files", () => {
   const overview = readFileSync(
-    join(process.cwd(), "app", "owner", "3d-ar", "page.tsx"),
+    join(process.cwd(), "app", "(fr)", "owner", "3d-ar", "page.tsx"),
     "utf8"
   );
 
