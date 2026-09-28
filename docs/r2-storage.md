@@ -20,6 +20,8 @@ avant activation ; cette PR ne modifie aucune ressource Cloudflare.
 CORS R2 doit autoriser les origines du site pour GET/HEAD et les en-têtes Range
 utilisés par les médias. Les uploads du worker local utilisent un PUT signé
 avec If-None-Match: * : ils ne peuvent pas remplacer un objet publié.
+La taille exacte runtime/rapport est liee a la signature Content-Length,
+avec le plafond de bucket existant de 250 Mio.
 Lancer le worker depuis cette version du dépôt. Les écritures serveur et ce
 worker Node ne nécessitent pas de permission CORS navigateur.
 
@@ -27,6 +29,11 @@ Avant activation en production, valider sur une preview configurée :
 lecture image/GLB/USDZ, clés avec espaces/accents, upload photo, upload USDZ,
 repli vers la photo originale si son dérivé manque, et refus des liens expirés.
 Les tests locaux utilisent des objets et identifiants synthétiques.
+
+Pour le validateur HTTP R2, utiliser
+`--expected-storage-host <account-id>.r2.cloudflarestorage.com` (sans bucket).
+Pour l'E2E navigateur, utiliser
+`VISTAIRE_RUNTIME_STORAGE_HOST=vistaire-3d.<account-id>.r2.cloudflarestorage.com`.
 
 ## Scripts et workflow de backfill
 

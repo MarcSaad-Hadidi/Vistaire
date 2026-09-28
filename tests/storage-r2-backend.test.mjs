@@ -60,10 +60,12 @@ test("R2 uploads preserve bytes/cache policy and signed uploads cannot replace a
   assert.equal((await bucket.upload("explicit", Buffer.from("x"), { cacheControl: "public, max-age=60" })).error, null);
   assert.equal(requests.at(-1).headers["cache-control"], "public, max-age=60");
 
-  const signed = await bucket.createSignedUploadUrl("runtime.usdz");
+  const signed = await bucket.createSignedUploadUrl("runtime.usdz", { contentLength: Buffer.byteLength("runtime-bytes") });
   assert.equal(signed.error, null);
+  assert.match((await bucket.createSignedUploadUrl("oversized", { contentLength: 262_144_001 })).error.message, /size/);
   const url = new URL(signed.data.signedUrl);
   assert.ok(url.searchParams.get("X-Amz-SignedHeaders").split(";").includes("if-none-match"));
+  assert.ok(url.searchParams.get("X-Amz-SignedHeaders").split(";").includes("content-length"));
   assert.ok(![...url.searchParams.keys()].some((key) => /checksum/i.test(key)), "unknown upload bytes must not be signed as an empty payload");
 
   // Exercise the worker helper without starting its CLI server.
@@ -72,6 +74,7 @@ test("R2 uploads preserve bytes/cache policy and signed uploads cannot replace a
   const uploadSigned = new Function("fetch", "URL", helper + "\nreturn uploadSigned;")(fetch, URL);
   await uploadSigned(signed.data, Buffer.from("runtime-bytes"), "model/vnd.usdz+zip");
   assert.equal(requests.at(-1).headers["if-none-match"], "*");
+  assert.equal(Number(requests.at(-1).headers["content-length"]), Buffer.byteLength("runtime-bytes"));
   await assert.rejects(uploadSigned(signed.data, Buffer.from("corrupt"), "model/vnd.usdz+zip"), /412/);
   assert.equal(objects.get("/vistaire-media/runtime.usdz").toString(), "runtime-bytes");
 });

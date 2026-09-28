@@ -598,11 +598,11 @@ export async function prepareUsdzRuntimeSignedUpload(args: {
   const reportStoragePath = expected.reportStoragePath;
 
   const bucket = storageBucket(args.adminClient.storage, MODEL_BUCKET);
-  const runtimeUpload = await bucket.createSignedUploadUrl(runtimeStoragePath);
+  const runtimeUpload = await bucket.createSignedUploadUrl(runtimeStoragePath, { contentLength: args.input.runtimeBytes });
   if (runtimeUpload.error || !runtimeUpload.data) {
     throw new Error("URL signee runtime USDZ impossible.");
   }
-  const reportUpload = await bucket.createSignedUploadUrl(reportStoragePath);
+  const reportUpload = await bucket.createSignedUploadUrl(reportStoragePath, { contentLength: args.input.reportBytes });
   if (reportUpload.error || !reportUpload.data) {
     throw new Error("URL signee rapport USDZ impossible.");
   }

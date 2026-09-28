@@ -555,8 +555,10 @@ test("prepare-upload signs only runtime USDZ and report JSON paths", async () =>
   });
   assert.equal(token.ok, true);
   const signedPaths = [];
+  const signedSizes = [];
   const { client } = mockAdminClient({
-    createSignedUploadUrl: async (path) => {
+    createSignedUploadUrl: async (path, options) => {
+      signedSizes.push(options.contentLength);
       signedPaths.push(path);
       return {
         data: {
@@ -591,6 +593,7 @@ test("prepare-upload signs only runtime USDZ and report JSON paths", async () =>
 
   assert.equal(prepared.ok, true);
   assert.equal(signedPaths.length, 2);
+  assert.deepEqual(signedSizes, [runtimeBytes.byteLength, 512]);
   assert.ok(signedPaths[0].includes("/models/ar-ios/"));
   assert.ok(signedPaths[0].endsWith(".usdz"));
   assert.ok(signedPaths[1].includes("/models/manifests/"));

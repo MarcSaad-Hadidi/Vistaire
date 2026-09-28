@@ -71,7 +71,8 @@ export type StorageBucketHandle = {
     options?: { limit?: number; offset?: number; sortBy?: { column: string; order: string } }
   ): Promise<StorageResult<StorageListItem[]>>;
   createSignedUploadUrl(
-    path: string
+    path: string,
+    options: { contentLength: number }
   ): Promise<StorageResult<{ signedUrl: string; token: string; path: string }>>;
   createSignedDownloadUrl(
     path: string,
@@ -329,15 +330,20 @@ class R2BucketHandle implements StorageBucketHandle {
   }
 
   async createSignedUploadUrl(
-    path: string
+    path: string,
+    options: { contentLength: number }
   ): Promise<StorageResult<{ signedUrl: string; token: string; path: string }>> {
     try {
+      // Preserve vistaire-3d's 250 MiB bucket limit (migration 0011).
+      if (!Number.isSafeInteger(options?.contentLength) || options.contentLength <= 0 || options.contentLength > 262_144_000) {
+        throw new Error("Signed upload size must be between 1 and 262144000 bytes.");
+      }
       const client = getS3Client();
       // Le PUT inclut If-None-Match: * (en-tête signé) pour interdire
       // le remplacement après publication ; aucun token séparé n'est requis.
       const signedUrl = await getSignedUrl(
         client,
-        new PutObjectCommand({ Bucket: this.bucket, Key: path, IfNoneMatch: "*" }),
+        new PutObjectCommand({ Bucket: this.bucket, Key: path, IfNoneMatch: "*", ContentLength: options.contentLength }),
         { expiresIn: 3600 }
       );
       return { data: { signedUrl, token: "", path }, error: null };
