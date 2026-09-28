@@ -139,6 +139,87 @@ test("isExpectedR2PublicAssetUrl only accepts the exact expected URL", () => {
   );
 });
 
+test("isExpectedR2PresignedAssetUrl validates the virtual-hosted presigned shape", () => {
+  const env = { R2_S3_ENDPOINT: "https://acct123.r2.cloudflarestorage.com" };
+  const bucket = "vistaire-media";
+  const storagePath = "restaurants/Cr\u00e8me br\u00fbl\u00e9e (v2)/dish.webp";
+  const valid =
+    "https://vistaire-media.acct123.r2.cloudflarestorage.com" +
+    "/restaurants/Cr%C3%A8me%20br%C3%BBl%C3%A9e%20%28v2%29/dish.webp" +
+    "?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Credential=x&X-Amz-Date=20260928T000000Z" +
+    "&X-Amz-Expires=270&X-Amz-SignedHeaders=host&X-Amz-Signature=abc123";
+  const check = (presignedUrl, bucketArg = bucket, pathArg = storagePath, envArg = env) =>
+    r2Config.isExpectedR2PresignedAssetUrl({
+      presignedUrl,
+      bucket: bucketArg,
+      storagePath: pathArg,
+      env: envArg
+    });
+  assert.equal(check(valid), true);
+  // Path-style host forgery is rejected (SDK signs virtual-hosted style).
+  assert.equal(
+    check(
+      "https://acct123.r2.cloudflarestorage.com/vistaire-media/dish.webp" +
+        "?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Signature=abc123",
+      bucket,
+      "dish.webp"
+    ),
+    false
+  );
+  // Wrong bucket subdomain.
+  assert.equal(
+    check(valid.replace("vistaire-media.acct123", "vistaire-3d.acct123")),
+    false
+  );
+  // Wrong object path.
+  assert.equal(check(valid.replace("dish.webp", "other.webp")), false);
+  // Missing SigV4 signature.
+  assert.equal(
+    check(valid.replace("&X-Amz-Signature=abc123", "")),
+    false
+  );
+  // Missing R2 endpoint config.
+  assert.equal(check(valid, bucket, storagePath, {}), false);
+  // Non-migrated bucket.
+  assert.equal(check(valid, "vistaire-3d-qa"), false);
+  // Not a URL at all.
+  assert.equal(check("not-a-url"), false);
+});
+
+test("createSignedDownloadUrl returns a revocable presigned URL accepted by the anti-forgery check", async () => {
+  const backend = await import("../lib/storage/backend.ts");
+  const bucket = "vistaire-media";
+  // Clé réaliste : espaces, accents et parenthèses (encodage strict SigV4).
+  const storagePath = "restaurants/Cr\u00e8me br\u00fbl\u00e9e (v2)/dish.webp";
+  const env = {
+    R2_STORAGE_ENABLED: "true",
+    R2_S3_ENDPOINT: "https://acct123.r2.cloudflarestorage.com",
+    R2_S3_ACCESS_KEY_ID: "test-key",
+    R2_S3_SECRET_ACCESS_KEY: "test-secret"
+  };
+  const saved = {};
+  for (const key of Object.keys(env)) {
+    saved[key] = process.env[key];
+    process.env[key] = env[key];
+  }
+  try {
+    const handle = backend.storageBucket({}, bucket);
+    const result = await handle.createSignedDownloadUrl(storagePath, 270);
+    assert.equal(result.error, null);
+    const signedUrl = result.data.signedUrl;
+    assert.equal(
+      r2Config.isExpectedR2PresignedAssetUrl({ presignedUrl: signedUrl, bucket, storagePath }),
+      true
+    );
+    assert.equal(new URL(signedUrl).searchParams.get("X-Amz-Expires"), "270");
+  } finally {
+    for (const key of Object.keys(env)) {
+      if (saved[key] === undefined) delete process.env[key];
+      else process.env[key] = saved[key];
+    }
+  }
+});
+
 test("r2PublicObjectExists maps HEAD status to existence", async () => {
   const originalFetch = globalThis.fetch;
   try {

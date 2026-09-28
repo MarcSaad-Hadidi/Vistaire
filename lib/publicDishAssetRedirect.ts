@@ -10,11 +10,10 @@ import {
   isValidDishPhotoDerivativeMetadata,
   type DishPhotoDerivativeVariant
 } from "@/lib/owner/dishPhotoUpload";
+import { storageBucket } from "@/lib/storage/backend";
 import {
-  isExpectedR2PublicAssetUrl,
+  isExpectedR2PresignedAssetUrl,
   isR2Bucket,
-  r2PublicAssetUrl,
-  r2PublicObjectExists,
   r2StorageEnabled
 } from "@/lib/storage/r2Config";
 
@@ -839,18 +838,49 @@ async function redirectDishAsset(args: {
       Boolean(activeVersion) &&
       publicSignedUrlCacheEnabled(runtime);
     const sign = async (storagePath = selectedStoragePath): Promise<boolean> => {
-      // Migration R2 : les assets publics sont servis via les domaines CDN
-      // Cloudflare au lieu des signed URLs Supabase. Tous les contrôles de
-      // sécurité en amont (disponibilité du plat, bucket/path, version,
-      // dérivés, règles admin/public) restent inchangés.
+      // Migration R2 : URLs de lecture pré-signées S3 à expiration courte
+      // (équivalent révocable des signed URLs Supabase). L'existence de
+      // l'objet est vérifiée avant le redirect pour retomber sur l'original
+      // si le dérivé est absent de R2. Tous les contrôles de sécurité en
+      // amont (disponibilité du plat, bucket/path, version, dérivés,
+      // règles admin/public) restent inchangés.
       if (r2StorageEnabled() && isR2Bucket(bucket)) {
-        const publicUrl = r2PublicAssetUrl(bucket, storagePath);
-        if (!publicUrl) return false;
-        signedUrl = publicUrl;
-        // L'URL R2 est permanente : on aligne l'expiration sur le TTL public
-        // standard pour que les en-têtes et la logique de cache restent identiques.
-        signedUrlTokenExpiresAt = runtime.now() + SIGNED_URL_TTL_SECONDS * 1_000;
-        return true;
+        const r2Handle = storageBucket(adminClient.storage, bucket);
+        const r2SignedAt = runtime.now();
+        const r2TtlSeconds =
+          args.assetVisibilityPolicy.kind === "authorized-admin"
+            ? ADMIN_SIGNED_URL_TTL_SECONDS
+            : Math.min(
+                SIGNED_URL_TTL_SECONDS,
+                Math.floor((publicAccessDeadlineAt - r2SignedAt) / 1_000)
+              );
+        if (
+          args.assetVisibilityPolicy.kind === "public-available-only" &&
+          r2TtlSeconds < MIN_PUBLIC_SIGNED_URL_REMAINING_SECONDS
+        ) {
+          return false;
+        }
+        const r2InfoStartedAt = runtime.performanceNow();
+        const r2Info = await r2Handle.info(storagePath);
+        storageInfoDuration = boundedDuration(r2InfoStartedAt, runtime);
+        if (r2Info.error || !r2Info.data) {
+          signError = r2Info.error ?? { status: 404, message: "Object not found" };
+          return false;
+        }
+        const r2SignStartedAt = runtime.performanceNow();
+        const r2Signed = await r2Handle.createSignedDownloadUrl(
+          storagePath,
+          r2TtlSeconds
+        );
+        storageSignDuration = boundedDuration(r2SignStartedAt, runtime);
+        signError = r2Signed.error;
+        const candidate = r2Signed.data?.signedUrl;
+        if (!r2Signed.error && candidate) {
+          signedUrl = candidate;
+          signedUrlTokenExpiresAt = r2SignedAt + r2TtlSeconds * 1_000;
+          return true;
+        }
+        return false;
       }
       const cacheKey = canReuseSignedUrl
         ? signedUrlCacheKey({
@@ -979,14 +1009,17 @@ async function redirectDishAsset(args: {
     const directSigning = Boolean(activeVersion);
     const signOriginal = async (): Promise<boolean> => {
       if (directSigning) return sign();
-      // Migration R2 : contrôle d'existence via HEAD public (équivalent du
+      // Migration R2 : contrôle d'existence via HeadObject S3 (équivalent du
       // storage.info() Supabase) pour les assets legacy non versionnés.
+      // L'erreur est propagée telle quelle (404 vs 503) pour ne pas masquer
+      // une panne R2 derrière un 404.
       if (r2StorageEnabled() && isR2Bucket(bucket)) {
+        const r2Handle = storageBucket(adminClient.storage, bucket);
         const storageInfoStartedAt = runtime.performanceNow();
-        const exists = await r2PublicObjectExists(bucket, selectedStoragePath);
+        const r2Info = await r2Handle.info(selectedStoragePath);
         storageInfoDuration = boundedDuration(storageInfoStartedAt, runtime);
-        if (!exists) {
-          signError = { status: 404, message: "Object not found" };
+        if (r2Info.error || !r2Info.data) {
+          signError = r2Info.error ?? { status: 404, message: "Object not found" };
           return false;
         }
         return sign();
@@ -1032,14 +1065,14 @@ async function redirectDishAsset(args: {
       }
     }
 
-    // Migration R2 : l'URL publique Cloudflare remplace la signed URL Supabase ;
-    // la vérification anti-forgery compare à l'URL exacte attendue.
+    // Migration R2 : l'URL pré-signée S3 remplace la signed URL Supabase ;
+    // la vérification anti-forgery valide l'hôte, le chemin et la signature.
     if (
       !signedUrl ||
       !(
         r2StorageEnabled() && isR2Bucket(bucket)
-          ? isExpectedR2PublicAssetUrl({
-              publicUrl: signedUrl,
+          ? isExpectedR2PresignedAssetUrl({
+              presignedUrl: signedUrl,
               bucket,
               storagePath: selectedStoragePath
             })

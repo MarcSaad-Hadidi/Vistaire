@@ -90,6 +90,54 @@ export function isExpectedR2PublicAssetUrl(args: {
 }
 
 /**
+ * Encodage strict d'un segment de clé, identique à celui du SDK S3 pour les
+ * URLs pré-signées : seuls A-Za-z0-9 - _ . ~ restent non encodés
+ * (encodeURIComponent seul laisse passer ! ' ( ) *).
+ */
+function encodeR2KeySegment(segment: string): string {
+  return encodeURIComponent(segment).replace(
+    /[!'()*]/g,
+    (c) => `%${c.charCodeAt(0).toString(16).toUpperCase()}`
+  );
+}
+
+/**
+ * Vérification anti-forgery pour les URLs de lecture pré-signées R2.
+ * Le SDK S3 signe en virtual-hosted style : l'hôte vaut
+ * `<bucket>.<endpoint R2_S3_ENDPOINT>`, le chemin est la clé encodée,
+ * et la query porte la signature SigV4 (vérifié avec
+ * @aws-sdk/s3-request-presigner : GetObjectCommand + getSignedUrl).
+ */
+export function isExpectedR2PresignedAssetUrl(args: {
+  presignedUrl: string;
+  bucket: string;
+  storagePath: string;
+  env?: NodeJS.ProcessEnv;
+}): boolean {
+  const env = args.env ?? process.env;
+  const endpoint = env.R2_S3_ENDPOINT?.trim();
+  if (!endpoint || !isR2Bucket(args.bucket)) return false;
+  let url: URL;
+  let endpointHost: string;
+  try {
+    url = new URL(args.presignedUrl);
+    endpointHost = new URL(endpoint).host;
+  } catch {
+    return false;
+  }
+  if (url.host !== `${args.bucket}.${endpointHost}`) return false;
+  const encodedPath = args.storagePath
+    .split("/")
+    .map((segment) => encodeR2KeySegment(segment))
+    .join("/");
+  if (url.pathname !== `/${encodedPath}`) return false;
+  return (
+    url.searchParams.get("X-Amz-Algorithm") === "AWS4-HMAC-SHA256" &&
+    url.searchParams.has("X-Amz-Signature")
+  );
+}
+
+/**
  * Contrôle d'existence d'un objet public R2 (HEAD). Utilisé pour les assets
  * legacy non versionnés, en remplacement du storage.info() Supabase.
  */

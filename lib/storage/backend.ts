@@ -73,6 +73,10 @@ export type StorageBucketHandle = {
   createSignedUploadUrl(
     path: string
   ): Promise<StorageResult<{ signedUrl: string; token: string; path: string }>>;
+  createSignedDownloadUrl(
+    path: string,
+    expiresInSeconds: number
+  ): Promise<StorageResult<{ signedUrl: string }>>;
 };
 
 type SupabaseStorageLike = {
@@ -327,6 +331,25 @@ class R2BucketHandle implements StorageBucketHandle {
         { expiresIn: 3600 }
       );
       return { data: { signedUrl, token: "", path }, error: null };
+    } catch (error) {
+      return { data: null, error: toStorageError(error) };
+    }
+  }
+
+  async createSignedDownloadUrl(
+    path: string,
+    expiresInSeconds: number
+  ): Promise<StorageResult<{ signedUrl: string }>> {
+    try {
+      const client = getS3Client();
+      // URL de lecture pré-signée S3 (GET) à expiration courte : équivalent
+      // R2 révocable des signed URLs Supabase pour les redirects d'assets.
+      const signedUrl = await getSignedUrl(
+        client,
+        new GetObjectCommand({ Bucket: this.bucket, Key: path }),
+        { expiresIn: expiresInSeconds }
+      );
+      return { data: { signedUrl }, error: null };
     } catch (error) {
       return { data: null, error: toStorageError(error) };
     }
