@@ -1,6 +1,6 @@
 import "server-only";
 
-import { storageBucket } from "@/lib/storage/backend";
+import { storageBucket } from "../storage/backend.ts";
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {

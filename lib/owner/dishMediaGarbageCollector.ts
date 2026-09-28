@@ -1,4 +1,4 @@
-import { storageBucket } from "@/lib/storage/backend";
+import { storageBucket } from "../storage/backend.ts";
 import {
   collectDishModelStorageTargets,
   DISH_MODEL_STORAGE_BUCKET,

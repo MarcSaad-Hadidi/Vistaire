@@ -1,4 +1,4 @@
-import { storageBucket } from "@/lib/storage/backend";
+import { storageBucket } from "../storage/backend.ts";
 import { spawn } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync, existsSync } from "node:fs";

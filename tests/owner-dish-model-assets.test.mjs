@@ -295,7 +295,7 @@ test("dish model DELETE route is guarded, scoped, and cleans only server-side mo
   assert.match(route, /\.eq\("id", dishId\)/);
   assert.match(route, /\.eq\("restaurant_id", restaurantId\)/);
   assert.match(route, /collectDishModelStorageTargets\(dish\.metadata, restaurantId\)/);
-  assert.match(route, /storage\.from\(bucket\)\.remove\(paths\)/);
+  assert.match(route, /storageBucket\(admin\.client\.storage, bucket\)\.remove\(paths\)/);
   assert.match(route, /cleanDishModelMetadata\(dish\.metadata\)/);
   assert.match(
     route,

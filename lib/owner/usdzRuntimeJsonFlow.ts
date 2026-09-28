@@ -1,4 +1,4 @@
-import { storageBucket } from "@/lib/storage/backend";
+import { storageBucket } from "../storage/backend.ts";
 import { createHmac, randomUUID, timingSafeEqual } from "node:crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
 

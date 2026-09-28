@@ -1,4 +1,3 @@
-import "server-only";
 
 /**
  * Configuration centralisée du backend R2 pour la migration Supabase Storage -> Cloudflare R2.

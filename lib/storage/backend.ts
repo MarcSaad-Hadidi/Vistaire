@@ -1,4 +1,3 @@
-import "server-only";
 
 import {
   DeleteObjectsCommand,
@@ -11,7 +10,7 @@ import {
 } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
-import { isR2Bucket, r2StorageEnabled } from "./r2Config";
+import { isR2Bucket, r2StorageEnabled } from "./r2Config.ts";
 
 /**
  * Adaptateur de backend objet : expose une interface compatible avec le bucket
@@ -177,7 +176,11 @@ const NOT_FOUND_ERROR: StorageErrorShape = {
 };
 
 class R2BucketHandle implements StorageBucketHandle {
-  constructor(private readonly bucket: string) {}
+  private readonly bucket: string;
+
+  constructor(bucket: string) {
+    this.bucket = bucket;
+  }
 
   async upload(
     path: string,

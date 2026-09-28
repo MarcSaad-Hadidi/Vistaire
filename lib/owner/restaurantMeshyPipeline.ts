@@ -1,6 +1,6 @@
 import "server-only";
 
-import { storageBucket } from "@/lib/storage/backend";
+import { storageBucket } from "../storage/backend.ts";
 
 import { randomUUID } from "node:crypto";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";

@@ -1,4 +1,4 @@
-import { storageBucket } from "@/lib/storage/backend";
+import { storageBucket } from "../storage/backend.ts";
 import type { OwnerRestaurantStatus } from "./types.ts";
 import type { PublicMutationIdentity } from "./menuMutationRevalidation.ts";
 import { slugifyRestaurantSlug } from "./menuUrlCore.ts";
