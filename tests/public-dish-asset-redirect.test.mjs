@@ -1591,3 +1591,93 @@ test("public asset egress implementation contains no binary body proxy primitive
     );
   }
 });
+
+test("R2 redirects share signed links, check missing objects and bound expiry after HEAD", async (t) => {
+  const { S3Client } = await import("@aws-sdk/client-s3");
+  const env = {
+    R2_STORAGE_ENABLED: "true",
+    R2_S3_ENDPOINT: "https://redirect-test.r2.cloudflarestorage.com",
+    R2_S3_ACCESS_KEY_ID: "test-key",
+    R2_S3_SECRET_ACCESS_KEY: "test-secret"
+  };
+  const saved = Object.fromEntries(Object.keys(env).map((key) => [key, process.env[key]]));
+  Object.assign(process.env, env);
+  t.after(() => {
+    for (const [key, value] of Object.entries(saved)) {
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+    }
+    redirectHelper.resetPublicDishAssetCachesForTests();
+  });
+  let heads = 0;
+  let missing = false;
+  let missingDerivative = false;
+  let delayed = false;
+  let nowMs = Date.now();
+  t.mock.method(S3Client.prototype, "send", async (command) => {
+    assert.equal(command.constructor.name, "HeadObjectCommand");
+    heads++;
+    if (delayed) nowMs = Date.now();
+    if (missing || (missingDerivative && command.input.Key === PHOTO_DERIVATIVE_PATH)) throw Object.assign(new Error("Not found"), { $metadata: { httpStatusCode: 404 } });
+    return { ContentLength: 10, ContentType: "image/webp" };
+  });
+  let fixture = createAdminFixture();
+  const invoke = (options = {}) => redirectHelper.redirectPublicDishAsset({
+    admin: fixture.admin, dishId: DISH_ID, kind: "photo",
+    requestedAssetVersion: PHOTO_SHA256, supabaseUrl: SUPABASE_ORIGIN,
+    notFoundMessage: "Not found", unavailableMessage: "Unavailable",
+    runtime: { now: () => nowMs, performanceNow: () => nowMs, cachePublicAssets: true }, ...options
+  });
+  redirectHelper.resetPublicDishAssetCachesForTests();
+  const [first, concurrent] = await Promise.all([invoke(), invoke()]);
+  assert.equal(first.status, 307);
+  assert.equal(concurrent.headers.get("location"), first.headers.get("location"));
+  assert.equal((await invoke()).headers.get("location"), first.headers.get("location"));
+  assert.equal(heads, 1);
+  assert.equal(fixture.calls.signed.length, 0);
+  assert.equal(first.headers.get("cdn-cache-control"), "private, no-store");
+  installAdmin(fixture);
+  const head = await invokeRoute({ route: photoRoute, method: "HEAD",
+    url: `https://vistaire.example/api/public/menu-dishes/${DISH_ID}/photo?v=${PHOTO_SHA256}` });
+  assert.equal(head.status, 307);
+  assert.equal(head.headers.get("cdn-cache-control"), "private, no-store");
+  const headUrl = new URL(head.headers.get("location"));
+  const { HeadObjectCommand } = await import("@aws-sdk/client-s3");
+  const { getSignedUrl } = await import("@aws-sdk/s3-request-presigner");
+  const { r2PresignedUrlExpiresAt } = await import("../lib/storage/r2Config.ts");
+  const ttl = Number(headUrl.searchParams.get("X-Amz-Expires"));
+  const client = new S3Client({ region: "auto", endpoint: env.R2_S3_ENDPOINT,
+    requestChecksumCalculation: "WHEN_REQUIRED",
+    credentials: { accessKeyId: env.R2_S3_ACCESS_KEY_ID, secretAccessKey: env.R2_S3_SECRET_ACCESS_KEY } });
+  const expectedHead = await getSignedUrl(client,
+    new HeadObjectCommand({ Bucket: "vistaire-media", Key: PHOTO_PATH }),
+    { expiresIn: ttl, signingDate: new Date(r2PresignedUrlExpiresAt(headUrl.href) - ttl * 1000) });
+  assert.equal(headUrl.searchParams.get("X-Amz-Signature"), new URL(expectedHead).searchParams.get("X-Amz-Signature"));
+  assert.equal((await invoke()).headers.get("location"), first.headers.get("location"));
+
+
+  redirectHelper.resetPublicDishAssetCachesForTests();
+  missing = true;
+  assert.equal((await invoke()).status, 404);
+
+  redirectHelper.resetPublicDishAssetCachesForTests();
+  missing = false;
+  missingDerivative = true;
+  fixture = createAdminFixture({ metadata: assetMetadata("photo", {
+    photoDerivatives: { thumbnail: {
+      storagePath: PHOTO_DERIVATIVE_PATH, sha256: "b".repeat(64),
+      contentType: "image/webp", bytes: 321, sourceSha256: PHOTO_SHA256
+    } }
+  }) });
+  const beforeFallback = heads;
+  const fallback = await invoke({ photoVariant: "thumbnail" });
+  assert.equal(fallback.status, 307);
+  assert.equal(new URL(fallback.headers.get("location")).pathname, "/" + PHOTO_PATH);
+  assert.equal(heads - beforeFallback, 2);
+
+  redirectHelper.resetPublicDishAssetCachesForTests();
+  delayed = true;
+  nowMs = Date.now() - 151_000;
+  // A slow HEAD consumes the snapshot's remaining authorization budget.
+  assert.equal((await invoke()).status, 503);
+});

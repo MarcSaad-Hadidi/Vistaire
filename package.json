@@ -106,6 +106,8 @@
     "demo:validate-network": "node scripts/validate-demo-network-headers.mjs"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1141.0",
+    "@aws-sdk/s3-request-presigner": "^3.1141.0",
     "@babylonjs/core": "^9.23.0",
     "@babylonjs/loaders": "^9.23.0",
     "@babylonjs/serializers": "^9.23.0",

@@ -1,3 +1,4 @@
+import { storageBucket } from "../storage/backend.ts";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 type DishAssetKind =
@@ -371,7 +372,7 @@ export async function cleanupReplacedDishAssets(
     const paths = refs.map((ref) => ref.path);
     if (paths.length === 0) continue;
     try {
-      const removal = await args.client.storage.from(bucket).remove(paths);
+      const removal = await storageBucket(args.client.storage, bucket).remove(paths);
       if (removal.error) {
         report.errors.push({
           bucket,

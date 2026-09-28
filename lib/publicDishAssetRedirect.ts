@@ -10,6 +10,13 @@ import {
   isValidDishPhotoDerivativeMetadata,
   type DishPhotoDerivativeVariant
 } from "@/lib/owner/dishPhotoUpload";
+import { storageBucket } from "@/lib/storage/backend";
+import {
+  isExpectedR2PresignedAssetUrl,
+  isR2Bucket,
+  r2StorageEnabled,
+  r2PresignedUrlExpiresAt
+} from "@/lib/storage/r2Config";
 
 export type PublicDishAssetKind = "photo" | "web-glb" | "ar-lite-glb" | "usdz";
 export type PublicDishPhotoVariant = DishPhotoDerivativeVariant;
@@ -599,6 +606,7 @@ async function redirectDishAsset(args: {
   dishId: string;
   kind: PublicDishAssetKind;
   requestedAssetVersion?: string;
+  requestMethod?: "GET" | "HEAD";
   supabaseUrl: string | undefined;
   notFoundMessage: string;
   unavailableMessage: string;
@@ -821,6 +829,9 @@ async function redirectDishAsset(args: {
   }
 
   const storage = adminClient.storage.from(bucket);
+  const useR2 = r2StorageEnabled() && isR2Bucket(bucket);
+  const requestMethod = args.requestMethod ?? "GET";
+  const r2Handle = useR2 ? storageBucket(adminClient.storage, bucket) : null;
   try {
     let storageInfoDuration = 0;
     let storageSignDuration = 0;
@@ -836,7 +847,7 @@ async function redirectDishAsset(args: {
         ? signedUrlCacheKey({
             bucket,
             storagePath,
-            version: activeVersion
+            version: `${useR2 ? process.env.R2_S3_ENDPOINT : args.supabaseUrl}:${activeVersion}:${useR2 ? requestMethod : "GET"}`
           })
         : null;
       if (cacheKey) {
@@ -870,6 +881,15 @@ async function redirectDishAsset(args: {
       }
 
       const signPromise = (async (): Promise<SignedUrlCacheEntry | null> => {
+        if (r2Handle) {
+          const infoStartedAt = runtime.performanceNow();
+          const info = await r2Handle.info(storagePath);
+          storageInfoDuration += boundedDuration(infoStartedAt, runtime);
+          if (info.error || !info.data) {
+            signError = info.error ?? { status: 404, message: "Object not found" };
+            return null;
+          }
+        }
         const storageSignStartedAt = runtime.performanceNow();
         const signedAt = runtime.now();
         const signedUrlTtlSeconds =
@@ -888,8 +908,9 @@ async function redirectDishAsset(args: {
           return null;
         }
         try {
-          const signed =
-            args.assetVisibilityPolicy.kind === "authorized-admin"
+          const signed = r2Handle
+            ? await r2Handle.createSignedDownloadUrl(storagePath, signedUrlTtlSeconds, requestMethod)
+            : args.assetVisibilityPolicy.kind === "authorized-admin"
               ? await storage.createSignedUrl(storagePath, ADMIN_SIGNED_URL_TTL_SECONDS)
               : signedUrlTtlSeconds === SIGNED_URL_TTL_SECONDS
                 ? await storage.createSignedUrl(storagePath, SIGNED_URL_TTL_SECONDS)
@@ -900,15 +921,18 @@ async function redirectDishAsset(args: {
           if (
             !signed.error &&
             candidate &&
-            isExpectedSignedStorageUrl({
-              signedUrl: candidate,
-              supabaseUrl: args.supabaseUrl,
-              bucket,
-              storagePath
-            })
+            (useR2
+              ? isExpectedR2PresignedAssetUrl({ presignedUrl: candidate, bucket, storagePath })
+              : isExpectedSignedStorageUrl({
+                  signedUrl: candidate,
+                  supabaseUrl: args.supabaseUrl,
+                  bucket,
+                  storagePath
+                }))
           ) {
-            const tokenExpiresAt =
-              args.assetVisibilityPolicy.kind === "authorized-admin"
+            const tokenExpiresAt = useR2
+              ? r2PresignedUrlExpiresAt(candidate)
+              : args.assetVisibilityPolicy.kind === "authorized-admin"
                 ? signedAt + signedUrlTtlSeconds * 1_000
                 : signedStorageJwtExpiresAt(candidate);
             const tokenRemainingMs =
@@ -958,7 +982,7 @@ async function redirectDishAsset(args: {
 
     const directSigning = Boolean(activeVersion);
     const signOriginal = async (): Promise<boolean> => {
-      if (directSigning) return sign();
+      if (directSigning || useR2) return sign();
       const storageInfoStartedAt = runtime.performanceNow();
       const storagePath = selectedStoragePath;
       const objectInfo = await storage.info(storagePath);
@@ -1000,14 +1024,24 @@ async function redirectDishAsset(args: {
       }
     }
 
+    // Migration R2 : l'URL pré-signée S3 remplace la signed URL Supabase ;
+    // la vérification anti-forgery valide l'hôte, le chemin et la signature.
     if (
       !signedUrl ||
-      !isExpectedSignedStorageUrl({
-        signedUrl,
-        supabaseUrl: args.supabaseUrl,
-        bucket,
-        storagePath: selectedStoragePath
-      })
+      !(
+        r2StorageEnabled() && isR2Bucket(bucket)
+          ? isExpectedR2PresignedAssetUrl({
+              presignedUrl: signedUrl,
+              bucket,
+              storagePath: selectedStoragePath
+            })
+          : isExpectedSignedStorageUrl({
+              signedUrl,
+              supabaseUrl: args.supabaseUrl,
+              bucket,
+              storagePath: selectedStoragePath
+            })
+      )
     ) {
       return publicDishAssetJsonError(args.unavailableMessage, 503);
     }
@@ -1032,8 +1066,10 @@ async function redirectDishAsset(args: {
           PUBLIC_ASSET_TOKEN_SAFETY_MARGIN_SECONDS
       )
     );
+    // Shared HTTP caches can satisfy HEAD from GET; SigV4 binds the method.
+    // Keep R2 reuse in the method-aware server cache instead.
     const isPublicCacheable =
-      isVersioned && !isAuthorizedAdmin && cdnRedirectMaxAgeSeconds > 0;
+      !useR2 && isVersioned && !isAuthorizedAdmin && cdnRedirectMaxAgeSeconds > 0;
     const headers: Record<string, string> = {
       Location: signedUrl,
       "Cache-Control": isAuthorizedAdmin
@@ -1082,6 +1118,7 @@ export async function redirectPublicDishAsset(args: {
   dishId: string;
   kind: PublicDishAssetKind;
   requestedAssetVersion?: string;
+  requestMethod?: "GET" | "HEAD";
   supabaseUrl: string | undefined;
   notFoundMessage: string;
   unavailableMessage: string;
@@ -1100,6 +1137,7 @@ export async function redirectAuthorizedAdminDishAsset(args: {
   dishId: string;
   kind: PublicDishAssetKind;
   requestedAssetVersion?: string;
+  requestMethod?: "GET" | "HEAD";
   supabaseUrl: string | undefined;
   restaurantId: string;
   notFoundMessage: string;

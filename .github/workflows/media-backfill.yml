@@ -31,6 +31,7 @@ concurrency:
 
 env:
   NODE_VERSION: 24
+  R2_STORAGE_ENABLED: ${{ vars.R2_STORAGE_ENABLED }}
   BACKFILL_MODE: ${{ inputs.mode }}
   BACKFILL_CONFIRMATION: ${{ inputs.confirmation }}
   CANARY_RESTAURANT_ID: ${{ inputs.canary_restaurant_id }}
@@ -112,8 +113,24 @@ jobs:
         env:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          R2_S3_ENDPOINT: ${{ secrets.R2_S3_ENDPOINT }}
+          R2_S3_ACCESS_KEY_ID: ${{ secrets.R2_S3_ACCESS_KEY_ID }}
+          R2_S3_SECRET_ACCESS_KEY: ${{ secrets.R2_S3_SECRET_ACCESS_KEY }}
         run: |
           node --input-type=module - <<'NODE'
+          if (!['true', 'false'].includes(process.env.R2_STORAGE_ENABLED)) {
+            throw new Error('Set the repository R2_STORAGE_ENABLED variable explicitly to match the deployed app.');
+          }
+          if (process.env.R2_STORAGE_ENABLED === 'true') {
+            const endpoint = process.env.R2_S3_ENDPOINT?.trim();
+            if (!endpoint || !process.env.R2_S3_ACCESS_KEY_ID?.trim() || !process.env.R2_S3_SECRET_ACCESS_KEY?.trim()) {
+              throw new Error('Production R2 configuration is incomplete.');
+            }
+            const r2Url = new URL(endpoint);
+            if (r2Url.protocol !== 'https:' || r2Url.username || r2Url.password || r2Url.pathname !== '/' || r2Url.search || r2Url.hash) {
+              throw new Error('Production R2 endpoint must be a plain HTTPS origin.');
+            }
+          }
           const rawUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim() ?? '';
           const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim() ?? '';
           const expectedRef = process.env.VISTAIRE_EXPECTED_SUPABASE_PROJECT_REF?.trim().toLowerCase() ?? '';
@@ -135,6 +152,9 @@ jobs:
         env:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          R2_S3_ENDPOINT: ${{ secrets.R2_S3_ENDPOINT }}
+          R2_S3_ACCESS_KEY_ID: ${{ secrets.R2_S3_ACCESS_KEY_ID }}
+          R2_S3_SECRET_ACCESS_KEY: ${{ secrets.R2_S3_SECRET_ACCESS_KEY }}
         shell: bash
         run: |
           set -euo pipefail
@@ -147,6 +167,9 @@ jobs:
         env:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          R2_S3_ENDPOINT: ${{ secrets.R2_S3_ENDPOINT }}
+          R2_S3_ACCESS_KEY_ID: ${{ secrets.R2_S3_ACCESS_KEY_ID }}
+          R2_S3_SECRET_ACCESS_KEY: ${{ secrets.R2_S3_SECRET_ACCESS_KEY }}
         shell: bash
         run: |
           set -euo pipefail
@@ -178,6 +201,9 @@ jobs:
         env:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          R2_S3_ENDPOINT: ${{ secrets.R2_S3_ENDPOINT }}
+          R2_S3_ACCESS_KEY_ID: ${{ secrets.R2_S3_ACCESS_KEY_ID }}
+          R2_S3_SECRET_ACCESS_KEY: ${{ secrets.R2_S3_SECRET_ACCESS_KEY }}
         shell: bash
         run: |
           set -euo pipefail
@@ -193,6 +219,9 @@ jobs:
         env:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          R2_S3_ENDPOINT: ${{ secrets.R2_S3_ENDPOINT }}
+          R2_S3_ACCESS_KEY_ID: ${{ secrets.R2_S3_ACCESS_KEY_ID }}
+          R2_S3_SECRET_ACCESS_KEY: ${{ secrets.R2_S3_SECRET_ACCESS_KEY }}
         shell: bash
         run: |
           set -euo pipefail

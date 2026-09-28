@@ -1,5 +1,7 @@
 import "server-only";
 
+import { storageBucket } from "../storage/backend.ts";
+
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
   buildPrivateSourceKey,
@@ -184,8 +186,7 @@ export async function createOwner3dSourceUpload(args: {
     ownerEmail: args.owner.emailAddresses[0] ?? null
   });
 
-  const uploadResult = await storage.client.storage
-    .from(storage.bucket)
+  const uploadResult = await storageBucket(storage.client.storage, storage.bucket)
     .upload(storagePath, args.bytes, {
       cacheControl: "0",
       contentType: "model/gltf-binary",
@@ -211,7 +212,7 @@ export async function createOwner3dSourceUpload(args: {
 
   if (error || !data) {
     logSourceUploadError("metadata insert failed", error?.message ?? "missing row");
-    const rollback = await storage.client.storage.from(storage.bucket).remove([storagePath]);
+    const rollback = await storageBucket(storage.client.storage, storage.bucket).remove([storagePath]);
     if (rollback.error) {
       logSourceUploadError("storage rollback failed", rollback.error.message);
     }
@@ -424,7 +425,7 @@ export async function deleteOwner3dStagingSource(args: {
     }
   }
 
-  const removal = await storage.client.storage.from(storage.bucket).remove([row.storage_path]);
+  const removal = await storageBucket(storage.client.storage, storage.bucket).remove([row.storage_path]);
   if (removal.error) {
     logSourceUploadError("storage delete failed", removal.error.message);
     return {
