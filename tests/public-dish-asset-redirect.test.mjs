@@ -1635,6 +1635,26 @@ test("R2 redirects share signed links, check missing objects and bound expiry af
   assert.equal((await invoke()).headers.get("location"), first.headers.get("location"));
   assert.equal(heads, 1);
   assert.equal(fixture.calls.signed.length, 0);
+  assert.equal(first.headers.get("cdn-cache-control"), "private, no-store");
+  installAdmin(fixture);
+  const head = await invokeRoute({ route: photoRoute, method: "HEAD",
+    url: `https://vistaire.example/api/public/menu-dishes/${DISH_ID}/photo?v=${PHOTO_SHA256}` });
+  assert.equal(head.status, 307);
+  assert.equal(head.headers.get("cdn-cache-control"), "private, no-store");
+  const headUrl = new URL(head.headers.get("location"));
+  const { HeadObjectCommand } = await import("@aws-sdk/client-s3");
+  const { getSignedUrl } = await import("@aws-sdk/s3-request-presigner");
+  const { r2PresignedUrlExpiresAt } = await import("../lib/storage/r2Config.ts");
+  const ttl = Number(headUrl.searchParams.get("X-Amz-Expires"));
+  const client = new S3Client({ region: "auto", endpoint: env.R2_S3_ENDPOINT,
+    requestChecksumCalculation: "WHEN_REQUIRED",
+    credentials: { accessKeyId: env.R2_S3_ACCESS_KEY_ID, secretAccessKey: env.R2_S3_SECRET_ACCESS_KEY } });
+  const expectedHead = await getSignedUrl(client,
+    new HeadObjectCommand({ Bucket: "vistaire-media", Key: PHOTO_PATH }),
+    { expiresIn: ttl, signingDate: new Date(r2PresignedUrlExpiresAt(headUrl.href) - ttl * 1000) });
+  assert.equal(headUrl.searchParams.get("X-Amz-Signature"), new URL(expectedHead).searchParams.get("X-Amz-Signature"));
+  assert.equal((await invoke()).headers.get("location"), first.headers.get("location"));
+
 
   redirectHelper.resetPublicDishAssetCachesForTests();
   missing = true;

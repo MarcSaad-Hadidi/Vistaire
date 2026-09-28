@@ -606,6 +606,7 @@ async function redirectDishAsset(args: {
   dishId: string;
   kind: PublicDishAssetKind;
   requestedAssetVersion?: string;
+  requestMethod?: "GET" | "HEAD";
   supabaseUrl: string | undefined;
   notFoundMessage: string;
   unavailableMessage: string;
@@ -829,6 +830,7 @@ async function redirectDishAsset(args: {
 
   const storage = adminClient.storage.from(bucket);
   const useR2 = r2StorageEnabled() && isR2Bucket(bucket);
+  const requestMethod = args.requestMethod ?? "GET";
   const r2Handle = useR2 ? storageBucket(adminClient.storage, bucket) : null;
   try {
     let storageInfoDuration = 0;
@@ -845,7 +847,7 @@ async function redirectDishAsset(args: {
         ? signedUrlCacheKey({
             bucket,
             storagePath,
-            version: `${useR2 ? process.env.R2_S3_ENDPOINT : args.supabaseUrl}:${activeVersion}`
+            version: `${useR2 ? process.env.R2_S3_ENDPOINT : args.supabaseUrl}:${activeVersion}:${useR2 ? requestMethod : "GET"}`
           })
         : null;
       if (cacheKey) {
@@ -907,7 +909,7 @@ async function redirectDishAsset(args: {
         }
         try {
           const signed = r2Handle
-            ? await r2Handle.createSignedDownloadUrl(storagePath, signedUrlTtlSeconds)
+            ? await r2Handle.createSignedDownloadUrl(storagePath, signedUrlTtlSeconds, requestMethod)
             : args.assetVisibilityPolicy.kind === "authorized-admin"
               ? await storage.createSignedUrl(storagePath, ADMIN_SIGNED_URL_TTL_SECONDS)
               : signedUrlTtlSeconds === SIGNED_URL_TTL_SECONDS
@@ -1064,8 +1066,10 @@ async function redirectDishAsset(args: {
           PUBLIC_ASSET_TOKEN_SAFETY_MARGIN_SECONDS
       )
     );
+    // Shared HTTP caches can satisfy HEAD from GET; SigV4 binds the method.
+    // Keep R2 reuse in the method-aware server cache instead.
     const isPublicCacheable =
-      isVersioned && !isAuthorizedAdmin && cdnRedirectMaxAgeSeconds > 0;
+      !useR2 && isVersioned && !isAuthorizedAdmin && cdnRedirectMaxAgeSeconds > 0;
     const headers: Record<string, string> = {
       Location: signedUrl,
       "Cache-Control": isAuthorizedAdmin
@@ -1114,6 +1118,7 @@ export async function redirectPublicDishAsset(args: {
   dishId: string;
   kind: PublicDishAssetKind;
   requestedAssetVersion?: string;
+  requestMethod?: "GET" | "HEAD";
   supabaseUrl: string | undefined;
   notFoundMessage: string;
   unavailableMessage: string;
@@ -1132,6 +1137,7 @@ export async function redirectAuthorizedAdminDishAsset(args: {
   dishId: string;
   kind: PublicDishAssetKind;
   requestedAssetVersion?: string;
+  requestMethod?: "GET" | "HEAD";
   supabaseUrl: string | undefined;
   restaurantId: string;
   notFoundMessage: string;

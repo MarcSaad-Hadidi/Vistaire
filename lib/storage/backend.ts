@@ -75,7 +75,8 @@ export type StorageBucketHandle = {
   ): Promise<StorageResult<{ signedUrl: string; token: string; path: string }>>;
   createSignedDownloadUrl(
     path: string,
-    expiresInSeconds: number
+    expiresInSeconds: number,
+    method?: "GET" | "HEAD"
   ): Promise<StorageResult<{ signedUrl: string }>>;
 };
 
@@ -347,7 +348,8 @@ class R2BucketHandle implements StorageBucketHandle {
 
   async createSignedDownloadUrl(
     path: string,
-    expiresInSeconds: number
+    expiresInSeconds: number,
+    method: "GET" | "HEAD" = "GET"
   ): Promise<StorageResult<{ signedUrl: string }>> {
     try {
       const client = getS3Client();
@@ -355,7 +357,9 @@ class R2BucketHandle implements StorageBucketHandle {
       // R2 révocable des signed URLs Supabase pour les redirects d'assets.
       const signedUrl = await getSignedUrl(
         client,
-        new GetObjectCommand({ Bucket: this.bucket, Key: path }),
+        method === "HEAD"
+          ? new HeadObjectCommand({ Bucket: this.bucket, Key: path })
+          : new GetObjectCommand({ Bucket: this.bucket, Key: path }),
         { expiresIn: expiresInSeconds }
       );
       return { data: { signedUrl }, error: null };

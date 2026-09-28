@@ -10,7 +10,9 @@ Les autorisations doivent couvrir les lectures, écritures, listes et suppressio
 des deux buckets. Ne pas exposer ces variables via NEXT_PUBLIC.
 
 Les routes publiques contrôlent le plat puis émettent une URL S3 à expiration
-courte. Elles ne redirigent pas vers les domaines CDN publics. Pour conserver
+courte, avec une signature correspondant a GET ou HEAD. Le cache serveur
+distingue ces methodes ; les redirects R2 ne sont pas caches par le CDN,
+qui pourrait sinon reutiliser une reponse GET pour HEAD. Elles ne redirigent pas vers les domaines CDN publics. Pour conserver
 la révocation, les objets protégés ne doivent pas être accessibles par un domaine
 public R2, r2.dev ou un Worker qui contourne la signature. Vérifier ce réglage
 avant activation ; cette PR ne modifie aucune ressource Cloudflare.
