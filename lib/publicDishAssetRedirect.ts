@@ -1161,11 +1161,18 @@ async function redirectDishAsset(args: {
     if (isPublicCacheable) {
       headers["Surrogate-Control"] =
         `public, max-age=${cdnRedirectMaxAgeSeconds}`;
-      headers["X-Vistaire-Asset-Revocation-SLA"] = String(
-        PUBLIC_ASSET_REVOCATION_SLA_SECONDS
-      );
       headers["X-Vistaire-Signed-URL-Remaining"] = String(
         signedUrlRemainingSeconds
+      );
+    }
+    // Le SLA de révocation n'est annoncé que quand l'URL divulguée est
+    // réellement bornée par lui (URL pré-signée à expiration courte). Une URL
+    // CDN permanente conservée reste utilisable tant que l'objet existe dans
+    // R2 : annoncer le SLA sur ce redirect serait mensonger (retour P1 du
+    // codex review sur la PR #265).
+    if (isPublicCacheable && permanentRedirectUrl === null) {
+      headers["X-Vistaire-Asset-Revocation-SLA"] = String(
+        PUBLIC_ASSET_REVOCATION_SLA_SECONDS
       );
     }
     if (process.env.VERCEL_ENV === "preview") {

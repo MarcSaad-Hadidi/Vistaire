@@ -1735,6 +1735,9 @@ test("R2 public assets prefer the permanent CDN URL with presigned fallback", as
     first.headers.get("cdn-cache-control") ?? "",
     /^public, s-maxage=\d+, must-revalidate$/
   );
+  // P1 codex review : une URL permanente conservée survit au SLA de
+  // révocation, donc le SLA ne doit pas être annoncé sur ce redirect.
+  assert.equal(first.headers.get("x-vistaire-asset-revocation-sla"), null);
   // The cached decision is reused: no new S3 or CDN HEAD.
   const cached = await invoke();
   assert.equal(cached.headers.get("location"), expectedPublicUrl);
