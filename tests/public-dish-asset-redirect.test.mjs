@@ -1681,3 +1681,95 @@ test("R2 redirects share signed links, check missing objects and bound expiry af
   // A slow HEAD consumes the snapshot's remaining authorization budget.
   assert.equal((await invoke()).status, 503);
 });
+
+test("R2 public assets prefer the permanent CDN URL with presigned fallback", async (t) => {
+  const env = {
+    R2_STORAGE_ENABLED: "true",
+    R2_S3_ENDPOINT: "https://redirect-test.r2.cloudflarestorage.com",
+    R2_S3_ACCESS_KEY_ID: "test-key",
+    R2_S3_SECRET_ACCESS_KEY: "test-secret"
+  };
+  const saved = Object.fromEntries(Object.keys(env).map((key) => [key, process.env[key]]));
+  Object.assign(process.env, env);
+  const realFetch = globalThis.fetch;
+  const cdnHeads = [];
+  let cdnStatus = 200;
+  globalThis.fetch = async (url, init) => {
+    assert.equal(init?.method, "HEAD");
+    cdnHeads.push(String(url));
+    return { status: cdnStatus };
+  };
+  t.after(() => {
+    for (const [key, value] of Object.entries(saved)) {
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+    }
+    globalThis.fetch = realFetch;
+    redirectHelper.resetPublicDishAssetCachesForTests();
+  });
+  const { S3Client } = await import("@aws-sdk/client-s3");
+  let s3Heads = 0;
+  t.mock.method(S3Client.prototype, "send", async (command) => {
+    assert.equal(command.constructor.name, "HeadObjectCommand");
+    s3Heads += 1;
+    return { ContentLength: 10, ContentType: "image/webp" };
+  });
+  const fixture = createAdminFixture();
+  const nowMs = Date.now();
+  const invoke = (options = {}) => redirectHelper.redirectPublicDishAsset({
+    admin: fixture.admin, dishId: DISH_ID, kind: "photo",
+    requestedAssetVersion: PHOTO_SHA256, supabaseUrl: SUPABASE_ORIGIN,
+    notFoundMessage: "Not found", unavailableMessage: "Unavailable",
+    runtime: { now: () => nowMs, performanceNow: () => nowMs, cachePublicAssets: true }, ...options
+  });
+  const expectedPublicUrl = `https://cdn.vistaire.ca/${PHOTO_PATH}`;
+  const expectedPresignedHost = `vistaire-media.${new URL(env.R2_S3_ENDPOINT).host}`;
+
+  // The CDN serves the object: permanent URL first, publicly cacheable 307.
+  redirectHelper.resetPublicDishAssetCachesForTests();
+  const first = await invoke();
+  assert.equal(first.status, 307);
+  assert.equal(first.headers.get("location"), expectedPublicUrl);
+  assert.deepEqual(cdnHeads, [expectedPublicUrl]);
+  assert.match(
+    first.headers.get("cdn-cache-control") ?? "",
+    /^public, s-maxage=\d+, must-revalidate$/
+  );
+  // P1 codex review : une URL permanente conservée survit au SLA de
+  // révocation, donc le SLA ne doit pas être annoncé sur ce redirect.
+  assert.equal(first.headers.get("x-vistaire-asset-revocation-sla"), null);
+  // The cached decision is reused: no new S3 or CDN HEAD.
+  const cached = await invoke();
+  assert.equal(cached.headers.get("location"), expectedPublicUrl);
+  assert.equal(s3Heads, 1);
+  assert.equal(cdnHeads.length, 1);
+
+  // The CDN does not serve the object: presigned fallback, never public.
+  redirectHelper.resetPublicDishAssetCachesForTests();
+  cdnStatus = 404;
+  const fallback = await invoke();
+  assert.equal(fallback.status, 307);
+  const fallbackUrl = new URL(fallback.headers.get("location"));
+  assert.equal(fallbackUrl.host, expectedPresignedHost);
+  assert.equal(fallbackUrl.searchParams.get("X-Amz-Algorithm"), "AWS4-HMAC-SHA256");
+  assert.ok(fallbackUrl.searchParams.get("X-Amz-Signature"));
+  assert.equal(fallback.headers.get("cdn-cache-control"), "private, no-store");
+
+  // Admin assets never use the permanent CDN URL, even when it serves.
+  redirectHelper.resetPublicDishAssetCachesForTests();
+  cdnStatus = 200;
+  const cdnHeadsBeforeAdmin = cdnHeads.length;
+  const adminResponse = await redirectHelper.redirectAuthorizedAdminDishAsset({
+    admin: fixture.admin, dishId: DISH_ID, kind: "photo",
+    requestedAssetVersion: PHOTO_SHA256, supabaseUrl: SUPABASE_ORIGIN,
+    restaurantId: RESTAURANT_ID,
+    notFoundMessage: "Not found", unavailableMessage: "Unavailable",
+    runtime: { now: () => nowMs, performanceNow: () => nowMs, cachePublicAssets: true }
+  });
+  assert.equal(adminResponse.status, 307);
+  const adminUrl = new URL(adminResponse.headers.get("location"));
+  assert.equal(adminUrl.host, expectedPresignedHost);
+  assert.ok(adminUrl.searchParams.get("X-Amz-Signature"));
+  assert.equal(cdnHeads.length, cdnHeadsBeforeAdmin);
+  assert.equal(adminResponse.headers.get("cache-control"), "private, no-store");
+});

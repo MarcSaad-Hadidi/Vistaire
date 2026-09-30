@@ -13,7 +13,10 @@ import {
 import { storageBucket } from "@/lib/storage/backend";
 import {
   isExpectedR2PresignedAssetUrl,
+  isExpectedR2PublicAssetUrl,
   isR2Bucket,
+  r2PublicAssetUrl,
+  r2PublicObjectExists,
   r2StorageEnabled,
   r2PresignedUrlExpiresAt
 } from "@/lib/storage/r2Config";
@@ -71,6 +74,11 @@ export const PUBLIC_ASSET_REVOCATION_SLA_SECONDS =
 const SIGNED_URL_CACHE_TTL_MS =
   PUBLIC_ASSET_SIGNED_URL_REUSE_SECONDS * 1_000;
 const SIGNED_URL_CACHE_MAX_ENTRIES = 512;
+/**
+ * Timeout du contrôle HEAD vers l'URL publique du CDN avant de retomber sur
+ * l'URL pré-signée. Court : le CDN et le stockage sont sur le même réseau.
+ */
+const R2_PUBLIC_URL_HEAD_TIMEOUT_MS = 2_000;
 const MIN_PUBLIC_SIGNED_URL_REMAINING_SECONDS =
   PUBLIC_ASSET_CDN_REDIRECT_MAX_AGE_SECONDS +
   PUBLIC_ASSET_TOKEN_SAFETY_MARGIN_SECONDS;
@@ -79,6 +87,12 @@ type SignedUrlCacheEntry = {
   signedUrl: string;
   reuseExpiresAt: number;
   tokenExpiresAt: number;
+  /**
+   * URL publique permanente du CDN (ex. https://cdn.vistaire.ca/...),
+   * vérifiée joignable au moment de la signature. `null` quand le contrôle a
+   * échoué : le redirect retombe alors sur l'URL pré-signée.
+   */
+  publicUrl: string | null;
 };
 
 const signedUrlCache = new Map<string, SignedUrlCacheEntry>();
@@ -837,11 +851,45 @@ async function redirectDishAsset(args: {
     let storageSignDuration = 0;
     let signedUrl: string | undefined;
     let signedUrlTokenExpiresAt = 0;
+    let publicRedirectUrl: string | null = null;
     let signError: unknown = null;
     const canReuseSignedUrl =
       args.assetVisibilityPolicy.kind === "public-available-only" &&
       Boolean(activeVersion) &&
       publicSignedUrlCacheEnabled(runtime);
+    /**
+     * URL publique permanente du CDN R2 (ex. https://cdn.vistaire.ca/...).
+     * Réservée aux assets publics : l'existence de l'objet est déjà établie
+     * par le info() du sign(), on vérifie ici en plus que le CDN la sert
+     * (HEAD court). En cas d'échec on renvoie null : le redirect retombe sur
+     * l'URL pré-signée, qui reste le seul chemin pour "authorized-admin".
+     */
+    const resolveR2PublicRedirectUrl = async (
+      storagePath: string
+    ): Promise<string | null> => {
+      if (!r2Handle) return null;
+      if (args.assetVisibilityPolicy.kind !== "public-available-only") {
+        return null;
+      }
+      const candidatePublicUrl = r2PublicAssetUrl(bucket, storagePath);
+      if (
+        !candidatePublicUrl ||
+        !isExpectedR2PublicAssetUrl({
+          publicUrl: candidatePublicUrl,
+          bucket,
+          storagePath
+        })
+      ) {
+        return null;
+      }
+      const servedByCdn = await r2PublicObjectExists(
+        bucket,
+        storagePath,
+        process.env,
+        R2_PUBLIC_URL_HEAD_TIMEOUT_MS
+      );
+      return servedByCdn ? candidatePublicUrl : null;
+    };
     const sign = async (storagePath = selectedStoragePath): Promise<boolean> => {
       const cacheKey = canReuseSignedUrl
         ? signedUrlCacheKey({
@@ -859,6 +907,7 @@ async function redirectDishAsset(args: {
         if (cached) {
           signedUrl = cached.signedUrl;
           signedUrlTokenExpiresAt = cached.tokenExpiresAt;
+          publicRedirectUrl = cached.publicUrl;
           return true;
         }
         const inFlight = signedUrlInFlight.get(cacheKey);
@@ -874,6 +923,7 @@ async function redirectDishAsset(args: {
           ) {
             signedUrl = reused.signedUrl;
             signedUrlTokenExpiresAt = reused.tokenExpiresAt;
+            publicRedirectUrl = reused.publicUrl;
             return true;
           }
           return false;
@@ -955,7 +1005,8 @@ async function redirectDishAsset(args: {
                 signedAt + SIGNED_URL_CACHE_TTL_MS,
                 tokenExpiresAt -
                   PUBLIC_ASSET_TOKEN_SAFETY_MARGIN_SECONDS * 1_000
-              )
+              ),
+              publicUrl: await resolveR2PublicRedirectUrl(storagePath)
             };
           }
         } catch (error) {
@@ -972,6 +1023,7 @@ async function redirectDishAsset(args: {
         if (cacheKey) writeCachedSignedUrl(cacheKey, candidate);
         signedUrl = candidate.signedUrl;
         signedUrlTokenExpiresAt = candidate.tokenExpiresAt;
+        publicRedirectUrl = candidate.publicUrl;
         return true;
       } finally {
         if (cacheKey && signedUrlInFlight.get(cacheKey) === signPromise) {
@@ -1024,23 +1076,36 @@ async function redirectDishAsset(args: {
       }
     }
 
-    // Migration R2 : l'URL pré-signée S3 remplace la signed URL Supabase ;
-    // la vérification anti-forgery valide l'hôte, le chemin et la signature.
+    // Migration R2 : pour les assets publics, l'URL permanente du CDN
+    // (ex. https://cdn.vistaire.ca/...) passe en premier ; l'URL pré-signée
+    // S3 reste le repli quand le CDN ne peut pas servir l'objet. La
+    // vérification anti-forgery valide l'hôte et le chemin dans les deux cas.
+    // Les assets "authorized-admin" ne passent jamais par l'URL permanente.
+    const permanentRedirectUrl =
+      useR2 && publicRedirectUrl ? publicRedirectUrl : null;
+    const redirectUrl = permanentRedirectUrl ?? signedUrl;
     if (
-      !signedUrl ||
+      !redirectUrl ||
       !(
-        r2StorageEnabled() && isR2Bucket(bucket)
-          ? isExpectedR2PresignedAssetUrl({
-              presignedUrl: signedUrl,
+        permanentRedirectUrl
+          ? isExpectedR2PublicAssetUrl({
+              publicUrl: permanentRedirectUrl,
               bucket,
               storagePath: selectedStoragePath
             })
-          : isExpectedSignedStorageUrl({
-              signedUrl,
-              supabaseUrl: args.supabaseUrl,
-              bucket,
-              storagePath: selectedStoragePath
-            })
+          : signedUrl &&
+            (useR2
+              ? isExpectedR2PresignedAssetUrl({
+                  presignedUrl: signedUrl,
+                  bucket,
+                  storagePath: selectedStoragePath
+                })
+              : isExpectedSignedStorageUrl({
+                  signedUrl,
+                  supabaseUrl: args.supabaseUrl,
+                  bucket,
+                  storagePath: selectedStoragePath
+                }))
       )
     ) {
       return publicDishAssetJsonError(args.unavailableMessage, 503);
@@ -1068,10 +1133,17 @@ async function redirectDishAsset(args: {
     );
     // Shared HTTP caches can satisfy HEAD from GET; SigV4 binds the method.
     // Keep R2 reuse in the method-aware server cache instead.
+    // L'URL permanente du CDN est immuable (chemins versionnés) : le 307
+    // peut être mis en cache publiquement, borné par le max configuré.
+    // L'URL pré-signée de repli ne doit jamais être mise en cache en public
+    // (la signature est dans la query).
     const isPublicCacheable =
-      !useR2 && isVersioned && !isAuthorizedAdmin && cdnRedirectMaxAgeSeconds > 0;
+      isVersioned &&
+      !isAuthorizedAdmin &&
+      cdnRedirectMaxAgeSeconds > 0 &&
+      (!useR2 || permanentRedirectUrl !== null);
     const headers: Record<string, string> = {
-      Location: signedUrl,
+      Location: redirectUrl,
       "Cache-Control": isAuthorizedAdmin
         ? "private, no-store"
         : "no-store",
@@ -1089,11 +1161,18 @@ async function redirectDishAsset(args: {
     if (isPublicCacheable) {
       headers["Surrogate-Control"] =
         `public, max-age=${cdnRedirectMaxAgeSeconds}`;
-      headers["X-Vistaire-Asset-Revocation-SLA"] = String(
-        PUBLIC_ASSET_REVOCATION_SLA_SECONDS
-      );
       headers["X-Vistaire-Signed-URL-Remaining"] = String(
         signedUrlRemainingSeconds
+      );
+    }
+    // Le SLA de révocation n'est annoncé que quand l'URL divulguée est
+    // réellement bornée par lui (URL pré-signée à expiration courte). Une URL
+    // CDN permanente conservée reste utilisable tant que l'objet existe dans
+    // R2 : annoncer le SLA sur ce redirect serait mensonger (retour P1 du
+    // codex review sur la PR #265).
+    if (isPublicCacheable && permanentRedirectUrl === null) {
+      headers["X-Vistaire-Asset-Revocation-SLA"] = String(
+        PUBLIC_ASSET_REVOCATION_SLA_SECONDS
       );
     }
     if (process.env.VERCEL_ENV === "preview") {
