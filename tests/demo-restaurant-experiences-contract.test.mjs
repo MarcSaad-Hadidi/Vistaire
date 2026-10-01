@@ -118,7 +118,7 @@ test("landing stable render context derives the legacy readiness gate from a con
   assert.match(landingData, /stableCacheReadiness\.publishedUiConfig/);
   assert.match(
     renderContext,
-    /eq\(["']status["'],\s*["']published["']\)/
+    /filters:\s*\{\s*restaurant_id:\s*restaurantId,\s*status:\s*["']published["']\s*\}/
   );
   assert.match(renderContext, /readState:\s*["']not-found["']/);
   assert.match(renderContext, /readState:\s*["']unavailable["']/);

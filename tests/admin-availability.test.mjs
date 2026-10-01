@@ -531,7 +531,7 @@ test("availability route preserves server scope and shared restaurant shell", as
   const page = await readFile("components/admin/availability/AdminAvailabilityPage.tsx", "utf8");
 
   assert.match(route, /requireAdminRestaurantAccess\("dashboard:read"\)/);
-  assert.match(route, /loadAdminDashboardData\(access\.restaurantId/);
+  assert.match(route, /loadAdminMenuData\(access\.restaurantId/);
   assert.match(page, /AdminShell/);
   assert.match(page, /active="availability"/);
   assert.doesNotMatch(`${route}\n${page}`, /restaurantId\s*[:=]\s*[{"']/);
