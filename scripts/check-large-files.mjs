@@ -648,56 +648,6 @@ const ALLOWLIST = new Map(
         ],
         reason: "Existing public video asset."
       }
-    ],
-    [
-      "video/upscaled-video.mp4",
-      {
-        maxBytes: 41480123,
-        sha256: [
-          "1e9bc164c0b64855f94ba81464454de2a5d1f46e0b863bdf97c73464d5de4e05"
-        ],
-        reason: "Existing non-runtime source video retained on main."
-      }
-    ],
-    [
-      "video/video1.mp4",
-      {
-        maxBytes: 2043379,
-        sha256: [
-          "8f058c65b18c2c4bf6f344297fef5f3c6279b7d60e602f6397ec361e869aa0bf"
-        ],
-        reason: "Existing source video retained on main."
-      }
-    ],
-    [
-      "video/video2.mp4",
-      {
-        maxBytes: 1882038,
-        sha256: [
-          "26865a9d09d9396fd17872ed43ef7bed999f15dff30186dd53857621e9855dec"
-        ],
-        reason: "Existing source video retained on main."
-      }
-    ],
-    [
-      "video/video3.mp4",
-      {
-        maxBytes: 2798041,
-        sha256: [
-          "5441dae94fa1024b7030f409f76bd2b52a299660db69d7e80e6f688d1e5ff4ee"
-        ],
-        reason: "Existing source video retained on main."
-      }
-    ],
-    [
-      "video/video4.mp4",
-      {
-        maxBytes: 2741019,
-        sha256: [
-          "9b342195113c5f029416f37343bf2419dc6ac03e9820f42845a52ab28575a87b"
-        ],
-        reason: "Existing source video retained on main."
-      }
     ]
   ]
 );
