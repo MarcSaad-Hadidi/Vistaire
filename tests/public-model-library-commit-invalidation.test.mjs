@@ -62,7 +62,8 @@ const moduleStubs = new Map([
 
 registerHooks({
   resolve(specifier, context, nextResolve) {
-    if (moduleStubs.has(specifier)) {
+    // Stub only for project modules; CommonJS dependencies cannot load data: URLs.
+    if (moduleStubs.has(specifier) && !context.parentURL?.includes("/node_modules/")) {
       return { url: moduleStubs.get(specifier), shortCircuit: true };
     }
     if (specifier.startsWith("@/")) {
