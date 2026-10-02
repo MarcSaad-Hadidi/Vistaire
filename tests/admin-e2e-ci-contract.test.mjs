@@ -71,7 +71,7 @@ test("App CI uses targeted jobs and keeps the data-dependent smoke available loc
   ]);
   const scripts = JSON.parse(packageJson).scripts;
 
-  assert.equal(scripts["test:admin"], "node scripts/run-admin-tests.mjs");
+  assert.equal(scripts["test:node"], 'node --test "tests/*.test.mjs"');
   assert.equal(
     scripts["test:smoke"],
     "node scripts/run-playwright-e2e.mjs e2e/mvp-smoke.spec.ts"
@@ -80,23 +80,16 @@ test("App CI uses targeted jobs and keeps the data-dependent smoke available loc
     scripts["test:smoke:bootstrap"],
     "node scripts/run-playwright-e2e.mjs e2e/ci-smoke.spec.ts"
   );
-  assert.equal(scripts["test:qr:node"], "node scripts/run-qr-node-tests.mjs");
   assert.equal(scripts["test:qr:postgres"], "node scripts/run-qr-postgres-tests.mjs");
   assert.equal(scripts["test:qr:functional"], "node scripts/run-qr-functional-e2e.mjs");
-  assert.equal(
-    scripts["test:qr:all"],
-    "npm run test:qr:node && npm run test:qr:postgres && npm run test:qr:functional"
-  );
   for (const command of [
     "npm ci",
     "npm run lint",
     "npm run typecheck",
-    "npm run test:qr:node",
+    "npm run test:node",
     "npm run test:qr:postgres",
     "npm run build",
     "npm run test:qr:functional",
-    "npm run test:seo",
-    "npm run test:admin",
     "npm run test:ci:e2e:core",
     "npm run test:seo:e2e"
   ]) {

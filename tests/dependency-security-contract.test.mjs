@@ -24,11 +24,12 @@ function compareVersions(left, right) {
 
 function hasVulnerableBraceExpansionVersion(version) {
   const [major] = versionTuple(version);
-  if (major === 1) return compareVersions(version, "1.1.18") < 0;
-  if (major === 2) return compareVersions(version, "2.1.4") < 0;
-  if (major === 3) return compareVersions(version, "3.0.3") < 0;
+  // First patched releases for GHSA-q2hr-2g5m-vwhr, which supersedes the earlier advisories.
+  if (major === 1) return compareVersions(version, "1.1.21") < 0;
+  if (major === 2) return compareVersions(version, "2.1.7") < 0;
+  if (major === 3) return compareVersions(version, "3.0.9") < 0;
   if (major === 4) return true;
-  if (major === 5) return compareVersions(version, "5.0.9") < 0;
+  if (major === 5) return compareVersions(version, "5.0.12") < 0;
   return false;
 }
 
@@ -46,9 +47,11 @@ function packageVersions(packageName) {
 }
 
 test("dependency overrides pin every affected brace-expansion branch to a fixed release", () => {
-  assert.equal(packageJson.overrides?.["minimatch@3.1.5"]?.["brace-expansion"], "1.1.18");
-  assert.equal(packageJson.overrides?.["minimatch@9.0.9"]?.["brace-expansion"], "2.1.4");
-  assert.equal(packageJson.overrides?.["minimatch@10.2.5"]?.["brace-expansion"], "5.0.9");
+  for (const minimatch of ["minimatch@3.1.5", "minimatch@9.0.9", "minimatch@10.2.5"]) {
+    const override = packageJson.overrides?.[minimatch]?.["brace-expansion"];
+    assert.ok(override, `${minimatch} must pin brace-expansion`);
+    assert.equal(hasVulnerableBraceExpansionVersion(override), false, `${minimatch} pins vulnerable ${override}`);
+  }
 
   const versions = packageVersions("brace-expansion");
   assert.ok(versions.length > 0, "package-lock.json must contain brace-expansion entries");

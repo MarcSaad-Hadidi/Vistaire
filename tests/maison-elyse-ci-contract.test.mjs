@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { existsSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
@@ -17,27 +18,23 @@ const REQUIRED_MEDIA_TESTS = [
 ];
 
 test("Maison Elyse media tests are explicit and mandatory in App CI", () => {
-  const script = packageJson.scripts?.["test:maison-elyse-media"] ?? "";
-  assert.match(script, /^node --test /);
+  assert.equal(packageJson.scripts?.["test:node"], 'node --test "tests/*.test.mjs"');
   for (const file of REQUIRED_MEDIA_TESTS) {
-    assert.match(script, new RegExp(file.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+    assert.match(file, /^tests\/[^/]+\.test\.mjs$/, `${file} must stay inside the test:node glob`);
+    assert.ok(existsSync(new URL(`../${file}`, import.meta.url)), `${file} must exist`);
   }
 
-  const ciCommand = "npm run test:maison-elyse-media";
   const typecheckIndex = appCi.indexOf("npm run typecheck");
-  const mediaIndex = appCi.indexOf(ciCommand);
-  const buildIndex = appCi.indexOf("npm run build");
-
+  const nodeTestsIndex = appCi.indexOf("npm run test:node");
   assert.ok(typecheckIndex >= 0, "App CI must run typecheck");
-  assert.ok(mediaIndex > typecheckIndex, "Maison Elyse tests must run after typecheck");
-  assert.ok(buildIndex > mediaIndex, "Maison Elyse tests must run before build");
+  assert.ok(nodeTestsIndex > typecheckIndex, "Node tests must run after typecheck");
 });
 
 test("Maison Elyse PostgreSQL 17 tests are explicit and run before build", () => {
   assert.equal(packageJson.scripts?.["test:maison-elyse-postgres"], "node scripts/run-maison-elyse-postgres-tests.mjs");
   assert.match(appCi, /name: database-contracts/);
   assert.match(appCi, /npm run test:maison-elyse-postgres/);
-  assert.ok(appCi.indexOf("npm run test:maison-elyse-postgres") > appCi.indexOf("npm run test:maison-elyse-media"));
+  assert.ok(appCi.indexOf("npm run test:maison-elyse-postgres") > appCi.indexOf("npm run test:node"));
   assert.ok(appCi.indexOf("npm run build") > appCi.indexOf("npm run test:maison-elyse-postgres"));
 });
 

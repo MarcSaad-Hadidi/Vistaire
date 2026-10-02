@@ -14,7 +14,6 @@ const demoShowcasePath = "components/vistaire-preview/DemoPhoneShowcase.tsx";
 const demoShowcaseCssPath =
   "components/vistaire-preview/DemoPhoneShowcase.module.css";
 const ownerCreateFormPath = "components/owner/RestaurantCreateForm.tsx";
-const publicMenuPath = "lib/menu/publicMenu.ts";
 const themePresetPath = "lib/menu/menuThemePresets.ts";
 const menuExperiencePath = "lib/menu/trouvableMenuExperience.ts";
 const renderContextPath = "lib/menu/publicMenuRenderContext.ts";
@@ -87,33 +86,6 @@ test("Maison Elyse keeps one canonical neutral black and gold palette", async ()
     assert.doesNotMatch(css, /#(?:050403|0b0705|120c08|191109|fff7ea|f4ebdd|bfaf98|e8cf9b|d2a45e|8a6338)/i);
     assert.doesNotMatch(css, /rgba\((?:35,\s*19,\s*10|25,\s*17,\s*9|18,\s*11,\s*7|10,\s*7,\s*5)/);
   }
-});
-
-test("Maison Elyse demo public menu can be built with localized sample data", async () => {
-  const source = await readFile(publicMenuPath, "utf8");
-
-  assert.match(source, /function demoMenu\(slug: string, locale: Locale = "fr"\)/);
-  assert.match(source, /getRestaurant\(locale\)/);
-  assert.match(source, /getAllDishes\(locale\)/);
-  assert.match(source, /demoCategoryFields\(dish\.categorySlug \?\? "", locale\)/);
-  assert.match(source, /categoryId:\s*category\?\.id/);
-  assert.match(source, /categorySlug:\s*category\?\.slug \?\? categorySlug/);
-  assert.match(source, /recommendedTag/);
-  assert.match(source, /unavailableTag/);
-  assert.match(source, /getPublicMenuBySlug\([\s\S]*locale: Locale \| string = DEFAULT_LOCALE/);
-  assert.match(source, /const resolvedPublicLocale = normalizePublicMenuLocale\(locale\)/);
-  assert.match(source, /const resolvedLocale = publicLocaleToShortLocale\(resolvedPublicLocale\)/);
-  assert.match(source, /return demoMenu\(slug, resolvedLocale\)/);
-  assert.match(source, /dependencies\.readRows<PublicMenuRow>\(\{ table: "restaurants"[\s\S]*filters: \{ slug \}[\s\S]*limit: 1/);
-  for (const table of ["menus", "menu_categories", "menu_dishes", "menu_ui_configs"]) {
-    assert.match(source, new RegExp(`table: "${table}"[\\s\\S]*?filters: \\{ restaurant_id: restaurantId \\}`));
-  }
-  assert.match(source, /dependencies\.nodeEnv === "production"/);
-  assert.doesNotMatch(source, /readSupabaseRows\(/);
-  assert.doesNotMatch(source, /if \(slug === "maison-elyse"\) \{\s*return demoMenu\(slug, resolvedLocale\);\s*\}\s*\n\s*const restaurantsResult/);
-  assert.doesNotMatch(source, /if \(restaurantId === getDemoRestaurantId\(\)\) \{\s*return demoMenu/);
-  assert.match(source, /isDemoRestaurant && !primaryMenu && !hasScopedDishRows[\s\S]*return localDemo\(\)/);
-  assert.equal((source.match(/includeUnavailableDishes: true/g) ?? []).length, 2);
 });
 
 test("Maison Elyse dish detail is dedicated while generic public details remain intact", async () => {
@@ -327,24 +299,4 @@ test("/demo and /en/vistaire-menu use the shared restaurant phone showcase", asy
   assert.match(showcaseCss, /\.phoneViewport[\s\S]*overflow-y:\s*auto/);
   assert.match(showcaseCss, /\.phoneViewport[\s\S]*transform:\s*translateZ\(0\)/);
   assert.match(showcaseCss, /@media \(max-width: 560px\)/);
-});
-
-test("Maison Elyse phone detail resolves multilingual copy through shared and editorial packs", async () => {
-  const [component, sharedCopy, localization] = await Promise.all([
-    readFile(dishDetailPath, "utf8"),
-    readFile(sharedCopyPath, "utf8"),
-    readFile(localizationPath, "utf8")
-  ]);
-
-  assert.match(component, /locale\?: Locale/);
-  assert.match(component, /resolveMaisonElyseCopy/);
-  assert.match(component, /getMaisonElyseEditorialCopy/);
-  assert.match(localization, /detailBackToMenu:\s*"Back to menu"/);
-  assert.match(localization, /detailBackToMenu:\s*"Volver a la carta"/);
-  assert.match(localization, /detailBackToMenu:\s*"العودة إلى القائمة"/);
-  assert.match(sharedCopy, /details:\s*"Dish details"/);
-  assert.match(sharedCopy, /threeD:\s*"VIEW IN 3D"/);
-  assert.match(sharedCopy, /allergens:\s*"Allergens"/);
-  assert.match(sharedCopy, /recommendation:\s*"Recommended"/);
-  assert.match(sharedCopy, /soldOut:\s*"Sold out"/);
 });

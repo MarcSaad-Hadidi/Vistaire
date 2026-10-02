@@ -6,8 +6,14 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import test from "node:test";
 
+import { chromium } from "@playwright/test";
 import { unzipSync, zipSync, zlibSync } from "fflate";
 import { selectOptimizationCandidate } from "../scripts/3d/shared/pipeline-command.mjs";
+
+// Visual compare renders in Chromium; the static-quality CI job installs no browser.
+const visualCompareSkip = existsSync(chromium.executablePath())
+  ? false
+  : "Playwright Chromium is not installed";
 
 const stableIso = "2026-05-24T00:00:00.000Z";
 const strictPromise =
@@ -1101,7 +1107,7 @@ test("optimize-dish refuses CDN mode when the CDN origin is not allowlisted", ()
     );
   }));
 
-test("visual-compare renders deterministic before/after/diff artifacts for identical GLBs", () =>
+test("visual-compare renders deterministic before/after/diff artifacts for identical GLBs", { skip: visualCompareSkip }, () =>
   withTempDir(async (dir) => {
     const sourcePath = join(dir, "source.glb");
     const candidatePath = join(dir, "candidate.glb");
@@ -1424,7 +1430,7 @@ test("candidate selection returns null when every visual gate fails", () => {
   assert.match(decision.reason, /no adaptive candidate/i);
 });
 
-test("optimize-dish --run-visual-compare writes per-candidate visual reports", { timeout: 600_000 }, () =>
+test("optimize-dish --run-visual-compare writes per-candidate visual reports", { timeout: 600_000, skip: visualCompareSkip }, () =>
   withTempDir(async (dir) => {
     const sourcePath = join(dir, "assets", "3d", "source", "maison-elyse", "demo", "plat-final", "source.glb");
     mkdirSync(dirname(sourcePath), { recursive: true });

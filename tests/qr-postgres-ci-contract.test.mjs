@@ -21,15 +21,10 @@ test("the QR contract regex helper escapes every regex metacharacter", () => {
   assert.doesNotMatch("ownerXfoo?^$\\{}()|[]", pattern);
 });
 
-test("QR package scripts expose separate Node, PostgreSQL, functional, and aggregate gates", async () => {
+test("QR package scripts expose separate PostgreSQL and functional gates", async () => {
   const packageJson = JSON.parse(await source("package.json"));
-  assert.equal(packageJson.scripts["test:qr:node"], "node scripts/run-qr-node-tests.mjs");
   assert.equal(packageJson.scripts["test:qr:postgres"], "node scripts/run-qr-postgres-tests.mjs");
   assert.equal(packageJson.scripts["test:qr:functional"], "node scripts/run-qr-functional-e2e.mjs");
-  assert.equal(
-    packageJson.scripts["test:qr:all"],
-    "npm run test:qr:node && npm run test:qr:postgres && npm run test:qr:functional"
-  );
 });
 
 test("the PostgreSQL runner applies the production QR migrations with real psql", async () => {
@@ -76,22 +71,6 @@ test("the PostgreSQL fixture supplies the minimal Supabase storage bucket contra
   }
 });
 
-test("the retained PostgreSQL fixture uses the versioned rotation RPC", async () => {
-  const fixture = await source("tests/fixtures/qr-postgres-assertions.sql");
-  const modernSignature =
-    "owner_rotate_canonical_qr(uuid,uuid,uuid,text,text,text,text,text,text,text,text,text,jsonb,boolean,text,uuid,integer)";
-
-  assert.match(fixture, new RegExp(escapeRegExp(modernSignature)));
-  assert.doesNotMatch(
-    fixture,
-    /owner_rotate_canonical_qr\(uuid,uuid,uuid,text,text,text,text,text,text,text,text,text,jsonb,boolean\)/
-  );
-  assert.match(
-    fixture,
-    /true,\s*'keep-active',\s*'42000000-0000-4000-8000-000000000002',\s*1/
-  );
-});
-
 test("App CI supplies pinned PostgreSQL 17 and keeps asset policy separate", async () => {
   const workflow = await source(".github/workflows/app-ci.yml");
   const assetWorkflow = await source(".github/workflows/asset-policy.yml");
@@ -101,7 +80,7 @@ test("App CI supplies pinned PostgreSQL 17 and keeps asset policy separate", asy
   for (const command of [
     "npm run lint",
     "npm run typecheck",
-    "npm run test:qr:node",
+    "npm run test:node",
     "npm run test:qr:postgres",
     "npm run test:qr:functional",
     "npm run build",

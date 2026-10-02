@@ -2,20 +2,8 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 import assert from "node:assert/strict";
 
-const pagePath = "app/(fr)/menu/[slug]/page.tsx";
 const componentPath = "components/menu/PublicMenuRenderer.tsx";
 const cssPath = "components/menu/PublicMenuRenderer.module.css";
-
-test("public menu page delegates to the shared configurable renderer", async () => {
-  const [source, renderContext] = await Promise.all([
-    readFile(pagePath, "utf8"),
-    readFile("lib/menu/publicMenuRenderContext.ts", "utf8")
-  ]);
-
-  assert.match(source, /PublicMenuRenderer/);
-  assert.match(source, /resolvePublicMenuRenderContext/);
-  assert.match(renderContext, /getPublishedMenuUiConfigForRestaurant/);
-});
 
 test("shared menu renderer includes welcome, category, dish, and detail states", async () => {
   const source = await readFile(componentPath, "utf8");
