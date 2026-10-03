@@ -181,20 +181,8 @@ jobs:
         run: |
           npm run lint
           npm run typecheck
-          npm run test:unique-menu-design
-          npm run test:qr:node
-          npm run test:admin
-          npm run test:maison-elyse-media
-          npm run test:supabase-efficiency-v2
-      - name: Deterministic Node contracts
-        run: |
-          npm run test:landing:contract
-          npm run test:landing:i18n
-          npm run test:landing:fixture-i18n
-          npm run test:landing:keyboard
-          npm run test:translation:backfill
-          npm run test:seo
-          npm run test:restaurateur-preview:node
+      - name: Node test suite
+        run: npm run test:node
       - name: Job summary
         if: ${{ always() }}
         env:

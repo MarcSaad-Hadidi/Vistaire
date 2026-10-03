@@ -82,10 +82,7 @@ test("the Prompt 7 browser contract executes with fail-closed CI options", () =>
 });
 
 test("Prompt 7 Node contracts run in static-quality and the execution lock runs before install", () => {
-  assert.equal(
-    packageJson.scripts?.["test:restaurateur-preview:node"],
-    "node --test tests/restaurateur-preview-fixture.test.mjs tests/restaurateur-preview-security.test.mjs tests/restaurateur-preview-ci-contract.test.mjs"
-  );
+  assert.equal(packageJson.scripts?.["test:node"], 'node --test "tests/*.test.mjs"');
 
   const fastGate = workflow.slice(
     workflow.indexOf("  fast-gate:"),
@@ -100,7 +97,7 @@ test("Prompt 7 Node contracts run in static-quality and the execution lock runs 
     /node --test[\s\S]*tests\/restaurateur-preview-ci-contract\.test\.mjs/
   );
   assert.doesNotMatch(fastGate, /^\s*(?:run:\s*)?npm\s+(?:ci|install)\b/m);
-  assert.match(staticQuality, /npm run test:restaurateur-preview:node/);
+  assert.match(staticQuality, /npm run test:node/);
 });
 
 test("Prompt 7 path changes never leave an applicable CI family unselected", () => {

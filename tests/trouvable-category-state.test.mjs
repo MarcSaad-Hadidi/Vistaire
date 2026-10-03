@@ -86,13 +86,19 @@ test("Trouvable Arabic keeps the same LTR public UI layout", async () => {
     "components/menu/TrouvableDishDetailExperience.tsx",
     "utf8"
   );
-  const menuMain = menuSource.match(/<main[\s\S]*?>/)?.[0] ?? "";
+  // The public menu root renders as `MenuRoot`, which is `main` in public mode.
+  const menuMain = menuSource.match(/<MenuRoot\b[\s\S]*?>/)?.[0] ?? "";
   const detailMain = detailSource.match(/<main[\s\S]*?>/)?.[0] ?? "";
 
   assert.doesNotMatch(menuMain, /dir=\{textDirection\}/);
   assert.doesNotMatch(detailMain, /dir=\{textDirection\}/);
   assert.match(menuMain, /data-text-direction=\{textDirection\}/);
   assert.match(detailMain, /data-text-direction=\{textDirection\}/);
+  // Localized text zones keep their own direction; detail copy lives in the shared surface.
+  const detailSurfaceSource = await readFile(
+    "components/menu/TrouvableDishDetailSurface.tsx",
+    "utf8"
+  );
   assert.match(menuSource, /dir=\{textDirection\}/);
-  assert.match(detailSource, /dir=\{textDirection\}/);
+  assert.match(detailSurfaceSource, /dir=\{textDirection\}/);
 });
