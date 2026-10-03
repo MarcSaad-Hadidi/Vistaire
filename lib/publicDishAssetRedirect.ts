@@ -419,7 +419,7 @@ function hasSafePathSyntax(storagePath: string): boolean {
   );
 }
 
-export function isAllowedPublicDishAssetLocation(args: {
+function isAllowedDishAssetLocation(args: {
   kind: PublicDishAssetKind;
   bucket: string;
   storagePath: string;
@@ -473,8 +473,6 @@ export function isAllowedPublicDishAssetLocation(args: {
   const filename = pathSegments.at(-1)?.toLowerCase() ?? "";
   return profile.extensions.some((extension) => filename.endsWith(extension));
 }
-
-export const isAllowedDishAssetLocation = isAllowedPublicDishAssetLocation;
 
 function isUsableDishPhotoDerivativeV2(args: {
   derivativeRecord: unknown;
