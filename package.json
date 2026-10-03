@@ -130,17 +130,17 @@
     }
   },
   "devDependencies": {
-    "@playwright/test": "^1.62.1",
+    "@playwright/test": "^1.63.0",
     "@tailwindcss/postcss": "^4.3.3",
-    "@types/node": "^26.4.0",
+    "@types/node": "^26.6.3",
     "@types/qrcode": "^1.5.6",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.5",
-    "eslint": "9.39.5",
+    "eslint": "10.11.0",
     "eslint-config-next": "^16.3.8",
-    "postcss": "^8.5.26",
+    "postcss": "^8.5.28",
     "tailwindcss": "^4.3.3",
-    "three": "0.183.2",
-    "typescript": "6.0.3"
+    "three": "0.186.1",
+    "typescript": "7.0.2"
   }
 }
