@@ -173,14 +173,19 @@ test("prepared GLB owner routes are guarded and run the Meshy owner pipeline", a
   const packageJson = await readFile("package.json", "utf8");
   const nextConfig = await readFile("next.config.ts", "utf8");
 
+  const uploadGuard = await readFile("lib/owner/ownerGlbUploadRequest.ts", "utf8");
   for (const source of [uploadRoute, publishRoute]) {
     assert.match(source, /runtime = "nodejs"/);
+    assert.match(source, /runRestaurantMeshyDishPipeline/);
+    assert.doesNotMatch(source, /glb-shrink/i);
+  }
+  // The upload route delegates owner, origin and restaurant scoping to the shared guard.
+  assert.match(uploadRoute, /prepareOwnerGlbUpload\(request, params\)/);
+  for (const source of [uploadGuard, publishRoute]) {
     assert.match(source, /requireVistaireOwnerApi\(\)/);
     assert.match(source, /requireSameOriginOwnerMutation\(request\)/);
     assert.match(source, /\.eq\("id", dishId\)/);
     assert.match(source, /\.eq\("restaurant_id", restaurantId\)/);
-    assert.match(source, /runRestaurantMeshyDishPipeline/);
-    assert.doesNotMatch(source, /glb-shrink/i);
   }
 
   assert.match(meshyPipeline, /scripts\/owner\/build-restaurant-meshy-dish\.mjs/);
