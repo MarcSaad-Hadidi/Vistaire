@@ -10,7 +10,7 @@ import type {
   DishModelViewerProps
 } from "@/components/dish/DishModelViewer";
 import { getTrouvableCopy } from "@/components/menu/trouvableMenuControls";
-import { isSafe3dAssetUrl } from "@/lib/dish3dManifest";
+import { hasPublicMenu3d } from "@/lib/menu/hasPublicMenu3d";
 import {
   getAllergenDisplayGroups,
   customAllergensFromLegacyValues
@@ -60,11 +60,6 @@ type DishPageTurnState = {
   targetPageIndex: 0 | 2;
 };
 
-const ALLOWED_3D_CDN_ORIGINS = (process.env.NEXT_PUBLIC_VISTAIRE_3D_CDN_ORIGINS ?? "")
-  .split(/[,\s]+/)
-  .map((origin) => origin.trim().replace(/\/$/, ""))
-  .filter(Boolean);
-
 const LazyDishModelViewer = dynamic<DishModelViewerProps>(
   () =>
     import("@/components/dish/DishModelViewer").then(
@@ -75,17 +70,6 @@ const LazyDishModelViewer = dynamic<DishModelViewerProps>(
     loading: () => null
   }
 );
-
-function hasReal3d(dish: PublicMenuDish): boolean {
-  return (
-    isSafe3dAssetUrl(
-      dish.webModel3dUrl || dish.model3dUrl,
-      ALLOWED_3D_CDN_ORIGINS,
-      "web"
-    ) ||
-    isSafe3dAssetUrl(dish.arModel3dUrl, ALLOWED_3D_CDN_ORIGINS, "arLite")
-  );
-}
 
 function modelViewerDishFromPublicDish(dish: PublicMenuDish): DishModelViewerProps["dish"] {
   return {
@@ -429,7 +413,7 @@ export function SaugeNoireDishSheet({
     ...targetGroups.contains,
     ...targetCustomAllergens
   ].join(", ") || (targetGroups.unknownCount > 0 ? copy.confirmAllergens : copy.noAllergens);
-  const targetCanOpen3d = !isPreview && hasReal3d(dish);
+  const targetCanOpen3d = !isPreview && hasPublicMenu3d(dish);
   const naturalHeight =
     renderMode === "reading-surface" || renderMode === "route-preview";
 

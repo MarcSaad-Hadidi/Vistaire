@@ -11,7 +11,7 @@ import {
   isCurrencyConversionAvailable,
   type MenuExchangeRates
 } from "@/lib/currency/formatMenuPrice";
-import { isSafe3dAssetUrl } from "@/lib/dish3dManifest";
+import { hasPublicMenu3d, hasPublicMenuAr } from "@/lib/menu/hasPublicMenu3d";
 import type { PublicMenuLocale } from "@/lib/menu/publicMenuSettings";
 import {
   getMaisonElyseCategoryKind,
@@ -43,11 +43,6 @@ import {
 import styles from "./MaisonElyseDishDetail.module.css";
 
 const MODEL_VIEWER_ID = "maison-elyse-dish-model-viewer";
-const ALLOWED_3D_CDN_ORIGINS = (process.env.NEXT_PUBLIC_VISTAIRE_3D_CDN_ORIGINS ?? "")
-  .split(/[,\s]+/)
-  .map((origin) => origin.trim().replace(/\/$/, ""))
-  .filter(Boolean);
-
 const loadDishModelViewer = () =>
   import("@/components/dish/DishModelViewer").then(
     (mod) => mod.DishModelViewer
@@ -209,28 +204,6 @@ function categoryLabel(dish: PublicMenuDish, locale: PublicMenuLocale): string {
   );
 }
 
-function hasReal3d(dish: PublicMenuDish): boolean {
-  return (
-    isSafe3dAssetUrl(
-      dish.webModel3dUrl || dish.model3dUrl,
-      ALLOWED_3D_CDN_ORIGINS,
-      "web"
-    ) ||
-    isSafe3dAssetUrl(dish.arModel3dUrl, ALLOWED_3D_CDN_ORIGINS, "arLite")
-  );
-}
-
-function hasRealAr(dish: PublicMenuDish): boolean {
-  return (
-    hasReal3d(dish) ||
-    isSafe3dAssetUrl(
-      dish.arUsdzUrl || dish.usdzUrl,
-      ALLOWED_3D_CDN_ORIGINS,
-      "iosUsdz"
-    )
-  );
-}
-
 function dishBadges(dish: PublicMenuDish, copy: DetailCopy): string[] {
   const badges: string[] = [];
   const tagText = normalizeText(dish.tags.join(" "));
@@ -253,8 +226,8 @@ function dishBadges(dish: PublicMenuDish, copy: DetailCopy): string[] {
   ) {
     badges.push(copy.recommendedBadge);
   }
-  if (hasReal3d(dish)) badges.push("3D");
-  if (hasRealAr(dish)) badges.push("AR");
+  if (hasPublicMenu3d(dish)) badges.push("3D");
+  if (hasPublicMenuAr(dish)) badges.push("AR");
   if (!dish.available) badges.push(copy.unavailableBadge);
 
   return Array.from(new Set(badges)).slice(0, 5);
@@ -460,8 +433,8 @@ export function MaisonElyseDishDetail({
     exchangeRates
   );
   const displayCategory = categoryLabel(dish, locale);
-  const has3d = hasReal3d(dish);
-  const hasAr = hasRealAr(dish);
+  const has3d = hasPublicMenu3d(dish);
+  const hasAr = hasPublicMenuAr(dish);
   const canOpenImmersive = displayMode === "public" && (has3d || hasAr);
   const badges = dishBadges(dish, copy);
   const ingredients = displayList(dish.ingredients);

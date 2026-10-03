@@ -87,7 +87,7 @@ test("Sauge Noire keeps empty media slots and defers real 3D to intent", async (
   );
   assert.match(menuPages, /data-sauge-3d-indicator="true"/);
   assert.match(menuPages, /function SaugeNoire3dIndicator/);
-  assert.match(detail, /hasReal3d/);
+  assert.match(detail, /hasPublicMenu3d\(/);
   assert.match(detail, /function SaugeNoireDish3dSection/);
   assert.match(detail, /setIsOpen/);
   assert.match(detail, /onViewerMounted/);
