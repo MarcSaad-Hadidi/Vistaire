@@ -1,7 +1,5 @@
-import type { Allergen, Dish } from "@/lib/demoMenuData";
-import { matchesConfirmedFreeForFilter } from "@/lib/menu/allergens";
+import type { Dish } from "@/lib/demoMenuData";
 
-/** Slug de l’onglet « Tous » : aucun filtre par catégorie. */
 export function dishHasImmersiveAsset(
   dish: Pick<
     Dish,
