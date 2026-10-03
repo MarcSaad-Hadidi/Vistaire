@@ -131,13 +131,6 @@
   gap: 18px;
 }
 
-.fallback {
-  margin: 0;
-  color: rgba(255, 255, 255, 0.48);
-  font-size: 13px;
-  line-height: 1.45;
-}
-
 @keyframes detailsOverlayEnter {
   from {
     opacity: 0;
@@ -210,14 +203,6 @@
   }
 }
 
-.page[data-user-theme="light"] .sheet {
-  border-color: rgba(143, 109, 20, 0.26);
-  background:
-    radial-gradient(circle at 50% 0%, rgba(185, 145, 36, 0.12), transparent 42%),
-    linear-gradient(180deg, #fffaf1, #f5efe4 72%);
-  color: #17120b;
-}
-
 .overlay[data-user-theme="light"] .sheet {
   border-color: rgba(143, 109, 20, 0.26);
   background:
@@ -226,41 +211,29 @@
   color: #17120b;
 }
 
-.page[data-user-theme="light"] .close,
 .overlay[data-user-theme="light"] .close {
   border-color: rgba(35, 26, 13, 0.18);
   background: rgba(255, 249, 239, 0.88);
   color: #17120b;
 }
 
-.page[data-user-theme="light"] .kicker,
-.page[data-user-theme="light"] .houseNoteLabel,
 .overlay[data-user-theme="light"] .kicker,
 .overlay[data-user-theme="light"] .houseNoteLabel {
   color: #8f6d14;
 }
 
-.page[data-user-theme="light"] .title,
 .overlay[data-user-theme="light"] .title {
   color: #17120b;
 }
 
-.page[data-user-theme="light"] .description,
-.page[data-user-theme="light"] .houseNoteText,
 .overlay[data-user-theme="light"] .description,
 .overlay[data-user-theme="light"] .houseNoteText {
   color: rgba(35, 26, 13, 0.78);
 }
 
-.page[data-user-theme="light"] .houseNote,
 .overlay[data-user-theme="light"] .houseNote {
   border-color: rgba(143, 109, 20, 0.22);
   background: rgba(185, 145, 36, 0.08);
-}
-
-.page[data-user-theme="light"] .fallback,
-.overlay[data-user-theme="light"] .fallback {
-  color: rgba(35, 26, 13, 0.56);
 }
 
 /* The detail sheet is also rendered inside the owner phone. Keep it inside
@@ -304,11 +277,6 @@
 :global([data-palette-source="restaurant"]) .houseNote {
   border-color: var(--menu-border, rgba(222, 194, 75, 0.24));
   background: color-mix(in srgb, var(--menu-accent, #dec24b) 8%, var(--menu-surface, #050505));
-}
-
-:global([data-palette-source="restaurant"]) .fallback,
-:global([data-palette-source="restaurant"]) .label {
-  color: var(--menu-muted, rgba(255, 255, 255, 0.48));
 }
 
 :global([data-display-mode="phone-preview"]) .overlay {
@@ -374,9 +342,7 @@
 }
 
 :global([data-palette-source="restaurant"]) .overlay[data-user-theme="light"] .description,
-:global([data-palette-source="restaurant"]) .overlay[data-user-theme="light"] .houseNoteText,
-:global([data-palette-source="restaurant"]) .overlay[data-user-theme="light"] .fallback,
-:global([data-palette-source="restaurant"]) .overlay[data-user-theme="light"] .label {
+:global([data-palette-source="restaurant"]) .overlay[data-user-theme="light"] .houseNoteText {
   color: var(--menu-muted, rgba(35, 26, 13, 0.72));
 }
 

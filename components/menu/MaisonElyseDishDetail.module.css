@@ -303,13 +303,11 @@
 }
 
 .modelStage,
-.modelLoading,
 .modelPreview {
   min-width: 0;
   overflow: hidden;
 }
 
-.modelLoading,
 .modelPreview {
   display: grid;
   min-height: 180px;
