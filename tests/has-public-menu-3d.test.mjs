@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 test("hasPublicMenu3d only accepts safe web or ar-lite model URLs", async () => {
-  const { hasPublicMenu3d } = await import("../lib/menu/hasPublicMenu3d.ts");
+  const { hasPublicMenu3d, hasPublicMenuAr } = await import("../lib/menu/hasPublicMenu3d.ts");
 
   const baseDish = {
     id: "dish-1",
@@ -48,6 +48,12 @@ test("hasPublicMenu3d only accepts safe web or ar-lite model URLs", async () => 
     }),
     false
   );
+
+  const usdzOnlyDish = { ...baseDish, arUsdzUrl: "/models/demo/ar-lite/dish.usdz" };
+  assert.equal(hasPublicMenu3d(usdzOnlyDish), false, "a USDZ alone is not a web 3D model");
+  assert.equal(hasPublicMenuAr(usdzOnlyDish), true, "a safe Quick Look USDZ enables AR");
+  assert.equal(hasPublicMenuAr({ ...baseDish, arUsdzUrl: "https://evil.example/dish.usdz" }), false);
+  assert.equal(hasPublicMenuAr(baseDish), false);
 });
 
 test("dish card 3D badge stays decorative and non-interactive", async () => {
