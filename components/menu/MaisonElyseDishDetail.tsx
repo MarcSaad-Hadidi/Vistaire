@@ -28,7 +28,7 @@ import {
   type PublicMenuDish
 } from "@/lib/menu/publicMenuCore";
 import type { MenuUiConfig } from "@/lib/menu/menuUiConfig";
-import { buildPublicMenuPath } from "@/lib/owner/menuUrlCore";
+import { buildPublicMenuPath, slugifyRestaurantSlug as slugify } from "@/lib/owner/menuUrlCore";
 import {
   getPublicMenuAnalyticsContext,
   trackPublicMenuEvent
@@ -180,16 +180,6 @@ function normalizeText(value: string): string {
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase();
-}
-
-function slugify(value: string): string {
-  return value
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 80);
 }
 
 function categoryLabel(dish: PublicMenuDish, locale: PublicMenuLocale): string {
