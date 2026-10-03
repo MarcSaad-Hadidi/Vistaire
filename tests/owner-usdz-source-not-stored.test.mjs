@@ -1620,6 +1620,8 @@ test("viewer-glb route never triggers a USDZ pipeline", () => {
   assert.doesNotMatch(viewerLib, /runUsdzRuntimePipeline/);
   assert.doesNotMatch(viewerRoute, /arModel3dUrl/);
   assert.match(viewerRoute, /usdzTriggered: false/);
+  // Owner, same-origin and restaurant scoping come from the shared upload guard.
+  assert.match(viewerRoute, /prepareOwnerGlbUpload\(request, params\)/);
 });
 
 test("local worker deletes source before signed upload and skips upload when optimizer fails", () => {
