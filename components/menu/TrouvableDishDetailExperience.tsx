@@ -26,7 +26,7 @@ import {
   getPublicMenuAnalyticsContext,
   trackPublicMenuEvent
 } from "@/lib/analytics/client";
-import { isSafe3dAssetUrl } from "@/lib/dish3dManifest";
+import { hasPublicMenu3d } from "@/lib/menu/hasPublicMenu3d";
 import {
   copyTextToClipboard,
   detectArHandoffPlatform,
@@ -61,11 +61,6 @@ import {
 import { useTrouvableDocumentLanguage } from "./useTrouvableDocumentLanguage";
 import styles from "./TrouvablePremiumMenuExperience.module.css";
 
-const ALLOWED_3D_CDN_ORIGINS = (process.env.NEXT_PUBLIC_VISTAIRE_3D_CDN_ORIGINS ?? "")
-  .split(/[,\s]+/)
-  .map((entry) => entry.trim().replace(/\/+$/, ""))
-  .filter(Boolean);
-
 type TrouvableDishDetailExperienceProps = {
   menu: PublicMenu;
   dish: PublicMenuDish;
@@ -86,17 +81,6 @@ type SwipeStart = {
 } | null;
 type DishDetailSubSheet = "details" | null;
 const AR_COPY_STATUS_RESET_MS = 4_000;
-
-function hasPublic3d(dish: PublicMenuDish): boolean {
-  return (
-    isSafe3dAssetUrl(
-      dish.webModel3dUrl || dish.model3dUrl,
-      ALLOWED_3D_CDN_ORIGINS,
-      "web"
-    ) ||
-    isSafe3dAssetUrl(dish.arModel3dUrl, ALLOWED_3D_CDN_ORIGINS, "arLite")
-  );
-}
 
 function isDishSwipeGuardedTarget(
   target: EventTarget | null,
@@ -233,7 +217,7 @@ export function TrouvableDishDetailExperience({
   const activeIndex = sectionDishes.findIndex(
     (candidate) => candidate.id === activeDish.id
   );
-  const hasModel = hasPublic3d(activeDish);
+  const hasModel = hasPublicMenu3d(activeDish);
   const activePrice = formatTrouvableDishPrice(
     activeDish,
     selectedCurrency,

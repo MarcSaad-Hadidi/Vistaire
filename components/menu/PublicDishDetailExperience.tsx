@@ -17,17 +17,12 @@ import {
   trackPublicMenuEvent
 } from "@/lib/analytics/client";
 import type { DishModelViewerProps } from "@/components/dish/DishModelViewer";
-import { isSafe3dAssetUrl } from "@/lib/dish3dManifest";
+import { hasPublicMenu3d, hasPublicMenuAr } from "@/lib/menu/hasPublicMenu3d";
 import type { Locale } from "@/lib/i18n";
 import type { MenuUiConfig } from "@/lib/menu/menuUiConfig";
 import { buildPublicMenuPath } from "@/lib/owner/menuUrlCore";
 import { AllergenDisclosure } from "./AllergenDisclosure";
 import styles from "./PublicDishDetailExperience.module.css";
-
-const ALLOWED_3D_CDN_ORIGINS = (process.env.NEXT_PUBLIC_VISTAIRE_3D_CDN_ORIGINS ?? "")
-  .split(/[,\s]+/)
-  .map((entry) => entry.trim().replace(/\/+$/, ""))
-  .filter(Boolean);
 
 type PublicDishDetailExperienceProps = {
   menu: PublicMenu;
@@ -101,34 +96,12 @@ function cleanDisplayText(value: string): string {
     .trim();
 }
 
-function hasPublic3d(dish: PublicMenuDish): boolean {
-  return (
-    isSafe3dAssetUrl(
-      dish.webModel3dUrl || dish.model3dUrl,
-      ALLOWED_3D_CDN_ORIGINS,
-      "web"
-    ) ||
-    isSafe3dAssetUrl(dish.arModel3dUrl, ALLOWED_3D_CDN_ORIGINS, "arLite")
-  );
-}
-
-function hasPublicAr(dish: PublicMenuDish): boolean {
-  return (
-    hasPublic3d(dish) ||
-    isSafe3dAssetUrl(
-      dish.arUsdzUrl || dish.usdzUrl,
-      ALLOWED_3D_CDN_ORIGINS,
-      "iosUsdz"
-    )
-  );
-}
-
 function builderStatusHas3d(dish: PublicMenuDish): boolean {
-  return Boolean(dish.has3d || hasPublic3d(dish));
+  return Boolean(dish.has3d || hasPublicMenu3d(dish));
 }
 
 function builderStatusHasAr(dish: PublicMenuDish): boolean {
-  return Boolean(dish.hasAr || hasPublicAr(dish));
+  return Boolean(dish.hasAr || hasPublicMenuAr(dish));
 }
 
 function modelViewerDishFromPublicDish(
@@ -164,8 +137,8 @@ export function PublicDishDetailExperience({
   const [modelViewerLoadFailed, setModelViewerLoadFailed] = useState(false);
   const menuHref = buildPublicMenuPath(menu.slug, query);
   const restaurantDisplayName = cleanDisplayText(menu.name);
-  const hasPublic3dAsset = hasPublic3d(dish);
-  const hasPublicArAsset = hasPublicAr(dish);
+  const hasPublic3dAsset = hasPublicMenu3d(dish);
+  const hasPublicArAsset = hasPublicMenuAr(dish);
   const hasBuilder3dStatus = builderStatusHas3d(dish);
   const hasBuilderArStatus = builderStatusHasAr(dish);
   const hasDisplay3d =
