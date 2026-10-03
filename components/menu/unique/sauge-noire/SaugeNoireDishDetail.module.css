@@ -400,24 +400,6 @@
   font-style: italic;
 }
 
-.nextLink {
-  display: grid;
-  justify-items: center;
-  gap: 8px;
-  margin: 34px auto 0;
-  font-size: clamp(0.92rem, 1.6vw, 1.2rem);
-  font-style: italic;
-  text-decoration: none;
-}
-
-.nextLink svg {
-  width: 54px;
-  height: 22px;
-  fill: none;
-  stroke: var(--sn-bronze);
-  stroke-width: 2;
-}
-
 .detailSwipeNav {
   display: grid;
   justify-items: center;

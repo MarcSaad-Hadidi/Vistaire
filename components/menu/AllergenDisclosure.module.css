@@ -20,8 +20,7 @@
 
 .warning p,
 .disclosure h2,
-.disclosure dl,
-.unknown {
+.disclosure dl {
   margin: 0;
 }
 
