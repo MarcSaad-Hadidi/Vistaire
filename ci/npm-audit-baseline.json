@@ -2,5 +2,18 @@
   "schema_version": 1,
   "owner": "Vistaire maintainers",
   "lockfile_sha256": "539b830b73d8cbf5fef068ceeaf0da1f65d2855919484ec3d6d4e73fa04fa477",
-  "entries": []
+  "entries": [
+    {
+      "advisory_id": "GHSA-vfj7-8cjw-p6xm",
+      "package": "braces",
+      "dependency_path": "@gltf-transform/cli@4.4.2 > micromatch@4.0.8 > braces@3.0.3; eslint-config-next@16.3.8 > @next/eslint-plugin-next@16.3.8 > fast-glob@3.3.1 > micromatch@4.0.8 > braces@3.0.3",
+      "scope": "runtime",
+      "severity": "high",
+      "exploitability": "Not reachable. Runtime path: @gltf-transform/cli runs only in the server-side owner 3D pipeline and operator scripts; micromatch there only compiles constant patterns or the --pattern/--slots CLI flags, which Vistaire never passes, and GLB texture slot names are match subjects, not expanded patterns. Dev path: eslint-config-next runs only in development and CI lint.",
+      "owner": "Vistaire maintainers",
+      "issue": "https://github.com/MarcSaad-Hadidi/Vistaire/issues/272",
+      "reason": "No patched braces release exists (affected <= 3.0.3). Latest @gltf-transform/cli 4.5.1, micromatch 4.0.8 and @next/eslint-plugin-next 16.3.8 still resolve braces 3.0.3; npm audit only offers semver-major downgrades. Temporary acceptance, not a fix.",
+      "expires_on": "2026-11-02"
+    }
+  ]
 }
