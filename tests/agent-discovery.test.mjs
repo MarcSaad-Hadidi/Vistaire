@@ -248,7 +248,7 @@ test("discovery outputs do not expose known secret names", () => {
   for (const forbidden of [
     "SUPABASE_SERVICE_ROLE",
     "CLERK_SECRET",
-    "BREVO_API_KEY",
+    "RESEND_API_KEY",
     "API_KEY",
     "SECRET",
     "TOKEN"

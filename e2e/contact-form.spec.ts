@@ -119,7 +119,7 @@ async function openRendezVous(page: Page) {
 async function fillValidContactForm(page: Page) {
   await page.getByLabel("Nom").fill("Camille Laurier");
   await page.getByLabel("Courriel").fill("camille@example.com");
-  await page.getByLabel("Restaurant").fill("Maison Laurier");
+  await page.getByLabel("Restaurant", { exact: true }).fill("Maison Laurier");
   await page
     .getByLabel("Message")
     .fill("Nous souhaitons planifier un rendez-vous pour moderniser notre carte.");
@@ -159,7 +159,7 @@ test.describe("rendez-vous contact form", () => {
 
     await expect(page.getByLabel("Nom")).toBeVisible();
     await expect(page.getByLabel("Courriel")).toBeVisible();
-    await expect(page.getByLabel("Restaurant")).toBeVisible();
+    await expect(page.getByLabel("Restaurant", { exact: true })).toBeVisible();
     await expect(page.getByLabel("Message")).toBeVisible();
     await expect(
       page.getByRole("button", { name: "Envoyer la demande" })
@@ -205,7 +205,7 @@ test.describe("rendez-vous contact form", () => {
     await openRendezVous(page);
     await page.getByLabel("Nom").fill("Camille Laurier");
     await page.getByLabel("Courriel").fill("courriel-invalide");
-    await page.getByLabel("Restaurant").fill("Maison Laurier");
+    await page.getByLabel("Restaurant", { exact: true }).fill("Maison Laurier");
     await page.getByLabel("Message").fill("Court");
     await page.getByRole("button", { name: "Envoyer la demande" }).click();
 
@@ -269,7 +269,10 @@ test.describe("rendez-vous contact form", () => {
         restaurant: "Maison Laurier",
         message:
           "Nous souhaitons planifier un rendez-vous pour moderniser notre carte.",
-        company: ""
+        company: "",
+        locale: "fr",
+        submissionId: expect.any(String),
+        submittedAt: expect.any(String)
       })
     );
 
@@ -285,9 +288,11 @@ test.describe("rendez-vous contact form", () => {
     page
   }) => {
     let contactPosts = 0;
+    const payloads: Record<string, unknown>[] = [];
 
     await page.route("**/api/contact", async (route) => {
       contactPosts += 1;
+      payloads.push(route.request().postDataJSON() as Record<string, unknown>);
       await route.fulfill({
         status: 202,
         contentType: "application/json",
@@ -311,14 +316,19 @@ test.describe("rendez-vous contact form", () => {
       page.getByRole("button", { name: "Demande envoy\u00e9e" })
     ).toBeDisabled();
     expect(contactPosts).toBe(2);
+    expect(payloads[1].submissionId).not.toBe(payloads[0].submissionId);
   });
 
-  test("server error keeps a visible direct email fallback", async ({ page }) => {
+  test("server error keeps a direct email fallback and reuses the batch on retry", async ({ page }) => {
+    const payloads: Record<string, unknown>[] = [];
     await page.route("**/api/contact", async (route) => {
+      payloads.push(route.request().postDataJSON() as Record<string, unknown>);
       await route.fulfill({
-        status: 500,
+        status: payloads.length === 1 ? 500 : 202,
         contentType: "application/json",
-        body: JSON.stringify({ ok: false, error: "temporary failure" })
+        body: JSON.stringify(payloads.length === 1
+          ? { ok: false, error: "temporary failure" }
+          : { ok: true })
       });
     });
 
@@ -330,13 +340,40 @@ test.describe("rendez-vous contact form", () => {
     await expect(
       page.getByRole("link", { name: "contact@vistaire.ca" }).first()
     ).toHaveAttribute("href", /^mailto:contact@vistaire\.ca/);
+
+    await page.getByRole("button", { name: "Envoyer la demande" }).click();
+    await expect(page.getByText(SUCCESS_MESSAGE)).toBeVisible();
+    expect(payloads).toHaveLength(2);
+    expect(payloads[1]).toEqual(payloads[0]);
+  });
+
+  test("English form submits the existing locale and shows confirmation", async ({ page }) => {
+    const health = installPageHealth(page);
+    let payload: Record<string, unknown> | null = null;
+    await page.route("**/api/contact", async (route) => {
+      payload = route.request().postDataJSON() as Record<string, unknown>;
+      await route.fulfill({ status: 202, contentType: "application/json", body: '{"ok":true}' });
+    });
+    await page.setViewportSize({ width: 430, height: 932 });
+    const response = await page.goto("/en/book-a-call");
+    expect(response?.status()).toBe(200);
+    await page.getByLabel("Name", { exact: true }).fill("Camille Laurier");
+    await page.getByLabel("Email", { exact: true }).fill("camille@example.com");
+    await page.getByLabel("Restaurant", { exact: true }).fill("Maison Laurier");
+    await page.getByLabel("Message", { exact: true }).fill("We would like to discuss a new digital menu for our restaurant.");
+    await page.getByRole("button", { name: "Send request" }).click();
+    await expect(page.getByRole("button", { name: "Request sent" })).toBeDisabled();
+    expect(payload).toEqual(expect.objectContaining({ locale: "en" }));
+    await expectNoHorizontalOverflow(page);
+    health.expectClean();
   });
 
   for (const viewport of [
     { label: "390", width: 390, height: 844 },
-    { label: "430", width: 430, height: 932 }
+    { label: "430", width: 430, height: 932 },
+    { label: "desktop", width: 1440, height: 900 }
   ]) {
-    test(`mobile ${viewport.label}px remains usable without overflow`, async ({
+    test(`viewport ${viewport.label} remains usable without overflow`, async ({
       page
     }) => {
       const health = installPageHealth(page);
@@ -356,7 +393,7 @@ test.describe("rendez-vous contact form", () => {
   }
 
   test.describe.serial("contact API abuse guards", () => {
-    test("contact API validates bad requests before Brevo config", async (
+    test("contact API validates bad requests before email config", async (
       { request },
       testInfo
     ) => {
@@ -377,7 +414,7 @@ test.describe("rendez-vous contact form", () => {
       );
     });
 
-    test("contact API accepts honeypot submissions before Brevo config", async (
+    test("contact API accepts honeypot submissions before email config", async (
       { request },
       testInfo
     ) => {

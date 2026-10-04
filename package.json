@@ -97,7 +97,6 @@
     "@babylonjs/loaders": "^9.23.0",
     "@babylonjs/serializers": "^9.23.0",
     "@clerk/nextjs": "^7.8.3",
-    "@getbrevo/brevo": "^6.0.3",
     "@gltf-transform/cli": "^4.4.2",
     "@gltf-transform/core": "^4.4.2",
     "@gltf-transform/extensions": "^4.4.2",
@@ -115,6 +114,7 @@
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "react-pageflip": "^2.0.3",
+    "resend": "6.17.2",
     "sharp": "^0.35.4"
   },
   "overrides": {
