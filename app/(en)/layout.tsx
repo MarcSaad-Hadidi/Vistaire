@@ -14,7 +14,7 @@ export default function EnglishRootLayout({
     <html lang="en-CA" data-scroll-behavior="smooth">
       <body>
         <VistaireDocumentShell locale="en">{children}</VistaireDocumentShell>
-        <Analytics />
+        {process.env.VERCEL_URL && <Analytics />}
       </body>
     </html>
   );
