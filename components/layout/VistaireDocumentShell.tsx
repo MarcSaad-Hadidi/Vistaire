@@ -34,12 +34,7 @@ export function VistaireDocumentShell({
       <WebMcpProvider />
       <MicrosoftClarity>
         <div id="contenu">{children}</div>
-        <VercelAnalytics
-          enabled={
-            process.env.VERCEL_ENV === "production" ||
-            process.env.VERCEL_ENV === "preview"
-          }
-        />
+        <VercelAnalytics enabled={Boolean(process.env.VERCEL_URL)} />
       </MicrosoftClarity>
     </>
   );

@@ -619,7 +619,7 @@ test.describe("Vistaire public navigation", () => {
 });
 
 test("Vercel Analytics excludes protected URLs on initial loads and client navigation", async ({ page }) => {
-  const enabled = process.env.VERCEL_ENV === "production" || process.env.VERCEL_ENV === "preview";
+  const enabled = Boolean(process.env.VERCEL_URL);
   let analyticsScriptRequests = 0;
   await page.route("**/_vercel/insights/script.js", async (route) => {
     analyticsScriptRequests += 1;

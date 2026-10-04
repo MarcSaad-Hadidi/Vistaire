@@ -62,8 +62,7 @@ test("the shared document shell loads Microsoft Clarity exactly once", async () 
   assert.equal(layout.match(/<MicrosoftClarity>/g)?.length ?? 0, 1);
   assert.equal(layout.match(/<\/MicrosoftClarity>/g)?.length ?? 0, 1);
   assert.equal(layout.match(/<VercelAnalytics\s/g)?.length ?? 0, 1);
-  assert.match(layout, /process\.env\.VERCEL_ENV === "production"/);
-  assert.match(layout, /process\.env\.VERCEL_ENV === "preview"/);
+  assert.match(layout, /enabled=\{Boolean\(process\.env\.VERCEL_URL\)\}/);
   assert.equal(
     clientComponent.match(/id=["']microsoft-clarity["']/g)?.length ?? 0,
     1

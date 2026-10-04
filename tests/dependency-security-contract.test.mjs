@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { test } from "node:test";
 
@@ -6,6 +7,16 @@ const [packageJson, packageLock] = await Promise.all([
   readFile(new URL("../package.json", import.meta.url), "utf8").then(JSON.parse),
   readFile(new URL("../package-lock.json", import.meta.url), "utf8").then(JSON.parse),
 ]);
+
+test("the npm audit baseline pins the current canonical lockfile", async () => {
+  const [lockfile, baseline] = await Promise.all([
+    readFile(new URL("../package-lock.json", import.meta.url), "utf8"),
+    readFile(new URL("../ci/npm-audit-baseline.json", import.meta.url), "utf8").then(JSON.parse),
+  ]);
+  const hash = createHash("sha256").update(lockfile.replace(/\r\n/g, "\n")).digest("hex");
+  assert.equal(baseline.lockfile_sha256, hash,
+    "Dependency changes require a fresh npm audit and a reviewed baseline refresh; see docs/ci-supply-chain.md");
+});
 
 function versionTuple(version) {
   const match = /^(\d+)\.(\d+)\.(\d+)/.exec(String(version));
