@@ -14,6 +14,7 @@ const hookCall = (method, args = "...args") =>
 
 const cleanupStub = hookedModule(`
   export function cleanupReplacedDishAssets(...args) { return ${hookCall("cleanup")}; }
+  export { deferredModelCleanupReport } from ${JSON.stringify(new URL("lib/owner/dishAssetReplacementCleanup.ts", projectRootUrl).href)};
 `);
 
 const moduleStubs = new Map([
@@ -244,6 +245,7 @@ test("Meshy schedules immediately after its public metadata commit and controls 
   });
 
   assert.equal(result.status, "ready");
+  assert.equal(result.cleanup.errors[0].message, "Nettoyage differe apres publication du modele.");
   assert.ok(events.indexOf("db:commit") < events.indexOf("invalidate"));
   assert.ok(events.indexOf("invalidate") < events.indexOf("cleanup"));
   assert.equal(events.filter((event) => event === "invalidate").length, 2);
@@ -275,6 +277,7 @@ test("viewer GLB schedules immediately after its public metadata commit and cont
   });
 
   assert.equal(result.status, "ready");
+  assert.equal(result.cleanup.errors[0].message, "Nettoyage differe apres publication du modele.");
   assert.ok(events.indexOf("db:commit") < events.indexOf("invalidate"));
   assert.ok(events.indexOf("invalidate") < events.indexOf("cleanup"));
   assert.equal(events.filter((event) => event === "invalidate").length, 2);
@@ -388,6 +391,7 @@ test("USDZ completion schedules after metadata commit, before cleanup, without r
   });
 
   assert.equal(result.status, "ready");
+  assert.equal(result.cleanup.errors[0].message, "Nettoyage differe apres publication du modele.");
   assert.ok(events.indexOf("db:commit") < events.indexOf("invalidate"));
   assert.ok(events.indexOf("invalidate") < events.indexOf("cleanup"));
   assert.equal(events.filter((event) => event === "invalidate").length, 2);

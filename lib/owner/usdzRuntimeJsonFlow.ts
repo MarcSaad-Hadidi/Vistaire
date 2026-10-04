@@ -22,6 +22,7 @@ import {
 } from "./usdzRuntimeModel.ts";
 import {
   cleanupReplacedDishAssets,
+  deferredModelCleanupReport,
   type CleanupReplacedDishAssetsReport
 } from "./dishAssetReplacementCleanup.ts";
 
@@ -101,25 +102,6 @@ export type UsdzRuntimePreparedUpload = {
   reportUpload: { signedUrl: string; token: string; path: string };
   usdzSourceStored: false;
 };
-
-function deferredCleanupReport(): CleanupReplacedDishAssetsReport {
-  return {
-    candidates: [],
-    deleted: [],
-    skippedStillReferenced: [],
-    skippedUnsafeBucket: [],
-    skippedUnsafePrefix: [],
-    skippedMissingPath: [],
-    skippedConcurrentReuseRisk: [],
-    errors: [
-      {
-        bucket: "",
-        paths: [],
-        message: "Nettoyage differe apres publication du modele."
-      }
-    ]
-  };
-}
 
 function base64UrlEncode(value: string): string {
   return Buffer.from(value, "utf8").toString("base64url");
@@ -909,7 +891,7 @@ export async function completeUsdzRuntimeSignedUpload(args: {
       });
     } catch {
       await args.onPublicCommit?.();
-      cleanup = deferredCleanupReport();
+      cleanup = deferredModelCleanupReport();
     }
 
     return {
