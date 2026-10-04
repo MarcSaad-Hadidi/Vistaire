@@ -4,7 +4,7 @@ import { syncBuiltinESMExports } from "node:module";
 import path from "node:path";
 import test from "node:test";
 
-async function runRunner(env) {
+async function runRunner(env, allowPsql = true) {
   const previousArgv = process.argv;
   const previousSpawn = childProcess.spawnSync;
   const keys = ["CI", "PGDATABASE", "VISTAIRE_QR_POSTGRES_TEST"];
@@ -15,6 +15,7 @@ async function runRunner(env) {
     Object.assign(process.env, env);
     process.argv = [process.execPath, "run-postgres-tests.mjs", "qr"];
     childProcess.spawnSync = (command, args) => {
+      if (!allowPsql) assert.fail("psql must not run before test database guards pass");
       calls.push({ command, args });
       return { status: 0, stdout: args.includes("--command") ? "170010\n" : "", stderr: "" };
     };
@@ -50,9 +51,9 @@ test("the consolidated QR runner checks PostgreSQL then runs lifecycle and perma
 });
 
 test("the consolidated runner refuses missing opt-in and unsafe database names before invoking psql", async () => {
-  await assert.rejects(runRunner({ PGDATABASE: "vistaire_test" }), /Refusing.*outside CI/);
+  await assert.rejects(runRunner({ PGDATABASE: "vistaire_test" }, false), /Refusing.*outside CI/);
   await assert.rejects(
-    runRunner({ PGDATABASE: "vistaire_production", VISTAIRE_QR_POSTGRES_TEST: "1" }),
+    runRunner({ PGDATABASE: "vistaire_production", VISTAIRE_QR_POSTGRES_TEST: "1" }, false),
     /PGDATABASE must clearly identify a dedicated test or CI database/
   );
 });
