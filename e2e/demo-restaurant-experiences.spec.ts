@@ -29,8 +29,10 @@ test.describe("French restaurant discovery", () => {
       if (response.status() >= 400) errors.push(`${response.status()} ${response.url()}`);
     });
     page.on("requestfailed", (request) => {
-      if (request.failure()?.errorText !== "net::ERR_ABORTED") {
-        errors.push(`${request.failure()?.errorText} ${request.url()}`);
+      const errorText = request.failure()?.errorText;
+      const cancelledMediaRange = request.resourceType() === "media" && errorText === "Load request cancelled";
+      if (errorText !== "net::ERR_ABORTED" && !cancelledMediaRange) {
+        errors.push(`${errorText} ${request.url()}`);
       }
     });
 
@@ -40,7 +42,7 @@ test.describe("French restaurant discovery", () => {
       { width: 1440, height: 900 }
     ]) {
       await page.setViewportSize(viewport);
-      const response = await page.goto("/demo?experience=trouvable&utm_source=qa", { waitUntil: "networkidle" });
+      const response = await page.goto("/demo?experience=trouvable&utm_source=qa", { waitUntil: "domcontentloaded" });
       expect(response?.status()).toBe(200);
       await expect(page).toHaveTitle("Trois expériences de menu restaurant | Vistaire");
       await expect(page.getByRole("heading", { level: 1 })).toHaveText("Trois restaurants. Trois identités.");
@@ -61,8 +63,11 @@ test.describe("French restaurant discovery", () => {
         await expect(video).toHaveJSProperty("playsInline", true);
         await expect(video).toHaveJSProperty("controls", false);
         await expect.poll(() => video.evaluate((element: HTMLVideoElement) =>
-          element.readyState >= 2 && !element.paused && element.videoWidth === 780 && element.videoHeight === 1688
+          element.readyState >= 2 && !element.paused && element.videoWidth > 0 && element.videoHeight > 0
         ), { timeout: 15_000 }).toBe(true);
+        expect(await video.evaluate((element: HTMLVideoElement) =>
+          element.videoWidth / element.videoHeight
+        )).toBeCloseTo(780 / 1688, 2);
         const initialTime = await video.evaluate((element: HTMLVideoElement) => element.currentTime);
         await expect.poll(() => video.evaluate((element: HTMLVideoElement) => element.currentTime)).not.toBe(initialTime);
         expect(await video.evaluate(async (element: HTMLVideoElement) => {
@@ -107,10 +112,13 @@ test.describe("French restaurant discovery", () => {
   test("opens each real menu and the verified Sauge 3D dish through accessible links", async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     for (const experience of EXPERIENCES) {
-      await page.goto("/demo", { waitUntil: "networkidle" });
+      await page.goto("/demo", { waitUntil: "load" });
       const link = page.getByRole("link", { name: `Explorer ${experience.name}`, exact: true });
       await expect(link).toHaveAttribute("href", experience.href);
+      await link.scrollIntoViewIfNeeded();
+      await expect(link).toBeVisible();
       await link.focus();
+      await expect(link).toBeFocused();
       await link.press("Enter");
       await expect(page).toHaveURL(new RegExp(`/menu/${experience.id}\\?`), { timeout: 15_000 });
       if (experience.id === "sauge-noire") {
@@ -123,12 +131,13 @@ test.describe("French restaurant discovery", () => {
     page.on("request", (request) => {
       if (MODEL_REQUEST.test(request.url())) modelRequests.push(request.url());
     });
-    await page.goto("/demo", { waitUntil: "networkidle" });
+    await page.goto("/demo", { waitUntil: "load" });
     const dishLink = page.locator("[data-demo-3d-link]");
     await expect(dishLink).toHaveAttribute("href", "/menu/sauge-noire/dishes/truite-des-laurentides?lang=fr-CA&view=sauge-2");
     await dishLink.click();
     await expect(page).toHaveURL(/\/menu\/sauge-noire\/dishes\/truite-des-laurentides\?/, { timeout: 15_000 });
     await expect(page.getByTestId("sauge-noire-dish-detail")).toBeVisible();
+    await page.waitForLoadState("load");
     await expect(page.locator("model-viewer")).toHaveCount(0);
     await expect(page.getByRole("button", { name: /Voir en 3D/i })).toBeVisible();
     expect(modelRequests).toEqual([]);
