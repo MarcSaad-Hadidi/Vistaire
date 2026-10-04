@@ -12,6 +12,12 @@ export function parseAdminDashboardRange(value: unknown): AdminDashboardRange {
   return value === "today-utc" || value === "7d" || value === "30d" ? value : "7d";
 }
 
+type AdminPageSearchParams = Pick<{ range?: string | string[] }, "range">;
+
+export function parseAdminPageSearchParams(input: AdminPageSearchParams | undefined): AdminDashboardRange {
+  return parseAdminDashboardRange(input?.range);
+}
+
 export function resolveAdminObservationWindow(range: AdminDashboardRange, now: Date): AdminObservationWindow {
   const end = new Date(now);
   const start = range === "today-utc"
