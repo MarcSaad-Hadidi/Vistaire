@@ -7,10 +7,11 @@ import ts from "typescript";
 
 const require = createRequire(import.meta.url);
 const root = new URL("../", import.meta.url);
+const nextServerUrl = pathToFileURL(require.resolve("next/server")).href;
 registerHooks({
   resolve(specifier, context, nextResolve) {
     if (specifier === "next/server") {
-      return { url: pathToFileURL(require.resolve("next/server")).href, shortCircuit: true };
+      return { url: nextServerUrl, shortCircuit: true };
     }
     if (specifier.startsWith("@/")) {
       return { url: new URL(`${specifier.slice(2)}.ts`, root).href, shortCircuit: true };
@@ -34,7 +35,7 @@ registerHooks({
 const { NextRequest } = await import("next/server");
 const { POST } = await import("../app/api/contact/route.ts");
 const payload = {
-  name: "Camille <script>alert(1)</script>",
+  name: "Camille <ScRiPt>alert(1)</ScRiPt>",
   email: "camille@example.com",
   restaurant: "Maison & Laurier",
   message: "Première ligne <img src=x onerror=alert(1)>\nDeuxième ligne.",
@@ -97,8 +98,8 @@ test("contact uses one strict Resend batch with safe bilingual templates and sta
     for (const email of call.body) {
       assert.ok(email.html.length > 100);
       assert.ok(email.text.length > 50);
-      assert.doesNotMatch(email.html, /<script>|<img src=x/);
-      assert.match(email.html, /&lt;script&gt;/);
+      assert.doesNotMatch(email.html, /<(?:script|img)\b/i);
+      assert.match(email.html, /&lt;script&gt;/i);
     }
   }
   assert.notEqual(calls[0].body[1].subject, calls[2].body[1].subject);
