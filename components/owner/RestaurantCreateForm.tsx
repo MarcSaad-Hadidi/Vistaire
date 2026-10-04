@@ -48,10 +48,15 @@ import {
   type AllergenStatus,
   type DishAllergenDeclaration
 } from "@/lib/menu/allergens";
-import { OwnerMenuLivePreview } from "./OwnerMenuLivePreview";
-import type { DraftDish, DraftSection } from "./restaurantCreatePreviewTypes";
+import { OwnerMenuLivePreview, type DraftDish, type DraftSection } from "./OwnerMenuLivePreview";
 
 type StepId = "profile" | "menu" | "dishes" | "appearance" | "review";
+
+type DishDraft = Omit<DraftDish, "allergens" | "ingredients" | "options" | "customAllergens"> & {
+  ingredients: string;
+  options: string;
+  customAllergens: string;
+};
 
 type MenuAppearancePalette = {
   background: string;
@@ -229,6 +234,26 @@ function emptyAllergenDeclarations(): DishAllergenDeclaration[] {
     allergenId: id,
     status: "unknown"
   }));
+}
+
+function emptyDishDraft(section = ""): DishDraft {
+  return {
+    id: "",
+    name: "",
+    section,
+    price: "28",
+    displayPriceMode: "auto",
+    description: "",
+    imageUrl: "",
+    ingredients: "",
+    options: "",
+    customAllergens: "",
+    allergenDeclarations: emptyAllergenDeclarations(),
+    tags: [],
+    chefNote: "",
+    available: true,
+    photoStatus: "planned"
+  };
 }
 
 function absoluteUrl(siteOrigin: string, path: string): string {
@@ -469,25 +494,7 @@ export function RestaurantCreateForm({ siteOrigin }: RestaurantCreateFormProps) 
   const [priceDisplayMode, setPriceDisplayMode] =
     useState<PublicMenuPriceDisplayMode>("auto");
   const [dishes, setDishes] = useState<DraftDish[]>([]);
-  const [editingDishId, setEditingDishId] = useState("");
-  const [dishName, setDishName] = useState("");
-  const [dishSection, setDishSection] = useState("");
-  const [dishPrice, setDishPrice] = useState("28");
-  const [dishDisplayPriceMode, setDishDisplayPriceMode] =
-    useState<DisplayPriceMode>("auto");
-  const [dishDescription, setDishDescription] = useState("");
-  const [dishImageUrl, setDishImageUrl] = useState("");
-  const [dishIngredients, setDishIngredients] = useState("");
-  const [dishOptions, setDishOptions] = useState("");
-  const [dishCustomAllergens, setDishCustomAllergens] = useState("");
-  const [dishAllergenDeclarations, setDishAllergenDeclarations] = useState<
-    DishAllergenDeclaration[]
-  >(emptyAllergenDeclarations);
-  const [dishTags, setDishTags] = useState<string[]>([]);
-  const [dishChefNote, setDishChefNote] = useState("");
-  const [dishAvailable, setDishAvailable] = useState(true);
-  const [dishPhotoStatus, setDishPhotoStatus] =
-    useState<CreateRestaurantDishPhotoStatus>("planned");
+  const [dishDraft, setDishDraft] = useState(emptyDishDraft);
   const [state, setState] = useState<SubmitState>({
     status: "idle",
     message: ""
@@ -606,7 +613,7 @@ export function RestaurantCreateForm({ siteOrigin }: RestaurantCreateFormProps) 
       description: sectionDescription.trim()
     };
     setSections((items) => [...items, next]);
-    setDishSection((current) => current || next.name);
+    setDishDraft((current) => ({ ...current, section: current.section || next.name }));
     setSectionName("");
     setSectionDescription("");
     setError("");
@@ -623,7 +630,7 @@ export function RestaurantCreateForm({ siteOrigin }: RestaurantCreateFormProps) 
           dish.section === removed.name ? { ...dish, section: fallbackSection } : dish
         )
       );
-      if (dishSection === removed.name) setDishSection(fallbackSection);
+      if (dishDraft.section === removed.name) updateDishDraft("section", fallbackSection);
     }
   }
 
@@ -680,76 +687,66 @@ export function RestaurantCreateForm({ siteOrigin }: RestaurantCreateFormProps) 
     setDefaultCurrency(currency);
   }
 
+  function updateDishDraft<Key extends keyof DishDraft>(key: Key, value: DishDraft[Key]) {
+    setDishDraft((current) => ({ ...current, [key]: value }));
+  }
+
   function updateAllergenStatus(allergenId: string, status: AllergenStatus) {
-    setDishAllergenDeclarations((current) =>
-      current.map((item) =>
-        item.allergenId === allergenId
-          ? { ...item, status }
-          : item
+    setDishDraft((current) => ({
+      ...current,
+      allergenDeclarations: current.allergenDeclarations.map((item) =>
+        item.allergenId === allergenId ? { ...item, status } : item
       )
-    );
+    }));
   }
 
   function toggleTag(value: string) {
-    setDishTags((current) =>
-      current.includes(value)
-        ? current.filter((item) => item !== value)
-        : [...current, value]
-    );
+    setDishDraft((current) => ({
+      ...current,
+      tags: current.tags.includes(value)
+        ? current.tags.filter((item) => item !== value)
+        : [...current.tags, value]
+    }));
   }
 
   function resetDishDraft() {
-    setEditingDishId("");
-    setDishName("");
-    setDishSection(sections[0]?.name ?? "");
-    setDishPrice("28");
-    setDishDisplayPriceMode("auto");
-    setDishDescription("");
-    setDishImageUrl("");
-    setDishIngredients("");
-    setDishOptions("");
-    setDishCustomAllergens("");
-    setDishAllergenDeclarations(emptyAllergenDeclarations());
-    setDishTags([]);
-    setDishChefNote("");
-    setDishAvailable(true);
-    setDishPhotoStatus("planned");
+    setDishDraft(emptyDishDraft(sections[0]?.name ?? ""));
   }
 
   function startEditDish(dish: DraftDish) {
-    setEditingDishId(dish.id);
-    setDishName(dish.name);
-    setDishSection(dish.section);
-    setDishPrice(dish.price);
-    setDishDisplayPriceMode(dish.displayPriceMode);
-    setDishDescription(dish.description);
-    setDishImageUrl(dish.imageUrl);
-    setDishIngredients(dish.ingredients.join(", "));
-    setDishOptions(dish.options.join(", "));
-    setDishCustomAllergens((dish.customAllergens ?? []).join(", "));
     const normalizedAllergens = normalizeAllergenData(
       dish.allergenDeclarations,
       dish.allergens
     );
-    setDishAllergenDeclarations(
-      ALLERGEN_REGISTRY.map(({ id }) => ({
+    setDishDraft({
+      id: dish.id,
+      name: dish.name,
+      section: dish.section,
+      price: dish.price,
+      displayPriceMode: dish.displayPriceMode,
+      description: dish.description,
+      imageUrl: dish.imageUrl,
+      ingredients: dish.ingredients.join(", "),
+      options: dish.options.join(", "),
+      customAllergens: (dish.customAllergens ?? []).join(", "),
+      allergenDeclarations: ALLERGEN_REGISTRY.map(({ id }) => ({
         allergenId: id,
         status: getAllergenStatus(normalizedAllergens, id)
-      }))
-    );
-    setDishTags(dish.tags);
-    setDishChefNote(dish.chefNote);
-    setDishAvailable(dish.available);
-    setDishPhotoStatus(dish.photoStatus);
+      })),
+      tags: dish.tags,
+      chefNote: dish.chefNote,
+      available: dish.available,
+      photoStatus: dish.photoStatus
+    });
     setError("");
   }
 
   function addDish() {
-    const normalizedName = dishName.trim();
-    const selectedSection = dishSection || sections[0]?.name || "";
-    const price = parsePriceToCents(dishPrice);
-    const description = dishDescription.trim();
-    const imageUrl = dishImageUrl.trim();
+    const normalizedName = dishDraft.name.trim();
+    const selectedSection = dishDraft.section || sections[0]?.name || "";
+    const price = parsePriceToCents(dishDraft.price);
+    const description = dishDraft.description.trim();
+    const imageUrl = dishDraft.imageUrl.trim();
 
     if (!normalizedName) {
       setError("Ajoutez un nom de plat.");
@@ -773,30 +770,30 @@ export function RestaurantCreateForm({ siteOrigin }: RestaurantCreateFormProps) 
     }
 
     const nextDish: DraftDish = {
-      id: editingDishId || draftId("dish"),
+      id: dishDraft.id || draftId("dish"),
       name: normalizedName,
       section: selectedSection,
       price: price.originalInput,
       displayPriceMode: normalizeDisplayPriceMode(
-        dishDisplayPriceMode,
+        dishDraft.displayPriceMode,
         price.originalInput
       ),
       description,
       imageUrl,
-      ingredients: splitList(dishIngredients),
-      allergens: legacyAllergensFromDeclarations(dishAllergenDeclarations),
-      customAllergens: splitList(dishCustomAllergens),
-      allergenDeclarations: dishAllergenDeclarations,
-      tags: dishTags,
-      options: splitList(dishOptions),
-      chefNote: dishChefNote.trim(),
-      available: dishAvailable,
-      photoStatus: imageUrl && dishPhotoStatus === "planned" ? "ready" : dishPhotoStatus
+      ingredients: splitList(dishDraft.ingredients),
+      allergens: legacyAllergensFromDeclarations(dishDraft.allergenDeclarations),
+      customAllergens: splitList(dishDraft.customAllergens),
+      allergenDeclarations: dishDraft.allergenDeclarations,
+      tags: dishDraft.tags,
+      options: splitList(dishDraft.options),
+      chefNote: dishDraft.chefNote.trim(),
+      available: dishDraft.available,
+      photoStatus: imageUrl && dishDraft.photoStatus === "planned" ? "ready" : dishDraft.photoStatus
     };
 
     setDishes((items) =>
-      editingDishId
-        ? items.map((dish) => (dish.id === editingDishId ? nextDish : dish))
+      dishDraft.id
+        ? items.map((dish) => (dish.id === dishDraft.id ? nextDish : dish))
         : [...items, nextDish]
     );
     resetDishDraft();
@@ -805,7 +802,7 @@ export function RestaurantCreateForm({ siteOrigin }: RestaurantCreateFormProps) 
 
   function removeDish(id: string) {
     setDishes((items) => items.filter((dish) => dish.id !== id));
-    if (editingDishId === id) resetDishDraft();
+    if (dishDraft.id === id) resetDishDraft();
   }
 
   function validateStep(stepId: StepId) {
@@ -1178,35 +1175,10 @@ export function RestaurantCreateForm({ siteOrigin }: RestaurantCreateFormProps) 
             sections={sections}
             dishes={dishes}
             baseCurrency={baseCurrency}
-            editingDishId={editingDishId}
-            dishName={dishName}
-            dishSection={dishSection || sections[0]?.name || ""}
-            dishPrice={dishPrice}
-            dishDisplayPriceMode={dishDisplayPriceMode}
-            dishDescription={dishDescription}
-            dishImageUrl={dishImageUrl}
-            dishIngredients={dishIngredients}
-            dishOptions={dishOptions}
-            dishCustomAllergens={dishCustomAllergens}
-            dishAllergenDeclarations={dishAllergenDeclarations}
-            dishTags={dishTags}
-            dishChefNote={dishChefNote}
-            dishAvailable={dishAvailable}
-            dishPhotoStatus={dishPhotoStatus}
-            onDishNameChange={setDishName}
-            onDishSectionChange={setDishSection}
-            onDishPriceChange={setDishPrice}
-            onDishDisplayPriceModeChange={setDishDisplayPriceMode}
-            onDishDescriptionChange={setDishDescription}
-            onDishImageUrlChange={setDishImageUrl}
-            onDishIngredientsChange={setDishIngredients}
-            onDishOptionsChange={setDishOptions}
-            onDishCustomAllergensChange={setDishCustomAllergens}
+            draft={dishDraft}
+            onDraftChange={updateDishDraft}
             onAllergenStatusChange={updateAllergenStatus}
             onToggleTag={toggleTag}
-            onDishChefNoteChange={setDishChefNote}
-            onDishAvailableChange={setDishAvailable}
-            onDishPhotoStatusChange={setDishPhotoStatus}
             onAddDish={addDish}
             onCancelEdit={resetDishDraft}
             onRemoveDish={removeDish}
@@ -2120,35 +2092,10 @@ function DishesStep({
   sections,
   dishes,
   baseCurrency,
-  editingDishId,
-  dishName,
-  dishSection,
-  dishPrice,
-  dishDisplayPriceMode,
-  dishDescription,
-  dishImageUrl,
-  dishIngredients,
-  dishOptions,
-  dishCustomAllergens,
-  dishAllergenDeclarations,
-  dishTags,
-  dishChefNote,
-  dishAvailable,
-  dishPhotoStatus,
-  onDishNameChange,
-  onDishSectionChange,
-  onDishPriceChange,
-  onDishDisplayPriceModeChange,
-  onDishDescriptionChange,
-  onDishImageUrlChange,
-  onDishIngredientsChange,
-  onDishOptionsChange,
-  onDishCustomAllergensChange,
+  draft,
+  onDraftChange,
   onAllergenStatusChange,
   onToggleTag,
-  onDishChefNoteChange,
-  onDishAvailableChange,
-  onDishPhotoStatusChange,
   onAddDish,
   onCancelEdit,
   onRemoveDish,
@@ -2157,35 +2104,10 @@ function DishesStep({
   sections: DraftSection[];
   dishes: DraftDish[];
   baseCurrency: MenuCurrency;
-  editingDishId: string;
-  dishName: string;
-  dishSection: string;
-  dishPrice: string;
-  dishDisplayPriceMode: DisplayPriceMode;
-  dishDescription: string;
-  dishImageUrl: string;
-  dishIngredients: string;
-  dishOptions: string;
-  dishCustomAllergens: string;
-  dishAllergenDeclarations: DishAllergenDeclaration[];
-  dishTags: string[];
-  dishChefNote: string;
-  dishAvailable: boolean;
-  dishPhotoStatus: CreateRestaurantDishPhotoStatus;
-  onDishNameChange: (value: string) => void;
-  onDishSectionChange: (value: string) => void;
-  onDishPriceChange: (value: string) => void;
-  onDishDisplayPriceModeChange: (value: DisplayPriceMode) => void;
-  onDishDescriptionChange: (value: string) => void;
-  onDishImageUrlChange: (value: string) => void;
-  onDishIngredientsChange: (value: string) => void;
-  onDishOptionsChange: (value: string) => void;
-  onDishCustomAllergensChange: (value: string) => void;
+  draft: DishDraft;
+  onDraftChange: <Key extends keyof DishDraft>(key: Key, value: DishDraft[Key]) => void;
   onAllergenStatusChange: (allergenId: string, status: AllergenStatus) => void;
   onToggleTag: (value: string) => void;
-  onDishChefNoteChange: (value: string) => void;
-  onDishAvailableChange: (value: boolean) => void;
-  onDishPhotoStatusChange: (value: CreateRestaurantDishPhotoStatus) => void;
   onAddDish: () => void;
   onCancelEdit: () => void;
   onRemoveDish: (id: string) => void;
@@ -2203,13 +2125,13 @@ function DishesStep({
       </div>
       <div className={styles.panelBody}>
         <div className={styles.formGrid}>
-          <Field label="Nom plat" value={dishName} onChange={onDishNameChange} placeholder="Bar de ligne, fenouil confit" />
+          <Field label="Nom plat" value={draft.name} onChange={(value) => onDraftChange("name", value)} placeholder="Bar de ligne, fenouil confit" />
           <label className={styles.formField}>
             <span className={styles.filterLabel}>Section</span>
             <select
               className={styles.control}
-              value={dishSection}
-              onChange={(event) => onDishSectionChange(event.target.value)}
+              value={draft.section || sections[0]?.name || ""}
+              onChange={(event) => onDraftChange("section", event.target.value)}
             >
               {sections.map((section) => (
                 <option key={section.id} value={section.name}>
@@ -2222,17 +2144,17 @@ function DishesStep({
             label={`Prix (${baseCurrency})`}
             type="text"
             inputMode="decimal"
-            value={dishPrice}
-            onChange={onDishPriceChange}
+            value={draft.price}
+            onChange={(value) => onDraftChange("price", value)}
             placeholder="14,99"
           />
           <label className={styles.formField}>
             <span className={styles.filterLabel}>Affichage prix</span>
             <select
               className={styles.control}
-              value={dishDisplayPriceMode}
+              value={draft.displayPriceMode}
               onChange={(event) =>
-                onDishDisplayPriceModeChange(event.target.value as DisplayPriceMode)
+                onDraftChange("displayPriceMode", event.target.value as DisplayPriceMode)
               }
             >
               <option value="auto">Auto</option>
@@ -2243,8 +2165,8 @@ function DishesStep({
           <Field
             label="URL photo"
             type="text"
-            value={dishImageUrl}
-            onChange={onDishImageUrlChange}
+            value={draft.imageUrl}
+            onChange={(value) => onDraftChange("imageUrl", value)}
             placeholder="/restaurants/.../photos/plat.jpg"
           />
         </div>
@@ -2253,8 +2175,8 @@ function DishesStep({
           <span className={styles.filterLabel}>Description courte</span>
           <textarea
             className={styles.textarea}
-            value={dishDescription}
-            onChange={(event) => onDishDescriptionChange(event.target.value)}
+            value={draft.description}
+            onChange={(event) => onDraftChange("description", event.target.value)}
             placeholder="Fenouil confit, beurre blanc citronne, herbes fraiches."
           />
         </label>
@@ -2262,35 +2184,35 @@ function DishesStep({
         <div className={styles.formGrid}>
           <Field
             label="Ingredients principaux"
-            value={dishIngredients}
-            onChange={onDishIngredientsChange}
+            value={draft.ingredients}
+            onChange={(value) => onDraftChange("ingredients", value)}
             placeholder="bar, fenouil, citron"
           />
           <Field
             label="Options, extras / accompagnements"
-            value={dishOptions}
-            onChange={onDishOptionsChange}
+            value={draft.options}
+            onChange={(value) => onDraftChange("options", value)}
             placeholder="Sans lactose sur demande, salade verte"
           />
           <Field
             label="Autres allergènes"
-            value={dishCustomAllergens}
-            onChange={onDishCustomAllergensChange}
+            value={draft.customAllergens}
+            onChange={(value) => onDraftChange("customAllergens", value)}
             placeholder="Céleri, lupin, allergène fournisseur"
           />
           <Field
             label="Note du chef"
-            value={dishChefNote}
-            onChange={onDishChefNoteChange}
+            value={draft.chefNote}
+            onChange={(value) => onDraftChange("chefNote", value)}
             placeholder="Servir bien chaud."
           />
           <label className={styles.formField}>
             <span className={styles.filterLabel}>Statut photo</span>
             <select
               className={styles.control}
-              value={dishPhotoStatus}
+              value={draft.photoStatus}
               onChange={(event) =>
-                onDishPhotoStatusChange(event.target.value as CreateRestaurantDishPhotoStatus)
+                onDraftChange("photoStatus", event.target.value as CreateRestaurantDishPhotoStatus)
               }
             >
               {photoStatusOptions.map((option) => (
@@ -2314,7 +2236,7 @@ function DishesStep({
           </p>
           <div className={styles.formGrid}>
             {ALLERGEN_REGISTRY.map(({ id }) => {
-              const declaration = dishAllergenDeclarations.find(
+              const declaration = draft.allergenDeclarations.find(
                 (item) => item.allergenId === id
               );
               return (
@@ -2341,24 +2263,24 @@ function DishesStep({
         <ChoiceGroup
           title="Badges"
           options={badgeOptions}
-          selected={dishTags}
+          selected={draft.tags}
           onToggle={onToggleTag}
         />
 
         <label className={styles.toggleLine}>
           <input
             type="checkbox"
-            checked={dishAvailable}
-            onChange={(event) => onDishAvailableChange(event.target.checked)}
+            checked={draft.available}
+            onChange={(event) => onDraftChange("available", event.target.checked)}
           />
           <span>Disponibilite</span>
         </label>
 
         <div className={styles.submitRow}>
           <button type="button" className={`${styles.btnPrimary} ${styles.btn}`} onClick={onAddDish}>
-            {editingDishId ? "Mettre a jour le plat" : "Ajouter plat"}
+            {draft.id ? "Mettre a jour le plat" : "Ajouter plat"}
           </button>
-          {editingDishId ? (
+          {draft.id ? (
             <button type="button" className={styles.btn} onClick={onCancelEdit}>
               Annuler
             </button>
