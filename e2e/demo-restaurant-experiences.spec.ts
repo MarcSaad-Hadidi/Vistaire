@@ -13,14 +13,14 @@ const DISCOVERY_ROUTES = [
   {
     language: "French", path: "/demo", queryLang: "en", lang: "fr-CA",
     title: "Trois expériences de menu restaurant | Vistaire",
-    heading: "Trois restaurants. Trois identités.", explore: "Explorer", discover: "Découvrir",
+    heading: "Trois restaurants. Trois identités.", explore: "Explorer", discover: "Découvrir", show3d: "VOIR EN 3D",
     activeLanguage: "Voir cette page en français", otherLanguage: "View this page in English",
     alternatePath: "/en/vistaire-menu", alternateLocale: "en-CA"
   },
   {
     language: "English", path: "/en/vistaire-menu", queryLang: "fr", lang: "en-CA",
     title: "Three restaurant menu experiences | Vistaire",
-    heading: "Three restaurants. Three identities.", explore: "Explore", discover: "Discover",
+    heading: "Three restaurants. Three identities.", explore: "Explore", discover: "Discover", show3d: "VIEW IN 3D",
     activeLanguage: "View this page in English", otherLanguage: "Voir cette page en français",
     alternatePath: "/demo", alternateLocale: "fr-CA"
   }
@@ -184,9 +184,10 @@ for (const scenario of DISCOVERY_ROUTES) {
       await expect(page.getByTestId("sauge-noire-dish-detail")).toBeVisible();
       await page.waitForLoadState("load");
       await expect(page.locator("model-viewer")).toHaveCount(0);
-      await expect(page.getByRole("button", { name: /Voir en 3D/i })).toBeVisible();
+      const show3d = page.getByRole("button", { name: scenario.show3d, exact: true });
+      await expect(show3d).toBeVisible();
       expect(modelRequests).toEqual([]);
-      await page.getByRole("button", { name: /Voir en 3D/i }).click();
+      await show3d.click();
       const viewer = page.locator("model-viewer");
       await expect(viewer).toBeVisible({ timeout: 15_000 });
       await expect.poll(() => modelRequests.some((url) => /\.glb(?:$|[?#])/i.test(url)), { timeout: 15_000 }).toBe(true);
