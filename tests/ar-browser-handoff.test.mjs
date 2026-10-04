@@ -210,20 +210,22 @@ test("arFallbackUiMode never maps Chrome Android runtime failure to a browser ha
 });
 
 test("Trouvable keeps browser handoff separate from a generic 3D load failure", async () => {
-  const [premium, standalone, viewer] = await Promise.all([
+  const [premium, standalone, viewer, surface] = await Promise.all([
     readFile("components/menu/TrouvablePremiumMenuExperience.tsx", "utf8"),
     readFile("components/menu/TrouvableDishDetailExperience.tsx", "utf8"),
-    readFile("components/dish/DishModelViewer.tsx", "utf8")
+    readFile("components/dish/DishModelViewer.tsx", "utf8"),
+    readFile("components/menu/TrouvableDishDetailSurface.tsx", "utf8")
   ]);
 
   assert.doesNotMatch(premium, /showArBrowserHelp\s*\|\|\s*modelViewerLoadFailed/);
   assert.doesNotMatch(standalone, /className=\{styles\.arBrowserHelp\}/);
-  assert.match(premium, /arFallbackUiMode/);
-  assert.match(standalone, /arFallbackUiMode/);
-  assert.match(premium, /showArDeviceHelp/);
-  assert.match(standalone, /showArDeviceHelp/);
-  assert.match(premium, /showArAssetHelp/);
-  assert.match(standalone, /showArAssetHelp/);
+  assert.match(premium, /experience=\{immersiveExperience\}/);
+  assert.match(standalone, /experience=\{immersiveExperience\}/);
+  assert.match(surface, /arFallbackUiMode/);
+  assert.match(surface, /fallbackMode === "browser"/);
+  assert.match(surface, /fallbackMode === "device"/);
+  assert.match(surface, /fallbackMode === "asset"/);
+  assert.doesNotMatch(surface, /fallbackMode === "browser"\s*\|\|\s*modelViewerLoadFailed/);
   assert.match(viewer, /onArFallbackNeeded\?: \(reason: ArFallbackReason\)/);
   assert.match(viewer, /getSafeCurrentPageUrl/);
   assert.match(viewer, /ArFallbackPanel/);
@@ -235,5 +237,5 @@ test("Trouvable keeps browser handoff separate from a generic 3D load failure", 
   );
   assert.match(viewer, /manifest\.variants\.arLite/);
   assert.doesNotMatch(viewer, /navigator\.clipboard\?\.writeText/);
-  assert.match(premium, /setModelViewerLoadFailed\(true\)/);
+  assert.match(surface, /setModelViewerLoadFailed\(true\)/);
 });

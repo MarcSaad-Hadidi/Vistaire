@@ -1,14 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
-  useCallback,
   useEffect,
   useMemo,
-  useRef,
   useState,
-  type ComponentType,
   type CSSProperties,
   type PointerEvent
 } from "react";
@@ -21,32 +17,11 @@ import {
 import type { MenuUiConfig } from "@/lib/menu/menuUiConfig";
 import type { MenuExchangeRates } from "@/lib/currency/formatMenuPrice";
 import { buildPublicMenuPath } from "@/lib/owner/menuUrlCore";
-import type { DishModelViewerProps } from "@/components/dish/DishModelViewer";
 import {
-  getPublicMenuAnalyticsContext,
   trackPublicMenuEvent
 } from "@/lib/analytics/client";
 import { hasPublicMenu3d } from "@/lib/menu/hasPublicMenu3d";
-import {
-  copyTextToClipboard,
-  detectArHandoffPlatform,
-  type ArHandoffPlatform
-} from "@/lib/menu/arBrowserHandoff";
-import { arFallbackUiMode } from "@/lib/ar/arExperience";
-import {
-  TROUVABLE_CURRENCY_STORAGE_KEY,
-  TROUVABLE_LOCALE_STORAGE_KEY,
-  TROUVABLE_THEME_STORAGE_KEY,
-  formatTrouvableDishPrice,
-  getTrouvableTextDirection,
-  normalizeTrouvableCurrency,
-  normalizeTrouvableReadyLocaleForSettings,
-  normalizeTrouvableTheme,
-  resolveTrouvableCopy,
-  type TrouvableCurrency,
-  type TrouvableLocale,
-  type TrouvableTheme
-} from "./trouvableMenuControls";
+import { formatTrouvableDishPrice } from "./trouvableMenuControls";
 import { GoogleReviewCard } from "./GoogleReviewCard";
 import {
   getDishSwipeScrollTop,
@@ -56,9 +31,10 @@ import { PremiumDishDetailsSheet } from "./PremiumDishDetailsSheet";
 import { getTrouvablePaletteSource } from "@/lib/menu/trouvableMenuExperience";
 import {
   TrouvableDishDetailSurface,
-  TrouvableImmersivePanelBody
+  TrouvableImmersivePanelBody,
+  useTrouvableImmersiveExperience
 } from "./TrouvableDishDetailSurface";
-import { useTrouvableDocumentLanguage } from "./useTrouvableDocumentLanguage";
+import { useTrouvablePreferences } from "./useTrouvablePreferences";
 import styles from "./TrouvablePremiumMenuExperience.module.css";
 
 type TrouvableDishDetailExperienceProps = {
@@ -71,8 +47,6 @@ type TrouvableDishDetailExperienceProps = {
   typographyClassName?: string;
 };
 
-type DishModelViewerComponent = ComponentType<DishModelViewerProps>;
-type ArCopyStatus = "idle" | "copying" | "success" | "error";
 type SwipeStart = {
   x: number;
   y: number;
@@ -80,7 +54,6 @@ type SwipeStart = {
   scrollTop: number;
 } | null;
 type DishDetailSubSheet = "details" | null;
-const AR_COPY_STATUS_RESET_MS = 4_000;
 
 function isDishSwipeGuardedTarget(
   target: EventTarget | null,
@@ -118,86 +91,24 @@ export function TrouvableDishDetailExperience({
   config,
   typographyClassName = ""
 }: TrouvableDishDetailExperienceProps) {
-  const router = useRouter();
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
   const [activeDish, setActiveDish] = useState(dish);
   const [swipeStart, setSwipeStart] = useState<SwipeStart>(null);
   const [showModelViewer, setShowModelViewer] = useState(false);
   const [activeSubSheet, setActiveSubSheet] = useState<DishDetailSubSheet>(null);
-  const [selectedLocale, setSelectedLocale] = useState<TrouvableLocale>(() =>
-    normalizeTrouvableReadyLocaleForSettings(
-      query?.lang,
-      menu.settings,
-      menu.localizedUiCopy
-    )
-  );
-  const [selectedCurrency, setSelectedCurrency] =
-    useState<TrouvableCurrency>(() =>
-      normalizeTrouvableCurrency(undefined, menu.settings)
-    );
-  const [selectedTheme, setSelectedTheme] = useState<TrouvableTheme>(() =>
-    normalizeTrouvableTheme(undefined, menu.settings)
-  );
-  const [preferencesLoaded, setPreferencesLoaded] = useState(false);
-  const [ModelViewerComponent, setModelViewerComponent] =
-    useState<DishModelViewerComponent | null>(null);
-  const [modelViewerLoadFailed, setModelViewerLoadFailed] = useState(false);
-  const [showArBrowserHelp, setShowArBrowserHelp] = useState(false);
-  const [showArDeviceHelp, setShowArDeviceHelp] = useState(false);
-  const [showArAssetHelp, setShowArAssetHelp] = useState(false);
-  const [arHandoffPlatform] = useState<ArHandoffPlatform>(() => {
-    if (typeof navigator === "undefined") return "other";
-    const navigatorWithData = navigator as Navigator & {
-      userAgentData?: { platform?: string };
-    };
-    return detectArHandoffPlatform({
-      userAgent: navigator.userAgent,
-      platform: navigator.platform,
-      maxTouchPoints: navigator.maxTouchPoints,
-      userAgentDataPlatform: navigatorWithData.userAgentData?.platform
-    });
-  });
-  const [arCopyStatus, setArCopyStatus] = useState<ArCopyStatus>("idle");
-  const [manualDishUrl, setManualDishUrl] = useState("");
-  const manualDishUrlRef = useRef<HTMLInputElement | null>(null);
-  const arCopyResetTimeoutRef = useRef<number | null>(null);
-  const { copy, resolution: copyResolution } = resolveTrouvableCopy(
+  const {
     selectedLocale,
-    menu.localizedUiCopy
+    selectedCurrency,
+    selectedTheme,
+    localizedQuery,
+    copy,
+    copyResolution,
+    textDirection
+  } = useTrouvablePreferences(menu, query);
+  const immersiveExperience = useTrouvableImmersiveExperience(
+    buildPublicDishPath(menu.slug, activeDish.slug, localizedQuery),
+    showModelViewer
   );
-  const textDirection = getTrouvableTextDirection(selectedLocale);
-  useTrouvableDocumentLanguage(selectedLocale, textDirection);
-  const localizedQuery = useMemo<PublicMenuContextQuery>(
-    () => ({
-      ...(query ?? {}),
-      lang: selectedLocale
-    }),
-    [query, selectedLocale]
-  );
-
-  useEffect(
-    () => () => {
-      if (arCopyResetTimeoutRef.current !== null) {
-        window.clearTimeout(arCopyResetTimeoutRef.current);
-      }
-    },
-    []
-  );
-
-  useEffect(() => {
-    if (arCopyStatus !== "error" || !manualDishUrl) return undefined;
-
-    const frameId = window.requestAnimationFrame(() => {
-      const input = manualDishUrlRef.current;
-      if (!input) return;
-      input.focus({ preventScroll: true });
-      input.select();
-    });
-
-    return () => window.cancelAnimationFrame(frameId);
-  }, [arCopyStatus, manualDishUrl]);
-
+  const { resetArHandoffState } = immersiveExperience;
   useEffect(() => {
     trackPublicMenuEvent(menu, {
       eventName: "dish_opened",
@@ -225,72 +136,6 @@ export function TrouvableDishDetailExperience({
     exchangeRates
   );
   const moreDetailsId = `trouvable-dish-more-details-${activeDish.slug}`;
-  const browserDishHref = buildPublicDishPath(
-    menu.slug,
-    activeDish.slug,
-    localizedQuery
-  );
-  const arBrowserFallbackTitleId = `trouvable-ar-browser-fallback-${activeDish.slug}`;
-  const manualDishUrlId = `trouvable-ar-manual-url-${activeDish.slug}`;
-
-  const resetArHandoffState = useCallback(() => {
-    if (arCopyResetTimeoutRef.current !== null) {
-      window.clearTimeout(arCopyResetTimeoutRef.current);
-      arCopyResetTimeoutRef.current = null;
-    }
-    setShowArBrowserHelp(false);
-    setShowArDeviceHelp(false);
-    setShowArAssetHelp(false);
-    setArCopyStatus("idle");
-    setManualDishUrl("");
-  }, []);
-
-  function selectManualDishUrl() {
-    const input = manualDishUrlRef.current;
-    if (!input) return;
-    input.focus({ preventScroll: true });
-    input.select();
-  }
-
-  async function copyDishUrl() {
-    if (arCopyStatus === "copying") return;
-    if (arCopyResetTimeoutRef.current !== null) {
-      window.clearTimeout(arCopyResetTimeoutRef.current);
-      arCopyResetTimeoutRef.current = null;
-    }
-
-    const absoluteDishUrl = new URL(
-      browserDishHref,
-      window.location.origin
-    ).toString();
-    setArCopyStatus("copying");
-    const copied = await copyTextToClipboard(absoluteDishUrl);
-
-    if (copied) {
-      setManualDishUrl("");
-      setArCopyStatus("success");
-      arCopyResetTimeoutRef.current = window.setTimeout(() => {
-        arCopyResetTimeoutRef.current = null;
-        setArCopyStatus("idle");
-      }, AR_COPY_STATUS_RESET_MS);
-      return;
-    }
-
-    setManualDishUrl(absoluteDishUrl);
-    setArCopyStatus("error");
-  }
-  const analyticsContext = getPublicMenuAnalyticsContext(menu);
-
-  const replaceLocaleInUrl = useCallback(
-    (nextLocale: TrouvableLocale) => {
-      const params = new URLSearchParams(searchParams.toString());
-      params.set("lang", nextLocale);
-      const queryString = params.toString();
-      const nextPath = queryString ? `${pathname}?${queryString}` : pathname;
-      router.replace(nextPath, { scroll: false });
-    },
-    [pathname, router, searchParams]
-  );
 
   useEffect(() => {
     const animationFrameId = window.requestAnimationFrame(() => {
@@ -302,98 +147,6 @@ export function TrouvableDishDetailExperience({
 
     return () => window.cancelAnimationFrame(animationFrameId);
   }, [dish, resetArHandoffState]);
-
-  useEffect(() => {
-    const animationFrameId = window.requestAnimationFrame(() => {
-      const queryLocale = query?.lang?.toString().trim()
-        ? normalizeTrouvableReadyLocaleForSettings(
-            query.lang,
-            menu.settings,
-            menu.localizedUiCopy
-          )
-        : null;
-      const storedLocale = window.localStorage.getItem(TROUVABLE_LOCALE_STORAGE_KEY);
-      const storedCurrency = window.localStorage.getItem(
-        TROUVABLE_CURRENCY_STORAGE_KEY
-      );
-      const storedTheme = window.localStorage.getItem(TROUVABLE_THEME_STORAGE_KEY);
-      const defaultLocale = normalizeTrouvableReadyLocaleForSettings(
-        undefined,
-        menu.settings,
-        menu.localizedUiCopy
-      );
-      const activeServerLocale = normalizeTrouvableReadyLocaleForSettings(
-        menu.activeLocale,
-        menu.settings,
-        menu.localizedUiCopy
-      );
-      const normalizedStoredLocale = storedLocale
-        ? normalizeTrouvableReadyLocaleForSettings(
-            storedLocale,
-            menu.settings,
-            menu.localizedUiCopy
-          )
-        : null;
-
-      if (
-        !queryLocale &&
-        normalizedStoredLocale &&
-        normalizedStoredLocale !== defaultLocale &&
-        normalizedStoredLocale !== activeServerLocale
-      ) {
-        replaceLocaleInUrl(normalizedStoredLocale);
-        return;
-      }
-
-      setSelectedLocale(
-        queryLocale ??
-          normalizedStoredLocale ??
-          defaultLocale
-      );
-      setSelectedCurrency(normalizeTrouvableCurrency(storedCurrency, menu.settings));
-      setSelectedTheme(normalizeTrouvableTheme(storedTheme, menu.settings));
-      if (queryLocale) {
-        window.localStorage.setItem(TROUVABLE_LOCALE_STORAGE_KEY, queryLocale);
-      }
-      setPreferencesLoaded(true);
-    });
-
-    return () => window.cancelAnimationFrame(animationFrameId);
-  }, [
-    menu.activeLocale,
-    menu.localizedUiCopy,
-    menu.settings,
-    query?.lang,
-    replaceLocaleInUrl
-  ]);
-
-  useEffect(() => {
-    if (!preferencesLoaded) return;
-    window.localStorage.setItem(TROUVABLE_LOCALE_STORAGE_KEY, selectedLocale);
-    window.localStorage.setItem(TROUVABLE_CURRENCY_STORAGE_KEY, selectedCurrency);
-    window.localStorage.setItem(TROUVABLE_THEME_STORAGE_KEY, selectedTheme);
-  }, [preferencesLoaded, selectedCurrency, selectedLocale, selectedTheme]);
-
-  useEffect(() => {
-    if (!showModelViewer || ModelViewerComponent || modelViewerLoadFailed) return;
-
-    let cancelled = false;
-    import("@/components/dish/DishModelViewer")
-      .then((mod) => {
-        if (!cancelled) {
-          setModelViewerComponent(() => mod.DishModelViewer);
-        }
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setModelViewerLoadFailed(true);
-        }
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [ModelViewerComponent, modelViewerLoadFailed, showModelViewer]);
 
   function toggleModelViewer() {
     resetArHandoffState();
@@ -592,39 +345,15 @@ export function TrouvableDishDetailExperience({
 
           {showModelViewer ? (
             <TrouvableImmersivePanelBody
-              arCopyStatus={arCopyStatus}
-              arHandoffPlatform={arHandoffPlatform}
+              experience={immersiveExperience}
               copy={copy}
               dish={activeDish}
-              fallbackTitleId={arBrowserFallbackTitleId}
-              manualDishUrl={manualDishUrl}
-              manualDishUrlId={manualDishUrlId}
-              manualDishUrlRef={manualDishUrlRef}
               menu={menu}
-              analyticsContext={analyticsContext ?? undefined}
               modelControlsId="trouvable-public-model"
-              modelViewerComponent={ModelViewerComponent}
-              modelViewerLoadFailed={modelViewerLoadFailed}
-              onArFallbackCleared={resetArHandoffState}
-              onArFallbackNeeded={(reason) => {
-                const mode = arFallbackUiMode(reason);
-                if (mode === "none") {
-                  resetArHandoffState();
-                  return;
-                }
-                setShowArBrowserHelp(mode === "browser");
-                setShowArDeviceHelp(mode === "device");
-                setShowArAssetHelp(mode === "asset");
-              }}
-              onCopyDishUrl={() => void copyDishUrl()}
               onReturnToDish={() => {
                 setShowModelViewer(false);
                 resetArHandoffState();
               }}
-              onSelectManualDishUrl={selectManualDishUrl}
-              showArBrowserHelp={showArBrowserHelp}
-              showArDeviceHelp={showArDeviceHelp}
-              showArAssetHelp={showArAssetHelp}
             />
           ) : null}
 
