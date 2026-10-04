@@ -671,51 +671,30 @@ export function MenuUiBuilder({
     setSaveState("dirty");
   }
 
-  async function saveDraft(configOverride?: MenuUiConfig) {
+  async function saveConfig(
+    action: "draft" | "publish" | "revert-to-published" | "rollback",
+    configOverride?: MenuUiConfig
+  ) {
     if (!selectedRestaurant) return;
     const configToSave = configOverride ?? pendingVariation ?? config;
-    setSaveState("saving");
-    setErrorMessage("");
-    try {
-      const response = await fetch("/api/owner/menu-ui-config", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          restaurantId: selectedRestaurant.id,
-          config: configToSave
-        })
-      });
-      const payload = (await response.json()) as
-        | ConfigPayload
-        | ApiFailure;
-      if (!response.ok || !payload.ok) {
-        setSaveState("error");
-        setErrorMessage(
-          payload.ok ? "Sauvegarde impossible." : apiErrorMessage(payload, "Sauvegarde impossible.")
-        );
-        return;
-      }
-      setConfig(payload.config);
-      setPendingVariation(null);
-      setConfigStatus(payload.status);
-      setSaveState("saved");
-    } catch {
-      setSaveState("error");
-      setErrorMessage("Erreur reseau pendant la sauvegarde.");
-    }
-  }
-
-  async function publishConfig() {
-    if (!selectedRestaurant) return;
-    const configToPublish = pendingVariation ?? config;
-    if (qualityResult.blockers.length > 0) {
+    if (action === "publish" && qualityResult.blockers.length > 0) {
       setSaveState("error");
       setErrorMessage(
         `Publication bloquee: ${qualityResult.blockers.slice(0, 2).join(" ")}`
       );
       return;
     }
-    setSaveState("publishing");
+    const publishing = action === "publish" || action === "rollback";
+    const [failureMessage, networkMessage] = {
+      draft: ["Sauvegarde impossible.", "Erreur reseau pendant la sauvegarde."],
+      publish: ["Publication impossible.", "Erreur reseau pendant la publication."],
+      "revert-to-published": [
+        "Retour a la config publiee impossible.",
+        "Erreur reseau pendant le retour a la config publiee."
+      ],
+      rollback: ["Rollback impossible.", "Erreur reseau pendant le rollback."]
+    }[action];
+    setSaveState(publishing ? "publishing" : "saving");
     setErrorMessage("");
     try {
       const response = await fetch("/api/owner/menu-ui-config", {
@@ -723,93 +702,23 @@ export function MenuUiBuilder({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           restaurantId: selectedRestaurant.id,
-          action: "publish",
-          config: configToPublish
-        })
-      });
-      const payload = (await response.json()) as
-        | ConfigPayload
-        | ApiFailure;
-      if (!response.ok || !payload.ok) {
-        setSaveState("error");
-        setErrorMessage(
-          payload.ok ? "Publication impossible." : apiErrorMessage(payload, "Publication impossible.")
-        );
-        return;
-      }
-      setConfig(payload.config);
-      setPendingVariation(null);
-      setConfigStatus(payload.status);
-      setSaveState("published");
-    } catch {
-      setSaveState("error");
-      setErrorMessage("Erreur reseau pendant la publication.");
-    }
-  }
-
-  async function revertToPublishedConfig() {
-    if (!selectedRestaurant) return;
-    setSaveState("saving");
-    setErrorMessage("");
-    try {
-      const response = await fetch("/api/owner/menu-ui-config", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          restaurantId: selectedRestaurant.id,
-          action: "revert-to-published"
+          ...(action === "draft" ? {} : { action }),
+          ...(action === "draft" || action === "publish" ? { config: configToSave } : {})
         })
       });
       const payload = (await response.json()) as ConfigPayload | ApiFailure;
       if (!response.ok || !payload.ok) {
         setSaveState("error");
-        setErrorMessage(
-          payload.ok
-            ? "Retour a la config publiee impossible."
-            : apiErrorMessage(payload, "Retour a la config publiee impossible.")
-        );
+        setErrorMessage(payload.ok ? failureMessage : apiErrorMessage(payload, failureMessage));
         return;
       }
       setConfig(payload.config);
       setPendingVariation(null);
       setConfigStatus(payload.status);
-      setSaveState("saved");
+      setSaveState(publishing ? "published" : "saved");
     } catch {
       setSaveState("error");
-      setErrorMessage("Erreur reseau pendant le retour a la config publiee.");
-    }
-  }
-
-  async function rollbackPublishedConfig() {
-    if (!selectedRestaurant) return;
-    setSaveState("publishing");
-    setErrorMessage("");
-    try {
-      const response = await fetch("/api/owner/menu-ui-config", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          restaurantId: selectedRestaurant.id,
-          action: "rollback"
-        })
-      });
-      const payload = (await response.json()) as ConfigPayload | ApiFailure;
-      if (!response.ok || !payload.ok) {
-        setSaveState("error");
-        setErrorMessage(
-          payload.ok
-            ? "Rollback impossible."
-            : apiErrorMessage(payload, "Rollback impossible.")
-        );
-        return;
-      }
-      setConfig(payload.config);
-      setPendingVariation(null);
-      setConfigStatus(payload.status);
-      setSaveState("published");
-    } catch {
-      setSaveState("error");
-      setErrorMessage("Erreur reseau pendant le rollback.");
+      setErrorMessage(networkMessage);
     }
   }
 
@@ -925,12 +834,6 @@ export function MenuUiBuilder({
     );
   }
 
-  function configWithAdvisorPatch(
-    recommendation: MenuStyleAdvisorRecommendation
-  ): MenuUiConfig {
-    return configWithAdvisorProposal(recommendation.primary);
-  }
-
   async function requestMistralAdvisor() {
     if (!selectedRestaurant) return;
     setAdvisorState("loading");
@@ -972,19 +875,6 @@ export function MenuUiBuilder({
       setAdvisorState("error");
       setErrorMessage("Erreur reseau pendant le conseil Mistral.");
     }
-  }
-
-  function applyAdvisorRecommendation() {
-    if (!advisorRecommendation) return;
-    setConfig(configWithAdvisorPatch(advisorRecommendation));
-    setPendingVariation(null);
-    setSaveState("dirty");
-  }
-
-  function previewAdvisorVariation() {
-    if (!advisorRecommendation) return;
-    setPendingVariation(configWithAdvisorPatch(advisorRecommendation));
-    setSaveState("dirty");
   }
 
   function applyAdvisorProposal(proposal: MenuStyleAdvisorProposal) {
@@ -1247,7 +1137,7 @@ export function MenuUiBuilder({
                   <button
                     type="button"
                     className={styles.secondaryButton}
-                    onClick={() => saveDraft(pendingVariation)}
+                    onClick={() => saveConfig("draft", pendingVariation)}
                   >
                     Sauvegarder draft
                 </button>
@@ -1325,137 +1215,59 @@ export function MenuUiBuilder({
           ) : null}
 
           <div className={styles.optionGrid}>
-            <label className={styles.field}>
-              Home layout
-              <select
-                value={previewConfig.experience.homeLayout}
-                onChange={(event) =>
-                  updateConfig({
-                    experience: {
-                      ...previewConfig.experience,
-                      homeLayout: event.target
-                        .value as MenuUiConfig["experience"]["homeLayout"]
-                    }
-                  })
-                }
-              >
-                {MENU_HOME_LAYOUT_VALUES.map((value) => (
-                  <option key={value} value={value}>
-                    {optionLabel(value)}
-                  </option>
-                ))}
-              </select>
-            </label>
+            <SelectField
+              label="Home layout"
+              value={previewConfig.experience.homeLayout}
+              options={MENU_HOME_LAYOUT_VALUES}
+              onChange={(value) => updateConfig({
+                experience: { ...previewConfig.experience, homeLayout: value }
+              })}
+            />
 
-            <label className={styles.field}>
-              Category presentation
-              <select
-                value={previewConfig.experience.categoryPresentation}
-                onChange={(event) =>
-                  updateConfig({
-                    experience: {
-                      ...previewConfig.experience,
-                      categoryPresentation: event.target
-                        .value as MenuUiConfig["experience"]["categoryPresentation"]
-                    }
-                  })
-                }
-              >
-                {MENU_CATEGORY_PRESENTATION_VALUES.map((value) => (
-                  <option key={value} value={value}>
-                    {optionLabel(value)}
-                  </option>
-                ))}
-              </select>
-            </label>
+            <SelectField
+              label="Category presentation"
+              value={previewConfig.experience.categoryPresentation}
+              options={MENU_CATEGORY_PRESENTATION_VALUES}
+              onChange={(value) => updateConfig({
+                experience: { ...previewConfig.experience, categoryPresentation: value }
+              })}
+            />
 
-            <label className={styles.field}>
-              Dish list presentation
-              <select
-                value={previewConfig.experience.dishListPresentation}
-                onChange={(event) =>
-                  updateConfig({
-                    experience: {
-                      ...previewConfig.experience,
-                      dishListPresentation: event.target
-                        .value as MenuUiConfig["experience"]["dishListPresentation"]
-                    }
-                  })
-                }
-              >
-                {MENU_DISH_LIST_PRESENTATION_VALUES.map((value) => (
-                  <option key={value} value={value}>
-                    {optionLabel(value)}
-                  </option>
-                ))}
-              </select>
-            </label>
+            <SelectField
+              label="Dish list presentation"
+              value={previewConfig.experience.dishListPresentation}
+              options={MENU_DISH_LIST_PRESENTATION_VALUES}
+              onChange={(value) => updateConfig({
+                experience: { ...previewConfig.experience, dishListPresentation: value }
+              })}
+            />
 
-            <label className={styles.field}>
-              Detail presentation
-              <select
-                value={previewConfig.experience.detailPresentation}
-                onChange={(event) =>
-                  updateConfig({
-                    experience: {
-                      ...previewConfig.experience,
-                      detailPresentation: event.target
-                        .value as MenuUiConfig["experience"]["detailPresentation"]
-                    }
-                  })
-                }
-              >
-                {MENU_DETAIL_PRESENTATION_VALUES.map((value) => (
-                  <option key={value} value={value}>
-                    {optionLabel(value)}
-                  </option>
-                ))}
-              </select>
-            </label>
+            <SelectField
+              label="Detail presentation"
+              value={previewConfig.experience.detailPresentation}
+              options={MENU_DETAIL_PRESENTATION_VALUES}
+              onChange={(value) => updateConfig({
+                experience: { ...previewConfig.experience, detailPresentation: value }
+              })}
+            />
 
-            <label className={styles.field}>
-              Featured dishes mode
-              <select
-                value={previewConfig.experience.featuredMode}
-                onChange={(event) =>
-                  updateConfig({
-                    experience: {
-                      ...previewConfig.experience,
-                      featuredMode: event.target
-                        .value as MenuUiConfig["experience"]["featuredMode"]
-                    }
-                  })
-                }
-              >
-                {MENU_FEATURED_MODE_VALUES.map((value) => (
-                  <option key={value} value={value}>
-                    {optionLabel(value)}
-                  </option>
-                ))}
-              </select>
-            </label>
+            <SelectField
+              label="Featured dishes mode"
+              value={previewConfig.experience.featuredMode}
+              options={MENU_FEATURED_MODE_VALUES}
+              onChange={(value) => updateConfig({
+                experience: { ...previewConfig.experience, featuredMode: value }
+              })}
+            />
 
-            <label className={styles.field}>
-              Section order
-              <select
-                value={previewConfig.experience.sectionOrder}
-                onChange={(event) =>
-                  updateConfig({
-                    experience: {
-                      ...previewConfig.experience,
-                      sectionOrder: event.target
-                        .value as MenuUiConfig["experience"]["sectionOrder"]
-                    }
-                  })
-                }
-              >
-                {MENU_SECTION_ORDER_VALUES.map((value) => (
-                  <option key={value} value={value}>
-                    {optionLabel(value)}
-                  </option>
-                ))}
-              </select>
-            </label>
+            <SelectField
+              label="Section order"
+              value={previewConfig.experience.sectionOrder}
+              options={MENU_SECTION_ORDER_VALUES}
+              onChange={(value) => updateConfig({
+                experience: { ...previewConfig.experience, sectionOrder: value }
+              })}
+            />
           </div>
 
           <div className={styles.toggleGrid}>
@@ -1566,14 +1378,14 @@ export function MenuUiBuilder({
                   <button
                     type="button"
                     className={styles.secondaryButton}
-                    onClick={applyAdvisorRecommendation}
+                    onClick={() => applyAdvisorProposal(advisorRecommendation.primary)}
                   >
                     Appliquer
                   </button>
                   <button
                     type="button"
                     className={styles.secondaryButton}
-                    onClick={previewAdvisorVariation}
+                    onClick={() => previewAdvisorProposal(advisorRecommendation.primary)}
                   >
                     Voir variation
                   </button>
@@ -1616,7 +1428,7 @@ export function MenuUiBuilder({
                           <button
                             type="button"
                             className={styles.secondaryButton}
-                            onClick={() => saveDraft(configWithAdvisorProposal(proposal))}
+                            onClick={() => saveConfig("draft", configWithAdvisorProposal(proposal))}
                           >
                             Sauvegarder draft
                           </button>
@@ -1669,98 +1481,42 @@ export function MenuUiBuilder({
           </div>
 
           <div className={styles.optionGrid}>
-            <label className={styles.field}>
-              Heading style
-              <select
-                value={previewConfig.typography.headingStyle}
-                onChange={(event) =>
-                  updateConfig({
-                    typography: {
-                      ...previewConfig.typography,
-                      headingStyle: event.target
-                        .value as MenuUiConfig["typography"]["headingStyle"]
-                    }
-                  })
-                }
-              >
-                {MENU_UI_HEADING_STYLE_VALUES.map((value) => (
-                  <option key={value} value={value}>
-                    {optionLabel(value)}
-                  </option>
-                ))}
-              </select>
-            </label>
+            <SelectField
+              label="Heading style"
+              value={previewConfig.typography.headingStyle}
+              options={MENU_UI_HEADING_STYLE_VALUES}
+              onChange={(value) => updateConfig({
+                typography: { ...previewConfig.typography, headingStyle: value }
+              })}
+            />
 
-            <label className={styles.field}>
-              Body style
-              <select
-                value={previewConfig.typography.bodyStyle}
-                onChange={(event) =>
-                  updateConfig({
-                    typography: {
-                      ...previewConfig.typography,
-                      bodyStyle: event.target
-                        .value as MenuUiConfig["typography"]["bodyStyle"]
-                    }
-                  })
-                }
-              >
-                {MENU_UI_BODY_STYLE_VALUES.map((value) => (
-                  <option key={value} value={value}>
-                    {optionLabel(value)}
-                  </option>
-                ))}
-              </select>
-            </label>
+            <SelectField
+              label="Body style"
+              value={previewConfig.typography.bodyStyle}
+              options={MENU_UI_BODY_STYLE_VALUES}
+              onChange={(value) => updateConfig({
+                typography: { ...previewConfig.typography, bodyStyle: value }
+              })}
+            />
 
-            <label className={styles.field}>
-              Price style
-              <select
-                value={previewConfig.typography.priceStyle}
-                onChange={(event) =>
-                  updateConfig({
-                    typography: {
-                      ...previewConfig.typography,
-                      priceStyle: event.target
-                        .value as MenuUiConfig["typography"]["priceStyle"]
-                    },
-                    cards: {
-                      ...previewConfig.cards,
-                      priceStyle: event.target
-                        .value as MenuUiConfig["cards"]["priceStyle"]
-                    }
-                  })
-                }
-              >
-                {MENU_UI_PRICE_STYLE_VALUES.map((value) => (
-                  <option key={value} value={value}>
-                    {optionLabel(value)}
-                  </option>
-                ))}
-              </select>
-            </label>
+            <SelectField
+              label="Price style"
+              value={previewConfig.typography.priceStyle}
+              options={MENU_UI_PRICE_STYLE_VALUES}
+              onChange={(value) => updateConfig({
+                typography: { ...previewConfig.typography, priceStyle: value },
+                cards: { ...previewConfig.cards, priceStyle: value }
+              })}
+            />
 
-            <label className={styles.field}>
-              Title scale
-              <select
-                value={previewConfig.typography.titleScale}
-                onChange={(event) =>
-                  updateConfig({
-                    typography: {
-                      ...previewConfig.typography,
-                      titleScale: event.target
-                        .value as MenuUiConfig["typography"]["titleScale"]
-                    }
-                  })
-                }
-              >
-                {MENU_UI_TITLE_SCALE_VALUES.map((value) => (
-                  <option key={value} value={value}>
-                    {optionLabel(value)}
-                  </option>
-                ))}
-              </select>
-            </label>
+            <SelectField
+              label="Title scale"
+              value={previewConfig.typography.titleScale}
+              options={MENU_UI_TITLE_SCALE_VALUES}
+              onChange={(value) => updateConfig({
+                typography: { ...previewConfig.typography, titleScale: value }
+              })}
+            />
           </div>
         </section>
 
@@ -1773,90 +1529,41 @@ export function MenuUiBuilder({
           </div>
 
           <div className={styles.optionGrid}>
-            <label className={styles.field}>
-              Background style
-              <select
-                value={previewConfig.global.backgroundStyle}
-                onChange={(event) =>
-                  updateConfig({
-                    global: {
-                      ...previewConfig.global,
-                      backgroundStyle: event.target
-                        .value as MenuUiConfig["global"]["backgroundStyle"]
-                    }
-                  })
-                }
-              >
-                {MENU_UI_BACKGROUND_STYLE_VALUES.map((value) => (
-                  <option key={value} value={value}>
-                    {optionLabel(value)}
-                  </option>
-                ))}
-              </select>
-            </label>
+            <SelectField
+              label="Background style"
+              value={previewConfig.global.backgroundStyle}
+              options={MENU_UI_BACKGROUND_STYLE_VALUES}
+              onChange={(value) => updateConfig({
+                global: { ...previewConfig.global, backgroundStyle: value }
+              })}
+            />
 
-            <label className={styles.field}>
-              Radius
-              <select
-                value={previewConfig.global.radius}
-                onChange={(event) =>
-                  updateConfig({
-                    global: {
-                      ...previewConfig.global,
-                      radius: event.target.value as MenuUiConfig["global"]["radius"]
-                    }
-                  })
-                }
-              >
-                {MENU_UI_RADIUS_VALUES.map((value) => (
-                  <option key={value} value={value}>
-                    {optionLabel(value)}
-                  </option>
-                ))}
-              </select>
-            </label>
+            <SelectField
+              label="Radius"
+              value={previewConfig.global.radius}
+              options={MENU_UI_RADIUS_VALUES}
+              onChange={(value) => updateConfig({
+                global: { ...previewConfig.global, radius: value }
+              })}
+            />
 
-            <label className={styles.field}>
-              Shadow
-              <select
-                value={previewConfig.global.shadow}
-                onChange={(event) =>
-                  updateConfig({
-                    global: {
-                      ...previewConfig.global,
-                      shadow: event.target.value as MenuUiConfig["global"]["shadow"]
-                    }
-                  })
-                }
-              >
-                {MENU_UI_SHADOW_VALUES.map((value) => (
-                  <option key={value} value={value}>
-                    {optionLabel(value)}
-                  </option>
-                ))}
-              </select>
-            </label>
+            <SelectField
+              label="Shadow"
+              value={previewConfig.global.shadow}
+              options={MENU_UI_SHADOW_VALUES}
+              onChange={(value) => updateConfig({
+                global: { ...previewConfig.global, shadow: value }
+              })}
+            />
 
-            <label className={styles.field}>
-              Densite
-              <select
-                value={previewConfig.global.density}
-                onChange={(event) =>
-                  updateConfig({
-                    global: {
-                      ...previewConfig.global,
-                      density: event.target.value as MenuUiConfig["global"]["density"]
-                    }
-                  })
-                }
-              >
-                {MENU_UI_DENSITY_VALUES.map((value) => (
-                  <option key={value} value={value}>
-                    {optionLabel(value)}
-                  </option>
-                ))}
-              </select>
-            </label>
+            <SelectField
+              label="Densite"
+              value={previewConfig.global.density}
+              options={MENU_UI_DENSITY_VALUES}
+              onChange={(value) => updateConfig({
+                global: { ...previewConfig.global, density: value }
+              })}
+            />
           </div>
         </section>
 
@@ -1912,49 +1619,23 @@ export function MenuUiBuilder({
           </label>
 
           <div className={styles.optionGrid}>
-            <label className={styles.field}>
-              Welcome layout
-              <select
-                value={previewConfig.welcome.layout}
-                onChange={(event) =>
-                  updateConfig({
-                    welcome: {
-                      ...previewConfig.welcome,
-                      layout: event.target
-                        .value as MenuUiConfig["welcome"]["layout"]
-                    }
-                  })
-                }
-              >
-                {MENU_UI_WELCOME_LAYOUT_VALUES.map((value) => (
-                  <option key={value} value={value}>
-                    {optionLabel(value)}
-                  </option>
-                ))}
-              </select>
-            </label>
+            <SelectField
+              label="Welcome layout"
+              value={previewConfig.welcome.layout}
+              options={MENU_UI_WELCOME_LAYOUT_VALUES}
+              onChange={(value) => updateConfig({
+                welcome: { ...previewConfig.welcome, layout: value }
+              })}
+            />
 
-            <label className={styles.field}>
-              Background shapes
-              <select
-                value={previewConfig.welcome.backgroundShapes}
-                onChange={(event) =>
-                  updateConfig({
-                    welcome: {
-                      ...previewConfig.welcome,
-                      backgroundShapes: event.target
-                        .value as MenuUiConfig["welcome"]["backgroundShapes"]
-                    }
-                  })
-                }
-              >
-                {MENU_UI_BACKGROUND_SHAPE_VALUES.map((value) => (
-                  <option key={value} value={value}>
-                    {optionLabel(value)}
-                  </option>
-                ))}
-              </select>
-            </label>
+            <SelectField
+              label="Background shapes"
+              value={previewConfig.welcome.backgroundShapes}
+              options={MENU_UI_BACKGROUND_SHAPE_VALUES}
+              onChange={(value) => updateConfig({
+                welcome: { ...previewConfig.welcome, backgroundShapes: value }
+              })}
+            />
           </div>
 
           <button
@@ -1979,92 +1660,41 @@ export function MenuUiBuilder({
           </div>
 
           <div className={styles.optionGrid}>
-            <label className={styles.field}>
-              Navigation style
-              <select
-                value={previewConfig.navigation.style}
-                onChange={(event) =>
-                  updateConfig({
-                    navigation: {
-                      ...previewConfig.navigation,
-                      style: event.target
-                        .value as MenuUiConfig["navigation"]["style"]
-                    }
-                  })
-                }
-              >
-                {MENU_UI_CATEGORY_NAVIGATION_VALUES.map((value) => (
-                  <option key={value} value={value}>
-                    {optionLabel(value)}
-                  </option>
-                ))}
-              </select>
-            </label>
+            <SelectField
+              label="Navigation style"
+              value={previewConfig.navigation.style}
+              options={MENU_UI_CATEGORY_NAVIGATION_VALUES}
+              onChange={(value) => updateConfig({
+                navigation: { ...previewConfig.navigation, style: value }
+              })}
+            />
 
-            <label className={styles.field}>
-              Card variant
-              <select
-                value={previewConfig.cards.variant}
-                onChange={(event) =>
-                  updateConfig({
-                    cards: {
-                      ...previewConfig.cards,
-                      variant: event.target.value as MenuUiConfig["cards"]["variant"]
-                    }
-                  })
-                }
-              >
-                {MENU_UI_DISH_CARD_STYLE_VALUES.map((value) => (
-                  <option key={value} value={value}>
-                    {optionLabel(value)}
-                  </option>
-                ))}
-              </select>
-            </label>
+            <SelectField
+              label="Card variant"
+              value={previewConfig.cards.variant}
+              options={MENU_UI_DISH_CARD_STYLE_VALUES}
+              onChange={(value) => updateConfig({
+                cards: { ...previewConfig.cards, variant: value }
+              })}
+            />
 
-            <label className={styles.field}>
-              Photo shape
-              <select
-                value={previewConfig.cards.photoShape}
-                onChange={(event) =>
-                  updateConfig({
-                    cards: {
-                      ...previewConfig.cards,
-                      photoShape: event.target
-                        .value as MenuUiConfig["cards"]["photoShape"]
-                    }
-                  })
-                }
-              >
-                {MENU_UI_PHOTO_SHAPE_VALUES.map((value) => (
-                  <option key={value} value={value}>
-                    {optionLabel(value)}
-                  </option>
-                ))}
-              </select>
-            </label>
+            <SelectField
+              label="Photo shape"
+              value={previewConfig.cards.photoShape}
+              options={MENU_UI_PHOTO_SHAPE_VALUES}
+              onChange={(value) => updateConfig({
+                cards: { ...previewConfig.cards, photoShape: value }
+              })}
+            />
 
-            <label className={styles.field}>
-              Description length
-              <select
-                value={previewConfig.cards.descriptionLength}
-                onChange={(event) =>
-                  updateConfig({
-                    cards: {
-                      ...previewConfig.cards,
-                      descriptionLength: event.target
-                        .value as MenuUiConfig["cards"]["descriptionLength"]
-                    }
-                  })
-                }
-              >
-                {MENU_UI_DESCRIPTION_LENGTH_VALUES.map((value) => (
-                  <option key={value} value={value}>
-                    {optionLabel(value)}
-                  </option>
-                ))}
-              </select>
-            </label>
+            <SelectField
+              label="Description length"
+              value={previewConfig.cards.descriptionLength}
+              options={MENU_UI_DESCRIPTION_LENGTH_VALUES}
+              onChange={(value) => updateConfig({
+                cards: { ...previewConfig.cards, descriptionLength: value }
+              })}
+            />
           </div>
 
           <div className={styles.toggleGrid}>
@@ -2140,92 +1770,41 @@ export function MenuUiBuilder({
           </div>
 
           <div className={styles.optionGrid}>
-            <label className={styles.field}>
-              Detail style
-              <select
-                value={previewConfig.detail.style}
-                onChange={(event) =>
-                  updateConfig({
-                    detail: {
-                      ...previewConfig.detail,
-                      style: event.target.value as MenuUiConfig["detail"]["style"]
-                    }
-                  })
-                }
-              >
-                {MENU_UI_DETAIL_STYLE_VALUES.map((value) => (
-                  <option key={value} value={value}>
-                    {optionLabel(value)}
-                  </option>
-                ))}
-              </select>
-            </label>
+            <SelectField
+              label="Detail style"
+              value={previewConfig.detail.style}
+              options={MENU_UI_DETAIL_STYLE_VALUES}
+              onChange={(value) => updateConfig({
+                detail: { ...previewConfig.detail, style: value }
+              })}
+            />
 
-            <label className={styles.field}>
-              Photo hero
-              <select
-                value={previewConfig.detail.photoHero}
-                onChange={(event) =>
-                  updateConfig({
-                    detail: {
-                      ...previewConfig.detail,
-                      photoHero: event.target
-                        .value as MenuUiConfig["detail"]["photoHero"]
-                    }
-                  })
-                }
-              >
-                {MENU_UI_DETAIL_PHOTO_HERO_VALUES.map((value) => (
-                  <option key={value} value={value}>
-                    {optionLabel(value)}
-                  </option>
-                ))}
-              </select>
-            </label>
+            <SelectField
+              label="Photo hero"
+              value={previewConfig.detail.photoHero}
+              options={MENU_UI_DETAIL_PHOTO_HERO_VALUES}
+              onChange={(value) => updateConfig({
+                detail: { ...previewConfig.detail, photoHero: value }
+              })}
+            />
 
-            <label className={styles.field}>
-              Dish open mode
-              <select
-                value={previewConfig.detail.dishOpenMode}
-                onChange={(event) =>
-                  updateConfig({
-                    detail: {
-                      ...previewConfig.detail,
-                      dishOpenMode: event.target
-                        .value as MenuUiConfig["detail"]["dishOpenMode"]
-                    }
-                  })
-                }
-              >
-                {MENU_UI_DISH_OPEN_MODE_VALUES.map((value) => (
-                  <option key={value} value={value}>
-                    {optionLabel(value)}
-                  </option>
-                ))}
-              </select>
-            </label>
+            <SelectField
+              label="Dish open mode"
+              value={previewConfig.detail.dishOpenMode}
+              options={MENU_UI_DISH_OPEN_MODE_VALUES}
+              onChange={(value) => updateConfig({
+                detail: { ...previewConfig.detail, dishOpenMode: value }
+              })}
+            />
 
-            <label className={styles.field}>
-              3D panel
-              <select
-                value={previewConfig.detail.modelPanelStyle}
-                onChange={(event) =>
-                  updateConfig({
-                    detail: {
-                      ...previewConfig.detail,
-                      modelPanelStyle: event.target
-                        .value as MenuUiConfig["detail"]["modelPanelStyle"]
-                    }
-                  })
-                }
-              >
-                {MENU_UI_MODEL_PANEL_STYLE_VALUES.map((value) => (
-                  <option key={value} value={value}>
-                    {optionLabel(value)}
-                  </option>
-                ))}
-              </select>
-            </label>
+            <SelectField
+              label="3D panel"
+              value={previewConfig.detail.modelPanelStyle}
+              options={MENU_UI_MODEL_PANEL_STYLE_VALUES}
+              onChange={(value) => updateConfig({
+                detail: { ...previewConfig.detail, modelPanelStyle: value }
+              })}
+            />
           </div>
 
           <label className={styles.checkField}>
@@ -2254,49 +1833,23 @@ export function MenuUiBuilder({
           </div>
 
           <div className={styles.optionGrid}>
-            <label className={styles.field}>
-              Placeholder style
-              <select
-                value={previewConfig.photos.placeholderStyle}
-                onChange={(event) =>
-                  updateConfig({
-                    photos: {
-                      ...previewConfig.photos,
-                      placeholderStyle: event.target
-                        .value as MenuUiConfig["photos"]["placeholderStyle"]
-                    }
-                  })
-                }
-              >
-                {MENU_UI_PHOTO_PLACEHOLDER_STYLE_VALUES.map((value) => (
-                  <option key={value} value={value}>
-                    {optionLabel(value)}
-                  </option>
-                ))}
-              </select>
-            </label>
+            <SelectField
+              label="Placeholder style"
+              value={previewConfig.photos.placeholderStyle}
+              options={MENU_UI_PHOTO_PLACEHOLDER_STYLE_VALUES}
+              onChange={(value) => updateConfig({
+                photos: { ...previewConfig.photos, placeholderStyle: value }
+              })}
+            />
 
-            <label className={styles.field}>
-              Public missing behavior
-              <select
-                value={previewConfig.photos.publicMissingBehavior}
-                onChange={(event) =>
-                  updateConfig({
-                    photos: {
-                      ...previewConfig.photos,
-                      publicMissingBehavior: event.target
-                        .value as MenuUiConfig["photos"]["publicMissingBehavior"]
-                    }
-                  })
-                }
-              >
-                {MENU_UI_PUBLIC_MISSING_PHOTO_VALUES.map((value) => (
-                  <option key={value} value={value}>
-                    {optionLabel(value)}
-                  </option>
-                ))}
-              </select>
-            </label>
+            <SelectField
+              label="Public missing behavior"
+              value={previewConfig.photos.publicMissingBehavior}
+              options={MENU_UI_PUBLIC_MISSING_PHOTO_VALUES}
+              onChange={(value) => updateConfig({
+                photos: { ...previewConfig.photos, publicMissingBehavior: value }
+              })}
+            />
           </div>
 
           <label className={styles.checkField}>
@@ -2463,14 +2016,14 @@ export function MenuUiBuilder({
             <button
               type="button"
               className={styles.secondaryButton}
-              onClick={revertToPublishedConfig}
+              onClick={() => saveConfig("revert-to-published")}
             >
               Revenir a published
             </button>
             <button
               type="button"
               className={styles.secondaryButton}
-              onClick={rollbackPublishedConfig}
+              onClick={() => saveConfig("rollback")}
             >
               Rollback published
             </button>
@@ -2649,7 +2202,7 @@ export function MenuUiBuilder({
             <button
               type="button"
               className={styles.primaryButton}
-              onClick={() => saveDraft()}
+              onClick={() => saveConfig("draft")}
               disabled={saveState === "saving" || saveState === "publishing"}
             >
               Sauvegarder draft UI
@@ -2657,7 +2210,7 @@ export function MenuUiBuilder({
             <button
               type="button"
               className={styles.primaryButton}
-              onClick={publishConfig}
+              onClick={() => saveConfig("publish")}
               disabled={
                 saveState === "saving" ||
                 saveState === "publishing" ||
@@ -2837,5 +2390,27 @@ export function MenuUiBuilder({
         </div>
       </section>
     </div>
+  );
+}
+
+function SelectField<T extends string>({
+  label, value, options, onChange
+}: {
+  label: string;
+  value: T;
+  options: readonly T[];
+  onChange: (value: T) => void;
+}) {
+  return (
+    <label className={styles.field}>
+      {label}
+      <select value={value} onChange={(event) => onChange(event.target.value as T)}>
+        {options.map((option) => (
+          <option key={option} value={option}>
+            {optionLabel(option)}
+          </option>
+        ))}
+      </select>
+    </label>
   );
 }
