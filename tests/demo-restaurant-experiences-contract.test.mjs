@@ -17,7 +17,6 @@ test("French and English discovery share real public links and the same restaura
   assert.match(english, /<RestaurantExperiences currentPath=\{canonicalPath\} locale="en"/);
   assert.match(discovery, /getLandingExperiences\(locale\)/);
   assert.match(discovery, /href=\{experience\.publicMenuHref\}/);
-  assert.match(discovery, /prefetch=\{false\}/);
   assert.match(discovery, /id="carte"/);
   assert.match(discovery, /DemoWalkthroughVideo/);
   for (const route of [demo, english, discovery]) {

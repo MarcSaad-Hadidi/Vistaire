@@ -1,5 +1,4 @@
 import Image from "next/image";
-import Link from "next/link";
 import restaurantBackground from "@/Framer/PhotoRestoComplet5.png";
 import { LOCALE_LANGUAGE_TAG, type Locale } from "@/lib/i18n";
 import { getLandingExperiences } from "@/lib/landing/menuExperiences";
@@ -144,22 +143,21 @@ export async function RestaurantExperiences({
                   </div>
                 </figure>
                 <div className={styles.actions}>
-                  <Link className={styles.explore} href={experience.publicMenuHref} prefetch={false}>
+                  <a className={styles.explore} href={experience.publicMenuHref}>
                     {content.explore} {experience.name}<Arrow />
-                  </Link>
-                  <Link className={styles.dishLink} href={dish.href} prefetch={false}>{content.discover} {dish.name}</Link>
+                  </a>
+                  <a className={styles.dishLink} href={dish.href}>{content.discover} {dish.name}</a>
                   {experience.id === "sauge-noire" ? (
                     <div className={styles.immersive}>
                       <p>{content.immersiveDescription}</p>
                       {immersiveHref && immersiveDish ? (
-                        <Link
+                        <a
                           aria-label={locale === "en" ? `View ${immersiveDish.name} in 3D` : `Voir ${immersiveDish.name} en 3D`}
                           data-demo-3d-link
                           href={immersiveHref}
-                          prefetch={false}
                         >
                           {content.immersiveLink}<Arrow />
-                        </Link>
+                        </a>
                       ) : null}
                     </div>
                   ) : null}
