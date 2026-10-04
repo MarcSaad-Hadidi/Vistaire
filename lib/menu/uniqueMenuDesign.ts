@@ -1,4 +1,4 @@
-import { isCanonicalUuid } from "../owner/storageSafeIdentifier.ts";
+import { isCanonicalUuid } from "../storage/safeIdentifier.ts";
 
 export const UNIQUE_MENU_DESIGN_STATUS_VALUES = [
   "pending",

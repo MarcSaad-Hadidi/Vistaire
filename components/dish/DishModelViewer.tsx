@@ -16,13 +16,13 @@ import {
 } from "@/lib/analytics/client";
 import {
   buildDemoDish3dManifest,
+  hasPublicMenu3d,
   PUBLIC_3D_CDN_ORIGINS,
   selectImmersiveVariant,
   type ImmersiveBrowser,
   type ImmersiveDevice
 } from "@/lib/dish3dManifest";
 import type { Dish } from "@/lib/demoMenuData";
-import { hasPublicMenu3d } from "@/lib/menu/hasPublicMenu3d";
 import {
   classifyArBrowser,
   isSceneViewerFallbackHash,

@@ -17,7 +17,7 @@ import {
   trackPublicMenuEvent
 } from "@/lib/analytics/client";
 import type { DishModelViewerProps } from "@/components/dish/DishModelViewer";
-import { hasPublicMenu3d, hasPublicMenuAr } from "@/lib/menu/hasPublicMenu3d";
+import { hasPublicMenu3d, hasPublicMenuAr } from "@/lib/dish3dManifest";
 import type { Locale } from "@/lib/i18n";
 import type { MenuUiConfig } from "@/lib/menu/menuUiConfig";
 import { buildPublicMenuPath } from "@/lib/owner/menuUrlCore";

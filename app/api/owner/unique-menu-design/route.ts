@@ -3,7 +3,7 @@ import {
   requireSameOriginOwnerMutation,
   requireVistaireOwnerApi
 } from "@/lib/auth/ownerApi";
-import { isCanonicalUuid } from "@/lib/owner/storageSafeIdentifier";
+import { isCanonicalUuid } from "@/lib/storage/safeIdentifier";
 import {
   getUniqueMenuDesignSnapshot,
   mutateUniqueMenuDesignLifecycle

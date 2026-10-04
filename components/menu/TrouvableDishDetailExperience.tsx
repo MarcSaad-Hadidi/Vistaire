@@ -21,7 +21,7 @@ import { buildPublicMenuPath } from "@/lib/owner/menuUrlCore";
 import {
   trackPublicMenuEvent
 } from "@/lib/analytics/client";
-import { hasPublicMenu3d } from "@/lib/menu/hasPublicMenu3d";
+import { hasPublicMenu3d } from "@/lib/dish3dManifest";
 import { formatTrouvableDishPrice } from "./trouvableMenuControls";
 import { GoogleReviewCard } from "./GoogleReviewCard";
 import {

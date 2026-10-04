@@ -4,7 +4,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import {
   isCanonicalUuid,
   isStorageSafeIdentifier
-} from "@/lib/owner/storageSafeIdentifier";
+} from "@/lib/storage/safeIdentifier";
 import {
   DISH_PHOTO_RECIPE,
   isValidDishPhotoDerivativeMetadata,

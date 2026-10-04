@@ -1,4 +1,4 @@
-import { normalizeStorageSafeIdentifier } from "./storageSafeIdentifier.ts";
+import { normalizeStorageSafeIdentifier } from "../storage/safeIdentifier.ts";
 
 export const DISH_MODEL_STORAGE_BUCKET = "vistaire-3d";
 export const DISH_MODEL_MISSING_STATUS = "missing";

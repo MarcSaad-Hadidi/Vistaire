@@ -109,7 +109,7 @@ const moduleStubs = new Map([
     `)
   ],
   [
-    "@/lib/owner/storageSafeIdentifier",
+    "@/lib/storage/safeIdentifier",
     hookedModule(`
       export function isCanonicalUuid() { return true; }
       export function normalizeStorageSafeIdentifier(value) { return value; }

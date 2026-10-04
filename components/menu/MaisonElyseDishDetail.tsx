@@ -11,7 +11,7 @@ import {
   isCurrencyConversionAvailable,
   type MenuExchangeRates
 } from "@/lib/currency/formatMenuPrice";
-import { hasPublicMenu3d, hasPublicMenuAr } from "@/lib/menu/hasPublicMenu3d";
+import { hasPublicMenu3d, hasPublicMenuAr } from "@/lib/dish3dManifest";
 import type { PublicMenuLocale } from "@/lib/menu/publicMenuSettings";
 import {
   getMaisonElyseCategoryKind,

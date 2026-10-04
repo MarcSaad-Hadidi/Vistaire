@@ -1,7 +1,7 @@
 import {
   isCanonicalUuid,
   normalizeStorageSafeIdentifier
-} from "./storageSafeIdentifier.ts";
+} from "../storage/safeIdentifier.ts";
 
 type PreparedModelPublishedPathArgs = {
   restaurantId: string;

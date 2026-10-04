@@ -10,7 +10,7 @@ import type {
   DishModelViewerProps
 } from "@/components/dish/DishModelViewer";
 import { getTrouvableCopy } from "@/components/menu/trouvableMenuControls";
-import { hasPublicMenu3d } from "@/lib/menu/hasPublicMenu3d";
+import { hasPublicMenu3d } from "@/lib/dish3dManifest";
 import {
   getAllergenDisplayGroups,
   customAllergensFromLegacyValues

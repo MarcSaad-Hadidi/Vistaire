@@ -8,7 +8,7 @@ import {
   type DishModelSkippedTarget,
   type DishModelStorageTarget
 } from "./deleteDishModelAssets.ts";
-import { normalizeStorageSafeIdentifier } from "./storageSafeIdentifier.ts";
+import { normalizeStorageSafeIdentifier } from "../storage/safeIdentifier.ts";
 
 export const DISH_PHOTO_STORAGE_BUCKET = "vistaire-media";
 

@@ -1,4 +1,4 @@
-import { isCanonicalUuid } from "@/lib/owner/storageSafeIdentifier";
+import { isCanonicalUuid } from "@/lib/storage/safeIdentifier";
 import type { DishPhotoDerivativeVariant } from "@/lib/owner/dishPhotoUpload";
 
 const PHOTO_SHA256_PATTERN = /^[a-f0-9]{64}$/i;

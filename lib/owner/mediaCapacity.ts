@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 
-import { normalizeStorageSafeIdentifier } from "./storageSafeIdentifier.ts";
+import { normalizeStorageSafeIdentifier } from "../storage/safeIdentifier.ts";
 
 const MIN_HEADROOM_PERCENT = 20;
 const DEFAULT_HEARTBEAT_INTERVAL_MS = 60_000;

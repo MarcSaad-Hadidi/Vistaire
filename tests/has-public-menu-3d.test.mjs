@@ -8,7 +8,7 @@ test("hasPublicMenu3d only accepts safe web or ar-lite model URLs", async (t) =>
     if (previousOrigins === undefined) delete process.env.NEXT_PUBLIC_VISTAIRE_3D_CDN_ORIGINS;
     else process.env.NEXT_PUBLIC_VISTAIRE_3D_CDN_ORIGINS = previousOrigins;
   });
-  const { hasPublicMenu3d, hasPublicMenuAr } = await import("../lib/menu/hasPublicMenu3d.ts");
+  const { hasPublicMenu3d, hasPublicMenuAr } = await import("../lib/dish3dManifest.ts");
 
   const baseDish = {
     id: "dish-1",

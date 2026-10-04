@@ -5,6 +5,31 @@ export const PUBLIC_3D_CDN_ORIGINS = (process.env.NEXT_PUBLIC_VISTAIRE_3D_CDN_OR
   .map((entry) => entry.trim().replace(/\/+$/, ""))
   .filter(Boolean);
 
+type PublicMenu3dFields = Required<
+  Pick<Dish, "webModel3dUrl" | "model3dUrl" | "arModel3dUrl">
+>;
+
+export function hasPublicMenu3d(dish: PublicMenu3dFields): boolean {
+  return (
+    isSafe3dAssetUrl(
+      dish.webModel3dUrl || dish.model3dUrl,
+      PUBLIC_3D_CDN_ORIGINS,
+      "web"
+    ) ||
+    isSafe3dAssetUrl(dish.arModel3dUrl, PUBLIC_3D_CDN_ORIGINS, "arLite")
+  );
+}
+
+/** A dish can open AR when it has a public 3D model or an iOS Quick Look USDZ. */
+export function hasPublicMenuAr(
+  dish: PublicMenu3dFields & Pick<Dish, "arUsdzUrl" | "usdzUrl">
+): boolean {
+  return (
+    hasPublicMenu3d(dish) ||
+    isSafe3dAssetUrl(dish.arUsdzUrl || dish.usdzUrl, PUBLIC_3D_CDN_ORIGINS, "iosUsdz")
+  );
+}
+
 export type ImmersiveDevice = "desktop" | "ios" | "android" | "unknown";
 export type ImmersiveBrowser =
   | "chrome"

@@ -3,7 +3,7 @@ import { createHash } from "node:crypto";
 import {
   isCanonicalUuid,
   normalizeStorageSafeIdentifier
-} from "./storageSafeIdentifier.ts";
+} from "../storage/safeIdentifier.ts";
 import {
   DISH_PHOTO_DERIVATIVE_VARIANTS,
   DISH_PHOTO_RECIPE,

@@ -14,7 +14,7 @@ import {
 import { trackPublicMenuEvent } from "@/lib/analytics/client";
 import { DishCard3dBadge } from "@/components/menu/DishCard3dBadge";
 import type { MenuExchangeRates } from "@/lib/currency/formatMenuPrice";
-import { hasPublicMenu3d } from "@/lib/menu/hasPublicMenu3d";
+import { hasPublicMenu3d } from "@/lib/dish3dManifest";
 import {
   matchesConfirmedFreeForFilter,
   type AllergenFilterId
