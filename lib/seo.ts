@@ -1,7 +1,10 @@
+import type { Metadata } from "next";
 import {
   BILINGUAL_ROUTE_PAIRS,
   buildAbsoluteLanguageAlternates,
+  buildPageAlternates,
   LOCALE_LANGUAGE_TAG,
+  LOCALE_OPEN_GRAPH,
   type Locale
 } from "./i18n.ts";
 
@@ -223,6 +226,36 @@ export function getSiteUrl(env: SiteUrlEnv = defaultSiteUrlEnv()): URL {
 export function absoluteUrl(path = "/", env?: SiteUrlEnv): string {
   const normalizedPath = path.startsWith("/") ? path : `/${path}`;
   return new URL(normalizedPath, getSiteUrl(env)).toString();
+}
+
+export function buildSeoPageMetadata(page: {
+  path: string;
+  metadataTitle: string;
+  metadataDescription: string;
+  locale?: Locale;
+  visualImage: { src: string; alt: string };
+}): Metadata {
+  const imageUrl = absoluteUrl(page.visualImage.src);
+
+  return {
+    title: { absolute: page.metadataTitle },
+    description: page.metadataDescription,
+    alternates: buildPageAlternates(page.path),
+    openGraph: {
+      url: absoluteUrl(page.path),
+      title: page.metadataTitle,
+      description: page.metadataDescription,
+      locale: LOCALE_OPEN_GRAPH[page.locale ?? "fr"],
+      type: "website",
+      images: [{ url: imageUrl, alt: page.visualImage.alt }]
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: page.metadataTitle,
+      description: page.metadataDescription,
+      images: [imageUrl]
+    }
+  };
 }
 
 function sitemapDate(value: string): Date {
