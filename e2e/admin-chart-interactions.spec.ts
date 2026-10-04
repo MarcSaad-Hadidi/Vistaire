@@ -20,7 +20,10 @@ async function enterFullMenuPreview(page: Page, testInfo: TestInfo) {
   expect(baseURL, "Playwright baseURL is required for the local preview grant").toBeTruthy();
   const origin = new URL(baseURL!);
   const response = await page.context().request.post(new URL("/admin/preview", origin).toString(), {
-    headers: { Origin: origin.origin },
+    // Playwright pools API sockets process-wide; between tests the pooled socket can sit idle
+    // for exactly Node's keep-alive window (5s + 1s) and be reused as the server closes it
+    // (ECONNRESET). A one-shot connection removes that reuse instead of retrying around it.
+    headers: { Origin: origin.origin, Connection: "close" },
     maxRedirects: 0,
   });
   expect(response.status()).toBe(303);
