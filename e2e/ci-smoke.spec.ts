@@ -72,17 +72,18 @@ test("CI smoke loads the public landing at Vistaire mobile widths", async ({ pag
   }
 });
 
-test("CI smoke loads the hermetic demo menu without early 3D requests", async ({ page }) => {
+test("CI smoke loads the restaurant discovery without early 3D requests", async ({ page }) => {
   const modelRequests: string[] = [];
   page.on("request", (request) => {
     if (/\.(?:glb|usdz)(?:$|\?)/i.test(request.url())) modelRequests.push(request.url());
   });
   await page.setViewportSize({ width: 390, height: 844 });
   await expectHealthy(page, "/demo");
-  await expect(page.getByTestId("demo-phone-viewport")).toBeVisible();
-  await expect(page.getByText("LA COLLECTION")).toBeVisible();
-  await expect(page.getByRole("heading", { name: "LA CARTE" })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Voir toute la carte" })).toHaveCount(0);
+  for (const [name, slug] of [["Maison Élyse", "maison-elyse"], ["Trouvable", "trouvable"], ["Sauge Noire", "sauge-noire"]]) {
+    await expect(page.getByRole("heading", { level: 2, name, exact: true })).toBeVisible();
+    await expect(page.getByRole("link", { name: `Explorer ${name}`, exact: true })).toHaveAttribute("href", `/menu/${slug}?lang=fr-CA`);
+  }
+  await expect(page.getByTestId("demo-phone-viewport")).toHaveCount(0);
   await expectNoHorizontalOverflow(page);
   expect(modelRequests).toEqual([]);
 });

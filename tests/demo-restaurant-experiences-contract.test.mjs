@@ -4,10 +4,11 @@ import test from "node:test";
 
 const source = (path) => readFile(new URL(`../${path}`, import.meta.url), "utf8");
 
-test("demo pages share the three restaurant experiences and preserve the generic route contract", async () => {
-  const [showcase, demo, english, landing] = await Promise.all([
+test("French discovery uses real public links while English keeps the shared preview", async () => {
+  const [showcase, demo, demoLayout, english, landing] = await Promise.all([
     source("components/vistaire-preview/DemoPhoneShowcase.tsx"),
     source("app/(fr)/demo/page.tsx"),
+    source("app/(fr)/demo/layout.tsx"),
     source("app/(en)/en/vistaire-menu/page.tsx"),
     source("components/landing/VistaireLanding.tsx")
   ]);
@@ -24,7 +25,13 @@ test("demo pages share the three restaurant experiences and preserve the generic
   assert.match(showcase, /window\.location\.hash/);
   assert.match(showcase, /scrollTop = 0/);
   assert.match(demo, /getLandingExperiences/);
+  assert.match(demo, /href=\{experience\.publicMenuHref\}/);
+  assert.match(demo, /prefetch=\{false\}/);
+  assert.match(demo, /id="carte"/);
+  assert.doesNotMatch(demo, /"use client"|DemoPhoneShowcase|ActiveRestaurantMenuPreview|RestaurantExperienceTabs|DishModelViewer/);
+  assert.doesNotMatch(demoLayout, /SmoothScrollProvider|Maison Élyse/);
   assert.match(english, /getLandingExperiences/);
+  assert.match(english, /DemoPhoneShowcase/);
   assert.match(landing, /<LandingHero[\s\S]*<LandingComparisonSection[\s\S]*<LandingValueSection[\s\S]*<LandingExperienceSection/);
 });
 

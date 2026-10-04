@@ -45,6 +45,11 @@ async function expectHealthyNavigation(page: Page, path: string) {
   const response = await page.goto(path, { waitUntil: "domcontentloaded" });
   expect(response, `${path} should return a response`).not.toBeNull();
   expect(response?.status(), `${path} should not return 4xx/5xx`).toBeLessThan(400);
+  if (path === "/demo") {
+    // Autoplay videos keep downloading after the discovery links are ready.
+    await expect(page.getByRole("link", { name: "Explorer Maison Élyse", exact: true })).toBeVisible();
+    return;
+  }
   // The route can be server-rendered before the client menu controls hydrate.
   // Wait for the client chunks and fixture requests to settle before
   // asserting interactive transitions.
@@ -72,16 +77,18 @@ test.describe("shared public menu smoke · one Chromium fixture", () => {
     });
 
     await expectHealthyNavigation(page, "/demo");
-    const phone = page.getByTestId("demo-phone-viewport");
-    await expect(phone.getByText("LA COLLECTION")).toBeVisible();
-    await expect(phone.getByRole("heading", { name: "LA CARTE" })).toBeVisible();
-    const dish = phone.getByRole("button", { name: /Ravioles/i });
+    await page.getByRole("link", { name: "Explorer Maison Élyse", exact: true }).click();
+    const menu = page.locator('[data-menu-ui="maison-elyse"]');
+    await expect(menu.getByText("LA COLLECTION")).toBeVisible();
+    await expect(menu.getByRole("heading", { name: "LA CARTE" })).toBeVisible();
+    const dish = menu.getByRole("link", { name: /Ravioles/i }).first();
     await expect(dish).toBeVisible();
     await dish.click();
-    await expect(page).toHaveURL(/\/demo$/);
-    await expect(phone.getByRole("heading", { level: 1, name: /Ravioles/i })).toBeVisible({ timeout: 15_000 });
-    await phone.getByRole("button", { name: /Retour . la carte/i }).click();
-    await expect(phone.getByRole("heading", { name: "LA CARTE" })).toBeVisible();
+    await expect(page).toHaveURL(/\/menu\/maison-elyse\/dishes\//);
+    await expect(page.getByRole("heading", { level: 1, name: /Ravioles/i })).toBeVisible({ timeout: 15_000 });
+    await page.getByRole("link", { name: /Retour/i }).first().click();
+    await expect(page).toHaveURL(/\/menu\/maison-elyse\?/);
+    await expect(page.getByRole("heading", { name: "LA CARTE" })).toBeVisible();
     await expectNoHorizontalOverflow(page);
     expect(modelRequests).toEqual([]);
     expectHealthy();

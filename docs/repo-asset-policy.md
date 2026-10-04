@@ -17,6 +17,8 @@ on `main` are grandfathered exceptions, not precedent.
   sha256 `e4a89ed6ab21f55f60c9ee33a676ea2292bae5b6ecef09efefcf3173a6e85e29`).
 - Existing demo runtime assets already on `main`, until a separate migration
   moves them to storage/CDN.
+- The three reviewed, optimized `/demo` mobile menu walkthroughs listed below.
+  Their raw recordings and review output stay outside Git.
 
 ## What does not belong in Git
 
@@ -75,6 +77,33 @@ non-public asset workflow, so LFS cannot block Vercel clone or checkout.
    explicitly depends on that exact runtime video.
 5. Any new hero video must pass network/performance review before it is
    allowlisted.
+
+## Demo menu walkthroughs
+
+Reviewed on 2026-10-03 for the requested `/demo` restaurant presentation.
+Owner: `MarcSaad-Hadidi`. Each silent H264 clip shows the real published menu
+at phone size, including one loaded and manipulated 3D dish. Runtime exports
+are 780 × 1688, 24 fps, with MP4 faststart; their WebP posters live
+under `public/images/demo-walkthrough/`. Browser playback, visual frames and
+3D loading were reviewed before adding these exact exceptions.
+
+The HD captures preserve the original action sequences and loop durations.
+Their native double-density rendering and higher encoding quality address the
+requested improvement in text and image clarity.
+
+Each video has a maximum budget of **8,388,608 bytes**. No wildcard exception
+or LFS rule is permitted. New versions require another review and checksum.
+
+| Runtime file | Reviewed bytes | SHA256 |
+| --- | ---: | --- |
+| `public/videos/demo/maison-elyse.mp4` | 4,053,916 | `179465b86ac821e3e4aef6a0669f055334d7f87610d7db30a1486b1d73c8ec6a` |
+| `public/videos/demo/trouvable.mp4` | 7,031,957 | `223505b2c8eee29a1f6aa59726fe215badfeecf1775e7917831fe963c6a5138c` |
+| `public/videos/demo/sauge-noire.mp4` | 7,772,626 | `98dec39df7c10ac9036f0c0c533a8e2d80baae88370d950a92da651aa76a3089` |
+
+These exceptions cover only the optimized files served by `/demo`.
+Playwright WebM recordings, screenshots, scripts and intermediate encodes do
+not belong in the repository. Native iPhone/Android AR has not been validated
+by the desktop recordings.
 
 ## Before opening a PR
 

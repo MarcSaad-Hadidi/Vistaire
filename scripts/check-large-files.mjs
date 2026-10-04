@@ -44,7 +44,7 @@ const BLOCKED_PREFIXES = [
   "assets/3d/work/"
 ];
 
-// Grandfathered assets already present on origin/main. These are exceptions,
+// Grandfathered assets and reviewed runtime media. These are exceptions,
 // not precedent: any new or changed heavy media must go through asset review.
 const DEMO_RUNTIME_ASSET_OWNER = "MarcSaad-Hadidi";
 
@@ -577,6 +577,39 @@ const ALLOWLIST = new Map(
         ],
         reason:
           "Reviewed runtime landing hero video requested for Vistaire PR #45; served directly from public assets without Git LFS."
+      }
+    ],
+    [
+      "public/videos/demo/maison-elyse.mp4",
+      {
+        maxBytes: 8388608,
+        sha256: [
+          "179465b86ac821e3e4aef6a0669f055334d7f87610d7db30a1486b1d73c8ec6a"
+        ],
+        reason: "Reviewed /demo HD mobile walkthrough of Maison Élyse requested to improve clarity, including real 3D; 780x1688 H264 without audio, raw recording outside Git.",
+        owner: DEMO_RUNTIME_ASSET_OWNER
+      }
+    ],
+    [
+      "public/videos/demo/trouvable.mp4",
+      {
+        maxBytes: 8388608,
+        sha256: [
+          "223505b2c8eee29a1f6aa59726fe215badfeecf1775e7917831fe963c6a5138c"
+        ],
+        reason: "Reviewed /demo HD mobile walkthrough of Trouvable requested to improve clarity, including real 3D; 780x1688 H264 without audio, raw recording outside Git.",
+        owner: DEMO_RUNTIME_ASSET_OWNER
+      }
+    ],
+    [
+      "public/videos/demo/sauge-noire.mp4",
+      {
+        maxBytes: 8388608,
+        sha256: [
+          "98dec39df7c10ac9036f0c0c533a8e2d80baae88370d950a92da651aa76a3089"
+        ],
+        reason: "Reviewed /demo HD mobile walkthrough of Sauge Noire requested to improve clarity, including real 3D; 780x1688 H264 without audio, raw recording outside Git.",
+        owner: DEMO_RUNTIME_ASSET_OWNER
       }
     ],
     [

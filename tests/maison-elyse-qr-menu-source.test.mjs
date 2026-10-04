@@ -238,7 +238,7 @@ test("Maison Elyse QR menu keeps compact localized filters and Google Reviews wi
   assert.doesNotMatch(component, /["'`](?:https?:\/\/|\/)[^"'`]*\.usdz/);
 });
 
-test("/demo and /en/vistaire-menu use the shared restaurant phone showcase", async () => {
+test("/demo opens real menus and /en/vistaire-menu preserves the shared phone showcase", async () => {
   const [
     demoPage,
     englishDemoPage,
@@ -257,11 +257,9 @@ test("/demo and /en/vistaire-menu use the shared restaurant phone showcase", asy
     readFile(ownerCreateFormPath, "utf8")
   ]);
 
-  assert.match(demoPage, /DemoPhoneShowcase/);
   assert.match(demoPage, /getLandingExperiences/);
-  assert.match(demoPage, /experiences=\{experiences\}/);
-  assert.match(demoPage, /menuLocale=\{locale\}/);
-  assert.doesNotMatch(demoPage, /VistaireMenuPreview/);
+  assert.match(demoPage, /href=\{experience\.publicMenuHref\}/);
+  assert.doesNotMatch(demoPage, /DemoPhoneShowcase|VistaireMenuPreview/);
   assert.match(englishDemoPage, /DemoPhoneShowcase/);
   assert.match(englishDemoPage, /getLandingExperiences/);
   assert.match(englishDemoPage, /experiences=\{experiences\}/);
