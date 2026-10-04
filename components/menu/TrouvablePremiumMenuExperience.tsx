@@ -88,14 +88,7 @@ type QuickFilterId =
   | "available"
   | "immersive"
   | "recommended"
-  | "glutenFree"
-  | "dairyFree"
-  | "nutFree"
-  | "shellfishFree"
-  | "eggFree"
-  | "sesameFree"
-  | "soyFree"
-  | "fishFree";
+  | keyof typeof TROUVABLE_ALLERGEN_FILTER_IDS;
 type ViewMode = "list" | "grid";
 type WaiterTopic = "allergen" | "recommendation" | "selection";
 type ActiveSheet =
@@ -153,13 +146,7 @@ const VEG_TERMS = [
   "vegetarian",
   "vegetarien"
 ];
-const TROUVABLE_ALLERGEN_FILTER_IDS: Record<
-  Exclude<
-    QuickFilterId,
-    "all" | "veg" | "nonVeg" | "available" | "immersive" | "recommended"
-  >,
-  AllergenFilterId
-> = {
+const TROUVABLE_ALLERGEN_FILTER_IDS = {
   glutenFree: "gluten-free",
   dairyFree: "dairy-free",
   nutFree: "nut-free",
@@ -168,7 +155,7 @@ const TROUVABLE_ALLERGEN_FILTER_IDS: Record<
   sesameFree: "sesame-free",
   soyFree: "soy-free",
   fishFree: "fish-free"
-};
+} satisfies Record<string, AllergenFilterId>;
 
 function normalizeText(value: string): string {
   return value
@@ -284,6 +271,31 @@ export function TrouvableDishVisual({
 }
 
 function HeroBotanicalOrnament() {
+  const vines = [
+    {
+      className: styles.botanicalVineLeft,
+      stem: "M-18 137 C 34 80 78 139 128 112 C 156 97 179 104 205 121",
+      leaves: [
+        [styles.leafDelay1, "M35 102 C 10 82 -7 82 -24 94 C -3 108 14 114 35 102 Z M16 99 L-14 95"],
+        [styles.leafDelay2, "M70 118 C 42 106 26 115 15 137 C 43 140 61 136 70 118 Z M48 125 L22 136"],
+        [styles.leafDelay3, "M102 109 C 82 84 63 80 44 91 C 60 111 79 121 102 109 Z M76 101 L50 93"],
+        [styles.leafDelay4, "M135 109 C 112 127 105 145 116 166 C 139 151 148 132 135 109 Z M126 135 L117 160"],
+        [styles.leafDelay5, "M166 111 C 147 89 130 87 114 98 C 131 116 148 123 166 111 Z M142 104 L120 99"]
+      ]
+    },
+    {
+      className: styles.botanicalVineRight,
+      stem: "M214 51 C 246 23 282 56 311 35 C 344 11 375 25 412 -4",
+      leaves: [
+        [styles.leafDelay2, "M248 41 C 230 21 211 18 195 29 C 210 48 228 55 248 41 Z M225 36 L200 30"],
+        [styles.leafDelay3, "M281 48 C 264 69 263 88 278 104 C 298 84 301 65 281 48 Z M282 75 L279 99"],
+        [styles.leafDelay4, "M315 35 C 293 18 273 19 257 35 C 279 49 298 51 315 35 Z M289 35 L263 35"],
+        [styles.leafDelay5, "M354 24 C 337 0 317 -5 297 7 C 314 31 334 39 354 24 Z M329 16 L303 8"],
+        [styles.leafDelay6, "M383 12 C 366 34 366 55 383 70 C 402 48 402 28 383 12 Z M384 40 L383 65"]
+      ]
+    }
+  ];
+
   return (
     <svg
       className={styles.heroBotanical}
@@ -291,70 +303,19 @@ function HeroBotanicalOrnament() {
       aria-hidden="true"
       focusable="false"
     >
-      <g className={styles.botanicalVineLeft}>
-        <path
-          className={styles.botanicalStem}
-          pathLength={1}
-          d="M-18 137 C 34 80 78 139 128 112 C 156 97 179 104 205 121"
-        />
-        <path
-          className={`${styles.botanicalLeaf} ${styles.leafDelay1}`}
-          pathLength={1}
-          d="M35 102 C 10 82 -7 82 -24 94 C -3 108 14 114 35 102 Z M16 99 L-14 95"
-        />
-        <path
-          className={`${styles.botanicalLeaf} ${styles.leafDelay2}`}
-          pathLength={1}
-          d="M70 118 C 42 106 26 115 15 137 C 43 140 61 136 70 118 Z M48 125 L22 136"
-        />
-        <path
-          className={`${styles.botanicalLeaf} ${styles.leafDelay3}`}
-          pathLength={1}
-          d="M102 109 C 82 84 63 80 44 91 C 60 111 79 121 102 109 Z M76 101 L50 93"
-        />
-        <path
-          className={`${styles.botanicalLeaf} ${styles.leafDelay4}`}
-          pathLength={1}
-          d="M135 109 C 112 127 105 145 116 166 C 139 151 148 132 135 109 Z M126 135 L117 160"
-        />
-        <path
-          className={`${styles.botanicalLeaf} ${styles.leafDelay5}`}
-          pathLength={1}
-          d="M166 111 C 147 89 130 87 114 98 C 131 116 148 123 166 111 Z M142 104 L120 99"
-        />
-      </g>
-      <g className={styles.botanicalVineRight}>
-        <path
-          className={styles.botanicalStem}
-          pathLength={1}
-          d="M214 51 C 246 23 282 56 311 35 C 344 11 375 25 412 -4"
-        />
-        <path
-          className={`${styles.botanicalLeaf} ${styles.leafDelay2}`}
-          pathLength={1}
-          d="M248 41 C 230 21 211 18 195 29 C 210 48 228 55 248 41 Z M225 36 L200 30"
-        />
-        <path
-          className={`${styles.botanicalLeaf} ${styles.leafDelay3}`}
-          pathLength={1}
-          d="M281 48 C 264 69 263 88 278 104 C 298 84 301 65 281 48 Z M282 75 L279 99"
-        />
-        <path
-          className={`${styles.botanicalLeaf} ${styles.leafDelay4}`}
-          pathLength={1}
-          d="M315 35 C 293 18 273 19 257 35 C 279 49 298 51 315 35 Z M289 35 L263 35"
-        />
-        <path
-          className={`${styles.botanicalLeaf} ${styles.leafDelay5}`}
-          pathLength={1}
-          d="M354 24 C 337 0 317 -5 297 7 C 314 31 334 39 354 24 Z M329 16 L303 8"
-        />
-        <path
-          className={`${styles.botanicalLeaf} ${styles.leafDelay6}`}
-          pathLength={1}
-          d="M383 12 C 366 34 366 55 383 70 C 402 48 402 28 383 12 Z M384 40 L383 65"
-        />
-      </g>
+      {vines.map((vine) => (
+        <g key={vine.className} className={vine.className}>
+          <path className={styles.botanicalStem} pathLength={1} d={vine.stem} />
+          {vine.leaves.map(([delay, path]) => (
+            <path
+              key={path}
+              className={`${styles.botanicalLeaf} ${delay}`}
+              pathLength={1}
+              d={path}
+            />
+          ))}
+        </g>
+      ))}
     </svg>
   );
 }
@@ -553,18 +514,9 @@ export function TrouvablePremiumMenuExperience({
           label: copy.signature,
           visible: hasRecommendedData
         },
-        { id: "glutenFree" as const, label: copy.glutenFree, visible: hasAllergenData },
-        { id: "dairyFree" as const, label: copy.dairyFree, visible: hasAllergenData },
-        { id: "nutFree" as const, label: copy.nutFree, visible: hasAllergenData },
-        {
-          id: "shellfishFree" as const,
-          label: copy.shellfishFree,
-          visible: hasAllergenData
-        },
-        { id: "eggFree" as const, label: copy.eggFree, visible: hasAllergenData },
-        { id: "sesameFree" as const, label: copy.sesameFree, visible: hasAllergenData },
-        { id: "soyFree" as const, label: copy.soyFree, visible: hasAllergenData },
-        { id: "fishFree" as const, label: copy.fishFree, visible: hasAllergenData }
+        ...(Object.keys(TROUVABLE_ALLERGEN_FILTER_IDS) as Array<
+          keyof typeof TROUVABLE_ALLERGEN_FILTER_IDS
+        >).map((id) => ({ id, label: copy[id], visible: hasAllergenData }))
       ].filter((filter) => filter.visible),
     [
       copy,
@@ -1007,19 +959,14 @@ export function TrouvablePremiumMenuExperience({
   function quickFilterDescription(filterId: QuickFilterId) {
     if (filterId === "all") return copy.filterAllAria;
     if (filterId === "veg") return copy.filterVegAria;
-  if (filterId === "nonVeg") return copy.filterNonVegAria;
-  if (filterId === "available") return copy.filterAvailableAria;
-  if (filterId === "immersive") return copy.filterImmersiveAria;
-  if (filterId === "glutenFree") return copy.glutenFree;
-  if (filterId === "dairyFree") return copy.dairyFree;
-  if (filterId === "nutFree") return copy.nutFree;
-  if (filterId === "shellfishFree") return copy.shellfishFree;
-  if (filterId === "eggFree") return copy.eggFree;
-  if (filterId === "sesameFree") return copy.sesameFree;
-  if (filterId === "soyFree") return copy.soyFree;
-  if (filterId === "fishFree") return copy.fishFree;
-  return copy.filterRecommendedAria;
-}
+    if (filterId === "nonVeg") return copy.filterNonVegAria;
+    if (filterId === "available") return copy.filterAvailableAria;
+    if (filterId === "immersive") return copy.filterImmersiveAria;
+    if (filterId in TROUVABLE_ALLERGEN_FILTER_IDS) {
+      return copy[filterId as keyof typeof TROUVABLE_ALLERGEN_FILTER_IDS];
+    }
+    return copy.filterRecommendedAria;
+  }
 
   function toggleQuickFilter(filterId: QuickFilterId) {
     if (displayMode === "public") {
