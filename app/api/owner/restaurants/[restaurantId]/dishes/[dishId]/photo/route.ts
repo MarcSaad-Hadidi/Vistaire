@@ -1,7 +1,6 @@
 import { storageBucket } from "@/lib/storage/backend";
 import { randomUUID } from "node:crypto";
 import { NextResponse, type NextRequest } from "next/server";
-import type { SupabaseClient } from "@supabase/supabase-js";
 import {
   requireSameOriginOwnerMutation,
   requireVistaireOwnerApi
@@ -93,52 +92,6 @@ async function committedPhotoCleanup(args: {
   } catch {
     await invalidateCommittedPublicMutation(args.identity);
     return deferredCleanupReport();
-  }
-}
-
-function getPreviouslyReferencedPhotoPaths(
-  metadata: Record<string, unknown>
-): Set<string> {
-  const paths = new Set<string>();
-  if (typeof metadata.photoStoragePath === "string" && metadata.photoStoragePath.trim()) {
-    paths.add(metadata.photoStoragePath.trim());
-  }
-  const derivatives = metadata.photoDerivatives;
-  if (derivatives && typeof derivatives === "object" && !Array.isArray(derivatives)) {
-    for (const value of Object.values(derivatives as Record<string, unknown>)) {
-      if (value && typeof value === "object" && !Array.isArray(value)) {
-        const path = (value as Record<string, unknown>).storagePath;
-        if (typeof path === "string" && path.trim()) paths.add(path.trim());
-      }
-    }
-  }
-  return paths;
-}
-
-async function getOtherReferencedPhotoPaths(args: {
-  client: SupabaseClient;
-  restaurantId: string;
-  dishId: string;
-}): Promise<Set<string> | null> {
-  // This query is used only after a failed metadata update. Derivative paths
-  // are content-addressed and may be shared by another dish, so rollback must
-  // fail safe rather than deleting an object whose active reference is unknown.
-  try {
-    const { data, error } = await args.client
-      .from("menu_dishes")
-      .select("id,metadata")
-      .eq("restaurant_id", args.restaurantId)
-      .neq("id", args.dishId);
-    if (error || !Array.isArray(data)) return null;
-    const paths = new Set<string>();
-    for (const row of data as Array<{ metadata?: unknown }>) {
-      for (const path of getPreviouslyReferencedPhotoPaths(getMetadata(row.metadata))) {
-        paths.add(path);
-      }
-    }
-    return paths;
-  } catch {
-    return null;
   }
 }
 
@@ -238,7 +191,6 @@ export async function POST(
     dishSlug: typeof dish.slug === "string" ? dish.slug : undefined
   });
   const oldMetadata = getMetadata(dish.metadata);
-  const previouslyReferencedPhotoPaths = getPreviouslyReferencedPhotoPaths(oldMetadata);
 
   let storagePath: string;
   let imageUrl: string;
@@ -445,18 +397,8 @@ export async function POST(
             })
           };
         } catch (error) {
-          const otherReferencedPhotoPaths = await getOtherReferencedPhotoPaths({
-            client: admin.client,
-            restaurantId,
-            dishId
-          });
-          const referencedPaths = otherReferencedPhotoPaths
-            ? new Set([...previouslyReferencedPhotoPaths, ...otherReferencedPhotoPaths])
-            : null;
           const rollback = await rollbackPotentiallyCreatedMediaObjects({
-            bucket,
-            potentiallyCreated: potentiallyCreatedObjects,
-            referencedPaths
+            potentiallyCreated: potentiallyCreatedObjects
           });
           throw new MediaCapacityWorkError(
             error instanceof Error ? error.message : "Upload Supabase Storage impossible.",

@@ -203,52 +203,6 @@ function storageInfoBytes(info) {
   return Number.isInteger(bytes) && bytes >= 0 ? bytes : null;
 }
 
-function derivativePathsFromMetadata(value) {
-  const metadata = parseMetadata(value);
-  const derivatives = metadata.photoDerivatives;
-  if (!derivatives || typeof derivatives !== "object" || Array.isArray(derivatives)) {
-    return [];
-  }
-  return Object.values(derivatives)
-    .map((entry) => {
-      if (!entry || typeof entry !== "object" || Array.isArray(entry)) return "";
-      const storagePath = entry.storagePath;
-      return typeof storagePath === "string" ? storagePath.trim() : "";
-    })
-    .filter(Boolean);
-}
-
-async function referencedDerivativePaths(client, plan) {
-  try {
-    const { data, error } = await client
-      .from("menu_dishes")
-      .select("metadata")
-      .eq("restaurant_id", plan.restaurantId);
-    if (error || !Array.isArray(data)) return null;
-
-    const references = new Set();
-    for (const row of data) {
-      for (const storagePath of derivativePathsFromMetadata(row?.metadata)) {
-        references.add(storagePath);
-      }
-    }
-    return references;
-  } catch {
-    return null;
-  }
-}
-
-async function rollbackUploadedDerivatives(bucket, client, plan, potentiallyCreated) {
-  // A failed guarded update may race another dish with the same source SHA.
-  // If references cannot be read, keep the objects as safe orphans.
-  const references = await referencedDerivativePaths(client, plan);
-  return rollbackPotentiallyCreatedMediaObjects({
-    bucket,
-    potentiallyCreated,
-    referencedPaths: references
-  });
-}
-
 const sourceLocks = new Map();
 
 async function withSourceLock(key, work) {
@@ -625,12 +579,9 @@ async function processPlan(client, plan, checkpoint, runtime) {
           .maybeSingle();
         if (updated.error || !updated.data) throw new Error(`Metadata impossible à mettre à jour: ${updated.error?.message ?? plan.row.id}`);
       } catch (error) {
-        const rollback = await rollbackUploadedDerivatives(
-          bucket,
-          client,
-          plan,
-          potentiallyCreatedObjects
-        );
+        const rollback = await rollbackPotentiallyCreatedMediaObjects({
+          potentiallyCreated: potentiallyCreatedObjects
+        });
         throw new MediaCapacityWorkError(
           error instanceof Error ? error.message : String(error),
           rollback.retainedBytes
