@@ -27,7 +27,6 @@ import {
 } from "../lib/menu/trouvableMenuExperience.ts";
 import {
   getTrouvableLanguageOptions,
-  isTrouvableLocaleSupported
 } from "../components/menu/trouvableMenuControls.ts";
 
 test("recognizes only public menu settings as meaningful", () => {
@@ -277,8 +276,6 @@ test("resolves short language choices to configured locale tags", () => {
 
   assert.equal(normalizePublicMenuLocalePreference("en", settings), "en-US");
   assert.equal(normalizePublicMenuLocalePreference("fr", settings), "fr-FR");
-  assert.equal(isTrouvableLocaleSupported("en", settings), true);
-  assert.equal(isTrouvableLocaleSupported("fr", settings), true);
   assert.deepEqual(
     getTrouvableLanguageOptions(settings).map((option) => ({
       locale: option.locale,

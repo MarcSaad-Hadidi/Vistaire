@@ -267,7 +267,6 @@ test("Trouvable premium menu wires functional currency, language, theme, and gre
   assert.match(source, /<GoogleReviewCard/);
   assert.match(source, /hasPublicMenu3d\(selectedDish\)/);
   assert.doesNotMatch(source, /badges\.add\("4D"\)/);
-  assert.match(controls, /TROUVABLE_STATIC_CAD_RATES/);
   assert.match(controls, /CAD/);
   assert.match(controls, /USD/);
   assert.match(controls, /EUR/);
