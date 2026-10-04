@@ -631,7 +631,7 @@ test("Vercel Analytics excludes protected URLs on initial loads and client navig
   expect(analyticsScriptRequests).toBe(0);
   expect(await page.evaluate(() => window.vaq ?? [])).toEqual([]);
 
-  await page.goto("/", { waitUntil: "domcontentloaded" });
+  await page.goto("/a-propos", { waitUntil: "domcontentloaded" });
   if (enabled) {
     await expect.poll(() => page.evaluate(() =>
       window.vaq?.some(([command]) => command === "pageview") ?? false
@@ -648,12 +648,12 @@ test("Vercel Analytics excludes protected URLs on initial loads and client navig
     return typeof beforeSend === "function" &&
       beforeSend({ type: "pageview", url: window.location.href }) === null &&
       beforeSend({ type: "event", url: window.location.href }) === null &&
-      beforeSend({ type: "event", url: window.location.origin + "/" }) === null;
+      beforeSend({ type: "event", url: window.location.origin + "/a-propos" }) === null;
   })).toBe(enabled);
   await expect(page).toHaveURL(/\/admin$/);
 
   await page.goBack();
-  await expect(page).toHaveURL(BASE_URL + "/");
+  await expect(page).toHaveURL(BASE_URL + "/a-propos");
   await expect.poll(() => page.evaluate(() => {
     const beforeSend = window.vaq?.findLast(([command]) => command === "beforeSend")?.[1];
     const event = { type: "pageview", url: window.location.href };
@@ -661,7 +661,7 @@ test("Vercel Analytics excludes protected URLs on initial loads and client navig
   })).toBe(enabled);
 
   const requestsBeforeEnglish = analyticsScriptRequests;
-  await page.goto("/en", { waitUntil: "domcontentloaded" });
+  await page.goto("/en/about", { waitUntil: "domcontentloaded" });
   if (enabled) {
     await expect.poll(() => page.evaluate(() =>
       window.vaq?.some(([command]) => command === "pageview") ?? false
