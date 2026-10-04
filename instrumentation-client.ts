@@ -1,4 +1,4 @@
-import { shouldStopMicrosoftClarityBeforeNavigation } from "@/lib/analytics/microsoftClarityRoutes";
+import { shouldStopMicrosoftClarityBeforeNavigation } from "@/lib/analytics/publicAnalyticsRoutes";
 
 declare global {
   interface Window {

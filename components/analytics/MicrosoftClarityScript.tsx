@@ -4,9 +4,9 @@ import Script from "next/script";
 import { usePathname } from "next/navigation";
 import { useLayoutEffect, useState, type ReactNode } from "react";
 import {
-  shouldLoadMicrosoftClarity,
+  shouldTrackPublicRoute,
   shouldReloadForMicrosoftClarityBoundary
-} from "@/lib/analytics/microsoftClarityRoutes";
+} from "@/lib/analytics/publicAnalyticsRoutes";
 
 declare global {
   interface Window {
@@ -27,7 +27,7 @@ export function MicrosoftClarityScript({
 }: MicrosoftClarityScriptProps) {
   const pathname = usePathname();
   const [initialPathname] = useState(pathname);
-  const shouldLoad = shouldLoadMicrosoftClarity(pathname);
+  const shouldLoad = shouldTrackPublicRoute(pathname);
   const shouldReload = shouldReloadForMicrosoftClarityBoundary(
     initialPathname,
     pathname

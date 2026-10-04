@@ -617,3 +617,58 @@ test.describe("Vistaire public navigation", () => {
     }
   });
 });
+
+test("Vercel Analytics excludes protected URLs on initial loads and client navigation", async ({ page }) => {
+  const enabled = process.env.VERCEL_ENV === "production" || process.env.VERCEL_ENV === "preview";
+  let analyticsScriptRequests = 0;
+  await page.route("**/_vercel/insights/script.js", async (route) => {
+    analyticsScriptRequests += 1;
+    await route.fulfill({ contentType: "application/javascript", body: "" });
+  });
+
+  await page.goto("/admin", { waitUntil: "networkidle" });
+  await expect(page.getByRole("heading", { name: "Accès dashboard restaurant requis" })).toBeVisible();
+  expect(analyticsScriptRequests).toBe(0);
+  expect(await page.evaluate(() => window.vaq ?? [])).toEqual([]);
+
+  await page.goto("/");
+  if (enabled) {
+    await expect.poll(() => page.evaluate(() =>
+      window.vaq?.some(([command]) => command === "pageview") ?? false
+    )).toBe(true);
+  } else {
+    await page.waitForLoadState("networkidle");
+    expect(await page.evaluate(() => window.vaq ?? [])).toEqual([]);
+  }
+  expect(analyticsScriptRequests).toBe(enabled ? 1 : 0);
+
+  await page.evaluate(() => history.pushState(null, "", "/owner/restaurants"));
+  await expect(page).toHaveURL(/\/owner\/restaurants$/);
+  expect(await page.evaluate(() => {
+    if (!window.vaq?.length) return false;
+    const beforeSend = window.vaq.findLast(([command]) => command === "beforeSend")?.[1];
+    return typeof beforeSend === "function" &&
+      beforeSend({ type: "pageview", url: window.location.href }) === null &&
+      beforeSend({ type: "event", url: window.location.href }) === null;
+  })).toBe(enabled);
+
+  await page.goBack();
+  await expect(page).toHaveURL(BASE_URL + "/");
+  expect(await page.evaluate(() => {
+    if (!window.vaq?.length) return false;
+    const beforeSend = window.vaq.findLast(([command]) => command === "beforeSend")?.[1];
+    const event = { type: "pageview", url: window.location.href };
+    return typeof beforeSend === "function" && beforeSend(event) === event;
+  })).toBe(enabled);
+
+  await page.goto("/en");
+  if (enabled) {
+    await expect.poll(() => page.evaluate(() =>
+      window.vaq?.some(([command]) => command === "pageview") ?? false
+    )).toBe(true);
+  } else {
+    await page.waitForLoadState("networkidle");
+    expect(await page.evaluate(() => window.vaq ?? [])).toEqual([]);
+  }
+  expect(analyticsScriptRequests).toBe(enabled ? 2 : 0);
+});

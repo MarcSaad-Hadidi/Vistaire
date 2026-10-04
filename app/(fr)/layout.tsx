@@ -1,6 +1,5 @@
 import "../globals.css";
 import type React from "react";
-import { Analytics } from "@vercel/analytics/next";
 import { VistaireDocumentShell } from "@/components/layout/VistaireDocumentShell";
 import { buildRootMetadata, ROOT_VIEWPORT } from "@/lib/rootDocument";
 
@@ -14,7 +13,6 @@ export default function FrenchRootLayout({
     <html lang="fr-CA" data-scroll-behavior="smooth">
       <body>
         <VistaireDocumentShell locale="fr">{children}</VistaireDocumentShell>
-        <Analytics />
       </body>
     </html>
   );
