@@ -112,9 +112,9 @@ test.describe("French restaurant discovery", () => {
     expect(unexpectedRequests).toEqual([]);
   });
 
-  test("opens each real menu and the verified Sauge 3D dish through accessible links", async ({ page }) => {
-    await page.setViewportSize({ width: 390, height: 844 });
-    for (const experience of EXPERIENCES) {
+  for (const experience of EXPERIENCES) {
+    test(`opens the real ${experience.name} menu through its accessible link`, async ({ page }) => {
+      await page.setViewportSize({ width: 390, height: 844 });
       await page.goto("/demo", { waitUntil: "domcontentloaded" });
       const link = page.getByRole("link", { name: `Explorer ${experience.name}`, exact: true });
       await expect(link).toHaveAttribute("href", experience.href);
@@ -129,7 +129,11 @@ test.describe("French restaurant discovery", () => {
       } else {
         await expect(page.locator(`[data-menu-ui="${experience.id}"]`)).toBeVisible();
       }
-    }
+    });
+  }
+
+  test("opens the verified Sauge 3D dish through its accessible link", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
     const modelRequests: string[] = [];
     page.on("request", (request) => {
       if (MODEL_REQUEST.test(request.url())) modelRequests.push(request.url());
