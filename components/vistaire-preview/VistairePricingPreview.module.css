@@ -307,7 +307,6 @@
 
 .collectionLink,
 .primaryButton,
-.secondaryButton,
 .dashboardLink {
   display: inline-flex;
   align-items: center;
@@ -342,7 +341,6 @@
 
 .collectionLink:focus-visible,
 .primaryButton:focus-visible,
-.secondaryButton:focus-visible,
 .dashboardLink:focus-visible {
   outline: 2px solid rgba(232, 207, 155, 0.96);
   outline-offset: 3px;
@@ -845,8 +843,7 @@
   justify-content: flex-end;
 }
 
-.primaryButton,
-.secondaryButton {
+.primaryButton {
   min-height: 48px;
   border-radius: 6px;
   padding: 0 20px;
@@ -861,13 +858,7 @@
   color: #fffaf0;
 }
 
-.secondaryButton {
-  border: 1px solid rgba(255, 248, 235, 0.28);
-  color: rgba(255, 248, 235, 0.84);
-}
-
-.primaryButton:hover,
-.secondaryButton:hover {
+.primaryButton:hover {
   transform: translateY(-1px);
   border-color: rgba(232, 207, 155, 0.84);
   background: rgba(232, 207, 155, 0.12);
@@ -1069,8 +1060,7 @@
   }
 
   .finalActions,
-  .primaryButton,
-  .secondaryButton {
+  .primaryButton {
     width: 100%;
   }
 }
@@ -1085,7 +1075,6 @@
   .collectionImage,
   .collectionLink,
   .primaryButton,
-  .secondaryButton,
   .dashboardLink {
     transition: none;
   }
