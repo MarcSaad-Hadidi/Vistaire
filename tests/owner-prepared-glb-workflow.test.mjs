@@ -3,32 +3,18 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
 import {
-  buildPreparedModelMetadata,
   buildPreparedModelPublicArLiteGlbPath,
   buildPreparedModelPublicGlbPath,
   buildPreparedModelPublicUsdzPath,
-  buildPreparedModelStoragePath,
   buildPreparedModelUsdzStoragePath,
-  buildPreparedModelWebStoragePath,
-  isPreparedGlbPipelineStep
+  buildPreparedModelWebStoragePath
 } from "../lib/owner/preparedModelWorkflow.ts";
 import { isSafe3dAssetUrl } from "../lib/dish3dManifest.ts";
 
 const restaurantId = "11111111-2222-4333-8444-555555555555";
 const maisonElyseRestaurantId = "11111111-1111-1111-1111-111111111111";
 
-test("prepared GLB workflow uses explicit storage paths and metadata without optimization", () => {
-  const storagePath = buildPreparedModelStoragePath({
-    restaurantId,
-    jobId: "job_prepared_12345678",
-    sha256: "a".repeat(64)
-  });
-
-  assert.equal(
-    storagePath,
-    `restaurants/${restaurantId}/models/staging/job_prepared_12345678/source.glb`
-  );
-  assert.doesNotMatch(storagePath, /\.\.|\\|public\/models|assets\/3d\/source/);
+test("prepared GLB workflow uses explicit published storage paths", () => {
   assert.equal(
     buildPreparedModelWebStoragePath({ restaurantId, dishSlug: "dejeuner-classique-maison" }),
     `restaurants/${restaurantId}/models/web/dejeuner-classique-maison.glb`
@@ -41,23 +27,6 @@ test("prepared GLB workflow uses explicit storage paths and metadata without opt
     buildPreparedModelPublicArLiteGlbPath(restaurantId),
     `/api/public/menu-dishes/${restaurantId}/model/glb?variant=ar-lite`
   );
-
-  assert.deepEqual(
-    buildPreparedModelMetadata({
-      webModel3dUrl: "https://cdn.example.test/dish.glb",
-      arUsdzUrl: "",
-      sourceJobId: "job_prepared_12345678"
-    }),
-    {
-      webModel3dUrl: "https://cdn.example.test/dish.glb",
-      model3dUrl: "https://cdn.example.test/dish.glb",
-      arUsdzUrl: "",
-      modelStatus: "web_ready_usdz_pending",
-      preparedGlbJobId: "job_prepared_12345678"
-    }
-  );
-  assert.equal(isPreparedGlbPipelineStep("prepared_usdz"), true);
-  assert.equal(isPreparedGlbPipelineStep("optimize"), false);
 });
 
 test("prepared GLB workflow versions published storage paths and public URLs", () => {
@@ -120,14 +89,6 @@ test("prepared GLB workflow versions published storage paths and public URLs", (
 });
 
 test("prepared GLB workflow accepts the Maison Elyse legacy restaurant id for Storage paths", () => {
-  assert.equal(
-    buildPreparedModelStoragePath({
-      restaurantId: maisonElyseRestaurantId,
-      jobId: "job_prepared_12345678",
-      sha256: "a".repeat(64)
-    }),
-    `restaurants/${maisonElyseRestaurantId}/models/staging/job_prepared_12345678/source.glb`
-  );
   assert.equal(
     buildPreparedModelWebStoragePath({
       restaurantId: maisonElyseRestaurantId,

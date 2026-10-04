@@ -187,14 +187,6 @@ export function parseUsdzRuntimeMaxBytes(env: UploadEnv) {
   );
 }
 
-const ALLOWED_USDZ_MIME_TYPES = new Set([
-  "",
-  "application/octet-stream",
-  "model/vnd.usdz+zip",
-  "model/vnd.pixar.usd",
-  "model/vnd.usd+zip"
-]);
-
 const ZIP_LOCAL_FILE_SIGNATURE = Buffer.from([0x50, 0x4b, 0x03, 0x04]);
 const ZIP_EOCD_SIGNATURE = Buffer.from([0x50, 0x4b, 0x05, 0x06]);
 const GIT_LFS_POINTER_PREFIX = "version https://git-lfs.github.com/spec/v1";
@@ -221,56 +213,6 @@ export function sanitizeUsdzOriginalName(value: string): string {
     .trim()
     .slice(0, 160);
   return cleaned || "source.usdz";
-}
-
-/**
- * Validates a USDZ file's outer shape. This is a fast structural gate used for
- * BOTH the source upload (before transient processing) and the runtime output
- * (before Supabase upload). It never trusts the extension alone.
- */
-export function validateUsdzFile(
-  file: {
-    name: string;
-    type: string;
-    size: number;
-    bytes: ArrayBuffer | ArrayBufferView;
-  },
-  maxBytes: number
-):
-  | { ok: true; originalName: string; bytes: Buffer }
-  | { ok: false; error: string; status: 400 | 413 } {
-  const originalName = sanitizeUsdzOriginalName(file.name);
-  const lowerName = originalName.toLowerCase();
-
-  if (/[\\/]/.test(file.name) || file.name.includes("..")) {
-    return { ok: false, error: "Le nom du fichier USDZ ne doit pas contenir de chemin.", status: 400 };
-  }
-  if (!lowerName.endsWith(".usdz")) {
-    return { ok: false, error: "Seuls les fichiers .usdz sont acceptes.", status: 400 };
-  }
-
-  const declaredSize = Number(file.size);
-  if (!Number.isFinite(declaredSize) || declaredSize <= 0) {
-    return { ok: false, error: "Le fichier USDZ est vide.", status: 400 };
-  }
-  if (declaredSize > maxBytes) {
-    return { ok: false, error: "Le fichier USDZ depasse la limite d'upload.", status: 413 };
-  }
-
-  const bytes = normalizeBytes(file.bytes);
-  if (bytes.byteLength !== declaredSize || bytes.byteLength > maxBytes) {
-    return { ok: false, error: "La taille du fichier USDZ ne correspond pas au corps de la requete.", status: 400 };
-  }
-
-  const mimeType = (file.type || "").split(";")[0].trim().toLowerCase();
-  if (!ALLOWED_USDZ_MIME_TYPES.has(mimeType)) {
-    return { ok: false, error: "Le type MIME du fichier USDZ n'est pas accepte.", status: 400 };
-  }
-
-  const structureError = validateUsdzStructure(bytes);
-  if (structureError) return { ok: false, error: structureError, status: 400 };
-
-  return { ok: true, originalName, bytes };
 }
 
 /**

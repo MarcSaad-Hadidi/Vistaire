@@ -3,8 +3,6 @@ import "server-only";
 import {
   isValidPresetLabel,
   isValidVariantRole,
-  listRecommendedPresets,
-  REQUIRED_SET_ROLES,
   type PresetLabel,
   type VariantRole
 } from "@/scripts/3d/shared/optimizeglb/presets.mjs";
@@ -65,9 +63,6 @@ export type OptimizeGlbCandidateRecord = SourceUploadIdentity & {
   createdAt?: string;
   updatedAt?: string;
 };
-
-export const REQUIRED_CANDIDATE_SET_ROLES = REQUIRED_SET_ROLES;
-export const OPTIMIZEGLB_PRESET_GUIDANCE = listRecommendedPresets();
 
 const FILE_NAME_PATTERN = /^[a-zA-Z0-9._ -]{1,160}$/;
 

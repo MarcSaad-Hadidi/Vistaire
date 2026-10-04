@@ -3,27 +3,6 @@ import {
   normalizeStorageSafeIdentifier
 } from "./storageSafeIdentifier.ts";
 
-export type PreparedModelStatus =
-  | "ready"
-  | "web_ready_usdz_pending"
-  | "pending_manual_usdz"
-  | "usdz_conversion_failed";
-
-type PreparedModelStoragePathArgs = {
-  restaurantId: string;
-  jobId: string;
-  sha256: string;
-};
-
-type PreparedModelMetadataArgs = {
-  webModel3dUrl: string;
-  arUsdzUrl?: string;
-  sourceJobId: string;
-  assetVersion?: string;
-  assetSha256?: string;
-  modelUpdatedAt?: string;
-};
-
 type PreparedModelPublishedPathArgs = {
   restaurantId: string;
   dishSlug: string;
@@ -33,44 +12,12 @@ type PreparedModelPublishedPathArgs = {
 type PreparedModelPublicPathOptions = {
   assetVersion?: string;
 };
-
-const JOB_ID_PATTERN = /^job_[a-z0-9._-]{8,80}$/;
-const SHA256_PATTERN = /^[a-f0-9]{64}$/i;
 const ASSET_VERSION_PATTERN = /^[a-z0-9][a-z0-9._-]{3,96}$/i;
-
-export const PREPARED_GLB_PIPELINE_STEP = "prepared_usdz";
-export const PREPARED_GLB_PENDING_STATUS = "pending_manual_usdz";
-export const PREPARED_GLB_PUBLISHED_JOB_STATUS = "published";
-export const PREPARED_GLB_FAILED_JOB_STATUS = "failed";
-
-export function isPreparedGlbPipelineStep(value: unknown): boolean {
-  return value === PREPARED_GLB_PIPELINE_STEP;
-}
 
 function storageRestaurantIdOrThrow(restaurantId: string): string {
   const normalized = normalizeStorageSafeIdentifier(restaurantId);
   if (!normalized) throw new Error("Identifiants modele invalides.");
   return normalized;
-}
-
-export function buildPreparedModelStoragePath(args: PreparedModelStoragePathArgs): string {
-  const restaurantId = normalizeStorageSafeIdentifier(args.restaurantId);
-  if (
-    !restaurantId ||
-    !JOB_ID_PATTERN.test(args.jobId) ||
-    !SHA256_PATTERN.test(args.sha256)
-  ) {
-    throw new Error("Identifiants modele invalides.");
-  }
-
-  return [
-    "restaurants",
-    restaurantId,
-    "models",
-    "staging",
-    args.jobId,
-    "source.glb"
-  ].join("/");
 }
 
 function normalizeAssetVersion(assetVersion: string | undefined): string {
@@ -150,37 +97,4 @@ export function buildPreparedModelPublicUsdzPath(
 ): string {
   if (!isCanonicalUuid(dishId)) throw new Error("Identifiant plat invalide.");
   return `/api/public/menu-dishes/${dishId}/model/usdz${versionQuery(options.assetVersion)}`;
-}
-
-export function buildPreparedModelMetadata(
-  args: PreparedModelMetadataArgs
-): Record<string, unknown> {
-  const arUsdzUrl = args.arUsdzUrl ?? "";
-  const modelStatus: PreparedModelStatus = arUsdzUrl ? "ready" : "web_ready_usdz_pending";
-
-  const metadata: Record<string, unknown> = {
-    webModel3dUrl: args.webModel3dUrl,
-    model3dUrl: args.webModel3dUrl,
-    arUsdzUrl,
-    modelStatus,
-    preparedGlbJobId: args.sourceJobId
-  };
-  if (args.assetVersion) metadata.modelAssetVersion = normalizeAssetVersion(args.assetVersion);
-  if (args.assetSha256) metadata.modelAssetSha256 = args.assetSha256;
-  if (args.modelUpdatedAt) metadata.modelUpdatedAt = args.modelUpdatedAt;
-  return metadata;
-}
-
-export function mergePreparedModelMetadata(
-  existing: unknown,
-  prepared: Record<string, unknown>
-): Record<string, unknown> {
-  const metadata =
-    existing && typeof existing === "object" && !Array.isArray(existing)
-      ? (existing as Record<string, unknown>)
-      : {};
-  return {
-    ...metadata,
-    ...prepared
-  };
 }

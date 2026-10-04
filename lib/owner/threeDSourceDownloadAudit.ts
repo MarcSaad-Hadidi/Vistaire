@@ -17,14 +17,6 @@ type AuditFailure = {
   message: string;
 };
 
-export type SourceDownloadEvent = {
-  id: string;
-  sourceUploadId: string | null;
-  sourceSha256: string;
-  downloadedByEmail: string | null;
-  downloadedAt: string;
-};
-
 function getAdminClient(): { ok: true; client: SupabaseClient } | AuditFailure {
   const admin = getSupabaseAdminClient();
   if (!admin.ok) {
@@ -70,36 +62,6 @@ export async function recordSourceDownloadEvent(args: {
     return { ok: false, code: "audit_unavailable", message: "Audit event could not be recorded." };
   }
   return { ok: true, id: (data as { id: string }).id };
-}
-
-export async function listSourceDownloadEvents(
-  identity: SourceUploadIdentity
-): Promise<{ ok: true; configured: boolean; events: SourceDownloadEvent[] } | AuditFailure> {
-  const admin = getAdminClient();
-  if (!admin.ok) return { ok: true, configured: false, events: [] };
-
-  const { data, error } = await admin.client
-    .from(SOURCE_DOWNLOAD_EVENTS_TABLE)
-    .select("id,source_upload_id,source_sha256,downloaded_by_email,downloaded_at")
-    .eq("restaurant_slug", identity.restaurantSlug)
-    .eq("menu_slug", identity.menuSlug)
-    .eq("dish_slug", identity.dishSlug)
-    .eq("version", identity.version)
-    .order("downloaded_at", { ascending: false })
-    .limit(20);
-
-  if (error) {
-    return { ok: false, code: "audit_unavailable", message: "Audit events are unavailable." };
-  }
-
-  const events = ((data ?? []) as Array<Record<string, unknown>>).map((row) => ({
-    id: String(row.id),
-    sourceUploadId: (row.source_upload_id as string | null) ?? null,
-    sourceSha256: String(row.source_sha256),
-    downloadedByEmail: (row.downloaded_by_email as string | null) ?? null,
-    downloadedAt: String(row.downloaded_at)
-  }));
-  return { ok: true, configured: true, events };
 }
 
 function sanitizeRequestMetadata(
