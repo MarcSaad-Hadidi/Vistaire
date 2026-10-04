@@ -80,7 +80,7 @@ test("App CI uses targeted jobs and keeps the data-dependent smoke available loc
     scripts["test:smoke:bootstrap"],
     "node scripts/run-playwright-e2e.mjs e2e/ci-smoke.spec.ts"
   );
-  assert.equal(scripts["test:qr:postgres"], "node scripts/run-qr-postgres-tests.mjs");
+  assert.equal(scripts["test:qr:postgres"], "node scripts/run-postgres-tests.mjs qr");
   assert.equal(scripts["test:qr:functional"], "node scripts/run-qr-functional-e2e.mjs");
   for (const command of [
     "npm ci",
