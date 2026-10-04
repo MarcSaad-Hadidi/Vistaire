@@ -57,7 +57,7 @@ export default function BookACallPageEn() {
           ])
         ]}
       />
-      <VistaireRendezVousPreview locale="en" routeMode="production" />
+      <VistaireRendezVousPreview locale="en" />
     </>
   );
 }

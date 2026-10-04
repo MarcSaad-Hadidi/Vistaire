@@ -43,7 +43,6 @@ export default function QrCodeRestaurantMenuRouteEn() {
       <VistaireMenuQrCodeRestaurantPreview
         h1={page.h1}
         locale="en"
-        routeMode="production"
         seoAppendix={<VistaireSeoProductionSections page={page} />}
       />
     </>

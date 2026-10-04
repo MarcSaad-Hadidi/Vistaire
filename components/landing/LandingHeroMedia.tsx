@@ -2,12 +2,11 @@
 
 import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
-import { HERO_VIDEO_SOURCES } from "./heroVideoSources";
 import styles from "./LandingHeroMedia.module.css";
 
 const heroPosterSrc = "/frames/menualive/frame_0200.webp";
 const landingVideoSrc = "/videos/Vistaire2.mp4";
-const mobileLandingVideoSrc = HERO_VIDEO_SOURCES.mobile.src;
+const mobileLandingVideoSrc = "/videos/optimized/upscaled-video-mobile-scrub.mp4";
 const heroCaptionsSrc = "/captions/hero-empty.vtt";
 
 export function LandingHeroMedia({

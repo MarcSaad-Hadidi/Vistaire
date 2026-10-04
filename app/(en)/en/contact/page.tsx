@@ -50,7 +50,7 @@ export default function ContactPageEn() {
           ])
         ]}
       />
-      <VistaireContactPreview locale="en" routeMode="production" />
+      <VistaireContactPreview locale="en" />
     </>
   );
 }

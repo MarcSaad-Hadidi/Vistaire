@@ -48,7 +48,6 @@ export default function MenuDigitalRestaurantRoute() {
         interactiveShowcase={
           <SeoInteractiveComparison locale="fr" interaction="reveal" />
         }
-        routeMode="production"
         seoAppendix={<VistaireSeoProductionSections page={page} />}
       />
     </>

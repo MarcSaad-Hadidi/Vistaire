@@ -9,7 +9,6 @@ import {
   getVistaireChromeRoutes,
   PreviewFooter,
   PreviewNav,
-  type VistaireRouteMode
 } from "./VistairePreviewChrome";
 import styles from "./VistaireAboutPreview.module.css";
 
@@ -56,12 +55,10 @@ function ArrowIcon() {
 
 export function VistaireAboutPreview({
   locale = "fr",
-  routeMode = "production"
 }: {
   locale?: Locale;
-  routeMode?: VistaireRouteMode;
 }) {
-  const routes = getVistaireChromeRoutes(routeMode, locale);
+  const routes = getVistaireChromeRoutes(locale);
   const copy =
     locale === "en"
       ? {
@@ -212,14 +209,12 @@ export function VistaireAboutPreview({
           activeSection="about"
           currentPath={routes.about}
           locale={locale}
-          routeMode={routeMode}
         />
       </section>
 
       <PreviewFooter
         currentPath={routes.about}
         locale={locale}
-        routeMode={routeMode}
       />
     </main>
   );

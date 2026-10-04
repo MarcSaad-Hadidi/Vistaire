@@ -52,7 +52,6 @@ export default function MenuPdfVsMenuDigitalRoute() {
             interaction="slider"
           />
         }
-        routeMode="production"
         seoAppendix={<VistaireSeoProductionSections page={page} />}
       />
     </>

@@ -8,19 +8,16 @@ import {
   getVistaireChromeRoutes,
   PreviewFooter,
   PreviewNav,
-  type VistaireRouteMode
 } from "./VistairePreviewChrome";
 import { VistaireContactForm } from "./VistaireContactForm";
 import styles from "./VistaireRendezVousPreview.module.css";
 
 export function VistaireRendezVousPreview({
   locale = "fr",
-  routeMode = "production"
 }: {
   locale?: Locale;
-  routeMode?: VistaireRouteMode;
 }) {
-  const routes = getVistaireChromeRoutes(routeMode, locale);
+  const routes = getVistaireChromeRoutes(locale);
   const copy =
     locale === "en"
       ? {
@@ -122,14 +119,12 @@ export function VistaireRendezVousPreview({
           contactHref={routes.contact}
           currentPath={routes.appointment}
           locale={locale}
-          routeMode={routeMode}
         />
       </section>
 
       <PreviewFooter
         currentPath={routes.appointment}
         locale={locale}
-        routeMode={routeMode}
       />
     </main>
   );

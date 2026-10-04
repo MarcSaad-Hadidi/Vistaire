@@ -10,7 +10,6 @@ import {
   getVistaireChromeRoutes,
   PreviewFooter,
   PreviewNav,
-  type VistaireRouteMode
 } from "./VistairePreviewChrome";
 import styles from "./VistaireMenuDigitalRestaurantPreview.module.css";
 
@@ -36,15 +35,13 @@ function ArrowIcon() {
 export function VistaireMenu3dArRestaurantPreview({
   h1,
   locale = "fr",
-  routeMode = "production",
   seoAppendix
 }: {
   h1?: string;
   locale?: Locale;
-  routeMode?: VistaireRouteMode;
   seoAppendix?: ReactNode;
 }) {
-  const routes = getVistaireChromeRoutes(routeMode, locale);
+  const routes = getVistaireChromeRoutes(locale);
   const copy =
     locale === "en"
       ? {
@@ -180,7 +177,6 @@ export function VistaireMenu3dArRestaurantPreview({
         <PreviewNav
           currentPath={routes.menu3dAr}
           locale={locale}
-          routeMode={routeMode}
         />
       </div>
 
@@ -341,7 +337,6 @@ export function VistaireMenu3dArRestaurantPreview({
       <PreviewFooter
         currentPath={routes.menu3dAr}
         locale={locale}
-        routeMode={routeMode}
         width="wide"
       />
     </main>

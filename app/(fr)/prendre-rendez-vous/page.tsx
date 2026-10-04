@@ -56,7 +56,7 @@ export default function PrendreRendezVousPage() {
           ])
         ]}
       />
-      <VistaireRendezVousPreview routeMode="production" />
+      <VistaireRendezVousPreview />
     </>
   );
 }

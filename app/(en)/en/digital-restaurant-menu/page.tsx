@@ -49,7 +49,6 @@ export default function DigitalRestaurantMenuRouteEn() {
           <SeoInteractiveComparison locale="en" interaction="reveal" />
         }
         locale="en"
-        routeMode="production"
         seoAppendix={<VistaireSeoProductionSections page={page} />}
       />
     </>

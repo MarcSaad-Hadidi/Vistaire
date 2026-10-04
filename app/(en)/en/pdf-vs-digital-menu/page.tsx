@@ -53,7 +53,6 @@ export default function PdfVsDigitalMenuRouteEn() {
           />
         }
         locale="en"
-        routeMode="production"
         seoAppendix={<VistaireSeoProductionSections page={page} />}
       />
     </>

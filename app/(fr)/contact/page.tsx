@@ -49,7 +49,7 @@ export default function ContactPage() {
           ])
         ]}
       />
-      <VistaireContactPreview routeMode="production" />
+      <VistaireContactPreview />
     </>
   );
 }

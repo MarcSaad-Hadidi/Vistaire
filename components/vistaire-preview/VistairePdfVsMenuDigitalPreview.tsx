@@ -9,7 +9,6 @@ import {
   getVistaireChromeRoutes,
   PreviewFooter,
   PreviewNav,
-  type VistaireRouteMode
 } from "./VistairePreviewChrome";
 import styles from "./VistairePdfVsMenuDigitalPreview.module.css";
 
@@ -35,17 +34,15 @@ function ArrowIcon() {
 export function VistairePdfVsMenuDigitalPreview({
   h1,
   locale = "fr",
-  routeMode = "production",
   seoAppendix,
   interactiveShowcase
 }: {
   h1?: string;
   locale?: Locale;
-  routeMode?: VistaireRouteMode;
   seoAppendix?: ReactNode;
   interactiveShowcase?: ReactNode;
 }) {
-  const routes = getVistaireChromeRoutes(routeMode, locale);
+  const routes = getVistaireChromeRoutes(locale);
   const copy =
     locale === "en"
       ? {
@@ -296,7 +293,6 @@ export function VistairePdfVsMenuDigitalPreview({
         <PreviewNav
           currentPath={routes.pdfVsDigital}
           locale={locale}
-          routeMode={routeMode}
         />
       </div>
 
@@ -464,7 +460,6 @@ export function VistairePdfVsMenuDigitalPreview({
       <PreviewFooter
         currentPath={routes.pdfVsDigital}
         locale={locale}
-        routeMode={routeMode}
         width="wide"
       />
     </main>

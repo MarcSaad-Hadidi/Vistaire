@@ -11,7 +11,6 @@ import {
   getVistaireChromeRoutes,
   PreviewFooter,
   PreviewNav,
-  type VistaireRouteMode
 } from "./VistairePreviewChrome";
 import styles from "./VistaireMenuDigitalRestaurantPreview.module.css";
 
@@ -116,15 +115,13 @@ async function buildMenuQrSvg(targetUrl: string) {
 export async function VistaireMenuQrCodeRestaurantPreview({
   h1,
   locale = "fr",
-  routeMode = "production",
   seoAppendix
 }: {
   h1?: string;
   locale?: Locale;
-  routeMode?: VistaireRouteMode;
   seoAppendix?: ReactNode;
 }) {
-  const routes = getVistaireChromeRoutes(routeMode, locale);
+  const routes = getVistaireChromeRoutes(locale);
   const qrTargetUrl = absoluteUrl(routes.menu);
   const qrSvgMarkup = await buildMenuQrSvg(qrTargetUrl);
   const copy =
@@ -265,7 +262,6 @@ export async function VistaireMenuQrCodeRestaurantPreview({
         <PreviewNav
           currentPath={routes.menuQrCode}
           locale={locale}
-          routeMode={routeMode}
         />
       </div>
 
@@ -434,7 +430,6 @@ export async function VistaireMenuQrCodeRestaurantPreview({
       <PreviewFooter
         currentPath={routes.menuQrCode}
         locale={locale}
-        routeMode={routeMode}
         width="wide"
       />
     </main>

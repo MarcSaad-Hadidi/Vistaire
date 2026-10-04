@@ -13,7 +13,6 @@ import {
   getVistaireChromeRoutes,
   PreviewFooter,
   PreviewNav,
-  type VistaireRouteMode
 } from "./VistairePreviewChrome";
 import styles from "./VistaireContactPreview.module.css";
 
@@ -67,12 +66,10 @@ function FramerImage({
 
 export function VistaireContactPreview({
   locale = "fr",
-  routeMode = "production"
 }: {
   locale?: Locale;
-  routeMode?: VistaireRouteMode;
 }) {
-  const routes = getVistaireChromeRoutes(routeMode, locale);
+  const routes = getVistaireChromeRoutes(locale);
   const copy =
     locale === "en"
       ? {
@@ -247,14 +244,12 @@ export function VistaireContactPreview({
           activeSection="contact"
           currentPath={routes.contact}
           locale={locale}
-          routeMode={routeMode}
         />
       </section>
 
       <PreviewFooter
         currentPath={routes.contact}
         locale={locale}
-        routeMode={routeMode}
       />
     </main>
   );

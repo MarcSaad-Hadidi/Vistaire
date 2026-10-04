@@ -42,7 +42,6 @@ export default function MenuQrCodeRestaurantRoute() {
       <JsonLd data={buildSeoPillarJsonLd(page)} />
       <VistaireMenuQrCodeRestaurantPreview
         h1={page.h1}
-        routeMode="production"
         seoAppendix={<VistaireSeoProductionSections page={page} />}
       />
     </>
