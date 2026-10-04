@@ -259,6 +259,10 @@ test.describe("Android AR diagnosis", () => {
     await expect(page.locator("model-viewer")).toHaveJSProperty("loaded", true, {
       timeout: 20_000
     });
+    // React must also have committed its model-ready action before the fallback.
+    await expect(page.getByRole("button", { name: "Afficher devant moi" })).toBeVisible({
+      timeout: 20_000
+    });
     await dispatchSceneViewerFallback(page);
     await expect(
       page.getByRole("heading", {
