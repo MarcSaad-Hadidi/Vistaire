@@ -1,5 +1,10 @@
 import type { Dish } from "@/lib/demoMenuData";
 
+export const PUBLIC_3D_CDN_ORIGINS = (process.env.NEXT_PUBLIC_VISTAIRE_3D_CDN_ORIGINS ?? "")
+  .split(/[,\s]+/)
+  .map((entry) => entry.trim().replace(/\/+$/, ""))
+  .filter(Boolean);
+
 export type ImmersiveDevice = "desktop" | "ios" | "android" | "unknown";
 export type ImmersiveBrowser =
   | "chrome"

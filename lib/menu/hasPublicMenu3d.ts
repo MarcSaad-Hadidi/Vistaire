@@ -1,19 +1,19 @@
-import { isSafe3dAssetUrl } from "../dish3dManifest.ts";
+import { isSafe3dAssetUrl, PUBLIC_3D_CDN_ORIGINS } from "../dish3dManifest.ts";
 import type { PublicMenuDish } from "./publicMenuCore.ts";
 
-const PUBLIC_MENU_3D_CDN_ORIGINS = (process.env.NEXT_PUBLIC_VISTAIRE_3D_CDN_ORIGINS ?? "")
-  .split(/[,\s]+/)
-  .map((entry) => entry.trim().replace(/\/+$/, ""))
-  .filter(Boolean);
+type PublicMenu3dFields = Pick<
+  PublicMenuDish,
+  "webModel3dUrl" | "model3dUrl" | "arModel3dUrl"
+>;
 
-export function hasPublicMenu3d(dish: PublicMenuDish): boolean {
+export function hasPublicMenu3d(dish: PublicMenu3dFields): boolean {
   return (
     isSafe3dAssetUrl(
       dish.webModel3dUrl || dish.model3dUrl,
-      PUBLIC_MENU_3D_CDN_ORIGINS,
+      PUBLIC_3D_CDN_ORIGINS,
       "web"
     ) ||
-    isSafe3dAssetUrl(dish.arModel3dUrl, PUBLIC_MENU_3D_CDN_ORIGINS, "arLite")
+    isSafe3dAssetUrl(dish.arModel3dUrl, PUBLIC_3D_CDN_ORIGINS, "arLite")
   );
 }
 
@@ -21,6 +21,6 @@ export function hasPublicMenu3d(dish: PublicMenuDish): boolean {
 export function hasPublicMenuAr(dish: PublicMenuDish): boolean {
   return (
     hasPublicMenu3d(dish) ||
-    isSafe3dAssetUrl(dish.arUsdzUrl || dish.usdzUrl, PUBLIC_MENU_3D_CDN_ORIGINS, "iosUsdz")
+    isSafe3dAssetUrl(dish.arUsdzUrl || dish.usdzUrl, PUBLIC_3D_CDN_ORIGINS, "iosUsdz")
   );
 }

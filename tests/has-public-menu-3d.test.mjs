@@ -1,7 +1,13 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-test("hasPublicMenu3d only accepts safe web or ar-lite model URLs", async () => {
+test("hasPublicMenu3d only accepts safe web or ar-lite model URLs", async (t) => {
+  const previousOrigins = process.env.NEXT_PUBLIC_VISTAIRE_3D_CDN_ORIGINS;
+  process.env.NEXT_PUBLIC_VISTAIRE_3D_CDN_ORIGINS = " https://models.example///,https://other.example https://bad.example/path http://insecure.example ";
+  t.after(() => {
+    if (previousOrigins === undefined) delete process.env.NEXT_PUBLIC_VISTAIRE_3D_CDN_ORIGINS;
+    else process.env.NEXT_PUBLIC_VISTAIRE_3D_CDN_ORIGINS = previousOrigins;
+  });
   const { hasPublicMenu3d, hasPublicMenuAr } = await import("../lib/menu/hasPublicMenu3d.ts");
 
   const baseDish = {
@@ -54,6 +60,14 @@ test("hasPublicMenu3d only accepts safe web or ar-lite model URLs", async () => 
   assert.equal(hasPublicMenuAr(usdzOnlyDish), true, "a safe Quick Look USDZ enables AR");
   assert.equal(hasPublicMenuAr({ ...baseDish, arUsdzUrl: "https://evil.example/dish.usdz" }), false);
   assert.equal(hasPublicMenuAr(baseDish), false);
+
+  assert.equal(hasPublicMenu3d({ ...baseDish, webModel3dUrl: "https://models.example/dish.glb" }), true);
+  assert.equal(hasPublicMenuAr({ ...baseDish, arUsdzUrl: "https://other.example/dish.usdz" }), true);
+  assert.equal(hasPublicMenu3d({ ...baseDish, webModel3dUrl: "https://bad.example/dish.glb" }), false);
+  assert.equal(hasPublicMenu3d({ ...baseDish, webModel3dUrl: "http://insecure.example/dish.glb" }), false);
+  process.env.NEXT_PUBLIC_VISTAIRE_3D_CDN_ORIGINS = "https://late.example";
+  assert.equal(hasPublicMenu3d({ ...baseDish, webModel3dUrl: "https://models.example/dish.glb" }), true);
+  assert.equal(hasPublicMenu3d({ ...baseDish, webModel3dUrl: "https://late.example/dish.glb" }), false);
 });
 
 test("dish card 3D badge stays decorative and non-interactive", async () => {
