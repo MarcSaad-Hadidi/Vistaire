@@ -324,6 +324,7 @@ test("Trouvable dish details stay stacked above the dish without a local review 
 test("Trouvable dish swipe guards interactive controls and 3D surfaces", async () => {
   const source = await readFile(componentPath, "utf8");
   const detailSource = await readFile(dishDetailPath, "utf8");
+  const swipeSource = await readFile("lib/menu/dishReviewSwipe.ts", "utf8");
   const guardedSelectors = [
     "model-viewer",
     "canvas",
@@ -338,8 +339,7 @@ test("Trouvable dish swipe guards interactive controls and 3D surfaces", async (
   ];
 
   for (const selector of guardedSelectors) {
-    assert.ok(source.includes(`"${selector}"`), `premium menu missing guard ${selector}`);
-    assert.ok(detailSource.includes(`"${selector}"`), `dish detail missing guard ${selector}`);
+    assert.ok(swipeSource.includes(`"${selector}"`), `shared dish guard missing ${selector}`);
   }
 
   const surfaceSource = await readFile(
@@ -631,15 +631,15 @@ test("Trouvable filter sheet uses premium filterSheet styling on the filters dia
 
   assert.match(
     source,
-    /function renderFiltersSheet\(\)[\s\S]*className=\{`\$\{styles\.sheet\} \$\{styles\.filterSheet\}`\}/
+    /renderedSheet === "filters"\s*\? `\$\{styles\.sheet\} \$\{styles\.filterSheet\}`\s*:\s*styles\.sheet/
   );
   assert.match(
     source,
-    /function renderSelectionSheet\(\)[\s\S]*className=\{styles\.sheet\}[\s\S]*?selectionTitle/
+    /selection:\s*\[copy\.selectionKicker, copy\.selectionTitle, copy\.closeSelection\]/
   );
   assert.doesNotMatch(
     source,
-    /function renderSelectionSheet\(\)[\s\S]*?selectionTitle[\s\S]{0,400}filterSheet/
+    /renderedSheet === "selection"[\s\S]{0,150}styles\.filterSheet/
   );
 });
 

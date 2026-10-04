@@ -4,6 +4,7 @@ import Link from "next/link";
 import {
   useEffect,
   useMemo,
+  useRef,
   useState,
   type CSSProperties,
   type PointerEvent
@@ -25,6 +26,7 @@ import { formatTrouvableDishPrice } from "./trouvableMenuControls";
 import { GoogleReviewCard } from "./GoogleReviewCard";
 import {
   getDishSwipeScrollTop,
+  isDishSwipeGuardedTarget,
   resolveDishSwipeGesture
 } from "@/lib/menu/dishReviewSwipe";
 import { PremiumDishDetailsSheet } from "./PremiumDishDetailsSheet";
@@ -55,33 +57,6 @@ type SwipeStart = {
 } | null;
 type DishDetailSubSheet = "details" | null;
 
-function isDishSwipeGuardedTarget(
-  target: EventTarget | null,
-  swipeRoot?: Element
-): boolean {
-  if (!(target instanceof Element)) return true;
-  if (
-    target.closest(
-      [
-        "model-viewer",
-        "canvas",
-        "button",
-        "a",
-        "input",
-        "select",
-        "textarea",
-        "[data-no-dish-swipe]"
-      ].join(",")
-    )
-  ) {
-    return true;
-  }
-
-  const dialogTarget = target.closest(["dialog", "[role='dialog']"].join(","));
-  if (!dialogTarget) return false;
-  return !(swipeRoot && (dialogTarget === swipeRoot || dialogTarget.contains(swipeRoot)));
-}
-
 export function TrouvableDishDetailExperience({
   menu,
   dish,
@@ -92,7 +67,7 @@ export function TrouvableDishDetailExperience({
   typographyClassName = ""
 }: TrouvableDishDetailExperienceProps) {
   const [activeDish, setActiveDish] = useState(dish);
-  const [swipeStart, setSwipeStart] = useState<SwipeStart>(null);
+  const swipeStartRef = useRef<SwipeStart>(null);
   const [showModelViewer, setShowModelViewer] = useState(false);
   const [activeSubSheet, setActiveSubSheet] = useState<DishDetailSubSheet>(null);
   const {
@@ -181,9 +156,9 @@ export function TrouvableDishDetailExperience({
   }
 
   function handlePointerUp(event: PointerEvent<HTMLElement>) {
-    if (!swipeStart || event.pointerType === "mouse") return;
-    const start = swipeStart;
-    setSwipeStart(null);
+    const start = swipeStartRef.current;
+    if (!start || event.pointerType === "mouse") return;
+    swipeStartRef.current = null;
     if (
       activeSubSheet ||
       showModelViewer ||
@@ -277,16 +252,18 @@ export function TrouvableDishDetailExperience({
           !showModelViewer &&
           !isDishSwipeGuardedTarget(event.target, event.currentTarget)
         ) {
-          setSwipeStart({
+          swipeStartRef.current = {
             x: event.clientX,
             y: event.clientY,
             pointerId: event.pointerId,
             scrollTop: getDishSwipeScrollTop(event.currentTarget)
-          });
+          };
         }
       }}
       onPointerUp={handlePointerUp}
-      onPointerCancel={() => setSwipeStart(null)}
+      onPointerCancel={() => {
+        swipeStartRef.current = null;
+      }}
     >
       <nav className={styles.detailNav} aria-label={copy.backToMenu}>
         <Link

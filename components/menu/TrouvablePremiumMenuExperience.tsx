@@ -47,6 +47,7 @@ import { useTrouvablePreferences } from "./useTrouvablePreferences";
 import { getTrouvablePaletteSource } from "@/lib/menu/trouvableMenuExperience";
 import {
   getDishSwipeScrollTop,
+  isDishSwipeGuardedTarget,
   resolveDishSwipeGesture
 } from "@/lib/menu/dishReviewSwipe";
 import {
@@ -228,33 +229,6 @@ function getFocusableElements(container: HTMLElement | null): HTMLElement[] {
       element.getAttribute("aria-hidden") !== "true" &&
       element.getClientRects().length > 0
   );
-}
-
-function isDishSwipeGuardedTarget(
-  target: EventTarget | null,
-  swipeRoot?: Element
-): boolean {
-  if (!(target instanceof Element)) return true;
-  if (
-    target.closest(
-      [
-        "model-viewer",
-        "canvas",
-        "button",
-        "a",
-        "input",
-        "select",
-        "textarea",
-        "[data-no-dish-swipe]"
-      ].join(",")
-    )
-  ) {
-    return true;
-  }
-
-  const dialogTarget = target.closest(["dialog", "[role='dialog']"].join(","));
-  if (!dialogTarget) return false;
-  return !(swipeRoot && (dialogTarget === swipeRoot || dialogTarget.contains(swipeRoot)));
 }
 
 function isCategorySwipeGuardedTarget(target: EventTarget | null): boolean {
@@ -639,7 +613,6 @@ export function TrouvablePremiumMenuExperience({
     () => sortTrouvablePublicMenuCategories(getVisiblePublicMenuCategories(filteredDishes)),
     [filteredDishes]
   );
-  const categoryOptions = useMemo(() => categories, [categories]);
   const navigableSections = useMemo(
     () =>
       buildNavigableMenuSections(
@@ -1240,358 +1213,278 @@ export function TrouvablePremiumMenuExperience({
   }
 
   function renderSelectionSheet() {
-    if (renderedSheet !== "selection") return null;
-
     return (
-      <div
-        className={styles.overlay}
-        data-sheet-state={sheetMotionState}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="trouvable-selection-title"
-        onMouseDown={(event) => {
-          if (event.target === event.currentTarget) closeActiveSheet();
-        }}
-      >
-        <section ref={sheetRef} className={styles.sheet} tabIndex={-1}>
-          <header className={styles.sheetHeader}>
-            <div>
-              <p>{copy.selectionKicker}</p>
-              <h2 id="trouvable-selection-title">{copy.selectionTitle}</h2>
+      <>
+        {selectionItems.length === 0 ? (
+          <div className={styles.emptyState} role="status">
+            <p>{copy.emptySelectionTitle}</p>
+            <span>{copy.emptySelectionBody}</span>
+          </div>
+        ) : (
+          <>
+            <ul className={styles.selectionList}>
+              {selectionItems.map((item) => (
+                <li key={item.dish.id}>
+                  <div>
+                    <strong>{item.dish.name}</strong>
+                    <span>
+                      {formatTrouvableDishPrice(
+                        item.dish,
+                        selectedCurrency,
+                        selectedLocale,
+                        exchangeRates
+                      ) || copy.priceToConfirm}
+                    </span>
+                  </div>
+                  <div className={styles.quantityControls}>
+                    <button
+                      type="button"
+                      aria-label={copy.quantityDecrease(item.dish.name)}
+                      onClick={() => updateQuantity(item.dish.id, -1)}
+                    >
+                      -
+                    </button>
+                    <output
+                      aria-label={copy.quantityLabel(item.dish.name)}
+                      aria-live="polite"
+                    >
+                      {item.quantity}
+                    </output>
+                    <button
+                      type="button"
+                      aria-label={copy.quantityIncrease(item.dish.name)}
+                      onClick={() => updateQuantity(item.dish.id, 1)}
+                    >
+                      +
+                    </button>
+                  </div>
+                </li>
+              ))}
+            </ul>
+            <div className={styles.totalRow}>
+              <span>{copy.estimatedTotal}</span>
+              <strong>
+                {hasPricedSelection
+                  ? formatTrouvablePriceCents(
+                      selectionTotalCents,
+                      selectedCurrency,
+                      selectedLocale
+                    )
+                  : copy.toConfirm}
+              </strong>
             </div>
             <button
               type="button"
-              className={styles.iconButton}
-              aria-label={copy.closeSelection}
-              onClick={closeActiveSheet}
+              className={styles.primaryAction}
+              onClick={() => openWaiter("selection")}
             >
-              x
+              {copy.askWaiter}
             </button>
-          </header>
-
-          {selectionItems.length === 0 ? (
-            <div className={styles.emptyState} role="status">
-              <p>{copy.emptySelectionTitle}</p>
-              <span>{copy.emptySelectionBody}</span>
-            </div>
-          ) : (
-            <>
-              <ul className={styles.selectionList}>
-                {selectionItems.map((item) => (
-                  <li key={item.dish.id}>
-                    <div>
-                      <strong>{item.dish.name}</strong>
-                      <span>
-                        {formatTrouvableDishPrice(
-                          item.dish,
-                          selectedCurrency,
-                          selectedLocale,
-                          exchangeRates
-                        ) || copy.priceToConfirm}
-                      </span>
-                    </div>
-                    <div className={styles.quantityControls}>
-                      <button
-                        type="button"
-                        aria-label={copy.quantityDecrease(item.dish.name)}
-                        onClick={() => updateQuantity(item.dish.id, -1)}
-                      >
-                        -
-                      </button>
-                      <output
-                        aria-label={copy.quantityLabel(item.dish.name)}
-                        aria-live="polite"
-                      >
-                        {item.quantity}
-                      </output>
-                      <button
-                        type="button"
-                        aria-label={copy.quantityIncrease(item.dish.name)}
-                        onClick={() => updateQuantity(item.dish.id, 1)}
-                      >
-                        +
-                      </button>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-              <div className={styles.totalRow}>
-                <span>{copy.estimatedTotal}</span>
-                <strong>
-                  {hasPricedSelection
-                    ? formatTrouvablePriceCents(
-                        selectionTotalCents,
-                        selectedCurrency,
-                        selectedLocale
-                      )
-                    : copy.toConfirm}
-                </strong>
-              </div>
-              <button
-                type="button"
-                className={styles.primaryAction}
-                onClick={() => openWaiter("selection")}
-              >
-                {copy.askWaiter}
-              </button>
-            </>
-          )}
-        </section>
-      </div>
+          </>
+        )}
+      </>
     );
   }
 
   function renderWaiterSheet() {
-    if (renderedSheet !== "waiter") return null;
-
     return (
-      <div
-        className={styles.overlay}
-        data-sheet-state={sheetMotionState}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="trouvable-waiter-title"
-        onMouseDown={(event) => {
-          if (event.target === event.currentTarget) closeActiveSheet();
-        }}
-      >
-        <section ref={sheetRef} className={styles.sheet} tabIndex={-1}>
-          <header className={styles.sheetHeader}>
-            <div>
-              <p>{copy.waiterKicker}</p>
-              <h2 id="trouvable-waiter-title">{copy.waiterTitle}</h2>
-            </div>
-            <button
-              type="button"
-              className={styles.iconButton}
-              aria-label={copy.closeWaiter}
-              onClick={closeActiveSheet}
-            >
-              x
-            </button>
-          </header>
-          <label className={styles.fieldLabel}>
-            {copy.tableLabel}
-            <input
-              id="trouvable-waiter-table"
-              inputMode="numeric"
-              maxLength={24}
-              name="table"
-              placeholder={copy.tablePlaceholder}
-              value={tableNumber}
-              onChange={(event) => setTableNumber(event.target.value)}
-            />
-          </label>
-          <fieldset className={styles.topicGroup}>
-            <legend>{copy.waiterTopic}</legend>
-            {[
-              ["allergen", copy.waiterTopics.allergen],
-              ["recommendation", copy.waiterTopics.recommendation],
-              ["selection", copy.waiterTopics.selection]
-            ].map(([id, label]) => (
-              <label key={id}>
-                <input
-                  checked={waiterTopic === id}
-                  name="waiter-topic"
-                  type="radio"
-                  value={id}
-                  onChange={() => setWaiterTopic(id as WaiterTopic)}
-                />
-                <span>{label}</span>
-              </label>
-            ))}
-          </fieldset>
-          <button
-            type="button"
-            className={styles.primaryAction}
-            onClick={prepareWaiterRequest}
-          >
-            {copy.prepareRequest}
-          </button>
-          {waiterMessage ? (
-            <p className={styles.sheetStatus} role="status" aria-atomic="true">
-              {waiterMessage}
-            </p>
-          ) : null}
-          <p className={styles.localHint}>
-            {copy.localOrderHint}
+      <>
+        <label className={styles.fieldLabel}>
+          {copy.tableLabel}
+          <input
+            id="trouvable-waiter-table"
+            inputMode="numeric"
+            maxLength={24}
+            name="table"
+            placeholder={copy.tablePlaceholder}
+            value={tableNumber}
+            onChange={(event) => setTableNumber(event.target.value)}
+          />
+        </label>
+        <fieldset className={styles.topicGroup}>
+          <legend>{copy.waiterTopic}</legend>
+          {[
+            ["allergen", copy.waiterTopics.allergen],
+            ["recommendation", copy.waiterTopics.recommendation],
+            ["selection", copy.waiterTopics.selection]
+          ].map(([id, label]) => (
+            <label key={id}>
+              <input
+                checked={waiterTopic === id}
+                name="waiter-topic"
+                type="radio"
+                value={id}
+                onChange={() => setWaiterTopic(id as WaiterTopic)}
+              />
+              <span>{label}</span>
+            </label>
+          ))}
+        </fieldset>
+        <button
+          type="button"
+          className={styles.primaryAction}
+          onClick={prepareWaiterRequest}
+        >
+          {copy.prepareRequest}
+        </button>
+        {waiterMessage ? (
+          <p className={styles.sheetStatus} role="status" aria-atomic="true">
+            {waiterMessage}
           </p>
-        </section>
-      </div>
+        ) : null}
+        <p className={styles.localHint}>
+          {copy.localOrderHint}
+        </p>
+      </>
     );
   }
 
   function renderCurrencySheet() {
-    if (renderedSheet !== "currency" || !canChangeCurrency) return null;
-
     return (
-      <div
-        className={styles.overlay}
-        data-sheet-state={sheetMotionState}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="trouvable-currency-title"
-        onMouseDown={(event) => {
-          if (event.target === event.currentTarget) closeActiveSheet();
-        }}
-      >
-        <section ref={sheetRef} className={styles.sheet} tabIndex={-1}>
-          <header className={styles.sheetHeader}>
-            <div>
-              <p>{copy.currencyKicker}</p>
-              <h2 id="trouvable-currency-title">{copy.currencyTitle}</h2>
-            </div>
+      <>
+        <div className={styles.choiceList}>
+          {currencyOptions.map((option) => (
             <button
+              key={option.code}
               type="button"
-              className={styles.iconButton}
-              aria-label={copy.close}
-              onClick={closeActiveSheet}
+              className={styles.choiceButton}
+              aria-pressed={selectedCurrency === option.code}
+              onClick={() => selectCurrency(option.code)}
             >
-              x
+              <span>{option.code}</span>
+              <small>
+                {option.symbol} · {getTrouvableCurrencyOptionLabel(option, selectedLocale)}
+              </small>
             </button>
-          </header>
-          <div className={styles.choiceList}>
-            {currencyOptions.map((option) => (
-              <button
-                key={option.code}
-                type="button"
-                className={styles.choiceButton}
-                aria-pressed={selectedCurrency === option.code}
-                onClick={() => selectCurrency(option.code)}
-              >
-                <span>{option.code}</span>
-                <small>
-                  {option.symbol} · {getTrouvableCurrencyOptionLabel(option, selectedLocale)}
-                </small>
-              </button>
-            ))}
-          </div>
-          <p className={styles.localHint}>{copy.currencyCopy}</p>
-        </section>
-      </div>
+          ))}
+        </div>
+        <p className={styles.localHint}>{copy.currencyCopy}</p>
+      </>
     );
   }
 
   function renderFiltersSheet() {
-    if (renderedSheet !== "filters") return null;
+    return (
+      <>
+        {hasActiveFilter ? (
+          <button
+            type="button"
+            className={styles.sheetReset}
+            onClick={() => setActiveFilters([])}
+          >
+            {copy.resetFilters}
+          </button>
+        ) : null}
+        <div
+          className={styles.filterGrid}
+          role="group"
+          aria-label={copy.filterGroupLabel}
+        >
+          {quickFilters.map((filter) => (
+            <button
+              key={filter.id}
+              type="button"
+              className={isQuickFilterActive(filter.id) ? styles.isActive : undefined}
+              aria-pressed={isQuickFilterActive(filter.id)}
+              aria-label={quickFilterDescription(filter.id)}
+              onClick={() => toggleQuickFilter(filter.id)}
+            >
+              {filter.label}
+            </button>
+          ))}
+        </div>
+        <button
+          type="button"
+          className={styles.sheetApply}
+          onClick={closeActiveSheet}
+        >
+          {copy.filterApply}
+        </button>
+      </>
+    );
+  }
+
+  function renderLanguageSheet() {
+    return (
+      <>
+        <div className={styles.choiceList}>
+          {languageOptions.map((option) => (
+            <button
+              key={option.locale}
+              type="button"
+              className={styles.choiceButton}
+              aria-pressed={selectedLocale === option.locale}
+              aria-label={`${option.nativeName}, ${option.region}, ${option.code}`}
+              onClick={() => selectLocale(option.locale)}
+            >
+              <span>{option.shortCode}</span>
+              <small dir="auto">
+                {option.nativeName} · {option.region}
+              </small>
+            </button>
+          ))}
+        </div>
+      </>
+    );
+  }
+
+  function renderControlSheet() {
+    if (!renderedSheet || renderedSheet === "dish") return null;
+    if (renderedSheet === "currency" && !canChangeCurrency) return null;
+    if (renderedSheet === "language" && !canChangeLanguage) return null;
+
+    const content = {
+      selection: renderSelectionSheet,
+      waiter: renderWaiterSheet,
+      currency: renderCurrencySheet,
+      filters: renderFiltersSheet,
+      language: renderLanguageSheet
+    }[renderedSheet]();
+    const [kicker, title, closeLabel] = {
+      selection: [copy.selectionKicker, copy.selectionTitle, copy.closeSelection],
+      waiter: [copy.waiterKicker, copy.waiterTitle, copy.closeWaiter],
+      currency: [copy.currencyKicker, copy.currencyTitle, copy.close],
+      filters: [copy.filterKicker, copy.filterTitle, copy.closeFilters],
+      language: [copy.languageKicker, copy.languageTitle, copy.closeLanguage]
+    }[renderedSheet];
+    const titleId = `trouvable-${renderedSheet}-title`;
 
     return (
       <div
+        key={renderedSheet}
         className={styles.overlay}
         data-sheet-state={sheetMotionState}
         role="dialog"
         aria-modal="true"
-        aria-labelledby="trouvable-filters-title"
+        aria-labelledby={titleId}
         onMouseDown={(event) => {
           if (event.target === event.currentTarget) closeActiveSheet();
         }}
       >
         <section
           ref={sheetRef}
-          className={`${styles.sheet} ${styles.filterSheet}`}
+          className={
+            renderedSheet === "filters"
+              ? `${styles.sheet} ${styles.filterSheet}`
+              : styles.sheet
+          }
           tabIndex={-1}
         >
           <header className={styles.sheetHeader}>
             <div>
-              <p>{copy.filterKicker}</p>
-              <h2 id="trouvable-filters-title">{copy.filterTitle}</h2>
+              <p>{kicker}</p>
+              <h2 id={titleId}>{title}</h2>
             </div>
             <button
               type="button"
               className={styles.iconButton}
-              aria-label={copy.closeFilters}
+              aria-label={closeLabel}
               onClick={closeActiveSheet}
             >
               x
             </button>
           </header>
-          {hasActiveFilter ? (
-            <button
-              type="button"
-              className={styles.sheetReset}
-              onClick={() => setActiveFilters([])}
-            >
-              {copy.resetFilters}
-            </button>
-          ) : null}
-          <div
-            className={styles.filterGrid}
-            role="group"
-            aria-label={copy.filterGroupLabel}
-          >
-            {quickFilters.map((filter) => (
-              <button
-                key={filter.id}
-                type="button"
-                className={isQuickFilterActive(filter.id) ? styles.isActive : undefined}
-                aria-pressed={isQuickFilterActive(filter.id)}
-                aria-label={quickFilterDescription(filter.id)}
-                onClick={() => toggleQuickFilter(filter.id)}
-              >
-                {filter.label}
-              </button>
-            ))}
-          </div>
-          <button
-            type="button"
-            className={styles.sheetApply}
-            onClick={closeActiveSheet}
-          >
-            {copy.filterApply}
-          </button>
-        </section>
-      </div>
-    );
-  }
-
-  function renderLanguageSheet() {
-    if (renderedSheet !== "language" || !canChangeLanguage) return null;
-
-    const sheetLanguageOptions = languageOptions;
-
-    return (
-      <div
-        className={styles.overlay}
-        data-sheet-state={sheetMotionState}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="trouvable-language-title"
-        onMouseDown={(event) => {
-          if (event.target === event.currentTarget) closeActiveSheet();
-        }}
-      >
-        <section ref={sheetRef} className={styles.sheet} tabIndex={-1}>
-          <header className={styles.sheetHeader}>
-            <div>
-              <p>{copy.languageKicker}</p>
-              <h2 id="trouvable-language-title">{copy.languageTitle}</h2>
-            </div>
-            <button
-              type="button"
-              className={styles.iconButton}
-              aria-label={copy.closeLanguage}
-              onClick={closeActiveSheet}
-            >
-              x
-            </button>
-          </header>
-          <div className={styles.choiceList}>
-            {sheetLanguageOptions.map((option) => (
-              <button
-                key={option.locale}
-                type="button"
-                className={styles.choiceButton}
-                aria-pressed={selectedLocale === option.locale}
-                aria-label={`${option.nativeName}, ${option.region}, ${option.code}`}
-                onClick={() => selectLocale(option.locale)}
-              >
-                <span>{option.shortCode}</span>
-                <small dir="auto">
-                  {option.nativeName} · {option.region}
-                </small>
-              </button>
-            ))}
-          </div>
+          {content}
         </section>
       </div>
     );
@@ -1942,7 +1835,7 @@ export function TrouvablePremiumMenuExperience({
           aria-label={copy.categoryAria}
           data-no-category-swipe="true"
         >
-          {categoryOptions.map((category) => (
+          {categories.map((category) => (
             <button
               key={category.id}
               type="button"
@@ -2114,11 +2007,7 @@ export function TrouvablePremiumMenuExperience({
 
       {renderDishDetailSheet()}
       {renderDishDetailsSubSheet()}
-      {renderSelectionSheet()}
-      {renderWaiterSheet()}
-      {renderCurrencySheet()}
-      {renderFiltersSheet()}
-      {renderLanguageSheet()}
+      {renderControlSheet()}
     </MenuRoot>
   );
 }

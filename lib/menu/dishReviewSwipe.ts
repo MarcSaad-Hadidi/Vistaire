@@ -35,3 +35,30 @@ export function getDishSwipeScrollTop(root: HTMLElement): number {
 
   return window.scrollY;
 }
+
+export function isDishSwipeGuardedTarget(
+  target: EventTarget | null,
+  swipeRoot?: Element
+): boolean {
+  if (!(target instanceof Element)) return true;
+  if (
+    target.closest(
+      [
+        "model-viewer",
+        "canvas",
+        "button",
+        "a",
+        "input",
+        "select",
+        "textarea",
+        "[data-no-dish-swipe]"
+      ].join(",")
+    )
+  ) {
+    return true;
+  }
+
+  const dialogTarget = target.closest(["dialog", "[role='dialog']"].join(","));
+  if (!dialogTarget) return false;
+  return !(swipeRoot && (dialogTarget === swipeRoot || dialogTarget.contains(swipeRoot)));
+}
