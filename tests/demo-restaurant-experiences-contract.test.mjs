@@ -4,27 +4,25 @@ import test from "node:test";
 
 const source = (path) => readFile(new URL(`../${path}`, import.meta.url), "utf8");
 
-test("demo pages share the three restaurant experiences and preserve the generic route contract", async () => {
-  const [showcase, demo, english, landing] = await Promise.all([
-    source("components/vistaire-preview/DemoPhoneShowcase.tsx"),
+test("French and English discovery share real public links and the same restaurant design", async () => {
+  const [discovery, demo, demoLayout, english, landing] = await Promise.all([
+    source("components/vistaire-preview/RestaurantExperiences.tsx"),
     source("app/(fr)/demo/page.tsx"),
+    source("app/(fr)/demo/layout.tsx"),
     source("app/(en)/en/vistaire-menu/page.tsx"),
     source("components/landing/VistaireLanding.tsx")
   ]);
 
-  assert.match(showcase, /RestaurantExperienceTabs/);
-  assert.match(showcase, /ActiveRestaurantMenuPreview/);
-  assert.match(showcase, /displayMode=\"phone-preview\"/);
-  for (const id of ["maison-elyse", "trouvable", "sauge-noire"]) {
-    assert.match(showcase, new RegExp(`"${id}"`));
+  assert.match(demo, /<RestaurantExperiences currentPath=\{canonicalPath\} locale="fr"/);
+  assert.match(english, /<RestaurantExperiences currentPath=\{canonicalPath\} locale="en"/);
+  assert.match(discovery, /getLandingExperiences\(locale\)/);
+  assert.match(discovery, /href=\{experience\.publicMenuHref\}/);
+  assert.match(discovery, /id="carte"/);
+  assert.match(discovery, /DemoWalkthroughVideo/);
+  for (const route of [demo, english, discovery]) {
+    assert.doesNotMatch(route, /"use client"|DemoPhoneShowcase|ActiveRestaurantMenuPreview|RestaurantExperienceTabs|DishModelViewer/);
   }
-  assert.match(showcase, /experienceFromQuery/);
-  assert.match(showcase, /router\.replace/);
-  assert.match(showcase, /params\.delete\("experience"\)/);
-  assert.match(showcase, /window\.location\.hash/);
-  assert.match(showcase, /scrollTop = 0/);
-  assert.match(demo, /getLandingExperiences/);
-  assert.match(english, /getLandingExperiences/);
+  assert.doesNotMatch(demoLayout, /SmoothScrollProvider|Maison Élyse/);
   assert.match(landing, /<LandingHero[\s\S]*<LandingComparisonSection[\s\S]*<LandingValueSection[\s\S]*<LandingExperienceSection/);
 });
 

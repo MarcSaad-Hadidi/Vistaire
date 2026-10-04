@@ -238,10 +238,11 @@ test("Maison Elyse QR menu keeps compact localized filters and Google Reviews wi
   assert.doesNotMatch(component, /["'`](?:https?:\/\/|\/)[^"'`]*\.usdz/);
 });
 
-test("/demo and /en/vistaire-menu use the shared restaurant phone showcase", async () => {
+test("/demo and /en/vistaire-menu open real menus with the same restaurant design", async () => {
   const [
     demoPage,
     englishDemoPage,
+    discovery,
     menuComponent,
     menuCss,
     showcase,
@@ -250,6 +251,7 @@ test("/demo and /en/vistaire-menu use the shared restaurant phone showcase", asy
   ] = await Promise.all([
     readFile(demoPagePath, "utf8"),
     readFile(englishDemoPagePath, "utf8"),
+    readFile("components/vistaire-preview/RestaurantExperiences.tsx", "utf8"),
     readFile(componentPath, "utf8"),
     readFile(cssPath, "utf8"),
     readFile(demoShowcasePath, "utf8"),
@@ -257,18 +259,13 @@ test("/demo and /en/vistaire-menu use the shared restaurant phone showcase", asy
     readFile(ownerCreateFormPath, "utf8")
   ]);
 
-  assert.match(demoPage, /DemoPhoneShowcase/);
-  assert.match(demoPage, /getLandingExperiences/);
-  assert.match(demoPage, /experiences=\{experiences\}/);
-  assert.match(demoPage, /menuLocale=\{locale\}/);
-  assert.doesNotMatch(demoPage, /VistaireMenuPreview/);
-  assert.match(englishDemoPage, /DemoPhoneShowcase/);
-  assert.match(englishDemoPage, /getLandingExperiences/);
-  assert.match(englishDemoPage, /experiences=\{experiences\}/);
-  assert.match(englishDemoPage, /normalizeLocale/);
-  assert.match(englishDemoPage, /getLandingExperiences\(menuLocale\)/);
-  assert.match(englishDemoPage, /menuLocale=\{menuLocale\}/);
-  assert.doesNotMatch(englishDemoPage, /VistaireMenuPreview/);
+  assert.match(discovery, /getLandingExperiences\(locale\)/);
+  assert.match(discovery, /href=\{experience\.publicMenuHref\}/);
+  assert.match(demoPage, /RestaurantExperiences/);
+  assert.doesNotMatch(demoPage, /DemoPhoneShowcase|VistaireMenuPreview/);
+  assert.match(englishDemoPage, /RestaurantExperiences/);
+  assert.match(englishDemoPage, /locale="en"/);
+  assert.doesNotMatch(englishDemoPage, /VistaireMenuPreview|DemoPhoneShowcase/);
 
   assert.match(
     menuComponent,

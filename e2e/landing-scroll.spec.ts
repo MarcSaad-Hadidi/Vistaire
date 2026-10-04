@@ -153,46 +153,25 @@ test.describe("Menu and dish regression", () => {
     const modelAssetRequests = collectModelAssetRequests(page);
 
     await page.goto("/demo", { waitUntil: "domcontentloaded" });
-    await expect(
-      page.getByTestId("demo-phone-viewport").getByText("LA COLLECTION")
-    ).toBeVisible();
-    await expect(
-      page.getByTestId("demo-phone-viewport").getByRole("heading", { name: "LA CARTE" })
-    ).toBeVisible();
-    await expect(
-      page
-        .getByTestId("demo-phone-viewport")
-        .getByRole("heading", { level: 1, name: /Bienvenue chez Maison/i })
-    ).toHaveCount(0);
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText("Trois restaurants. Trois identités.");
+    await page.getByRole("link", { name: "Explorer Maison Élyse", exact: true }).click();
+    const menu = page.locator('[data-menu-ui="maison-elyse"]');
+    await expect(menu.getByText("LA COLLECTION")).toBeVisible();
+    await expect(menu.getByRole("heading", { name: "LA CARTE" })).toBeVisible();
     await expectNoHorizontalOverflow(page);
     expect(modelAssetRequests).toEqual([]);
 
+    await menu.getByRole("link", { name: /Ravioles/i }).first().click();
+    await expect(page).toHaveURL(/\/menu\/maison-elyse\/dishes\//);
     await expect(
-      page
-        .getByTestId("demo-phone-viewport")
-        .getByRole("button", { name: "Voir toute la carte" })
-    ).toHaveCount(0);
-
-    await page
-      .getByTestId("demo-phone-viewport")
-      .getByRole("button", { name: /Ravioles/i })
-      .click();
-    await expect(page).toHaveURL(/\/demo$/);
-    await expect(
-      page
-        .getByTestId("demo-phone-viewport")
-        .getByRole("heading", { level: 1, name: /Ravioles/i })
+      page.getByRole("heading", { level: 1, name: /Ravioles/i })
     ).toBeVisible();
     await expect(page.locator("model-viewer")).toHaveCount(0);
     expect(modelAssetRequests).toEqual([]);
 
-    await page
-      .getByTestId("demo-phone-viewport")
-      .getByRole("button", { name: /Retour . la carte/i })
-      .click();
-    await expect(
-      page.getByTestId("demo-phone-viewport").getByRole("heading", { name: "LA CARTE" })
-    ).toBeVisible();
+    await page.getByRole("link", { name: /Retour/i }).first().click();
+    await expect(page).toHaveURL(/\/menu\/maison-elyse\?/);
+    await expect(page.getByRole("heading", { name: "LA CARTE" })).toBeVisible();
   });
 
   test("/admin still loads as the public noindex restaurant preview", async ({
