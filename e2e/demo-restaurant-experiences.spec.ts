@@ -164,6 +164,17 @@ for (const scenario of DISCOVERY_ROUTES) {
         } else {
           await expect(page.locator(`[data-menu-ui="${experience.id}"]`)).toBeVisible();
         }
+        if (scenario.language === "English" && experience.id === "maison-elyse") {
+          await page.goBack({ waitUntil: "domcontentloaded" });
+          await expect(page.getByRole("heading", { level: 1 })).toHaveText(scenario.heading);
+          const video = page.locator('[data-demo-experience="maison-elyse"] video');
+          await video.scrollIntoViewIfNeeded();
+          await expect.poll(() => video.evaluate((element: HTMLVideoElement) =>
+            element.readyState >= 2 && !element.paused
+          ), { timeout: 15_000 }).toBe(true);
+          const initialTime = await video.evaluate((element: HTMLVideoElement) => element.currentTime);
+          await expect.poll(() => video.evaluate((element: HTMLVideoElement) => element.currentTime)).not.toBe(initialTime);
+        }
       });
     }
 
