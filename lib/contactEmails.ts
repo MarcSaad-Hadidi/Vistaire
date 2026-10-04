@@ -8,12 +8,12 @@ export type ContactEmailData = {
   locale: "fr" | "en";
 };
 
-const INK = "#0d0805";
-const PANEL = "#1b120c";
+const INK = "#111211";
+const PANEL = "#1a1c19";
 const CREAM = "#fff7ea";
 const CHAMPAGNE = "#e8cf9b";
 const MUTED = "#cbbb9f";
-const BORDER = "#51412e";
+const BORDER = "#3f4038";
 const BODY_FONT = "Arial, Helvetica, sans-serif";
 const DISPLAY_FONT = "Georgia, 'Times New Roman', serif";
 const WRAP = "overflow-wrap:anywhere;word-wrap:break-word;word-break:break-word;";
@@ -76,6 +76,7 @@ function shell(locale: "fr" | "en", preview: string, title: string, body: string
 <!--[if mso]><table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" align="center"><tr><td><![endif]-->
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" bgcolor="${INK}" style="width:100%;max-width:600px;table-layout:fixed;background-color:${INK};border:1px solid ${BORDER};border-collapse:separate;border-spacing:0;border-radius:18px;">
 <tr><td class="email-pad" style="padding:32px 24px 28px;border-bottom:1px solid ${BORDER};"><a href="https://vistaire.ca${english ? "/en" : "/"}" style="color:${CREAM};font-family:${DISPLAY_FONT};font-size:36px;line-height:40px;letter-spacing:-1px;text-decoration:none;">Vistaire</a><p style="margin:7px 0 0;color:${CHAMPAGNE};font-family:${BODY_FONT};font-size:12px;line-height:18px;">${english ? "Premium digital menus" : "Carte digitale premium"}</p></td></tr>
+<tr><td style="padding:0;font-size:0;line-height:0;"><img src="https://vistaire.ca/images/email/vistaire-dining-header.jpg" width="600" height="240" alt="" role="presentation" border="0" style="display:block;width:100%;max-width:600px;height:auto;border:0;outline:none;text-decoration:none;"></td></tr>
 <tr><td class="email-pad" style="padding:36px 24px 40px;${WRAP}">${body}</td></tr>
 <tr><td class="email-pad" style="padding:28px 24px 32px;border-top:1px solid ${BORDER};"><p style="margin:0 0 14px;color:${CHAMPAGNE};font-family:${DISPLAY_FONT};font-size:22px;line-height:29px;">${english ? "Make them crave the first bite." : "Donnez envie avant la première bouchée."}</p><p style="margin:0;color:${MUTED};font-family:${BODY_FONT};font-size:13px;line-height:22px;">${english ? "Montreal, Quebec" : "Montréal, Québec"}<br><a href="mailto:${CONTACT_EMAIL}" style="color:${CREAM};text-decoration:underline;">${CONTACT_EMAIL}</a></p></td></tr>
 </table>
