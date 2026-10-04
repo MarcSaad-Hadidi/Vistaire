@@ -1,16 +1,15 @@
 import type { Metadata } from "next";
 import { JsonLd } from "@/components/JsonLd";
-import { DemoPhoneShowcase } from "@/components/vistaire-preview/DemoPhoneShowcase";
-import { buildPageAlternates, LOCALE_OPEN_GRAPH, normalizeLocale } from "@/lib/i18n";
-import { getLandingExperiences } from "@/lib/landing/menuExperiences";
+import { RestaurantExperiences } from "@/components/vistaire-preview/RestaurantExperiences";
+import { buildPageAlternates, LOCALE_OPEN_GRAPH } from "@/lib/i18n";
 import { absoluteUrl, buildBreadcrumbJsonLd, buildWebPageJsonLd } from "@/lib/seo";
 
 export const dynamic = "force-dynamic";
 
 const canonicalPath = "/en/vistaire-menu";
-const title = "Sample client menu | Vistaire";
+const title = "Three restaurant menu experiences | Vistaire";
 const description =
-  "Explore three Vistaire client menu experiences, designed for a fluid at-table reading experience.";
+  "Discover Maison Élyse, Trouvable and Sauge Noire: three Vistaire identities, their real menus and dish details, with 3D and AR for compatible dishes.";
 
 export const metadata: Metadata = {
   title: { absolute: title },
@@ -30,18 +29,7 @@ export const metadata: Metadata = {
   }
 };
 
-type VistaireMenuPageEnProps = {
-  searchParams: Promise<{ lang?: string; experience?: string }>;
-};
-
-export default async function VistaireMenuPageEn({
-  searchParams
-}: VistaireMenuPageEnProps) {
-  const query = await searchParams;
-  const hasLangParam = typeof query.lang === "string" && query.lang.trim().length > 0;
-  const menuLocale = hasLangParam ? normalizeLocale(query.lang) : "en";
-  const experiences = await getLandingExperiences(menuLocale);
-
+export default function VistaireMenuPageEn() {
   return (
     <>
       <JsonLd
@@ -54,16 +42,11 @@ export default async function VistaireMenuPageEn({
           }),
           buildBreadcrumbJsonLd([
             { name: "Home", path: "/en" },
-            { name: "Vistaire client menu", path: canonicalPath }
+            { name: "Vistaire experiences", path: canonicalPath }
           ])
         ]}
       />
-      <DemoPhoneShowcase
-        currentPath={canonicalPath}
-        experiences={experiences}
-        locale="en"
-        menuLocale={menuLocale}
-      />
+      <RestaurantExperiences currentPath={canonicalPath} locale="en" />
     </>
   );
 }
