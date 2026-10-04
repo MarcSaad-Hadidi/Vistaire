@@ -8,7 +8,7 @@ test("hasPublicMenu3d only accepts safe web or ar-lite model URLs", async (t) =>
     if (previousOrigins === undefined) delete process.env.NEXT_PUBLIC_VISTAIRE_3D_CDN_ORIGINS;
     else process.env.NEXT_PUBLIC_VISTAIRE_3D_CDN_ORIGINS = previousOrigins;
   });
-  const { hasPublicMenu3d, hasPublicMenuAr } = await import("../lib/dish3dManifest.ts");
+  const { hasPublicMenu3d, hasPublicMenuAr, PUBLIC_3D_CDN_ORIGINS_STRICT } = await import("../lib/dish3dManifest.ts");
 
   const baseDish = {
     id: "dish-1",
@@ -65,6 +65,11 @@ test("hasPublicMenu3d only accepts safe web or ar-lite model URLs", async (t) =>
   assert.equal(hasPublicMenuAr({ ...baseDish, arUsdzUrl: "https://other.example/dish.usdz" }), true);
   assert.equal(hasPublicMenu3d({ ...baseDish, webModel3dUrl: "https://bad.example/dish.glb" }), false);
   assert.equal(hasPublicMenu3d({ ...baseDish, webModel3dUrl: "http://insecure.example/dish.glb" }), false);
+  // Maison and Sauge keep rejecting an origin configured with several trailing slashes.
+  assert.equal(hasPublicMenu3d({ ...baseDish, webModel3dUrl: "https://models.example/dish.glb" }, PUBLIC_3D_CDN_ORIGINS_STRICT), false);
+  assert.equal(hasPublicMenuAr({ ...baseDish, arUsdzUrl: "https://models.example/dish.usdz" }, PUBLIC_3D_CDN_ORIGINS_STRICT), false);
+  assert.equal(hasPublicMenu3d({ ...baseDish, webModel3dUrl: "https://other.example/dish.glb" }, PUBLIC_3D_CDN_ORIGINS_STRICT), true);
+  assert.equal(hasPublicMenuAr({ ...baseDish, arUsdzUrl: "https://other.example/dish.usdz" }, PUBLIC_3D_CDN_ORIGINS_STRICT), true);
   process.env.NEXT_PUBLIC_VISTAIRE_3D_CDN_ORIGINS = "https://late.example";
   assert.equal(hasPublicMenu3d({ ...baseDish, webModel3dUrl: "https://models.example/dish.glb" }), true);
   assert.equal(hasPublicMenu3d({ ...baseDish, webModel3dUrl: "https://late.example/dish.glb" }), false);

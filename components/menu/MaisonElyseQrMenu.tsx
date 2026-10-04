@@ -17,7 +17,11 @@ import {
   isCurrencyConversionAvailable,
   type MenuExchangeRates
 } from "@/lib/currency/formatMenuPrice";
-import { hasPublicMenu3d, hasPublicMenuAr } from "@/lib/dish3dManifest";
+import {
+  hasPublicMenu3d,
+  hasPublicMenuAr,
+  PUBLIC_3D_CDN_ORIGINS_STRICT
+} from "@/lib/dish3dManifest";
 import {
   normalizePublicMenuLocale,
   type PublicMenuLocale
@@ -371,7 +375,7 @@ function dishMatchesFilter(dish: PublicMenuDish, filter: FilterId): boolean {
   if (filter === "all") return true;
   if (filter === "recommended") return isRecommendedDish(dish);
   if (filter === "signature") return isSignatureDish(dish);
-  if (filter === "immersive") return hasPublicMenu3d(dish) || hasPublicMenuAr(dish);
+  if (filter === "immersive") return hasPublicMenu3d(dish, PUBLIC_3D_CDN_ORIGINS_STRICT) || hasPublicMenuAr(dish, PUBLIC_3D_CDN_ORIGINS_STRICT);
   if (filter === "available") return dish.available;
   if (isDietaryFilter(filter)) {
     return matchesConfirmedFreeForFilter(dish, filter);
@@ -389,8 +393,8 @@ function dishBadges(dish: PublicMenuDish, copy: MaisonMenuCopy): string[] {
   const badges: string[] = [];
   if (isSignatureDish(dish)) badges.push(copy.signature);
   if (isRecommendedDish(dish)) badges.push(copy.recommendation);
-  if (hasPublicMenu3d(dish)) badges.push("3D");
-  if (hasPublicMenuAr(dish)) badges.push("AR");
+  if (hasPublicMenu3d(dish, PUBLIC_3D_CDN_ORIGINS_STRICT)) badges.push("3D");
+  if (hasPublicMenuAr(dish, PUBLIC_3D_CDN_ORIGINS_STRICT)) badges.push("AR");
   if (!dish.available) badges.push(copy.unavailableBadge);
   return Array.from(new Set(badges)).slice(0, 4);
 }

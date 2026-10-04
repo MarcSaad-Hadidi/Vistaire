@@ -10,7 +10,10 @@ import type {
   DishModelViewerProps
 } from "@/components/dish/DishModelViewer";
 import { getTrouvableCopy } from "@/components/menu/trouvableMenuControls";
-import { hasPublicMenu3d } from "@/lib/dish3dManifest";
+import {
+  hasPublicMenu3d,
+  PUBLIC_3D_CDN_ORIGINS_STRICT
+} from "@/lib/dish3dManifest";
 import {
   getAllergenDisplayGroups,
   customAllergensFromLegacyValues
@@ -413,7 +416,7 @@ export function SaugeNoireDishSheet({
     ...targetGroups.contains,
     ...targetCustomAllergens
   ].join(", ") || (targetGroups.unknownCount > 0 ? copy.confirmAllergens : copy.noAllergens);
-  const targetCanOpen3d = !isPreview && hasPublicMenu3d(dish);
+  const targetCanOpen3d = !isPreview && hasPublicMenu3d(dish, PUBLIC_3D_CDN_ORIGINS_STRICT);
   const naturalHeight =
     renderMode === "reading-surface" || renderMode === "route-preview";
 

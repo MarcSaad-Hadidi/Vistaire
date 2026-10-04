@@ -11,7 +11,11 @@ import {
   isCurrencyConversionAvailable,
   type MenuExchangeRates
 } from "@/lib/currency/formatMenuPrice";
-import { hasPublicMenu3d, hasPublicMenuAr } from "@/lib/dish3dManifest";
+import {
+  hasPublicMenu3d,
+  hasPublicMenuAr,
+  PUBLIC_3D_CDN_ORIGINS_STRICT
+} from "@/lib/dish3dManifest";
 import type { PublicMenuLocale } from "@/lib/menu/publicMenuSettings";
 import {
   getMaisonElyseCategoryKind,
@@ -216,8 +220,8 @@ function dishBadges(dish: PublicMenuDish, copy: DetailCopy): string[] {
   ) {
     badges.push(copy.recommendedBadge);
   }
-  if (hasPublicMenu3d(dish)) badges.push("3D");
-  if (hasPublicMenuAr(dish)) badges.push("AR");
+  if (hasPublicMenu3d(dish, PUBLIC_3D_CDN_ORIGINS_STRICT)) badges.push("3D");
+  if (hasPublicMenuAr(dish, PUBLIC_3D_CDN_ORIGINS_STRICT)) badges.push("AR");
   if (!dish.available) badges.push(copy.unavailableBadge);
 
   return Array.from(new Set(badges)).slice(0, 5);
@@ -423,8 +427,8 @@ export function MaisonElyseDishDetail({
     exchangeRates
   );
   const displayCategory = categoryLabel(dish, locale);
-  const has3d = hasPublicMenu3d(dish);
-  const hasAr = hasPublicMenuAr(dish);
+  const has3d = hasPublicMenu3d(dish, PUBLIC_3D_CDN_ORIGINS_STRICT);
+  const hasAr = hasPublicMenuAr(dish, PUBLIC_3D_CDN_ORIGINS_STRICT);
   const canOpenImmersive = displayMode === "public" && (has3d || hasAr);
   const badges = dishBadges(dish, copy);
   const ingredients = displayList(dish.ingredients);
