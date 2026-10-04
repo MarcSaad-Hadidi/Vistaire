@@ -61,6 +61,18 @@ baseline also pins the audited `package-lock.json` SHA-256; any dependency
 change (including a corrected advisory being reintroduced) requires an
 intentional baseline refresh and review.
 
+For every dependency PR, including Dependabot updates, capture a fresh
+`npm audit --json` report and review every high/critical advisory before
+refreshing the hash. Compute the canonical hash with
+`node --input-type=module -e 'import {readFileSync} from "node:fs"; import {createHash} from "node:crypto"; console.log(createHash("sha256").update(readFileSync("package-lock.json","utf8").replace(/\r\n/g,"\n")).digest("hex"));'`.
+Update only `lockfile_sha256` when the accepted advisory set and dependency
+paths remain unchanged, then run the baseline checker against the fresh report
+and `node --test tests/dependency-security-contract.test.mjs`. Commit the
+lockfile and reviewed baseline together. The dependency contract also runs in
+`npm run test:node`, so a dependency update cannot silently leave the normal
+test suite green with a stale audit hash. New or changed findings require their
+own remediation or explicit, owned, expiring acceptance.
+
 The audit job installs with `--ignore-scripts`, never runs `npm audit fix`, and
 does not receive repository secrets. A failed or malformed audit response is a
 failure, not an implicit clean result.
