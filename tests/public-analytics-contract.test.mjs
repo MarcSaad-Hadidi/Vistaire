@@ -214,7 +214,7 @@ test("Vercel Analytics preserves public pageviews and custom events", async () =
   for (const path of ["/", "/en", "/menu/bistro", "/administrator", "/ownerly"]) {
     for (const type of ["pageview", "event"]) {
       const event = { type, url: "https://vistaire.com" + path + "?source=menu" };
-      assert.equal(filterPublicAnalyticsEvent(event), event, path);
+      assert.equal(filterPublicAnalyticsEvent(event, path), event, path);
     }
   }
 });
@@ -226,19 +226,26 @@ test("Vercel Analytics drops protected event URLs regardless of the current rout
 
   assert.equal(typeof filterPublicAnalyticsEvent, "function");
   for (const root of ["/admin", "/owner", "/todos", "/sign-in"]) {
+    for (const type of ["pageview", "event"]) {
+      assert.equal(
+        filterPublicAnalyticsEvent({ type, url: "https://vistaire.com/" }, root),
+        null,
+        "The SDK may retain a public path after entering " + root
+      );
+    }
     for (const path of [root, root + "/private?token=private"]) {
       for (const type of ["pageview", "event"]) {
         assert.equal(
-          filterPublicAnalyticsEvent({ type, url: "https://vistaire.com" + path }),
+          filterPublicAnalyticsEvent({ type, url: "https://vistaire.com" + path }, "/"),
           null,
           path
         );
       }
     }
   }
-  assert.equal(filterPublicAnalyticsEvent({ type: "pageview", url: "" }), null);
+  assert.equal(filterPublicAnalyticsEvent({ type: "pageview", url: "" }, "/"), null);
   assert.equal(
-    filterPublicAnalyticsEvent({ type: "pageview", url: "invalid-url" }),
+    filterPublicAnalyticsEvent({ type: "pageview", url: "invalid-url" }, "/"),
     null
   );
 });

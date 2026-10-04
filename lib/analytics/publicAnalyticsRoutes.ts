@@ -38,8 +38,13 @@ export function shouldReloadForMicrosoftClarityBoundary(
 }
 
 export function filterPublicAnalyticsEvent(
-  event: BeforeSendEvent
+  event: BeforeSendEvent,
+  currentPathname: string | null
 ): BeforeSendEvent | null {
+  if (!shouldTrackPublicRoute(currentPathname)) {
+    return null;
+  }
+
   try {
     return shouldTrackPublicRoute(new URL(event.url).pathname) ? event : null;
   } catch {

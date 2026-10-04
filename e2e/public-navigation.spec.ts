@@ -647,7 +647,8 @@ test("Vercel Analytics excludes protected URLs on initial loads and client navig
     history.pushState(null, "", "/admin");
     return typeof beforeSend === "function" &&
       beforeSend({ type: "pageview", url: window.location.href }) === null &&
-      beforeSend({ type: "event", url: window.location.href }) === null;
+      beforeSend({ type: "event", url: window.location.href }) === null &&
+      beforeSend({ type: "event", url: window.location.origin + "/" }) === null;
   })).toBe(enabled);
   await expect(page).toHaveURL(/\/admin$/);
 
