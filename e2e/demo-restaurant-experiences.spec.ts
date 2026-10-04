@@ -14,6 +14,7 @@ test.describe("French restaurant discovery", () => {
   test("presents three real experiences without previews, early models or mobile overflow", async ({ page }) => {
     const errors: string[] = [];
     const unexpectedRequests: string[] = [];
+    const requestedVideos = new Set<string>();
     page.on("pageerror", (error) => errors.push(error.message));
     page.on("console", (message) => {
       if (message.type() === "error" || /hydration|did not match/i.test(message.text())) {
@@ -21,6 +22,8 @@ test.describe("French restaurant discovery", () => {
       }
     });
     page.on("request", (request) => {
+      const pathname = new URL(request.url()).pathname;
+      if (pathname.startsWith("/videos/demo/")) requestedVideos.add(pathname);
       if (MODEL_REQUEST.test(request.url()) || /\/api\/public\/landing-menu-preview\//.test(request.url())) {
         unexpectedRequests.push(request.url());
       }
@@ -44,6 +47,10 @@ test.describe("French restaurant discovery", () => {
     await expect(page.locator("html")).toHaveAttribute("lang", "fr-CA");
     await expect(page.getByRole("link", { name: "Voir cette page en français" }).first()).toHaveAttribute("aria-current", "true");
     await expect(page.getByRole("link", { name: "View this page in English" }).first()).toHaveAttribute("href", "/en/vistaire-menu");
+    for (const id of ["trouvable", "sauge-noire"]) {
+      await expect(page.locator(`[data-demo-experience="${id}"] video`)).not.toHaveAttribute("src", /.+/);
+      expect(requestedVideos.has(`/videos/demo/${id}.mp4`)).toBe(false);
+    }
     for (const viewport of [
       { width: 390, height: 844 },
       { width: 430, height: 932 },

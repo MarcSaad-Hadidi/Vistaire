@@ -3,6 +3,7 @@ import Image from "next/image";
 import Link from "next/link";
 import restaurantBackground from "@/Framer/PhotoRestoComplet5.png";
 import { JsonLd } from "@/components/JsonLd";
+import { DemoWalkthroughVideo } from "@/components/vistaire-preview/DemoWalkthroughVideo";
 import { PreviewFooter, PreviewNav } from "@/components/vistaire-preview/VistairePreviewChrome";
 import { buildPageAlternates, LOCALE_LANGUAGE_TAG, LOCALE_OPEN_GRAPH } from "@/lib/i18n";
 import { getLandingExperiences } from "@/lib/landing/menuExperiences";
@@ -134,15 +135,9 @@ export default async function DemoPage() {
                   </div>
                   <figure className={styles.figure}>
                     <div className={styles.phoneVideo}>
-                      <video
-                        aria-label={`Utilisation du menu ${experience.name}`}
-                        autoPlay
-                        data-demo-video
-                        loop
-                        muted
-                        playsInline
+                      <DemoWalkthroughVideo
+                        label={`Utilisation du menu ${experience.name}`}
                         poster={`/images/demo-walkthrough/${experience.id}.webp?v=hd2`}
-                        preload="metadata"
                         src={`/videos/demo/${experience.id}.mp4?v=hd2`}
                       />
                     </div>
