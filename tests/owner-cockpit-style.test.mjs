@@ -16,6 +16,8 @@ test("owner area uses the studio shell and a simple restaurant portfolio", () =>
   const nav = readRepoFile("lib", "owner", "nav.ts");
   const shell = readRepoFile("components", "owner", "OwnerShell.tsx");
   const css = readRepoFile("components", "owner", "OwnerCockpit.module.css");
+  const qrCustomizer = readRepoFile("components", "owner", "OwnerQrCustomizer.tsx");
+  const qrCss = readRepoFile("components", "owner", "OwnerQrManagement.module.css");
 
   // Layout: owner theme + cockpit shell, no public Header, noindex.
   assert.match(layout, /OwnerCockpit\.module\.css/);
@@ -64,7 +66,8 @@ test("owner area uses the studio shell and a simple restaurant portfolio", () =>
   assert.match(css, /\.moduleCardGrid/);
   assert.match(css, /\.statGroup/);
   assert.match(css, /\.dataTable/);
-  assert.match(css, /\.qrCustomizer/);
+  assert.match(qrCustomizer, /OwnerQrManagement\.module\.css/);
+  assert.match(qrCss, /\.qrCustomizer/);
   assert.match(css, /\.input:is\(select\)/);
   assert.match(css, /\.sidebarSwitch select option/);
 });

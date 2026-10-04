@@ -46,128 +46,7 @@
   font-family: var(--owner-body);
 }
 
-.backgroundImage {
-  position: fixed !important;
-  z-index: 0;
-  object-fit: cover;
-  object-position: center top;
-}
-
-.topbarWrap,
-.shell {
-  position: relative;
-  z-index: 2;
-}
-
-.topbarWrap {
-  position: sticky;
-  top: 0;
-  z-index: 20;
-  display: flex;
-  justify-content: center;
-  padding: 14px 24px 8px;
-}
-
-.topbar {
-  display: grid;
-  width: min(1520px, calc(100vw - 48px));
-  grid-template-columns: minmax(180px, 1fr) auto auto;
-  gap: 12px;
-  align-items: center;
-  border: 1px solid rgba(255, 250, 240, 0.26);
-  border-radius: 22px;
-  background: transparent;
-  padding: 10px 12px 10px 20px;
-  box-shadow:
-    0 24px 70px rgba(0, 0, 0, 0.22),
-    inset 0 1px 0 rgba(255, 250, 240, 0.18),
-    inset 0 -1px 0 rgba(255, 250, 240, 0.1);
-  -webkit-backdrop-filter: blur(9px) saturate(112%);
-  backdrop-filter: blur(9px) saturate(112%);
-}
-
-.brand {
-  color: var(--owner-cream);
-  text-decoration: none;
-}
-
-.brandName {
-  display: block;
-  font-family: var(--owner-display);
-  font-size: 24px;
-  line-height: 0.95;
-}
-
-.brandMeta {
-  display: block;
-  margin-top: 2px;
-  color: rgba(232, 207, 155, 0.78);
-  font-size: 11px;
-  font-weight: 700;
-  line-height: 1;
-}
-
-.topLinks {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  justify-content: flex-end;
-}
-
-.topLinks a,
-.userSlot {
-  display: inline-flex;
-  min-height: 38px;
-  align-items: center;
-  justify-content: center;
-  border: 1px solid rgba(255, 250, 240, 0.18);
-  border-radius: 999px;
-  background: rgba(0, 0, 0, 0.08);
-  padding: 0 14px;
-  color: rgba(255, 250, 240, 0.82);
-  font-size: 12px;
-  font-weight: 700;
-  text-decoration: none;
-}
-
-.userSlot {
-  width: 42px;
-  padding: 0;
-}
-
-.shell {
-  display: grid;
-  width: min(1520px, calc(100vw - 48px));
-  gap: 12px;
-  margin: 0 auto;
-  padding: 8px 0 24px;
-}
-
-.frame {
-  display: grid;
-  gap: 12px;
-  border: 1px solid rgba(255, 250, 240, 0.26);
-  border-radius: 22px;
-  background: transparent;
-  padding: 14px;
-  box-shadow:
-    0 24px 70px rgba(0, 0, 0, 0.22),
-    inset 0 1px 0 rgba(255, 250, 240, 0.18),
-    inset 0 -1px 0 rgba(255, 250, 240, 0.1);
-  -webkit-backdrop-filter: blur(9px) saturate(112%);
-  backdrop-filter: blur(9px) saturate(112%);
-}
-
-.card,
-.statCard,
-.actionCard,
-.recommendationCard,
-.restaurantTable,
-.restaurantCard,
-.formPanel,
-.asidePanel,
-.qrRoot,
-.empty {
+.qrRoot {
   border: 1px solid rgba(255, 250, 240, 0.2);
   border-radius: 15px;
   background: rgba(0, 0, 0, 0.1);
@@ -176,26 +55,6 @@
     inset 0 1px 0 rgba(255, 250, 240, 0.13);
   -webkit-backdrop-filter: blur(5px) saturate(110%);
   backdrop-filter: blur(5px) saturate(110%);
-}
-
-.heroPanel {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(300px, 0.34fr);
-  gap: 12px;
-  align-items: stretch;
-  padding: 14px;
-}
-
-.heroCopy,
-.sourcePanel {
-  padding: clamp(22px, 4vw, 48px);
-}
-
-.heroCopy {
-  display: flex;
-  min-height: 420px;
-  flex-direction: column;
-  justify-content: center;
 }
 
 .eyebrow,
@@ -222,14 +81,7 @@
   padding: 0 16px;
 }
 
-.heroCopy h1,
-.sectionTitle,
-.statCard strong,
-.restaurantName,
-.recommendationCard h3,
-.actionCard h3,
-.panelTitle,
-.formTitle {
+.panelTitle {
   margin: 0;
   color: #fffaf0;
   font-family: var(--owner-display);
@@ -237,20 +89,7 @@
   letter-spacing: 0;
 }
 
-.heroCopy h1 {
-  max-width: 860px;
-  margin-top: 22px;
-  font-size: clamp(42px, 6vw, 84px);
-  line-height: 0.94;
-  text-wrap: balance;
-  text-shadow: 0 12px 32px rgba(0, 0, 0, 0.58);
-}
-
-.heroLead,
-.sectionText,
-.bodyText,
-.recommendationCard p,
-.actionCard p {
+.bodyText {
   color: var(--owner-muted);
   font-size: 15px;
   line-height: 1.58;
@@ -260,35 +99,12 @@
   margin: 14px 0 0;
 }
 
-.heroLead {
-  max-width: 720px;
-  margin: 22px 0 0;
-  font-size: 16px;
-}
-
-.sourcePanel {
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-}
-
-.heroActions,
-.buttonRow,
-.actionButtons,
 .qrActions {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
 }
 
-.heroActions {
-  margin-top: 30px;
-}
-
-.buttonPrimary,
-.buttonSecondary,
-.buttonGhost,
-.submitButton,
 .qrButton {
   display: inline-flex;
   min-height: 44px;
@@ -309,33 +125,12 @@
     box-shadow 180ms ease;
 }
 
-.buttonPrimary,
-.submitButton {
-  border: 1px solid rgba(255, 246, 225, 0.56);
-  background: transparent;
-  color: #fffaf0;
-  box-shadow:
-    0 14px 30px rgba(0, 0, 0, 0.2),
-    inset 0 1px 0 rgba(255, 250, 240, 0.18);
-}
-
-.buttonSecondary,
 .qrButton {
   border: 1px solid rgba(232, 207, 155, 0.42);
   background: transparent;
   color: rgba(232, 207, 155, 0.92);
 }
 
-.buttonGhost {
-  border: 1px solid rgba(255, 250, 240, 0.14);
-  background: transparent;
-  color: rgba(255, 250, 240, 0.72);
-}
-
-.buttonPrimary:hover,
-.buttonSecondary:hover,
-.buttonGhost:hover,
-.submitButton:hover,
 .qrButton:hover {
   transform: translateY(-1px);
   border-color: rgba(255, 250, 240, 0.72);
@@ -343,131 +138,9 @@
   color: #fffaf0;
 }
 
-.submitButton:disabled,
 .qrButton:disabled {
   cursor: wait;
   opacity: 0.55;
-}
-
-.section {
-  padding: clamp(20px, 2.6vw, 30px);
-}
-
-.sectionHeader {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 14px;
-  align-items: end;
-  justify-content: space-between;
-  margin-bottom: 18px;
-}
-
-.sectionTitle {
-  font-size: clamp(30px, 4vw, 52px);
-  line-height: 0.98;
-}
-
-.sectionText {
-  max-width: 760px;
-  margin: 10px 0 0;
-}
-
-.sourceBadge {
-  border: 1px solid rgba(255, 250, 240, 0.14);
-  border-radius: 999px;
-  padding: 10px 14px;
-  color: rgba(255, 250, 240, 0.72);
-  font-size: 12px;
-  font-weight: 700;
-}
-
-.statsGrid {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 10px;
-}
-
-.statCard {
-  min-height: 138px;
-  padding: 16px;
-}
-
-.statCard strong {
-  display: block;
-  margin-top: 16px;
-  font-size: clamp(30px, 3.2vw, 44px);
-  line-height: 0.95;
-  overflow-wrap: anywhere;
-}
-
-.actionGrid,
-.recommendationGrid {
-  display: grid;
-  gap: 10px;
-}
-
-.actionGrid {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-}
-
-.recommendationGrid {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-
-.actionCard,
-.recommendationCard {
-  display: block;
-  padding: 18px;
-  color: inherit;
-  text-decoration: none;
-}
-
-.actionCard h3,
-.recommendationCard h3 {
-  margin-top: 18px;
-  font-size: 24px;
-  line-height: 1;
-}
-
-.pill,
-.statusPill {
-  display: inline-flex;
-  min-height: 30px;
-  align-items: center;
-  border: 1px solid rgba(255, 250, 240, 0.14);
-  border-radius: 999px;
-  background: rgba(255, 250, 240, 0.035);
-  padding: 0 11px;
-  color: rgba(255, 250, 240, 0.74);
-  font-size: 11px;
-  font-weight: 700;
-}
-
-.priorityHigh {
-  border-color: rgba(232, 185, 164, 0.38);
-  color: #ffd7c5;
-}
-
-.priorityMedium,
-.recommendationOpportunity {
-  border-color: rgba(232, 207, 155, 0.42);
-  color: var(--owner-champagne);
-}
-
-.priorityLow,
-.recommendationSetup {
-  border-color: rgba(255, 250, 240, 0.14);
-  color: rgba(255, 250, 240, 0.76);
-}
-
-.recommendationWatch {
-  border-color: rgba(201, 164, 111, 0.32);
-  color: #e3c99b;
-}
-
-.recommendationUpsell {
-  border-color: rgba(134, 239, 172, 0.28);
-  color: #d2f8d8;
 }
 
 .sourceNote {
@@ -477,18 +150,7 @@
   line-height: 1.45;
 }
 
-.restaurantTable {
-  padding: 14px;
-}
-
-.filters {
-  display: grid;
-  grid-template-columns: minmax(220px, 1fr) repeat(6, minmax(130px, 0.4fr));
-  gap: 10px;
-}
-
-.field,
-.filterField {
+.field {
   display: grid;
   gap: 8px;
 }
@@ -571,19 +233,6 @@
   color: rgba(255, 250, 240, 0.34);
 }
 
-.restaurantList {
-  display: grid;
-  gap: 10px;
-  margin-top: 14px;
-}
-
-.restaurantCard {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(250px, 0.28fr);
-  gap: 14px;
-  padding: 16px;
-}
-
 .restaurantHeader {
   display: flex;
   flex-wrap: wrap;
@@ -591,8 +240,7 @@
   justify-content: space-between;
 }
 
-.restaurantSlug,
-.mutedLabel {
+.restaurantSlug {
   color: rgba(232, 207, 155, 0.72);
   font-size: 11px;
   font-weight: 700;
@@ -600,101 +248,11 @@
   text-transform: uppercase;
 }
 
-.restaurantName {
-  margin-top: 8px;
-  font-size: 32px;
-  line-height: 0.98;
-}
-
-.restaurantMeta,
-.nextAction,
-.lastActivity,
-.readinessDetail {
-  color: rgba(255, 250, 240, 0.66);
-  font-size: 13px;
-  line-height: 1.5;
-}
-
-.pills {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 7px;
-  justify-content: flex-end;
-}
-
-.miniGrid,
-.readinessGrid {
-  display: grid;
-  gap: 8px;
-  margin-top: 16px;
-}
-
-.miniGrid {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-}
-
-.readinessGrid {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-
-.miniMetric,
-.readinessItem,
-.urlPreview,
-.nextSteps {
+.urlPreview {
   border: 1px solid rgba(255, 250, 240, 0.14);
   border-radius: 12px;
   background: rgba(0, 0, 0, 0.1);
   padding: 13px;
-}
-
-.miniMetric strong {
-  display: block;
-  margin-top: 8px;
-  color: #fffaf0;
-  font-family: var(--owner-display);
-  font-size: 28px;
-  font-weight: 400;
-  line-height: 0.95;
-}
-
-.readinessHeader {
-  display: flex;
-  gap: 8px;
-  justify-content: space-between;
-}
-
-.readinessHeader strong {
-  color: rgba(255, 250, 240, 0.9);
-  font-size: 14px;
-}
-
-.nextAction {
-  margin-top: 16px;
-  color: rgba(232, 207, 155, 0.86);
-}
-
-.lastActivity {
-  margin-top: 8px;
-  color: rgba(255, 250, 240, 0.46);
-}
-
-.actionButtons {
-  margin-top: 16px;
-}
-
-.createGrid {
-  display: grid;
-  grid-template-columns: minmax(0, 0.62fr) minmax(320px, 0.38fr);
-  gap: 12px;
-}
-
-.formPanel,
-.asidePanel {
-  padding: clamp(18px, 2.2vw, 26px);
-}
-
-.formPanel > .formField {
-  margin-top: 14px;
 }
 
 .formGrid {
@@ -894,24 +452,6 @@
   flex: 0 0 auto;
 }
 
-.successQr {
-  margin-top: 18px;
-}
-
-.nextSteps {
-  margin-top: 18px;
-}
-
-.nextSteps ul {
-  display: grid;
-  gap: 8px;
-  margin: 10px 0 0;
-  padding-left: 18px;
-  color: rgba(255, 250, 240, 0.66);
-  font-size: 13px;
-  line-height: 1.45;
-}
-
 .qrRoot {
   padding: 14px;
 }
@@ -965,154 +505,30 @@
   line-height: 1.4;
 }
 
-.empty {
-  padding: 20px;
-  color: rgba(255, 250, 240, 0.7);
-  font-size: 14px;
-  line-height: 1.5;
-}
-
 @media (prefers-reduced-motion: reduce) {
-  .buttonPrimary,
-  .buttonSecondary,
-  .buttonGhost,
-  .submitButton,
   .qrButton {
     transition: none;
   }
 }
 
-@media (max-width: 1180px) {
-  .statsGrid,
-  .actionGrid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .filters {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .restaurantCard,
-  .createGrid {
-    grid-template-columns: 1fr;
-  }
-}
-
 @media (max-width: 920px) {
-  .topbarWrap {
-    padding: 10px 14px 8px;
-  }
 
-  .topbar {
-    width: min(560px, calc(100vw - 28px));
-    grid-template-columns: 1fr auto;
-  }
-
-  .topLinks {
-    grid-column: 1 / -1;
-    justify-content: flex-start;
-    order: 3;
-  }
-
-  .shell {
-    width: min(560px, calc(100vw - 28px));
-  }
-
-  .frame {
-    border-radius: 21px;
-    padding: 10px;
-  }
-
-  .heroPanel {
-    grid-template-columns: 1fr;
-  }
-
-  .heroCopy {
-    min-height: 0;
-  }
-
-  .recommendationGrid,
-  .miniGrid,
-  .readinessGrid,
   .formGrid {
     grid-template-columns: 1fr;
-  }
-
-  .pills {
-    justify-content: flex-start;
   }
 }
 
 @media (max-width: 520px) {
-  .topbarWrap {
-    padding: 8px 10px;
-  }
 
-  .topbar,
-  .shell {
-    width: calc(100vw - 20px);
-  }
-
-  .topbar {
-    border-radius: 19px;
-    padding: 10px;
-  }
-
-  .frame {
-    gap: 8px;
-    border-radius: 19px;
-    padding: 8px;
-  }
-
-  .card,
-  .statCard,
-  .actionCard,
-  .recommendationCard,
-  .restaurantTable,
-  .restaurantCard,
-  .formPanel,
-  .asidePanel,
   .qrRoot {
     border-radius: 13px;
   }
 
-  .heroPanel,
-  .section,
-  .restaurantTable,
-  .restaurantCard,
-  .formPanel,
-  .asidePanel {
-    padding: 16px;
-  }
-
-  .heroCopy,
-  .sourcePanel {
-    padding: 4px;
-  }
-
-  .heroCopy h1 {
-    font-size: 39px;
-    line-height: 1;
-  }
-
-  .statsGrid,
-  .actionGrid,
-  .filters {
-    grid-template-columns: 1fr;
-  }
-
-  .buttonRow,
-  .heroActions,
-  .actionButtons,
   .qrActions,
   .submitRow {
     flex-direction: column;
   }
 
-  .buttonPrimary,
-  .buttonSecondary,
-  .buttonGhost,
-  .submitButton,
   .qrButton {
     width: 100%;
     min-height: 46px;
@@ -1391,12 +807,6 @@
   gap: 8px;
 }
 
-.quickActions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-}
-
 .btn {
   display: inline-flex;
   align-items: center;
@@ -1426,7 +836,6 @@
 .sidebarSwitch select:focus-visible,
 .backLink:focus-visible,
 .ownerOpenLink:focus-visible,
-.restaurantTabs button:focus-visible,
 .drawerClose:focus-visible,
 .input:focus-visible,
 .select:focus-visible,
@@ -1467,42 +876,6 @@
 }
 
 /* "À traiter aujourd'hui" banner */
-.todayBanner {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-  gap: 10px;
-  padding: 16px;
-  border: 1px solid var(--line);
-  border-radius: 16px;
-  background: linear-gradient(180deg, var(--surface-2), var(--surface-1));
-}
-
-.todayItem {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  padding: 10px 12px;
-  border-radius: 12px;
-  background: rgba(13, 8, 5, 0.5);
-  border: 1px solid transparent;
-  color: inherit;
-  text-decoration: none;
-}
-
-.todayItem:hover {
-  border-color: var(--line);
-}
-
-.todayCount {
-  font-family: var(--owner-display);
-  font-size: 26px;
-  line-height: 1;
-}
-
-.todayLabel {
-  font-size: 12px;
-  color: var(--owner-muted);
-}
 
 /* Stat groups (hierarchized) */
 .statGroup {
@@ -1811,12 +1184,6 @@
 }
 
 /* Restaurant command center */
-.ownerPortfolioLayout {
-  display: grid;
-  grid-template-columns: minmax(0, 1.35fr) minmax(300px, 0.65fr);
-  gap: 16px;
-  align-items: start;
-}
 
 .ownerRestaurantGrid {
   display: grid;
@@ -1917,13 +1284,6 @@
   background: linear-gradient(90deg, #9f7851, var(--owner-champagne));
 }
 
-.ownerMiniMetrics {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 8px;
-}
-
-.ownerMiniMetrics span,
 .commandKpiGrid article {
   min-width: 0;
   border: 1px solid rgba(232, 207, 155, 0.12);
@@ -1932,7 +1292,6 @@
   padding: 10px;
 }
 
-.ownerMiniMetrics small,
 .commandKpiGrid span {
   display: block;
   color: var(--owner-soft);
@@ -1941,7 +1300,6 @@
   text-transform: uppercase;
 }
 
-.ownerMiniMetrics strong,
 .commandKpiGrid strong {
   display: block;
   margin-top: 5px;
@@ -1982,22 +1340,6 @@
   line-height: 1.35;
 }
 
-.ownerCardCta {
-  display: inline-flex;
-  width: max-content;
-  max-width: 100%;
-  min-height: 38px;
-  align-items: center;
-  justify-content: center;
-  border: 1px solid rgba(232, 207, 155, 0.22);
-  border-radius: 999px;
-  background: rgba(232, 207, 155, 0.08);
-  color: var(--owner-champagne);
-  padding: 0 12px;
-  font-size: 12px;
-  font-weight: 600;
-}
-
 .restaurantEssentials {
   display: flex;
   flex-wrap: wrap;
@@ -2027,70 +1369,6 @@
   font-size: 13px;
   font-weight: 700;
   text-decoration: none;
-}
-
-.priorityList {
-  display: grid;
-  gap: 10px;
-}
-
-.priorityItem {
-  display: grid;
-  grid-template-columns: 34px minmax(0, 1fr);
-  gap: 10px;
-  align-items: flex-start;
-  min-width: 0;
-  border: 1px solid rgba(232, 207, 155, 0.12);
-  border-radius: 12px;
-  background: rgba(8, 6, 4, 0.32);
-  color: inherit;
-  padding: 12px;
-  text-decoration: none;
-}
-
-.priorityItem:hover {
-  border-color: rgba(232, 207, 155, 0.3);
-}
-
-.priorityItem strong,
-.priorityItem small {
-  display: block;
-  overflow-wrap: anywhere;
-}
-
-.priorityItem small {
-  margin: 5px 0 8px;
-  color: var(--owner-muted);
-  font-size: 12px;
-  line-height: 1.4;
-}
-
-.priorityIndex {
-  display: grid;
-  width: 34px;
-  height: 34px;
-  place-items: center;
-  border: 1px solid rgba(232, 207, 155, 0.18);
-  border-radius: 999px;
-  color: var(--owner-champagne);
-  font-size: 13px;
-}
-
-.workflowStrip {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 10px;
-}
-
-.workflowStrip span {
-  min-width: 0;
-  border: 1px solid rgba(232, 207, 155, 0.14);
-  border-radius: 12px;
-  background: rgba(8, 6, 4, 0.34);
-  padding: 12px;
-  color: var(--owner-cream);
-  font-size: 13px;
-  line-height: 1.35;
 }
 
 .ownerPicker {
@@ -2250,33 +1528,6 @@
   justify-content: flex-end;
 }
 
-.restaurantTabs {
-  display: flex;
-  gap: 8px;
-  overflow-x: auto;
-  padding-bottom: 2px;
-  scrollbar-width: thin;
-}
-
-.restaurantTabs button {
-  flex: 0 0 auto;
-  min-height: 42px;
-  border: 1px solid rgba(232, 207, 155, 0.14);
-  border-radius: 999px;
-  background: rgba(8, 6, 4, 0.34);
-  color: var(--owner-muted);
-  padding: 0 14px;
-  font: inherit;
-  font-size: 13px;
-  cursor: pointer;
-}
-
-.restaurantTabs .restaurantTabActive {
-  border-color: rgba(232, 207, 155, 0.5);
-  background: rgba(232, 207, 155, 0.13);
-  color: var(--owner-cream);
-}
-
 .restaurantTabPanel {
   display: grid;
   gap: 16px;
@@ -2290,8 +1541,7 @@
   align-items: stretch;
 }
 
-.nextActionPanel,
-.clientPreviewPanel {
+.nextActionPanel {
   min-width: 0;
   border: 1px solid rgba(232, 207, 155, 0.16);
   border-radius: 16px;
@@ -2434,78 +1684,6 @@
   overflow-wrap: anywhere;
 }
 
-.clientPreviewPanel {
-  display: grid;
-  gap: 12px;
-  align-content: start;
-}
-
-.clientPreviewPhone {
-  width: min(100%, 260px);
-  margin: 0 auto;
-  border: 1px solid rgba(232, 207, 155, 0.24);
-  border-radius: 26px;
-  background: #0a0705;
-  padding: 10px;
-  box-shadow: inset 0 0 0 1px rgba(255, 250, 240, 0.05);
-}
-
-.clientPreviewScreen {
-  overflow: hidden;
-  border-radius: 20px;
-  border: 1px solid rgba(255, 250, 240, 0.08);
-  background: #15100c;
-}
-
-.clientPreviewHero {
-  display: grid;
-  gap: 5px;
-  min-height: 150px;
-  align-content: end;
-  padding: 16px;
-  background:
-    linear-gradient(180deg, rgba(232, 207, 155, 0.08), rgba(8, 6, 4, 0.86)),
-    #24170f;
-}
-
-.clientPreviewHero span,
-.clientPreviewHero small {
-  color: var(--owner-soft);
-  font-size: 11px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-.clientPreviewHero strong {
-  color: var(--owner-cream);
-  font-family: var(--owner-display);
-  font-size: 28px;
-  font-weight: 400;
-  line-height: 0.98;
-}
-
-.clientPreviewList {
-  display: grid;
-  gap: 8px;
-  padding: 12px;
-}
-
-.clientPreviewList p {
-  display: flex;
-  justify-content: space-between;
-  gap: 10px;
-  margin: 0;
-  border-bottom: 1px solid rgba(232, 207, 155, 0.1);
-  padding-bottom: 8px;
-  color: var(--owner-muted);
-  font-size: 12px;
-}
-
-.clientPreviewList p:last-child {
-  border-bottom: 0;
-  padding-bottom: 0;
-}
-
 .menuPreviewPhone {
   width: min(100%, 390px);
   min-height: 680px;
@@ -2600,124 +1778,6 @@
   overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
   transform: translateZ(0);
-}
-
-.menuPhoneHero {
-  display: grid;
-  gap: 7px;
-  padding: 34px 17px 18px;
-}
-
-.menuPhoneHero > span:first-child {
-  font-size: 9px;
-  font-weight: 700;
-  letter-spacing: 0.13em;
-}
-
-.menuPhoneHero h4 {
-  margin: 0;
-  font-family: var(--owner-display);
-  font-size: 30px;
-  font-weight: 400;
-  line-height: 0.95;
-  overflow-wrap: anywhere;
-}
-
-.menuPhoneHero p {
-  margin: 0;
-  font-size: 11px;
-  line-height: 1.35;
-}
-
-.menuPhoneAction {
-  width: max-content;
-  max-width: 100%;
-  min-height: 30px;
-  align-items: center;
-  border-radius: 999px;
-  padding: 0 12px;
-  font-size: 10px;
-  font-weight: 700;
-  line-height: 30px;
-  overflow-wrap: anywhere;
-}
-
-.menuPhoneContent {
-  display: grid;
-  gap: 15px;
-  padding: 14px;
-}
-
-.menuPhoneTabs {
-  display: flex;
-  gap: 6px;
-  align-items: center;
-  overflow-x: hidden;
-  color: var(--owner-muted);
-  font-size: 10px;
-  font-weight: 700;
-  white-space: nowrap;
-}
-
-.menuPhoneTabs > span {
-  min-height: 26px;
-  border-radius: 999px;
-  padding: 0 9px;
-  line-height: 26px;
-}
-
-.menuPhoneSection {
-  display: grid;
-  gap: 7px;
-}
-
-.menuPhoneSectionTitle {
-  display: flex;
-  gap: 8px;
-  align-items: baseline;
-  justify-content: space-between;
-  font-size: 13px;
-}
-
-.menuPhoneSectionTitle span {
-  font-size: 10px;
-}
-
-.menuPhoneDish {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-  justify-content: space-between;
-  min-width: 0;
-  border-bottom: 1px solid rgba(232, 207, 155, 0.12);
-  padding: 7px 0;
-}
-
-.menuPhoneDish > span {
-  display: grid;
-  min-width: 0;
-  gap: 3px;
-}
-
-.menuPhoneDish strong,
-.menuPhoneDish small,
-.menuPhoneDish b {
-  overflow-wrap: anywhere;
-}
-
-.menuPhoneDish strong {
-  font-size: 11px;
-  font-weight: 600;
-}
-
-.menuPhoneDish small {
-  font-size: 9px;
-}
-
-.menuPhoneDish b {
-  flex: 0 0 auto;
-  font-size: 10px;
-  font-weight: 700;
 }
 
 .createWizard {
@@ -2837,12 +1897,6 @@
   color: var(--owner-muted);
   font-size: 13px;
   line-height: 1.45;
-}
-
-.menuLanguageGrid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
 }
 
 .draftChip {
@@ -2976,19 +2030,6 @@
   accent-color: var(--owner-champagne);
 }
 
-.qrPreviewGrid {
-  display: grid;
-  grid-template-columns: minmax(220px, 320px) minmax(0, 1fr);
-  gap: 14px;
-  align-items: start;
-}
-
-.qrDraftControls {
-  display: grid;
-  gap: 12px;
-  min-width: 0;
-}
-
 /* Drawer (restaurant detail) */
 .drawer {
   position: fixed;
@@ -3055,186 +2096,6 @@
 }
 
 /* QR customizer */
-.qrManager {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.qrSetupGrid {
-  display: grid;
-  grid-template-columns: minmax(0, 0.32fr) minmax(0, 0.68fr);
-  gap: 12px;
-}
-
-.qrTypeGroup {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
-}
-
-.qrTypeButton {
-  min-height: 74px;
-  padding: 12px;
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  background: var(--surface-2);
-  color: var(--owner-cream);
-  cursor: pointer;
-  text-align: left;
-}
-
-.qrTypeButton span {
-  display: block;
-  color: var(--owner-cream);
-  font-size: 14px;
-  font-weight: 700;
-}
-
-.qrTypeButton small {
-  display: block;
-  margin-top: 6px;
-  color: var(--owner-muted);
-  font-size: 12px;
-  line-height: 1.35;
-}
-
-.qrTypeButton em {
-  display: inline-block;
-  margin-top: 7px;
-  color: var(--owner-champagne);
-  font-size: 11px;
-  font-style: normal;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-.qrTypeButtonActive {
-  border-color: rgba(232, 207, 155, 0.74);
-  background: rgba(232, 207, 155, 0.1);
-  box-shadow: 0 0 0 1px rgba(232, 207, 155, 0.12);
-}
-
-.qrTargetBanner {
-  display: flex;
-  gap: 12px;
-  align-items: flex-start;
-  justify-content: space-between;
-  padding: 12px;
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  background: var(--surface-0);
-}
-
-.qrTargetBanner strong {
-  color: var(--owner-cream);
-  font-size: 13px;
-}
-
-.qrTargetBanner p {
-  margin: 4px 0 0;
-  color: var(--owner-muted);
-  font-size: 12px;
-  overflow-wrap: anywhere;
-}
-
-.qrCustomizer {
-  display: grid;
-  grid-template-columns: minmax(0, 300px) minmax(0, 1fr);
-  gap: 18px;
-}
-
-.qrPreviewCol {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.qrPreviewFrame {
-  display: grid;
-  place-items: center;
-  padding: 18px;
-  border-radius: 16px;
-  border: 1px solid var(--line);
-  background: var(--surface-2);
-}
-
-.qrPreviewFrame svg {
-  width: min(240px, 100%);
-  height: auto;
-}
-
-.qrEmptyPreview {
-  display: grid;
-  min-height: 180px;
-  place-items: center;
-  color: var(--owner-muted);
-  font-size: 13px;
-  text-align: center;
-}
-
-.qrUrlBox {
-  font-size: 12px;
-  word-break: break-all;
-  color: var(--owner-muted);
-  padding: 8px 10px;
-  border-radius: 10px;
-  background: var(--surface-0);
-  border: 1px solid var(--line);
-}
-
-.qrControlsCol {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-}
-
-.presetRow {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.presetButton {
-  min-height: 36px;
-  padding: 0 12px;
-  border-radius: 999px;
-  border: 1px solid var(--line);
-  background: var(--surface-2);
-  color: var(--owner-cream);
-  font-size: 13px;
-  cursor: pointer;
-}
-
-.presetButtonActive {
-  border-color: var(--owner-champagne);
-  color: var(--owner-champagne);
-}
-
-.colorGrid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
-  gap: 10px;
-}
-
-.colorField {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 8px;
-  border: 1px solid var(--line);
-  border-radius: 10px;
-}
-
-.colorField input[type="color"] {
-  width: 34px;
-  height: 34px;
-  border: none;
-  background: none;
-  padding: 0;
-  cursor: pointer;
-}
 
 .rangeField {
   display: flex;
@@ -3251,224 +2112,13 @@
   font-size: 13px;
 }
 
-.qrExportRow {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
 .qrStatusLine {
   font-size: 13px;
   color: var(--owner-soft);
   min-height: 18px;
 }
 
-.qrStateSummary {
-  padding: 12px;
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  background: linear-gradient(135deg, rgba(232, 207, 155, 0.08), var(--surface-0));
-}
-
-.qrStateSummary span {
-  display: inline-flex;
-  color: var(--owner-champagne);
-  font-size: 11px;
-  font-weight: 800;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-}
-
-.qrStateSummary p {
-  margin: 6px 0 0;
-  color: var(--owner-soft);
-  font-size: 13px;
-  line-height: 1.45;
-}
-
-.qrLifecycleActions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  padding-top: 4px;
-}
-
-.qrDangerButton {
-  display: inline-flex;
-  min-height: 44px;
-  align-items: center;
-  justify-content: center;
-  padding: 0 16px;
-  border: 1px solid rgba(230, 160, 122, 0.55);
-  border-radius: 11px;
-  background: rgba(230, 160, 122, 0.08);
-  color: var(--danger);
-  font: inherit;
-  font-size: 14px;
-  font-weight: 650;
-  cursor: pointer;
-}
-
-.qrDangerButton:focus-visible {
-  outline: 2px solid rgba(230, 160, 122, 0.82);
-  outline-offset: 2px;
-}
-
-.qrDangerButton:disabled {
-  cursor: not-allowed;
-  opacity: 0.5;
-}
-
-.qrHistory {
-  padding: 14px;
-  border: 1px solid var(--line);
-  border-radius: 14px;
-  background: var(--surface-0);
-}
-
-.qrHistoryHeader,
-.qrHistory li > div {
-  display: flex;
-  min-width: 0;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.qrHistoryHeader h3 {
-  margin: 0;
-  color: var(--owner-cream);
-  font-size: 14px;
-}
-
-.qrHistoryHeader span,
-.qrHistory li span {
-  color: var(--owner-champagne);
-  font-size: 11px;
-}
-
-.qrHistory ul {
-  display: grid;
-  gap: 8px;
-  margin: 12px 0 0;
-  padding: 0;
-  list-style: none;
-}
-
-.qrHistoryNotice {
-  margin: 12px 0 0;
-  color: var(--owner-muted);
-  font-size: 12px;
-  line-height: 1.45;
-}
-
-.qrHistory li {
-  min-width: 0;
-  padding: 10px;
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  background: var(--surface-1);
-}
-
-.qrHistory li strong,
-.qrHistory li p {
-  overflow-wrap: anywhere;
-}
-
-.qrHistory li strong {
-  color: var(--owner-cream);
-  font-size: 13px;
-}
-
-.qrHistory li p {
-  margin: 5px 0 0;
-  color: var(--owner-muted);
-  font-size: 12px;
-}
-
-.qrDialogBackdrop {
-  position: fixed;
-  inset: 0;
-  z-index: 100;
-  display: grid;
-  place-items: center;
-  padding: 20px;
-  overflow-y: auto;
-  background: rgba(5, 4, 3, 0.78);
-  backdrop-filter: blur(8px);
-}
-
-.qrDialog {
-  width: min(100%, 520px);
-  max-height: min(760px, calc(100dvh - 40px));
-  overflow: auto;
-  padding: 22px;
-  border: 1px solid rgba(232, 207, 155, 0.28);
-  border-radius: 18px;
-  background: var(--surface-1);
-  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.48);
-}
-
-.qrDialogHeader h2 {
-  margin: 0;
-  color: var(--owner-cream);
-  font-family: var(--font-display), Georgia, serif;
-  font-size: clamp(22px, 5vw, 30px);
-}
-
-.qrDialogHeader p {
-  margin: 9px 0 0;
-  color: var(--owner-soft);
-  font-size: 14px;
-  line-height: 1.5;
-}
-
-.qrDispositionFieldset {
-  display: grid;
-  gap: 10px;
-  min-width: 0;
-  margin: 20px 0 0;
-  padding: 14px;
-  border: 1px solid var(--line);
-  border-radius: 12px;
-}
-
-.qrDispositionFieldset legend {
-  padding: 0 6px;
-  color: var(--owner-champagne);
-  font-size: 12px;
-  font-weight: 700;
-}
-
-.qrDispositionFieldset label {
-  display: flex;
-  min-width: 0;
-  align-items: flex-start;
-  gap: 9px;
-  color: var(--owner-cream);
-  font-size: 13px;
-  line-height: 1.45;
-}
-
-.qrDispositionFieldset input {
-  flex: 0 0 auto;
-  margin-top: 2px;
-  accent-color: var(--owner-champagne);
-}
-
-.qrDialogActions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 10px;
-  margin-top: 22px;
-}
-
 /* AI panel */
-.aiPanel {
-  border: 1px solid var(--line);
-  border-radius: 16px;
-  background: linear-gradient(180deg, rgba(232, 207, 155, 0.06), var(--surface-1));
-}
 
 .aiList {
   display: flex;
@@ -4976,10 +3626,8 @@
     grid-template-columns: minmax(0, 1fr);
   }
 
-  .ownerPortfolioLayout,
   .restaurantOverviewGrid,
   .createWizard,
-  .qrPreviewGrid,
   .menuAppearanceLayout {
     grid-template-columns: minmax(0, 1fr);
   }
@@ -5032,19 +3680,6 @@
 
   .menuToggle {
     display: inline-flex;
-  }
-
-  .qrCustomizer {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .qrSetupGrid,
-  .qrTypeGroup {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .qrTargetBanner {
-    flex-direction: column;
   }
 
   .statTilePrimary {
@@ -5103,10 +3738,7 @@
     display: grid;
   }
 
-  .workflowStrip,
-  .ownerMiniMetrics,
   .toggleCardGrid,
-  .menuLanguageGrid,
   .issueRow,
   .ownerPickerToolbar,
   .stepRail {
@@ -5151,28 +3783,6 @@
   .pipelineObservabilityGrid,
   .pipelineFilterBar {
     grid-template-columns: minmax(0, 1fr);
-  }
-
-  .qrExportRow {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .qrExportRow .btnPrimary {
-    grid-column: 1 / -1;
-  }
-
-  .qrLifecycleActions {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .qrLifecycleActions .btn,
-  .qrLifecycleActions .qrDangerButton {
-    width: 100%;
-    min-width: 0;
-    padding-inline: 10px;
-    white-space: normal;
   }
 
   .pipelineDetailHeader,
@@ -5284,51 +3894,6 @@
 
   .pipelineJobActions .btn,
   .pipelineJobActions .btnPrimary {
-    width: 100%;
-  }
-}
-
-@media (max-width: 430px) {
-  .qrCustomizer,
-  .qrPreviewCol,
-  .qrControlsCol,
-  .qrHistory,
-  .qrHistory li {
-    min-width: 0;
-  }
-
-  .qrExportRow,
-  .qrLifecycleActions,
-  .colorGrid {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .qrExportRow .btn,
-  .qrExportRow .btnPrimary,
-  .qrLifecycleActions .btn,
-  .qrLifecycleActions .qrDangerButton {
-    grid-column: auto;
-    width: 100%;
-  }
-
-  .qrDialogBackdrop {
-    padding: 10px;
-  }
-
-  .qrDialog {
-    max-height: calc(100dvh - 20px);
-    padding: 18px 14px;
-    border-radius: 14px;
-  }
-
-  .qrDialogActions {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .qrDialogActions .btn,
-  .qrDialogActions .btnPrimary,
-  .qrDialogActions .qrDangerButton {
     width: 100%;
   }
 }
