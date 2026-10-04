@@ -631,7 +631,7 @@ test("Vercel Analytics excludes protected URLs on initial loads and client navig
   expect(analyticsScriptRequests).toBe(0);
   expect(await page.evaluate(() => window.vaq ?? [])).toEqual([]);
 
-  await page.goto("/");
+  await page.goto("/", { waitUntil: "domcontentloaded" });
   if (enabled) {
     await expect.poll(() => page.evaluate(() =>
       window.vaq?.some(([command]) => command === "pageview") ?? false
@@ -661,7 +661,7 @@ test("Vercel Analytics excludes protected URLs on initial loads and client navig
   })).toBe(enabled);
 
   const requestsBeforeEnglish = analyticsScriptRequests;
-  await page.goto("/en");
+  await page.goto("/en", { waitUntil: "domcontentloaded" });
   if (enabled) {
     await expect.poll(() => page.evaluate(() =>
       window.vaq?.some(([command]) => command === "pageview") ?? false
