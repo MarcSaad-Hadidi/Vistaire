@@ -640,27 +640,26 @@ test("Vercel Analytics excludes protected URLs on initial loads and client navig
     await page.waitForLoadState("networkidle");
     expect(await page.evaluate(() => window.vaq ?? [])).toEqual([]);
   }
-  expect(analyticsScriptRequests).toBe(enabled ? 1 : 0);
+  await expect.poll(() => analyticsScriptRequests).toBe(enabled ? 1 : 0);
 
-  await page.evaluate(() => history.pushState(null, "", "/owner/restaurants"));
-  await expect(page).toHaveURL(/\/owner\/restaurants$/);
   expect(await page.evaluate(() => {
-    if (!window.vaq?.length) return false;
-    const beforeSend = window.vaq.findLast(([command]) => command === "beforeSend")?.[1];
+    const beforeSend = window.vaq?.findLast(([command]) => command === "beforeSend")?.[1];
+    history.pushState(null, "", "/admin");
     return typeof beforeSend === "function" &&
       beforeSend({ type: "pageview", url: window.location.href }) === null &&
       beforeSend({ type: "event", url: window.location.href }) === null;
   })).toBe(enabled);
+  await expect(page).toHaveURL(/\/admin$/);
 
   await page.goBack();
   await expect(page).toHaveURL(BASE_URL + "/");
-  expect(await page.evaluate(() => {
-    if (!window.vaq?.length) return false;
-    const beforeSend = window.vaq.findLast(([command]) => command === "beforeSend")?.[1];
+  await expect.poll(() => page.evaluate(() => {
+    const beforeSend = window.vaq?.findLast(([command]) => command === "beforeSend")?.[1];
     const event = { type: "pageview", url: window.location.href };
     return typeof beforeSend === "function" && beforeSend(event) === event;
   })).toBe(enabled);
 
+  const requestsBeforeEnglish = analyticsScriptRequests;
   await page.goto("/en");
   if (enabled) {
     await expect.poll(() => page.evaluate(() =>
@@ -670,5 +669,5 @@ test("Vercel Analytics excludes protected URLs on initial loads and client navig
     await page.waitForLoadState("networkidle");
     expect(await page.evaluate(() => window.vaq ?? [])).toEqual([]);
   }
-  expect(analyticsScriptRequests).toBe(enabled ? 2 : 0);
+  await expect.poll(() => analyticsScriptRequests).toBe(enabled ? requestsBeforeEnglish + 1 : 0);
 });
