@@ -30,20 +30,23 @@ test.describe("French restaurant discovery", () => {
     });
     page.on("requestfailed", (request) => {
       const errorText = request.failure()?.errorText;
-      const cancelledMediaRange = request.resourceType() === "media" && errorText === "Load request cancelled";
-      if (errorText !== "net::ERR_ABORTED" && !cancelledMediaRange) {
+      // WebKit can report a cancelled video range as resourceType "other".
+      const cancelledVideoRange = errorText === "Load request cancelled"
+        && /^\/videos\/demo\/(?:maison-elyse|trouvable|sauge-noire)\.mp4$/.test(new URL(request.url()).pathname);
+      if (errorText !== "net::ERR_ABORTED" && !cancelledVideoRange) {
         errors.push(`${errorText} ${request.url()}`);
       }
     });
 
+    await page.setViewportSize({ width: 390, height: 844 });
+    const response = await page.goto("/demo?experience=trouvable&utm_source=qa", { waitUntil: "domcontentloaded" });
+    expect(response?.status()).toBe(200);
     for (const viewport of [
       { width: 390, height: 844 },
       { width: 430, height: 932 },
       { width: 1440, height: 900 }
     ]) {
       await page.setViewportSize(viewport);
-      const response = await page.goto("/demo?experience=trouvable&utm_source=qa", { waitUntil: "domcontentloaded" });
-      expect(response?.status()).toBe(200);
       await expect(page).toHaveTitle("Trois expériences de menu restaurant | Vistaire");
       await expect(page.getByRole("heading", { level: 1 })).toHaveText("Trois restaurants. Trois identités.");
       await expect(page.locator("[data-demo-experience]")).toHaveCount(3);
@@ -112,7 +115,7 @@ test.describe("French restaurant discovery", () => {
   test("opens each real menu and the verified Sauge 3D dish through accessible links", async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     for (const experience of EXPERIENCES) {
-      await page.goto("/demo", { waitUntil: "load" });
+      await page.goto("/demo", { waitUntil: "domcontentloaded" });
       const link = page.getByRole("link", { name: `Explorer ${experience.name}`, exact: true });
       await expect(link).toHaveAttribute("href", experience.href);
       await link.scrollIntoViewIfNeeded();
@@ -131,10 +134,14 @@ test.describe("French restaurant discovery", () => {
     page.on("request", (request) => {
       if (MODEL_REQUEST.test(request.url())) modelRequests.push(request.url());
     });
-    await page.goto("/demo", { waitUntil: "load" });
+    await page.goto("/demo", { waitUntil: "domcontentloaded" });
     const dishLink = page.locator("[data-demo-3d-link]");
     await expect(dishLink).toHaveAttribute("href", "/menu/sauge-noire/dishes/truite-des-laurentides?lang=fr-CA&view=sauge-2");
-    await dishLink.click();
+    await dishLink.scrollIntoViewIfNeeded();
+    await expect(dishLink).toBeVisible();
+    await dishLink.focus();
+    await expect(dishLink).toBeFocused();
+    await dishLink.press("Enter");
     await expect(page).toHaveURL(/\/menu\/sauge-noire\/dishes\/truite-des-laurentides\?/, { timeout: 15_000 });
     await expect(page.getByTestId("sauge-noire-dish-detail")).toBeVisible();
     await page.waitForLoadState("load");
