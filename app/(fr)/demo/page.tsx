@@ -4,7 +4,7 @@ import Link from "next/link";
 import restaurantBackground from "@/Framer/PhotoRestoComplet5.png";
 import { JsonLd } from "@/components/JsonLd";
 import { PreviewFooter, PreviewNav } from "@/components/vistaire-preview/VistairePreviewChrome";
-import { buildPageAlternates, LOCALE_LANGUAGE_TAG, LOCALE_OPEN_GRAPH, normalizeLocale } from "@/lib/i18n";
+import { buildPageAlternates, LOCALE_LANGUAGE_TAG, LOCALE_OPEN_GRAPH } from "@/lib/i18n";
 import { getLandingExperiences } from "@/lib/landing/menuExperiences";
 import { hasPublicMenu3d } from "@/lib/menu/hasPublicMenu3d";
 import { getPublicMenuBySlug } from "@/lib/menu/publicMenu";
@@ -60,14 +60,8 @@ export const metadata: Metadata = {
   }
 };
 
-type DemoPageProps = {
-  searchParams: Promise<{ lang?: string; experience?: string }>;
-};
-
-export default async function DemoPage({ searchParams }: DemoPageProps) {
-  const query = await searchParams;
-  const hasLangParam = typeof query.lang === "string" && query.lang.trim().length > 0;
-  const locale = hasLangParam ? normalizeLocale(query.lang) : "fr";
+export default async function DemoPage() {
+  const locale = "fr";
   const experiences = await getLandingExperiences(locale);
   const saugeExperience = experiences.find((experience) => experience.id === "sauge-noire");
   const saugeMenu = saugeExperience

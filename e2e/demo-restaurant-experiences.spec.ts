@@ -39,8 +39,11 @@ test.describe("French restaurant discovery", () => {
     });
 
     await page.setViewportSize({ width: 390, height: 844 });
-    const response = await page.goto("/demo?experience=trouvable&utm_source=qa", { waitUntil: "domcontentloaded" });
+    const response = await page.goto("/demo?lang=en&experience=trouvable&utm_source=qa", { waitUntil: "domcontentloaded" });
     expect(response?.status()).toBe(200);
+    await expect(page.locator("html")).toHaveAttribute("lang", "fr-CA");
+    await expect(page.getByRole("link", { name: "Voir cette page en français" }).first()).toHaveAttribute("aria-current", "true");
+    await expect(page.getByRole("link", { name: "View this page in English" }).first()).toHaveAttribute("href", "/en/vistaire-menu");
     for (const viewport of [
       { width: 390, height: 844 },
       { width: 430, height: 932 },
@@ -57,6 +60,7 @@ test.describe("French restaurant discovery", () => {
         const link = panel.getByRole("link", { name: `Explorer ${experience.name}`, exact: true });
         await expect(link).toBeVisible();
         await expect(link).toHaveAttribute("href", experience.href);
+        await expect(panel.getByRole("link", { name: /^Découvrir / })).toHaveAttribute("href", /[?&]lang=fr-CA(?:&|$)/);
         expect((await link.boundingBox())?.height).toBeGreaterThanOrEqual(44);
         const video = panel.locator("video[data-demo-video]");
         await video.scrollIntoViewIfNeeded();
