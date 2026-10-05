@@ -15,7 +15,7 @@ test("workflow security gates are immutable, read-only, and explicit", () => {
   assert.match(workflow, /name: Workflow Security/);
   assert.match(workflow, /permissions:\s+contents: read/);
   assert.match(workflow, /devops-actions\/actionlint@[0-9a-f]{40}/);
-  assert.match(workflow, /zizmorcore\/zizmor-action@[0-9a-f]{40}/);
+  assert.match(workflow, /zizmorcore\/zizmor-action@cc914d7f3750a2d13d75c7f184a1060aa0e9d482\s+# v0\.6\.4(?:\s|$)/);
   assert.match(workflow, /version: 1\.21\.0/);
   assert.match(workflow, /online-audits: false/);
   assert.match(workflow, /advanced-security: false/);
