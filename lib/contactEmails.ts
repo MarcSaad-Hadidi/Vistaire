@@ -66,11 +66,11 @@ function messageBlock(label: string, message: string) {
 
 function shell(locale: "fr" | "en", preview: string, title: string, body: string) {
   const english = locale === "en";
+  // Both OS modes use the dark inline palette; the declared schemes enable our explicit dark overrides.
   return `<!DOCTYPE html>
 <html lang="${locale === "en" ? "en-CA" : "fr-CA"}">
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="color-scheme" content="light dark"><meta name="supported-color-schemes" content="light dark"><title>${escapeHtml(title)}</title>
 <style>:root{color-scheme:light dark;supported-color-schemes:light dark;}body{margin:0;padding:0;}table{mso-table-lspace:0pt;mso-table-rspace:0pt;}a{color:${CHAMPAGNE};} @media screen and (min-width:600px){.email-pad{padding-left:44px!important;padding-right:44px!important;}}@media (prefers-color-scheme:dark){.email-ink{background-color:${INK}!important;color:${CREAM}!important;}.email-panel{background-color:${PANEL}!important;color:${CREAM}!important;}.email-button{background-color:${CHAMPAGNE}!important;color:${INK}!important;}.email-cream{color:${CREAM}!important;}.email-champagne{color:${CHAMPAGNE}!important;}.email-muted{color:${MUTED}!important;}.email-button a{color:${INK}!important;}}
-@media (prefers-color-scheme:light){.email-ink{background-color:${CREAM}!important;color:${INK}!important;}.email-panel{background-color:#f4ebdc!important;color:${INK}!important;}.email-ink,.email-panel,.email-rule{border-color:#d7cbb6!important;}.email-button{background-color:${CHAMPAGNE}!important;color:${INK}!important;}.email-cream{color:${INK}!important;}.email-champagne{color:#624b2b!important;}.email-muted{color:#625747!important;}.email-button a{color:${INK}!important;}}
 </style></head>
 <body class="email-ink" bgcolor="${INK}" style="margin:0;padding:0;width:100%;background-color:${INK};color:${CREAM};-webkit-text-size-adjust:100%;-ms-text-size-adjust:100%;">
 <div style="display:none;font-size:1px;line-height:1px;color:${INK};max-height:0;max-width:0;opacity:0;overflow:hidden;mso-hide:all;">${escapeHtml(preview)}</div>

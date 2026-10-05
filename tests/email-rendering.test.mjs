@@ -15,14 +15,14 @@ registerHooks({
 const renderer = await import("../lib/contactEmails.ts");
 const data = { name: "Éloïse <script>x</script>", email: "eloise@example.com", restaurant: "Maison & Laurier", message: "Déjà reçu ?\n" + "é".repeat(1900), locale: "fr" };
 
-test("email shell has paired fallback colors and no structural image dependency", () => {
+test("email shell stays dark in either OS preference with paired fallbacks and no structural image dependency", () => {
   for (const locale of ["fr", "en"]) {
     for (const email of Object.values(renderer.renderContactEmails({ ...data, locale }, "2026-10-05T12:00:00.000Z"))) {
       assert.match(email.html, /name="color-scheme" content="light dark"/);
       assert.match(email.html, /name="supported-color-schemes" content="light dark"/);
       assert.match(email.html, /prefers-color-scheme:\s*dark/);
-      assert.match(email.html, /prefers-color-scheme:\s*light/);
-      assert.match(email.html, /email-champagne\{color:#624b2b!important/);
+      assert.doesNotMatch(email.html, /prefers-color-scheme:\s*light/);
+      assert.match(email.html, /email-ink\{background-color:#111211!important;color:#fff7ea!important/);
       for (const cell of email.html.matchAll(/<td\b[^>]*>/g)) {
         assert.match(cell[0], /bgcolor="#[0-9a-f]{6}"/i);
         assert.match(cell[0], /background-color:#[0-9a-f]{6}/i);
