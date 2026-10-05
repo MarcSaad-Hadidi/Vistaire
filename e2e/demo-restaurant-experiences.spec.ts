@@ -1,6 +1,8 @@
 import { expect, test } from "@playwright/test";
 
-test.use({ trace: "retain-on-failure" });
+// Continuous screencast capture can stall native video looping on Windows WebKit.
+// Keep DOM/network traces and the configured screenshot on failure.
+test.use({ trace: { mode: "retain-on-failure", screenshots: false } });
 
 const MODEL_REQUEST =
   /(?:\.(?:glb|usdz)(?:$|[?#])|\/model\/(?:glb|usdz)(?:\/|$|[?#])|model-viewer)/i;

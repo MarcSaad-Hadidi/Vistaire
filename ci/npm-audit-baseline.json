@@ -1,12 +1,12 @@
 {
   "schema_version": 1,
   "owner": "Vistaire maintainers",
-  "lockfile_sha256": "93dbfb221efb7a1057a6062f73afad9cd25970e2d24f44a669894b4980c17107",
+  "lockfile_sha256": "87c1e3dc4d2a8fad8bed56cac12e02237122d7ee20c8b0c7798e6daa5d075161",
   "entries": [
     {
       "advisory_id": "GHSA-vfj7-8cjw-p6xm",
       "package": "braces",
-      "dependency_path": "@gltf-transform/cli@4.4.2 > micromatch@4.0.8 > braces@3.0.3; eslint-config-next@16.3.8 > @next/eslint-plugin-next@16.3.8 > fast-glob@3.3.1 > micromatch@4.0.8 > braces@3.0.3",
+      "dependency_path": "@gltf-transform/cli@4.5.1 > micromatch@4.0.8 > braces@3.0.3; eslint-config-next@16.3.8 > @next/eslint-plugin-next@16.3.8 > fast-glob@3.3.1 > micromatch@4.0.8 > braces@3.0.3",
       "scope": "runtime",
       "severity": "high",
       "exploitability": "Not reachable. Runtime path: @gltf-transform/cli runs only in the server-side owner 3D pipeline and operator scripts; micromatch there only compiles constant patterns or the --pattern/--slots CLI flags, which Vistaire never passes, and GLB texture slot names are match subjects, not expanded patterns. Dev path: eslint-config-next runs only in development and CI lint.",
