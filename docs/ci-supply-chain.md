@@ -11,7 +11,7 @@ SHA. The human-readable release comments are kept beside each reference so a
 Dependabot update can be reviewed without treating a mutable tag as an input.
 Dependabot checks the GitHub Actions ecosystem weekly (`.github/dependabot.yml`).
 
-Immutable action inventory (CodeQL and zizmor updated and checked 2026-09-07;
+Immutable action inventory (CodeQL and zizmor updated and checked 2026-10-05;
 other action references checked 2026-08-03):
 
 | Repository | Human release | Commit SHA | Update mechanism |
@@ -20,8 +20,16 @@ other action references checked 2026-08-03):
 | `actions/setup-node` | v4.4.0 | `49933ea5288caeca8642d1e84afbd3f7d6820020` | Dependabot GitHub Actions PR |
 | `actions/upload-artifact` | v4.6.0 | `65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08` | Dependabot GitHub Actions PR |
 | `actions/download-artifact` | v4.3.0 | `d3f86a106a0bac45b974a628896c90dbdf5c8093` | Dependabot GitHub Actions PR |
-| `github/codeql-action` | v4.37.9 | `cdf488f595d80d6e07e03d4674febd5ab45fa938` | Dependabot GitHub Actions PR + CodeQL review; update init and analyze together |
-| `zizmorcore/zizmor-action` | v0.6.3 | `70fb788f84895a7701f5643d103d587e460b5c99` | Dependabot GitHub Actions PR; scanner remains pinned to 1.21.0 |
+| `github/codeql-action` | v4.38.2 | `2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2` | Dependabot GitHub Actions PR + CodeQL review; update init and analyze together |
+| `zizmorcore/zizmor-action` | v0.6.4 | `cc914d7f3750a2d13d75c7f184a1060aa0e9d482` | Dependabot GitHub Actions PR; scanner remains pinned to 1.21.0 |
+
+On 2026-10-05, the GitHub API confirmed both releases are immutable and not
+prereleases: [CodeQL v4.38.2](https://github.com/github/codeql-action/releases/tag/v4.38.2)
+and [zizmor-action v0.6.4](https://github.com/zizmorcore/zizmor-action/releases/tag/v0.6.4).
+The CodeQL annotated tag resolves to the commit above; the zizmor tag points
+directly to its listed commit. GitHub reports both commit signatures as
+`verified: true` with reason `valid`; this is GitHub verification, not a local
+GPG check. The CodeQL tag object itself is unsigned.
 
 The CodeQL workflow grants `security-events: write` only to the analysis job and
 publishes SARIF through the CodeQL action. A future baseline for historical
@@ -81,7 +89,7 @@ failure, not an implicit clean result.
 
 `Workflow Security` also runs actionlint (`devops-actions/actionlint` immutable
 revision `e7ee33f…`, release `v0.1.3`) and zizmor (`zizmorcore/zizmor-action`
-immutable revision `70fb788…`, release `v0.6.3`, tool version `1.21.0`). Both jobs have only
+immutable revision `cc914d7…`, release `v0.6.4`, tool version `1.21.0`). Both jobs have only
 `contents: read`, use no repository secrets, and run zizmor with online audits
 disabled. These checks cover workflow syntax, action pinning, permissions, and
 dangerous interpolation patterns. A local machine without Docker/actionlint/
