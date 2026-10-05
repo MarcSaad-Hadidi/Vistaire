@@ -1,0 +1,10 @@
+{
+  "name": "vistaire-inbound-email",
+  "main": "index.ts",
+  "compatibility_date": "2026-10-05",
+  "workers_dev": false,
+  "preview_urls": false,
+  "vars": {
+    "VISTAIRE_INBOUND_EMAIL_URL": "https://www.vistaire.ca/api/inbound-email"
+  }
+}
