@@ -99,11 +99,8 @@ test("contact uses one strict Resend batch with safe bilingual templates and sta
       assert.ok(email.html.length > 100);
       assert.ok(email.text.length > 50);
       assert.doesNotMatch(email.html, /<script\b/i);
-      const images = [...email.html.matchAll(/<img\b[^>]*>/gi)];
-      assert.equal(images.length, 1);
-      assert.match(images[0][0], /src="https:\/\/vistaire\.ca\/images\/email\/vistaire-dining-header\.jpg"/);
-      assert.match(images[0][0], /alt=""/);
-      assert.doesNotMatch(images[0][0], /\bon[a-z]+\s*=/i);
+      assert.doesNotMatch(email.html, /<img\b/i);
+      assert.match(email.html, /background="https:\/\/www\.vistaire\.ca\/images\/email\/vistaire-dining-header\.jpg"/);
       assert.match(email.html, /&lt;img src=x/i);
       assert.match(email.html, /&lt;script&gt;/i);
     }
