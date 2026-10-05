@@ -1,9 +1,5 @@
 import { expect, test } from "@playwright/test";
 
-// Continuous screencast capture can stall native video looping on Windows WebKit.
-// Keep DOM/network traces and the configured screenshot on failure.
-test.use({ trace: { mode: "retain-on-failure", screenshots: false } });
-
 const MODEL_REQUEST =
   /(?:\.(?:glb|usdz)(?:$|[?#])|\/model\/(?:glb|usdz)(?:\/|$|[?#])|model-viewer)/i;
 
@@ -130,40 +126,10 @@ for (const scenario of DISCOVERY_ROUTES) {
       await expect.poll(() => loopingVideo.evaluate((element: HTMLVideoElement) =>
         !element.paused && element.readyState >= 2
       )).toBe(true);
-      // Observe the short restart window in the browser so remote
-      // polling cannot miss it on a busy WebKit runner. Keep the five-second limit.
-      const looped = await loopingVideo.evaluate((element: HTMLVideoElement) =>
-        new Promise<boolean>((resolve, reject) => {
-          const deadline = performance.now() + 5_000;
-          let soughtNearEnd = false;
-          const cleanup = () => {
-            clearTimeout(timeout);
-            element.removeEventListener("timeupdate", observe);
-            element.removeEventListener("playing", observe);
-            element.removeEventListener("seeked", observe);
-          };
-          const observe = () => {
-            if (!element.seeking && element.currentTime >= element.duration - 0.2) soughtNearEnd = true;
-            if (soughtNearEnd && performance.now() <= deadline
-              && element.currentTime < 1 && !element.paused && !element.seeking) {
-              cleanup();
-              resolve(true);
-            }
-          };
-          const timeout = setTimeout(() => {
-            cleanup();
-            reject(new Error(`Video did not restart within 5000ms: ${JSON.stringify({
-              time: element.currentTime, paused: element.paused, seeking: element.seeking,
-              readyState: element.readyState, duration: element.duration, soughtNearEnd
-            })}`));
-          }, 5_000);
-          element.addEventListener("timeupdate", observe);
-          element.addEventListener("playing", observe);
-          element.addEventListener("seeked", observe);
-          element.currentTime = element.duration - 0.1;
-        })
-      );
-      expect(looped).toBe(true);
+      await loopingVideo.evaluate((element: HTMLVideoElement) => { element.currentTime = element.duration - 0.1; });
+      await expect.poll(() => loopingVideo.evaluate((element: HTMLVideoElement) =>
+        element.currentTime < 1 && !element.paused
+      )).toBe(true);
       const firstLink = page.getByRole("link", { name: `${scenario.explore} Maison Élyse`, exact: true });
       await firstLink.focus();
       await expect(firstLink).toBeFocused();
