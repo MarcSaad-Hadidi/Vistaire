@@ -31,7 +31,7 @@ test("Maison Elyse media tests are explicit and mandatory in App CI", () => {
 });
 
 test("Maison Elyse PostgreSQL 17 tests are explicit and run before build", () => {
-  assert.equal(packageJson.scripts?.["test:maison-elyse-postgres"], "node scripts/run-maison-elyse-postgres-tests.mjs");
+  assert.equal(packageJson.scripts?.["test:maison-elyse-postgres"], "node scripts/run-postgres-tests.mjs maison-elyse");
   assert.match(appCi, /name: database-contracts/);
   assert.match(appCi, /npm run test:maison-elyse-postgres/);
   assert.ok(appCi.indexOf("npm run test:maison-elyse-postgres") > appCi.indexOf("npm run test:node"));

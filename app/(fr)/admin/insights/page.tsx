@@ -2,7 +2,7 @@ import { AdminInsightsPage } from "@/components/admin/insights/AdminInsightsPage
 import styles from "@/components/admin/AdminDashboard.module.css";
 import { requireAdminRestaurantAccess } from "@/lib/admin/access";
 import { loadAdminDashboardData } from "@/lib/admin/dashboardData";
-import { parseAdminPageSearchParams } from "@/lib/admin/pageSearchParams";
+import { parseAdminPageSearchParams } from "@/lib/admin/dashboardRange";
 
 export const dynamic = "force-dynamic";
 

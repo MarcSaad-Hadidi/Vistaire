@@ -12,7 +12,6 @@ import type { PublicMenuDish } from "../../lib/menu/publicMenuCore.ts";
 import {
   normalizePublicMenuLocale,
   normalizePublicMenuCurrencyPreference,
-  normalizePublicMenuLocalePreference,
   normalizePublicMenuThemePreference,
   PUBLIC_MENU_LOCALE_OPTIONS,
   type PublicMenuCurrency,
@@ -23,7 +22,7 @@ import {
 export type TrouvableLocale = PublicMenuLocale;
 export type TrouvableCurrency = PublicMenuCurrency;
 export type TrouvableTheme = "dark" | "light";
-export type TrouvableGreetingPeriod = "morning" | "afternoon" | "evening" | "night";
+type TrouvableGreetingPeriod = "morning" | "afternoon" | "evening" | "night";
 type TrouvableCopyLocale = "fr" | "en" | "es" | "it" | "de" | "el" | "ar";
 
 const TROUVABLE_COPY_LOCALES = ["fr", "en", "es", "it", "de", "el", "ar"] as const;
@@ -34,7 +33,7 @@ export const TROUVABLE_LOCALE_STORAGE_KEY = "vistaire:trouvable-menu-locale";
 export const TROUVABLE_CURRENCY_STORAGE_KEY = "vistaire:trouvable-menu-currency";
 export const TROUVABLE_THEME_STORAGE_KEY = "vistaire:trouvable-menu-theme";
 
-export const TROUVABLE_CURRENCY_OPTIONS: Array<{
+const TROUVABLE_CURRENCY_OPTIONS: Array<{
   code: TrouvableCurrency;
   label: Partial<Record<TrouvableCopyLocale, string>>;
   symbol: string;
@@ -51,12 +50,6 @@ export const TROUVABLE_CURRENCY_OPTIONS: Array<{
   },
   { code: "EUR", label: { en: "Euro", fr: "Euro" }, symbol: "€" }
 ];
-
-export const TROUVABLE_STATIC_CAD_RATES: Partial<Record<TrouvableCurrency, number>> = {
-  CAD: 1,
-  USD: 0.73,
-  EUR: 0.68
-};
 
 const TROUVABLE_GOOGLE_REVIEW_COPY = {
   fr: {
@@ -158,21 +151,6 @@ const TROUVABLE_GOOGLE_REVIEW_COPY = {
     title: "تجربتك مهمة"
   }
 } as const;
-
-const CATEGORY_TRANSLATIONS: Record<string, Partial<Record<TrouvableCopyLocale, string>>> = {
-  "bols & salades": { en: "Bowls & salads" },
-  boissons: { en: "Drinks" },
-  burgers: { en: "Burgers" },
-  desserts: { en: "Desserts" },
-  entrees: { en: "Starters" },
-  "entrées": { en: "Starters" },
-  pizzas: { en: "Pizzas" },
-  plats: { en: "Dishes" },
-  "plats maison": { en: "House dishes" },
-  salades: { en: "Salads" },
-  seafood: { fr: "Fruits de mer" },
-  signatures: { en: "Signatures" }
-};
 
 export const TROUVABLE_COPY = {
   fr: {
@@ -1866,23 +1844,11 @@ function sourceTemplateForCopyFunction(
   key: keyof TrouvableCopy,
   value: TrouvableCopy[keyof TrouvableCopy]
 ): string {
-  if (typeof value !== "function") return "";
-  switch (key) {
-    case "activeFilters":
-    case "ingredientsCount":
-      return (value as (count: string) => string)("{count}");
-    case "modelAlt":
-    case "quantityDecrease":
-    case "quantityIncrease":
-    case "quantityLabel":
-      return (value as (name: string) => string)("{name}");
-    case "resultStatus":
-      return (value as (view: string, count: string) => string)("{view}", "{count}");
-    case "waiterReady":
-      return (value as (table: string) => string)("{table}");
-    default:
-      return "";
-  }
+  const placeholders = COPY_FUNCTION_TEMPLATE_PLACEHOLDERS[key];
+  if (typeof value !== "function" || !placeholders) return "";
+  return (value as (...args: string[]) => string)(
+    ...placeholders.map((placeholder) => `{${placeholder}}`)
+  );
 }
 
 function getCopyPath(value: unknown, path: string): unknown {
@@ -1907,9 +1873,7 @@ function setCopyPackPath(
 
   const parent = { ...objectInput(target[head]) };
   setCopyPackPath(parent, tail.join("."), value);
-  target[head] = {
-    ...parent
-  };
+  target[head] = parent;
 }
 
 function ensureTemplatePlaceholders(text: string, placeholders: string[]): string {
@@ -1966,17 +1930,6 @@ export function buildTrouvableLocalizedUiCopyPack(
   return pack;
 }
 
-export function normalizeTrouvableLocale(value: unknown): TrouvableLocale {
-  return normalizePublicMenuLocale(value);
-}
-
-export function normalizeTrouvableLocaleForSettings(
-  value: unknown,
-  settings: PublicMenuSettings
-): TrouvableLocale {
-  return normalizePublicMenuLocalePreference(value, settings);
-}
-
 export function normalizeTrouvableCurrency(
   value: unknown,
   settings?: PublicMenuSettings
@@ -2014,7 +1967,7 @@ function builtInCopyLocaleForPublicLocale(
     : null;
 }
 
-export function getTrouvableCopyLocale(locale: TrouvableLocale): TrouvableCopyLocale {
+function getTrouvableCopyLocale(locale: TrouvableLocale): TrouvableCopyLocale {
   return builtInCopyLocaleForPublicLocale(locale) ?? TROUVABLE_FALLBACK_COPY_LOCALE;
 }
 
@@ -2094,40 +2047,6 @@ function objectInput(value: unknown): Record<string, unknown> {
   return value && typeof value === "object" && !Array.isArray(value)
     ? (value as Record<string, unknown>)
     : {};
-}
-
-function stringOverrides(value: unknown): Record<string, string> {
-  if (!value || typeof value !== "object" || Array.isArray(value)) return {};
-  return Object.fromEntries(
-    Object.entries(value as Record<string, unknown>).filter(
-      (entry): entry is [string, string] => typeof entry[1] === "string" && entry[1].trim().length > 0
-    )
-  );
-}
-
-function copyStringOverrides(value: unknown, base: TrouvableCopy): Partial<TrouvableCopy> {
-  const overrides: Partial<TrouvableCopy> = {};
-  for (const [key, text] of Object.entries(stringOverrides(value))) {
-    if (typeof base[key as keyof TrouvableCopy] === "string") {
-      (overrides as Record<string, unknown>)[key] = text;
-    }
-  }
-  return overrides;
-}
-
-function copyFunctionTemplateOverrides(
-  value: unknown,
-  base: TrouvableCopy
-): Partial<TrouvableCopy> {
-  const overrides: Partial<TrouvableCopy> = {};
-  for (const [key, text] of Object.entries(stringOverrides(value))) {
-    const copyKey = key as keyof TrouvableCopy;
-    const builder = COPY_FUNCTION_TEMPLATE_BUILDERS[copyKey];
-    if (builder && typeof base[copyKey] === "function") {
-      (overrides as Record<string, unknown>)[key] = builder(text);
-    }
-  }
-  return overrides;
 }
 
 function localizedUiCopyBucketKey(value: string):
@@ -2258,62 +2177,26 @@ function hasFlatCopyOverride(uiCopy: unknown): boolean {
   return copyOverrideDiagnostics(uiCopy).coveredPaths.size > 0;
 }
 
-function copyNestedOverrides(value: unknown, base: TrouvableCopy): Partial<TrouvableCopy> {
-  function mergeNestedObject(
-    rawValue: unknown,
-    baseValue: unknown
-  ): Record<string, unknown> {
-    if (!rawValue || typeof rawValue !== "object" || Array.isArray(rawValue)) {
-      return {};
-    }
-
-    const input = objectInput(rawValue);
-    if (!baseValue || typeof baseValue !== "object" || Array.isArray(baseValue)) {
-      return {};
-    }
-
-    const merged: Record<string, unknown> = {
-      ...(baseValue as Record<string, unknown>)
-    };
-    for (const [rawKey, nextValue] of Object.entries(input)) {
-      const expectedValue = (baseValue as Record<string, unknown>)[rawKey];
-      if (expectedValue === undefined) continue;
-      if (typeof expectedValue === "string") {
-        if (typeof nextValue === "string" && nextValue.trim()) {
-          merged[rawKey] = nextValue;
-        }
-        continue;
-      }
-      if (expectedValue && typeof expectedValue === "object" && !Array.isArray(expectedValue)) {
-        const nested = mergeNestedObject(nextValue, expectedValue);
-        if (Object.keys(nested).length > 0) merged[rawKey] = nested;
+function mergeCopy(base: TrouvableCopy, ...overrides: unknown[]): TrouvableCopy {
+  function mergeObject(value: unknown, current: Record<string, unknown>, templates = false) {
+    const merged = { ...current };
+    for (const [key, nextValue] of Object.entries(objectInput(value))) {
+      const expected = current[key];
+      if (typeof expected === "string" && typeof nextValue === "string" && nextValue.trim()) {
+        merged[key] = nextValue;
+      } else if (templates && typeof expected === "function" && typeof nextValue === "string" && nextValue.trim()) {
+        const builder = COPY_FUNCTION_TEMPLATE_BUILDERS[key as keyof TrouvableCopy];
+        if (builder) merged[key] = builder(nextValue);
+      } else if (expected && typeof expected === "object" && !Array.isArray(expected) &&
+        nextValue && typeof nextValue === "object" && !Array.isArray(nextValue)) {
+        merged[key] = mergeObject(nextValue, expected as Record<string, unknown>);
       }
     }
     return merged;
   }
 
-  const input = objectInput(value);
-  const baseObject = base as Record<string, unknown>;
-  const overrides: Record<string, unknown> = {};
-  for (const [rawKey, nextValue] of Object.entries(input)) {
-    const expectedValue = baseObject[rawKey];
-    if (expectedValue && typeof expectedValue === "object" && !Array.isArray(expectedValue)) {
-      const nested = mergeNestedObject(nextValue, expectedValue);
-      if (Object.keys(nested).length > 0) overrides[rawKey] = nested;
-    }
-  }
-
-  return overrides as Partial<TrouvableCopy>;
-}
-
-function mergeCopy(base: TrouvableCopy, ...overrides: unknown[]): TrouvableCopy {
   return overrides.reduce<TrouvableCopy>(
-    (current, override) => ({
-      ...current,
-      ...copyStringOverrides(override, current),
-      ...copyFunctionTemplateOverrides(override, current),
-      ...copyNestedOverrides(override, current)
-    }),
+    (current, override) => ({ ...mergeObject(override, current, true) }) as TrouvableCopy,
     base
   );
 }
@@ -2625,83 +2508,6 @@ export function normalizeTrouvableReadyLocaleForSettings(
   );
 }
 
-export function isTrouvableLocaleSupported(
-  locale: TrouvableLocale,
-  settings: PublicMenuSettings
-): boolean {
-  return settings.supportedLocales.includes(
-    normalizePublicMenuLocalePreference(locale, settings)
-  );
-}
-
-export function getTrouvableLocalePublicTag(
-  locale: TrouvableLocale,
-  settings: PublicMenuSettings
-): string {
-  return normalizePublicMenuLocalePreference(locale, settings);
-}
-
-export function parseTrouvablePriceLabel(priceLabel: string): number | null {
-  const match = priceLabel.match(/-?\d[\d\s.,]*/);
-  if (!match) return null;
-
-  let value = match[0].replace(/\s/g, "");
-  const lastComma = value.lastIndexOf(",");
-  const lastDot = value.lastIndexOf(".");
-  if (lastComma >= 0 && lastDot >= 0) {
-    if (lastComma > lastDot) {
-      value = value.replace(/\./g, "").replace(",", ".");
-    } else {
-      value = value.replace(/,/g, "");
-    }
-  } else if (lastComma >= 0) {
-    value = value.replace(",", ".");
-  }
-
-  const parsed = Number(value);
-  return Number.isFinite(parsed) && parsed >= 0 ? parsed : null;
-}
-
-export function formatTrouvableAmount(
-  cadAmount: number,
-  currency: TrouvableCurrency,
-  locale: TrouvableLocale,
-  exchangeRates?: MenuExchangeRates
-): string {
-  if (exchangeRates) {
-    return formatMenuPrice({
-      priceCents: Math.round(cadAmount * 100),
-      sourceCurrency: exchangeRates.base,
-      targetCurrency: currency,
-      locale,
-      rates: exchangeRates.rates,
-      baseCurrency: exchangeRates.base,
-      fallbackLabel: formatMenuPriceCents({
-        priceCents: Math.round(cadAmount * 100),
-        currency: exchangeRates.base,
-        locale
-      })
-    });
-  }
-
-  return new Intl.NumberFormat(normalizePublicMenuLocale(locale), {
-    currency,
-    style: "currency"
-  }).format(cadAmount * (TROUVABLE_STATIC_CAD_RATES[currency] ?? 1));
-}
-
-export function formatTrouvablePriceLabel(
-  priceLabel: string,
-  currency: TrouvableCurrency,
-  locale: TrouvableLocale,
-  exchangeRates?: MenuExchangeRates
-): string {
-  const cadAmount = parseTrouvablePriceLabel(priceLabel);
-  return cadAmount === null
-    ? priceLabel
-    : formatTrouvableAmount(cadAmount, currency, locale, exchangeRates);
-}
-
 export function getTrouvableDishConvertedPriceCents(
   dish: PublicMenuDish,
   currency: TrouvableCurrency,
@@ -2744,23 +2550,6 @@ export function formatTrouvablePriceCents(
   return formatMenuPriceCents({ priceCents, currency, locale });
 }
 
-export function getTrouvableGreetingPeriod(
-  date: Date = new Date()
-): TrouvableGreetingPeriod {
-  const hour = date.getHours();
-  if (hour >= 5 && hour < 12) return "morning";
-  if (hour >= 12 && hour < 17) return "afternoon";
-  if (hour >= 17 && hour < 22) return "evening";
-  return "night";
-}
-
-export function getTrouvableGreeting(
-  locale: TrouvableLocale,
-  period: TrouvableGreetingPeriod
-): string {
-  return TROUVABLE_COPY[getTrouvableCopyLocale(locale)].greeting[period];
-}
-
 export function getTrouvableGreetingForDate(
   locale: TrouvableLocale,
   timezone: string,
@@ -2776,18 +2565,6 @@ export function getTrouvableGreetingForDate(
     return resolved.copy.greeting[period];
   }
   return getGreetingForTime(date, normalizePublicMenuLocale(locale), timezone);
-}
-
-export function translateTrouvableCategoryLabel(
-  label: string,
-  locale: TrouvableLocale
-): string {
-  const normalized = label
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase()
-    .trim();
-  return CATEGORY_TRANSLATIONS[normalized]?.[getTrouvableCopyLocale(locale)] ?? label;
 }
 
 export function buildNavigableMenuSections(

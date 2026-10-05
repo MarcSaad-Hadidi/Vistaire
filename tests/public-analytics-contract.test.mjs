@@ -61,6 +61,8 @@ test("the shared document shell loads Microsoft Clarity exactly once", async () 
 
   assert.equal(layout.match(/<MicrosoftClarity>/g)?.length ?? 0, 1);
   assert.equal(layout.match(/<\/MicrosoftClarity>/g)?.length ?? 0, 1);
+  assert.equal(layout.match(/<VercelAnalytics\s/g)?.length ?? 0, 1);
+  assert.match(layout, /enabled=\{Boolean\(process\.env\.VERCEL_URL\)\}/);
   assert.equal(
     clientComponent.match(/id=["']microsoft-clarity["']/g)?.length ?? 0,
     1
@@ -69,10 +71,10 @@ test("the shared document shell loads Microsoft Clarity exactly once", async () 
 
 test("Microsoft Clarity excludes sensitive route trees without prefix collisions", async () => {
   const {
-    shouldLoadMicrosoftClarity,
+    shouldTrackPublicRoute,
     shouldReloadForMicrosoftClarityBoundary
   } = await import(
-    "../lib/analytics/microsoftClarityRoutes.ts"
+    "../lib/analytics/publicAnalyticsRoutes.ts"
   );
   const cases = [
     [null, false],
@@ -95,7 +97,7 @@ test("Microsoft Clarity excludes sensitive route trees without prefix collisions
   ];
 
   for (const [pathname, expected] of cases) {
-    assert.equal(shouldLoadMicrosoftClarity(pathname), expected, pathname ?? "null");
+    assert.equal(shouldTrackPublicRoute(pathname), expected, pathname ?? "null");
   }
 
   assert.equal(shouldReloadForMicrosoftClarityBoundary("/demo", "/owner"), true);
@@ -114,7 +116,7 @@ test("client route changes stop Clarity and reload before protected content rend
   assert.match(clientComponent, /usePathname\(\)/);
   assert.match(clientComponent, /useLayoutEffect\(/);
   assert.match(clientComponent, /useState\(pathname\)/);
-  assert.match(clientComponent, /shouldLoadMicrosoftClarity\(pathname\)/);
+  assert.match(clientComponent, /shouldTrackPublicRoute\(pathname\)/);
   assert.match(
     clientComponent,
     /shouldReloadForMicrosoftClarityBoundary\(/
@@ -133,7 +135,7 @@ test("client route changes stop Clarity and reload before protected content rend
 
 test("navigation start stops Clarity before a sensitive URL transition", async () => {
   const { shouldStopMicrosoftClarityBeforeNavigation } = await import(
-    "../lib/analytics/microsoftClarityRoutes.ts"
+    "../lib/analytics/publicAnalyticsRoutes.ts"
   );
   const instrumentationClient = await readSource(instrumentationClientPath);
 
@@ -200,4 +202,49 @@ test("Microsoft Clarity requires no additional package", async () => {
 
   assert.equal(Object.keys(declaredPackages).some((name) => /clarity/i.test(name)), false);
   assert.equal(Object.keys(lockfile.packages).some((name) => /clarity/i.test(name)), false);
+});
+
+test("Vercel Analytics preserves public pageviews and custom events", async () => {
+  const { filterPublicAnalyticsEvent } = await import(
+    "../lib/analytics/publicAnalyticsRoutes.ts"
+  );
+
+  assert.equal(typeof filterPublicAnalyticsEvent, "function");
+  for (const path of ["/", "/en", "/menu/bistro", "/administrator", "/ownerly"]) {
+    for (const type of ["pageview", "event"]) {
+      const event = { type, url: "https://vistaire.com" + path + "?source=menu" };
+      assert.equal(filterPublicAnalyticsEvent(event, path), event, path);
+    }
+  }
+});
+
+test("Vercel Analytics drops protected event URLs regardless of the current route", async () => {
+  const { filterPublicAnalyticsEvent } = await import(
+    "../lib/analytics/publicAnalyticsRoutes.ts"
+  );
+
+  assert.equal(typeof filterPublicAnalyticsEvent, "function");
+  for (const root of ["/admin", "/owner", "/todos", "/sign-in"]) {
+    for (const type of ["pageview", "event"]) {
+      assert.equal(
+        filterPublicAnalyticsEvent({ type, url: "https://vistaire.com/" }, root),
+        null,
+        "The SDK may retain a public path after entering " + root
+      );
+    }
+    for (const path of [root, root + "/private?token=private"]) {
+      for (const type of ["pageview", "event"]) {
+        assert.equal(
+          filterPublicAnalyticsEvent({ type, url: "https://vistaire.com" + path }, "/"),
+          null,
+          path
+        );
+      }
+    }
+  }
+  assert.equal(filterPublicAnalyticsEvent({ type: "pageview", url: "" }, "/"), null);
+  assert.equal(
+    filterPublicAnalyticsEvent({ type: "pageview", url: "invalid-url" }, "/"),
+    null
+  );
 });

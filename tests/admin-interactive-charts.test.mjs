@@ -12,13 +12,10 @@ import {
   buildMidpointHitRegions,
   buildNiceLineDomain,
   isStableSeries,
-  chartId,
-  formatChartDateUtc,
-  interactionReducer,
-  motionDuration,
-  normalizeComparisonSeries,
-  normalizeDonutData,
-} from "../components/admin/charts/index.ts";
+} from "../components/admin/charts/geometry.ts";
+import { chartId, formatChartDateUtc } from "../components/admin/charts/formatters.ts";
+import { interactionReducer, motionDuration } from "../components/admin/charts/interaction.ts";
+import { normalizeComparisonSeries, normalizeDonutData } from "../components/admin/charts/data.ts";
 
 test("donut paths use hydration-stable bounded coordinates", () => {
   const segments = buildDonutSegments([1932, 1292, 333, 185], 88, 54);

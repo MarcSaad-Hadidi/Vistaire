@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { JsonLd } from "@/components/JsonLd";
-import { TarifsMenuDigitalRestaurantPage } from "@/components/seo/pages/TarifsMenuDigitalRestaurantPage";
+import { VistairePricingPreview } from "@/components/vistaire-preview/VistairePricingPreview";
 import {
   PRICING_PATH,
   buildPricingPageJsonLd,
@@ -46,7 +46,7 @@ export default function TarifsMenuDigitalRestaurantRoute() {
   return (
     <>
       <JsonLd data={buildPricingPageJsonLd()} />
-      <TarifsMenuDigitalRestaurantPage />
+      <VistairePricingPreview locale="fr" />
     </>
   );
 }

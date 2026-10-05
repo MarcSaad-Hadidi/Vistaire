@@ -23,12 +23,12 @@ test("the QR contract regex helper escapes every regex metacharacter", () => {
 
 test("QR package scripts expose separate PostgreSQL and functional gates", async () => {
   const packageJson = JSON.parse(await source("package.json"));
-  assert.equal(packageJson.scripts["test:qr:postgres"], "node scripts/run-qr-postgres-tests.mjs");
+  assert.equal(packageJson.scripts["test:qr:postgres"], "node scripts/run-postgres-tests.mjs qr");
   assert.equal(packageJson.scripts["test:qr:functional"], "node scripts/run-qr-functional-e2e.mjs");
 });
 
 test("the PostgreSQL runner applies the production QR migrations with real psql", async () => {
-  const runner = await source("scripts/run-qr-postgres-tests.mjs");
+  const runner = await source("scripts/run-postgres-tests.mjs");
   assert.match(runner, /20260717120000_owner_qr_canonical_lifecycle\.sql/);
   assert.match(runner, /20260805090000_enforce_public_qr_permanence\.sql/);
   assert.match(runner, /spawnSync\("psql"/);

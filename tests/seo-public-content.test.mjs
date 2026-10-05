@@ -5,7 +5,7 @@ import { join } from "node:path";
 
 const PUBLIC_SEO_COPY_TARGETS = [
   "components/seo/SeoGeoAeoPage.tsx",
-  "components/seo/pages/TarifsMenuDigitalRestaurantPage.tsx",
+  "components/vistaire-preview/VistairePricingPreview.tsx",
   "lib/seoGeoPages.ts",
   "lib/seoGeoPages.fr.ts",
   "lib/seoGeoPages.en.ts",

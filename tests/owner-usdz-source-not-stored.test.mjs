@@ -9,7 +9,6 @@ import {
   buildUsdzRuntimeMetadataPatch,
   buildViewerGlbMetadataPatch,
   buildViewerGlbStoragePlan,
-  createUsdzRuntimeAssetVersion,
   defaultUsdzOptimizationRecipe,
   evaluateRuntimeUsdzUploadGate,
   isUsdzOptimizationRecipeForProfile,
@@ -27,7 +26,6 @@ import {
   verifyUsdzRuntimeJobToken
 } from "../lib/owner/usdzRuntimeJsonFlow.ts";
 import { buildSupabasePublicMenu } from "../lib/menu/publicMenuCore.ts";
-import { runUsdzRuntimePipeline } from "../lib/owner/usdzRuntimePipelineCore.ts";
 import { collectTargetedDishModelDeletion } from "../lib/owner/deleteDishModelAssets.ts";
 import {
   USDZ_DISH_KIND_OPTIONS,
@@ -55,7 +53,7 @@ const usdzFailRoute = read(
 const viewerRoute = read(
   "app/api/owner/restaurants/[restaurantId]/dishes/[dishId]/model/viewer-glb/route.ts"
 );
-const pipeline = read("lib/owner/usdzRuntimePipelineCore.ts");
+const jsonFlow = read("lib/owner/usdzRuntimeJsonFlow.ts");
 const viewerLib = read("lib/owner/viewerGlbUpload.ts");
 const cli = read("scripts/owner/optimize-restaurant-usdz.mjs");
 const worker = read("scripts/owner/optimize_restaurant_usdz.py");
@@ -80,7 +78,6 @@ function mockAdminClient(handlers = {}) {
     client: {
       storage: {
         from: () => ({
-          upload: handlers.upload ?? (async () => ({ data: {}, error: null })),
           createSignedUploadUrl:
             handlers.createSignedUploadUrl ??
             (async (path) => ({
@@ -128,74 +125,9 @@ function mockAdminClient(handlers = {}) {
             })
           };
         }
-        if (table === "owner_3d_pipeline_jobs") {
-          return {
-            insert: handlers.jobInsert ?? (async () => ({ data: {}, error: null }))
-          };
-        }
         throw new Error(`unexpected table ${table}`);
       }
     }
-  };
-}
-
-function basePipelineArgs(adminClient, optimizer) {
-  return {
-    adminClient,
-    owner: { userId: "user_test", email: "test@vistaire.test" },
-    restaurantId: RESTAURANT_ID,
-    restaurantSlug: "demo",
-    menuSlug: "principal",
-    dishId: DISH_ID,
-    dishSlug: "homard-grille",
-    existingMetadata: { webModel3dUrl: "/api/public/menu-dishes/x/model/glb" },
-    sourceBytes: validUsdzBytes(8000),
-    originalName: "master.usdz",
-    profile: "balanced",
-    maxRuntimeBytes: 16 * 1024 * 1024,
-    optimizer
-  };
-}
-
-function successOptimizer(runtimeBytes, { fails = [], optimizationApplied = true } = {}) {
-  return async ({ outputPath, reportPath, sourcePath }) => {
-    const { writeFileSync } = await import("node:fs");
-    writeFileSync(outputPath, runtimeBytes);
-    writeFileSync(reportPath, JSON.stringify({
-      reportSchemaVersion: 1,
-      workerVersion: 3,
-      assetKey: "usdzRuntime",
-      restaurantId: RESTAURANT_ID,
-      dishSlug: "homard-grille",
-      sourceStored: false,
-      sourceBytes: readFileSync(sourcePath).byteLength,
-      sourceSha256: sha256Hex(readFileSync(sourcePath)),
-      runtimeBytes: runtimeBytes.byteLength,
-      runtimeSha256: sha256Hex(runtimeBytes),
-      physicalScale: {
-        status: "normalized",
-        dimension: "height",
-        minMeters: 0.1,
-        maxMeters: 0.2,
-        heightAfterMeters: 0.15,
-        centeredX: true,
-        centeredY: true,
-        grounded: true
-      },
-      fails
-    }));
-    return {
-      ok: true,
-      runtimePath: outputPath,
-      reportPath,
-      runtimeBytes: runtimeBytes.byteLength,
-      runtimeSha256: sha256Hex(runtimeBytes),
-      optimizationApplied,
-      geometryOptimization: "skipped",
-      reductionPercent: 10,
-      warnings: [],
-      fails
-    };
   };
 }
 
@@ -219,10 +151,10 @@ function extractPhysicalScaleTargets(source, constantName) {
   return targets;
 }
 
-test("forbidden source-storage fields are never persisted by the runtime pipeline", () => {
+test("forbidden source-storage fields are never persisted by the active runtime flow", () => {
   // The only file allowed to mention these strings is the guard list itself.
   for (const field of FORBIDDEN_SOURCE_STORAGE_FIELDS) {
-    assert.doesNotMatch(pipeline, new RegExp(field), `pipeline must not persist ${field}`);
+    assert.doesNotMatch(jsonFlow, new RegExp(field), `runtime flow must not persist ${field}`);
     assert.doesNotMatch(usdzRoute, new RegExp(field), `route must not persist ${field}`);
     assert.doesNotMatch(viewerLib, new RegExp(field), `viewer lib must not persist ${field}`);
   }
@@ -354,42 +286,6 @@ test("USDZ recipe registry stays consistent with the shared optimizer config", (
       assert.equal(isUsdzOptimizationRecipeForProfile(profile, recipe.slug), true);
     }
   }
-});
-
-test("runtime asset version and storage path change when the same source is processed with a different profile", async () => {
-  const runtimeBytes = validUsdzBytes(7000);
-  const runtimeSha256 = sha256Hex(runtimeBytes);
-
-  async function runForProfile(profile) {
-    const uploads = [];
-    const { client } = mockAdminClient({
-      upload: async (path) => {
-        uploads.push(path);
-        return { data: {}, error: null };
-      }
-    });
-    const result = await runUsdzRuntimePipeline({
-      ...basePipelineArgs(client, successOptimizer(runtimeBytes)),
-      profile
-    });
-    return { result, uploads };
-  }
-
-  const premium = await runForProfile("premium");
-  const light = await runForProfile("light");
-
-  assert.equal(
-    premium.result.version,
-    createUsdzRuntimeAssetVersion({ profile: "premium", runtimeSha256 })
-  );
-  assert.equal(
-    light.result.version,
-    createUsdzRuntimeAssetVersion({ profile: "light", runtimeSha256 })
-  );
-  assert.notEqual(premium.result.version, light.result.version);
-  assert.notEqual(premium.uploads[0], light.uploads[0]);
-  assert.ok(premium.result.arUsdzUrl.endsWith(`?v=${premium.result.version}`));
-  assert.ok(light.result.arUsdzUrl.endsWith(`?v=${light.result.version}`));
 });
 
 test("runtime upload gate blocks bad output and passes a valid runtime", () => {
@@ -1204,7 +1100,7 @@ test("fail rollback refuses source master raw and candidate paths", async () => 
   assert.deepEqual(removed, []);
 });
 
-test("complete publishes metrics from the uploaded report, not client JSON", async () => {
+test("complete uses uploaded report and fresh metadata and rolls back an update failure", async () => {
   const env = { VISTAIRE_USDZ_JOB_TOKEN_SECRET: "x".repeat(48) };
   const token = createUsdzRuntimeJobToken({
     owner: { userId: "user_test", email: "owner@vistaire.test" },
@@ -1279,40 +1175,45 @@ test("complete publishes metrics from the uploaded report, not client JSON", asy
     warnings: ["normal map missing"],
     fails: []
   };
-  const { client, updates } = mockAdminClient({
+  const freshMetadata = {
+    concurrentMarker: "glb-added-during-usdz-optimization",
+    viewerGlbStatus: "ready",
+    webModel3dStoragePath: `restaurants/${RESTAURANT_ID}/models/web/current-viewer.glb`,
+    webModel3dUrl: `/api/public/menu-dishes/${DISH_ID}/model/glb?v=old-glb-version`,
+    model3dUrl: `/api/public/menu-dishes/${DISH_ID}/model/glb?v=old-glb-version`
+  };
+  const handlers = {
+    freshMetadata,
     download: async (path) => ({
       data: new Blob([path.endsWith(".usdz") ? runtimeBytes : Buffer.from(JSON.stringify(report))]),
       error: null
     })
-  });
-
-  const result = await completeUsdzRuntimeSignedUpload({
-    adminClient: client,
-    env,
-    input: {
-      jobId: token.jobId,
-      jobToken: token.token,
-      profile: "balanced",
-      selectedProfile: "balanced",
-      selectedRecipe: "balanced-fit",
-      profileFallbackApplied: false,
-      recipeFallbackApplied: true,
-      sourceBytes: 8000,
-      sourceSha256: "b".repeat(64),
-      runtimeBytes: runtimeBytes.byteLength,
-      runtimeSha256,
-      reportBytes: Buffer.byteLength(JSON.stringify(report)),
-      geometryOptimization: "skipped",
-      warnings: ["client warning should not persist"],
-      fails: [],
-      reductionPercent: 99,
-      triangleCountBefore: 1,
-      triangleCountAfter: 1,
-      version,
-      runtimeStoragePath,
-      reportStoragePath
-    }
-  });
+  };
+  const { client, updates, removed } = mockAdminClient(handlers);
+  const input = {
+    jobId: token.jobId,
+    jobToken: token.token,
+    profile: "balanced",
+    selectedProfile: "balanced",
+    selectedRecipe: "balanced-fit",
+    profileFallbackApplied: false,
+    recipeFallbackApplied: true,
+    sourceBytes: 8000,
+    sourceSha256: "b".repeat(64),
+    runtimeBytes: runtimeBytes.byteLength,
+    runtimeSha256,
+    reportBytes: Buffer.byteLength(JSON.stringify(report)),
+    geometryOptimization: "skipped",
+    warnings: ["client warning should not persist"],
+    fails: [],
+    reductionPercent: 99,
+    triangleCountBefore: 1,
+    triangleCountAfter: 1,
+    version,
+    runtimeStoragePath,
+    reportStoragePath
+  };
+  const result = await completeUsdzRuntimeSignedUpload({ adminClient: client, env, input });
 
   assert.equal(result.geometryOptimization, "done");
   assert.equal(result.selectedRecipe, "balanced-fit");
@@ -1333,6 +1234,18 @@ test("complete publishes metrics from the uploaded report, not client JSON", asy
   assert.equal(updates[0].metadata.usdzOptimizationAttemptCount, 1);
   assert.equal(updates[0].metadata.usdzOptimizationSelectedRecipe, "balanced-fit");
   assert.equal(updates[0].metadata.usdzOptimizationRecipeFallbackApplied, true);
+  assert.equal(updates[0].metadata.concurrentMarker, freshMetadata.concurrentMarker);
+  assert.equal(updates[0].metadata.viewerGlbStatus, "ready");
+  assert.equal(updates[0].metadata.webModel3dStoragePath, freshMetadata.webModel3dStoragePath);
+  assert.equal(updates[0].metadata.webModel3dUrl, `/api/public/menu-dishes/${DISH_ID}/model/glb?v=${result.version}`);
+  assert.equal(updates[0].metadata.model3dUrl, updates[0].metadata.webModel3dUrl);
+
+  handlers.dishUpdate = async () => ({ data: null, error: { message: "db failed" } });
+  await assert.rejects(
+    () => completeUsdzRuntimeSignedUpload({ adminClient: client, env, input }),
+    /Plat impossible a mettre a jour/
+  );
+  assert.deepEqual(removed, [runtimeStoragePath, reportStoragePath]);
 });
 
 test("jobToken verification rejects tampering and expiry", () => {
@@ -1355,30 +1268,6 @@ test("jobToken verification rejects tampering and expiry", () => {
   assert.equal(verifyUsdzRuntimeJobToken(token.token, env, nowMs + 1000).ok, true);
   assert.equal(verifyUsdzRuntimeJobToken(`${token.token}x`, env, nowMs + 1000).ok, false);
   assert.equal(verifyUsdzRuntimeJobToken(token.token, env, nowMs + 31 * 60 * 1000).ok, false);
-});
-
-test("usdz runtime pipeline gates before upload, uploads runtime only, and cleans temp in finally", () => {
-  const gateIndex = pipeline.indexOf("evaluateRuntimeUsdzUploadGate");
-  const sourceDeleteIndex = pipeline.indexOf("rmSync(sourcePath");
-  const uploadIndex = pipeline.indexOf(".upload(runtimeStoragePath");
-  assert.ok(gateIndex > -1, "gate must be called");
-  assert.ok(sourceDeleteIndex > -1, "source must be deleted before upload");
-  assert.ok(uploadIndex > -1, "runtime upload must exist");
-  assert.ok(sourceDeleteIndex < uploadIndex, "source must be deleted before runtime upload");
-  assert.ok(gateIndex < uploadIndex, "gate must be evaluated before runtime upload");
-
-  // The source buffer/path is never uploaded.
-  assert.doesNotMatch(pipeline, /\.upload\(\s*sourcePath/);
-  assert.doesNotMatch(pipeline, /\.upload\([^)]*source\.usdz/);
-  assert.match(pipeline, /writeFileSync\(sourcePath/);
-  assert.match(pipeline, /const sourceCleaned = !existsSync\(sourcePath\)/);
-  assert.match(pipeline, /uploadedReport\.error/);
-  assert.match(pipeline, /rollbackStorageObjects/);
-  assert.match(pipeline, /summary\.fails\.length > 0/);
-  assert.match(pipeline, /\.upload\(runtimeStoragePath/);
-  assert.match(pipeline, /\.upload\(reportStoragePath/);
-  assert.match(pipeline, /finally\s*{\s*[\s\S]*rmSync\(workspace/);
-  assert.match(pipeline, /assertNoForbiddenSourceStorage/);
 });
 
 test("viewer GLB metadata patch does not set arModel3dUrl or AR-lite storage fields", () => {
@@ -1448,121 +1337,10 @@ test("web GLB enables Android AR without inventing AR-lite or iOS assets", () =>
   assert.equal(dish.arModel3dUrl, "");
 });
 
-test("summary.fails blocks USDZ runtime upload", async () => {
-  const uploads = [];
-  const { client } = mockAdminClient({
-    upload: async (path) => {
-      uploads.push(path);
-      return { data: {}, error: null };
-    }
-  });
-
-  await assert.rejects(
-    () =>
-      runUsdzRuntimePipeline({
-        ...basePipelineArgs(client, successOptimizer(validUsdzBytes(7000), { fails: ["glossy material"] }))
-      }),
-    /Optimisation USDZ bloquee/
-  );
-  assert.equal(uploads.length, 0);
-});
-
-test("report upload error rolls back runtime from Storage", async () => {
-  const uploads = [];
-  const { client, removed } = mockAdminClient({
-    upload: async (path) => {
-      uploads.push(path);
-      if (path.endsWith("-usdz-report.json")) {
-        return { data: null, error: { message: "report failed" } };
-      }
-      return { data: {}, error: null };
-    }
-  });
-
-  await assert.rejects(
-    () =>
-      runUsdzRuntimePipeline({
-        ...basePipelineArgs(client, successOptimizer(validUsdzBytes(7000)))
-      }),
-    /rapport d'optimisation USDZ/
-  );
-  assert.equal(uploads.length, 2);
-  assert.deepEqual(removed, [uploads[0]]);
-});
-
-test("metadata update error rolls back runtime and report from Storage", async () => {
-  const uploads = [];
-  const { client, removed } = mockAdminClient({
-    upload: async (path) => {
-      uploads.push(path);
-      return { data: {}, error: null };
-    },
-    dishUpdate: async () => ({ data: null, error: { message: "db failed" } })
-  });
-
-  await assert.rejects(
-    () =>
-      runUsdzRuntimePipeline({
-        ...basePipelineArgs(client, successOptimizer(validUsdzBytes(7000)))
-      }),
-    /Plat impossible a mettre a jour/
-  );
-  assert.equal(uploads.length, 2);
-  assert.deepEqual(removed, uploads);
-});
-
-test("runtime pipeline merges USDZ patch onto fresh dish metadata so concurrent GLB viewer metadata is preserved", async () => {
-  const concurrentGlbMetadata = {
-    webModel3dUrl: `/api/public/menu-dishes/${DISH_ID}/model/glb?v=old-glb-version`,
-    model3dUrl: `/api/public/menu-dishes/${DISH_ID}/model/glb?v=old-glb-version`,
-    webModel3dStoragePath: `restaurants/${RESTAURANT_ID}/models/web/homard-grille-old-glb-version.glb`,
-    viewerGlbStatus: "ready",
-    viewerGlbSha256: "c".repeat(64),
-    concurrentMarker: "glb-added-during-usdz-optimization"
-  };
-  const { client, updates } = mockAdminClient({
-    dishSelect: async () => ({ data: { metadata: concurrentGlbMetadata }, error: null })
-  });
-
-  const result = await runUsdzRuntimePipeline({
-    ...basePipelineArgs(client, successOptimizer(validUsdzBytes(7000))),
-    existingMetadata: { staleOnly: "must-not-be-merged" }
-  });
-
-  assert.equal(updates.length, 1);
-  const metadata = updates[0].metadata;
-  assert.equal(metadata.concurrentMarker, "glb-added-during-usdz-optimization");
-  assert.equal(metadata.viewerGlbStatus, "ready");
-  assert.equal(metadata.webModel3dStoragePath, concurrentGlbMetadata.webModel3dStoragePath);
-  assert.equal(metadata.webModel3dUrl, `/api/public/menu-dishes/${DISH_ID}/model/glb?v=${result.version}`);
-  assert.equal(metadata.model3dUrl, `/api/public/menu-dishes/${DISH_ID}/model/glb?v=${result.version}`);
-  assert.equal(metadata.arUsdzUrl, result.arUsdzUrl);
-  assert.equal("staleOnly" in metadata, false);
-});
-
-test("validated runtime pipeline uploads runtime and report after source cleanup", async () => {
-  const uploads = [];
-  const { client } = mockAdminClient({
-    upload: async (path) => {
-      uploads.push(path);
-      return { data: {}, error: null };
-    }
-  });
-
-  const result = await runUsdzRuntimePipeline({
-    ...basePipelineArgs(client, successOptimizer(validUsdzBytes(7000)))
-  });
-
-  assert.equal(result.status, "ready");
-  assert.equal(uploads.length, 2);
-  assert.ok(uploads[0].includes("/models/ar-ios/"));
-  assert.ok(uploads[1].endsWith("-usdz-report.json"));
-});
-
 test("no source USDZ signed upload URL is ever created", async () => {
   const sourceFiles = [
     usdzRoute,
-    pipeline,
+    jsonFlow,
     read("lib/owner/usdzRuntimeModel.ts"),
     read("scripts/owner/optimize-restaurant-usdz.mjs")
   ].join("\n");
@@ -1571,19 +1349,6 @@ test("no source USDZ signed upload URL is ever created", async () => {
   assert.doesNotMatch(sourceFiles, /createSignedUploadUrl\([^)]*master/i);
   assert.doesNotMatch(sourceFiles, /source.*signedUpload/i);
   assert.doesNotMatch(sourceFiles, /master.*signedUpload/i);
-});
-
-test("signed upload URL flow, when added, is constrained to runtime and report only", () => {
-  const allSource = [
-    usdzRoute,
-    pipeline,
-    read("lib/owner/usdzRuntimeModel.ts"),
-    read("scripts/owner/optimize-restaurant-usdz.mjs")
-  ].join("\n");
-
-  assert.doesNotMatch(allSource, /createSignedUploadUrl\(/);
-  assert.match(allSource, /runtimeStoragePath/);
-  assert.match(allSource, /reportStoragePath/);
 });
 
 test("deleting usdz-runtime also targets the linked optimization report", () => {
@@ -1620,6 +1385,8 @@ test("viewer-glb route never triggers a USDZ pipeline", () => {
   assert.doesNotMatch(viewerLib, /runUsdzRuntimePipeline/);
   assert.doesNotMatch(viewerRoute, /arModel3dUrl/);
   assert.match(viewerRoute, /usdzTriggered: false/);
+  // Owner, same-origin and restaurant scoping come from the shared upload guard.
+  assert.match(viewerRoute, /prepareOwnerGlbUpload\(request, params\)/);
 });
 
 test("local worker deletes source before signed upload and skips upload when optimizer fails", () => {

@@ -135,6 +135,7 @@ type ScrollHandoffTransition = {
   sourceScrollTop: number;
   latestSourceScrollTop: number;
   gestureDelta: number;
+  targetScrollOrigin: number | null;
   handoffApplied: boolean;
 };
 
@@ -634,6 +635,14 @@ export function SaugeNoirePageFlipExperiment({
       );
     };
 
+    // The surface still holds the source page's scrollTop. Move the next page to its
+    // handoff position before its first paint; the stable-frame pass below then only
+    // corrects a write the unsettled layout clamped, keeping any scroll the finger added.
+    if (transition.targetScrollOrigin === null) {
+      targetSurface.scrollTop = projectedHandoffScrollTop();
+      transition.targetScrollOrigin = targetSurface.scrollTop;
+    }
+
     const resetGeometry = () => {
       stableFrames = 0;
       stableGeometry = "";
@@ -737,6 +746,13 @@ export function SaugeNoirePageFlipExperiment({
             Math.max(0, (readyScrollTop ?? 0) + gestureDelta)
           )
         : 0;
+      const fingerScroll =
+        readingSurface.scrollTop -
+        (transition.targetScrollOrigin ?? readingSurface.scrollTop);
+      const handoffScrollTop = Math.min(
+        maxScrollTop,
+        Math.max(0, preparedScrollTop + fingerScroll)
+      );
 
       // Set the token before mutating scrollTop. A scroll event caused by the
       // write must not be mistaken for a new source gesture.
@@ -758,14 +774,15 @@ export function SaugeNoirePageFlipExperiment({
         "data-page-flip-gesture-delta",
         String(gestureDelta)
       );
-      if (readingSurface.scrollTop !== preparedScrollTop) {
-        readingSurface.scrollTop = preparedScrollTop;
+      if (readingSurface.scrollTop !== handoffScrollTop) {
+        readingSurface.scrollTop = handoffScrollTop;
       }
+      transition.targetScrollOrigin = readingSurface.scrollTop - fingerScroll;
 
       if (
         animationSourceScrollRef.current !== transition ||
         readingIdentityRef.current !== transition.targetIdentity ||
-        Math.abs(readingSurface.scrollTop - preparedScrollTop) > 1
+        Math.abs(readingSurface.scrollTop - handoffScrollTop) > 1
       ) {
         transition.handoffApplied = false;
         if (!writeRetryAvailable) {
@@ -856,6 +873,7 @@ export function SaugeNoirePageFlipExperiment({
         sourceScrollTop,
         latestSourceScrollTop: sourceScrollTop,
         gestureDelta: 0,
+        targetScrollOrigin: null,
         handoffApplied: false
       };
       viewport.setAttribute(

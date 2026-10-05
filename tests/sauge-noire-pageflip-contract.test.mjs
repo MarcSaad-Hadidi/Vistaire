@@ -464,7 +464,9 @@ test("scroll handoff ignores below-fold lazy media and cleans every readiness si
   assert.match(experiment, /removeEventListener\("loadedmetadata", handleMediaSignal\)/);
   assert.match(experiment, /scrollHandoffResizeObserverRef\.current\?\.disconnect\(\)/);
   assert.match(experiment, /scrollHandoffMutationObserverRef\.current\?\.disconnect\(\)/);
-  assert.match(experiment, /readingSurface\.scrollTop = preparedScrollTop/);
+  assert.match(experiment, /readingSurface\.scrollTop = handoffScrollTop/);
+  assert.match(experiment, /Math\.max\(0, preparedScrollTop \+ fingerScroll\)/);
+  assert.match(experiment, /transition\.targetScrollOrigin = readingSurface\.scrollTop - fingerScroll/);
   assert.match(experiment, /gestureDelta[\s\S]*projectedHandoffScrollTop/);
 });
 

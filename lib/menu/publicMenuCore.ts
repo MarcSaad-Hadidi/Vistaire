@@ -19,6 +19,7 @@ import {
   type DishAllergenDeclaration
 } from "./allergens.ts";
 import { capitalizeListItems } from "./listText.ts";
+import { slugifyRestaurantSlug as slugify } from "../owner/menuUrlCore.ts";
 
 export type PublicMenuDish = {
   id: string;
@@ -278,16 +279,6 @@ const RESTAURANT_ID_KEYS = [
   "restaurant_uuid",
   "restaurant"
 ];
-
-function slugify(value: string): string {
-  return value
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 80);
-}
 
 function getString(row: PublicMenuRow, candidates: string[], fallback = ""): string {
   for (const key of candidates) {

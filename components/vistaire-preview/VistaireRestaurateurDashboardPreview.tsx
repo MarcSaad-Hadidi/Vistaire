@@ -8,7 +8,6 @@ import {
   getVistaireChromeRoutes,
   PreviewFooter,
   PreviewNav,
-  type VistaireRouteMode
 } from "./VistairePreviewChrome";
 import styles from "./VistaireRestaurateurDashboardPreview.module.css";
 
@@ -19,13 +18,11 @@ function ArrowIcon() {
 export function VistaireRestaurateurDashboardPreview({
   demoQrSvg,
   locale = "fr",
-  routeMode = "production"
 }: {
   demoQrSvg: string;
   locale?: Locale;
-  routeMode?: VistaireRouteMode;
 }) {
-  const routes = getVistaireChromeRoutes(routeMode, locale);
+  const routes = getVistaireChromeRoutes(locale);
   const copy = RESTAURATEUR_PREVIEW_COPY[locale];
 
   return (
@@ -43,7 +40,7 @@ export function VistaireRestaurateurDashboardPreview({
       />
       <div className={styles.backgroundWash} aria-hidden="true" />
       <div className={styles.topNav}>
-        <PreviewNav currentPath={routes.restaurateurDashboard} locale={locale} routeMode={routeMode} />
+        <PreviewNav currentPath={routes.restaurateurDashboard} locale={locale} />
       </div>
       <main className={styles.previewFrame}>
         <section aria-labelledby="restaurateur-dashboard-title" className={`${styles.card} ${styles.hero}`}>
@@ -77,7 +74,7 @@ export function VistaireRestaurateurDashboardPreview({
           </aside>
         </section>
       </main>
-      <PreviewFooter currentPath={routes.restaurateurDashboard} locale={locale} routeMode={routeMode} width="wide" />
+      <PreviewFooter currentPath={routes.restaurateurDashboard} locale={locale} width="wide" />
     </div>
   );
 }

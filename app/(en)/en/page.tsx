@@ -42,7 +42,7 @@ export default function EnglishHome() {
           buildVistaireServiceJsonLd()
         ]}
       />
-      <VistairePreviewLanding locale="en" routeMode="production" />
+      <VistairePreviewLanding locale="en" />
     </>
   );
 }

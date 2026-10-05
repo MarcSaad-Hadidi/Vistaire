@@ -254,7 +254,12 @@ test.describe("Android AR diagnosis", () => {
     await expect(page.locator("model-viewer")).toHaveJSProperty(
       "src", "/models/demo/ar-lite/homard-bisque-ar-lite-meshy.glb"
     );
-    // The fallback needs React's model-ready state, not only the assigned src.
+    // The AR fallback UI only renders once the model has loaded (showArReady);
+    // `src` is set long before that, so wait for model-viewer's own load signal.
+    await expect(page.locator("model-viewer")).toHaveJSProperty("loaded", true, {
+      timeout: 20_000
+    });
+    // React must also have committed its model-ready action before the fallback.
     await expect(page.getByRole("button", { name: "Afficher devant moi" })).toBeVisible({
       timeout: 20_000
     });

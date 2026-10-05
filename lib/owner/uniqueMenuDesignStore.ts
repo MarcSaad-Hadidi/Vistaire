@@ -20,7 +20,7 @@ import {
   getUniqueMenuRendererForDesignVersion
 } from "@/lib/menu/uniqueMenuRendererRegistry";
 import { readPublicMenuSettingsWithFallbacks } from "@/lib/owner/publicMenuSettingsFallback";
-import { isCanonicalUuid } from "@/lib/owner/storageSafeIdentifier";
+import { isCanonicalUuid } from "@/lib/storage/safeIdentifier";
 
 const TABLE = "menu_ui_configs";
 

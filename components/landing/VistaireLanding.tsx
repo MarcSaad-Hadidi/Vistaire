@@ -5,7 +5,6 @@ import {
   getVistaireChromeRoutes,
   PreviewFooter,
   PreviewNav,
-  type VistaireRouteMode
 } from "@/components/vistaire-preview/VistairePreviewChrome";
 import { LandingComparisonSection } from "./LandingComparisonSection";
 import { LandingDishStorySection } from "./LandingDishStorySection";
@@ -19,14 +18,12 @@ import styles from "./VistaireLanding.module.css";
 
 export async function VistaireLanding({
   locale = "fr",
-  routeMode = "production"
 }: {
   locale?: Locale;
-  routeMode?: VistaireRouteMode;
 }) {
   const copy = getLandingCopy(locale);
   const experiences = await getLandingExperiences(locale);
-  const routes = getVistaireChromeRoutes(routeMode, locale);
+  const routes = getVistaireChromeRoutes(locale);
   const maisonExperience =
     experiences.find((experience) => experience.id === "maison-elyse") ??
     experiences[0];
@@ -42,7 +39,6 @@ export async function VistaireLanding({
           activeSection="home"
           currentPath={routes.home}
           locale={locale}
-          routeMode={routeMode}
         />
       </div>
       <LandingHero
@@ -81,7 +77,6 @@ export async function VistaireLanding({
       <PreviewFooter
         currentPath={routes.home}
         locale={locale}
-        routeMode={routeMode}
         width="wide"
       />
     </main>

@@ -48,7 +48,6 @@ const allowedAdminComponentModules = new Set([
   "components/admin/charts/data",
   "components/admin/charts/formatters",
   "components/admin/charts/geometry",
-  "components/admin/charts/index",
   "components/admin/charts/interaction",
   "components/admin/charts/types",
   "components/admin/charts/useChartInteraction"

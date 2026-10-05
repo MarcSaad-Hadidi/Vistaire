@@ -47,7 +47,7 @@ export default function PricingDigitalRestaurantMenuRouteEn() {
   return (
     <>
       <JsonLd data={buildPricingPageJsonLd(undefined, "en")} />
-      <VistairePricingPreview locale="en" routeMode="production" />
+      <VistairePricingPreview locale="en" />
     </>
   );
 }

@@ -3,7 +3,7 @@ import { createHash } from "node:crypto";
 import {
   isCanonicalUuid,
   normalizeStorageSafeIdentifier
-} from "./storageSafeIdentifier.ts";
+} from "../storage/safeIdentifier.ts";
 import {
   DISH_PHOTO_DERIVATIVE_VARIANTS,
   DISH_PHOTO_RECIPE,
@@ -322,33 +322,6 @@ export function buildDishPhotoV2StoragePath(args: {
     throw new Error("Identifiants photo invalides.");
   }
   return `restaurants/${restaurantId}/photos/originals/${args.sha256.toLowerCase()}.${args.extension}`;
-}
-
-/**
- * Derivatives are immutable, content-addressed siblings of the original.
- * Keeping the source hash in the path makes retries idempotent and lets two
- * dishes that intentionally share the same source safely share bytes.
- */
-export function buildDishPhotoDerivativeStoragePath(args: {
-  restaurantId: string;
-  sha256: string;
-  variant: DishPhotoDerivativeVariant;
-}): string {
-  const restaurantId = normalizeStorageSafeIdentifier(args.restaurantId);
-  if (!restaurantId || !SHA256_PATTERN.test(args.sha256)) {
-    throw new Error("Identifiants photo invalides.");
-  }
-  if (!DISH_PHOTO_DERIVATIVE_VARIANTS.includes(args.variant)) {
-    throw new Error("Variante photo invalide.");
-  }
-  return [
-    "restaurants",
-    restaurantId,
-    "photos",
-    "derivatives",
-    args.sha256.toLowerCase(),
-    `${args.variant}.webp`
-  ].join("/");
 }
 
 /** V2 derivative path includes recipe and output hashes, so collisions are impossible. */

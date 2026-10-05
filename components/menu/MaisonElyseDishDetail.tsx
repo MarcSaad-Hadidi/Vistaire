@@ -11,7 +11,11 @@ import {
   isCurrencyConversionAvailable,
   type MenuExchangeRates
 } from "@/lib/currency/formatMenuPrice";
-import { isSafe3dAssetUrl } from "@/lib/dish3dManifest";
+import {
+  hasPublicMenu3d,
+  hasPublicMenuAr,
+  PUBLIC_3D_CDN_ORIGINS_STRICT
+} from "@/lib/dish3dManifest";
 import type { PublicMenuLocale } from "@/lib/menu/publicMenuSettings";
 import {
   getMaisonElyseCategoryKind,
@@ -28,7 +32,7 @@ import {
   type PublicMenuDish
 } from "@/lib/menu/publicMenuCore";
 import type { MenuUiConfig } from "@/lib/menu/menuUiConfig";
-import { buildPublicMenuPath } from "@/lib/owner/menuUrlCore";
+import { buildPublicMenuPath, slugifyRestaurantSlug as slugify } from "@/lib/owner/menuUrlCore";
 import {
   getPublicMenuAnalyticsContext,
   trackPublicMenuEvent
@@ -43,11 +47,6 @@ import {
 import styles from "./MaisonElyseDishDetail.module.css";
 
 const MODEL_VIEWER_ID = "maison-elyse-dish-model-viewer";
-const ALLOWED_3D_CDN_ORIGINS = (process.env.NEXT_PUBLIC_VISTAIRE_3D_CDN_ORIGINS ?? "")
-  .split(/[,\s]+/)
-  .map((origin) => origin.trim().replace(/\/$/, ""))
-  .filter(Boolean);
-
 const loadDishModelViewer = () =>
   import("@/components/dish/DishModelViewer").then(
     (mod) => mod.DishModelViewer
@@ -187,16 +186,6 @@ function normalizeText(value: string): string {
     .toLowerCase();
 }
 
-function slugify(value: string): string {
-  return value
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 80);
-}
-
 function categoryLabel(dish: PublicMenuDish, locale: PublicMenuLocale): string {
   return (
     getMaisonElyseCategoryLabel(
@@ -206,28 +195,6 @@ function categoryLabel(dish: PublicMenuDish, locale: PublicMenuLocale): string {
       },
       locale
     ) || resolveMaisonElyseCopy(locale).copy.activeCategoryAll
-  );
-}
-
-function hasReal3d(dish: PublicMenuDish): boolean {
-  return (
-    isSafe3dAssetUrl(
-      dish.webModel3dUrl || dish.model3dUrl,
-      ALLOWED_3D_CDN_ORIGINS,
-      "web"
-    ) ||
-    isSafe3dAssetUrl(dish.arModel3dUrl, ALLOWED_3D_CDN_ORIGINS, "arLite")
-  );
-}
-
-function hasRealAr(dish: PublicMenuDish): boolean {
-  return (
-    hasReal3d(dish) ||
-    isSafe3dAssetUrl(
-      dish.arUsdzUrl || dish.usdzUrl,
-      ALLOWED_3D_CDN_ORIGINS,
-      "iosUsdz"
-    )
   );
 }
 
@@ -253,8 +220,8 @@ function dishBadges(dish: PublicMenuDish, copy: DetailCopy): string[] {
   ) {
     badges.push(copy.recommendedBadge);
   }
-  if (hasReal3d(dish)) badges.push("3D");
-  if (hasRealAr(dish)) badges.push("AR");
+  if (hasPublicMenu3d(dish, PUBLIC_3D_CDN_ORIGINS_STRICT)) badges.push("3D");
+  if (hasPublicMenuAr(dish, PUBLIC_3D_CDN_ORIGINS_STRICT)) badges.push("AR");
   if (!dish.available) badges.push(copy.unavailableBadge);
 
   return Array.from(new Set(badges)).slice(0, 5);
@@ -460,8 +427,8 @@ export function MaisonElyseDishDetail({
     exchangeRates
   );
   const displayCategory = categoryLabel(dish, locale);
-  const has3d = hasReal3d(dish);
-  const hasAr = hasRealAr(dish);
+  const has3d = hasPublicMenu3d(dish, PUBLIC_3D_CDN_ORIGINS_STRICT);
+  const hasAr = hasPublicMenuAr(dish, PUBLIC_3D_CDN_ORIGINS_STRICT);
   const canOpenImmersive = displayMode === "public" && (has3d || hasAr);
   const badges = dishBadges(dish, copy);
   const ingredients = displayList(dish.ingredients);

@@ -24,8 +24,6 @@ export const LOCALE_OPEN_GRAPH: Record<Locale, "fr_CA" | "en_CA"> = {
   en: "en_CA"
 };
 
-export const VISTAIRE_LOCALE_HEADER = "x-vistaire-locale";
-
 export const PUBLIC_ROUTE_UPDATED_AT = "2026-06-22T21:26:34.000Z";
 
 export type BilingualRoutePair = {
@@ -191,8 +189,4 @@ export function buildAbsoluteLanguageAlternates(
     [LOCALE_LANGUAGE_TAG.en]: absoluteUrl(String(languages[LOCALE_LANGUAGE_TAG.en] ?? "/en")),
     "x-default": absoluteUrl(String(languages["x-default"] ?? "/"))
   };
-}
-
-export function localeFromHeaderValue(value: string | null | undefined): Locale {
-  return normalizeLocale(value);
 }

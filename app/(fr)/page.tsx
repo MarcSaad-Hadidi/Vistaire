@@ -41,7 +41,7 @@ export default function Home() {
           buildVistaireServiceJsonLd()
         ]}
       />
-      <VistairePreviewLanding routeMode="production" />
+      <VistairePreviewLanding />
     </>
   );
 }

@@ -1,7 +1,7 @@
 import "server-only";
 
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
-import { basename, join, relative } from "node:path";
+import { join, relative } from "node:path";
 import { cache } from "react";
 import {
   filterOwner3dAccessibleItems,
@@ -894,8 +894,4 @@ export function owner3dPipelineSourceLabel(source: Owner3dPipelineAsset["source"
   if (source === "manifest") return "Manifest production";
   if (source === "report") return "Rapports locaux";
   return "Fallback démo";
-}
-
-export function versionBasename(path: string | null): string {
-  return path ? basename(path) : "Non disponible";
 }

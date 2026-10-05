@@ -24,7 +24,7 @@ import {
 import {
   isCanonicalUuid,
   normalizeStorageSafeIdentifier
-} from "@/lib/owner/storageSafeIdentifier";
+} from "@/lib/storage/safeIdentifier";
 import { getSupabaseAdminClient } from "@/utils/supabase/admin";
 
 export const runtime = "nodejs";

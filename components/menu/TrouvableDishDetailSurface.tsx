@@ -1,19 +1,26 @@
 "use client";
 
-import type {
-  ComponentType,
-  ReactNode,
-  RefObject
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type ComponentType,
+  type ReactNode
 } from "react";
 import type {
   ArFallbackReason,
   DishModelViewerProps
 } from "@/components/dish/DishModelViewer";
 import {
-  getPublicMenuAnalyticsContext,
-  type PublicMenuAnalyticsContext
+  getPublicMenuAnalyticsContext
 } from "@/lib/analytics/client";
-import type { ArHandoffPlatform } from "@/lib/menu/arBrowserHandoff";
+import {
+  copyTextToClipboard,
+  detectArHandoffPlatform,
+  type ArHandoffPlatform
+} from "@/lib/menu/arBrowserHandoff";
+import { arFallbackUiMode } from "@/lib/ar/arExperience";
 import type {
   PublicMenu,
   PublicMenuDish
@@ -30,27 +37,12 @@ type DishModelViewerComponent = ComponentType<DishModelViewerProps>;
 type ArCopyStatus = "idle" | "copying" | "success" | "error";
 
 type TrouvableImmersivePanelBodyProps = {
-  arCopyStatus: ArCopyStatus;
-  arHandoffPlatform: ArHandoffPlatform;
+  experience: ReturnType<typeof useTrouvableImmersiveExperience>;
   copy: TrouvableCopy;
   dish: PublicMenuDish;
-  fallbackTitleId: string;
-  manualDishUrl: string;
-  manualDishUrlId: string;
-  manualDishUrlRef: RefObject<HTMLInputElement | null>;
   menu: PublicMenu;
-  analyticsContext?: PublicMenuAnalyticsContext;
   modelControlsId: string;
-  modelViewerComponent: DishModelViewerComponent | null;
-  modelViewerLoadFailed: boolean;
-  onArFallbackCleared: () => void;
-  onArFallbackNeeded: (reason: ArFallbackReason) => void;
-  onCopyDishUrl: () => void;
   onReturnToDish: () => void;
-  onSelectManualDishUrl: () => void;
-  showArBrowserHelp: boolean;
-  showArDeviceHelp?: boolean;
-  showArAssetHelp?: boolean;
 };
 
 type TrouvableDishDetailSurfaceProps = {
@@ -76,6 +68,122 @@ type TrouvableDishDetailSurfaceProps = {
   textDirection: "ltr" | "rtl";
   titleId: string;
 };
+
+export function useTrouvableImmersiveExperience(
+  browserDishHref: string,
+  requested: boolean
+) {
+  const [ModelViewerComponent, setModelViewerComponent] =
+    useState<DishModelViewerComponent | null>(null);
+  const [modelViewerLoadFailed, setModelViewerLoadFailed] = useState(false);
+  const [fallbackMode, setFallbackMode] =
+    useState<ReturnType<typeof arFallbackUiMode>>("none");
+  const [arHandoffPlatform] = useState<ArHandoffPlatform>(() => {
+    if (typeof navigator === "undefined") return "other";
+    const navigatorWithData = navigator as Navigator & {
+      userAgentData?: { platform?: string };
+    };
+    return detectArHandoffPlatform({
+      userAgent: navigator.userAgent,
+      platform: navigator.platform,
+      maxTouchPoints: navigator.maxTouchPoints,
+      userAgentDataPlatform: navigatorWithData.userAgentData?.platform
+    });
+  });
+  const [arCopyStatus, setArCopyStatus] = useState<ArCopyStatus>("idle");
+  const [manualDishUrl, setManualDishUrl] = useState("");
+  const manualDishUrlRef = useRef<HTMLInputElement | null>(null);
+  const arCopyResetTimeoutRef = useRef<number | null>(null);
+
+  const resetArHandoffState = useCallback(() => {
+    if (arCopyResetTimeoutRef.current !== null) {
+      window.clearTimeout(arCopyResetTimeoutRef.current);
+      arCopyResetTimeoutRef.current = null;
+    }
+    setFallbackMode("none");
+    setArCopyStatus("idle");
+    setManualDishUrl("");
+  }, []);
+
+  const selectManualDishUrl = useCallback(() => {
+    const input = manualDishUrlRef.current;
+    if (!input) return;
+    input.focus({ preventScroll: true });
+    input.select();
+  }, []);
+
+  async function copyDishUrl() {
+    if (arCopyStatus === "copying") return;
+    if (arCopyResetTimeoutRef.current !== null) {
+      window.clearTimeout(arCopyResetTimeoutRef.current);
+      arCopyResetTimeoutRef.current = null;
+    }
+    const absoluteDishUrl = new URL(browserDishHref, window.location.origin).toString();
+    setArCopyStatus("copying");
+    const copied = await copyTextToClipboard(absoluteDishUrl);
+    if (copied) {
+      setManualDishUrl("");
+      setArCopyStatus("success");
+      arCopyResetTimeoutRef.current = window.setTimeout(() => {
+        arCopyResetTimeoutRef.current = null;
+        setArCopyStatus("idle");
+      }, 4_000);
+      return;
+    }
+    setManualDishUrl(absoluteDishUrl);
+    setArCopyStatus("error");
+  }
+
+  function onArFallbackNeeded(reason: ArFallbackReason) {
+    const mode = arFallbackUiMode(reason);
+    if (mode === "none") resetArHandoffState();
+    else setFallbackMode(mode);
+  }
+
+  useEffect(
+    () => () => {
+      if (arCopyResetTimeoutRef.current !== null) {
+        window.clearTimeout(arCopyResetTimeoutRef.current);
+      }
+    },
+    []
+  );
+
+  useEffect(() => {
+    if (arCopyStatus !== "error" || !manualDishUrl) return;
+    const frameId = window.requestAnimationFrame(selectManualDishUrl);
+    return () => window.cancelAnimationFrame(frameId);
+  }, [arCopyStatus, manualDishUrl, selectManualDishUrl]);
+
+  useEffect(() => {
+    if (!requested || ModelViewerComponent || modelViewerLoadFailed) return;
+    let cancelled = false;
+    import("@/components/dish/DishModelViewer")
+      .then((mod) => {
+        if (!cancelled) setModelViewerComponent(() => mod.DishModelViewer);
+      })
+      .catch(() => {
+        if (!cancelled) setModelViewerLoadFailed(true);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [ModelViewerComponent, modelViewerLoadFailed, requested]);
+
+  return {
+    ModelViewerComponent,
+    modelViewerLoadFailed,
+    fallbackMode,
+    arHandoffPlatform,
+    arCopyStatus,
+    manualDishUrl,
+    manualDishUrlRef,
+    resetArHandoffState,
+    onArFallbackNeeded,
+    copyDishUrl,
+    selectManualDishUrl
+  };
+}
 
 function modelViewerDishFromPublicDish(
   dish: PublicMenuDish
@@ -114,28 +222,28 @@ function CopyIcon() {
 }
 
 export function TrouvableImmersivePanelBody({
-  arCopyStatus,
-  arHandoffPlatform,
+  experience,
   copy,
   dish,
-  fallbackTitleId,
-  manualDishUrl,
-  manualDishUrlId,
-  manualDishUrlRef,
   menu,
-  analyticsContext,
   modelControlsId,
-  modelViewerComponent: ModelViewerComponent,
-  modelViewerLoadFailed,
-  onArFallbackCleared,
-  onArFallbackNeeded,
-  onCopyDishUrl,
-  onReturnToDish,
-  onSelectManualDishUrl,
-  showArBrowserHelp,
-  showArDeviceHelp = false,
-  showArAssetHelp = false
+  onReturnToDish
 }: TrouvableImmersivePanelBodyProps) {
+  const {
+    ModelViewerComponent,
+    modelViewerLoadFailed,
+    fallbackMode,
+    arHandoffPlatform,
+    arCopyStatus,
+    manualDishUrl,
+    manualDishUrlRef,
+    resetArHandoffState,
+    onArFallbackNeeded,
+    copyDishUrl,
+    selectManualDishUrl
+  } = experience;
+  const fallbackTitleId = `trouvable-ar-browser-fallback-${dish.slug}`;
+  const manualDishUrlId = `trouvable-ar-manual-url-${dish.slug}`;
   const platformCopy = copy.arBrowserFallback[arHandoffPlatform];
   const deviceCopy = copy.arBrowserFallback.device;
   const assetCopy = {
@@ -153,7 +261,7 @@ export function TrouvableImmersivePanelBody({
         {ModelViewerComponent ? (
           <ModelViewerComponent
             dish={modelViewerDishFromPublicDish(dish)}
-            analyticsContext={analyticsContext ?? getPublicMenuAnalyticsContext(menu) ?? undefined}
+            analyticsContext={getPublicMenuAnalyticsContext(menu) ?? undefined}
             minimalChrome
             quietChrome
             copy={{
@@ -163,7 +271,7 @@ export function TrouvableImmersivePanelBody({
             }}
             onReturnToDish={onReturnToDish}
             onArFallbackNeeded={onArFallbackNeeded}
-            onArFallbackCleared={onArFallbackCleared}
+            onArFallbackCleared={resetArHandoffState}
             fallbackPresentation="external"
           />
         ) : modelViewerLoadFailed ? (
@@ -176,7 +284,7 @@ export function TrouvableImmersivePanelBody({
           </div>
         )}
       </div>
-      {showArAssetHelp ? (
+      {fallbackMode === "asset" ? (
         <aside
           className={styles.arBrowserFallback}
           aria-labelledby={`${fallbackTitleId}-asset`}
@@ -194,7 +302,7 @@ export function TrouvableImmersivePanelBody({
           </div>
         </aside>
       ) : null}
-      {showArDeviceHelp ? (
+      {fallbackMode === "device" ? (
         <aside
           className={styles.arBrowserFallback}
           aria-labelledby={`${fallbackTitleId}-device`}
@@ -212,7 +320,7 @@ export function TrouvableImmersivePanelBody({
           </div>
         </aside>
       ) : null}
-      {showArBrowserHelp ? (
+      {fallbackMode === "browser" ? (
         <aside
           className={styles.arBrowserFallback}
           aria-labelledby={fallbackTitleId}
@@ -232,7 +340,7 @@ export function TrouvableImmersivePanelBody({
           <button
             type="button"
             className={styles.arCopyButton}
-            onClick={onCopyDishUrl}
+            onClick={() => void copyDishUrl()}
             disabled={arCopyStatus === "copying"}
           >
             <CopyIcon />
@@ -266,7 +374,7 @@ export function TrouvableImmersivePanelBody({
               <button
                 type="button"
                 className={styles.arSelectLinkButton}
-                onClick={onSelectManualDishUrl}
+                onClick={selectManualDishUrl}
               >
                 {copy.arBrowserFallback.selectLink}
               </button>

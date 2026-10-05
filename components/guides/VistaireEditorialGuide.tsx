@@ -166,7 +166,6 @@ export function VistaireEditorialGuide({ guide }: { guide: EditorialGuide }) {
         <PreviewNav
           currentPath={guide.path}
           locale={guide.locale}
-          routeMode="production"
         />
       </div>
 
@@ -367,7 +366,6 @@ export function VistaireEditorialGuide({ guide }: { guide: EditorialGuide }) {
       <PreviewFooter
         currentPath={guide.path}
         locale={guide.locale}
-        routeMode="production"
         width="wide"
       />
     </main>

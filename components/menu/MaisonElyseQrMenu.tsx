@@ -17,7 +17,11 @@ import {
   isCurrencyConversionAvailable,
   type MenuExchangeRates
 } from "@/lib/currency/formatMenuPrice";
-import { isSafe3dAssetUrl } from "@/lib/dish3dManifest";
+import {
+  hasPublicMenu3d,
+  hasPublicMenuAr,
+  PUBLIC_3D_CDN_ORIGINS_STRICT
+} from "@/lib/dish3dManifest";
 import {
   normalizePublicMenuLocale,
   type PublicMenuLocale
@@ -89,11 +93,6 @@ const PHONE_PREVIEW_DISH_DETAILS = {
   el: createPhonePreviewDishDetail("Φόρτωση λεπτομερειών πιάτου..."),
   ar: createPhonePreviewDishDetail("جارٍ تحميل تفاصيل الطبق...")
 } as const;
-
-const ALLOWED_3D_CDN_ORIGINS = (process.env.NEXT_PUBLIC_VISTAIRE_3D_CDN_ORIGINS ?? "")
-  .split(/[,\s]+/)
-  .map((origin) => origin.trim().replace(/\/$/, ""))
-  .filter(Boolean);
 
 type MaisonElyseQrMenuProps = {
   menu: PublicMenu;
@@ -347,28 +346,6 @@ function categorySort(a: PublicMenuCategory, b: PublicMenuCategory): number {
   return categoryRank(a) - categoryRank(b);
 }
 
-function hasReal3d(dish: PublicMenuDish): boolean {
-  return (
-    isSafe3dAssetUrl(
-      dish.webModel3dUrl || dish.model3dUrl,
-      ALLOWED_3D_CDN_ORIGINS,
-      "web"
-    ) ||
-    isSafe3dAssetUrl(dish.arModel3dUrl, ALLOWED_3D_CDN_ORIGINS, "arLite")
-  );
-}
-
-function hasRealAr(dish: PublicMenuDish): boolean {
-  return (
-    hasReal3d(dish) ||
-    isSafe3dAssetUrl(
-      dish.arUsdzUrl || dish.usdzUrl,
-      ALLOWED_3D_CDN_ORIGINS,
-      "iosUsdz"
-    )
-  );
-}
-
 function isSignatureDish(dish: PublicMenuDish): boolean {
   if (dish.isSignature) return true;
   if (
@@ -398,7 +375,7 @@ function dishMatchesFilter(dish: PublicMenuDish, filter: FilterId): boolean {
   if (filter === "all") return true;
   if (filter === "recommended") return isRecommendedDish(dish);
   if (filter === "signature") return isSignatureDish(dish);
-  if (filter === "immersive") return hasReal3d(dish) || hasRealAr(dish);
+  if (filter === "immersive") return hasPublicMenu3d(dish, PUBLIC_3D_CDN_ORIGINS_STRICT) || hasPublicMenuAr(dish, PUBLIC_3D_CDN_ORIGINS_STRICT);
   if (filter === "available") return dish.available;
   if (isDietaryFilter(filter)) {
     return matchesConfirmedFreeForFilter(dish, filter);
@@ -416,8 +393,8 @@ function dishBadges(dish: PublicMenuDish, copy: MaisonMenuCopy): string[] {
   const badges: string[] = [];
   if (isSignatureDish(dish)) badges.push(copy.signature);
   if (isRecommendedDish(dish)) badges.push(copy.recommendation);
-  if (hasReal3d(dish)) badges.push("3D");
-  if (hasRealAr(dish)) badges.push("AR");
+  if (hasPublicMenu3d(dish, PUBLIC_3D_CDN_ORIGINS_STRICT)) badges.push("3D");
+  if (hasPublicMenuAr(dish, PUBLIC_3D_CDN_ORIGINS_STRICT)) badges.push("AR");
   if (!dish.available) badges.push(copy.unavailableBadge);
   return Array.from(new Set(badges)).slice(0, 4);
 }

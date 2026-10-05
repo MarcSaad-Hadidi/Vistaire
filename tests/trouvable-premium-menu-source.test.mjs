@@ -126,27 +126,30 @@ test("Trouvable premium menu keeps 3D assets behind explicit viewer intent", asy
   assert.doesNotMatch(source, /["'`][^"'`\n]*\.glb/);
   assert.doesNotMatch(source, /["'`][^"'`\n]*\.usdz/);
   assert.match(source, /showDetailModelViewer/);
-  assert.match(source, /import\("@\/components\/dish\/DishModelViewer"\)/);
+  assert.match(source, /displayMode === "public" && showDetailModelViewer/);
+  assert.match(sharedDetailSurface, /if \(!requested \|\| ModelViewerComponent \|\| modelViewerLoadFailed\) return/);
+  assert.match(sharedDetailSurface, /import\("@\/components\/dish\/DishModelViewer"\)/);
   assert.match(source, /setShowDetailModelViewer\(\(isVisible\) => \{[\s\S]*?return !isVisible;/);
   assert.match(source, /hasPublicMenu3d\(selectedDish\)/);
   assert.match(sharedDetailSurface, /loadingTitle:\s*copy\.modelPreparing/);
   assert.match(sharedDetailSurface, /\.\.\.copy\.modelViewer/);
   assert.match(sharedDetailSurface, /modelAlt:\s*copy\.modelAlt/);
-  assert.match(source, /useTrouvableDocumentLanguage\(\s*selectedLocale,\s*textDirection/);
+  assert.match(source, /useTrouvablePreferences\(menu, query, displayMode\)/);
   assert.match(source, /buildPublicDishPath/);
-  assert.match(source, /copyTextToClipboard/);
-  assert.match(source, /new URL\(/);
-  assert.match(source, /browserDishHref/);
-  assert.match(source, /window\.location\.origin/);
+  assert.match(sharedDetailSurface, /copyTextToClipboard/);
+  assert.match(sharedDetailSurface, /new URL\(/);
+  assert.match(sharedDetailSurface, /browserDishHref/);
+  assert.match(sharedDetailSurface, /window\.location\.origin/);
 });
 
 test("Trouvable AR browser help is hidden until a real fallback condition appears", async () => {
   const source = await readFile(componentPath, "utf8");
+  const surface = await readFile("components/menu/TrouvableDishDetailSurface.tsx", "utf8");
   const viewer = await readFile("components/dish/DishModelViewer.tsx", "utf8");
 
-  assert.match(source, /showArBrowserHelp/);
-  assert.match(source, /onArFallbackNeeded/);
-  assert.match(source, /setShowArBrowserHelp\(false\)/);
+  assert.match(surface, /fallbackMode === "browser"/);
+  assert.match(surface, /onArFallbackNeeded/);
+  assert.match(surface, /setFallbackMode\("none"\)/);
   assert.doesNotMatch(
     source,
     /showDetailModelViewer \? \([\s\S]{0,500}<p className=\{styles\.arBrowserHelp\}>/
@@ -224,10 +227,11 @@ test("Trouvable premium menu includes local selection and waiter-only flows", as
 test("Trouvable premium menu wires functional currency, language, theme, and greeting controls", async () => {
   const source = await readFile(componentPath, "utf8");
   const controls = await readFile(controlsPath, "utf8");
+  const preferences = await readFile("components/menu/useTrouvablePreferences.ts", "utf8");
 
-  assert.match(source, /TROUVABLE_CURRENCY_STORAGE_KEY/);
+  assert.match(preferences, /TROUVABLE_CURRENCY_STORAGE_KEY/);
   assert.match(source, /TROUVABLE_LOCALE_STORAGE_KEY/);
-  assert.match(source, /TROUVABLE_THEME_STORAGE_KEY/);
+  assert.match(preferences, /TROUVABLE_THEME_STORAGE_KEY/);
   assert.match(source, /formatTrouvableDishPrice/);
   assert.match(source, /formatTrouvablePriceCents/);
   assert.match(source, /getTrouvableGreeting/);
@@ -235,8 +239,8 @@ test("Trouvable premium menu wires functional currency, language, theme, and gre
   assert.match(source, /activeSheet === "currency"/);
   assert.match(source, /activeSheet === "filters"/);
   assert.match(source, /activeSheet === "language"/);
-  assert.match(source, /useRouter/);
-  assert.match(source, /router\.replace\(nextPath,\s*\{\s*scroll:\s*false\s*\}\)/);
+  assert.match(preferences, /useRouter/);
+  assert.match(preferences, /router\.replace\(nextPath,\s*\{\s*scroll:\s*false\s*\}\)/);
   assert.doesNotMatch(source, /window\.location\.replace/);
   assert.doesNotMatch(source, /function updateBrowserLocale[\s\S]*window\.history\.replaceState/);
   assert.match(source, /lang=\{selectedLocale\}/);
@@ -263,7 +267,6 @@ test("Trouvable premium menu wires functional currency, language, theme, and gre
   assert.match(source, /<GoogleReviewCard/);
   assert.match(source, /hasPublicMenu3d\(selectedDish\)/);
   assert.doesNotMatch(source, /badges\.add\("4D"\)/);
-  assert.match(controls, /TROUVABLE_STATIC_CAD_RATES/);
   assert.match(controls, /CAD/);
   assert.match(controls, /USD/);
   assert.match(controls, /EUR/);
@@ -272,16 +275,18 @@ test("Trouvable premium menu wires functional currency, language, theme, and gre
 
 test("Trouvable standalone dish detail keeps locale URL navigation and layout direction in sync", async () => {
   const detailSource = await readFile(dishDetailPath, "utf8");
+  const preferences = await readFile("components/menu/useTrouvablePreferences.ts", "utf8");
   const pageSource = await readFile(dishPagePath, "utf8");
   const surfaceSource = await readFile(
     "components/menu/TrouvableDishDetailSurface.tsx",
     "utf8"
   );
 
-  assert.match(detailSource, /useRouter/);
-  assert.match(detailSource, /router\.replace\(nextPath,\s*\{\s*scroll:\s*false\s*\}\)/);
+  assert.match(preferences, /useRouter/);
+  assert.match(preferences, /router\.replace\(nextPath,\s*\{\s*scroll:\s*false\s*\}\)/);
   assert.doesNotMatch(detailSource, /window\.location\.replace/);
-  assert.match(detailSource, /useTrouvableDocumentLanguage\(selectedLocale,\s*textDirection\)/);
+  assert.match(detailSource, /useTrouvablePreferences\(menu, query\)/);
+  assert.match(preferences, /useTrouvableDocumentLanguage\(selectedLocale, textDirection, displayMode === "public"\)/);
   assert.match(detailSource, /lang=\{selectedLocale\}/);
   assert.match(detailSource, /textDirection=\{textDirection\}/);
   assert.match(surfaceSource, /dir=\{textDirection\}/);
@@ -319,6 +324,7 @@ test("Trouvable dish details stay stacked above the dish without a local review 
 test("Trouvable dish swipe guards interactive controls and 3D surfaces", async () => {
   const source = await readFile(componentPath, "utf8");
   const detailSource = await readFile(dishDetailPath, "utf8");
+  const swipeSource = await readFile("lib/menu/dishReviewSwipe.ts", "utf8");
   const guardedSelectors = [
     "model-viewer",
     "canvas",
@@ -333,8 +339,7 @@ test("Trouvable dish swipe guards interactive controls and 3D surfaces", async (
   ];
 
   for (const selector of guardedSelectors) {
-    assert.ok(source.includes(`"${selector}"`), `premium menu missing guard ${selector}`);
-    assert.ok(detailSource.includes(`"${selector}"`), `dish detail missing guard ${selector}`);
+    assert.ok(swipeSource.includes(`"${selector}"`), `shared dish guard missing ${selector}`);
   }
 
   const surfaceSource = await readFile(
@@ -544,10 +549,11 @@ test("Trouvable category swipe hint keeps a looping edge-bounce animation", asyn
 test("Trouvable public UI labels use extensible localized copy", async () => {
   const source = await readFile(componentPath, "utf8");
   const detailSource = await readFile(dishDetailPath, "utf8");
+  const preferences = await readFile("components/menu/useTrouvablePreferences.ts", "utf8");
 
-  assert.match(source, /resolveTrouvableCopy\(\s*selectedLocale,\s*menu\.localizedUiCopy\s*\)/);
+  assert.match(preferences, /resolveTrouvableCopy\(\s*selectedLocale,\s*menu\.localizedUiCopy\s*\)/);
   assert.match(source, /getTrouvableReadyLanguageOptions\(\s*menu\.settings,\s*selectedLocale,\s*menu\.localizedUiCopy\s*\)/);
-  assert.match(source, /normalizeTrouvableReadyLocaleForSettings\(\s*query\?\.lang,\s*menu\.settings,\s*menu\.localizedUiCopy\s*\)/);
+  assert.match(preferences, /normalizeTrouvableReadyLocaleForSettings\(\s*query\?\.lang,\s*menu\.settings,\s*menu\.localizedUiCopy\s*\)/);
   assert.match(
     source,
     /getTrouvableGreetingForDate\(\s*selectedLocale,\s*menu\.settings\.timezone,\s*new Date\(\),\s*menu\.localizedUiCopy\s*\)/
@@ -575,8 +581,6 @@ test("Trouvable public UI labels use extensible localized copy", async () => {
   assert.doesNotMatch(source, /translateTrouvableCategoryLabel/);
   assert.doesNotMatch(source, /Photo de \$\{/);
   assert.doesNotMatch(detailSource, /Photo de \$\{/);
-  assert.match(detailSource, /resolveTrouvableCopy\(\s*selectedLocale,\s*menu\.localizedUiCopy\s*\)/);
-  assert.match(detailSource, /normalizeTrouvableReadyLocaleForSettings\(\s*query\?\.lang,\s*menu\.settings,\s*menu\.localizedUiCopy\s*\)/);
   assert.match(detailSource, /data-copy-dynamic-source=\{copyResolution\.dynamicSource\}/);
   assert.match(detailSource, /data-copy-neutral-fallback=\{copyResolution\.usedNeutralFallback/);
   assert.match(detailSource, /data-copy-complete=\{copyResolution\.uiCopyComplete/);
@@ -627,15 +631,15 @@ test("Trouvable filter sheet uses premium filterSheet styling on the filters dia
 
   assert.match(
     source,
-    /function renderFiltersSheet\(\)[\s\S]*className=\{`\$\{styles\.sheet\} \$\{styles\.filterSheet\}`\}/
+    /renderedSheet === "filters"\s*\? `\$\{styles\.sheet\} \$\{styles\.filterSheet\}`\s*:\s*styles\.sheet/
   );
   assert.match(
     source,
-    /function renderSelectionSheet\(\)[\s\S]*className=\{styles\.sheet\}[\s\S]*?selectionTitle/
+    /selection:\s*\[copy\.selectionKicker, copy\.selectionTitle, copy\.closeSelection\]/
   );
   assert.doesNotMatch(
     source,
-    /function renderSelectionSheet\(\)[\s\S]*?selectionTitle[\s\S]{0,400}filterSheet/
+    /renderedSheet === "selection"[\s\S]{0,150}styles\.filterSheet/
   );
 });
 
@@ -664,14 +668,6 @@ test("Trouvable premium menu styles are mobile-first and overflow-safe", async (
   assert.match(css, /\.categoryRail[\s\S]*overflow-x:\s*auto/);
   const categoryRailBlock = css.match(/\.categoryRail\s*\{[\s\S]*?\n\}/)?.[0] ?? "";
   assert.doesNotMatch(categoryRailBlock, /touch-action:\s*pan-y/);
-  assert.match(
-    css,
-    /\.page\[data-user-theme="light"\]\s+\.detailList h3,\s*\n\.page\[data-user-theme="light"\]\s+\.houseNote h3\s*\{[\s\S]*color:\s*#6f530e/
-  );
-  assert.match(
-    css,
-    /\.page\[data-user-theme="light"\]\s+\.detailsSubSheet\s+\.moreDetailsText,\s*\n\.page\[data-user-theme="light"\]\s+\.houseNote p\s*\{[\s\S]*color:\s*rgba\(35,\s*26,\s*13,\s*0\.72\)/
-  );
   assert.match(css, /@media \(max-width: 390px\)/);
   assert.doesNotMatch(css, /word-break:\s*break-all/);
   assert.doesNotMatch(css, /overflow-wrap:\s*anywhere/);

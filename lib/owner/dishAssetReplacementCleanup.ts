@@ -156,6 +156,16 @@ function emptyReport(): CleanupReplacedDishAssetsReport {
   };
 }
 
+export function deferredModelCleanupReport(): CleanupReplacedDishAssetsReport {
+  const report = emptyReport();
+  report.errors.push({
+    bucket: "",
+    paths: [],
+    message: "Nettoyage differe apres publication du modele."
+  });
+  return report;
+}
+
 function hasDangerousPathShape(path: string): boolean {
   const lower = path.toLowerCase();
   return (

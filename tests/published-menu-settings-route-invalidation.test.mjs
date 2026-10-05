@@ -45,7 +45,7 @@ const stubs = new Map([
   ["@/lib/menu/menuUiConfig", hooked(`
     export function validateMenuUiConfig(value) { return { ok: true, value }; }
   `)],
-  ["@/lib/owner/storageSafeIdentifier", hooked(`
+  ["@/lib/storage/safeIdentifier", hooked(`
     export function isCanonicalUuid() { return true; }
   `)],
   ["@/lib/menu/uniqueMenuDesign", hooked(`

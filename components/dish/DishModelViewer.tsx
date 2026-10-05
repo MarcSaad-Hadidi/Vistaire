@@ -16,7 +16,8 @@ import {
 } from "@/lib/analytics/client";
 import {
   buildDemoDish3dManifest,
-  isSafe3dAssetUrl,
+  hasPublicMenu3d,
+  PUBLIC_3D_CDN_ORIGINS,
   selectImmersiveVariant,
   type ImmersiveBrowser,
   type ImmersiveDevice
@@ -54,10 +55,6 @@ const MODEL_VIEWER_SHELL_CLASS =
   "min-h-[350px] w-full overflow-hidden rounded-xl bg-[#10100e] ring-1 ring-white/8 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] sm:min-h-[430px]";
 const MODEL_VIEWER_CANVAS_CLASS =
   "h-[min(48vh,350px)] min-h-[250px] w-full bg-[#10100e] sm:h-[min(55vh,380px)] sm:min-h-[310px]";
-const ALLOWED_3D_CDN_ORIGINS = (process.env.NEXT_PUBLIC_VISTAIRE_3D_CDN_ORIGINS ?? "")
-  .split(/[,\s]+/)
-  .map((entry) => entry.trim().replace(/\/+$/, ""))
-  .filter(Boolean);
 
 export type DishModelViewerCopy = Partial<{
   loadingTitle: string;
@@ -680,7 +677,7 @@ export function DishModelViewer({
     connection: effectiveConnection,
     userIntent: "view3d",
     prefersReducedMotion,
-    allowedExternalOrigins: ALLOWED_3D_CDN_ORIGINS
+    allowedExternalOrigins: PUBLIC_3D_CDN_ORIGINS
   });
   const arSelection = selectImmersiveVariant({
     manifest,
@@ -690,7 +687,7 @@ export function DishModelViewer({
     connection: effectiveConnection,
     userIntent: "ar",
     prefersReducedMotion,
-    allowedExternalOrigins: ALLOWED_3D_CDN_ORIGINS
+    allowedExternalOrigins: PUBLIC_3D_CDN_ORIGINS
   });
   const androidArReady =
     (arSelection.kind === "web" || arSelection.kind === "arLite") &&
@@ -708,9 +705,11 @@ export function DishModelViewer({
     arBrowser === "ios-safari" && arSelection.kind === "iosUsdz"
       ? arSelection.url
       : "";
-  const dishHasAndroidAr =
-    isSafe3dAssetUrl(manifest.variants.web?.url ?? "", ALLOWED_3D_CDN_ORIGINS, "web") ||
-    isSafe3dAssetUrl(manifest.variants.arLite?.url ?? "", ALLOWED_3D_CDN_ORIGINS, "arLite");
+  const dishHasAndroidAr = hasPublicMenu3d({
+    webModel3dUrl: manifest.variants.web?.url ?? "",
+    model3dUrl: "",
+    arModel3dUrl: manifest.variants.arLite?.url ?? ""
+  });
   const iosNativeArEnabled = arBrowser === "ios-safari" && !missingIosAr;
   const androidNativeArEnabled = arBrowser === "android-chrome" && androidArReady;
   const showNoModelIosHandoff =

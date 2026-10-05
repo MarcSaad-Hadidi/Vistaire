@@ -211,14 +211,6 @@ export const PIPELINE_JOB_STEPS: PipelineJobStep[] = [
   "rollback"
 ];
 
-const TERMINAL_STATUSES = new Set<PipelineJobStatus>([
-  "published",
-  "rejected",
-  "failed",
-  "rolled_back",
-  "cancelled"
-]);
-
 const ALLOWED_TRANSITIONS: Record<PipelineJobStatus, PipelineJobStatus[]> = {
   queued: ["running", "cancelled", "failed"],
   running: ["analyzing", "optimizing", "visual_comparing", "failed", "cancelled"],
@@ -794,14 +786,6 @@ export function buildFallbackPipelineJobs(
       })
     )
   };
-}
-
-export function findPipelineJob(jobs: PipelineJob[], jobId: string): PipelineJob | null {
-  return jobs.find((job) => job.id === jobId) ?? null;
-}
-
-export function isTerminalJobStatus(status: PipelineJobStatus): boolean {
-  return TERMINAL_STATUSES.has(status);
 }
 
 export function buildPipelineObservabilityDashboard(

@@ -6,7 +6,6 @@ import { join } from "node:path";
 const PUBLIC_FILES_FOR_THIS_TASK = [
   "app/(fr)/(seo)/tarifs-menu-digital-restaurant/page.tsx",
   "app/(en)/en/pricing-digital-restaurant-menu/page.tsx",
-  "components/seo/pages/TarifsMenuDigitalRestaurantPage.tsx",
   "components/vistaire-preview/VistairePricingPreview.tsx",
   "components/vistaire-preview/VistairePricingPreview.module.css",
   "components/vistaire-preview/PricingLaunchWorkflow.tsx",

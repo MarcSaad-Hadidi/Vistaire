@@ -19,6 +19,7 @@ import {
 } from "@/lib/owner/usdzRuntimeModel";
 import {
   cleanupReplacedDishAssets,
+  deferredModelCleanupReport,
   type CleanupReplacedDishAssetsReport
 } from "@/lib/owner/dishAssetReplacementCleanup";
 
@@ -50,25 +51,6 @@ export type ViewerGlbUploadResult = {
   modelStatus: string;
   cleanup: CleanupReplacedDishAssetsReport;
 };
-
-function deferredCleanupReport(): CleanupReplacedDishAssetsReport {
-  return {
-    candidates: [],
-    deleted: [],
-    skippedStillReferenced: [],
-    skippedUnsafeBucket: [],
-    skippedUnsafePrefix: [],
-    skippedMissingPath: [],
-    skippedConcurrentReuseRisk: [],
-    errors: [
-      {
-        bucket: "",
-        paths: [],
-        message: "Nettoyage differe apres publication du modele."
-      }
-    ]
-  };
-}
 
 async function uploadGlb(
   adminClient: SupabaseClient,
@@ -173,7 +155,7 @@ export async function runViewerGlbUpload(
     });
   } catch {
     await args.onPublicCommit?.();
-    cleanup = deferredCleanupReport();
+    cleanup = deferredModelCleanupReport();
   }
 
   const jobId = `job_viewer_glb_${randomUUID().replace(/-/g, "").slice(0, 20)}`;

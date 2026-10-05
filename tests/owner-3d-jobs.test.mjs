@@ -94,7 +94,6 @@ test("owner 3D jobs fallback queue supports listing and detail without fake pers
   assert.equal(queue.persisted, false);
   assert.equal(queue.jobs.length, 1);
   assert.equal(queue.jobs[0].status, "queued");
-  assert.equal(jobsModel.findPipelineJob(queue.jobs, queue.jobs[0].id)?.id, queue.jobs[0].id);
 });
 
 test("owner 3D job API routes are auth-gated and do not execute long processes", () => {

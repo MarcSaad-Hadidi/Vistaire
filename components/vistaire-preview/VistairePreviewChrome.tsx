@@ -18,7 +18,6 @@ type PreviewNavItem = {
 
 type PreviewNavSection = "home" | "menu" | "pricing" | "about" | "contact";
 type PreviewChromeWidth = "standard" | "wide";
-export type VistaireRouteMode = "production";
 
 type VistaireChromeRoutes = {
   about: string;
@@ -36,11 +35,9 @@ type VistaireChromeRoutes = {
 };
 
 export function getVistaireChromeRoutes(
-  mode: VistaireRouteMode = "production",
   locale: Locale = "fr"
 ): VistaireChromeRoutes {
   const pricingPage = getPricingPage(locale);
-  void mode;
 
   if (locale === "en") {
     return {
@@ -230,15 +227,13 @@ export function PreviewNav({
   contactHref,
   currentPath,
   locale = "fr",
-  routeMode = "production"
 }: {
   activeSection?: PreviewNavSection;
   contactHref?: string;
   currentPath?: string;
   locale?: Locale;
-  routeMode?: VistaireRouteMode;
 }) {
-  const routes = getVistaireChromeRoutes(routeMode, locale);
+  const routes = getVistaireChromeRoutes(locale);
   const resolvedCurrentPath = normalizePathname(currentPath ?? routes.home);
 
   return (
@@ -311,15 +306,13 @@ export function PreviewNav({
 export function PreviewFooter({
   currentPath,
   locale = "fr",
-  routeMode = "production",
   width = "standard"
 }: {
   currentPath?: string;
   locale?: Locale;
-  routeMode?: VistaireRouteMode;
   width?: PreviewChromeWidth;
 }) {
-  const routes = getVistaireChromeRoutes(routeMode, locale);
+  const routes = getVistaireChromeRoutes(locale);
   const resolvedCurrentPath = currentPath ?? routes.home;
   const isPricingPage =
     normalizePathname(resolvedCurrentPath) === normalizePathname(routes.pricing);

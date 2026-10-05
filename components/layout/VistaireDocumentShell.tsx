@@ -1,6 +1,7 @@
 import type React from "react";
 import { WebMcpProvider } from "@/components/agent/WebMcpProvider";
 import { MicrosoftClarity } from "@/components/analytics/MicrosoftClarity";
+import { VercelAnalytics } from "@/components/analytics/VercelAnalytics";
 import { JsonLd } from "@/components/JsonLd";
 import type { Locale } from "@/lib/i18n";
 import {
@@ -33,6 +34,7 @@ export function VistaireDocumentShell({
       <WebMcpProvider />
       <MicrosoftClarity>
         <div id="contenu">{children}</div>
+        <VercelAnalytics enabled={Boolean(process.env.VERCEL_URL)} />
       </MicrosoftClarity>
     </>
   );

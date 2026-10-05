@@ -104,8 +104,8 @@ test("public dish detail component renders the required Resto Marc detail afford
   assert.match(source, /data-theme=\{config\?\.theme/);
   assert.match(source, /data-blueprint=\{config\?\.experience\.blueprint/);
   assert.match(source, /mode === "builder-preview"/);
-  assert.match(source, /hasPublic3d/);
-  assert.match(source, /hasPublicAr/);
+  assert.match(source, /hasPublicMenu3d\(/);
+  assert.match(source, /hasPublicMenuAr\(/);
   assert.match(source, /builderStatusHas3d/);
   assert.match(source, /builderStatusHasAr/);
   assert.match(source, /type DishModelViewerComponent = ComponentType<DishModelViewerProps>/);
@@ -126,11 +126,11 @@ test("builder preview uses simulated immersive status flags without public model
   const source = await readFile(detailComponentPath, "utf8");
 
   assert.match(source, /function builderStatusHas3d\(dish: PublicMenuDish\): boolean/);
-  assert.match(source, /return Boolean\(dish\.has3d \|\| hasPublic3d\(dish\)\)/);
+  assert.match(source, /return Boolean\(dish\.has3d \|\| hasPublicMenu3d\(dish\)\)/);
   assert.match(source, /function builderStatusHasAr\(dish: PublicMenuDish\): boolean/);
-  assert.match(source, /return Boolean\(dish\.hasAr \|\| hasPublicAr\(dish\)\)/);
-  assert.match(source, /const hasPublic3dAsset = hasPublic3d\(dish\)/);
-  assert.match(source, /const hasPublicArAsset = hasPublicAr\(dish\)/);
+  assert.match(source, /return Boolean\(dish\.hasAr \|\| hasPublicMenuAr\(dish\)\)/);
+  assert.match(source, /const hasPublic3dAsset = hasPublicMenu3d\(dish\)/);
+  assert.match(source, /const hasPublicArAsset = hasPublicMenuAr\(dish\)/);
   assert.match(
     source,
     /showPublicModelActions =\s*mode === "public" && hasPublic3dAsset/

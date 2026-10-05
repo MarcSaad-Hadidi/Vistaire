@@ -464,7 +464,7 @@ test("only the four reviewed SEO comparison entries may use the landing loader d
   );
 });
 
-test("only four exact public-safe owner helpers are traversed instead of blanket-allowed", async (t) => {
+test("only three exact public-safe owner helpers are traversed instead of blanket-allowed", async (t) => {
   const root = await makeGraph(t);
   await moduleFile(
     root,
@@ -473,7 +473,6 @@ test("only four exact public-safe owner helpers are traversed instead of blanket
       'import "@/lib/owner/price";',
       'import "@/lib/owner/modelAssetSize";',
       'import "@/lib/owner/menuUrlCore";',
-      'import "@/lib/owner/storageSafeIdentifier";',
       'import "@/lib/owner/pricePreview";'
     ].join("\n")
   );
@@ -484,11 +483,6 @@ test("only four exact public-safe owner helpers are traversed instead of blanket
   );
   await moduleFile(root, "lib/owner/modelAssetSize.ts", "export const size = 1;\n");
   await moduleFile(root, "lib/owner/menuUrlCore.ts", "export const url = '/';\n");
-  await moduleFile(
-    root,
-    "lib/owner/storageSafeIdentifier.ts",
-    "export const safe = true;\n"
-  );
   await moduleFile(root, "lib/owner/pricePreview.ts", "export default {};\n");
   await moduleFile(
     root,

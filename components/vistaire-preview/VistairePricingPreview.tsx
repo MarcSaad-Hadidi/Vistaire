@@ -10,7 +10,6 @@ import {
   getVistaireChromeRoutes,
   PreviewFooter,
   PreviewNav,
-  type VistaireRouteMode
 } from "./VistairePreviewChrome";
 import extensionStyles from "./PricingPageExtensions.module.css";
 import styles from "./VistairePricingPreview.module.css";
@@ -70,13 +69,11 @@ function CheckIcon() {
 
 export function VistairePricingPreview({
   locale = "fr",
-  routeMode = "production"
 }: {
   locale?: Locale;
-  routeMode?: VistaireRouteMode;
 }) {
   const page = getPricingPage(locale);
-  const routes = getVistaireChromeRoutes(routeMode, locale);
+  const routes = getVistaireChromeRoutes(locale);
   const copy = UI_COPY[locale];
 
   return (
@@ -98,7 +95,6 @@ export function VistairePricingPreview({
           activeSection="pricing"
           currentPath={page.path}
           locale={locale}
-          routeMode={routeMode}
         />
       </div>
 
@@ -307,7 +303,6 @@ export function VistairePricingPreview({
       <PreviewFooter
         currentPath={page.path}
         locale={locale}
-        routeMode={routeMode}
         width="wide"
       />
     </main>

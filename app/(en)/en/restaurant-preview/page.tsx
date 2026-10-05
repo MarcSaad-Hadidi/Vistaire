@@ -71,7 +71,6 @@ export default async function RestaurantPreviewPageEn() {
       <VistaireRestaurateurDashboardPreview
         demoQrSvg={demoQrSvg}
         locale="en"
-        routeMode="production"
       />
     </>
   );

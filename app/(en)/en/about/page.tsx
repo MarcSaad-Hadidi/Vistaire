@@ -46,7 +46,7 @@ export default function AboutPageEn() {
           ])
         ]}
       />
-      <VistaireAboutPreview locale="en" routeMode="production" />
+      <VistaireAboutPreview locale="en" />
     </>
   );
 }

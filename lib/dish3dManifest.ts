@@ -1,5 +1,47 @@
 import type { Dish } from "@/lib/demoMenuData";
 
+const configuredOrigins = (process.env.NEXT_PUBLIC_VISTAIRE_3D_CDN_ORIGINS ?? "")
+  .split(/[,\s]+/)
+  .map((entry) => entry.trim());
+
+export const PUBLIC_3D_CDN_ORIGINS = configuredOrigins
+  .map((entry) => entry.replace(/\/+$/, ""))
+  .filter(Boolean);
+
+// Maison and Sauge historically remove one trailing slash, retaining malformed-origin refusals.
+export const PUBLIC_3D_CDN_ORIGINS_STRICT = configuredOrigins
+  .map((entry) => entry.replace(/\/$/, ""))
+  .filter(Boolean);
+
+type PublicMenu3dFields = Required<
+  Pick<Dish, "webModel3dUrl" | "model3dUrl" | "arModel3dUrl">
+>;
+
+export function hasPublicMenu3d(
+  dish: PublicMenu3dFields,
+  allowedOrigins = PUBLIC_3D_CDN_ORIGINS
+): boolean {
+  return (
+    isSafe3dAssetUrl(
+      dish.webModel3dUrl || dish.model3dUrl,
+      allowedOrigins,
+      "web"
+    ) ||
+    isSafe3dAssetUrl(dish.arModel3dUrl, allowedOrigins, "arLite")
+  );
+}
+
+/** A dish can open AR when it has a public 3D model or an iOS Quick Look USDZ. */
+export function hasPublicMenuAr(
+  dish: PublicMenu3dFields & Pick<Dish, "arUsdzUrl" | "usdzUrl">,
+  allowedOrigins = PUBLIC_3D_CDN_ORIGINS
+): boolean {
+  return (
+    hasPublicMenu3d(dish, allowedOrigins) ||
+    isSafe3dAssetUrl(dish.arUsdzUrl || dish.usdzUrl, allowedOrigins, "iosUsdz")
+  );
+}
+
 export type ImmersiveDevice = "desktop" | "ios" | "android" | "unknown";
 export type ImmersiveBrowser =
   | "chrome"

@@ -23,6 +23,7 @@ import { cleanDishModelMetadata } from "@/lib/owner/deleteDishModelAssets";
 import { sha256Hex } from "@/lib/owner/threeDSourceUploadModel";
 import {
   cleanupReplacedDishAssets,
+  deferredModelCleanupReport,
   type CleanupReplacedDishAssetsReport
 } from "@/lib/owner/dishAssetReplacementCleanup";
 
@@ -121,25 +122,6 @@ type DurableMeshyAssets = {
   arModel3dBytes: number;
   arUsdzBytes: number;
 };
-
-function deferredCleanupReport(): CleanupReplacedDishAssetsReport {
-  return {
-    candidates: [],
-    deleted: [],
-    skippedStillReferenced: [],
-    skippedUnsafeBucket: [],
-    skippedUnsafePrefix: [],
-    skippedMissingPath: [],
-    skippedConcurrentReuseRisk: [],
-    errors: [
-      {
-        bucket: "",
-        paths: [],
-        message: "Nettoyage differe apres publication du modele."
-      }
-    ]
-  };
-}
 
 function assertSafeSlug(value: string, label: string): string {
   const slug = value.trim().toLowerCase();
@@ -575,7 +557,7 @@ export async function runRestaurantMeshyDishPipeline(
       });
     } catch {
       await args.onPublicCommit?.();
-      cleanup = deferredCleanupReport();
+      cleanup = deferredModelCleanupReport();
     }
 
     const finishedAt = new Date();

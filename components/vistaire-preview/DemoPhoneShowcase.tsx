@@ -223,14 +223,12 @@ export function DemoPhoneShowcase({
           activeSection="menu"
           currentPath={resolvedPath}
           locale={locale}
-          routeMode="production"
         />
       </section>
 
       <PreviewFooter
         currentPath={resolvedPath}
         locale={locale}
-        routeMode="production"
         width="wide"
       />
     </main>

@@ -39,7 +39,7 @@ import {
   validateAllergenDeclarations,
   type DishAllergenDeclaration
 } from "../menu/allergens.ts";
-import { isCanonicalUuid } from "./storageSafeIdentifier.ts";
+import { isCanonicalUuid } from "../storage/safeIdentifier.ts";
 import type { RestaurantLifecyclePublicCommitCallback } from "./restaurantStatus.ts";
 
 type SupabaseInsertError = {

@@ -2,6 +2,7 @@ import {
   expect,
   test,
   type CDPSession,
+  type Locator,
   type Page,
   type Route
 } from "@playwright/test";
@@ -244,6 +245,73 @@ async function resetProbe(page: Page) {
     ).__saugeGestureProbe;
     if (!probe) throw new Error("Sauge Noire gesture probe is unavailable");
     probe.reset();
+  });
+}
+
+type FrameSample = { title: string | null; scrollTop: number };
+type FrameSamplerWindow = typeof window & {
+  __saugeFrameSampler?: { frames: FrameSample[]; handle: number };
+};
+
+// Records what the reading surface shows on every frame: its first heading and scrollTop.
+async function startFrameSampler(surface: Locator) {
+  await surface.evaluate((element) => {
+    const frames: FrameSample[] = [];
+    const sampler = { frames, handle: 0 };
+    const sample = () => {
+      frames.push({
+        title: element.querySelector("h1, h2")?.textContent ?? null,
+        scrollTop: element.scrollTop
+      });
+      sampler.handle = requestAnimationFrame(sample);
+    };
+    sample();
+    (window as FrameSamplerWindow).__saugeFrameSampler = sampler;
+  });
+}
+
+async function stopFrameSampler(page: Page): Promise<FrameSample[]> {
+  return page.evaluate(() => {
+    const sampler = (window as FrameSamplerWindow).__saugeFrameSampler;
+    if (!sampler) throw new Error("Sauge Noire frame sampler is unavailable");
+    cancelAnimationFrame(sampler.handle);
+    return sampler.frames;
+  });
+}
+
+// The vertical gesture may land before or after the flip completes on a loaded renderer.
+// Whatever the timing, the next page carries what the source page scrolled before it was
+// replaced, and from its first frame the next page never moves against the upward finger.
+async function expectContinuousScrollHandoff(
+  page: Page,
+  {
+    capturedSourceScrollTop,
+    preparedScrollTop,
+    maxTargetScroll
+  }: {
+    capturedSourceScrollTop: number;
+    preparedScrollTop: number;
+    maxTargetScroll: number;
+  }
+) {
+  const frames = await stopFrameSampler(page);
+  const firstTargetFrame = frames.findIndex(
+    (frame) => frame.title !== frames[0].title
+  );
+  expect(firstTargetFrame).toBeGreaterThan(0);
+  const sourceScrolled =
+    frames[firstTargetFrame - 1].scrollTop - capturedSourceScrollTop;
+  expect(preparedScrollTop).toBeGreaterThanOrEqual(
+    Math.min(maxTargetScroll, Math.max(0, sourceScrolled)) - 1
+  );
+  const targetScrollTops = frames
+    .slice(firstTargetFrame)
+    .map((frame) => frame.scrollTop);
+  targetScrollTops.forEach((scrollTop, index) => {
+    if (index === 0) return;
+    expect(scrollTop, `next page frames ${targetScrollTops}`).toBeGreaterThanOrEqual(
+      targetScrollTops[index - 1] - 1
+    );
   });
 }
 
@@ -559,13 +627,23 @@ for (const viewport of [
       await page.goto(menuPath("sauge-2"), {
         waitUntil: "domcontentloaded"
       });
-      await expectSettledSurface(page);
+      const sourceSurface = await expectSettledSurface(page);
       const session = await createTouchSession(page);
 
+      await startFrameSampler(sourceSurface);
       await horizontalSwipe(page, session, "next", 11);
       await page
         .locator('[data-page-flip-engine-state="flipping"]')
         .waitFor({ timeout: 3_000 });
+      const capturedSourceScrollTop = Number(
+        await page
+          .locator("[data-page-flip-source-scroll-top]")
+          .getAttribute("data-page-flip-source-scroll-top")
+      );
+      const transitionSequence = await page
+        .locator("[data-page-flip-state]")
+        .getAttribute("data-page-flip-transition-sequence");
+      expect(transitionSequence).toBeTruthy();
       await resetProbe(page);
       const beforeGesture = await probeSnapshot(page);
       const baselineOwner = expectUsableSingleOwner(beforeGesture, "menu");
@@ -587,6 +665,12 @@ for (const viewport of [
       await holdActiveTouch(page, session, 12);
       await endVerticalGesture(session, 12);
       const finalSurface = await expectSettledSurface(page);
+      // Read the handoff values only once it reports completion for this transition.
+      await expect(finalSurface).toHaveAttribute(
+        "data-page-flip-transition-sequence",
+        transitionSequence!
+      );
+      await expect(finalSurface).toHaveAttribute("data-page-flip-handoff-applied", "true");
       const final = await probeSnapshot(page);
       const finalOwner = expectUsableSingleOwner(final, "menu");
       expect(finalOwner.id).toBe(startingOwner.id);
@@ -595,7 +679,11 @@ for (const viewport of [
       const preparedScrollTop = Number(
         await finalSurface.getAttribute("data-page-flip-prepared-scroll-top")
       );
-      expect(preparedScrollTop).toBeGreaterThan(0);
+      await expectContinuousScrollHandoff(page, {
+        capturedSourceScrollTop,
+        preparedScrollTop,
+        maxTargetScroll: finalOwner.scrollHeight - finalOwner.clientHeight
+      });
       expect(finalOwner.scrollTop).toBeGreaterThanOrEqual(preparedScrollTop - 1);
       expect(finalOwner.scrollTop).toBeLessThanOrEqual(
         finalOwner.scrollHeight - finalOwner.clientHeight
@@ -682,6 +770,7 @@ for (const viewport of [
           element.scrollTop = Math.min(120, Math.max(0, maxScroll / 3));
           return element.scrollTop;
         });
+        await startFrameSampler(sourceSurface);
         await horizontalSwipe(page, session, direction, horizontalId);
         await page
           .locator('[data-page-flip-engine-state="flipping"]')
@@ -692,6 +781,12 @@ for (const viewport of [
             .getAttribute("data-page-flip-source-scroll-top")
         );
         expect(Math.abs(capturedSourceScrollTop - seededScrollTop)).toBeLessThanOrEqual(1);
+        // The viewport records this flip's sequence when it starts; the reading surface
+        // receives the same sequence only once the post-flip scroll handoff is applied.
+        const transitionSequence = await page
+          .locator("[data-page-flip-state]")
+          .getAttribute("data-page-flip-transition-sequence");
+        expect(transitionSequence).toBeTruthy();
         await resetProbe(page);
         const beforeGesture = await probeSnapshot(page);
         const baselineOwner = expectUsableSingleOwner(beforeGesture, "dish");
@@ -724,6 +819,14 @@ for (const viewport of [
             { timeout: 5_000 }
           )
           .toBeGreaterThan(0);
+        // The handoff waits for stable frames after the flip; read its values only once it
+        // reports completion for this exact transition (stale attributes from the previous
+        // iteration carry an older sequence).
+        await expect(sourceSurface).toHaveAttribute(
+          "data-page-flip-transition-sequence",
+          transitionSequence!
+        );
+        await expect(sourceSurface).toHaveAttribute("data-page-flip-handoff-applied", "true");
         const final = await probeSnapshot(page);
         const finalOwner = expectUsableSingleOwner(final, "dish");
         expect(finalOwner.id).toBe(startingOwner.id);
@@ -744,7 +847,12 @@ for (const viewport of [
             Math.max(0, gestureDelta + capturedSourceScrollTop)
           )
         );
-        expect(preparedScrollTop).toBeGreaterThan(0);
+        await expectContinuousScrollHandoff(page, {
+          capturedSourceScrollTop,
+          preparedScrollTop,
+          maxTargetScroll
+        });
+        expect(finalOwner.scrollTop).toBeGreaterThan(0);
         expect(finalOwner.scrollTop).toBeGreaterThanOrEqual(preparedScrollTop - 1);
         expect(finalOwner.scrollTop).toBeLessThanOrEqual(
           finalOwner.scrollHeight - finalOwner.clientHeight

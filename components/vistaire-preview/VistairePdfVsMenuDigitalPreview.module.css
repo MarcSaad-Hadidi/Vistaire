@@ -260,10 +260,6 @@
 }
 
 .sliderCard {
-  min-height: 250px;
-}
-
-.sliderCard {
   grid-row: span 2;
   display: flex;
   min-height: 714px;
@@ -291,10 +287,6 @@
 .sliderIntro h2 {
   font-size: 34px;
   line-height: 1.04;
-}
-
-.compareSlider {
-  width: min(100%, 410px);
 }
 
 .problemCard {
@@ -811,10 +803,6 @@
 
   .sliderCard {
     padding: 18px 14px;
-  }
-
-  .compareSlider {
-    width: min(100%, 330px);
   }
 
   .sliderIntro h2,

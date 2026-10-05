@@ -347,7 +347,6 @@ export function SeoGeoAeoPage({ page }: { page: SeoGeoPageData }) {
         <PreviewNav
           currentPath={page.path}
           locale={locale}
-          routeMode="production"
         />
       </div>
 
@@ -586,7 +585,7 @@ export function SeoGeoAeoPage({ page }: { page: SeoGeoPageData }) {
         </div>
       </section>
 
-      <PreviewFooter currentPath={page.path} locale={locale} routeMode="production" width="wide" />
+      <PreviewFooter currentPath={page.path} locale={locale} width="wide" />
     </main>
   );
 }

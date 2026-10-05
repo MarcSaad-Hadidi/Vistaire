@@ -19,7 +19,7 @@ test("admin has a private dedicated shell without marketing or heavy media", asy
 });
 
 test("page strictly allowlists server ranges and scopes the authorized restaurant", async () => {
-  const [page, parser] = await Promise.all([read("app/(fr)/admin/page.tsx"), read("lib/admin/pageSearchParams.ts")]);
+  const [page, parser] = await Promise.all([read("app/(fr)/admin/page.tsx"), read("lib/admin/dashboardRange.ts")]);
   assert.match(page, /parseAdminPageSearchParams\(await searchParams\)/);
   assert.match(page, /loadAdminDashboardData\(access\.restaurantId, range\)/);
   assert.match(parser, /Pick<[^>]+["']range["']/);

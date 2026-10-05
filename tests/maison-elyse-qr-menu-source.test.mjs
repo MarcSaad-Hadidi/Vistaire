@@ -120,8 +120,8 @@ test("Maison Elyse dish detail is dedicated while generic public details remain 
   assert.match(component, /MODEL_VIEWER_ID/);
   assert.match(component, /aria-controls=\{MODEL_VIEWER_ID\}/);
   assert.match(component, /aria-expanded=\{showModelViewer\}/);
-  assert.match(component, /hasReal3d/);
-  assert.match(component, /hasRealAr/);
+  assert.match(component, /hasPublicMenu3d\(/);
+  assert.match(component, /hasPublicMenuAr\(/);
   assert.match(component, /buildPublicMenuPath/);
   assert.match(component, /view", "carte"/);
   assert.match(component, /modelViewerDishFromPublicDish/);

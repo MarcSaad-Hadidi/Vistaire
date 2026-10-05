@@ -90,8 +90,7 @@ const PUBLIC_EXTERNAL_DATA_FACADE_IMPORTS = new Set([
 const REVIEWED_PUBLIC_OWNER_HELPERS = new Set([
   "lib/owner/price.ts",
   "lib/owner/modelAssetSize.ts",
-  "lib/owner/menuUrlCore.ts",
-  "lib/owner/storageSafeIdentifier.ts"
+  "lib/owner/menuUrlCore.ts"
 ]);
 const SAUGE_RENDERER_BINDINGS =
   "components/menu/unique/sauge-noire/SaugeNoireRendererBindings.ts";
