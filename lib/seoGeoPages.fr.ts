@@ -15,28 +15,28 @@ const coreLinks = {
 
 const defaultIncluded = [
   {
-    title: "QR code",
-    text: "Un accès simple à imprimer ou placer sur table, sans forcer le client à installer une application."
+    title: "Supports QR personnalisés",
+    text: "Jusqu’à 20 supports QR physiques de la collection choisie, pour ouvrir votre carte depuis la table."
   },
   {
-    title: "Carte mobile",
-    text: "Des catégories, prix et descriptions pensés pour une lecture rapide sur téléphone."
+    title: "Carte mobile personnalisée",
+    text: "Une carte adaptée à votre identité, consultable en français et en anglais dans le navigateur, sans application à installer."
   },
   {
     title: "Fiches plats",
-    text: "Des pages courtes pour les plats qui demandent photo, récit, allergènes ou options."
+    text: "Le prix, la description, les photos et les allergènes déclarés par votre restaurant réunis autour de chaque plat."
   },
   {
-    title: "Photos et fallback",
-    text: "Des visuels fournis ou validés, avec une présentation propre même lorsqu'un asset 3D n'est pas disponible."
+    title: "Photos réalisées sur place",
+    text: "Vistaire photographie les plats dans votre restaurant lors de la mise en place, pour présenter votre propre cuisine."
   },
   {
-    title: "Allergènes",
-    text: "Des informations visibles au bon endroit, sans remplacer le dialogue avec l'équipe de salle."
+    title: "Jusqu’à 5 plats en 3D",
+    text: "Des plats sélectionnés avec vous, à découvrir en 3D et en réalité augmentée lorsque le plat et l’appareil le permettent."
   },
   {
-    title: "3D/AR sélective",
-    text: "Une couche immersive uniquement pour les plats compatibles et utiles à montrer en volume."
+    title: "Accompagnement et service",
+    text: "La préparation et la mise en ligne sont accompagnées par Vistaire. L’hébergement et la maintenance font partie de l’offre."
   }
 ] as const;
 
@@ -81,7 +81,7 @@ const SEO_GEO_PAGE_DRAFTS: SeoGeoPageDraft[] = [
       heading: "Ce que le client voit après le scan",
       body:
         "Le scan mène vers un menu Vistaire, pas vers un document. Le client peut parcourir les catégories, ouvrir une fiche plat, lire les allergènes, comparer les prix et découvrir les contenus immersifs disponibles sans quitter le navigateur.",
-      points: ["QR imprimable", "carte mobile", "fiches plats", "fallback photo"]
+      points: ["supports QR personnalisés", "carte mobile", "fiches plats", "photos des plats"]
     },
     comparison: {
       heading: "Menu QR PDF ou menu QR Vistaire ?",
@@ -183,7 +183,7 @@ const SEO_GEO_PAGE_DRAFTS: SeoGeoPageDraft[] = [
       heading: "Une expérience web qui reste premium",
       body:
         "Le client accède à la carte, aux catégories, aux fiches plats, aux prix et aux allergènes sans passer par un app store. Les contenus visuels et 3D/AR restent intégrés au parcours lorsque le plat et l'appareil le permettent.",
-      points: ["sans téléchargement", "mobile-first", "fiches visuelles", "CTA clair"]
+      points: ["sans téléchargement", "lecture sur téléphone", "fiches visuelles", "accès par QR code"]
     },
     comparison: {
       heading: "Application dédiée ou carte web Vistaire ?",
@@ -268,7 +268,7 @@ const SEO_GEO_PAGE_DRAFTS: SeoGeoPageDraft[] = [
     h1: "Remplacer un menu PDF par une vraie carte digitale.",
     eyebrow: "PDF vers Vistaire",
     directAnswer:
-      "Pour remplacer un menu PDF de restaurant, il ne suffit pas de changer le lien du QR code. Il faut restructurer la carte pour le mobile : catégories, prix lisibles, fiches plats, allergènes, photos et contenus immersifs utiles. Vistaire accompagne cette transformation sans promettre de résultats non mesurés.",
+      "Pour remplacer un menu PDF de restaurant, Vistaire reprend votre carte et prépare une expérience pensée pour le téléphone : catégories, prix lisibles, fiches plats, allergènes et photos. Notre équipe vous accompagne de la préparation des contenus à la mise en ligne, avec des supports QR physiques personnalisés.",
     context: {
       heading: "Le problème n'est pas seulement le fichier",
       body: [
@@ -278,7 +278,7 @@ const SEO_GEO_PAGE_DRAFTS: SeoGeoPageDraft[] = [
       points: [
         "reprendre les informations fiables du menu existant",
         "prioriser les catégories et plats signatures",
-        "garder un fallback propre pour les visuels incomplets"
+        "photographier les plats et valider leur présentation avec vous"
       ]
     },
     productProof: {
@@ -323,7 +323,7 @@ const SEO_GEO_PAGE_DRAFTS: SeoGeoPageDraft[] = [
       {
         question: "Faut-il refaire toutes les photos ?",
         answer:
-          "Non. Vistaire peut intégrer les photos disponibles et prévoir des placeholders ou fallbacks propres."
+          "La mise en place comprend une prise de photos des plats sur place par Vistaire. Si vous disposez déjà de photos, nous examinons avec vous celles qui peuvent compléter la carte."
       },
       {
         question: "Peut-on garder le PDF existant ?",
@@ -336,9 +336,9 @@ const SEO_GEO_PAGE_DRAFTS: SeoGeoPageDraft[] = [
           "Le délai dépend du nombre de plats, de la qualité des contenus et des validations visuelles ou 3D."
       },
       {
-        question: "La transformation garantit-elle plus de ventes ?",
+        question: "Comment se déroule la mise en place ?",
         answer:
-          "Non. Vistaire améliore la présentation et la lecture, sans promettre un résultat commercial chiffré non prouvé."
+          "Vistaire prépare les contenus et les photos, puis les maquettes du menu et des supports QR. Votre restaurant les valide avant la production finale. La mise en place prend généralement environ deux semaines après validation et réception des éléments nécessaires, selon la complexité du projet."
       }
     ],
     service: {
@@ -380,7 +380,7 @@ const SEO_GEO_PAGE_DRAFTS: SeoGeoPageDraft[] = [
       heading: "Quand une alternative au PDF devient utile",
       body: [
         "Le PDF est acceptable quand la carte est très simple et que la lecture mobile n'est pas centrale. Ses limites apparaissent dès que le restaurant veut mettre en valeur les plats, les allergènes ou les visuels.",
-        "Vistaire se positionne pour les maisons qui veulent une carte plus désirable sans basculer vers un outil froid de commande ou de réservation."
+        "Vistaire accompagne les restaurants qui souhaitent une carte personnalisée, des photos de leurs plats et des supports QR adaptés à leur salle. Nous préparons le menu avec vous, puis prenons en charge sa mise en ligne."
       ],
       points: [
         "carte plus confortable à lire sur téléphone",
@@ -391,8 +391,8 @@ const SEO_GEO_PAGE_DRAFTS: SeoGeoPageDraft[] = [
     productProof: {
       heading: "Une alternative centrée sur le plat",
       body:
-        "L'expérience ne transforme pas le menu en logiciel. Elle met en avant les catégories, les plats, les prix, les détails utiles et les signatures visuelles, avec une 3D/AR réservée aux contenus réellement compatibles.",
-      points: ["food-first", "sans commande forcée", "structure premium", "QR code"]
+        "Le client parcourt les catégories, ouvre les plats qui l’intéressent et retrouve le prix, la description et les informations utiles. Les photos mettent votre cuisine en valeur; la 3D/AR complète la présentation de certains plats lorsque disponible.",
+      points: ["cuisine mise en valeur", "lecture sur téléphone", "carte personnalisée", "supports QR"]
     },
     comparison: {
       heading: "PDF, page simple ou Vistaire ?",
@@ -498,7 +498,7 @@ const SEO_GEO_PAGE_DRAFTS: SeoGeoPageDraft[] = [
     productProof: {
       heading: "Une page courte, mais complète",
       body:
-        "Chaque fiche peut réunir visuel, description, prix, allergènes, badges, options et accès 3D/AR sélectif. Si un asset n'est pas validé, la fiche reste lisible avec un fallback photo ou une présentation sobre.",
+        "Chaque fiche peut réunir photo, description, prix, allergènes, indications et options utiles. Certains plats peuvent aussi être explorés en 3D/AR. Les informations du plat restent accessibles même lorsque cette expérience n’est pas disponible.",
       points: ["photo", "prix", "allergènes", "3D sélective"]
     },
     comparison: {
@@ -547,12 +547,12 @@ const SEO_GEO_PAGE_DRAFTS: SeoGeoPageDraft[] = [
       {
         question: "La fiche peut-elle contenir de la 3D ?",
         answer:
-          "Oui, seulement pour les plats compatibles et après validation de l'asset."
+          "Oui. L’offre comprend jusqu’à cinq plats 3D sélectionnés avec vous. Les vues sont préparées et validées avant leur mise en ligne; la réalité augmentée dépend aussi de l’appareil utilisé."
       },
       {
         question: "Que faire si un plat n'a pas de photo ?",
         answer:
-          "La fiche peut utiliser une présentation sobre ou un fallback, sans ajouter d'image trompeuse."
+          "La fiche reste lisible avec son nom, son prix et sa description. La prise de photos sur place fait partie de la mise en place Vistaire pour enrichir la carte avec vos propres plats."
       }
     ],
     service: {
@@ -585,11 +585,11 @@ const SEO_GEO_PAGE_DRAFTS: SeoGeoPageDraft[] = [
     ],
     metadataTitle: "Menu restaurant avec photos | Vistaire",
     metadataDescription:
-      "Un menu restaurant avec photos peut rester premium : visuels food-first, fiches plats, prix lisibles, allergènes et fallback propre.",
+      "Vistaire photographie vos plats sur place et les intègre à un menu digital personnalisé : fiches plats, descriptions, prix lisibles et allergènes.",
     h1: "Un menu restaurant avec photos, sans perdre l'élégance.",
     eyebrow: "Photos et plats",
     directAnswer:
-      "Un menu restaurant avec photos aide le client à comprendre et désirer les plats, à condition que les images soient utiles et cohérentes. Vistaire privilégie des visuels food-first, des fiches plats sobres et des fallbacks propres plutôt qu'une galerie lourde ou décorative.",
+      "Un menu restaurant avec photos aide le client à reconnaître les plats et à choisir selon ses envies. Vistaire réalise les photos sur place dans le cadre de la mise en place, puis les intègre à des fiches qui réunissent prix, descriptions et allergènes dans une carte mobile personnalisée.",
     context: {
       heading: "La photo doit servir le choix",
       body: [
@@ -598,15 +598,15 @@ const SEO_GEO_PAGE_DRAFTS: SeoGeoPageDraft[] = [
       ],
       points: [
         "photos utiles pour signatures et plats visuels",
-        "pas d'image trompeuse ou décorative inutile",
-        "poids et affichage contrôlés pour le mobile"
+        "des photos de la cuisine réellement servie",
+        "des visuels adaptés à la consultation sur téléphone"
       ]
     },
     productProof: {
       heading: "Des visuels intégrés à la carte",
       body:
-        "Les photos existantes peuvent être intégrées lorsqu'elles sont cohérentes avec le niveau du restaurant. Lorsqu'une photo manque, Vistaire garde une fiche propre plutôt que d'ajouter un asset lourd ou générique.",
-      points: ["alt text utile", "formats web", "priorité aux signatures", "fallback"]
+        "Vistaire photographie vos plats sur place pendant la préparation du projet. Les photos existantes peuvent aussi compléter la carte après validation avec vous. Chaque image accompagne le plat concerné, avec son prix, sa description et les informations utiles.",
+      points: ["photos sur place", "vos propres plats", "signatures mises en valeur", "présentation soignée"]
     },
     comparison: {
       heading: "Galerie de photos ou carte visuelle ?",
@@ -621,12 +621,12 @@ const SEO_GEO_PAGE_DRAFTS: SeoGeoPageDraft[] = [
         {
           label: "Performance",
           basic: "Beaucoup d'images peuvent ralentir le parcours.",
-          vistaire: "Les visuels sont intégrés avec prudence dans la lecture mobile."
+          vistaire: "Les photos accompagnent les fiches sans interrompre la navigation."
         },
         {
           label: "Premium",
           basic: "Un mélange de qualités peut affaiblir l'image.",
-          vistaire: "La direction visuelle reste cohérente et food-first."
+          vistaire: "Les photos et la présentation reflètent la cuisine de votre restaurant."
         }
       ]
     },
@@ -649,12 +649,12 @@ const SEO_GEO_PAGE_DRAFTS: SeoGeoPageDraft[] = [
       {
         question: "Que faire sans photos professionnelles ?",
         answer:
-          "Vistaire peut garder une fiche sobre et recommander les plats à photographier en priorité."
+          "Vistaire réalise une prise de photos des plats sur place dans le cadre de la mise en place. Nous préparons avec vous la sélection des plats à présenter."
       },
       {
         question: "Les photos ralentissent-elles le menu ?",
         answer:
-          "Elles peuvent le faire si elles sont lourdes. Vistaire privilégie des assets web raisonnables et sélectifs."
+          "Le poids des photos influence le chargement. Vistaire adapte leur affichage à la lecture sur téléphone pour que le client puisse parcourir la carte confortablement."
       },
       {
         question: "Les photos remplacent-elles les descriptions ?",
@@ -666,7 +666,7 @@ const SEO_GEO_PAGE_DRAFTS: SeoGeoPageDraft[] = [
       name: "Menu restaurant avec photos Vistaire",
       serviceType: "Carte digitale visuelle avec photos de plats",
       description:
-        "Intégration de photos utiles dans un menu digital premium avec fiches plats et fallback propre."
+        "Prise de photos des plats sur place et intégration dans une carte mobile personnalisée avec fiches plats, prix et descriptions."
     },
     primaryCta: coreLinks.meeting,
     secondaryCta: coreLinks.sampleMenu,
@@ -697,14 +697,14 @@ const SEO_GEO_PAGE_DRAFTS: SeoGeoPageDraft[] = [
     directAnswer:
       "Un menu restaurant avec allergènes doit rendre l'information facile à trouver sans remplacer la vigilance de l'équipe. Vistaire peut afficher les allergènes par fiche plat, garder les prix et descriptions lisibles, et présenter une carte mobile plus claire qu'un PDF dense.",
     context: {
-      heading: "Rendre l'information visible sans surpromettre",
+      heading: "Retrouver les allergènes près du plat",
       body: [
         "Les allergènes sont sensibles : ils doivent être présentés clairement, mais le menu ne doit pas se substituer aux procédures internes du restaurant ni au dialogue avec le service.",
         "Vistaire permet de rapprocher l'information du plat concerné, avec une formulation lisible et des fiches qui restent agréables à consulter."
       ],
       points: [
         "mentions associées aux plats",
-        "texte court et prudent",
+        "informations fournies et validées par le restaurant",
         "lecture plus confortable qu'un PDF à zoomer"
       ]
     },
@@ -732,7 +732,7 @@ const SEO_GEO_PAGE_DRAFTS: SeoGeoPageDraft[] = [
         {
           label: "Responsabilité",
           basic: "Le fichier peut devenir obsolète sans que le client le sache.",
-          vistaire: "Le contenu publié reste à valider et à maintenir par le restaurant."
+          vistaire: "Le restaurant valide les informations et signale les changements de recette."
         }
       ]
     },
@@ -755,7 +755,7 @@ const SEO_GEO_PAGE_DRAFTS: SeoGeoPageDraft[] = [
       {
         question: "Peut-on modifier les allergènes après publication ?",
         answer:
-          "Oui, les informations peuvent évoluer lorsque le restaurant valide une modification."
+          "Oui. Signalez à Vistaire les changements de recette ou de composition pour préparer une mise à jour avec les informations validées par votre restaurant."
       },
       {
         question: "Les pictogrammes sont-ils obligatoires ?",
@@ -797,98 +797,95 @@ const SEO_GEO_PAGE_DRAFTS: SeoGeoPageDraft[] = [
     ],
     metadataTitle: "Menu digital restaurant Montréal | Vistaire",
     metadataDescription:
-      "Vistaire crée des menus digitaux premium pour restaurants à Montréal : QR code, fiches plats, photos, allergènes et 3D/AR sélective.",
+      "Vistaire crée votre menu digital à Montréal : carte mobile français/anglais, photos sur place, supports QR personnalisés et mise en place accompagnée.",
     h1: "Menu digital premium pour restaurants à Montréal.",
     eyebrow: "Montréal",
     directAnswer:
-      "À Montréal, un menu digital restaurant doit fonctionner dans des salles variées : bistro premium, restaurant gastronomique, lounge, terrasse ou table de quartier. Vistaire propose une carte mobile QR premium avec fiches plats, photos, allergènes et 3D/AR sélective, sans se présenter comme un annuaire local.",
+      "Vistaire accompagne les restaurants de Montréal dans la création d’un menu digital premium. Votre carte française et anglaise, les photos de vos plats et les supports QR personnalisés forment une expérience cohérente avec votre salle. Les clients consultent le menu sur téléphone, sans application à installer, avec une sélection de plats 3D lorsque disponible.",
     context: {
-      heading: "Une carte mobile pour la réalité montréalaise",
+      heading: "Présenter votre cuisine aux habitués comme aux visiteurs",
       body: [
-        "Montréal réunit des restaurants très visuels, des clientèles locales et touristiques, et des quartiers où l'image du lieu compte autant que la rapidité de lecture.",
-        "Vistaire rassemble les besoins des restaurants de Vieux-Montréal, Griffintown, Plateau, Outremont, Westmount et Saint-Laurent dans un guide commun tant qu'un contenu de quartier vraiment utile n'est pas justifié."
+        "Pour votre restaurant indépendant, votre bistro ou votre table gastronomique à Montréal, la carte est un premier contact avec la cuisine. Des descriptions françaises et anglaises, des prix lisibles et les photos de vos propres plats aident chacun à choisir confortablement.",
+        "Vistaire prépare cette présentation avec vous : nous reprenons votre menu, réalisons les photos sur place et concevons la carte et les supports QR selon votre identité. Vous validez les maquettes avant leur production finale."
       ],
       points: [
-        "adapté aux restaurants indépendants et premium",
-        "utile pour les menus QR sans PDF",
-        "approche bilingue possible sans créer de correspondance fragile"
+        "carte française et anglaise adaptée à votre cuisine",
+        "plats signatures présentés avec photos et informations utiles",
+        "supports QR physiques choisis pour votre salle"
       ]
     },
     productProof: {
-      heading: "Ce que Vistaire peut apporter à Montréal",
+      heading: "Un lancement accompagné, de la photo au menu en ligne",
       body:
-        "La carte peut présenter les plats signatures, les allergènes et les visuels dans une interface mobile sobre. La 3D/AR reste réservée aux plats compatibles, afin de protéger la performance et l'image du restaurant.",
-      points: ["Montréal", "quartiers premium", "mobile-first", "QR code"]
+        "Nous préparons les contenus et les maquettes du menu et des supports. Après votre validation, Vistaire lance la fabrication et finalise la carte. L’hébergement et la maintenance font partie de l’offre. Pour découvrir différentes présentations avant de parler de votre projet, explorez les démonstrations Maison Élyse, Trouvable et Sauge Noire.",
+      points: ["photos sur place", "maquettes à valider", "supports personnalisés", "mise en ligne accompagnée"]
     },
     comparison: {
-      heading: "PDF local ou expérience Vistaire ?",
-      basicLabel: "PDF local",
-      vistaireLabel: "Vistaire Montréal",
+      heading: "Votre menu PDF ou une carte conçue pour le téléphone ?",
+      basicLabel: "PDF",
+      vistaireLabel: "Vistaire",
       rows: [
         {
-          label: "Clientèle",
-          basic: "Même fichier pour tous les contextes.",
-          vistaire: "Parcours clair pour clients locaux, visiteurs et tables pressées."
+          label: "Lecture bilingue",
+          basic: "Les versions peuvent être réunies dans un document dense.",
+          vistaire: "Le client choisit le français ou l’anglais et parcourt les catégories."
         },
         {
-          label: "Image",
-          basic: "Le support peut paraître plus faible que la salle.",
-          vistaire: "La carte prolonge l'ambiance haut de gamme du lieu."
+          label: "Plats signatures",
+          basic: "Les détails et photos sont limités par la mise en page.",
+          vistaire: "Chaque fiche réunit photo, prix, description et allergènes déclarés."
         },
         {
-          label: "Quartiers",
-          basic: "Une page par quartier serait vite répétitive.",
-          vistaire: "Une page Montréal forte couvre les quartiers tant que le contenu reste unique."
+          label: "Mise en place",
+          basic: "Le restaurant prépare et republie son document.",
+          vistaire: "Vistaire prépare les photos, le menu et les supports QR avec vous."
         }
       ]
     },
     included: [...defaultIncluded],
     visualImage: {
       src: "/images/demo/dishes/maison-elyse-n1.png",
-      alt: "Menu digital premium Vistaire pour restaurant à Montréal"
+      alt: "Plat présenté dans une démonstration de menu Vistaire"
     },
     faq: [
       {
         question: "Vistaire sert-il les restaurants à Montréal ?",
         answer:
-          "Oui. Vistaire positionne son service pour Montréal, le Québec et le Canada."
+          "Oui. Vistaire accompagne les restaurants de Montréal pour préparer une carte digitale personnalisée et des supports QR physiques. Un premier échange permet de préciser votre menu, votre salle et le déroulement du projet."
       },
       {
-        question: "Faut-il une page différente par quartier de Montréal ?",
+        question: "Faut-il créer le menu nous-mêmes ?",
         answer:
-          "Pas au départ. Il vaut mieux éviter les pages dupliquées si chaque quartier n'a pas un contenu réellement distinct."
+          "La création est accompagnée. Vistaire prépare les photos sur place, les contenus et les maquettes du menu et des supports. Votre restaurant fournit sa carte et valide les éléments clés avant la production finale."
       },
       {
         question: "Le menu peut-il être bilingue ?",
         answer:
-          "Oui, si le contenu français et anglais est réellement disponible et maintenu."
+          "Oui. La carte peut proposer le français et l’anglais. Nous préparons avec vous les contenus pour que les noms, descriptions, prix et informations utiles restent cohérents dans les deux langues."
       },
       {
         question: "Vistaire convient-il aux restaurants gastronomiques montréalais ?",
         answer:
-          "Oui, lorsque l'objectif est une carte mobile sobre, visuelle et fidèle à la salle."
+          "Oui. Les photos des créations, les descriptions courtes et les supports physiques personnalisés permettent de prolonger une présentation soignée tout en gardant le service en salle au centre."
       },
       {
         question: "La 3D/AR est-elle disponible pour tous les plats ?",
         answer:
-          "Non. Elle reste sélective et dépend des assets validés et de la compatibilité de l'appareil."
+          "L’offre comprend jusqu’à cinq plats en 3D. Ils sont sélectionnés avec vous selon la pertinence de leur présentation. La réalité augmentée dépend du plat, de l’appareil et du navigateur; les photos et informations restent consultables."
+      },
+      {
+        question: "Quel budget prévoir pour un menu Vistaire ?",
+        answer:
+          "La mise en place commence à 2 000 $ CAD selon la collection de supports choisie, puis l’abonnement est de 200 $ CAD par mois, taxes en sus. L’engagement initial est de 12 mois et la mise en place est payable avant le début du projet. La page Tarifs présente les collections, les options et les conditions."
       }
     ],
     service: {
       name: "Menu digital restaurant Montréal Vistaire",
       serviceType: "Menu digital QR premium pour restaurants à Montréal",
       description:
-        "Création de cartes mobiles premium pour restaurants montréalais avec QR code, fiches plats et immersion sélective."
+        "Création accompagnée de menus digitaux personnalisés pour restaurants de Montréal, avec carte française et anglaise, photos sur place et supports QR physiques."
     },
-    areaServed: [
-      "Montréal",
-      "Vieux-Montréal",
-      "Griffintown",
-      "Le Plateau-Mont-Royal",
-      "Outremont",
-      "Westmount",
-      "Saint-Laurent"
-    ],
+    areaServed: ["Montréal", "Québec", "Canada"],
     primaryCta: coreLinks.meeting,
     secondaryCta: coreLinks.sampleMenu,
     relatedLinks: links(
@@ -913,33 +910,33 @@ const SEO_GEO_PAGE_DRAFTS: SeoGeoPageDraft[] = [
     ],
     metadataTitle: "Menu digital restaurant Laval | Vistaire",
     metadataDescription:
-      "Vistaire accompagne les restaurants de Laval avec menus digitaux QR premium : carte mobile, fiches plats, photos, allergènes et 3D sélective.",
+      "Un menu digital personnalisé pour votre restaurant à Laval : remplacez le PDF avec une carte mobile, des photos sur place et des supports QR premium.",
     h1: "Menu digital QR pour restaurants à Laval.",
     eyebrow: "Laval",
     directAnswer:
-      "Pour un restaurant à Laval, un menu digital QR doit rester rapide, clair et valorisant pour des repas en famille, sorties de groupe ou tables premium. Vistaire transforme le menu en carte mobile avec fiches plats, photos, allergènes et 3D/AR sélective quand elle est pertinente.",
+      "Pour votre restaurant à Laval, Vistaire transforme la carte existante en un menu mobile personnalisé, accessible par QR code. Notre équipe prépare les photos, les fiches plats et les supports physiques avec vous. Que vous accueilliez des groupes, des familles ou des habitués, chacun retrouve les catégories, les prix et les détails utiles sur son téléphone.",
     context: {
-      heading: "Un usage mobile fréquent et concret",
+      heading: "Passer du PDF à une carte facile à parcourir",
       body: [
-        "À Laval, beaucoup de sorties se décident en groupe et se consultent sur téléphone. Une carte QR doit donc être simple à ouvrir, mais assez soignée pour refléter le niveau du restaurant.",
-        "La page Laval reste distincte de Montréal par son contexte de destination, de stationnement et de repas de groupe, sans inventer une présence locale non prouvée."
+        "Si votre restaurant à Laval utilise déjà un PDF, nous partons de cette carte pour organiser les catégories, les plats et les descriptions. À table, les clients peuvent parcourir le menu à leur rythme et ouvrir les détails d’un plat sans chercher dans un document à zoomer.",
+        "Pour les repas en groupe ou en famille, les photos et les informations par plat donnent des repères concrets. Les allergènes déclarés par votre restaurant restent proches du plat; votre équipe confirme les besoins alimentaires sensibles."
       ],
       points: [
-        "lecture rapide pour groupes et familles",
-        "QR code simple à placer sur table ou support",
-        "fiches plats utiles pour les signatures"
+        "reprise de votre carte existante",
+        "catégories claires et prix lisibles sur téléphone",
+        "photos et informations regroupées par plat"
       ]
     },
     productProof: {
-      heading: "Une carte claire pour le service",
+      heading: "Une transition préparée avec votre équipe",
       body:
-        "Vistaire aide à organiser la carte en catégories, fiches et détails utiles. Les restaurants peuvent mettre en avant photos, prix, allergènes et options sans forcer une application ou un PDF lourd.",
-      points: ["Laval", "groupes", "QR mobile", "photos utiles"]
+        "Vistaire réalise la prise de photos sur place, prépare les maquettes et vous les soumet avant la production. Les supports QR sont personnalisés dans la collection choisie. Votre menu peut être proposé en français et en anglais, et vous pouvez conserver une carte imprimée selon votre façon de servir.",
+      points: ["menu existant repris", "photos sur place", "validation des maquettes", "carte bilingue"]
     },
     comparison: {
       heading: "Menu QR basique ou expérience Vistaire ?",
       basicLabel: "QR basique",
-      vistaireLabel: "Vistaire Laval",
+      vistaireLabel: "Vistaire",
       rows: [
         {
           label: "Ouverture",
@@ -952,49 +949,59 @@ const SEO_GEO_PAGE_DRAFTS: SeoGeoPageDraft[] = [
           vistaire: "Les signatures peuvent recevoir une fiche dédiée."
         },
         {
-          label: "Mobile",
-          basic: "La lecture dépend de la mise en page d'origine.",
-          vistaire: "La carte est pensée pour l'écran dès le départ."
+          label: "Préparation",
+          basic: "Le restaurant doit concevoir et maintenir sa destination QR.",
+          vistaire: "Vistaire prépare la carte, les photos et les supports avec votre équipe."
         }
       ]
     },
     included: [...defaultIncluded],
     visualImage: {
       src: "/images/demo/dishes/ravioles-chevre-miel-monteregie.png",
-      alt: "Carte digitale Vistaire pour restaurant à Laval"
+      alt: "Ravioles présentées dans un exemple de carte digitale Vistaire"
     },
     faq: [
       {
         question: "Vistaire peut-il servir un restaurant à Laval ?",
         answer:
-          "Oui. Vistaire accompagne les restaurants au Québec et peut cadrer un menu digital pour Laval."
+          "Oui. Le service est disponible pour les restaurants de Laval. Nous échangeons avec vous sur votre carte, les supports et les contenus à préparer avant de cadrer la mise en place."
       },
       {
         question: "Le menu est-il adapté aux groupes ?",
         answer:
-          "Oui. La structure mobile facilite la lecture rapide par plusieurs clients à table."
+          "Chaque client peut ouvrir la carte sur son téléphone, parcourir les catégories et consulter les photos ou les détails d’un plat. Aucun compte ni téléchargement d’application n’est nécessaire."
       },
       {
         question: "Un restaurant de Laval doit-il garder un PDF ?",
         answer:
-          "Il peut le garder en secours, mais Vistaire vise une carte mobile plus confortable."
+          "Vous pouvez garder votre PDF pour l’archivage ou l’impression. Le QR code ouvre la carte mobile Vistaire, et une carte papier peut rester disponible selon votre service."
       },
       {
-        question: "Les photos sont-elles obligatoires ?",
+        question: "Qui s’occupe des photos et de la création du menu ?",
         answer:
-          "Non, mais elles améliorent fortement les fiches des plats importants."
+          "Vistaire photographie les plats sur place et prépare la présentation à partir de votre carte. Vous validez les maquettes et les informations avant la production finale et la mise en ligne."
       },
       {
-        question: "Le QR code est-il inclus ?",
+        question: "Quels supports QR sont inclus ?",
         answer:
-          "Oui. Vistaire prévoit un lien public et un QR code prêt à utiliser."
+          "L’offre inclut jusqu’à vingt supports QR personnalisés dans la collection choisie : Acrylique, Sculpté, Carré ou Signature. Les supports supplémentaires ou de remplacement font l’objet d’une estimation selon le besoin."
+      },
+      {
+        question: "Comment préparer les changements de carte ?",
+        answer:
+          "Transmettez les changements de plats, de prix ou de composition pour préparer la mise à jour avec Vistaire. L’option Pilotage, à 100 $ CAD supplémentaires par mois, permet de gérer les disponibilités depuis le dashboard et de consulter l’activité du menu."
+      },
+      {
+        question: "Où trouver les tarifs pour mon restaurant à Laval ?",
+        answer:
+          "Les collections sont présentées sur la page Tarifs. La mise en place commence à 2 000 $ CAD selon le support choisi, avec un abonnement de 200 $ CAD par mois, taxes en sus. L’engagement initial est de 12 mois."
       }
     ],
     service: {
       name: "Menu digital restaurant Laval Vistaire",
       serviceType: "Menu digital QR premium pour restaurants à Laval",
       description:
-        "Carte mobile QR pour restaurants lavallois avec fiches plats, prix, photos et allergènes."
+        "Création accompagnée d’une carte mobile pour restaurants de Laval à partir du menu existant, avec photos sur place, fiches plats et supports QR personnalisés."
     },
     areaServed: ["Laval", "Rive-Nord", "Québec", "Canada"],
     primaryCta: coreLinks.meeting,
@@ -1002,7 +1009,8 @@ const SEO_GEO_PAGE_DRAFTS: SeoGeoPageDraft[] = [
     relatedLinks: links(
       { href: "/menu-digital-restaurant-montreal", label: "Menu digital à Montréal" },
       { href: "/menu-digital-restaurant-brossard", label: "Menu digital à Brossard" },
-      coreLinks.qr
+      coreLinks.qr,
+      coreLinks.pricing
     )
   },
   {
@@ -1020,33 +1028,33 @@ const SEO_GEO_PAGE_DRAFTS: SeoGeoPageDraft[] = [
     ],
     metadataTitle: "Menu digital restaurant Brossard | Vistaire",
     metadataDescription:
-      "Vistaire crée des menus digitaux QR premium pour restaurants à Brossard : carte mobile, fiches plats, photos, allergènes et 3D sélective.",
+      "Présentez les plats de votre restaurant à Brossard avec Vistaire : menu mobile bilingue, photos sur place, supports QR et jusqu’à cinq plats en 3D.",
     h1: "Menu digital premium pour restaurants à Brossard.",
     eyebrow: "Brossard",
     directAnswer:
-      "À Brossard, un menu digital restaurant doit servir des tables rapides, des sorties premium et une clientèle souvent mobile. Vistaire remplace le PDF par une carte QR claire : catégories, fiches plats, photos, allergènes, prix lisibles et 3D/AR sélective pour les signatures compatibles.",
+      "Vistaire crée des menus digitaux premium pour les restaurants de Brossard et de la Rive-Sud. Votre cuisine est présentée dans une carte mobile française et anglaise, avec photos sur place, fiches plats et supports QR personnalisés. Jusqu’à cinq plats peuvent être proposés en 3D, avec une réalité augmentée disponible selon le plat et l’appareil.",
     context: {
-      heading: "Une carte utile dans un contexte de destination",
+      heading: "Faire découvrir vos plats signatures avant de choisir",
       body: [
-        "Brossard attire des restaurants de destination, des sorties autour du DIX30 et une clientèle qui consulte beaucoup sur téléphone. La carte doit donc être rapide sans paraître générique.",
-        "Vistaire garde une présentation food-first, avec des surfaces sombres, des accents champagne et une hiérarchie adaptée à la lecture à table."
+        "Pour votre restaurant à Brossard, une spécialité de la maison ou un dressage soigné gagne à être présenté avec son visuel et une description claire. La fiche plat réunit ces éléments avec le prix et les allergènes déclarés par votre restaurant.",
+        "Nous sélectionnons avec vous les créations à photographier et celles qui se prêtent à la 3D. Les clients choisissent le français ou l’anglais, puis consultent les détails qui les intéressent. Les photos et les informations restent accessibles même sans réalité augmentée."
       ],
       points: [
-        "consultation rapide après scan QR",
-        "présentation premium pour restaurants de destination",
-        "informations clés visibles sans PDF"
+        "vos spécialités expliquées et photographiées",
+        "carte française et anglaise",
+        "3D sur une sélection de plats, selon leur présentation"
       ]
     },
     productProof: {
-      heading: "Un menu mobile qui reste désirable",
+      heading: "Du support sur la table à la découverte du plat",
       body:
-        "Les catégories guident la lecture, les fiches mettent en scène les plats importants, et les contenus 3D/AR ne s'ouvrent qu'après action du client afin de préserver le chargement initial.",
-      points: ["Brossard", "DIX30", "Rive-Sud", "3D sélective"]
+        "Choisissez entre les collections Acrylique, Sculpté, Carré et Signature pour placer le QR code dans votre salle. Vistaire prépare les maquettes des supports et de la carte, puis les soumet à votre validation. Les démonstrations Maison Élyse, Trouvable et Sauge Noire permettent de découvrir des styles de menus et de fiches plats avant de définir votre projet.",
+      points: ["quatre collections", "supports personnalisés", "photos des plats", "exemples interactifs"]
     },
     comparison: {
       heading: "PDF QR ou carte digitale premium ?",
       basicLabel: "PDF QR",
-      vistaireLabel: "Vistaire Brossard",
+      vistaireLabel: "Vistaire",
       rows: [
         {
           label: "Première impression",
@@ -1068,40 +1076,50 @@ const SEO_GEO_PAGE_DRAFTS: SeoGeoPageDraft[] = [
     included: [...defaultIncluded],
     visualImage: {
       src: "/images/demo/dishes/tarte-citron-basilic-pourpre.png",
-      alt: "Menu digital premium Vistaire pour restaurant à Brossard"
+      alt: "Dessert présenté dans une démonstration de carte Vistaire"
     },
     faq: [
       {
         question: "Vistaire est-il disponible pour Brossard ?",
         answer:
-          "Oui. Vistaire peut accompagner des restaurants de Brossard, de la Rive-Sud et du Québec."
+          "Oui. Vistaire accompagne les restaurants de Brossard et de la Rive-Sud. Le premier échange sert à préciser votre carte, les supports et les plats à présenter avant la mise en place."
       },
       {
         question: "Le menu peut-il remplacer un PDF QR ?",
         answer:
-          "Oui. Le QR peut pointer vers une vraie carte mobile plutôt qu'un fichier."
+          "Oui. Nous reprenons les informations de votre menu pour créer une carte pensée pour le téléphone. Le QR code ouvre cette carte dans le navigateur, sans téléchargement d’application."
       },
       {
         question: "Peut-on mettre les plats signatures en avant ?",
         answer:
-          "Oui. Les fiches plats servent justement à mieux présenter les signatures."
+          "Oui. Les photos sur place et les fiches permettent de présenter vos spécialités avec leurs descriptions, leurs prix et les informations utiles. Certains plats peuvent aussi être sélectionnés pour une présentation en 3D."
       },
       {
-        question: "La carte convient-elle aux restaurants premium ?",
+        question: "Le menu peut-il être français et anglais ?",
         answer:
-          "Oui, si l'objectif est une présentation sobre, visuelle et cohérente avec la salle."
+          "Oui. Vistaire prépare avec vous les contenus des deux langues. Votre restaurant valide les noms des plats, les descriptions et les informations clés avant la mise en ligne."
       },
       {
-        question: "Les contenus 3D chargent-ils immédiatement ?",
+        question: "Quelles sont les limites de la réalité augmentée ?",
         answer:
-          "Non. Ils restent déclenchés après action du client."
+          "La réalité augmentée dépend du modèle du plat, de l’appareil et du navigateur. Elle complète la fiche sans remplacer les photos ni les informations de la carte. Jusqu’à cinq plats 3D peuvent être inclus; les productions supplémentaires sont facturées séparément."
+      },
+      {
+        question: "Quel est le prix du service à Brossard ?",
+        answer:
+          "La mise en place commence à 2 000 $ CAD selon la collection choisie, puis l’abonnement est de 200 $ CAD par mois, taxes en sus, avec un engagement initial de 12 mois. L’offre inclut jusqu’à vingt supports QR personnalisés. Les tarifs et les options sont présentés sur la page Tarifs."
+      },
+      {
+        question: "Combien de temps prend le lancement ?",
+        answer:
+          "La mise en place complète prend généralement environ deux semaines une fois le menu et les maquettes des supports validés et les éléments nécessaires reçus. Le délai peut varier selon la complexité du projet et la production."
       }
     ],
     service: {
       name: "Menu digital restaurant Brossard Vistaire",
       serviceType: "Menu digital QR premium pour restaurants à Brossard",
       description:
-        "Création de cartes digitales QR pour restaurants de Brossard avec fiches plats et présentation premium."
+        "Création accompagnée de menus mobiles français et anglais pour restaurants de Brossard, avec photos sur place, supports QR personnalisés et une sélection de plats 3D."
     },
     areaServed: ["Brossard", "Rive-Sud", "Montérégie", "Québec", "Canada"],
     primaryCta: coreLinks.meeting,
@@ -1109,7 +1127,8 @@ const SEO_GEO_PAGE_DRAFTS: SeoGeoPageDraft[] = [
     relatedLinks: links(
       { href: "/menu-digital-restaurant-montreal", label: "Menu digital à Montréal" },
       { href: "/menu-digital-restaurant-laval", label: "Menu digital à Laval" },
-      coreLinks.pdf
+      coreLinks.pdf,
+      coreLinks.pricing
     )
   },
   {
@@ -1139,16 +1158,16 @@ const SEO_GEO_PAGE_DRAFTS: SeoGeoPageDraft[] = [
         "Vistaire garde le plat au centre : hiérarchie calme, visuels soignés, textes courts, détails utiles et interactions sobres."
       ],
       points: [
-        "surfaces sombres et accents champagne",
-        "photos food-first et fiches courtes",
-        "3D/AR comme détail sélectif, pas comme promesse universelle"
+        "supports QR adaptés à l’ambiance de votre salle",
+        "photos de vos plats et descriptions courtes",
+        "3D/AR pour une sélection de plats signatures"
       ]
     },
     productProof: {
-      heading: "Une carte premium, pas un tableau de bord",
+      heading: "Un service personnalisé pour votre restaurant",
       body:
-        "Le client voit une carte élégante et mobile-first. Le restaurateur bénéficie d'une structure claire pour présenter les plats, sans transformer Vistaire en POS, en système de réservation ou en outil de commande.",
-      points: ["premium", "food-first", "mobile", "sans SaaS froid"]
+        "Vistaire prépare les photos, la carte mobile et les supports QR avec vous. Vous validez les maquettes avant la production finale, puis nous mettons le menu en ligne. Le client retrouve votre cuisine dans une présentation soignée, facile à consulter pendant le service.",
+      points: ["carte personnalisée", "photos sur place", "supports QR", "lancement accompagné"]
     },
     comparison: {
       heading: "Menu digital générique ou Vistaire ?",
@@ -1184,9 +1203,9 @@ const SEO_GEO_PAGE_DRAFTS: SeoGeoPageDraft[] = [
           "Oui, si l'expérience ouverte est élégante, rapide et cohérente avec la salle."
       },
       {
-        question: "Vistaire ressemble-t-il à un logiciel SaaS ?",
+        question: "Faut-il créer le menu soi-même ?",
         answer:
-          "Non. L'interface publique est conçue comme une carte restaurant premium, pas comme un tableau de bord."
+          "Vistaire accompagne la création. Notre équipe prépare les contenus, les photos et les maquettes; votre restaurant valide les éléments clés avant la production et la mise en ligne."
       },
       {
         question: "Faut-il mettre de la 3D partout ?",
@@ -1275,7 +1294,7 @@ const SEO_GEO_PAGE_DRAFTS: SeoGeoPageDraft[] = [
         {
           label: "Innovation",
           basic: "Le support reste statique.",
-          vistaire: "La 3D/AR peut enrichir quelques créations, avec fallback."
+          vistaire: "La 3D/AR peut enrichir quelques créations; les photos et descriptions restent accessibles."
         }
       ]
     },
@@ -1306,9 +1325,9 @@ const SEO_GEO_PAGE_DRAFTS: SeoGeoPageDraft[] = [
           "Oui. La fiche plat garde une hiérarchie claire entre nom, prix, description et détails."
       },
       {
-        question: "Vistaire invente-t-il des avis ou distinctions ?",
+        question: "Qui prépare les textes et les photos du menu ?",
         answer:
-          "Non. La page ne doit pas afficher de prix, avis ou clients non vérifiés."
+          "Vistaire prépare la présentation à partir de votre carte et réalise les photos sur place. Votre restaurant valide les noms, les descriptions, les prix et les allergènes afin que le menu reflète la cuisine servie."
       }
     ],
     service: {

@@ -71,7 +71,7 @@ export const SEO_PAGES: SeoPageData[] = [
     path: "/menu-digital-restaurant",
     metadataTitle: "Menu digital restaurant premium | Vistaire",
     metadataDescription:
-      "Vistaire transforme le menu digital restaurant en expérience premium : QR code, fiches plats, allergènes, visuels et 3D/AR sélective.",
+      "Vistaire crée votre menu digital restaurant premium : carte mobile personnalisée, photos sur place, supports QR physiques et mise en place accompagnée.",
     cardDescription:
       "Fiches plats, allergènes, visuels et 3D sélective : ce qu'un menu digital premium doit offrir à table.",
     relatedDescription:
@@ -82,7 +82,7 @@ export const SEO_PAGES: SeoPageData[] = [
     h1: "Le menu digital premium transforme la carte en expérience.",
     answer: [
       "Un menu digital pour restaurant est une carte consultable sur le téléphone du client, souvent après scan d'un QR code à table. Vistaire en fait une expérience premium : photos, fiches plats, allergènes, prix, accords et vues 3D/AR lorsque le plat le permet, sans téléchargement d'application.",
-      "L'objectif n'est pas de transformer la salle en logiciel froid. Vistaire garde la carte, le plat et l'image du restaurant au centre, avec une lecture mobile claire pour le convive et un aperçu restaurateur des signaux anonymes autour du menu."
+      "Vistaire est un service accompagné. Nous préparons la carte mobile personnalisée, les photos des plats sur place et les supports QR physiques avec vous. Votre restaurant valide les maquettes avant la production et la mise en ligne; l’hébergement et la maintenance font partie de l’offre."
     ],
     takeaway: {
       heading: "À retenir",
@@ -91,7 +91,7 @@ export const SEO_PAGES: SeoPageData[] = [
     },
     visualImage: {
       src: "/images/demo/dishes/homard-bleu-bisque-fenouil.png",
-      alt: "Plat signature illustre dans une fiche de menu digital Vistaire"
+      alt: "Plat signature illustré dans une fiche de menu digital Vistaire"
     },
     sections: [
       {
@@ -110,7 +110,7 @@ export const SEO_PAGES: SeoPageData[] = [
         heading: "Ce que Vistaire met en avant",
         body: [
           "Vistaire met les plats signatures en scène avec une hiérarchie claire : nom, prix, récit court, allergènes, accords et visuels. La 3D/AR reste sélective et réservée aux plats qui gagnent à être vus en volume.",
-          "Côté restaurateur, l'aperçu aide à comprendre les consultations, recherches et interactions immersives sans promettre des résultats que le menu ne mesure pas."
+          "L’option Vistaire Pilotage permet de gérer les disponibilités des plats depuis le dashboard et de consulter l’activité du menu : ouvertures, plats consultés et interactions 3D/AR. Elle est proposée en complément du service, à 100 $ CAD supplémentaires par mois."
         ]
       }
     ],
@@ -132,7 +132,7 @@ export const SEO_PAGES: SeoPageData[] = [
         {
           label: "Immersion",
           before: "Photos isolées ou absence de contenus visuels.",
-          after: "Visuels food-first et 3D/AR uniquement quand elle apporte de la clarté."
+          after: "Photos des plats et 3D/AR sur une sélection de créations adaptées."
         }
       ]
     },
@@ -155,12 +155,12 @@ export const SEO_PAGES: SeoPageData[] = [
       {
         question: "Comment le restaurant met-il la carte à jour ?",
         answer:
-          "Les outils de gestion Vistaire permettent de modifier les catégories, les plats, les prix, les descriptions et les informations déclarées par le restaurant."
+          "La mise à jour des plats, des prix, des descriptions et de la composition se prépare avec Vistaire à partir des informations validées par votre restaurant. L’option Pilotage permet aussi de gérer les disponibilités depuis le dashboard."
       },
       {
         question: "Chaque plat peut-il présenter une photo ?",
         answer:
-          "Oui. Une fiche plat peut afficher une photo fournie par le restaurant. Les plats sans photo conservent leur nom, leur description, leur prix et leurs autres informations disponibles."
+          "Oui. Vistaire réalise la prise de photos des plats sur place lors de la mise en place. Les photos existantes peuvent aussi compléter la carte après validation avec vous. Un plat sans photo conserve son nom, sa description, son prix et ses informations."
       },
       {
         question: "Où les allergènes apparaissent-ils ?",
@@ -189,7 +189,7 @@ export const SEO_PAGES: SeoPageData[] = [
       label: "Explorer le menu exemple"
     },
     secondaryCta: {
-      href: "/admin",
+      href: "/apercu-restaurateur",
       label: "Voir l'aperçu restaurateur"
     }
   },
@@ -209,7 +209,7 @@ export const SEO_PAGES: SeoPageData[] = [
     h1: "Le QR code doit ouvrir une expérience, pas un fichier.",
     answer: [
       "Un menu QR code pour restaurant ne devrait pas se limiter à ouvrir un fichier à zoomer. Avec Vistaire, le QR code devient l'entrée vers une carte mobile, visuelle et fluide : le client parcourt les catégories, ouvre une fiche plat et découvre les contenus immersifs disponibles.",
-      "La valeur du QR code dépend de ce qui se passe après le scan. Vistaire transforme cet accès en expérience de carte, avec une présentation soignée et adaptée au rythme du service."
+      "Un générateur QR gratuit crée un lien à scanner. Le service Vistaire comprend la préparation de la carte personnalisée, les photos des plats sur place, les supports physiques et la mise en ligne accompagnée. Votre restaurant valide les maquettes avant la production finale."
     ],
     takeaway: {
       heading: "En résumé",
@@ -237,7 +237,7 @@ export const SEO_PAGES: SeoPageData[] = [
         heading: "Un QR code peut rester haut de gamme",
         body: [
           "Le QR code n'est pas incompatible avec un restaurant premium si l'expérience ouverte est soignée. Les textes, les visuels et les interactions doivent prolonger la salle plutôt que l'appauvrir.",
-          "Vistaire évite la logique utilitaire froide : le scan sert de porte d'entrée vers une carte élégante, claire et centrée sur les plats."
+          "Les collections Acrylique, Sculpté, Carré et Signature proposent différentes présentations du QR code sur la table. L’offre inclut jusqu’à vingt supports personnalisés dans la collection choisie."
         ]
       }
     ],
@@ -277,7 +277,7 @@ export const SEO_PAGES: SeoPageData[] = [
       {
         question: "Faut-il un QR code par table ou un seul suffit ?",
         answer:
-          "Un QR par table ou par zone fonctionne selon le service. L'important est que le scan ouvre toujours la même carte soignée."
+          "Un support par table ou par zone peut convenir selon votre service. Vistaire inclut jusqu’à vingt supports QR personnalisés; les supports supplémentaires font l’objet d’une estimation selon la collection et le besoin."
       },
       {
         question: "Le client doit-il être connecté au Wi-Fi du restaurant ?",
@@ -287,7 +287,7 @@ export const SEO_PAGES: SeoPageData[] = [
       {
         question: "Un QR code peut-il rester élégant en restaurant premium ?",
         answer:
-          "Oui, si l'expérience ouverte prolonge la salle : textes soignés, visuels food-first et parcours mobile fluide."
+          "Oui. Les supports personnalisés, les photos des plats et la carte mobile sont préparés pour refléter votre restaurant et accompagner le service."
       },
       {
         question: "Que se passe-t-il si le client n'a pas de smartphone ?",
@@ -319,14 +319,14 @@ export const SEO_PAGES: SeoPageData[] = [
     cardDescription:
       "Quand activer la 3D/AR, quand s'en passer, et comment rester premium sans gadget.",
     relatedDescription:
-      "Immersion sélective : plats compatibles, fallback clair, pas de 3D systématique.",
+      "Plats 3D sélectionnés avec vous, limites de l’AR et photos toujours consultables sur la fiche.",
     eyebrow: "3D/AR restaurant",
     footerLabel: "Menu 3D / AR restaurant",
     linkTitle: "3D utile vs gadget : quand l'activer",
     h1: "La 3D n'impressionne que si elle rend le plat plus désirable.",
     answer: [
       "La 3D/AR dans un menu de restaurant aide le client à mieux comprendre un plat avant de choisir, surtout pour les signatures, desserts et cocktails visuels. Vistaire l'intègre comme option de présentation : les plats compatibles peuvent être explorés en 3D, et l'AR s'ouvre sur mobile compatible après action du client.",
-      "Cette immersion doit rester sélective. Une fiche plat Vistaire reste claire avec ou sans AR, afin que l'expérience principale du menu ne dépende jamais d'un appareil ou d'un asset particulier."
+      "L’offre Vistaire peut inclure jusqu’à cinq plats en 3D, sélectionnés avec vous. La réalité augmentée dépend du plat, de l’appareil et du navigateur. Les photos, les prix et les descriptions restent consultables lorsque cette vue n’est pas disponible."
     ],
     takeaway: {
       heading: "À retenir",
@@ -335,7 +335,7 @@ export const SEO_PAGES: SeoPageData[] = [
     },
     visualImage: {
       src: "/images/demo/dishes/maison-elyse-n1.png",
-      alt: "Plat signature presente avec une experience immersive Vistaire"
+      alt: "Plat signature présenté dans une démonstration immersive Vistaire"
     },
     sections: [
       {
@@ -347,7 +347,7 @@ export const SEO_PAGES: SeoPageData[] = [
         points: [
           "Plats signatures à forte présentation",
           "Desserts, cocktails ou créations visuelles",
-          "Ouverture immersive seulement après intention du client"
+          "Vue immersive proposée sur les fiches des plats sélectionnés"
         ]
       },
       {
@@ -376,7 +376,7 @@ export const SEO_PAGES: SeoPageData[] = [
         {
           label: "Compatibilité",
           before: "L'expérience peut dépendre fortement de l'appareil.",
-          after: "La fiche plat reste utile avec un fallback visuel clair."
+          after: "Les photos et les informations du plat restent consultables sans AR."
         }
       ]
     },
@@ -389,12 +389,12 @@ export const SEO_PAGES: SeoPageData[] = [
       {
         question: "Faut-il modéliser toute la carte ?",
         answer:
-          "Non. Une sélection de plats signatures suffit souvent pour créer un moment immersif cohérent."
+          "Non. L’offre comprend jusqu’à cinq plats en 3D, sélectionnés avec vous. Les nouvelles productions au-delà du volume inclus sont facturées séparément selon les packs ou le tarif à l’unité présentés sur la page Tarifs."
       },
       {
         question: "La 3D ralentit-elle le chargement du menu ?",
         answer:
-          "Les contenus 3D/AR ne se chargent qu'après intention du client sur une fiche plat, pas au parcours initial de la carte."
+          "La carte permet d’abord de parcourir les catégories et les plats. Le client peut ensuite découvrir les vues 3D/AR proposées pour les plats sélectionnés; les autres fiches restent accessibles avec leurs informations et leurs photos."
       },
       {
         question: "L'AR remplace-t-elle la photo du plat ?",
@@ -416,7 +416,7 @@ export const SEO_PAGES: SeoPageData[] = [
       name: "Menu 3D/AR Vistaire",
       serviceType: "Présentation 3D/AR sélective pour menus de restaurants",
       description:
-        "Couche immersive pour plats compatibles, avec fiche plat claire et fallback premium."
+        "Présentation de plats sélectionnés en 3D et en réalité augmentée selon compatibilité, avec photos et informations du menu accessibles sans AR."
     },
     primaryCta: {
       href: "/demo",
@@ -452,7 +452,7 @@ export const SEO_PAGES: SeoPageData[] = [
     },
     visualImage: {
       src: "/images/demo/dishes/tarte-citron-basilic-pourpre.png",
-      alt: "Dessert presente dans une carte digitale plutot qu'un menu PDF"
+      alt: "Dessert présenté dans un exemple de carte digitale Vistaire"
     },
     sections: [
       {
@@ -466,7 +466,7 @@ export const SEO_PAGES: SeoPageData[] = [
         heading: "Ce qu'apporte une carte digitale",
         body: [
           "Une carte digitale structure la lecture mobile. Le client navigue par catégories, ouvre un plat, vérifie les allergènes et découvre les visuels sans chercher dans une page complète.",
-          "Vistaire ajoute une couche premium : image de marque, fiches sobres, visuels food-first et immersion sélective quand elle est pertinente."
+          "Vistaire prépare cette carte avec vous, réalise les photos sur place et personnalise les supports QR. Vous validez les maquettes avant leur production finale. La 3D/AR complète la présentation d’une sélection de plats lorsque disponible."
         ],
         points: [
           "Lisibilité mobile sans zoom",
@@ -516,7 +516,7 @@ export const SEO_PAGES: SeoPageData[] = [
       {
         question: "Que se passe-t-il quand la carte change ?",
         answer:
-          "Le PDF doit être exporté et remplacé pour intégrer les changements. Une carte Vistaire se modifie depuis les données du menu, sans recréer la mise en page d'un document."
+          "Le PDF doit être exporté et remplacé pour intégrer les changements. Les mises à jour de la carte se préparent avec Vistaire à partir de vos informations validées, sans refaire la mise en page d’un document."
       },
       {
         question: "Quand un PDF reste-t-il adapté ?",
@@ -553,7 +553,7 @@ export const SEO_PAGES_EN: SeoPageData[] = [
     path: "/en/digital-restaurant-menu",
     metadataTitle: "Premium digital restaurant menu | Vistaire",
     metadataDescription:
-      "Vistaire turns a digital restaurant menu into a premium mobile experience: QR code, dish pages, allergens, visuals and selective 3D/AR.",
+      "Vistaire creates premium restaurant digital menus with custom mobile design, on-site dish photography, physical QR displays and guided setup.",
     cardDescription:
       "Dish pages, allergens, visuals and selective 3D: what a premium digital menu should offer at the table.",
     relatedDescription:
@@ -564,7 +564,7 @@ export const SEO_PAGES_EN: SeoPageData[] = [
     h1: "A premium digital menu turns the menu into an experience.",
     answer: [
       "A digital restaurant menu is a menu guests open on their phone, often after scanning a QR code at the table. Vistaire makes it premium: photos, dish pages, allergens, prices, pairings and 3D/AR views when a dish benefits from them, without an app download.",
-      "The goal is not to turn the dining room into cold software. Vistaire keeps the menu, the dish and the restaurant image at the center, with a clear mobile reading for the guest and a restaurant preview of anonymous menu signals."
+      "Vistaire is a guided service. We prepare the custom mobile menu, photograph dishes on site and personalize the physical QR displays with you. Your restaurant approves the layouts before production and launch. Hosting and maintenance are included."
     ],
     takeaway: {
       heading: "Key takeaway",
@@ -592,7 +592,7 @@ export const SEO_PAGES_EN: SeoPageData[] = [
         heading: "What Vistaire highlights",
         body: [
           "Vistaire presents signature dishes with a clear hierarchy: name, price, short story, allergens, pairings and visuals. 3D/AR stays selective and reserved for dishes that benefit from being seen in volume.",
-          "On the restaurant side, the preview helps understand consultations, searches and immersive interactions without promising measurements the menu does not track."
+          "The optional Vistaire Pilotage service lets you manage dish availability from the dashboard and view menu activity, including openings, dish views and 3D/AR interactions. It is available for an additional $100 CAD per month."
         ]
       }
     ],
@@ -614,7 +614,7 @@ export const SEO_PAGES_EN: SeoPageData[] = [
         {
           label: "Immersion",
           before: "Isolated photos or no visual content.",
-          after: "Food-first visuals and 3D/AR only when it adds clarity."
+          after: "Photographs of your food and 3D/AR for selected suitable dishes."
         }
       ]
     },
@@ -637,12 +637,12 @@ export const SEO_PAGES_EN: SeoPageData[] = [
       {
         question: "How does the restaurant update the menu?",
         answer:
-          "Vistaire's management tools let the restaurant change categories, dishes, prices, descriptions and information declared by the restaurant."
+          "Changes to dishes, prices, descriptions and recipes are prepared with Vistaire using information your restaurant validates. The optional Pilotage service also lets you manage dish availability from the dashboard."
       },
       {
         question: "Can each dish include a photo?",
         answer:
-          "Yes. A dish page can display a photo supplied by the restaurant. Dishes without a photo keep their name, description, price and other available information."
+          "Yes. Vistaire photographs dishes on site during setup. Existing photos can also complement the menu after review with you. Dishes without a photo keep their name, description, price and available information."
       },
       {
         question: "Where does allergen information appear?",
@@ -692,7 +692,7 @@ export const SEO_PAGES_EN: SeoPageData[] = [
     h1: "The QR code should open an experience, not a file.",
     answer: [
       "A restaurant QR code menu should not be limited to opening a file guests have to zoom. With Vistaire, the QR code becomes the entrance to a mobile, visual and fluid menu: guests browse categories, open dish pages and discover available immersive content.",
-      "The value of the QR code depends on what happens after the scan. Vistaire turns that access into a menu experience with careful presentation adapted to service."
+      "A free QR generator creates a scannable link. Vistaire’s guided service includes a custom menu, on-site dish photography, personalized physical displays and launch. Your team approves the layouts before final production."
     ],
     takeaway: {
       heading: "In short",
@@ -720,7 +720,7 @@ export const SEO_PAGES_EN: SeoPageData[] = [
         heading: "A QR code can still feel high-end",
         body: [
           "A QR code is not incompatible with a premium restaurant if the opened experience is carefully made. Text, visuals and interactions should extend the room rather than cheapen it.",
-          "Vistaire avoids cold utility logic: the scan becomes a discreet entrance to an elegant, clear menu centered on dishes."
+          "The Acrylique, Sculpté, Carré and Signature collections offer different QR display styles for the table. The offer includes up to twenty personalized displays from your chosen collection."
         ]
       }
     ],
@@ -760,7 +760,7 @@ export const SEO_PAGES_EN: SeoPageData[] = [
       {
         question: "Do we need one QR per table?",
         answer:
-          "One QR per table or zone can work depending on service. The important part is that the scan opens the same carefully made menu."
+          "One display per table or zone can work depending on your service. Vistaire includes up to twenty personalized QR displays; additional displays are quoted according to the collection and your needs."
       },
       {
         question: "Does the guest need restaurant Wi-Fi?",
@@ -770,7 +770,7 @@ export const SEO_PAGES_EN: SeoPageData[] = [
       {
         question: "Can a QR code stay elegant in a premium restaurant?",
         answer:
-          "Yes, if the opened experience extends the dining room: careful copy, food-first visuals and a fluid mobile path."
+          "Yes. Personalized displays, dish photography and the mobile menu are prepared to reflect your restaurant and fit the service."
       },
       {
         question: "What if a guest does not have a smartphone?",
@@ -803,14 +803,14 @@ export const SEO_PAGES_EN: SeoPageData[] = [
     cardDescription:
       "When to activate 3D/AR, when to skip it, and how to stay premium without gimmicks.",
     relatedDescription:
-      "Selective immersion: compatible dishes, clear fallback, no systematic 3D.",
+      "Selected 3D dishes, the limits of AR and photos that remain accessible on the dish page.",
     eyebrow: "Restaurant 3D/AR",
     footerLabel: "3D / AR restaurant menu",
     linkTitle: "Useful 3D vs gimmick: when to activate it",
     h1: "3D impresses only when it makes the dish more desirable.",
     answer: [
-      "3D/AR in a restaurant menu helps guests understand a dish before choosing, especially signatures, desserts and visual cocktails. Vistaire integrates it as a presentation layer: compatible dishes can be explored in 3D, and AR opens on compatible mobile devices after guest intent.",
-      "This immersion must stay selective. A Vistaire dish page remains clear with or without AR, so the main menu experience never depends on a specific device or asset."
+      "3D and augmented reality help guests picture selected dishes before choosing. Compatible dishes can be explored in 3D, while an AR view can be opened on supported mobile devices. This can be useful for signature plates, desserts and other creations where the presentation matters.",
+      "The Vistaire offer can include up to five 3D dishes selected with you. AR availability depends on the dish, device and browser. Photos, prices and descriptions remain accessible when that view is unavailable."
     ],
     takeaway: {
       heading: "Key takeaway",
@@ -831,7 +831,7 @@ export const SEO_PAGES_EN: SeoPageData[] = [
         points: [
           "Signature dishes with strong presentation",
           "Desserts, cocktails or visual creations",
-          "Immersive opening only after guest intent"
+          "Immersive views offered on selected dish pages"
         ]
       },
       {
@@ -860,7 +860,7 @@ export const SEO_PAGES_EN: SeoPageData[] = [
         {
           label: "Compatibility",
           before: "The experience can depend heavily on device support.",
-          after: "The dish page remains useful with a clear visual fallback."
+          after: "Photos and dish information remain available without AR."
         }
       ]
     },
@@ -873,12 +873,12 @@ export const SEO_PAGES_EN: SeoPageData[] = [
       {
         question: "Do we need to model the entire menu?",
         answer:
-          "No. A selection of signature dishes is often enough to create a coherent immersive moment."
+          "No. The offer includes up to five 3D dishes selected with you. New productions beyond the included volume are charged separately using the packs or individual pricing listed on the pricing page."
       },
       {
         question: "Does 3D slow the menu down?",
         answer:
-          "3D/AR content loads only after guest intent on a dish page, not during the initial menu browsing."
+          "Guests can browse categories and dishes first, then explore the 3D/AR views offered for selected dishes. Other dish pages remain available with their information and photographs."
       },
       {
         question: "Does AR replace the dish photo?",
@@ -900,7 +900,7 @@ export const SEO_PAGES_EN: SeoPageData[] = [
       name: "Vistaire 3D/AR menu",
       serviceType: "Selective 3D/AR presentation for restaurant menus",
       description:
-        "Immersive layer for compatible dishes, with a clear dish page and premium fallback."
+        "3D and augmented reality presentation for selected compatible dishes, with photos and menu information accessible without AR."
     },
     primaryCta: {
       href: "/en/vistaire-menu",
@@ -951,7 +951,7 @@ export const SEO_PAGES_EN: SeoPageData[] = [
         heading: "What a digital menu adds",
         body: [
           "A digital menu structures mobile reading. Guests navigate by categories, open a dish, check allergens and discover visuals without searching through a full page.",
-          "Vistaire adds a premium layer: brand image, calm pages, food-first visuals and selective immersion when relevant."
+          "Vistaire prepares the menu with you, photographs dishes on site and personalizes physical QR displays. You approve the layouts before final production. Selected dishes can also be explored in 3D/AR where available."
         ],
         points: [
           "Mobile readability without zoom",
@@ -1001,7 +1001,7 @@ export const SEO_PAGES_EN: SeoPageData[] = [
       {
         question: "What happens when the menu changes?",
         answer:
-          "The PDF must be exported and replaced to include changes. A Vistaire menu is edited from menu data without recreating a document layout."
+          "A PDF must be exported and replaced to include changes. Vistaire prepares menu updates with your validated information, without recreating the layout of a document."
       },
       {
         question: "When is a PDF still suitable?",

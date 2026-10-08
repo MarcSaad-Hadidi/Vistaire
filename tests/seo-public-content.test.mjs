@@ -9,6 +9,7 @@ const PUBLIC_SEO_COPY_TARGETS = [
   "lib/seoGeoPages.ts",
   "lib/seoGeoPages.fr.ts",
   "lib/seoGeoPages.en.ts",
+  "lib/seoPages.ts",
   "public/llms.txt"
 ];
 
@@ -58,4 +59,18 @@ test("public crawler guidance stays product-facing, not strategy-facing", () => 
   assert.match(llms, /premium digital menu service/i);
   assert.doesNotMatch(llms, /SEO\/GEO|AEO|doorway|intent matrix|planned registry/i);
   assert.doesNotMatch(llms, /guaranteed ROI|first page rankings|ranking promise/i);
+});
+
+test("published marketing content explains the service without editorial notes or implementation jargon", async () => {
+  const { SEO_GEO_PAGES, SEO_GEO_PAGES_EN } = await import("../lib/seoGeoPages.ts");
+  const { SEO_PAGES, SEO_PAGES_EN } = await import("../lib/seoPages.ts");
+  const internalCopy = /\b(?:fallbacks?|placeholders?|assets?|CTA|SaaS)\b|mobile-first|food-first|no false local|no invented local|no fabricated local|unverified local|unsupported claims|inventing local proof|service.area language|la page .*distincte|pages? .*quartier|page Montréal forte|contenu .*quartier|non prouv[eé]|avis ou clients non vérifiés|la page ne doit/i;
+
+  for (const page of [...SEO_GEO_PAGES, ...SEO_GEO_PAGES_EN, ...SEO_PAGES, ...SEO_PAGES_EN]) {
+    const { queries, queryEvidence, cluster, ...publicFields } = page;
+    void queries;
+    void queryEvidence;
+    void cluster;
+    assert.doesNotMatch(JSON.stringify(publicFields), internalCopy, page.path);
+  }
 });
