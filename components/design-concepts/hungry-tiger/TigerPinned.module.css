@@ -1,0 +1,104 @@
+.pinWrap {
+  position: relative;
+  height: 420vh;
+}
+
+.stage {
+  position: sticky;
+  top: 0;
+  height: 100svh;
+  overflow: clip;
+}
+
+/* Rotating product visual, centered */
+.dishOrbit {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  perspective: 1200px;
+  z-index: 1;
+}
+.dishSpin {
+  width: clamp(260px, 34vw, 560px);
+  transform-style: preserve-3d;
+  will-change: transform;
+}
+.dish {
+  width: 100%;
+  height: auto;
+  aspect-ratio: 1;
+  object-fit: cover;
+  border-radius: 50%;
+  box-shadow: 0 50px 140px rgba(0, 0, 0, 0.5);
+}
+
+/* Statement panels crossfade as the scrub progresses */
+.panel {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: clamp(16px, 3vh, 32px);
+  padding: clamp(16px, 4vw, 64px);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.45s ease;
+}
+.panelOn {
+  opacity: 1;
+  pointer-events: auto;
+}
+.panelRight {
+  align-items: flex-end;
+  text-align: right;
+}
+.panelRight .caps { max-width: 34ch; }
+
+.statement {
+  font-size: clamp(48px, 9.5vw, 190px);
+  color: var(--mustard);
+  max-width: 12ch;
+}
+.panelRight .statement {
+  max-width: 10ch;
+}
+
+/* Word-by-word illumination states */
+.dim {
+  color: var(--dim);
+  opacity: 0.4;
+  transition: none;
+}
+.lit {
+  color: var(--mustard);
+  opacity: 1;
+}
+
+/* Jungle-texture fill (reference: background-clip:text on "UNWRAP THE ADVENTURE") */
+.jungle {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cg fill='none' stroke='%233a5f2a' stroke-width='7' opacity='0.85'%3E%3Cpath d='M20 220 Q 60 140 30 60'/%3E%3Cpath d='M120 230 Q 150 150 120 40'/%3E%3Cpath d='M210 220 Q 180 130 215 50'/%3E%3C/g%3E%3Cg fill='%235a7d3a' opacity='0.7'%3E%3Cellipse cx='45' cy='120' rx='26' ry='12' transform='rotate(-40 45 120)'/%3E%3Cellipse cx='150' cy='90' rx='26' ry='12' transform='rotate(30 150 90)'/%3E%3Cellipse cx='195' cy='170' rx='24' ry='11' transform='rotate(-25 195 170)'/%3E%3C/g%3E%3C/svg%3E");
+  background-size: 240px;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+  filter: drop-shadow(0 2px 0 rgba(250, 174, 51, 0.9));
+}
+
+.badges {
+  display: flex;
+  gap: 14px;
+}
+
+.panel .caps {
+  color: var(--mustard);
+  max-width: 44ch;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .panel { transition: none; }
+}

@@ -1,59 +1,59 @@
 import Image from "next/image";
 import Link from "next/link";
-import { LANDING_COPY } from "@/lib/landing/landingCopy";
-import { Sticker } from "./TigerMotion";
+import { Marquee } from "./TigerMotion";
 import shared from "./shared.module.css";
 import styles from "./TigerHero.module.css";
 
-const copy = LANDING_COPY.fr.hero;
+const CLAIMS = [
+  "Sans application",
+  "FR + EN",
+  "3D / AR sélective",
+  "Fiches plats visuelles",
+  "Allergènes structurés",
+  "Photos premium"
+];
 
 export function TigerHero() {
   return (
-    <section id="hero" className={`${styles.hero} ${shared.dotPattern}`}>
-      {/* Tilted sticker labels — signature fly-in, 0.1s stagger */}
-      <Sticker className={`${shared.sticker} ${styles.sticker1}`} tilt="-7deg" delay={100}>
-        Sans application
-      </Sticker>
-      <Sticker className={`${shared.sticker} ${styles.sticker2}`} tilt="8deg" delay={200}>
-        Scan → carte
-      </Sticker>
-
-      <div className={styles.center}>
-        <p className={shared.eyebrow}>{copy.eyebrow}</p>
-        <h1 className={`${shared.giantTitle} ${styles.title}`}>
+    <section id="hero" className={`${styles.hero} ${shared.rustBg} ${shared.grain}`} aria-label="Introduction">
+      <div className={styles.top}>
+        <p className={`${shared.eyebrow} ${styles.eyebrow}`}>Carte digitale premium</p>
+        <h1 className={`${shared.giantTitle} ${styles.title}`} aria-label="Donnez envie">
           Donnez envie
-          <br />
-          avant la première
-          <br />
-          bouchée<span className={styles.dot}>.</span>
         </h1>
-
-        {/* Dish photo in front of the typography, for depth */}
-        <div className={styles.dish} aria-hidden="false">
+        <hr className={shared.dottedLine} aria-hidden="true" />
+        <p className={`${shared.giantTitle} ${styles.subtitle}`} aria-hidden="true">
+          Avant la première bouchée
+        </p>
+        <div className={styles.dishWrap} aria-hidden="true">
           <Image
             src="/images/demo/dishes/homard-bleu-bisque-fenouil.png"
-            alt="Homard dressé dans une assiette gastronomique"
-            fill
-            sizes="(max-width: 768px) 62vw, 34vw"
+            alt=""
+            width={880}
+            height={880}
             priority
-            style={{ objectFit: "cover" }}
+            className={styles.dish}
           />
         </div>
-
-        <hr className={styles.dots} aria-hidden="true" />
-        <p className={styles.kicker}>Votre menu, sublimé.</p>
       </div>
-
       <div className={styles.bottom}>
-        <p className={styles.body}>{copy.body}</p>
-        <div className={styles.ctas}>
-          <Link href="/prendre-rendez-vous" className={shared.pill}>
-            Prendre rendez-vous
-          </Link>
-          <a href="#experiences" className={shared.pillGhost}>
-            Découvrir les expériences
-          </a>
-        </div>
+        <p className={shared.caps}>
+          Vistaire transforme votre QR code en une carte mobile claire,
+          visuelle et fidèle à l&rsquo;identité de votre restaurant.
+        </p>
+        <Link href="/prendre-rendez-vous" className={shared.pill}>
+          Prendre rendez-vous
+        </Link>
+      </div>
+      <div className={styles.band}>
+        <Marquee duration="30s">
+          {CLAIMS.map((c) => (
+            <span key={c} className={styles.bandItem}>
+              {c}
+              <span className={styles.bandDot} aria-hidden="true">•</span>
+            </span>
+          ))}
+        </Marquee>
       </div>
     </section>
   );

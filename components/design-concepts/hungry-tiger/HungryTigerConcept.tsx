@@ -1,36 +1,37 @@
 import { TigerHeader } from "./TigerHeader";
 import { TigerHero } from "./TigerHero";
-import { TigerManifesto } from "./TigerManifesto";
+import { TigerPinned } from "./TigerPinned";
 import {
-  TigerDishes,
-  TigerExperiences,
-  TigerOwner,
-  TigerValue
+  TigerInside,
+  TigerManifesto,
+  TigerTradition,
+  TigerWhy,
+  TigerUnlock,
+  TigerCooking,
+  TigerNewsletter,
+  TigerFooter
 } from "./TigerSections";
-import { TigerFinalCta } from "./TigerFinalCta";
-import { TigerFooter } from "./TigerFooter";
 import { FloatingActions } from "./TigerMotion";
 import shared from "./shared.module.css";
 
-/**
- * Vistaire homepage concept in the eathungrytiger.com design language.
- * Warm saturated palette, monumental uppercase type, full-bleed
- * color-block chapters, tilted sticker labels, pill CTAs, grain.
- * French copy from LANDING_COPY.fr. Not indexed (robots noindex).
- */
+/* Composition mirroring eathungrytiger.com section order exactly:
+   header → hero → pinned statement sequence → what's-inside split →
+   manifesto split → tradition & creation → why the jar matters →
+   unlock CTA → cooking/experiences → newsletter CTA → footer. */
 export function HungryTigerConcept() {
   return (
-    <div className={shared.scope} lang="fr">
-      <div className={shared.grain} aria-hidden="true" />
+    <div className={shared.root}>
       <TigerHeader />
       <main>
         <TigerHero />
+        <TigerPinned />
+        <TigerInside />
         <TigerManifesto />
-        <TigerExperiences />
-        <TigerDishes />
-        <TigerValue />
-        <TigerOwner />
-        <TigerFinalCta />
+        <TigerTradition />
+        <TigerWhy />
+        <TigerUnlock />
+        <TigerCooking />
+        <TigerNewsletter />
       </main>
       <TigerFooter />
       <FloatingActions />
