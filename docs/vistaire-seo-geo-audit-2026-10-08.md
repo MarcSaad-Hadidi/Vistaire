@@ -157,6 +157,7 @@ Les lots spécialisés ont aussi exécuté leurs tests ciblés bilingues, SEO/JS
 ## Limites et suivi
 
 - **UNVERIFIED** : Google Search Console, Bing Webmaster/AI Performance, impressions, requêtes, clics, indexation réelle, citations, referrals IA, métriques privées Vercel et conversion. Aucun export ou accès de mesure fourni ; aucune métrique inventée.
+- **Blocage CI préexistant confirmé** : le contrôle `npm audit baseline` refuse l'advisory high `GHSA-68fv-2mgg-jv7q` de `source-map-js` 1.2.1. Même échec reproduit sur le checkout propre `cd91ec7` ; `package.json`, `package-lock.json` et `ci/npm-audit-baseline.json` sont identiques à la branche. L'advisory concerne un déni de service par offsets de sections de source maps ; sa portée exploitable dans Vistaire reste non établie. La version 1.2.2 est réellement disponible (`npm view source-map-js@1.2.2 version`). Suivi recommandé : mettre à jour cette dépendance transitive dans un correctif de dépendances dédié, vérifier compilation CSS/build/tests, puis actualiser le hash de lockfile du contrôle existant. Ne pas ajouter une exception pour cacher cette alerte. Aucun changement de dépendance ni de baseline sécurité dans ce chantier SEO.
 - **Bloqué par validation propriétaire** : politique de confidentialité et choix/paramètres de consentement, avec six catégories d'informations précises dans le document de travail. Pas de déclaration de conformité juridique.
 - Statut client effectif de Trouvable/Sauge Noire, profils sociaux officiels non configurés, adresse de rue et bureau local : pas d'affirmation ajoutée.
 - Les quatre tests de chaîne 3D dépendant d'OpenUSD/Pillow/Blender ne peuvent s'exécuter ici. Le code et les assets concernés ne changent pas.
@@ -170,6 +171,14 @@ Les lots spécialisés ont aussi exécuté leurs tests ciblés bilingues, SEO/JS
 Commits d'implémentation intégrés : `1fbd75e` (contenu SEO/GEO), `6245b2d` (marketing/confiance/contact), `62f047f` (fondations SEO), `0943329` (propagation des metadata sociales), `12630f0` (guides et avis simulés, document confidentialité). Le rapport est versionné séparément.
 
 Le diff de livraison constitue un seul chantier de découvrabilité commerciale. La PR doit rester brouillon et ne pas être mergée automatiquement. Aucun secret, nouveau gros asset, Git LFS, dépendance, fichier d'instructions modifié, script de debug, trace ou vidéo de test n'entre dans Git. Les résultats/captures utiles de QA sont conservés hors du dépôt ; les dossiers et scripts temporaires propres à la tâche sont retirés après les validations.
+
+### PR et preview effectivement contrôlées
+
+PR brouillon unique : [#288](https://github.com/MarcSaad-Hadidi/Vistaire/pull/288), base `main`, aucun auto-merge configuré. Première livraison `bb1d71bb18d4d43a0dbe0dfe556d5d6a1e0ed6d5` ; les compléments de rapport ne changent pas le code validé.
+
+Preview Vercel READY : `dpl_HfzAGR9URrF4Vn3Z82Y4g38VdzKo`, `https://vistaire-atjqoqdpy-capoships-projects.vercel.app`, SHA `bb1d71b`, environnement preview (`target: null`). Les huit pages `/`, `/en`, Tarifs, Montréal FR, Laval EN, Brossard FR, Démo et demande d'échange sont réellement interrogées via l'accès autorisé Vercel : 200, canonical www, `X-Robots-Tag: noindex`, nouvelles images et mention de démonstration sur Tarifs. Les deux URLs sociales répondent 200 `image/png`, Content-Length 663041/660944 identique aux fichiers locaux. Une requête anonyme à la homepage retourne 302 SSO et noindex. La protection des previews est conservée.
+
+Le déploiement **production** a été revérifié après le push : toujours `dpl_55QYvcJdmNfPBgxAwD6Yxv3Kmriy`, SHA `cd91ec7`, aucun changement de production. À l'observation des checks, Vercel, CodeQL, Asset policy, actionlint, zizmor, fast-gate, static-quality, database-contracts, build-app et les trois groupes E2E Chromium (public, Sauge et Admin/QR) sont verts ; WebKit est encore en cours. `npm audit baseline` reste rouge pour l'anomalie préexistante ci-dessus. L'état courant est consultable dans la PR ; le rapport ne transforme pas des checks en cours en succès.
 
 ### Inventaire des fichiers modifiés
 
