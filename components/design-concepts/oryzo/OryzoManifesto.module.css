@@ -1,0 +1,249 @@
+/* Pinned 300vh scrub section — the dish visual rotates in 3D (rotateX) while
+   side texts fade in staggered, all driven 1:1 by scroll (see useScrub). */
+
+.pin {
+  position: relative;
+  height: 300vh;
+  background: var(--orz-bg-deep);
+  border-top: 1px dotted var(--orz-line-strong);
+  border-bottom: 1px dotted var(--orz-line-strong);
+}
+
+.sticky {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  height: 100svh;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.stage {
+  width: 100%;
+  max-width: 80rem;
+  max-height: 100%;
+  padding: 4.75rem 1.25rem 1.5rem;
+  display: grid;
+  gap: 1rem;
+  align-content: center;
+  perspective: 1400px;
+}
+
+@media (min-width: 1024px) {
+  .stage {
+    gap: 1.25rem;
+    padding-top: 5.5rem;
+  }
+}
+
+/* Scrub targets start hidden; JS drives opacity/transform per frame. */
+.head,
+.body,
+.specRow {
+  opacity: 0;
+  will-change: opacity, transform;
+}
+
+.eyebrow {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.32em;
+  text-transform: uppercase;
+  color: var(--orz-orange);
+  margin: 0 0 0.6rem;
+}
+
+.title {
+  margin: 0;
+  font-size: clamp(1.7rem, 6vw, 4.25rem);
+  font-weight: 900;
+  line-height: 0.95;
+  letter-spacing: -0.02em;
+  text-transform: uppercase;
+  text-wrap: balance;
+}
+
+.body {
+  margin: 0;
+  font-size: clamp(0.85rem, 2.4vw, 1.05rem);
+  line-height: 1.55;
+  color: var(--orz-gray);
+  max-width: 34rem;
+}
+
+/* ---- 3D flip visual ---- */
+
+.visualZone {
+  display: flex;
+  justify-content: center;
+  padding: 0.25rem 0;
+}
+
+.flip {
+  position: relative;
+  width: min(360px, 62vw);
+  transform-style: preserve-3d;
+  will-change: transform;
+}
+
+@media (min-width: 1024px) {
+  .flip {
+    width: min(400px, 30vw);
+  }
+}
+
+.face {
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  margin: 0;
+}
+
+.front {
+  position: relative;
+  border: 2px dotted var(--orz-orange);
+  border-radius: 4px;
+  padding: 0.65rem;
+  background: rgba(30, 19, 12, 0.9);
+}
+
+.back {
+  position: absolute;
+  inset: 0;
+  transform: rotateX(180deg);
+  border: 2px dotted var(--orz-orange);
+  border-radius: 4px;
+  background: #140d08;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  padding: 1rem;
+  text-align: center;
+}
+
+.handle {
+  position: absolute;
+  width: 0.7rem;
+  height: 0.7rem;
+  background: var(--orz-orange);
+  border-radius: 2px;
+  z-index: 2;
+}
+
+.tl { top: -0.4rem; left: -0.4rem; }
+.tr { top: -0.4rem; right: -0.4rem; }
+.bl { bottom: -0.4rem; left: -0.4rem; }
+.br { bottom: -0.4rem; right: -0.4rem; }
+
+.frameMedia {
+  position: relative;
+  aspect-ratio: 4 / 5;
+  overflow: hidden;
+  border-radius: 2px;
+}
+
+.frameImg {
+  object-fit: cover;
+  object-position: center;
+}
+
+.caption {
+  padding: 0.8rem 0.25rem 0.25rem;
+  font-size: 0.68rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--orz-gray);
+}
+
+.backLabel {
+  margin: 0;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  color: var(--orz-orange);
+}
+
+.backSpec {
+  margin: 0;
+  font-size: 0.8rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  line-height: 1.9;
+  color: var(--orz-cream);
+}
+
+.backStamp {
+  margin: 0;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.2em;
+  color: var(--orz-orange);
+  border: 1px dotted var(--orz-orange);
+  border-radius: 999px;
+  padding: 0.4rem 0.9rem;
+}
+
+/* ---- spec list ---- */
+
+.specList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.4rem 1.25rem;
+  border-top: 1px dotted var(--orz-line-strong);
+  padding-top: 0.9rem;
+}
+
+@media (min-width: 1024px) {
+  .specList {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+.specRow {
+  display: flex;
+  align-items: baseline;
+  gap: 0.7rem;
+  padding: 0.35rem 0;
+}
+
+.specIndex {
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.18em;
+  color: var(--orz-orange);
+  flex-shrink: 0;
+}
+
+.specText {
+  font-size: clamp(0.78rem, 2.2vw, 0.95rem);
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.footnote {
+  margin: 0;
+  font-size: 0.66rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--orz-gray);
+}
+
+/* ---- reduced motion: static, fully visible ---- */
+
+.pin[data-scrub-reduced] .head,
+.pin[data-scrub-reduced] .body,
+.pin[data-scrub-reduced] .specRow {
+  opacity: 1;
+  transform: none;
+}
+
+.pin[data-scrub-reduced] .flip {
+  transform: none;
+}

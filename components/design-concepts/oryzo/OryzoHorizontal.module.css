@@ -1,0 +1,342 @@
+/* Pinned 350vh horizontal carousel — vertical scroll drives the track
+   horizontally (scrub 1:1), with a slower parallax wordmark behind and one
+   3D flip card. See useScrub + OryzoHorizontal. */
+
+.pin {
+  position: relative;
+  height: 350vh;
+  background: var(--orz-bg);
+  border-top: 1px dotted var(--orz-line-strong);
+  border-bottom: 1px dotted var(--orz-line-strong);
+  overflow: clip;
+}
+
+.sticky {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  height: 100svh;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+}
+
+.stage {
+  position: relative;
+  width: 100%;
+  display: grid;
+  gap: 1rem;
+  padding: 4.5rem 0 1.5rem;
+}
+
+/* Giant kinetic background wordmark — drifts slower than the track. */
+.bgText {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  transform: translate3d(15vw, -50%, 0);
+  white-space: nowrap;
+  font-size: clamp(6rem, 24vw, 22rem);
+  font-weight: 900;
+  letter-spacing: -0.02em;
+  line-height: 1;
+  color: transparent;
+  -webkit-text-stroke: 1px rgba(245, 238, 223, 0.13);
+  pointer-events: none;
+  user-select: none;
+  will-change: transform;
+}
+
+.head {
+  padding: 0 1.25rem;
+  max-width: 80rem;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.eyebrow {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.32em;
+  text-transform: uppercase;
+  color: var(--orz-orange);
+  margin: 0 0 0.6rem;
+}
+
+.title {
+  margin: 0;
+  font-size: clamp(1.8rem, 6vw, 3.5rem);
+  font-weight: 900;
+  line-height: 0.95;
+  letter-spacing: -0.02em;
+  text-transform: uppercase;
+}
+
+/* ---- track ---- */
+
+.viewport {
+  overflow: hidden;
+  width: 100%;
+}
+
+.track {
+  display: flex;
+  gap: clamp(1rem, 4vw, 3rem);
+  padding: 0 8vw;
+  width: max-content;
+  align-items: stretch;
+  will-change: transform;
+}
+
+.card {
+  --card-w: clamp(240px, 72vw, 380px);
+  flex: 0 0 auto;
+  width: var(--card-w);
+  border: 2px dotted var(--orz-line-strong);
+  border-radius: 4px;
+  background: rgba(20, 13, 8, 0.85);
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+}
+
+.cardIndex {
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.24em;
+  color: var(--orz-orange);
+}
+
+.cardMedia {
+  position: relative;
+  aspect-ratio: 4 / 3;
+  overflow: hidden;
+  border-radius: 2px;
+}
+
+.cardImg {
+  object-fit: cover;
+  object-position: center;
+}
+
+.cardBadge {
+  margin: 0;
+  font-size: 0.66rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--orz-gray);
+}
+
+.cardTitle {
+  margin: 0;
+  font-size: clamp(1.25rem, 4.5vw, 1.9rem);
+  font-weight: 900;
+  line-height: 1;
+  letter-spacing: -0.01em;
+  text-transform: uppercase;
+  text-wrap: balance;
+}
+
+.cardBody {
+  margin: 0;
+  font-size: 0.92rem;
+  line-height: 1.55;
+  color: var(--orz-gray);
+}
+
+.textLink {
+  margin-top: auto;
+  padding-top: 0.5rem;
+  font-size: 0.85rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--orz-cream);
+  text-decoration: underline dotted var(--orz-orange);
+  text-underline-offset: 4px;
+}
+
+/* intro / outro cards */
+
+.introCard {
+  justify-content: center;
+  border-style: dashed;
+}
+
+.introKicker {
+  margin: 0;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.3em;
+  color: var(--orz-orange);
+}
+
+.introFrame {
+  position: relative;
+  height: 4.5rem;
+  border: 1px dotted var(--orz-line-strong);
+  border-radius: 2px;
+  margin-top: 0.5rem;
+}
+
+.introHandle {
+  position: absolute;
+  width: 0.6rem;
+  height: 0.6rem;
+  background: var(--orz-orange);
+  border-radius: 2px;
+}
+
+.introHandle:nth-child(1) { top: -0.35rem; left: -0.35rem; }
+.introHandle:nth-child(2) { top: -0.35rem; right: -0.35rem; }
+.introHandle:nth-child(3) { bottom: -0.35rem; left: -0.35rem; }
+.introHandle:nth-child(4) { bottom: -0.35rem; right: -0.35rem; }
+
+.outroCard {
+  justify-content: center;
+  background: rgba(232, 100, 28, 0.08);
+  border-color: var(--orz-orange);
+}
+
+.pill {
+  display: inline-block;
+  align-self: flex-start;
+  margin-top: 0.5rem;
+  background: var(--orz-orange);
+  color: var(--orz-bg-deep);
+  font-size: 0.82rem;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  text-decoration: none;
+  border-radius: 999px;
+  padding: 0.85rem 1.6rem;
+}
+
+/* ---- flip card ---- */
+
+.flipSlot {
+  --card-w: clamp(240px, 72vw, 380px);
+  flex: 0 0 auto;
+  width: var(--card-w);
+  perspective: 1200px;
+}
+
+.flipInner {
+  position: relative;
+  height: 100%;
+  transform-style: preserve-3d;
+  will-change: transform;
+}
+
+.flipInner .face {
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  width: 100%;
+}
+
+.flipInner .front {
+  position: relative;
+}
+
+.flipInner .back {
+  position: absolute;
+  inset: 0;
+  transform: rotateY(180deg);
+  justify-content: center;
+  background: #140d08;
+  border-color: var(--orz-orange);
+}
+
+.backLabel {
+  margin: 0;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  color: var(--orz-orange);
+}
+
+.backSpec {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 0.55rem;
+  font-size: 0.72rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  line-height: 1.6;
+  color: var(--orz-cream);
+}
+
+.backStamp {
+  margin: 0;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.2em;
+  color: var(--orz-orange);
+  border: 1px dotted var(--orz-orange);
+  border-radius: 999px;
+  padding: 0.4rem 0.9rem;
+  align-self: flex-start;
+}
+
+/* ---- progress ---- */
+
+.progress {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0 1.25rem;
+  max-width: 80rem;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.counter {
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.24em;
+  color: var(--orz-cream);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.bar {
+  position: relative;
+  flex: 1;
+  border-top: 2px dotted var(--orz-line-strong);
+  height: 0;
+}
+
+.marker {
+  position: absolute;
+  top: -0.45rem;
+  width: 0.7rem;
+  height: 0.7rem;
+  background: var(--orz-orange);
+  border-radius: 2px;
+  transform: translateX(-50%);
+  will-change: left;
+}
+
+.hint {
+  font-size: 0.68rem;
+  letter-spacing: 0.24em;
+  color: var(--orz-gray);
+  white-space: nowrap;
+}
+
+/* ---- reduced motion: static, fully visible ---- */
+
+.pin[data-scrub-reduced] .track,
+.pin[data-scrub-reduced] .bgText,
+.pin[data-scrub-reduced] .flipInner {
+  transform: none;
+}
+
+.pin[data-scrub-reduced] .viewport {
+  overflow-x: auto;
+}

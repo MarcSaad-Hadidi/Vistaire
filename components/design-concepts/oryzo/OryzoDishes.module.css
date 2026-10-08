@@ -1,0 +1,138 @@
+.section {
+  padding: 4.5rem 0;
+  border-bottom: 1px dotted var(--orz-line-strong);
+}
+
+@media (min-width: 1024px) {
+  .section {
+    padding: 7rem 0;
+  }
+}
+
+.inner {
+  max-width: 80rem;
+  margin: 0 auto;
+  padding: 0 1.25rem;
+}
+
+.eyebrow {
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.32em;
+  text-transform: uppercase;
+  color: var(--orz-orange);
+  margin: 0 0 1rem;
+}
+
+.title {
+  margin: 0 0 1.25rem;
+  font-size: clamp(2.4rem, 7.5vw, 4.75rem);
+  font-weight: 900;
+  line-height: 0.95;
+  letter-spacing: -0.02em;
+  text-transform: uppercase;
+  text-wrap: balance;
+  max-width: 20ch;
+}
+
+.body {
+  margin: 0 0 3rem;
+  font-size: 1.05rem;
+  line-height: 1.6;
+  color: var(--orz-gray);
+  max-width: 34rem;
+}
+
+.cards {
+  display: grid;
+  gap: 2.75rem;
+}
+
+@media (min-width: 768px) {
+  .cards {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1.75rem;
+  }
+}
+
+.card {
+  min-width: 0;
+}
+
+.frame {
+  position: relative;
+  border: 2px dotted var(--orz-orange);
+  border-radius: 4px;
+  padding: 0.6rem;
+  background: rgba(10, 9, 8, 0.45);
+  transition: border-color 250ms ease;
+}
+
+.card:hover .frame {
+  border-color: var(--orz-cream);
+}
+
+.handle {
+  position: absolute;
+  width: 0.65rem;
+  height: 0.65rem;
+  background: var(--orz-orange);
+  border-radius: 2px;
+  z-index: 2;
+  transition: background 250ms ease;
+}
+
+.card:hover .handle {
+  background: var(--orz-cream);
+}
+
+.tl { top: -0.38rem; left: -0.38rem; }
+.tr { top: -0.38rem; right: -0.38rem; }
+.bl { bottom: -0.38rem; left: -0.38rem; }
+.br { bottom: -0.38rem; right: -0.38rem; }
+
+.media {
+  position: relative;
+  aspect-ratio: 1 / 1;
+  overflow: hidden;
+  border-radius: 2px;
+}
+
+.img {
+  object-fit: cover;
+  object-position: center;
+  transition: transform 500ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.card:hover .img {
+  transform: scale(1.04);
+}
+
+.specimen {
+  margin: 1rem 0 0.6rem;
+  font-size: 0.72rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--orz-gray);
+}
+
+.cardTitle {
+  margin: 0 0 0.5rem;
+  font-size: 1.25rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.cardBody {
+  margin: 0;
+  font-size: 0.95rem;
+  line-height: 1.6;
+  color: var(--orz-gray);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .img {
+    transition: none;
+  }
+}

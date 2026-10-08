@@ -1,0 +1,111 @@
+.footer {
+  background: var(--orz-bg-deep);
+  padding: 4rem 0 2rem;
+  overflow: clip;
+}
+
+.inner {
+  max-width: 80rem;
+  margin: 0 auto;
+  padding: 0 1.25rem;
+}
+
+.cols {
+  display: grid;
+  gap: 2.5rem;
+  margin-bottom: 3.5rem;
+}
+
+@media (min-width: 768px) {
+  .cols {
+    grid-template-columns: 1.4fr 1fr 1fr;
+  }
+}
+
+.col {
+  min-width: 0;
+}
+
+.wordmark {
+  margin: 0 0 1rem;
+  font-weight: 900;
+  letter-spacing: 0.14em;
+  font-size: 1.15rem;
+}
+
+.baseline {
+  margin: 0;
+  font-size: 0.95rem;
+  line-height: 1.6;
+  color: var(--orz-gray);
+  max-width: 24rem;
+}
+
+.colTitle {
+  margin: 0 0 1rem;
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  color: var(--orz-orange);
+}
+
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.7rem;
+}
+
+.link {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--orz-cream);
+  text-decoration: none;
+  opacity: 0.85;
+  transition:
+    opacity 200ms ease,
+    color 200ms ease;
+}
+
+.link:hover,
+.link:focus-visible {
+  opacity: 1;
+  color: var(--orz-orange);
+}
+
+.plain {
+  font-size: 0.9rem;
+  color: var(--orz-gray);
+}
+
+.giant {
+  margin: 0;
+  font-weight: 900;
+  font-size: clamp(3.5rem, 17vw, 15rem);
+  line-height: 0.85;
+  letter-spacing: -0.03em;
+  text-align: center;
+  color: transparent;
+  -webkit-text-stroke: 1px var(--orz-line-strong);
+  user-select: none;
+}
+
+.bottomBar {
+  margin-top: 2.5rem;
+  padding-top: 1.5rem;
+  border-top: 1px dotted var(--orz-line-strong);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 2rem;
+  justify-content: space-between;
+}
+
+.bottomBar p {
+  margin: 0;
+  font-size: 0.72rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--orz-gray);
+}
