@@ -1,0 +1,41 @@
+.marquee {
+  background: var(--mq-dark);
+  border-top: 1px solid var(--mq-line-on-dark);
+  border-bottom: 1px solid var(--mq-line-on-dark);
+  overflow: hidden;
+  padding: 34px 0;
+}
+
+.track {
+  display: flex;
+  width: max-content;
+  animation: mqMarquee 80s linear infinite;
+}
+
+.item {
+  display: inline-flex;
+  align-items: center;
+  font-size: 15px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.42);
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.dot {
+  margin: 0 34px;
+  color: rgba(255, 255, 255, 0.22);
+}
+
+@keyframes mqMarquee {
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .track {
+    animation: none;
+  }
+}

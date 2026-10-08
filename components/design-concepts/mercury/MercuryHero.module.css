@@ -1,0 +1,147 @@
+.hero {
+  position: relative;
+  min-height: 100svh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: clip;
+  /* Named view timeline so the disclaimer pill can scrub against hero scroll. */
+  view-timeline-name: --mq-hero;
+  view-timeline-axis: block;
+}
+
+.media {
+  position: absolute;
+  inset: 0;
+}
+
+.shade {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(180deg, rgba(10, 10, 18, 0.42) 0%, rgba(10, 10, 18, 0.18) 38%, rgba(10, 10, 18, 0.66) 100%),
+    radial-gradient(120% 90% at 50% 10%, transparent 40%, rgba(10, 10, 18, 0.5) 100%);
+}
+
+.content {
+  position: relative;
+  z-index: 1;
+  max-width: 1020px;
+  padding: 120px 32px 120px;
+  text-align: center;
+}
+
+.eyebrow {
+  color: rgba(255, 255, 255, 0.72);
+  margin: 0 0 28px;
+}
+
+.title {
+  margin: 0;
+  font-size: clamp(44px, 7.2vw, 104px);
+  line-height: 1.04;
+  letter-spacing: -0.015em;
+  text-wrap: balance;
+}
+
+.body {
+  margin: 28px auto 0;
+  max-width: 640px;
+  font-size: clamp(17px, 2vw, 21px);
+  line-height: 1.55;
+  color: rgba(255, 255, 255, 0.82);
+}
+
+.actions {
+  margin-top: 40px;
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+/* Disclaimer pill: pinned at hero bottom, scrubbed by scroll. */
+.pill {
+  position: absolute;
+  left: 50%;
+  bottom: 36px;
+  z-index: 1;
+  transform: translateX(-50%);
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  background: rgba(16, 16, 24, 0.55);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 999px;
+  padding: 10px 20px;
+  white-space: nowrap;
+}
+
+.pillText {
+  font-size: 12.5px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.78);
+  font-weight: 500;
+}
+
+.pillDivider {
+  width: 1px;
+  height: 16px;
+  background: rgba(255, 255, 255, 0.35);
+}
+
+/* CSS scroll-driven path: pill sinks 0 -> 100% and divider fades 1 -> 0
+   while the hero scrolls through exit 50% -> exit 100%. Linear, reversible. */
+@supports (animation-timeline: scroll()) {
+  .pill {
+    animation: mqPillSink linear both;
+    animation-timeline: --mq-hero;
+    animation-range: exit 50% exit 100%;
+  }
+
+  .pillDivider {
+    animation: mqDividerFade linear both;
+    animation-timeline: --mq-hero;
+    animation-range: exit 50% exit 100%;
+  }
+}
+
+@keyframes mqPillSink {
+  from {
+    transform: translateX(-50%) translateY(0);
+  }
+  to {
+    transform: translateX(-50%) translateY(100%);
+  }
+}
+
+@keyframes mqDividerFade {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+@media (max-width: 640px) {
+  .content {
+    padding: 110px 20px 130px;
+  }
+
+  .pill {
+    bottom: 28px;
+    padding: 9px 16px;
+    gap: 10px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pill,
+  .pillDivider {
+    animation: none;
+  }
+}

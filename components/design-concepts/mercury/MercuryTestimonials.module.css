@@ -1,0 +1,158 @@
+.section {
+  background: var(--mq-dark);
+  color: #fff;
+  padding: 140px 0;
+}
+
+.inner {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 0 32px;
+}
+
+.eyebrow {
+  color: var(--mq-muted-on-dark);
+  margin: 0 0 20px;
+}
+
+.title {
+  margin: 0;
+  font-size: clamp(36px, 4.6vw, 68px);
+  line-height: 1.08;
+  letter-spacing: -0.015em;
+  text-wrap: balance;
+}
+
+.tabs {
+  margin-top: 56px;
+  display: flex;
+  gap: 12px;
+}
+
+/* Progress-bar tabs: active white, inactive dimmed. */
+.tab {
+  flex: 1;
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  font-family: inherit;
+  text-align: left;
+  position: relative;
+  padding-top: 14px;
+}
+
+.tab::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.18);
+  transition: background-color 0.3s ease-out;
+}
+
+.tabActive::before {
+  background: #fff;
+}
+
+.tabLabel {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.45);
+  transition: color 0.3s ease-out;
+}
+
+.tabActive .tabLabel {
+  color: #fff;
+}
+
+/* Crossfade on manual switch: 400ms fade + slight rise. */
+.panel {
+  margin-top: 48px;
+  display: grid;
+  grid-template-columns: 5fr 6fr;
+  gap: 64px;
+  align-items: center;
+  animation: mqCrossfade 0.4s ease-out;
+}
+
+@keyframes mqCrossfade {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.photo {
+  position: relative;
+  aspect-ratio: 4 / 3.4;
+  border-radius: 24px;
+  overflow: hidden;
+  background: var(--mq-dark-2);
+}
+
+.quote {
+  margin: 0;
+  font-size: clamp(26px, 3vw, 40px);
+  line-height: 1.3;
+  letter-spacing: -0.01em;
+  text-wrap: balance;
+}
+
+.author {
+  margin: 28px 0 0;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.role {
+  font-weight: 400;
+  color: var(--mq-muted-on-dark);
+}
+
+.disclaimer {
+  margin: 10px 0 0;
+  font-size: 12.5px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.38);
+}
+
+@media (max-width: 900px) {
+  .section {
+    padding: 96px 0;
+  }
+
+  .inner {
+    padding: 0 20px;
+  }
+
+  .panel {
+    grid-template-columns: 1fr;
+    gap: 32px;
+  }
+
+  .tabs {
+    margin-top: 40px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .panel {
+    animation: none;
+  }
+
+  .tab::before,
+  .tabLabel {
+    transition: none;
+  }
+}
