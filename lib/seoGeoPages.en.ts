@@ -21,28 +21,28 @@ const coreLinksEn = {
 
 const defaultIncludedEn = [
   {
-    title: "QR code",
-    text: "A simple table access point that opens the menu without forcing guests to install an app."
+    title: "Personalized QR displays",
+    text: "Up to 20 physical QR displays from your chosen collection, giving guests access to the menu from their table."
   },
   {
-    title: "Mobile menu",
-    text: "Categories, prices and descriptions designed for quick reading on a phone during service."
+    title: "Custom mobile menu",
+    text: "A menu that reflects your restaurant, available in French and English through the browser, with no app to install."
   },
   {
     title: "Dish pages",
-    text: "Short pages for dishes that need a photo, concise story, allergens, options or pairing details."
+    text: "Prices, descriptions, photos and allergen information supplied by your restaurant, gathered around each dish."
   },
   {
-    title: "Photos and fallback",
-    text: "Validated visuals with a clean presentation even when a 3D asset is not available."
+    title: "On-site dish photography",
+    text: "Vistaire photographs dishes at your restaurant during setup so the menu presents your own food."
   },
   {
-    title: "Allergens",
-    text: "Useful information placed near the dish, while keeping the dining room team central."
+    title: "Up to 5 dishes in 3D",
+    text: "Dishes selected with you for 3D viewing, with augmented reality available where the dish and device support it."
   },
   {
-    title: "Selective 3D/AR",
-    text: "An immersive layer only for compatible dishes where volume helps the guest understand the plate."
+    title: "Guided setup and support",
+    text: "Vistaire handles preparation and launch with you. Hosting and maintenance are included in the service."
   }
 ] as const;
 
@@ -65,9 +65,9 @@ function faqEn(
         "No. Vistaire opens in the mobile browser after a QR scan, so the guest can read the menu without downloading anything."
     },
     {
-      question: "Does Vistaire load 3D or AR immediately?",
+      question: "Is augmented reality available for every dish?",
       answer:
-        "No. 3D and AR stay selective and open only after the guest actively opens a compatible dish page."
+        "AR is available for selected dishes and depends on the device and browser. Guests can still read the photos, prices and descriptions when AR is unavailable."
     },
     {
       question: "Can the restaurant keep a printed menu?",
@@ -115,7 +115,7 @@ const SEO_GEO_PAGE_DRAFTS_EN: SeoGeoPageDraft[] = [
       heading: "What the guest sees after the scan",
       body:
         "The scan opens a Vistaire menu, not a document. Guests can browse categories, open dish pages, read allergens, compare prices and discover available immersive content without leaving the browser.",
-      points: ["print-ready QR", "mobile menu", "dish pages", "photo fallback"]
+      points: ["personalized QR displays", "mobile menu", "dish pages", "dish photos"]
     },
     comparison: {
       heading: "QR to PDF or QR to Vistaire?",
@@ -196,7 +196,7 @@ const SEO_GEO_PAGE_DRAFTS_EN: SeoGeoPageDraft[] = [
     productProof: {
       heading: "A menu that opens in the browser",
       body:
-        "Vistaire is designed as a mobile-first web experience. The guest scans the code, opens the menu, reads the dish page and moves back to the table conversation without app friction.",
+        "Guests scan the code, browse the menu and open dish details in the browser. They can find the information they need and return to the conversation at the table without installing an app.",
       points: ["browser-based", "fast scan", "dish details", "no app install"]
     },
     comparison: {
@@ -230,7 +230,7 @@ const SEO_GEO_PAGE_DRAFTS_EN: SeoGeoPageDraft[] = [
       "Can guests use Vistaire without an app?",
       "Yes. Vistaire opens in the mobile browser after a QR scan.",
       "Does a no-app menu still feel premium?",
-      "Yes, if the page is designed for mobile reading, food-first visuals and a calm restaurant experience."
+      "Yes. A custom design, photographs of your own dishes and clear mobile reading can carry your restaurant’s identity without an app download."
     ),
     service: {
       name: "Vistaire no-app digital menu",
@@ -278,7 +278,7 @@ const SEO_GEO_PAGE_DRAFTS_EN: SeoGeoPageDraft[] = [
     productProof: {
       heading: "From static document to mobile experience",
       body:
-        "Vistaire keeps the useful menu content and rebuilds the presentation around the guest's phone: categories, dish pages, photo fallback and selective immersive moments.",
+        "Vistaire starts with your existing menu, organizes the categories and prepares the dish pages. On-site photography, custom QR displays and your approval of the layouts are part of the guided setup.",
       points: ["PDF replacement", "mobile hierarchy", "photos", "allergens"]
     },
     comparison: {
@@ -344,7 +344,7 @@ const SEO_GEO_PAGE_DRAFTS_EN: SeoGeoPageDraft[] = [
     h1: "A premium alternative to the restaurant PDF menu.",
     eyebrow: "PDF alternative",
     directAnswer:
-      "A restaurant PDF menu alternative should do more than open a file through a QR code. Vistaire creates a mobile-first menu experience with clear categories, dish pages, readable prices, allergens, food visuals and selective 3D/AR, while keeping the restaurant atmosphere more central than a generic utility interface.",
+      "Vistaire is a guided alternative to a restaurant PDF menu. We create a custom mobile menu with readable categories, dish pages, photos, prices and allergen information, then pair it with physical QR displays. Guests browse the menu in their phone’s browser, while your team approves the presentation before launch.",
     context: {
       heading: "What makes a real PDF alternative?",
       body: [
@@ -352,7 +352,7 @@ const SEO_GEO_PAGE_DRAFTS_EN: SeoGeoPageDraft[] = [
         "For premium restaurants, it should also protect the tone of the room, the food photography and the way signature dishes are introduced."
       ],
       points: [
-        "mobile-first structure",
+        "categories designed for phone screens",
         "dish pages with useful details",
         "visual presentation that feels restaurant-led"
       ]
@@ -361,7 +361,7 @@ const SEO_GEO_PAGE_DRAFTS_EN: SeoGeoPageDraft[] = [
       heading: "A dedicated menu experience",
       body:
         "Vistaire replaces the PDF moment with a browsable menu that gives each dish the right amount of context, image and information without turning the meal into software.",
-      points: ["mobile-first", "visual dish pages", "allergens", "premium tone"]
+      points: ["comfortable mobile reading", "visual dish pages", "allergens", "custom design"]
     },
     comparison: {
       heading: "PDF file or dedicated menu experience?",
@@ -376,7 +376,7 @@ const SEO_GEO_PAGE_DRAFTS_EN: SeoGeoPageDraft[] = [
         {
           label: "Visuals",
           basic: "Images are limited or disconnected.",
-          vistaire: "Food-first visuals support the dish."
+          vistaire: "Photos of your food accompany the dish details."
         },
         {
           label: "Tone",
@@ -508,7 +508,7 @@ const SEO_GEO_PAGE_DRAFTS_EN: SeoGeoPageDraft[] = [
     h1: "Restaurant menu photos that support the dish, not the clutter.",
     eyebrow: "Menu photos",
     directAnswer:
-      "A restaurant menu with photos works best when visuals are used intentionally, not as decoration on every line. Vistaire places food photos inside a mobile hierarchy with dish pages, prices, allergens and short descriptions, so the image supports the guest's choice while the menu still feels calm and premium.",
+      "Restaurant menu photos help guests picture a dish before choosing. Vistaire photographs the food at your restaurant during setup and presents the images alongside prices, descriptions and allergen information. The custom mobile menu keeps the focus on your cuisine, with clear categories and dish details that are easy to browse at the table.",
     context: {
       heading: "How to use photos without cheapening the menu",
       body: [
@@ -516,16 +516,16 @@ const SEO_GEO_PAGE_DRAFTS_EN: SeoGeoPageDraft[] = [
         "Vistaire uses visuals where they help: signatures, dishes with texture, desserts, cocktails and items that need more explanation."
       ],
       points: [
-        "food-first visuals",
+        "photographs of your own dishes",
         "photos inside dish pages",
-        "fallback when 3D is not validated"
+        "photos and details accessible without 3D"
       ]
     },
     productProof: {
       heading: "Photos placed inside a premium menu",
       body:
-        "Vistaire treats photos as part of the menu system: they support the dish page, sit near useful details and keep the rest of the menu readable.",
-      points: ["dish photography", "mobile layout", "premium restraint", "fallback"]
+        "On-site dish photography is part of the Vistaire setup. We prepare the selection with you and use the photos to present the food you serve. Existing restaurant photos can also be reviewed together and used to complement the menu.",
+      points: ["on-site photography", "your own dishes", "signature dishes", "custom presentation"]
     },
     comparison: {
       heading: "Photo-heavy menu or curated visual menu?",
@@ -540,7 +540,7 @@ const SEO_GEO_PAGE_DRAFTS_EN: SeoGeoPageDraft[] = [
         {
           label: "Quality",
           basic: "Uneven photos can weaken the brand.",
-          vistaire: "Photos are integrated with fallback logic."
+          vistaire: "Photos are reviewed with you for a consistent presentation."
         },
         {
           label: "Reading",
@@ -557,14 +557,14 @@ const SEO_GEO_PAGE_DRAFTS_EN: SeoGeoPageDraft[] = [
     faq: faqEn(
       "Should a restaurant digital menu include photos?",
       "Often yes, when photos are good and used to support dish choice rather than fill space.",
-      "Do all dishes need photos?",
-      "No. A curated set of strong visuals is usually better than forcing every dish into the same treatment."
+      "Who takes the photos for the menu?",
+      "Vistaire photographs the dishes on site as part of setup. We prepare the selection with you and review the images before the menu goes live."
     ),
     service: {
       name: "Vistaire menu photos",
       serviceType: "Restaurant digital menu with photos",
       description:
-        "Premium digital menu using food photos, dish pages and fallback logic for restaurant presentation."
+        "On-site dish photography and a custom mobile menu with dish pages, prices, descriptions and allergen information."
     },
     primaryCta: coreLinksEn.meeting,
     secondaryCta: coreLinksEn.sampleMenu,
@@ -586,7 +586,7 @@ const SEO_GEO_PAGE_DRAFTS_EN: SeoGeoPageDraft[] = [
     ],
     metadataTitle: "Restaurant menu allergens | Vistaire",
     metadataDescription:
-      "Present restaurant menu allergens in a premium digital menu with dish pages, clear information, prices, photos and staff-friendly caveats.",
+      "Keep allergen information close to each dish in a custom restaurant menu, alongside photos, prices and descriptions validated by your team.",
     h1: "Restaurant allergen information inside the dish page.",
     eyebrow: "Allergens",
     directAnswer:
@@ -599,15 +599,15 @@ const SEO_GEO_PAGE_DRAFTS_EN: SeoGeoPageDraft[] = [
       ],
       points: [
         "allergens near the item",
-        "clear caveat for staff confirmation",
+        "restaurant-validated information",
         "not a replacement for hospitality"
       ]
     },
     productProof: {
-      heading: "Useful information without overpromising",
+      heading: "Information supplied and reviewed by your restaurant",
       body:
-        "Vistaire can display allergen and option information in a clean mobile hierarchy, while avoiding medical or legal claims the menu cannot guarantee alone.",
-      points: ["allergens", "options", "staff caveat", "clear hierarchy"]
+        "Vistaire prepares the dish pages using the composition and allergen information your restaurant supplies. Your team validates the content and reports recipe changes so the menu can be updated. Guests should confirm sensitive dietary needs with staff.",
+      points: ["allergens", "dish options", "restaurant validation", "clear presentation"]
     },
     comparison: {
       heading: "Static allergen notes or dish-level information?",
@@ -668,72 +668,103 @@ const SEO_GEO_PAGE_DRAFTS_EN: SeoGeoPageDraft[] = [
     ],
     metadataTitle: "Digital restaurant menu Montreal | Vistaire",
     metadataDescription:
-      "Vistaire creates premium digital restaurant menus in Montreal with QR access, dish pages, photos, allergens and selective 3D/AR.",
+      "Vistaire creates custom digital menus for Montreal restaurants with French and English content, on-site dish photography, physical QR displays and guided setup.",
     h1: "A premium digital menu for Montreal restaurants.",
     eyebrow: "Montreal",
     directAnswer:
-      "A digital restaurant menu in Montreal should match the dining room as much as it improves mobile reading. Vistaire serves Montreal restaurants with QR access, premium mobile structure, dish pages, photos, allergens and selective 3D/AR, without claiming a physical office, reviews or local awards that have not been verified.",
+      "Vistaire helps Montreal restaurants create a premium digital menu with a guided setup. French and English content, photographs of your food and personalized QR displays carry your restaurant’s identity from the table to the phone. Guests browse in their browser without an app download, with 3D viewing available for selected dishes.",
     context: {
-      heading: "Why Montreal restaurants need more than a PDF",
+      heading: "Welcome regulars and visitors to your cuisine",
       body: [
-        "Montreal guests often discover menus on their phones before or during service. A static PDF can feel weaker than the room itself.",
-        "Vistaire keeps the experience mobile-first while preserving the warm, food-led tone expected from premium restaurants."
+        "For your independent restaurant, bistro or fine dining room in Montreal, the menu is part of the welcome. Clear French and English descriptions, readable prices and photographs of your dishes help guests explore the food comfortably.",
+        "Vistaire prepares that presentation with you. We work from your existing menu, photograph dishes on site and create layouts for the mobile menu and physical QR displays. Your restaurant approves the layouts before final production."
       ],
       points: [
-        "service area: Montreal, Quebec and Canada",
-        "no false local office claim",
-        "built for premium mobile reading"
+        "French and English content for your menu",
+        "signature dishes with photos and useful details",
+        "physical QR displays chosen for your dining room"
       ]
     },
     productProof: {
-      heading: "A mobile menu aligned with the room",
+      heading: "A guided launch, from photographs to the live menu",
       body:
-        "Vistaire helps Montreal restaurants replace PDF or basic QR menus with a calmer, more visual experience built around dishes, prices and useful information.",
-      points: ["Montreal", "QR menu", "dish pages", "selective 3D"]
+        "We prepare the content and layouts, then finalize the menu and produce the QR displays after your approval. Hosting and maintenance are included. Explore the Maison Élyse, Trouvable and Sauge Noire demonstrations to see different menu styles before discussing your own project.",
+      points: ["on-site photography", "layout approval", "personalized displays", "guided launch"]
     },
     comparison: {
-      heading: "Basic QR menu or Vistaire in Montreal?",
-      basicLabel: "Basic QR",
+      heading: "A PDF menu or a menu designed for phones?",
+      basicLabel: "PDF menu",
       vistaireLabel: "Vistaire",
       rows: [
         {
-          label: "Mobile reading",
-          basic: "The guest may open a generic list or PDF.",
-          vistaire: "The menu is structured for the table."
+          label: "Language",
+          basic: "Multiple languages can make the document dense.",
+          vistaire: "Guests choose French or English and browse the categories."
         },
         {
-          label: "Food image",
-          basic: "Dishes can feel secondary.",
-          vistaire: "Dish pages make the cuisine visible."
+          label: "Signature dishes",
+          basic: "The layout limits space for photos and details.",
+          vistaire: "Each dish page brings together a photo, price, description and declared allergens."
         },
         {
-          label: "Local claim",
-          basic: "Copy may overstate presence.",
-          vistaire: "The page states service area without invented proof."
+          label: "Setup",
+          basic: "Your team prepares and republishes the document.",
+          vistaire: "Vistaire prepares the photography, menu and QR displays with you."
         }
       ]
     },
     included: [...defaultIncludedEn],
     visualImage: {
       src: "/images/demo/dishes/pave-boeuf-mature-bordelaise.png",
-      alt: "Digital restaurant menu for a premium Montreal dining room"
+      alt: "Signature dish shown in a Vistaire demonstration menu"
     },
-    faq: faqEn(
-      "Is Vistaire available for Montreal restaurants?",
-      "Yes. Vistaire serves restaurants in Montreal, Quebec and Canada.",
-      "Does Vistaire claim local reviews or awards?",
-      "No. The page avoids unverified local claims, reviews, awards or client references."
-    ),
+    faq: [
+      {
+        question: "Is Vistaire available for Montreal restaurants?",
+        answer:
+          "Yes. Vistaire creates personalized digital menus and physical QR displays for Montreal restaurants. An initial conversation helps define your menu, your dining room and the setup process."
+      },
+      {
+        question: "Do we have to build the menu ourselves?",
+        answer:
+          "Setup is guided. Vistaire photographs dishes on site and prepares the menu content and layouts for both the digital menu and QR displays. Your restaurant supplies the current menu and approves the key elements before final production."
+      },
+      {
+        question: "Can the menu be in French and English?",
+        answer:
+          "Yes. We prepare the content with you so dish names, descriptions, prices and useful information stay consistent in both languages. Guests choose the language when browsing the menu."
+      },
+      {
+        question: "Is Vistaire suitable for fine dining in Montreal?",
+        answer:
+          "Yes. Photographs of your creations, concise dish descriptions and personalized displays support a careful presentation while keeping your dining-room team at the centre of service."
+      },
+      {
+        question: "Is 3D or augmented reality available for every dish?",
+        answer:
+          "The offer includes up to five 3D dishes selected with you. AR availability depends on the dish, device and browser. Guests can still consult photos and menu information when AR is unavailable."
+      },
+      {
+        question: "How much does a Vistaire menu cost?",
+        answer:
+          "Setup starts at $2,000 CAD depending on the QR display collection, followed by a $200 CAD monthly subscription, plus taxes. The initial commitment is 12 months and setup is payable before the project begins. The pricing page lists collections, options and terms."
+      }
+    ],
     service: {
       name: "Vistaire digital menu Montreal",
       serviceType: "Premium digital restaurant menu in Montreal",
       description:
-        "QR-accessible premium mobile menu for Montreal restaurants with dish pages and selective immersion."
+        "Guided creation of personalized digital menus for Montreal restaurants with French and English content, on-site dish photography and physical QR displays."
     },
     areaServed: ["Montreal", "Quebec", "Canada"],
     primaryCta: coreLinksEn.meeting,
     secondaryCta: coreLinksEn.sampleMenu,
-    relatedLinks: links(coreLinksEn.digital, coreLinksEn.qr, coreLinksEn.pricing)
+    relatedLinks: links(
+      { href: "/en/digital-restaurant-menu-laval", label: "Digital menus in Laval" },
+      { href: "/en/digital-restaurant-menu-brossard", label: "Digital menus in Brossard" },
+      coreLinksEn.digital,
+      coreLinksEn.pricing
+    )
   },
   {
     locale: "en",
@@ -751,28 +782,28 @@ const SEO_GEO_PAGE_DRAFTS_EN: SeoGeoPageDraft[] = [
     ],
     metadataTitle: "Digital restaurant menu Laval | Vistaire",
     metadataDescription:
-      "Premium digital restaurant menu for Laval restaurants: QR access, mobile dish pages, photos, allergens and selective 3D/AR.",
+      "Replace your Laval restaurant’s PDF with a custom mobile menu, on-site dish photography and premium physical QR displays, prepared with Vistaire.",
     h1: "A premium digital menu for Laval restaurants.",
     eyebrow: "Laval",
     directAnswer:
-      "A digital restaurant menu for Laval should make QR access feel premium instead of basic. Vistaire supports restaurants in Laval, Quebec and Canada with mobile-first categories, dish pages, readable prices, allergens, photos and selective 3D/AR, while avoiding unsupported claims about offices, reviews or local clients.",
+      "Vistaire turns your Laval restaurant’s existing menu into a custom mobile experience accessed by QR code. We prepare the photos, dish pages and physical displays with your team. Whether you welcome families, groups or regulars, guests can browse the categories, read prices and find useful dish details on their own phones.",
     context: {
-      heading: "A better QR menu for Laval dining rooms",
+      heading: "Move from a PDF to a menu guests can browse comfortably",
       body: [
-        "A QR code can feel practical, but the page that opens determines whether the experience feels premium.",
-        "Vistaire focuses on readable mobile structure, food-led visuals and useful dish information that respects the rhythm of service."
+        "If your restaurant in Laval already uses a PDF, we start with that menu to organize categories, dishes and descriptions for the phone. Guests can browse at their own pace and open the details they want without searching through a document they have to zoom.",
+        "For family meals or group tables, photographs and dish details give guests practical reference points. Allergen information supplied by your restaurant stays close to the dish, while staff confirm sensitive dietary needs."
       ],
       points: [
-        "service area language",
-        "no invented local proof",
-        "premium mobile presentation"
+        "your current menu as the starting point",
+        "clear categories and readable prices",
+        "photos and information gathered around each dish"
       ]
     },
     productProof: {
-      heading: "From QR access to a real menu",
+      heading: "Prepare the transition with your team",
       body:
-        "Vistaire gives Laval restaurants a mobile menu that feels closer to the dining room than to a generic PDF or list.",
-      points: ["Laval", "mobile QR menu", "dish pages", "photos"]
+        "Vistaire photographs dishes on site and prepares layouts for your approval before production. QR displays are personalized within your chosen collection. Your menu can be offered in French and English, and you can keep a printed menu to suit your service style.",
+      points: ["existing menu", "on-site photos", "layout approval", "bilingual menu"]
     },
     comparison: {
       heading: "Generic QR or premium mobile menu?",
@@ -790,33 +821,69 @@ const SEO_GEO_PAGE_DRAFTS_EN: SeoGeoPageDraft[] = [
           vistaire: "The dish page gathers image, price and details."
         },
         {
-          label: "Local accuracy",
-          basic: "Claims can become vague or inflated.",
-          vistaire: "The page stays precise about service area."
+          label: "Preparation",
+          basic: "Your team designs and maintains the QR destination.",
+          vistaire: "Vistaire prepares the menu, photography and displays with your team."
         }
       ]
     },
     included: [...defaultIncludedEn],
     visualImage: {
       src: "/images/demo/dishes/canette-rotie-figues-epices.png",
-      alt: "Digital restaurant menu for a premium Laval restaurant"
+      alt: "Roast duck dish shown in a Vistaire demonstration menu"
     },
-    faq: faqEn(
-      "Is Vistaire available for Laval restaurants?",
-      "Yes. Vistaire supports Laval restaurants as part of its Quebec and Canada service area.",
-      "Can Laval restaurants keep a printed menu?",
-      "Yes. Vistaire can complement printed menus or replace the guest-facing PDF QR experience."
-    ),
+    faq: [
+      {
+        question: "Is Vistaire available for Laval restaurants?",
+        answer:
+          "Yes. We discuss your current menu, displays and content needs with you before defining the setup for your restaurant in Laval."
+      },
+      {
+        question: "Can guests at a group table browse independently?",
+        answer:
+          "Each guest can open the menu on their phone, browse the categories and view photos or dish details. No guest account or app download is required."
+      },
+      {
+        question: "Can we keep our PDF or printed menu?",
+        answer:
+          "Yes. Keep your PDF for archiving or printing if useful. The QR code opens the Vistaire mobile menu, and a printed menu can remain available to suit your service."
+      },
+      {
+        question: "Who takes the photographs and creates the menu?",
+        answer:
+          "Vistaire photographs dishes on site and prepares the presentation from your current menu. You approve the layouts and information before final production and launch."
+      },
+      {
+        question: "Which QR displays are included?",
+        answer:
+          "The offer includes up to twenty personalized displays from the Acrylique, Sculpté, Carré or Signature collection you choose. Additional or replacement displays are quoted according to the collection and your needs."
+      },
+      {
+        question: "How do we prepare menu changes?",
+        answer:
+          "Send Vistaire your changes to dishes, prices or recipes so the update can be prepared with validated information. The optional Pilotage service, at an additional $100 CAD per month, lets you manage dish availability from the dashboard and view menu activity."
+      },
+      {
+        question: "Where can we find pricing for our Laval restaurant?",
+        answer:
+          "The pricing page lists the collections and terms. Setup starts at $2,000 CAD depending on the display chosen, with a $200 CAD monthly subscription, plus taxes, and an initial 12-month commitment."
+      }
+    ],
     service: {
       name: "Vistaire digital menu Laval",
       serviceType: "Premium digital restaurant menu in Laval",
       description:
-        "Mobile QR menu for Laval restaurants with dish pages, visuals, allergens and selective immersion."
+        "Guided creation of a custom mobile menu for Laval restaurants from their existing menu, with on-site photography, dish pages and personalized physical QR displays."
     },
-    areaServed: ["Laval", "Quebec", "Canada"],
+    areaServed: ["Laval", "North Shore", "Quebec", "Canada"],
     primaryCta: coreLinksEn.meeting,
     secondaryCta: coreLinksEn.sampleMenu,
-    relatedLinks: links({ href: "/en/digital-restaurant-menu-montreal", label: "Montreal" }, coreLinksEn.digital, coreLinksEn.pricing)
+    relatedLinks: links(
+      { href: "/en/digital-restaurant-menu-montreal", label: "Digital menus in Montreal" },
+      { href: "/en/digital-restaurant-menu-brossard", label: "Digital menus in Brossard" },
+      coreLinksEn.qr,
+      coreLinksEn.pricing
+    )
   },
   {
     locale: "en",
@@ -834,28 +901,28 @@ const SEO_GEO_PAGE_DRAFTS_EN: SeoGeoPageDraft[] = [
     ],
     metadataTitle: "Digital restaurant menu Brossard | Vistaire",
     metadataDescription:
-      "Premium digital restaurant menu for Brossard restaurants with QR access, dish pages, photos, allergens and selective 3D/AR.",
+      "Showcase your Brossard restaurant’s food with Vistaire: a bilingual mobile menu, on-site photography, personalized QR displays and up to five 3D dishes.",
     h1: "A premium digital menu for Brossard restaurants.",
     eyebrow: "Brossard",
     directAnswer:
-      "A digital restaurant menu for Brossard can turn a QR code into a premium mobile experience instead of a static PDF. Vistaire supports Brossard restaurants with readable categories, visual dish pages, prices, allergens, photos and selective 3D/AR, using service-area language without inventing local proof.",
+      "Vistaire creates premium digital menus for restaurants in Brossard and on the South Shore. Your cuisine is presented in a French and English mobile menu with on-site dish photography, clear dish pages and personalized QR displays. Up to five dishes can be shown in 3D, with augmented reality available according to the dish and device.",
     context: {
-      heading: "A more polished QR experience for Brossard",
+      heading: "Introduce your signature dishes before guests choose",
       body: [
-        "The South Shore dining context still demands a menu that feels aligned with the room, not a generic file after the scan.",
-        "Vistaire keeps the mobile experience clear, visual and restrained so the guest can choose without friction."
+        "For your restaurant in Brossard, a house specialty or carefully plated dish can be introduced with a photograph and a clear description. The dish page brings those together with the price and allergen information supplied by your restaurant.",
+        "We select the dishes to photograph and those suited to 3D presentation with you. Guests choose French or English and explore the details that interest them. Photographs and menu information remain accessible without augmented reality."
       ],
       points: [
-        "Brossard service area",
-        "mobile-first QR menu",
-        "no fabricated local claims"
+        "your specialties photographed and explained",
+        "French and English menu content",
+        "3D viewing for a selection of dishes"
       ]
     },
     productProof: {
-      heading: "A QR menu that protects the restaurant image",
+      heading: "From the table display to the dish details",
       body:
-        "Vistaire helps Brossard restaurants move from basic QR access to a menu experience centered on dishes, images and useful information.",
-      points: ["Brossard", "QR access", "dish pages", "premium mobile"]
+        "Choose from Acrylique, Sculpté, Carré and Signature displays to bring the QR code into your table setting. Vistaire prepares layouts for the displays and the menu for your approval. The Maison Élyse, Trouvable and Sauge Noire demonstrations let you explore menu styles and dish pages before defining your project.",
+      points: ["four collections", "personalized displays", "dish photography", "interactive examples"]
     },
     comparison: {
       heading: "Brossard QR PDF or Vistaire menu?",
@@ -882,24 +949,60 @@ const SEO_GEO_PAGE_DRAFTS_EN: SeoGeoPageDraft[] = [
     included: [...defaultIncludedEn],
     visualImage: {
       src: "/images/demo/dishes/tartare-saumon-label-rouge.png",
-      alt: "Digital restaurant menu for a Brossard restaurant"
+      alt: "Salmon tartare shown in a Vistaire demonstration menu"
     },
-    faq: faqEn(
-      "Is Vistaire available for Brossard restaurants?",
-      "Yes. Vistaire supports Brossard restaurants within its Quebec and Canada service area.",
-      "Does the page claim a Brossard office?",
-      "No. It uses honest service-area language and avoids unsupported local office claims."
-    ),
+    faq: [
+      {
+        question: "Is Vistaire available for Brossard restaurants?",
+        answer:
+          "Yes. Vistaire serves restaurants in Brossard and on the South Shore. The first conversation defines your menu, displays and dishes to present before setup begins."
+      },
+      {
+        question: "Can Vistaire replace the PDF behind our QR code?",
+        answer:
+          "Yes. We use your menu information to create a menu designed for phones. The QR code opens it in the browser without an app download."
+      },
+      {
+        question: "Can we highlight our signature dishes?",
+        answer:
+          "Yes. On-site photographs and dish pages introduce your specialties with descriptions, prices and useful information. Selected dishes can also be prepared for 3D viewing."
+      },
+      {
+        question: "Can the menu be in French and English?",
+        answer:
+          "Yes. Vistaire prepares the content with you. Your restaurant approves dish names, descriptions and key details in both languages before launch."
+      },
+      {
+        question: "What are the limits of augmented reality?",
+        answer:
+          "AR depends on the dish model, device and browser. It complements the photos and menu information. Up to five 3D dishes can be included, and additional productions are charged separately."
+      },
+      {
+        question: "How much does the service cost in Brossard?",
+        answer:
+          "Setup starts at $2,000 CAD depending on the collection, followed by $200 CAD per month, plus taxes, with an initial 12-month commitment. The offer includes up to twenty personalized QR displays. The pricing page lists collections, options and terms."
+      },
+      {
+        question: "How long does launch take?",
+        answer:
+          "Complete setup generally takes around two weeks after the menu and display layouts are approved and the required materials are received. Timing can vary with project complexity and production."
+      }
+    ],
     service: {
       name: "Vistaire digital menu Brossard",
       serviceType: "Premium digital restaurant menu in Brossard",
       description:
-        "Mobile QR menu for Brossard restaurants with dish pages, visuals, allergens and selective immersion."
+        "Guided creation of French and English mobile menus for Brossard restaurants with on-site photography, personalized QR displays and selected 3D dishes."
     },
-    areaServed: ["Brossard", "Quebec", "Canada"],
+    areaServed: ["Brossard", "South Shore", "Montérégie", "Quebec", "Canada"],
     primaryCta: coreLinksEn.meeting,
     secondaryCta: coreLinksEn.sampleMenu,
-    relatedLinks: links({ href: "/en/digital-restaurant-menu-montreal", label: "Montreal" }, coreLinksEn.digital, coreLinksEn.pricing)
+    relatedLinks: links(
+      { href: "/en/digital-restaurant-menu-montreal", label: "Digital menus in Montreal" },
+      { href: "/en/digital-restaurant-menu-laval", label: "Digital menus in Laval" },
+      coreLinksEn.pdf,
+      coreLinksEn.pricing
+    )
   },
   {
     locale: "en",
@@ -921,7 +1024,7 @@ const SEO_GEO_PAGE_DRAFTS_EN: SeoGeoPageDraft[] = [
     h1: "A digital menu for high-end restaurants.",
     eyebrow: "High-end",
     directAnswer:
-      "A high-end restaurant digital menu should feel like an extension of the dining room, not a cold utility screen. Vistaire uses warm dark surfaces, food-first visuals, clear dish pages, readable prices, allergens and selective 3D/AR to keep the menu premium while making mobile reading easier.",
+      "A digital menu for a high-end restaurant should carry the same care as the dining room. Vistaire creates a custom mobile menu with photographs of your dishes, concise descriptions, prices and allergen information. Physical QR displays suit the table setting, and selected dishes can be explored in 3D where it adds useful context.",
     context: {
       heading: "Digital should not flatten a premium restaurant",
       body: [
@@ -929,16 +1032,16 @@ const SEO_GEO_PAGE_DRAFTS_EN: SeoGeoPageDraft[] = [
         "Vistaire keeps the menu calm and visual, with technology supporting the food instead of taking over the experience."
       ],
       points: [
-        "premium mobile structure",
-        "food-first visual hierarchy",
+        "custom mobile menu",
+        "photographs of your cuisine",
         "selective immersive moments"
       ]
     },
     productProof: {
       heading: "Designed around the room and the dish",
       body:
-        "Vistaire presents a premium menu with restrained motion, warm dark surfaces, dish pages and selective 3D/AR only where it helps.",
-      points: ["premium design", "dish pages", "selective AR", "restaurant tone"]
+        "Vistaire prepares the photographs, the mobile menu and personalized QR displays with you. You approve the layouts before final production. Hosting and maintenance are included, and the service begins when the menu is activated.",
+      points: ["guided setup", "on-site photography", "QR displays", "custom design"]
     },
     comparison: {
       heading: "Standard digital menu or high-end Vistaire menu?",
@@ -1040,7 +1143,7 @@ const SEO_GEO_PAGE_DRAFTS_EN: SeoGeoPageDraft[] = [
         {
           label: "Innovation",
           basic: "The support remains static.",
-          vistaire: "3D/AR can enrich a few creations with fallback."
+          vistaire: "3D/AR can enrich selected creations while photos and descriptions remain available."
         }
       ]
     },

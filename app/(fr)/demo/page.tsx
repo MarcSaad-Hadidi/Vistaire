@@ -2,20 +2,21 @@ import type { Metadata } from "next";
 import { JsonLd } from "@/components/JsonLd";
 import { RestaurantExperiences } from "@/components/vistaire-preview/RestaurantExperiences";
 import { buildPageAlternates, LOCALE_OPEN_GRAPH } from "@/lib/i18n";
-import { absoluteUrl, buildBreadcrumbJsonLd, buildWebPageJsonLd } from "@/lib/seo";
+import { absoluteUrl, buildSocialImageMetadata, buildBreadcrumbJsonLd, buildWebPageJsonLd } from "@/lib/seo";
 
 export const dynamic = "force-dynamic";
 
 const canonicalPath = "/demo";
 const title = "Trois expériences de menu restaurant | Vistaire";
 const description =
-  "Découvrez Maison Élyse, Trouvable et Sauge Noire : trois identités Vistaire, leurs vraies cartes et leurs fiches plats, avec 3D et AR sur les plats compatibles.";
+  "Explorez Maison Élyse, Trouvable et Sauge Noire : trois démonstrations de menus Vistaire avec fiches plats, photos, 3D et AR sur les plats compatibles.";
 
 export const metadata: Metadata = {
   title: { absolute: title },
   description,
   alternates: buildPageAlternates(canonicalPath),
   openGraph: {
+    ...buildSocialImageMetadata("fr"),
     url: absoluteUrl(canonicalPath),
     title,
     description,
@@ -23,7 +24,8 @@ export const metadata: Metadata = {
     type: "website"
   },
   twitter: {
-    card: "summary",
+    ...buildSocialImageMetadata("fr"),
+    card: "summary_large_image",
     title,
     description
   }

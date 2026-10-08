@@ -13,14 +13,16 @@ const DISCOVERY_ROUTES = [
   {
     language: "French", path: "/demo", queryLang: "en", lang: "fr-CA",
     title: "Trois expériences de menu restaurant | Vistaire",
-    heading: "Trois restaurants. Trois identités.", explore: "Explorer", discover: "Découvrir", show3d: "VOIR EN 3D",
+    heading: "Trois expériences. Trois identités.", explore: "Explorer", discover: "Découvrir", show3d: "VOIR EN 3D",
+    demoDisclosure: "Maison Élyse est un restaurant fictif de démonstration.",
     activeLanguage: "Voir cette page en français", otherLanguage: "View this page in English",
     alternatePath: "/en/vistaire-menu", alternateLocale: "en-CA"
   },
   {
     language: "English", path: "/en/vistaire-menu", queryLang: "fr", lang: "en-CA",
     title: "Three restaurant menu experiences | Vistaire",
-    heading: "Three restaurants. Three identities.", explore: "Explore", discover: "Discover", show3d: "VIEW IN 3D",
+    heading: "Three experiences. Three identities.", explore: "Explore", discover: "Discover", show3d: "VIEW IN 3D",
+    demoDisclosure: "Maison Élyse is a fictional demonstration restaurant.",
     activeLanguage: "View this page in English", otherLanguage: "Voir cette page en français",
     alternatePath: "/demo", alternateLocale: "fr-CA"
   }
@@ -32,7 +34,7 @@ for (const scenario of DISCOVERY_ROUTES) {
   }));
   test.describe(`${scenario.language} restaurant discovery`, () => {
     test.setTimeout(90_000);
-    test("presents three real experiences without previews, early models or mobile overflow", async ({ page }) => {
+    test("presents three demonstration experiences without early models or mobile overflow", async ({ page }) => {
       const errors: string[] = [];
       const unexpectedRequests: string[] = [];
       const requestedVideos = new Set<string>();
@@ -65,6 +67,7 @@ for (const scenario of DISCOVERY_ROUTES) {
       await page.setViewportSize({ width: 390, height: 844 });
       const response = await page.goto(`${scenario.path}?lang=${scenario.queryLang}&experience=trouvable&utm_source=qa`, { waitUntil: "domcontentloaded" });
       expect(response?.status()).toBe(200);
+      await expect(page.getByText(scenario.demoDisclosure, { exact: true })).toBeVisible();
       await expect(page.locator("html")).toHaveAttribute("lang", scenario.lang);
       await expect(page.getByRole("link", { name: scenario.activeLanguage }).first()).toHaveAttribute("aria-current", "true");
       await expect(page.getByRole("link", { name: scenario.otherLanguage }).first()).toHaveAttribute("href", scenario.alternatePath);

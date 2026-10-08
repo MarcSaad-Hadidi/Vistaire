@@ -3,7 +3,7 @@ import type { RestaurateurPreviewLocale, RestaurateurPreviewMetricId } from "./t
 const fr = {
   introBadge: "Aperçu restaurateur",
   h1: "Explorez le vrai fonctionnement du dashboard Vistaire.",
-  lead: "Passez de la vue d’ensemble aux disponibilités et aux analyses dans une reproduction fidèle, conçue pour montrer le produit sans ouvrir le système privé.",
+  lead: "Découvrez comment suivre les consultations de votre carte, gérer la disponibilité des plats et explorer les analyses de Pilotage.",
   demoLabel: "Données de démonstration",
   demoStatement: "Cette interface reproduit le fonctionnement du dashboard Vistaire avec des données fictives. Aucune donnée client n’est affichée ni modifiée.",
   appointment: "Prendre rendez-vous",
@@ -82,13 +82,13 @@ const fr = {
   qrBody: "Le QR dirige uniquement vers la carte publique Vistaire. Il ne donne jamais accès au dashboard privé.",
   qrAria: "QR code vers la carte exemple Vistaire",
   finalTitle: "Reconnaissez le produit avant votre premier service.",
-  finalBody: "Cette démonstration reprend les mêmes repères visuels et les mêmes vues métier que le dashboard restaurateur actuel, avec une fixture synthétique isolée."
+  finalBody: "Essayez les vues et les commandes de Pilotage avec des données de démonstration, puis échangeons sur les besoins de votre restaurant."
 } as const;
 
 const en = {
   introBadge: "Restaurant preview",
   h1: "Explore how the Vistaire dashboard really works.",
-  lead: "Move from Overview to Availability and Insights in a faithful product reproduction that demonstrates the experience without opening the private system.",
+  lead: "Discover how Pilotage helps you follow menu activity, manage dish availability and explore your restaurant’s menu insights.",
   demoLabel: "Demo data",
   demoStatement: "This interface reproduces how the Vistaire dashboard works using fictional data. No customer data is displayed or modified.",
   appointment: "Book a call",
@@ -167,7 +167,7 @@ const en = {
   qrBody: "The QR only opens the public Vistaire menu. It never provides access to the private dashboard.",
   qrAria: "QR code to the Vistaire sample menu",
   finalTitle: "Recognize the product before your first service.",
-  finalBody: "This demonstration uses the same visual language and core views as the current restaurant dashboard, with an isolated synthetic fixture."
+  finalBody: "Try the Pilotage views and controls with demo data, then talk with us about your restaurant’s needs."
 };
 
 export const RESTAURATEUR_PREVIEW_COPY = { fr, en } as const;

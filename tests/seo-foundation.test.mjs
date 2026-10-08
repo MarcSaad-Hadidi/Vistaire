@@ -124,11 +124,12 @@ test("builds a focused sitemap for public Vistaire surfaces", () => {
   assert.equal(entries.every((entry) => entry.priority > 0 && entry.priority <= 1), true);
 });
 
-test("publishes an llms.txt guide for public AI crawlers without private claims", () => {
+test("publishes an llms.txt guide for public AI crawlers without private claims", async () => {
   const llmsPath = join(process.cwd(), "public", "llms.txt");
   assert.equal(existsSync(llmsPath), true);
 
   const content = readFileSync(llmsPath, "utf8");
+  const { PRICING_PAGE } = await import("../lib/pricingPage.ts");
   for (const expected of [
     "# Vistaire",
     "https://www.vistaire.ca/",
@@ -146,6 +147,15 @@ test("publishes an llms.txt guide for public AI crawlers without private claims"
     "contact@vistaire.ca",
     CONTACT_PHONE_DISPLAY,
     "Montréal, Québec, Canada",
+    "accompanied creation and management",
+    "Maison Élyse is a fictional demonstration restaurant",
+    "https://www.vistaire.ca/demo",
+    "https://www.vistaire.ca/en/vistaire-menu",
+    "https://www.vistaire.ca/menu-digital-restaurant-laval",
+    "https://www.vistaire.ca/menu-digital-restaurant-brossard",
+    `from ${Math.min(...PRICING_PAGE.collections.map((collection) => collection.setupAmount))} CAD`,
+    `${PRICING_PAGE.monthlyAmount} CAD/month`,
+    `${PRICING_PAGE.pilotage.monthlyAmount} CAD/month`,
     "Do not mix Vistaire with MenuAlive or MenuVivant"
   ]) {
     assert.match(content, new RegExp(expected.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
@@ -333,6 +343,7 @@ test("emits honest global JSON-LD without fictional restaurant markup", () => {
   assert.equal(organization["@type"], "Organization");
   assert.equal(organization.email, CONTACT_EMAIL);
   assert.equal(organization.telephone, CONTACT_PHONE_TEL);
+  assert.equal(organization.logo, "https://www.vistaire.ca/icon.svg");
   assert.equal(organization.contactPoint.email, CONTACT_EMAIL);
   assert.equal(organization.contactPoint.telephone, CONTACT_PHONE_TEL);
   assert.equal(organization.areaServed.length, 3);
@@ -340,6 +351,7 @@ test("emits honest global JSON-LD without fictional restaurant markup", () => {
   assert.equal(professionalService["@type"], "ProfessionalService");
   assert.equal(professionalService.email, CONTACT_EMAIL);
   assert.equal(professionalService.telephone, CONTACT_PHONE_TEL);
+  assert.equal(professionalService.logo, organization.logo);
   assert.equal(professionalService.contactPoint.telephone, CONTACT_PHONE_TEL);
   assert.equal(professionalService.address.addressLocality, "Montréal");
   assert.equal(website["@type"], "WebSite");

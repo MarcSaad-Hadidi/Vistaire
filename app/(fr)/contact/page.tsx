@@ -4,6 +4,7 @@ import { VistaireContactPreview } from "@/components/vistaire-preview/VistaireCo
 import { buildPageAlternates, LOCALE_OPEN_GRAPH } from "@/lib/i18n";
 import {
   absoluteUrl,
+  buildSocialImageMetadata,
   buildBreadcrumbJsonLd,
   buildContactPageJsonLd
 } from "@/lib/seo";
@@ -18,6 +19,7 @@ export const metadata: Metadata = {
   description,
   alternates: buildPageAlternates(canonicalPath),
   openGraph: {
+    ...buildSocialImageMetadata("fr"),
     url: absoluteUrl(canonicalPath),
     title,
     description:
@@ -26,7 +28,8 @@ export const metadata: Metadata = {
     type: "website"
   },
   twitter: {
-    card: "summary",
+    ...buildSocialImageMetadata("fr"),
+    card: "summary_large_image",
     title: "Contact Vistaire",
     description:
       "Parlez à Vistaire de votre carte, de vos fiches plats et de votre expérience mobile."

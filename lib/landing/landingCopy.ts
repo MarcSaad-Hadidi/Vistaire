@@ -6,7 +6,7 @@ export const LANDING_COPY = {
       eyebrow: "Carte digitale premium",
       title: "Donnez envie avant la première bouchée.",
       body:
-        "Vistaire transforme votre QR code en une carte mobile claire, visuelle et fidèle à l’identité de votre restaurant.",
+        "Vistaire crée votre carte mobile sur mesure, avec supports QR physiques et accompagnement, pour mettre votre cuisine et votre identité en valeur.",
       primaryCta: "Explorer Sauge Noire",
       secondaryCta: "Découvrir les expériences",
       visualEyebrow: "Des visuels à la hauteur",
@@ -39,7 +39,7 @@ export const LANDING_COPY = {
       eyebrow: "Expériences",
       title: "Trois expériences. Trois identités.",
       body:
-        "Chaque restaurant possède son propre univers. Vistaire adapte la carte à l’identité, au menu et au niveau de service du lieu.",
+        "Découvrez trois démonstrations de cartes adaptées à des univers différents, du menu gastronomique à la carte de bistro.",
       cta: "Découvrir l’expérience",
       newTabLabel: "S’ouvre dans un nouvel onglet."
     },
@@ -49,7 +49,7 @@ export const LANDING_COPY = {
       body:
         "Le QR code n’est pas le problème. Ce qui compte, c’est ce que le client découvre après le scan.",
       support:
-        "Comparez le même geste dans trois directions Vistaire, sans charger les menus complets ni leurs expériences immersives.",
+        "Découvrez comment les photos, les catégories et les fiches plats changent la lecture d’une même carte sur téléphone.",
       tabLabel: "Choisir l’expérience Vistaire à comparer",
       openCta: "Ouvrir l’expérience complète",
       revealLabel: "Comparer le menu PDF et la carte digitale Vistaire",
@@ -82,7 +82,7 @@ export const LANDING_COPY = {
         {
           title: "3D / AR sélective",
           body:
-            "Déclenchée par intention sur les plats pertinents, avec une image de repli.",
+            "Explorez certains plats en volume, puis en réalité augmentée sur les téléphones compatibles. La photo reste accessible.",
           image: "/images/demo/dishes/ravioles-chevre-miel-monteregie.png",
           alt: "Ravioles dressées avec soin dans une assiette sombre"
         },
@@ -99,7 +99,7 @@ export const LANDING_COPY = {
       eyebrow: "Pour les restaurateurs",
       title: "Gérez votre carte en toute simplicité.",
       body:
-        "Les outils Vistaire couvrent les opérations réellement présentes dans le produit, sans inventer de tableau de bord ni de métrique.",
+        "Vistaire vous accompagne dans la gestion de votre carte. L’option Pilotage vous permet de suivre les consultations et d’ajuster la disponibilité des plats.",
       cta: "Découvrir l’aperçu restaurateur",
       items: [
         {
@@ -112,11 +112,11 @@ export const LANDING_COPY = {
         },
         {
           title: "Langues et restaurants",
-          body: "Publiez les langues prêtes et gérez les cartes de vos établissements."
+          body: "Présentez votre carte dans les langues de votre clientèle."
         },
         {
-          title: "Signaux de consultation",
-          body: "Consultez les interactions disponibles sans métrique inventée."
+          title: "Consultations de la carte",
+          body: "Avec Pilotage, suivez les ouvertures du menu et les plats consultés."
         }
       ]
     },
@@ -132,7 +132,7 @@ export const LANDING_COPY = {
       eyebrow: "Premium digital menu",
       title: "Make every dish tempting before the first bite.",
       body:
-        "Vistaire turns your QR code into a clear, visual mobile menu that stays true to your restaurant.",
+        "Vistaire creates your custom mobile menu with physical QR displays and guided setup, bringing your food and restaurant identity into focus.",
       primaryCta: "Explore Sauge Noire",
       secondaryCta: "Discover the experiences",
       visualEyebrow: "Visuals worthy of the plate",
@@ -165,7 +165,7 @@ export const LANDING_COPY = {
       eyebrow: "Experiences",
       title: "Three experiences. Three identities.",
       body:
-        "Every restaurant has its own world. Vistaire adapts the menu to the venue’s identity, food and level of service.",
+        "Explore three demonstration menus, each with its own character, from fine dining to a welcoming bistro.",
       cta: "Discover the experience",
       newTabLabel: "Opens in a new tab."
     },
@@ -175,7 +175,7 @@ export const LANDING_COPY = {
       body:
         "The QR code is not the problem. What matters is what guests discover after the scan.",
       support:
-        "Compare the same gesture across three Vistaire directions without loading full menus or immersive assets.",
+        "See how photos, categories and dish details change the way guests browse the same menu on their phones.",
       tabLabel: "Choose the Vistaire experience to compare",
       openCta: "Open the full experience",
       revealLabel: "Compare the PDF menu and the Vistaire digital menu",
@@ -208,7 +208,7 @@ export const LANDING_COPY = {
         {
           title: "Selective 3D / AR",
           body:
-            "Opened intentionally on relevant dishes, always with an image fallback.",
+            "Explore selected dishes in 3D, then in augmented reality on compatible phones. The photo remains available.",
           image: "/images/demo/dishes/ravioles-chevre-miel-monteregie.png",
           alt: "Carefully plated ravioli in a dark restaurant setting"
         },
@@ -225,7 +225,7 @@ export const LANDING_COPY = {
       eyebrow: "For restaurateurs",
       title: "Manage your menu with ease.",
       body:
-        "Vistaire supports the operations that are genuinely present in the product, without invented dashboards or metrics.",
+        "Vistaire helps you manage your menu. The optional Pilotage dashboard lets you follow menu activity and adjust dish availability.",
       cta: "Discover the restaurant preview",
       items: [
         {
@@ -238,11 +238,11 @@ export const LANDING_COPY = {
         },
         {
           title: "Languages and restaurants",
-          body: "Publish ready languages and manage your venues’ menus."
+          body: "Present your menu in the languages your guests use."
         },
         {
-          title: "Consultation signals",
-          body: "Review available interactions without invented metrics."
+          title: "Menu activity",
+          body: "With Pilotage, follow menu opens and dish views."
         }
       ]
     },

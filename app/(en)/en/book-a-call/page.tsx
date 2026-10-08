@@ -4,6 +4,7 @@ import { VistaireRendezVousPreview } from "@/components/vistaire-preview/Vistair
 import { buildPageAlternates, LOCALE_OPEN_GRAPH } from "@/lib/i18n";
 import {
   absoluteUrl,
+  buildSocialImageMetadata,
   buildBreadcrumbJsonLd,
   buildPageServiceJsonLd,
   buildWebPageJsonLd
@@ -12,13 +13,14 @@ import {
 const canonicalPath = "/en/book-a-call";
 const title = "Book a call with Vistaire";
 const description =
-  "Plan a call with Vistaire to present your restaurant through a premium digital menu.";
+  "Request a call about your premium digital menu. The Vistaire team contacts you to discuss your project and agree on a time to talk.";
 
 export const metadata: Metadata = {
   title,
   description,
   alternates: buildPageAlternates(canonicalPath),
   openGraph: {
+    ...buildSocialImageMetadata("en"),
     url: absoluteUrl(canonicalPath),
     title,
     description:
@@ -27,7 +29,8 @@ export const metadata: Metadata = {
     type: "website"
   },
   twitter: {
-    card: "summary",
+    ...buildSocialImageMetadata("en"),
+    card: "summary_large_image",
     title,
     description:
       "Tell us about your restaurant, your menu and the experience you want to offer."

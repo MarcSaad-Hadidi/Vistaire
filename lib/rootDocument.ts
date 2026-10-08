@@ -3,6 +3,7 @@ import { LOCALE_LANGUAGE_TAG, type Locale } from "@/lib/i18n";
 import {
   DEFAULT_SITE_DESCRIPTION,
   SITE_NAME,
+  buildSocialImageMetadata,
   getSiteUrl
 } from "@/lib/seo";
 
@@ -10,7 +11,7 @@ const FRENCH_ROOT_TITLE = "Vistaire | Menu digital premium pour restaurants";
 const ENGLISH_ROOT_TITLE =
   "Vistaire | Premium QR digital menu for high-end restaurants";
 const ENGLISH_ROOT_DESCRIPTION =
-  "Vistaire creates a premium mobile-first digital menu for high-end restaurants: QR code, visual dish pages, allergens and selective 3D/AR.";
+  "Vistaire creates and manages premium digital restaurant menus with personalized mobile pages, physical QR displays, dish photography and guided setup.";
 
 export const ROOT_VIEWPORT: Viewport = {
   width: "device-width",
@@ -45,6 +46,7 @@ export function buildRootMetadata(locale: Locale): Metadata {
       "max-video-preview": -1
     },
     openGraph: {
+      ...buildSocialImageMetadata(locale),
       type: "website",
       locale: openGraphLocale,
       siteName: SITE_NAME,
@@ -52,7 +54,8 @@ export function buildRootMetadata(locale: Locale): Metadata {
       description
     },
     twitter: {
-      card: "summary",
+      ...buildSocialImageMetadata(locale),
+      card: "summary_large_image",
       title,
       description
     }

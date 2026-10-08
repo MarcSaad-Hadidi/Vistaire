@@ -5,7 +5,7 @@ const TEST_BASE_URL = process.env.PLAYWRIGHT_BASE_URL ?? "http://127.0.0.1:3000"
 const TEST_ORIGIN = new URL(TEST_BASE_URL).origin;
 const TEST_RUN_ID = Date.now().toString(16).slice(-4);
 const SUCCESS_MESSAGE =
-  "Votre demande a bien \u00e9t\u00e9 envoy\u00e9e. Nous vous r\u00e9pondrons rapidement \u00e0 l'adresse indiqu\u00e9e.";
+  "Votre demande a bien été envoyée. L’équipe Vistaire vous répondra à l’adresse indiquée pour discuter de votre projet.";
 const ERROR_MESSAGE =
   "L'envoi n'a pas fonctionn\u00e9 pour le moment. Vous pouvez \u00e9crire directement \u00e0 contact@vistaire.ca.";
 const VALID_CONTACT_PAYLOAD = {
@@ -157,6 +157,10 @@ test.describe("rendez-vous contact form", () => {
     await page.setViewportSize({ width: 390, height: 844 });
     await openRendezVous(page);
 
+    await expect(page.getByText(
+      "Envoyez votre demande avec ce formulaire. L’équipe Vistaire vous recontactera pour discuter du projet et convenir d’un moment pour l’échange.",
+      { exact: true }
+    )).toBeVisible();
     await expect(page.getByLabel("Nom")).toBeVisible();
     await expect(page.getByLabel("Courriel")).toBeVisible();
     await expect(page.getByLabel("Restaurant", { exact: true })).toBeVisible();
@@ -357,12 +361,20 @@ test.describe("rendez-vous contact form", () => {
     await page.setViewportSize({ width: 430, height: 932 });
     const response = await page.goto("/en/book-a-call");
     expect(response?.status()).toBe(200);
+    await expect(page.getByText(
+      "Send your request using this form. The Vistaire team will contact you to discuss your project and agree on a time to talk.",
+      { exact: true }
+    )).toBeVisible();
     await page.getByLabel("Name", { exact: true }).fill("Camille Laurier");
     await page.getByLabel("Email", { exact: true }).fill("camille@example.com");
     await page.getByLabel("Restaurant", { exact: true }).fill("Maison Laurier");
     await page.getByLabel("Message", { exact: true }).fill("We would like to discuss a new digital menu for our restaurant.");
     await page.getByRole("button", { name: "Send request" }).click();
     await expect(page.getByRole("button", { name: "Request sent" })).toBeDisabled();
+    await expect(page.getByText(
+      "Your request has been sent. The Vistaire team will reply at the email address provided to discuss your project.",
+      { exact: true }
+    )).toBeVisible();
     expect(payload).toEqual(expect.objectContaining({ locale: "en" }));
     await expectNoHorizontalOverflow(page);
     health.expectClean();

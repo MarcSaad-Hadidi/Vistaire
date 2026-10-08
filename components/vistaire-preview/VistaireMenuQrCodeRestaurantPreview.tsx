@@ -40,7 +40,7 @@ const journeySteps = [
 
 const scanPrinciples = [
   "Un QR code sobre, facile à placer sur table ou chevalet.",
-  "Une page d'arrivée mobile-first, pas un PDF qui force le zoom.",
+  "Une carte pensée pour la lecture sur téléphone.",
   "Un parcours qui met les plats en valeur dès les premières secondes."
 ] as const;
 
@@ -49,8 +49,8 @@ const comparisonItems = [
     title: "QR code seul",
     points: [
       "Accès rapide, mais expérience variable.",
-      "Souvent un PDF ou une liste standard derrière le scan.",
-      "Peu de perception premium si la carte ouverte semble utilitaire."
+      "Le code ouvre le lien que vous avez choisi.",
+      "La création et la gestion de la carte restent à organiser."
     ]
   },
   {
@@ -83,16 +83,18 @@ function ArrowIcon() {
 }
 
 function QrCodeMark({
+  locale,
   qrSvgMarkup,
   targetUrl
 }: {
+  locale: Locale;
   qrSvgMarkup: string;
   targetUrl: string;
 }) {
   return (
     <div className={styles.qrCodeMark}>
       <span
-        aria-label={`QR code Vistaire vers ${targetUrl}`}
+        aria-label={locale === "en" ? `Vistaire QR code to ${targetUrl}` : `QR code Vistaire vers ${targetUrl}`}
         role="img"
         dangerouslySetInnerHTML={{ __html: qrSvgMarkup }}
       />
@@ -140,11 +142,11 @@ export async function VistaireMenuQrCodeRestaurantPreview({
           afterScan: "After the scan",
           scanTitle: "The QR code is only the entrance",
           scanBody:
-            "A printed code can remain discreet and premium. The difference is mostly what opens afterward: a clear, beautiful menu that is usable during service.",
+            "Vistaire combines personalized physical QR displays with a mobile menu created for your restaurant. We handle menu integration, dish photography and guided setup.",
           journeyBadge: "Guest journey",
           journeyTitle: "From scan to decision",
           journeyBody:
-            "The QR page should reassure quickly: immediate access, natural reading, useful dish page and desire to order.",
+            "From the table, guests open the menu, browse categories and explore dish photos, prices and useful details before ordering.",
           mobileBadge: "Premium mobile menu",
           mobileTitle: "The scan should lead to something desirable",
           mobileBody:
@@ -158,7 +160,7 @@ export async function VistaireMenuQrCodeRestaurantPreview({
           comparePdf: "Compare with a PDF",
           digitalMenu: "Digital restaurant menu",
           talk: "Talk to Vistaire",
-          internalLabel: "Vistaire internal links",
+          internalLabel: "Explore Vistaire services",
           journeySteps: [
             {
               step: "01",
@@ -183,7 +185,7 @@ export async function VistaireMenuQrCodeRestaurantPreview({
           ],
           scanPrinciples: [
             "A restrained QR code, easy to place on a table or stand.",
-            "A mobile-first landing page, not a PDF that forces zoom.",
+            "A menu designed to be read on a phone.",
             "A journey that highlights dishes in the first seconds."
           ],
           comparisonItems: [
@@ -191,8 +193,8 @@ export async function VistaireMenuQrCodeRestaurantPreview({
               title: "QR code alone",
               points: [
                 "Fast access, but variable experience.",
-                "Often a PDF or standard list behind the scan.",
-                "Little premium perception if the opened menu feels utilitarian."
+                "The code opens the link you choose.",
+                "Menu creation and management still need to be arranged."
               ]
             },
             {
@@ -216,11 +218,11 @@ export async function VistaireMenuQrCodeRestaurantPreview({
           afterScan: "Après le scan",
           scanTitle: "Le QR code n'est qu'une porte d'entrée",
           scanBody:
-            "Un code imprimé peut rester discret et premium. La différence se joue surtout sur ce qui s'ouvre ensuite : une carte claire, belle et utilisable pendant le service.",
+            "Vistaire associe des supports QR physiques personnalisés à une carte mobile créée pour votre restaurant. Nous prenons en charge l’intégration du menu, les photos des plats et la mise en place.",
           journeyBadge: "Parcours client",
           journeyTitle: "Du scan à la décision",
           journeyBody:
-            "La page QR code doit rassurer vite : accès immédiat, lecture naturelle, fiche plat utile et envie de commander.",
+            "À table, le client ouvre la carte, parcourt les catégories et découvre les photos, les prix et les informations des plats avant de commander.",
           mobileBadge: "Carte mobile premium",
           mobileTitle: "Le scan doit mener à quelque chose de désirable",
           mobileBody:
@@ -234,7 +236,7 @@ export async function VistaireMenuQrCodeRestaurantPreview({
           comparePdf: "Comparer avec un PDF",
           digitalMenu: "Menu digital restaurant",
           talk: "Parler à Vistaire",
-          internalLabel: "Liens internes Vistaire",
+          internalLabel: "Découvrir les services Vistaire",
           journeySteps,
           scanPrinciples,
           comparisonItems
@@ -287,7 +289,7 @@ export async function VistaireMenuQrCodeRestaurantPreview({
               <p className={styles.heroLead}>
                 {copy.lead}
               </p>
-              <div className={styles.heroActions} aria-label="Actions principales">
+              <div className={styles.heroActions} aria-label={locale === "en" ? "Main actions" : "Actions principales"}>
                 <Link className={styles.primaryButton} href={routes.menu} prefetch={false}>
                   {copy.viewMenu}
                   <ArrowIcon />
@@ -303,7 +305,9 @@ export async function VistaireMenuQrCodeRestaurantPreview({
             </div>
             <figure className={`${styles.visualFigure} ${styles.qrHeroVisual}`}>
               <Image
-                alt="Cliente consultant une carte Vistaire ouverte après scan QR à table"
+                alt={locale === "en"
+                  ? "Guest browsing a Vistaire menu after scanning a QR code at the table"
+                  : "Cliente consultant une carte Vistaire ouverte après scan QR à table"}
                 className={styles.visualImage}
                 fill
                 priority
@@ -320,7 +324,7 @@ export async function VistaireMenuQrCodeRestaurantPreview({
             aria-labelledby="scan-title"
           >
             <div className={styles.qrMarkWrap}>
-              <QrCodeMark qrSvgMarkup={qrSvgMarkup} targetUrl={qrTargetUrl} />
+              <QrCodeMark locale={locale} qrSvgMarkup={qrSvgMarkup} targetUrl={qrTargetUrl} />
             </div>
             <div className={styles.qrScanCopy}>
               <p className={styles.badge}>{copy.afterScan}</p>
@@ -362,7 +366,9 @@ export async function VistaireMenuQrCodeRestaurantPreview({
           >
             <figure className={styles.visualFigure}>
               <Image
-                alt="Vue 3D et réalité augmentée Vistaire sur téléphone après ouverture du menu QR"
+                alt={locale === "en"
+                  ? "Vistaire 3D and augmented reality on a phone after opening the QR menu"
+                  : "Vue 3D et réalité augmentée Vistaire sur téléphone après ouverture du menu QR"}
                 className={styles.visualImage}
                 fill
                 quality={100}

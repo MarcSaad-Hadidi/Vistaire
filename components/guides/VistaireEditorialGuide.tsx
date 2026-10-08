@@ -13,6 +13,7 @@ import {
 import { buildPageAlternates, LOCALE_OPEN_GRAPH } from "@/lib/i18n";
 import {
   absoluteUrl,
+  buildSocialImageMetadata,
   buildArticleJsonLd,
   buildBreadcrumbJsonLd,
   buildWebPageJsonLd
@@ -72,6 +73,7 @@ export function buildEditorialGuideMetadata(guide: EditorialGuide): Metadata {
     description: guide.metadataDescription,
     alternates: buildPageAlternates(guide.path),
     openGraph: {
+      ...buildSocialImageMetadata(guide.locale),
       type: "article",
       url: absoluteUrl(guide.path),
       title: guide.metadataTitle,
@@ -79,7 +81,8 @@ export function buildEditorialGuideMetadata(guide: EditorialGuide): Metadata {
       locale: LOCALE_OPEN_GRAPH[guide.locale]
     },
     twitter: {
-      card: "summary",
+      ...buildSocialImageMetadata(guide.locale),
+      card: "summary_large_image",
       title: guide.metadataTitle,
       description: guide.metadataDescription
     }

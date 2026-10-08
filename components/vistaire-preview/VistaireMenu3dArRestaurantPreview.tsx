@@ -56,28 +56,28 @@ export function VistaireMenu3dArRestaurantPreview({
           viewMenu: "View the menu",
           appointment: "Book a call",
           usageBadge: "Premium use",
-          usageTitle: "3D / AR should stay useful, not spectacular for nothing",
+          usageTitle: "Help guests see the dish from a new angle",
           usageBody:
             "In a high-end restaurant, an immersive view should extend the menu and reassure the guest. It has value only when it clarifies a dish, a texture or a presentation.",
           beforeBadge: "Before the immersive view",
           beforeTitle: "The dish page remains the entry point",
           beforeBody:
-            "Vistaire starts with a clear page: name, price, description, allergens and visual. 3D / AR comes after, only if the dish deserves an extra layer of understanding.",
+            "Guests first see the dish name, price, description, allergens and photo. They can open 3D for selected dishes. Augmented reality depends on the phone, browser and available files; the photo remains accessible.",
           casesBadge: "Use cases",
           casesTitle: "When 3D / AR brings real value",
           casesBody:
-            "The best uses are rare, visible and connected to a true guest question: size, texture, plating or understanding of a signature dish.",
+            "A different angle can help guests understand the plating and presentation of a signature dish before choosing.",
           premiumBadge: "High-end restaurant",
           premiumTitle: "An immersive menu that respects service",
           premiumBody:
-            "Vistaire does not turn the table into a technical demonstration. The guest sees what helps the choice, then naturally returns to the menu and service.",
+            "Guests choose when to open the immersive view and can return to the menu at any time. Photos and dish details remain the starting point.",
           finalBadge: "Next step",
           finalTitle: "Your signature dishes deserve measured presentation",
           finalBody:
             "Let's talk about the dishes that truly benefit from being seen in volume and how to integrate them without weighing down your menu.",
           digitalMenu: "Digital restaurant menu",
           talk: "Talk to Vistaire",
-          internalLabel: "Vistaire internal links",
+          internalLabel: "Explore Vistaire services",
           selectivePrinciples: [
             {
               title: "Selective",
@@ -85,7 +85,7 @@ export function VistaireMenu3dArRestaurantPreview({
                 "3D / AR is not applied to the whole menu. It serves signature dishes that benefit from being seen in volume."
             },
             {
-              title: "Mobile-first",
+              title: "Built for phones",
               text:
                 "The guest understands the dish from the phone before requesting an immersive view."
             },
@@ -110,28 +110,28 @@ export function VistaireMenu3dArRestaurantPreview({
           viewMenu: "Voir la carte",
           appointment: "Prendre rendez-vous",
           usageBadge: "Usage premium",
-          usageTitle: "La 3D / AR doit rester utile, pas spectaculaire pour rien",
+          usageTitle: "Voir le plat sous un autre angle pour mieux choisir",
           usageBody:
             "Dans un restaurant haut de gamme, une vue immersive doit prolonger la carte et rassurer le client. Elle n'a de valeur que si elle clarifie un plat, une texture ou une présentation.",
           beforeBadge: "Avant la vue immersive",
           beforeTitle: "La fiche plat reste le point d'entrée",
           beforeBody:
-            "Vistaire commence par une fiche claire : nom, prix, description, allergènes et visuel. La 3D / AR arrive ensuite, seulement si le plat mérite une couche de compréhension supplémentaire.",
+            "Le client découvre d’abord le nom, le prix, la description, les allergènes et la photo. Il peut ouvrir la 3D sur certains plats. La réalité augmentée dépend du téléphone, du navigateur et des fichiers disponibles; la photo reste accessible.",
           casesBadge: "Cas d'usage",
           casesTitle: "Quand la 3D / AR apporte une vraie valeur",
           casesBody:
-            "Les meilleurs usages sont rares, visibles et liés à une vraie question client : taille, texture, dressage, ou compréhension du plat signature.",
+            "Un autre angle de vue peut aider le client à comprendre le dressage et la présentation d’un plat signature avant de choisir.",
           premiumBadge: "Restaurant haut de gamme",
           premiumTitle: "Une carte immersive qui respecte le service",
           premiumBody:
-            "Vistaire ne transforme pas la table en démonstration technique. Le client voit ce qui l'aide à choisir, puis revient naturellement à la carte et au service.",
+            "Le client choisit d’ouvrir la vue immersive et peut revenir à la carte à tout moment. Les photos et les informations du plat restent le point de départ.",
           finalBadge: "Prochaine étape",
           finalTitle: "Vos plats signatures méritent une présentation mesurée",
           finalBody:
             "Parlons des plats qui gagnent vraiment à être vus en volume et de la façon de les intégrer sans alourdir votre carte.",
           digitalMenu: "Menu digital restaurant",
           talk: "Parler à Vistaire",
-          internalLabel: "Liens internes Vistaire",
+          internalLabel: "Découvrir les services Vistaire",
           selectivePrinciples: [
             {
               title: "Sélective",
@@ -139,7 +139,7 @@ export function VistaireMenu3dArRestaurantPreview({
                 "La 3D / AR n'est pas appliquée à toute la carte. Elle sert les plats signatures qui gagnent à être vus en volume."
             },
             {
-              title: "Mobile-first",
+              title: "Pensée pour le mobile",
               text:
                 "Le client comprend le plat depuis son téléphone avant de demander une vue immersive."
             },
@@ -194,7 +194,7 @@ export function VistaireMenu3dArRestaurantPreview({
             <p className={styles.badge}>{copy.badge}</p>
             <h1 id="menu-3d-ar-restaurant-title">{pageTitle}</h1>
             <p className={styles.heroLead}>{copy.lead}</p>
-            <div className={styles.heroActions} aria-label="Actions principales">
+            <div className={styles.heroActions} aria-label={locale === "en" ? "Main actions" : "Actions principales"}>
               <Link className={styles.primaryButton} href={routes.menu} prefetch={false}>
                 {copy.viewMenu}
                 <ArrowIcon />
@@ -209,7 +209,9 @@ export function VistaireMenu3dArRestaurantPreview({
             </div>
             <figure className={`${styles.visualFigure} ${styles.heroVisual}`}>
               <Image
-                alt="Vue 3D et réalité augmentée Vistaire présentées sur téléphone"
+                alt={locale === "en"
+                  ? "Vistaire 3D and augmented reality views presented on a phone"
+                  : "Vue 3D et réalité augmentée Vistaire présentées sur téléphone"}
                 className={styles.visualImage}
                 fill
                 priority
@@ -244,7 +246,9 @@ export function VistaireMenu3dArRestaurantPreview({
           >
             <figure className={styles.visualFigure}>
               <Image
-                alt="Cliente consultant une carte digitale Vistaire dans un restaurant sombre"
+                alt={locale === "en"
+                  ? "Guest browsing a Vistaire digital menu in a warmly lit restaurant"
+                  : "Cliente consultant une carte digitale Vistaire dans un restaurant à la lumière tamisée"}
                 className={styles.visualImage}
                 fill
                 priority
@@ -292,7 +296,9 @@ export function VistaireMenu3dArRestaurantPreview({
             </div>
             <figure className={`${styles.visualFigure} ${styles.premiumVisual}`}>
               <Image
-                alt="Fiche plat Vistaire sur téléphone à côté d'un dessert signature"
+                alt={locale === "en"
+                  ? "Vistaire dish page on a phone beside a signature dessert"
+                  : "Fiche plat Vistaire sur téléphone à côté d'un dessert signature"}
                 className={styles.visualImage}
                 fill
                 quality={100}

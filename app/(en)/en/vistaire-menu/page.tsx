@@ -2,20 +2,21 @@ import type { Metadata } from "next";
 import { JsonLd } from "@/components/JsonLd";
 import { RestaurantExperiences } from "@/components/vistaire-preview/RestaurantExperiences";
 import { buildPageAlternates, LOCALE_OPEN_GRAPH } from "@/lib/i18n";
-import { absoluteUrl, buildBreadcrumbJsonLd, buildWebPageJsonLd } from "@/lib/seo";
+import { absoluteUrl, buildSocialImageMetadata, buildBreadcrumbJsonLd, buildWebPageJsonLd } from "@/lib/seo";
 
 export const dynamic = "force-dynamic";
 
 const canonicalPath = "/en/vistaire-menu";
 const title = "Three restaurant menu experiences | Vistaire";
 const description =
-  "Discover Maison Élyse, Trouvable and Sauge Noire: three Vistaire identities, their real menus and dish details, with 3D and AR for compatible dishes.";
+  "Explore Maison Élyse, Trouvable and Sauge Noire: three Vistaire demonstration menus with dish details, photos, 3D and AR for compatible dishes.";
 
 export const metadata: Metadata = {
   title: { absolute: title },
   description,
   alternates: buildPageAlternates(canonicalPath),
   openGraph: {
+    ...buildSocialImageMetadata("en"),
     url: absoluteUrl(canonicalPath),
     title,
     description,
@@ -23,7 +24,8 @@ export const metadata: Metadata = {
     type: "website"
   },
   twitter: {
-    card: "summary",
+    ...buildSocialImageMetadata("en"),
+    card: "summary_large_image",
     title,
     description
   }

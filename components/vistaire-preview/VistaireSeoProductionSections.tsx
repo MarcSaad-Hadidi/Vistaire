@@ -14,14 +14,14 @@ export function VistaireSeoProductionSections({
           eyebrow: "Vistaire guide",
           title: "Complete guide to choosing a premium digital menu",
           intro:
-            "Visible reference points for restaurants, with answers, deeper sections, frequent questions and connected guides. Vistaire speaks here to high-end restaurants in Montreal, Quebec and Canada that want to replace a PDF or basic QR menu with a true mobile experience.",
+            "Compare your options for a restaurant menu that is easy to browse on a phone. Learn about dish photography, QR displays, guided setup and selected 3D experiences before planning your project.",
           direct: "Direct answer"
         }
       : {
           eyebrow: "Guide Vistaire",
           title: "Guide complet pour choisir une carte digitale premium",
           intro:
-            "Des repères visibles pour les restaurateurs, avec les réponses, les sections de fond, les questions fréquentes et les guides reliés. Vistaire parle ici aux restaurants haut de gamme de Montréal, du Québec et du Canada qui veulent remplacer un PDF ou un QR basique par une vraie expérience mobile.",
+            "Comparez les options pour une carte de restaurant agréable à consulter sur téléphone. Photos des plats, supports QR, mise en place accompagnée et expériences 3D sélectionnées : les repères utiles pour préparer votre projet.",
           direct: "Réponse directe"
         };
 

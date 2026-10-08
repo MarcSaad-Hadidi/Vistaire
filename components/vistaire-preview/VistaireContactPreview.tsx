@@ -25,21 +25,25 @@ type FramerImageProps = {
   src: StaticImageData;
 };
 
-const imageTiles: FramerImageProps[] = [
+const imageTiles: (FramerImageProps & { altEn: string })[] = [
   {
-    alt: "Salle de restaurant haut de gamme preparee pour le service",
+    alt: "Salle de restaurant haut de gamme préparée pour le service",
+    altEn: "Restaurant dining room prepared for service",
     src: diningRoomImage
   },
   {
     alt: "Plat de homard premium dans une assiette noire",
+    altEn: "Lobster dish presented on a black plate",
     src: lobsterPlate
   },
   {
     alt: "Dessert au chocolat servi dans une assiette noire",
+    altEn: "Chocolate dessert served on a black plate",
     src: dessertImage
   },
   {
-    alt: "Table de restaurant elegante avec verres et chandelle",
+    alt: "Table de restaurant élégante avec verres et chandelle",
+    altEn: "Restaurant table with glasses and a candle",
     src: tableImage
   }
 ];
@@ -57,10 +61,9 @@ function FramerImage({
       className={className}
       fill
       priority={priority}
-      quality={100}
+      quality={90}
       sizes={sizes}
       src={src}
-      unoptimized
     />
   );
 }
@@ -80,7 +83,7 @@ export function VistaireContactPreview({
           restaurantBadge: "For restaurants",
           restaurantTitle: "For restaurants",
           bodyA:
-            "Vistaire turns a restaurant QR code into a premium digital menu that opens on mobile, without an app.",
+            "Vistaire creates your personalized mobile menu with physical QR displays, dish photography and guided setup.",
           bodyB:
             "We can discuss your menu, dish pages, brand identity, selective 3D/AR and adaptation to your guests.",
           bodyC: "Available for restaurants in the Montreal area.",
@@ -99,7 +102,7 @@ export function VistaireContactPreview({
           restaurantBadge: "POUR LES RESTAURANTS",
           restaurantTitle: "Pour les restaurants",
           bodyA:
-            "Vistaire transforme le QR code d'un restaurant en carte digitale premium consultable sur mobile, sans application.",
+            "Vistaire crée votre carte mobile personnalisée avec supports QR physiques, photos des plats et mise en place accompagnée.",
           bodyB:
             "Nous pouvons discuter de votre menu, de vos fiches plats, de votre image de marque, de la 3D/AR sélective et de l'adaptation à votre clientèle.",
           bodyC: "Disponible pour les restaurants de la région de Montréal.",
@@ -122,10 +125,9 @@ export function VistaireContactPreview({
         className={styles.backgroundImage}
         fill
         priority
-        quality={100}
+        quality={90}
         sizes="100vw"
         src={contactBackground}
-        unoptimized
       />
 
       <section
@@ -136,7 +138,9 @@ export function VistaireContactPreview({
         <div className={styles.previewFrame}>
           <article className={`${styles.card} ${styles.heroImageCard}`}>
             <FramerImage
-              alt="Cocktail rose premium servi dans une coupe sur une scene sombre"
+              alt={locale === "en"
+                ? "Pink cocktail served in a coupe glass against a dark background"
+                : "Cocktail rose servi dans une coupe sur une scène sombre"}
               className={styles.cardImage}
               priority
               sizes="(max-width: 920px) calc(100vw - 36px), 380px"
@@ -175,7 +179,7 @@ export function VistaireContactPreview({
               {imageTiles.map((tile) => (
                 <article className={styles.tileCard} key={tile.alt}>
                   <FramerImage
-                    alt={tile.alt}
+                    alt={locale === "en" ? tile.altEn : tile.alt}
                     className={styles.cardImage}
                     src={tile.src}
                   />
@@ -187,7 +191,9 @@ export function VistaireContactPreview({
           <div className={styles.rightColumn}>
             <article className={`${styles.card} ${styles.barCard}`}>
               <FramerImage
-                alt="Salle Vistaire premium avec banquettes, verres et lumière chaude"
+                alt={locale === "en"
+                  ? "Restaurant interior with banquettes, glasses and warm lighting"
+                  : "Salle de restaurant avec banquettes, verres et lumière chaude"}
                 className={styles.cardImage}
                 priority
                 src={pageContactImage}

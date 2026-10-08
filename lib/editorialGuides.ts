@@ -259,7 +259,7 @@ export const EDITORIAL_GUIDES: EditorialGuide[] = [
         title: "Photography should support appetite without standardizing the food",
         paragraphs: [
           "A dish photograph earns its place when it clarifies portion, composition or a presentation that words cannot easily convey. It should represent what arrives at the table. Excessive retouching and stock imagery create a trust gap, even when the result looks dramatic.",
-          "Consistency matters more than volume. Light, framing, background and colour temperature can form a common grammar while dishes keep their character. An incomplete but honest photo set is preferable to generic placeholders that imply something the kitchen does not serve."
+          "Consistency matters more than volume. Light, framing, background and colour temperature can give photographs a coherent style while dishes keep their character. A smaller collection of accurate photographs is preferable to generic images of food the kitchen does not serve."
         ]
       },
       {
@@ -289,12 +289,12 @@ export const EDITORIAL_GUIDES: EditorialGuide[] = [
         title: "3D is useful only when it resolves uncertainty",
         paragraphs: [
           "A three-dimensional view can help with a signature dish whose height, assembly or plating is hard to read in one photograph. It does not need to cover the full menu. Editorial selection protects loading behaviour, focuses production effort and gives guests a genuine reason to explore.",
-          "The model should load after clear intent, never as a condition for reading the dish page. A photograph remains available as fallback, and the name, description, price and dietary information work on every supported device. The dedicated restaurant 3D guide provides a fuller decision framework."
+          "The model should load when a guest chooses to open it, while the dish page remains readable. A photograph, name, description, price and dietary information keep the dish understandable on supported devices. The restaurant 3D guide explains how to choose suitable dishes."
         ],
         bullets: [
           "Choose dishes whose shape conveys useful information.",
           "Start model loading after a guest action.",
-          "Keep a photo and complete text as fallback.",
+          "Keep a photo and complete text available without opening 3D.",
           "Test the experience on devices actually used in the dining room."
         ]
       }
@@ -310,7 +310,7 @@ export const EDITORIAL_GUIDES: EditorialGuide[] = [
         "Allergen notes and badges use shared language and rules.",
         "The menu is readable one-handed without forced zooming.",
         "Essential content appears before heavier media.",
-        "3D is selective and every model has a photo fallback.",
+        "3D is selective, and guests can always choose to view the photograph.",
         "Menu changes can be reviewed before they are published."
       ]
     },
@@ -460,7 +460,7 @@ export const EDITORIAL_GUIDES: EditorialGuide[] = [
     eyebrow: "Operations guide",
     metadataTitle: "Mobile QR menu without an app | Vistaire",
     metadataDescription:
-      "Design a browser-based QR menu with thoughtful table placement, a stable link, readable content, practical maintenance, network fallback and security checks.",
+      "Plan a browser-based QR menu with clear table displays, a stable link, readable content, practical maintenance and alternatives when a phone cannot connect.",
     h1: "A mobile QR menu without an app",
     dek:
       "The simplest journey begins at the table: a guest scans a code, the phone opens a web address and the menu appears in the browser. No installation gets in the way. That visible simplicity still depends on careful choices about placement, links, readability and maintenance.",
@@ -468,7 +468,7 @@ export const EDITORIAL_GUIDES: EditorialGuide[] = [
       "An app-free QR menu is a mobile web page reached through the phone’s camera or QR reader. The code contains a stable address; the restaurant can change the menu behind that address without printing a new code for every edit.",
     cardTitle: "A mobile QR menu without an app",
     cardDescription:
-      "From scan to browser: table placement, stable links, readability, maintenance, network fallback and operational security.",
+      "From scan to browser: table displays, stable links, readable menus, routine updates and alternatives when a guest cannot scan.",
     sections: [
       {
         id: "journey",
@@ -489,7 +489,7 @@ export const EDITORIAL_GUIDES: EditorialGuide[] = [
         title: "Table placement is a service decision",
         paragraphs: [
           "A QR works when guests can frame it without moving glassware or leaning awkwardly. The support must suit the room’s light: enough contrast, limited glare and clear space around the pattern. A tiny code hidden under a glass becomes a dining-room problem rather than an abstract technical issue.",
-          "Nearby copy explains the action briefly and names a fallback. Staff should know where supports are placed, how to recognize damage and how to offer a physical menu or verbal help to anyone who cannot or does not want to scan."
+          "A short message beside the code explains how to open the menu and where to ask for help. Staff should know where displays are placed, how to recognize damage and how to offer a printed menu or verbal help to anyone who cannot or does not want to scan."
         ]
       },
       {
@@ -506,7 +506,7 @@ export const EDITORIAL_GUIDES: EditorialGuide[] = [
             ["Printed QR", "Entry point at the table", "Scan every print batch before placement."],
             ["Public address", "Durable destination", "Review redirects and the HTTPS certificate."],
             ["Content", "Menu, prices and availability", "Proofread, publish, then check the public version."],
-            ["Fallback", "Access when scanning is unsuitable", "Keep it current with the service team."]
+            ["Printed menu or staff assistance", "Access when scanning is unsuitable", "Keep alternatives current with the service team."]
           ]
         }
       },
@@ -529,7 +529,7 @@ export const EDITORIAL_GUIDES: EditorialGuide[] = [
         title: "Network conditions vary; service still needs a way forward",
         paragraphs: [
           "A basement dining room, terrace or busy mobile network can delay opening. The responsible answer is not a promise of absolute availability. It is a light page, text that appears before media and reception checks at actual tables under service conditions.",
-          "Fallback may be an updated physical menu, a restaurant tablet or help from the team. Its presence does not weaken the digital menu. It recognizes that hospitality must continue when a phone is out of power, incompatible or simply unwanted."
+          "An updated printed menu, a restaurant tablet or help from the team keeps service moving when a phone is out of power, incompatible or simply unwanted. Make these options easy to request."
         ]
       },
       {
@@ -558,7 +558,7 @@ export const EDITORIAL_GUIDES: EditorialGuide[] = [
         "Guests can read without installing an app or creating an account.",
         "Text appears before heavier photographs or media.",
         "Menu changes keep the same stable public address.",
-        "Staff know the fallback and keep it current.",
+        "Staff know which alternatives to offer and keep them current.",
         "Physical codes and publishing permissions receive regular review."
       ]
     },
@@ -702,7 +702,7 @@ export const EDITORIAL_GUIDES: EditorialGuide[] = [
     eyebrow: "Decision guide",
     metadataTitle: "Restaurant 3D: useful or gimmick? | Vistaire",
     metadataDescription:
-      "Decide which dishes merit 3D using a practical framework for guest value, model fidelity, lazy loading, photo fallback, device compatibility and upkeep.",
+      "Choose dishes for 3D based on what guests need to see, faithful presentation, loading on request, photographs, device compatibility and ongoing updates.",
     h1: "Restaurant 3D: useful tool or gimmick?",
     dek:
       "3D becomes useful when it helps a guest understand a dish that one image cannot fully explain. It becomes a gimmick when it takes over the experience, slows the menu or promises more than service delivers. The right decision starts with the dish and the guest’s question, not the technology.",
@@ -768,7 +768,7 @@ export const EDITORIAL_GUIDES: EditorialGuide[] = [
       },
       {
         id: "fallback-compatibility",
-        title: "A photo fallback is a complete version, not a consolation prize",
+        title: "Keep the dish clear and appealing without 3D",
         paragraphs: [
           "Every enhanced dish retains an optimized photograph. It serves devices or browsers where the feature is unsuitable, difficult connections and guests who prefer not to interact. The 3D control can disappear or explain unavailability without leaving a broken frame.",
           "Compatibility is checked through capabilities rather than assumptions about a phone brand. The main menu remains a readable, navigable web experience throughout the supported scope. Any augmented-reality extension is separate and never the only way to view the dish."
@@ -793,7 +793,7 @@ export const EDITORIAL_GUIDES: EditorialGuide[] = [
         "The served plating is stable and faithful to the model.",
         "The dish remains fully understandable without opening 3D.",
         "Loading starts only after explicit guest intent.",
-        "An optimized photograph works as fallback on every device.",
+        "A photograph remains available when 3D cannot be used.",
         "The file is checked on target phones and network conditions.",
         "Someone knows when to review, replace or remove the model."
       ]
@@ -808,7 +808,7 @@ export const EDITORIAL_GUIDES: EditorialGuide[] = [
     cta: {
       eyebrow: "Decide before producing",
       title: "Identify the dishes that genuinely justify 3D",
-      text: "A menu review can sort candidates by guest value, achievable fidelity and fallback quality before production begins.",
+      text: "Review your menu with Vistaire to identify dishes that benefit from several viewing angles and those best presented with photographs.",
       label: "Book a call",
       href: "/en/book-a-call"
     }

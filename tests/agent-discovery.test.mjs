@@ -150,12 +150,15 @@ test("auth and protected resource metadata do not invent OAuth server endpoints"
   assert.doesNotMatch(authMarkdown, /register_uri:\s*https?:\/\//);
 });
 
-test("auth copy distinguishes protected owner routes from public admin preview", () => {
+test("auth copy distinguishes private owner/admin access from public dashboard demonstrations", () => {
   const authMarkdown = buildAuthMarkdown();
 
   assert.doesNotMatch(authMarkdown, /Owner\/admin routes are protected/);
   assert.match(authMarkdown, /Owner routes and owner APIs/);
-  assert.match(authMarkdown, /admin.*public.*noindex/i);
+  assert.match(authMarkdown, /Admin dashboards require restaurant admin access/);
+  assert.doesNotMatch(authMarkdown, /admin.*public.*noindex/i);
+  assert.match(authMarkdown, /https:\/\/www\.vistaire\.ca\/apercu-restaurateur/);
+  assert.match(authMarkdown, /https:\/\/www\.vistaire\.ca\/en\/restaurant-preview/);
 });
 
 test("public OpenAPI document excludes owner admin and auth server endpoints", () => {

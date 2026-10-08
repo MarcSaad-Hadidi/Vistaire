@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { jsonLdPayloads, readAttributes } from "./support/staticPublicRenderingContract";
 
 const seoPages = [
   "/menu-digital-restaurant",
@@ -291,6 +292,53 @@ async function expectSeoGeoRoute(
 }
 
 test.describe("Vistaire SEO smoke", () => {
+  test("public HTML exposes crawlable social images and the Vistaire logo", async ({ request }) => {
+    for (const [path, imagePath] of [
+      ["/", "/social-image/fr"],
+      ["/en", "/social-image/en"],
+      ["/contact", "/social-image/fr"],
+      ["/en/contact", "/social-image/en"],
+      ["/menu-digital-restaurant-montreal", "/images/demo/dishes/maison-elyse-n1.png"],
+      ["/en/digital-restaurant-menu-montreal", "/images/demo/dishes/pave-boeuf-mature-bordelaise.png"],
+      ["/tarifs-menu-digital-restaurant", "/images/pricing/vistaire-acrylique.jpg"]
+    ]) {
+      const response = await request.get(path, { headers: { accept: "text/html" } });
+      expect(response.status(), path).toBe(200);
+      const html = await response.text();
+      const tags = (html.match(/<meta\b[^>]*>/gi) ?? []).map(readAttributes);
+      const image = tags.find((tag) => tag.get("property") === "og:image")?.get("content");
+      expect(image, `${path}: social image in raw HTML`).toBeTruthy();
+      const url = new URL(image as string);
+      expect(url.origin).toBe("https://www.vistaire.ca");
+      expect(url.pathname).toBe(imagePath);
+      expect(tags.some((tag) => tag.get("name") === "twitter:image"), path).toBe(true);
+      expect(tags.find((tag) => tag.get("property") === "og:image:alt")?.get("content"), path)
+        .toBeTruthy();
+
+      if (path === "/") {
+        const globalEntities = jsonLdPayloads(html).flat().filter(
+          (entity): entity is Record<string, unknown> => Boolean(entity) && typeof entity === "object"
+        );
+        const organization = globalEntities.find((entity) => entity["@type"] === "Organization");
+        expect(organization?.logo).toBe("https://www.vistaire.ca/icon.svg");
+      }
+    }
+
+    for (const path of ["/social-image/fr", "/social-image/en"]) {
+      const response = await request.get(path);
+      expect(response.status(), path).toBe(200);
+      expect(response.headers()["content-type"], path).toContain("image/png");
+      const bytes = await response.body();
+      expect(bytes.subarray(1, 4).toString(), path).toBe("PNG");
+      expect(bytes.readUInt32BE(16), `${path}: width`).toBe(1200);
+      expect(bytes.readUInt32BE(20), `${path}: height`).toBe(630);
+    }
+
+    const logo = await request.get("/icon.svg");
+    expect(logo.status()).toBe(200);
+    expect(logo.headers()["content-type"]).toContain("image/svg+xml");
+  });
+
   test("robots, llms, sitemap and legacy redirect expose only public SEO surfaces", async ({
     request
   }) => {

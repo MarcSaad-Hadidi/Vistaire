@@ -25,13 +25,9 @@ import type {
   SeoGeoPageData,
   SeoGeoPageType
 } from "@/lib/seoGeoPages";
-import {
-  buildSeoGeoPublicFaq,
-  seoGeoPublicText as publicText
-} from "@/lib/seoGeoPublicText";
-
 type PageVisual = {
   alt: string;
+  altEn: string;
   src: StaticImageData | string;
 };
 
@@ -39,169 +35,205 @@ const VISUAL_SETS: Record<string, PageVisual[]> = {
   "menu-qr-sans-pdf": [
     {
       src: photoQrCode1,
-      alt: "Client ouvrant un menu Vistaire depuis un QR code à table"
+      alt: "Illustration du support QR Maison Élyse et de sa fiche plat sur téléphone",
+      altEn: "Illustration of a Maison Élyse QR display and dish page on a phone"
     },
     {
       src: photoQrCode2,
-      alt: "Menu mobile Vistaire consulté après le scan QR"
+      alt: "Exemple de menu mobile Vistaire accessible par QR code",
+      altEn: "Example of a Vistaire mobile menu accessed by QR code"
     },
     {
       src: pageDigitalPhoto,
-      alt: "Fiche plat mobile affichée dans un menu Vistaire"
+      alt: "Illustration de la fiche dessert Maison Élyse sur téléphone",
+      altEn: "Illustration of a Maison Élyse dessert page on a phone"
     }
   ],
   "menu-digital-sans-application": [
     {
       src: pageDigitalPhoto,
-      alt: "Menu digital Vistaire ouvert dans le navigateur mobile"
+      alt: "Exemple de fiche plat Vistaire consultable sans application",
+      altEn: "Example of a Vistaire dish page viewed without an app"
     },
     {
       src: photoDigital3,
-      alt: "Client consultant un menu digital à table sans application"
+      alt: "Illustration d’un menu digital consulté à table sans application",
+      altEn: "Illustration of a digital menu viewed at the table without an app"
     },
     {
       src: photoDigital2,
-      alt: "Expérience mobile Vistaire avec présentation visuelle des plats"
+      alt: "Exemple de menu mobile Vistaire avec présentation visuelle des plats",
+      altEn: "Example of a Vistaire mobile menu with visual dish presentation"
     }
   ],
   "remplacer-menu-pdf-restaurant": [
     {
       src: photoPdfCompare,
-      alt: "Comparaison entre menu PDF et menu digital Vistaire"
+      alt: "Illustration comparant un menu PDF et une carte digitale Vistaire",
+      altEn: "Illustration comparing a PDF menu with a Vistaire digital menu"
     },
     {
       src: photoPdfDetail,
-      alt: "Détail d'un menu PDF remplacé par une lecture mobile"
+      alt: "Détail illustré d’un menu PDF et d’une carte adaptée au téléphone",
+      altEn: "Illustrated detail of a PDF menu and a menu designed for phones"
     },
     {
       src: pageDigitalPhoto,
-      alt: "Menu digital Vistaire utilisé comme alternative au PDF"
+      alt: "Exemple de fiche plat Vistaire accessible sans PDF",
+      altEn: "Example of a Vistaire dish page accessed without a PDF"
     }
   ],
   "alternative-menu-pdf-restaurant": [
     {
       src: photoPdfDetail,
-      alt: "Menu PDF transformé en expérience mobile lisible"
+      alt: "Illustration d’un menu PDF comparé à une carte mobile",
+      altEn: "Illustration of a PDF menu compared with a mobile menu"
     },
     {
       src: photoPdfCompare,
-      alt: "Comparaison visuelle entre PDF et carte digitale"
+      alt: "Comparaison illustrée entre PDF et carte digitale",
+      altEn: "Illustrated comparison of a PDF and a digital menu"
     },
     {
       src: photoDigital3,
-      alt: "Client lisant un menu digital plutôt qu'un PDF à table"
+      alt: "Illustration d’une carte digitale consultée à table",
+      altEn: "Illustration of a digital menu viewed at the table"
     }
   ],
   "fiche-plat-digitale-restaurant": [
     {
       src: lobsterPlate,
-      alt: "Plat signature présenté dans une fiche plat digitale"
+      alt: "Illustration d’un homard présenté comme plat signature",
+      altEn: "Illustration of lobster presented as a signature dish"
     },
     {
       src: pageDigitalPhoto,
-      alt: "Fiche plat Vistaire avec détails utiles sur mobile"
+      alt: "Exemple de fiche plat Maison Élyse avec détails sur mobile",
+      altEn: "Example of a Maison Élyse dish page with details on mobile"
     },
     {
       src: "/images/demo/dishes/homard-bleu-bisque-fenouil.png",
-      alt: "Homard présenté comme plat signature dans Vistaire"
+      alt: "Homard présenté dans le menu de démonstration Vistaire",
+      altEn: "Lobster shown in the Vistaire demonstration menu"
     }
   ],
   "menu-restaurant-photos": [
     {
       src: "/images/demo/dishes/tartare-saumon-label-rouge.png",
-      alt: "Photo de plat utilisée dans un menu restaurant"
+      alt: "Tartare de saumon présenté dans un menu de démonstration",
+      altEn: "Salmon tartare shown in a demonstration menu"
     },
     {
       src: "/images/demo/dishes/risotto-cepes-parmesan.png",
-      alt: "Risotto photographié pour une carte digitale"
+      alt: "Risotto présenté dans un exemple de carte digitale",
+      altEn: "Risotto shown in a sample digital menu"
     },
     {
       src: dessertPhoto,
-      alt: "Dessert présenté avec une direction photo premium"
+      alt: "Illustration d’un dessert présenté avec soin",
+      altEn: "Illustration of a carefully presented dessert"
     }
   ],
   "menu-restaurant-allergenes": [
     {
       src: pageDigitalPhoto,
-      alt: "Fiche plat mobile avec informations utiles pour le client"
+      alt: "Exemple de fiche plat mobile avec informations pour le client",
+      altEn: "Example of a mobile dish page with useful guest information"
     },
     {
       src: "/images/demo/dishes/ravioles-chevre-miel-monteregie.png",
-      alt: "Plat avec informations de composition dans une fiche digitale"
+      alt: "Ravioles présentées dans un menu de démonstration",
+      altEn: "Ravioli shown in a demonstration menu"
     },
     {
       src: "/images/demo/dishes/tarte-citron-basilic-pourpre.png",
-      alt: "Dessert affiché dans une fiche avec détails et allergènes"
+      alt: "Dessert présenté dans un exemple de menu Vistaire",
+      altEn: "Dessert shown in a sample Vistaire menu"
     }
   ],
   "menu-digital-restaurant-montreal": [
     {
       src: photoRestoDining,
-      alt: "Ambiance de restaurant à Montréal avec expérience mobile"
+      alt: "Illustration d’une salle de restaurant et du dressage d’un plat",
+      altEn: "Illustration of a dining room and a dish being plated"
     },
     {
       src: photoDigital3,
-      alt: "Menu digital consulté à table dans un restaurant montréalais"
+      alt: "Illustration d’un menu digital consulté à table",
+      altEn: "Illustration of a digital menu viewed at the table"
     },
     {
       src: "/images/demo/dishes/pave-boeuf-mature-bordelaise.png",
-      alt: "Plat signature présenté pour un restaurant à Montréal"
+      alt: "Plat de bœuf présenté dans un menu de démonstration Vistaire",
+      altEn: "Beef dish shown in a Vistaire demonstration menu"
     }
   ],
   "menu-digital-restaurant-laval": [
     {
       src: photoResto,
-      alt: "Salle de restaurant avec carte digitale pour Laval"
+      alt: "Illustration d’une salle de restaurant à l’ambiance chaleureuse",
+      altEn: "Illustration of a dining room with a warm atmosphere"
     },
     {
       src: pageDigitalPhoto,
-      alt: "Carte mobile Vistaire pour restaurant à Laval"
+      alt: "Exemple de fiche dessert Maison Élyse sur téléphone",
+      altEn: "Example of a Maison Élyse dessert page on a phone"
     },
     {
       src: "/images/demo/dishes/canette-rotie-figues-epices.png",
-      alt: "Plat premium présenté dans un menu digital à Laval"
+      alt: "Canette rôtie présentée dans un menu de démonstration Vistaire",
+      altEn: "Roast duck dish shown in a Vistaire demonstration menu"
     }
   ],
   "menu-digital-restaurant-brossard": [
     {
       src: photoRestoDining,
-      alt: "Salle de restaurant avec menu digital pour Brossard"
+      alt: "Illustration d’un plat dressé dans une salle de restaurant",
+      altEn: "Illustration of a dish being plated in a restaurant dining room"
     },
     {
       src: photoQrCode1,
-      alt: "QR code de table ouvrant une carte mobile à Brossard"
+      alt: "Illustration du support QR et du menu mobile Maison Élyse",
+      altEn: "Illustration of the Maison Élyse QR display and mobile menu"
     },
     {
       src: "/images/demo/dishes/tartare-saumon-label-rouge.png",
-      alt: "Plat présenté dans une carte digitale pour Brossard"
+      alt: "Tartare de saumon présenté dans une carte de démonstration Vistaire",
+      altEn: "Salmon tartare shown in a Vistaire demonstration menu"
     }
   ],
   "menu-digital-restaurant-haut-de-gamme": [
     {
       src: photoResto,
-      alt: "Ambiance premium de restaurant haut de gamme"
+      alt: "Illustration d’une salle de restaurant haut de gamme",
+      altEn: "Illustration of a high-end restaurant dining room"
     },
     {
       src: lobsterPlate,
-      alt: "Plat signature mis en scène pour un menu haut de gamme"
+      alt: "Illustration d’un homard présenté dans un menu haut de gamme",
+      altEn: "Illustration of lobster presented in a high-end menu"
     },
     {
       src: beveragePhoto,
-      alt: "Boisson signature présentée dans une expérience Vistaire"
+      alt: "Illustration d’une boisson signature dans une présentation Vistaire",
+      altEn: "Illustration of a signature drink in a Vistaire presentation"
     }
   ],
   "menu-digital-restaurant-gastronomique": [
     {
       src: lobsterPlate,
-      alt: "Plat gastronomique présenté dans une carte digitale"
+      alt: "Illustration d’un plat gastronomique présenté dans une carte digitale",
+      altEn: "Illustration of a fine dining dish presented in a digital menu"
     },
     {
       src: "/images/demo/dishes/souffle-chocolat-grand-cru.png",
-      alt: "Dessert gastronomique dans un menu digital Vistaire"
+      alt: "Soufflé au chocolat présenté dans un menu de démonstration Vistaire",
+      altEn: "Chocolate soufflé shown in a Vistaire demonstration menu"
     },
     {
       src: photoRestoDining,
-      alt: "Salle gastronomique avec expérience mobile premium"
+      alt: "Illustration d’un dressage de plat dans une salle gastronomique",
+      altEn: "Illustration of a dish being plated in a fine dining room"
     }
   ]
 };
@@ -225,48 +257,48 @@ const VISUAL_ALIASES: Record<string, string> = {
 const localizedCopy = {
   fr: {
     actions: "Actions principales",
-    direct: "Réponse directe",
-    context: "Contexte",
+    direct: "L’essentiel",
+    context: "Votre restaurant",
     proof: "Vistaire",
     includedEyebrow: "Inclus",
-    includedTitle: "Ce que le menu Vistaire inclut",
+    includedTitle: "Ce que l’offre Vistaire inclut",
     includedBody:
-      "La présentation garde la même direction que les expériences Vistaire existantes : mobile-first, food-first, sobre et utile pendant le service.",
+      "Une carte personnalisée, des photos de vos plats et des supports QR physiques, préparés avec vous pour la mise en ligne.",
     comparison: "Comparaison",
     criterion: "Critère",
     comparisonBody:
-      "La différence doit rester concrète : lisibilité, image, informations utiles et performance mobile.",
+      "Comparez l’accès au menu, la lecture sur téléphone et la présentation des plats pendant le service.",
     faqEyebrow: "Questions fréquentes",
     faqTitle: "Questions fréquentes des restaurateurs",
     faqBody:
-      "Des réponses courtes pour préparer la carte, rassurer l'équipe et clarifier l'expérience à table.",
+      "Les informations utiles pour préparer votre carte et comprendre le fonctionnement du service.",
     finalEyebrow: "Prochaine étape",
-    finalTitle: "Préparer une expérience Vistaire cohérente.",
+    finalTitle: "Parlons du menu de votre restaurant.",
     finalBody:
-      "Le parcours renvoie vers les guides utiles, le menu exemple et la prise de rendez-vous pour aider le restaurateur à avancer clairement.",
+      "Découvrez les démonstrations, consultez les tarifs ou présentez-nous votre projet. Nous définirons avec vous la carte et les supports adaptés à votre salle.",
     internalLinks: "Guides Vistaire"
   },
   en: {
     actions: "Primary actions",
-    direct: "Short answer",
-    context: "Restaurant context",
+    direct: "At a glance",
+    context: "Your restaurant",
     proof: "With Vistaire",
     includedEyebrow: "Included",
-    includedTitle: "What a Vistaire menu includes",
+    includedTitle: "What the Vistaire service includes",
     includedBody:
-      "The presentation keeps the same Vistaire direction: mobile-first, food-first, restrained and useful during service.",
+      "A custom menu, photographs of your food and physical QR displays, prepared with you before launch.",
     comparison: "Comparison",
     criterion: "Criterion",
     comparisonBody:
-      "The difference should stay concrete: readability, image, useful information and mobile performance.",
+      "Compare menu access, reading on a phone and the way dishes are presented during service.",
     faqEyebrow: "Questions",
     faqTitle: "Common restaurant questions",
     faqBody:
-      "Short answers to help prepare the menu, align the team and clarify the table experience.",
+      "Practical answers to help you prepare your menu and understand the service.",
     finalEyebrow: "Next step",
-    finalTitle: "Prepare a coherent Vistaire experience.",
+    finalTitle: "Let’s talk about your restaurant’s menu.",
     finalBody:
-      "The path points to useful guides, the sample menu and booking flow so restaurants can keep moving clearly.",
+      "Explore the demonstrations, review pricing or tell us about your project. We’ll help you choose the menu presentation and displays that suit your dining room.",
     internalLinks: "Vistaire guides"
   }
 } as const;
@@ -319,17 +351,15 @@ export function SeoGeoAeoPage({ page }: { page: SeoGeoPageData }) {
   const locale = page.locale ?? "fr";
   const copy = localizedCopy[locale];
   const visualKey = VISUAL_ALIASES[page.slug] ?? page.slug;
-  const visuals = VISUAL_SETS[visualKey] ?? [
-    page.visualImage,
-    page.visualImage,
-    page.visualImage
-  ];
+  const visuals = VISUAL_SETS[visualKey]?.map((visual) => ({
+    src: visual.src,
+    alt: locale === "en" ? visual.altEn : visual.alt
+  })) ?? [page.visualImage, page.visualImage, page.visualImage];
   const finalLinks = uniqueLinks([
     ...page.relatedLinks,
     page.primaryCta,
     page.secondaryCta
   ]);
-  const displayFaq = buildSeoGeoPublicFaq(page);
 
   return (
     <main className={styles.page}>
@@ -358,10 +388,10 @@ export function SeoGeoAeoPage({ page }: { page: SeoGeoPageData }) {
       >
         <div className={`${styles.previewFrame} ${layoutClasses[page.type]}`}>
           <article className={`${styles.card} ${styles.heroCopy}`}>
-            <p className={styles.badge}>{publicText(page.eyebrow, locale)}</p>
-            <h1 id={`${page.slug}-title`}>{publicText(page.h1, locale)}</h1>
+            <p className={styles.badge}>{page.eyebrow}</p>
+            <h1 id={`${page.slug}-title`}>{page.h1}</h1>
             <p className={styles.heroLead}>
-              {publicText(page.directAnswer, locale)}
+              {page.directAnswer}
             </p>
             <div className={styles.heroActions} aria-label={copy.actions}>
               <Link
@@ -369,7 +399,7 @@ export function SeoGeoAeoPage({ page }: { page: SeoGeoPageData }) {
                 href={page.primaryCta.href}
                 prefetch={false}
               >
-                {publicText(page.primaryCta.label, locale)}
+                {page.primaryCta.label}
                 <ArrowIcon />
               </Link>
               <Link
@@ -377,12 +407,12 @@ export function SeoGeoAeoPage({ page }: { page: SeoGeoPageData }) {
                 href={page.secondaryCta.href}
                 prefetch={false}
               >
-                {publicText(page.secondaryCta.label, locale)}
+                {page.secondaryCta.label}
               </Link>
             </div>
             <figure className={`${styles.visualFigure} ${styles.heroVisual}`}>
               <Image
-                alt={publicText(visuals[0].alt, locale)}
+                alt={visuals[0].alt}
                 className={styles.visualImage}
                 fill
                 priority
@@ -399,16 +429,16 @@ export function SeoGeoAeoPage({ page }: { page: SeoGeoPageData }) {
           >
             <p className={styles.badge}>{copy.context}</p>
             <h2 id={`${page.slug}-context-title`}>
-              {publicText(page.context.heading, locale)}
+              {page.context.heading}
             </h2>
             {page.context.body.map((paragraph) => (
-              <p key={paragraph}>{publicText(paragraph, locale)}</p>
+              <p key={paragraph}>{paragraph}</p>
             ))}
             {page.context.points ? (
               <div className={styles.problemList}>
                 {page.context.points.map((point) => (
                   <section key={point}>
-                    <h3>{publicText(point, locale)}</h3>
+                    <h3>{point}</h3>
                   </section>
                 ))}
               </div>
@@ -421,7 +451,7 @@ export function SeoGeoAeoPage({ page }: { page: SeoGeoPageData }) {
           >
             <figure className={styles.visualFigure}>
               <Image
-                alt={publicText(visuals[1].alt, locale)}
+                alt={visuals[1].alt}
                 className={styles.visualImage}
                 fill
                 quality={80}
@@ -432,13 +462,13 @@ export function SeoGeoAeoPage({ page }: { page: SeoGeoPageData }) {
             <div className={styles.visualCopy}>
               <p className={styles.badge}>{copy.proof}</p>
               <h2 id={`${page.slug}-proof-title`}>
-                {publicText(page.productProof.heading, locale)}
+                {page.productProof.heading}
               </h2>
-              <p>{publicText(page.productProof.body, locale)}</p>
+              <p>{page.productProof.body}</p>
               {page.productProof.points.length > 0 ? (
                 <ul className={styles.proofPoints}>
                   {page.productProof.points.map((point) => (
-                    <li key={point}>{publicText(point, locale)}</li>
+                    <li key={point}>{point}</li>
                   ))}
                 </ul>
               ) : null}
@@ -460,9 +490,9 @@ export function SeoGeoAeoPage({ page }: { page: SeoGeoPageData }) {
               <div className={styles.benefitGrid}>
                 {page.included.slice(0, 6).map((item) => (
                   <article className={styles.benefitItem} key={item.title}>
-                    <h3>{publicText(item.title, locale)}</h3>
+                    <h3>{item.title}</h3>
                     <p className="mt-3 text-[13px] font-medium leading-[1.45] text-[#f4e5cd]/72">
-                      {publicText(item.text, locale)}
+                      {item.text}
                     </p>
                   </article>
                 ))}
@@ -470,7 +500,7 @@ export function SeoGeoAeoPage({ page }: { page: SeoGeoPageData }) {
             </div>
             <figure className={`${styles.visualFigure} ${styles.premiumVisual}`}>
               <Image
-                alt={publicText(visuals[2].alt, locale)}
+                alt={visuals[2].alt}
                 className={styles.visualImage}
                 fill
                 quality={80}
@@ -487,7 +517,7 @@ export function SeoGeoAeoPage({ page }: { page: SeoGeoPageData }) {
             <div className={styles.sectionIntro}>
               <p className={styles.badge}>{copy.comparison}</p>
               <h2 id={`${page.slug}-comparison-title`}>
-                {publicText(page.comparison.heading, locale)}
+                {page.comparison.heading}
               </h2>
               <p>
                 {copy.comparisonBody}
@@ -498,32 +528,26 @@ export function SeoGeoAeoPage({ page }: { page: SeoGeoPageData }) {
                 <tr>
                   <th scope="col">{copy.criterion}</th>
                   <th scope="col">
-                    {publicText(page.comparison.basicLabel, locale)}
+                    {page.comparison.basicLabel}
                   </th>
                   <th scope="col">
-                    {publicText(page.comparison.vistaireLabel, locale)}
+                    {page.comparison.vistaireLabel}
                   </th>
                 </tr>
               </thead>
               <tbody>
                 {page.comparison.rows.map((row) => (
                   <tr key={row.label}>
-                    <th scope="row">{publicText(row.label, locale)}</th>
+                    <th scope="row">{row.label}</th>
                     <td
-                      data-label={publicText(
-                        page.comparison.basicLabel,
-                        locale
-                      )}
+                      data-label={page.comparison.basicLabel}
                     >
-                      {publicText(row.basic, locale)}
+                      {row.basic}
                     </td>
                     <td
-                      data-label={publicText(
-                        page.comparison.vistaireLabel,
-                        locale
-                      )}
+                      data-label={page.comparison.vistaireLabel}
                     >
-                      {publicText(row.vistaire, locale)}
+                      {row.vistaire}
                     </td>
                   </tr>
                 ))}
@@ -543,7 +567,7 @@ export function SeoGeoAeoPage({ page }: { page: SeoGeoPageData }) {
               <p>{copy.faqBody}</p>
             </div>
             <div className="mt-8">
-              <SeoFaq faqs={displayFaq} layout="stack" locale={locale} />
+              <SeoFaq faqs={page.faq} layout="stack" locale={locale} />
             </div>
           </section>
 
@@ -564,7 +588,7 @@ export function SeoGeoAeoPage({ page }: { page: SeoGeoPageData }) {
                 href={page.primaryCta.href}
                 prefetch={false}
               >
-                {publicText(page.primaryCta.label, locale)}
+                {page.primaryCta.label}
                 <ArrowIcon />
               </Link>
               <Link
@@ -572,13 +596,13 @@ export function SeoGeoAeoPage({ page }: { page: SeoGeoPageData }) {
                 href={page.secondaryCta.href}
                 prefetch={false}
               >
-                {publicText(page.secondaryCta.label, locale)}
+                {page.secondaryCta.label}
               </Link>
             </div>
             <nav className={styles.internalLinks} aria-label={copy.internalLinks}>
               {finalLinks.map((link) => (
                 <Link href={link.href} key={`${link.href}-${link.label}`} prefetch={false}>
-                  {publicText(link.label, locale)}
+                  {link.label}
                 </Link>
               ))}
             </nav>

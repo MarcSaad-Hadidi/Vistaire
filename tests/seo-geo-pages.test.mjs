@@ -237,14 +237,13 @@ test("search intent matrix records evidence status for published and planned que
 
 test("SEO/GEO/AEO JSON-LD is honest and mirrors visible FAQ data", async () => {
   const { buildSeoGeoAeoJsonLd } = await import("../lib/seoGeoJsonLd.ts");
-  const { buildSeoGeoPublicFaq } = await import("../lib/seoGeoPublicText.ts");
   const { SEO_GEO_PAGES, SEO_GEO_PAGES_EN } = await import("../lib/seoGeoPages.ts");
 
   for (const page of [...SEO_GEO_PAGES, ...SEO_GEO_PAGES_EN]) {
     const jsonLd = buildSeoGeoAeoJsonLd(page);
     const serialized = JSON.stringify(jsonLd);
     const types = jsonLd.map((item) => item["@type"]);
-    const publicFaq = buildSeoGeoPublicFaq(page);
+    const publicFaq = page.faq;
 
     assert.deepEqual(types, ["WebPage", "BreadcrumbList", "Service", "FAQPage"]);
     assert.equal(jsonLd[0].url, `https://www.vistaire.ca${page.path}`);

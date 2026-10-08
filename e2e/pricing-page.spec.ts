@@ -238,6 +238,7 @@ test.describe("Vistaire pricing collections", () => {
         navCta: "Prendre rendez-vous",
         appointmentCta: "Prendre rendez vous",
         appointmentPath: "/prendre-rendez-vous",
+        previewDisclosure: "Aperçu du dashboard Vistaire · données de démonstration",
         forbiddenPreviewVocabulary: /démo|démonstration/i,
         forbiddenPrices: [
           "950 $ CAD setup",
@@ -267,6 +268,7 @@ test.describe("Vistaire pricing collections", () => {
         navCta: "Book a call",
         appointmentCta: "Book a call",
         appointmentPath: "/en/book-a-call",
+        previewDisclosure: "Vistaire dashboard preview · demo data",
         forbiddenPreviewVocabulary: /demo|demonstration/i,
         forbiddenPrices: [
           "$950 CAD",
@@ -343,6 +345,7 @@ test.describe("Vistaire pricing collections", () => {
       const pilotage = page.locator("[data-pricing-pilotage]");
       await expect(pilotage.getByText(scenario.pilotage, { exact: true })).toBeVisible();
       await expect(pilotage.getByText(scenario.total, { exact: true })).toBeVisible();
+      await expect(pilotage.getByText(scenario.previewDisclosure, { exact: true })).toBeVisible();
       const navigation = page.getByRole("navigation").first();
       for (const label of scenario.navLinks) {
         await expect(navigation.getByRole("link", { name: label, exact: true })).toBeVisible();
@@ -380,7 +383,10 @@ test.describe("Vistaire pricing collections", () => {
           .locator('section[aria-labelledby="pricing-final-title"]')
           .getByRole("link", { name: scenario.appointmentCta, exact: true })
       ).toHaveAttribute("href", scenario.appointmentPath);
-      expect(await page.locator("body").innerText()).not.toMatch(
+      const commercialCopy = await page.locator(
+        'section[aria-labelledby="pricing-title"], [data-pricing-collection], [data-pricing-included-panel], [data-pricing-3d-addons], [data-pricing-commercial-terms]'
+      ).allTextContents();
+      expect(commercialCopy.join("\n")).not.toMatch(
         scenario.forbiddenPreviewVocabulary
       );
       const dashText = await visibleDashText(page);
@@ -515,7 +521,7 @@ test.describe("Vistaire pricing collections", () => {
     await expectNoHorizontalOverflow(page);
   });
 
-  test("embeds the real Pilotage dashboard preview at 30 days without tiny focus targets", async ({
+  test("embeds the Pilotage dashboard preview at 30 days without tiny focus targets", async ({
     page
   }) => {
     const health = installPageHealth(page);
