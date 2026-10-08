@@ -7,12 +7,12 @@ import { buildPageAlternates, LOCALE_OPEN_GRAPH } from "@/lib/i18n";
 export const revalidate = 60;
 
 const canonicalPath = "/en";
-const title = "Premium QR digital menu for high-end restaurants";
+const title = "Vistaire | Premium QR digital menu for high-end restaurants";
 const description =
-  "Vistaire creates a premium mobile-first digital menu for high-end restaurants: QR code, visual dish pages, allergens and selective 3D/AR.";
+  "Vistaire creates your premium digital menu with a custom mobile design, physical QR displays, dish photography and guided setup for your restaurant.";
 
 export const metadata: Metadata = {
-  title,
+  title: { absolute: title },
   description,
   alternates: buildPageAlternates(canonicalPath),
   openGraph: {

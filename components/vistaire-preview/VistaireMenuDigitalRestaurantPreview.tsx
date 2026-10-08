@@ -33,7 +33,7 @@ const pdfProblems = [
   {
     title: "Image moins premium",
     text:
-      "Un fichier statique peut donner une impression pratique, mais rarement une vraie expérience de restaurant."
+      "La mise en page pensée pour l’imprimé s’adapte peu à la lecture sur téléphone."
   }
 ] as const;
 
@@ -47,8 +47,8 @@ const comparisonRows = [
   {
     label: "Qualité visuelle",
     pdf: "Peu d'espace pour la mise en scène.",
-    standard: "Visuels possibles, mais rarement premium.",
-    vistaire: "Food-first, surfaces sombres et accents champagne."
+    standard: "Visuels et personnalisation selon le modèle choisi.",
+    vistaire: "Photos des plats et présentation fidèle à votre identité."
   },
   {
     label: "Envie de choisir",
@@ -71,14 +71,14 @@ const comparisonRows = [
   {
     label: "3D / AR",
     pdf: "Impossible dans le fichier.",
-    standard: "Souvent gadget si tout est traité pareil.",
+    standard: "Disponibilité selon l’outil choisi.",
     vistaire: "Sélective, réservée aux plats qui gagnent à être vus en volume."
   }
 ] as const;
 
 const premiumPoints = [
   "Une présentation sobre qui respecte l'identité du lieu.",
-  "Des fiches plats visuelles sans transformer la carte en application froide.",
+  "Des fiches plats visuelles, faciles à consulter pendant le service.",
   "Une 3D / AR sélective, utile seulement quand elle rend le plat plus clair."
 ] as const;
 
@@ -122,7 +122,7 @@ export function VistaireMenuDigitalRestaurantPreview({
             "Digital restaurant menu: a premium menu designed for mobile",
           badge: "Restaurant guide",
           lead:
-            "Vistaire turns a restaurant QR code into an elegant, fast and visual digital menu: clear categories, desirable dish pages, readable prices, allergens and selective 3D / AR when it brings real value.",
+            "Vistaire creates your personalized digital menu with guided setup: clear categories, dish photos, readable prices, allergens and selected 3D / AR experiences.",
           viewMenu: "View the menu",
           appointment: "Book a call",
           pdfBadge: "PDF menu",
@@ -136,7 +136,7 @@ export function VistaireMenuDigitalRestaurantPreview({
           comparisonBadge: "Comparison",
           comparisonTitle: "PDF, standard digital menu or Vistaire",
           comparisonBody:
-            "The difference is not only the QR code. It is what the guest discovers after the scan: a file to endure, a standard interface, or a Vistaire experience.",
+            "Compare how guests browse dishes, read useful details and explore your restaurant’s identity after scanning the QR code.",
           criterion: "Criterion",
           pdf: "PDF menu",
           standard: "Standard digital menu",
@@ -154,7 +154,7 @@ export function VistaireMenuDigitalRestaurantPreview({
             "Let's talk about your menu, signature dishes and the level of presentation your guests should feel on mobile.",
           comparePdf: "Compare with a PDF",
           talk: "Talk to Vistaire",
-          internalLabel: "Vistaire internal links",
+          internalLabel: "Explore Vistaire services",
           pdfProblems: [
             {
               title: "Forced zoom",
@@ -174,7 +174,7 @@ export function VistaireMenuDigitalRestaurantPreview({
             {
               title: "Less premium image",
               text:
-                "A static file can feel practical, but rarely like a true restaurant experience."
+                "A layout designed for print offers limited flexibility on a phone."
             }
           ],
           comparisonRows: [
@@ -188,8 +188,8 @@ export function VistaireMenuDigitalRestaurantPreview({
             {
               label: "Visual quality",
               pdf: "Little room for presentation.",
-              standard: "Visuals possible, rarely premium.",
-              vistaire: "Food-first visuals, warm dark surfaces and champagne accents."
+              standard: "Visuals and customization depend on the chosen template.",
+              vistaire: "Dish photography and a design that reflects your restaurant."
             },
             {
               label: "Desire to choose",
@@ -214,14 +214,14 @@ export function VistaireMenuDigitalRestaurantPreview({
             {
               label: "3D / AR",
               pdf: "Impossible in the file.",
-              standard: "Often gimmicky if everything is treated the same.",
+              standard: "Availability depends on the chosen tool.",
               vistaire:
                 "Selective, reserved for dishes that benefit from volume."
             }
           ],
           premiumPoints: [
             "A calm presentation that respects the identity of the place.",
-            "Visual dish pages without turning the menu into a cold app.",
+            "Visual dish pages that are easy to browse during service.",
             "Selective 3D / AR, useful only when it makes the dish clearer."
           ]
         }
@@ -230,7 +230,7 @@ export function VistaireMenuDigitalRestaurantPreview({
             "Menu digital restaurant : une carte premium pensée pour le mobile",
           badge: "Guide restaurateur",
           lead:
-            "Vistaire transforme le QR code d'un restaurant en carte digitale élégante, rapide et visuelle : catégories claires, fiches plats désirables, prix lisibles, allergènes et 3D / AR sélective quand elle apporte une vraie valeur.",
+            "Vistaire crée votre carte digitale personnalisée avec une mise en place accompagnée : catégories claires, photos des plats, prix lisibles, allergènes et expériences 3D / AR sélectionnées.",
           viewMenu: "Voir la carte",
           appointment: "Prendre rendez-vous",
           pdfBadge: "Menu PDF",
@@ -244,7 +244,7 @@ export function VistaireMenuDigitalRestaurantPreview({
           comparisonBadge: "Comparaison",
           comparisonTitle: "PDF, menu digital standard ou Vistaire",
           comparisonBody:
-            "La différence ne tient pas seulement au QR code. Elle tient à ce que le client découvre après le scan : un fichier à subir, une interface standard, ou une expérience Vistaire.",
+            "Comparez la façon de parcourir les plats, de lire les informations utiles et de découvrir l’identité de votre restaurant après le scan du QR code.",
           criterion: "Critère",
           pdf: "Menu PDF",
           standard: "Menu digital standard",
@@ -262,7 +262,7 @@ export function VistaireMenuDigitalRestaurantPreview({
             "Parlons de votre carte, de vos plats signatures et du niveau de présentation que vos clients doivent ressentir sur mobile.",
           comparePdf: "Comparer avec un PDF",
           talk: "Parler à Vistaire",
-          internalLabel: "Liens internes Vistaire",
+          internalLabel: "Découvrir les services Vistaire",
           pdfProblems,
           comparisonRows,
           premiumPoints
@@ -311,7 +311,7 @@ export function VistaireMenuDigitalRestaurantPreview({
             <p className={styles.heroLead}>
               {copy.lead}
             </p>
-            <div className={styles.heroActions} aria-label="Actions principales">
+            <div className={styles.heroActions} aria-label={locale === "en" ? "Main actions" : "Actions principales"}>
               <Link className={styles.primaryButton} href={routes.menu} prefetch={false}>
                 {copy.viewMenu}
                 <ArrowIcon />
@@ -326,7 +326,9 @@ export function VistaireMenuDigitalRestaurantPreview({
             </div>
             <figure className={`${styles.visualFigure} ${styles.heroVisual}`}>
               <Image
-                alt="Dessert signature avec fiche plat Vistaire affichée sur téléphone"
+                alt={locale === "en"
+                  ? "Signature dessert beside a phone displaying a Vistaire dish page"
+                  : "Dessert signature avec fiche plat Vistaire affichée sur téléphone"}
                 className={styles.visualImage}
                 fill
                 quality={100}
@@ -411,7 +413,9 @@ export function VistaireMenuDigitalRestaurantPreview({
           >
             <figure className={styles.visualFigure}>
               <Image
-                alt="Cliente consultant une carte digitale Vistaire sur téléphone pendant le service"
+                alt={locale === "en"
+                  ? "Guest browsing a Vistaire digital menu on a phone during service"
+                  : "Cliente consultant une carte digitale Vistaire sur téléphone pendant le service"}
                 className={styles.visualImage}
                 fill
                 quality={100}
@@ -447,7 +451,9 @@ export function VistaireMenuDigitalRestaurantPreview({
             </div>
             <figure className={`${styles.visualFigure} ${styles.premiumVisual}`}>
               <Image
-                alt="Vue 3D et réalité augmentée Vistaire présentées sur téléphone à table"
+                alt={locale === "en"
+                  ? "Vistaire 3D and augmented reality views presented on a phone at the table"
+                  : "Vue 3D et réalité augmentée Vistaire présentées sur téléphone à table"}
                 className={styles.visualImage}
                 fill
                 quality={100}

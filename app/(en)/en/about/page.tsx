@@ -7,7 +7,7 @@ import { absoluteUrl, buildBreadcrumbJsonLd, buildWebPageJsonLd } from "@/lib/se
 const canonicalPath = "/en/about";
 const title = "About Vistaire";
 const description =
-  "Vistaire turns a restaurant QR code into a premium mobile-first digital menu for high-end restaurants.";
+  "Vistaire creates premium digital menus for restaurants with physical QR displays, dish photography and personalized, guided setup.";
 
 export const metadata: Metadata = {
   title,

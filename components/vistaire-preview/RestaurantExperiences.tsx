@@ -12,8 +12,9 @@ import styles from "./RestaurantExperiences.module.css";
 const pageCopy = {
   fr: {
     eyebrow: "Expériences Vistaire",
-    heading: ["Trois restaurants.", "Trois identités."],
-    introduction: "Une même attention à la carte, trois façons de la vivre. Entrez dans les vrais menus et découvrez les plats à votre rythme.",
+    heading: ["Trois expériences.", "Trois identités."],
+    introduction: "Explorez trois démonstrations de menus Vistaire et leurs fiches plats, du premier aperçu à l’expérience complète.",
+    demoDisclosure: "Maison Élyse est un restaurant fictif de démonstration.",
     explore: "Explorer",
     discover: "Découvrir",
     videoLabel: "Utilisation du menu",
@@ -36,8 +37,9 @@ const pageCopy = {
   },
   en: {
     eyebrow: "Vistaire experiences",
-    heading: ["Three restaurants.", "Three identities."],
-    introduction: "The same care for every menu, three ways to experience it. Explore real restaurant menus and discover each dish at your own pace.",
+    heading: ["Three experiences.", "Three identities."],
+    introduction: "Explore three Vistaire demonstration menus and their dish details, from a first look to the full experience.",
+    demoDisclosure: "Maison Élyse is a fictional demonstration restaurant.",
     explore: "Explore",
     discover: "Discover",
     videoLabel: "Using the menu of",
@@ -112,6 +114,7 @@ export async function RestaurantExperiences({
           <p className={styles.eyebrow}>{content.eyebrow}</p>
           <h1>{content.heading[0]} <br />{content.heading[1]}</h1>
           <p className={styles.introduction}>{content.introduction}</p>
+          <p className={styles.introduction}>{content.demoDisclosure}</p>
         </div>
         <div className={styles.experiences}>
           {experiences.map((experience) => {

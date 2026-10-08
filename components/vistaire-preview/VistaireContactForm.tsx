@@ -1,6 +1,6 @@
 "use client";
 
-import { type ChangeEvent, type FormEvent, useRef, useState } from "react";
+import { type ChangeEvent, type FormEvent, useRef, useState, useSyncExternalStore } from "react";
 import type { Locale } from "@/lib/i18n";
 import { CONTACT_PHONE_DISPLAY } from "@/lib/seo";
 import styles from "./VistaireRendezVousPreview.module.css";
@@ -22,11 +22,14 @@ const initialValues: ContactFormValues = {
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const contactEmail = "contact@vistaire.ca";
+const subscribeToHydration = () => () => {};
+const getClientHydrationSnapshot = () => true;
+const getServerHydrationSnapshot = () => false;
 
 const contactCopy = {
   fr: {
     success:
-      "Votre demande a bien été envoyée. Nous vous répondrons rapidement à l'adresse indiquée.",
+      "Votre demande a bien été envoyée. L’équipe Vistaire vous répondra à l’adresse indiquée pour discuter de votre projet.",
     serverError:
       "L'envoi n'a pas fonctionné pour le moment. Vous pouvez écrire directement à contact@vistaire.ca.",
     statusError: "Veuillez corriger les champs indiqués.",
@@ -56,7 +59,7 @@ const contactCopy = {
   },
   en: {
     success:
-      "Your request has been sent. We will reply quickly at the email address provided.",
+      "Your request has been sent. The Vistaire team will reply at the email address provided to discuss your project.",
     serverError:
       "The form is not sending right now. You can write directly to contact@vistaire.ca.",
     statusError: "Please correct the highlighted fields.",
@@ -172,6 +175,11 @@ function getFieldId(field: ContactField): string {
 
 export function VistaireContactForm({ locale = "fr" }: { locale?: Locale }) {
   const copy = contactCopy[locale];
+  const isInteractive = useSyncExternalStore(
+    subscribeToHydration,
+    getClientHydrationSnapshot,
+    getServerHydrationSnapshot
+  );
   const [values, setValues] = useState<ContactFormValues>(initialValues);
   const [company, setCompany] = useState("");
   const [errors, setErrors] = useState<ContactFormErrors>({});
@@ -314,6 +322,7 @@ export function VistaireContactForm({ locale = "fr" }: { locale?: Locale }) {
     <form
       aria-busy={isSending}
       className={styles.contactForm}
+      method="post"
       noValidate
       onSubmit={submitContactRequest}
     >
@@ -325,6 +334,7 @@ export function VistaireContactForm({ locale = "fr" }: { locale?: Locale }) {
           aria-describedby={errors.name ? getErrorId("name") : undefined}
           aria-invalid={errors.name ? "true" : undefined}
           autoComplete="name"
+          disabled={!isInteractive}
           id={getFieldId("name")}
           name="name"
           onChange={updateField("name")}
@@ -348,6 +358,7 @@ export function VistaireContactForm({ locale = "fr" }: { locale?: Locale }) {
           aria-describedby={errors.email ? getErrorId("email") : undefined}
           aria-invalid={errors.email ? "true" : undefined}
           autoComplete="email"
+          disabled={!isInteractive}
           id={getFieldId("email")}
           name="email"
           onChange={updateField("email")}
@@ -373,6 +384,7 @@ export function VistaireContactForm({ locale = "fr" }: { locale?: Locale }) {
           }
           aria-invalid={errors.restaurant ? "true" : undefined}
           autoComplete="organization"
+          disabled={!isInteractive}
           id={getFieldId("restaurant")}
           name="restaurant"
           onChange={updateField("restaurant")}
@@ -393,6 +405,7 @@ export function VistaireContactForm({ locale = "fr" }: { locale?: Locale }) {
           {copy.message}
         </label>
         <textarea
+          disabled={!isInteractive}
           aria-describedby={errors.message ? getErrorId("message") : undefined}
           aria-invalid={errors.message ? "true" : undefined}
           id={getFieldId("message")}
@@ -414,6 +427,7 @@ export function VistaireContactForm({ locale = "fr" }: { locale?: Locale }) {
         <label htmlFor="contact-company">{copy.company}</label>
         <input
           autoComplete="off"
+          disabled={!isInteractive}
           id="contact-company"
           name="company"
           onChange={(event) => {
@@ -432,7 +446,7 @@ export function VistaireContactForm({ locale = "fr" }: { locale?: Locale }) {
 
       <button
         className={styles.submitButton}
-        disabled={isSending || isSuccessLocked}
+        disabled={!isInteractive || isSending || isSuccessLocked}
         type="submit"
       >
         {isSending

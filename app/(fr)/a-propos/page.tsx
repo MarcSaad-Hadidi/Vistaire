@@ -7,7 +7,7 @@ import { absoluteUrl, buildBreadcrumbJsonLd, buildWebPageJsonLd } from "@/lib/se
 const canonicalPath = "/a-propos";
 const title = "À propos de Vistaire";
 const description =
-  "Vistaire transforme le QR code d'un restaurant en carte digitale premium, mobile-first, visuelle et pensée pour les restaurants haut de gamme.";
+  "Vistaire crée des menus digitaux premium pour restaurants, avec supports QR physiques, photos des plats et mise en place personnalisée et accompagnée.";
 
 export const metadata: Metadata = {
   title,

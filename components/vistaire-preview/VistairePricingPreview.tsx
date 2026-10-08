@@ -19,7 +19,7 @@ const UI_COPY = {
   fr: {
     collectionsLabel: "Collections physiques Vistaire",
     includedLabel: "Ce qui est inclus dans l’offre Vistaire",
-    pilotagePreview: "Aperçu du vrai dashboard Vistaire",
+    pilotagePreview: "Aperçu du dashboard Vistaire · données de démonstration",
     pricingEquation: "Abonnement mensuel avec l’option Pilotage",
     dashboardLink: "Explorer l’aperçu restaurateur",
     extrasLabel: "Options complémentaires",
@@ -30,7 +30,7 @@ const UI_COPY = {
   en: {
     collectionsLabel: "Vistaire physical collections",
     includedLabel: "What the Vistaire offer includes",
-    pilotagePreview: "Preview of the real Vistaire dashboard",
+    pilotagePreview: "Vistaire dashboard preview · demo data",
     pricingEquation: "Monthly subscription with the Pilotage option",
     dashboardLink: "Explore the restaurant preview",
     extrasLabel: "Additional options",

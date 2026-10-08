@@ -12,7 +12,7 @@ import {
 const canonicalPath = "/en/book-a-call";
 const title = "Book a call with Vistaire";
 const description =
-  "Plan a call with Vistaire to present your restaurant through a premium digital menu.";
+  "Request a call about your premium digital menu. The Vistaire team contacts you to discuss your project and agree on a time to talk.";
 
 export const metadata: Metadata = {
   title,

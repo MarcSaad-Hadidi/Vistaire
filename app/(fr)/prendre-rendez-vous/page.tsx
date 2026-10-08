@@ -12,7 +12,7 @@ import {
 const canonicalPath = "/prendre-rendez-vous";
 const title = "Prendre rendez-vous avec Vistaire";
 const description =
-  "Planifiez un rendez-vous avec Vistaire pour présenter votre restaurant avec une carte digitale premium.";
+  "Demandez un échange avec Vistaire pour votre menu digital premium. L’équipe vous recontacte pour discuter du projet et convenir d’un rendez-vous.";
 
 export const metadata: Metadata = {
   title,

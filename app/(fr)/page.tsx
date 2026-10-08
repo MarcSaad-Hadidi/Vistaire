@@ -12,7 +12,7 @@ import { buildPageAlternates, LOCALE_OPEN_GRAPH } from "@/lib/i18n";
 export const revalidate = 60;
 
 export const metadata: Metadata = {
-  title: "Menu digital QR premium pour restaurants haut de gamme",
+  title: { absolute: "Vistaire | Menu digital QR premium pour restaurants haut de gamme" },
   description: DEFAULT_SITE_DESCRIPTION,
   alternates: buildPageAlternates("/"),
   openGraph: {

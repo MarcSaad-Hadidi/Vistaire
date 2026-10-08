@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic";
 const canonicalPath = "/demo";
 const title = "Trois expériences de menu restaurant | Vistaire";
 const description =
-  "Découvrez Maison Élyse, Trouvable et Sauge Noire : trois identités Vistaire, leurs vraies cartes et leurs fiches plats, avec 3D et AR sur les plats compatibles.";
+  "Explorez Maison Élyse, Trouvable et Sauge Noire : trois démonstrations de menus Vistaire avec fiches plats, photos, 3D et AR sur les plats compatibles.";
 
 export const metadata: Metadata = {
   title: { absolute: title },

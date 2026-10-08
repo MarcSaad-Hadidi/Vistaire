@@ -69,7 +69,7 @@ export function VistaireAboutPreview({
           badge: "About",
           h1: "Vistaire turns the restaurant QR code into a premium digital menu.",
           intro:
-            "Vistaire helps high-end restaurants present their menu in an elegant mobile experience: clear navigation, visual dish pages, allergens, prices and selective 3D/AR.",
+            "Vistaire creates personalized digital menus for restaurants, with physical QR displays, dish photography and guided setup. Guests explore your food on their phones through clear categories, photos and selected 3D experiences.",
           appointment: "Book a call",
           mobileTitleA: "MOBILE",
           mobileTitleB: "MENU",
@@ -78,17 +78,17 @@ export function VistaireAboutPreview({
           visionBadge: "Our vision",
           visionTitle: "A Montreal studio dedicated to high-end restaurants",
           visionA:
-            "Digital should extend the restaurant experience, not replace it. Vistaire keeps the dish at the center: a clear, visual, mobile-first menu designed to create desire without turning the dining room into a cold app.",
+            "Every menu starts with your food and the character of your restaurant. Vistaire brings them into a clear mobile experience that helps guests discover dishes while preserving the personal attention of table service.",
           visionB:
             "Vistaire supports restaurants in Montreal, Quebec and Canada that want to present their menu on mobile without losing the elegance of the room.",
-          values: ["Mobile-first", "Selective 3D", "No app"]
+          values: ["Built for phones", "Selective 3D", "No app"]
         }
       : {
           sectionLabel: "À propos de Vistaire",
           badge: "À propos",
           h1: "Vistaire transforme le QR code restaurant en carte digitale premium.",
           intro:
-            "Vistaire aide les restaurants haut de gamme à présenter leur carte dans une expérience mobile élégante : menu clair, fiches plats visuelles, allergènes, prix et 3D/AR sélective.",
+            "Vistaire crée des cartes digitales personnalisées pour restaurants, avec supports QR physiques, photos des plats et mise en place accompagnée. Vos clients découvrent votre cuisine sur téléphone à travers des catégories claires, des photos et certaines expériences 3D.",
           appointment: "Prendre rendez-vous",
           mobileTitleA: "CARTE MOBILE",
           mobileTitleB: "PREMIUM",
@@ -98,10 +98,10 @@ export function VistaireAboutPreview({
           visionTitle:
             "Une maison montréalaise dédiée aux restaurants haut de gamme",
           visionA:
-            "Le digital doit prolonger l'expérience du restaurant, pas la remplacer. Vistaire garde le plat au centre : une carte claire, visuelle et mobile-first, conçue pour donner envie sans transformer la salle en application froide.",
+            "Chaque carte part de votre cuisine et de l’identité de votre restaurant. Vistaire les traduit dans une expérience mobile claire, qui aide à découvrir les plats tout en préservant l’attention du service à table.",
           visionB:
             "Vistaire accompagne les restaurants de Montréal, du Québec et du Canada qui veulent présenter leur carte sur mobile sans perdre l'élégance de la salle.",
-          values: ["Mobile-First", "3D Sélective", "Sans Application"]
+          values: ["Pensée pour le mobile", "3D Sélective", "Sans Application"]
         };
 
   return (
@@ -135,7 +135,9 @@ export function VistaireAboutPreview({
 
           <article className={`${styles.card} ${styles.plateCard}`}>
             <FramerImage
-              alt="Plat de homard présenté dans une assiette noire"
+              alt={locale === "en"
+                ? "Lobster dish presented on a black plate"
+                : "Plat de homard présenté dans une assiette noire"}
               className={styles.cardImage}
               priority
               src={lobsterPlate}
@@ -156,7 +158,9 @@ export function VistaireAboutPreview({
             className={`${styles.card} ${styles.mobileCard}`}
           >
             <FramerImage
-              alt="Téléphone affichant une carte Vistaire à côté d'un QR code de table"
+              alt={locale === "en"
+                ? "Phone displaying a Vistaire menu beside a tabletop QR display"
+                : "Téléphone affichant une carte Vistaire à côté d'un support QR de table"}
               className={styles.cardImage}
               priority
               src={mobileQrTable}
@@ -178,7 +182,9 @@ export function VistaireAboutPreview({
 
           <article className={`${styles.card} ${styles.guestCard}`}>
             <FramerImage
-              alt="Client consultant une carte digitale Vistaire dans un restaurant premium"
+              alt={locale === "en"
+                ? "Guest browsing a Vistaire digital menu in a restaurant"
+                : "Client consultant une carte digitale Vistaire dans un restaurant"}
               className={styles.cardImage}
               src={restaurantGuest}
             />

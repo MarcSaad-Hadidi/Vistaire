@@ -28,7 +28,7 @@ export function VistaireRendezVousPreview({
           kicker: "Let's talk about Vistaire",
           h1: "Book a call for a Vistaire digital menu",
           intro:
-            "Tell us about your restaurant, your menu and the experience you want to offer.",
+            "Send your request using this form. The Vistaire team will contact you to discuss your project and agree on a time to talk.",
           serviceLine: "High-end restaurants · Montreal, Quebec",
           exchangeTitle: "During the call, we review your current menu.",
           exchangeBody:
@@ -41,7 +41,7 @@ export function VistaireRendezVousPreview({
           kicker: "Parlons de Vistaire",
           h1: "Prendre rendez-vous pour une carte digitale Vistaire",
           intro:
-            "Parlez-nous de votre restaurant, de votre carte et de l'expérience que vous souhaitez offrir.",
+            "Envoyez votre demande avec ce formulaire. L’équipe Vistaire vous recontactera pour discuter du projet et convenir d’un moment pour l’échange.",
           serviceLine: "Restaurants haut de gamme · Montréal, Québec",
           exchangeTitle:
             "Pendant l'échange, nous regardons votre carte actuelle.",
@@ -59,10 +59,9 @@ export function VistaireRendezVousPreview({
         className={styles.backgroundImage}
         fill
         priority
-        quality={100}
+        quality={90}
         sizes="100vw"
         src={appointmentBackground}
-        unoptimized
       />
 
       <section
@@ -73,14 +72,15 @@ export function VistaireRendezVousPreview({
         <div className={styles.previewFrame}>
           <article className={styles.imagePanel}>
             <Image
-              alt="Table de restaurant haut de gamme avec verres, chandelle et QR code Vistaire"
+              alt={locale === "en"
+                ? "Restaurant table with glasses, a candle and a Vistaire QR display"
+                : "Table de restaurant avec verres, chandelle et support QR Vistaire"}
               className={styles.imagePanelPhoto}
               fill
               priority
-              quality={100}
+              quality={90}
               sizes="(max-width: 920px) calc(100vw - 36px), 490px"
               src={tableImage}
-              unoptimized
             />
             <div aria-hidden="true" className={styles.imagePanelShade} />
           </article>
@@ -101,7 +101,7 @@ export function VistaireRendezVousPreview({
 
               <VistaireContactForm locale={locale} />
 
-              <div className={styles.directContact} aria-label="Contact direct">
+              <div className={styles.directContact} aria-label={copy.directContact}>
                 <span>{copy.directContact}</span>
                 <a href="mailto:contact@vistaire.ca">contact@vistaire.ca</a>
                 <a href={`tel:${CONTACT_PHONE_TEL}`}>{CONTACT_PHONE_DISPLAY}</a>
