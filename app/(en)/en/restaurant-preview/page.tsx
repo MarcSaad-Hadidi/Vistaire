@@ -5,6 +5,7 @@ import { VistaireRestaurateurDashboardPreview } from "@/components/vistaire-prev
 import { buildPageAlternates, LOCALE_OPEN_GRAPH } from "@/lib/i18n";
 import {
   absoluteUrl,
+  buildSocialImageMetadata,
   buildBreadcrumbJsonLd,
   buildPageServiceJsonLd,
   buildWebPageJsonLd
@@ -20,6 +21,7 @@ export const metadata: Metadata = {
   description,
   alternates: buildPageAlternates(canonicalPath),
   openGraph: {
+    ...buildSocialImageMetadata("en"),
     url: absoluteUrl(canonicalPath),
     title: `${title} | Vistaire`,
     description,
@@ -27,6 +29,7 @@ export const metadata: Metadata = {
     type: "website"
   },
   twitter: {
+    ...buildSocialImageMetadata("en"),
     card: "summary_large_image",
     title: `${title} | Vistaire`,
     description

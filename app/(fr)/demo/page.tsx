@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { JsonLd } from "@/components/JsonLd";
 import { RestaurantExperiences } from "@/components/vistaire-preview/RestaurantExperiences";
 import { buildPageAlternates, LOCALE_OPEN_GRAPH } from "@/lib/i18n";
-import { absoluteUrl, buildBreadcrumbJsonLd, buildWebPageJsonLd } from "@/lib/seo";
+import { absoluteUrl, buildSocialImageMetadata, buildBreadcrumbJsonLd, buildWebPageJsonLd } from "@/lib/seo";
 
 export const dynamic = "force-dynamic";
 
@@ -16,6 +16,7 @@ export const metadata: Metadata = {
   description,
   alternates: buildPageAlternates(canonicalPath),
   openGraph: {
+    ...buildSocialImageMetadata("fr"),
     url: absoluteUrl(canonicalPath),
     title,
     description,
@@ -23,7 +24,8 @@ export const metadata: Metadata = {
     type: "website"
   },
   twitter: {
-    card: "summary",
+    ...buildSocialImageMetadata("fr"),
+    card: "summary_large_image",
     title,
     description
   }

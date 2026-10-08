@@ -4,6 +4,7 @@ import { VistairePreviewLanding } from "@/components/vistaire-preview/VistairePr
 import {
   DEFAULT_SITE_DESCRIPTION,
   absoluteUrl,
+  buildSocialImageMetadata,
   buildVistaireServiceJsonLd,
   buildWebPageJsonLd
 } from "@/lib/seo";
@@ -16,13 +17,16 @@ export const metadata: Metadata = {
   description: DEFAULT_SITE_DESCRIPTION,
   alternates: buildPageAlternates("/"),
   openGraph: {
+    type: "website",
+    ...buildSocialImageMetadata("fr"),
     url: absoluteUrl("/"),
     title: "Vistaire | Menu digital QR premium pour restaurants haut de gamme",
     description: DEFAULT_SITE_DESCRIPTION,
     locale: LOCALE_OPEN_GRAPH.fr
   },
   twitter: {
-    card: "summary",
+    ...buildSocialImageMetadata("fr"),
+    card: "summary_large_image",
     title: "Vistaire | Menu digital QR premium pour restaurants haut de gamme",
     description: DEFAULT_SITE_DESCRIPTION
   }

@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { JsonLd } from "@/components/JsonLd";
 import { VistaireAboutPreview } from "@/components/vistaire-preview/VistaireAboutPreview";
 import { buildPageAlternates, LOCALE_OPEN_GRAPH } from "@/lib/i18n";
-import { absoluteUrl, buildBreadcrumbJsonLd, buildWebPageJsonLd } from "@/lib/seo";
+import { absoluteUrl, buildSocialImageMetadata, buildBreadcrumbJsonLd, buildWebPageJsonLd } from "@/lib/seo";
 
 const canonicalPath = "/en/about";
 const title = "About Vistaire";
@@ -14,6 +14,7 @@ export const metadata: Metadata = {
   description,
   alternates: buildPageAlternates(canonicalPath),
   openGraph: {
+    ...buildSocialImageMetadata("en"),
     url: absoluteUrl(canonicalPath),
     title,
     description:
@@ -22,7 +23,8 @@ export const metadata: Metadata = {
     type: "website"
   },
   twitter: {
-    card: "summary",
+    ...buildSocialImageMetadata("en"),
+    card: "summary_large_image",
     title,
     description:
       "A premium digital menu that extends the restaurant experience without replacing service."
