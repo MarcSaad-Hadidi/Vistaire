@@ -1,0 +1,150 @@
+.rule {
+  border-top: 1px solid rgba(255, 255, 255, 0.16);
+  margin-bottom: 64px;
+}
+
+.grid {
+  margin-top: 56px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 28px;
+}
+
+.card {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.visual {
+  position: relative;
+  border-radius: 24px;
+  overflow: hidden;
+  aspect-ratio: 16 / 10;
+  background: #1e1e29;
+}
+
+.visualDark {
+  background: #1e1e29;
+}
+
+.visualLight {
+  background: #eceae4;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+}
+
+.sonarCore {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 14px;
+  height: 14px;
+  margin: -7px 0 0 -7px;
+  border-radius: 50%;
+  background: #fff;
+  z-index: 2;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  background: #fff;
+  border-radius: 999px;
+  padding: 14px 24px;
+  font-size: 15.5px;
+  font-weight: 600;
+  color: #14141f;
+  box-shadow: 0 14px 34px rgba(20, 20, 35, 0.14);
+}
+
+.chipB {
+  margin-left: 90px;
+}
+
+.spark {
+  color: #5266eb;
+}
+
+.toggleRow {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+
+.toggleLabel {
+  font-size: 15.5px;
+  font-weight: 600;
+  color: #14141f;
+  min-width: 96px;
+  text-align: right;
+}
+
+.toggle {
+  width: 76px;
+  height: 42px;
+  border-radius: 999px;
+  background: rgba(20, 20, 35, 0.14);
+  position: relative;
+  transition: background-color 0.3s ease-out;
+}
+
+.toggleOn {
+  background: #fff;
+  box-shadow: 0 10px 26px rgba(20, 20, 35, 0.18);
+}
+
+.knob {
+  position: absolute;
+  top: 5px;
+  left: 5px;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: #8b8b9c;
+  transition: left 0.3s ease-out, background-color 0.3s ease-out;
+}
+
+.toggleOn .knob {
+  left: 39px;
+  background: #5266eb;
+}
+
+.caption {
+  padding: 28px 6px 0;
+}
+
+.cardTitle {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.cardText {
+  margin: 10px 0 0;
+  font-size: 16px;
+  line-height: 1.6;
+  color: rgba(255, 255, 255, 0.62);
+}
+
+.light .cardText {
+  color: #5b5b70;
+}
+
+@media (max-width: 900px) {
+  .grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .toggle,
+  .knob {
+    transition: none;
+  }
+}

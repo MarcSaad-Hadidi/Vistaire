@@ -3,114 +3,51 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import shared from "./shared.module.css";
 
-function getPrefersReducedMotion(): boolean {
-  return (
-    typeof window !== "undefined" &&
-    window.matchMedia("(prefers-reduced-motion: reduce)").matches
-  );
-}
-
-export function usePrefersReducedMotion(): boolean {
-  const [reduced, setReduced] = useState(getPrefersReducedMotion);
-
-  useEffect(() => {
-    const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
-    const onChange = (event: MediaQueryListEvent) => setReduced(event.matches);
-    mq.addEventListener("change", onChange);
-    return () => mq.removeEventListener("change", onChange);
-  }, []);
-
-  return reduced;
-}
-
-function supportsIntersectionObserver(): boolean {
-  return typeof IntersectionObserver !== "undefined";
-}
-
-type RevealProps = {
+/** Mercury scroll reveal: opacity 0->1 + translateY(50px)->0, 700ms, once. */
+export function MercuryReveal({
+  children,
+  className = "",
+  delay = 0,
+  as: Tag = "div"
+}: {
   children: ReactNode;
   className?: string;
-  /** Stagger delay in ms (80-120ms between siblings). */
   delay?: number;
-};
-
-/**
- * Mercury scroll reveal: starts opacity 0 + translateY(50px),
- * IntersectionObserver (~18% threshold) triggers once -> visible
- * over 700ms cubic-bezier(0,0,.2,1). Never replays.
- */
-export function Reveal({ children, className = "", delay = 0 }: RevealProps) {
-  const ref = useRef<HTMLDivElement>(null);
-  const [visible, setVisible] = useState(() => !supportsIntersectionObserver());
+  as?: "div" | "section" | "h2" | "p" | "li" | "span";
+}) {
+  const ref = useRef<HTMLElement | null>(null);
+  const [visible, setVisible] = useState(false);
 
   useEffect(() => {
     const el = ref.current;
-    if (!el || !supportsIntersectionObserver()) return;
-    const observer = new IntersectionObserver(
+    if (!el) return;
+    if (typeof IntersectionObserver === "undefined") {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setVisible(true);
+      return;
+    }
+    const io = new IntersectionObserver(
       (entries) => {
         for (const entry of entries) {
           if (entry.isIntersecting) {
             setVisible(true);
-            observer.disconnect();
+            io.disconnect();
           }
         }
       },
-      { threshold: 0.18, rootMargin: "0px 0px -40px 0px" }
+      { threshold: 0.15 }
     );
-    observer.observe(el);
-    return () => observer.disconnect();
+    io.observe(el);
+    return () => io.disconnect();
   }, []);
 
   return (
-    <div
-      ref={ref}
+    <Tag
+      ref={ref as never}
       className={`${shared.reveal} ${visible ? shared.revealVisible : ""} ${className}`}
       style={delay > 0 ? { transitionDelay: `${delay}ms` } : undefined}
     >
       {children}
-    </div>
-  );
-}
-
-type InViewProps = {
-  children: ReactNode;
-  className?: string;
-  /** Class applied (from the caller's own CSS module) once in view. */
-  visibleClass?: string;
-  threshold?: number;
-};
-
-/** Adds `visibleClass` once the wrapper enters the viewport. Never replays. */
-export function InView({
-  children,
-  className = "",
-  visibleClass = "",
-  threshold = 0.25
-}: InViewProps) {
-  const ref = useRef<HTMLDivElement>(null);
-  const [inView, setInView] = useState(() => !supportsIntersectionObserver());
-
-  useEffect(() => {
-    const el = ref.current;
-    if (!el || !supportsIntersectionObserver()) return;
-    const observer = new IntersectionObserver(
-      (entries) => {
-        for (const entry of entries) {
-          if (entry.isIntersecting) {
-            setInView(true);
-            observer.disconnect();
-          }
-        }
-      },
-      { threshold }
-    );
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, [threshold]);
-
-  return (
-    <div ref={ref} className={`${className} ${inView ? visibleClass : ""}`}>
-      {children}
-    </div>
+    </Tag>
   );
 }

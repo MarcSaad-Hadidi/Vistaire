@@ -1,109 +1,87 @@
 "use client";
 
-import { useState } from "react";
 import Image from "next/image";
+import { useState } from "react";
 import shared from "./shared.module.css";
 import styles from "./MercuryTestimonials.module.css";
-import { Reveal } from "./MercuryReveal";
+import { MercuryReveal } from "./MercuryReveal";
 
 const QUOTES = [
   {
-    text: "La carte donne envie avant même d'avoir commandé. Nos clients la montrent à leurs amis.",
-    name: "Claire D.",
-    role: "Convive",
-    image: "/images/demo/dishes/homard-bleu-bisque-fenouil.png",
-    alt: "Homard dressé dans une assiette gastronomique"
+    quote:
+      "« La carte donne envie avant même d'avoir commandé. Nos clients photographient les plats avant de les recevoir. »",
+    name: "Convive, table de quatre",
+    detail: "Reconstitution illustrative — avis fictif",
+    image: "/images/landing/maison-elyse-experience.jpg",
+    alt: "Salle de restaurant chaleureuse"
   },
   {
-    text: "On a retiré un plat épuisé entre deux services, en quelques secondes.",
-    name: "Mehdi R.",
-    role: "Restaurateur",
-    image: "/images/demo/dishes/pave-boeuf-mature-bordelaise.png",
-    alt: "Pavé de bœuf maturé, sauce bordelaise"
+    quote:
+      "« Fini le PDF flou. Le QR ouvre une carte claire, dans la langue de chacun, avec les allergènes en évidence. »",
+    name: "Restauratrice fictive",
+    detail: "Reconstitution illustrative — avis fictif",
+    image: "/images/landing/sauge-noire-experience.jpg",
+    alt: "Intérieur de restaurant à la tombée du jour"
   },
   {
-    text: "Enfin un QR code qui ne mène pas à un PDF flou.",
-    name: "Sofia L.",
-    role: "Convive",
-    image: "/images/demo/dishes/tarte-citron-basilic-pourpre.png",
-    alt: "Tarte au citron et basilic pourpre"
+    quote:
+      "« Je choisis en confiance, sans devoir appeler le serveur pour chaque allergène. C'est apaisant. »",
+    name: "Cliente cœliaque",
+    detail: "Reconstitution illustrative — avis fictif",
+    image: "/images/landing/trouvable-experience.jpg",
+    alt: "Table dressée dans un restaurant"
   }
-] as const;
+];
 
 /**
- * Testimonial carousel: 3 tabs as horizontal progress bars
- * (active white, inactive dimmed); manual click crossfades image + text
- * (400ms). No auto-rotation.
+ * Testimonial carousel: 3 progress-bar tabs, manual click,
+ * crossfade image + text (~400ms). No auto-rotation.
  */
 export function MercuryTestimonials() {
   const [active, setActive] = useState(0);
-  const quote = QUOTES[active];
 
   return (
-    <section
-      data-mercury-theme="dark"
-      className={styles.section}
-      aria-labelledby="mercury-quotes-title"
-    >
-      <div className={styles.inner}>
-        <Reveal>
-          <p className={`${shared.eyebrow} ${styles.eyebrow}`}>Ils en parlent</p>
-        </Reveal>
-        <Reveal delay={100}>
-          <h2
-            id="mercury-quotes-title"
-            className={`${shared.serif} ${styles.title}`}
-          >
-            Des cartes qui marquent les esprits.
-          </h2>
-        </Reveal>
-
-        <Reveal delay={200}>
-          <div
-            className={styles.tabs}
-            role="tablist"
-            aria-label="Témoignages"
-          >
+    <section className={shared.section} data-mtheme="dark" aria-label="Témoignages">
+      <div className={shared.wrap}>
+        <MercuryReveal>
+          <div className={styles.stage}>
             {QUOTES.map((q, i) => (
-              <button
+              <figure
                 key={q.name}
-                type="button"
-                role="tab"
-                aria-selected={active === i}
-                className={`${styles.tab} ${active === i ? styles.tabActive : ""}`}
-                onClick={() => setActive(i)}
+                className={`${styles.card} ${i === active ? styles.cardActive : ""}`}
+                aria-hidden={i !== active}
               >
-                <span className={styles.tabLabel}>{q.name}</span>
-              </button>
+                <Image
+                  src={q.image}
+                  alt={i === active ? q.alt : ""}
+                  fill
+                  sizes="(max-width: 900px) 100vw, 1336px"
+                  style={{ objectFit: "cover" }}
+                  priority={i === 0}
+                />
+                <div className={styles.scrim} aria-hidden="true" />
+                <figcaption className={styles.caption}>
+                  <blockquote className={styles.quote}>{q.quote}</blockquote>
+                  <div className={styles.name}>{q.name}</div>
+                  <div className={styles.detail}>{q.detail}</div>
+                </figcaption>
+              </figure>
             ))}
           </div>
-        </Reveal>
+        </MercuryReveal>
 
-        <div
-          key={active}
-          className={styles.panel}
-          role="tabpanel"
-          aria-live="polite"
-        >
-          <div className={styles.photo}>
-            <Image
-              src={quote.image}
-              alt={quote.alt}
-              fill
-              sizes="(max-width: 900px) 100vw, 40vw"
-              style={{ objectFit: "cover" }}
+        <div className={styles.tabs} role="tablist" aria-label="Choisir un témoignage">
+          {QUOTES.map((q, i) => (
+            <button
+              key={q.name}
+              type="button"
+              role="tab"
+              aria-selected={i === active}
+              aria-label={`Témoignage ${i + 1}`}
+              className={`${styles.tab} ${i === active ? styles.tabActive : ""}`}
+              onClick={() => setActive(i)}
             />
-            <div className={shared.grain} aria-hidden="true" />
-          </div>
-          <div className={styles.copy}>
-            <blockquote className={`${shared.serif} ${styles.quote}`}>
-              «&nbsp;{quote.text}&nbsp;»
-            </blockquote>
-            <p className={styles.author}>
-              {quote.name} <span className={styles.role}>— {quote.role}</span>
-            </p>
-            <p className={styles.disclaimer}>Reconstitution illustrative</p>
-          </div>
+          ))}
         </div>
       </div>
     </section>

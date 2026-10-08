@@ -1,32 +1,56 @@
+.announce {
+  background: #f4f2ec;
+  text-align: center;
+  padding: 13px 20px;
+}
+
+.announceLink {
+  color: #14141f;
+  font-size: 14.5px;
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.announceLink:hover {
+  text-decoration: underline;
+}
+
+.announceStar {
+  margin-right: 8px;
+}
+
+.announceArrow {
+  margin-left: 2px;
+}
+
 .nav {
   position: sticky;
   top: 0;
-  z-index: 60;
+  z-index: 50;
   transition:
     background-color 0.3s ease-out,
     color 0.3s ease-out,
-    border-color 0.3s ease-out;
+    box-shadow 0.3s ease-out;
 }
 
 .navDark {
   background: transparent;
   color: #fff;
-  border-bottom: 1px solid transparent;
 }
 
 .navLight {
-  background: rgba(246, 245, 242, 0.86);
+  background: rgba(255, 255, 255, 0.88);
   -webkit-backdrop-filter: blur(14px);
   backdrop-filter: blur(14px);
-  color: var(--mq-ink);
-  border-bottom: 1px solid var(--mq-line-on-light);
+  color: #14141f;
+  box-shadow: 0 1px 0 rgba(20, 20, 35, 0.08);
 }
 
-.inner {
-  max-width: 1280px;
+.navInner {
+  max-width: 1400px;
   margin: 0 auto;
-  height: 72px;
   padding: 0 32px;
+  height: 76px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -34,175 +58,215 @@
 }
 
 .logo {
-  font-size: 26px;
-  font-style: italic;
-  letter-spacing: -0.01em;
-  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
   color: inherit;
+  text-decoration: none;
+}
+
+.wordmark {
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 0.22em;
 }
 
 .links {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 34px;
 }
 
 .link {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  background: transparent;
-  border: 0;
-  border-radius: 999px;
-  padding: 10px 16px;
+  background: none;
+  border: none;
+  padding: 8px 2px;
+  color: inherit;
   font-size: 15px;
   font-weight: 500;
-  color: inherit;
-  text-decoration: none;
   cursor: pointer;
-  font-family: inherit;
-  transition: background-color 0.3s ease-out;
-  white-space: nowrap;
+  text-decoration: none;
+  transition: opacity 0.3s ease-out;
 }
 
 .link:hover {
-  background: rgba(128, 128, 140, 0.16);
+  opacity: 0.65;
 }
 
-.chevron {
+.chev {
   transition: transform 0.3s ease-in-out;
 }
 
-.chevronOpen {
+.chevOpen {
   transform: rotate(180deg);
 }
 
-.dropdownWrap {
+.dropWrap {
   position: relative;
 }
 
-/* Dropdown panel: scaleIn 300ms ease-out from top-center (slight scale + fade). */
-.panel {
+.drop {
   position: absolute;
-  top: calc(100% + 10px);
+  top: calc(100% + 14px);
   left: 50%;
-  transform: translateX(-50%);
+  min-width: 230px;
+  background: #1e1e29;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 18px;
+  padding: 10px;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.35);
   transform-origin: top center;
-  min-width: 280px;
-  background: #fff;
-  color: var(--mq-ink);
-  border-radius: 16px;
-  box-shadow: 0 24px 70px rgba(10, 10, 20, 0.22);
-  padding: 8px;
-  animation: panelIn 0.3s ease-out;
+  animation: scaleIn 0.3s ease-out;
 }
 
-.panelClosing {
-  animation: panelOut 0.25s ease-in forwards;
-}
-
-@keyframes panelIn {
+@keyframes scaleIn {
   from {
     opacity: 0;
-    transform: translateX(-50%) scale(0.96) translateY(-4px);
+    transform: translateX(-50%) scale(0.96);
   }
   to {
     opacity: 1;
-    transform: translateX(-50%) scale(1) translateY(0);
+    transform: translateX(-50%) scale(1);
   }
 }
 
-@keyframes panelOut {
-  from {
-    opacity: 1;
-    transform: translateX(-50%) scale(1) translateY(0);
-  }
-  to {
-    opacity: 0;
-    transform: translateX(-50%) scale(0.96) translateY(-4px);
-  }
-}
-
-.panelLink {
-  display: block;
+.dropItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   padding: 12px 14px;
-  border-radius: 10px;
+  border-radius: 12px;
+  color: #fff;
+  font-size: 15px;
+  font-weight: 500;
   text-decoration: none;
-  color: inherit;
   transition: background-color 0.3s ease-out;
 }
 
-.panelLink:hover {
-  background: rgba(82, 102, 235, 0.08);
+.dropItem:hover {
+  background: rgba(255, 255, 255, 0.08);
 }
 
-.panelName {
-  display: block;
-  font-weight: 600;
-  font-size: 15px;
+.dropArrow {
+  opacity: 0;
+  transition: opacity 0.3s ease-out;
 }
 
-.panelDesc {
-  display: block;
-  font-size: 13px;
-  color: rgba(23, 23, 33, 0.6);
-  margin-top: 2px;
+.dropItem:hover .dropArrow {
+  opacity: 1;
 }
 
 .actions {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 22px;
 }
 
-.signin {
-  padding: 10px 14px;
-  border-radius: 999px;
+.login {
+  color: inherit;
   font-size: 15px;
   font-weight: 500;
-  color: inherit;
+  text-decoration: none;
+  transition: opacity 0.3s ease-out;
+}
+
+.login:hover {
+  opacity: 0.65;
+}
+
+.cta {
+  display: inline-flex;
+  align-items: center;
+  background: #5266eb;
+  color: #fff;
+  border-radius: 999px;
+  padding: 13px 26px;
+  font-size: 15px;
+  font-weight: 600;
   text-decoration: none;
   transition: background-color 0.3s ease-out;
   white-space: nowrap;
 }
 
-.signin:hover {
-  background: rgba(128, 128, 140, 0.16);
+.cta:hover {
+  background: #4354c8;
 }
 
-.cta {
-  padding: 12px 22px;
-  font-size: 14px;
+.burger {
+  display: none;
+  flex-direction: column;
+  gap: 5px;
+  background: none;
+  border: none;
+  padding: 8px;
+  cursor: pointer;
+}
+
+.burger span {
+  display: block;
+  width: 22px;
+  height: 2px;
+  background: currentColor;
+  border-radius: 2px;
+}
+
+.mobileMenu {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  background: #171721;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 26px;
+}
+
+.mobileMenu a {
+  color: #fff;
+  font-size: 26px;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.mobileCta {
+  background: #5266eb;
+  border-radius: 999px;
+  padding: 15px 38px !important;
+  font-size: 18px !important;
 }
 
 @media (max-width: 900px) {
-  .links {
+  .links,
+  .login,
+  .cta {
     display: none;
   }
 
-  .signin {
-    display: none;
+  .burger {
+    display: flex;
   }
 
-  .inner {
+  .navInner {
     padding: 0 20px;
+    height: 66px;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .nav,
   .link,
-  .signin,
-  .panelLink {
+  .login,
+  .cta,
+  .dropItem,
+  .dropArrow {
     transition: none;
   }
 
-  .chevron {
-    transition: none;
-  }
-
-  .panel,
-  .panelClosing {
+  .drop {
     animation: none;
   }
 }

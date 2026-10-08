@@ -5,143 +5,195 @@
   align-items: center;
   justify-content: center;
   overflow: clip;
-  /* Named view timeline so the disclaimer pill can scrub against hero scroll. */
-  view-timeline-name: --mq-hero;
-  view-timeline-axis: block;
 }
 
-.media {
+.bg {
   position: absolute;
   inset: 0;
 }
 
-.shade {
+.scrim {
   position: absolute;
   inset: 0;
-  background:
-    linear-gradient(180deg, rgba(10, 10, 18, 0.42) 0%, rgba(10, 10, 18, 0.18) 38%, rgba(10, 10, 18, 0.66) 100%),
-    radial-gradient(120% 90% at 50% 10%, transparent 40%, rgba(10, 10, 18, 0.5) 100%);
+  background: linear-gradient(
+    to bottom,
+    rgba(12, 12, 22, 0.52) 0%,
+    rgba(12, 12, 22, 0.18) 38%,
+    rgba(12, 12, 22, 0.12) 62%,
+    rgba(12, 12, 22, 0.62) 100%
+  );
 }
 
 .content {
   position: relative;
-  z-index: 1;
-  max-width: 1020px;
-  padding: 120px 32px 120px;
+  z-index: 2;
   text-align: center;
-}
-
-.eyebrow {
-  color: rgba(255, 255, 255, 0.72);
-  margin: 0 0 28px;
+  padding: 130px 24px 120px;
+  max-width: 960px;
 }
 
 .title {
+  font-family: Georgia, "Times New Roman", Times, serif;
+  font-weight: 500;
+  font-size: 68px;
+  line-height: 1.08;
+  letter-spacing: -0.01em;
+  color: #fff;
   margin: 0;
-  font-size: clamp(44px, 7.2vw, 104px);
-  line-height: 1.04;
-  letter-spacing: -0.015em;
   text-wrap: balance;
 }
 
-.body {
-  margin: 28px auto 0;
+.sub {
+  margin: 22px auto 0;
   max-width: 640px;
-  font-size: clamp(17px, 2vw, 21px);
-  line-height: 1.55;
-  color: rgba(255, 255, 255, 0.82);
+  font-size: 20px;
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.88);
 }
 
-.actions {
-  margin-top: 40px;
+.emailRow {
+  margin-top: 38px;
   display: flex;
-  gap: 12px;
+  align-items: center;
   justify-content: center;
+  gap: 12px;
   flex-wrap: wrap;
 }
 
-/* Disclaimer pill: pinned at hero bottom, scrubbed by scroll. */
-.pill {
-  position: absolute;
-  left: 50%;
-  bottom: 36px;
-  z-index: 1;
-  transform: translateX(-50%);
+.emailPill {
   display: inline-flex;
   align-items: center;
-  gap: 12px;
-  background: rgba(16, 16, 24, 0.55);
-  -webkit-backdrop-filter: blur(10px);
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(255, 255, 255, 0.14);
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
+  border: 1px solid rgba(255, 255, 255, 0.28);
   border-radius: 999px;
-  padding: 10px 20px;
+  padding: 6px 6px 6px 28px;
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
   white-space: nowrap;
 }
 
-.pillText {
+.emailInput {
+  background: transparent;
+  border: none;
+  outline: none;
+  color: #fff;
+  font-size: 16px;
+  width: 290px;
+  padding: 10px 0;
+}
+
+.emailInput::placeholder {
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.emailBtn {
+  background: #5266eb;
+  color: #fff;
+  border: none;
+  border-radius: 999px;
+  padding: 15px 30px;
+  font-size: 15.5px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background-color 0.3s ease-out;
+}
+
+.emailBtn:hover {
+  background: #4354c8;
+}
+
+.ghostBtn {
+  display: inline-flex;
+  align-items: center;
+  background: rgba(255, 255, 255, 0.08);
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  border-radius: 999px;
+  padding: 16px 32px;
+  color: #fff;
+  font-size: 15.5px;
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+  transition:
+    background-color 0.3s ease-out,
+    border-color 0.3s ease-out;
+}
+
+.ghostBtn:hover {
+  background: rgba(255, 255, 255, 0.16);
+  border-color: rgba(255, 255, 255, 0.75);
+}
+
+.disclaimer {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 30px;
+  z-index: 2;
+  width: fit-content;
+  max-width: min(1020px, calc(100vw - 48px));
+  margin: 0 auto;
+  background: rgba(16, 16, 26, 0.55);
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
+  border-radius: 14px;
+  padding: 13px 28px;
   font-size: 12.5px;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  line-height: 1.5;
   color: rgba(255, 255, 255, 0.78);
-  font-weight: 500;
+  text-align: center;
+  will-change: transform, opacity;
 }
 
-.pillDivider {
-  width: 1px;
-  height: 16px;
-  background: rgba(255, 255, 255, 0.35);
-}
-
-/* CSS scroll-driven path: pill sinks 0 -> 100% and divider fades 1 -> 0
-   while the hero scrolls through exit 50% -> exit 100%. Linear, reversible. */
-@supports (animation-timeline: scroll()) {
-  .pill {
-    animation: mqPillSink linear both;
-    animation-timeline: --mq-hero;
-    animation-range: exit 50% exit 100%;
+@media (max-width: 900px) {
+  .title {
+    font-size: 44px;
   }
 
-  .pillDivider {
-    animation: mqDividerFade linear both;
-    animation-timeline: --mq-hero;
-    animation-range: exit 50% exit 100%;
-  }
-}
-
-@keyframes mqPillSink {
-  from {
-    transform: translateX(-50%) translateY(0);
-  }
-  to {
-    transform: translateX(-50%) translateY(100%);
-  }
-}
-
-@keyframes mqDividerFade {
-  from {
-    opacity: 1;
-  }
-  to {
-    opacity: 0;
-  }
-}
-
-@media (max-width: 640px) {
-  .content {
-    padding: 110px 20px 130px;
+  .sub {
+    font-size: 17.5px;
   }
 
-  .pill {
-    bottom: 28px;
-    padding: 9px 16px;
-    gap: 10px;
+  .emailRow {
+    flex-direction: column;
+    align-items: stretch;
+    max-width: 420px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  .emailPill {
+    flex-direction: column;
+    align-items: stretch;
+    border-radius: 24px;
+    padding: 10px;
+    gap: 8px;
+  }
+
+  .emailInput {
+    width: 100%;
+    padding: 12px 18px;
+  }
+
+  .emailBtn {
+    width: 100%;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .pill,
-  .pillDivider {
-    animation: none;
+  .emailBtn,
+  .ghostBtn {
+    transition: none;
   }
 }

@@ -1,39 +1,34 @@
 import styles from "./MercuryMarquee.module.css";
 
-const CUISINES = [
+const WORDS = [
   "Gastronomique",
   "Bistronomique",
   "Brasserie",
   "Italienne",
   "Japonaise",
-  "Fruits de mer",
-  "Végétale",
-  "Bistro de quartier"
-] as const;
+  "Café de spécialité",
+  "Bar à vin",
+  "Traiteur"
+];
 
-/**
- * Logo marquee: items drift slowly left, infinite loop, duplicated content,
- * very slow (80s per loop), no pause on hover.
- */
+/** Slow infinite marquee — seamless loop via 3x duplicated sets, translateX(-33.333%). */
 export function MercuryMarquee() {
-  const row = [...CUISINES, ...CUISINES];
-
   return (
-    <section
-      data-mercury-theme="dark"
-      className={styles.marquee}
-      aria-label="Types de cuisine"
-    >
+    <div className={styles.marquee} data-mtheme="dark" aria-label="Types de restaurants">
       <div className={styles.track}>
-        {row.map((cuisine, i) => (
-          <span key={`${cuisine}-${i}`} className={styles.item} aria-hidden={i >= CUISINES.length}>
-            {cuisine}
-            <span className={styles.dot} aria-hidden="true">
-              ·
-            </span>
-          </span>
+        {[0, 1, 2].map((copy) => (
+          <div key={copy} className={styles.set} aria-hidden={copy > 0}>
+            {WORDS.map((w) => (
+              <span key={w} className={styles.word}>
+                {w}
+                <span aria-hidden="true" className={styles.sep}>
+                  {"  •  "}
+                </span>
+              </span>
+            ))}
+          </div>
         ))}
       </div>
-    </section>
+    </div>
   );
 }

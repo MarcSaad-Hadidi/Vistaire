@@ -1,114 +1,100 @@
 "use client";
 
-import { useEffect, useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { LANDING_COPY } from "@/lib/landing/landingCopy";
-import shared from "./shared.module.css";
+import { useRouter } from "next/navigation";
+import { useEffect, useRef } from "react";
 import styles from "./MercuryHero.module.css";
-import { Reveal, usePrefersReducedMotion } from "./MercuryReveal";
-
-const copy = LANDING_COPY.fr;
 
 /**
- * Hero: full-bleed warm dish photo, giant serif title, CTA row, and the
- * signature scroll-scrubbed disclaimer pill pinned at the hero bottom.
- * As the user scrolls through the hero (50% -> 100%), the pill translates
- * down 0 -> 100% following scroll 1:1 (linear, reversible) and its divider
- * fades 1 -> 0. CSS animation-timeline when supported, rAF fallback otherwise.
+ * Full-bleed hero. The legal pill at the bottom is scroll-scrubbed:
+ * translateY 0 -> 120% (+ fade) across the hero's 50% -> 100% scroll range.
  */
 export function MercuryHero() {
-  const heroRef = useRef<HTMLElement>(null);
-  const pillRef = useRef<HTMLDivElement>(null);
-  const dividerRef = useRef<HTMLSpanElement>(null);
-  const reduced = usePrefersReducedMotion();
+  const heroRef = useRef<HTMLElement | null>(null);
+  const pillRef = useRef<HTMLDivElement | null>(null);
+  const router = useRouter();
 
   useEffect(() => {
-    if (reduced) return;
-    if (CSS.supports("animation-timeline: scroll()")) return; // CSS path handles it
     const hero = heroRef.current;
     const pill = pillRef.current;
     if (!hero || !pill) return;
     let raf = 0;
     const update = () => {
-      raf = 0;
-      const rect = hero.getBoundingClientRect();
-      const progress = Math.min(1, Math.max(0, -rect.top / rect.height));
-      const t = Math.min(1, Math.max(0, (progress - 0.5) / 0.5));
-      pill.style.transform = `translateX(-50%) translateY(${(t * 100).toFixed(2)}%)`;
-      if (dividerRef.current) {
-        dividerRef.current.style.opacity = String(1 - t);
-      }
-    };
-    const onScroll = () => {
-      if (!raf) raf = requestAnimationFrame(update);
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(() => {
+        const r = hero.getBoundingClientRect();
+        const total = r.height;
+        const scrolled = Math.min(Math.max(-r.top, 0), total);
+        const p = Math.min(Math.max((scrolled - total * 0.5) / (total * 0.5), 0), 1);
+        pill.style.transform = `translateY(${(p * 120).toFixed(2)}%)`;
+        pill.style.opacity = String(1 - p);
+      });
     };
     update();
-    window.addEventListener("scroll", onScroll, { passive: true });
-    window.addEventListener("resize", onScroll);
+    window.addEventListener("scroll", update, { passive: true });
+    window.addEventListener("resize", update);
     return () => {
-      window.removeEventListener("scroll", onScroll);
-      window.removeEventListener("resize", onScroll);
-      if (raf) cancelAnimationFrame(raf);
+      window.removeEventListener("scroll", update);
+      window.removeEventListener("resize", update);
+      cancelAnimationFrame(raf);
     };
-  }, [reduced]);
+  }, []);
 
   return (
-    <section
-      ref={heroRef}
-      data-mercury-theme="dark"
-      className={styles.hero}
-      aria-labelledby="mercury-hero-title"
-    >
-      <div className={styles.media} aria-hidden="true">
+    <section ref={heroRef} className={styles.hero} data-mtheme="dark" aria-label="Introduction">
+      <div className={styles.bg} aria-hidden="true">
         <Image
-          src="/images/demo/dishes/canette-rotie-figues-epices.png"
+          src="/images/landing/sauge-noire-experience.jpg"
           alt=""
           fill
           priority
           sizes="100vw"
           style={{ objectFit: "cover" }}
         />
+        <div className={styles.scrim} />
       </div>
-      <div className={styles.shade} aria-hidden="true" />
-      <div className={shared.grain} aria-hidden="true" />
 
       <div className={styles.content}>
-        <Reveal>
-          <p className={`${shared.eyebrow} ${styles.eyebrow}`}>
-            {copy.hero.eyebrow}
-          </p>
-        </Reveal>
-        <Reveal delay={100}>
-          <h1
-            id="mercury-hero-title"
-            className={`${shared.serif} ${styles.title}`}
-          >
-            {copy.hero.title}
-          </h1>
-        </Reveal>
-        <Reveal delay={200}>
-          <p className={styles.body}>{copy.hero.body}</p>
-        </Reveal>
-        <Reveal delay={300}>
-          <div className={styles.actions}>
-            <Link
-              className={shared.btnPrimary}
-              href="/prendre-rendez-vous"
-            >
-              {copy.finalCta.cta}
-            </Link>
-            <Link className={shared.btnGhost} href="/demo">
-              {copy.hero.secondaryCta}
-            </Link>
+        <h1 className={styles.title}>
+          Donnez envie avant la première bouchée.
+        </h1>
+        <p className={styles.sub}>
+          Vistaire transforme votre QR code en une carte mobile claire,
+          visuelle et fidèle à l’identité de votre restaurant.
+        </p>
+
+        <form
+          className={styles.emailRow}
+          onSubmit={(e) => {
+            e.preventDefault();
+            router.push("/prendre-rendez-vous");
+          }}
+        >
+          <div className={styles.emailPill}>
+            <label htmlFor="mercury-email" className={styles.srOnly}>
+              Votre courriel
+            </label>
+            <input
+              id="mercury-email"
+              type="email"
+              required
+              placeholder="Votre courriel"
+              className={styles.emailInput}
+            />
+            <button type="submit" className={styles.emailBtn}>
+              Prendre rendez-vous
+            </button>
           </div>
-        </Reveal>
+          <Link href="/demo" className={styles.ghostBtn}>
+            Voir la démo
+          </Link>
+        </form>
       </div>
 
-      <div ref={pillRef} className={styles.pill} aria-hidden="true">
-        <span className={styles.pillText}>Page concept</span>
-        <span ref={dividerRef} className={styles.pillDivider} />
-        <span className={styles.pillText}>Contenu illustratif</span>
+      <div ref={pillRef} className={styles.disclaimer} aria-hidden="true">
+        Vistaire conçoit des cartes digitales premium pour restaurants — la
+        démo se fait sur rendez-vous.
       </div>
     </section>
   );

@@ -1,176 +1,186 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import shared from "./shared.module.css";
+import { useEffect, useRef, useState } from "react";
 import styles from "./MercuryNavbar.module.css";
 
-const NAV_LINE = 72;
-
 const EXPERIENCES = [
-  {
-    name: "Sauge Noire",
-    description: "Gastronomique — carte immersive",
-    href: "/demo"
-  },
-  {
-    name: "Maison Élysée",
-    description: "Bistronomique — carte visuelle",
-    href: "/demo"
-  },
-  {
-    name: "Toutes les expériences",
-    description: "Découvrir la démo",
-    href: "/demo"
-  }
-] as const;
+  { label: "Sauge Noire", href: "/demo" },
+  { label: "Maison Élysée", href: "/demo" },
+  { label: "Voir la démo", href: "/demo" }
+];
 
 /**
- * Sticky navbar with theme inversion: sections carry
- * data-mercury-theme="dark|light"; the theme of the section under the
- * navbar line drives a theme class, with 300ms ease-out color transitions.
+ * Announcement bar + sticky nav. Theme inverts (dark <-> light) depending on
+ * the themed section under the nav line — 300ms ease-out color transitions.
  */
 export function MercuryNavbar() {
   const [theme, setTheme] = useState<"dark" | "light">("dark");
-  const [menu, setMenu] = useState<"closed" | "open" | "closing">("closed");
-  const closeTimer = useRef<number | null>(null);
-  const navRef = useRef<HTMLElement>(null);
+  const [dropOpen, setDropOpen] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const navRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
-    let raf = 0;
-    const update = () => {
-      raf = 0;
+    const onScroll = () => {
+      const sections = Array.from(
+        document.querySelectorAll<HTMLElement>("[data-mtheme]")
+      );
+      const y = 40;
       let current: "dark" | "light" = "dark";
-      document
-        .querySelectorAll<HTMLElement>("[data-mercury-theme]")
-        .forEach((section) => {
-          if (section.getBoundingClientRect().top <= NAV_LINE) {
-            const t = section.dataset.mercuryTheme;
-            if (t === "dark" || t === "light") current = t;
-          }
-        });
+      for (const s of sections) {
+        const r = s.getBoundingClientRect();
+        if (r.top <= y) current = s.dataset.mtheme === "light" ? "light" : "dark";
+      }
       setTheme(current);
     };
-    const onScroll = () => {
-      if (!raf) raf = requestAnimationFrame(update);
-    };
-    update();
+    onScroll();
     window.addEventListener("scroll", onScroll, { passive: true });
     window.addEventListener("resize", onScroll);
     return () => {
       window.removeEventListener("scroll", onScroll);
       window.removeEventListener("resize", onScroll);
-      if (raf) cancelAnimationFrame(raf);
     };
-  }, []);
-
-  const openMenu = useCallback(() => {
-    if (closeTimer.current) window.clearTimeout(closeTimer.current);
-    setMenu("open");
-  }, []);
-
-  const closeMenu = useCallback(() => {
-    setMenu((m) => (m === "open" ? "closing" : m));
-    if (closeTimer.current) window.clearTimeout(closeTimer.current);
-    closeTimer.current = window.setTimeout(() => setMenu("closed"), 250);
   }, []);
 
   useEffect(() => {
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") closeMenu();
-    };
-    const onPointerDown = (event: MouseEvent) => {
-      if (navRef.current && !navRef.current.contains(event.target as Node)) {
-        closeMenu();
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setDropOpen(false);
+        setMobileOpen(false);
       }
     };
-    document.addEventListener("keydown", onKey);
-    document.addEventListener("mousedown", onPointerDown);
-    return () => {
-      document.removeEventListener("keydown", onKey);
-      document.removeEventListener("mousedown", onPointerDown);
-      if (closeTimer.current) window.clearTimeout(closeTimer.current);
-    };
-  }, [closeMenu]);
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
 
   return (
-    <header
-      ref={navRef}
-      className={`${styles.nav} ${theme === "light" ? styles.navLight : styles.navDark}`}
-    >
-      <nav className={styles.inner} aria-label="Navigation principale">
-        <Link href="/demo" className={`${styles.logo} ${shared.serif}`}>
-          Vistaire
+    <>
+      <div className={styles.announce}>
+        <Link href="/demo" className={styles.announceLink}>
+          <span aria-hidden="true" className={styles.announceStar}>
+            ✳
+          </span>
+          Nouveau : la 3D/AR sélective Vistaire — l&apos;immersion pour vos
+          plats signatures
+          <span aria-hidden="true" className={styles.announceArrow}>
+            {" →"}
+          </span>
         </Link>
+      </div>
 
-        <div className={styles.links}>
-          <div className={styles.dropdownWrap}>
+      <header
+        ref={navRef}
+        className={`${styles.nav} ${theme === "light" ? styles.navLight : styles.navDark}`}
+      >
+        <div className={styles.navInner}>
+          <Link href="/design-mercury" className={styles.logo} aria-label="Vistaire — accueil concept">
+            <svg viewBox="0 0 40 40" width="30" height="30" aria-hidden="true">
+              <circle cx="20" cy="20" r="17" fill="none" stroke="currentColor" strokeWidth="2.4" />
+              <circle cx="20" cy="20" r="10.5" fill="none" stroke="currentColor" strokeWidth="2.4" />
+              <circle cx="20" cy="20" r="4" fill="currentColor" />
+            </svg>
+            <span className={styles.wordmark}>VISTAIRE</span>
+          </Link>
+
+          <nav className={styles.links} aria-label="Navigation principale">
+            <div className={styles.dropWrap}>
+              <button
+                type="button"
+                className={styles.link}
+                aria-expanded={dropOpen}
+                aria-haspopup="true"
+                onClick={() => setDropOpen((v) => !v)}
+              >
+                Expériences
+                <svg
+                  viewBox="0 0 12 12"
+                  width="11"
+                  height="11"
+                  aria-hidden="true"
+                  className={`${styles.chev} ${dropOpen ? styles.chevOpen : ""}`}
+                >
+                  <path
+                    d="M2.5 4.5 6 8l3.5-3.5"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              </button>
+              {dropOpen && (
+                <div className={styles.drop} role="menu">
+                  {EXPERIENCES.map((item) => (
+                    <Link
+                      key={item.label}
+                      href={item.href}
+                      className={styles.dropItem}
+                      role="menuitem"
+                      onClick={() => setDropOpen(false)}
+                    >
+                      {item.label}
+                      <span aria-hidden="true" className={styles.dropArrow}>
+                        {" →"}
+                      </span>
+                    </Link>
+                  ))}
+                </div>
+              )}
+            </div>
+            <Link href="/apercu-restaurateur" className={styles.link}>
+              Restaurateurs
+            </Link>
+            <Link href="/contact" className={styles.link}>
+              Contact
+            </Link>
+          </nav>
+
+          <div className={styles.actions}>
+            <Link href="/sign-in" className={styles.login}>
+              Se connecter
+            </Link>
+            <Link href="/prendre-rendez-vous" className={styles.cta}>
+              Prendre rendez-vous
+            </Link>
             <button
               type="button"
-              className={styles.link}
-              aria-expanded={menu === "open"}
-              aria-haspopup="true"
-              onClick={() => (menu === "open" ? closeMenu() : openMenu())}
+              className={styles.burger}
+              aria-label={mobileOpen ? "Fermer le menu" : "Ouvrir le menu"}
+              aria-expanded={mobileOpen}
+              onClick={() => setMobileOpen((v) => !v)}
             >
-              Expériences
-              <svg
-                className={`${styles.chevron} ${menu === "open" ? styles.chevronOpen : ""}`}
-                viewBox="0 0 16 16"
-                width="14"
-                height="14"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.8"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                aria-hidden="true"
-              >
-                <path d="M4 6l4 4 4-4" />
-              </svg>
+              <span />
+              <span />
+              <span />
             </button>
-            {menu !== "closed" && (
-              <div
-                className={`${styles.panel} ${menu === "closing" ? styles.panelClosing : ""}`}
-                role="menu"
-              >
-                {EXPERIENCES.map((exp) => (
-                  <Link
-                    key={exp.name}
-                    href={exp.href}
-                    role="menuitem"
-                    className={styles.panelLink}
-                    onClick={closeMenu}
-                  >
-                    <span className={styles.panelName}>{exp.name}</span>
-                    <span className={styles.panelDesc}>{exp.description}</span>
-                  </Link>
-                ))}
-              </div>
-            )}
           </div>
-          <Link className={styles.link} href="/demo">
-            Carte
+        </div>
+      </header>
+
+      {mobileOpen && (
+        <div className={styles.mobileMenu} role="dialog" aria-label="Menu">
+          <Link href="/demo" onClick={() => setMobileOpen(false)}>
+            Expériences
           </Link>
-          <Link className={styles.link} href="/apercu-restaurateur">
+          <Link href="/apercu-restaurateur" onClick={() => setMobileOpen(false)}>
             Restaurateurs
           </Link>
-          <Link className={styles.link} href="/tarifs-menu-digital-restaurant">
-            Tarifs
+          <Link href="/contact" onClick={() => setMobileOpen(false)}>
+            Contact
           </Link>
-        </div>
-
-        <div className={styles.actions}>
-          <Link className={styles.signin} href="/sign-in">
+          <Link href="/sign-in" onClick={() => setMobileOpen(false)}>
             Se connecter
           </Link>
           <Link
-            className={`${shared.btnPrimary} ${styles.cta}`}
             href="/prendre-rendez-vous"
+            className={styles.mobileCta}
+            onClick={() => setMobileOpen(false)}
           >
             Prendre rendez-vous
           </Link>
         </div>
-      </nav>
-    </header>
+      )}
+    </>
   );
 }

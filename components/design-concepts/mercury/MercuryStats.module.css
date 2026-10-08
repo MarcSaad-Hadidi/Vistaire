@@ -1,0 +1,50 @@
+.grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+}
+
+.stat {
+  padding: 8px 36px;
+  border-left: 1px solid rgba(255, 255, 255, 0.16);
+}
+
+.stat:first-child {
+  border-left: none;
+  padding-left: 0;
+}
+
+.value {
+  font-family: Georgia, "Times New Roman", Times, serif;
+  font-size: 64px;
+  line-height: 1;
+  font-weight: 500;
+  color: #fff;
+  letter-spacing: -0.01em;
+}
+
+.label {
+  margin-top: 12px;
+  font-size: 15px;
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+@media (max-width: 900px) {
+  .grid {
+    grid-template-columns: 1fr 1fr;
+    row-gap: 40px;
+  }
+
+  .stat {
+    padding: 0 20px;
+  }
+
+  .stat:nth-child(odd) {
+    border-left: none;
+    padding-left: 0;
+  }
+
+  .value {
+    font-size: 46px;
+  }
+}

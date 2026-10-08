@@ -1,0 +1,149 @@
+.grid {
+  margin-top: 56px;
+  display: grid;
+  grid-template-columns: 1.12fr 1fr;
+  gap: 56px;
+  align-items: start;
+}
+
+.accord {
+  border-top: 1px solid rgba(255, 255, 255, 0.16);
+}
+
+.light .accord {
+  border-top-color: rgba(20, 20, 35, 0.14);
+}
+
+.item {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.16);
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  background: none;
+  border: none;
+  padding: 24px 4px;
+  cursor: pointer;
+  text-align: left;
+  color: inherit;
+}
+
+.dot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: transparent;
+  transition: background-color 0.3s ease-out;
+}
+
+.itemOpen .dot {
+  background: #5266eb;
+}
+
+.headTitle {
+  font-size: 17px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.55);
+  transition: color 0.3s ease-out;
+}
+
+.itemOpen .headTitle {
+  color: #fff;
+  font-weight: 600;
+}
+
+/* Light theme overrides via parent section class */
+.light .accord,
+.light .item {
+  border-color: rgba(20, 20, 35, 0.14);
+}
+
+.light .headTitle {
+  color: rgba(20, 20, 35, 0.55);
+}
+
+.light .itemOpen .headTitle {
+  color: #14141f;
+}
+
+.body {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.4s ease-out;
+}
+
+.itemOpen .body {
+  grid-template-rows: 1fr;
+}
+
+.text {
+  overflow: hidden;
+  margin: 0;
+  font-size: 16px;
+  line-height: 1.6;
+  color: rgba(255, 255, 255, 0.62);
+}
+
+.light .text {
+  color: #5b5b70;
+}
+
+.itemOpen .text {
+  padding: 0 4px 26px 26px;
+}
+
+.visualCol {
+  position: relative;
+  min-height: 420px;
+}
+
+.visualSticky {
+  position: sticky;
+  top: 120px;
+  border-radius: 24px;
+  overflow: hidden;
+  aspect-ratio: 4 / 3.6;
+  background: #1e1e29;
+}
+
+.visual {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  transform: scale(0.985);
+  transition:
+    opacity 0.4s ease-out,
+    transform 0.4s ease-out;
+}
+
+.visualActive {
+  opacity: 1;
+  transform: scale(1);
+  z-index: 1;
+}
+
+@media (max-width: 900px) {
+  .grid {
+    grid-template-columns: 1fr;
+    gap: 32px;
+  }
+
+  .visualSticky {
+    position: relative;
+    top: 0;
+    aspect-ratio: 4 / 3;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .body,
+  .visual,
+  .dot,
+  .headTitle {
+    transition: none;
+  }
+}
