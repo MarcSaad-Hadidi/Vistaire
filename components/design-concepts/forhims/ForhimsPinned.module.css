@@ -1,0 +1,61 @@
+.wrap {
+  position: relative;
+  height: 420vh;
+  background: #fff;
+}
+
+.sticky {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.bgWhite,
+.bgGradient {
+  position: absolute;
+  inset: 0;
+}
+
+.bgWhite {
+  background: #fff;
+}
+
+.bgGradient {
+  background: linear-gradient(115deg, #8fd8b8 0%, #7fc4d8 45%, #6f9fe8 100%);
+  border-radius: 36px;
+  margin: 12px;
+}
+
+.giantWord {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 21vw;
+  white-space: nowrap;
+  z-index: 1;
+  pointer-events: none;
+}
+
+.phoneStage {
+  position: relative;
+  z-index: 2;
+  width: min(320px, 72vw);
+  aspect-ratio: 300 / 614;
+}
+
+.phoneLayer {
+  position: absolute;
+  inset: 0;
+  transition: opacity 0.12s linear;
+}
+
+@media (max-width: 640px) {
+  .giantWord {
+    font-size: 30vw;
+  }
+}

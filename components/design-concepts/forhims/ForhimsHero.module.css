@@ -1,0 +1,53 @@
+.hero {
+  padding: 96px 20px 0;
+}
+
+.panel {
+  position: relative;
+  background: #fff;
+  border-radius: 36px;
+  padding: 72px 24px 0;
+  overflow: hidden;
+  text-align: center;
+}
+
+.title {
+  font-size: clamp(52px, 8.2vw, 128px);
+  color: #5a45d6;
+}
+
+.phoneWrap {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  margin-top: 48px;
+  /* phone slightly cropped at the bottom like the reference */
+  margin-bottom: -120px;
+}
+
+.wash {
+  position: absolute;
+  inset: -40px -20% 0;
+  background: radial-gradient(ellipse 60% 55% at 50% 62%, rgba(150, 120, 235, 0.4), rgba(150, 120, 235, 0) 70%);
+  pointer-events: none;
+}
+
+.phoneWrap > *:last-child {
+  position: relative;
+}
+
+@media (max-width: 640px) {
+  .hero {
+    padding: 84px 12px 0;
+  }
+
+  .panel {
+    border-radius: 28px;
+    padding: 52px 16px 0;
+  }
+
+  .phoneWrap {
+    margin-bottom: -90px;
+    margin-top: 36px;
+  }
+}

@@ -1,0 +1,45 @@
+.nav {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 32px;
+  pointer-events: none;
+}
+
+.nav > * {
+  pointer-events: auto;
+}
+
+.wordmark {
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 27px;
+  letter-spacing: 0.14em;
+  font-weight: 400;
+  color: #101418;
+  text-decoration: none;
+}
+
+.cta {
+  font-size: 14px;
+  padding: 13px 22px;
+}
+
+@media (max-width: 640px) {
+  .nav {
+    padding: 14px 18px;
+  }
+
+  .wordmark {
+    font-size: 21px;
+  }
+
+  .cta {
+    font-size: 12.5px;
+    padding: 11px 16px;
+  }
+}

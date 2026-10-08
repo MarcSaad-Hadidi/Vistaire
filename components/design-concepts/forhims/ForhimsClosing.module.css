@@ -1,0 +1,18 @@
+.section {
+  background: #fff;
+  padding: 0 16px 16px;
+}
+
+.panel {
+  background: #f6f7f9;
+  border-radius: 36px;
+  padding: clamp(110px, 15vw, 200px) clamp(20px, 6vw, 90px);
+}
+
+.text {
+  font-size: clamp(44px, 7vw, 112px);
+  background-image: linear-gradient(180deg, #8fa8a0 0%, #3c4a48 90%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}

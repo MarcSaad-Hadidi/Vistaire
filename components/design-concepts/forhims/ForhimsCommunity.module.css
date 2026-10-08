@@ -1,0 +1,20 @@
+.section {
+  background: #fff;
+  padding: clamp(90px, 11vw, 150px) 20px;
+  text-align: center;
+}
+
+.title {
+  font-size: clamp(26px, 3.4vw, 44px);
+  color: #101418;
+  max-width: 900px;
+  margin: 0 auto;
+  line-height: 1.25;
+  letter-spacing: -0.02em;
+}
+
+.phoneWrap {
+  display: flex;
+  justify-content: center;
+  margin-top: 48px;
+}

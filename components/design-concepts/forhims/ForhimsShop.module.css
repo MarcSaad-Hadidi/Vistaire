@@ -1,0 +1,53 @@
+.section {
+  background: #fff;
+  padding-bottom: clamp(80px, 10vw, 130px);
+}
+
+.collage {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  padding: 8px 16px 40px;
+}
+
+.tile {
+  position: relative;
+  aspect-ratio: 4 / 3;
+  border-radius: 24px;
+  overflow: hidden;
+  background: #eef0f3;
+}
+
+.tileImg {
+  object-fit: cover;
+}
+
+.split {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(30px, 8vw, 120px);
+  padding: 60px clamp(20px, 6vw, 90px);
+}
+
+.split.flip {
+  flex-direction: row-reverse;
+}
+
+.splitText {
+  font-size: clamp(30px, 4vw, 56px);
+  color: #101418;
+  max-width: 520px;
+}
+
+@media (max-width: 900px) {
+  .split,
+  .split.flip {
+    flex-direction: column;
+    text-align: center;
+  }
+
+  .collage {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}

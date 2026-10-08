@@ -1,0 +1,12 @@
+.section {
+  background: #fff;
+  padding: clamp(90px, 12vw, 170px) clamp(20px, 6vw, 90px);
+}
+
+.text {
+  font-size: clamp(38px, 5.6vw, 88px);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  max-width: 1500px;
+}

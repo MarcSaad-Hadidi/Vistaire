@@ -1,0 +1,69 @@
+.pink {
+  background: #f3e2de;
+  border-radius: 0;
+  padding: clamp(120px, 16vw, 220px) clamp(20px, 6vw, 90px);
+}
+
+.pinkTitle {
+  font-size: clamp(56px, 9vw, 140px);
+  color: #101418;
+}
+
+.index {
+  background: #faf7f1;
+  padding: clamp(80px, 10vw, 140px) 20px;
+  overflow: hidden;
+}
+
+.words {
+  display: flex;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 0 clamp(8px, 4vw, 60px);
+}
+
+.fadedWord {
+  font-size: clamp(56px, 11vw, 170px);
+  color: #e9e4da;
+  white-space: nowrap;
+}
+
+.tiles {
+  display: flex;
+  justify-content: center;
+  gap: clamp(24px, 6vw, 90px);
+  margin: clamp(30px, 5vw, 70px) 0 clamp(60px, 8vw, 110px);
+  perspective: 900px;
+}
+
+.tile {
+  width: clamp(180px, 26vw, 340px);
+  aspect-ratio: 16 / 10;
+  border-radius: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transform: rotateX(24deg);
+  box-shadow:
+    0 50px 90px rgba(16, 20, 24, 0.18),
+    inset 0 2px 0 rgba(255, 255, 255, 0.9),
+    inset 0 -6px 14px rgba(16, 20, 24, 0.06);
+}
+
+.bestTitle {
+  font-size: clamp(44px, 6.4vw, 104px);
+  color: #101418;
+  text-align: center;
+}
+
+@media (max-width: 640px) {
+  .words {
+    flex-direction: column;
+    gap: 0;
+  }
+
+  .tiles {
+    flex-direction: column;
+    align-items: center;
+  }
+}
