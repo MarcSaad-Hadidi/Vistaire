@@ -1,111 +1,151 @@
 .footer {
-  background: var(--orz-bg-deep);
-  padding: 4rem 0 2rem;
-  overflow: clip;
+  background: var(--oz-black);
+  padding: 100px 60px 60px;
 }
 
-.inner {
-  max-width: 80rem;
+.grid {
+  display: grid;
+  grid-template-columns: 1fr 1.2fr 1fr;
+  gap: 60px;
+  max-width: 1440px;
   margin: 0 auto;
-  padding: 0 1.25rem;
 }
 
-.cols {
-  display: grid;
-  gap: 2.5rem;
-  margin-bottom: 3.5rem;
+.shareCard {
+  border: 2px dotted rgba(245, 238, 223, 0.3);
+  padding: 34px 30px;
 }
 
-@media (min-width: 768px) {
-  .cols {
-    grid-template-columns: 1.4fr 1fr 1fr;
-  }
-}
-
-.col {
-  min-width: 0;
-}
-
-.wordmark {
-  margin: 0 0 1rem;
-  font-weight: 900;
-  letter-spacing: 0.14em;
-  font-size: 1.15rem;
-}
-
-.baseline {
+.shareTop {
   margin: 0;
-  font-size: 0.95rem;
-  line-height: 1.6;
-  color: var(--orz-gray);
-  max-width: 24rem;
-}
-
-.colTitle {
-  margin: 0 0 1rem;
-  font-size: 0.75rem;
+  font-size: 15px;
   font-weight: 800;
-  letter-spacing: 0.28em;
-  text-transform: uppercase;
-  color: var(--orz-orange);
+  letter-spacing: 0.06em;
+  line-height: 1.6;
+  color: var(--oz-orange);
 }
 
-.list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: grid;
-  gap: 0.7rem;
+.shareMid {
+  margin: 22px 0 0;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  line-height: 1.6;
+  color: var(--oz-cream);
 }
 
-.link {
-  font-size: 0.9rem;
-  font-weight: 600;
-  color: var(--orz-cream);
-  text-decoration: none;
-  opacity: 0.85;
-  transition:
-    opacity 200ms ease,
-    color 200ms ease;
+.copyPill {
+  margin-top: 24px;
+  cursor: pointer;
+  border: 2px dotted rgba(245, 238, 223, 0.5);
+  background: transparent;
+  border-radius: 999px;
+  padding: 12px 26px;
+  color: var(--oz-cream);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
 }
 
-.link:hover,
-.link:focus-visible {
-  opacity: 1;
-  color: var(--orz-orange);
-}
-
-.plain {
-  font-size: 0.9rem;
-  color: var(--orz-gray);
-}
-
-.giant {
-  margin: 0;
-  font-weight: 900;
-  font-size: clamp(3.5rem, 17vw, 15rem);
-  line-height: 0.85;
-  letter-spacing: -0.03em;
-  text-align: center;
-  color: transparent;
-  -webkit-text-stroke: 1px var(--orz-line-strong);
-  user-select: none;
-}
-
-.bottomBar {
-  margin-top: 2.5rem;
-  padding-top: 1.5rem;
-  border-top: 1px dotted var(--orz-line-strong);
+.legal {
   display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem 2rem;
-  justify-content: space-between;
+  gap: 36px;
+  margin-top: 90px;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--oz-cream);
 }
 
-.bottomBar p {
+.newsLabel {
   margin: 0;
-  font-size: 0.72rem;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  color: var(--orz-gray);
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--oz-gray);
+}
+
+.newsRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 34px;
+  padding-bottom: 18px;
+  border-bottom: 2px dotted rgba(245, 238, 223, 0.4);
+  color: var(--oz-gray);
+  text-decoration: none;
+}
+
+.newsInput {
+  font-size: 17px;
+  letter-spacing: 0.04em;
+}
+
+.contact {
+  margin-top: 90px;
+}
+
+.contactLabel {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--oz-gray);
+}
+
+.contactLink {
+  display: inline-block;
+  margin-top: 10px;
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--oz-cream);
+  text-decoration: none;
+}
+
+.contactLink:hover {
+  color: var(--oz-orange);
+}
+
+.socials {
+  display: flex;
+  gap: 30px;
+  margin-top: 34px;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--oz-gray);
+}
+
+.disclaimer {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  line-height: 1.8;
+  color: var(--oz-gray);
+  text-align: right;
+}
+
+@media (max-width: 900px) {
+  .footer {
+    padding: 70px 24px 50px;
+  }
+
+  .grid {
+    grid-template-columns: 1fr;
+    gap: 56px;
+  }
+
+  .legal {
+    margin-top: 50px;
+  }
+
+  .contact {
+    margin-top: 50px;
+  }
+
+  .disclaimer {
+    text-align: left;
+  }
 }

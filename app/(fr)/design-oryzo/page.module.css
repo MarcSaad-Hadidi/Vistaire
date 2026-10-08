@@ -1,29 +1,24 @@
-/**
- * Concept Oryzo — design tokens.
- * Page-scoped CSS variables (inherited by every section below).
- * Palette & motifs adapted from the oryzo.ai audit:
- * deep espresso browns, cream text, vivid orange accent, dotted separators.
- */
+/* Design tokens shared by the oryzo concept — pixel-faithful to oryzo.ai */
 .page {
-  --orz-bg: #1e130c;
-  --orz-bg-deep: #0a0908;
-  --orz-card: #2a1b10;
-  --orz-cream: #f5eedf;
-  --orz-orange: #e8641c;
-  --orz-red: #c93a1a;
-  --orz-gray: #9a8f80;
-  --orz-line: rgba(245, 238, 223, 0.16);
-  --orz-line-strong: rgba(245, 238, 223, 0.32);
-  --orz-font-sans: "Avenir Next", "Optima", "Segoe UI", ui-sans-serif,
-    system-ui, sans-serif;
+  --oz-bg: #211510;
+  --oz-bg-deep: #1a0f0a;
+  --oz-black: #0a0908;
+  --oz-cream: #f5eedf;
+  --oz-gray: #9a8f80;
+  --oz-orange: #e8641c;
+  --oz-red: #c93a1a;
+  --oz-line: rgba(245, 238, 223, 0.28);
+  --oz-sans: "Avenir Next", Optima, "Segoe UI", ui-sans-serif, system-ui,
+    -apple-system, sans-serif;
+  --oz-serif: Georgia, Cambria, "Times New Roman", serif;
 
-  background: var(--orz-bg);
-  color: var(--orz-cream);
-  font-family: var(--orz-font-sans);
+  background: var(--oz-bg);
+  color: var(--oz-cream);
+  font-family: var(--oz-sans);
   overflow-x: clip;
   -webkit-font-smoothing: antialiased;
 }
 
 .main {
-  display: block;
+  position: relative;
 }

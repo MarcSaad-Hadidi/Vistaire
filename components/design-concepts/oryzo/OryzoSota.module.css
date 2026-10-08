@@ -1,0 +1,93 @@
+.sota {
+  background: var(--oz-black);
+  padding: 130px 60px 110px;
+  text-align: center;
+}
+
+.eyebrow {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: var(--oz-gray);
+}
+
+.name {
+  margin: 26px 0 0;
+  font-size: clamp(80px, 13vw, 190px);
+  font-weight: 900;
+  letter-spacing: -0.03em;
+  line-height: 1;
+  color: var(--oz-cream);
+}
+
+.pills {
+  display: flex;
+  justify-content: center;
+  gap: 18px;
+  margin-top: 56px;
+  flex-wrap: wrap;
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  padding: 22px 42px;
+  border-radius: 999px;
+  background: #2a1c12;
+  color: var(--oz-cream);
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-decoration: none;
+  transition:
+    background 0.3s ease,
+    transform 0.3s ease;
+}
+
+.pill:hover {
+  background: #3a2414;
+  transform: translateY(-2px);
+}
+
+.abstract {
+  max-width: 720px;
+  margin: 90px auto 0;
+  text-align: left;
+}
+
+.abstractTitle {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--oz-gray);
+}
+
+.abstractText {
+  margin: 26px 0 0;
+  font-size: 25px;
+  line-height: 1.6;
+  color: var(--oz-cream);
+}
+
+.accent {
+  color: var(--oz-orange);
+  font-weight: 600;
+}
+
+@media (max-width: 760px) {
+  .sota {
+    padding: 90px 24px 80px;
+  }
+
+  .abstractText {
+    font-size: 20px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pill {
+    transition: none;
+  }
+}

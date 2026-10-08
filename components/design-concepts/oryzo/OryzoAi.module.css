@@ -1,0 +1,159 @@
+.ai {
+  position: relative;
+  min-height: 120svh;
+  background: var(--oz-bg);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 120px 60px 140px;
+}
+
+.aurora {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  box-shadow:
+    inset 70px 0 140px -30px rgba(232, 100, 28, 0.5),
+    inset -70px 0 140px -30px rgba(47, 191, 165, 0.42),
+    inset 0 70px 140px -30px rgba(208, 37, 92, 0.45),
+    inset 0 -70px 140px -30px rgba(232, 194, 26, 0.38);
+}
+
+.head {
+  text-align: center;
+  position: relative;
+  z-index: 1;
+}
+
+.title {
+  margin: 0;
+  font-size: clamp(72px, 11vw, 180px);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 0.98;
+  color: var(--oz-cream);
+}
+
+.star {
+  font-size: 0.5em;
+  vertical-align: super;
+}
+
+.tag {
+  margin: 18px 0 0;
+  text-align: right;
+  font-size: clamp(18px, 2vw, 30px);
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  color: var(--oz-orange);
+  padding-right: 8%;
+}
+
+.visual {
+  position: relative;
+  z-index: 1;
+  width: min(420px, 66vw);
+  aspect-ratio: 1;
+  margin-top: 60px;
+}
+
+.visualInner {
+  position: absolute;
+  inset: 0;
+  transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: transform;
+}
+
+.photo {
+  object-fit: cover;
+}
+
+.hoverHint {
+  position: absolute;
+  left: 26%;
+  bottom: 160px;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  color: var(--oz-gray);
+}
+
+.hoverRule {
+  width: 180px;
+  border-top: 2px dotted rgba(154, 143, 128, 0.6);
+}
+
+.hoverText {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+}
+
+.side {
+  position: absolute;
+  right: 60px;
+  bottom: 170px;
+  z-index: 1;
+}
+
+.sideText {
+  margin: 0;
+  font-size: clamp(18px, 1.8vw, 26px);
+  font-weight: 800;
+  line-height: 1.5;
+  letter-spacing: 0.01em;
+  color: var(--oz-cream);
+  text-align: right;
+}
+
+.footnote {
+  position: absolute;
+  right: 60px;
+  bottom: 40px;
+  z-index: 1;
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-align: right;
+}
+
+.footnoteRule {
+  display: block;
+  width: 120px;
+  border-top: 2px dotted rgba(245, 238, 223, 0.55);
+  margin: 0 0 14px auto;
+}
+
+@media (max-width: 900px) {
+  .ai {
+    padding: 90px 24px 120px;
+  }
+
+  .hoverHint {
+    display: none;
+  }
+
+  .side {
+    position: static;
+    margin-top: 48px;
+  }
+
+  .sideText {
+    text-align: center;
+  }
+
+  .footnote {
+    right: 24px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .visualInner {
+    transition: none;
+  }
+}

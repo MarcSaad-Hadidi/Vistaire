@@ -1,55 +1,74 @@
+"use client";
+
 import { useEffect, useRef } from "react";
 
-type ScrubCallback<T extends HTMLElement> = (
-  progress: number,
-  section: T
-) => void;
-
 /**
- * Pinned-section scroll scrubbing (oryzo.ai motion language).
- *
- * Measures a tall section (e.g. 300vh) that contains a sticky 100vh stage and
- * invokes `onScrub` on every animation frame with a smoothed 0..1 progress:
- * - Pure scrub: no easing curve, fully reversible (scrolling up rewinds).
- * - Slight lerp smoothing (0.14/frame ≈ 1s settle) for a buttery feel without
- *   breaking the 1:1 scroll-driven character.
- * - The callback writes transforms directly to DOM nodes (via refs) — no
- *   React state updates per frame, transform/opacity only (GPU-friendly).
- * - prefers-reduced-motion: sets `data-scrub-reduced` on the section and skips
- *   the loop; CSS forces a static, fully-visible state.
+ * Scroll-scrub hook for pinned sections.
+ * Calls `onProgress` every animation frame with a lerped 0→1 progress
+ * while the tall section scrolls through the viewport. Pure scrub:
+ * no easing, fully reversible. Writes go through refs (no re-renders).
  */
-export function useScrub<T extends HTMLElement>(onScrub: ScrubCallback<T>) {
-  const sectionRef = useRef<T | null>(null);
-  const callbackRef = useRef(onScrub);
+export function useScrub(
+  onProgress: (progress: number) => void,
+  lerp = 0.14
+): React.RefObject<HTMLElement | null> {
+  const sectionRef = useRef<HTMLElement | null>(null);
+  const cbRef = useRef(onProgress);
 
-  // Keep the latest callback without re-subscribing the rAF loop.
   useEffect(() => {
-    callbackRef.current = onScrub;
+    cbRef.current = onProgress;
   });
+  const reduced = useRef(false);
 
   useEffect(() => {
+    reduced.current =
+      typeof window !== "undefined" &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     const section = sectionRef.current;
     if (!section) return;
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-      section.setAttribute("data-scrub-reduced", "true");
-      return;
-    }
+
     let raf = 0;
-    let current = -1; // -1 = snap to target on the first frame (no travel)
+    let current = 0;
+    let running = false;
+
     const tick = () => {
       const rect = section.getBoundingClientRect();
       const vh = window.innerHeight || 1;
-      const total = rect.height - vh;
-      const target =
-        total > 0 ? Math.min(1, Math.max(0, (vh - rect.top) / total)) : 1;
-      current = current < 0 ? target : current + (target - current) * 0.14;
-      if (Math.abs(target - current) < 0.0004) current = target;
-      callbackRef.current(current, section);
-      raf = requestAnimationFrame(tick);
+      const total = Math.max(1, rect.height - vh);
+      const raw = Math.min(1, Math.max(0, -rect.top / total));
+      if (reduced.current) {
+        cbRef.current(0.5);
+        running = false;
+        return;
+      }
+      current += (raw - current) * lerp;
+      if (Math.abs(raw - current) < 0.0005) current = raw;
+      cbRef.current(current);
+      const inRange = rect.top < vh && rect.bottom > 0;
+      if (inRange) {
+        raf = requestAnimationFrame(tick);
+      } else {
+        running = false;
+      }
     };
-    raf = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf);
-  }, []);
+
+    const kick = () => {
+      if (!running) {
+        running = true;
+        raf = requestAnimationFrame(tick);
+      }
+    };
+
+    kick();
+    window.addEventListener("scroll", kick, { passive: true });
+    window.addEventListener("resize", kick);
+    return () => {
+      running = false;
+      cancelAnimationFrame(raf);
+      window.removeEventListener("scroll", kick);
+      window.removeEventListener("resize", kick);
+    };
+  }, [lerp]);
 
   return sectionRef;
 }

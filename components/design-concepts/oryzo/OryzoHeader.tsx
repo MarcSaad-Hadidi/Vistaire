@@ -1,43 +1,69 @@
-import Link from "next/link";
+"use client";
+
+import { useEffect, useState } from "react";
 import styles from "./OryzoHeader.module.css";
 
-const NAV_LINKS = [
-  { href: "#experiences", label: "Expériences" },
-  { href: "#plats", label: "Plats" },
-  { href: "#fiche-produit", label: "Fiche produit" },
-  { href: "#restaurateurs", label: "Restaurateurs" }
-];
+const LINKS = [
+  { label: "INTRO", href: "#intro" },
+  { label: "ATOUTS", href: "#atouts" },
+  { label: "PRODUIT", href: "#produit" },
+  { label: "CONTACT", href: "#contact" }
+] as const;
 
-/**
- * Concept Oryzo — fixed top navigation.
- * Wordmark left, links right, dotted underline on the active/hovered item,
- * orange pill CTA. Dark translucent bar over the page.
- */
 export function OryzoHeader(): React.JSX.Element {
+  const [scrolled, setScrolled] = useState(false);
+  const [active, setActive] = useState<string>("#intro");
+
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > window.innerHeight * 0.7);
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
+  useEffect(() => {
+    const sections = LINKS.map((l) =>
+      document.querySelector<HTMLElement>(l.href)
+    ).filter((el): el is HTMLElement => el !== null);
+    if (sections.length === 0) return;
+    const io = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (entry.isIntersecting) setActive(`#${entry.target.id}`);
+        }
+      },
+      { rootMargin: "-40% 0px -55% 0px" }
+    );
+    sections.forEach((s) => io.observe(s));
+    return () => io.disconnect();
+  }, []);
+
   return (
-    <header className={styles.header}>
-      <div className={styles.inner}>
-        <Link href="#carte" className={styles.logo} aria-label="Vistaire — haut de page">
+    <>
+      <header className={styles.header}>
+        <a
+          href="#intro"
+          className={`${styles.logo} ${scrolled ? styles.logoVisible : ""}`}
+          aria-label="Vistaire — retour en haut"
+        >
           VISTAIRE
-          <span className={styles.logoDot} aria-hidden="true" />
-        </Link>
+        </a>
         <nav className={styles.nav} aria-label="Navigation principale">
-          {NAV_LINKS.map((link, index) => (
-            <Link
+          {LINKS.map((link) => (
+            <a
               key={link.href}
               href={link.href}
-              className={styles.link}
-              aria-current={index === 0 ? "true" : undefined}
+              className={`${styles.link} ${active === link.href ? styles.linkActive : ""}`}
             >
               {link.label}
-            </Link>
+            </a>
           ))}
         </nav>
-        <Link href="/prendre-rendez-vous" className={styles.cta}>
-          Prendre rendez-vous
-        </Link>
+      </header>
+      <div className={styles.sideTab} aria-hidden="true">
+        <span className={styles.sideTabDot} />
+        VISTAIRE · MODÈLE
       </div>
-      <div className={styles.dottedRule} aria-hidden="true" />
-    </header>
+    </>
   );
 }

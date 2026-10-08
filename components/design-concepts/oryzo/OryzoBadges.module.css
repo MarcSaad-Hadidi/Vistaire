@@ -1,0 +1,75 @@
+.badges {
+  background: var(--oz-black);
+  overflow: hidden;
+  padding: 40px 0;
+}
+
+.strip {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  padding: 0 12px;
+}
+
+.card {
+  min-width: 0;
+}
+
+.photo {
+  position: relative;
+  aspect-ratio: 3 / 4;
+  overflow: hidden;
+}
+
+.photoImg {
+  object-fit: cover;
+}
+
+.tint {
+  position: absolute;
+  inset: 0;
+}
+
+.meta {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 26px 28px;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--oz-cream);
+  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.6);
+}
+
+.title {
+  position: absolute;
+  left: 28px;
+  right: 28px;
+  bottom: 120px;
+  margin: 0;
+  font-size: clamp(52px, 6vw, 110px);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 0.95;
+  color: var(--oz-cream);
+  text-shadow: 0 4px 40px rgba(0, 0, 0, 0.5);
+}
+
+@media (max-width: 900px) {
+  .strip {
+    grid-template-columns: 1fr;
+  }
+
+  .photo {
+    aspect-ratio: 16 / 10;
+  }
+
+  .title {
+    bottom: 40px;
+  }
+}

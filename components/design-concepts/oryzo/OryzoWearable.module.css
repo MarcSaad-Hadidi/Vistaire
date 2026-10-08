@@ -1,0 +1,258 @@
+.pin {
+  position: relative;
+  height: 350vh;
+  background: var(--oz-bg);
+}
+
+.stage {
+  position: sticky;
+  top: 0;
+  height: 100svh;
+  overflow: hidden;
+}
+
+.big {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  transform: translateY(-50%);
+  margin: 0;
+  font-size: clamp(160px, 26vw, 420px);
+  font-weight: 900;
+  letter-spacing: -0.04em;
+  line-height: 1;
+  white-space: nowrap;
+  color: var(--oz-cream);
+  opacity: 0.95;
+  will-change: transform;
+  pointer-events: none;
+}
+
+.left {
+  position: absolute;
+  left: 60px;
+  top: 38%;
+  z-index: 3;
+}
+
+.kicker {
+  margin: 0;
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--oz-gray);
+}
+
+.sub {
+  margin: 6px 0 0;
+  font-size: 56px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--oz-cream);
+}
+
+.track {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  gap: 28px;
+  padding: 0 45vw 0 42vw;
+  will-change: transform;
+}
+
+.card {
+  position: relative;
+  flex: 0 0 auto;
+  width: 220px;
+  aspect-ratio: 2 / 3;
+  transition:
+    width 0.45s cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 0.45s ease;
+  opacity: 0.75;
+  z-index: 1;
+}
+
+.cardActive {
+  width: min(420px, 62vw);
+  opacity: 1;
+  z-index: 2;
+}
+
+.frame {
+  position: absolute;
+  inset: 0;
+  border: 2px dotted rgba(245, 238, 223, 0.55);
+}
+
+.photo {
+  object-fit: cover;
+}
+
+.card .handle {
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.cardActive .handle {
+  opacity: 1;
+}
+
+.handle {
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--oz-cream);
+  z-index: 3;
+}
+
+.hTl { top: -7px; left: -7px; }
+.hTr { top: -7px; right: -7px; }
+.hBl { bottom: -7px; left: -7px; }
+.hBr { bottom: -7px; right: -7px; }
+
+.cardInfo {
+  position: absolute;
+  left: 18px;
+  bottom: 18px;
+  opacity: 0;
+  transition: opacity 0.35s ease;
+}
+
+.cardActive .cardInfo {
+  opacity: 1;
+}
+
+.cardCaption {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.22em;
+  color: var(--oz-gray);
+}
+
+.cardTitle {
+  margin: 6px 0 0;
+  font-size: 24px;
+  font-weight: 900;
+  letter-spacing: -0.01em;
+  color: var(--oz-cream);
+}
+
+.cardMeta {
+  margin: 4px 0 0;
+  font-size: 13px;
+  letter-spacing: 0.12em;
+  color: var(--oz-orange);
+}
+
+.chat {
+  position: absolute;
+  left: 18px;
+  right: 18px;
+  bottom: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 14px 14px 18px;
+  background: rgba(10, 9, 8, 0.82);
+  border-radius: 10px;
+  opacity: 0;
+  transform: translateY(10px);
+  transition:
+    opacity 0.35s ease,
+    transform 0.35s ease;
+}
+
+.cardActive .chat {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.chatQ {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--oz-cream);
+}
+
+.chatBrand {
+  color: var(--oz-orange);
+}
+
+.chatCta {
+  flex: 0 0 auto;
+  border: none;
+  cursor: pointer;
+  padding: 12px 22px;
+  border-radius: 999px;
+  background: var(--oz-orange);
+  color: var(--oz-cream);
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+}
+
+.scrollCue {
+  position: absolute;
+  left: 50%;
+  bottom: 36px;
+  transform: translateX(-50%);
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  color: var(--oz-cream);
+  text-decoration: none;
+  opacity: 0.85;
+}
+
+.scrollDot {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border: 2px dotted rgba(245, 238, 223, 0.7);
+  border-radius: 50%;
+}
+
+@media (max-width: 900px) {
+  .left {
+    left: 24px;
+    top: 16%;
+  }
+
+  .sub {
+    font-size: 38px;
+  }
+
+  .kicker {
+    font-size: 20px;
+  }
+
+  .big {
+    font-size: clamp(110px, 30vw, 200px);
+  }
+
+  .cardActive {
+    width: 72vw;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card,
+  .cardInfo,
+  .chat,
+  .handle {
+    transition: none;
+  }
+}
