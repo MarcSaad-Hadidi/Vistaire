@@ -4,7 +4,8 @@ import type {
   SeoGeoQueryEvidence
 } from "./seoGeoTypes.ts";
 
-export const SEO_GEO_CONTENT_UPDATED_AT = "2026-06-22T21:26:34.000Z";
+// All twelve FR/EN page pairs were revised during this editorial release.
+export const SEO_GEO_CONTENT_UPDATED_AT = "2026-10-08";
 
 export const SEO_GEO_EDITORIAL_QUERY_EVIDENCE = {
   status: "editorial-hypothesis",

@@ -13,9 +13,7 @@ export const CONTACT_PHONE_TEL = "+15147152421";
 export const CONTACT_LOCATION_LABEL = "Montréal, Québec, Canada";
 export const CONTACT_REGION_LABEL = "Montréal, Québec";
 export const DEFAULT_SITE_DESCRIPTION =
-  "Vistaire transforme le QR code restaurant en carte digitale immersive pour restaurants haut de gamme : fiches plats, visuels, allergènes, 3D/AR sélective et aperçu restaurateur.";
-
-export const PUBLIC_SITEMAP_UPDATED_AT = "2026-06-22T21:26:34.000Z";
+  "Vistaire crée votre menu digital premium : carte mobile personnalisée, supports QR physiques, photos des plats et accompagnement pour votre restaurant.";
 
 const SITE_URL_ENV_KEYS = [
   "NEXT_PUBLIC_SITE_URL",
@@ -225,6 +223,19 @@ export function absoluteUrl(path = "/", env?: SiteUrlEnv): string {
   return new URL(normalizedPath, getSiteUrl(env)).toString();
 }
 
+export function buildSocialImageMetadata(locale: Locale = "fr", env?: SiteUrlEnv) {
+  return {
+    images: [{
+      url: absoluteUrl(`/social-image/${locale}`, env),
+      width: 1200,
+      height: 630,
+      alt: locale === "en"
+        ? "Vistaire — premium digital restaurant menu and physical QR display"
+        : "Vistaire — carte digitale premium et support QR pour restaurant"
+    }]
+  };
+}
+
 function sitemapDate(value: string): Date {
   return new Date(value);
 }
@@ -388,10 +399,11 @@ export function buildOrganizationJsonLd(env?: SiteUrlEnv): JsonLdObject {
     "@id": `${absoluteUrl("/", env)}#organization`,
     name: SITE_NAME,
     url: absoluteUrl("/", env),
+    logo: absoluteUrl("/icon.svg", env),
     email: CONTACT_EMAIL,
     telephone: CONTACT_PHONE_TEL,
     description:
-      "Vistaire conçoit des expériences de menu digital QR premium pour restaurants haut de gamme à Montréal, au Québec et au Canada.",
+      "Vistaire accompagne les restaurants dans la création et la gestion de menus digitaux premium, avec carte mobile personnalisée et supports QR physiques, à Montréal et au Québec.",
     areaServed: AREA_SERVED_JSON_LD,
     contactPoint: {
       "@type": "ContactPoint",
@@ -441,8 +453,9 @@ export function buildProfessionalServiceJsonLd(env?: SiteUrlEnv): JsonLdObject {
     url: absoluteUrl("/", env),
     email: CONTACT_EMAIL,
     telephone: CONTACT_PHONE_TEL,
+    logo: absoluteUrl("/icon.svg", env),
     description:
-      "Vistaire est un service professionnel de menu digital QR premium pour restaurants haut de gamme, restaurants indépendants et cartes issues de menus PDF.",
+      "Vistaire propose une création accompagnée de menus digitaux premium pour restaurants indépendants et haut de gamme : supports QR physiques, photos des plats, mise en place et gestion de la carte.",
     address: {
       "@type": "PostalAddress",
       addressLocality: "Montréal",

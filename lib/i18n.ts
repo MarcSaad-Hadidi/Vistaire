@@ -26,7 +26,9 @@ export const LOCALE_OPEN_GRAPH: Record<Locale, "fr_CA" | "en_CA"> = {
 
 export const VISTAIRE_LOCALE_HEADER = "x-vistaire-locale";
 
-export const PUBLIC_ROUTE_UPDATED_AT = "2026-06-22T21:26:34.000Z";
+// Fixed date of the significant bilingual marketing revision, not a build date.
+// Editorial guides retain no lastModified until their own revision is verified.
+export const PUBLIC_ROUTE_UPDATED_AT = "2026-10-08";
 
 export type BilingualRoutePair = {
   fr: string;
