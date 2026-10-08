@@ -1,0 +1,46 @@
+.manifesto {
+  background: var(--tiger-dark);
+  color: var(--tiger-mustard);
+  padding: clamp(5rem, 13vw, 13rem) clamp(1.25rem, 5vw, 5rem);
+}
+
+.eyebrow {
+  color: var(--tiger-dots);
+  margin-bottom: 2rem;
+}
+
+.title {
+  font-size: clamp(2.6rem, 10.5vw, 10rem);
+  margin: 0 0 2.5rem;
+  max-width: 16ch;
+}
+
+/* Word illumination (reference): ONLY color + opacity, no transform,
+   scrubbed 1:1 with scroll — no transition so words track scroll exactly. */
+.wordDim {
+  color: #5a3a1a;
+  opacity: 0.4;
+}
+
+.wordLit {
+  color: var(--tiger-mustard);
+  opacity: 1;
+}
+
+.dots {
+  margin: 0 0 2rem;
+  border: 0;
+  border-top: 4px dotted var(--tiger-dots);
+  width: min(420px, 60%);
+}
+
+.body {
+  margin: 0;
+  max-width: 40ch;
+  font-size: clamp(1.05rem, 2.4vw, 1.6rem);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  line-height: 1.6;
+  text-transform: uppercase;
+  color: #fff;
+}

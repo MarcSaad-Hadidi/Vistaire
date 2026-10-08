@@ -1,0 +1,308 @@
+/* ---- Chapter backgrounds ---- */
+.mustard {
+  background: var(--tiger-mustard);
+  color: var(--tiger-choco);
+}
+
+.rust {
+  background: var(--tiger-rust);
+  color: var(--tiger-mustard);
+}
+
+.dark {
+  background: var(--tiger-dark);
+  color: var(--tiger-mustard);
+}
+
+/* ---- Shared section text ---- */
+.sectionTitle {
+  font-size: clamp(2.8rem, 9.5vw, 9rem);
+  margin: 0 0 1.8rem;
+  max-width: 18ch;
+}
+
+.lede {
+  margin: 0 0 3.5rem;
+  max-width: 52ch;
+  font-size: clamp(1rem, 1.8vw, 1.25rem);
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  line-height: 1.7;
+  color: var(--tiger-choco);
+}
+
+.ledeLight {
+  margin: 0 0 3.5rem;
+  max-width: 52ch;
+  font-size: clamp(1rem, 1.8vw, 1.25rem);
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  line-height: 1.7;
+  color: #fff8ea;
+}
+
+.eyebrowDark {
+  color: var(--tiger-choco);
+  margin-bottom: 1.5rem;
+}
+
+.eyebrowLight {
+  color: var(--tiger-dots);
+  margin-bottom: 1.5rem;
+}
+
+/* ---- Experiences cards ---- */
+.cards {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.5rem;
+}
+
+.card {
+  background: var(--tiger-choco);
+  color: var(--tiger-mustard);
+  border-radius: 6px;
+  overflow: hidden;
+  box-shadow: 0 24px 60px rgba(40, 16, 6, 0.35);
+}
+
+.cardPhoto {
+  position: relative;
+  aspect-ratio: 4 / 3;
+}
+
+.cardBody {
+  padding: 1.6rem;
+}
+
+.cardTag {
+  display: inline-block;
+  margin-bottom: 0.9rem;
+  padding: 0.5em 1.1em;
+  border-radius: 100em;
+  background: var(--tiger-mustard);
+  color: var(--tiger-choco);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.cardName {
+  margin: 0 0 0.6rem;
+  font-size: clamp(1.6rem, 2.4vw, 2.2rem);
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: -0.02em;
+  line-height: 0.95;
+}
+
+.cardBlurb {
+  margin: 0 0 1.4rem;
+  font-size: 0.98rem;
+  line-height: 1.65;
+  color: #fff3dd;
+}
+
+.cardCta {
+  display: inline-block;
+  padding: 0.8em 1.8em;
+  border-radius: 100em;
+  border: 2px solid var(--tiger-mustard);
+  color: var(--tiger-mustard);
+  font-size: 0.8rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  text-decoration: none;
+  transition: opacity 0.25s ease;
+}
+
+.cardCta:hover {
+  opacity: 0.8;
+}
+
+@media (max-width: 860px) {
+  .cards {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ---- Dishes rows with parallax ---- */
+.dishRows {
+  display: flex;
+  flex-direction: column;
+  gap: clamp(3.5rem, 7vw, 6rem);
+}
+
+.dishRow {
+  display: grid;
+  grid-template-columns: 1.1fr 1fr;
+  gap: clamp(1.5rem, 4vw, 4rem);
+  align-items: center;
+}
+
+.dishRow:nth-child(even) .dishPhotoWrap {
+  order: 2;
+}
+
+.dishPhotoFrame {
+  position: relative;
+  aspect-ratio: 4 / 3;
+  border-radius: 6px;
+  overflow: hidden;
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.45);
+}
+
+.dishPhotoInner {
+  position: absolute;
+  inset: -8%;
+  will-change: transform;
+}
+
+.dishText {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1rem;
+  color: var(--tiger-mustard);
+}
+
+.dishTitle {
+  margin: 0;
+  font-size: clamp(1.9rem, 3.6vw, 3.2rem);
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: -0.02em;
+  line-height: 0.9;
+}
+
+.dishBody {
+  margin: 0;
+  font-size: 1.05rem;
+  line-height: 1.7;
+  max-width: 38ch;
+  color: #fff3dd;
+}
+
+@media (max-width: 860px) {
+  .dishRow {
+    grid-template-columns: 1fr;
+  }
+
+  .dishRow:nth-child(even) .dishPhotoWrap {
+    order: 0;
+  }
+}
+
+/* ---- Value split panel ---- */
+.split {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: clamp(2rem, 5vw, 5rem);
+  align-items: start;
+}
+
+.valueList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1.2rem;
+}
+
+.valueItem {
+  display: flex;
+  align-items: center;
+  gap: 1.2rem;
+  padding: 1.1rem 1.3rem;
+  border: 2px solid rgba(250, 174, 51, 0.35);
+  border-radius: 10px;
+}
+
+.valuePastille {
+  color: var(--tiger-dots);
+  border-color: var(--tiger-dots);
+}
+
+.valueText {
+  font-size: clamp(1rem, 1.6vw, 1.2rem);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  line-height: 1.5;
+  color: #fff3dd;
+}
+
+@media (max-width: 860px) {
+  .split {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ---- Owner grid ---- */
+.ownerGrid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1.5rem;
+  margin-bottom: 3rem;
+}
+
+.ownerCard {
+  background: var(--tiger-dark);
+  color: var(--tiger-mustard);
+  border-radius: 10px;
+  padding: 2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  align-items: flex-start;
+}
+
+.ownerPastille {
+  color: var(--tiger-mustard);
+  border-color: var(--tiger-mustard);
+}
+
+.ownerTitle {
+  margin: 0;
+  font-size: clamp(1.3rem, 2.2vw, 1.8rem);
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: -0.01em;
+  line-height: 1;
+}
+
+.ownerBody {
+  margin: 0;
+  font-size: 1rem;
+  line-height: 1.65;
+  color: #fff3dd;
+}
+
+/* Dark pill: plain background-color change on hover (reference: no sweep) */
+.darkPill {
+  display: inline-flex;
+  align-items: center;
+  padding: 1em 2.2em;
+  border-radius: 100em;
+  background: var(--tiger-choco);
+  color: var(--tiger-mustard);
+  font-weight: 800;
+  font-size: 0.95rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  text-decoration: none;
+  transition: background-color 0.25s ease;
+}
+
+.darkPill:hover,
+.darkPill:focus-visible {
+  background-color: var(--tiger-dark);
+}
+
+@media (max-width: 860px) {
+  .ownerGrid {
+    grid-template-columns: 1fr;
+  }
+}

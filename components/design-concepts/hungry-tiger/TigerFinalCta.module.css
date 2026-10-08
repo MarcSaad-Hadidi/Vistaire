@@ -1,0 +1,55 @@
+.final {
+  position: relative;
+  min-height: 100svh;
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+  background: var(--tiger-rust);
+}
+
+.bg {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(180deg, rgba(130, 53, 19, 0.55), rgba(40, 16, 6, 0.82)),
+    url("/images/demo/dishes/canette-rotie-figues-epices.png") center 60% / cover;
+}
+
+.inner {
+  position: relative;
+  z-index: 2;
+  padding: clamp(5rem, 12vw, 10rem) clamp(1.25rem, 5vw, 5rem);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2rem;
+}
+
+.title {
+  font-size: clamp(2.9rem, 10vw, 9.5rem);
+  margin: 0;
+  max-width: 14ch;
+  color: var(--tiger-mustard);
+  text-shadow: 0 6px 40px rgba(0, 0, 0, 0.45);
+}
+
+/* Word illumination (reference): ONLY color + opacity, scrubbed 1:1. */
+.wordDim {
+  color: #5a3a1a;
+  opacity: 0.4;
+}
+
+.wordLit {
+  color: var(--tiger-mustard);
+  opacity: 1;
+}
+
+.body {
+  margin: 0;
+  max-width: 46ch;
+  font-size: clamp(1.05rem, 2vw, 1.4rem);
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  line-height: 1.65;
+  color: #fff8ea;
+}
