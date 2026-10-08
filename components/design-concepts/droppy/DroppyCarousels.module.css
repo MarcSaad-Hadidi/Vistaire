@@ -1,0 +1,454 @@
+/* Carousel sections. */
+
+.band {
+  background: #fff;
+}
+.bandTight {
+  background: #fff;
+  padding-top: clamp(2rem, 4vw, 3.5rem);
+}
+.titleLight {
+  color: rgba(255, 255, 255, 0.35);
+}
+.headSub {
+  color: #6b6bd4;
+  font-size: 1.2rem;
+  font-weight: 600;
+  margin: 0.9rem 0 0;
+}
+
+/* Track */
+.track,
+.trackWide {
+  display: flex;
+  gap: 20px;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  margin-top: 2.8rem;
+  padding-bottom: 0.5rem;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+.track::-webkit-scrollbar,
+.trackWide::-webkit-scrollbar {
+  display: none;
+}
+.track > *,
+.trackWide > * {
+  scroll-snap-align: start;
+  flex: none;
+}
+
+/* Controls: dots + pause, or arrows */
+.controls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1.1rem;
+  margin-top: 2rem;
+}
+.dots {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.65rem;
+  background: rgba(18, 0, 255, 0.07);
+  border-radius: 999px;
+  padding: 0.9rem 1.4rem;
+}
+.dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: rgba(26, 26, 158, 0.25);
+  transition: all 0.3s ease;
+}
+.dotActive {
+  width: 34px;
+  border-radius: 999px;
+  background: #1a1a9e;
+}
+.pauseBtn {
+  width: 62px;
+  height: 62px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(18, 0, 255, 0.07);
+  color: #1a1a9e;
+  font-size: 1.3rem;
+  cursor: pointer;
+  transition: transform 0.25s ease, background 0.25s ease;
+}
+.pauseBtn:hover {
+  transform: scale(1.07);
+  background: rgba(18, 0, 255, 0.12);
+}
+.arrows {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.7rem;
+  margin-top: 2rem;
+}
+.arrowBtn {
+  width: 58px;
+  height: 58px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(18, 0, 255, 0.07);
+  color: #1a1a9e;
+  font-size: 1.7rem;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.25s ease, background 0.25s ease;
+  opacity: 0.55;
+}
+.arrowNext {
+  opacity: 1;
+  background: rgba(18, 0, 255, 0.12);
+}
+.arrowBtn:hover {
+  transform: scale(1.07);
+}
+
+/* --- Floating player cards --- */
+.playerCard {
+  width: min(500px, 84vw);
+  margin: 0;
+}
+.playerArt {
+  border-radius: 24px;
+  aspect-ratio: 4 / 3.4;
+}
+.playerPill {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  background: rgba(8, 8, 20, 0.9);
+  border-radius: 999px;
+  padding: 0.5rem 1.3rem 0.5rem 0.5rem;
+  color: #fff;
+  width: fit-content;
+  margin: -2.2rem auto 0;
+  position: relative;
+  z-index: 2;
+  box-shadow: 0 16px 44px rgba(0, 0, 0, 0.4);
+}
+.playerThumb {
+  border-radius: 50%;
+  object-fit: cover;
+}
+.playerPill p {
+  margin: 0;
+  font-weight: 800;
+  font-size: 0.92rem;
+}
+.playerPill span {
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+.caption,
+.captionStrong {
+  margin: 1.1rem 0 0;
+  font-size: 1.12rem;
+  color: #6b6bd4;
+  font-weight: 600;
+}
+.captionStrong strong,
+.captionStrong {
+  color: #1a1a9e;
+  font-weight: 800;
+}
+
+/* --- Need cards --- */
+.needCard {
+  width: min(500px, 84vw);
+  margin: 0;
+}
+.needArt {
+  border-radius: 24px;
+  aspect-ratio: 4 / 3.2;
+}
+.needNotch {
+  width: 150px;
+  height: 22px;
+  background: #06061a;
+  border-radius: 0 0 16px 16px;
+  margin: -6px auto 0;
+  position: relative;
+  z-index: 2;
+}
+.needCard figcaption {
+  margin-top: 1.1rem;
+  font-size: 1.12rem;
+  color: #6b6bd4;
+  font-weight: 600;
+  line-height: 1.5;
+}
+.needCard figcaption strong {
+  color: #1a1a9e;
+  font-weight: 800;
+}
+
+/* --- Highlight cards --- */
+.highlightCard {
+  width: min(860px, 92vw);
+  background: #fff;
+  border: 1px solid rgba(18, 0, 255, 0.08);
+  border-radius: 28px;
+  overflow: hidden;
+  margin: 0;
+  box-shadow: 0 24px 70px rgba(26, 26, 158, 0.1);
+}
+.highlightHead {
+  display: flex;
+  gap: 1.4rem;
+  padding: 2.4rem 2.4rem 1.8rem;
+  align-items: flex-start;
+}
+.highlightIcon {
+  width: 54px;
+  height: 54px;
+  flex: none;
+  border-radius: 16px;
+  background: linear-gradient(135deg, #3d3dff, #1200ff);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+}
+.highlightTag {
+  margin: 0;
+  color: #6b6bd4;
+  font-weight: 700;
+  font-size: 0.95rem;
+}
+.highlightHead h3 {
+  margin: 0.35rem 0 0.6rem;
+  font-size: 2rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: #1a1a9e;
+}
+.highlightBody {
+  margin: 0;
+  color: #4b4bc0;
+  font-size: 1.1rem;
+  font-weight: 600;
+  line-height: 1.55;
+  max-width: 560px;
+}
+.highlightArt {
+  height: 300px;
+  margin: 0 1.2rem 1.2rem;
+  border-radius: 20px;
+}
+
+/* --- Price cards --- */
+.priceCard {
+  position: relative;
+  width: min(300px, 78vw);
+  min-height: 300px;
+  background: #fff;
+  border: 1px solid rgba(18, 0, 255, 0.08);
+  border-radius: 24px;
+  padding: 1.8rem 1.6rem 4.6rem;
+  margin: 0;
+  box-shadow: 0 16px 44px rgba(26, 26, 158, 0.08);
+  display: flex;
+  flex-direction: column;
+  gap: 1.1rem;
+}
+.priceIcon {
+  font-size: 2rem;
+  color: #1a1a9e;
+}
+.priceLines {
+  margin: 0;
+  font-size: 1.28rem;
+  font-weight: 800;
+  line-height: 1.35;
+  letter-spacing: -0.01em;
+  color: #1a1a9e;
+}
+.priceExtra {
+  margin: 0;
+  color: #4b4bc0;
+  font-weight: 600;
+  font-size: 1rem;
+  line-height: 1.5;
+}
+.pricePlus {
+  position: absolute;
+  right: 1.2rem;
+  bottom: 1.2rem;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(18, 0, 255, 0.07);
+  color: #1a1a9e;
+  font-size: 1.5rem;
+  cursor: pointer;
+  transition: transform 0.25s ease, background 0.25s ease;
+}
+.pricePlus:hover {
+  transform: scale(1.08);
+  background: rgba(18, 0, 255, 0.13);
+}
+
+/* --- Quote cards --- */
+.quoteCard {
+  width: min(380px, 84vw);
+  background: #fff;
+  border: 1px solid rgba(18, 0, 255, 0.08);
+  border-radius: 24px;
+  padding: 1.7rem;
+  margin: 0;
+  box-shadow: 0 16px 44px rgba(26, 26, 158, 0.08);
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+}
+.quoteHead {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+}
+.quoteAvatar {
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #3d3dff, #1200ff);
+  color: #fff;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2rem;
+  flex: none;
+}
+.quoteName {
+  margin: 0;
+  font-weight: 800;
+  color: #1a1a9e;
+  font-size: 1rem;
+}
+.quoteHandle {
+  margin: 0;
+  color: #6b6bd4;
+  font-size: 0.88rem;
+  font-weight: 600;
+}
+.quoteTag {
+  margin: 0;
+  color: #1200ff;
+  font-weight: 700;
+  font-size: 0.92rem;
+}
+.quoteText {
+  margin: 0;
+  font-size: 1.28rem;
+  font-weight: 700;
+  line-height: 1.45;
+  letter-spacing: -0.01em;
+  color: #1a1a9e;
+}
+.quoteFoot {
+  margin-top: auto;
+  color: #6b6bd4;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+/* --- Extension cards --- */
+.extCard {
+  width: min(560px, 88vw);
+  background: #fff;
+  border: 1px solid rgba(18, 0, 255, 0.08);
+  border-radius: 28px;
+  overflow: hidden;
+  margin: 0;
+  box-shadow: 0 24px 70px rgba(26, 26, 158, 0.1);
+}
+.extHead {
+  padding: 2rem 2rem 1.4rem;
+}
+.extIconRow {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  margin-bottom: 1.2rem;
+}
+.extIcon {
+  width: 46px;
+  height: 46px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #3d3dff, #1200ff);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.3rem;
+}
+.extTag {
+  color: #6b6bd4;
+  font-weight: 700;
+  font-size: 0.95rem;
+}
+.extHead h3 {
+  margin: 0 0 0.7rem;
+  font-size: 1.9rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: #1a1a9e;
+  line-height: 1.15;
+}
+.extHead p {
+  margin: 0;
+  color: #4b4bc0;
+  font-weight: 600;
+  font-size: 1.08rem;
+  line-height: 1.55;
+}
+.extArt {
+  height: 260px;
+  margin: 0 1.1rem 1.1rem;
+  border-radius: 20px;
+}
+.extArrow {
+  display: flex;
+  justify-content: flex-end;
+  padding: 0 2rem 1.6rem;
+}
+.extArrow a {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: rgba(18, 0, 255, 0.07);
+  color: #1a1a9e;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.4rem;
+  text-decoration: none;
+  transition: transform 0.25s ease;
+}
+.extArrow a:hover {
+  transform: scale(1.08);
+}
+
+@media (max-width: 760px) {
+  .highlightHead {
+    padding: 1.6rem 1.4rem 1.2rem;
+  }
+  .highlightHead h3 {
+    font-size: 1.5rem;
+  }
+  .extHead h3 {
+    font-size: 1.5rem;
+  }
+}

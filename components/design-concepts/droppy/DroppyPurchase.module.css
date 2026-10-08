@@ -1,0 +1,187 @@
+.purchase {
+  background: #f1f1f9;
+}
+.fine {
+  text-align: center;
+  color: #7777d8;
+  font-weight: 600;
+  font-size: 1.02rem;
+  margin: 0.9rem 0 0;
+}
+.cards {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  margin-top: 3.5rem;
+  align-items: stretch;
+}
+.cardWhite,
+.cardBlue {
+  border-radius: 32px;
+  padding: 2.6rem 2.4rem;
+  display: flex;
+  flex-direction: column;
+}
+.cardWhite {
+  background: #fff;
+  box-shadow: 0 24px 70px rgba(26, 26, 158, 0.1);
+  color: #1a1a9e;
+}
+.cardBlue {
+  background: linear-gradient(160deg, #1e1ef2, #0d0dc9);
+  color: #fff;
+  box-shadow: 0 24px 70px rgba(18, 0, 255, 0.3);
+  overflow: hidden;
+  position: relative;
+}
+.cardEyebrow,
+.cardEyebrowLight {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  font-weight: 800;
+  font-size: 1.15rem;
+  margin: 0 0 1.8rem;
+}
+.miniBadge {
+  width: 34px;
+  height: 34px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #3d3dff, #1200ff);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+}
+.segment {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  background: rgba(18, 0, 255, 0.06);
+  border-radius: 999px;
+  padding: 0.35rem;
+  gap: 0.25rem;
+}
+.segBtn {
+  border: none;
+  background: transparent;
+  border-radius: 999px;
+  padding: 0.7rem 0.4rem;
+  cursor: pointer;
+  color: #4b4bc0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  align-items: center;
+  transition: background 0.25s ease, color 0.25s ease;
+  font-family: inherit;
+}
+.segBtn strong {
+  font-size: 0.95rem;
+  font-weight: 800;
+}
+.segBtn span {
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+.segActive {
+  background: #1200ff;
+  color: #fff;
+}
+.planDesc {
+  margin: 1.1rem 0 0;
+  color: #4b4bc0;
+  font-weight: 600;
+  font-size: 1rem;
+  min-height: 1.6em;
+}
+.giant,
+.giantLight {
+  font-size: clamp(3.4rem, 6vw, 4.8rem);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  margin: 1.6rem 0 1.8rem;
+}
+.giant {
+  color: #1a1a9e;
+}
+.giantLight {
+  color: #fff;
+  margin-bottom: 0.4rem;
+}
+.cardArt {
+  border-radius: 22px;
+  height: 190px;
+  margin: 1.2rem 0 0.4rem;
+}
+.cardBlueSub {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.85);
+  font-weight: 600;
+  font-size: 1.08rem;
+  line-height: 1.55;
+  max-width: 420px;
+}
+.cardBlueNote {
+  margin: 0 0 1.6rem;
+  color: rgba(255, 255, 255, 0.75);
+  font-weight: 600;
+}
+.checks {
+  list-style: none;
+  margin: 0 0 2.2rem;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.95rem;
+}
+.check,
+.checkLight {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  font-weight: 600;
+  font-size: 1.04rem;
+}
+.check {
+  color: #1a1a9e;
+}
+.checkLight {
+  color: rgba(255, 255, 255, 0.92);
+}
+.checkBadge,
+.checkBadgeLight {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.85rem;
+  font-weight: 800;
+  flex: none;
+}
+.checkBadge {
+  background: rgba(18, 0, 255, 0.09);
+  color: #1200ff;
+}
+.checkBadgeLight {
+  background: rgba(255, 255, 255, 0.18);
+  color: #fff;
+}
+.cardCta {
+  margin-top: auto;
+  justify-content: center;
+}
+.bottomNote {
+  text-align: center;
+  color: #7777d8;
+  font-weight: 600;
+  margin: 2.2rem 0 0;
+  font-size: 1rem;
+}
+
+@media (max-width: 860px) {
+  .cards {
+    grid-template-columns: 1fr;
+  }
+}

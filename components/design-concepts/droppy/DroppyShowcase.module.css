@@ -1,0 +1,311 @@
+/* Demo card + press marquee + upgrade grid + black "further" section. */
+
+.demoSection {
+  background: #fff;
+  padding-top: clamp(3rem, 6vw, 5rem);
+}
+
+/* --- Make-it-yours demo card --- */
+.demoCard {
+  position: relative;
+  border-radius: 32px;
+  background: #14148c;
+  overflow: hidden;
+  min-height: 560px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  box-shadow: 0 30px 90px rgba(18, 0, 255, 0.22);
+}
+.demoArt {
+  position: absolute;
+  inset: 0;
+  opacity: 0.9;
+}
+.demoPillWrap {
+  position: absolute;
+  top: 44px;
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: center;
+  z-index: 3;
+}
+.demoPill {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  background: rgba(8, 8, 20, 0.88);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 28px;
+  padding: 0.9rem 1.4rem 0.9rem 0.9rem;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  color: #fff;
+  min-width: min(420px, 86vw);
+}
+.demoThumb {
+  border-radius: 18px;
+  object-fit: cover;
+  flex: none;
+}
+.demoMeta {
+  flex: 1;
+  min-width: 0;
+}
+.demoName {
+  margin: 0;
+  font-weight: 800;
+  font-size: 1.02rem;
+}
+.demoSub {
+  margin: 0.1rem 0 0.55rem;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+.demoBar {
+  height: 5px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.18);
+  overflow: hidden;
+}
+.demoBar span {
+  display: block;
+  height: 100%;
+  background: #fff;
+  border-radius: 999px;
+}
+.demoControls {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  font-size: 1.15rem;
+  color: rgba(255, 255, 255, 0.85);
+}
+.demoPlay {
+  font-size: 1.5rem;
+}
+.demoText {
+  position: relative;
+  z-index: 2;
+  text-align: center;
+  padding: 0 1.5rem 4.2rem;
+  color: #fff;
+}
+.demoText h2 {
+  font-size: clamp(2.2rem, 4.6vw, 3.4rem);
+  font-weight: 800;
+  letter-spacing: -0.025em;
+  margin: 0 0 0.7rem;
+}
+.demoText p {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.78);
+  font-size: 1.15rem;
+  font-weight: 600;
+}
+.demoFab {
+  position: absolute;
+  z-index: 3;
+  right: 26px;
+  bottom: 26px;
+  width: 58px;
+  height: 58px;
+  border-radius: 50%;
+  background: rgba(20, 20, 40, 0.72);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  text-decoration: none;
+  transition: transform 0.25s ease, background 0.25s ease;
+}
+.demoFab:hover {
+  transform: scale(1.08);
+  background: rgba(20, 20, 40, 0.9);
+}
+
+/* --- Press marquee --- */
+.press {
+  background: #fff;
+  padding: 1.5rem 0 3.5rem;
+}
+.badge {
+  margin: 0 1.6rem;
+  opacity: 0.75;
+  flex: none;
+}
+.badgeArc {
+  font-size: 12.5px;
+  font-weight: 800;
+  letter-spacing: 0.32em;
+  fill: #1a1a9e;
+  font-family: inherit;
+}
+
+/* --- Upgrade grid --- */
+.upgrade {
+  background: #f1f1f9;
+}
+.fgrid {
+  margin-top: 3.5rem;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 20px;
+}
+.fcard {
+  position: relative;
+  border-radius: 24px;
+  overflow: hidden;
+  min-height: 340px;
+  display: flex;
+  align-items: flex-end;
+  background: #2323a8;
+  box-shadow: 0 18px 50px rgba(26, 26, 158, 0.12);
+}
+.fcardTall {
+  grid-row: span 2;
+  min-height: 700px;
+}
+.fcardFull {
+  grid-column: 1 / -1;
+  min-height: 300px;
+}
+.fcardDark {
+  background: #0c0c34;
+}
+.fcardBg {
+  position: absolute;
+  inset: 0;
+}
+.fcardBg img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.fcardScrim {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(6, 6, 30, 0) 40%, rgba(6, 6, 30, 0.62) 100%);
+}
+.fcardText {
+  position: relative;
+  z-index: 2;
+  padding: 1.8rem;
+  color: #fff;
+}
+.fcardText h3 {
+  margin: 0 0 0.45rem;
+  font-size: 1.55rem;
+  font-weight: 800;
+  letter-spacing: -0.015em;
+}
+.fcardText p {
+  margin: 0;
+  color: rgba(255, 255, 255, 0.82);
+  font-size: 1.05rem;
+  font-weight: 600;
+  line-height: 1.5;
+}
+
+/* --- Black "further" section --- */
+.further {
+  background: #06061a;
+  color: #fff;
+  text-align: center;
+  padding: clamp(5rem, 10vw, 9rem) 1.25rem clamp(6rem, 11vw, 10rem);
+  position: relative;
+  overflow: hidden;
+}
+.furtherTitle {
+  font-size: clamp(2.6rem, 6vw, 5rem);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1.04;
+  margin: 0;
+}
+.furtherSub {
+  color: rgba(255, 255, 255, 0.55);
+  font-size: 1.2rem;
+  font-weight: 600;
+  margin: 1.4rem 0 0;
+}
+.furtherPillWrap {
+  display: flex;
+  justify-content: center;
+  margin-top: 4.5rem;
+}
+.furtherPill {
+  display: flex;
+  align-items: center;
+  gap: 1.4rem;
+  background: #000;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 999px;
+  padding: 1.1rem 2.4rem 1.1rem 1.1rem;
+  box-shadow: 0 30px 90px rgba(0, 0, 0, 0.6);
+  min-width: min(560px, 88vw);
+}
+.furtherThumb {
+  border-radius: 22px;
+  object-fit: cover;
+  flex: none;
+}
+.furtherMeta {
+  flex: 1;
+  text-align: left;
+}
+.furtherMeta p {
+  margin: 0;
+  font-weight: 800;
+  font-size: 1.5rem;
+  letter-spacing: -0.01em;
+}
+.furtherMeta span {
+  color: rgba(255, 255, 255, 0.55);
+  font-weight: 600;
+  font-size: 1.05rem;
+}
+.furtherPlay {
+  font-size: 2rem;
+  color: #fff;
+}
+.furtherPause {
+  position: absolute;
+  right: clamp(1.5rem, 6vw, 5rem);
+  bottom: 3rem;
+  width: 62px;
+  height: 62px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  font-size: 1.4rem;
+  cursor: pointer;
+  transition: background 0.25s ease, transform 0.25s ease;
+}
+.furtherPause:hover {
+  background: rgba(255, 255, 255, 0.2);
+  transform: scale(1.06);
+}
+
+@media (max-width: 760px) {
+  .fgrid {
+    grid-template-columns: 1fr;
+  }
+  .fcardTall {
+    grid-row: auto;
+    min-height: 380px;
+  }
+  .fcardFull {
+    min-height: 280px;
+  }
+  .demoCard {
+    min-height: 480px;
+  }
+}

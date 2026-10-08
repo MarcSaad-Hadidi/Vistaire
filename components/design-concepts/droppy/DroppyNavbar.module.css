@@ -1,0 +1,118 @@
+.header {
+  position: fixed;
+  top: 12px;
+  left: 0;
+  right: 0;
+  z-index: 100;
+  display: flex;
+  justify-content: center;
+  pointer-events: none;
+  padding-inline: 12px;
+}
+.pill {
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  border-radius: 999px;
+  padding: 0.55rem 0.6rem 0.55rem 1.1rem;
+  transition:
+    background 0.35s ease,
+    color 0.35s ease,
+    box-shadow 0.35s ease;
+}
+.pillLight {
+  background: rgba(255, 255, 255, 0.82);
+  color: #1a1a9e;
+  box-shadow: 0 12px 40px rgba(10, 10, 60, 0.22);
+  backdrop-filter: blur(18px) saturate(1.4);
+  -webkit-backdrop-filter: blur(18px) saturate(1.4);
+}
+.pillDark {
+  background: rgba(10, 10, 46, 0.72);
+  color: #fff;
+  box-shadow: 0 12px 40px rgba(6, 6, 26, 0.35);
+  backdrop-filter: blur(18px) saturate(1.4);
+  -webkit-backdrop-filter: blur(18px) saturate(1.4);
+}
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  text-decoration: none;
+  color: inherit;
+  font-weight: 800;
+  font-size: 1.05rem;
+  margin-right: 0.9rem;
+}
+.mark {
+  display: inline-flex;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #3d3dff, #1200ff);
+  color: #fff;
+  flex: none;
+}
+.pillDark .mark {
+  background: linear-gradient(135deg, #6a6aff, #3d3dff);
+}
+.brandName {
+  letter-spacing: -0.01em;
+}
+.links {
+  display: flex;
+  align-items: center;
+  gap: 0.15rem;
+}
+.link {
+  color: inherit;
+  text-decoration: none;
+  font-weight: 700;
+  font-size: 0.98rem;
+  padding: 0.55rem 0.85rem;
+  border-radius: 999px;
+  opacity: 0.75;
+  transition:
+    opacity 0.2s ease,
+    background 0.2s ease;
+}
+.link:hover {
+  opacity: 1;
+  background: rgba(127, 127, 255, 0.14);
+}
+.cta {
+  margin-left: 0.6rem;
+  background: #1200ff;
+  color: #fff !important;
+  font-weight: 800;
+  font-size: 0.98rem;
+  padding: 0.7rem 1.35rem;
+  border-radius: 999px;
+  text-decoration: none;
+  transition:
+    background 0.25s ease,
+    transform 0.25s ease;
+  white-space: nowrap;
+}
+.pillDark .cta {
+  background: #fff;
+  color: #1200ff !important;
+}
+.cta:hover {
+  transform: translateY(-1px);
+}
+
+@media (max-width: 860px) {
+  .links {
+    display: none;
+  }
+  .brandName {
+    display: none;
+  }
+  .brand {
+    margin-right: 0.3rem;
+  }
+}

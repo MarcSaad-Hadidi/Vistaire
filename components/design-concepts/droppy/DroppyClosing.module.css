@@ -1,0 +1,139 @@
+.final {
+  background: #fff;
+}
+.finalBadgeWrap {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 2rem;
+}
+.finalBadge {
+  width: 104px;
+  height: 104px;
+  border-radius: 30px;
+  background: linear-gradient(145deg, #3d3dff, #1200ff);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 22px 64px rgba(18, 0, 255, 0.35);
+}
+.finalCtas {
+  display: flex;
+  gap: 0.9rem;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-top: 2.4rem;
+}
+
+/* Cloud divider into the footer */
+.cloudTop {
+  background: #fff;
+  color: #1200ff;
+  line-height: 0;
+}
+.clouds {
+  display: block;
+  width: 100%;
+}
+
+.footer {
+  background: #1200ff;
+  color: #fff;
+  padding: 2rem 1.25rem 0;
+  overflow: hidden;
+  position: relative;
+}
+.footerGrid {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr 1fr 1fr;
+  gap: 2.5rem;
+  padding-bottom: 4rem;
+}
+.brandRow {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  margin: 0 0 1.4rem;
+  font-size: 1.5rem;
+}
+.brandBadge {
+  width: 52px;
+  height: 52px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.16);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.tagline {
+  font-size: 1.5rem;
+  font-weight: 800;
+  letter-spacing: -0.015em;
+  line-height: 1.3;
+  margin: 0 0 1rem;
+}
+.brandDesc {
+  color: rgba(255, 255, 255, 0.72);
+  font-weight: 600;
+  line-height: 1.6;
+  margin: 0 0 1.8rem;
+  max-width: 320px;
+}
+.footerCta {
+  margin-bottom: 2rem;
+}
+.copy {
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 0.95rem;
+  font-weight: 600;
+  margin: 0 0 0.5rem;
+}
+.made {
+  color: rgba(255, 255, 255, 0.45);
+  font-size: 0.88rem;
+  font-weight: 600;
+  margin: 0;
+}
+.col {
+  display: flex;
+  flex-direction: column;
+  gap: 1.05rem;
+}
+.colTitle {
+  font-weight: 800;
+  font-size: 1.15rem;
+  margin: 0 0 0.4rem;
+}
+.col a {
+  color: rgba(255, 255, 255, 0.72);
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 1.02rem;
+  width: fit-content;
+}
+.col a:hover {
+  color: #fff;
+  text-decoration: underline;
+}
+.watermark {
+  font-size: clamp(6rem, 22vw, 21rem);
+  font-weight: 800;
+  letter-spacing: -0.045em;
+  line-height: 0.8;
+  text-align: center;
+  color: rgba(255, 255, 255, 0.13);
+  margin: 1rem 0 -0.12em;
+  user-select: none;
+  white-space: nowrap;
+}
+
+@media (max-width: 900px) {
+  .footerGrid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+@media (max-width: 560px) {
+  .footerGrid {
+    grid-template-columns: 1fr;
+  }
+}

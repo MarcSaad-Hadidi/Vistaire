@@ -1,0 +1,224 @@
+/* Shared design tokens + primitives for the Droppy concept (pixel-faithful copy of getdroppy.app). */
+
+.root {
+  --droppy-blue: #1200ff;
+  --droppy-deep: #0d0dc9;
+  --droppy-ink: #1a1a9e;
+  --droppy-ink-soft: #4b4bc0;
+  --droppy-muted: #7777d8;
+  --droppy-lavender: #f1f1f9;
+  --droppy-lavender-2: #f6f7fa;
+  --droppy-cream: #fdf6ee;
+  --droppy-paleyellow: #fdf6d8;
+  --droppy-palegreen: #eaf9ea;
+  --droppy-palelav: #efeafd;
+  --droppy-night: #06061a;
+  --droppy-white: #ffffff;
+  --droppy-radius: 24px;
+  --droppy-max: 1180px;
+  --droppy-font: "Nunito", ui-rounded, "SF Pro Rounded", "Hiragino Maru Gothic ProN",
+    system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-family: var(--droppy-font);
+  color: var(--droppy-ink);
+  background: var(--droppy-white);
+  -webkit-font-smoothing: antialiased;
+  overflow-x: clip;
+}
+
+/* Scroll reveal: fade + rise, once */
+.reveal {
+  opacity: 0;
+  transform: translateY(36px);
+  transition:
+    opacity 0.7s ease,
+    transform 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.revealVisible {
+  opacity: 1;
+  transform: none;
+}
+
+/* Word-by-word scroll illumination: words start dim, brighten as you scroll. */
+.wordReveal {
+  max-width: 1000px;
+  margin-inline: auto;
+  text-align: center;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.12;
+  font-size: clamp(2rem, 4.6vw, 3.9rem);
+  color: var(--droppy-ink);
+}
+.wordReveal .w {
+  opacity: 0.14;
+  transition: opacity 0.25s linear;
+}
+.wordReveal .w.lit {
+  opacity: 1;
+}
+.wordRevealSub {
+  text-align: center;
+  color: var(--droppy-muted);
+  font-size: 1.35rem;
+  font-weight: 600;
+  margin-top: 1.75rem;
+  opacity: 0.35;
+  transition: opacity 0.4s linear;
+}
+.wordRevealSub.lit {
+  opacity: 1;
+}
+
+/* Section scaffolding */
+.section {
+  padding: clamp(4.5rem, 9vw, 8.5rem) clamp(1.25rem, 4vw, 3rem);
+  position: relative;
+}
+.wrap {
+  max-width: var(--droppy-max);
+  margin-inline: auto;
+}
+.kicker {
+  text-align: center;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--droppy-muted);
+  margin-bottom: 0.75rem;
+}
+.title {
+  text-align: center;
+  font-weight: 800;
+  letter-spacing: -0.025em;
+  line-height: 1.05;
+  font-size: clamp(2.4rem, 5.2vw, 4.3rem);
+  color: var(--droppy-ink);
+  max-width: 1000px;
+  margin: 0 auto;
+}
+.title em {
+  font-style: italic;
+}
+.titleLight {
+  color: rgba(255, 255, 255, 0.35);
+}
+.sub {
+  text-align: center;
+  color: var(--droppy-ink-soft);
+  font-size: clamp(1.05rem, 1.8vw, 1.35rem);
+  font-weight: 600;
+  line-height: 1.55;
+  max-width: 760px;
+  margin: 1.25rem auto 0;
+}
+
+/* Pills / buttons */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  border-radius: 999px;
+  font-weight: 800;
+  font-size: 1.08rem;
+  padding: 1rem 1.9rem;
+  text-decoration: none;
+  border: none;
+  cursor: pointer;
+  transition:
+    transform 0.25s ease,
+    background 0.25s ease,
+    color 0.25s ease;
+  white-space: nowrap;
+}
+.btn:active {
+  transform: scale(0.97);
+}
+.btnWhite {
+  background: #fff;
+  color: var(--droppy-blue);
+}
+.btnWhite:hover {
+  transform: translateY(-2px);
+}
+.btnBlue {
+  background: var(--droppy-blue);
+  color: #fff;
+}
+.btnBlue:hover {
+  background: var(--droppy-deep);
+  transform: translateY(-2px);
+}
+.btnGhost {
+  background: rgba(255, 255, 255, 0.16);
+  color: #fff;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+.btnGhost:hover {
+  background: rgba(255, 255, 255, 0.26);
+}
+.btnPale {
+  background: rgba(18, 0, 255, 0.07);
+  color: var(--droppy-blue);
+}
+.btnPale:hover {
+  background: rgba(18, 0, 255, 0.13);
+}
+
+/* Blue-duotone image treatment (approximates the reference's duotone art). */
+.duotone {
+  position: relative;
+  background: var(--droppy-blue);
+  overflow: hidden;
+}
+.duotone img {
+  filter: grayscale(1) contrast(1.08) brightness(1.04);
+  mix-blend-mode: luminosity;
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.duotone::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(18, 0, 255, 0.08), rgba(18, 0, 255, 0.28));
+  pointer-events: none;
+}
+
+/* Wavy cloud divider: scalloped edge built from radial gradients. */
+.cloudDivider {
+  height: clamp(90px, 12vw, 170px);
+  margin-bottom: -1px;
+  background:
+    radial-gradient(circle at 5% 100%, currentColor 42px, transparent 43px),
+    radial-gradient(circle at 13% 100%, currentColor 58px, transparent 59px),
+    radial-gradient(circle at 24% 100%, currentColor 44px, transparent 45px),
+    radial-gradient(circle at 34% 100%, currentColor 62px, transparent 63px),
+    radial-gradient(circle at 46% 100%, currentColor 46px, transparent 47px),
+    radial-gradient(circle at 57% 100%, currentColor 60px, transparent 61px),
+    radial-gradient(circle at 68% 100%, currentColor 44px, transparent 45px),
+    radial-gradient(circle at 79% 100%, currentColor 58px, transparent 59px),
+    radial-gradient(circle at 90% 100%, currentColor 46px, transparent 47px),
+    radial-gradient(circle at 98% 100%, currentColor 56px, transparent 57px);
+  background-repeat: no-repeat;
+  background-size:
+    16% 100%, 18% 100%, 16% 100%, 18% 100%, 16% 100%,
+    18% 100%, 16% 100%, 18% 100%, 16% 100%, 16% 100%;
+  background-position:
+    0 0, 10% 0, 22% 0, 33% 0, 45% 0,
+    55% 0, 66% 0, 76% 0, 87% 0, 94% 0;
+  opacity: 0.5;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reveal {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+  .wordReveal .w,
+  .wordRevealSub {
+    opacity: 1 !important;
+  }
+}

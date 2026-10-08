@@ -1,0 +1,133 @@
+.hero {
+  position: relative;
+  min-height: 100svh;
+  background: #1200ff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  padding: 7.5rem 1.25rem 4rem;
+}
+.artLeft,
+.artRight {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 46%;
+  opacity: 0.85;
+  mask-image: linear-gradient(to right, black 55%, transparent 100%);
+  -webkit-mask-image: linear-gradient(to right, black 55%, transparent 100%);
+}
+.artLeft {
+  left: 0;
+}
+.artRight {
+  right: 0;
+  mask-image: linear-gradient(to left, black 55%, transparent 100%);
+  -webkit-mask-image: linear-gradient(to left, black 55%, transparent 100%);
+}
+.scrim {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    ellipse 72% 62% at 50% 46%,
+    rgba(18, 0, 255, 0.72) 0%,
+    rgba(18, 0, 255, 0.35) 55%,
+    rgba(18, 0, 255, 0.05) 100%
+  );
+}
+.content {
+  position: relative;
+  z-index: 2;
+  text-align: center;
+  max-width: 1060px;
+}
+.badgeWrap {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 2.2rem;
+}
+.badge {
+  width: 118px;
+  height: 118px;
+  border-radius: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.34), rgba(255, 255, 255, 0.08));
+  border: 1px solid rgba(255, 255, 255, 0.45);
+  box-shadow:
+    0 24px 70px rgba(4, 4, 40, 0.45),
+    inset 0 2px 10px rgba(255, 255, 255, 0.35);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+.badgeMark {
+  display: inline-flex;
+  color: #fff;
+  filter: drop-shadow(0 4px 12px rgba(4, 4, 60, 0.5));
+}
+.eyebrow {
+  color: #fff;
+  font-weight: 700;
+  font-size: 1.02rem;
+  letter-spacing: 0.01em;
+  margin: 0 0 1.1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+.title {
+  color: #fff;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1.02;
+  font-size: clamp(2.9rem, 7.2vw, 6rem);
+  margin: 0;
+  text-wrap: balance;
+}
+.titleDim {
+  color: #9d9dff;
+}
+.sub {
+  color: rgba(255, 255, 255, 0.88);
+  font-size: clamp(1.05rem, 1.9vw, 1.35rem);
+  font-weight: 600;
+  line-height: 1.55;
+  max-width: 640px;
+  margin: 1.6rem auto 0;
+}
+.ctas {
+  display: flex;
+  gap: 0.9rem;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-top: 2.2rem;
+}
+.fineprint {
+  margin-top: 1.6rem;
+  font-size: 0.98rem;
+  font-weight: 600;
+}
+.fineprint a {
+  color: rgba(255, 255, 255, 0.75);
+  text-decoration: none;
+}
+.fineprint a:hover {
+  color: #fff;
+  text-decoration: underline;
+}
+
+@media (max-width: 700px) {
+  .artLeft,
+  .artRight {
+    width: 70%;
+    opacity: 0.55;
+  }
+  .badge {
+    width: 92px;
+    height: 92px;
+    border-radius: 26px;
+  }
+}
