@@ -1,0 +1,143 @@
+.page {
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at 15% 0%, rgba(124, 87, 50, 0.2), transparent 36%),
+    #17100c;
+  color: #fff7ea;
+  padding: 24px 18px 72px;
+}
+
+.header {
+  display: flex;
+  width: min(920px, 100%);
+  margin: 0 auto;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  border-bottom: 1px solid rgba(255, 247, 234, 0.09);
+  padding-bottom: 18px;
+}
+
+.brand {
+  color: #fff7ea;
+  font-size: 25px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.header nav {
+  display: flex;
+  gap: 14px;
+}
+
+.header nav a {
+  color: rgba(255, 247, 234, 0.68);
+  font-size: 12px;
+  text-decoration: none;
+}
+
+.header nav a:hover,
+.header nav a:focus-visible {
+  color: #e8cf9b;
+  outline: none;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+.article {
+  width: min(760px, 100%);
+  margin: 64px auto 0;
+}
+
+.eyebrow {
+  margin: 0;
+  color: rgba(232, 207, 155, 0.72);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.article h1 {
+  max-width: 680px;
+  margin: 10px 0 0;
+  font-size: clamp(34px, 7vw, 58px);
+  font-weight: 600;
+  letter-spacing: -0.035em;
+  line-height: 0.98;
+}
+
+.intro {
+  max-width: 690px;
+  margin: 22px 0 0;
+  color: rgba(255, 247, 234, 0.72);
+  font-size: 16px;
+  line-height: 1.7;
+}
+
+.updated {
+  margin: 14px 0 0;
+  color: rgba(232, 207, 155, 0.58);
+  font-size: 11px;
+}
+
+.content {
+  display: grid;
+  gap: 28px;
+  margin-top: 46px;
+}
+
+.content section {
+  border-top: 1px solid rgba(255, 247, 234, 0.1);
+  padding-top: 22px;
+}
+
+.content h2 {
+  margin: 0;
+  color: #f3dfb6;
+  font-size: 20px;
+  line-height: 1.25;
+}
+
+.content h3 {
+  margin: 20px 0 0;
+  color: rgba(255, 247, 234, 0.9);
+  font-size: 15px;
+}
+
+.content p,
+.content li {
+  color: rgba(255, 247, 234, 0.72);
+  font-size: 14px;
+  line-height: 1.75;
+}
+
+.content p {
+  margin: 10px 0 0;
+}
+
+.content ul {
+  display: grid;
+  gap: 7px;
+  margin: 12px 0 0;
+  padding-left: 20px;
+}
+
+.content a {
+  color: #e8cf9b;
+  text-underline-offset: 3px;
+}
+
+@media (max-width: 520px) {
+  .page {
+    padding: 18px 16px 56px;
+  }
+
+  .article {
+    margin-top: 42px;
+  }
+
+  .intro {
+    font-size: 15px;
+  }
+}
