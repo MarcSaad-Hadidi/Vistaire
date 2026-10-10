@@ -189,6 +189,7 @@ test('opening measurements use untransformed layout height without rounding frac
         return { height: `${height}px` };
       },
       CINEMATIC_TIMING: director.CINEMATIC_TIMING,
+      timing: director.CINEMATIC_TIMING,
     });
     assert.equal(opening.stageHeight, height, 'translated rect precision must not enter the cached stage height');
     assert.equal(opening.motionTravel, height * director.CINEMATIC_TIMING.openingMotionScreens);
@@ -362,4 +363,127 @@ test('identities surface follows copy visibility over the full world without cha
   const stage = declarations('.stage');
   assert.equal(stage.position, 'sticky');
   assert.equal(stage.height, 'calc(100 * var(--journey-vh))');
+});
+
+// The physical stage and natural pricing/footer stay fixed while paced chapter
+// travel changes. This is one geometry fixture, not another viewport matrix.
+function pacedGeometry(timing) {
+  const stageHeight = 844;
+  const opening = {
+    top: 17.5, stageHeight, sceneHeight: 932,
+    motionTravel: timing.openingMotionScreens * stageHeight,
+    height: (1 + timing.openingMotionScreens + timing.phoneHoldScreens + timing.openingReleaseScreens) * stageHeight,
+  };
+  opening.travel = opening.height - stageHeight;
+  let top = opening.top + opening.height;
+  const measurements = ids.map((id, i) => {
+    if (i < 3) return { id, top: opening.top + opening.motionTravel * i / 2, travel: 1 };
+    const travel = stageHeight * (i < 10 ? timing.sceneScreens : i === 10 ? 2.5 : 0.1);
+    const item = { id, top, travel };
+    top += travel + stageHeight;
+    return item;
+  });
+  return { opening, measurements, viewportHeight: 932 };
+}
+const near = (actual, expected, message) => assert.ok(Math.abs(actual - expected) < 1e-7, `${message}: ${actual} != ${expected}`);
+
+test('selected physical timing changes measured joins and anchors while preserving the opening phone hold', () => {
+  // Explicit faster timing makes old helpers fail behaviorally by ignoring the
+  // optional argument, independently of whether the new timing factory exists.
+  const timing = {
+    activeScreens: 8 / 3, edgeScreens: 11 / 15, sceneScreens: 62 / 15,
+    detailScreens: 0.704 * 2 / 3, phoneHoldScreens: 1,
+    transitionScreens: 37 / 15, openingMotionScreens: 74 / 15,
+    openingReleaseScreens: 11 / 15, chapterHeightVh: (1 + 62 / 15) * 100,
+  };
+  const { opening, measurements } = pacedGeometry(timing);
+  const windows = director.measureChapterTransitions(measurements, opening, timing);
+  for (const [i, window] of windows.entries()) {
+    if (window.to.id !== 'footer') near(window.end - window.start, timing.transitionScreens * opening.stageHeight, `${window.from.id} selected transition length`);
+    if (i) assert.ok(windows[i - 1].end <= window.start, 'paced windows must not overlap');
+    const target = director.chapterNavigationTarget(window.to, opening.stageHeight, timing);
+    near(target, window.to.id === 'footer' || window.to.id === 'open-weight' ? window.to.top : window.end, `${window.to.id} navigation target`);
+  }
+  near(windows[0].start - opening.top - opening.motionTravel, timing.phoneHoldScreens * opening.stageHeight, 'phone hold is complete before first join');
+  const fallback = director.measureChapterTransitions(measurements, opening);
+  assert.notEqual(windows[0].start, fallback[0].start, 'selected timing must affect real measured boundaries');
+  near(windows.at(-1).end, measurements.at(-1).top, 'natural footer boundary');
+});
+
+test('scaled timing preserves the exact default and normalized chapter and social pager phases', () => {
+  assert.equal(typeof director.scaledCinematicTiming, 'function', 'the approved timing factory is required');
+  const base = director.CINEMATIC_TIMING;
+  assert.equal(director.scaledCinematicTiming(), base);
+  assert.equal(director.scaledCinematicTiming(1), base);
+  const social = director.socialTiming();
+  for (const pace of [0.75, 1.5]) {
+    const factor = 1 / pace;
+    const timing = director.scaledCinematicTiming(factor);
+    assert.deepEqual(Object.keys(timing).sort(), Object.keys(base).sort());
+    for (const key of ['activeScreens', 'edgeScreens', 'sceneScreens', 'detailScreens', 'phoneHoldScreens']) near(timing[key], base[key] * factor, key);
+    near(timing.transitionScreens, 1 + 2 * timing.edgeScreens, 'the one-stage native crossing is not scaled');
+    near(timing.openingMotionScreens, 2 * timing.transitionScreens, 'opening shares both transition distances');
+    near(timing.chapterHeightVh, (1 + timing.sceneScreens) * 100, 'chapter retains a full physical sticky stage');
+    near(timing.openingReleaseScreens, timing.edgeScreens, 'opening release');
+    for (const phase of [0, 0.4, 1]) {
+      const raw = (timing.edgeScreens + phase * timing.activeScreens) / timing.sceneScreens;
+      near(director.chapterPhase('features', raw), phase, 'normalized chapter motion stays unchanged');
+    }
+    const hold = (timing.activeScreens - 2 * timing.detailScreens) / 3;
+    const expectedCenters = [hold / 2, timing.activeScreens / 2, timing.activeScreens - hold / 2].map(distance => (timing.edgeScreens + distance) / timing.sceneScreens);
+    social.centers.forEach((center, i) => near(center, expectedCenters[i], `social pager ${i} remains in its authored hold`));
+    social.transitions.forEach(([start, end]) => near((end - start) * timing.sceneScreens, timing.detailScreens, 'social move uses scaled physical detail distance'));
+  }
+});
+
+test('pace changes remap semantic position reversibly and prioritize visible natural pricing and footer pixels', () => {
+  assert.equal(typeof director.remapJourneyScroll, 'function', 'pace changes need a semantic scroll remap');
+  assert.equal(typeof director.scaledCinematicTiming, 'function');
+  const snapshot = factor => {
+    const timing = director.scaledCinematicTiming(factor);
+    const result = pacedGeometry(timing);
+    result.transitions = director.measureChapterTransitions(result.measurements, result.opening, timing);
+    return result;
+  };
+  const before = snapshot(1);
+  for (const factor of [1 / 1.5, 1 / 0.75]) {
+    const after = snapshot(factor);
+    const point = (view, id, fraction) => {
+      const chapter = view.measurements.find(m => m.id === id);
+      return chapter.top + chapter.travel * fraction;
+    };
+    const hold = view => view.opening.top + view.opening.motionTravel + 0.6 * (view.transitions[0].start - view.opening.top - view.opening.motionTravel);
+    const blend = view => view.transitions[2].start + (view.transitions[2].end - view.transitions[2].start) * 0.65;
+    const pairs = [
+      [before.opening.top + before.opening.motionTravel * 0.3, after.opening.top + after.opening.motionTravel * 0.3, 'opening motion'],
+      [hold(before), hold(after), 'finished phone hold'],
+      [blend(before), blend(after), 'shared transition fraction'],
+      [point(before, 'features', 0.55), point(after, 'features', 0.55), 'ordinary chapter progress'],
+    ];
+    for (const id of ['open-weight', 'footer']) for (const offset of [-before.viewportHeight * 0.6, 123]) {
+      const oldChapter = before.measurements.find(m => m.id === id);
+      const newChapter = after.measurements.find(m => m.id === id);
+      pairs.push([oldChapter.top + offset, newChapter.top + offset, `${id} visible pixel offset ${offset}`]);
+    }
+    // Keep the pre-visible pricing interval continuous with pixel preservation
+    // at its visibility threshold, including changes that cross branch priority.
+    const pricingEntry = view => ({
+      start: view.transitions.find(w => w.to.id === 'open-weight').start,
+      end: view.measurements.find(m => m.id === 'open-weight').top - view.viewportHeight,
+    });
+    const oldEntry = pricingEntry(before), newEntry = pricingEntry(after);
+    for (const offset of [-68, -0.25, 0, 0.25]) {
+      const y = oldEntry.end + offset;
+      const target = offset < 0
+        ? newEntry.start + (y - oldEntry.start) / (oldEntry.end - oldEntry.start) * (newEntry.end - newEntry.start)
+        : newEntry.end + offset;
+      pairs.push([y, target, `pricing visibility boundary ${offset}`]);
+    }
+    for (const [y, target, label] of pairs) {
+      near(director.remapJourneyScroll(y, before, before), y, `${label} identity remap`);
+      const mapped = director.remapJourneyScroll(y, before, after);
+      near(mapped, target, label);
+      near(director.remapJourneyScroll(mapped, after, before), y, `${label} roundtrip`);
+    }
+  }
 });

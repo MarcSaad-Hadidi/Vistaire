@@ -4,18 +4,25 @@ import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 import * as director from '../components/immersive/SceneDirector.js';
 import * as THREE from 'three';
-import * as dolly from '../components/immersive/CameraDolly.js';
+import { resolve } from 'node:path';
+import { pathToFileURL } from 'node:url';
+const dolly = await import(pathToFileURL(resolve(process.env.VISTAIRE_DOLLY_SOURCE || 'components/immersive/CameraDolly.js')));
 import { projectHullBounds } from '../components/immersive/ProjectedBounds.js';
 
 test('yaw rotation preserves the actual camera and a separate zoom step enlarges the whole food', () => {
   const source = readFileSync(process.env.VISTAIRE_SCENE_SOURCE || 'components/immersive/Scene.jsx', 'utf8');
   const hulls = JSON.parse(readFileSync('public/immersive-assets/dishes/framing-hulls.json', 'utf8')).byUrl;
   const footprints = { homard: 1.75, souffle: 1.65, huitres: 1.5, sushi: 2, "chocolat-fume": 1.5, poutine: 1.75, burger: 1.1 };
-  for (const [width, height] of [[390, 844], [430, 932], [1440, 900], [1337, 591]]) for (const [id, footprint] of Object.entries(footprints)) {
+  const profiles = [
+    { width: 390, height: 844, focus: { x: 0.5, y: (223.34375 + 337.65625 / 2) / 844, width: 0.9, height: 337.65625 / 844 } },
+    { width: 430, height: 932, focus: { x: 0.5, y: (223.34375 + 425.65625 / 2) / 932, width: 0.9, height: 425.65625 / 932 } },
+    { width: 1440, height: 900, focus: { x: (123.828125 + 1192.328125 / 2) / 1440, y: (249.734375 + 370.578125 / 2) / 900, width: 1192.328125 / 1440, height: 370.578125 / 900 } },
+    { width: 1337, height: 591, focus: { x: (576.96875 + 736.015625 / 2) / 1337, y: (76 + 499 / 2) / 591, width: 736.015625 / 1337, height: 499 / 591 } },
+  ];
+  for (const { width, height, focus } of profiles) for (const [id, footprint] of Object.entries(footprints)) {
     const mobile = width < 768;
     const hull = id === 'homard' ? hulls[mobile ? '/media/homard-mobile.glb' : '/media/homard.glb'] : Object.values(hulls).find(h => h.id === id);
     const displayScale = mobile ? (id === 'burger' ? 0.55 : 1) : footprint / 2.35;
-    const focus = { x: 0.5, y: 0.465, width: 0.9, height: 0.4 };
     const scene = new THREE.Scene();
     const roots = Array.from({ length: 4 }, () => new THREE.Group());
     roots.forEach(root => scene.add(root));
@@ -60,6 +67,7 @@ test('yaw rotation preserves the actual camera and a separate zoom step enlarges
     assert.equal(scope.baseComposition({ section: 'grip', dishPitch: 0.7 }, mobile).dishRotation[0], 0.1, 'interactive pitch cannot alter the authored flat rotation');
     const cap = scope.calibration('grip', state).zoomMax;
     assert.ok(cap >= 1.2 && cap <= 4, 'a real +20% step must be reserved');
+    if (mobile && id !== 'burger') assert.ok(cap >= 1.34, `${id}/${width}: fit the cylinder, not its empty box corners`);
     root.quaternion.setFromEuler(new THREE.Euler(0.1, 0, 0));
     state.dishZoom = 1.2;
     scope.frameSubjects(state, 1);
@@ -68,6 +76,8 @@ test('yaw rotation preserves the actual camera and a separate zoom step enlarges
     state.dishZoom = cap;
     scope.frameSubjects(state, 1);
     const maximum = cameraPose();
+    if (mobile && id !== 'burger') assert.ok(food().width > enlarged.width * 1.1, `${id}/${width}: larger advertised cap must enlarge the complete food beyond120%`);
+    assert.deepEqual(root.scale.toArray(), Array(3).fill(mobile ? 0.98 : 1), 'zoom must never resize the food');
     for (const yaw of [Math.PI / 4, Math.PI, -Math.PI, -Math.PI / 2, 0]) {
       const target = new THREE.Quaternion().setFromEuler(new THREE.Euler(0.1, yaw, 0));
       for (let frame = 0; frame < 60; frame++) {
@@ -91,20 +101,31 @@ test('zoom fits the complete rotated food inside the actual scissor frame at des
     for (const [yaw, pitch] of [[0, 0], [0.9, 0.45], [2.4, -0.6]]) {
       for (const size of [[1.1, 1.35, 1.1], [2.35, 0.3, 1.8]]) {
         const frame = { x: 0.5, y: 0.56, width: width < 768 ? 0.9 : 0.6, height: 0.38 };
-        const matrix = new THREE.Matrix4().compose(new THREE.Vector3(0, 0.2, 0), new THREE.Quaternion().setFromEuler(new THREE.Euler(pitch, yaw, 0)), new THREE.Vector3(1, 1, 1));
-        const corners = [];
-        for (const x of [-size[0] / 2, size[0] / 2]) for (const y of [0, size[1]]) for (const z of [-size[2] / 2, size[2] / 2])
-          corners.push(new THREE.Vector3(x, y, z).applyMatrix4(matrix).toArray());
-        const look = new THREE.Box3().setFromPoints(corners.map(p => new THREE.Vector3(...p))).getCenter(new THREE.Vector3()).toArray();
+        const root = new THREE.Group();
+        root.position.set(0, 0.2, 0);
+        root.quaternion.setFromEuler(new THREE.Euler(pitch, yaw, 0));
+        root.scale.setScalar(pitch < 0 ? 0.83 : 1.17);
+        root.updateMatrixWorld(true);
+        const localBounds = new THREE.Box3(new THREE.Vector3(-size[0] / 2, 0, -size[2] / 2), new THREE.Vector3(size[0] / 2, size[1], size[2] / 2));
+        const radius = Math.hypot(size[0], size[2]) / 2;
+        const surface = [];
+        // Check the actual finite cylinder surface, not empty enclosing-box corners.
+        for (const y of [0, size[1]]) for (let sample = 0; sample < 128; sample++) {
+          const angle = sample / 128 * Math.PI * 2;
+          surface.push(new THREE.Vector3(radius * Math.cos(angle), y, radius * Math.sin(angle)).applyMatrix4(root.matrixWorld).toArray());
+        }
+        const look = new THREE.Box3().setFromPoints(surface.map(p => new THREE.Vector3(...p))).getCenter(new THREE.Vector3()).toArray();
         const position = look.map((v, i) => v + [0, 2.2, 6.3][i]);
         const camera = new THREE.PerspectiveCamera(40, width / height, 0.05, 200);
-        for (const shift of [-0.015, 0, 0.015]) {
-          const minimum = dolly.minimumDollyDistance(corners, position, look, { fov: 40, aspect: width / height, near: 0.05, width: frame.width, height: frame.height, shiftX: shift, shiftY: shift });
+        for (const [shiftX, shiftY] of [[-0.04, 0.025], [0, 0], [0.025, -0.035]]) {
+          assert.ok(frame.width * 0.94 > Math.abs(shiftX) * 2 && frame.height * 0.94 > Math.abs(shiftY) * 2, 'real focus side-plane denominators stay positive');
+          const minimum = dolly.minimumDollyDistance(localBounds, radius, root, position, look, { fov: 40, aspect: width / height, near: 0.05, width: frame.width, height: frame.height, shiftX, shiftY });
           const fit = dolly.cameraDollyPose(position, look, 4, minimum);
           camera.position.fromArray(fit.camera);
           camera.lookAt(new THREE.Vector3(...look));
-          camera.setViewOffset(width, height, (0.5 - frame.x + shift) * width, (0.5 - frame.y - shift) * height, width, height);
-          const bounds = projectHullBounds(corners, new THREE.Matrix4(), camera, { width, height });
+          camera.setViewOffset(width, height, (0.5 - frame.x + shiftX) * width, (0.5 - frame.y - shiftY) * height, width, height);
+          const bounds = projectHullBounds(surface, new THREE.Matrix4(), camera, { width, height });
+          assert.ok(surface.every(point => new THREE.Vector3(...point).applyMatrix4(camera.matrixWorldInverse).z <= -camera.near * 2 + 1e-9), 'all cylinder points retain near-plane clearance');
           assert.ok(bounds.x >= (frame.x - frame.width / 2) * width - 1e-5);
           assert.ok(bounds.x + bounds.width <= (frame.x + frame.width / 2) * width + 1e-5);
           assert.ok(bounds.y >= (frame.y - frame.height / 2) * height - 1e-5, 'food top must survive zoom and pitch');
@@ -114,6 +135,10 @@ test('zoom fits the complete rotated food inside the actual scissor frame at des
       }
     }
   }
+  const root = new THREE.Group();
+  const bounds = new THREE.Box3(new THREE.Vector3(-1, 0, -1), new THREE.Vector3(1, 1, 1));
+  const minimum = dolly.minimumDollyDistance(bounds, 1, root, [0, 0, 5], [0, 0, 0], { fov: 100, aspect: 1, near: 2, width: 1, height: 1, shiftX: 0, shiftY: 0 });
+  assert.equal(minimum, 5, 'when the near plane dominates, retain twice-near clearance beyond the cylinder surface');
 });
 
 // Actual shipped scan + actual frameSubjects/calibration code. This protects
@@ -156,6 +181,94 @@ test('resetting a fully zoomed, reversed sushi preserves every hull point on eac
     const bounds = projectHullBounds(hull.vertices.map(point => point.map(v => v * displayScale)), roots[0].matrixWorld, camera, { width: 1440, height: 900 });
     assert.ok(bounds.y >= (focus.y - focus.height / 2) * 900 - 0.1, `reset frame ${frame}: food top clipped`);
     assert.ok(bounds.y + bounds.height <= (focus.y + focus.height / 2) * 900 + 0.1, `reset frame ${frame}: food bottom clipped`);
+  }
+  // Neighbor frames and cached100% reference cameras come from ddb600c's
+  // retained rendered-scroll-telemetry presentation samples (no active join):
+  // mobile --afa87 (390x844), desktop --c4a2d (1440x900). Grip calibration is
+  // recomputed from the actual sushi hull; neighbor GLTF calibration is captured
+  // evidence, not rerun here. All composition, interpolation and guards are real.
+  const profiles = [
+    {
+      width: 390, height: 844,
+      frames: {
+        encryption: {"x": 0.5, "y": 0.5755609449052133, "width": 0.9, "height": 0.6024326125592417},
+        grip: {"x": 0.5, "y": 0.46465861966824645, "width": 0.9, "height": 0.4000666469194313},
+        sustainability: {"x": 0.5, "y": 0.6536581753554502, "width": 0.9, "height": 0.478228672985782},
+      },
+      neighbors: {
+        encryption: {"camera": [0.027335708936027492, 4.652719246712908, 7.991140723458387], "look": [0.027335708936027492, 1.1894514764005926, 2.5383361489241016], "distance": 6.459667280669033, "shiftX": 0.0, "shiftY": 0.009354087309624434, "dishOpacity": 1},
+        sustainability: {"camera": [0.011199908804053638, 5.813829134702021, 11.985942801951746], "look": [0.011199908804053638, 1.196254347010756, -0.5599207721528211], "distance": 13.368645770606904, "shiftX": 0.0, "shiftY": -0.015537034274441919, "dishOpacity": 1},
+      },
+    },
+    {
+      width: 1440, height: 900,
+      frames: {
+        encryption: {"x": 0.5, "y": 0.6173524305555556, "width": 0.5980034722222223, "height": 0.4861979166666667},
+        grip: {"x": 0.4999945746527778, "y": 0.483359375, "width": 0.8280056423611111, "height": 0.41175347222222225},
+        sustainability: {"x": 0.7062879774305556, "y": 0.49694444444444447, "width": 0.5074327256944444, "height": 0.7538888888888889},
+      },
+      neighbors: {
+        encryption: {"camera": [0.02637656125406157, 4.581627587298024, 8.314518961509776], "look": [0.02637656125406157, 1.1505233544216245, 2.0404997928215023], "distance": 7.150929505031514, "shiftX": 0.0, "shiftY": 0.004809054697775747, "dishOpacity": 1},
+        sustainability: {"camera": [0.06704275964631379, 3.941921124274395, 7.497950504617637], "look": [0.06704275964631379, 1.196254347010756, -0.5560053753557039], "distance": 8.509106378952284, "shiftX": 0.0, "shiftY": -0.04531678410147147, "dishOpacity": 1},
+      },
+    },
+  ];
+  Object.assign(scope, { nativeTable: null, objectTarget: new THREE.Vector3(), targetEuler: new THREE.Euler(), targetQuaternion: new THREE.Quaternion(), calibrationKey: '', calibrationFrames: null, serializedFrames: '' });
+  vm.runInContext(source.match(/function minimumDishY\([^]*?\n}/)[0], scope);
+  vm.runInContext(source.slice(source.indexOf('function composition('), source.indexOf('\nfunction disposeTree(')), scope);
+  vm.runInContext(source.match(/    function applyTransform\([^]*?\n    }/)[0], scope);
+  vm.runInContext(source.slice(source.indexOf('    function cameraComposition('), source.indexOf('    function frameSubjects(')), scope);
+  const targetStart = source.indexOf('      const tableSurfaceY =');
+  const actualStart = source.indexOf('      applyTransform(\n        dishRoot,', targetStart);
+  vm.runInContext(`function applyComposedPose(state, damping) {
+    const pose = composition(state, mobileViewport());
+    ${source.slice(targetStart, source.indexOf('      const pointer =', targetStart))}
+    ${source.slice(actualStart, source.indexOf('      applyTransform(\n        laptopRoot,', actualStart))}
+    for (const [root, name] of [[supportRoot, 'support'], [phoneRoot, 'phone'], [laptopRoot, 'laptop']])
+      applyTransform(root, pose[name], pose[name + 'Rotation'], pose[name + 'Scale'], damping);
+  }`, scope);
+  let safetyCalls = 0;
+  scope.minimumDollyDistance = (...args) => {
+    const frame = args.at(-1);
+    assert.ok(frame.width * 0.94 > 2 * Math.abs(frame.shiftX || 0) && frame.height * 0.94 > 2 * Math.abs(frame.shiftY || 0), 'target and rendered side-plane denominators stay positive');
+    safetyCalls++;
+    return dolly.minimumDollyDistance(...args);
+  };
+  for (const profile of profiles) {
+    const { width, height } = profile, mobile = width < 768;
+    const currentScale = mobile ? 1 : displayScale;
+    scope.mobileViewport = () => mobile;
+    Object.assign(scope.canvas, { clientWidth: width, clientHeight: height, width, height, dataset: { model: 'sushi' } });
+    camera.aspect = width / height;
+    camera.updateProjectionMatrix();
+    scope.dishLocalBounds.set(new THREE.Vector3(...hull.bounds.min).multiplyScalar(currentScale), new THREE.Vector3(...hull.bounds.max).multiplyScalar(currentScale));
+    scope.dishFramingRadius = Math.max(...hull.vertices.map(([x, , z]) => Math.hypot(x, z))) * currentScale;
+    Object.assign(state, { section: 'grip', transition: null, sceneFrames: profile.frames, drag: 0.82 });
+    const cap = scope.cameraComposition(state).zoomMax;
+    for (const [section, reference] of Object.entries(profile.neighbors)) scope.calibrations.set(`${section}:null`, reference);
+    for (const [from, to] of [['encryption', 'grip'], ['grip', 'sustainability']]) for (const reverse of [false, true]) for (const reset of [false, true]) {
+      scope.projectionState = null;
+      const scales = new Set(), cameras = new Set(), focuses = new Set();
+      for (let frame = 0; frame < 60; frame++) {
+        const progress = reverse ? 1 - frame / 59 : frame / 59;
+        Object.assign(state, { section: progress < 0.5 ? from : to, dishZoom: reset && frame >= 30 ? 1 : cap, transition: { from, to, progress, fromProgress: 1, toProgress: 0 } });
+        state.sceneFrame = director.transitionSceneFrame(state.transition, state.sceneFrames);
+        scope.applyComposedPose(state, frame ? damping : 1);
+        const beforeFit = safetyCalls;
+        scope.frameSubjects(state, frame ? damping : 1);
+        if (!roots[0].visible) continue;
+        assert.ok(safetyCalls - beforeFit >= 2, 'visible transitioning food uses both target and rendered safety guards');
+        roots[0].updateWorldMatrix(true, false);
+        const bounds = projectHullBounds(hull.vertices.map(point => point.map(v => v * currentScale)), roots[0].matrixWorld, camera, { width, height });
+        const focus = scope.framingReference.focus;
+        assert.ok(bounds.x >= (focus.x - focus.width / 2) * width - 0.1 && bounds.x + bounds.width <= (focus.x + focus.width / 2) * width + 0.1, `${width}/${from}:${to} frame ${frame}: composed food sides clipped`);
+        assert.ok(bounds.y >= (focus.y - focus.height / 2) * height - 0.1 && bounds.y + bounds.height <= (focus.y + focus.height / 2) * height + 0.1, `${width}/${from}:${to} frame ${frame}: composed food top or bottom clipped`);
+        scales.add(roots[0].scale.x.toFixed(4));
+        cameras.add(camera.position.toArray().join(','));
+        focuses.add(JSON.stringify(focus));
+      }
+      assert.ok(scales.size > 1 && cameras.size > 1 && focuses.size > 1, 'the proof must exercise actual changing scale, camera and focus');
+    }
   }
 });
 

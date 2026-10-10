@@ -476,6 +476,7 @@ for (const viewport of [
       await page.goto(path);
       await expect(page.locator('.world-fallback')).toBeVisible();
       await page.evaluate(() => document.fonts.ready);
+      await expect(page.locator('.pace-preview')).toHaveCount(0);
       const chapters = page.locator('.chapter');
       await expect(chapters).toHaveCount(12);
       await expect(page.locator('#wearable')).toHaveAttribute('data-exit-start', /\d/);
@@ -558,6 +559,88 @@ for (const viewport of [
       await expect(page.locator('.world-fallback')).toBeVisible();
       await expect(page.locator('#product')).toHaveJSProperty('inert', false);
       await expect.poll(() => page.locator('#product').evaluate(el => Number(getComputedStyle(el).getPropertyValue('--copy-opacity')))).toBeCloseTo(1, 3);
+
+      // One existing mobile case exercises the opt-in preview in both locales;
+      // every default window/pose above remains unchanged. This is native DOM
+      // geometry/input proof, not a WebGL or normal-motion performance sample.
+      if (viewport.width === 390) {
+        const english = path === '/en';
+        const anchor = english ? 'wearable' : 'social-content';
+        await page.emulateMedia({ reducedMotion: english ? 'reduce' : 'no-preference' });
+        await page.goto(`${path}?keep=preview&scrollPace=${english ? '1.25' : '1'}#${anchor}`);
+        await expect(page.locator('.world-fallback')).toBeVisible();
+        await page.evaluate(() => document.fonts.ready);
+        const range = page.getByRole('slider', { name: english ? 'Pace' : 'Rythme', exact: true });
+        await expect(range).toBeVisible();
+        await expect(range).toHaveValue(english ? '1.25' : '1');
+        await expect(page.locator('html')).toHaveAttribute('data-chapter', anchor);
+        const reset = page.getByRole('button', { name: english ? 'Reset' : 'Réinitialiser', exact: true });
+        if (english) {
+          await reset.click();
+          await expect(range).toHaveValue('1');
+          await expect(page.locator('html')).toHaveAttribute('data-chapter', anchor);
+        }
+        const geometryAtDefault = await geometry(page);
+        const naturalAtDefault = geometryAtDefault.chapters.filter(chapter => ['open-weight', 'footer'].includes(chapter.id));
+        const social = page.locator('#social-content');
+        await social.evaluate(el => {
+          const height = Number.parseFloat(getComputedStyle(el.firstElementChild!).height);
+          scrollTo({ top: el.getBoundingClientRect().top + scrollY + (el.getBoundingClientRect().height - height) * 0.45, behavior: 'instant' });
+        });
+        await expect(page.locator('html')).toHaveAttribute('data-chapter', 'social-content');
+        const semantic = () => social.evaluate(el => {
+          const stage = Number.parseFloat(getComputedStyle(el.firstElementChild!).height);
+          return -el.getBoundingClientRect().top / (el.getBoundingClientRect().height - stage);
+        });
+        for (const [key, pace] of [['End', 1.5], ['Home', 0.75]] as const) {
+          await range.press(key);
+          await expect(range).toHaveValue(String(pace));
+          await expect.poll(semantic).toBeCloseTo(0.45, 3);
+          const actual = await geometry(page);
+          expect(actual.journeyVH).toBe(geometryAtDefault.journeyVH);
+          expect(actual.sceneVH).toBe(geometryAtDefault.sceneVH);
+          expect(actual.macTitle).toBe(geometryAtDefault.macTitle);
+          expect(actual.chapters.map(chapter => chapter.stage)).toEqual(geometryAtDefault.chapters.map(chapter => chapter.stage));
+          expect(actual.chapters.filter(chapter => ['open-weight', 'footer'].includes(chapter.id)).map(chapter => chapter.height)).toEqual(naturalAtDefault.map(chapter => chapter.height));
+          const travel = await social.evaluate(el => (el.getBoundingClientRect().height - el.firstElementChild!.clientHeight) / el.firstElementChild!.clientHeight);
+          expect(travel).toBeCloseTo(6.2 / pace, 2);
+          const current = new URL(page.url());
+          expect(current.searchParams.get('keep')).toBe('preview');
+          expect(current.searchParams.get('scrollPace')).toBe(pace.toFixed(2));
+          expect(current.hash).toBe(`#${anchor}`);
+          // Repeating a native boundary key must not move the current content.
+          const y = await page.evaluate(() => scrollY);
+          await range.press(key);
+          await page.evaluate(() => new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
+          expect(await page.evaluate(() => scrollY)).toBe(y);
+        }
+        await reset.click();
+        await expect(range).toHaveValue('1');
+        await expect.poll(semantic).toBeCloseTo(0.45, 3);
+        await expect(page.locator('.pace-preview output')).toHaveText('1.00×');
+        // Pricing remains natural flow: preserve the visible pixel offset,
+        // rather than a normalized cinematic fraction, across a pace change.
+        const pricing = page.locator('#open-weight');
+        await pricing.evaluate(el => scrollTo({ top: el.getBoundingClientRect().top + scrollY + 120, behavior: 'instant' }));
+        await expect(page.locator('html')).toHaveAttribute('data-chapter', 'open-weight');
+        const pricingTop = () => pricing.evaluate(el => el.getBoundingClientRect().top);
+        await range.press('End');
+        await expect(range).toHaveValue('1.5');
+        await expect.poll(pricingTop).toBeCloseTo(-120, 0);
+        await reset.click();
+        await expect(range).toHaveValue('1');
+        await expect.poll(pricingTop).toBeCloseTo(-120, 0);
+        const summary = page.locator('.pace-preview summary');
+        const url = page.url();
+        await summary.press('Enter');
+        await expect(range).toBeHidden();
+        expect((await summary.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+        expect(page.url()).toBe(url);
+        expect(await pricingTop()).toBeCloseTo(-120, 0);
+        await summary.press('Enter');
+        await expect(range).toBeVisible();
+        await page.emulateMedia({ reducedMotion: 'no-preference' });
+      }
     }
   });
 }

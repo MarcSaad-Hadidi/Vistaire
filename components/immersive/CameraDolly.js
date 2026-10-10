@@ -31,26 +31,35 @@ export function dishCylinderCorners(bounds, radius, position, quaternion, scale)
   return corners;
 }
 
-/** Minimum distance along an unchanged view ray that fits every world-space
- * corner inside the actual focus/scissor rectangle. Includes lens, aspect,
- * calibrated view offset and near-plane depth; never changes the food scale. */
-export function minimumDollyDistance(points, position, look, frame) {
+/** Fit the actual yaw-invariant cylinder, rather than the empty corners of its
+ * enclosing box. Its support against each perspective plane contains every
+ * scan vertex even during transitional tilt, without changing the view ray. */
+export function minimumDollyDistance(bounds, radius, root, position, look, frame) {
   const normalize = v => { const length = Math.hypot(...v) || 1; return v.map(n => n / length); };
   const dot = (a, b) => a.reduce((sum, v, i) => sum + v * b[i], 0);
   const direction = normalize(position.map((v, i) => v - look[i]));
   const right = normalize([direction[2], 0, -direction[0]]);
   const up = [direction[1] * right[2], direction[2] * right[0] - direction[0] * right[2], -direction[1] * right[0]];
+  const { x, y, z, w } = root.quaternion;
+  const axis = normalize([2 * (x * y - w * z), 1 - 2 * (x * x + z * z), 2 * (y * z + w * x)]);
+  const scale = root.scale.x;
+  const middle = (bounds.min.y + bounds.max.y) * scale / 2;
+  const halfHeight = (bounds.max.y - bounds.min.y) * scale / 2;
+  const relative = [root.position.x, root.position.y, root.position.z]
+    .map((v, i) => v + axis[i] * middle - look[i]);
+  const support = vector => {
+    const axial = dot(vector, axis);
+    return dot(vector, relative) + halfHeight * Math.abs(axial) +
+      radius * scale * Math.sqrt(Math.max(0, dot(vector, vector) - axial * axial));
+  };
   const tangent = Math.tan(frame.fov * Math.PI / 360);
-  const width = frame.width * 0.94, height = frame.height * 0.94;
-  let distance = frame.near * 2;
-  for (const point of points) {
-    const relative = point.map((v, i) => v - look[i]);
-    const x = dot(relative, right), y = dot(relative, up), z = dot(relative, direction);
-    const horizontal = Math.max(0.001, width + Math.sign(x) * 2 * (frame.shiftX || 0));
-    const vertical = Math.max(0.001, height + Math.sign(y) * 2 * (frame.shiftY || 0));
-    distance = Math.max(distance, z + Math.max(
-      frame.near * 2, Math.abs(x) / (tangent * frame.aspect * horizontal), Math.abs(y) / (tangent * vertical),
-    ));
+  let distance = Math.max(frame.near * 2, support(direction) + frame.near * 2);
+  for (const [basis, lens, size, shift] of [
+    [right, tangent * frame.aspect, frame.width * 0.94, frame.shiftX || 0],
+    [up, tangent, frame.height * 0.94, frame.shiftY || 0],
+  ]) for (const sign of [-1, 1]) {
+    const allowance = lens * Math.max(0.001, size + sign * 2 * shift);
+    distance = Math.max(distance, support(direction.map((v, i) => v + sign * basis[i] / allowance)));
   }
   return distance;
 }

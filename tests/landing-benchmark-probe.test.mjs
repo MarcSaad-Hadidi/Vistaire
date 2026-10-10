@@ -84,3 +84,63 @@ test('immutable WebGL renderer metadata is queried once per document', () => {
   assert.equal(reads, 3, 'reporting an active workload must not issue another metadata query');
   assert.deepEqual(first.webgl, second.webgl);
 });
+
+function cleanupFixture({ browser, server = null, bounded, sleep = async () => {} }) {
+  const source = readFileSync(process.env.VISTAIRE_COMPOSITION_SOURCE || 'scripts/diagnose-landing-composition.mjs', 'utf8');
+  const describe = source.indexOf('function describeCleanupError(');
+  const start = source.indexOf('async function stopRuntime(');
+  const end = source.indexOf('\nasync function startRuntime', start);
+  assert.ok(start >= 0 && end > start);
+  const scope = { browser, browserClosePromise: null, server, report: { cleanup: [] }, bounded, sleep, Date, AggregateError };
+  vm.runInNewContext(source.slice(describe >= 0 ? describe : start, end), scope);
+  return scope;
+}
+
+test('composition cleanup retains nested failure evidence and unknown owned resources', async () => {
+  const browser = { isConnected: () => true, close: async () => { throw new Error('browser shutdown failed'); } };
+  const signals = [];
+  const server = { pid: 42, exitCode: null, signalCode: null, once() {}, kill(signal) { signals.push(signal); return true; } };
+  const scope = cleanupFixture({ browser, server, bounded: action => action() });
+  await assert.rejects(scope.stopRuntime('baseline:1'), /Unknown cleanup completion/);
+  assert.equal(scope.browser, browser);
+  assert.equal(scope.server, server);
+  assert.deepEqual(signals, ['SIGTERM', 'SIGKILL']);
+  const record = scope.report.cleanup[0];
+  assert.ok(record, 'The exact failed resource must survive report serialization');
+  assert.equal(record.complete, false);
+  assert.equal(record.browser.closed, false);
+  assert.equal(record.server.exited, false);
+  assert.match(record.errors[0].message, /browser shutdown failed/);
+  assert.match(record.errors[1].message, /Server cleanup/);
+  assert.ok(record.startedAt && record.finishedAt && record.elapsedMs >= 0);
+  const serialized = scope.describeCleanupError(new AggregateError([new Error('nested cause')], 'outer failure'));
+  assert.match(JSON.stringify(serialized), /nested cause/);
+});
+
+test('composition cleanup awaits one original owned shutdown within the existing action bound', async () => {
+  let calls = 0, resolveClose;
+  const original = new Promise(resolve => { resolveClose = resolve; });
+  const browser = { isConnected: () => true, close() { calls++; return original; } };
+  const scope = cleanupFixture({
+    browser,
+    bounded: async (action, name, milliseconds = 40_000) => {
+      assert.equal(name, 'browser cleanup');
+      // Mock a legitimate3s shutdown. The old2s race abandons this lifecycle.
+      assert.ok(milliseconds >= 30_000, 'Allow Playwright’s own30s graceful shutdown/kill sequence');
+      const pending = action();
+      assert.equal(pending, original);
+      resolveClose();
+      return pending;
+    },
+  });
+  if (scope.closeOwnedBrowser) {
+    assert.equal(scope.closeOwnedBrowser(), original, 'A deadline can initiate the same shutdown');
+    assert.equal(scope.closeOwnedBrowser(), original, 'Repeated cleanup must retain the original promise');
+  }
+  await scope.stopRuntime('baseline:1');
+  assert.equal(calls, 1);
+  assert.equal(scope.browser, null);
+  assert.equal(scope.browserClosePromise, null);
+  assert.equal(scope.report.cleanup[0].complete, true);
+  assert.equal(scope.report.cleanup[0].browser.closed, true);
+});

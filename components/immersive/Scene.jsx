@@ -1225,6 +1225,7 @@ export default function Scene({
         );
       }
       const bounds = new THREE.Box3();
+      let dishReference;
       const roots = [
         [dishRoot, "dish"],
         [supportRoot, "support"],
@@ -1253,6 +1254,11 @@ export default function Scene({
               laptopAsset.framingBounds.clone().applyMatrix4(root.matrixWorld),
             );
           else if (name === "dish" && section === "grip" && activeDish) {
+            dishReference = {
+              position: root.position.clone(),
+              quaternion: root.quaternion.clone(),
+              scale: root.scale.clone(),
+            };
             for (const point of dishCylinderCorners(dishLocalBounds, dishFramingRadius,
               root.position, root.quaternion, root.scale.x)) bounds.expandByPoint(corner.fromArray(point));
           } else if (name === "dish" && ["features", "grip"].includes(section)) {
@@ -1338,11 +1344,15 @@ export default function Scene({
         shiftX: (e.maxX + e.minX) / 4,
         shiftY: (e.maxY + e.minY) / 4,
         dishOpacity: 1,
-        ...(section === "grip" && activeDish ? {
-          minimumDistance,
-          zoomMax: Math.max(1.2, Math.min(4, Math.floor(distance / minimumDistance * 100) / 100)),
-        } : {}),
       };
+      if (dishReference) {
+        // Keep the established 100% camera, aim and shift. Only the maximum
+        // zoom uses the tighter cylinder fit instead of imaginary box corners.
+        result.minimumDistance = minimumDollyDistance(dishLocalBounds, dishFramingRadius,
+          dishReference, result.camera, result.look,
+          { ...focus, fov: camera.fov, aspect: camera.aspect, near: camera.near, shiftX: result.shiftX, shiftY: result.shiftY });
+        result.zoomMax = Math.max(1.2, Math.min(4, Math.floor(distance / result.minimumDistance * 100) / 100));
+      }
       calibrations.set(key, result);
       return result;
     }
@@ -1396,15 +1406,13 @@ export default function Scene({
       const zoomLook = desired.look;
       let minimumDistance = state.section === "grip" && !state.transition
         ? desired.minimumDistance ?? camera.near * 2 : camera.near * 2;
-      const zoomCorners = [];
       const foodFrame = state.section === "grip" ||
         state.transition?.from === "grip" || state.transition?.to === "grip";
       // A transformed cylinder contains the full scan, including transitional
       // tilt, but its bounds never change under the interactive yaw rotation.
-      if ((foodFrame || zoom > 1 || projectionState?.dolly > 1) && activeDish && dishRoot.visible) {
-        zoomCorners.push(...dishCylinderCorners(dishLocalBounds, dishFramingRadius,
-          dishRoot.position, dishRoot.quaternion, dishRoot.scale.x));
-        minimumDistance = Math.max(minimumDistance, minimumDollyDistance(zoomCorners,
+      const fitFood = (foodFrame || zoom > 1 || projectionState?.dolly > 1) && activeDish && dishRoot.visible;
+      if (fitFood) {
+        minimumDistance = Math.max(minimumDistance, minimumDollyDistance(dishLocalBounds, dishFramingRadius, dishRoot,
           desired.camera.map((v, i) => v + zoomLook[i] - desired.look[i]), zoomLook,
           { ...targetFocus, fov: camera.fov, aspect: camera.aspect, near: camera.near, shiftX: desired.shiftX, shiftY: desired.shiftY }));
       }
@@ -1448,8 +1456,8 @@ export default function Scene({
       };
       // Rotation and camera damping can briefly disagree after a gesture.
       // Enforce the same fit on the rendered state too, not only its target.
-      if (zoomCorners.length) {
-        const safeDistance = minimumDollyDistance(zoomCorners, projectionState.camera, projectionState.look,
+      if (fitFood) {
+        const safeDistance = minimumDollyDistance(dishLocalBounds, dishFramingRadius, dishRoot, projectionState.camera, projectionState.look,
           { ...renderFocus, fov: camera.fov, aspect: camera.aspect, near: camera.near, shiftX: projectionState.shiftX, shiftY: projectionState.shiftY });
         projectionState.camera = cameraDollyPose(projectionState.camera, projectionState.look, 1, safeDistance).camera;
       }

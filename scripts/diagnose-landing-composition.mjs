@@ -55,11 +55,11 @@ const report = {
     visual: 'Separate QA-mode continuous3000ms forward/reverse replays plus jump/checkpoint observations at0/25/50/75/100 on three suspect seams. Actual draw transforms and inline DOM publication are sampled passively. Layout/checkpoint images have their own timestamps and are not assumed to show an earlier sampled pose. This heavier mode is never compared to visitor active costs.',
     timings: 'Frozen probe callback wall includes update/submission/driver backpressure. CDP is whole-page seconds and includes driver/probe overhead. RAF cadence is not displayed FPS. No synchronous GPU readback or timer query.',
     limits: 'Three seams only; not complete twelve-chapter acceptance. Physical iOS input, GPU elapsed, VRAM, power, thermal behavior and component-specific React cost remain unmeasured. Phone-rate changes are recorded, not silently treated as equal media work.',
-  }, passes: [], visual: [], errors: [], complete: false, comparable: false,
+  }, passes: [], visual: [], cleanup: [], errors: [], complete: false, comparable: false,
 };
 const save = () => writeFile(path.join(output, 'composition-pair.json'), JSON.stringify(report, null, 2));
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
-let server, browser, deadlineExceeded = false;
+let server, browser, browserClosePromise, deadlineExceeded = false;
 async function bounded(action, name, milliseconds = 40_000) {
   let timer;
   try { return await Promise.race([action(), new Promise((_, reject) => { timer = setTimeout(() => reject(new Error(`${name}: ${milliseconds}ms deadline`)), milliseconds); })]); }
@@ -67,26 +67,58 @@ async function bounded(action, name, milliseconds = 40_000) {
 }
 const deadline = setTimeout(() => {
   deadlineExceeded = true;
-  void browser?.close().catch(() => {});
+  if (browser) void closeOwnedBrowser().catch(() => {});
   server?.kill('SIGTERM');
 }, 25 * 60_000);
-async function stopRuntime() {
+function describeCleanupError(error) {
+  return {
+    name: error.name, message: error.message, stack: error.stack,
+    ...(error.errors ? { errors: [...error.errors].map(describeCleanupError) } : {}),
+  };
+}
+function closeOwnedBrowser() {
+  // Later close() calls can resolve at disconnection before the original
+  // process/temp-directory shutdown finishes. Keep the original ownership.
+  return browserClosePromise ??= browser.close();
+}
+async function stopRuntime(owner = 'final') {
+  if (!browser && !server) return;
+  const started = Date.now();
+  const record = { owner, startedAt: new Date().toISOString(), complete: false, errors: [] };
+  report.cleanup.push(record);
   const failures = [];
   if (browser) {
-    try { await bounded(() => browser.close(), 'browser cleanup', 2000); browser = null; }
-    catch (error) { failures.push(error); }
+    record.browser = { startedAt: new Date().toISOString(), connectedBefore: browser.isConnected(), closed: false };
+    try {
+      // Playwright owns a30s graceful-close/kill-and-wait sequence. Reuse the
+      // existing40s action bound so we do not abandon that ownership after2s.
+      await bounded(() => closeOwnedBrowser(), 'browser cleanup');
+      record.browser.closed = true; browser = null; browserClosePromise = null;
+    } catch (error) { failures.push(error); }
+    record.browser.connectedAfter = browser?.isConnected() ?? false;
+    record.browser.finishedAt = new Date().toISOString();
   }
   if (server) {
     const child = server;
     const exited = () => child.exitCode !== null || child.signalCode !== null;
+    record.server = { pid: child.pid, startedAt: new Date().toISOString(), exitCodeBefore: child.exitCode, signalBefore: child.signalCode, signals: [] };
     if (!exited()) {
       const exit = new Promise(resolve => child.once('exit', resolve));
-      child.kill('SIGTERM'); await Promise.race([exit, sleep(2000)]);
-      if (!exited()) { child.kill('SIGKILL'); await Promise.race([exit, sleep(2000)]); }
+      record.server.signals.push({ signal: 'SIGTERM', at: new Date().toISOString(), sent: child.kill('SIGTERM') });
+      await Promise.race([exit, sleep(2000)]);
+      if (!exited()) {
+        record.server.signals.push({ signal: 'SIGKILL', at: new Date().toISOString(), sent: child.kill('SIGKILL') });
+        await Promise.race([exit, sleep(2000)]);
+      }
     }
+    Object.assign(record.server, { exited: exited(), exitCodeAfter: child.exitCode, signalAfter: child.signalCode, finishedAt: new Date().toISOString() });
     if (exited()) server = null;
     else failures.push(new Error('Server cleanup did not establish process exit'));
   }
+  record.complete = failures.length === 0;
+  record.errors = failures.map(describeCleanupError);
+  record.elapsedMs = Date.now() - started;
+  record.finishedAt = new Date().toISOString();
   if (failures.length) throw new AggregateError(failures, 'Unknown cleanup completion forbids another measured pass');
 }
 async function startRuntime(label, pass) {
@@ -110,6 +142,7 @@ async function startRuntime(label, pass) {
     }, 'Next readiness');
     runtimeAlive();
   } finally { await writeFile(path.join(output, `${label}-${pass}-server.log`), logs); }
+  browserClosePromise = null;
   browser = await chromium.launch({ headless: true, args: ['--use-angle=swiftshader', '--use-gl=angle'] });
   if (report.browserVersion) assert.equal(browser.version(), report.browserVersion);
   report.browserVersion = browser.version();
@@ -300,14 +333,22 @@ async function activePass(label, repetition) {
     result.inputs = await page.evaluate(() => ({ requested: window.__compositionInputs.requested, delivered: window.__compositionInputs.delivered, overflow: window.__compositionInputs.overflow }));
     assert.equal(result.inputs.overflow, false); assert.equal(unexpected(result).length, 0, 'Unexpected runtime/network errors');
     assert.equal(result.requests.filter(r => new URL(r.url).pathname === '/immersive-assets/dishes/framing-hulls.json').length, 0, 'Default hulls must remain absent through the measured journey');
-    result.status = 'completed'; result.comparable = true;
+    result.status = 'completed';
   } catch (error) {
     result.status = 'failed'; result.error = error.stack;
     if (page) {
       result.failureProbe = await bounded(() => page.evaluate(() => window.__vistaireBenchmark?.report()), 'failure probe', 1000).catch(() => null);
       await bounded(() => page.screenshot({ path: path.join(output, `${label}-${repetition}-failed.png`) }), 'failure screenshot', 1000).catch(() => {});
     }
-  } finally { await save(); await stopRuntime(); }
+  } finally {
+    await save();
+    try { await stopRuntime(`${label}:${repetition}`); result.cleanupComplete = true; result.comparable = result.status === 'completed'; }
+    catch (error) {
+      result.cleanupComplete = false; result.comparable = false;
+      result.cleanupError = describeCleanupError(error); await save(); throw error;
+    }
+    await save();
+  }
   console.log(`${label}:${repetition} ${result.status} ${result.phase || 'startup'}`);
 }
 
@@ -367,7 +408,12 @@ async function visualPass(label) {
   } catch (error) {
     result.status = 'failed'; result.error = error.stack;
     if (page) result.failure = await bounded(() => snapshot(page), 'failure visual snapshot', 1000).catch(() => null);
-  } finally { await save(); await stopRuntime(); }
+  } finally {
+    await save();
+    try { await stopRuntime(`${label}:visual`); result.cleanupComplete = true; }
+    catch (error) { result.cleanupComplete = false; result.cleanupError = describeCleanupError(error); await save(); throw error; }
+    await save();
+  }
   console.log(`${label}:visual ${result.status}, findings=${result.findings.length}`);
 }
 
@@ -382,11 +428,11 @@ try {
   report.complete = report.passes.length === 6 && report.passes.every(p => p.status === 'completed') && report.visual.length === 2 && report.visual.every(p => p.status === 'completed');
   report.comparable = report.complete && report.passes.every(p => p.comparable);
   report.candidateVisualAccepted = report.visual.find(p => p.label === 'candidate')?.findings.length === 0;
-} catch (error) { report.errors.push(error.stack); }
+} catch (error) { report.errors.push(describeCleanupError(error)); }
 finally {
   clearTimeout(deadline);
   try { await stopRuntime(); }
-  catch (error) { report.errors.push(error.stack); report.complete = false; report.comparable = false; }
+  catch (error) { report.errors.push(describeCleanupError(error)); report.complete = false; report.comparable = false; }
   report.deadlineExceeded = deadlineExceeded; report.finishedAt = new Date().toISOString(); await save();
 }
 if (!report.complete || !report.comparable || !report.candidateVisualAccepted || deadlineExceeded || report.errors.length) process.exitCode = 1;

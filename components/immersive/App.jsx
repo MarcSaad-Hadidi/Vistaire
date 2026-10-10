@@ -27,7 +27,7 @@ import {
   site,
 } from "./content.js";
 import Pricing from "./Pricing.jsx";
-import { CINEMATIC_TIMING, chapterNavigationTarget, chapterPhase, cinematicEase, cinematicCopyWeights, featureTextOpacity, socialTiming, cinematicStageOffset, measureChapterTransitions, transitionAtScroll, transitionSceneFrame } from "./SceneDirector.js";
+import { CINEMATIC_TIMING, scaledCinematicTiming, remapJourneyScroll, chapterNavigationTarget, chapterPhase, cinematicEase, cinematicCopyWeights, featureTextOpacity, socialTiming, cinematicStageOffset, measureChapterTransitions, transitionAtScroll, transitionSceneFrame } from "./SceneDirector.js";
 import { useModelGesture, useSupportGesture } from "./useModelGesture.js";
 import { ARAction, ARHelp, DishDetailLink, isIOSDevice } from "./ARActions.jsx";
 import { LandingLocaleProvider, useLandingLocale } from "./locale.jsx";
@@ -85,7 +85,7 @@ function Chapter({ id, height, children, className = "", chapterRef, as: Element
       className={`chapter ${className}`}
       style={{
         "--chapter-height": height,
-        scrollMarginTop: anchorOffset ? `calc(-${anchorOffset} * var(--journey-vh))` : undefined,
+        scrollMarginTop: anchorOffset ? `calc(-${anchorOffset} * var(--scroll-distance-scale, 1) * var(--journey-vh))` : undefined,
       }}
       aria-labelledby={`${id}-title`}
     >
@@ -337,6 +337,7 @@ function LandingContent() {
   const sectionRefs = useRef({});
   const openingRef = useRef(null);
   const scrollTargets = useRef({});
+  const [scrollPace, setScrollPace] = useState(null);
   const [chapter, setChapter] = useState("hero");
   const [chapterBeats, setChapterBeats] = useState({
     features: 0,
@@ -452,6 +453,9 @@ function LandingContent() {
     let measurements = [];
     let transitions = [];
     let sceneFrames = {};
+    let timing = stateRef.current.cinematicTiming || CINEMATIC_TIMING;
+    let pendingPace = null;
+    let arrivalAnchor = null;
     const world = document.querySelector(".world");
     let opening = null;
     let stopped = false;
@@ -481,7 +485,7 @@ function LandingContent() {
       const travel = journeyBounds.height - stageHeight;
       const motionTravel = Math.max(
         1,
-        stageHeight * CINEMATIC_TIMING.openingMotionScreens,
+        stageHeight * timing.openingMotionScreens,
       );
       const sceneHeight = world.clientHeight;
       opening = {
@@ -515,7 +519,7 @@ function LandingContent() {
             openingAnchor == null
               ? bounds.top + scrollY
               : top + motionTravel * openingAnchor;
-          scrollTargets.current[id] = chapterNavigationTarget({ id, top: sectionTop }, stageHeight);
+          scrollTargets.current[id] = chapterNavigationTarget({ id, top: sectionTop }, stageHeight, timing);
           return {
             id,
             top: sectionTop,
@@ -533,7 +537,7 @@ function LandingContent() {
         .filter(Boolean);
       // Framing changes only with measured geometry, not on every scroll tick.
       sceneFrames = Object.fromEntries(measurements.map(m => [m.id, m.sceneFrame]));
-      transitions = measureChapterTransitions(measurements, opening);
+      transitions = measureChapterTransitions(measurements, opening, timing);
       for (const { from, to, start, end } of transitions) {
         const el = sectionRefs.current[from.id];
         el.dataset.exitTo = to.id;
@@ -547,6 +551,33 @@ function LandingContent() {
       if (needsMeasure) {
         needsMeasure = false;
         measure();
+      }
+      if (pendingPace != null) {
+        const pace = pendingPace;
+        pendingPace = null;
+        const nextTiming = scaledCinematicTiming(1 / pace);
+        if (timing.sceneScreens !== nextTiming.sceneScreens) {
+          const y = scrollY;
+          const before = { measurements, opening, transitions, viewportHeight: innerHeight };
+          timing = nextTiming;
+          const journey = openingRef.current;
+          writeVisualProperty(journey.parentElement, "--scroll-distance-scale", 1 / pace);
+          writeVisualProperty(journey, "--opening-motion-vh", timing.openingMotionScreens * 100);
+          writeVisualProperty(journey, "--opening-phone-hold-vh", timing.phoneHoldScreens * 100);
+          writeVisualProperty(journey, "--opening-release-vh", timing.openingReleaseScreens * 100);
+          measure();
+          scrollTo({
+            top: remapJourneyScroll(y, before, { measurements, opening, transitions, viewportHeight: innerHeight }),
+            behavior: "instant",
+          });
+        }
+        stateRef.current.cinematicTiming = timing;
+        setScrollPace(pace);
+      }
+      if (arrivalAnchor != null) {
+        if (Object.hasOwn(scrollTargets.current, arrivalAnchor))
+          scrollTo({ top: scrollTargets.current[arrivalAnchor], behavior: "instant" });
+        arrivalAnchor = null;
       }
       const y = scrollY;
       // Once native scrolling or an interactive control is understood, leave
@@ -695,6 +726,17 @@ function LandingContent() {
         queuedFrame = requestAnimationFrame(update);
       }
     };
+    const requestPace = (value) => {
+      const number = Number(value);
+      pendingPace = Number.isFinite(number) && number > 0
+        ? Math.round(Math.max(0.75, Math.min(1.5, number)) * 20) / 20 : 1;
+      const url = new URL(location.href);
+      url.searchParams.set("scrollPace", pendingPace.toFixed(2));
+      history.replaceState(history.state, "", url);
+      queue();
+    };
+    const paceState = stateRef.current;
+    paceState.setScrollPace = requestPace;
     const layoutChanged = () => {
       needsMeasure = true;
       queue();
@@ -711,14 +753,15 @@ function LandingContent() {
       if (!stopped) layoutChanged();
     });
     measure();
+    const initialPace = new URLSearchParams(location.search).get("scrollPace");
+    if (initialPace != null) {
+      const number = Number(initialPace);
+      pendingPace = Number.isFinite(number) && number > 0
+        ? Math.round(Math.max(0.75, Math.min(1.5, number)) * 20) / 20 : 1;
+    }
     // Overlayed opening panels share one DOM position; their deep links need
     // the same measured scroll destination as the navigation controls.
-    const initialAnchor = location.hash.slice(1);
-    if (Object.hasOwn(scrollTargets.current, initialAnchor))
-      scrollTo({
-        top: scrollTargets.current[initialAnchor],
-        behavior: "instant",
-      });
+    arrivalAnchor = location.hash.slice(1);
     const pointer = (e) => {
       stateRef.current.pointer = {
         x: (e.clientX / innerWidth) * 2 - 1,
@@ -729,7 +772,8 @@ function LandingContent() {
       activeTouches = event.touches.length;
       if (!activeTouches) queue();
     };
-    update();
+    if (initialPace == null) update();
+    else queue();
     addEventListener("scroll", queue, { passive: true });
     // ResizeObserver tracks real stage/focus sizes, without measuring the
     // whole page again for toolbar-only resize notifications.
@@ -740,6 +784,7 @@ function LandingContent() {
     return () => {
       removeEventListener("scroll", queue);
       stopped = true;
+      delete paceState.setScrollPace;
       cancelAnimationFrame(queuedFrame);
       observer.disconnect();
       removeEventListener("pointermove", pointer);
@@ -831,7 +876,7 @@ function LandingContent() {
       scrollTo({
         top: ["hero", "ai", "wearable"].includes(id)
           ? scrollTargets.current[id] ?? 0
-          : chapterNavigationTarget({ id, top: (sectionRefs.current[id]?.getBoundingClientRect().top ?? 0) + scrollY }, openingRef.current?.firstElementChild.getBoundingClientRect().height ?? innerHeight),
+          : chapterNavigationTarget({ id, top: (sectionRefs.current[id]?.getBoundingClientRect().top ?? 0) + scrollY }, openingRef.current?.firstElementChild.getBoundingClientRect().height ?? innerHeight, stateRef.current.cinematicTiming),
         behavior: reduce ? "instant" : "smooth",
       });
       history.replaceState(null, "", `#${id}`);
@@ -870,7 +915,7 @@ function LandingContent() {
   useEffect(() => {
     if (!ready || !new URLSearchParams(location.search).has("dish")) return;
     const el = sectionRefs.current.grip;
-    if (el) scrollTo({ top: chapterNavigationTarget({ id: "grip", top: el.getBoundingClientRect().top + scrollY }, openingRef.current.firstElementChild.getBoundingClientRect().height), behavior: "instant" });
+    if (el) scrollTo({ top: chapterNavigationTarget({ id: "grip", top: el.getBoundingClientRect().top + scrollY }, openingRef.current.firstElementChild.getBoundingClientRect().height, stateRef.current.cinematicTiming), behavior: "instant" });
   }, [ready]);
   const ref = useCallback(
     (id) => (el) => {
@@ -935,6 +980,26 @@ function LandingContent() {
           </>
         )}
       </div>
+      {scrollPace != null && (
+        <details open className="pace-preview" aria-label={locale === "en" ? "Journey pace preview" : "Aperçu du rythme du parcours"}>
+          <summary>
+            <span>{locale === "en" ? "Pace" : "Rythme"} <output htmlFor="scroll-pace">{scrollPace.toFixed(2)}×</output></span>
+            <ChevronDown size={16} aria-hidden="true" />
+          </summary>
+          <div className="pace-preview-heading">
+            <label className="sr-only" htmlFor="scroll-pace">{locale === "en" ? "Pace" : "Rythme"}</label>
+            <input id="scroll-pace" type="range" min="0.75" max="1.50" step="0.05" value={scrollPace}
+              aria-describedby="scroll-pace-help"
+              aria-valuetext={`${scrollPace.toFixed(2)}×`}
+              onChange={event => stateRef.current.setScrollPace?.(event.target.value)} />
+            <button type="button" onClick={() => stateRef.current.setScrollPace?.(1)}>
+              {locale === "en" ? "Reset" : "Réinitialiser"}
+            </button>
+          </div>
+          <div className="pace-preview-labels"><span>{locale === "en" ? "Slower" : "Plus lent"}</span><span>{locale === "en" ? "Faster" : "Plus rapide"}</span></div>
+          <p id="scroll-pace-help">{locale === "en" ? "Higher pace shortens the journey’s scroll distance." : "Un rythme plus élevé raccourcit la distance à faire défiler."}</p>
+        </details>
+      )}
       {!ready && (
         <div className="preloader" role="status">
           <div className="loading-word">Vistaire</div>

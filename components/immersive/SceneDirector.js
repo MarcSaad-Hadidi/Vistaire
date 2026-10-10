@@ -31,6 +31,27 @@ export const CINEMATIC_TIMING = Object.freeze({
   openingReleaseScreens: edgeScreens,
 });
 
+/** Preview pace scales authored travel, not the physical sticky viewport.
+ * All internal phase ratios stay identical to the published default. */
+export function scaledCinematicTiming(distanceFactor = 1) {
+  if (!Number.isFinite(distanceFactor) || distanceFactor <= 0 || distanceFactor === 1)
+    return CINEMATIC_TIMING;
+  const edge = edgeScreens * distanceFactor;
+  const scene = sceneScreens * distanceFactor;
+  const transition = 1 + 2 * edge;
+  return Object.freeze({
+    sceneScreens: scene,
+    activeScreens: activeScreens * distanceFactor,
+    transitionScreens: transition,
+    edgeScreens: edge,
+    detailScreens: detailScreens * distanceFactor,
+    chapterHeightVh: (1 + scene) * 100,
+    openingMotionScreens: transition * 2,
+    phoneHoldScreens: CINEMATIC_TIMING.phoneHoldScreens * distanceFactor,
+    openingReleaseScreens: edge,
+  });
+}
+
 // C2 acceleration ramps, constant-speed middle half, zero endpoint velocity.
 // Peak normalized speed is 4/3, rather than cubic smoothstep's 3/2. Apply once
 // to a motion phase; do not smooth an already eased progress a second time.
@@ -55,8 +76,8 @@ const smooth = cinematicEase;
 
 /** Navigation presents the destination, rather than stopping midway through
  * its entrance with transparent/inert controls. Natural sections stay native. */
-export function chapterNavigationTarget(chapter, stageHeight) {
-  return chapter.top + (CHAPTERS.slice(3, 10).includes(chapter.id) ? edgeScreens * stageHeight : 0);
+export function chapterNavigationTarget(chapter, stageHeight, timing = CINEMATIC_TIMING) {
+  return chapter.top + (CHAPTERS.slice(3, 10).includes(chapter.id) ? timing.edgeScreens * stageHeight : 0);
 }
 
 /** Internal presentation settles before the shared exit starts. This prevents
@@ -101,13 +122,13 @@ export function transitionSceneFrame(transition, frames) {
  * flow: its incoming final edge portion is covered by the pricing surface; much of its
  * outgoing raccord is hidden behind that surface. The footer ends at its
  * real DOM boundary, so no cinematic tail is appended to the document. */
-export function measureChapterTransitions(measurements, opening) {
-  const distance = opening.stageHeight * transitionScreens;
+export function measureChapterTransitions(measurements, opening, timing = CINEMATIC_TIMING) {
+  const distance = opening.stageHeight * timing.transitionScreens;
   let previousEnd = -Infinity;
   return measurements.slice(2, -1).map((from, index) => {
     const to = measurements[index + 3];
     const fromOpening = from.id === "wearable";
-    const end = to.top + (to.id === "footer" ? 0 : edgeScreens * opening.stageHeight);
+    const end = to.top + (to.id === "footer" ? 0 : timing.edgeScreens * opening.stageHeight);
     // On tall viewports natural pricing can be shorter than two joins. Its
     // opaque content must remain native: cap only this last raccord to real
     // available space rather than overlap poses or append an empty tail.
@@ -136,6 +157,43 @@ export function transitionAtScroll(windows, y) {
     toProgress: unit((y - to.top) / to.travel),
     progress: unit((y - start) / Math.max(1, end - start)),
   };
+}
+
+/** A preview pace change keeps the visible narrative sample. Natural content
+ * takes priority as soon as it enters the viewport, including negative offsets. */
+export function remapJourneyScroll(y, before, after) {
+  const pricing = before.measurements.find(m => m.id === "open-weight");
+  if (pricing && y + before.viewportHeight > pricing.top) {
+    const footer = before.measurements.find(m => m.id === "footer");
+    const anchor = footer && y >= footer.top ? footer : pricing;
+    return after.measurements.find(m => m.id === anchor.id).top + y - anchor.top;
+  }
+  const blend = transitionAtScroll(before.transitions, y);
+  if (blend) {
+    const next = after.transitions.find(w => w.from.id === blend.from && w.to.id === blend.to);
+    if (blend.to === "open-weight") {
+      // Join the visible-pixel rule continuously. Preserving the full hidden
+      // 3D fraction here could expose pricing and make a reset jump backward.
+      const previous = before.transitions.find(w => w.to.id === "open-weight");
+      const oldVisible = pricing.top - before.viewportHeight;
+      const newVisible = after.measurements.find(m => m.id === "open-weight").top - after.viewportHeight;
+      const fraction = (y - previous.start) / (oldVisible - previous.start);
+      return next.start + fraction * (newVisible - next.start);
+    }
+    return next.start + (next.end - next.start) * blend.progress;
+  }
+  const oldOpening = before.opening, newOpening = after.opening;
+  if (y <= oldOpening.top + oldOpening.motionTravel)
+    return newOpening.top + (y - oldOpening.top) / oldOpening.motionTravel * newOpening.motionTravel;
+  if (y < before.transitions[0].start) {
+    const fraction = (y - oldOpening.top - oldOpening.motionTravel)
+      / (before.transitions[0].start - oldOpening.top - oldOpening.motionTravel);
+    return newOpening.top + newOpening.motionTravel
+      + fraction * (after.transitions[0].start - newOpening.top - newOpening.motionTravel);
+  }
+  const chapter = before.measurements.filter(m => y >= m.top).at(-1);
+  const next = after.measurements.find(m => m.id === chapter.id);
+  return next.top + (y - chapter.top) / chapter.travel * next.travel;
 }
 
 /** Shape-preserving cubic slopes across the opening's calibrated camera poses.

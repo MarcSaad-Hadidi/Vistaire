@@ -338,9 +338,80 @@
 }
 :where([data-immersive-vistaire]) .chapter {
   position: relative;
-  height: calc(var(--chapter-height) * var(--journey-vh));
+  height: calc((100 + (var(--chapter-height) - 100) * var(--scroll-distance-scale, 1)) * var(--journey-vh));
   pointer-events: none;
   --progress: 0;
+}
+:where([data-immersive-vistaire]) .pace-preview {
+  position: fixed;
+  z-index: 49;
+  left: 50%;
+  bottom: max(12px, env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  width: min(390px, calc(100% - 24px));
+  padding: 4px 14px 10px;
+  border: 1px solid #cec8bd66;
+  border-radius: 12px;
+  background: #111110f5;
+  color: #f8f3e8;
+  font-size: 12px;
+}
+:where([data-immersive-vistaire]) .pace-preview:not([open]) {
+  top: max(80px, env(safe-area-inset-top));
+  bottom: auto;
+  left: auto;
+  right: 12px;
+  width: auto;
+  transform: none;
+  padding: 0 14px;
+}
+:where([data-immersive-vistaire]) .pace-preview summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 44px;
+  cursor: pointer;
+  list-style: none;
+}
+:where([data-immersive-vistaire]) .pace-preview summary::-webkit-details-marker {
+  display: none;
+}
+:where([data-immersive-vistaire]) .pace-preview[open] summary svg {
+  transform: rotate(180deg);
+}
+:where([data-immersive-vistaire]) .pace-preview summary:focus-visible {
+  outline: 2px solid #ffc300;
+  outline-offset: 2px;
+}
+:where([data-immersive-vistaire]) .pace-preview-heading {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 44px;
+}
+:where([data-immersive-vistaire]) .pace-preview output {
+  font-variant-numeric: tabular-nums;
+}
+:where([data-immersive-vistaire]) .pace-preview-heading button {
+  margin-left: auto;
+  min-height: 44px;
+  text-decoration: underline;
+}
+:where([data-immersive-vistaire]) .pace-preview input {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  height: 44px;
+  accent-color: #ffc300;
+}
+:where([data-immersive-vistaire]) .pace-preview-labels {
+  display: flex;
+  justify-content: space-between;
+}
+:where([data-immersive-vistaire]) .pace-preview p {
+  margin: 6px 0 0;
+  line-height: 1.35;
 }
 :where([data-immersive-vistaire]) .chapter:not(.pricing):not(.footer) {
   -webkit-user-select: none;
