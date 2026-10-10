@@ -177,6 +177,43 @@ test("a shared stack-layout FAQ consumer keeps disclosure and schema parity", as
   });
 });
 
+test("free FAQ question keeps one active answer and ignores stale responses", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  const asked: string[] = [];
+  await page.route("**/api/public/faq", async (route) => {
+    const { question } = route.request().postDataJSON() as { question: string };
+    asked.push(question);
+    if (asked.length === 1) await new Promise((resolve) => setTimeout(resolve, 1_200));
+    await route.fulfill({
+      json: {
+        status: "answered",
+        answer: `Réponse pour ${question}`,
+        sources: [{ title: "Tarifs Vistaire", href: "/tarifs-menu-digital-restaurant" }]
+      }
+    });
+  });
+
+  await page.goto(ROUTES[2].path, { waitUntil: "domcontentloaded" });
+  await openHydratedFaqItem(page.locator("[data-seo-faq-question]").nth(1));
+  const input = page.locator("[data-faq-ask-input]");
+  const result = page.locator("[data-faq-ask-result]");
+
+  await input.fill("Combien coûte Vistaire ?");
+  await input.press("Enter");
+  await expect(result).toHaveAttribute("aria-busy", "true");
+  await input.fill("Faut-il une application ?");
+  await page.locator("[data-faq-ask-submit]").click();
+
+  await expect(result.locator("[data-faq-ask-status='answered']")).toHaveText(/Réponse pour Faut-il une application \?/);
+  await expect(result.getByRole("link", { name: "Tarifs Vistaire" })).toHaveAttribute("href", "/tarifs-menu-digital-restaurant");
+  await page.waitForTimeout(1_400);
+  await expect(result).not.toContainText("Combien coûte");
+  expect(asked).toEqual(["Combien coûte Vistaire ?", "Faut-il une application ?"]);
+
+  await input.fill("Faut-il une application ? Et le Wi-Fi ?");
+  await expect(result.locator("[data-faq-ask-status]")).toHaveCount(0);
+});
+
 for (const width of [390, 430]) {
   test(`FAQ routes have no horizontal overflow at ${width}px`, async ({ page }) => {
     await page.setViewportSize({ width, height: width === 390 ? 844 : 932 });

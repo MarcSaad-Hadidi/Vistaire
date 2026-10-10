@@ -1,5 +1,6 @@
 import type { Locale } from "@/lib/i18n";
 import type { SeoPageData } from "@/lib/seoPages";
+import { FaqAsk } from "./FaqAsk";
 import { SeoFaqItem } from "./SeoFaqItem";
 
 type SeoFaqProps = {
@@ -28,6 +29,7 @@ export function SeoFaq({
           initialOpen={index === 0}
         />
       ))}
+      <FaqAsk locale={locale} />
     </div>
   );
 

@@ -269,6 +269,8 @@ const nextConfig: NextConfig = {
   outputFileTracingIncludes: {
     ...OWNER_MODEL_PIPELINE_TRACE_INCLUDES_BY_ROUTE,
     "/api/owner/model-lab/optimize": MODEL_LAB_TRACE_INCLUDES,
+    // Read with fs at runtime; Next cannot infer these files from imports.
+    "/api/public/faq": ["docs/faq-knowledge/**/*"],
   },
   outputFileTracingExcludes: {
     ...OWNER_MODEL_PIPELINE_TRACE_EXCLUDES,

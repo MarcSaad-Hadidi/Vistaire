@@ -2,6 +2,7 @@ import { useState } from "react";
 import { ArrowUpRight, Check, ChevronDown, Plus } from "lucide-react";
 import "./pricing.css";
 import { useLandingLocale } from "./locale.jsx";
+import { FaqAsk } from "../seo/FaqAsk";
 
 // Verified against Vistaire's pricingPage.ts. Physical supports beyond the
 // included quantity are quoted individually; no per-support rate is assumed.
@@ -421,6 +422,7 @@ export default function Pricing({ collection, setCollection, onEstimate }) {
               <p>{t(item.answer)}</p>
             </details>
           ))}
+          <FaqAsk locale={locale} compact />
         </div>
       </section>
 
