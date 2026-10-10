@@ -6,6 +6,7 @@ export function createPhoneModel({
   canvas,
   screenMaterial,
   disposeTree,
+  onInvalidate,
   onError,
 }) {
   const root = new THREE.Group();
@@ -63,6 +64,7 @@ export function createPhoneModel({
       root.add(model);
       canvas.dataset.phoneReady = "true";
       canvas.dataset.phone = "iphone-16";
+      onInvalidate?.();
     })
     .catch((error) => {
       if (!disposed && error.name !== "AbortError") onError(error);

@@ -316,6 +316,8 @@ export default function Scene({
     let arExperience;
     let frame = 0;
     let lastTime = 0;
+    let renderRequested = false;
+    let wasOccluded = false;
     let assetRequest;
     let ready = false;
     let stoneReady = false;
@@ -338,6 +340,17 @@ export default function Scene({
     const targetEuler = new THREE.Euler();
     let environmentTarget;
     let environmentScene;
+
+    function invalidateScene() {
+      if (disposed || failed) return;
+      renderRequested = true;
+      if (frame || document.hidden || arExperience?.active) return;
+      // App keeps the latest scroll state while opaque pricing covers the room.
+      // QA alone needs processed-pose markers inside that hidden interval.
+      if (ready && wasOccluded && stateRef.current?.sceneOccluded && !diagnosticsEnabled)
+        return;
+      frame = requestAnimationFrame(draw);
+    }
 
     function fail(error) {
       if (disposed || failed) return;
@@ -412,7 +425,10 @@ export default function Scene({
       "/immersive-assets/restaurant-stone.webp",
       (texture) => {
         if (disposed) texture.dispose();
-        else stoneReady = true;
+        else {
+          stoneReady = true;
+          invalidateScene();
+        }
       },
       undefined,
       () =>
@@ -459,6 +475,7 @@ export default function Scene({
         return nativeTable.metadata;
       },
     });
+    restaurantWorld.loading.then(invalidateScene, () => {});
     const woodMaterial = new THREE.MeshStandardMaterial({
       color: "#2c4148",
       map: stone,
@@ -664,6 +681,7 @@ export default function Scene({
       renderer,
       disposeTree,
       onError: fail,
+      onInvalidate: invalidateScene,
     });
     const supportRoot = supportAssets.root;
     scene.add(supportRoot);
@@ -680,6 +698,7 @@ export default function Scene({
       screenMaterial: phoneScreenMaterial,
       disposeTree,
       onError: fail,
+      onInvalidate: invalidateScene,
     });
     const phoneRoot = phoneAsset.root;
     scene.add(phoneRoot);
@@ -688,6 +707,7 @@ export default function Scene({
       renderer,
       disposeTree,
       onError: fail,
+      onReady: invalidateScene,
     });
     const laptopRoot = laptopAsset.root;
     scene.add(laptopRoot);
@@ -714,6 +734,7 @@ export default function Scene({
           phoneScreenMaterial.color.set("#ffffff");
           phoneScreenMaterial.needsUpdate = true;
         }
+        invalidateScene();
       };
       if (posters.has(demo)) {
         applyPoster(posters.get(demo));
@@ -744,14 +765,57 @@ export default function Scene({
       );
     let phoneFrame = 0;
     let videoFrameCallback;
-    if (phoneVideo.requestVideoFrameCallback) {
-      const decoded = () => {
-        if (disposed) return;
-        phoneFrame++;
-        videoFrameCallback = phoneVideo.requestVideoFrameCallback(decoded);
-      };
-      videoFrameCallback = phoneVideo.requestVideoFrameCallback(decoded);
+    let phonePlaybackWanted = false;
+    let videoPlaying = false;
+    let phonePlayIntent = 0;
+    function canPlayPhoneVideo() {
+      const state = stateRef.current || {};
+      return phonePlaybackWanted && phoneRoot.visible &&
+        !disposed && !failed && !document.hidden && !arExperience?.active &&
+        !state.sceneOccluded && !state.reducedMotion && !state.modalOpen && !state.menuOpen;
     }
+    function cancelPhoneFrame() {
+      if (videoFrameCallback !== undefined) {
+        phoneVideo.cancelVideoFrameCallback?.(videoFrameCallback);
+        videoFrameCallback = undefined;
+      }
+    }
+    function decodedPhoneFrame() {
+      videoFrameCallback = undefined;
+      if (!canPlayPhoneVideo() || phoneVideo.paused || phoneVideo.ended) return;
+      phoneFrame++;
+      invalidateScene();
+      requestPhoneFrame();
+    }
+    function requestPhoneFrame() {
+      if (phoneVideo.requestVideoFrameCallback && videoFrameCallback === undefined &&
+        canPlayPhoneVideo() && !phoneVideo.paused && !phoneVideo.ended)
+        videoFrameCallback = phoneVideo.requestVideoFrameCallback(decodedPhoneFrame);
+    }
+    function pausePhoneVideo() {
+      if (phonePlaybackWanted) phonePlayIntent++;
+      phonePlaybackWanted = false;
+      videoPlaying = false;
+      cancelPhoneFrame();
+      if (!phoneVideo.paused) phoneVideo.pause();
+    }
+    function phoneVideoChanged(event) {
+      if (disposed || failed) return;
+      if (event.type === "pause" || event.type === "waiting" ||
+        event.type === "ended" || event.type === "emptied") {
+        videoPlaying = false;
+        cancelPhoneFrame();
+        if (canPlayPhoneVideo()) invalidateScene();
+        return;
+      }
+      if (event.type === "playing") videoPlaying = true;
+      if (canPlayPhoneVideo()) {
+        requestPhoneFrame();
+        invalidateScene();
+      }
+    }
+    const phoneVideoEvents = ["loadeddata", "canplay", "playing", "seeked", "pause", "waiting", "ended", "emptied"];
+    phoneVideoEvents.forEach((event) => phoneVideo.addEventListener(event, phoneVideoChanged));
     const videoTexture = new THREE.VideoTexture(phoneVideo);
     videoTexture.colorSpace = THREE.SRGBColorSpace;
     ownedTextures.add(videoTexture);
@@ -759,7 +823,7 @@ export default function Scene({
       if (!shouldPlay || currentPhoneDemo !== demo) videoReady = false;
       selectPoster(demo);
       if (!shouldPlay) {
-        if (!phoneVideo.paused) phoneVideo.pause();
+        pausePhoneVideo();
         const still = posters.get(demo);
         if (still && posterReady && phoneScreenMaterial.map !== still) {
           phoneScreenMaterial.map = still;
@@ -768,7 +832,12 @@ export default function Scene({
         }
         return;
       }
+      if (!phonePlaybackWanted) phonePlayIntent++;
+      phonePlaybackWanted = true;
       if (!videoStarted || currentPhoneDemo !== demo) {
+        phonePlayIntent++;
+        videoPlaying = false;
+        cancelPhoneFrame();
         phoneVideo.pause();
         phoneVideo.src = `/videos/demo/${demo}.mp4`;
         currentPhoneDemo = demo;
@@ -780,7 +849,13 @@ export default function Scene({
         videoStarted = true;
         canvas.dataset.phoneDemo = demo;
       }
-      phonePlayback.play();
+      const intent = phonePlayIntent;
+      phonePlayback.play()?.then(() => {
+        // A pause/resume can overtake an interrupted pending play. Wake once
+        // for the newer intent; never poll an unchanged autoplay rejection.
+        if (intent !== phonePlayIntent && canPlayPhoneVideo()) invalidateScene();
+      });
+      requestPhoneFrame();
       // Keep the actual menu poster until a decoded moving frame is available.
       if (
         !videoReady &&
@@ -819,8 +894,9 @@ export default function Scene({
           framingHulls = indexPublicModelFramingHulls(data.byUrl);
           canvas.dataset.framingReady = "true";
           // Functional readiness may already have settled the scene. Publish
-          // the requested QA bounds on the next existing render-loop update.
+          // the requested QA bounds on the next explicitly scheduled update.
           renderSignature = "";
+          invalidateScene();
         })
         .catch((error) => {
           if (disposed || error.name === "AbortError") return;
@@ -943,6 +1019,7 @@ export default function Scene({
           delete canvas.dataset.modelError;
           callbacks.current.onAssetLoading?.(null);
           callbacks.current.onAssetError?.(null);
+          invalidateScene();
         })
         .catch((error) => {
           if (disposed || request.signal.aborted || error.name === "AbortError")
@@ -1013,6 +1090,7 @@ export default function Scene({
       canvas.dataset.viewportResizes = String(viewportRevision);
       camera.aspect = width / height;
       camera.updateProjectionMatrix();
+      invalidateScene();
     }
     function applyTransform(object, position, rotation, scale, damping) {
       objectTarget.fromArray(position);
@@ -1458,7 +1536,6 @@ export default function Scene({
     let renderSignature = "";
     let previousShadowSignature = "";
     let lastSceneChange = 0;
-    let wasOccluded = false;
     function recordProcessedPose(state) {
       if (!diagnosticsEnabled) return;
       canvas.dataset.processedScrollDistance = String(state.scrollDistance);
@@ -1467,9 +1544,13 @@ export default function Scene({
       canvas.dataset.processedViewportHeight = String(drawingSize?.height ?? 0);
     }
     function draw(now) {
-      if (arExperience?.active) return;
       frame = 0;
-      if (disposed || failed || document.hidden) return;
+      if (disposed || failed || document.hidden || arExperience?.active) {
+        lastTime = 0;
+        return;
+      }
+      const requested = renderRequested;
+      renderRequested = false;
       const dt = lastTime ? Math.min((now - lastTime) / 1000, 0.5) : 1 / 60;
       lastTime = now;
       const state = stateRef.current || initialState;
@@ -1478,14 +1559,13 @@ export default function Scene({
       if (ready && state.sceneOccluded) {
         wasOccluded = true;
         lastTime = 0;
-        if (!phoneVideo.paused) phoneVideo.pause();
+        pausePhoneVideo();
         canvas.dataset.suspended = "true";
         canvas.dataset.section = state.section;
         canvas.dataset.progress = state.progress.toFixed(4);
         canvas.dataset.settled = "true";
         if (diagnosticsEnabled) canvas.dataset.settlingReasons = "0";
         recordProcessedPose(state);
-        frame = requestAnimationFrame(draw);
         return;
       }
       const resume = wasOccluded;
@@ -1653,8 +1733,7 @@ export default function Scene({
         lastRetryModel = retryModel;
         loadDish(dish);
       }
-      // A settled still scene does not need another GPU frame. Keep the small
-      // state loop alive so scroll, input and asynchronous media can wake it.
+      // Scroll, input and asset/media completion explicitly wake a still scene.
       canvas.dataset.tableSettingVisible = String(nativeTable?.accessories.placeSetting.visible ?? false);
       const geometrySignature = [
         state.section,
@@ -1746,23 +1825,23 @@ export default function Scene({
         ) ||
         (laptopRoot.visible && !laptopAsset.settled) ||
         Math.abs(woodMaterial.opacity - pose.table) > 0.0002 ||
-        roomSettling ||
-        projectionSettling;
+        roomSettling;
       const invalidated = now === lastSceneChange;
       canvas.dataset.section = state.section;
       canvas.dataset.progress = state.progress.toFixed(4);
       canvas.dataset.supportFlipped = String(Boolean(state.flip));
-      canvas.dataset.settled = String(!settling);
+      canvas.dataset.settled = String(!settling && !projectionSettling);
       const animated =
         (!phoneVideo.requestVideoFrameCallback &&
+          videoPlaying && canPlayPhoneVideo() &&
           !phoneVideo.paused &&
-          phoneRoot.visible) ||
+          !phoneVideo.ended) ||
         (particles.visible &&
           !state.reducedMotion &&
           !state.modalOpen &&
           !state.menuOpen);
       try {
-        if (!ready || settling || animated || invalidated) {
+        if (!ready || requested || settling || projectionSettling || animated || invalidated) {
           // A new screen-video frame changes its pixels, not any geometry.
           // Preserve the cached shadows until a casting object or asset changes.
           renderer.shadowMap.needsUpdate = !ready || shadowInvalidated;
@@ -1850,6 +1929,7 @@ export default function Scene({
           ready = true;
           canvas.dataset.ready = "true";
           callbacks.current.onReady?.();
+          if (state.sceneOccluded) invalidateScene();
         }
       } catch (error) {
         fail(error);
@@ -1872,16 +1952,20 @@ export default function Scene({
         canvas.dataset.settlingReasons = String(reasons);
       }
       recordProcessedPose(state);
-      frame = requestAnimationFrame(draw);
+      if (settling || projectionSettling || animated || renderRequested)
+        invalidateScene();
+      if (!frame) lastTime = 0;
     }
     function visibilityChanged() {
       if (arExperience?.active) return;
       cancelAnimationFrame(frame);
       frame = 0;
       lastTime = 0;
-      if (document.hidden) phoneVideo.pause();
-      if (!document.hidden && !disposed && !failed)
-        frame = requestAnimationFrame(draw);
+      if (document.hidden) pausePhoneVideo();
+      else {
+        resize();
+        invalidateScene();
+      }
     }
     function contextLost(event) {
       event.preventDefault();
@@ -1902,7 +1986,8 @@ export default function Scene({
       onSuspend: () => {
         cancelAnimationFrame(frame);
         frame = 0;
-        phoneVideo.pause();
+        lastTime = 0;
+        pausePhoneVideo();
       },
       onResume: () => {
         if (disposed || failed) return;
@@ -1910,10 +1995,11 @@ export default function Scene({
         renderSignature = "";
         drawingSize = null;
         resize();
-        if (!document.hidden) frame = requestAnimationFrame(draw);
+        invalidateScene();
       },
     });
     Object.assign(stateRef.current, {
+      invalidateScene,
       startAR: arExperience.start,
       endAR: arExperience.end,
       scaleAR: arExperience.setScale,
@@ -1925,11 +2011,15 @@ export default function Scene({
     sizeObserver.observe(canvas);
     window.addEventListener("resize", resize);
     document.addEventListener("visibilitychange", visibilityChanged);
-    if (!document.hidden) frame = requestAnimationFrame(draw);
+    invalidateScene();
 
     return () => {
       disposed = true;
       cancelAnimationFrame(frame);
+      frame = 0;
+      if (sceneState.invalidateScene === invalidateScene) delete sceneState.invalidateScene;
+      phoneVideoEvents.forEach((event) => phoneVideo.removeEventListener(event, phoneVideoChanged));
+      pausePhoneVideo();
       assetRequest?.abort();
       hullRequest?.abort();
       canvas.removeEventListener("webglcontextlost", contextLost);
@@ -1959,9 +2049,6 @@ export default function Scene({
           nativeTable?.dispose();
           restaurantWorld.dispose();
           phoneScreenMaterial.dispose();
-          phoneVideo.pause();
-          if (videoFrameCallback !== undefined)
-            phoneVideo.cancelVideoFrameCallback?.(videoFrameCallback);
           phoneVideo.onerror = null;
           phoneVideo.removeAttribute("src");
           phoneVideo.load();

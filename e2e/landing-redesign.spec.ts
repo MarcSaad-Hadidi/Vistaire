@@ -159,8 +159,47 @@ const renderedTest = test.extend({
 // A processed-pose acknowledgement replaces the former four blind RAF waits.
 // It is published only after a rendered/update pass (or explicit occlusion),
 // not when App first mutates state. Repeat positions can reuse a valid pose.
-async function waitForProcessedPose(page: Page, framesBeforeResize?: number, requireGripFrame = false) {
-  await page.waitForFunction(({ framesBeforeResize, requireGripFrame }) => {
+async function waitForProcessedPose(page: Page, framesBeforeResize?: number, requireGripFrame = false, diagnostic?: { target: number; artifact: string }) {
+  const startedAt = new Date().toISOString();
+  let pendingDiagnostic: Promise<void> | undefined;
+  const timer = diagnostic ? setTimeout(() => {
+    pendingDiagnostic = (async () => {
+      let captureTimer: ReturnType<typeof setTimeout> | undefined;
+      let snapshot = null;
+      let captureError: string | null = null;
+      try {
+        snapshot = await Promise.race([
+          page.evaluate(() => {
+            const canvas = document.querySelector<HTMLCanvasElement>('.scene-canvas');
+            const opening = document.querySelector<HTMLElement>('.opening-journey');
+            const data = canvas?.dataset;
+            const openingTop = opening ? opening.getBoundingClientRect().top + scrollY : null;
+            const stageHeight = opening?.firstElementChild?.getBoundingClientRect().height ?? null;
+            const grip = document.querySelector('#grip');
+            return { scrollY, openingTop, stageHeight,
+              expectedDistance: openingTop != null && stageHeight ? Math.max(0, (scrollY - openingTop) / stageHeight) : null,
+              canvasExists: Boolean(canvas), openingExists: Boolean(opening), fallbackExists: Boolean(document.querySelector('.world-fallback')),
+              hidden: document.hidden, visibility: document.visibilityState, chapter: document.documentElement.dataset.chapter,
+              selectedSocialCards: [...document.querySelectorAll('.social-pager button')].map(button => button.getAttribute('aria-current')),
+              viewport: { width: innerWidth, height: innerHeight }, clientWidth: canvas?.clientWidth, clientHeight: canvas?.clientHeight,
+              gripFocus: grip?.querySelector('.scene-focus')?.getBoundingClientRect().toJSON(), gripStage: grip?.firstElementChild?.getBoundingClientRect().toJSON(), worldHeight: document.querySelector<HTMLElement>('.world')?.clientHeight,
+              dataset: { ...data } };
+          }),
+          new Promise<null>(resolve => { captureTimer = setTimeout(() => resolve(null), 1_000); }),
+        ]);
+      } catch (error) { captureError = String(error); }
+      finally { clearTimeout(captureTimer); }
+      if (snapshot === null && captureError === null) captureError = 'Pending pose capture exceeded 1s';
+      try {
+        await Promise.race([
+          writeFile(diagnostic.artifact, JSON.stringify({ target: diagnostic.target, startedAt, observedAt: new Date().toISOString(), framesBeforeResize, requireGripFrame, snapshot, captureError }, null, 2)),
+          new Promise<never>((_, reject) => { captureTimer = setTimeout(() => reject(new Error('Pending pose persistence exceeded 1s')), 1_000); }),
+        ]);
+      } finally { clearTimeout(captureTimer); }
+    })().catch(error => console.warn('Could not preserve pending pose diagnostics:', error));
+  }, 15_000) : undefined;
+  try {
+    await page.waitForFunction(({ framesBeforeResize, requireGripFrame }) => {
     const canvas = document.querySelector<HTMLCanvasElement>('.scene-canvas');
     const opening = document.querySelector<HTMLElement>('.opening-journey');
     if (!canvas || !opening) return false;
@@ -183,7 +222,11 @@ async function waitForProcessedPose(page: Page, framesBeforeResize?: number, req
       if ([actual.x - focus.left * scaleX, actual.y - (focus.top - stage.top) * scaleY, actual.width - focus.width * scaleX, actual.height - focus.height * scaleY].some(value => !Number.isFinite(value) || Math.abs(value) > 0.1)) return false;
     }
     return true;
-  }, { framesBeforeResize, requireGripFrame }, { timeout: 0 });
+    }, { framesBeforeResize, requireGripFrame }, { timeout: 0 });
+  } finally {
+    clearTimeout(timer);
+    if (pendingDiagnostic) await pendingDiagnostic;
+  }
 }
 
 async function diagnosticSnapshot(page: Page, expectedViewport?: { width: number; height: number }) {
@@ -228,7 +271,7 @@ async function waitForViewportLayout(page: Page, expected: { width: number; heig
 renderedTest.describe('optional scene framing diagnostics (Chromium software WebGL)', () => {
   renderedTest.skip(({ browserName }) => browserName !== 'chromium', 'SwiftShader verification uses Chromium');
 
-  renderedTest('default rendering skips hulls while delayed QA hulls do not block readiness', async ({ page }) => {
+  renderedTest('default rendering skips hulls and wakes for an essential phone while QA hulls stay optional', async ({ page }, testInfo) => {
     renderedTest.setTimeout(240_000);
     await page.setViewportSize({ width: 390, height: 844 });
     await page.emulateMedia({ reducedMotion: 'reduce' });
@@ -236,15 +279,113 @@ renderedTest.describe('optional scene framing diagnostics (Chromium software Web
     page.on('request', request => {
       if (new URL(request.url()).pathname === '/immersive-assets/dishes/framing-hulls.json') requests.push(request.url());
     });
-    await page.goto('/', { waitUntil: 'domcontentloaded' });
+    // Identify the real Scene callback by its rendered frame publication, and
+    // track owned RAF handles. Pending ownership distinguishes sleep from a
+    // software renderer whose callbacks are merely delayed.
+    await page.addInitScript(() => {
+      const nativeRAF = window.requestAnimationFrame.bind(window);
+      const nativeCancel = window.cancelAnimationFrame.bind(window);
+      const sceneCallbacks = new WeakSet<FrameRequestCallback>();
+      const pending = new Map<number, FrameRequestCallback>();
+      // Three loads these textures through detached ImageLoader elements.
+      // Observe their real completion so a late texture wake cannot conceal a
+      // missing phone-completion wake after the scene has gone to sleep.
+      const texturePaths = new Set(['/immersive-assets/restaurant-stone.webp', '/immersive-assets/phone-poster-maison-elyse.webp']);
+      const images: WeakRef<HTMLImageElement>[] = [];
+      const observed = new WeakSet<HTMLImageElement>();
+      const loaded = new Set<string>();
+      const createElementNS = document.createElementNS;
+      document.createElementNS = function (this: Document, ...args: Parameters<Document['createElementNS']>) {
+        const element = Reflect.apply(createElementNS, this, args);
+        if (element instanceof HTMLImageElement) images.push(new WeakRef(element));
+        return element;
+      } as typeof createElementNS;
+      const probe = {
+        callbacks: 0,
+        get pending() { return [...pending.values()].filter(callback => sceneCallbacks.has(callback)).length; },
+        get texturesReady() {
+          for (const reference of images) {
+            const image = reference.deref();
+            if (!image?.src) continue;
+            const url = new URL(image.currentSrc || image.src, location.href);
+            if (url.origin !== location.origin || !texturePaths.has(url.pathname)) continue;
+            const record = () => { if (image.complete && image.naturalWidth > 0) loaded.add(url.pathname); };
+            if (!observed.has(image)) { observed.add(image); image.addEventListener('load', record, { once: true }); }
+            record(); // Includes cached loads completed before the first read.
+          }
+          return loaded.size === texturePaths.size;
+        },
+      };
+      (window as typeof window & { sceneWakeProbe: typeof probe }).sceneWakeProbe = probe;
+      window.requestAnimationFrame = callback => {
+        const id = nativeRAF(function (this: Window, timestamp) {
+          pending.delete(id);
+          const before = Number(document.querySelector<HTMLCanvasElement>('.scene-canvas')?.dataset.frames ?? 0);
+          try { Reflect.apply(callback, this, [timestamp]); }
+          finally {
+            const after = Number(document.querySelector<HTMLCanvasElement>('.scene-canvas')?.dataset.frames ?? 0);
+            if (after > before) sceneCallbacks.add(callback);
+            if (sceneCallbacks.has(callback)) probe.callbacks++;
+          }
+        });
+        pending.set(id, callback);
+        return id;
+      };
+      window.cancelAnimationFrame = id => { pending.delete(id); nativeCancel(id); };
+    });
+    const phonePattern = '**/immersive-assets/phone/iphone_16_-_free.glb';
+    let releasePhone!: () => void;
+    const phoneReleased = new Promise<void>(resolve => { releasePhone = resolve; });
+    let phoneRequestHeld = false;
+    await page.route(phonePattern, async route => { phoneRequestHeld = true; await phoneReleased; await route.continue(); });
     const canvas = page.locator('.scene-canvas');
-    await expect(canvas).toHaveAttribute('data-ready', 'true', { timeout: 120_000 });
-    await expect(canvas).toHaveAttribute('data-rendered-model', 'homard');
-    await expect(canvas).toHaveAttribute('data-framing-ready', 'disabled');
-    await expect(canvas).not.toHaveAttribute('data-dish-bounds', /.+/);
-    await expect(canvas).not.toHaveAttribute('data-focus-bounds', /.+/);
-    await expect(page.locator('.world-fallback')).toHaveCount(0);
-    expect(requests).toEqual([]);
+    try {
+      await page.goto('/#wearable', { waitUntil: 'domcontentloaded' });
+      await page.evaluate(() => document.fonts.ready);
+      for (const attribute of ['restaurant', 'support', 'laptop'])
+        await expect(canvas).toHaveAttribute(`data-${attribute}-ready`, 'true', { timeout: 120_000 });
+      await expect(canvas).toHaveAttribute('data-rendered-model', 'homard');
+      await expect(canvas).toHaveAttribute('data-section', 'wearable');
+      expect(phoneRequestHeld).toBe(true);
+      await expect(canvas).toHaveAttribute('data-phone-ready', 'false');
+      await expect(canvas).not.toHaveAttribute('data-ready', 'true');
+      await expect.poll(() => page.evaluate(() =>
+        (window as typeof window & { sceneWakeProbe: { texturesReady: boolean } }).sceneWakeProbe.texturesReady,
+      ), { timeout: 15_000 }).toBe(true);
+      await expect.poll(() => page.evaluate(async () => {
+        const probe = (window as typeof window & { sceneWakeProbe: { callbacks: number; pending: number } }).sceneWakeProbe;
+        if (!probe.callbacks || probe.pending || document.querySelector<HTMLCanvasElement>('.scene-canvas')?.dataset.settled !== 'true') return false;
+        const before = probe.callbacks;
+        await new Promise(resolve => setTimeout(resolve, 500));
+        return probe.pending === 0 && probe.callbacks === before;
+      }), { timeout: 15_000 }).toBe(true);
+      const asleep = await canvas.evaluate(el => ({ frames: Number((el as HTMLCanvasElement).dataset.frames), scrollY,
+        callbacks: (window as typeof window & { sceneWakeProbe: { callbacks: number } }).sceneWakeProbe.callbacks }));
+      releasePhone();
+      // No scroll, gesture or retry may wake the missing-phone completion.
+      await expect(canvas).toHaveAttribute('data-ready', 'true', { timeout: 120_000 });
+      await expect(canvas).toHaveAttribute('data-phone-ready', 'true');
+      await expect(canvas).toHaveAttribute('data-phone', 'iphone-16');
+      await expect(canvas).toHaveAttribute('data-section', 'wearable');
+      await expect.poll(() => canvas.evaluate(el => Number((el as HTMLCanvasElement).dataset.frames))).toBeGreaterThan(asleep.frames);
+      const awake = await canvas.evaluate(el => ({ scrollY, scale: Number((el as HTMLCanvasElement).dataset.phoneScale?.split(',')[0]),
+        callbacks: (window as typeof window & { sceneWakeProbe: { callbacks: number } }).sceneWakeProbe.callbacks }));
+      expect(awake.callbacks).toBeGreaterThan(asleep.callbacks);
+      expect(awake.scrollY).toBe(asleep.scrollY);
+      expect(awake.scale).toBeGreaterThan(0);
+      await expect(canvas).toHaveAttribute('data-framing-ready', 'disabled');
+      await expect(canvas).not.toHaveAttribute('data-dish-bounds', /.+/);
+      await expect(canvas).not.toHaveAttribute('data-focus-bounds', /.+/);
+      await expect(page.locator('.preloader')).toHaveCount(0);
+      await expect(page.locator('.world-fallback')).toHaveCount(0);
+      expect(requests).toEqual([]);
+      const image = testInfo.outputPath('rendered-phone-essential-wake.png');
+      await page.screenshot({ path: image });
+      await testInfo.attach('phone-essential-wake', { path: image, contentType: 'image/png' });
+    } finally {
+      releasePhone();
+      await page.unroute(phonePattern).catch(error => console.warn('Phone route cleanup after release failed:', error));
+    }
 
     let releaseHull!: () => void;
     const released = new Promise<void>(resolve => { releaseHull = resolve; });
@@ -343,7 +484,7 @@ renderedTest.describe('rendered scroll choreography (Chromium software WebGL)', 
       };
       const at = async (y: number, settle = false) => {
         await page.evaluate(y => scrollTo({ top: y, behavior: 'instant' }), y);
-        await waitForProcessedPose(page);
+        await waitForProcessedPose(page, undefined, false, { target: y, artifact: testInfo.outputPath('rendered-pending-pose-telemetry.json') });
         if (settle) await expect(canvas).toHaveAttribute('data-settled', 'true', { timeout: 15_000 });
         const snapshot = await canvas.evaluate(el => {
           const data = (el as HTMLCanvasElement).dataset;
@@ -545,10 +686,12 @@ renderedTest.describe('complete-food zoom fit (Chromium software WebGL)', () => 
       let expectedViewport: { width: number; height: number } = viewport;
       const atGrip = async (framesBeforeResize?: number) => {
         await waitForViewportLayout(page, expectedViewport);
-        await page.locator('#grip').evaluate(el => {
-          scrollTo({ top: el.getBoundingClientRect().top + scrollY + ((el as HTMLElement).offsetHeight - el.firstElementChild!.clientHeight) / 2, behavior: 'instant' });
+        const target = await page.locator('#grip').evaluate(el => {
+          const y = el.getBoundingClientRect().top + scrollY + ((el as HTMLElement).offsetHeight - el.firstElementChild!.clientHeight) / 2;
+          scrollTo({ top: y, behavior: 'instant' });
+          return y;
         });
-        await waitForProcessedPose(page, framesBeforeResize, true);
+        await waitForProcessedPose(page, framesBeforeResize, true, { target, artifact: testInfo.outputPath('rendered-pending-pose-telemetry.json') });
         await expect(canvas).toHaveAttribute('data-section', 'grip');
       };
       type Fit = { model: string | undefined; frame: { x: number; y: number; width: number; height: number }; food: { x: number; y: number; width: number; height: number } | null; scale: number; requested: number; fitted: number; meshScale: string | undefined; quaternion: string | undefined; width: number; height: number; viewport: { width: number; height: number }; canvasRect: { x: number; y: number; width: number; height: number }; dataset: Record<string, string | undefined> };
@@ -680,8 +823,9 @@ renderedTest.describe('complete-food zoom fit (Chromium software WebGL)', () => 
         const window = await page.locator('#grip').evaluate(el => ({ start: Number((el as HTMLElement).dataset.exitStart), end: Number((el as HTMLElement).dataset.exitEnd) }));
         for (const fraction of [0, 0.25, 0.5, 0.75, 1, 0.75, 0.5, 0.25, 0]) {
           phase = `chapter-handoff:${fraction}`;
-          await page.evaluate(y => scrollTo({ top: y, behavior: 'instant' }), window.start + (window.end - window.start) * fraction);
-          await waitForProcessedPose(page);
+          const target = window.start + (window.end - window.start) * fraction;
+          await page.evaluate(y => scrollTo({ top: y, behavior: 'instant' }), target);
+          await waitForProcessedPose(page, undefined, false, { target, artifact: testInfo.outputPath('rendered-pending-pose-telemetry.json') });
           for (const fit of await capture()) check(fit, `chapter-handoff:${fraction}`);
         }
         await saveTelemetry();

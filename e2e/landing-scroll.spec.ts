@@ -14,6 +14,11 @@ test.beforeEach(async ({ page }) => {
   });
 });
 
+// Toolbar-height freezing is a touch/coarse-pointer contract, not a narrow
+// desktop-window contract. Keep these inputs explicit in the relevant cases.
+const touchTest = test.extend({ hasTouch: true });
+const desktopTest = test.extend({ hasTouch: false, isMobile: false });
+
 async function openJourney(page: Page, height = 820) {
   await page.setViewportSize({ width: 390, height });
   await page.goto("/#sustainability");
@@ -84,23 +89,32 @@ test("light immersive controls keep readable nested actions, selection and AR he
 });
 
 for (const initialHeight of [820, 730]) {
-  test(`les barres mobiles ne déplacent aucun chapitre (${initialHeight}px)`, async ({
+  touchTest(`les barres mobiles ne déplacent aucun chapitre (${initialHeight}px)`, async ({
     page,
   }) => {
     await openJourney(page, initialHeight);
+    expect(await page.evaluate(() => matchMedia('(hover: none) and (pointer: coarse)').matches)).toBe(true);
     const before = await geometry(page);
     for (const height of [730, 820, 730, 820]) {
       await page.setViewportSize({ width: 390, height });
       await page.waitForTimeout(100);
       expect(await geometry(page)).toEqual(before);
     }
+    if (initialHeight === 820) {
+      for (const viewport of [{ width: 844, height: 390 }, { width: 390, height: 844 }]) {
+        await page.setViewportSize(viewport);
+        await expect(page.locator(".opening-stage")).toHaveCSS("height", `${viewport.height}px`);
+        await expect(page.locator(".world")).toHaveCSS("height", `${viewport.height}px`);
+      }
+    }
   });
 }
 
-test("rotation réelle et redimensionnement desktop restent responsive", async ({
+desktopTest("rotation réelle et redimensionnement desktop restent responsive", async ({
   page,
 }) => {
   await openJourney(page);
+  expect(await page.evaluate(() => matchMedia('(hover: none) and (pointer: coarse)').matches)).toBe(false);
   const portrait = await geometry(page);
   await page.setViewportSize({ width: 820, height: 390 });
   await expect(page.locator(".opening-stage")).toHaveCSS("height", "390px");
@@ -111,12 +125,23 @@ test("rotation réelle et redimensionnement desktop restent responsive", async (
   await expect(page.locator(".opening-stage")).toHaveCSS("height", "900px");
   await page.setViewportSize({ width: 1440, height: 720 });
   await expect(page.locator(".opening-stage")).toHaveCSS("height", "720px");
+  // Reproduce the browser's separate width and height notifications, then a
+  // height-only resize at the same narrow desktop width.
+  for (const viewport of [
+    { width: 390, height: 844 }, { width: 430, height: 844 },
+    { width: 430, height: 932 }, { width: 430, height: 780 },
+  ]) {
+    await page.setViewportSize(viewport);
+    await expect(page.locator(".opening-stage")).toHaveCSS("height", `${viewport.height}px`);
+    await expect(page.locator(".world")).toHaveCSS("height", `${viewport.height}px`);
+  }
 });
 
-test("contact maintenu : inversions et changements de hauteur du Mac au footer", async ({
+touchTest("contact maintenu : inversions et changements de hauteur du Mac au footer", async ({
   page,
 }) => {
   await openJourney(page);
+  expect(await page.evaluate(() => matchMedia('(hover: none) and (pointer: coarse)').matches)).toBe(true);
   const before = await geometry(page);
   const cdp = await page.context().newCDPSession(page);
   const cases = [

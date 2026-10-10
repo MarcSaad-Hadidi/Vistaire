@@ -16,6 +16,7 @@ export function createSupportModels({
   canvas,
   renderer,
   disposeTree,
+  onInvalidate,
   onError,
 }) {
   const root = new THREE.Group();
@@ -102,7 +103,10 @@ export function createSupportModels({
       groups[id] = group;
       root.add(group);
       attached = true;
-      if (id === collection) select(collection);
+      if (id === collection) {
+        select(collection);
+        onInvalidate?.();
+      }
     } catch (error) {
       loading.delete(id);
       if (model && !attached) disposeTree(model);

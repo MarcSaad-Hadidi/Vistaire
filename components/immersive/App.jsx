@@ -687,6 +687,7 @@ function LandingContent() {
         lastChapterBeats = preparedBeats;
         setChapterBeats(preparedBeats);
       }
+      stateRef.current.invalidateScene?.();
     };
     const queue = () => {
       if (!ticking && !stopped) {
@@ -762,6 +763,7 @@ function LandingContent() {
       menuOpen: menu,
       retryModel,
     });
+    stateRef.current.invalidateScene?.();
   }, [
     collection,
     phoneDemo,
