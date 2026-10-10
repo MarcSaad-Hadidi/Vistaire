@@ -175,9 +175,10 @@ async function waitForProcessedPose(page: Page, framesBeforeResize?: number, req
             const data = canvas?.dataset;
             const openingTop = opening ? opening.getBoundingClientRect().top + scrollY : null;
             const stageHeight = opening?.firstElementChild?.getBoundingClientRect().height ?? null;
+            const layoutStageHeight = opening?.firstElementChild ? Number.parseFloat(getComputedStyle(opening.firstElementChild).height) : null;
             const grip = document.querySelector('#grip');
-            return { scrollY, openingTop, stageHeight,
-              expectedDistance: openingTop != null && stageHeight ? Math.max(0, (scrollY - openingTop) / stageHeight) : null,
+            return { scrollY, openingTop, stageHeight, layoutStageHeight,
+              expectedDistance: openingTop != null && layoutStageHeight ? Math.max(0, (scrollY - openingTop) / layoutStageHeight) : null,
               canvasExists: Boolean(canvas), openingExists: Boolean(opening), fallbackExists: Boolean(document.querySelector('.world-fallback')),
               hidden: document.hidden, visibility: document.visibilityState, chapter: document.documentElement.dataset.chapter,
               selectedSocialCards: [...document.querySelectorAll('.social-pager button')].map(button => button.getAttribute('aria-current')),
@@ -204,7 +205,10 @@ async function waitForProcessedPose(page: Page, framesBeforeResize?: number, req
     const opening = document.querySelector<HTMLElement>('.opening-journey');
     if (!canvas || !opening) return false;
     const data = canvas.dataset;
-    const stageHeight = opening.firstElementChild!.getBoundingClientRect().height;
+    // This unpadded, border-box stage has a declared CSS height. Its translated
+    // visual rect loses precision far down the long journey (844→844.001953125).
+    const stageHeight = Number.parseFloat(getComputedStyle(opening.firstElementChild!).height);
+    if (!Number.isFinite(stageHeight) || stageHeight <= 0) return false;
     const openingTop = opening.getBoundingClientRect().top + scrollY;
     const distance = Math.max(0, (scrollY - openingTop) / stageHeight);
     if (!Number.isFinite(Number(data.processedScrollDistance)) || Math.abs(Number(data.processedScrollDistance) - distance) > 1e-6) return false;
@@ -240,6 +244,7 @@ async function diagnosticSnapshot(page: Page, expectedViewport?: { width: number
         return { scroll: scrollY, viewport: { width: innerWidth, height: innerHeight }, expectedViewport,
           journeyVH: root.getPropertyValue('--vistaire-journey-vh'), sceneVH: root.getPropertyValue('--vistaire-scene-vh'),
           world: rect('.world'), openingStage: rect('.opening-stage'), grip: rect('#grip'), gripStage: rect('#grip > .stage'), canvasRect: canvas?.getBoundingClientRect().toJSON() ?? null,
+          resizeDiagnostics: (window as typeof window & { sceneResizeDiagnostics?: { read: () => unknown } }).sceneResizeDiagnostics?.read() ?? null,
           dataset: { ...canvas?.dataset } };
       }, expectedViewport),
       new Promise<null>(resolve => { timer = setTimeout(() => resolve(null), 1_000); }),
@@ -672,9 +677,60 @@ renderedTest.describe('complete-food zoom fit (Chromium software WebGL)', () => 
   renderedTest.skip(({ browserName }) => browserName !== 'chromium', 'SwiftShader verification uses Chromium');
   for (const [path, viewport] of [['/', { width: 1440, height: 900 }], ['/en', { width: 390, height: 844 }]] as const) {
     renderedTest(`${path} keeps every food model inside its frame while zooming, rotating and resizing`, async ({ page }, testInfo) => {
-      renderedTest.setTimeout(600_000);
+      // CI completed six desktop models while the original aggregate budget
+      // expired during burger zoom polling. Retain every pose/action and the
+      // 15s settle/viewport waits; only this measured whole-workload ceiling
+      // grows. timeout:0 pose waits/evaluations still rely on that global cap.
+      renderedTest.setTimeout(viewport.width > 768 ? 900_000 : 600_000);
       await page.setViewportSize(viewport);
       await page.emulateMedia({ reducedMotion: 'reduce' });
+      // Observe native resize delivery and the real CSS viewport probes. This
+      // bounded QA recorder never dispatches/retries a resize or repairs layout.
+      await page.addInitScript(() => {
+        const samples: unknown[] = [];
+        let resizeEvents = 0, droppedSamples = 0, pendingFrame = 0;
+        const snapshot = (kind: string) => {
+          const input = {
+            kind, at: performance.now(), innerWidth, innerHeight,
+            screenWidth: screen.width, screenHeight: screen.height,
+            maxTouchPoints: navigator.maxTouchPoints,
+            coarseNoHover: matchMedia('(hover: none) and (pointer: coarse)').matches,
+            coarsePointer: matchMedia('(pointer: coarse)').matches,
+            finePointer: matchMedia('(pointer: fine)').matches,
+            hover: matchMedia('(hover: hover)').matches,
+          };
+          // This listener is installed before production handlers. Do not force
+          // style/layout here and accidentally hide a stale-probe resize race.
+          if (kind === 'resize') return input;
+          const root = document.documentElement;
+          const style = root ? getComputedStyle(root) : null;
+          return {
+            ...input, clientWidth: root?.clientWidth, clientHeight: root?.clientHeight,
+            probes: [...(document.body?.children ?? [])]
+              .filter((element): element is HTMLElement => element instanceof HTMLElement &&
+                ['100svh', '100lvh'].includes(element.style.height) && element.style.contain === 'strict')
+              .map(element => ({ unit: element.style.height, rect: element.getBoundingClientRect().toJSON(), computedHeight: getComputedStyle(element).height })),
+            journeyVH: style?.getPropertyValue('--vistaire-journey-vh'),
+            sceneVH: style?.getPropertyValue('--vistaire-scene-vh'),
+          };
+        };
+        const record = (kind: string) => {
+          samples.push(snapshot(kind));
+          if (samples.length > 20) { samples.shift(); droppedSamples++; }
+        };
+        addEventListener('resize', () => {
+          resizeEvents++;
+          record('resize');
+          if (!pendingFrame) pendingFrame = requestAnimationFrame(() => {
+            pendingFrame = 0;
+            record('next-frame');
+          });
+        }, { passive: true });
+        addEventListener('DOMContentLoaded', () => record('document-ready'), { once: true });
+        (window as typeof window & { sceneResizeDiagnostics: { read: () => unknown } }).sceneResizeDiagnostics = {
+          read: () => ({ resizeEvents, droppedSamples, samples, current: snapshot('current') }),
+        };
+      });
       const errors: string[] = [];
       page.on('pageerror', error => errors.push(error.message));
       await page.goto(`${path}?sceneDiagnostics=1`, { waitUntil: 'domcontentloaded' });

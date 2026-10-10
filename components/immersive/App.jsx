@@ -477,7 +477,8 @@ function LandingContent() {
       const journey = openingRef.current;
       const journeyBounds = journey.getBoundingClientRect();
       const top = journeyBounds.top + scrollY;
-      const stageHeight = journey.firstElementChild.getBoundingClientRect().height;
+      // Distant stage translations can lose precision in the projected rect.
+      const stageHeight = Number.parseFloat(getComputedStyle(journey.firstElementChild).height);
       const travel = journeyBounds.height - stageHeight;
       const motionTravel = Math.max(
         1,

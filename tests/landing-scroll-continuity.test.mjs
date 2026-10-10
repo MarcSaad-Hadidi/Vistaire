@@ -131,6 +131,30 @@ test('mobile toolbar room height does not change chapter transition scroll budge
   assert.deepEqual(tallRoom, compact, 'transition distance belongs to the frozen sticky stage, not the larger room canvas');
 });
 
+test('opening measurements use untransformed layout height without rounding fractions', () => {
+  const app = readFileSync('components/immersive/App.jsx', 'utf8');
+  const start = app.indexOf('    const measure = () => {');
+  const end = app.indexOf('      measurements = chapters', start);
+  assert.ok(start >= 0 && end > start, 'execute the actual opening measurement before chapter traversal');
+  const reader = app.slice(start, end) + '\n      return opening;\n    }; measure();';
+  for (const height of [844, 844.25]) {
+    const stage = { getBoundingClientRect: () => ({ height: height + 0.001953125 }) };
+    const opening = vm.runInNewContext(reader, {
+      openingRef: { current: { firstElementChild: stage, getBoundingClientRect: () => ({ top: -42284, height: 8440 }) } },
+      scrollY: 42284,
+      world: { clientHeight: 844 },
+      getComputedStyle: element => {
+        assert.equal(element, stage);
+        return { height: `${height}px` };
+      },
+      CINEMATIC_TIMING: director.CINEMATIC_TIMING,
+    });
+    assert.equal(opening.stageHeight, height, 'translated rect precision must not enter the cached stage height');
+    assert.equal(opening.motionTravel, height * director.CINEMATIC_TIMING.openingMotionScreens);
+    assert.equal(42284 / opening.stageHeight, 42284 / height, 'late remeasure preserves normalized distance');
+  }
+});
+
 test('the shared curve and actual authored transition poses have bounded relative speed', () => {
   assert.equal(typeof director.cinematicEase, 'function');
   const N = 256;

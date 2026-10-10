@@ -329,9 +329,9 @@ jobs:
       needs.classify-changes.outputs.run_menu == 'true' ||
       needs.classify-changes.outputs.run_seo == 'true')
     runs-on: ubuntu-latest
-    # Four software-WebGL correctness cases have independent bounded budgets.
-    # Leave time for the other suites and failure-artifact upload as well.
-    timeout-minutes: 55
+    # Six software-WebGL cases total 50 minutes of declared test budgets.
+    # Reserve ~10 minutes of observed setup/other suites plus artifact margin.
+    timeout-minutes: 65
     outputs:
       test_report: ${{ steps.publish-test-report.outputs.report }}
     env:
