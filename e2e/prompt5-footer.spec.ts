@@ -78,7 +78,7 @@ for (const locale of locales) {
       const targetResponse = await page.request.get(href, { maxRedirects: 5 });
       expect(targetResponse.status(), `footer target ${href}`).toBeLessThan(400);
     }
-    await expect(footer.locator(`a[href="${locale.appointment}"]`)).toHaveCount(1);
+    await expect(footer.locator(`a[href="${locale.appointment}"]`).first()).toBeVisible();
 
     const finalCta = page.locator('section[aria-labelledby="final-cta-title"]');
     await expect(finalCta.locator(`a[href="${locale.menu}"]`)).toHaveCount(1);
@@ -102,7 +102,7 @@ for (const locale of locales) {
       const columns = await footer.evaluate(
         (element) => getComputedStyle(element).gridTemplateColumns.split(" ").length
       );
-      expect(columns).toBe(1);
+      expect(columns).toBe(2);
 
       const undersizedTargets = await footer.locator("section a").evaluateAll((links) =>
         links
@@ -136,7 +136,7 @@ for (const locale of locales) {
           viewportWidth: document.documentElement.clientWidth
         };
       });
-      expect(geometry.columns).toBe(3);
+      expect(geometry.columns).toBe(5);
       expect(geometry.left).toBeGreaterThanOrEqual(0);
       expect(geometry.right).toBeLessThanOrEqual(geometry.viewportWidth);
       await expectNoHorizontalOverflow(page);

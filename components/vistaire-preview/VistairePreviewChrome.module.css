@@ -9,14 +9,14 @@
   gap: 24px;
   min-height: 72px;
   padding: 12px 24px;
-  border: 1px solid #282825;
+  border: 1px solid var(--public-blue);
   border-radius: 12px;
-  background: rgba(5, 5, 5, 0.97);
-  color: #f8f3e8;
+  background: var(--public-nav);
+  color: var(--public-text);
   font-family: "Vistaire Text", serif;
 }
 .navBrand {
-  color: #ffc300;
+  color: var(--public-gold);
   font-family: "Vistaire Editorial", serif;
   font-size: 30px;
   letter-spacing: 0.08em;
@@ -37,11 +37,11 @@
   font-size: 15px;
   white-space: nowrap;
   text-decoration: none;
-  color: #cec8bd;
+  color: var(--public-muted);
 }
 .navLink:hover,
 .navActive {
-  color: #f8f3e8;
+  color: var(--public-text);
 }
 .navActive:after {
   content: "";
@@ -50,7 +50,7 @@
   left: 0;
   right: 0;
   height: 1px;
-  background: #ffd60a;
+  background: var(--public-gold-light);
 }
 .languageSwitcher {
   display: flex;
@@ -65,10 +65,10 @@
   justify-content: center;
   font-size: 13px;
   text-decoration: none;
-  color: #cec8bd;
+  color: var(--public-muted);
 }
 .languageLinkActive {
-  color: #ffd60a;
+  color: var(--public-gold-light);
   text-decoration: underline;
   text-underline-offset: 6px;
 }
@@ -80,15 +80,15 @@
   min-height: 46px;
   padding: 12px 20px;
   border-radius: 5px;
-  background: #ffc300;
-  color: #050505;
+  background: var(--public-gold);
+  color: var(--public-on-accent);
   text-decoration: none;
   font-size: 15px;
   white-space: nowrap;
   transition: background 160ms;
 }
 .navCta:hover {
-  background: #ffd60a;
+  background: var(--public-gold-light);
 }
 .navCta svg,
 .footerInvitationCta svg {
@@ -111,9 +111,9 @@
   width: min(1320px, 92vw);
   margin: 100px auto 0;
   padding: 0 0 32px;
-  color: #cec8bd;
+  color: var(--public-muted);
   font-family: "Vistaire Text", serif;
-  background: #050505;
+  background: var(--public-black);
 }
 .footerInvitation {
   grid-column: 1/-1;
@@ -122,8 +122,8 @@
   justify-content: space-between;
   gap: 40px;
   padding: 64px 0;
-  border-top: 1px solid #282825;
-  border-bottom: 1px solid #282825;
+  border-top: 1px solid var(--public-blue);
+  border-bottom: 1px solid var(--public-blue);
   margin-bottom: 24px;
 }
 .footerInvitation h2 {
@@ -132,7 +132,7 @@
   font-weight: 400;
   line-height: 1.06;
   font-size: clamp(38px, 4vw, 62px);
-  color: #f8f3e8;
+  color: var(--public-text);
 }
 .footerInvitationCta {
   display: inline-flex;
@@ -140,30 +140,30 @@
   align-items: center;
   gap: 30px;
   padding: 16px 24px;
-  border: 1px solid #ffc300;
-  color: #ffc300;
+  border: 1px solid var(--public-gold);
+  color: var(--public-gold);
   text-decoration: none;
   border-radius: 5px;
   font-size: 18px;
   white-space: nowrap;
 }
 .footerInvitationCta:hover {
-  background: #ffc300;
-  color: #050505;
+  background: var(--public-gold);
+  color: var(--public-on-accent);
 }
 .footerBrand h2 {
   font-family: "Vistaire Editorial", serif;
   letter-spacing: 0.07em;
   font-size: 32px;
   font-weight: 400;
-  color: #ffc300;
+  color: var(--public-gold);
 }
 .footerTagline {
   font-size: 20px;
   line-height: 1.35;
   margin-top: 16px;
   max-width: 22ch;
-  color: #f8f3e8;
+  color: var(--public-text);
 }
 .footerDescription {
   font-size: 16px;
@@ -173,7 +173,7 @@
 }
 .footerColumn h2 {
   font-family: "Vistaire Text", serif;
-  color: #f8f3e8;
+  color: var(--public-text);
   font-size: 13px;
   font-weight: 600;
   text-transform: uppercase;
@@ -194,7 +194,7 @@
 }
 .footerLinkList a:hover,
 .footerEmail:hover {
-  color: #ffd60a;
+  color: var(--public-gold-light);
 }
 .footerPlace {
   font-size: 16px;
@@ -209,7 +209,7 @@
   display: inline-flex;
   align-items: center;
   gap: 12px;
-  color: #ffd60a;
+  color: var(--public-gold-light);
   text-decoration: none;
   font-size: 16px;
   margin-top: 8px;
@@ -225,7 +225,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 24px;
-  border-top: 1px solid #282825;
+  border-top: 1px solid var(--public-blue);
   padding-top: 24px;
   margin-top: 24px;
   font-size: 14px;
@@ -239,7 +239,7 @@
   align-items: baseline;
   flex-wrap: wrap;
   gap: 12px 28px;
-  border-top: 1px solid #282825;
+  border-top: 1px solid var(--public-blue);
   padding-top: 28px;
 }
 .footerColumn:last-of-type h2 {
@@ -276,35 +276,36 @@
     gap: 18px;
   }
 }
-@media (max-width: 760px) {
+@media (max-width: 980px) {
   .previewNav {
     top: 10px;
-    left: 18px;
-    right: 18px;
+    left: 10px;
+    right: 10px;
     min-height: 64px;
-    padding: 10px 16px;
-    gap: 12px;
+    padding: 8px 10px;
+    gap: 4px;
     border-radius: 10px;
   }
   .navBrand {
-    font-size: 24px;
+    font-size: 23px;
+    margin-right: auto;
   }
   .navLinks,
-  .previewNav > .languageSwitcher,
   .navCta {
     display: none;
   }
   .mobileMenu {
     display: block;
-    margin-left: auto;
+    margin-left: 0;
   }
   .mobileMenu summary {
     display: flex;
     align-items: center;
-    gap: 14px;
+    gap: 5px;
+    min-width: 44px;
     min-height: 44px;
-    padding-inline: 10px;
-    color: #f8f3e8;
+    padding-inline: 4px;
+    color: var(--public-text);
     font-size: 16px;
     list-style: none;
     cursor: pointer;
@@ -324,8 +325,8 @@
     display: grid;
     padding: 20px 24px;
     gap: 4px;
-    background: #080808;
-    border: 1px solid #282825;
+    background: var(--public-surface);
+    border: 1px solid var(--public-blue);
     border-radius: 10px;
     max-height: 75svh;
     overflow: auto;
@@ -337,16 +338,16 @@
     text-decoration: none;
     font-family: "Vistaire Editorial", serif;
     font-size: 28px;
-    color: #f8f3e8;
+    color: var(--public-text);
   }
   .mobilePanel > a[aria-current] {
-    color: #ffd60a;
+    color: var(--public-gold-light);
   }
   .mobileExtras {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 4px 20px;
-    border-block: 1px solid #282825;
+    border-block: 1px solid var(--public-blue);
     padding-block: 12px;
     margin-block: 8px;
   }
@@ -355,13 +356,13 @@
     align-items: center;
     min-height: 44px;
     text-decoration: none;
-    color: #cec8bd;
+    color: var(--public-muted);
     font-size: 16px;
   }
   .mobilePanel .mobileBooking {
     font-family: "Vistaire Text", serif;
     font-size: 18px;
-    color: #ffc300;
+    color: var(--public-gold);
   }
   .mobileLanguages {
     display: flex;
@@ -390,7 +391,7 @@
     grid-column: 1/-1;
     grid-row: auto;
     padding-bottom: 24px;
-    border-bottom: 1px solid #282825;
+    border-bottom: 1px solid var(--public-blue);
   }
   .footerTagline,
   .footerDescription {
@@ -416,4 +417,11 @@
   .navCta {
     transition: none;
   }
+}
+
+@media (max-width: 360px) {
+  .previewNav { left: 6px; right: 6px; padding-inline: 6px; gap: 0; }
+  .navBrand { font-size: 19px; letter-spacing: 0.035em; }
+  .mobileMenu summary { font-size: 13px; gap: 3px; }
+  .mobileMenu summary svg { width: 14px; height: 14px; }
 }

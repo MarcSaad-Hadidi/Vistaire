@@ -236,7 +236,7 @@ for (const viewport of viewports) {
 test("cleans and reapplies the Sauge theme during client transitions", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   const health = collectHealth(page);
-  await page.goto("/", { waitUntil: "domcontentloaded" });
+  await page.goto("/menu-pdf-vs-menu-digital", { waitUntil: "domcontentloaded" });
   let theme = await readViewportTheme(page);
   expect(theme.themeColors).toEqual(["#080706"]);
   expect(theme.htmlBackground).toBe(dark);
@@ -245,8 +245,9 @@ test("cleans and reapplies the Sauge theme during client transitions", async ({ 
   expect(theme.bodyRouteTheme).toBeNull();
 
   const enterSauge = async (sentinel: string) => {
+    await page.getByTestId("landing-comparison").getByRole("tab", { name: "Sauge Noire" }).click();
     const link = page
-      .getByTestId("landing-experiences")
+      .getByTestId("landing-comparison")
       .locator('a[href^="/menu/sauge-noire"]')
       .first();
     await expect(link).toBeVisible();
@@ -271,8 +272,8 @@ test("cleans and reapplies the Sauge theme during client transitions", async ({ 
 
   await enterSauge("first-entry");
   await page.goBack({ waitUntil: "domcontentloaded" });
-  await expect.poll(() => new URL(page.url()).pathname).toBe("/");
-  await expect(page.getByTestId("landing-experiences")).toBeVisible();
+  await expect.poll(() => new URL(page.url()).pathname).toBe("/menu-pdf-vs-menu-digital");
+  await expect(page.getByTestId("landing-comparison")).toBeVisible();
   await expect
     .poll(async () => {
       const landingTheme = await readViewportTheme(page);
@@ -289,5 +290,5 @@ test("cleans and reapplies the Sauge theme during client transitions", async ({ 
   theme = await readViewportTheme(page);
   expect(theme.htmlRouteTheme).toBe("sauge-noire");
   expect(theme.bodyRouteTheme).toBe("sauge-noire");
-  expectNoHealthFailures(health, "landing to Sauge transition round trip");
+  expectNoHealthFailures(health, "public comparison to Sauge transition round trip");
 });

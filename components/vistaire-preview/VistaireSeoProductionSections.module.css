@@ -1,7 +1,7 @@
 .appendix {
-  border-top: 1px solid #282825;
+  border-top: 1px solid var(--public-blue);
   padding-block: 70px;
-  color: #f8f3e8;
+  color: var(--public-text);
 }
 .inner {
   display: grid;
@@ -12,7 +12,7 @@
 }
 .eyebrow {
   margin: 0;
-  color: #ffc300;
+  color: var(--public-gold);
   font-size: 11px;
   font-weight: 600;
   line-height: 1.5;
@@ -39,7 +39,7 @@
 .lead,
 .paragraphs {
   margin: 24px 0 0;
-  color: #cec8bd;
+  color: var(--public-muted);
   font-size: 18px;
   line-height: 1.8;
 }
@@ -50,7 +50,7 @@
   align-items: start;
 }
 .answer {
-  border-top: 1px solid #ffc300;
+  border-top: 1px solid var(--public-gold);
   padding-top: 26px;
 }
 .answer .sectionTitle {
@@ -69,7 +69,7 @@
   gap: 45px;
 }
 .section {
-  border-top: 1px solid #282825;
+  border-top: 1px solid var(--public-blue);
   padding-top: 26px;
 }
 .points {
@@ -77,12 +77,12 @@
   gap: 14px;
   margin: 26px 0 0;
   padding-left: 18px;
-  color: #f8f3e8;
+  color: var(--public-text);
   font-size: 17px;
   line-height: 1.65;
 }
 .points li::marker {
-  color: #ffc300;
+  color: var(--public-gold);
 }
 @media (max-width: 640px) {
   .appendix {

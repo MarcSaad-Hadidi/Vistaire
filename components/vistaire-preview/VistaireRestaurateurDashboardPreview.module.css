@@ -1,12 +1,12 @@
 /* This module styles only the public, synthetic dashboard preview. */
 .page {
-  --preview-cream: #f8f3e8;
-  --preview-champagne: #ffc300;
+  --preview-cream: var(--public-text);
+  --preview-champagne: var(--public-gold);
   --vistaire-font-body: "Vistaire Text", Georgia, serif;
   --vistaire-font-display: "Vistaire Editorial", Georgia, serif;
   min-height: 100svh;
   color: var(--preview-cream);
-  background: #050505;
+  background: var(--public-black);
   font-family: var(--vistaire-font-body);
 }
 .page *,
@@ -53,7 +53,7 @@
 .lead {
   max-width: 800px;
   margin: 24px 0 0;
-  color: #b9b6ae;
+  color: var(--public-muted-soft);
   font-size: 21px;
   line-height: 1.6;
 }
@@ -70,7 +70,7 @@
   align-items: center;
   justify-content: center;
   gap: 18px;
-  border: 1px solid #ffc300;
+  border: 1px solid var(--public-gold);
   border-radius: 4px;
   padding: 12px 22px;
   font-size: 16px;
@@ -81,25 +81,25 @@
     border-color 180ms ease;
 }
 .primaryButton {
-  color: #050505;
-  background: #ffc300;
+  color: var(--public-on-accent);
+  background: var(--public-gold);
 }
 .secondaryButton {
-  border-color: #4b4a40;
-  color: #f8f3e8;
+  border-color: var(--public-blue);
+  color: var(--public-text);
   background: transparent;
 }
 .primaryButton:hover {
-  border-color: #ffd60a;
-  background: #ffd60a;
+  border-color: var(--public-gold-light);
+  background: var(--public-gold-light);
 }
 .secondaryButton:hover {
-  border-color: #ffc300;
-  color: #ffc300;
+  border-color: var(--public-gold);
+  color: var(--public-gold);
 }
 .primaryButton:focus-visible,
 .secondaryButton:focus-visible {
-  outline: 2px solid #ffc300;
+  outline: 2px solid var(--public-gold);
   outline-offset: 4px;
 }
 .buttonIcon {
@@ -115,14 +115,14 @@
   display: flex;
   align-items: center;
   gap: 20px;
-  border-top: 1px solid #282825;
+  border-top: 1px solid var(--public-blue);
   margin: 0 0 24px;
   padding-top: 24px;
 }
 .demoDisclosure h2 {
   flex: 0 0 auto;
   margin: 0;
-  color: #ffc300;
+  color: var(--public-gold);
   font-size: 12px;
   font-weight: 400;
   letter-spacing: 0.1em;
@@ -130,31 +130,31 @@
 }
 .demoDisclosure p {
   margin: 0;
-  color: #b9b6ae;
+  color: var(--public-muted-soft);
   font-size: 15px;
   line-height: 1.5;
 }
 .dashboardDemo {
-  --admin-bg: #090909;
-  --admin-surface: #111110;
-  --admin-surface-raised: #191918;
-  --admin-border: #343431;
-  --admin-border-soft: #282825;
-  --admin-accent: #ffc300;
-  --admin-accent-soft: #29230d;
-  --admin-text: #f8f3e8;
-  --admin-muted: #b9b6ae;
+  --admin-bg: var(--public-surface);
+  --admin-surface: var(--public-surface);
+  --admin-surface-raised: var(--public-surface-raised);
+  --admin-border: var(--public-blue);
+  --admin-border-soft: var(--public-blue);
+  --admin-accent: var(--public-gold);
+  --admin-accent-soft: var(--public-surface-raised);
+  --admin-text: var(--public-text);
+  --admin-muted: var(--public-muted-soft);
   --admin-display: "Vistaire Editorial", Georgia, serif;
   --admin-ui: "Vistaire Text", Georgia, serif;
   --admin-radius: 6px;
   font-family: var(--admin-ui);
   min-height: 0 !important;
   overflow: hidden;
-  border: 1px solid #282825;
+  border: 1px solid var(--public-blue);
   border-radius: 4px;
   padding: clamp(16px, 2.5vw, 34px);
   box-shadow: 0 30px 90px rgba(0, 0, 0, 0.38);
-  background: #090909 !important;
+  background: var(--public-surface) !important;
 }
 .demoHeader {
   display: flex;
@@ -191,7 +191,7 @@
   padding: 4px;
   border: 1px solid var(--admin-border);
   border-radius: 4px;
-  background: #111110;
+  background: var(--public-surface);
 }
 .periodSelector button,
 .demoTabs button,
@@ -211,7 +211,7 @@
 }
 .periodSelector button[aria-pressed="true"],
 .demoTabs button[aria-selected="true"] {
-  color: #050505;
+  color: var(--public-on-accent);
   background: var(--admin-accent);
   box-shadow: 0 4px 18px rgba(255, 195, 0, 0.12);
 }
@@ -224,7 +224,7 @@
   padding: 4px;
   border: 1px solid var(--admin-border);
   border-radius: 4px;
-  background: #111110;
+  background: var(--public-surface);
 }
 .demoTabs button {
   min-width: 0;
@@ -275,7 +275,7 @@
   padding: 3px;
   border: 1px solid var(--admin-border-soft);
   border-radius: 8px;
-  background: #111110;
+  background: var(--public-surface);
 }
 .metricSelector button {
   min-height: 36px;
@@ -289,7 +289,7 @@
   cursor: pointer;
 }
 .metricSelector button[aria-pressed="true"] {
-  color: #050505;
+  color: var(--public-on-accent);
   background: var(--admin-accent);
 }
 .topPanel {
@@ -518,7 +518,7 @@
   border-radius: 4px;
   padding: 0 18px;
   color: var(--admin-text);
-  background: #111110;
+  background: var(--public-surface);
   font: inherit;
 }
 .resultCount {
@@ -539,7 +539,7 @@
   padding: 0 13px;
 }
 .filters button[aria-pressed="true"] {
-  color: #050505;
+  color: var(--public-on-accent);
   background: var(--admin-accent);
 }
 .dishList {
@@ -720,7 +720,7 @@
 }
 .finalCopy,
 .qrCard {
-  border-top: 1px solid #282825;
+  border-top: 1px solid var(--public-blue);
   padding-top: 40px;
 }
 .finalCopy h2,
@@ -736,7 +736,7 @@
 .qrCard span {
   display: block;
   margin: 20px 0 0;
-  color: #b9b6ae;
+  color: var(--public-muted-soft);
   font-size: 18px;
   line-height: 1.6;
 }
@@ -748,7 +748,7 @@
 }
 .qrCard p {
   margin: 0 0 14px;
-  color: #ffc300;
+  color: var(--public-gold);
   font-size: 11px;
   letter-spacing: 0.14em;
   line-height: 1.5;
@@ -762,7 +762,7 @@
   margin: 0 !important;
   border-radius: 4px;
   padding: 8px;
-  background: #f8f3e8;
+  background: var(--public-text);
 }
 .qrMark svg {
   display: block;

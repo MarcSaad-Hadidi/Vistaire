@@ -19,20 +19,26 @@ export function DemoWalkthroughVideo({
     const video = videoRef.current;
     if (!video) return;
 
+    const motion = window.matchMedia("(prefers-reduced-motion: reduce)");
+    let isIntersecting = false;
+    const updatePlayback = () => {
+      if (!video.isConnected) return;
+      if (!isIntersecting || motion.matches) {
+        video.pause();
+        return;
+      }
+      if (!video.hasAttribute("src")) video.src = src;
+      // Explicit playback also resumes a muted clip when WebKit reveals it again.
+      void video.play().catch(() => undefined);
+    };
     const observer = new IntersectionObserver(
       ([entry]) => {
-        if (!video.isConnected) return;
-        if (!entry?.isIntersecting) {
-          video.pause();
-          return;
-        }
-        if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-        if (!video.hasAttribute("src")) video.src = src;
-        // Explicit playback also resumes a muted clip when WebKit reveals it again.
-        void video.play().catch(() => undefined);
+        isIntersecting = Boolean(entry?.isIntersecting);
+        updatePlayback();
       },
       { rootMargin: "200px 0px" }
     );
+    motion.addEventListener("change", updatePlayback);
     const observeVideo = () => observer.observe(video);
     const releaseVideo = () => {
       observer.unobserve(video);
@@ -46,6 +52,7 @@ export function DemoWalkthroughVideo({
     return () => {
       window.removeEventListener("pagehide", releaseVideo);
       window.removeEventListener("pageshow", observeVideo);
+      motion.removeEventListener("change", updatePlayback);
       observer.disconnect();
       releaseVideo();
     };

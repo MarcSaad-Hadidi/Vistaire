@@ -1,14 +1,14 @@
 .page {
   --vistaire-font-body: "Vistaire Text", Georgia, serif;
   --vistaire-font-display: "Vistaire Editorial", Georgia, serif;
-  --preview-cream: #f8f3e8;
-  --preview-champagne: #ffc300;
-  --preview-muted: #cec8bd;
-  --preview-border: #282825;
+  --preview-cream: var(--public-text);
+  --preview-champagne: var(--public-gold);
+  --preview-muted: var(--public-muted);
+  --preview-border: var(--public-blue);
   position: relative;
   min-height: 100svh;
   color: var(--preview-cream);
-  background: #050505;
+  background: var(--public-black);
   font-family: var(--vistaire-font-body);
 }
 .navShell {
@@ -114,7 +114,7 @@
   border-radius: 3px;
   padding: 12px 20px;
   background: var(--preview-champagne);
-  color: #050505;
+  color: var(--public-on-accent);
   font-size: 15px;
   line-height: 1.3;
   text-decoration: none;
@@ -127,15 +127,15 @@
 }
 .heroCta:hover,
 .ctaButton:hover {
-  background: #ffd60a;
-  border-color: #ffd60a;
+  background: var(--public-gold-light);
+  border-color: var(--public-gold-light);
 }
 .heroCta:focus-visible,
 .ctaButton:focus-visible,
 .contents a:focus-visible,
 .relatedGrid a:focus-visible,
 .breadcrumb a:focus-visible {
-  outline: 2px solid #ffd60a;
+  outline: 2px solid var(--public-gold-light);
   outline-offset: 5px;
 }
 .heroVisual {
@@ -144,7 +144,7 @@
   aspect-ratio: 4 / 3;
   margin: 0;
   overflow: hidden;
-  background: #111110;
+  background: var(--public-surface);
 }
 .heroImage {
   object-fit: cover;
@@ -154,7 +154,7 @@
   position: absolute;
   inset: auto 0 0;
   padding: 18px;
-  background: #050505e6;
+  background: var(--public-overlay);
   color: var(--preview-muted);
   font-size: 11px;
   letter-spacing: 0.14em;
@@ -286,11 +286,11 @@
   margin-top: 30px;
   overflow-x: auto;
   border: 1px solid var(--preview-border);
-  background: #111110;
-  scrollbar-color: #ffc300 #111110;
+  background: var(--public-surface);
+  scrollbar-color: var(--public-gold) var(--public-surface);
 }
 .tableScroll:focus-visible {
-  outline: 2px solid #ffd60a;
+  outline: 2px solid var(--public-gold-light);
   outline-offset: 4px;
 }
 .tableScroll table {

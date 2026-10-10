@@ -209,6 +209,21 @@ function assertPrivateModulePolicy() {
   );
 }
 
+function hasForbiddenBrowserPersistence(file, source) {
+  let checkedSource = source;
+  // The public theme is the sole user-authorized storage exception. Remove only
+  // its exact preference read/write expressions, never exempt the whole module.
+  if (
+    normalized(file) === "lib/publicTheme.ts" &&
+    /export const PUBLIC_THEME_KEY = "vistaire-public-theme";/.test(source)
+  ) {
+    checkedSource = source
+      .replaceAll('localStorage.getItem("vistaire-public-theme")', "undefined")
+      .replaceAll("localStorage.setItem(PUBLIC_THEME_KEY, theme)", "undefined");
+  }
+  return /\b(?:localStorage|sessionStorage)\b/.test(checkedSource);
+}
+
 function assertBrowserStatePolicy() {
   for (const source of [
     "document.cookie = 'preview=1'",
@@ -237,13 +252,33 @@ function assertBrowserStatePolicy() {
   }
 }
 
-test("the public preview import graph cannot reach private capabilities or browser persistence", () => {
+test("only the shared public theme may persist its one non-sensitive preference", () => {
+  const themeFile = path.join(root, "lib/publicTheme.ts");
+  const source = readFileSync(themeFile, "utf8");
+  assert.equal(hasForbiddenBrowserPersistence(themeFile, source), false);
+  assert.equal(hasForbiddenBrowserPersistence(path.join(root, "components/preview.tsx"), source), true);
+  for (const mutation of [
+    source.replace('PUBLIC_THEME_KEY = "vistaire-public-theme"', 'PUBLIC_THEME_KEY = "private-preview-data"'),
+    source.replace('getItem("vistaire-public-theme")', 'getItem("private-preview-data")'),
+    source + "\nlocalStorage.setItem('private-preview-data', 'secret');",
+    source + "\nsessionStorage.setItem('vistaire-public-theme', 'light');",
+    source + "\nconst store = localStorage;",
+    source + "\nlocalStorage.clear();",
+  ]) {
+    assert.equal(hasForbiddenBrowserPersistence(themeFile, mutation), true);
+  }
+});
+
+test("the public preview import graph cannot reach private capabilities or persistence beyond public theme", () => {
   assertPrivateModulePolicy();
   assertBrowserStatePolicy();
   const graph = publicPreviewGraph();
   for (const [file, source] of graph.visited) {
     for (const [label, pattern] of forbiddenSource) {
-      if (pattern.test(source)) graph.violations.push(`${normalized(file)} contains ${label}`);
+      const forbidden = label === "browser persistence"
+        ? hasForbiddenBrowserPersistence(file, source)
+        : pattern.test(source);
+      if (forbidden) graph.violations.push(`${normalized(file)} contains ${label}`);
     }
   }
   assert.deepEqual(graph.violations, []);

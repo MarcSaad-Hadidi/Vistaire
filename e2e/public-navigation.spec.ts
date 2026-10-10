@@ -109,7 +109,7 @@ const englishSecondaryHomeScenarios: HomeScenario[] = [
 
 function topNavigation(page: Page) {
   return page.locator(
-    'nav[aria-label="Navigation preview"], nav[aria-label="Main navigation"]'
+    'nav[aria-label="Navigation principale"], nav[aria-label="Main navigation"]'
   ).first();
 }
 
@@ -200,7 +200,7 @@ async function expectFullDocumentLocaleSwitch(
   await expect(page.locator("html")).toHaveAttribute("lang", scenario.sourceLocale);
 
   const sourceLanguageControl = page
-    .locator(`div[aria-label="${scenario.sourceControl}"]`)
+    .locator(`[data-public-controls] div[aria-label="${scenario.sourceControl}"]`)
     .first();
   await expect(sourceLanguageControl).toBeVisible();
   await expect(
@@ -271,7 +271,7 @@ async function expectFullDocumentLocaleSwitch(
   );
 
   const destinationLanguageControl = page
-    .locator(`div[aria-label="${scenario.destinationControl}"]`)
+    .locator(`[data-public-controls] div[aria-label="${scenario.destinationControl}"]`)
     .first();
   await expect(destinationLanguageControl).toBeVisible();
   await expect(
@@ -358,27 +358,26 @@ test.describe("Vistaire public navigation", () => {
     }
   });
 
-  test("keeps landing home anchors valid in both locales", async ({ page }) => {
-    for (const scenario of [
-      { path: "/", label: "Accueil", expectedPath: "/" },
-      { path: "/en", label: "Home", expectedPath: "/en" }
-    ] as const) {
-      await page.goto(scenario.path, { waitUntil: "domcontentloaded" });
+  test("keeps immersive chapter navigation valid in both locales", async ({ page }) => {
+    for (const locale of ["fr", "en"] as const) {
+      await page.goto(locale === "en" ? "/en" : "/", { waitUntil: "domcontentloaded" });
       const nav = topNavigation(page);
-      const home = nav.getByRole("link", { name: scenario.label, exact: true });
-
-      await expect(home).toHaveAttribute("href", "#accueil");
-      await expect(page.locator("#accueil")).toHaveCount(1);
-      await expect(home).toHaveAttribute("aria-current", "page");
-      await expectNoCurrent(nav, [
-        scenario.label === "Accueil" ? "Carte" : "Menu",
-        scenario.label === "Accueil" ? "À propos" : "About",
-        "Contact"
-      ]);
-      await expectPricingNavigation(
-        nav,
-        scenario.path === "/en" ? "en" : "fr"
-      );
+      const chapters = [
+        ["Intro", "hero"],
+        [locale === "en" ? "The experience" : "L’expérience", "features"],
+        ["Collections", "product"],
+        [locale === "en" ? "Pricing" : "Tarifs", "open-weight"],
+        ["Contact", "footer"],
+      ];
+      for (const [label, id] of chapters) {
+        await expect(nav.getByRole("button", { name: label, exact: true })).toBeVisible();
+        await expect(page.locator(`#${id}`)).toHaveCount(1);
+      }
+      await nav.getByRole("button", { name: "Contact", exact: true }).click();
+      await expect.poll(() => page.locator("#footer").evaluate((element) =>
+        Math.abs(element.getBoundingClientRect().top))).toBeLessThan(120);
+      await nav.getByRole("button", { name: "Intro", exact: true }).click();
+      await expect.poll(() => page.evaluate(() => window.scrollY)).toBeLessThan(10);
     }
   });
 
@@ -616,4 +615,55 @@ test.describe("Vistaire public navigation", () => {
       await context.close();
     }
   });
+});
+
+test("public theme and mobile controls persist across locale navigation and reload", async ({ page, context }) => {
+  const errors: string[] = [];
+  page.on("pageerror", (error) => errors.push(error.message));
+  await page.setViewportSize({ width: 320, height: 740 });
+  await page.goto("/a-propos?utm_source=theme-test");
+  const nav = topNavigation(page);
+  const controls = nav.locator("[data-public-controls]");
+  await expect(page.locator("html")).toHaveAttribute("data-vistaire-theme", "dark");
+  for (const control of await controls.locator("a, button").all()) {
+    await expect(control).toBeVisible();
+    const box = await control.boundingBox();
+    expect(box!.width).toBeGreaterThanOrEqual(44);
+    expect(box!.height).toBeGreaterThanOrEqual(44);
+  }
+  await controls.getByRole("button", { name: "Thème clair", exact: true }).click();
+  await expect(page.locator("html")).toHaveAttribute("data-vistaire-theme", "light");
+  await expect(page.locator("main[data-public-vistaire]")).toHaveCSS("background-color", "rgb(247, 243, 233)");
+  const menu = nav.locator("details");
+  await menu.locator("summary").click();
+  await expect(menu).toHaveAttribute("open", "");
+  await controls.getByRole("button").focus();
+  await page.keyboard.press("Escape");
+  await expect(menu).not.toHaveAttribute("open");
+  await menu.locator("summary").click();
+  await controls.getByRole("link", { name: "View this page in English" }).click();
+  await expect(page).toHaveURL(/\/en\/about\?utm_source=theme-test$/);
+  await expect(page.locator("html")).toHaveAttribute("data-vistaire-theme", "light");
+  await expect(topNavigation(page).locator("details")).not.toHaveAttribute("open");
+  await page.reload();
+  await expect(page.locator("html")).toHaveAttribute("data-vistaire-theme", "light");
+  await expect(topNavigation(page).getByRole("button", { name: "Light theme", exact: true })).toHaveAttribute("aria-pressed", "true");
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  const other = await context.newPage();
+  await other.goto("/contact");
+  await other.locator("[data-public-theme-toggle]").click();
+  await expect(page.locator("html")).toHaveAttribute("data-vistaire-theme", "dark");
+  await expect(topNavigation(page).getByRole("button", { name: "Light theme", exact: true })).toHaveAttribute("aria-pressed", "false");
+  await other.close();
+  expect(errors.filter((error) => /hydration|did not match/i.test(error))).toEqual([]);
+});
+
+test("public theme remains usable when local storage is blocked", async ({ page }) => {
+  await page.addInitScript(() => {
+    Object.defineProperty(window, "localStorage", { get() { throw new DOMException("Blocked", "SecurityError"); } });
+  });
+  await page.goto("/contact");
+  await expect(page.locator("html")).toHaveAttribute("data-vistaire-theme", "dark");
+  await page.locator("[data-public-theme-toggle]").click();
+  await expect(page.locator("html")).toHaveAttribute("data-vistaire-theme", "light");
 });

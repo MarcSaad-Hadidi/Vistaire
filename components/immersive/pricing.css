@@ -3,8 +3,8 @@
   min-height: 0;
   pointer-events: auto;
   scroll-margin-top: 90px;
-  background: #050505;
-  color: var(--cream);
+  background: var(--public-black, #050505);
+  color: var(--public-text, #f5ead8);
 }
 
 :where([data-immersive-vistaire]) .pricing > .stage {
@@ -15,7 +15,7 @@
   min-height: 0;
   overflow: visible;
   padding: clamp(80px, 7vw, 120px) var(--pad) clamp(60px, 7vw, 100px);
-  background: linear-gradient(155deg, #111110, #050505 45%);
+  background: linear-gradient(155deg, var(--public-surface, #111110), var(--public-black, #050505) 45%);
 }
 
 :where([data-immersive-vistaire]) .pricing .pricing-content {
@@ -46,7 +46,7 @@
   font-weight: 600;
   letter-spacing: 0.11em;
   text-transform: uppercase;
-  color: var(--amber);
+  color: var(--public-gold, #ffc300);
 }
 
 :where([data-immersive-vistaire]) .pricing .pricing-heading {
@@ -65,7 +65,7 @@
   max-width: 560px;
   font-size: 18px;
   line-height: 1.5;
-  color: var(--muted);
+  color: var(--public-muted, #cec8bd);
 }
 
 :where([data-immersive-vistaire]) .pricing .pricing-collections {
@@ -80,9 +80,9 @@
   align-items: stretch;
   min-width: 0;
   padding: 10px 10px 22px;
-  border: 1px solid #f8f3e827;
+  border: 1px solid var(--public-blue, #282825);
   border-radius: 6px;
-  background: #f8f3e803;
+  background: var(--public-surface, #111110);
   text-align: left;
   transition:
     border-color 0.2s,
@@ -90,13 +90,13 @@
 }
 
 :where([data-immersive-vistaire]) .pricing .pricing-collection:hover {
-  border-color: #ffc30090;
-  background: #f8f3e807;
+  border-color: color-mix(in srgb, var(--public-gold, #ffc300) 56%, transparent);
+  background: var(--public-surface, #111110);
 }
 
 :where([data-immersive-vistaire]) .pricing .pricing-collection.is-selected {
-  border-color: var(--amber);
-  background: #ffc3000d;
+  border-color: var(--public-gold, #ffc300);
+  background: color-mix(in srgb, var(--public-gold, #ffc300) 5%, transparent);
 }
 
 :where([data-immersive-vistaire]) .pricing .pricing-collection-image {
@@ -105,7 +105,7 @@
   aspect-ratio: 4 / 3;
   flex-shrink: 0;
   overflow: clip;
-  background: #111110;
+  background: var(--public-surface, #111110);
   border-radius: 3px;
   margin-bottom: 19px;
 }
@@ -127,16 +127,16 @@
   place-items: center;
   width: 26px;
   height: 26px;
-  border: 1px solid #f8f3e885;
+  border: 1px solid var(--public-blue, #282825);
   border-radius: 50%;
-  background: #05050599;
+  background: color-mix(in srgb, var(--public-black, #050505) 60%, transparent);
   color: transparent;
 }
 
 :where([data-immersive-vistaire]) .pricing .is-selected .pricing-collection-check {
-  background: var(--amber);
-  border-color: var(--amber);
-  color: var(--black);
+  background: var(--public-gold, #ffc300);
+  border-color: var(--public-gold, #ffc300);
+  color: var(--public-black, #050505);
 }
 
 :where([data-immersive-vistaire]) .pricing .pricing-collection-name {
@@ -152,7 +152,7 @@
   padding-inline: 8px;
   font-size: 14px;
   line-height: 1.4;
-  color: var(--muted);
+  color: var(--public-muted, #cec8bd);
 }
 
 :where([data-immersive-vistaire]) .pricing .pricing-collection-price {
@@ -163,7 +163,7 @@
 }
 
 :where([data-immersive-vistaire]) .pricing .pricing-collection-price > span {
-  color: var(--muted);
+  color: var(--public-muted, #cec8bd);
   font-size: 12px;
 }
 
@@ -174,9 +174,9 @@
   gap: 30px;
   margin-top: 24px;
   padding: 30px;
-  border: 1px solid #ffc30049;
+  border: 1px solid color-mix(in srgb, var(--public-gold, #ffc300) 29%, transparent);
   border-radius: 6px;
-  background: #ffc30008;
+  background: color-mix(in srgb, var(--public-gold, #ffc300) 3%, transparent);
 }
 
 :where([data-immersive-vistaire]) .pricing .pricing-rate {
@@ -201,14 +201,14 @@
   font-family: "Vistaire Text", sans-serif;
   font-size: 13px;
   line-height: 1.4;
-  color: var(--muted);
+  color: var(--public-muted, #cec8bd);
 }
 
 :where([data-immersive-vistaire]) .pricing .pricing-rate > p {
   max-width: 240px;
   font-size: 13px;
   line-height: 1.4;
-  color: var(--muted);
+  color: var(--public-muted, #cec8bd);
 }
 
 :where([data-immersive-vistaire]) .pricing .pricing-summary-action {
@@ -219,7 +219,7 @@
 
 :where([data-immersive-vistaire]) .pricing .pricing-summary-action > span {
   font-size: 11px;
-  color: var(--muted);
+  color: var(--public-muted, #cec8bd);
 }
 
 :where([data-immersive-vistaire]) .pricing .pricing-cta {
@@ -230,10 +230,10 @@
   min-height: 48px;
   max-width: 100%;
   padding: 15px 22px;
-  border: 1px solid var(--amber);
+  border: 1px solid var(--public-gold, #ffc300);
   border-radius: 4px;
-  background: var(--amber);
-  color: var(--black);
+  background: var(--public-gold, #ffc300);
+  color: var(--public-black, #050505);
   font-family: "Vistaire Text", sans-serif;
   font-size: 14px;
   line-height: 1.3;
@@ -243,8 +243,8 @@
 }
 
 :where([data-immersive-vistaire]) .pricing .pricing-cta:hover {
-  background: var(--cream);
-  border-color: var(--cream);
+  background: var(--public-text, #f5ead8);
+  border-color: var(--public-text, #f5ead8);
 }
 
 :where([data-immersive-vistaire]) .pricing .pricing-cta svg {
@@ -263,7 +263,7 @@
 }
 
 :where([data-immersive-vistaire]) .pricing .pricing-block-heading h3,
-:where([data-immersive-vistaire]) .pricing .pricing-faq h3,
+:where([data-immersive-vistaire]) .pricing .pricing-faq > div:first-child h3,
 :where([data-immersive-vistaire]) .pricing .pricing-closing h3 {
   font-size: clamp(31px, 3.2vw, 45px);
   line-height: 1.1;
@@ -272,7 +272,7 @@
 :where([data-immersive-vistaire]) .pricing .pricing-block-heading > p {
   max-width: 580px;
   font-size: 16px;
-  color: var(--muted);
+  color: var(--public-muted, #cec8bd);
 }
 
 :where([data-immersive-vistaire]) .pricing .pricing-included {
@@ -283,13 +283,13 @@
 
 :where([data-immersive-vistaire]) .pricing .pricing-included > article {
   padding-top: 24px;
-  border-top: 1px solid #f8f3e831;
+  border-top: 1px solid var(--public-blue, #282825);
 }
 
 :where([data-immersive-vistaire]) .pricing .pricing-index {
   display: block;
   margin-bottom: 17px;
-  color: var(--amber);
+  color: var(--public-gold, #ffc300);
   font-size: 11px;
   font-variant-numeric: tabular-nums;
   letter-spacing: 0.08em;
@@ -315,13 +315,13 @@
   gap: 10px;
   font-size: 15px;
   line-height: 1.4;
-  color: var(--muted);
+  color: var(--public-muted, #cec8bd);
 }
 
 :where([data-immersive-vistaire]) .pricing .pricing-included li svg {
   flex-shrink: 0;
   margin-top: 3px;
-  color: var(--amber);
+  color: var(--public-gold, #ffc300);
 }
 
 :where([data-immersive-vistaire]) .pricing .pricing-options {
@@ -333,9 +333,9 @@
 :where([data-immersive-vistaire]) .pricing .pricing-options > article {
   min-width: 0;
   padding: 28px;
-  border: 1px solid #f8f3e827;
+  border: 1px solid var(--public-blue, #282825);
   border-radius: 6px;
-  background: #f8f3e803;
+  background: var(--public-surface, #111110);
 }
 
 :where([data-immersive-vistaire]) .pricing .pricing-options h4 {
@@ -357,14 +357,14 @@
 
 :where([data-immersive-vistaire]) .pricing .pricing-option-price small {
   font-size: 12px;
-  color: var(--muted);
+  color: var(--public-muted, #cec8bd);
 }
 
 :where([data-immersive-vistaire]) .pricing .pricing-options > article > p {
   margin-top: 18px;
   font-size: 15px;
   line-height: 1.45;
-  color: var(--muted);
+  color: var(--public-muted, #cec8bd);
 }
 
 :where([data-immersive-vistaire]) .pricing .pricing-pilotage-features {
@@ -378,7 +378,7 @@
 
 :where([data-immersive-vistaire]) .pricing .pricing-pilotage-features li {
   padding-left: 12px;
-  border-left: 1px solid var(--amber);
+  border-left: 1px solid var(--public-gold, #ffc300);
 }
 
 :where([data-immersive-vistaire]) .pricing .pricing-toggle {
@@ -387,7 +387,7 @@
   align-items: center;
   gap: 20px;
   padding: 17px 0;
-  border-block: 1px solid #f8f3e82a;
+  border-block: 1px solid var(--public-blue, #282825);
   cursor: pointer;
 }
 
@@ -404,7 +404,7 @@
 :where([data-immersive-vistaire]) .pricing .pricing-toggle small {
   font-size: 12px;
   line-height: 1.4;
-  color: var(--muted);
+  color: var(--public-muted, #cec8bd);
 }
 
 :where([data-immersive-vistaire]) .pricing .pricing-toggle input {
@@ -414,9 +414,9 @@
   height: 26px;
   margin: 0;
   padding: 3px;
-  border: 1px solid #f8f3e860;
+  border: 1px solid var(--public-blue, #282825);
   border-radius: 20px;
-  background: #050505;
+  background: var(--public-black, #050505);
   cursor: pointer;
   transition: background-color 0.2s;
 }
@@ -427,24 +427,24 @@
   width: 18px;
   height: 18px;
   border-radius: 50%;
-  background: var(--cream);
+  background: var(--public-text, #f5ead8);
   transition: transform 0.2s;
 }
 
 :where([data-immersive-vistaire]) .pricing .pricing-toggle input:checked {
-  background: var(--amber);
-  border-color: var(--amber);
+  background: var(--public-gold, #ffc300);
+  border-color: var(--public-gold, #ffc300);
 }
 
 :where([data-immersive-vistaire]) .pricing .pricing-toggle input:checked::before {
   transform: translateX(20px);
-  background: var(--black);
+  background: var(--public-black, #050505);
 }
 
 :where([data-immersive-vistaire]) .pricing .pricing-note {
   display: block;
   margin-top: 18px;
-  color: var(--muted);
+  color: var(--public-muted, #cec8bd);
   font-size: 12px;
   line-height: 1.5;
 }
@@ -460,7 +460,7 @@
   display: grid;
   gap: 10px;
   padding: 18px 10px;
-  border: 1px solid #f8f3e82a;
+  border: 1px solid var(--public-blue, #282825);
   border-radius: 4px;
   text-align: center;
 }
@@ -483,12 +483,12 @@
 
 :where([data-immersive-vistaire]) .pricing .pricing-packs small {
   font-size: 10px;
-  color: var(--muted);
+  color: var(--public-muted, #cec8bd);
 }
 
 :where([data-immersive-vistaire]) .pricing .pricing-individual strong {
   font-weight: 600;
-  color: var(--cream);
+  color: var(--public-text, #f5ead8);
 }
 
 :where([data-immersive-vistaire]) .pricing .pricing-workflow {
@@ -499,7 +499,7 @@
 
 :where([data-immersive-vistaire]) .pricing .pricing-workflow li {
   padding-top: 20px;
-  border-top: 1px solid #f8f3e831;
+  border-top: 1px solid var(--public-blue, #282825);
 }
 
 :where([data-immersive-vistaire]) .pricing .pricing-workflow h4 {
@@ -508,7 +508,7 @@
 
 :where([data-immersive-vistaire]) .pricing .pricing-workflow p {
   margin-top: 12px;
-  color: var(--muted);
+  color: var(--public-muted, #cec8bd);
   font-size: 14px;
   line-height: 1.45;
 }
@@ -517,15 +517,15 @@
   max-width: 840px;
   margin-top: 28px;
   padding-left: 20px;
-  border-left: 1px solid var(--amber);
-  color: var(--muted);
+  border-left: 1px solid var(--public-gold, #ffc300);
+  color: var(--public-muted, #cec8bd);
   font-size: 14px;
   line-height: 1.5;
 }
 
 :where([data-immersive-vistaire]) .pricing .pricing-lead-time strong {
   font-weight: 600;
-  color: var(--cream);
+  color: var(--public-text, #f5ead8);
 }
 
 :where([data-immersive-vistaire]) .pricing .pricing-terms {
@@ -534,7 +534,7 @@
   gap: 40px;
   margin-top: 52px;
   padding: 30px 0;
-  border-block: 1px solid #f8f3e831;
+  border-block: 1px solid var(--public-blue, #282825);
 }
 
 :where([data-immersive-vistaire]) .pricing .pricing-terms h3 {
@@ -547,7 +547,7 @@
   gap: 13px 30px;
   font-size: 13px;
   line-height: 1.45;
-  color: var(--muted);
+  color: var(--public-muted, #cec8bd);
 }
 
 :where([data-immersive-vistaire]) .pricing .pricing-terms li:last-child {
@@ -561,47 +561,8 @@
   margin-top: 60px;
 }
 
-:where([data-immersive-vistaire]) .pricing .pricing-faq h3 {
+:where([data-immersive-vistaire]) .pricing .pricing-faq > div:first-child h3 {
   margin-top: 15px;
-}
-
-:where([data-immersive-vistaire]) .pricing .pricing-faq details {
-  border-bottom: 1px solid #f8f3e827;
-}
-
-:where([data-immersive-vistaire]) .pricing .pricing-faq summary {
-  display: flex;
-  justify-content: space-between;
-  align-items: start;
-  gap: 20px;
-  list-style: none;
-  padding: 20px 0;
-  font-size: 16px;
-  line-height: 1.4;
-  cursor: pointer;
-}
-
-:where([data-immersive-vistaire]) .pricing .pricing-faq summary::-webkit-details-marker {
-  display: none;
-}
-
-:where([data-immersive-vistaire]) .pricing .pricing-faq summary svg {
-  flex-shrink: 0;
-  margin-top: 3px;
-  color: var(--amber);
-  transition: transform 0.2s;
-}
-
-:where([data-immersive-vistaire]) .pricing .pricing-faq details[open] summary svg {
-  transform: rotate(180deg);
-}
-
-:where([data-immersive-vistaire]) .pricing .pricing-faq details p {
-  max-width: 660px;
-  padding: 0 37px 22px 0;
-  font-size: 15px;
-  line-height: 1.5;
-  color: var(--muted);
 }
 
 :where([data-immersive-vistaire]) .pricing .pricing-closing {
@@ -612,7 +573,7 @@
   gap: 26px;
   margin-top: 60px;
   padding-top: 30px;
-  border-top: 1px solid #f8f3e831;
+  border-top: 1px solid var(--public-blue, #282825);
 }
 
 :where([data-immersive-vistaire]) .pricing .pricing-closing > div {
@@ -624,7 +585,7 @@
 :where([data-immersive-vistaire]) .pricing a:focus-visible,
 :where([data-immersive-vistaire]) .pricing input:focus-visible,
 :where([data-immersive-vistaire]) .pricing summary:focus-visible {
-  outline: 2px solid var(--amber);
+  outline: 2px solid var(--public-gold, #ffc300);
   outline-offset: 5px;
 }
 
@@ -816,15 +777,6 @@
 
   :where([data-immersive-vistaire]) .pricing .pricing-faq {
     margin-top: 48px;
-  }
-
-  :where([data-immersive-vistaire]) .pricing .pricing-faq summary {
-    padding: 18px 0;
-    font-size: 15px;
-  }
-
-  :where([data-immersive-vistaire]) .pricing .pricing-faq details p {
-    padding-right: 0;
   }
 
   :where([data-immersive-vistaire]) .pricing .pricing-closing {

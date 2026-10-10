@@ -50,7 +50,7 @@
   min-width: 0;
   margin: 0;
   overflow: hidden;
-  background: #111110;
+  background: var(--public-surface);
 }
 .heroVisual img,
 .detailVisual img {
@@ -71,7 +71,7 @@
   aspect-ratio: 4 / 3;
   margin: 0;
   overflow: hidden;
-  background: #111110;
+  background: var(--public-surface);
 }
 .restaurantPanel > h2,
 .restaurantPanel > p {

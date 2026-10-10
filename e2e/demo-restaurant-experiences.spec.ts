@@ -120,16 +120,27 @@ for (const scenario of DISCOVERY_ROUTES) {
         expect(await page.locator("main").evaluate((element) => getComputedStyle(element).overflowY)).toBe("visible");
         await expect(page.getByRole("contentinfo")).toBeVisible();
       }
+      const visibleVideo = page.locator("video[data-demo-video]").last();
+      await visibleVideo.scrollIntoViewIfNeeded();
+      await expect(visibleVideo).toHaveJSProperty("paused", false);
       await page.emulateMedia({ reducedMotion: "reduce" });
-      const loopingVideo = page.locator("video[data-demo-video]").first();
-      await loopingVideo.scrollIntoViewIfNeeded();
-      await expect.poll(() => loopingVideo.evaluate((element: HTMLVideoElement) =>
-        !element.paused && element.readyState >= 2
-      )).toBe(true);
-      await loopingVideo.evaluate((element: HTMLVideoElement) => { element.currentTime = element.duration - 0.1; });
-      await expect.poll(() => loopingVideo.evaluate((element: HTMLVideoElement) =>
-        element.currentTime < 1 && !element.paused
-      )).toBe(true);
+      await expect(visibleVideo).toHaveJSProperty("paused", true);
+      await page.emulateMedia({ reducedMotion: "no-preference" });
+      await expect(visibleVideo).toHaveJSProperty("paused", false);
+      await page.emulateMedia({ reducedMotion: "reduce" });
+      await page.reload({ waitUntil: "domcontentloaded" });
+      for (const experience of experiences) {
+        const video = page.locator(`[data-demo-experience="${experience.id}"] video`);
+        await video.scrollIntoViewIfNeeded();
+        await expect(video).toHaveJSProperty("paused", true);
+        await expect(video).not.toHaveAttribute("src", /.+/);
+        expect(await video.evaluate(async (element: HTMLVideoElement) => {
+          const poster = new Image();
+          poster.src = element.poster;
+          await poster.decode();
+          return poster.naturalWidth > 0 && poster.naturalHeight > 0;
+        })).toBe(true);
+      }
       const firstLink = page.getByRole("link", { name: `${scenario.explore} Maison Élyse`, exact: true });
       await firstLink.focus();
       await expect(firstLink).toBeFocused();

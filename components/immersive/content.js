@@ -175,18 +175,18 @@ export const experiences = [
   },
 ];
 export const chapters = [
-  ["hero", "Introduction", 100],
-  ["ai", "Du scan à la carte", 220],
-  ["wearable", "Pensé pour le mobile", 180],
-  ["features", "Chaque détail compte", 280],
-  ["encryption", "Votre identité", 180],
-  ["grip", "Plats en 3D", 220],
-  ["sustainability", "Une carte vivante", 180],
-  ["testimonies", "Trois identités", 160],
-  ["social-content", "À table", 300],
-  ["product", "Les collections", 220],
-  ["open-weight", "Tarifs et accompagnement", 130],
-  ["footer", "Contact", 110],
+  ["hero", "Introduction"],
+  ["ai", "Du scan à la carte"],
+  ["wearable", "Pensé pour le mobile"],
+  ["features", "Chaque détail compte"],
+  ["encryption", "Votre identité"],
+  ["grip", "Plats en 3D"],
+  ["sustainability", "Une carte vivante"],
+  ["testimonies", "Trois identités"],
+  ["social-content", "À table"],
+  ["product", "Les collections"],
+  ["open-weight", "Tarifs et accompagnement"],
+  ["footer", "Contact"],
 ];
 export const money = (n) =>
   new Intl.NumberFormat("fr-CA", { maximumFractionDigits: 0 }).format(n);

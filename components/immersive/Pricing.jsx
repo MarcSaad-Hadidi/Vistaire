@@ -1,8 +1,8 @@
 import { useState } from "react";
-import { ArrowUpRight, Check, ChevronDown, Plus } from "lucide-react";
+import { ArrowUpRight, Check, Plus } from "lucide-react";
 import "./pricing.css";
 import { useLandingLocale } from "./locale.jsx";
-import { FaqAsk } from "../seo/FaqAsk";
+import { SeoFaq } from "../seo/SeoFaq";
 
 // Verified against Vistaire's pricingPage.ts. Physical supports beyond the
 // included quantity are quoted individually; no per-support rate is assumed.
@@ -413,16 +413,12 @@ export default function Pricing({ collection, setCollection, onEstimate }) {
           <h3 id="pricing-faq-title">{t("Vos questions.")}</h3>
         </div>
         <div className="pricing-faq-list">
-          {FAQ.map((item) => (
-            <details key={item.question}>
-              <summary>
-                <span>{t(item.question)}</span>
-                <ChevronDown size={17} aria-hidden="true" />
-              </summary>
-              <p>{t(item.answer)}</p>
-            </details>
-          ))}
-          <FaqAsk locale={locale} compact />
+          <SeoFaq
+            faqs={FAQ.map((item) => ({ question: t(item.question), answer: t(item.answer) }))}
+            locale={locale}
+            layout="stack"
+            compact
+          />
         </div>
       </section>
 

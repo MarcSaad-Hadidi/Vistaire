@@ -2,15 +2,15 @@
 .page {
   --pricing-body: "Vistaire Text", Georgia, serif;
   --pricing-display: "Vistaire Editorial", Georgia, serif;
-  --pricing-cream: #f8f3e8;
-  --pricing-muted: #b9b6ae;
-  --pricing-champagne: #ffc300;
-  --pricing-border: #282825;
+  --pricing-cream: var(--public-text);
+  --pricing-muted: var(--public-muted-soft);
+  --pricing-champagne: var(--public-gold);
+  --pricing-border: var(--public-blue);
   --pricing-width: min(1320px, calc(100% - 80px));
   --vistaire-font-body: var(--pricing-body);
   --vistaire-font-display: var(--pricing-display);
   min-height: 100svh;
-  background: #050505;
+  background: var(--public-black);
   color: var(--pricing-cream);
   font-family: var(--pricing-body);
 }
@@ -77,7 +77,7 @@
   flex-direction: column;
   border: 1px solid var(--pricing-border);
   border-radius: 4px;
-  background: #111110;
+  background: var(--public-surface);
 }
 .collectionCardFeatured {
   border-color: #8d710b;
@@ -113,7 +113,7 @@
   margin: 0;
   overflow: hidden;
   border-block: 1px solid var(--pricing-border);
-  background: #111110;
+  background: var(--public-surface);
 }
 .collectionImage {
   object-fit: cover;
@@ -200,7 +200,7 @@
 }
 .collectionLink:hover,
 .dashboardLink:hover {
-  color: #ffd60a;
+  color: var(--public-gold-light);
 }
 .page a:focus-visible {
   outline: 2px solid var(--pricing-champagne);
@@ -292,7 +292,7 @@
 }
 .pilotageSection {
   border-block: 1px solid var(--pricing-border);
-  background: #111110;
+  background: var(--public-surface);
 }
 .pilotageInner {
   display: grid;
@@ -487,14 +487,14 @@
 }
 .primaryButton {
   background: var(--pricing-champagne);
-  color: #050505;
+  color: var(--public-on-accent);
 }
 .primaryButton:hover {
-  background: #ffd60a;
-  border-color: #ffd60a;
+  background: var(--public-gold-light);
+  border-color: var(--public-gold-light);
 }
 .secondaryButton:hover {
-  background: #1a1a18;
+  background: var(--public-surface-raised);
 }
 @media (max-width: 1100px) {
   .page {

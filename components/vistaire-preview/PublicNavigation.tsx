@@ -1,7 +1,8 @@
 "use client";
 
-import { useRef } from "react";
+import { useEffect, useRef } from "react";
 import Link from "next/link";
+import { PublicControls } from "./PublicControls";
 import type { Locale } from "@/lib/i18n";
 import styles from "./VistairePreviewChrome.module.css";
 
@@ -29,23 +30,16 @@ export function PublicNavigation({
   const close = () => {
     if (menu.current) menu.current.open = false;
   };
-  const languageLinks = languages.map((item) => (
-    <Link
-      key={item.label}
-      href={item.href}
-      hrefLang={item.label.toLowerCase()}
-      aria-current={item.active ? "true" : undefined}
-      aria-label={
-        item.label === "EN"
-          ? "View this page in English"
-          : "Voir cette page en français"
+  useEffect(() => {
+    const dismiss = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && menu.current?.open) {
+        close();
+        menu.current.querySelector("summary")?.focus();
       }
-      className={`${styles.languageLink} ${item.active ? styles.languageLinkActive : ""}`}
-      prefetch={false}
-    >
-      {item.label}
-    </Link>
-  ));
+    };
+    document.addEventListener("keydown", dismiss);
+    return () => document.removeEventListener("keydown", dismiss);
+  }, []);
   return (
     <nav
       data-vistaire-chrome
@@ -73,12 +67,7 @@ export function PublicNavigation({
           </Link>
         ))}
       </div>
-      <div
-        className={styles.languageSwitcher}
-        aria-label={locale === "en" ? "Language" : "Langue"}
-      >
-        {languageLinks}
-      </div>
+      <PublicControls locale={locale} languages={languages} onNavigate={close} />
       <Link className={styles.navCta} href={appointment} prefetch={false}>
         <span className={styles.navCtaFull}>
           {appointmentLabel ??
@@ -105,12 +94,6 @@ export function PublicNavigation({
         suppressHydrationWarning
         className={styles.mobileMenu}
         ref={menu}
-        onKeyDown={(event) => {
-          if (event.key === "Escape") {
-            close();
-            menu.current?.querySelector("summary")?.focus();
-          }
-        }}
       >
         <summary>
           Menu{" "}
@@ -144,7 +127,6 @@ export function PublicNavigation({
             {appointmentLabel ??
               (locale === "en" ? "Book a call" : "Prendre rendez-vous")}
           </Link>
-          <div className={styles.mobileLanguages}>{languageLinks}</div>
         </div>
       </details>
     </nav>

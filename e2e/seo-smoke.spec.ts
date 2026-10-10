@@ -388,6 +388,14 @@ test.describe("Vistaire SEO smoke", () => {
     page
   }) => {
     const assertNoUnexpectedBrowserIssues = attachPageGuards(page);
+    // Exercise the supported video fallback deterministically; WebGL/3D behavior
+    // is covered by the immersive landing suite rather than this SEO smoke.
+    await page.addInitScript(() => {
+      const original = HTMLCanvasElement.prototype.getContext;
+      HTMLCanvasElement.prototype.getContext = function (this: HTMLCanvasElement, type: string, ...args: unknown[]) {
+        return type.startsWith("webgl") ? null : Reflect.apply(original, this, [type, ...args]);
+      } as typeof original;
+    });
 
     for (const viewport of mobileViewports) {
       await page.setViewportSize(viewport);
@@ -402,13 +410,17 @@ test.describe("Vistaire SEO smoke", () => {
         expect.arrayContaining(["Organization", "WebSite", "WebPage", "Service"])
       );
       await expectNoHorizontalOverflow(page);
+      await expect(page.locator("[data-immersive-vistaire]")).toBeVisible();
+      await expect(page.getByRole("heading", { level: 1 })).toHaveText("VISTAIRE");
+      await expect(page.locator(".fallback-film")).toHaveAttribute("src", /\/immersive-media\/cinematic-(portrait|landscape)\.mp4/);
+      await expect(page.locator(".preloader")).toHaveCount(0);
       await expectNoEarlyModelAssets(page);
 
-      await expect(page.locator('a[href="/prendre-rendez-vous"]').first()).toBeVisible();
-      await expect(page.getByRole("link", { name: "Carte" }).first()).toBeVisible();
-
-      const videoSource = await page.locator("video source").first().getAttribute("src");
-      expect(videoSource).toBe("/videos/Vistaire2.mp4");
+      await page.locator(".menu-toggle").click();
+      await expect(page.locator('.menu-page-links a[href="/prendre-rendez-vous"]')).toBeVisible();
+      await expect(page.locator('.menu-page-links a[href="/demo"]')).toBeVisible();
+      await page.keyboard.press("Escape");
+      await expect(page.locator(".menu-toggle")).toHaveAttribute("aria-expanded", "false");
     }
 
     assertNoUnexpectedBrowserIssues();

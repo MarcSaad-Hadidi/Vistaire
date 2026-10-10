@@ -28,28 +28,12 @@
 }
 
 [data-public-vistaire] {
-  --public-black: #050505;
-  --public-surface: #111110;
-  --public-blue: #282825;
-  --public-gold: #ffc300;
-  --public-gold-light: #ffd60a;
-  --public-text: #f8f3e8;
-  --public-muted: #cec8bd;
-  --public-gold-metal: linear-gradient(
-    115deg,
-    #ffc300 0%,
-    #ffd60a 27%,
-    #fff1ad 45%,
-    #ffc300 62%,
-    #ffd60a 84%,
-    #ffc300 100%
-  );
-  --admin-accent: #ffc300;
-  --admin-bg: #050505;
-  --admin-panel: #111110;
-  --admin-text: #f8f3e8;
-  --admin-muted: #cec8bd;
-  --admin-text-muted: #cec8bd;
+  --admin-accent: var(--public-gold);
+  --admin-bg: var(--public-black);
+  --admin-panel: var(--public-surface);
+  --admin-text: var(--public-text);
+  --admin-muted: var(--public-muted);
+  --admin-text-muted: var(--public-muted);
   color: var(--public-text);
   background: var(--public-black);
   font-family: "Vistaire Text", serif;
@@ -114,7 +98,7 @@
   padding: 12px 24px;
   border-radius: 6px;
   background: var(--public-gold-metal);
-  color: #050505 !important;
+  color: var(--public-on-accent) !important;
   font-weight: 700;
 }
 .public-comparison {
@@ -144,15 +128,15 @@
 .public-tabs button {
   min-height: 44px;
   padding: 10px 14px;
-  border: 1px solid #282825;
+  border: 1px solid var(--public-blue);
   border-radius: 6px;
-  background: #111110;
-  color: #f8f3e8;
+  background: var(--public-surface);
+  color: var(--public-text);
   font-size: 14px;
 }
 .public-tabs button[aria-selected="true"] {
-  border-color: #ffd60a;
-  color: #ffd60a;
+  border-color: var(--public-gold-light);
+  color: var(--public-gold-light);
 }
 .public-comparison [role="tabpanel"] {
   min-width: 0;
@@ -178,9 +162,9 @@
   grid-column: 1/-1;
   display: grid;
   gap: 36px;
-  border: 1px solid #282825;
+  border: 1px solid var(--public-blue);
   border-radius: 12px;
-  background: rgba(5, 5, 5, 0.94);
+  background: var(--public-overlay);
   padding: clamp(24px, 4vw, 48px);
 }
 .public-seo-appendix section,
@@ -199,7 +183,7 @@
 }
 .public-seo-appendix p,
 .public-seo-appendix li {
-  color: #cec8bd;
+  color: var(--public-muted);
   font-size: 17px;
   line-height: 1.65;
 }
@@ -208,7 +192,7 @@
   gap: 24px;
 }
 .public-faq-item {
-  border-bottom: 1px solid #282825;
+  border-bottom: 1px solid var(--public-blue);
   padding: 24px 0;
 }
 .public-faq-item h3 button {
@@ -223,11 +207,11 @@
   font-size: 24px;
 }
 .public-faq-item h3 button > span:last-child {
-  color: #ffd60a;
+  color: var(--public-gold-light);
 }
 .public-faq-item p {
   margin-top: 16px;
-  color: #cec8bd;
+  color: var(--public-muted);
   font-size: 16px;
   line-height: 1.7;
 }
@@ -245,21 +229,21 @@
   align-content: start;
   gap: 16px;
   padding: 24px;
-  background: #111110;
-  border: 1px solid #282825;
+  background: var(--public-surface);
+  border: 1px solid var(--public-blue);
   border-radius: 8px;
 }
 .public-related a:hover {
-  border-color: #ffc300;
+  border-color: var(--public-gold);
 }
 .public-related a > p {
-  color: #ffd60a;
+  color: var(--public-gold-light);
   font-size: 12px;
   letter-spacing: 0.1em;
   text-transform: uppercase;
 }
 .public-related a > span {
-  color: #cec8bd;
+  color: var(--public-muted);
   line-height: 1.5;
 }
 @media (max-width: 720px) {

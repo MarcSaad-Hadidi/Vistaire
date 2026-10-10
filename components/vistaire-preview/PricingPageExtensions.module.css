@@ -48,7 +48,7 @@
   border: 1px solid var(--pricing-border);
   border-radius: 4px;
   padding: 28px;
-  background: #111110;
+  background: var(--public-surface);
 }
 .threeDPack span,
 .threeDIndividual span {

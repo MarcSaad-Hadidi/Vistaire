@@ -31,12 +31,16 @@ import Pricing from "./Pricing.jsx";
 import { useModelGesture, useSupportGesture } from "./useModelGesture.js";
 import { ARAction, ARHelp, DishDetailLink, isIOSDevice } from "./ARActions.jsx";
 import { LandingLocaleProvider, useLandingLocale } from "./locale.jsx";
-import { PreviewFooter } from "../vistaire-preview/VistairePreviewChrome";
+import { PublicControls } from "../vistaire-preview/PublicControls";
 const Scene = lazy(() => import("./Scene.jsx"));
 // Restaurant-specific menus keep their original production interface.
 // Vistaire presentation pages are part of this same styled frontend.
-// Keep the introduction and scan timing; hold the finished phone pose for another 1.5 viewports.
+// Distances use the frozen journey viewport, not elapsed time or scroll velocity.
+// Keep the finished phone pose visible for another 1.5 viewports.
+const OPENING_MOTION_VH = 480;
 const OPENING_PHONE_HOLD_VH = 150;
+const SOCIAL_TRANSITIONS = [[0.28, 0.36], [0.64, 0.72]];
+const SOCIAL_HOLD_CENTERS = [0.14, 0.5, 0.86];
 const clamp = (n) => Math.max(0, Math.min(1, n));
 
 function Action({
@@ -59,18 +63,18 @@ function Action({
     </Comp>
   );
 }
-function Hint({ children }) {
+function AdaptiveScrollGuide({ visible }) {
   const { t } = useLandingLocale();
   return (
-    <div className="scroll-hint">
-      <span>{children ?? t("Faites défiler pour découvrir")}</span>
-      <ChevronDown size={14} />
+    <div className="scroll-guide" data-scroll-guide aria-hidden={!visible}>
+      <ChevronDown size={22} aria-hidden="true" />
+      <span>{t("Faites défiler pour découvrir")}</span>
     </div>
   );
 }
-function Chapter({ id, height, children, className = "", chapterRef }) {
+function Chapter({ id, height, children, className = "", chapterRef, as: Element = "section" }) {
   return (
-    <section
+    <Element
       id={id}
       ref={chapterRef}
       className={`chapter ${className}`}
@@ -78,7 +82,7 @@ function Chapter({ id, height, children, className = "", chapterRef }) {
       aria-labelledby={`${id}-title`}
     >
       <div className="stage">{children}</div>
-    </section>
+    </Element>
   );
 }
 function FocusFrame({ children, className = "", ...props }) {
@@ -332,6 +336,16 @@ function LandingContent() {
   });
   const beat = chapterBeats[chapter] || 0;
   const [menu, setMenu] = useState(false);
+  const [guideVisible, setGuideVisible] = useState(false);
+  const guideDismissed = useRef(false);
+  const dismissGuideOnInteraction = (event) => {
+    if (!guideDismissed.current && event.target.closest(
+      'a, button, input, select, textarea, [role="slider"], [role="tab"], [contenteditable="true"]',
+    )) {
+      guideDismissed.current = true;
+      setGuideVisible(false);
+    }
+  };
   const [ready, setReady] = useState(false);
   const [gpuError, setGpuError] = useState(false);
   const [modal, setModal] = useState(null);
@@ -383,6 +397,7 @@ function LandingContent() {
   const [modelLoading, setModelLoading] = useState(null);
   const [retryModel, setRetryModel] = useState(0);
   const menuRef = useRef(null);
+  const headerRef = useRef(null);
   const supportAngle = supportAngles[collection];
   const turnSupport = (angle) =>
     setSupportAngles((angles) => ({ ...angles, [collection]: angle }));
@@ -410,8 +425,12 @@ function LandingContent() {
   useEffect(() => {
     const query = matchMedia("(max-width:767.98px)");
     const update = () => setSmallScreen(query.matches);
+    const frame = requestAnimationFrame(update);
     query.addEventListener("change", update);
-    return () => query.removeEventListener("change", update);
+    return () => {
+      cancelAnimationFrame(frame);
+      query.removeEventListener("change", update);
+    };
   }, []);
   useEffect(() => {
     const query = matchMedia("(prefers-reduced-motion: reduce)");
@@ -430,6 +449,9 @@ function LandingContent() {
     let stopped = false;
     let needsMeasure = false;
     let activeTouches = 0;
+    const arrivalY = scrollY;
+    guideDismissed.current = Boolean(location.hash) || arrivalY > 16;
+    let lastGuideVisible = false;
     const visualProperties = new WeakMap();
     const writeVisualProperty = (element, name, value) => {
       let previous = visualProperties.get(element);
@@ -504,6 +526,15 @@ function LandingContent() {
         measure();
       }
       const y = scrollY;
+      // Once native scrolling or an interactive control is understood, leave
+      // the visitor alone. No chapter resets, idle timers or extra listeners.
+      const discoveryDistance = Math.max(64, Math.min(120, opening.sceneHeight * 0.1));
+      if (Math.abs(y - arrivalY) >= discoveryDistance) guideDismissed.current = true;
+      const showGuide = !guideDismissed.current && y < opening.top + opening.motionTravel * 0.14;
+      if (showGuide !== lastGuideVisible) {
+        lastGuideVisible = showGuide;
+        setGuideVisible(showGuide);
+      }
       let current = measurements[0];
       for (const m of measurements) {
         if (y >= m.top - 1) current = m;
@@ -632,12 +663,21 @@ function LandingContent() {
         measurements.map((m) => [m.id, m.sceneFrame]),
       );
       stateRef.current.transition = transition;
-      const preparedBeats = Object.fromEntries(
-        ["features", "social-content"].map((id) => [
-          id,
-          Math.min(2, Math.floor(stateRef.current.chapterProgress[id] * 3)),
-        ]),
+      const socialProgress = stateRef.current.chapterProgress["social-content"];
+      const socialPosition = SOCIAL_TRANSITIONS.reduce((position, [start, end]) => {
+        const phase = clamp((socialProgress - start) / (end - start));
+        return position + phase * phase * (3 - 2 * phase);
+      }, 0);
+      const socialIndex = Math.min(2, Math.round(socialPosition));
+      writeVisualProperty(
+        sectionRefs.current["social-content"],
+        "--rail-progress",
+        stateRef.current.reducedMotion ? socialIndex : socialPosition,
       );
+      const preparedBeats = {
+        features: Math.min(2, Math.floor(stateRef.current.chapterProgress.features * 3)),
+        "social-content": socialIndex,
+      };
       if (current.id !== lastSection) {
         lastSection = current.id;
         setChapter(current.id);
@@ -746,9 +786,10 @@ function LandingContent() {
     const overflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     const buttons = () => [
+      ...headerRef.current.querySelectorAll("button,a[href]"),
       ...menuRef.current.querySelectorAll("button,a[href]"),
-    ];
-    buttons()[0]?.focus();
+    ].filter((control) => control.getClientRects().length > 0);
+    menuRef.current.querySelector("button,a[href]")?.focus();
     const key = (e) => {
       if (e.key === "Escape") setMenu(false);
       if (e.key === "Tab") {
@@ -775,8 +816,8 @@ function LandingContent() {
     for (const video of document.querySelectorAll("video[data-play-when]")) {
       const when = video.dataset.playWhen;
       if (video.dataset.demo === "true") {
-        video.defaultPlaybackRate = 2;
-        video.playbackRate = 2;
+        video.defaultPlaybackRate = 1;
+        video.playbackRate = 1;
       }
       const play =
         when === chapter ||
@@ -908,7 +949,8 @@ function LandingContent() {
           <span>{t("Préparons votre table.")}</span>
         </div>
       )}
-      <header className={`site-header ${chapter === "hero" ? "at-hero" : ""}`}>
+      <header ref={headerRef} className={`site-header ${chapter === "hero" ? "at-hero" : ""}`}
+        onPointerDownCapture={dismissGuideOnInteraction} onFocusCapture={dismissGuideOnInteraction}>
         <button
           className="brand"
           onClick={() => goto("hero")}
@@ -937,6 +979,14 @@ function LandingContent() {
           <span className="small-dot" />
           {t("Explorer en 3D")} <ArrowUpRight size={14} />
         </button>
+        <PublicControls
+          locale={locale}
+          languages={[
+            { href: "/", label: "FR", active: locale === "fr" },
+            { href: "/en", label: "EN", active: locale === "en" },
+          ]}
+          onNavigate={() => setMenu(false)}
+        />
         <button
           className="menu-toggle"
           aria-expanded={menu}
@@ -991,12 +1041,14 @@ function LandingContent() {
           <Link prefetch={false} href={link("/menu-digital-restaurant")}>
             {t("Découvrir Vistaire")}
           </Link>
-          <Link
-            prefetch={false}
-            href={locale === "en" ? "/" : "/en"}
-            lang={locale === "en" ? "fr" : "en"}
-          >
-            {locale === "en" ? "Français" : "English"}
+          <Link prefetch={false} href={link("/menu-qr-code-restaurant")}>
+            {locale === "en" ? "QR code menu" : "Menu QR code"}
+          </Link>
+          <Link prefetch={false} href={link("/menu-3d-ar-restaurant")}>
+            {locale === "en" ? "3D & AR menu" : "Menu 3D et AR"}
+          </Link>
+          <Link prefetch={false} href={link("/menu-pdf-vs-menu-digital")}>
+            {locale === "en" ? "PDF vs digital menu" : "PDF ou menu digital"}
           </Link>
         </nav>
         <div>
@@ -1011,11 +1063,14 @@ function LandingContent() {
           onClick={() => setMenu(false)}
         />
       )}
-      <main id="content">
+      <main id="content" onPointerDownCapture={dismissGuideOnInteraction} onFocusCapture={dismissGuideOnInteraction}>
         <div
           className="opening-journey"
           ref={openingRef}
-          style={{ "--opening-phone-hold-vh": OPENING_PHONE_HOLD_VH }}
+          style={{
+            "--opening-motion-vh": OPENING_MOTION_VH,
+            "--opening-phone-hold-vh": OPENING_PHONE_HOLD_VH,
+          }}
         >
           <div className="opening-stage">
             <Chapter
@@ -1056,7 +1111,7 @@ function LandingContent() {
                 </button>
               </div>
               <FocusFrame aria-hidden="true" />
-              <Hint />
+
             </Chapter>
             <Chapter
               id="ai"
@@ -1090,7 +1145,7 @@ function LandingContent() {
                 <span>{t("Scan. Découvrez. Choisissez.")}</span>
                 <span>{t("Sans compte. Sans application.")}</span>
               </div>
-              <Hint />
+
             </Chapter>
             <Chapter
               id="wearable"
@@ -1128,7 +1183,7 @@ function LandingContent() {
                   </button>
                 ))}
               </div>
-              <Hint />
+
             </Chapter>
           </div>
         </div>
@@ -1196,7 +1251,7 @@ function LandingContent() {
               <span key={n} className={n === featureBeat ? "selected" : ""} />
             ))}
           </div>
-          <Hint />
+
         </Chapter>
         <Chapter
           id="encryption"
@@ -1220,7 +1275,7 @@ function LandingContent() {
             <RotateCw size={13} />
             {flip ? t("Voir le QR code") : t("Retourner le support")}
           </Action>
-          <Hint />
+
         </Chapter>
         <Chapter
           id="grip"
@@ -1360,7 +1415,7 @@ function LandingContent() {
             />
             <DishDetailLink item={currentDish} />
           </div>
-          <Hint />
+
         </Chapter>
         <Chapter
           id="sustainability"
@@ -1398,11 +1453,11 @@ function LandingContent() {
             <span>{t("Allergènes structurés")}</span>
             <span>{t("Langues de votre carte")}</span>
           </div>
-          <Hint />
+
         </Chapter>
         <Chapter
           id="testimonies"
-          height={300}
+          height={400}
           chapterRef={ref("testimonies")}
           className="identities"
         >
@@ -1441,27 +1496,24 @@ function LandingContent() {
               </button>
             ))}
           </div>
-          <Hint />
+
         </Chapter>
         <Chapter
           id="social-content"
-          height={400}
+          height={640}
           chapterRef={ref("social-content")}
           className="social"
         >
           <h2 id="social-content-title" className="sr-only">
             {t("Vistaire à table")}
           </h2>
-          <div
-            className="social-rail"
-            style={{
-              "--rail-progress": socialBeat,
-            }}
-          >
+          <div className="social-rail">
             {experiences.map((x, i) => (
               <article
                 key={x.id}
                 className={socialBeat === i ? "is-current" : ""}
+                inert={socialBeat !== i ? true : undefined}
+                aria-hidden={socialBeat !== i}
               >
                 <img
                   className="social-bg"
@@ -1513,6 +1565,7 @@ function LandingContent() {
               <button
                 key={x.id}
                 className={socialBeat === i ? "selected" : ""}
+                aria-current={socialBeat === i ? "true" : undefined}
                 aria-label={
                   locale === "en" ? `View ${x.name}` : `Voir ${x.name}`
                 }
@@ -1520,21 +1573,20 @@ function LandingContent() {
                   const el = sectionRefs.current["social-content"];
                   window.scrollTo({
                     top:
-                      el.offsetTop +
-                      ((el.offsetHeight - el.firstElementChild.clientHeight) *
-                        (i + 0.1)) /
-                        3,
+                      el.getBoundingClientRect().top + scrollY +
+                      (el.offsetHeight - el.firstElementChild.clientHeight) *
+                        SOCIAL_HOLD_CENTERS[i],
                     behavior: reduce ? "instant" : "smooth",
                   });
                 }}
               />
             ))}
           </div>
-          <Hint />
+
         </Chapter>
         <Chapter
           id="product"
-          height={300}
+          height={420}
           chapterRef={ref("product")}
           className="product"
         >
@@ -1628,7 +1680,7 @@ function LandingContent() {
               <ArrowUpRight size={14} />
             </Action>
           </div>
-          <Hint />
+
         </Chapter>
         <Chapter
           id="open-weight"
@@ -1645,54 +1697,56 @@ function LandingContent() {
             }}
           />
         </Chapter>
-        <Chapter
-          id="footer"
-          height={110}
-          chapterRef={ref("footer")}
-          className="footer"
-        >
-          <div className="footer-main">
-            <span className="eyebrow">
-              {t("La prochaine expérience commence ici.")}
-            </span>
-            <h2 id="footer-title">
-              {t("À la hauteur")}
-              <br />
-              {t("de votre")}
-              <br /> <em>{t("restaurant.")}</em>
-            </h2>
-            <Action href={link("/prendre-rendez-vous")}>
-              {t("Prendre rendez-vous")}
-              <ArrowUpRight size={15} />
-            </Action>
-          </div>
-          <FocusFrame className="footer-scene" aria-hidden="true" />
-          <div className="footer-grid">
-            <div>
-              <span className="eyebrow">{t("Un projet ?")}</span>
-              <a href="mailto:contact@vistaire.ca">contact@vistaire.ca</a>
-              <a href="tel:+15147152421">514-715-2421</a>
-            </div>
-            <div>
-              <span className="eyebrow">{t("Une expérience à partager.")}</span>
-              <button onClick={copy}>
-                {copied ? t("Lien copié") : t("Copier le lien Vistaire")}
-                {copied ? <Check size={15} /> : <ArrowUpRight size={15} />}
-              </button>
-              <a href={link("/demo")}>
-                {t("Voir les cartes Vistaire")}
-                <ArrowUpRight size={15} />
-              </a>
-            </div>
-          </div>
-        </Chapter>
       </main>
-      <div className="public-footer-wrap" data-public-vistaire>
-        <PreviewFooter
-          locale={locale}
-          currentPath={locale === "en" ? "/en" : "/"}
-        />
-      </div>
+      <Chapter
+        as="footer"
+        id="footer"
+        height={110}
+        chapterRef={ref("footer")}
+        className="footer"
+      >
+        <div className="footer-main">
+          <span className="eyebrow">
+            {t("La prochaine expérience commence ici.")}
+          </span>
+          <h2 id="footer-title">
+            {t("À la hauteur")}
+            <br />
+            {t("de votre")}
+            <br /> <em>{t("restaurant.")}</em>
+          </h2>
+          <Action href={link("/prendre-rendez-vous")}>
+            {t("Prendre rendez-vous")}
+            <ArrowUpRight size={15} />
+          </Action>
+        </div>
+        <FocusFrame className="footer-scene" aria-hidden="true" />
+        <div className="footer-grid">
+          <div>
+            <span className="eyebrow">{t("Un projet ?")}</span>
+            <a href="mailto:contact@vistaire.ca">contact@vistaire.ca</a>
+            <a href="tel:+15147152421">514-715-2421</a>
+          </div>
+          <div>
+            <span className="eyebrow">{t("Une expérience à partager.")}</span>
+            <button onClick={copy}>
+              {copied ? t("Lien copié") : t("Copier le lien Vistaire")}
+              {copied ? <Check size={15} /> : <ArrowUpRight size={15} />}
+            </button>
+            <a href={link("/demo")}>
+              {t("Voir les cartes Vistaire")}
+              <ArrowUpRight size={15} />
+            </a>
+          </div>
+        </div>
+        <nav className="footer-bottom" aria-label={t("Les pages Vistaire")}>
+          <span>© 2026 Vistaire</span>
+          <Link prefetch={false} href={link("/menu-digital-restaurant")}>{t("Découvrir Vistaire")}</Link>
+          <Link prefetch={false} href={link("/guides/anatomie-menu-digital-premium")}>Guides</Link>
+          <Link prefetch={false} href={link("/a-propos")}>{t("À propos")}</Link>
+        </nav>
+      </Chapter>
+      <AdaptiveScrollGuide visible={guideVisible && ready && !menu && !modal && chapter !== "footer"} />
       <div className="chapter-progress" aria-hidden="true">
         <span
           style={{

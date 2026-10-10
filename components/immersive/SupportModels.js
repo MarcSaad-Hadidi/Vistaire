@@ -20,6 +20,7 @@ export function createSupportModels({
   const root = new THREE.Group();
   const groups = {};
   const requests = [];
+  const loading = new Map();
   const draco = new DRACOLoader()
     .setDecoderPath("/immersive-assets/draco/")
     .setDecoderConfig({ type: "wasm" })
@@ -27,16 +28,23 @@ export function createSupportModels({
   const loader = new GLTFLoader().setDRACOLoader(draco);
   let disposed = false;
   let collection = "acrylique";
+  let visibleCollection;
   function select(name) {
-    collection = supportModels[name] ? name : "acrylique";
+    if (disposed) return;
+    collection = Object.hasOwn(supportModels, name) ? name : "acrylique";
+    if (groups[collection]) visibleCollection = collection;
     Object.entries(groups).forEach(([id, group]) => {
-      group.visible = id === collection;
+      group.visible = id === visibleCollection;
     });
-    canvas.dataset.support = collection;
+    canvas.dataset.support = visibleCollection || collection;
+    canvas.dataset.supportReady = String(Boolean(groups[collection]));
+    if (!loading.has(collection)) {
+      loading.set(collection, load(collection));
+    }
   }
 
-  canvas.dataset.supportReady = "false";
-  const loading = Object.entries(supportModels).map(async ([id, filename]) => {
+  async function load(id) {
+    const filename = supportModels[id];
     const request = new AbortController();
     requests.push(request);
     let model;
@@ -89,35 +97,34 @@ export function createSupportModels({
       const group = new THREE.Group();
       group.add(model);
       group.updateMatrixWorld(true);
-      group.visible = id === collection;
+      group.visible = false;
       groups[id] = group;
       root.add(group);
       attached = true;
+      if (id === collection) select(collection);
     } catch (error) {
+      loading.delete(id);
       if (model && !attached) disposeTree(model);
-      if (!disposed && error.name !== "AbortError") onError(error);
-      throw error;
+      if (!disposed && id === collection && error.name !== "AbortError")
+        onError(error);
     }
-  });
-  Promise.all(loading)
-    .then(() => {
-      if (!disposed) canvas.dataset.supportReady = "true";
-    })
-    .catch(() => {});
+  }
+  // Acrylic is visible on the opening table. Other collections load only
+  // when selected; retain the displayed stand until its replacement is ready.
   select(collection);
 
   return {
     root,
     select,
     get active() {
-      return groups[collection];
+      return groups[visibleCollection];
     },
     dispose() {
       disposed = true;
       requests.forEach((request) => request.abort());
       // Three may create a worker after its asynchronous decoder initializer
       // resolves. Finish/discard pending parses before terminating that worker.
-      Promise.allSettled(loading).finally(() => draco.dispose());
+      Promise.allSettled(loading.values()).finally(() => draco.dispose());
     },
   };
 }

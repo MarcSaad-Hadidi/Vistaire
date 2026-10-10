@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "owner": "Vistaire maintainers",
-  "lockfile_sha256": "0988edb703121b7b2cd1149b234f3066ce3cedf21403a71271baaf4fbe62cdef",
+  "lockfile_sha256": "9fd4073c2f8403730ad9dee358a759d4fa1da3b0d20722a236825ca0584ed6e1",
   "entries": [
     {
       "advisory_id": "GHSA-vfj7-8cjw-p6xm",

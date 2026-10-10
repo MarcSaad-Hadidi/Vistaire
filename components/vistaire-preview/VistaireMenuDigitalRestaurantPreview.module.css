@@ -1,13 +1,13 @@
 .page {
   --vistaire-font-display: "Vistaire Editorial", Georgia, serif;
   --vistaire-font-body: "Vistaire Text", Georgia, serif;
-  --preview-cream: #f8f3e8;
-  --preview-champagne: #ffc300;
-  --preview-muted: #cec8bd;
-  --preview-border: #282825;
+  --preview-cream: var(--public-text);
+  --preview-champagne: var(--public-gold);
+  --preview-muted: var(--public-muted);
+  --preview-border: var(--public-blue);
   position: relative;
   min-height: 100svh;
-  background: #050505;
+  background: var(--public-black);
   color: var(--preview-cream);
   font-family: var(--vistaire-font-body);
 }
@@ -103,16 +103,16 @@
 }
 .primaryButton {
   background: var(--preview-champagne);
-  color: #050505;
+  color: var(--public-on-accent);
 }
 .secondaryButton {
-  border-color: #45453e;
+  border-color: var(--public-blue);
   color: var(--preview-cream);
   background: transparent;
 }
 .primaryButton:hover {
-  background: #ffd60a;
-  border-color: #ffd60a;
+  background: var(--public-gold-light);
+  border-color: var(--public-gold-light);
 }
 .secondaryButton:hover {
   border-color: var(--preview-champagne);
@@ -121,7 +121,7 @@
 .primaryButton:focus-visible,
 .secondaryButton:focus-visible,
 .internalLinks a:focus-visible {
-  outline: 2px solid #ffd60a;
+  outline: 2px solid var(--public-gold-light);
   outline-offset: 5px;
 }
 .buttonIcon {
@@ -136,7 +136,7 @@
   margin: 0;
   aspect-ratio: 4 / 3;
   overflow: hidden;
-  background: #111110;
+  background: var(--public-surface);
 }
 .visualImage {
   object-fit: cover;
@@ -313,7 +313,7 @@
   font-weight: 500;
 }
 .comparisonTable td:last-child {
-  background: #111110;
+  background: var(--public-surface);
   color: var(--preview-cream);
 }
 .finalCta {
@@ -347,7 +347,7 @@
   font-size: 16px;
   line-height: 1.5;
   text-underline-offset: 6px;
-  text-decoration-color: #45453e;
+  text-decoration-color: var(--public-blue);
 }
 .internalLinks a:hover {
   color: var(--preview-champagne);
@@ -366,7 +366,7 @@
   display: grid;
   min-height: 340px;
   place-items: center;
-  background: #111110;
+  background: var(--public-surface);
   border: 1px solid var(--preview-border);
 }
 .qrCodeMark {

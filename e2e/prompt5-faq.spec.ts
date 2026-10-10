@@ -64,7 +64,7 @@ async function expectRenderedParity(
   const answers = faq.locator("[data-seo-faq-answer]");
 
   await expect(questions).toHaveCount(expectedCount);
-  await expect(answers).toHaveCount(expectedCount);
+  if (options.expandAnswers) await expect(questions.first()).toHaveAttribute("data-hydrated", "true");
   expect(
     await answers.evaluateAll((nodes) =>
       nodes.some((node) => node.getAttribute("role") === "region")
@@ -72,6 +72,7 @@ async function expectRenderedParity(
   ).toBe(false);
   expect(faqPage.mainEntity).toHaveLength(expectedCount);
 
+  const visibleAnswers: string[] = [];
   if (options.expandAnswers) {
     for (let index = 0; index < expectedCount; index += 1) {
       const question = questions.nth(index);
@@ -79,14 +80,17 @@ async function expectRenderedParity(
         await openHydratedFaqItem(question);
       }
       await expect(question).toHaveAttribute("aria-expanded", "true");
-      await expect(answers.nth(index)).toBeVisible();
+      const panelId = await question.getAttribute("aria-controls");
+      const panel = page.locator(`[id=${JSON.stringify(panelId)}]`);
+      await expect(panel).toBeVisible();
+      visibleAnswers.push(normalize(await panel.innerText()));
     }
   }
 
   expect((await questions.allTextContents()).map(normalize)).toEqual(
     faqPage.mainEntity.map((item) => normalize(item.name))
   );
-  expect((await answers.allTextContents()).map(normalize)).toEqual(
+  expect(options.expandAnswers ? visibleAnswers : (await answers.allTextContents()).map(normalize)).toEqual(
     faqPage.mainEntity.map((item) => normalize(item.acceptedAnswer.text))
   );
 }
@@ -102,6 +106,7 @@ for (const route of ROUTES) {
     const questions = page.locator("[data-seo-faq-question]");
     const second = questions.nth(1);
     const third = questions.nth(2);
+    await expect(second).toHaveAttribute("data-hydrated", "true");
     const panelId = await second.getAttribute("aria-controls");
 
     expect(panelId).toBeTruthy();
@@ -141,6 +146,11 @@ test("FAQ answers remain in server-rendered HTML without JavaScript", async ({ b
     for (const route of ROUTES) {
       await page.goto(route.path, { waitUntil: "domcontentloaded" });
       await expectRenderedParity(page, route.count);
+      const second = page.locator("[data-faq-native] details").nth(1);
+      await expect(second).not.toHaveAttribute("open");
+      await second.locator("summary").click();
+      await expect(second).toHaveAttribute("open", "");
+      await expect(second.locator("[data-seo-faq-answer]")).toBeVisible();
     }
   } finally {
     await context.close();
@@ -152,7 +162,11 @@ test("FAQ accordion respects reduced motion", async ({ page }) => {
   await page.goto(ROUTES[0].path, { waitUntil: "domcontentloaded" });
   const chevron = page.locator("[data-seo-faq-chevron]").first();
 
+  await expect(page.locator('[data-reui="c-accordion-10"]')).toHaveCount(1);
   await expect(chevron).toBeVisible();
+  expect(await chevron.evaluate((element) => ({ width: element.getBoundingClientRect().width, height: element.getBoundingClientRect().height }))).toEqual({ width: 16, height: 16 });
+  expect(await chevron.evaluate((element) => getComputedStyle(element).rotate)).toBe("90deg");
+  await expect(page.locator('[data-slot="accordion-trigger-icon"]:visible')).toHaveCount(0);
   expect(await chevron.evaluate((element) => getComputedStyle(element).transitionProperty)).toBe("none");
 });
 
@@ -163,15 +177,17 @@ test("a shared stack-layout FAQ consumer keeps disclosure and schema parity", as
   const answers = faq.locator("[data-seo-faq-answer]");
 
   await expect(questions).toHaveCount(STACK_REGRESSION_ROUTE.count);
-  await expect(answers).toHaveCount(STACK_REGRESSION_ROUTE.count);
   await expect(questions.first()).toHaveAttribute("aria-expanded", "true");
   await expect(answers.first()).toBeVisible();
   await expect(questions.nth(1)).toHaveAttribute("aria-expanded", "false");
-  await expect(answers.nth(1)).toBeHidden();
+  const secondPanelId = await questions.nth(1).getAttribute("aria-controls");
+  const secondPanel = page.locator(`[id=${JSON.stringify(secondPanelId)}]`);
+  await expect(secondPanel).toBeHidden();
 
   await openHydratedFaqItem(questions.nth(1));
   await expect(questions.nth(1)).toHaveAttribute("aria-expanded", "true");
-  await expect(answers.nth(1)).toBeVisible();
+  await expect(secondPanel).toBeVisible();
+  await expect(questions.first()).toHaveAttribute("aria-expanded", "false");
   await expectRenderedParity(page, STACK_REGRESSION_ROUTE.count, {
     expandAnswers: true
   });
@@ -198,6 +214,8 @@ test("free FAQ question keeps one active answer and ignores stale responses", as
   const input = page.locator("[data-faq-ask-input]");
   const result = page.locator("[data-faq-ask-result]");
 
+  expect(asked).toEqual([]);
+  await expect(page.locator("[data-faq-ask]")).toHaveCount(1);
   await input.fill("Combien coûte Vistaire ?");
   await input.press("Enter");
   await expect(result).toHaveAttribute("aria-busy", "true");
@@ -246,3 +264,23 @@ for (const width of [390, 430]) {
     }
   });
 }
+
+
+test("free FAQ handles service errors and allows another question in English", async ({ page }) => {
+  let requests = 0;
+  await page.route("**/api/public/faq", async (route) => {
+    requests += 1;
+    if (requests === 1) await route.fulfill({ status: 503, body: "temporarily unavailable" });
+    else await route.fulfill({ json: { status: "answered", answer: "You can update your menu.", sources: [] } });
+  });
+  await page.goto("/en/digital-restaurant-menu", { waitUntil: "domcontentloaded" });
+  await expect(page.locator('[data-reui="c-accordion-10"]')).toHaveCount(1);
+  const input = page.locator("[data-faq-ask-input]");
+  await input.fill("Can I update my menu?");
+  await input.press("Enter");
+  await expect(page.locator('[data-faq-ask-status="unavailable"]')).toContainText("temporarily unavailable");
+  await input.fill("How can I update my menu?");
+  await input.press("Enter");
+  await expect(page.locator('[data-faq-ask-status="answered"]')).toHaveText("You can update your menu.");
+  expect(requests).toBe(2);
+});

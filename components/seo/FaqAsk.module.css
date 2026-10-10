@@ -1,7 +1,7 @@
 /* Self-contained styles: no dependency on generated Tailwind utilities. */
 .root {
   padding: 24px 20px;
-  color: #f5ead8;
+  color: var(--public-text, #f5ead8);
 }
 
 .compact {
@@ -18,7 +18,7 @@
   font-size: 1.5rem;
   font-weight: 400;
   line-height: 1.25;
-  color: #f5ead8;
+  color: var(--public-text, #f5ead8);
 }
 
 .compact .label {
@@ -32,12 +32,12 @@
   align-items: center;
   gap: 12px;
   margin-top: 14px;
-  border-bottom: 1px solid rgba(248, 243, 232, 0.22);
+  border-bottom: 1px solid var(--public-blue, rgba(248, 243, 232, 0.22));
   transition: border-color 0.2s ease;
 }
 
 .field:focus-within {
-  border-color: #ffc300;
+  border-color: var(--public-gold, #ffc300);
 }
 
 .input {
@@ -60,7 +60,7 @@
 }
 
 .input::placeholder {
-  color: rgba(206, 200, 189, 0.6);
+  color: var(--public-muted, #cec8bd);
 }
 
 .submit {
@@ -71,10 +71,10 @@
   height: 44px;
   margin: 0 0 6px;
   padding: 0;
-  border: 1px solid rgba(255, 195, 0, 0.55);
+  border: 1px solid var(--public-gold, #ffc300);
   border-radius: 999px;
   background: transparent;
-  color: #ffc300;
+  color: var(--public-gold, #ffc300);
   cursor: pointer;
   transition: background-color 0.2s ease, color 0.2s ease, opacity 0.2s ease;
 }
@@ -86,12 +86,12 @@
 }
 
 .submit:hover:not(:disabled) {
-  background: #ffc300;
-  color: #111110;
+  background: var(--public-gold, #ffc300);
+  color: var(--public-black, #111110);
 }
 
 .submit:focus-visible {
-  outline: 2px solid #ffc300;
+  outline: 2px solid var(--public-gold, #ffc300);
   outline-offset: 3px;
 }
 
@@ -113,18 +113,18 @@
   margin: 10px 0 0;
   font-size: 12.5px;
   line-height: 1.5;
-  color: rgba(206, 200, 189, 0.72);
+  color: var(--public-muted, #cec8bd);
 }
 
 .hint {
-  color: #ffd60a;
+  color: var(--public-gold-light, #ffd60a);
 }
 
 .loading {
   margin: 18px 0 0;
   font-size: 15px;
   line-height: 1.6;
-  color: #cec8bd;
+  color: var(--public-muted, #cec8bd);
   animation: faq-ask-pulse 1.4s ease-in-out infinite;
 }
 
@@ -138,7 +138,7 @@
   margin: 0;
   font-size: 16px;
   line-height: 1.75;
-  color: #cec8bd;
+  color: var(--public-muted, #cec8bd);
 }
 
 .compact .answer {
@@ -154,29 +154,29 @@
   margin: 12px 0 0;
   font-size: 13px;
   line-height: 1.5;
-  color: rgba(206, 200, 189, 0.75);
+  color: var(--public-muted, #cec8bd);
 }
 
 .sources > span:first-child {
   font-size: 11px;
   letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: #ffc300;
+  color: var(--public-gold, #ffc300);
 }
 
 .sources a {
-  color: #f5ead8;
+  color: var(--public-text, #f5ead8);
   text-decoration: underline;
-  text-decoration-color: rgba(255, 195, 0, 0.5);
+  text-decoration-color: var(--public-gold, #ffc300);
   text-underline-offset: 3px;
 }
 
 .sources a:hover {
-  color: #ffd60a;
+  color: var(--public-gold-light, #ffd60a);
 }
 
 .sources a:focus-visible {
-  outline: 2px solid #ffc300;
+  outline: 2px solid var(--public-gold, #ffc300);
   outline-offset: 2px;
   border-radius: 2px;
 }

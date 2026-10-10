@@ -133,15 +133,29 @@ test("six bilingual guides render complete, crawlable editorial pages", async ({
   expect(badResponses).toEqual([]);
 });
 
-test("localized landing pages expose all three editorial guides", async ({ page }) => {
+test("localized landing guide links lead to all three editorial guides", async ({ page }) => {
+  await page.addInitScript(() => {
+    const original = HTMLCanvasElement.prototype.getContext;
+    HTMLCanvasElement.prototype.getContext = function (this: HTMLCanvasElement, type: string, ...args: unknown[]) {
+      return type.startsWith("webgl") ? null : Reflect.apply(original, this, [type, ...args]);
+    } as typeof original;
+  });
   for (const [path, localeRoutes] of [
     ["/", routes.filter((route) => route.lang === "fr-CA")],
     ["/en", routes.filter((route) => route.lang === "en-CA")]
   ] as const) {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto(path, { waitUntil: "domcontentloaded" });
-    const section = page.locator("#guides");
-    await expect(section).toBeVisible();
+    await expect(page.locator(".preloader")).toHaveCount(0);
+    const landingFooter = page.getByRole("contentinfo");
+    await landingFooter.scrollIntoViewIfNeeded();
+    const guidesLink = landingFooter.locator(`a[href="${localeRoutes[0].path}"]`);
+    await expect(guidesLink).toBeVisible();
+    await guidesLink.click();
+    await expect(page).toHaveURL(new RegExp(`${localeRoutes[0].path}$`));
+    await expect(page.locator("article").first()).toBeVisible();
+    const section = page.locator("footer#contact");
+    await section.scrollIntoViewIfNeeded();
     for (const route of localeRoutes) {
       await expect(section.locator(`a[href="${route.path}"]`)).toBeVisible();
     }

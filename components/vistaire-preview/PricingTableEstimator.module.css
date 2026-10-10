@@ -7,7 +7,7 @@
   border: 1px solid var(--pricing-border);
   border-radius: 4px;
   padding: 28px 30px 22px;
-  background: #111110;
+  background: var(--public-surface);
 }
 .estimatorCopy h2 {
   margin: 8px 0 0;
@@ -32,9 +32,9 @@
   width: 320px;
   max-width: 100%;
   overflow: hidden;
-  border: 1px solid #68604a;
+  border: 1px solid var(--public-blue);
   border-radius: 4px;
-  background: #050505;
+  background: var(--public-black);
 }
 .stepperButton {
   display: grid;
@@ -43,7 +43,7 @@
   place-items: center;
   border: 0;
   background: transparent;
-  color: #ffc300;
+  color: var(--public-gold);
   cursor: pointer;
   font: inherit;
   font-size: 24px;
@@ -59,16 +59,16 @@
   border-left: 1px solid var(--pricing-border);
 }
 .stepperButton:hover:not(:disabled) {
-  background: #25220f;
-  color: #ffd60a;
+  background: var(--public-surface-raised);
+  color: var(--public-gold-light);
 }
 .stepperButton:disabled {
-  color: #737066;
+  color: var(--public-muted-soft);
   cursor: not-allowed;
 }
 .stepperButton:focus-visible,
 .tableInput:focus-visible {
-  outline: 2px solid #ffc300;
+  outline: 2px solid var(--public-gold);
   outline-offset: -4px;
 }
 .inputLabel {

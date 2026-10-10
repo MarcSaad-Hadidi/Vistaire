@@ -379,8 +379,14 @@ export function useLandingLocale() {
       maximumFractionDigits: 0,
     }).format(amount);
   const href = (path) => {
-    if (path.startsWith("/menu/"))
-      return path.replace(/lang=fr-CA/g, `lang=${languageTag}`);
+    const menuOrigin = "https://www.vistaire.ca";
+    if (path.startsWith("/menu/") || path.startsWith(`${menuOrigin}/menu/`)) {
+      const url = new URL(path, menuOrigin);
+      url.searchParams.set("lang", languageTag);
+      return path.startsWith("/")
+        ? `${url.pathname}${url.search}${url.hash}`
+        : url.href;
+    }
     if (!path.startsWith("/")) return path;
     const suffix = path.match(/[?#].*$/)?.[0] || "";
     return getLocalizedPath(path, locale) + suffix;
