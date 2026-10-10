@@ -1,12 +1,13 @@
+import { publicModelBaseUrl, resolvePublicModelUrl } from "../../lib/publicModelAssets.ts";
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { DRACOLoader } from "three/examples/jsm/loaders/DRACOLoader.js";
 
 export const supportModels = {
-  acrylique: "Meshy_AI_Sauge_Noire_QR_Displa_1008220727_texture.glb",
-  sculpte: "Meshy_AI_Wooden_QR_Menu_Stand_1008220658_texture.glb",
-  carre: "sauge-noire-carre-vistaire-corrige.glb",
-  signature: "sauge-noire-vistaire-corrige.glb",
+  acrylique: resolvePublicModelUrl("immersive.support.acrylique"),
+  sculpte: resolvePublicModelUrl("immersive.support.sculpte"),
+  carre: resolvePublicModelUrl("immersive.support.carre"),
+  signature: resolvePublicModelUrl("immersive.support.signature"),
 };
 
 // These are the user's original optimized files. Only their scene transforms
@@ -44,13 +45,13 @@ export function createSupportModels({
   }
 
   async function load(id) {
-    const filename = supportModels[id];
+    const url = supportModels[id];
     const request = new AbortController();
     requests.push(request);
     let model;
     let attached = false;
     try {
-      const response = await fetch(`/immersive-assets/supports/${filename}`, {
+      const response = await fetch(url, {
         signal: request.signal,
       });
       if (!response.ok)
@@ -59,7 +60,7 @@ export function createSupportModels({
         );
       const data = await response.arrayBuffer();
       if (disposed) return;
-      const gltf = await loader.parseAsync(data, "/immersive-assets/supports/");
+      const gltf = await loader.parseAsync(data, publicModelBaseUrl(url));
       model = gltf.scene;
       if (disposed) {
         disposeTree(model);

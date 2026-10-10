@@ -1,9 +1,10 @@
+import { publicModelBaseUrl, resolvePublicModelUrl } from "../../lib/publicModelAssets.ts";
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { DRACOLoader } from "three/examples/jsm/loaders/DRACOLoader.js";
 import { MeshoptDecoder } from "three/examples/jsm/libs/meshopt_decoder.module.js";
 
-const MODEL_URL = "/immersive-assets/dashboard/macbook.glb";
+const MODEL_URL = resolvePublicModelUrl("immersive.laptop");
 const SCREEN_URL = "/immersive-assets/dashboard/dashboard-black-gold.webp";
 const clamp = (value, low = 0, high = 1) =>
   Math.min(high, Math.max(low, Number.isFinite(value) ? value : low));
@@ -145,7 +146,7 @@ export function createLaptopModel({
         throw new Error(`MacBook asset: HTTP ${response.status}`);
       return response.arrayBuffer();
     })
-    .then((buffer) => loader.parseAsync(buffer, "/immersive-assets/dashboard/"))
+    .then((buffer) => loader.parseAsync(buffer, publicModelBaseUrl(MODEL_URL)))
     .then((gltf) => {
       if (disposed) {
         disposeTree(gltf.scene);

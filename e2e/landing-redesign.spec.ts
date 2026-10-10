@@ -142,16 +142,25 @@ test("collections support keyboard selection and accessible stand rotation", asy
   await expect(stand).toHaveAttribute("aria-valuenow", "15");
 });
 
-test.describe('rendered scroll choreography (Chromium software WebGL)', () => {
-  // This is actual Three.js rendering under SwiftShader, not physical GPU or
-  // trackpad validation. Keep launch settings local to these two regressions.
-  test.use({ launchOptions: { args: ['--use-angle=swiftshader', '--use-gl=angle'] } });
+// Launch options are worker-scoped and cannot be set inside a describe group.
+// Keep actual SwiftShader rendering local to these two regressions; this does
+// not represent physical GPU or trackpad validation.
+const renderedTest = test.extend({
+  launchOptions: async ({ browserName }, provideOptions) => {
+    await provideOptions(browserName === 'chromium'
+      ? { args: ['--use-angle=swiftshader', '--use-gl=angle'] }
+      : {});
+  },
+});
+
+renderedTest.describe('rendered scroll choreography (Chromium software WebGL)', () => {
+  renderedTest.skip(({ browserName }) => browserName !== 'chromium', 'SwiftShader verification uses Chromium');
   for (const [path, viewport] of [
     ['/', { width: 1440, height: 900 }],
     ['/en', { width: 390, height: 844 }],
   ] as const) {
-    test(`${path} renders reversible chapter poses and resumes after pricing`, async ({ page }) => {
-      test.setTimeout(240_000);
+    renderedTest(`${path} renders reversible chapter poses and resumes after pricing`, async ({ page }, testInfo) => {
+      renderedTest.setTimeout(240_000);
       await page.setViewportSize(viewport);
       // Remove temporal damping for deterministic target-pose comparisons.
       // The separate stop/resume sample below restores normal motion.
@@ -227,6 +236,26 @@ test.describe('rendered scroll choreography (Chromium software WebGL)', () => {
       await at((feature.start + feature.end) / 2);
       await expect(canvas).toHaveAttribute('data-settled', 'true', { timeout: 10_000 });
       await expect(canvas).toHaveAttribute('data-transition', 'features:encryption');
+      // Keep actual rendered evidence, including successful runs. The workflow
+      // uploads these before another browser family clears test-results.
+      await page.emulateMedia({ reducedMotion: 'reduce' });
+      const productEntry = windows.find(window => window.to === 'product')!;
+      const productExit = windows.find(window => window.from === 'product')!;
+      for (const [name, section, y] of [
+        ['room', 'hero', 0],
+        ['phone', 'wearable', motion],
+        ['support', 'product', (productEntry.end + productExit.start) / 2],
+      ] as const) {
+        await at(y);
+        await expect(canvas).toHaveAttribute('data-section', section);
+        await expect(canvas).toHaveAttribute('data-suspended', 'false');
+        await expect(canvas).toHaveAttribute('data-settled', 'true', { timeout: 10_000 });
+        await expect(page.locator('.preloader')).toHaveCount(0);
+        expect(await canvas.evaluate(el => Number((el as HTMLCanvasElement).dataset.drawCalls))).toBeGreaterThan(0);
+        const screenshotPath = testInfo.outputPath(`rendered-${name}.png`);
+        await page.screenshot({ path: screenshotPath });
+        await testInfo.attach(`rendered-${name}`, { path: screenshotPath, contentType: 'image/png' });
+      }
       expect(errors).toEqual([]);
     });
   }

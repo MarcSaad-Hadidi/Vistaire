@@ -1,3 +1,9 @@
+import {
+  getPublicModelAsset,
+  indexPublicModelFramingHulls,
+  publicModelBaseUrl,
+  resolvePublicModelUrl,
+} from "../../lib/publicModelAssets.ts";
 import { continuousComposition, interpolatePose, interpolatePoseTrack, DEFAULT_SCENE_FRAME } from "./SceneDirector.js";
 import { cameraDollyPose } from "./CameraDolly.js";
 import {
@@ -784,7 +790,7 @@ export default function Scene({
     const dishZoomCenter = new THREE.Vector3();
     const dishZoomDirection = new THREE.Vector3();
     const dishZoomCorner = new THREE.Vector3();
-    let activeModelUrl = "";
+    let activeModelAssetId = "";
     const hullWorldMatrix = new THREE.Matrix4();
     const hullScale = new THREE.Vector3();
     let framingHulls = {};
@@ -798,7 +804,7 @@ export default function Scene({
       })
       .then((data) => {
         if (disposed) return;
-        framingHulls = data.byUrl;
+        framingHulls = indexPublicModelFramingHulls(data.byUrl);
         canvas.dataset.framingReady = "true";
       })
       .catch((error) => {
@@ -814,19 +820,19 @@ export default function Scene({
       .setDRACOLoader(foodDraco);
     function modelUrl(name) {
       if (name === "homard")
-        return mobileViewport()
-          ? "/models/demo/ar-lite/homard-bisque-ar-lite-meshy.glb"
-          : "/models/demo/homard-bisque-meshopt-ee44bc60.glb";
+        return resolvePublicModelUrl(mobileViewport()
+          ? "demo.homard-bisque.mobile"
+          : "demo.homard-bisque.web");
       if (
         ["huitres", "sushi", "chocolat-fume", "poutine", "burger"].includes(
           name,
         )
       )
-        return `/immersive-assets/dishes/lod/${name}-mobile.glb`;
+        return resolvePublicModelUrl(`immersive.dish.${name}.mobile`);
       const dish = dishes.find((dish) => dish.id === name && dish.model);
       return typeof dish?.model === "string"
         ? dish.model
-        : "/models/demo/souffle-chocolat-meshopt-0ad050af.glb";
+        : resolvePublicModelUrl("demo.souffle-chocolat.web");
     }
     function loadDish(name) {
       currentDish = name;
@@ -851,7 +857,7 @@ export default function Scene({
             .then(() => {
               if (disposed || request.signal.aborted)
                 throw new DOMException("Cancelled model", "AbortError");
-              return loader.parseAsync(buffer, "/media/");
+              return loader.parseAsync(buffer, publicModelBaseUrl(url));
             });
           decodeQueue = decoding;
           return decoding;
@@ -866,7 +872,7 @@ export default function Scene({
             disposeTree(activeDish);
           }
           activeDish = gltf.scene;
-          activeModelUrl = url;
+          activeModelAssetId = getPublicModelAsset(url)?.id ?? "";
           // Keep the approved mobile art direction. On desktop, the platter,
           // plated desserts and bare burger each have a table-sized footprint.
           // The offline hulls retain their original 2.35-unit normalization;
@@ -1355,7 +1361,7 @@ export default function Scene({
           continue;
         }
         root.updateWorldMatrix(true, false);
-        const hull = name === "dish" && framingHulls[activeModelUrl]?.vertices;
+        const hull = name === "dish" && framingHulls[activeModelAssetId]?.vertices;
         const bounds = hull
           ? projectHullBounds(
               hull,

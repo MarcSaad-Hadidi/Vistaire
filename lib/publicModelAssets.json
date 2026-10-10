@@ -1,0 +1,731 @@
+{
+  "schemaVersion": 1,
+  "sourceCommit": "29ab245b7038f3cef958d3765edc6aeb1ef3f887",
+  "assets": [
+    {
+      "id": "immersive.dish.burger.ios",
+      "kind": "ar",
+      "visibility": "public",
+      "format": "usdz",
+      "bytes": 13591929,
+      "sha256": "456a3bd4298b7097e1d2ba9893e433ea4dfb48bbfb2a21bdfe3dfaaf44a70f3b",
+      "version": "sha256-456a3bd4298b7097e1d2ba9893e433ea4dfb48bbfb2a21bdfe3dfaaf44a70f3b",
+      "legacyUrl": "/immersive-assets/ar/burger.usdz",
+      "publicUrl": null
+    },
+    {
+      "id": "immersive.dish.chocolat-fume.ios",
+      "kind": "ar",
+      "visibility": "public",
+      "format": "usdz",
+      "bytes": 3509203,
+      "sha256": "a08d98ede061832962da1b4aaf16c181ed9c67361782f3dbfc15555a82b2f500",
+      "version": "sha256-a08d98ede061832962da1b4aaf16c181ed9c67361782f3dbfc15555a82b2f500",
+      "legacyUrl": "/immersive-assets/ar/chocolat-fume.usdz",
+      "publicUrl": null
+    },
+    {
+      "id": "immersive.dish.homard.ios",
+      "kind": "ar",
+      "visibility": "public",
+      "format": "usdz",
+      "bytes": 7569119,
+      "sha256": "2217d36daa0d191c538467a0d1ded3394cf7a0ba033545ccae8d8a2650623d6f",
+      "version": "sha256-2217d36daa0d191c538467a0d1ded3394cf7a0ba033545ccae8d8a2650623d6f",
+      "legacyUrl": "/immersive-assets/ar/homard.usdz",
+      "publicUrl": null
+    },
+    {
+      "id": "immersive.dish.huitres.ios",
+      "kind": "ar",
+      "visibility": "public",
+      "format": "usdz",
+      "bytes": 6806971,
+      "sha256": "ac41cf42107a1e35aea03e0d52f95f2c6c8adb0e11507766f000fbed88e63f81",
+      "version": "sha256-ac41cf42107a1e35aea03e0d52f95f2c6c8adb0e11507766f000fbed88e63f81",
+      "legacyUrl": "/immersive-assets/ar/huitres.usdz",
+      "publicUrl": null
+    },
+    {
+      "id": "immersive.dish.poutine.ios",
+      "kind": "ar",
+      "visibility": "public",
+      "format": "usdz",
+      "bytes": 5900407,
+      "sha256": "dad91af7b5c398807f752fefd4c28e979c052fb54da699f51b3b0c29cc8c3c7b",
+      "version": "sha256-dad91af7b5c398807f752fefd4c28e979c052fb54da699f51b3b0c29cc8c3c7b",
+      "legacyUrl": "/immersive-assets/ar/poutine.usdz",
+      "publicUrl": null
+    },
+    {
+      "id": "immersive.dish.souffle.ios",
+      "kind": "ar",
+      "visibility": "public",
+      "format": "usdz",
+      "bytes": 6604754,
+      "sha256": "09e8c69e8b85a983f1c2d8082444993f31ec478fc51f47c44494b846e9e43caa",
+      "version": "sha256-09e8c69e8b85a983f1c2d8082444993f31ec478fc51f47c44494b846e9e43caa",
+      "legacyUrl": "/immersive-assets/ar/souffle.usdz",
+      "publicUrl": null
+    },
+    {
+      "id": "immersive.dish.sushi.ios",
+      "kind": "ar",
+      "visibility": "public",
+      "format": "usdz",
+      "bytes": 6836987,
+      "sha256": "c2e54aa0ca6117701732682dd3929a117d6e04008e7027137f624548ad83e720",
+      "version": "sha256-c2e54aa0ca6117701732682dd3929a117d6e04008e7027137f624548ad83e720",
+      "legacyUrl": "/immersive-assets/ar/sushi.usdz",
+      "publicUrl": null
+    },
+    {
+      "id": "immersive.laptop",
+      "kind": "dashboard",
+      "visibility": "public",
+      "format": "glb",
+      "bytes": 312960,
+      "sha256": "173c283b3e225eb3d657a4ef597a9886c873fb6b3b64583196e19add7d0b6cf6",
+      "version": "sha256-173c283b3e225eb3d657a4ef597a9886c873fb6b3b64583196e19add7d0b6cf6",
+      "legacyUrl": "/immersive-assets/dashboard/macbook.glb",
+      "publicUrl": null
+    },
+    {
+      "id": "immersive.dish.burger.web",
+      "kind": "dishes",
+      "visibility": "public",
+      "format": "glb",
+      "bytes": 2979416,
+      "sha256": "0452856149f975b5a8867e4d2e40f71dc69c7bc3a26942cd14a71bcdc23660ae",
+      "version": "sha256-0452856149f975b5a8867e4d2e40f71dc69c7bc3a26942cd14a71bcdc23660ae",
+      "legacyUrl": "/immersive-assets/dishes/burger.glb",
+      "publicUrl": null,
+      "variants": {
+        "mobile": "immersive.dish.burger.mobile",
+        "ios": "immersive.dish.burger.ios"
+      }
+    },
+    {
+      "id": "immersive.dish.chocolat-fume.web",
+      "kind": "dishes",
+      "visibility": "public",
+      "format": "glb",
+      "bytes": 979612,
+      "sha256": "81cc641cf08f34d1ef0854f55c0dfe1a101f0f1814de8fbefc6fda7d36ecee73",
+      "version": "sha256-81cc641cf08f34d1ef0854f55c0dfe1a101f0f1814de8fbefc6fda7d36ecee73",
+      "legacyUrl": "/immersive-assets/dishes/chocolat-fume.glb",
+      "publicUrl": null,
+      "variants": {
+        "mobile": "immersive.dish.chocolat-fume.mobile",
+        "ios": "immersive.dish.chocolat-fume.ios"
+      }
+    },
+    {
+      "id": "immersive.dish.huitres.web",
+      "kind": "dishes",
+      "visibility": "public",
+      "format": "glb",
+      "bytes": 3699644,
+      "sha256": "5169fc3b87f36927a770fce880de6cc2a7f9acc4ddfd037974b82dbc319069d7",
+      "version": "sha256-5169fc3b87f36927a770fce880de6cc2a7f9acc4ddfd037974b82dbc319069d7",
+      "legacyUrl": "/immersive-assets/dishes/huitres.glb",
+      "publicUrl": null,
+      "variants": {
+        "mobile": "immersive.dish.huitres.mobile",
+        "ios": "immersive.dish.huitres.ios"
+      }
+    },
+    {
+      "id": "immersive.dish.burger.mobile",
+      "kind": "dishes",
+      "visibility": "public",
+      "format": "glb",
+      "bytes": 3099768,
+      "sha256": "e1995a7f3487ae98d84e0734cdeb973234f758fa69390a74c10efda64130b6ef",
+      "version": "sha256-e1995a7f3487ae98d84e0734cdeb973234f758fa69390a74c10efda64130b6ef",
+      "legacyUrl": "/immersive-assets/dishes/lod/burger-mobile.glb",
+      "publicUrl": null
+    },
+    {
+      "id": "immersive.dish.chocolat-fume.mobile",
+      "kind": "dishes",
+      "visibility": "public",
+      "format": "glb",
+      "bytes": 2180100,
+      "sha256": "cff5dac881a28bbaeed85d3c0bd73072fe999a22e5824c12319d1e014c847d5f",
+      "version": "sha256-cff5dac881a28bbaeed85d3c0bd73072fe999a22e5824c12319d1e014c847d5f",
+      "legacyUrl": "/immersive-assets/dishes/lod/chocolat-fume-mobile.glb",
+      "publicUrl": null
+    },
+    {
+      "id": "immersive.dish.huitres.mobile",
+      "kind": "dishes",
+      "visibility": "public",
+      "format": "glb",
+      "bytes": 2577564,
+      "sha256": "4ef77f7f9beab7fb4aa1aba7c38d100b82aad40ed18170733d13350783693742",
+      "version": "sha256-4ef77f7f9beab7fb4aa1aba7c38d100b82aad40ed18170733d13350783693742",
+      "legacyUrl": "/immersive-assets/dishes/lod/huitres-mobile.glb",
+      "publicUrl": null
+    },
+    {
+      "id": "immersive.dish.poutine.mobile",
+      "kind": "dishes",
+      "visibility": "public",
+      "format": "glb",
+      "bytes": 1146944,
+      "sha256": "ab1631006783fb212c8833f9cb5a54582eccbaacdea7c6c0a072d002e4007f26",
+      "version": "sha256-ab1631006783fb212c8833f9cb5a54582eccbaacdea7c6c0a072d002e4007f26",
+      "legacyUrl": "/immersive-assets/dishes/lod/poutine-mobile.glb",
+      "publicUrl": null
+    },
+    {
+      "id": "immersive.dish.sushi.mobile",
+      "kind": "dishes",
+      "visibility": "public",
+      "format": "glb",
+      "bytes": 1248324,
+      "sha256": "5e42486f9e1a0895a28f7b506dc98dfcf5f5805e7ef7bfb52b5011e11337bb02",
+      "version": "sha256-5e42486f9e1a0895a28f7b506dc98dfcf5f5805e7ef7bfb52b5011e11337bb02",
+      "legacyUrl": "/immersive-assets/dishes/lod/sushi-mobile.glb",
+      "publicUrl": null
+    },
+    {
+      "id": "immersive.dish.poutine.web",
+      "kind": "dishes",
+      "visibility": "public",
+      "format": "glb",
+      "bytes": 1631104,
+      "sha256": "66d25e9532f04591c8f3cbd818d80dc797b1611a8fa75041beb89d52eb1d6f2d",
+      "version": "sha256-66d25e9532f04591c8f3cbd818d80dc797b1611a8fa75041beb89d52eb1d6f2d",
+      "legacyUrl": "/immersive-assets/dishes/poutine.glb",
+      "publicUrl": null,
+      "variants": {
+        "mobile": "immersive.dish.poutine.mobile",
+        "ios": "immersive.dish.poutine.ios"
+      }
+    },
+    {
+      "id": "immersive.dish.sushi.web",
+      "kind": "dishes",
+      "visibility": "public",
+      "format": "glb",
+      "bytes": 3895760,
+      "sha256": "9b94523eaf54c6789d66c02d1bcb5fafd8d910dab5237e55b0c8016323056e88",
+      "version": "sha256-9b94523eaf54c6789d66c02d1bcb5fafd8d910dab5237e55b0c8016323056e88",
+      "legacyUrl": "/immersive-assets/dishes/sushi.glb",
+      "publicUrl": null,
+      "variants": {
+        "mobile": "immersive.dish.sushi.mobile",
+        "ios": "immersive.dish.sushi.ios"
+      }
+    },
+    {
+      "id": "immersive.phone",
+      "kind": "phone",
+      "visibility": "public",
+      "format": "glb",
+      "bytes": 2456120,
+      "sha256": "ec6002b3c4daa325643da029d192d0f3a493e66bb71fb9dbc7cef8ef887fea64",
+      "version": "sha256-ec6002b3c4daa325643da029d192d0f3a493e66bb71fb9dbc7cef8ef887fea64",
+      "legacyUrl": "/immersive-assets/phone/iphone_16_-_free.glb",
+      "publicUrl": null
+    },
+    {
+      "id": "immersive.restaurant",
+      "kind": "restaurant",
+      "visibility": "public",
+      "format": "glb",
+      "bytes": 4131356,
+      "sha256": "9c9a160387f36a6830f395e5c863b44ac79863513558ffe5e1bdf24e9e6931f1",
+      "version": "sha256-9c9a160387f36a6830f395e5c863b44ac79863513558ffe5e1bdf24e9e6931f1",
+      "legacyUrl": "/immersive-assets/restaurant/restaurant-evening.glb",
+      "publicUrl": null
+    },
+    {
+      "id": "immersive.support.acrylique",
+      "kind": "supports",
+      "visibility": "public",
+      "format": "glb",
+      "bytes": 948164,
+      "sha256": "fb09fd8e1a793db196d52ab27eb5f71ec1f971dd7a9a26b56f4f7af7951619bb",
+      "version": "sha256-fb09fd8e1a793db196d52ab27eb5f71ec1f971dd7a9a26b56f4f7af7951619bb",
+      "legacyUrl": "/immersive-assets/supports/Meshy_AI_Sauge_Noire_QR_Displa_1008220727_texture.glb",
+      "publicUrl": null
+    },
+    {
+      "id": "immersive.support.sculpte",
+      "kind": "supports",
+      "visibility": "public",
+      "format": "glb",
+      "bytes": 1622784,
+      "sha256": "7823e4213b0ac123b2eaae7789b2a56a972d7cc8b06af3e9799ccd58922db6de",
+      "version": "sha256-7823e4213b0ac123b2eaae7789b2a56a972d7cc8b06af3e9799ccd58922db6de",
+      "legacyUrl": "/immersive-assets/supports/Meshy_AI_Wooden_QR_Menu_Stand_1008220658_texture.glb",
+      "publicUrl": null
+    },
+    {
+      "id": "immersive.support.carre",
+      "kind": "supports",
+      "visibility": "public",
+      "format": "glb",
+      "bytes": 809220,
+      "sha256": "a83703a7c49395076e86f5e568dbeeffd5df35460228eebcbf9348ed7becaa15",
+      "version": "sha256-a83703a7c49395076e86f5e568dbeeffd5df35460228eebcbf9348ed7becaa15",
+      "legacyUrl": "/immersive-assets/supports/sauge-noire-carre-vistaire-corrige.glb",
+      "publicUrl": null
+    },
+    {
+      "id": "immersive.support.signature",
+      "kind": "supports",
+      "visibility": "public",
+      "format": "glb",
+      "bytes": 336144,
+      "sha256": "b3bf09c3073d9070923c0dd6c8ec01787602374d032e2d21e9ed7fe683e2a8cc",
+      "version": "sha256-b3bf09c3073d9070923c0dd6c8ec01787602374d032e2d21e9ed7fe683e2a8cc",
+      "legacyUrl": "/immersive-assets/supports/sauge-noire-vistaire-corrige.glb",
+      "publicUrl": null
+    },
+    {
+      "id": "demo.bar-de-ligne.mobile",
+      "kind": "dish",
+      "visibility": "public",
+      "format": "glb",
+      "bytes": 5557396,
+      "sha256": "f3531ee5b367b2f7b173eeb53704c4c2163e7236e6891400626d555671d2ea5d",
+      "version": "sha256-f3531ee5b367b2f7b173eeb53704c4c2163e7236e6891400626d555671d2ea5d",
+      "legacyUrl": "/models/demo/ar-lite/bar-de-ligne-ar-lite-meshy.glb",
+      "publicUrl": null
+    },
+    {
+      "id": "demo.bar-de-ligne.ios",
+      "kind": "dish",
+      "visibility": "public",
+      "format": "usdz",
+      "bytes": 1317457,
+      "sha256": "609863e9d20b06e3cb346adf10419bfb6b2f7a0ce1dcd57f7ad5b7ffcc8e5fb6",
+      "version": "sha256-609863e9d20b06e3cb346adf10419bfb6b2f7a0ce1dcd57f7ad5b7ffcc8e5fb6",
+      "legacyUrl": "/models/demo/ar-lite/bar-de-ligne-ios-quicklook-meshy.usdz",
+      "publicUrl": null
+    },
+    {
+      "id": "demo.canette-aux-figues.mobile",
+      "kind": "dish",
+      "visibility": "public",
+      "format": "glb",
+      "bytes": 7801972,
+      "sha256": "b004a8fa96c136a7da2b5dde2fbc20fb0fe971be284afb9f4e32bf47f5cdb7c9",
+      "version": "sha256-b004a8fa96c136a7da2b5dde2fbc20fb0fe971be284afb9f4e32bf47f5cdb7c9",
+      "legacyUrl": "/models/demo/ar-lite/canette-aux-figues-ar-lite-meshy.glb",
+      "publicUrl": null
+    },
+    {
+      "id": "demo.canette-aux-figues.ios",
+      "kind": "dish",
+      "visibility": "public",
+      "format": "usdz",
+      "bytes": 1786076,
+      "sha256": "ee59fc87f9d82fd25ade110785902c5010067e04bb3d0d95daaa6cc7bda2e022",
+      "version": "sha256-ee59fc87f9d82fd25ade110785902c5010067e04bb3d0d95daaa6cc7bda2e022",
+      "legacyUrl": "/models/demo/ar-lite/canette-aux-figues-ios-quicklook-meshy.usdz",
+      "publicUrl": null
+    },
+    {
+      "id": "demo.homard-bisque.mobile",
+      "kind": "dish",
+      "visibility": "public",
+      "format": "glb",
+      "bytes": 8590900,
+      "sha256": "ed79969621acd82c0bb55cc3b7ec2973dfd8be843da7ee697ac57a0c059a3001",
+      "version": "sha256-ed79969621acd82c0bb55cc3b7ec2973dfd8be843da7ee697ac57a0c059a3001",
+      "legacyUrl": "/models/demo/ar-lite/homard-bisque-ar-lite-meshy.glb",
+      "publicUrl": null
+    },
+    {
+      "id": "demo.homard-bisque.ios",
+      "kind": "dish",
+      "visibility": "public",
+      "format": "usdz",
+      "bytes": 2450572,
+      "sha256": "addff79da4a4e4b487949e4981a7e19cfcd39c82f1d4c36784d3c2a9d039c1e4",
+      "version": "sha256-addff79da4a4e4b487949e4981a7e19cfcd39c82f1d4c36784d3c2a9d039c1e4",
+      "legacyUrl": "/models/demo/ar-lite/homard-bisque-ios-quicklook-meshy.usdz",
+      "publicUrl": null
+    },
+    {
+      "id": "demo.pave-boeuf.mobile",
+      "kind": "dish",
+      "visibility": "public",
+      "format": "glb",
+      "bytes": 4499952,
+      "sha256": "e575464722b7ef98822424506d3e0b1dbe8b830f38f5d689a30c36cfb1339cdd",
+      "version": "sha256-e575464722b7ef98822424506d3e0b1dbe8b830f38f5d689a30c36cfb1339cdd",
+      "legacyUrl": "/models/demo/ar-lite/pave-boeuf-ar-lite-meshy.glb",
+      "publicUrl": null
+    },
+    {
+      "id": "demo.pave-boeuf.ios",
+      "kind": "dish",
+      "visibility": "public",
+      "format": "usdz",
+      "bytes": 1043589,
+      "sha256": "4c039567bf3311f9f1412ee865a875236087e01c98b51f27dadc21493e77fda4",
+      "version": "sha256-4c039567bf3311f9f1412ee865a875236087e01c98b51f27dadc21493e77fda4",
+      "legacyUrl": "/models/demo/ar-lite/pave-boeuf-ios-quicklook-meshy.usdz",
+      "publicUrl": null
+    },
+    {
+      "id": "demo.ravioles-chevre-miel.mobile",
+      "kind": "dish",
+      "visibility": "public",
+      "format": "glb",
+      "bytes": 8112832,
+      "sha256": "c95510dad02e5ca93f38ac4d8ac9355d063a107c418d3aed81a8cbb425c1eb4a",
+      "version": "sha256-c95510dad02e5ca93f38ac4d8ac9355d063a107c418d3aed81a8cbb425c1eb4a",
+      "legacyUrl": "/models/demo/ar-lite/ravioles-chevre-miel-ar-lite-meshy.glb",
+      "publicUrl": null
+    },
+    {
+      "id": "demo.ravioles-chevre-miel.ios",
+      "kind": "dish",
+      "visibility": "public",
+      "format": "usdz",
+      "bytes": 3438515,
+      "sha256": "9b34710b096d5841ad1d132f34e6e72d57f1d62947461e162dc33e587c01f46a",
+      "version": "sha256-9b34710b096d5841ad1d132f34e6e72d57f1d62947461e162dc33e587c01f46a",
+      "legacyUrl": "/models/demo/ar-lite/ravioles-chevre-miel-ios-quicklook-meshy.usdz",
+      "publicUrl": null
+    },
+    {
+      "id": "demo.souffle-chocolat.mobile",
+      "kind": "dish",
+      "visibility": "public",
+      "format": "glb",
+      "bytes": 4707036,
+      "sha256": "97c97928890ebe926cc423d6607080777c29439292906e9d98faa174517751d5",
+      "version": "sha256-97c97928890ebe926cc423d6607080777c29439292906e9d98faa174517751d5",
+      "legacyUrl": "/models/demo/ar-lite/souffle-chocolat-ar-lite-meshy.glb",
+      "publicUrl": null
+    },
+    {
+      "id": "demo.souffle-chocolat.ios",
+      "kind": "dish",
+      "visibility": "public",
+      "format": "usdz",
+      "bytes": 1736180,
+      "sha256": "d30e1134ccb10484c513fc26b293c8b902ae23662d63ce1fd291777e56f9f3ef",
+      "version": "sha256-d30e1134ccb10484c513fc26b293c8b902ae23662d63ce1fd291777e56f9f3ef",
+      "legacyUrl": "/models/demo/ar-lite/souffle-chocolat-ios-quicklook-meshy.usdz",
+      "publicUrl": null
+    },
+    {
+      "id": "demo.tartare-saumon.mobile",
+      "kind": "dish",
+      "visibility": "public",
+      "format": "glb",
+      "bytes": 11786728,
+      "sha256": "9528f0f25d208ed70538cb2ea4b4e71348c0f5d4970ca7e0afa08d06fa022880",
+      "version": "sha256-9528f0f25d208ed70538cb2ea4b4e71348c0f5d4970ca7e0afa08d06fa022880",
+      "legacyUrl": "/models/demo/ar-lite/tartare-saumon-ar-lite-meshy.glb",
+      "publicUrl": null
+    },
+    {
+      "id": "demo.tartare-saumon.ios",
+      "kind": "dish",
+      "visibility": "public",
+      "format": "usdz",
+      "bytes": 3612924,
+      "sha256": "bc043640c6539705c516a25b135f8b3a6fd4479ea9ea83c375205943bb5a404b",
+      "version": "sha256-bc043640c6539705c516a25b135f8b3a6fd4479ea9ea83c375205943bb5a404b",
+      "legacyUrl": "/models/demo/ar-lite/tartare-saumon-ios-quicklook-meshy.usdz",
+      "publicUrl": null
+    },
+    {
+      "id": "demo.tarte-citron-basilic.mobile",
+      "kind": "dish",
+      "visibility": "public",
+      "format": "glb",
+      "bytes": 6255656,
+      "sha256": "22e08f695fcc12b0659feb212d0fb9306500cfde915e99b993ceddd795cb39ff",
+      "version": "sha256-22e08f695fcc12b0659feb212d0fb9306500cfde915e99b993ceddd795cb39ff",
+      "legacyUrl": "/models/demo/ar-lite/tarte-citron-basilic-ar-lite-meshy.glb",
+      "publicUrl": null
+    },
+    {
+      "id": "demo.tarte-citron-basilic.ios",
+      "kind": "dish",
+      "visibility": "public",
+      "format": "usdz",
+      "bytes": 1455612,
+      "sha256": "8ebcae39f73e46f501ebe23da4bdfe24dc9fbc8a4ec4eeb4ef3406ad0d0fa8f2",
+      "version": "sha256-8ebcae39f73e46f501ebe23da4bdfe24dc9fbc8a4ec4eeb4ef3406ad0d0fa8f2",
+      "legacyUrl": "/models/demo/ar-lite/tarte-citron-basilic-ios-quicklook-meshy.usdz",
+      "publicUrl": null
+    },
+    {
+      "id": "demo.bar-de-ligne.web",
+      "kind": "dish",
+      "visibility": "public",
+      "format": "glb",
+      "bytes": 2690484,
+      "sha256": "e67c9019a7cbcc623802e3eac181f3938fceaf3fb483a30b3329ae310f5e59b8",
+      "version": "sha256-e67c9019a7cbcc623802e3eac181f3938fceaf3fb483a30b3329ae310f5e59b8",
+      "legacyUrl": "/models/demo/bar-de-ligne-meshopt-e67c9019.glb",
+      "publicUrl": null,
+      "variants": {
+        "mobile": "demo.bar-de-ligne.mobile",
+        "ios": "demo.bar-de-ligne.ios"
+      }
+    },
+    {
+      "id": "demo.bar-de-ligne.source",
+      "kind": "dish",
+      "visibility": "public",
+      "format": "glb",
+      "bytes": 1942636,
+      "sha256": "2a3241e6cfc566960a21485a923432f4419b03dcea0285d3b4864f8dd0e1ac45",
+      "version": "sha256-2a3241e6cfc566960a21485a923432f4419b03dcea0285d3b4864f8dd0e1ac45",
+      "legacyUrl": "/models/demo/bar-de-ligne-meshy.glb",
+      "publicUrl": null,
+      "variants": {
+        "mobile": "demo.bar-de-ligne.mobile",
+        "ios": "demo.bar-de-ligne.ios"
+      }
+    },
+    {
+      "id": "demo.canette-aux-figues.web",
+      "kind": "dish",
+      "visibility": "public",
+      "format": "glb",
+      "bytes": 3434508,
+      "sha256": "d54f097eb527eb7292bcb8a7b333c86d40eea69457bde10f346141b745e5dbc0",
+      "version": "sha256-d54f097eb527eb7292bcb8a7b333c86d40eea69457bde10f346141b745e5dbc0",
+      "legacyUrl": "/models/demo/canette-aux-figues-meshopt-d54f097e.glb",
+      "publicUrl": null,
+      "variants": {
+        "mobile": "demo.canette-aux-figues.mobile",
+        "ios": "demo.canette-aux-figues.ios"
+      }
+    },
+    {
+      "id": "demo.canette-aux-figues.source",
+      "kind": "dish",
+      "visibility": "public",
+      "format": "glb",
+      "bytes": 2782652,
+      "sha256": "29b958f4ae9788fb1c8c9c8ffed5a5e9406a721937ff0ae17e5c143b0c62c7e0",
+      "version": "sha256-29b958f4ae9788fb1c8c9c8ffed5a5e9406a721937ff0ae17e5c143b0c62c7e0",
+      "legacyUrl": "/models/demo/canette-aux-figues-meshy.glb",
+      "publicUrl": null,
+      "variants": {
+        "mobile": "demo.canette-aux-figues.mobile",
+        "ios": "demo.canette-aux-figues.ios"
+      }
+    },
+    {
+      "id": "demo.homard-bisque.web",
+      "kind": "dish",
+      "visibility": "public",
+      "format": "glb",
+      "bytes": 4955904,
+      "sha256": "ee44bc6028b8dff1f7bedef686f995c6b3b51ac5298bcc55d8da31be65267874",
+      "version": "sha256-ee44bc6028b8dff1f7bedef686f995c6b3b51ac5298bcc55d8da31be65267874",
+      "legacyUrl": "/models/demo/homard-bisque-meshopt-ee44bc60.glb",
+      "publicUrl": null,
+      "variants": {
+        "mobile": "demo.homard-bisque.mobile",
+        "ios": "demo.homard-bisque.ios"
+      }
+    },
+    {
+      "id": "demo.homard-bisque.source",
+      "kind": "dish",
+      "visibility": "public",
+      "format": "glb",
+      "bytes": 3405480,
+      "sha256": "3f3fec43de7642d26acc7c9920a82a5c1c80a55c61857df1b7f3aef29f15bb1f",
+      "version": "sha256-3f3fec43de7642d26acc7c9920a82a5c1c80a55c61857df1b7f3aef29f15bb1f",
+      "legacyUrl": "/models/demo/homard-bisque-meshy.glb",
+      "publicUrl": null,
+      "variants": {
+        "mobile": "demo.homard-bisque.mobile",
+        "ios": "demo.homard-bisque.ios"
+      }
+    },
+    {
+      "id": "demo.maison-elyse-n1.web",
+      "kind": "dish",
+      "visibility": "public",
+      "format": "glb",
+      "bytes": 86380,
+      "sha256": "7f12cd7bc6f47ec97f6cef3b65c453bbef537aa7c095289899c51782e48eebef",
+      "version": "sha256-7f12cd7bc6f47ec97f6cef3b65c453bbef537aa7c095289899c51782e48eebef",
+      "legacyUrl": "/models/demo/maison-elyse-n1.glb",
+      "publicUrl": null,
+      "variants": {
+        "ios": "demo.maison-elyse-n1.ios"
+      }
+    },
+    {
+      "id": "demo.maison-elyse-n1.ios",
+      "kind": "dish",
+      "visibility": "public",
+      "format": "usdz",
+      "bytes": 208984,
+      "sha256": "0c3f6233e237cc27c26d0784927059ef0ea7ba15e83b92e9a472a3dd2961213a",
+      "version": "sha256-0c3f6233e237cc27c26d0784927059ef0ea7ba15e83b92e9a472a3dd2961213a",
+      "legacyUrl": "/models/demo/maison-elyse-n1.usdz",
+      "publicUrl": null
+    },
+    {
+      "id": "demo.pave-boeuf.web",
+      "kind": "dish",
+      "visibility": "public",
+      "format": "glb",
+      "bytes": 1774344,
+      "sha256": "9e10c3a6d937500e949add00c2cc5794606ebbe88b232307c8af5d682ca44350",
+      "version": "sha256-9e10c3a6d937500e949add00c2cc5794606ebbe88b232307c8af5d682ca44350",
+      "legacyUrl": "/models/demo/pave-boeuf-meshopt-9e10c3a6.glb",
+      "publicUrl": null,
+      "variants": {
+        "mobile": "demo.pave-boeuf.mobile",
+        "ios": "demo.pave-boeuf.ios"
+      }
+    },
+    {
+      "id": "demo.pave-boeuf.source",
+      "kind": "dish",
+      "visibility": "public",
+      "format": "glb",
+      "bytes": 1650004,
+      "sha256": "282e310b1ed020de886d16cefae3e95d6004381d53753d90e1d96891c3f1ee6e",
+      "version": "sha256-282e310b1ed020de886d16cefae3e95d6004381d53753d90e1d96891c3f1ee6e",
+      "legacyUrl": "/models/demo/pave-boeuf-meshy.glb",
+      "publicUrl": null,
+      "variants": {
+        "mobile": "demo.pave-boeuf.mobile",
+        "ios": "demo.pave-boeuf.ios"
+      }
+    },
+    {
+      "id": "demo.ravioles-chevre-miel.web",
+      "kind": "dish",
+      "visibility": "public",
+      "format": "glb",
+      "bytes": 3332584,
+      "sha256": "8a28933e66fd1c42d3dd3de9f7dbcbb7ae199eac6dd61a63e94a40bdf92d1a42",
+      "version": "sha256-8a28933e66fd1c42d3dd3de9f7dbcbb7ae199eac6dd61a63e94a40bdf92d1a42",
+      "legacyUrl": "/models/demo/ravioles-chevre-miel-meshopt-8a28933e.glb",
+      "publicUrl": null,
+      "variants": {
+        "mobile": "demo.ravioles-chevre-miel.mobile",
+        "ios": "demo.ravioles-chevre-miel.ios"
+      }
+    },
+    {
+      "id": "demo.ravioles-chevre-miel.source",
+      "kind": "dish",
+      "visibility": "public",
+      "format": "glb",
+      "bytes": 2861744,
+      "sha256": "32a4a2379313897c213cebc30b85f874791939681d1a23194019644cabbc025c",
+      "version": "sha256-32a4a2379313897c213cebc30b85f874791939681d1a23194019644cabbc025c",
+      "legacyUrl": "/models/demo/ravioles-chevre-miel-meshy.glb",
+      "publicUrl": null,
+      "variants": {
+        "mobile": "demo.ravioles-chevre-miel.mobile",
+        "ios": "demo.ravioles-chevre-miel.ios"
+      }
+    },
+    {
+      "id": "demo.souffle-chocolat.web",
+      "kind": "dish",
+      "visibility": "public",
+      "format": "glb",
+      "bytes": 1754380,
+      "sha256": "0ad050afaba40a739c0a2bc794e52a080125dc78072440d8ef0b0441093eee95",
+      "version": "sha256-0ad050afaba40a739c0a2bc794e52a080125dc78072440d8ef0b0441093eee95",
+      "legacyUrl": "/models/demo/souffle-chocolat-meshopt-0ad050af.glb",
+      "publicUrl": null,
+      "variants": {
+        "mobile": "demo.souffle-chocolat.mobile",
+        "ios": "demo.souffle-chocolat.ios"
+      }
+    },
+    {
+      "id": "demo.souffle-chocolat.source",
+      "kind": "dish",
+      "visibility": "public",
+      "format": "glb",
+      "bytes": 1672464,
+      "sha256": "74d8c3148ff87074df60d0a025b77b4f34704c950d6184d95ebb96fbf49aa8ea",
+      "version": "sha256-74d8c3148ff87074df60d0a025b77b4f34704c950d6184d95ebb96fbf49aa8ea",
+      "legacyUrl": "/models/demo/souffle-chocolat-meshy.glb",
+      "publicUrl": null,
+      "variants": {
+        "mobile": "demo.souffle-chocolat.mobile",
+        "ios": "demo.souffle-chocolat.ios"
+      }
+    },
+    {
+      "id": "demo.tartare-saumon.web",
+      "kind": "dish",
+      "visibility": "public",
+      "format": "glb",
+      "bytes": 5091112,
+      "sha256": "4b0b610c0ea76f646849f7b78daca6c29b57abe4538d223d823e43eebf3d6f01",
+      "version": "sha256-4b0b610c0ea76f646849f7b78daca6c29b57abe4538d223d823e43eebf3d6f01",
+      "legacyUrl": "/models/demo/tartare-saumon-meshopt-4b0b610c.glb",
+      "publicUrl": null,
+      "variants": {
+        "mobile": "demo.tartare-saumon.mobile",
+        "ios": "demo.tartare-saumon.ios"
+      }
+    },
+    {
+      "id": "demo.tartare-saumon.source",
+      "kind": "dish",
+      "visibility": "public",
+      "format": "glb",
+      "bytes": 3845704,
+      "sha256": "34c1bec2c03a016c819c44e6c3a12e5916240a6c03c2587dc867aadd40ad2549",
+      "version": "sha256-34c1bec2c03a016c819c44e6c3a12e5916240a6c03c2587dc867aadd40ad2549",
+      "legacyUrl": "/models/demo/tartare-saumon-meshy.glb",
+      "publicUrl": null,
+      "variants": {
+        "mobile": "demo.tartare-saumon.mobile",
+        "ios": "demo.tartare-saumon.ios"
+      }
+    },
+    {
+      "id": "demo.tarte-citron-basilic.web",
+      "kind": "dish",
+      "visibility": "public",
+      "format": "glb",
+      "bytes": 2494476,
+      "sha256": "2ab5b779e3122cb1090c3996825194d789e3102b83c9db693204a5d5026c1161",
+      "version": "sha256-2ab5b779e3122cb1090c3996825194d789e3102b83c9db693204a5d5026c1161",
+      "legacyUrl": "/models/demo/tarte-citron-basilic-meshopt-2ab5b779.glb",
+      "publicUrl": null,
+      "variants": {
+        "mobile": "demo.tarte-citron-basilic.mobile",
+        "ios": "demo.tarte-citron-basilic.ios"
+      }
+    },
+    {
+      "id": "demo.tarte-citron-basilic.source",
+      "kind": "dish",
+      "visibility": "public",
+      "format": "glb",
+      "bytes": 2226400,
+      "sha256": "ce12f630cba01f3e300c4cf28674ffefbbdcef6fed9a790069249bd2baf78254",
+      "version": "sha256-ce12f630cba01f3e300c4cf28674ffefbbdcef6fed9a790069249bd2baf78254",
+      "legacyUrl": "/models/demo/tarte-citron-basilic-meshy.glb",
+      "publicUrl": null,
+      "variants": {
+        "mobile": "demo.tarte-citron-basilic.mobile",
+        "ios": "demo.tarte-citron-basilic.ios"
+      }
+    }
+  ]
+}

@@ -1,3 +1,4 @@
+import { publicModelBaseUrl, resolvePublicModelUrl } from "../../lib/publicModelAssets.ts";
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 
@@ -11,7 +12,8 @@ export function createPhoneModel({
   const request = new AbortController();
   let disposed = false;
   canvas.dataset.phoneReady = "false";
-  fetch("/immersive-assets/phone/iphone_16_-_free.glb", { signal: request.signal })
+  const url = resolvePublicModelUrl("immersive.phone");
+  fetch(url, { signal: request.signal })
     .then((response) => {
       if (!response.ok)
         throw new Error(
@@ -21,7 +23,7 @@ export function createPhoneModel({
     })
     .then(async (buffer) => {
       if (disposed) return;
-      const gltf = await new GLTFLoader().parseAsync(buffer, "/immersive-assets/phone/");
+      const gltf = await new GLTFLoader().parseAsync(buffer, publicModelBaseUrl(url));
       const model = gltf.scene;
       if (disposed) {
         disposeTree(model);

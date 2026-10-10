@@ -352,6 +352,14 @@ jobs:
         env:
           CI_TEST_REPORT_PATH: ${{ github.workspace }}/.ci-test-report-landing.json
         run: npm run test:ci:e2e:landing
+      - name: Upload rendered landing evidence
+        if: ${{ always() && needs.classify-changes.outputs.run_landing == 'true' }}
+        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
+        with:
+          name: landing-rendered-${{ github.run_id }}
+          path: test-results/**/rendered-*.png
+          if-no-files-found: warn
+          retention-days: 7
       - name: Shared menu browser smoke
         if: ${{ !cancelled() && needs.classify-changes.outputs.run_menu == 'true' }}
         env:

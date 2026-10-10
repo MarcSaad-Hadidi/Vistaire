@@ -1,3 +1,4 @@
+import { publicModelBaseUrl, resolvePublicModelUrl } from "../../lib/publicModelAssets.ts";
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { DRACOLoader } from "three/examples/jsm/loaders/DRACOLoader.js";
@@ -41,7 +42,8 @@ export function createRestaurantModel(
       ) > 0.0001
     );
   });
-  const loading = fetch("/immersive-assets/restaurant/restaurant-evening.glb", {
+  const url = resolvePublicModelUrl("immersive.restaurant");
+  const loading = fetch(url, {
     signal: request.signal,
   })
     .then((response) => {
@@ -53,7 +55,7 @@ export function createRestaurantModel(
     })
     .then(async (buffer) => {
       if (disposed) return;
-      const gltf = await loader.parseAsync(buffer, "/immersive-assets/restaurant/");
+      const gltf = await loader.parseAsync(buffer, publicModelBaseUrl(url));
       const model = gltf.scene;
       if (disposed) {
         disposeTree(model);

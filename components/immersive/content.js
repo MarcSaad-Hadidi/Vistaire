@@ -1,3 +1,5 @@
+import { resolvePublicModelUrl } from "../../lib/publicModelAssets.ts";
+
 export const site = "https://www.vistaire.ca";
 export const collections = [
   {
@@ -40,7 +42,7 @@ export const collections = [
 export const dishes = [
   {
     id: "homard",
-    iosModel: "/immersive-assets/ar/homard.usdz",
+    iosModel: resolvePublicModelUrl("immersive.dish.homard.ios"),
     arWidthMeters: 0.26,
     label: "Homard bleu",
     name: "Homard bleu",
@@ -56,7 +58,7 @@ export const dishes = [
   },
   {
     id: "souffle",
-    iosModel: "/immersive-assets/ar/souffle.usdz",
+    iosModel: resolvePublicModelUrl("immersive.dish.souffle.ios"),
     arWidthMeters: 0.12,
     label: "Soufflé chocolat",
     name: "Soufflé chocolat",
@@ -72,7 +74,7 @@ export const dishes = [
   },
   {
     id: "huitres",
-    iosModel: "/immersive-assets/ar/huitres.usdz",
+    iosModel: resolvePublicModelUrl("immersive.dish.huitres.ios"),
     arWidthMeters: 0.1202,
     label: "Huîtres au kombu",
     name: "Huîtres au kombu",
@@ -83,12 +85,12 @@ export const dishes = [
     restaurant: "Sauge Noire",
     description:
       "Trois huîtres tièdes au kombu sont servies avec de la pomme verte, du beurre noisette et une huile de livèche.",
-    model: "/immersive-assets/dishes/huitres.glb",
+    model: resolvePublicModelUrl("immersive.dish.huitres.web"),
     allergens: "Mollusques, produits laitiers",
   },
   {
     id: "sushi",
-    iosModel: "/immersive-assets/ar/sushi.usdz",
+    iosModel: resolvePublicModelUrl("immersive.dish.sushi.ios"),
     arWidthMeters: 0.2602,
     label: "Plateau sushi Horizon",
     name: "Plateau sushi Horizon",
@@ -98,12 +100,12 @@ export const dishes = [
     category: "Voyage à l’assiette",
     restaurant: "Trouvable",
     description: "Une présentation à découvrir sous tous les angles.",
-    model: "/immersive-assets/dishes/sushi.glb",
+    model: resolvePublicModelUrl("immersive.dish.sushi.web"),
     allergens: null,
   },
   {
     id: "chocolat-fume",
-    iosModel: "/immersive-assets/ar/chocolat-fume.usdz",
+    iosModel: resolvePublicModelUrl("immersive.dish.chocolat-fume.ios"),
     arWidthMeters: 0.12,
     label: "Chocolat fumé",
     name: "Chocolat fumé",
@@ -114,12 +116,12 @@ export const dishes = [
     restaurant: "Sauge Noire",
     description:
       "Le chocolat noir à 70 % est servi avec de l’huile d’olive, du sel fumé et du grué de cacao.",
-    model: "/immersive-assets/dishes/chocolat-fume.glb",
+    model: resolvePublicModelUrl("immersive.dish.chocolat-fume.web"),
     allergens: null,
   },
   {
     id: "poutine",
-    iosModel: "/immersive-assets/ar/poutine.usdz",
+    iosModel: resolvePublicModelUrl("immersive.dish.poutine.ios"),
     arWidthMeters: 0.18,
     label: "Poutine du Vieux-Montréal",
     name: "Poutine du Vieux-Montréal",
@@ -129,12 +131,12 @@ export const dishes = [
     category: "Classiques réinventés",
     restaurant: "Trouvable",
     description: "Une présentation à découvrir sous tous les angles.",
-    model: "/immersive-assets/dishes/poutine.glb",
+    model: resolvePublicModelUrl("immersive.dish.poutine.web"),
     allergens: null,
   },
   {
     id: "burger",
-    iosModel: "/immersive-assets/ar/burger.usdz",
+    iosModel: resolvePublicModelUrl("immersive.dish.burger.ios"),
     arWidthMeters: 0.1549,
     label: "Burger signature",
     name: "Burger signature",
@@ -144,7 +146,7 @@ export const dishes = [
     category: "Classiques réinventés",
     restaurant: "Trouvable",
     description: "Une présentation à découvrir sous tous les angles.",
-    model: "/immersive-assets/dishes/burger.glb",
+    model: resolvePublicModelUrl("immersive.dish.burger.web"),
     allergens: null,
   },
 ];

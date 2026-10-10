@@ -1,3 +1,4 @@
+import { getPublicModelRedirects } from "./lib/publicModelAssets.ts";
 import { dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { NextConfig } from "next";
@@ -293,6 +294,7 @@ const nextConfig: NextConfig = {
   },
   async redirects() {
     return [
+      ...getPublicModelRedirects(),
       {
         source: "/carte-vistaire",
         destination: "/demo",
