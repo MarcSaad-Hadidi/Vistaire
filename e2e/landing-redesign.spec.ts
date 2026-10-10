@@ -186,16 +186,109 @@ async function waitForProcessedPose(page: Page, framesBeforeResize?: number, req
   }, { framesBeforeResize, requireGripFrame }, { timeout: 0 });
 }
 
-async function diagnosticSnapshot(page: Page) {
+async function diagnosticSnapshot(page: Page, expectedViewport?: { width: number; height: number }) {
   let timer: ReturnType<typeof setTimeout> | undefined;
   try {
     return await Promise.race([
-      page.evaluate(() => ({ scroll: scrollY, viewport: { width: innerWidth, height: innerHeight }, dataset: { ...document.querySelector<HTMLCanvasElement>('.scene-canvas')?.dataset } })),
+      page.evaluate(expectedViewport => {
+        const canvas = document.querySelector<HTMLCanvasElement>('.scene-canvas');
+        const root = getComputedStyle(document.documentElement);
+        const rect = (selector: string) => document.querySelector(selector)?.getBoundingClientRect().toJSON() ?? null;
+        return { scroll: scrollY, viewport: { width: innerWidth, height: innerHeight }, expectedViewport,
+          journeyVH: root.getPropertyValue('--vistaire-journey-vh'), sceneVH: root.getPropertyValue('--vistaire-scene-vh'),
+          world: rect('.world'), openingStage: rect('.opening-stage'), grip: rect('#grip'), gripStage: rect('#grip > .stage'), canvasRect: canvas?.getBoundingClientRect().toJSON() ?? null,
+          dataset: { ...canvas?.dataset } };
+      }, expectedViewport),
       new Promise<null>(resolve => { timer = setTimeout(() => resolve(null), 1_000); }),
     ]);
   } catch { return null; }
   finally { clearTimeout(timer); }
 }
+
+// Desktop Chromium viewport emulation has no physical browser toolbar. A
+// requested height must reach the frozen CSS references before a scroll target
+// is computed; width may be observed before the frozen height catches up.
+async function waitForViewportLayout(page: Page, expected: { width: number; height: number }) {
+  await page.waitForFunction(({ width, height }) => {
+    const root = getComputedStyle(document.documentElement);
+    const world = document.querySelector<HTMLElement>('.world');
+    const stage = document.querySelector<HTMLElement>('.opening-stage');
+    const canvas = document.querySelector<HTMLCanvasElement>('.scene-canvas');
+    return innerWidth === width && innerHeight === height && world && stage && canvas
+      && [parseFloat(root.getPropertyValue('--vistaire-journey-vh')) * 100,
+        parseFloat(root.getPropertyValue('--vistaire-scene-vh')) * 100,
+        world.getBoundingClientRect().height, stage.getBoundingClientRect().height,
+        canvas.clientHeight, Number(canvas.dataset.processedViewportHeight)]
+        .every(value => Number.isFinite(value) && Math.abs(value - height) < 0.1)
+      && canvas.clientWidth === width && Number(canvas.dataset.processedViewportWidth) === width
+      && canvas.dataset.processedViewportRevision === canvas.dataset.viewportResizes;
+  }, expected, { timeout: 15_000 });
+}
+
+renderedTest.describe('optional scene framing diagnostics (Chromium software WebGL)', () => {
+  renderedTest.skip(({ browserName }) => browserName !== 'chromium', 'SwiftShader verification uses Chromium');
+
+  renderedTest('default rendering skips hulls while delayed QA hulls do not block readiness', async ({ page }) => {
+    renderedTest.setTimeout(240_000);
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    const requests: string[] = [];
+    page.on('request', request => {
+      if (new URL(request.url()).pathname === '/immersive-assets/dishes/framing-hulls.json') requests.push(request.url());
+    });
+    await page.goto('/', { waitUntil: 'domcontentloaded' });
+    const canvas = page.locator('.scene-canvas');
+    await expect(canvas).toHaveAttribute('data-ready', 'true', { timeout: 120_000 });
+    await expect(canvas).toHaveAttribute('data-rendered-model', 'homard');
+    await expect(canvas).toHaveAttribute('data-framing-ready', 'disabled');
+    await expect(canvas).not.toHaveAttribute('data-dish-bounds', /.+/);
+    await expect(canvas).not.toHaveAttribute('data-focus-bounds', /.+/);
+    await expect(page.locator('.world-fallback')).toHaveCount(0);
+    expect(requests).toEqual([]);
+
+    let releaseHull!: () => void;
+    const released = new Promise<void>(resolve => { releaseHull = resolve; });
+    await page.route('**/immersive-assets/dishes/framing-hulls.json', async route => {
+      await released;
+      await route.continue();
+    });
+    try {
+      await page.goto('/?sceneDiagnostics=1', { waitUntil: 'domcontentloaded' });
+      await expect(canvas).toHaveAttribute('data-ready', 'true', { timeout: 120_000 });
+      await expect(canvas).toHaveAttribute('data-rendered-model', 'homard');
+      await expect(page.locator('.preloader')).toHaveCount(0);
+      await expect(page.locator('.world-fallback')).toHaveCount(0);
+      await expect(canvas).toHaveAttribute('data-framing-ready', 'false');
+      expect(requests).toHaveLength(1);
+      await expect(canvas).not.toHaveAttribute('data-dish-bounds', /.+/);
+      releaseHull();
+      await expect(canvas).toHaveAttribute('data-framing-ready', 'true', { timeout: 60_000 });
+      // Ready describes the fetch; a later rendered update publishes the bounds.
+      await expect(canvas).toHaveAttribute('data-dish-bounds', /^\{/, { timeout: 60_000 });
+      await expect(canvas).toHaveAttribute('data-focus-bounds', /^\{/);
+      expect(requests).toHaveLength(1);
+    } finally { releaseHull(); }
+  });
+
+  renderedTest('a rejected QA hull stays diagnostic-only while the real scene renders', async ({ page }) => {
+    renderedTest.setTimeout(180_000);
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    const errors: string[] = [];
+    page.on('pageerror', error => errors.push(error.message));
+    await page.route('**/immersive-assets/dishes/framing-hulls.json', route => route.fulfill({ status: 503, contentType: 'application/json', body: '{}' }));
+    await page.goto('/?sceneDiagnostics=1', { waitUntil: 'domcontentloaded' });
+    const canvas = page.locator('.scene-canvas');
+    await expect(canvas).toHaveAttribute('data-ready', 'true', { timeout: 120_000 });
+    await expect(canvas).toHaveAttribute('data-framing-ready', 'error');
+    await expect(canvas).toHaveAttribute('data-framing-error', /.+/);
+    await expect(canvas).toHaveAttribute('data-rendered-model', 'homard');
+    await expect(page.locator('.preloader')).toHaveCount(0);
+    await expect(page.locator('.world-fallback')).toHaveCount(0);
+    await expect(canvas).not.toHaveAttribute('data-dish-bounds', /.+/);
+    expect(errors).toEqual([]);
+  });
+});
 
 renderedTest.describe('rendered scroll choreography (Chromium software WebGL)', () => {
   renderedTest.skip(({ browserName }) => browserName !== 'chromium', 'SwiftShader verification uses Chromium');
@@ -216,6 +309,7 @@ renderedTest.describe('rendered scroll choreography (Chromium software WebGL)', 
       await page.goto(`${path}?sceneDiagnostics=1`, { waitUntil: 'domcontentloaded' });
       const canvas = page.locator('.scene-canvas');
       await expect(canvas).toHaveAttribute('data-ready', 'true', { timeout: 120_000 });
+      await expect(canvas).toHaveAttribute('data-framing-ready', 'true', { timeout: 60_000 });
       await expect(canvas).toHaveAttribute('data-laptop-ready', 'true', { timeout: 60_000 });
       await expect(page.locator('.world-fallback')).toHaveCount(0);
       await page.evaluate(() => document.fonts.ready);
@@ -445,30 +539,33 @@ renderedTest.describe('complete-food zoom fit (Chromium software WebGL)', () => 
       await page.goto(`${path}?sceneDiagnostics=1`, { waitUntil: 'domcontentloaded' });
       const canvas = page.locator('.scene-canvas');
       await expect(canvas).toHaveAttribute('data-ready', 'true', { timeout: 120_000 });
+      await expect(canvas).toHaveAttribute('data-framing-ready', 'true', { timeout: 60_000 });
       await expect(canvas).toHaveAttribute('data-laptop-ready', 'true', { timeout: 60_000 });
       await expect(page.locator('.preloader')).toHaveCount(0);
+      let expectedViewport: { width: number; height: number } = viewport;
       const atGrip = async (framesBeforeResize?: number) => {
+        await waitForViewportLayout(page, expectedViewport);
         await page.locator('#grip').evaluate(el => {
           scrollTo({ top: el.getBoundingClientRect().top + scrollY + ((el as HTMLElement).offsetHeight - el.firstElementChild!.clientHeight) / 2, behavior: 'instant' });
         });
         await waitForProcessedPose(page, framesBeforeResize, true);
         await expect(canvas).toHaveAttribute('data-section', 'grip');
       };
-      type Fit = { model: string | undefined; frame: { x: number; y: number; width: number; height: number }; food: { x: number; y: number; width: number; height: number } | null; scale: number; requested: number; fitted: number; meshScale: string | undefined; quaternion: string | undefined; width: number; height: number; dataset: Record<string, string | undefined> };
+      type Fit = { model: string | undefined; frame: { x: number; y: number; width: number; height: number }; food: { x: number; y: number; width: number; height: number } | null; scale: number; requested: number; fitted: number; meshScale: string | undefined; quaternion: string | undefined; width: number; height: number; viewport: { width: number; height: number }; canvasRect: { x: number; y: number; width: number; height: number }; dataset: Record<string, string | undefined> };
       const hullsByUrl = JSON.parse(readFileSync('public/immersive-assets/dishes/framing-hulls.json', 'utf8')).byUrl as Record<string, { id: string; vertices: [number, number, number][] }>;
       const desktopFootprints: Record<string, number> = { homard: 1.75, souffle: 1.65, huitres: 1.5, sushi: 2, 'chocolat-fume': 1.5, poutine: 1.75, burger: 1.1 };
       const samples: { scenario: string; fit: Fit; minimumFoodY?: number }[] = [];
       let phase = 'initial';
       let lastDiagnostic: Awaited<ReturnType<typeof diagnosticSnapshot>> = null;
       const artifact = testInfo.outputPath('rendered-zoom-fit-telemetry.json');
-      const saveTelemetry = () => writeFile(artifact, JSON.stringify({ renderer: 'Chromium SwiftShader', phase, lastDiagnostic, errors, samples }, null, 2));
+      const saveTelemetry = () => writeFile(artifact, JSON.stringify({ renderer: 'Chromium SwiftShader', phase, expectedViewport, lastDiagnostic, errors, samples }, null, 2));
       const capture = async (count = 1, reset = false) => canvas.evaluate(async (el, { count, reset }) => {
         const result = [];
         if (reset) document.querySelector<HTMLButtonElement>('.reset-dish')!.click();
         for (let i = 0; i < count; i++) {
           await new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
           const d = (el as HTMLCanvasElement).dataset;
-          result.push({ model: d.renderedModel, frame: JSON.parse(d.focusBounds!), food: JSON.parse(d.dishBounds ?? 'null'), scale: Number(d.dishScale?.split(',')[0]), requested: Number(d.cameraDolly), fitted: Number(d.fittedZoom), meshScale: d.dishMeshScale, quaternion: d.dishQuaternion, width: el.clientWidth, height: el.clientHeight, dataset: { ...d } });
+          result.push({ model: d.renderedModel, frame: JSON.parse(d.focusBounds!), food: JSON.parse(d.dishBounds ?? 'null'), scale: Number(d.dishScale?.split(',')[0]), requested: Number(d.cameraDolly), fitted: Number(d.fittedZoom), meshScale: d.dishMeshScale, quaternion: d.dishQuaternion, width: el.clientWidth, height: el.clientHeight, viewport: { width: innerWidth, height: innerHeight }, canvasRect: el.getBoundingClientRect().toJSON(), dataset: { ...d } });
         }
         return result;
       }, { count, reset }) as Promise<Fit[]>;
@@ -500,6 +597,13 @@ renderedTest.describe('complete-food zoom fit (Chromium software WebGL)', () => 
         expect(fit.food.x + fit.food.width, `${scenario}: right`).toBeLessThanOrEqual(fit.frame.x + fit.frame.width + 2);
         expect(fit.food.y + fit.food.height, `${scenario}: bottom`).toBeLessThanOrEqual(fit.frame.y + fit.frame.height + 2);
         if (!scenario.startsWith('chapter-handoff:')) {
+          expect(fit.viewport, `${scenario}: requested viewport is current`).toEqual(expectedViewport);
+          const scaleX = fit.canvasRect.width / fit.width;
+          const scaleY = fit.canvasRect.height / fit.height;
+          expect(fit.canvasRect.x + fit.food.x * scaleX, `${scenario}: viewport left`).toBeGreaterThanOrEqual(-2);
+          expect(fit.canvasRect.y + fit.food.y * scaleY, `${scenario}: viewport top`).toBeGreaterThanOrEqual(-2);
+          expect(fit.canvasRect.x + (fit.food.x + fit.food.width) * scaleX, `${scenario}: viewport right`).toBeLessThanOrEqual(fit.viewport.width + 2);
+          expect(fit.canvasRect.y + (fit.food.y + fit.food.height) * scaleY, `${scenario}: viewport bottom`).toBeLessThanOrEqual(fit.viewport.height + 2);
           expect(fit.frame.height, `${scenario}: meaningful food frame`).toBeGreaterThanOrEqual(120);
           expect(fit.food.height, `${scenario}: food remains visible`).toBeGreaterThan(12);
           expect(fit.food.width, `${scenario}: food remains visible`).toBeGreaterThan(12);
@@ -568,6 +672,7 @@ renderedTest.describe('complete-food zoom fit (Chromium software WebGL)', () => 
         for (const size of viewport.width < 768 ? [{ width: 430, height: 932 }, { width: 844, height: 390 }, viewport] : [{ width: 1337, height: 591 }, viewport]) {
           phase = `resize:${size.width}x${size.height}`;
           const framesBeforeResize = Number(await canvas.getAttribute('data-frames'));
+          expectedViewport = size;
           await page.setViewportSize(size);
           await atGrip(framesBeforeResize);
           for (const fit of await capture()) check(fit, `resize:${size.width}x${size.height}`);
@@ -584,7 +689,7 @@ renderedTest.describe('complete-food zoom fit (Chromium software WebGL)', () => 
         expect(errors).toEqual([]);
       } finally {
         // Preserve the violating fit or last completed pose on assertions/timeouts.
-        lastDiagnostic = await diagnosticSnapshot(page);
+        lastDiagnostic = await diagnosticSnapshot(page, expectedViewport);
         await saveTelemetry();
       }
     });

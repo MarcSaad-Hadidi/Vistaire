@@ -1,6 +1,8 @@
 import { writeFile } from "node:fs/promises";
 import { expect, test, type Request, type Response } from "@playwright/test";
 
+test.use({ trace: "retain-on-failure" });
+
 const MODEL_REQUEST =
   /(?:\.(?:glb|usdz)(?:$|[?#])|\/model\/(?:glb|usdz)(?:\/|$|[?#])|model-viewer)/i;
 
@@ -33,7 +35,6 @@ for (const scenario of DISCOVERY_ROUTES) {
   }));
   test.describe(`${scenario.language} restaurant discovery`, () => {
     test.setTimeout(90_000);
-    test.use({ trace: "retain-on-failure" });
     test("presents three real experiences without previews, early models or mobile overflow", async ({ page }, testInfo) => {
       const errors: string[] = [];
       const unexpectedRequests: string[] = [];

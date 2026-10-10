@@ -805,22 +805,29 @@ export default function Scene({
     const hullWorldMatrix = new THREE.Matrix4();
     const hullScale = new THREE.Vector3();
     let framingHulls = {};
-    const hullRequest = new AbortController();
-    canvas.dataset.framingReady = "false";
-    fetch("/immersive-assets/dishes/framing-hulls.json", { signal: hullRequest.signal })
-      .then((response) => {
-        if (!response.ok)
-          throw new Error("Le cadrage des plats ne peut pas être chargé.");
-        return response.json();
-      })
-      .then((data) => {
-        if (disposed) return;
-        framingHulls = indexPublicModelFramingHulls(data.byUrl);
-        canvas.dataset.framingReady = "true";
-      })
-      .catch((error) => {
-        if (!disposed && error.name !== "AbortError") fail(error);
-      });
+    const hullRequest = diagnosticsEnabled ? new AbortController() : null;
+    canvas.dataset.framingReady = diagnosticsEnabled ? "false" : "disabled";
+    if (diagnosticsEnabled) {
+      fetch("/immersive-assets/dishes/framing-hulls.json", { signal: hullRequest.signal })
+        .then((response) => {
+          if (!response.ok)
+            throw new Error("Le cadrage des plats ne peut pas être chargé.");
+          return response.json();
+        })
+        .then((data) => {
+          if (disposed) return;
+          framingHulls = indexPublicModelFramingHulls(data.byUrl);
+          canvas.dataset.framingReady = "true";
+          // Functional readiness may already have settled the scene. Publish
+          // the requested QA bounds on the next existing render-loop update.
+          renderSignature = "";
+        })
+        .catch((error) => {
+          if (disposed || error.name === "AbortError") return;
+          canvas.dataset.framingReady = "error";
+          canvas.dataset.framingError = error.message || String(error);
+        });
+    }
     scene.add(dishRoot);
     const foodDraco = new DRACOLoader()
       .setDecoderPath("/immersive-assets/draco/")
@@ -1354,50 +1361,52 @@ export default function Scene({
       );
       camera.updateMatrixWorld(true);
       const viewport = { width: viewportWidth, height: viewportHeight };
-      const rectangles = [];
-      for (const [name, root] of [
-        ["dish", dishRoot],
-        ["support", supportRoot],
-        ["phone", phoneRoot],
-        ["laptop", laptopRoot],
-      ]) {
-        if (!root.visible || (name === "support" && !supportAssets.active)) {
-          delete canvas.dataset[`${name}Bounds`];
-          continue;
+      if (diagnosticsEnabled && canvas.dataset.framingReady === "true") {
+        const rectangles = [];
+        for (const [name, root] of [
+          ["dish", dishRoot],
+          ["support", supportRoot],
+          ["phone", phoneRoot],
+          ["laptop", laptopRoot],
+        ]) {
+          if (!root.visible || (name === "support" && !supportAssets.active)) {
+            delete canvas.dataset[`${name}Bounds`];
+            continue;
+          }
+          root.updateWorldMatrix(true, false);
+          const hull = name === "dish" && framingHulls[activeModelAssetId]?.vertices;
+          const bounds = hull
+            ? projectHullBounds(
+                hull,
+                hullWorldMatrix
+                  .copy(root.matrixWorld)
+                  .scale(hullScale.setScalar(dishDisplayScale)),
+                camera,
+                viewport,
+              )
+            : projectObjectBounds(
+                name === "support" ? supportAssets.active : root,
+                camera,
+                viewport,
+              );
+          if (bounds) {
+            rectangles.push(bounds);
+            canvas.dataset[`${name}Bounds`] = JSON.stringify(bounds);
+          } else delete canvas.dataset[`${name}Bounds`];
         }
-        root.updateWorldMatrix(true, false);
-        const hull = name === "dish" && framingHulls[activeModelAssetId]?.vertices;
-        const bounds = hull
-          ? projectHullBounds(
-              hull,
-              hullWorldMatrix
-                .copy(root.matrixWorld)
-                .scale(hullScale.setScalar(dishDisplayScale)),
-              camera,
-              viewport,
-            )
-          : projectObjectBounds(
-              name === "support" ? supportAssets.active : root,
-              camera,
-              viewport,
-            );
-        if (bounds) {
-          rectangles.push(bounds);
-          canvas.dataset[`${name}Bounds`] = JSON.stringify(bounds);
-        } else delete canvas.dataset[`${name}Bounds`];
+        const subjectBounds = unionScreenBounds(rectangles);
+        if (subjectBounds)
+          canvas.dataset.subjectBounds = JSON.stringify(subjectBounds);
+        else delete canvas.dataset.subjectBounds;
+        if (focus)
+          canvas.dataset.focusBounds = JSON.stringify({
+            x: (renderFocus.x - renderFocus.width / 2) * viewportWidth,
+            y: (renderFocus.y - renderFocus.height / 2) * viewportHeight,
+            width: renderFocus.width * viewportWidth,
+            height: renderFocus.height * viewportHeight,
+          });
+        else delete canvas.dataset.focusBounds;
       }
-      const subjectBounds = unionScreenBounds(rectangles);
-      if (subjectBounds)
-        canvas.dataset.subjectBounds = JSON.stringify(subjectBounds);
-      else delete canvas.dataset.subjectBounds;
-      if (focus)
-        canvas.dataset.focusBounds = JSON.stringify({
-          x: (renderFocus.x - renderFocus.width / 2) * viewportWidth,
-          y: (renderFocus.y - renderFocus.height / 2) * viewportHeight,
-          width: renderFocus.width * viewportWidth,
-          height: renderFocus.height * viewportHeight,
-        });
-      else delete canvas.dataset.focusBounds;
       canvas.dataset.cameraZoom = String(camera.zoom);
       canvas.dataset.cameraFov = String(camera.fov);
       canvas.dataset.cameraDolly = String(projectionState.dolly);
@@ -1832,7 +1841,6 @@ export default function Scene({
         if (
           !ready &&
           activeDish &&
-          canvas.dataset.framingReady === "true" &&
           canvas.dataset.supportReady === "true" &&
           canvas.dataset.phoneReady === "true" &&
           stoneReady &&
@@ -1923,7 +1931,7 @@ export default function Scene({
       disposed = true;
       cancelAnimationFrame(frame);
       assetRequest?.abort();
-      hullRequest.abort();
+      hullRequest?.abort();
       canvas.removeEventListener("webglcontextlost", contextLost);
       sizeObserver.disconnect();
       window.removeEventListener("resize", resize);
