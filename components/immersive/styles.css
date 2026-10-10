@@ -1284,13 +1284,13 @@
   grid-template-rows: minmax(400px, calc(58 * var(--journey-vh))) auto auto auto;
   gap: 30px;
   padding-bottom: 28px;
-  background: linear-gradient(180deg, #11111026, var(--public-black) 700px);
+  background: linear-gradient(180deg, #11111026, #111110b8 500px);
 }
 :where([data-immersive-vistaire]) .footer [data-footer-navigation] {
   grid-row: 2;
   margin-inline: calc(-1 * var(--pad));
   padding-inline: var(--pad);
-  background: var(--public-black);
+  background: transparent;
 }
 :where([data-immersive-vistaire]) .footer-place {
   margin: 12px 0 4px;
@@ -3220,8 +3220,7 @@ html[data-vistaire-theme="light"] :where([data-immersive-vistaire]) :is(.header-
   color: var(--public-on-accent);
 }
 html[data-vistaire-theme="light"] :where([data-immersive-vistaire]) .footer .stage {
-  background: linear-gradient(90deg, #f7f3e9fa, #f7f3e9ed 40%, #f7f3e91a 68%),
-    linear-gradient(180deg, transparent 300px, #f7f3e9 700px);
+  background: linear-gradient(90deg, #f7f3e9ef, #f7f3e9e6 68%);
 }
 html[data-vistaire-theme="light"] :where([data-immersive-vistaire]) .footer .action {
   border-color: var(--public-gold);
@@ -3229,7 +3228,7 @@ html[data-vistaire-theme="light"] :where([data-immersive-vistaire]) .footer .act
 }
 @media (max-width: 767.98px) {
   html[data-vistaire-theme="light"] :where([data-immersive-vistaire]) .footer .stage {
-    background: linear-gradient(180deg, #f7f3e9 0, #f7f3e9f5 250px, #f7f3e91a 380px, #f7f3e9 550px);
+    background: linear-gradient(180deg, #f7f3e9e6 0, #f7f3e9e6 250px, #f7f3e91a 380px, #f7f3e9e6 500px);
   }
 }
 

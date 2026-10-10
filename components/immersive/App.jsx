@@ -368,15 +368,13 @@ function LandingContent() {
   const [flip, setFlip] = useState(false);
   const [drag, setDrag] = useState(0.5);
   const [dishZoom, setDishZoom] = useState(1);
-  const [fittedDishZoom, setFittedDishZoom] = useState({ requested: 1, zoom: 1 });
-  const [dishPitch, setDishPitch] = useState(0);
+  const [fittedDishZoom, setFittedDishZoom] = useState({ requested: 1, zoom: 1, max: 4 });
+  const maxDishZoom = gpuError ? 4 : fittedDishZoom.max;
   const dishGestures = useModelGesture({
     angle: drag,
-    pitch: dishPitch,
     zoom: dishZoom,
     onAngle: setDrag,
-    onPitch: setDishPitch,
-    onZoom: setDishZoom,
+    onZoom: value => setDishZoom(Math.max(0.6, Math.min(maxDishZoom, value))),
   });
   const [dish, setDish] = useState(initialDish);
   const [arStatus, setARStatus] = useState("idle");
@@ -757,7 +755,6 @@ function LandingContent() {
       flip,
       drag,
       dishZoom,
-      dishPitch,
       dish,
       reducedMotion: reduce,
       modalOpen: Boolean(modal),
@@ -772,7 +769,6 @@ function LandingContent() {
     flip,
     drag,
     dishZoom,
-    dishPitch,
     dish,
     reduce,
     modal,
@@ -915,7 +911,10 @@ function LandingContent() {
               onAssetError={setModelError}
               onAssetLoading={setModelLoading}
               onARStatus={setARStatus}
-              onZoomFit={setFittedDishZoom}
+              onZoomFit={fit => {
+                setFittedDishZoom(fit);
+                setDishZoom(zoom => Math.min(zoom, fit.max));
+              }}
             />
           )}
         </Suspense>
@@ -1298,7 +1297,6 @@ function LandingContent() {
                   onClick={() => {
                     setDish(x.id);
                     setDishZoom(1);
-                    setDishPitch(0);
                     setDrag(0.5);
                   }}
                 >
@@ -1370,9 +1368,9 @@ function LandingContent() {
               <output aria-live="polite">{Math.round((gpuError || fittedDishZoom.requested !== dishZoom ? dishZoom : fittedDishZoom.zoom) * 100)} %</output>
               <button
                 aria-label={t("Zoomer le plat")}
-                disabled={dishZoom >= 4 || (!gpuError && fittedDishZoom.requested === dishZoom && fittedDishZoom.zoom < dishZoom - 0.03)}
+                disabled={dishZoom >= maxDishZoom}
                 onClick={() =>
-                  setDishZoom((z) => Math.min(4, +(z + 0.2).toFixed(1)))
+                  setDishZoom((z) => Math.min(maxDishZoom, +(z + 0.2).toFixed(1)))
                 }
               >
                 +
@@ -1383,7 +1381,6 @@ function LandingContent() {
                 onClick={() => {
                   setDishZoom(1);
                   setDrag(0.5);
-                  setDishPitch(0);
                 }}
               >
                 <RotateCw size={15} />

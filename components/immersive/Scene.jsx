@@ -5,7 +5,7 @@ import {
   resolvePublicModelUrl,
 } from "../../lib/publicModelAssets.ts";
 import { cinematicEase, chapterPhase, continuousComposition, interpolatePose, interpolatePoseTrack, DEFAULT_SCENE_FRAME } from "./SceneDirector.js";
-import { cameraDollyPose, minimumDollyDistance } from "./CameraDolly.js";
+import { cameraDollyPose, minimumDollyDistance, dishCylinderCorners } from "./CameraDolly.js";
 import {
   projectHullBounds,
   projectObjectBounds,
@@ -188,7 +188,7 @@ function baseComposition(state, mobile) {
         dish: [0, 0.2, 0],
         dishScale: mobile ? 0.98 : 1,
         dishRotation: [
-          0.1 + (state.dishPitch || 0),
+          0.1,
           (clamp(state.drag ?? 0.5, 0, 1) - 0.5) * Math.PI * 2,
           0,
         ],
@@ -874,7 +874,8 @@ export default function Scene({
     let foodMaterials = [];
     let dishDisplayScale = 1;
     const dishLocalBounds = new THREE.Box3();
-    const dishZoomCenter = new THREE.Vector3();
+    let dishFramingRadius = 0;
+    const dishFramingPoint = new THREE.Vector3();
     const dishZoomCorner = new THREE.Vector3();
     let activeModelAssetId = "";
     const hullWorldMatrix = new THREE.Matrix4();
@@ -988,10 +989,18 @@ export default function Scene({
           );
           activeDish.updateMatrixWorld(true);
           // Store the normalized geometry once. Zoom changes the camera, never
-          // this mesh scale or the shared default framing across dish choices.
+          // this mesh scale. The grip framing is fixed for each selected scan.
           dishLocalBounds.setFromObject(activeDish);
+          dishFramingRadius = 0;
           activeDish.traverse((object) => {
             if (!object.isMesh) return;
+            // One pass over the already loaded scan, never a diagnostic asset
+            // request or a per-frame vertex scan. A box diagonal overfits plates.
+            const positions = object.geometry.getAttribute("position");
+            for (let i = 0; i < positions.count; i++) {
+              dishFramingPoint.fromBufferAttribute(positions, i).applyMatrix4(object.matrixWorld);
+              dishFramingRadius = Math.max(dishFramingRadius, Math.hypot(dishFramingPoint.x, dishFramingPoint.z));
+            }
             object.castShadow = false;
             object.receiveShadow = true;
             for (const material of Array.isArray(object.material)
@@ -1186,7 +1195,6 @@ export default function Scene({
           progress: 0,
           openingProgress: openingP,
           drag: 0.5,
-          dishPitch: 0,
           flip: false,
           supportAngle: 0,
         },
@@ -1234,7 +1242,10 @@ export default function Scene({
             bounds.union(
               laptopAsset.framingBounds.clone().applyMatrix4(root.matrixWorld),
             );
-          else if (name === "dish" && ["features", "grip"].includes(section)) {
+          else if (name === "dish" && section === "grip" && activeDish) {
+            for (const point of dishCylinderCorners(dishLocalBounds, dishFramingRadius,
+              root.position, root.quaternion, root.scale.x)) bounds.expandByPoint(corner.fromArray(point));
+          } else if (name === "dish" && ["features", "grip"].includes(section)) {
             // A shared reference keeps table scale and lens distance stable
             // across dish selection; fitting each live model would enlarge
             // smaller portions again and make the table visibly breathe.
@@ -1275,6 +1286,7 @@ export default function Scene({
       let distance = new THREE.Vector3()
         .fromArray(pose.camera)
         .distanceTo(new THREE.Vector3().fromArray(pose.look));
+      const authoredDistance = distance;
       if (!bounds.isEmpty()) {
         referenceCamera.aspect = camera.aspect;
         referenceCamera.zoom = 1;
@@ -1306,6 +1318,9 @@ export default function Scene({
       const e = bounds.isEmpty()
         ? { minX: 0, maxX: 0, minY: 0, maxY: 0 }
         : projectedExtent(bounds, referenceCamera);
+      const minimumDistance = distance;
+      if (section === "grip" && activeDish)
+        distance = Math.max(authoredDistance, minimumDistance * 1.2);
       const result = {
         camera: center.clone().addScaledVector(direction, distance).toArray(),
         look: center.toArray(),
@@ -1313,6 +1328,10 @@ export default function Scene({
         shiftX: (e.maxX + e.minX) / 4,
         shiftY: (e.maxY + e.minY) / 4,
         dishOpacity: 1,
+        ...(section === "grip" && activeDish ? {
+          minimumDistance,
+          zoomMax: Math.max(1.2, Math.min(4, Math.floor(distance / minimumDistance * 100) / 100)),
+        } : {}),
       };
       calibrations.set(key, result);
       return result;
@@ -1349,7 +1368,7 @@ export default function Scene({
         viewportHeight = canvas.clientHeight;
       const desired = cameraComposition(state);
       const zoomFor = (section) =>
-        section === "grip" ? clamp(state.dishZoom || 1, 0.6, 4) : 1;
+        section === "grip" ? clamp(state.dishZoom || 1, 0.6, desired.zoomMax ?? 4) : 1;
       const zoom = state.transition
         ? THREE.MathUtils.lerp(
             zoomFor(state.transition.from),
@@ -1358,25 +1377,20 @@ export default function Scene({
           )
         : zoomFor(state.section);
       const targetFocus = focus || fallbackFocus;
-      let zoomLook = desired.look;
-      let minimumDistance = camera.near * 2;
+      const zoomLook = desired.look;
+      let minimumDistance = state.section === "grip" && !state.transition
+        ? desired.minimumDistance ?? camera.near * 2 : camera.near * 2;
       const zoomCorners = [];
       const foodFrame = state.section === "grip" ||
         state.transition?.from === "grip" || state.transition?.to === "grip";
-      // Pitch clearance can raise the food above the shared reference pose,
-      // even at default zoom. Fit that visible food in the same physical lens.
+      // A transformed cylinder contains the full scan, including transitional
+      // tilt, but its bounds never change under the interactive yaw rotation.
       if ((foodFrame || zoom > 1 || projectionState?.dolly > 1) && activeDish && dishRoot.visible) {
-        dishRoot.updateWorldMatrix(true, false);
-        dishLocalBounds.getCenter(dishZoomCenter).applyMatrix4(dishRoot.matrixWorld);
-        const aim = smooth(Math.min(1, zoom - 1));
-        zoomLook = desired.look.map((v, i) => THREE.MathUtils.lerp(v, dishZoomCenter.getComponent(i), aim));
-        for (const x of [dishLocalBounds.min.x, dishLocalBounds.max.x])
-          for (const y of [dishLocalBounds.min.y, dishLocalBounds.max.y])
-            for (const z of [dishLocalBounds.min.z, dishLocalBounds.max.z])
-              zoomCorners.push(dishZoomCorner.set(x, y, z).applyMatrix4(dishRoot.matrixWorld).toArray());
-        minimumDistance = minimumDollyDistance(zoomCorners,
+        zoomCorners.push(...dishCylinderCorners(dishLocalBounds, dishFramingRadius,
+          dishRoot.position, dishRoot.quaternion, dishRoot.scale.x));
+        minimumDistance = Math.max(minimumDistance, minimumDollyDistance(zoomCorners,
           desired.camera.map((v, i) => v + zoomLook[i] - desired.look[i]), zoomLook,
-          { ...targetFocus, fov: camera.fov, aspect: camera.aspect, near: camera.near, shiftX: desired.shiftX, shiftY: desired.shiftY });
+          { ...targetFocus, fov: camera.fov, aspect: camera.aspect, near: camera.near, shiftX: desired.shiftX, shiftY: desired.shiftY }));
       }
       const zoomCamera = desired.camera.map(
         (v, i) => v + zoomLook[i] - desired.look[i],
@@ -1488,14 +1502,17 @@ export default function Scene({
       canvas.dataset.cameraZoom = String(camera.zoom);
       canvas.dataset.cameraFov = String(camera.fov);
       canvas.dataset.cameraDolly = String(projectionState.dolly);
+      if (state.section === "grip" && desired.zoomMax)
+        canvas.dataset.zoomMax = String(desired.zoomMax);
       const fittedZoom = projectionState.baselineDistance / camera.position.distanceTo(new THREE.Vector3().fromArray(projectionState.look));
       canvas.dataset.fittedZoom = String(fittedZoom);
       canvas.dataset.zoomFitLimited = String(fittedZoom < zoom - 0.01);
       const visibleZoom = Math.round(dolly.baselineDistance / dolly.distance * 100) / 100;
-      const zoomNotice = `${zoom}:${visibleZoom}`;
+      const requestedZoom = state.dishZoom || 1;
+      const zoomNotice = `${requestedZoom}:${visibleZoom}:${desired.zoomMax}`;
       if (state.section === "grip" && !state.transition && zoomNotice !== notifiedZoom) {
         notifiedZoom = zoomNotice;
-        callbacks.current.onZoomFit?.({ requested: zoom, zoom: visibleZoom });
+        callbacks.current.onZoomFit?.({ requested: requestedZoom, zoom: visibleZoom, max: desired.zoomMax ?? 4 });
       }
       canvas.dataset.cameraDistance = String(
         camera.position.distanceTo(
@@ -1594,6 +1611,7 @@ export default function Scene({
           activeDish.position.multiplyScalar(ratio);
           dishLocalBounds.min.multiplyScalar(ratio);
           dishLocalBounds.max.multiplyScalar(ratio);
+          dishFramingRadius *= ratio;
           dishDisplayScale = scale;
           activeDish.updateMatrixWorld(true);
         }
@@ -1747,7 +1765,6 @@ export default function Scene({
         JSON.stringify(state.sceneFrame),
         state.drag,
         state.dishZoom,
-        state.dishPitch,
         state.transition?.progress,
         state.dish,
         state.retryModel,

@@ -808,6 +808,15 @@ renderedTest.describe('rendered scroll choreography (Chromium software WebGL)', 
             }
           }
         }
+        segment = 'screenshot:footer-directory';
+        await at(await page.evaluate(() => document.documentElement.scrollHeight));
+        await expect(canvas).toHaveAttribute('data-section', 'footer');
+        await expect(canvas).toHaveAttribute('data-suspended', 'false');
+        await expect(canvas).toHaveAttribute('data-settled', 'true', { timeout: 10_000 });
+        await expect(page.locator('#footer .footer-bottom')).toBeInViewport();
+        const footerScreenshot = testInfo.outputPath('rendered-footer-directory.png');
+        await page.screenshot({ path: footerScreenshot });
+        await testInfo.attach('rendered-footer-directory', { path: footerScreenshot, contentType: 'image/png' });
         expect(errors).toEqual([]);
       } finally {
         // Keep the failing window too; later suites clear test-results.
@@ -914,6 +923,26 @@ renderedTest.describe('complete-food zoom fit (Chromium software WebGL)', () => 
         }
         return result;
       }, { count, reset }) as Promise<Fit[]>;
+      const dishUp = (fit: Fit) => {
+        const [x, y, z, w] = fit.quaternion!.split(',').map(Number);
+        return [2 * (x * y - z * w), 1 - 2 * (x * x + z * z), 2 * (y * z + x * w)];
+      };
+      const checkYawOnly = (fit: Fit, baseline: Fit, scenario: string) => {
+        // A diagonal gesture still rotates yaw, but cannot tilt the authored
+        // dish up-axis or move the camera to refit each changing silhouette.
+        dishUp(fit).forEach((value, index) => expect(value, `${scenario}: fixed dish up-axis`).toBeCloseTo(dishUp(baseline)[index], 6));
+        for (const field of ['fittedCameraPosition', 'fittedLook']) {
+          const before = baseline.dataset[field]!.split(',').map(Number);
+          fit.dataset[field]!.split(',').map(Number).forEach((value, index) =>
+            expect(value, `${scenario}: fixed ${field}`).toBeCloseTo(before[index], 6));
+        }
+        for (const field of ['cameraDistance', 'cameraDolly', 'fittedZoom', 'zoomMax'])
+          expect(Number(fit.dataset[field]), `${scenario}: fixed ${field}`).toBeCloseTo(Number(baseline.dataset[field]), 6);
+        const view = JSON.parse(fit.dataset.cameraViewOffset!);
+        const baselineView = JSON.parse(baseline.dataset.cameraViewOffset!);
+        for (const field of ['fullWidth', 'fullHeight', 'offsetX', 'offsetY', 'width', 'height'])
+          expect(view[field], `${scenario}: fixed view ${field}`).toBeCloseTo(baselineView[field], 6);
+      };
       const check = (fit: Fit, scenario: string) => {
         const sample: { scenario: string; fit: Fit; minimumFoodY?: number } = { scenario, fit };
         samples.push(sample);
@@ -965,15 +994,41 @@ renderedTest.describe('complete-food zoom fit (Chromium software WebGL)', () => 
           await expect(canvas).toHaveAttribute('data-rendered-model', id, { timeout: 90_000 });
           await atGrip();
           const meshScale = await canvas.getAttribute('data-dish-mesh-scale');
+          const maximumZoom = Number(await canvas.getAttribute('data-zoom-max'));
+          expect(maximumZoom, `${id}: one real zoom step is available`).toBeGreaterThanOrEqual(1.2 - 1e-6);
+          expect(maximumZoom).toBeLessThanOrEqual(4);
+          if (id === 'homard') {
+            phase = `${id}:default-zoom`;
+            const [before] = await capture();
+            check(before, phase);
+            expect(before.requested).toBeCloseTo(1, 6);
+            expect(before.fitted).toBeCloseTo(1, 6);
+            phase = `${id}:one-zoom-step`;
+            await page.locator('.dish-zoom button').nth(1).click();
+            await expect.poll(async () => Number(await canvas.getAttribute('data-camera-dolly'))).toBeCloseTo(1.2, 6);
+            await expect(canvas).toHaveAttribute('data-settled', 'true', { timeout: 15_000 });
+            const [enlarged] = await capture();
+            check(enlarged, phase);
+            expect(enlarged.fitted).toBeCloseTo(1.2, 6);
+            expect(enlarged.quaternion).toBe(before.quaternion);
+            expect(enlarged.meshScale).toBe(before.meshScale);
+            expect(enlarged.food!.width, 'zoom visibly enlarges the unchanged food').toBeGreaterThan(before.food!.width + 1);
+            expect(enlarged.food!.height, 'zoom visibly enlarges the unchanged food').toBeGreaterThan(before.food!.height + 1);
+            await expect(page.locator('.dish-zoom output')).toHaveText('120 %');
+          }
           // Exercise the actual button handlers; batch requests before a frame
           // so the fit cap, rather than repeated disabled clicks, is tested.
           phase = `${id}:maximum`;
           await page.locator('.dish-zoom button').nth(1).evaluate(el => {
             for (let i = 0; i < 15; i++) (el as HTMLButtonElement).click();
           });
-          await expect.poll(async () => Number(await canvas.getAttribute('data-camera-dolly'))).toBeCloseTo(4, 2);
+          await expect.poll(async () => Number(await canvas.getAttribute('data-camera-dolly'))).toBeCloseTo(maximumZoom, 6);
           await expect(canvas).toHaveAttribute('data-settled', 'true', { timeout: 15_000 });
-          for (const fit of await capture()) check(fit, `${id}:maximum`);
+          const [maximum] = await capture();
+          check(maximum, `${id}:maximum`);
+          expect(maximum.fitted).toBeCloseTo(maximumZoom, 6);
+          await expect(page.locator('.dish-zoom button').nth(1)).toBeDisabled();
+          await expect(page.locator('.dish-zoom output')).toHaveText(`${Math.round(maximumZoom * 100)} %`);
           expect(await canvas.getAttribute('data-dish-mesh-scale')).toBe(meshScale);
           phase = `${id}:damped-rotation`;
           await page.emulateMedia({ reducedMotion: 'no-preference' });
@@ -985,10 +1040,16 @@ renderedTest.describe('complete-food zoom fit (Chromium software WebGL)', () => 
           await page.mouse.move(box!.x + box!.width * 0.7, box!.y + box!.height * 0.7, { steps: 4 });
           await page.mouse.up();
           const rotationFrames = await frames;
-          for (const fit of rotationFrames) check(fit, `${id}:damped-rotation`);
+          for (const fit of rotationFrames) {
+            check(fit, `${id}:damped-rotation`);
+            checkYawOnly(fit, maximum, `${id}:damped-rotation`);
+          }
           expect(new Set(rotationFrames.map(fit => fit.quaternion)).size, `${id}: capture must contain actual rotation`).toBeGreaterThan(1);
           await expect(canvas).toHaveAttribute('data-settled', 'true', { timeout: 15_000 });
-          for (const fit of await capture()) check(fit, `${id}:rotated`);
+          for (const fit of await capture()) {
+            check(fit, `${id}:rotated`);
+            checkYawOnly(fit, maximum, `${id}:rotated`);
+          }
           await expect(canvas).toHaveAttribute('data-table-setting-visible', 'false');
           const screenshot = testInfo.outputPath(`rendered-zoom-${id}.png`);
           await page.screenshot({ path: screenshot });
@@ -1009,7 +1070,7 @@ renderedTest.describe('complete-food zoom fit (Chromium software WebGL)', () => 
             await page.locator('.dish-zoom button').nth(1).evaluate(el => {
               for (let i = 0; i < 15; i++) (el as HTMLButtonElement).click();
             });
-            await expect.poll(async () => Number(await canvas.getAttribute('data-camera-dolly'))).toBeCloseTo(4, 2);
+            await expect.poll(async () => Number(await canvas.getAttribute('data-camera-dolly'))).toBeCloseTo(maximumZoom, 6);
           }
         }
         // CSS viewport/orientation changes while already zoomed, not a claim

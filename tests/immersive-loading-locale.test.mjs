@@ -127,11 +127,12 @@ test("App publishes each complete scroll and control batch before one scene wake
   assert.ok(controlStart > 0 && controlEnd > controlStart, "execute the production control publication block");
   vm.runInNewContext(source.slice(controlStart, controlEnd), {
     stateRef, collection: "signature", phoneDemo: "trouvable", supportAngle: 90, flip: true,
-    drag: 0.8, dishZoom: 2, dishPitch: 0.3, dish: "sushi", reduce: true, modal: {}, menu: true, retryModel: 2,
+    drag: 0.8, dishZoom: 2, dish: "sushi", reduce: true, modal: {}, menu: true, retryModel: 2,
   });
   assert.equal(wakes.length, 2);
   assert.equal(wakes[1].collection, "signature");
   assert.equal(wakes[1].dishZoom, 2);
+  assert.equal("dishPitch" in wakes[1], false, "dish controls publish yaw and zoom, never tilt");
   assert.equal(wakes[1].reducedMotion, true);
   assert.equal(wakes[1].modalOpen, true);
   assert.equal(wakes[1].retryModel, 2);

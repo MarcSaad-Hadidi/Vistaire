@@ -7,6 +7,84 @@ import * as THREE from 'three';
 import * as dolly from '../components/immersive/CameraDolly.js';
 import { projectHullBounds } from '../components/immersive/ProjectedBounds.js';
 
+test('yaw rotation preserves the actual camera and a separate zoom step enlarges the whole food', () => {
+  const source = readFileSync('components/immersive/Scene.jsx', 'utf8');
+  const hulls = JSON.parse(readFileSync('public/immersive-assets/dishes/framing-hulls.json', 'utf8')).byUrl;
+  const footprints = { homard: 1.75, souffle: 1.65, huitres: 1.5, sushi: 2, "chocolat-fume": 1.5, poutine: 1.75, burger: 1.1 };
+  for (const [width, height] of [[390, 844], [430, 932], [1440, 900], [1337, 591]]) for (const [id, footprint] of Object.entries(footprints)) {
+    const mobile = width < 768;
+    const hull = id === 'homard' ? hulls[mobile ? '/media/homard-mobile.glb' : '/media/homard.glb'] : Object.values(hulls).find(h => h.id === id);
+    const displayScale = mobile ? (id === 'burger' ? 0.55 : 1) : footprint / 2.35;
+    const focus = { x: 0.5, y: 0.465, width: 0.9, height: 0.4 };
+    const scene = new THREE.Scene();
+    const roots = Array.from({ length: 4 }, () => new THREE.Group());
+    roots.forEach(root => scene.add(root));
+    const camera = new THREE.PerspectiveCamera(40, width / height, 0.05, 200);
+    const scope = {
+      ...director, ...dolly, THREE, HALF_PI: Math.PI / 2, clamp: (v, a, b) => Math.min(b, Math.max(a, v)), smooth: director.cinematicEase,
+      scene, camera, dishRoot: roots[0], supportRoot: roots[1], phoneRoot: roots[2], laptopRoot: roots[3],
+      supportAssets: { active: null }, laptopAsset: {}, corner: new THREE.Vector3(), referenceCamera: camera.clone(), calibrations: new Map(), mobileViewport: () => mobile, fallbackFocus: director.DEFAULT_SCENE_FRAME,
+      canvas: { clientWidth: width, clientHeight: height }, activeDish: true,
+      dishLocalBounds: new THREE.Box3(new THREE.Vector3(...hull.bounds.min).multiplyScalar(displayScale), new THREE.Vector3(...hull.bounds.max).multiplyScalar(displayScale)),
+      dishFramingRadius: Math.max(...hull.vertices.map(([x, , z]) => Math.hypot(x, z))) * displayScale,
+      dishZoomCorner: new THREE.Vector3(), projectionState: null, projectionSettling: false, framingReference: null,
+      applyTransform: (root, position, rotation, scale) => { root.position.fromArray(position); root.quaternion.setFromEuler(new THREE.Euler(...rotation)); root.scale.setScalar(scale); root.visible = scale > 0.003; },
+    };
+    vm.createContext(scope);
+    vm.runInContext(source.match(/function minimumDishY\([^]*?\n}/)[0], scope);
+    vm.runInContext(source.slice(source.indexOf('function baseComposition('), source.indexOf('\nfunction composition(')), scope);
+    vm.runInContext(source.slice(source.indexOf('    function projectedExtent('), source.indexOf('    function cameraComposition(')), scope);
+    scope.cameraComposition = state => scope.calibration('grip', state);
+    vm.runInContext(source.slice(source.indexOf('    function frameSubjects('), source.indexOf('      const viewport = { width: viewportWidth')) + '}', scope);
+    const state = { section: 'grip', dishZoom: 1, sceneFrame: focus, sceneFrames: { grip: focus } };
+    const root = roots[0];
+    root.position.set(0, 0.2, 0);
+    root.scale.setScalar(mobile ? 0.98 : 1);
+    // Analytic all-yaw bound for the actual AABB clearance rule. A yaw-invariant
+    // cylinder alone would not suffice if that rule could lift the root.
+    const boxRadius = Math.hypot(Math.max(Math.abs(scope.dishLocalBounds.min.x), Math.abs(scope.dishLocalBounds.max.x)), Math.max(Math.abs(scope.dishLocalBounds.min.z), Math.abs(scope.dishLocalBounds.max.z)));
+    const highestClearance = -0.02 + root.scale.x * (boxRadius * Math.sin(0.1) - scope.dishLocalBounds.min.y * Math.cos(0.1));
+    assert.ok(highestClearance <= 0.2, `${id}: every allowed yaw must retain the authored root height`);
+    root.quaternion.setFromEuler(new THREE.Euler(0.1, 0, 0));
+    const cameraPose = () => [...camera.position.toArray(), ...scope.projectionState.look, camera.view.offsetX, camera.view.offsetY];
+    const food = () => {
+      root.updateMatrixWorld(true);
+      return projectHullBounds(hull.vertices.map(point => point.map(v => v * displayScale)), root.matrixWorld, camera, { width, height });
+    };
+    scope.frameSubjects(state, 1);
+    const original = food();
+    const initial = cameraPose();
+    root.quaternion.setFromEuler(new THREE.Euler(0.1, Math.PI / 4, 0));
+    scope.frameSubjects(state, 1);
+    cameraPose().forEach((value, i) => assert.ok(Math.abs(value - initial[i]) < 1e-9, 'yaw alone must not change camera, aim or view offset'));
+    assert.equal(scope.baseComposition({ section: 'grip', dishPitch: 0.7 }, mobile).dishRotation[0], 0.1, 'interactive pitch cannot alter the authored flat rotation');
+    const cap = scope.calibration('grip', state).zoomMax;
+    assert.ok(cap >= 1.2 && cap <= 4, 'a real +20% step must be reserved');
+    root.quaternion.setFromEuler(new THREE.Euler(0.1, 0, 0));
+    state.dishZoom = 1.2;
+    scope.frameSubjects(state, 1);
+    const enlarged = food();
+    assert.ok(enlarged.width > original.width * 1.1 && enlarged.height > original.height * 1.1);
+    state.dishZoom = cap;
+    scope.frameSubjects(state, 1);
+    const maximum = cameraPose();
+    for (const yaw of [Math.PI / 4, Math.PI, -Math.PI, -Math.PI / 2, 0]) {
+      const target = new THREE.Quaternion().setFromEuler(new THREE.Euler(0.1, yaw, 0));
+      for (let frame = 0; frame < 60; frame++) {
+        root.quaternion.slerp(target, 1 - Math.exp(-1 / 60 * 10));
+        assert.ok(scope.minimumDishY(scope.dishLocalBounds, root.quaternion, root.scale.x, -0.02) <= 0.2, `${id}: the canonical flat-yaw height must stay clear of the table`);
+        scope.frameSubjects(state, 1 - Math.exp(-1 / 60 * 10));
+        cameraPose().forEach((value, i) => assert.ok(Math.abs(value - maximum[i]) < 1e-8, 'damped yaw and wrap must not reframe the camera'));
+        const bounds = food();
+        assert.ok(bounds.x >= (focus.x - focus.width / 2) * width - 0.1);
+        assert.ok(bounds.x + bounds.width <= (focus.x + focus.width / 2) * width + 0.1);
+        assert.ok(bounds.y >= (focus.y - focus.height / 2) * height - 0.1);
+        assert.ok(bounds.y + bounds.height <= (focus.y + focus.height / 2) * height + 0.1);
+      }
+    }
+  }
+});
+
 test('zoom fits the complete rotated food inside the actual scissor frame at desktop and phone aspect ratios', () => {
   assert.equal(typeof dolly.minimumDollyDistance, 'function', 'near-plane safety alone cannot prevent a clipped zoom');
   for (const [width, height] of [[1440, 900], [1337, 591], [390, 844], [430, 932]]) {
@@ -55,7 +133,8 @@ test('resetting a fully zoomed, reversed sushi preserves every hull point on eac
     supportAssets: { active: null }, laptopAsset: {}, corner: new THREE.Vector3(), referenceCamera: camera.clone(), calibrations: new Map(), mobileViewport: () => false, fallbackFocus: director.DEFAULT_SCENE_FRAME,
     canvas: { clientWidth: 1440, clientHeight: 900 }, activeDish: true,
     dishLocalBounds: new THREE.Box3(new THREE.Vector3(...hull.bounds.min).multiplyScalar(displayScale), new THREE.Vector3(...hull.bounds.max).multiplyScalar(displayScale)),
-    dishZoomCenter: new THREE.Vector3(), dishZoomCorner: new THREE.Vector3(), projectionState: null, projectionSettling: false, framingReference: null,
+    dishFramingRadius: Math.max(...hull.vertices.map(([x, , z]) => Math.hypot(x, z))) * displayScale,
+    dishZoomCorner: new THREE.Vector3(), projectionState: null, projectionSettling: false, framingReference: null,
     applyTransform: (root, position, rotation, scale) => { root.position.fromArray(position); root.quaternion.setFromEuler(new THREE.Euler(...rotation)); root.scale.setScalar(scale); root.visible = scale > 0.003; },
   };
   vm.createContext(scope);
@@ -122,6 +201,7 @@ test('rotating and resetting food keeps every transformed hull point above the t
       root.scale.setScalar(scale);
       scope.dishRoot = root;
       scope.dishLocalBounds = bounds;
+      scope.dishFramingRadius = Math.max(...hull.vertices.map(([x, , z]) => Math.hypot(x, z))) * displayScale;
       scope.dishDisplayScale = displayScale;
       scope.mobileViewport = () => mobile;
       scope.dishPresentationScale = (_name, mobileViewport) => mobileViewport ? 1 : (id === 'homard' ? 1.75 : 2) / 2.35;
@@ -177,7 +257,8 @@ test('the default-zoom camera fits a lifted high-pitch mobile homard', () => {
     supportAssets: { active: null }, laptopAsset: {}, corner: new THREE.Vector3(), referenceCamera: camera.clone(), calibrations: new Map(), mobileViewport: () => true, fallbackFocus: director.DEFAULT_SCENE_FRAME,
     canvas: { clientWidth: 390, clientHeight: 844 }, activeDish: true,
     dishLocalBounds: new THREE.Box3(new THREE.Vector3(...hull.bounds.min), new THREE.Vector3(...hull.bounds.max)),
-    dishZoomCenter: new THREE.Vector3(), dishZoomCorner: new THREE.Vector3(), projectionState: null, projectionSettling: false, framingReference: null,
+    dishFramingRadius: Math.max(...hull.vertices.map(([x, , z]) => Math.hypot(x, z))),
+    dishZoomCorner: new THREE.Vector3(), projectionState: null, projectionSettling: false, framingReference: null,
     applyTransform: (root, position, rotation, scale) => { root.position.fromArray(position); root.quaternion.setFromEuler(new THREE.Euler(...rotation)); root.scale.setScalar(scale); root.visible = scale > 0.003; },
   };
   vm.createContext(scope);

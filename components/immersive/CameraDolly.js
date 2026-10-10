@@ -15,6 +15,22 @@ export function cameraDollyPose(position, look, ratio, minimumDistance = 0.1) {
   };
 }
 
+/** The normalized scan fits in a cylinder around its yaw axis. Its transformed
+ * box depends only on that axis, never the yaw angle. This also bounds tilted
+ * intermediate poses during chapter transitions without scanning live vertices. */
+export function dishCylinderCorners(bounds, radius, position, quaternion, scale) {
+  const { x, y, z, w } = quaternion;
+  const up = [2 * (x * y - w * z), 1 - 2 * (x * x + z * z), 2 * (y * z + w * x)];
+  const middle = (bounds.min.y + bounds.max.y) * scale / 2;
+  const halfHeight = (bounds.max.y - bounds.min.y) * scale / 2;
+  const center = [position.x, position.y, position.z].map((v, i) => v + up[i] * middle);
+  const extent = up.map(v => Math.abs(v) * halfHeight + radius * scale * Math.sqrt(Math.max(0, 1 - v * v)));
+  const corners = [];
+  for (const x of [-1, 1]) for (const y of [-1, 1]) for (const z of [-1, 1])
+    corners.push(center.map((v, i) => v + [x, y, z][i] * extent[i]));
+  return corners;
+}
+
 /** Minimum distance along an unchanged view ray that fits every world-space
  * corner inside the actual focus/scissor rectangle. Includes lens, aspect,
  * calibrated view offset and near-plane depth; never changes the food scale. */

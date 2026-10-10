@@ -298,6 +298,29 @@ test("la scène contact est le seul footer et termine exactement la page FR/EN",
     }));
     expect(Math.abs(end.bottom - end.documentHeight)).toBeLessThanOrEqual(1);
     expect(end.overflow).toBeLessThanOrEqual(1);
+    // The complete directory stays over the same scene in both theme rules,
+    // including the narrow layouts that previously became an opaque panel.
+    for (const width of [390, 430]) {
+      await page.setViewportSize({ width, height: 844 });
+      for (const light of [false, true]) {
+        const toggle = page.locator('[data-public-theme-toggle]').first();
+        if (await toggle.getAttribute('aria-pressed') !== String(light)) await toggle.click();
+        await page.evaluate(() => scrollTo({ top: document.documentElement.scrollHeight, behavior: 'instant' }));
+        await expect(footer.locator('.footer-bottom')).toBeInViewport();
+        for (const selector of ['.stage', '[data-footer-navigation]'])
+          await expect(footer.locator(selector)).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
+        await expect(footer.locator('[data-footer-navigation]')).toHaveCSS('background-image', 'none');
+        const stageBackground = await footer.locator('.stage').evaluate(el => getComputedStyle(el).backgroundImage);
+        const opaqueStops = (stageBackground.match(/rgba?\([^)]+\)/g) ?? []).filter(color =>
+          !color.startsWith('rgba(') || Number(color.slice(5, -1).split(',')[3]) >= 1);
+        expect(opaqueStops, `${locale}/${width}/${light ? 'light' : 'dark'}: scene remains visible through footer`).toEqual([]);
+        expect(await footer.locator('[data-footer-navigation] a').evaluateAll(elements =>
+          elements.every(el => el.getBoundingClientRect().height >= 44))).toBe(true);
+        const gap = await footer.evaluate(el => document.documentElement.scrollHeight - el.getBoundingClientRect().bottom - scrollY);
+        expect(Math.abs(gap)).toBeLessThanOrEqual(1);
+        expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(1);
+      }
+    }
   }
 });
 

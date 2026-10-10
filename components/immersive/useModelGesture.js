@@ -22,13 +22,12 @@ export function createModelGestureController(getOptions) {
   let mode = "idle";
   let pinch = null;
   let verticalIntent = 0;
-  let values = { angle: 0.5, pitch: 0, zoom: 1 };
+  let values = { angle: 0.5, zoom: 1 };
 
   function syncValues() {
     const options = getOptions();
     values = {
       angle: clamp(options.angle ?? 0.5, 0, 1),
-      pitch: clamp(options.pitch ?? 0, -0.7, 0.7),
       zoom: clamp(options.zoom ?? 1, 0.6, 4),
     };
   }
@@ -37,7 +36,7 @@ export function createModelGestureController(getOptions) {
     if (Math.abs(value - values[key]) < 0.000001) return;
     values[key] = value;
     const callback =
-      getOptions()[{ angle: "onAngle", pitch: "onPitch", zoom: "onZoom" }[key]];
+      getOptions()[{ angle: "onAngle", zoom: "onZoom" }[key]];
     callback?.(value);
   }
   function capture(pointer) {
@@ -115,9 +114,7 @@ export function createModelGestureController(getOptions) {
       startY: event.clientY,
       startTime: event.timeStamp,
       angle: values.angle,
-      pitch: values.pitch,
       width: Math.max(1, target?.clientWidth || 400),
-      height: Math.max(1, target?.clientHeight || 400),
     };
     pointers.set(pointer.id, pointer);
     if (type === "mouse") {
@@ -164,12 +161,6 @@ export function createModelGestureController(getOptions) {
         pointer.angle + (pointer.x - pointer.startX) / pointer.width,
         0,
         1,
-      );
-      emit(
-        "pitch",
-        pointer.pitch + ((pointer.y - pointer.startY) / pointer.height) * 1.4,
-        -0.7,
-        0.7,
       );
       preventClaimedDefault(event);
       return;
