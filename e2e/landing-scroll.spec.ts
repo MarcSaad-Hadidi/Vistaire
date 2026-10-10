@@ -1,4 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
+import { writeFile } from "node:fs/promises";
 
 // Isolate native document scrolling from GPU speed. The original GLB scene
 // also receives separate real WebGL browser verification.
@@ -503,25 +504,62 @@ for (const viewport of [
   });
 }
 
-test('short landscape and zoom-sized viewports reserve a real food frame and reachable controls', async ({ page }) => {
+test('short landscape and zoom-sized viewports reserve a real food frame and reachable controls', async ({ page }, testInfo) => {
   for (const viewport of [{ width: 844, height: 390 }, { width: 1337, height: 591 }]) {
+    // These are independent deep-link layouts; avoid same-URL fragment reuse.
+    // Live viewport resizing is covered by the real-WebGL zoom regression.
+    await page.goto('about:blank');
     await page.setViewportSize(viewport);
-    await page.goto('/#grip');
-    await expect(page.locator('.world-fallback')).toBeVisible();
-    await expect(page.locator('#grip')).toHaveJSProperty('inert', false);
-    await page.evaluate(() => document.fonts.ready);
-    const geometry = await page.locator('#grip').evaluate(el => {
-      const focus = el.querySelector('.scene-focus')!.getBoundingClientRect();
-      return { focus: { width: focus.width, height: focus.height, top: focus.top, bottom: focus.bottom }, controls: [...el.querySelectorAll('.rotation-control,.grip-actions,.dish-switch')].map(control => { const r = control.getBoundingClientRect(); return { top: r.top, bottom: r.bottom, right: r.right }; }) };
-    });
-    expect(geometry.focus.height).toBeGreaterThanOrEqual(160);
-    expect(geometry.focus.width).toBeGreaterThanOrEqual(220);
-    expect(geometry.focus.top).toBeGreaterThanOrEqual(60);
-    expect(geometry.focus.bottom).toBeLessThanOrEqual(viewport.height + 1);
-    for (const control of geometry.controls) {
-      expect(control.top).toBeGreaterThanOrEqual(60);
-      expect(control.bottom).toBeLessThanOrEqual(viewport.height + 1);
-      expect(control.right).toBeLessThanOrEqual(viewport.width);
+    const response = await page.goto('/#grip');
+    try {
+      await expect(page.locator('.world-fallback')).toBeVisible();
+      await page.evaluate(() => document.fonts.ready);
+      // Wait for App's semantic arrival after font/layout updates before
+      // reading geometry; a native hash jump alone does not establish it.
+      await expect(page.locator('html')).toHaveAttribute('data-chapter', 'grip');
+      await expect(page.locator('#grip')).toHaveJSProperty('inert', false);
+      await expect.poll(() => page.locator('#grip').evaluate(el => Number(getComputedStyle(el).getPropertyValue('--copy-opacity')))).toBeCloseTo(1, 3);
+      const geometry = await page.locator('#grip').evaluate(el => {
+        const focus = el.querySelector('.scene-focus')!.getBoundingClientRect();
+        return { focus: { width: focus.width, height: focus.height, top: focus.top, bottom: focus.bottom }, controls: [...el.querySelectorAll('.rotation-control,.grip-actions,.dish-switch')].map(control => { const r = control.getBoundingClientRect(); return { top: r.top, bottom: r.bottom, right: r.right }; }) };
+      });
+      expect(geometry.focus.height).toBeGreaterThanOrEqual(160);
+      expect(geometry.focus.width).toBeGreaterThanOrEqual(220);
+      expect(geometry.focus.top).toBeGreaterThanOrEqual(60);
+      expect(geometry.focus.bottom).toBeLessThanOrEqual(viewport.height + 1);
+      for (const control of geometry.controls) {
+        expect(control.top).toBeGreaterThanOrEqual(60);
+        expect(control.bottom).toBeLessThanOrEqual(viewport.height + 1);
+        expect(control.right).toBeLessThanOrEqual(viewport.width);
+      }
+    } catch (error) {
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      let snapshot = null;
+      try {
+        snapshot = await Promise.race([
+          page.evaluate(() => {
+            const grip = document.querySelector<HTMLElement>('#grip');
+            const rect = (element: Element | null | undefined) => element?.getBoundingClientRect().toJSON() ?? null;
+            return { hash: location.hash, scrollY, viewport: { width: innerWidth, height: innerHeight }, chapter: document.documentElement.dataset.chapter,
+              section: rect(grip), stage: rect(grip?.firstElementChild), focus: rect(grip?.querySelector('.scene-focus')),
+              copyOpacity: grip ? getComputedStyle(grip).getPropertyValue('--copy-opacity') : null, inert: grip?.inert };
+          }),
+          new Promise<null>(resolve => { timer = setTimeout(() => resolve(null), 2_000); }),
+        ]);
+      } catch { /* Keep the original failure if the document is unavailable. */ }
+      finally { clearTimeout(timer); }
+      try {
+        const artifact = testInfo.outputPath('rendered-landscape-telemetry.json');
+        await Promise.race([
+          (async () => {
+            await writeFile(artifact, JSON.stringify({ requestedViewport: viewport, navigationStatus: response?.status() ?? null, snapshot }, null, 2));
+            await testInfo.attach('landscape-failure-geometry', { path: artifact, contentType: 'application/json' });
+          })(),
+          new Promise<never>((_, reject) => { timer = setTimeout(() => reject(new Error('landscape diagnostic persistence exceeded 2s')), 2_000); }),
+        ]);
+      } catch (diagnosticError) { console.warn('Could not preserve landscape failure diagnostics:', diagnosticError); }
+      finally { clearTimeout(timer); }
+      throw error;
     }
   }
 });
