@@ -21,15 +21,13 @@ const moods = [
   [nightShade(0), "#a99776", "#e7ddca"],
 ];
 
-// Shared scroll choreography for the interactive room and cinematic films.
+// Chapter atmosphere changes around the original, stationary restaurant.
 export function createRestaurantJourney(
   scene,
   root,
   applyAtmosphere = () => false,
 ) {
   const ambientTarget = new THREE.Color();
-  const positionTarget = new THREE.Vector3();
-  let yaw = 0;
   const interpolatedMood = moods[0].map(() => new THREE.Color());
   const nextMood = new THREE.Color();
   return {
@@ -44,25 +42,8 @@ export function createRestaurantJourney(
           .lerp(nextMood.set(moods[upper][i]), index - lower),
       );
       ambientTarget.set(mood[0]);
-      // The table remains the anchor. The room travels behind it as the
-      // camera approaches, then turns toward another part of the dining room.
-      // Page distance keeps the room moving at one pace through chapter exits.
-      // Legacy cinematic scripts without page geometry keep their prior path.
-      const distance = state.scrollDistance;
-      const hasDistance = Number.isFinite(distance);
-      const targetYaw =
-        -0.075 + (hasDistance ? distance * 0.006 : index * 0.018);
-      const targetZ = hasDistance
-        ? -0.4 + distance * 0.06
-        : -0.4 + Math.min(index, 3) * 0.65 + Math.max(0, index - 3) * 0.055;
-      positionTarget.set(
-        Math.sin(hasDistance ? distance * 0.04 : index * 0.62) * 0.65,
-        0,
-        targetZ,
-      );
-      root.position.lerp(positionTarget, damping);
-      yaw = THREE.MathUtils.lerp(yaw, targetYaw, damping);
-      root.rotation.y = yaw;
+      // RestaurantModel aligns the source room to the extracted table/chair.
+      // Preserve that registration: only the shared camera and products move.
       scene.background.lerp(ambientTarget, damping);
       scene.fog.color.copy(scene.background);
       const lightSettling = applyAtmosphere(mood, damping);
@@ -78,7 +59,7 @@ export function createRestaurantJourney(
         .toArray()
         .map((n) => n.toFixed(3))
         .join(",");
-      canvas.dataset.roomYaw = yaw.toFixed(4);
+      canvas.dataset.roomYaw = root.rotation.y.toFixed(4);
       canvas.dataset.atmosphere = `#${scene.background.getHexString()}`;
       const colorMoving = (a, b) =>
         Math.max(
@@ -87,8 +68,6 @@ export function createRestaurantJourney(
           Math.abs(a.b - b.b),
         ) > 0.0001;
       return (
-        root.position.distanceToSquared(positionTarget) > 1e-7 ||
-        Math.abs(yaw - targetYaw) > 0.0001 ||
         colorMoving(scene.background, ambientTarget) ||
         lightSettling
       );

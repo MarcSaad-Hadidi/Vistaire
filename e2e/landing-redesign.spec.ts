@@ -536,7 +536,8 @@ renderedTest.describe('rendered scroll choreography (Chromium software WebGL)', 
     ['/', { width: 1440, height: 900 }],
     ['/en', { width: 390, height: 844 }],
   ] as const) {
-    renderedTest(`${path} renders reversible chapter poses and resumes after pricing`, async ({ page }, testInfo) => {
+    const scrollTest = viewport.width < 768 ? renderedTest.extend({ hasTouch: true }) : renderedTest;
+    scrollTest(`${path} renders reversible chapter poses and resumes after pricing`, async ({ page }, testInfo) => {
       // Software rasterization is slow; this is a bounded correctness budget,
       // never a performance/FPS acceptance threshold.
       renderedTest.setTimeout(viewport.width > 768 ? 600_000 : 480_000);
@@ -571,13 +572,14 @@ renderedTest.describe('rendered scroll choreography (Chromium software WebGL)', 
       }));
       const pricing = geometry.chapters.find(chapter => chapter.id === 'open-weight')!;
       const telemetry: { segment: string; target: number; snapshot: unknown }[] = [];
+      const viewportCoverage: unknown[] = [];
       let segment = 'initial';
       let lastDiagnostic: Awaited<ReturnType<typeof diagnosticSnapshot>> = null;
       const saveTelemetry = async () => {
         const telemetryPath = testInfo.outputPath('rendered-scroll-telemetry.json');
         await writeFile(telemetryPath, JSON.stringify({
           renderer: 'Chromium SwiftShader; target poses sampled with reduced motion, not physical input or FPS',
-          geometry, windows, phase: segment, lastDiagnostic, errors, samples: telemetry,
+          geometry, windows, phase: segment, lastDiagnostic, errors, samples: telemetry, viewportCoverage,
           units: 'World positions/look use authored Three.js units; scale and alpha are dimensionless; view offsets and text positions are normalized by canvas/stage size. Hidden pricing samples are excluded from motion speed. Root orientations use quaternion angular distance in radians; world paths are normalized independently by their own traveled length.',
         }, null, 2));
       };
@@ -631,6 +633,12 @@ renderedTest.describe('rendered scroll choreography (Chromium software WebGL)', 
           };
         });
         telemetry.push({ segment, target: y, snapshot });
+        if (snapshot.suspended !== 'true') {
+          // The source room and extracted table share one fixed registration;
+          // their common camera may move, but the room must not drift alone.
+          expect(snapshot.roomPosition?.split(',').map(Number), `${segment}: room registration`).toEqual([0, 0, 0]);
+          expect(snapshot.roomYaw, `${segment}: room yaw`).toBe(0);
+        }
         return snapshot;
       };
       try {
@@ -743,6 +751,7 @@ renderedTest.describe('rendered scroll choreography (Chromium software WebGL)', 
         for (const [name, section, y] of [
           ['room', 'hero', 0],
           ['phone', 'wearable', motion],
+          ['laptop', 'sustainability', laptopChapter.top + geometry.stage * 3.1],
           ['support', 'product', (productEntry.end + productExit.start) / 2],
         ] as const) {
           segment = `screenshot:${name}`;
@@ -756,6 +765,48 @@ renderedTest.describe('rendered scroll choreography (Chromium software WebGL)', 
           const screenshotPath = testInfo.outputPath(`rendered-${name}.png`);
           await page.screenshot({ path: screenshotPath });
           await testInfo.attach(`rendered-${name}`, { path: screenshotPath, contentType: 'image/png' });
+        }
+        if (viewport.width < 768) {
+          expect(await page.evaluate(() => matchMedia('(hover: none) and (pointer: coarse)').matches)).toBe(true);
+          const frozenLayout = () => page.evaluate(() => ({
+            scroll: scrollY, height: document.documentElement.scrollHeight,
+            journeyVH: document.documentElement.style.getPropertyValue('--vistaire-journey-vh'),
+            sceneVH: document.documentElement.style.getPropertyValue('--vistaire-scene-vh'),
+            macTitle: getComputedStyle(document.querySelector('.living-title')!).fontSize,
+            chapters: [...document.querySelectorAll<HTMLElement>('.chapter')].map(el => ({
+              id: el.id, top: el.offsetTop, height: el.offsetHeight, stage: el.firstElementChild!.clientHeight,
+            })),
+          }));
+          const before = await frozenLayout();
+          for (const height of [932, viewport.height]) {
+            segment = `mobile-toolbar:${height}`;
+            const framesBeforeResize = Number(await canvas.getAttribute('data-frames'));
+            await page.setViewportSize({ width: viewport.width, height });
+            await expect.poll(() => page.locator('.world').evaluate(el => el.getBoundingClientRect().bottom)).toBeGreaterThanOrEqual(height);
+            await waitForProcessedPose(page, framesBeforeResize, false, { target: before.scroll, artifact: testInfo.outputPath('rendered-pending-pose-telemetry.json') });
+            expect(await frozenLayout()).toEqual(before);
+            const coverage = await canvas.evaluate(el => ({
+              viewport: { width: innerWidth, height: innerHeight },
+              world: document.querySelector('.world')!.getBoundingClientRect().toJSON(),
+              canvas: el.getBoundingClientRect().toJSON(),
+              processedWidth: Number((el as HTMLCanvasElement).dataset.processedViewportWidth),
+              processedHeight: Number((el as HTMLCanvasElement).dataset.processedViewportHeight),
+              frames: Number((el as HTMLCanvasElement).dataset.frames),
+            }));
+            viewportCoverage.push(coverage);
+            expect(coverage.viewport).toEqual({ width: viewport.width, height });
+            for (const surface of [coverage.world, coverage.canvas]) {
+              expect(surface.top).toBeLessThanOrEqual(0);
+              expect(surface.bottom).toBeGreaterThanOrEqual(height);
+              expect(surface.width).toBe(coverage.processedWidth);
+              expect(surface.height).toBe(coverage.processedHeight);
+            }
+            if (height === 932) {
+              const screenshotPath = testInfo.outputPath('rendered-support-expanded.png');
+              await page.screenshot({ path: screenshotPath });
+              await testInfo.attach('rendered-support-expanded', { path: screenshotPath, contentType: 'image/png' });
+            }
+          }
         }
         expect(errors).toEqual([]);
       } finally {

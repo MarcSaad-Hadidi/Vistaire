@@ -29,7 +29,8 @@ async function openJourney(page: Page, height = 820) {
 async function geometry(page: Page) {
   return page.evaluate(() => ({
     height: document.documentElement.scrollHeight,
-    world: document.querySelector<HTMLElement>(".world")!.clientHeight,
+    journeyVH: document.documentElement.style.getPropertyValue("--vistaire-journey-vh"),
+    sceneVH: document.documentElement.style.getPropertyValue("--vistaire-scene-vh"),
     macTitle: getComputedStyle(document.querySelector(".living-title")!)
       .fontSize,
     chapters: [...document.querySelectorAll<HTMLElement>("main > .chapter, footer.chapter")].map((el) => ({
@@ -99,6 +100,15 @@ for (const initialHeight of [820, 730]) {
       await page.setViewportSize({ width: 390, height });
       await page.waitForTimeout(100);
       expect(await geometry(page)).toEqual(before);
+      // Toolbar growth must fill the newly visible viewport without moving
+      // the frozen chapter/stage geometry above.
+      const coverage = await page.locator(".world").evaluate(el => ({
+        top: el.getBoundingClientRect().top,
+        bottom: el.getBoundingClientRect().bottom,
+        viewport: innerHeight,
+      }));
+      expect(coverage.top).toBeLessThanOrEqual(0);
+      expect(coverage.bottom).toBeGreaterThanOrEqual(coverage.viewport);
     }
     if (initialHeight === 820) {
       for (const viewport of [{ width: 844, height: 390 }, { width: 390, height: 844 }]) {

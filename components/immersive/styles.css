@@ -153,6 +153,8 @@
   pointer-events: none;
   overflow: clip;
   height: calc(100 * var(--scene-vh));
+  /* Fill a growing mobile viewport without changing frozen chapter geometry. */
+  min-height: 100dvh;
   bottom: auto;
 }
 :where([data-immersive-vistaire]) .scene-canvas {
