@@ -504,10 +504,19 @@ test.describe("public restaurateur dashboard preview", () => {
           await expectReadableText(text, tooltip);
         }
         await page.keyboard.press("Escape");
+        await expect(tooltip).toBeHidden();
       }
 
-      await page.getByRole("tab", { name: scenario.tabs[1], exact: true }).click();
-      for (const badge of await page.locator('[data-demo-dish] > [class*="badge_"]').all()) {
+      const availabilityTab = page.getByRole("tab", { name: scenario.tabs[1], exact: true });
+      // Chart focus can leave smooth scrolling in progress. Settle the return
+      // clear of the fixed navigation before testing a normal pointer activation.
+      await availabilityTab.evaluate((element) => element.scrollIntoView({ block: "center", behavior: "instant" }));
+      await availabilityTab.click();
+      await expect(availabilityTab).toHaveAttribute("aria-selected", "true");
+      await expect(page.getByRole("tabpanel", { name: scenario.tabs[1], exact: true })).toBeVisible();
+      const availabilityBadges = page.locator('[data-demo-dish] > [class*="badge_"]');
+      await expect(availabilityBadges).toHaveCount(12);
+      for (const badge of await availabilityBadges.all()) {
         await expectReadableText(badge, badge);
       }
       await page.locator("[data-demo-dish]").first().getByRole("switch").click();

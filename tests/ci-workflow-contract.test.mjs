@@ -337,3 +337,20 @@ test("Asset Policy owns the repository asset checks", async () => {
   assert.match(assetWorkflow, /npm run lfs:check/);
   assert.doesNotMatch(staticJob, /assets:check|lfs:check/);
 });
+
+test("landing performance is opt-in, hermetic, serial and fail-closed when requested", () => {
+  const job = workflow.slice(workflow.indexOf("  landing-performance:"), workflow.indexOf("  webkit-critical:"));
+  assert.match(job, /inputs\.benchmark == true/);
+  assert.match(job, /contains\(github\.event\.pull_request\.labels\.\*\.name, 'landing-performance'\)/);
+  assert.match(job, /outputs\.run_landing == 'true'/);
+  assert.match(job, /needs\.build-app\.result == 'success'/);
+  assert.match(job, /name: next-build-\$\{\{ github\.run_id \}\}/);
+  assert.match(job, /NEXT_PUBLIC_SUPABASE_URL: http:\/\/127\.0\.0\.1:55434/);
+  assert.match(job, /node scripts\/benchmark-landing\.mjs/);
+  assert.doesNotMatch(job, /npm run build|strategy:|--disable-frame-rate-limit/);
+  assert.match(job, /if-no-files-found: error/);
+  const gate = workflow.slice(workflow.indexOf("  ci-gate:"), workflow.indexOf("  ci-metrics:"));
+  assert.match(gate, /needs\.landing-performance\.result/);
+  assert.match(gate, /\[landing-performance\]="\$RUN_PERFORMANCE"/);
+  assert.match(gate, /ordered_jobs=\([^\n]*landing-performance\)/);
+});

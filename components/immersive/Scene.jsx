@@ -51,6 +51,20 @@ const dishPresentationScale = (name, mobile) =>
       : 1
     : (DESKTOP_DISH_FOOTPRINTS[name] ?? 1.75) / FRAMING_HULL_SIZE;
 
+// The food rotates around its normalized bottom. Find the lowest rotated
+// bounding-box corner without changing the scan's geometry or presentation size.
+function minimumDishY(bounds, quaternion, scale, surfaceY) {
+  const { x, y, z, w } = quaternion;
+  const rowX = 2 * (x * y + w * z);
+  const rowY = 1 - 2 * (x * x + z * z);
+  const rowZ = 2 * (y * z - w * x);
+  const lowest =
+    rowX * (rowX < 0 ? bounds.max.x : bounds.min.x) +
+    rowY * (rowY < 0 ? bounds.max.y : bounds.min.y) +
+    rowZ * (rowZ < 0 ? bounds.max.z : bounds.min.z);
+  return surfaceY - lowest * scale;
+}
+
 // Each pose is an independent composition. Scroll changes geometry and camera,
 // while the DOM remains responsible for readable text and accessible controls.
 function baseComposition(state, mobile) {
@@ -284,6 +298,7 @@ export default function Scene({
 
   useEffect(() => {
     const sceneState = stateRef.current;
+    const diagnosticsEnabled = new URLSearchParams(window.location.search).get("sceneDiagnostics") === "1";
     // A fresh canvas per effect avoids reusing a lost context in StrictMode.
     const canvas = document.createElement("canvas");
     canvas.className = "scene-canvas";
@@ -1261,7 +1276,11 @@ export default function Scene({
       let zoomLook = desired.look;
       let minimumDistance = camera.near * 2;
       const zoomCorners = [];
-      if ((zoom > 1 || projectionState?.dolly > 1) && activeDish && dishRoot.visible) {
+      const foodFrame = state.section === "grip" ||
+        state.transition?.from === "grip" || state.transition?.to === "grip";
+      // Pitch clearance can raise the food above the shared reference pose,
+      // even at default zoom. Fit that visible food in the same physical lens.
+      if ((foodFrame || zoom > 1 || projectionState?.dolly > 1) && activeDish && dishRoot.visible) {
         dishRoot.updateWorldMatrix(true, false);
         dishLocalBounds.getCenter(dishZoomCenter).applyMatrix4(dishRoot.matrixWorld);
         const aim = smooth(Math.min(1, zoom - 1));
@@ -1431,6 +1450,13 @@ export default function Scene({
     let previousShadowSignature = "";
     let lastSceneChange = 0;
     let wasOccluded = false;
+    function recordProcessedPose(state) {
+      if (!diagnosticsEnabled) return;
+      canvas.dataset.processedScrollDistance = String(state.scrollDistance);
+      canvas.dataset.processedViewportRevision = String(viewportRevision);
+      canvas.dataset.processedViewportWidth = String(drawingSize?.width ?? 0);
+      canvas.dataset.processedViewportHeight = String(drawingSize?.height ?? 0);
+    }
     function draw(now) {
       if (arExperience?.active) return;
       frame = 0;
@@ -1448,6 +1474,8 @@ export default function Scene({
         canvas.dataset.section = state.section;
         canvas.dataset.progress = state.progress.toFixed(4);
         canvas.dataset.settled = "true";
+        if (diagnosticsEnabled) canvas.dataset.settlingReasons = "0";
+        recordProcessedPose(state);
         frame = requestAnimationFrame(draw);
         return;
       }
@@ -1462,7 +1490,34 @@ export default function Scene({
       // than replaying a stale pose from before the long pricing section.
       const damping =
         resume || state.reducedMotion ? 1 : 1 - Math.exp(-dt * 10);
+      // A genuine responsive-width change can keep the same GLB URL. Resize
+      // its presentation once without another download; toolbar height changes
+      // never enter this path, and camera zoom never changes this scale.
+      // Clearance and framing below must use these current normalized bounds.
+      if (activeDish) {
+        const scale = dishPresentationScale(
+          canvas.dataset.model,
+          mobileViewport(),
+        );
+        if (scale !== dishDisplayScale) {
+          const ratio = scale / dishDisplayScale;
+          activeDish.scale.multiplyScalar(ratio);
+          activeDish.position.multiplyScalar(ratio);
+          dishLocalBounds.min.multiplyScalar(ratio);
+          dishLocalBounds.max.multiplyScalar(ratio);
+          dishDisplayScale = scale;
+          activeDish.updateMatrixWorld(true);
+        }
+      }
       const pose = composition(state, mobileViewport());
+      const tableSurfaceY = nativeTable?.metadata.surfaceY ?? -0.02;
+      if (activeDish) {
+        targetEuler.set(...pose.dishRotation);
+        targetQuaternion.setFromEuler(targetEuler);
+        pose.dish[1] = Math.max(pose.dish[1], minimumDishY(
+          dishLocalBounds, targetQuaternion, pose.dishScale, tableSurfaceY,
+        ));
+      }
       const pointer = state.pointer || { x: 0, y: 0 };
       const cameraInteractive = false;
       cameraTarget.fromArray(pose.camera);
@@ -1508,6 +1563,11 @@ export default function Scene({
         pose.dishScale,
         damping,
       );
+      // Intermediate rotations can dip below both endpoint poses. Constrain
+      // the rendered pose too, before the camera fits the complete food.
+      if (activeDish) dishRoot.position.y = Math.max(dishRoot.position.y, minimumDishY(
+        dishLocalBounds, dishRoot.quaternion, dishRoot.scale.x, tableSurfaceY,
+      ));
       applyTransform(
         laptopRoot,
         pose.laptop,
@@ -1583,24 +1643,6 @@ export default function Scene({
       ) {
         lastRetryModel = retryModel;
         loadDish(dish);
-      }
-      // A genuine responsive-width change can keep the same GLB URL. Resize
-      // its presentation once without another download; toolbar height changes
-      // never enter this path, and camera zoom never changes this scale.
-      if (activeDish) {
-        const scale = dishPresentationScale(
-          canvas.dataset.model,
-          mobileViewport(),
-        );
-        if (scale !== dishDisplayScale) {
-          const ratio = scale / dishDisplayScale;
-          activeDish.scale.multiplyScalar(ratio);
-          activeDish.position.multiplyScalar(ratio);
-          dishLocalBounds.min.multiplyScalar(ratio);
-          dishLocalBounds.max.multiplyScalar(ratio);
-          dishDisplayScale = scale;
-          activeDish.updateMatrixWorld(true);
-        }
       }
       // A settled still scene does not need another GPU frame. Keep the small
       // state loop alive so scroll, input and asynchronous media can wake it.
@@ -1805,6 +1847,23 @@ export default function Scene({
         fail(error);
         return;
       }
+      if (diagnosticsEnabled) {
+        // Same tolerances as the render decision; report each cause even when
+        // its normal short-circuit check was skipped. No extra visitor work.
+        const reasons =
+          (camera.position.distanceToSquared(cameraTarget) > 1e-7 ? 1 : 0) |
+          (lookAt.distanceToSquared(objectTarget.fromArray(pose.look)) > 1e-7 ? 2 : 0) |
+          (!settled(supportRoot, pose.support, pose.supportRotation, pose.supportScale) ? 4 : 0) |
+          (!settled(phoneRoot, pose.phone, pose.phoneRotation, pose.phoneScale) ? 8 : 0) |
+          (!settled(dishRoot, pose.dish, pose.dishRotation, pose.dishScale) ? 16 : 0) |
+          (!settled(laptopRoot, pose.laptop, pose.laptopRotation, pose.laptopScale) ? 32 : 0) |
+          (laptopRoot.visible && !laptopAsset.settled ? 64 : 0) |
+          (Math.abs(woodMaterial.opacity - pose.table) > 0.0002 ? 128 : 0) |
+          (roomSettling ? 256 : 0) |
+          (projectionSettling ? 512 : 0);
+        canvas.dataset.settlingReasons = String(reasons);
+      }
+      recordProcessedPose(state);
       frame = requestAnimationFrame(draw);
     }
     function visibilityChanged() {

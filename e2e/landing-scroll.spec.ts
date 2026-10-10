@@ -205,10 +205,19 @@ test("le téléphone reste lisible sur 1,5 écran de défilement supplémentaire
   await openJourney(page);
   const opening = await page.locator(".opening-journey").evaluate((el) => {
     const stage = el.firstElementChild!.clientHeight;
-    const hold = Number((el as HTMLElement).style.getPropertyValue("--opening-phone-hold-vh")) * stage / 100;
-    return { stage, height: (el as HTMLElement).offsetHeight, motion: (el as HTMLElement).offsetHeight - stage - hold, hold };
+    const distance = (name: string) => Number((el as HTMLElement).style.getPropertyValue(name)) * stage / 100;
+    return {
+      stage, height: (el as HTMLElement).offsetHeight,
+      motion: distance("--opening-motion-vh"),
+      hold: distance("--opening-phone-hold-vh"),
+      release: distance("--opening-release-vh"),
+    };
   });
-  expect(opening.motion / opening.stage).toBeCloseTo(4.8, 2);
+  // Two 3.2-screen motion legs precede the unchanged phone reading hold.
+  // The release allowance belongs to the following join, not to that motion.
+  expect(opening.motion / opening.stage).toBeCloseTo(6.4, 2);
+  expect(opening.release / opening.stage).toBeCloseTo(1.1, 2);
+  expect(Math.abs(opening.height - opening.stage - opening.motion - opening.hold - opening.release)).toBeLessThanOrEqual(1);
   expect(opening.hold / opening.stage).toBeGreaterThanOrEqual(1.5);
   for (const holdProgress of [0.05, 0.5, 0.95]) {
     await page.evaluate((y) => scrollTo({ top: y, behavior: "instant" }), opening.motion + opening.hold * holdProgress);

@@ -76,12 +76,17 @@ function AdaptiveScrollGuide({ visible }) {
   );
 }
 function Chapter({ id, height, children, className = "", chapterRef, as: Element = "section" }) {
+  // Native fragment navigation also lands after the cinematic entry fade.
+  const anchorOffset = chapterNavigationTarget({ id, top: 0 }, 100);
   return (
     <Element
       id={id}
       ref={chapterRef}
       className={`chapter ${className}`}
-      style={{ "--chapter-height": height }}
+      style={{
+        "--chapter-height": height,
+        scrollMarginTop: anchorOffset ? `calc(-${anchorOffset} * var(--journey-vh))` : undefined,
+      }}
       aria-labelledby={`${id}-title`}
     >
       <div className="stage">{children}</div>
@@ -470,10 +475,10 @@ function LandingContent() {
     };
     const measure = () => {
       const journey = openingRef.current;
-      const top = journey.getBoundingClientRect().top + scrollY;
-      const travel =
-        journey.offsetHeight - journey.firstElementChild.clientHeight;
-      const stageHeight = journey.firstElementChild.clientHeight;
+      const journeyBounds = journey.getBoundingClientRect();
+      const top = journeyBounds.top + scrollY;
+      const stageHeight = journey.firstElementChild.getBoundingClientRect().height;
+      const travel = journeyBounds.height - stageHeight;
       const motionTravel = Math.max(
         1,
         stageHeight * CINEMATIC_TIMING.openingMotionScreens,
@@ -483,7 +488,7 @@ function LandingContent() {
         top,
         travel,
         motionTravel,
-        height: journey.offsetHeight,
+        height: journeyBounds.height,
         stageHeight,
         sceneHeight,
       };
@@ -493,13 +498,14 @@ function LandingContent() {
           if (!el) return null;
           const stage = el.firstElementChild,
             focus = el.querySelector(".scene-focus");
+          const bounds = el.getBoundingClientRect(),
+            stageBounds = stage.getBoundingClientRect();
           let sceneFrame = null;
           if (focus) {
-            const r = focus.getBoundingClientRect(),
-              sr = stage.getBoundingClientRect();
+            const r = focus.getBoundingClientRect();
             sceneFrame = {
               x: (r.left + r.width / 2) / innerWidth,
-              y: (r.top - sr.top + r.height / 2) / sceneHeight,
+              y: (r.top - stageBounds.top + r.height / 2) / sceneHeight,
               width: r.width / innerWidth,
               height: r.height / sceneHeight,
             };
@@ -507,7 +513,7 @@ function LandingContent() {
           const openingAnchor = { hero: 0, ai: 0.5, wearable: 1 }[id];
           const sectionTop =
             openingAnchor == null
-              ? el.getBoundingClientRect().top + scrollY
+              ? bounds.top + scrollY
               : top + motionTravel * openingAnchor;
           scrollTargets.current[id] = chapterNavigationTarget({ id, top: sectionTop }, stageHeight);
           return {
@@ -515,8 +521,11 @@ function LandingContent() {
             top: sectionTop,
             travel: Math.max(
               1,
-              el.offsetHeight -
-                (id === "open-weight" ? sceneHeight : stage.clientHeight),
+              // Sticky release uses fractional CSS geometry. offsetHeight
+              // rounds it and leaves a visible step in the compensation.
+              id === "open-weight"
+                ? el.offsetHeight - sceneHeight
+                : bounds.height - stageBounds.height,
             ),
             sceneFrame,
           };
@@ -822,7 +831,7 @@ function LandingContent() {
       scrollTo({
         top: ["hero", "ai", "wearable"].includes(id)
           ? scrollTargets.current[id] ?? 0
-          : chapterNavigationTarget({ id, top: (sectionRefs.current[id]?.getBoundingClientRect().top ?? 0) + scrollY }, openingRef.current?.firstElementChild.clientHeight ?? innerHeight),
+          : chapterNavigationTarget({ id, top: (sectionRefs.current[id]?.getBoundingClientRect().top ?? 0) + scrollY }, openingRef.current?.firstElementChild.getBoundingClientRect().height ?? innerHeight),
         behavior: reduce ? "instant" : "smooth",
       });
       history.replaceState(null, "", `#${id}`);
@@ -861,7 +870,7 @@ function LandingContent() {
   useEffect(() => {
     if (!ready || !new URLSearchParams(location.search).has("dish")) return;
     const el = sectionRefs.current.grip;
-    if (el) scrollTo({ top: chapterNavigationTarget({ id: "grip", top: el.getBoundingClientRect().top + scrollY }, openingRef.current.firstElementChild.clientHeight), behavior: "instant" });
+    if (el) scrollTo({ top: chapterNavigationTarget({ id: "grip", top: el.getBoundingClientRect().top + scrollY }, openingRef.current.firstElementChild.getBoundingClientRect().height), behavior: "instant" });
   }, [ready]);
   const ref = useCallback(
     (id) => (el) => {
@@ -1549,7 +1558,7 @@ function LandingContent() {
                   window.scrollTo({
                     top:
                       el.getBoundingClientRect().top + scrollY +
-                      (el.offsetHeight - el.firstElementChild.clientHeight) *
+                      (el.getBoundingClientRect().height - el.firstElementChild.getBoundingClientRect().height) *
                         SOCIAL_HOLD_CENTERS[i],
                     behavior: reduce ? "instant" : "smooth",
                   });

@@ -1,5 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import { writeFile } from "node:fs/promises";
+import { readFileSync } from "node:fs";
 
 async function disableWebGL(page: Page) {
   await page.addInitScript(() => {
@@ -155,6 +156,47 @@ const renderedTest = test.extend({
   },
 });
 
+// A processed-pose acknowledgement replaces the former four blind RAF waits.
+// It is published only after a rendered/update pass (or explicit occlusion),
+// not when App first mutates state. Repeat positions can reuse a valid pose.
+async function waitForProcessedPose(page: Page, framesBeforeResize?: number, requireGripFrame = false) {
+  await page.waitForFunction(({ framesBeforeResize, requireGripFrame }) => {
+    const canvas = document.querySelector<HTMLCanvasElement>('.scene-canvas');
+    const opening = document.querySelector<HTMLElement>('.opening-journey');
+    if (!canvas || !opening) return false;
+    const data = canvas.dataset;
+    const stageHeight = opening.firstElementChild!.getBoundingClientRect().height;
+    const openingTop = opening.getBoundingClientRect().top + scrollY;
+    const distance = Math.max(0, (scrollY - openingTop) / stageHeight);
+    if (!Number.isFinite(Number(data.processedScrollDistance)) || Math.abs(Number(data.processedScrollDistance) - distance) > 1e-6) return false;
+    if (data.processedViewportRevision !== data.viewportResizes || !data.processedViewportRevision) return false;
+    if (Number(data.processedViewportWidth) !== canvas.clientWidth || Number(data.processedViewportHeight) !== canvas.clientHeight) return false;
+    if (data.suspended !== 'true' && framesBeforeResize !== undefined && (!Number.isFinite(framesBeforeResize) || !Number.isFinite(Number(data.frames)) || Number(data.frames) <= framesBeforeResize)) return false;
+    if (requireGripFrame) {
+      if (data.section !== 'grip' || !data.focusBounds) return false;
+      const chapter = document.querySelector<HTMLElement>('#grip')!;
+      const focus = chapter.querySelector('.scene-focus')!.getBoundingClientRect();
+      const stage = chapter.firstElementChild!.getBoundingClientRect();
+      const actual = JSON.parse(data.focusBounds);
+      const scaleX = canvas.clientWidth / innerWidth;
+      const scaleY = canvas.clientHeight / document.querySelector<HTMLElement>('.world')!.clientHeight;
+      if ([actual.x - focus.left * scaleX, actual.y - (focus.top - stage.top) * scaleY, actual.width - focus.width * scaleX, actual.height - focus.height * scaleY].some(value => !Number.isFinite(value) || Math.abs(value) > 0.1)) return false;
+    }
+    return true;
+  }, { framesBeforeResize, requireGripFrame }, { timeout: 0 });
+}
+
+async function diagnosticSnapshot(page: Page) {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      page.evaluate(() => ({ scroll: scrollY, viewport: { width: innerWidth, height: innerHeight }, dataset: { ...document.querySelector<HTMLCanvasElement>('.scene-canvas')?.dataset } })),
+      new Promise<null>(resolve => { timer = setTimeout(() => resolve(null), 1_000); }),
+    ]);
+  } catch { return null; }
+  finally { clearTimeout(timer); }
+}
+
 renderedTest.describe('rendered scroll choreography (Chromium software WebGL)', () => {
   renderedTest.skip(({ browserName }) => browserName !== 'chromium', 'SwiftShader verification uses Chromium');
   for (const [path, viewport] of [
@@ -171,7 +213,7 @@ renderedTest.describe('rendered scroll choreography (Chromium software WebGL)', 
       await page.emulateMedia({ reducedMotion: 'reduce' });
       const errors: string[] = [];
       page.on('pageerror', error => errors.push(error.message));
-      await page.goto(path, { waitUntil: 'domcontentloaded' });
+      await page.goto(`${path}?sceneDiagnostics=1`, { waitUntil: 'domcontentloaded' });
       const canvas = page.locator('.scene-canvas');
       await expect(canvas).toHaveAttribute('data-ready', 'true', { timeout: 120_000 });
       await expect(canvas).toHaveAttribute('data-laptop-ready', 'true', { timeout: 60_000 });
@@ -196,19 +238,18 @@ renderedTest.describe('rendered scroll choreography (Chromium software WebGL)', 
       const pricing = geometry.chapters.find(chapter => chapter.id === 'open-weight')!;
       const telemetry: { segment: string; target: number; snapshot: unknown }[] = [];
       let segment = 'initial';
+      let lastDiagnostic: Awaited<ReturnType<typeof diagnosticSnapshot>> = null;
       const saveTelemetry = async () => {
         const telemetryPath = testInfo.outputPath('rendered-scroll-telemetry.json');
         await writeFile(telemetryPath, JSON.stringify({
           renderer: 'Chromium SwiftShader; target poses sampled with reduced motion, not physical input or FPS',
-          geometry, windows, samples: telemetry,
+          geometry, windows, phase: segment, lastDiagnostic, errors, samples: telemetry,
           units: 'World positions/look use authored Three.js units; scale and alpha are dimensionless; view offsets and text positions are normalized by canvas/stage size. Hidden pricing samples are excluded from motion speed. Root orientations use quaternion angular distance in radians; world paths are normalized independently by their own traveled length.',
         }, null, 2));
       };
       const at = async (y: number, settle = false) => {
-        await page.evaluate(async y => {
-          scrollTo({ top: y, behavior: 'instant' });
-          for (let i = 0; i < 4; i++) await new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
-        }, y);
+        await page.evaluate(y => scrollTo({ top: y, behavior: 'instant' }), y);
+        await waitForProcessedPose(page);
         if (settle) await expect(canvas).toHaveAttribute('data-settled', 'true', { timeout: 15_000 });
         const snapshot = await canvas.evaluate(el => {
           const data = (el as HTMLCanvasElement).dataset;
@@ -222,6 +263,7 @@ renderedTest.describe('rendered scroll choreography (Chromium software WebGL)', 
           ]) as Record<string, number[]>;
           return {
             scroll: scrollY,
+            dataset: { ...data },
             channels,
             section: data.section,
             progress: Number(data.progress),
@@ -257,129 +299,136 @@ renderedTest.describe('rendered scroll choreography (Chromium software WebGL)', 
         telemetry.push({ segment, target: y, snapshot });
         return snapshot;
       };
-      for (const window of windows) {
-        segment = `transition:${window.from}:${window.to}:forward`;
-        // Add uniform samples to the original five seam/midpoint samples.
-        const ys = [...new Set([
-          window.start - 2, window.start + 2, window.end - 2, window.end + 2,
-          ...Array.from({ length: 9 }, (_, i) => window.start + (window.end - window.start) * i / 8),
-        ])].sort((a, b) => a - b);
-        expect((window.end - window.start) / geometry.stage).toBeCloseTo(window.to === 'footer' ? Math.min(3.2, (window.end - windows.at(-2)!.end) / geometry.stage) : 3.2, 6);
-        const forward: Awaited<ReturnType<typeof at>>[] = [];
-        for (const y of ys) {
-          const pose = await at(y);
-          // Pricing is intentionally opaque; there is no rendered pose there.
-          if (pose.scroll >= pricing.top && pose.scroll <= pricing.top + Math.round(pricing.height) - geometry.canvasHeight) {
-            expect(pose.suspended).toBe('true');
-          } else {
-            expect(pose.suspended).toBe('false');
-            expect(pose.values.every(Number.isFinite)).toBe(true);
+      try {
+        for (const window of windows) {
+          segment = `transition:${window.from}:${window.to}:forward`;
+          // Add uniform samples to the original five seam/midpoint samples.
+          const ys = [...new Set([
+            window.start - 2, window.start + 2, window.end - 2, window.end + 2,
+            ...Array.from({ length: 9 }, (_, i) => window.start + (window.end - window.start) * i / 8),
+          ])].sort((a, b) => a - b);
+          expect((window.end - window.start) / geometry.stage).toBeCloseTo(window.to === 'footer' ? Math.min(3.2, (window.end - windows.at(-2)!.end) / geometry.stage) : 3.2, 6);
+          const forward: Awaited<ReturnType<typeof at>>[] = [];
+          for (const y of ys) {
+            const pose = await at(y);
+            // Pricing is intentionally opaque; there is no rendered pose there.
+            if (pose.scroll >= pricing.top && pose.scroll <= pricing.top + Math.round(pricing.height) - geometry.canvasHeight) {
+              expect(pose.suspended).toBe('true');
+            } else {
+              expect(pose.suspended).toBe('false');
+              expect(pose.values.every(Number.isFinite)).toBe(true);
+            }
+            forward.push(pose);
           }
-          forward.push(pose);
-        }
-        for (const pair of [[0, 1], [ys.length - 2, ys.length - 1]]) {
-          const [a, b] = pair.map(i => forward[i]);
-          if (a.suspended === 'true' || b.suspended === 'true') continue;
-          for (let i = 0; i < a.values.length; i++) expect(Math.abs(a.values[i] - b.values[i]), `${window.from}:${window.to} boundary pose`).toBeLessThan(0.15);
-        }
-        const regular = Array.from({ length: 9 }, (_, i) => forward[ys.findIndex(y => Math.abs(y - window.start - (window.end - window.start) * i / 8) < 0.001)]);
-        // Normalize each path by its own traveled distance. World units of a
-        // phone, room and camera are not interchangeable physical velocities.
-        if (regular.every(sample => sample.suspended !== 'true')) {
-          for (const name of Object.keys(regular[0].channels)) {
-            const distances = regular.slice(1).map((sample, i) => {
-              const a = regular[i].channels[name], b = sample.channels[name];
-              return name.endsWith('Quaternion')
-                ? 2 * Math.acos(Math.min(1, Math.abs(a.reduce((sum, v, n) => sum + v * b[n], 0))))
-                : Math.hypot(...a.map((v, n) => v - b[n]));
-            });
-            const length = distances.reduce((a, b) => a + b, 0);
-            if (length < 0.001) continue;
-            const mean = length / ((regular.at(-1)!.scroll - regular[0].scroll) / geometry.stage);
-            const speeds = distances.map((distance, i) => distance / ((regular[i + 1].scroll - regular[i].scroll) / geometry.stage));
-            expect(Math.max(...speeds) / mean, `${window.from}:${window.to} ${name} normalized velocity`).toBeLessThan(1.42);
+          for (const pair of [[0, 1], [ys.length - 2, ys.length - 1]]) {
+            const [a, b] = pair.map(i => forward[i]);
+            if (a.suspended === 'true' || b.suspended === 'true') continue;
+            for (let i = 0; i < a.values.length; i++) expect(Math.abs(a.values[i] - b.values[i]), `${window.from}:${window.to} boundary pose`).toBeLessThan(0.15);
           }
-        }
-        // Copy uses a deliberate 1.6-stage active fade in each half of the
-        // common 3.2-stage handoff; normalize that active interval, not its
-        // intentional zero-opacity hold (whole-window peak would be 8/3).
-        for (const [id, active] of [[window.from, regular.slice(0, 5)], [window.to, regular.slice(4)]] as const) {
-          if (id === 'open-weight') continue; // Interactive pricing is native.
-          for (const field of ['opacity', 'top'] as const) {
-            const steps = active.slice(1).map((sample, i) => Math.abs(sample.copy[id][field] - active[i].copy[id][field]));
-            const length = steps.reduce((a, b) => a + b, 0);
-            if (length < 0.0001) continue;
-            const mean = length / ((active.at(-1)!.scroll - active[0].scroll) / geometry.stage);
-            const speeds = steps.map((distance, i) => distance / ((active[i + 1].scroll - active[i].scroll) / geometry.stage));
-            expect(Math.max(...speeds) / mean, `${id}: rendered text ${field} active-phase velocity`).toBeLessThan(1.42);
+          const regular = Array.from({ length: 9 }, (_, i) => forward[ys.findIndex(y => Math.abs(y - window.start - (window.end - window.start) * i / 8) < 0.001)]);
+          // Normalize each path by its own traveled distance. World units of a
+          // phone, room and camera are not interchangeable physical velocities.
+          if (regular.every(sample => sample.suspended !== 'true')) {
+            for (const name of Object.keys(regular[0].channels)) {
+              const distances = regular.slice(1).map((sample, i) => {
+                const a = regular[i].channels[name], b = sample.channels[name];
+                return name.endsWith('Quaternion')
+                  ? 2 * Math.acos(Math.min(1, Math.abs(a.reduce((sum, v, n) => sum + v * b[n], 0))))
+                  : Math.hypot(...a.map((v, n) => v - b[n]));
+              });
+              const length = distances.reduce((a, b) => a + b, 0);
+              if (length < 0.001) continue;
+              const mean = length / ((regular.at(-1)!.scroll - regular[0].scroll) / geometry.stage);
+              const speeds = distances.map((distance, i) => distance / ((regular[i + 1].scroll - regular[i].scroll) / geometry.stage));
+              expect(Math.max(...speeds) / mean, `${window.from}:${window.to} ${name} normalized velocity`).toBeLessThan(1.42);
+            }
           }
+          // Copy uses a deliberate 1.6-stage active fade in each half of the
+          // common 3.2-stage handoff; normalize that active interval, not its
+          // intentional zero-opacity hold (whole-window peak would be 8/3).
+          for (const [id, active] of [[window.from, regular.slice(0, 5)], [window.to, regular.slice(4)]] as const) {
+            if (id === 'open-weight') continue; // Interactive pricing is native.
+            for (const field of ['opacity', 'top'] as const) {
+              const steps = active.slice(1).map((sample, i) => Math.abs(sample.copy[id][field] - active[i].copy[id][field]));
+              const length = steps.reduce((a, b) => a + b, 0);
+              if (length < 0.0001) continue;
+              const mean = length / ((active.at(-1)!.scroll - active[0].scroll) / geometry.stage);
+              const speeds = steps.map((distance, i) => distance / ((active[i + 1].scroll - active[i].scroll) / geometry.stage));
+              expect(Math.max(...speeds) / mean, `${id}: rendered text ${field} active-phase velocity`).toBeLessThan(1.42);
+            }
+          }
+          if (window.from !== 'open-weight' && window.to !== 'open-weight') {
+            expect(regular[4].copy[window.from].opacity).toBeLessThan(0.001);
+            expect(regular[4].copy[window.to].opacity).toBeLessThan(0.001);
+          }
+          // Retain reversal checks for all original seam/midpoint positions.
+          segment = `transition:${window.from}:${window.to}:reverse`;
+          const reverseYs = [window.end + 2, window.end - 2, (window.start + window.end) / 2, window.start + 2, window.start - 2];
+          for (const y of reverseYs) {
+            const i = ys.findIndex(sample => Math.abs(sample - y) < 0.001);
+            const reverse = await at(y);
+            if (reverse.suspended === 'true') continue;
+            reverse.values.forEach((value, n) => expect(value).toBeCloseTo(forward[i].values[n], 3));
+          }
+          await saveTelemetry();
         }
-        if (window.from !== 'open-weight' && window.to !== 'open-weight') {
-          expect(regular[4].copy[window.from].opacity).toBeLessThan(0.001);
-          expect(regular[4].copy[window.to].opacity).toBeLessThan(0.001);
-        }
-        // Retain reversal checks for all original seam/midpoint positions.
-        segment = `transition:${window.from}:${window.to}:reverse`;
-        const reverseYs = [window.end + 2, window.end - 2, (window.start + window.end) / 2, window.start + 2, window.start - 2];
-        for (const y of reverseYs) {
-          const i = ys.findIndex(sample => Math.abs(sample - y) < 0.001);
-          const reverse = await at(y);
-          if (reverse.suspended === 'true') continue;
-          reverse.values.forEach((value, n) => expect(value).toBeCloseTo(forward[i].values[n], 3));
+        // The measured 6.2-stage sticky travel contains a 4-stage active
+        // presentation between the common 1.1-stage entry/exit portions.
+        for (const chapter of geometry.chapters.slice(3, 10)) {
+          segment = `presentation:${chapter.id}`;
+          for (const fraction of [0, 0.25, 0.5, 0.75, 1])
+            await at(chapter.top + geometry.stage * (1.1 + 4 * fraction));
         }
         await saveTelemetry();
-      }
-      // The measured 6.2-stage sticky travel contains a 4-stage active
-      // presentation between the common 1.1-stage entry/exit portions.
-      for (const chapter of geometry.chapters.slice(3, 10)) {
-        segment = `presentation:${chapter.id}`;
-        for (const fraction of [0, 0.25, 0.5, 0.75, 1])
-          await at(chapter.top + geometry.stage * (1.1 + 4 * fraction));
-      }
-      await saveTelemetry();
-      // Cross the internal opening chapter labels and sampled camera anchors.
-      const motion = await page.locator('.opening-journey').evaluate(el =>
-        Number((el as HTMLElement).style.getPropertyValue('--opening-motion-vh')) * el.firstElementChild!.clientHeight / 100);
-      segment = 'opening-anchors';
-      for (const p of [0.125, 0.25, 0.375, 0.5, 0.625, 0.75, 0.875, 1]) {
-        const [a, b] = [await at(motion * p - 2), await at(motion * p + 2)];
-        a.values.forEach((value, n) => expect(Math.abs(value - b.values[n])).toBeLessThan(0.15));
-      }
-      await saveTelemetry();
-      await testInfo.attach('rendered-scroll-telemetry', { path: testInfo.outputPath('rendered-scroll-telemetry.json'), contentType: 'application/json' });
-      segment = 'normal-motion-stop';
-      await page.emulateMedia({ reducedMotion: 'no-preference' });
-      const feature = windows.find(window => window.from === 'features')!;
-      await at((feature.start + feature.end) / 2);
-      await expect(canvas).toHaveAttribute('data-settled', 'true', { timeout: 10_000 });
-      await expect(canvas).toHaveAttribute('data-transition', 'features:encryption');
-      segment = 'normal-motion-laptop-hinge';
-      const laptopChapter = geometry.chapters.find(chapter => chapter.id === 'sustainability')!;
-      for (const fraction of [0, 0.25, 0.5, 0.75, 1])
-        await at(laptopChapter.top + geometry.stage * (1.1 + 4 * fraction), true);
-      await saveTelemetry();
-      // Keep actual rendered evidence, including successful runs. The workflow
-      // uploads these before another browser family clears test-results.
-      await page.emulateMedia({ reducedMotion: 'reduce' });
-      const productEntry = windows.find(window => window.to === 'product')!;
-      const productExit = windows.find(window => window.from === 'product')!;
-      for (const [name, section, y] of [
-        ['room', 'hero', 0],
-        ['phone', 'wearable', motion],
-        ['support', 'product', (productEntry.end + productExit.start) / 2],
-      ] as const) {
-        await at(y);
-        await expect(canvas).toHaveAttribute('data-section', section);
-        await expect(canvas).toHaveAttribute('data-table-setting-visible', 'false');
-        await expect(canvas).toHaveAttribute('data-suspended', 'false');
+        // Cross the internal opening chapter labels and sampled camera anchors.
+        const motion = await page.locator('.opening-journey').evaluate(el =>
+          Number((el as HTMLElement).style.getPropertyValue('--opening-motion-vh')) * el.firstElementChild!.clientHeight / 100);
+        segment = 'opening-anchors';
+        for (const p of [0.125, 0.25, 0.375, 0.5, 0.625, 0.75, 0.875, 1]) {
+          const [a, b] = [await at(motion * p - 2), await at(motion * p + 2)];
+          a.values.forEach((value, n) => expect(Math.abs(value - b.values[n])).toBeLessThan(0.15));
+        }
+        await saveTelemetry();
+        await testInfo.attach('rendered-scroll-telemetry', { path: testInfo.outputPath('rendered-scroll-telemetry.json'), contentType: 'application/json' });
+        segment = 'normal-motion-stop';
+        await page.emulateMedia({ reducedMotion: 'no-preference' });
+        const feature = windows.find(window => window.from === 'features')!;
+        await at((feature.start + feature.end) / 2);
         await expect(canvas).toHaveAttribute('data-settled', 'true', { timeout: 10_000 });
-        await expect(page.locator('.preloader')).toHaveCount(0);
-        expect(await canvas.evaluate(el => Number((el as HTMLCanvasElement).dataset.drawCalls))).toBeGreaterThan(0);
-        const screenshotPath = testInfo.outputPath(`rendered-${name}.png`);
-        await page.screenshot({ path: screenshotPath });
-        await testInfo.attach(`rendered-${name}`, { path: screenshotPath, contentType: 'image/png' });
+        await expect(canvas).toHaveAttribute('data-transition', 'features:encryption');
+        segment = 'normal-motion-laptop-hinge';
+        const laptopChapter = geometry.chapters.find(chapter => chapter.id === 'sustainability')!;
+        for (const fraction of [0, 0.25, 0.5, 0.75, 1])
+          await at(laptopChapter.top + geometry.stage * (1.1 + 4 * fraction), true);
+        await saveTelemetry();
+        // Keep actual rendered evidence, including successful runs. The workflow
+        // uploads these before another browser family clears test-results.
+        await page.emulateMedia({ reducedMotion: 'reduce' });
+        const productEntry = windows.find(window => window.to === 'product')!;
+        const productExit = windows.find(window => window.from === 'product')!;
+        for (const [name, section, y] of [
+          ['room', 'hero', 0],
+          ['phone', 'wearable', motion],
+          ['support', 'product', (productEntry.end + productExit.start) / 2],
+        ] as const) {
+          segment = `screenshot:${name}`;
+          await at(y);
+          await expect(canvas).toHaveAttribute('data-section', section);
+          await expect(canvas).toHaveAttribute('data-table-setting-visible', 'false');
+          await expect(canvas).toHaveAttribute('data-suspended', 'false');
+          await expect(canvas).toHaveAttribute('data-settled', 'true', { timeout: 10_000 });
+          await expect(page.locator('.preloader')).toHaveCount(0);
+          expect(await canvas.evaluate(el => Number((el as HTMLCanvasElement).dataset.drawCalls))).toBeGreaterThan(0);
+          const screenshotPath = testInfo.outputPath(`rendered-${name}.png`);
+          await page.screenshot({ path: screenshotPath });
+          await testInfo.attach(`rendered-${name}`, { path: screenshotPath, contentType: 'image/png' });
+        }
+        expect(errors).toEqual([]);
+      } finally {
+        // Keep the failing window too; later suites clear test-results.
+        lastDiagnostic = await diagnosticSnapshot(page);
+        await saveTelemetry();
       }
-      expect(errors).toEqual([]);
     });
   }
 });
@@ -393,38 +442,59 @@ renderedTest.describe('complete-food zoom fit (Chromium software WebGL)', () => 
       await page.emulateMedia({ reducedMotion: 'reduce' });
       const errors: string[] = [];
       page.on('pageerror', error => errors.push(error.message));
-      await page.goto(path, { waitUntil: 'domcontentloaded' });
+      await page.goto(`${path}?sceneDiagnostics=1`, { waitUntil: 'domcontentloaded' });
       const canvas = page.locator('.scene-canvas');
       await expect(canvas).toHaveAttribute('data-ready', 'true', { timeout: 120_000 });
       await expect(canvas).toHaveAttribute('data-laptop-ready', 'true', { timeout: 60_000 });
       await expect(page.locator('.preloader')).toHaveCount(0);
-      const atGrip = async () => {
-        await page.locator('#grip').evaluate(async el => {
+      const atGrip = async (framesBeforeResize?: number) => {
+        await page.locator('#grip').evaluate(el => {
           scrollTo({ top: el.getBoundingClientRect().top + scrollY + ((el as HTMLElement).offsetHeight - el.firstElementChild!.clientHeight) / 2, behavior: 'instant' });
-          for (let i = 0; i < 4; i++) await new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
         });
+        await waitForProcessedPose(page, framesBeforeResize, true);
         await expect(canvas).toHaveAttribute('data-section', 'grip');
       };
-      await atGrip();
-      type Fit = { model: string | undefined; frame: { x: number; y: number; width: number; height: number }; food: { x: number; y: number; width: number; height: number } | null; scale: number; requested: number; fitted: number; meshScale: string | undefined; quaternion: string | undefined; width: number; height: number };
-      const samples: { scenario: string; fit: Fit }[] = [];
+      type Fit = { model: string | undefined; frame: { x: number; y: number; width: number; height: number }; food: { x: number; y: number; width: number; height: number } | null; scale: number; requested: number; fitted: number; meshScale: string | undefined; quaternion: string | undefined; width: number; height: number; dataset: Record<string, string | undefined> };
+      const hullsByUrl = JSON.parse(readFileSync('public/immersive-assets/dishes/framing-hulls.json', 'utf8')).byUrl as Record<string, { id: string; vertices: [number, number, number][] }>;
+      const desktopFootprints: Record<string, number> = { homard: 1.75, souffle: 1.65, huitres: 1.5, sushi: 2, 'chocolat-fume': 1.5, poutine: 1.75, burger: 1.1 };
+      const samples: { scenario: string; fit: Fit; minimumFoodY?: number }[] = [];
+      let phase = 'initial';
+      let lastDiagnostic: Awaited<ReturnType<typeof diagnosticSnapshot>> = null;
+      const artifact = testInfo.outputPath('rendered-zoom-fit-telemetry.json');
+      const saveTelemetry = () => writeFile(artifact, JSON.stringify({ renderer: 'Chromium SwiftShader', phase, lastDiagnostic, errors, samples }, null, 2));
       const capture = async (count = 1, reset = false) => canvas.evaluate(async (el, { count, reset }) => {
         const result = [];
         if (reset) document.querySelector<HTMLButtonElement>('.reset-dish')!.click();
         for (let i = 0; i < count; i++) {
           await new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
           const d = (el as HTMLCanvasElement).dataset;
-          result.push({ model: d.renderedModel, frame: JSON.parse(d.focusBounds!), food: JSON.parse(d.dishBounds ?? 'null'), scale: Number(d.dishScale?.split(',')[0]), requested: Number(d.cameraDolly), fitted: Number(d.fittedZoom), meshScale: d.dishMeshScale, quaternion: d.dishQuaternion, width: el.clientWidth, height: el.clientHeight });
+          result.push({ model: d.renderedModel, frame: JSON.parse(d.focusBounds!), food: JSON.parse(d.dishBounds ?? 'null'), scale: Number(d.dishScale?.split(',')[0]), requested: Number(d.cameraDolly), fitted: Number(d.fittedZoom), meshScale: d.dishMeshScale, quaternion: d.dishQuaternion, width: el.clientWidth, height: el.clientHeight, dataset: { ...d } });
         }
         return result;
       }, { count, reset }) as Promise<Fit[]>;
       const check = (fit: Fit, scenario: string) => {
-        samples.push({ scenario, fit });
+        const sample: { scenario: string; fit: Fit; minimumFoodY?: number } = { scenario, fit };
+        samples.push(sample);
         if (!fit.food) {
           expect(scenario.startsWith('chapter-handoff:'), 'only an outgoing dish may disappear').toBe(true);
           expect(fit.scale).toBeLessThan(0.003);
           return;
         }
+        const hull = fit.model === 'homard'
+          ? hullsByUrl[viewport.width < 768 ? '/media/homard-mobile.glb' : '/media/homard.glb']
+          : Object.values(hullsByUrl).find(hull => hull.id === fit.model)!;
+        expect(hull, `${scenario}: actual shipped food hull`).toBeDefined();
+        const displayScale = fit.width < 768 ? (fit.model === 'burger' ? 0.55 : 1) : desktopFootprints[fit.model!] / 2.35;
+        const positionY = Number(fit.dataset.dishPosition!.split(',')[1]);
+        const [scaleX, scaleY, scaleZ] = fit.dataset.dishScale!.split(',').map(value => Number(value) * displayScale);
+        const [qx, qy, qz, qw] = fit.quaternion!.split(',').map(Number);
+        // Independently transform each shipped vertex with the captured pose:
+        // scale, rotate by the unit quaternion, then translate into world Y.
+        sample.minimumFoodY = Math.min(...hull.vertices.map(([x, y, z]) =>
+          positionY + 2 * (qx * qy + qw * qz) * x * scaleX
+            + (1 - 2 * (qx * qx + qz * qz)) * y * scaleY
+            + 2 * (qy * qz - qw * qx) * z * scaleZ));
+        expect(sample.minimumFoodY, `${scenario}: food remains above the opaque tabletop`).toBeGreaterThanOrEqual(-0.02 - 1e-5);
         expect(fit.food.x, `${scenario}: left`).toBeGreaterThanOrEqual(fit.frame.x - 2);
         expect(fit.food.y, `${scenario}: top`).toBeGreaterThanOrEqual(fit.frame.y - 2);
         expect(fit.food.x + fit.food.width, `${scenario}: right`).toBeLessThanOrEqual(fit.frame.x + fit.frame.width + 2);
@@ -437,73 +507,86 @@ renderedTest.describe('complete-food zoom fit (Chromium software WebGL)', () => 
         expect(fit.fitted).toBeGreaterThan(0);
         expect(fit.fitted).toBeLessThanOrEqual(fit.requested + 0.02);
       };
-      for (const id of ['homard', 'souffle', 'huitres', 'sushi', 'chocolat-fume', 'poutine', 'burger']) {
-        await page.locator(`.dish-switch [data-dish-id="${id}"]`).click();
-        await expect(canvas).toHaveAttribute('data-rendered-model', id, { timeout: 90_000 });
+      try {
+        phase = 'initial-grip';
         await atGrip();
-        const meshScale = await canvas.getAttribute('data-dish-mesh-scale');
-        // Exercise the actual button handlers; batch requests before a frame
-        // so the fit cap, rather than repeated disabled clicks, is tested.
-        await page.locator('.dish-zoom button').nth(1).evaluate(el => {
-          for (let i = 0; i < 15; i++) (el as HTMLButtonElement).click();
-        });
-        await expect.poll(async () => Number(await canvas.getAttribute('data-camera-dolly'))).toBeCloseTo(4, 2);
-        await expect(canvas).toHaveAttribute('data-settled', 'true', { timeout: 15_000 });
-        for (const fit of await capture()) check(fit, `${id}:maximum`);
-        expect(await canvas.getAttribute('data-dish-mesh-scale')).toBe(meshScale);
-        await page.emulateMedia({ reducedMotion: 'no-preference' });
-        const box = await page.locator('.dish-gesture').boundingBox();
-        expect(box).not.toBeNull();
-        const frames = capture(16);
-        await page.mouse.move(box!.x + box!.width * 0.45, box!.y + box!.height * 0.3);
-        await page.mouse.down();
-        await page.mouse.move(box!.x + box!.width * 0.7, box!.y + box!.height * 0.7, { steps: 4 });
-        await page.mouse.up();
-        const rotationFrames = await frames;
-        for (const fit of rotationFrames) check(fit, `${id}:damped-rotation`);
-        expect(new Set(rotationFrames.map(fit => fit.quaternion)).size, `${id}: capture must contain actual rotation`).toBeGreaterThan(1);
-        await expect(canvas).toHaveAttribute('data-settled', 'true', { timeout: 15_000 });
-        for (const fit of await capture()) check(fit, `${id}:rotated`);
-        await expect(canvas).toHaveAttribute('data-table-setting-visible', 'false');
-        const screenshot = testInfo.outputPath(`rendered-zoom-${id}.png`);
-        await page.screenshot({ path: screenshot });
-        await testInfo.attach(`zoom-${id}`, { path: screenshot, contentType: 'image/png' });
-        await page.locator('.rotation-range').focus();
-        await page.keyboard.press('Home'); // yaw −π, the reproduced reset case
-        await expect(page.locator('.rotation-range')).toHaveAttribute('aria-valuenow', '0');
-        await expect(canvas).toHaveAttribute('data-settled', 'true', { timeout: 15_000 });
-        const resetFrames = await capture(16, true);
-        for (const fit of resetFrames) check(fit, `${id}:damped-reset`);
-        expect(Math.min(...resetFrames.map(fit => fit.requested))).toBeLessThan(1.4);
-        await expect(canvas).toHaveAttribute('data-settled', 'true', { timeout: 15_000 });
-        // Leave the final burger zoomed for the resize/handoff checks below.
-        await page.emulateMedia({ reducedMotion: 'reduce' });
-        if (id === 'burger') {
+        for (const id of ['homard', 'souffle', 'huitres', 'sushi', 'chocolat-fume', 'poutine', 'burger']) {
+          phase = `${id}:selection`;
+          await page.locator(`.dish-switch [data-dish-id="${id}"]`).click();
+          await expect(canvas).toHaveAttribute('data-rendered-model', id, { timeout: 90_000 });
+          await atGrip();
+          const meshScale = await canvas.getAttribute('data-dish-mesh-scale');
+          // Exercise the actual button handlers; batch requests before a frame
+          // so the fit cap, rather than repeated disabled clicks, is tested.
+          phase = `${id}:maximum`;
           await page.locator('.dish-zoom button').nth(1).evaluate(el => {
             for (let i = 0; i < 15; i++) (el as HTMLButtonElement).click();
           });
           await expect.poll(async () => Number(await canvas.getAttribute('data-camera-dolly'))).toBeCloseTo(4, 2);
+          await expect(canvas).toHaveAttribute('data-settled', 'true', { timeout: 15_000 });
+          for (const fit of await capture()) check(fit, `${id}:maximum`);
+          expect(await canvas.getAttribute('data-dish-mesh-scale')).toBe(meshScale);
+          phase = `${id}:damped-rotation`;
+          await page.emulateMedia({ reducedMotion: 'no-preference' });
+          const box = await page.locator('.dish-gesture').boundingBox();
+          expect(box).not.toBeNull();
+          const frames = capture(16);
+          await page.mouse.move(box!.x + box!.width * 0.45, box!.y + box!.height * 0.3);
+          await page.mouse.down();
+          await page.mouse.move(box!.x + box!.width * 0.7, box!.y + box!.height * 0.7, { steps: 4 });
+          await page.mouse.up();
+          const rotationFrames = await frames;
+          for (const fit of rotationFrames) check(fit, `${id}:damped-rotation`);
+          expect(new Set(rotationFrames.map(fit => fit.quaternion)).size, `${id}: capture must contain actual rotation`).toBeGreaterThan(1);
+          await expect(canvas).toHaveAttribute('data-settled', 'true', { timeout: 15_000 });
+          for (const fit of await capture()) check(fit, `${id}:rotated`);
+          await expect(canvas).toHaveAttribute('data-table-setting-visible', 'false');
+          const screenshot = testInfo.outputPath(`rendered-zoom-${id}.png`);
+          await page.screenshot({ path: screenshot });
+          await testInfo.attach(`zoom-${id}`, { path: screenshot, contentType: 'image/png' });
+          phase = `${id}:home-settle`;
+          await page.locator('.rotation-range').focus();
+          await page.keyboard.press('Home'); // yaw −π, the reproduced reset case
+          await expect(page.locator('.rotation-range')).toHaveAttribute('aria-valuenow', '0');
+          await expect(canvas).toHaveAttribute('data-settled', 'true', { timeout: 15_000 });
+          phase = `${id}:damped-reset`;
+          const resetFrames = await capture(16, true);
+          for (const fit of resetFrames) check(fit, `${id}:damped-reset`);
+          expect(Math.min(...resetFrames.map(fit => fit.requested))).toBeLessThan(1.4);
+          await expect(canvas).toHaveAttribute('data-settled', 'true', { timeout: 15_000 });
+          // Leave the final burger zoomed for the resize/handoff checks below.
+          await page.emulateMedia({ reducedMotion: 'reduce' });
+          if (id === 'burger') {
+            await page.locator('.dish-zoom button').nth(1).evaluate(el => {
+              for (let i = 0; i < 15; i++) (el as HTMLButtonElement).click();
+            });
+            await expect.poll(async () => Number(await canvas.getAttribute('data-camera-dolly'))).toBeCloseTo(4, 2);
+          }
         }
+        // CSS viewport/orientation changes while already zoomed, not a claim
+        // about desktop browser-zoom UI or physical mobile address bars.
+        for (const size of viewport.width < 768 ? [{ width: 430, height: 932 }, { width: 844, height: 390 }, viewport] : [{ width: 1337, height: 591 }, viewport]) {
+          phase = `resize:${size.width}x${size.height}`;
+          const framesBeforeResize = Number(await canvas.getAttribute('data-frames'));
+          await page.setViewportSize(size);
+          await atGrip(framesBeforeResize);
+          for (const fit of await capture()) check(fit, `resize:${size.width}x${size.height}`);
+        }
+        const window = await page.locator('#grip').evaluate(el => ({ start: Number((el as HTMLElement).dataset.exitStart), end: Number((el as HTMLElement).dataset.exitEnd) }));
+        for (const fraction of [0, 0.25, 0.5, 0.75, 1, 0.75, 0.5, 0.25, 0]) {
+          phase = `chapter-handoff:${fraction}`;
+          await page.evaluate(y => scrollTo({ top: y, behavior: 'instant' }), window.start + (window.end - window.start) * fraction);
+          await waitForProcessedPose(page);
+          for (const fit of await capture()) check(fit, `chapter-handoff:${fraction}`);
+        }
+        await saveTelemetry();
+        await testInfo.attach('zoom-fit-telemetry', { path: artifact, contentType: 'application/json' });
+        expect(errors).toEqual([]);
+      } finally {
+        // Preserve the violating fit or last completed pose on assertions/timeouts.
+        lastDiagnostic = await diagnosticSnapshot(page);
+        await saveTelemetry();
       }
-      // CSS viewport/orientation changes while already zoomed, not a claim
-      // about desktop browser-zoom UI or physical mobile address bars.
-      for (const size of viewport.width < 768 ? [{ width: 430, height: 932 }, { width: 844, height: 390 }, viewport] : [{ width: 1337, height: 591 }, viewport]) {
-        await page.setViewportSize(size);
-        await atGrip();
-        for (const fit of await capture()) check(fit, `resize:${size.width}x${size.height}`);
-      }
-      const window = await page.locator('#grip').evaluate(el => ({ start: Number((el as HTMLElement).dataset.exitStart), end: Number((el as HTMLElement).dataset.exitEnd) }));
-      for (const fraction of [0, 0.25, 0.5, 0.75, 1, 0.75, 0.5, 0.25, 0]) {
-        await page.evaluate(async y => {
-          scrollTo({ top: y, behavior: 'instant' });
-          for (let i = 0; i < 4; i++) await new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
-        }, window.start + (window.end - window.start) * fraction);
-        for (const fit of await capture()) check(fit, `chapter-handoff:${fraction}`);
-      }
-      const artifact = testInfo.outputPath('rendered-zoom-fit-telemetry.json');
-      await writeFile(artifact, JSON.stringify({ renderer: 'Chromium SwiftShader', samples }, null, 2));
-      await testInfo.attach('zoom-fit-telemetry', { path: artifact, contentType: 'application/json' });
-      expect(errors).toEqual([]);
     });
   }
 });

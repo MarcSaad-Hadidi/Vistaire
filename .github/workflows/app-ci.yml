@@ -14,12 +14,21 @@ on:
         default: targeted
         type: choice
         options: [targeted, full, sauge, database, admin_qr, landing, seo]
+      benchmark:
+        description: Run serial landing performance measurements (software WebGL)
+        required: false
+        default: false
+        type: boolean
   workflow_call:
     inputs:
       target:
         required: false
         default: full
         type: string
+      benchmark:
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: read
@@ -373,6 +382,8 @@ jobs:
           path: |
             test-results/**/rendered-*.png
             test-results/**/rendered-*-telemetry.json
+            test-results/**/error-context.md
+            test-results/**/test-failed-*.png
           if-no-files-found: warn
           retention-days: 7
       - name: Shared menu browser smoke
@@ -550,6 +561,72 @@ jobs:
           echo '## e2e-admin-qr-chromium' >> "$GITHUB_STEP_SUMMARY"
           echo "- Categories: \`${CATEGORIES}\`" >> "$GITHUB_STEP_SUMMARY"
 
+  landing-performance:
+    name: landing-performance
+    needs: [classify-changes, fast-gate, static-quality, build-app]
+    if: ${{ !cancelled() && needs.classify-changes.result == 'success' && needs.fast-gate.result == 'success' && needs.static-quality.result == 'success' && needs.build-app.result == 'success' && needs.classify-changes.outputs.run_landing == 'true' && (inputs.benchmark == true || contains(github.event.pull_request.labels.*.name, 'landing-performance')) }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    # Measurements run serially on a separate runner after the production build.
+    # SwiftShader results establish software-renderer behavior, not physical GPU FPS.
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: http://127.0.0.1:55434
+      SUPABASE_SERVICE_ROLE_KEY: sauge-noire-fixture-service-role-key
+      NEXT_PUBLIC_DEMO_RESTAURANT_ID: 11111111-1111-4111-8111-111111111112
+      VISTAIRE_EXPECTED_SUPABASE_PROJECT_REF: ""
+      VISTAIRE_EXCHANGE_RATES_FIXTURE_JSON: '{"CAD":1,"USD":0.72,"EUR":0.6225}'
+      PLAYWRIGHT_BASE_URL: http://127.0.0.1:3000
+      VISTAIRE_BENCHMARK_SHA: ${{ github.sha }}
+      VISTAIRE_BENCHMARK_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+      VISTAIRE_BENCHMARK_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}/attempts/${{ github.run_attempt }}
+      VISTAIRE_BENCHMARK_OUTPUT: ${{ runner.temp }}/landing-performance
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          lfs: false
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - run: npm ci
+      - run: npx --no-install playwright install --with-deps chromium
+      - name: Download verified Next.js build
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: next-build-${{ github.run_id }}
+          path: .next
+      - name: Measure normal-motion landing against hermetic production server
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$VISTAIRE_BENCHMARK_OUTPUT"
+          node e2e/support/sauge-noire-fixture-server.mjs > "$VISTAIRE_BENCHMARK_OUTPUT/fixture.log" 2>&1 &
+          fixture_pid=$!
+          app_pid=''
+          trap 'kill "$fixture_pid" ${app_pid:+"$app_pid"} 2>/dev/null || true' EXIT
+          for _ in $(seq 1 30); do
+            if curl --fail --silent http://127.0.0.1:55434/fixture/health > /dev/null; then break; fi
+            sleep 1
+          done
+          curl --fail --silent http://127.0.0.1:55434/fixture/health > /dev/null
+          node node_modules/next/dist/bin/next start --hostname 127.0.0.1 --port 3000 > "$VISTAIRE_BENCHMARK_OUTPUT/app.log" 2>&1 &
+          app_pid=$!
+          for _ in $(seq 1 60); do
+            if curl --fail --silent http://127.0.0.1:3000 > /dev/null; then break; fi
+            sleep 1
+          done
+          curl --fail --silent http://127.0.0.1:3000 > /dev/null
+          node scripts/benchmark-landing.mjs
+      - name: Preserve performance measurements and failures
+        if: ${{ always() }}
+        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
+        with:
+          name: landing-performance-${{ github.run_id }}
+          path: ${{ runner.temp }}/landing-performance/
+          if-no-files-found: error
+          retention-days: 7
+
   webkit-critical:
     name: webkit-critical
     needs: [classify-changes, fast-gate, static-quality, build-app]
@@ -617,7 +694,7 @@ jobs:
     if: ${{ always() }}
     outputs:
       root_failure: ${{ steps.diagnostics.outputs.root_failure }}
-    needs: [classify-changes, fast-gate, static-quality, database-contracts, build-app, e2e-public-chromium, e2e-sauge-chromium, e2e-admin-qr-chromium, webkit-critical]
+    needs: [classify-changes, fast-gate, static-quality, database-contracts, build-app, e2e-public-chromium, e2e-sauge-chromium, e2e-admin-qr-chromium, webkit-critical, landing-performance]
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -634,6 +711,8 @@ jobs:
           SAUGE_CHROMIUM: ${{ needs.e2e-sauge-chromium.result }}
           ADMIN_QR_CHROMIUM: ${{ needs.e2e-admin-qr-chromium.result }}
           WEBKIT: ${{ needs.webkit-critical.result }}
+          PERFORMANCE: ${{ needs.landing-performance.result }}
+          RUN_PERFORMANCE: ${{ needs.classify-changes.outputs.run_landing == 'true' && (inputs.benchmark == true || contains(github.event.pull_request.labels.*.name, 'landing-performance')) }}
           EVENT: ${{ needs.classify-changes.outputs.event }}
           RUN_STATIC: ${{ needs.classify-changes.outputs.run_static }}
           RUN_DATABASE: ${{ needs.classify-changes.outputs.run_database }}
@@ -650,14 +729,14 @@ jobs:
           [[ "$CLASSIFY" == success ]] || { echo "classifier result: $CLASSIFY"; exit 1; }
           [[ "$CLASSIFY_FULL" == true || "$CLASSIFY_FULL" == false ]] || { echo "invalid full_ci output"; exit 1; }
           [[ "$CLASSIFICATION_VALID" == true ]] || { echo "invalid classifier policy output"; exit 1; }
-          for output in "$RUN_STATIC" "$RUN_DATABASE" "$RUN_BUILD" "$RUN_CORE" "$RUN_LANDING" "$RUN_MENU" "$RUN_SAUGE" "$RUN_ADMIN_QR" "$RUN_SEO" "$RUN_WEBKIT"; do
+          for output in "$RUN_STATIC" "$RUN_DATABASE" "$RUN_BUILD" "$RUN_CORE" "$RUN_LANDING" "$RUN_MENU" "$RUN_SAUGE" "$RUN_ADMIN_QR" "$RUN_SEO" "$RUN_WEBKIT" "$RUN_PERFORMANCE"; do
             [[ "$output" == true || "$output" == false ]] || { echo "invalid run_* output: $output"; exit 1; }
           done
           public_expected=false
           if [[ "$RUN_CORE" == true || "$RUN_LANDING" == true || "$RUN_MENU" == true || "$RUN_SEO" == true ]]; then public_expected=true; fi
-          declare -A results=( [fast-gate]="$FAST_GATE" [static-quality]="$STATIC" [database-contracts]="$DATABASE" [build-app]="$BUILD" [e2e-public-chromium]="$PUBLIC_CHROMIUM" [e2e-sauge-chromium]="$SAUGE_CHROMIUM" [e2e-admin-qr-chromium]="$ADMIN_QR_CHROMIUM" [webkit-critical]="$WEBKIT" )
-          declare -A expected=( [fast-gate]="true" [static-quality]="$RUN_STATIC" [database-contracts]="$RUN_DATABASE" [build-app]="$RUN_BUILD" [e2e-public-chromium]="$public_expected" [e2e-sauge-chromium]="$RUN_SAUGE" [e2e-admin-qr-chromium]="$RUN_ADMIN_QR" [webkit-critical]="$RUN_WEBKIT" )
-          ordered_jobs=(fast-gate static-quality database-contracts build-app e2e-public-chromium e2e-sauge-chromium e2e-admin-qr-chromium webkit-critical)
+          declare -A results=( [fast-gate]="$FAST_GATE" [static-quality]="$STATIC" [database-contracts]="$DATABASE" [build-app]="$BUILD" [e2e-public-chromium]="$PUBLIC_CHROMIUM" [e2e-sauge-chromium]="$SAUGE_CHROMIUM" [e2e-admin-qr-chromium]="$ADMIN_QR_CHROMIUM" [webkit-critical]="$WEBKIT" [landing-performance]="$PERFORMANCE" )
+          declare -A expected=( [fast-gate]="true" [static-quality]="$RUN_STATIC" [database-contracts]="$RUN_DATABASE" [build-app]="$RUN_BUILD" [e2e-public-chromium]="$public_expected" [e2e-sauge-chromium]="$RUN_SAUGE" [e2e-admin-qr-chromium]="$RUN_ADMIN_QR" [webkit-critical]="$RUN_WEBKIT" [landing-performance]="$RUN_PERFORMANCE" )
+          ordered_jobs=(fast-gate static-quality database-contracts build-app e2e-public-chromium e2e-sauge-chromium e2e-admin-qr-chromium webkit-critical landing-performance)
           failed=0
           root_failure=none
           for root_job in classify-changes fast-gate build-app static-quality database-contracts; do
@@ -730,7 +809,7 @@ jobs:
   ci-metrics:
     name: CI metrics
     if: ${{ always() && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) }}
-    needs: [classify-changes, fast-gate, static-quality, database-contracts, build-app, e2e-public-chromium, e2e-sauge-chromium, e2e-admin-qr-chromium, webkit-critical, ci-gate]
+    needs: [classify-changes, fast-gate, static-quality, database-contracts, build-app, e2e-public-chromium, e2e-sauge-chromium, e2e-admin-qr-chromium, webkit-critical, landing-performance, ci-gate]
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:

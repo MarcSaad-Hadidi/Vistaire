@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { writeFile } from "node:fs/promises";
 
 const BASE_URL =
   process.env.PLAYWRIGHT_BASE_URL ?? "http://127.0.0.1:3000";
@@ -439,18 +440,20 @@ test.describe("Vistaire public navigation", () => {
           arrived = true;
         } finally {
           const last = samples.at(-1);
+          const diagnosticPath = testInfo.outputPath(`${locale}-${id}-native-scroll.json`);
+          await writeFile(diagnosticPath, JSON.stringify({
+            locale, target: id, tolerance, arrived, beforeClick,
+            clickDurationMs: clickReturned - clickStarted,
+            arrivalElapsedMs: arrived ? last?.elapsedMs : null,
+            performanceWarning: !arrived || (last?.elapsedMs ?? 0) > 5_000,
+            lastSampleWithinFiveSeconds: samples.filter((sample) => sample.elapsedMs <= 5_000).at(-1) ?? null,
+            firstSampleAfterFiveSeconds: samples.find((sample) => sample.elapsedMs >= 5_000) ?? null,
+            runtimeErrors,
+            samples,
+          }, null, 2));
           await testInfo.attach(`${locale}-${id}-native-scroll.json`, {
             contentType: "application/json",
-            body: JSON.stringify({
-              locale, target: id, tolerance, arrived, beforeClick,
-              clickDurationMs: clickReturned - clickStarted,
-              arrivalElapsedMs: arrived ? last?.elapsedMs : null,
-              performanceWarning: !arrived || (last?.elapsedMs ?? 0) > 5_000,
-              lastSampleWithinFiveSeconds: samples.filter((sample) => sample.elapsedMs <= 5_000).at(-1) ?? null,
-              firstSampleAfterFiveSeconds: samples.find((sample) => sample.elapsedMs >= 5_000) ?? null,
-              runtimeErrors,
-              samples,
-            }, null, 2),
+            path: diagnosticPath,
           });
         }
         expect(runtimeErrors, `${locale}: native navigation runtime errors`).toEqual([]);
