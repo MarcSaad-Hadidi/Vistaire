@@ -2,6 +2,8 @@ import { expect, test, type Page } from "@playwright/test";
 import { writeFile } from "node:fs/promises";
 import { readFileSync } from "node:fs";
 
+const laptopAssetPaths = new Set(['/immersive-assets/dashboard/macbook.glb', '/immersive-assets/dashboard/dashboard-black-gold.webp']);
+
 async function disableWebGL(page: Page) {
   await page.addInitScript(() => {
     const original = HTMLCanvasElement.prototype.getContext;
@@ -346,8 +348,10 @@ renderedTest.describe('optional scene framing diagnostics (Chromium software Web
     await page.setViewportSize({ width: 390, height: 844 });
     await page.emulateMedia({ reducedMotion: 'reduce' });
     const requests: string[] = [];
+    const laptopRequests: string[] = [];
     page.on('request', request => {
       if (new URL(request.url()).pathname === '/immersive-assets/dishes/framing-hulls.json') requests.push(request.url());
+      if (laptopAssetPaths.has(new URL(request.url()).pathname)) laptopRequests.push(request.url());
     });
     // Identify the real Scene callback by its rendered frame publication, and
     // track owned RAF handles. Pending ownership distinguishes sleep from a
@@ -412,8 +416,10 @@ renderedTest.describe('optional scene framing diagnostics (Chromium software Web
     try {
       await page.goto('/#wearable', { waitUntil: 'domcontentloaded' });
       await page.evaluate(() => document.fonts.ready);
-      for (const attribute of ['restaurant', 'support', 'laptop'])
+      for (const attribute of ['restaurant', 'support'])
         await expect(canvas).toHaveAttribute(`data-${attribute}-ready`, 'true', { timeout: 120_000 });
+      await expect(canvas).toHaveAttribute('data-laptop-ready', 'false');
+      expect(laptopRequests).toEqual([]);
       await expect(canvas).toHaveAttribute('data-rendered-model', 'homard');
       await expect(canvas).toHaveAttribute('data-section', 'wearable');
       expect(phoneRequestHeld).toBe(true);
@@ -429,7 +435,7 @@ renderedTest.describe('optional scene framing diagnostics (Chromium software Web
         await new Promise(resolve => setTimeout(resolve, 500));
         return probe.pending === 0 && probe.callbacks === before;
       }), { timeout: 15_000 }).toBe(true);
-      const asleep = await canvas.evaluate(el => ({ frames: Number((el as HTMLCanvasElement).dataset.frames), scrollY,
+      const asleep = await canvas.evaluate(el => ({ frames: Number((el as HTMLCanvasElement).dataset.frames), triangles: Number((el as HTMLCanvasElement).dataset.triangles), scrollY,
         callbacks: (window as typeof window & { sceneWakeProbe: { callbacks: number } }).sceneWakeProbe.callbacks }));
       releasePhone();
       // No scroll, gesture or retry may wake the missing-phone completion.
@@ -438,11 +444,13 @@ renderedTest.describe('optional scene framing diagnostics (Chromium software Web
       await expect(canvas).toHaveAttribute('data-phone', 'iphone-16');
       await expect(canvas).toHaveAttribute('data-section', 'wearable');
       await expect.poll(() => canvas.evaluate(el => Number((el as HTMLCanvasElement).dataset.frames))).toBeGreaterThan(asleep.frames);
-      const awake = await canvas.evaluate(el => ({ scrollY, scale: Number((el as HTMLCanvasElement).dataset.phoneScale?.split(',')[0]),
+      const awake = await canvas.evaluate(el => ({ scrollY, triangles: Number((el as HTMLCanvasElement).dataset.triangles),
         callbacks: (window as typeof window & { sceneWakeProbe: { callbacks: number } }).sceneWakeProbe.callbacks }));
       expect(awake.callbacks).toBeGreaterThan(asleep.callbacks);
       expect(awake.scrollY).toBe(asleep.scrollY);
-      expect(awake.scale).toBeGreaterThan(0);
+      expect(awake.triangles).toBeGreaterThan(asleep.triangles);
+      expect(laptopRequests).toEqual([]);
+      await expect(canvas).not.toHaveAttribute('data-phone-scale', /.+/);
       await expect(canvas).toHaveAttribute('data-framing-ready', 'disabled');
       await expect(canvas).not.toHaveAttribute('data-dish-bounds', /.+/);
       await expect(canvas).not.toHaveAttribute('data-focus-bounds', /.+/);
@@ -546,12 +554,15 @@ renderedTest.describe('rendered scroll choreography (Chromium software WebGL)', 
       // The separate stop/resume sample below restores normal motion.
       await page.emulateMedia({ reducedMotion: 'reduce' });
       const errors: string[] = [];
+      const laptopRequests: string[] = [];
       page.on('pageerror', error => errors.push(error.message));
+      page.on('request', request => { if (laptopAssetPaths.has(new URL(request.url()).pathname)) laptopRequests.push(request.url()); });
       await page.goto(`${path}?sceneDiagnostics=1`, { waitUntil: 'domcontentloaded' });
       const canvas = page.locator('.scene-canvas');
       await expect(canvas).toHaveAttribute('data-ready', 'true', { timeout: 120_000 });
       await expect(canvas).toHaveAttribute('data-framing-ready', 'true', { timeout: 60_000 });
-      await expect(canvas).toHaveAttribute('data-laptop-ready', 'true', { timeout: 60_000 });
+      await expect(canvas).toHaveAttribute('data-laptop-ready', 'false');
+      expect(laptopRequests).toEqual([]);
       await expect(page.locator('.world-fallback')).toHaveCount(0);
       await page.evaluate(() => document.fonts.ready);
       const windows = await page.locator('.chapter[data-exit-start]').evaluateAll(elements => elements.map(el => ({
@@ -585,6 +596,13 @@ renderedTest.describe('rendered scroll choreography (Chromium software WebGL)', 
       };
       const at = async (y: number, settle = false) => {
         await page.evaluate(y => scrollTo({ top: y, behavior: 'instant' }), y);
+        const macWindow = windows.find(window => window.to === 'sustainability')!;
+        const macExit = windows.find(window => window.from === 'sustainability')!;
+        if (y >= macWindow.start && y <= macExit.end) {
+          const before = await canvas.evaluate(el => ({ ready: (el as HTMLCanvasElement).dataset.laptopReady, frames: Number((el as HTMLCanvasElement).dataset.frames) }));
+          await expect(canvas).toHaveAttribute('data-laptop-ready', 'true', { timeout: 60_000 });
+          if (before.ready !== 'true') await expect.poll(() => canvas.evaluate(el => Number((el as HTMLCanvasElement).dataset.frames))).toBeGreaterThan(before.frames);
+        }
         await waitForProcessedPose(page, undefined, false, { target: y, artifact: testInfo.outputPath('rendered-pending-pose-telemetry.json') });
         if (settle) await expect(canvas).toHaveAttribute('data-settled', 'true', { timeout: 15_000 });
         const snapshot = await canvas.evaluate(el => {
@@ -892,7 +910,7 @@ renderedTest.describe('complete-food zoom fit (Chromium software WebGL)', () => 
       const canvas = page.locator('.scene-canvas');
       await expect(canvas).toHaveAttribute('data-ready', 'true', { timeout: 120_000 });
       await expect(canvas).toHaveAttribute('data-framing-ready', 'true', { timeout: 60_000 });
-      await expect(canvas).toHaveAttribute('data-laptop-ready', 'true', { timeout: 60_000 });
+      await expect(canvas).toHaveAttribute('data-laptop-ready', 'false');
       await expect(page.locator('.preloader')).toHaveCount(0);
       let expectedViewport: { width: number; height: number } = viewport;
       const atGrip = async (framesBeforeResize?: number) => {

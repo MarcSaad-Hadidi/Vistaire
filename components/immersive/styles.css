@@ -177,6 +177,16 @@
 :where([data-immersive-vistaire]) .world-fallback canvas {
   display: none;
 }
+/* One full-world surface follows the identities copy, without a sticky edge. */
+:where([data-immersive-vistaire]) .world::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background: #11111066;
+  opacity: var(--identities-opacity, 0);
+  pointer-events: none;
+}
 :where([data-immersive-vistaire]) .world:after {
   content: "";
   position: absolute;
@@ -915,7 +925,6 @@
   grid-template-columns: 1fr 1fr;
   grid-template-rows: auto 1fr;
   gap: 26px;
-  background: #11111066;
 }
 :where([data-immersive-vistaire]) .identities h2 {
   grid-column: 1;

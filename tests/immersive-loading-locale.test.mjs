@@ -108,7 +108,7 @@ test("App publishes each complete scroll and control batch before one scene wake
   const scrollEnd = source.indexOf("    };\n    const queue =", scrollStart);
   assert.ok(scrollStart > 0 && scrollEnd > scrollStart, "execute the production scroll publication block");
   vm.runInNewContext(source.slice(scrollStart, scrollEnd), {
-    stateRef, measurements, current: { id: "sustainability" }, y: 170,
+    stateRef, measurements, sceneFrames: Object.fromEntries(measurements.map(m => [m.id, m.sceneFrame])), current: { id: "sustainability" }, y: 170,
     opening: { top: 0, stageHeight: 100 }, progress: 0.5, openingProgress: null,
     sceneFrame: { x: 0.5 }, transition: null, clamp: (value) => Math.max(0, Math.min(1, value)),
     SOCIAL_TRANSITIONS: [], cinematicEase: (value) => value, writeVisualProperty() {},

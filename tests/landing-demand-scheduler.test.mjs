@@ -2,8 +2,13 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
+import { resolve } from 'node:path';
+import { pathToFileURL } from 'node:url';
 import * as THREE from 'three';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
 
+const { createLaptopModel } = await import(pathToFileURL(resolve(process.env.VISTAIRE_LAPTOP_SOURCE || 'components/immersive/LaptopModel.js')));
 const source = readFileSync(process.env.VISTAIRE_SCENE_SOURCE || 'components/immersive/Scene.jsx', 'utf8');
 function between(start, end, text = source) {
   const a = text.indexOf(start), b = text.indexOf(end, a + start.length);
@@ -19,10 +24,10 @@ function productionFunction(name) {
 // Execute the real scheduler control flow, including the render/fit gate and
 // readiness checks. Model/material updates and GPU submission are irrelevant to
 // RAF ownership; existing camera-fit tests exercise the real fitting math.
-function fixture() {
+function fixture({ section = 'hero', laptopFactory, laptopSignals = false } = {}) {
   const pending = new Map();
   let nextFrame = 0, time = 0, renders = 0, onFit;
-  const state = { section: 'hero', progress: 0, scrollDistance: 0 };
+  const state = { section, progress: 0, scrollDistance: 0 };
   const pose = { look: [0, 0, 0], table: 1 };
   const roots = {};
   for (const name of ['support', 'phone', 'dish', 'laptop']) {
@@ -32,7 +37,9 @@ function fixture() {
     pose[`${name}Scale`] = 1;
   }
   const scope = {
-    THREE, ...roots, pose, stateRef: { current: state }, sceneState: state, initialState: state,
+    THREE, ...roots, pose, scene: new THREE.Scene(), disposeTree() {},
+    createLaptopModel: laptopFactory || (() => ({ root: roots.laptopRoot, settled: true, load() {} })),
+    stateRef: { current: state }, sceneState: state, initialState: state,
     document: { hidden: false }, canvas: { dataset: {} }, diagnosticsEnabled: false,
     requestAnimationFrame: callback => { pending.set(++nextFrame, callback); return nextFrame; },
     cancelAnimationFrame: id => pending.delete(id),
@@ -45,6 +52,8 @@ function fixture() {
     pausePhoneVideo: () => scope.phoneVideo.pause(), resize() {}, phoneVideoEvents: [],
     particles: { visible: false }, shadowInvalidated: false, posterReady: false, videoReady: false,
     wasOccluded: false, renderSignature: '', previousShadowSignature: '', lastSceneChange: 16,
+    viewportRevision: 0, cameraInteractive: false, pointer: { x: 0, y: 0 }, phoneFrame: 0,
+    nativeTable: null, foregroundLayerKey: '',
     frameSubjects: (_state, damping) => onFit?.(damping), submit: () => renders++,
     recordProcessedPose() {},
   };
@@ -56,10 +65,14 @@ function fixture() {
     run(between('    function invalidateScene(', '    function fail('));
   }
   run(productionFunction('fail'));
+  run(between('    const laptopAsset = createLaptopModel(', '    let posterReady ='));
+  run(between('    const initialState = stateRef.current', '    const initial = composition('));
   const draw = productionFunction('draw');
   run([
     between('    function draw(', '      // A genuine responsive-width change', draw),
+    laptopSignals ? between('      const geometrySignature =', '      const settled =', draw) : '',
     between('      const settled =', '          const layerKey =', draw),
+    laptopSignals ? between('          const layerKey =', '          renderer.info.reset();', draw) : '',
     '          submit();\n        }',
     draw.slice(draw.indexOf('        if (\n          !ready &&')),
   ].join('\n'));
@@ -195,4 +208,223 @@ test('Scene clears stale XR handles and guards hidden, opaque, failed, and dispo
   assert.equal(typeof lateWake, 'function');
   disposed.dispose(); lateWake();
   assert.equal(disposed.pending.size, 0, 'teardown cancels work and late callbacks cannot restart it');
+});
+
+
+test('active draw retains lifecycle and render counters without serializing default pose diagnostics', () => {
+  for (const diagnosticsEnabled of [false, true]) {
+    const roots = Object.fromEntries(['dish', 'support', 'phone', 'laptop'].map(name => [`${name}Root`, new THREE.Group()]));
+    const scope = {
+      ...roots, THREE, diagnosticsEnabled, canvas: { dataset: { model: 'homard' } },
+      camera: new THREE.PerspectiveCamera(), lookAt: new THREE.Vector3(), authoredCamera: new THREE.Vector3(),
+      pose: { dishOpacity: 1 }, state: { section: 'hero' }, contactShadow: new THREE.Group(),
+      renderer: { info: { reset() {}, render: { calls: 2, triangles: 10, frame: 1 } }, shadowMap: { needsUpdate: false }, render() {}, setScissorTest() {} },
+      scene: new THREE.Scene(), performance: { now: () => 1 },
+    };
+    vm.createContext(scope);
+    vm.runInContext(between('      camera.lookAt(lookAt);', '      const roomSettling ='), scope);
+    vm.runInContext(between('      contactShadow.scale.setScalar(', '      woodMaterial.opacity ='), scope);
+    vm.runInContext(between('          renderer.info.reset();', '\n        }\n        if (\n          !ready'), scope);
+    for (const key of ['cameraPosition', 'supportPosition', 'phoneQuaternion', 'dishScale', 'laptopPosition', 'dishOpacity', 'openingProgress', 'tableCameraPosition', 'roomCameraPosition'])
+      assert.equal(key in scope.canvas.dataset, diagnosticsEnabled, `${key}: pose serialization requires diagnostics`);
+    for (const key of ['renderCPUms', 'drawCalls', 'triangles', 'frames', 'renderedModel', 'shadowUpdated'])
+      assert.ok(key in scope.canvas.dataset, `${key}: lightweight benchmark marker is retained`);
+  }
+  const f = fixture();
+  f.step();
+  for (const key of ['section', 'progress', 'settled', 'suspended'])
+    assert.ok(key in f.scope.canvas.dataset, `${key}: lifecycle marker is retained`);
+});
+
+test('detached phone video loads and switches demos at normal playback speed', () => {
+  let loads = 0, pauses = 0, resets = 0;
+  const phoneVideo = { defaultPlaybackRate: 1, playbackRate: 1, readyState: 0, currentTime: 0,
+    pause() { pauses++; }, load() { loads++; } };
+  const scope = {
+    phoneVideo, canvas: { dataset: {} }, videoReady: false, videoStarted: false,
+    currentPhoneDemo: '', phonePlayIntent: 0, phonePlaybackWanted: false, videoPlaying: false,
+    selectPoster() {}, cancelPhoneFrame() {}, requestPhoneFrame() {},
+    phonePlayback: { reset() { resets++; }, play() {} },
+  };
+  vm.createContext(scope);
+  vm.runInContext(productionFunction('updatePhoneVideo'), scope);
+  scope.updatePhoneVideo(true, 'maison-elyse');
+  assert.equal(phoneVideo.defaultPlaybackRate, 1, 'detached video has no DOM effect that can correct its default rate');
+  assert.equal(phoneVideo.playbackRate, 1, 'decode workload must follow normal-speed playback');
+  scope.updatePhoneVideo(true, 'maison-elyse');
+  assert.equal(loads, 1, 'unchanged demo does not reload');
+  scope.updatePhoneVideo(true, 'sauge-noire');
+  assert.equal(phoneVideo.src, '/videos/demo/sauge-noire.mp4');
+  assert.equal(phoneVideo.defaultPlaybackRate, 1);
+  assert.equal(phoneVideo.playbackRate, 1);
+  assert.equal(loads, 2);
+  assert.equal(pauses, 2);
+  assert.equal(resets, 2);
+});
+
+
+test('Scene requests the real laptop only on forward, direct or reverse chapter demand', async t => {
+  const cases = [
+    ['forward', 'hero', { section: 'grip' }],
+    ['direct', 'sustainability', null],
+    ['reverse', 'pricing', { section: 'testimonies' }],
+    ['transition-in', 'hero', { section: 'features', transition: { from: 'features', to: 'sustainability', progress: 0.1 } }],
+    ['transition-out', 'pricing', { section: 'pricing', transition: { from: 'sustainability', to: 'pricing', progress: 0.1 } }],
+  ];
+  for (const [name, section, next] of cases) await t.test(name, t => {
+    const fetches = [], images = [];
+    t.mock.method(globalThis, 'fetch', (url, options) => {
+      fetches.push({ url, ...options });
+      return new Promise(() => {});
+    });
+    t.mock.method(THREE.TextureLoader.prototype, 'load', url => { images.push(url); return new THREE.Texture(); });
+    const f = fixture({ section, laptopFactory: createLaptopModel });
+    const asset = f.run('laptopAsset');
+    t.after(() => asset.dispose());
+    assert.equal(fetches.length, next ? 0 : 1, 'initial chapter alone determines resource demand');
+    assert.equal(images.length, next ? 0 : 1, 'dashboard image follows the same demand boundary');
+    f.step();
+    if (next) {
+      Object.assign(f.state, next);
+      f.wake(); f.step();
+    }
+    assert.equal(fetches.length, 1);
+    assert.equal(images.length, 1);
+    assert.match(fetches[0].url, /dashboard\/macbook\.glb$/);
+    assert.equal(images[0], '/immersive-assets/dashboard/dashboard-black-gold.webp');
+    f.wake(); f.step();
+    assert.equal(fetches.length, 1, 'repeated chapter updates reuse the pending resource');
+    asset.dispose();
+    assert.equal(fetches[0].signal.aborted, true, 'teardown cancels the requested model');
+  });
+});
+
+
+// Preserve the existing deferred-load cancellation proof alongside the Scene
+// scheduler contract. Only network/decode completion is controlled by the test.
+const settle = () => new Promise(resolve => setImmediate(resolve));
+function deferred() {
+  let resolve;
+  const promise = new Promise(done => { resolve = done; });
+  return { promise, resolve };
+}
+function laptopFixture(t) {
+  const fetches = [], images = [], parses = [], disposals = [], ready = [], errors = [];
+  let decoderDisposals = 0;
+  t.mock.method(globalThis, 'fetch', (_url, options) => {
+    const result = deferred();
+    fetches.push({ ...options, ...result });
+    return result.promise;
+  });
+  t.mock.method(THREE.TextureLoader.prototype, 'load', (_url, onLoad) => {
+    images.push(onLoad);
+    return new THREE.Texture();
+  });
+  t.mock.method(GLTFLoader.prototype, 'parseAsync', () => {
+    const result = deferred();
+    parses.push(result);
+    return result.promise;
+  });
+  t.mock.method(DRACOLoader.prototype, 'dispose', () => { decoderDisposals++; });
+  const asset = createLaptopModel({
+    canvas: { dataset: {} }, disposeTree: object => disposals.push(object),
+    onReady: () => ready.push('ready'), onInvalidate: () => ready.push('invalidate'),
+    onError: error => errors.push(error),
+  });
+  t.after(() => asset.dispose());
+  return { asset, fetches, images, parses, disposals, ready, errors, get decoderDisposals() { return decoderDisposals; } };
+}
+
+test('disposing a demanded laptop cancels work and discards late model and texture completion', async t => {
+  await t.test('dispose before demand starts nothing', t => {
+    const h = laptopFixture(t);
+    h.asset.dispose();
+    h.asset.load();
+    assert.equal(h.fetches.length, 0);
+    assert.equal(h.images.length, 0);
+  });
+  await t.test('disposed fetch never starts a parser', async t => {
+    const h = laptopFixture(t);
+    const loading = h.asset.load();
+    h.asset.dispose();
+    assert.equal(h.fetches[0].signal.aborted, true);
+    h.fetches[0].resolve({ ok: true, arrayBuffer: async () => new ArrayBuffer(0) });
+    await loading;
+    await settle();
+    assert.equal(h.parses.length, 0);
+    assert.equal(h.decoderDisposals, 1);
+    assert.deepEqual(h.ready, []);
+  });
+  await t.test('decoder disposal waits for parse and late resources never attach', async t => {
+    const h = laptopFixture(t);
+    const loading = h.asset.load();
+    h.fetches[0].resolve({ ok: true, arrayBuffer: async () => new ArrayBuffer(0) });
+    await settle();
+    assert.equal(h.parses.length, 1);
+    h.asset.dispose();
+    assert.equal(h.decoderDisposals, 0, 'an initializing parser can create a worker after premature disposal');
+    const model = new THREE.Group();
+    h.parses[0].resolve({ scene: model });
+    const texture = new THREE.Texture({ width: 1024, height: 768 });
+    let textureDisposals = 0;
+    texture.addEventListener('dispose', () => textureDisposals++);
+    h.images[0](texture);
+    await loading;
+    await settle();
+    assert.equal(h.asset.root.children.length, 0);
+    assert.ok(h.disposals.includes(model));
+    assert.equal(textureDisposals, 1);
+    assert.equal(h.decoderDisposals, 1);
+    assert.deepEqual(h.ready, []);
+    assert.deepEqual(h.errors, []);
+  });
+});
+
+
+test('model-only laptop completion wakes Scene and refreshes geometry, foreground layers and shadows', async t => {
+  const parsing = deferred();
+  t.mock.method(globalThis, 'fetch', async () => ({ ok: true, arrayBuffer: async () => new ArrayBuffer(0) }));
+  t.mock.method(THREE.TextureLoader.prototype, 'load', () => new THREE.Texture()); // dashboard stays pending
+  t.mock.method(GLTFLoader.prototype, 'parseAsync', () => parsing.promise);
+  const f = fixture({ section: 'grip', laptopFactory: createLaptopModel, laptopSignals: true });
+  const asset = f.run('laptopAsset');
+  t.after(() => asset.dispose());
+  // The neighboring dish chapter requests the laptop before it is visible.
+  asset.root.visible = false;
+  asset.root.scale.setScalar(0);
+  f.scope.pose.laptopScale = 0;
+  f.step();
+  assert.equal(f.pending.size, 0, 'the waiting scene sleeps');
+  const previousSignature = f.run('renderSignature');
+  const model = new THREE.Group();
+  const base = new THREE.Mesh(new THREE.BoxGeometry(3, 0.1, 2), new THREE.MeshBasicMaterial());
+  const lid = new THREE.Group();
+  lid.name = 'Bevels_2';
+  const screen = new THREE.Mesh(new THREE.BoxGeometry(3, 2, 0.02), new THREE.MeshBasicMaterial());
+  screen.name = 'Object_7';
+  screen.position.y = 1;
+  lid.add(screen);
+  model.add(base, lid);
+  const values = [0, 0, Math.PI / 2, 2 * Math.PI / 3].flatMap(angle =>
+    new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), angle).toArray());
+  const track = new THREE.QuaternionKeyframeTrack('Bevels_2.quaternion', [0, 1, 2, 3], values);
+  parsing.resolve({ scene: model, animations: [new THREE.AnimationClip('authored-hinge', 3, [track])] });
+  await asset.load();
+  const wakes = f.pending.size;
+  // Still inspect the next real draw when a missing wake is the regression.
+  if (!wakes) f.wake();
+  f.step();
+  const foreground = new THREE.Layers();
+  foreground.set(1);
+  const attached = [];
+  asset.root.traverse(object => { if (object !== asset.root) attached.push(object); });
+  assert.deepEqual({
+    wakes,
+    ready: f.scope.canvas.dataset.laptopReady,
+    boundsAvailable: !asset.framingBounds.isEmpty(),
+    geometryChanged: f.run('renderSignature') !== previousSignature,
+    foregroundAssigned: attached.length > 0 && attached.every(object => object.layers.mask === foreground.mask),
+    shadowsInvalidated: f.run('renderer.shadowMap.needsUpdate'),
+  }, { wakes: 1, ready: 'false', boundsAvailable: true, geometryChanged: true, foregroundAssigned: true, shadowsInvalidated: true });
+  assert.equal(f.pending.size, 0, 'a completed model update must not poll for the pending image');
 });

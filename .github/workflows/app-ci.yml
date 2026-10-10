@@ -14,6 +14,11 @@ on:
         default: targeted
         type: choice
         options: [targeted, full, sauge, database, admin_qr, landing, seo]
+      composition:
+        description: Run the bounded same-runner composition comparison
+        required: false
+        default: false
+        type: boolean
       benchmark:
         description: Run serial landing performance measurements (software WebGL)
         required: false
@@ -25,6 +30,10 @@ on:
         required: false
         default: full
         type: string
+      composition:
+        required: false
+        default: false
+        type: boolean
       benchmark:
         required: false
         default: false
@@ -581,7 +590,7 @@ jobs:
   landing-performance:
     name: landing-performance
     needs: [classify-changes, fast-gate, static-quality, build-app]
-    if: ${{ !cancelled() && needs.classify-changes.result == 'success' && needs.fast-gate.result == 'success' && needs.static-quality.result == 'success' && needs.build-app.result == 'success' && needs.classify-changes.outputs.run_landing == 'true' && (inputs.benchmark == true || contains(github.event.pull_request.labels.*.name, 'landing-performance')) }}
+    if: ${{ !cancelled() && needs.classify-changes.result == 'success' && needs.fast-gate.result == 'success' && needs.static-quality.result == 'success' && needs.build-app.result == 'success' && needs.classify-changes.outputs.run_landing == 'true' && (inputs.benchmark == true || contains(github.event.pull_request.labels.*.name, 'landing-performance') || inputs.composition == true || contains(github.event.pull_request.labels.*.name, 'landing-composition')) }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     # Measurements run serially on a separate runner after the production build.
@@ -613,6 +622,7 @@ jobs:
           name: next-build-${{ github.run_id }}
           path: .next
       - name: Measure normal-motion landing against hermetic production server
+        if: ${{ !(inputs.composition == true || contains(github.event.pull_request.labels.*.name, 'landing-composition')) }}
         env:
           VISTAIRE_BENCHMARK_OUTPUT: ${{ runner.temp }}/landing-performance
         shell: bash
@@ -636,6 +646,59 @@ jobs:
           done
           curl --fail --silent http://127.0.0.1:3000 > /dev/null
           node scripts/benchmark-landing.mjs
+      # Bounded investigation: remove this pinned cross-run hook after evidence is retained.
+      - name: Checkout the verified composition baseline
+        if: ${{ inputs.composition == true || contains(github.event.pull_request.labels.*.name, 'landing-composition') }}
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          ref: dc88019ce8448c8c56390a2b6cc2c9544fe28c25
+          path: .composition-baseline
+          lfs: false
+          persist-credentials: false
+      - name: Download the verified baseline build
+        if: ${{ inputs.composition == true || contains(github.event.pull_request.labels.*.name, 'landing-composition') }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          archive="$RUNNER_TEMP/composition-baseline.zip"
+          curl --fail --silent --show-error --location --connect-timeout 20 --max-time 180 \
+            --header "Authorization: Bearer $GH_TOKEN" \
+            --header 'Accept: application/vnd.github+json' \
+            'https://api.github.com/repos/MarcSaad-Hadidi/Vistaire/actions/artifacts/11677657188/zip' \
+            --output "$archive"
+          printf '%s  %s\n' 'd968b11f36d93ae1ce14723579485431c2f90332b90b9c7dc48692739348f1be' "$archive" | sha256sum --check --status
+          mkdir -p .composition-baseline/.next
+          unzip -q "$archive" -d .composition-baseline/.next
+          test -s .composition-baseline/.next/BUILD_ID
+      - name: Compare composition and active cost serially on this runner
+        if: ${{ inputs.composition == true || contains(github.event.pull_request.labels.*.name, 'landing-composition') }}
+        env:
+          VISTAIRE_COMPOSITION_OUTPUT: ${{ runner.temp }}/landing-performance/composition
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$VISTAIRE_COMPOSITION_OUTPUT"
+          ln -s "$GITHUB_WORKSPACE/node_modules" "$GITHUB_WORKSPACE/.composition-baseline/node_modules"
+          export VISTAIRE_COMPOSITION_RUNTIMES_JSON="$(node --input-type=module <<'NODE'
+          import path from 'node:path';
+          const root = process.env.GITHUB_WORKSPACE;
+          console.log(JSON.stringify({
+            baseline: {root: path.join(root, '.composition-baseline'), headSHA: '31ac86733abf54aa5844386dca155465ee25872f', buildSHA: 'dc88019ce8448c8c56390a2b6cc2c9544fe28c25', runURL: 'https://github.com/MarcSaad-Hadidi/Vistaire/actions/runs/38073599002', artifactID: 11677657188, artifactSHA256: 'd968b11f36d93ae1ce14723579485431c2f90332b90b9c7dc48692739348f1be'},
+            candidate: {root, headSHA: process.env.VISTAIRE_BENCHMARK_HEAD_SHA, buildSHA: process.env.VISTAIRE_BENCHMARK_SHA, runURL: process.env.VISTAIRE_BENCHMARK_RUN_URL, artifactID: null, artifactSHA256: null, artifactName: `next-build-${process.env.GITHUB_RUN_ID}`}
+          }));
+          NODE
+          )"
+          node e2e/support/sauge-noire-fixture-server.mjs > "$VISTAIRE_COMPOSITION_OUTPUT/fixture.log" 2>&1 &
+          fixture_pid=$!
+          trap 'kill "$fixture_pid" 2>/dev/null || true' EXIT
+          for _ in $(seq 1 30); do
+            if curl --fail --silent http://127.0.0.1:55434/fixture/health > /dev/null; then break; fi
+            sleep 1
+          done
+          curl --fail --silent http://127.0.0.1:55434/fixture/health > /dev/null
+          node scripts/diagnose-landing-composition.mjs
       - name: Preserve performance measurements and failures
         if: ${{ always() }}
         uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
@@ -730,7 +793,7 @@ jobs:
           ADMIN_QR_CHROMIUM: ${{ needs.e2e-admin-qr-chromium.result }}
           WEBKIT: ${{ needs.webkit-critical.result }}
           PERFORMANCE: ${{ needs.landing-performance.result }}
-          RUN_PERFORMANCE: ${{ needs.classify-changes.outputs.run_landing == 'true' && (inputs.benchmark == true || contains(github.event.pull_request.labels.*.name, 'landing-performance')) }}
+          RUN_PERFORMANCE: ${{ needs.classify-changes.outputs.run_landing == 'true' && (inputs.benchmark == true || contains(github.event.pull_request.labels.*.name, 'landing-performance') || inputs.composition == true || contains(github.event.pull_request.labels.*.name, 'landing-composition')) }}
           EVENT: ${{ needs.classify-changes.outputs.event }}
           RUN_STATIC: ${{ needs.classify-changes.outputs.run_static }}
           RUN_DATABASE: ${{ needs.classify-changes.outputs.run_database }}

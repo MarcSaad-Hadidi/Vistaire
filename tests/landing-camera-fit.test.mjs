@@ -8,7 +8,7 @@ import * as dolly from '../components/immersive/CameraDolly.js';
 import { projectHullBounds } from '../components/immersive/ProjectedBounds.js';
 
 test('yaw rotation preserves the actual camera and a separate zoom step enlarges the whole food', () => {
-  const source = readFileSync('components/immersive/Scene.jsx', 'utf8');
+  const source = readFileSync(process.env.VISTAIRE_SCENE_SOURCE || 'components/immersive/Scene.jsx', 'utf8');
   const hulls = JSON.parse(readFileSync('public/immersive-assets/dishes/framing-hulls.json', 'utf8')).byUrl;
   const footprints = { homard: 1.75, souffle: 1.65, huitres: 1.5, sushi: 2, "chocolat-fume": 1.5, poutine: 1.75, burger: 1.1 };
   for (const [width, height] of [[390, 844], [430, 932], [1440, 900], [1337, 591]]) for (const [id, footprint] of Object.entries(footprints)) {
@@ -119,7 +119,7 @@ test('zoom fits the complete rotated food inside the actual scissor frame at des
 // Actual shipped scan + actual frameSubjects/calibration code. This protects
 // the rendered damping guard, which a standalone fit-helper test cannot see.
 test('resetting a fully zoomed, reversed sushi preserves every hull point on each damped frame', () => {
-  const source = readFileSync('components/immersive/Scene.jsx', 'utf8');
+  const source = readFileSync(process.env.VISTAIRE_SCENE_SOURCE || 'components/immersive/Scene.jsx', 'utf8');
   const hull = Object.values(JSON.parse(readFileSync('public/immersive-assets/dishes/framing-hulls.json', 'utf8')).byUrl).find(h => h.id === 'sushi');
   const scene = new THREE.Scene();
   const roots = Array.from({ length: 4 }, () => new THREE.Group());
@@ -162,7 +162,7 @@ test('resetting a fully zoomed, reversed sushi preserves every hull point on eac
 // A screen-space fit alone cannot detect opaque-table occlusion. These are
 // the shipped scans that reproduced the dip during rotation and Home/reset.
 test('rotating and resetting food keeps every transformed hull point above the tabletop without resizing it', () => {
-  const source = readFileSync('components/immersive/Scene.jsx', 'utf8');
+  const source = readFileSync(process.env.VISTAIRE_SCENE_SOURCE || 'components/immersive/Scene.jsx', 'utf8');
   const helper = source.match(/function minimumDishY\([^]*?\n}/)?.[0];
   assert.ok(helper, 'the actual and target dish poses need a tabletop-clearance constraint');
   const scope = { THREE, activeDish: new THREE.Group(), nativeTable: { metadata: { surfaceY: -0.02 } }, objectTarget: new THREE.Vector3(), targetEuler: new THREE.Euler(), targetQuaternion: new THREE.Quaternion() };
@@ -243,7 +243,7 @@ test('rotating and resetting food keeps every transformed hull point above the t
 // Lifting a rotated plate above the table must not push it out of its existing
 // scissor frame, even before the visitor requests any zoom.
 test('the default-zoom camera fits a lifted high-pitch mobile homard', () => {
-  const source = readFileSync('components/immersive/Scene.jsx', 'utf8');
+  const source = readFileSync(process.env.VISTAIRE_SCENE_SOURCE || 'components/immersive/Scene.jsx', 'utf8');
   const hull = JSON.parse(readFileSync('public/immersive-assets/dishes/framing-hulls.json', 'utf8')).byUrl['/media/homard-mobile.glb'];
   assert.ok(hull, 'use the actual mobile homard scan');
   const scene = new THREE.Scene();
@@ -277,4 +277,97 @@ test('the default-zoom camera fits a lifted high-pitch mobile homard', () => {
   assert.ok(bounds.y >= (focus.y - focus.height / 2) * 844 - 0.1, `lifted plate top clipped by ${(focus.y - focus.height / 2) * 844 - bounds.y}px at default zoom`);
   assert.ok(bounds.y + bounds.height <= (focus.y + focus.height / 2) * 844 + 0.1);
   assert.deepEqual(roots[0].scale.toArray(), [0.98, 0.98, 0.98]);
+});
+
+// Run the full production fitting path; count serialization without replacing
+// calibration math or inventing bounds for a laptop that has not loaded yet.
+function referenceFixture(diagnosticsEnabled = false) {
+  const source = readFileSync(process.env.VISTAIRE_SCENE_SOURCE || 'components/immersive/Scene.jsx', 'utf8');
+  const scene = new THREE.Scene();
+  const roots = Array.from({ length: 4 }, () => new THREE.Group());
+  roots.forEach(root => scene.add(root));
+  const camera = new THREE.PerspectiveCamera(40, 1440 / 900, 0.05, 200);
+  const notices = [], serialized = [];
+  const scope = {
+    ...director, ...dolly, THREE, HALF_PI: Math.PI / 2,
+    clamp: (v, a, b) => Math.min(b, Math.max(a, v)), scene, camera,
+    dishRoot: roots[0], supportRoot: roots[1], phoneRoot: roots[2], laptopRoot: roots[3],
+    supportAssets: { active: null }, laptopAsset: { framingBounds: new THREE.Box3() },
+    corner: new THREE.Vector3(), referenceCamera: camera.clone(), mobileViewport: () => false,
+    canvas: { clientWidth: 1440, clientHeight: 900, width: 1440, height: 900, dataset: { model: 'homard', laptopReady: 'false' } },
+    activeDish: null, nativeTable: null, diagnosticsEnabled, phoneVideo: { playbackRate: 1 },
+    callbacks: { current: { onZoomFit: notice => notices.push(notice) } },
+    JSON: { stringify(value) { serialized.push(value); return JSON.stringify(value); } },
+    applyTransform: (root, position, rotation, scale) => {
+      root.position.fromArray(position); root.quaternion.setFromEuler(new THREE.Euler(...rotation));
+      root.scale.setScalar(scale); root.visible = scale > 0.003;
+    },
+  };
+  vm.createContext(scope);
+  vm.runInContext(source.slice(source.indexOf('function baseComposition('), source.indexOf('\nfunction composition(')), scope);
+  vm.runInContext(source.slice(source.indexOf('    const calibrations = new Map();'), source.indexOf('    let foregroundLayerKey =')), scope);
+  return { scope, notices, serialized };
+}
+
+test('full camera fitting serializes pose and view diagnostics only when explicitly enabled', () => {
+  for (const enabled of [false, true]) {
+    const f = referenceFixture(enabled);
+    const focus = { x: 0.5, y: 0.465, width: 0.9, height: 0.4 };
+    const state = { section: 'grip', dishZoom: 1, sceneFrame: focus, sceneFrames: { grip: focus } };
+    f.scope.frameSubjects(state, 1);
+    assert.equal(f.notices.length, 1, 'the functional zoom callback survives diagnostics gating');
+    assert.equal(f.scope.canvas.dataset.phoneRate, '1', 'lightweight playback evidence remains available');
+    for (const key of ['cameraViewOffset', 'fittedCameraPosition', 'fittedLook', 'dishScale', 'cameraDistance', 'fittedZoom'])
+      assert.equal(key in f.scope.canvas.dataset, enabled, `${key}: explicit diagnostics only`);
+    assert.equal(f.serialized.includes(f.scope.camera.view), enabled, 'default fitting never serializes the camera view');
+    assert.ok(f.scope.camera.position.toArray().every(Number.isFinite));
+  }
+});
+
+test('stable reference-frame identity avoids serialization while real frame, asset and viewport changes recalibrate', () => {
+  const f = referenceFixture();
+  const focus = { x: 0.5, y: 0.5, width: 0.8, height: 0.4 };
+  const state = { section: 'sustainability', sceneFrames: { sustainability: focus } };
+  const initial = f.scope.cameraComposition(state);
+  assert.ok([...initial.camera, ...initial.look, initial.distance].every(Number.isFinite), 'unloaded laptop uses a finite authored reference');
+  assert.ok(f.scope.laptopAsset.framingBounds.isEmpty(), 'pending load must not manufacture proxy geometry');
+  for (let frame = 0; frame < 12; frame++) {
+    state.progress = frame / 12;
+    assert.equal(f.scope.cameraComposition(state), initial, 'scroll reuses the calibrated reference');
+  }
+  assert.equal(f.serialized.filter(value => value === state.sceneFrames).length, 1, 'unchanged sceneFrames identity must serialize only once');
+  const oldFrames = state.sceneFrames;
+  state.sceneFrames = { sustainability: { ...focus, height: 0.2 } };
+  const reframed = f.scope.cameraComposition(state);
+  assert.notEqual(reframed, initial, 'new frame geometry invalidates calibration');
+  assert.equal(f.serialized.filter(value => value === state.sceneFrames).length, 1);
+  assert.equal(f.serialized.filter(value => value === oldFrames).length, 1);
+  f.scope.laptopAsset.framingBounds.set(new THREE.Vector3(-1.56, 0, -1), new THREE.Vector3(1.56, 2, 1));
+  f.scope.canvas.dataset.laptopReady = 'true';
+  let previous = f.scope.cameraComposition(state);
+  assert.notEqual(previous, reframed, 'arrival of the real laptop replaces the pending reference');
+  assert.notDeepEqual([...previous.camera], [...reframed.camera], 'real laptop bounds affect the fitted camera');
+  for (const [key, value] of [['model', 'sushi'], ['support', 'bois'], ['supportReady', 'true'], ['phoneReady', 'true']]) {
+    f.scope.canvas.dataset[key] = value;
+    const next = f.scope.cameraComposition(state);
+    assert.notEqual(next, previous, `${key}: asset changes invalidate calibration`);
+    previous = next;
+  }
+  f.scope.canvas.width = 430;
+  assert.notEqual(f.scope.cameraComposition(state), previous, 'drawing-size changes invalidate calibration');
+  assert.equal(f.serialized.filter(value => value === state.sceneFrames).length, 1, 'asset and size changes reuse the stable frame serialization');
+});
+
+
+test('laptop model arrival replaces its empty reference before the dashboard image is ready', () => {
+  const f = referenceFixture();
+  const state = { section: 'sustainability', sceneFrames: { sustainability: { x: 0.5, y: 0.5, width: 0.8, height: 0.4 } } };
+  const pending = f.scope.cameraComposition(state);
+  assert.ok([...pending.camera, ...pending.look, pending.distance].every(Number.isFinite));
+  f.scope.laptopAsset.framingBounds.set(new THREE.Vector3(-1.56, 0, -1), new THREE.Vector3(1.56, 2, 1));
+  assert.equal(f.scope.canvas.dataset.laptopReady, 'false');
+  const modelReady = f.scope.cameraComposition(state);
+  assert.notEqual(modelReady, pending, 'real model bounds invalidate the authored fallback before the image finishes');
+  assert.notDeepEqual([...modelReady.camera], [...pending.camera]);
+  assert.ok([...modelReady.camera, ...modelReady.look, modelReady.distance].every(Number.isFinite));
 });

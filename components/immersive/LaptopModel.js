@@ -40,6 +40,7 @@ function disposeResources(object) {
  * The original GLB, all geometries, UVs and other materials remain unchanged.
  * The screen shows a captured public Vistaire demonstration, not live data.
  * Root width: 3.12; closed base at y=0. framingBounds is local and stable.
+ * load() starts the original model and dashboard once, when the scene needs them.
  * update(progress, damping=1, reducedMotion=false) returns whether it moved.
  * No internal animation loop: the scene stops scheduling when settled=true.
  */
@@ -48,6 +49,7 @@ export function createLaptopModel({
   renderer,
   disposeTree = disposeResources,
   onReady,
+  onInvalidate,
   onError,
 } = {}) {
   const root = new THREE.Group();
@@ -56,6 +58,7 @@ export function createLaptopModel({
   root.userData.dashboardDemo = true;
   root.userData.modelSource = MODEL_URL;
   let disposed = false;
+  let loading = null;
   let settled = true;
   let modelReady = false;
   let imageReady = false;
@@ -102,6 +105,7 @@ export function createLaptopModel({
       canvas.dataset.laptopModel = "macbook-pro-13-2020";
     }
     onReady?.();
+    if (!disposed) onInvalidate?.();
   }
   function setNativeTime(time) {
     // Explicitly evaluate the authored animation at this scroll-selected time.
@@ -112,122 +116,130 @@ export function createLaptopModel({
     model.updateMatrixWorld(true);
   }
 
-  new THREE.TextureLoader().load(
-    SCREEN_URL,
-    (texture) => {
-      if (disposed) {
-        texture.dispose();
-        return;
-      }
-      if (Math.max(texture.image.width, texture.image.height) > 2048) {
-        texture.dispose();
-        fail(new Error("Dashboard texture exceeds the 2048-pixel budget."));
-        return;
-      }
-      texture.flipY = true;
-      texture.colorSpace = THREE.SRGBColorSpace;
-      texture.anisotropy = Math.min(
-        8,
-        renderer?.capabilities.getMaxAnisotropy?.() ?? 4,
-      );
-      screenTexture = texture;
-      screenMaterial.map = texture;
-      screenMaterial.color.set(0xffffff);
-      screenMaterial.needsUpdate = true;
-      imageReady = true;
-      notifyReady();
-    },
-    undefined,
-    fail,
-  );
-
-  fetch(MODEL_URL, { signal: abort.signal })
-    .then((response) => {
-      if (!response.ok)
-        throw new Error(`MacBook asset: HTTP ${response.status}`);
-      return response.arrayBuffer();
-    })
-    .then((buffer) => loader.parseAsync(buffer, publicModelBaseUrl(MODEL_URL)))
-    .then((gltf) => {
-      if (disposed) {
-        disposeTree(gltf.scene);
-        return;
-      }
-      model = gltf.scene;
-      lid = model.getObjectByName("Bevels_2");
-      screen = model.getObjectByName("Object_7");
-      const clip = gltf.animations.find((animation) =>
-        animation.tracks.some((track) => track.name === "Bevels_2.quaternion"),
-      );
-      const track = clip?.tracks.find(
-        (candidate) => candidate.name === "Bevels_2.quaternion",
-      );
-      if (!lid || !screen?.isMesh || !track) {
-        throw new Error(
-          "The supplied MacBook hinge, screen or animation is missing.",
+  function load() {
+    if (disposed || loading) return loading;
+    new THREE.TextureLoader().load(
+      SCREEN_URL,
+      (texture) => {
+        if (disposed) {
+          texture.dispose();
+          return;
+        }
+        if (Math.max(texture.image.width, texture.image.height) > 2048) {
+          texture.dispose();
+          fail(new Error("Dashboard texture exceeds the 2048-pixel budget."));
+          return;
+        }
+        texture.flipY = true;
+        texture.colorSpace = THREE.SRGBColorSpace;
+        texture.anisotropy = Math.min(
+          8,
+          renderer?.capabilities.getMaxAnisotropy?.() ?? 4,
         );
-      }
-      const identity = new THREE.Quaternion();
-      const quaternion = new THREE.Quaternion();
-      let openIndex = 0;
-      let widestAngle = 0;
-      for (let index = 0; index < track.times.length; index++) {
-        quaternion.fromArray(track.values, index * 4);
-        const angle = quaternion.angleTo(identity);
-        if (angle > widestAngle) {
-          widestAngle = angle;
-          openIndex = index;
+        screenTexture = texture;
+        screenMaterial.map = texture;
+        screenMaterial.color.set(0xffffff);
+        screenMaterial.needsUpdate = true;
+        imageReady = true;
+        notifyReady();
+      },
+      undefined,
+      fail,
+    );
+
+    loading = fetch(MODEL_URL, { signal: abort.signal })
+      .then((response) => {
+        if (!response.ok)
+          throw new Error(`MacBook asset: HTTP ${response.status}`);
+        return response.arrayBuffer();
+      })
+      .then(async (buffer) => {
+        if (disposed) return;
+        const gltf = await loader.parseAsync(buffer, publicModelBaseUrl(MODEL_URL));
+        if (disposed) {
+          disposeTree(gltf.scene);
+          return;
         }
-      }
-      openingStart = track.times[1];
-      openingEnd = track.times[openIndex];
-      mixer = new THREE.AnimationMixer(model);
-      action = mixer.clipAction(clip);
-      action.setLoop(THREE.LoopOnce, 1);
-      action.clampWhenFinished = true;
-      action.play();
-      setNativeTime(openingStart);
-      const closed = new THREE.Box3().setFromObject(model);
-      const center = closed.getCenter(new THREE.Vector3());
-      const scale = 3.12 / closed.getSize(new THREE.Vector3()).x;
-      model.scale.multiplyScalar(scale);
-      model.position.set(
-        -center.x * scale,
-        -closed.min.y * scale,
-        -center.z * scale,
-      );
-      const normalized = new THREE.Group();
-      normalized.name = "normalized-original-macbook";
-      normalized.add(model);
-      // Include every opening keyframe: at 90 degrees the lid is taller than
-      // at the final 120-degree pose. Compute before external scene transforms.
-      for (const time of track.times) {
-        if (time < openingStart || time > openingEnd) continue;
-        setNativeTime(time);
-        framingBounds.union(new THREE.Box3().setFromObject(normalized));
-      }
-      framingBounds.expandByScalar(0.025);
-      currentTime = openingStart;
-      setNativeTime(currentTime);
-      model.traverse((object) => {
-        if (object.isMesh) {
-          object.castShadow = true;
-          object.receiveShadow = true;
+        model = gltf.scene;
+        lid = model.getObjectByName("Bevels_2");
+        screen = model.getObjectByName("Object_7");
+        const clip = gltf.animations.find((animation) =>
+          animation.tracks.some((track) => track.name === "Bevels_2.quaternion"),
+        );
+        const track = clip?.tracks.find(
+          (candidate) => candidate.name === "Bevels_2.quaternion",
+        );
+        if (!lid || !screen?.isMesh || !track) {
+          throw new Error(
+            "The supplied MacBook hinge, screen or animation is missing.",
+          );
         }
-      });
-      originalScreenMaterial = screen.material;
-      screen.material = screenMaterial;
-      screen.castShadow = false;
-      screen.receiveShadow = false;
-      root.add(normalized);
-      root.userData.nativeAnimation = clip.name;
-      root.userData.openingRange = [openingStart, openingEnd];
-      root.userData.openAngleDegrees = THREE.MathUtils.radToDeg(widestAngle);
-      modelReady = true;
-      update(desiredProgress, 1, desiredReduced);
-      notifyReady();
-    })
-    .catch(fail);
+        const identity = new THREE.Quaternion();
+        const quaternion = new THREE.Quaternion();
+        let openIndex = 0;
+        let widestAngle = 0;
+        for (let index = 0; index < track.times.length; index++) {
+          quaternion.fromArray(track.values, index * 4);
+          const angle = quaternion.angleTo(identity);
+          if (angle > widestAngle) {
+            widestAngle = angle;
+            openIndex = index;
+          }
+        }
+        openingStart = track.times[1];
+        openingEnd = track.times[openIndex];
+        mixer = new THREE.AnimationMixer(model);
+        action = mixer.clipAction(clip);
+        action.setLoop(THREE.LoopOnce, 1);
+        action.clampWhenFinished = true;
+        action.play();
+        setNativeTime(openingStart);
+        const closed = new THREE.Box3().setFromObject(model);
+        const center = closed.getCenter(new THREE.Vector3());
+        const scale = 3.12 / closed.getSize(new THREE.Vector3()).x;
+        model.scale.multiplyScalar(scale);
+        model.position.set(
+          -center.x * scale,
+          -closed.min.y * scale,
+          -center.z * scale,
+        );
+        const normalized = new THREE.Group();
+        normalized.name = "normalized-original-macbook";
+        normalized.add(model);
+        // Include every opening keyframe: at 90 degrees the lid is taller than
+        // at the final 120-degree pose. Compute before external scene transforms.
+        for (const time of track.times) {
+          if (time < openingStart || time > openingEnd) continue;
+          setNativeTime(time);
+          framingBounds.union(new THREE.Box3().setFromObject(normalized));
+        }
+        framingBounds.expandByScalar(0.025);
+        currentTime = openingStart;
+        setNativeTime(currentTime);
+        model.traverse((object) => {
+          if (object.isMesh) {
+            object.castShadow = true;
+            object.receiveShadow = true;
+          }
+        });
+        originalScreenMaterial = screen.material;
+        screen.material = screenMaterial;
+        screen.castShadow = false;
+        screen.receiveShadow = false;
+        root.add(normalized);
+        root.userData.nativeAnimation = clip.name;
+        root.userData.openingRange = [openingStart, openingEnd];
+        root.userData.openAngleDegrees = THREE.MathUtils.radToDeg(widestAngle);
+        modelReady = true;
+        update(desiredProgress, 1, desiredReduced);
+        // The mesh can arrive before its image. Wake the owning scene so its
+        // bounds, foreground layers and shadows observe the same attachment.
+        if (!imageReady) onInvalidate?.();
+        notifyReady();
+      })
+      .catch(fail);
+    return loading;
+  }
 
   function update(progress, damping = 1, reducedMotion = false) {
     if (typeof damping === "boolean") {
@@ -268,7 +280,12 @@ export function createLaptopModel({
     if (disposed) return;
     disposed = true;
     abort.abort();
-    draco.dispose();
+    // GLTF parsing can reject while Draco's preload is still initializing.
+    // Wait only for work already started; cleanup must not fetch the decoder.
+    Promise.allSettled([loading])
+      .then(() => draco.decoderPending)
+      .catch(() => {})
+      .finally(() => draco.dispose());
     mixer?.stopAllAction();
     if (model) mixer?.uncacheRoot(model);
     root.removeFromParent();
@@ -295,6 +312,7 @@ export function createLaptopModel({
     get settled() {
       return settled;
     },
+    load,
     update,
     dispose,
   };

@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 import test from 'node:test';
+import postcss from 'postcss';
 import * as THREE from 'three';
 import * as director from '../components/immersive/SceneDirector.js';
 
@@ -21,6 +22,46 @@ function geometry(stage) {
     return item;
   });
   return { opening, measurements };
+}
+
+// Run App's actual measurement/update closure; only the browser geometry and
+// React setters are fixtures, so frame-map allocation is observed end to end.
+function appScrollFixture() {
+  const app = readFileSync('components/immersive/App.jsx', 'utf8');
+  const { opening, measurements } = geometry(844);
+  const style = () => ({ setProperty(name, value) { this[name] = value; } });
+  const scope = {
+    ...director, scrollY: 0, innerWidth: 390, location: { hash: '' },
+    clamp: value => Math.max(0, Math.min(1, value)),
+    SOCIAL_TRANSITIONS: director.socialTiming().transitions,
+    chapters: ids.map(id => [id]), sectionRefs: { current: {} },
+    stateRef: { current: {} }, scrollTargets: { current: {} }, guideDismissed: { current: true },
+    setGuideVisible() {}, setChapter() {}, setChapterBeats() {},
+    getComputedStyle: () => ({ height: '844px' }),
+  };
+  const world = { clientHeight: 932, dataset: {}, style: style() };
+  scope.document = { querySelector: () => world, documentElement: { dataset: {} } };
+  scope.openingRef = { current: {
+    firstElementChild: { style: style() },
+    getBoundingClientRect: () => ({ top: -scope.scrollY, height: opening.height }),
+  } };
+  for (const m of measurements) {
+    const focus = { left: 30, width: 300, height: 400 };
+    const stage = { style: style(), getBoundingClientRect: () => ({ top: m.top - scope.scrollY, height: 844 }) };
+    const attributes = new Map();
+    scope.sectionRefs.current[m.id] = {
+      firstElementChild: stage, dataset: {}, style: style(), offsetHeight: m.travel + 844, focus,
+      getBoundingClientRect: () => ({ top: m.top - scope.scrollY, height: m.travel + 844 }),
+      querySelector: () => ({ getBoundingClientRect: () => ({ ...focus, top: m.top - scope.scrollY + 100 }) }),
+      getAttribute: name => attributes.get(name), setAttribute: (name, value) => attributes.set(name, value),
+    };
+  }
+  const start = app.indexOf('    let ticking = false;');
+  const end = app.indexOf('    const queue = () => {', start);
+  assert.ok(start >= 0 && end > start, 'execute App measurement and scroll update functions');
+  vm.runInNewContext(app.slice(start, end) + '\nthis.measure = measure; this.update = update;', scope);
+  scope.measure();
+  return { scope, world, opening, measurements, state: scope.stateRef.current };
 }
 const numbers = (pose) => Object.values(pose).flat().filter(v => typeof v === 'number');
 function assertC1(sample, seam, label) {
@@ -260,4 +301,65 @@ test('direct cinematic anchors land after the incoming fade with interactive con
     assert.ok(Math.abs(y - window.end) < 1e-8);
   }
   for (const chapter of measurements.slice(10)) assert.equal(director.chapterNavigationTarget(chapter, opening.stageHeight), chapter.top);
+});
+
+test('App reuses sceneFrames between measurement batches and replaces them after geometry changes', () => {
+  const f = appScrollFixture();
+  f.scope.scrollY = f.measurements[3].top;
+  f.scope.update();
+  const first = f.state.sceneFrames;
+  const originalX = first.features.x;
+  f.scope.scrollY += 10;
+  f.scope.update();
+  assert.equal(f.state.sceneFrames, first, 'scroll alone must not allocate a new scene-frame map');
+  f.scope.sectionRefs.current.features.focus.left += 20;
+  f.scope.measure();
+  f.scope.update();
+  assert.notEqual(f.state.sceneFrames, first, 'a geometry remeasure publishes a fresh scene-frame map');
+  assert.ok(Math.abs(f.state.sceneFrames.features.x - originalX - 20 / 390) < 1e-12);
+  assert.equal(first.features.x, originalX, 'the previous measurement batch is not mutated');
+});
+
+test('identities surface follows copy visibility over the full world without changing its sticky stage', () => {
+  const f = appScrollFixture();
+  const chapter = f.measurements.find(m => m.id === 'testimonies');
+  const windows = director.measureChapterTransitions(f.measurements, f.opening);
+  const incoming = windows.find(w => w.to.id === chapter.id);
+  const outgoing = windows.find(w => w.from.id === chapter.id);
+  const el = f.scope.sectionRefs.current.testimonies;
+  const positions = [incoming, outgoing].flatMap(w => [0, 0.25, 0.5, 0.75, 1].map(p => w.start + (w.end - w.start) * p));
+  for (const y of [...positions, ...positions.toReversed()]) {
+    f.scope.scrollY = y;
+    f.scope.update();
+    const alpha = director.cinematicCopyWeights((y - incoming.start) / (incoming.end - incoming.start)).incoming
+      * director.cinematicCopyWeights((y - outgoing.start) / (outgoing.end - outgoing.start)).outgoing;
+    assert.equal(el.style['--copy-opacity'], String(alpha), 'retain the existing chapter copy envelope');
+    assert.equal(f.world.style['--identities-opacity'], el.style['--copy-opacity'], 'world surface must receive the actual copy alpha, including zero');
+    assert.equal(el.firstElementChild.style.translate, `0 ${director.cinematicStageOffset(chapter, y, incoming.start, outgoing.end)}px`);
+  }
+  const css = postcss.parse(readFileSync('components/immersive/styles.css', 'utf8'));
+  const declarations = selector => {
+    const values = {};
+    css.walkRules(rule => {
+      if (rule.parent.type !== 'root' || !rule.selectors.includes(`:where([data-immersive-vistaire]) ${selector}`)) return;
+      rule.walkDecls(decl => { values[decl.prop] = decl.value; });
+    });
+    return values;
+  };
+  const surface = declarations('.world::before');
+  assert.equal(surface.content, '""');
+  assert.equal(surface.position, 'absolute');
+  assert.equal(surface.inset, '0', 'the surface fills the dynamic world, not the shorter frozen stage');
+  assert.equal(surface['pointer-events'], 'none');
+  assert.equal(surface['z-index'], '1');
+  assert.equal(surface.background, '#11111066', 'retain the authored identities color and strength');
+  assert.match(surface.opacity, /^var\(--identities-opacity,\s*0\)$/);
+  assert.equal(declarations('.world')['z-index'], '0');
+  assert.equal(declarations('main')['z-index'], '2');
+  assert.equal(declarations('footer.chapter')['z-index'], '2');
+  assert.equal(declarations('.site-header')['z-index'], '50');
+  assert.ok([undefined, 'none', 'transparent'].includes(declarations('.identities .stage').background), 'the translated stage must not retain a second surface');
+  const stage = declarations('.stage');
+  assert.equal(stage.position, 'sticky');
+  assert.equal(stage.height, 'calc(100 * var(--journey-vh))');
 });

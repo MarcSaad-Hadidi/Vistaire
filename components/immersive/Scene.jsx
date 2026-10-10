@@ -707,10 +707,17 @@ export default function Scene({
       renderer,
       disposeTree,
       onError: fail,
-      onReady: invalidateScene,
+      onInvalidate: invalidateScene,
     });
     const laptopRoot = laptopAsset.root;
     scene.add(laptopRoot);
+    function ensureLaptop(state) {
+      // Preload from either neighboring chapter; direct links and skipped
+      // chapters still request the original model as soon as it is needed.
+      if (state.section === "grip" || state.section === "sustainability" ||
+        state.section === "testimonies" || state.transition?.from === "sustainability" ||
+        state.transition?.to === "sustainability") laptopAsset.load();
+    }
     let posterReady = false;
     let videoReady = false;
     let videoStarted = false;
@@ -843,8 +850,8 @@ export default function Scene({
         currentPhoneDemo = demo;
         videoReady = false;
         phonePlayback.reset();
-        phoneVideo.defaultPlaybackRate = 2;
-        phoneVideo.playbackRate = 2;
+        phoneVideo.defaultPlaybackRate = 1;
+        phoneVideo.playbackRate = 1;
         phoneVideo.load();
         videoStarted = true;
         canvas.dataset.phoneDemo = demo;
@@ -1112,6 +1119,7 @@ export default function Scene({
       object.visible = nextScale > 0.003;
     }
     const initialState = stateRef.current || { section: "hero", progress: 0 };
+    ensureLaptop(initialState);
     const initial = composition(initialState, mobileViewport());
     camera.position.fromArray(initial.camera);
     camera.up.set(0, 1, 0);
@@ -1161,6 +1169,8 @@ export default function Scene({
     );
     const calibrations = new Map();
     let calibrationKey = "";
+    let calibrationFrames;
+    let serializedFrames = "";
     let framingReference;
     let projectionState;
     let projectionSettling = false;
@@ -1337,7 +1347,13 @@ export default function Scene({
       return result;
     }
     function cameraComposition(state) {
-      const key = `${canvas.dataset.model}|${canvas.dataset.support}|${canvas.dataset.supportReady}|${canvas.dataset.phoneReady}|${canvas.dataset.laptopReady}|${canvas.width}|${canvas.height}|${JSON.stringify(state.sceneFrames)}`;
+      // App publishes immutable measured frames only when layout is measured.
+      // Decoded video frames and ordinary scroll do not reserialize that map.
+      if (state.sceneFrames !== calibrationFrames) {
+        calibrationFrames = state.sceneFrames;
+        serializedFrames = JSON.stringify(calibrationFrames);
+      }
+      const key = `${canvas.dataset.model}|${canvas.dataset.support}|${canvas.dataset.supportReady}|${canvas.dataset.phoneReady}|${canvas.dataset.laptopReady}|${laptopAsset.framingBounds?.isEmpty()}|${canvas.width}|${canvas.height}|${serializedFrames}`;
       if (key !== calibrationKey) {
         calibrationKey = key;
         calibrations.clear();
@@ -1499,14 +1515,16 @@ export default function Scene({
           });
         else delete canvas.dataset.focusBounds;
       }
-      canvas.dataset.cameraZoom = String(camera.zoom);
-      canvas.dataset.cameraFov = String(camera.fov);
-      canvas.dataset.cameraDolly = String(projectionState.dolly);
-      if (state.section === "grip" && desired.zoomMax)
-        canvas.dataset.zoomMax = String(desired.zoomMax);
-      const fittedZoom = projectionState.baselineDistance / camera.position.distanceTo(new THREE.Vector3().fromArray(projectionState.look));
-      canvas.dataset.fittedZoom = String(fittedZoom);
-      canvas.dataset.zoomFitLimited = String(fittedZoom < zoom - 0.01);
+      if (diagnosticsEnabled) {
+        canvas.dataset.cameraZoom = String(camera.zoom);
+        canvas.dataset.cameraFov = String(camera.fov);
+        canvas.dataset.cameraDolly = String(projectionState.dolly);
+        if (state.section === "grip" && desired.zoomMax)
+          canvas.dataset.zoomMax = String(desired.zoomMax);
+        const fittedZoom = projectionState.baselineDistance / camera.position.distanceTo(new THREE.Vector3().fromArray(projectionState.look));
+        canvas.dataset.fittedZoom = String(fittedZoom);
+        canvas.dataset.zoomFitLimited = String(fittedZoom < zoom - 0.01);
+      }
       const visibleZoom = Math.round(dolly.baselineDistance / dolly.distance * 100) / 100;
       const requestedZoom = state.dishZoom || 1;
       const zoomNotice = `${requestedZoom}:${visibleZoom}:${desired.zoomMax}`;
@@ -1514,37 +1532,39 @@ export default function Scene({
         notifiedZoom = zoomNotice;
         callbacks.current.onZoomFit?.({ requested: requestedZoom, zoom: visibleZoom, max: desired.zoomMax ?? 4 });
       }
-      canvas.dataset.cameraDistance = String(
-        camera.position.distanceTo(
-          new THREE.Vector3().fromArray(projectionState.look),
-        ),
-      );
-      canvas.dataset.cameraBaselineDistance = String(
-        projectionState.baselineDistance,
-      );
-      canvas.dataset.dishScale = dishRoot.scale.toArray().join(",");
-      canvas.dataset.dishMeshScale =
-        activeDish?.scale.toArray().join(",") || "";
-      if (activeDish && nativeTable) {
-        const size = dishLocalBounds.getSize(dishZoomCorner);
-        canvas.dataset.dishTableRatio = String(
-          (Math.max(size.x, size.z) * dishRoot.scale.x) /
-            Math.min(
-              nativeTable.metadata.topWidth,
-              nativeTable.metadata.topDepth,
-            ),
+      if (diagnosticsEnabled) {
+        canvas.dataset.cameraDistance = String(
+          camera.position.distanceTo(
+            new THREE.Vector3().fromArray(projectionState.look),
+          ),
         );
+        canvas.dataset.cameraBaselineDistance = String(
+          projectionState.baselineDistance,
+        );
+        canvas.dataset.dishScale = dishRoot.scale.toArray().join(",");
+        canvas.dataset.dishMeshScale =
+          activeDish?.scale.toArray().join(",") || "";
+        if (activeDish && nativeTable) {
+          const size = dishLocalBounds.getSize(dishZoomCorner);
+          canvas.dataset.dishTableRatio = String(
+            (Math.max(size.x, size.z) * dishRoot.scale.x) /
+              Math.min(
+                nativeTable.metadata.topWidth,
+                nativeTable.metadata.topDepth,
+              ),
+          );
+        }
+        canvas.dataset.fittedCameraPosition = camera.position.toArray().join(",");
+        canvas.dataset.fittedLook = projectionState.look.join(",");
+        canvas.dataset.cameraViewOffset = JSON.stringify(camera.view);
+        canvas.dataset.transition = state.transition
+          ? `${state.transition.from}:${state.transition.to}`
+          : "";
+        canvas.dataset.transitionProgress = String(
+          state.transition?.progress ?? "",
+        );
+        canvas.dataset.supportAngle = String(state.supportAngle || 0);
       }
-      canvas.dataset.fittedCameraPosition = camera.position.toArray().join(",");
-      canvas.dataset.fittedLook = projectionState.look.join(",");
-      canvas.dataset.cameraViewOffset = JSON.stringify(camera.view);
-      canvas.dataset.transition = state.transition
-        ? `${state.transition.from}:${state.transition.to}`
-        : "";
-      canvas.dataset.transitionProgress = String(
-        state.transition?.progress ?? "",
-      );
-      canvas.dataset.supportAngle = String(state.supportAngle || 0);
       canvas.dataset.phoneRate = String(phoneVideo.playbackRate);
     }
     let foregroundLayerKey = "";
@@ -1571,6 +1591,7 @@ export default function Scene({
       const dt = lastTime ? Math.min((now - lastTime) / 1000, 0.5) : 1 / 60;
       lastTime = now;
       const state = stateRef.current || initialState;
+      ensureLaptop(state);
       // The pricing section is fully opaque. Do not render its hidden room,
       // models or screen video while the native document is being scrolled.
       if (ready && state.sceneOccluded) {
@@ -1633,10 +1654,12 @@ export default function Scene({
       objectTarget.fromArray(pose.look);
       lookAt.lerp(objectTarget, damping);
       camera.lookAt(lookAt);
-      canvas.dataset.cameraPosition = camera.position
-        .toArray()
-        .map((n) => n.toFixed(3))
-        .join(",");
+      if (diagnosticsEnabled) {
+        canvas.dataset.cameraPosition = camera.position
+          .toArray()
+          .map((n) => n.toFixed(3))
+          .join(",");
+      }
       const roomSettling = restaurantWorld.update(state, damping, canvas);
       applyTransform(
         supportRoot,
@@ -1712,15 +1735,15 @@ export default function Scene({
         dishRoot.position.z,
       );
       contactShadow.scale.setScalar(Math.max(0.001, dishRoot.scale.x));
-      canvas.dataset.dishOpacity = pose.dishOpacity.toFixed(4);
-      canvas.dataset.openingProgress =
-        state.openingProgress == null ? "" : String(state.openingProgress);
-      canvas.dataset.supportPosition = supportRoot.position.toArray().join(",");
-      canvas.dataset.phonePosition = phoneRoot.position.toArray().join(",");
-      for (const [name, root] of [["dish", dishRoot], ["support", supportRoot], ["phone", phoneRoot], ["laptop", laptopRoot]]) {
-        canvas.dataset[`${name}Quaternion`] = root.quaternion.toArray().join(",");
-        canvas.dataset[`${name}Scale`] = root.scale.toArray().join(",");
-        canvas.dataset[`${name}Position`] = root.position.toArray().join(",");
+      if (diagnosticsEnabled) {
+        canvas.dataset.dishOpacity = pose.dishOpacity.toFixed(4);
+        canvas.dataset.openingProgress =
+          state.openingProgress == null ? "" : String(state.openingProgress);
+        for (const [name, root] of [["dish", dishRoot], ["support", supportRoot], ["phone", phoneRoot], ["laptop", laptopRoot]]) {
+          canvas.dataset[`${name}Quaternion`] = root.quaternion.toArray().join(",");
+          canvas.dataset[`${name}Scale`] = root.scale.toArray().join(",");
+          canvas.dataset[`${name}Position`] = root.position.toArray().join(",");
+        }
       }
       woodMaterial.opacity = THREE.MathUtils.lerp(
         woodMaterial.opacity,
@@ -1752,7 +1775,8 @@ export default function Scene({
         loadDish(dish);
       }
       // Scroll, input and asset/media completion explicitly wake a still scene.
-      canvas.dataset.tableSettingVisible = String(nativeTable?.accessories.placeSetting.visible ?? false);
+      if (diagnosticsEnabled)
+        canvas.dataset.tableSettingVisible = String(nativeTable?.accessories.placeSetting.visible ?? false);
       const geometrySignature = [
         state.section,
         state.progress,
@@ -1779,6 +1803,7 @@ export default function Scene({
         canvas.dataset.supportReady,
         canvas.dataset.phoneReady,
         canvas.dataset.laptopReady,
+        laptopAsset.framingBounds?.isEmpty(),
         posterReady,
         videoReady,
         stoneReady,
@@ -1803,6 +1828,7 @@ export default function Scene({
         canvas.dataset.supportReady,
         canvas.dataset.phoneReady,
         canvas.dataset.laptopReady,
+        laptopAsset.framingBounds?.isEmpty(),
         canvas.dataset.restaurantReady,
       ].join("|");
       const shadowInvalidated = shadowSignature !== previousShadowSignature;
@@ -1846,7 +1872,7 @@ export default function Scene({
       const invalidated = now === lastSceneChange;
       canvas.dataset.section = state.section;
       canvas.dataset.progress = state.progress.toFixed(4);
-      canvas.dataset.supportFlipped = String(Boolean(state.flip));
+      if (diagnosticsEnabled) canvas.dataset.supportFlipped = String(Boolean(state.flip));
       canvas.dataset.settled = String(!settling && !projectionSettling);
       const animated =
         (!phoneVideo.requestVideoFrameCallback &&
@@ -1870,6 +1896,7 @@ export default function Scene({
             canvas.dataset.supportReady,
             canvas.dataset.phoneReady,
             canvas.dataset.laptopReady,
+            laptopAsset.framingBounds?.isEmpty(),
             canvas.dataset.restaurantReady,
           ].join("|");
           if (layerKey !== foregroundLayerKey) {
@@ -1903,10 +1930,12 @@ export default function Scene({
           const background = scene.background;
           scene.background = null;
           renderer.autoClear = false;
-          const sharedPosition = camera.position.toArray().join(",");
-          canvas.dataset.tableCameraPosition = sharedPosition;
-          canvas.dataset.roomCameraPosition = sharedPosition;
-          canvas.dataset.cameraSceneDolly = "shared-room-table-and-products";
+          if (diagnosticsEnabled) {
+            const sharedPosition = camera.position.toArray().join(",");
+            canvas.dataset.tableCameraPosition = sharedPosition;
+            canvas.dataset.roomCameraPosition = sharedPosition;
+            canvas.dataset.cameraSceneDolly = "shared-room-table-and-products";
+          }
           if (clipped) {
             const f = framingReference.focus,
               w = canvas.clientWidth,
@@ -1927,7 +1956,7 @@ export default function Scene({
           camera.layers.set(0);
           camera.layers.enable(1);
           canvas.dataset.renderCPUms = String(performance.now() - startRender);
-          canvas.dataset.zoomClipped = String(Boolean(clipped));
+          if (diagnosticsEnabled) canvas.dataset.zoomClipped = String(Boolean(clipped));
           camera.position.copy(authoredCamera);
           canvas.dataset.drawCalls = String(renderer.info.render.calls);
           canvas.dataset.triangles = String(renderer.info.render.triangles);

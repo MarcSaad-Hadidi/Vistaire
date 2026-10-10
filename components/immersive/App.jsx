@@ -451,6 +451,7 @@ function LandingContent() {
     let lastChapterBeats = {};
     let measurements = [];
     let transitions = [];
+    let sceneFrames = {};
     const world = document.querySelector(".world");
     let opening = null;
     let stopped = false;
@@ -530,6 +531,8 @@ function LandingContent() {
           };
         })
         .filter(Boolean);
+      // Framing changes only with measured geometry, not on every scroll tick.
+      sceneFrames = Object.fromEntries(measurements.map(m => [m.id, m.sceneFrame]));
       transitions = measureChapterTransitions(measurements, opening);
       for (const { from, to, start, end } of transitions) {
         const el = sectionRefs.current[from.id];
@@ -604,9 +607,7 @@ function LandingContent() {
       // Objects, fitted camera, focus, room and copy share the same measured
       // window, including the incoming chapter's head after its DOM boundary.
       if (transition)
-        sceneFrame = transitionSceneFrame(transition, Object.fromEntries(
-          measurements.map(m => [m.id, m.sceneFrame]),
-        ));
+        sceneFrame = transitionSceneFrame(transition, sceneFrames);
       // Native sticky positioning is unchanged. Copy fades over that same
       // choreography instead of disappearing in a separate one-screen exit.
       for (const m of measurements.slice(3)) {
@@ -621,6 +622,8 @@ function LandingContent() {
         const el = sectionRefs.current[m.id];
         writeVisualProperty(el, "--copy-opacity", alpha);
         writeVisualProperty(el, "--copy-shift", `${(1 - entrance) * 24}px`);
+        if (m.id === "testimonies")
+          writeVisualProperty(world, "--identities-opacity", alpha);
         if (m.id !== "footer") {
           writeVisualProperty(el.firstElementChild, "translate",
             `0 ${cinematicStageOffset(m, y, incoming.start, outgoing.end)}px`);
@@ -652,9 +655,7 @@ function LandingContent() {
       );
       stateRef.current.openingProgress = openingProgress;
       stateRef.current.sceneFrame = sceneFrame;
-      stateRef.current.sceneFrames = Object.fromEntries(
-        measurements.map((m) => [m.id, m.sceneFrame]),
-      );
+      stateRef.current.sceneFrames = sceneFrames;
       stateRef.current.transition = transition;
       const socialProgress = stateRef.current.chapterProgress["social-content"];
       const socialPosition = SOCIAL_TRANSITIONS.reduce((position, [start, end]) => {

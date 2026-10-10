@@ -354,3 +354,19 @@ test("landing performance is opt-in, hermetic, serial and fail-closed when reque
   assert.match(gate, /\[landing-performance\]="\$RUN_PERFORMANCE"/);
   assert.match(gate, /ordered_jobs=\([^\n]*landing-performance\)/);
 });
+
+test("composition comparison keeps a verified baseline and one exclusive performance workload", () => {
+  const job = workflow.slice(workflow.indexOf("  landing-performance:"), workflow.indexOf("  webkit-critical:"));
+  assert.match(job, /inputs\.composition == true/);
+  assert.match(job, /'landing-composition'/);
+  assert.match(job, /ref: dc88019ce8448c8c56390a2b6cc2c9544fe28c25/);
+  assert.match(job, /actions\/artifacts\/11677657188\/zip/);
+  assert.match(job, /sha256sum --check --status/);
+  assert.match(job, /test -s \.composition-baseline\/\.next\/BUILD_ID/);
+  assert.match(job, /node scripts\/diagnose-landing-composition\.mjs/);
+  assert.match(job, /if: \$\{\{ !\(inputs\.composition == true/);
+  assert.match(job, /timeout-minutes: 30/);
+  assert.doesNotMatch(job, /continue-on-error: true|--disable-frame-rate-limit/);
+  const gate = workflow.slice(workflow.indexOf("  ci-gate:"), workflow.indexOf("  ci-metrics:"));
+  assert.match(gate, /RUN_PERFORMANCE:.*inputs\.composition == true/);
+});
