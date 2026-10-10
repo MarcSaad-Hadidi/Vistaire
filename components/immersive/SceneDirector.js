@@ -22,11 +22,27 @@ const activeScreens = 2.5 * paceScale;
 const transitionScreens = 2 * paceScale;
 const edgeScreens = (transitionScreens - 1) / 2;
 const sceneScreens = activeScreens + 2 * edgeScreens;
-const detailScreens = 0.44 * paceScale;
+const detailScreens = 1;
+const readingHoldScreens = 2;
+const readingActiveScreens = 3 * readingHoldScreens + 2 * detailScreens;
+const readingSceneScreens = readingActiveScreens + 2 * edgeScreens;
+const aiHoldScreens = 2;
+export const SCROLL_PACE = Object.freeze({ min: 0.25, max: 4, step: 0.05, default: 1 });
+
+export function normalizeScrollPace(value) {
+  const number = Number(value);
+  if (!Number.isFinite(number) || number <= 0) return SCROLL_PACE.default;
+  const bounded = Math.max(SCROLL_PACE.min, Math.min(SCROLL_PACE.max, number));
+  return Number((Math.round(bounded / SCROLL_PACE.step) * SCROLL_PACE.step).toFixed(2));
+}
+
 export const CINEMATIC_TIMING = Object.freeze({
   sceneScreens, activeScreens, transitionScreens, edgeScreens, detailScreens,
   chapterHeightVh: (sceneScreens + 1) * 100,
-  openingMotionScreens: transitionScreens * 2,
+  readingHoldScreens, readingActiveScreens, readingSceneScreens,
+  readingChapterHeightVh: (readingSceneScreens + 1) * 100,
+  aiHoldScreens,
+  openingMotionScreens: transitionScreens * 2 + aiHoldScreens,
   phoneHoldScreens: 1.5,
   openingReleaseScreens: edgeScreens,
 });
@@ -46,10 +62,25 @@ export function scaledCinematicTiming(distanceFactor = 1) {
     edgeScreens: edge,
     detailScreens: detailScreens * distanceFactor,
     chapterHeightVh: (1 + scene) * 100,
-    openingMotionScreens: transition * 2,
+    readingHoldScreens: readingHoldScreens * distanceFactor,
+    readingActiveScreens: readingActiveScreens * distanceFactor,
+    readingSceneScreens: readingSceneScreens * distanceFactor,
+    readingChapterHeightVh: (1 + readingSceneScreens * distanceFactor) * 100,
+    aiHoldScreens: aiHoldScreens * distanceFactor,
+    openingMotionScreens: transition * 2 + aiHoldScreens * distanceFactor,
     phoneHoldScreens: CINEMATIC_TIMING.phoneHoldScreens * distanceFactor,
     openingReleaseScreens: edge,
   });
+}
+
+/** The discovery scene is a real reading interval between the two camera legs.
+ * Copy, focus and the renderer consume this same reversible progress. */
+export function openingProgressAtScroll(opening, y) {
+  const distance = y - opening.top;
+  const leg = (opening.motionTravel - opening.aiHoldTravel) / 2;
+  if (distance <= leg) return unit(distance / leg) / 2;
+  if (distance <= leg + opening.aiHoldTravel) return 0.5;
+  return 0.5 + unit((distance - leg - opening.aiHoldTravel) / leg) / 2;
 }
 
 // C2 acceleration ramps, constant-speed middle half, zero endpoint velocity.
@@ -84,24 +115,34 @@ export function chapterNavigationTarget(chapter, stageHeight, timing = CINEMATIC
  * a rotating chapter and its outgoing blend from accelerating each other. */
 export function chapterPhase(section, progress) {
   if (!CHAPTERS.slice(3, 10).includes(section)) return unit(progress);
-  return unit((unit(progress) * sceneScreens - edgeScreens) / (sceneScreens - 2 * edgeScreens));
+  const reading = section === "features" || section === "social-content";
+  return unit((unit(progress) * (reading ? readingSceneScreens : sceneScreens) - edgeScreens)
+    / (reading ? readingActiveScreens : activeScreens));
 }
 
-// Three existing feature cards exchange text at a fully transparent seam.
-// Their two short detail changes use the same distance as the video rail moves.
-export function featureTextOpacity(progress) {
-  const phase = chapterPhase("features", progress);
-  const distance = Math.min(Math.abs(phase - 1 / 3), Math.abs(phase - 2 / 3));
-  return cinematicEase(distance * activeScreens / (detailScreens / 2));
-}
-
-export function socialTiming() {
-  const hold = (activeScreens - 2 * detailScreens) / 3;
-  const phase = distance => (edgeScreens + distance) / sceneScreens;
+export function readingTiming() {
+  const hold = readingHoldScreens;
+  const phase = distance => (edgeScreens + distance) / readingSceneScreens;
   return {
     transitions: [[phase(hold), phase(hold + detailScreens)], [phase(2 * hold + detailScreens), phase(2 * (hold + detailScreens))]],
-    centers: [phase(hold / 2), 0.5, phase(activeScreens - hold / 2)],
+    centers: [phase(hold / 2), 0.5, phase(readingActiveScreens - hold / 2)],
   };
+}
+const readingTransitions = readingTiming().transitions;
+
+/** The three cards and videos share holds, changes and selection ownership.
+ * Text changes only at zero opacity; the rail is eased exactly once. */
+export function readingPresentation(progress) {
+  let position = 0, opacity = 1;
+  for (const [start, end] of readingTransitions) {
+    const phase = unit((progress - start) / (end - start));
+    position += cinematicEase(phase);
+    if (progress >= start && progress <= end) {
+      const weights = cinematicCopyWeights(phase);
+      opacity = weights.outgoing + weights.incoming;
+    }
+  }
+  return { position, index: Math.min(2, Math.round(position)), opacity };
 }
 const lerp = (a, b, t) => (t === 0 ? a : t === 1 ? b : a + (b - a) * t);
 
@@ -128,11 +169,14 @@ export function measureChapterTransitions(measurements, opening, timing = CINEMA
   return measurements.slice(2, -1).map((from, index) => {
     const to = measurements[index + 3];
     const fromOpening = from.id === "wearable";
-    const end = to.top + (to.id === "footer" ? 0 : timing.edgeScreens * opening.stageHeight);
-    // On tall viewports natural pricing can be shorter than two joins. Its
-    // opaque content must remain native: cap only this last raccord to real
-    // available space rather than overlap poses or append an empty tail.
-    const start = to.id === "footer" ? Math.max(end - distance, previousEnd) : end - distance;
+    const authoredEnd = to.top + (to.id === "footer" ? 0 : timing.edgeScreens * opening.stageHeight);
+    const footer = measurements.at(-1);
+    const end = to.id === "open-weight"
+      ? Math.min(authoredEnd, (to.top + footer.top) / 2) : authoredEnd;
+    // Natural pricing can be shorter than two slow preview joins. Reserve
+    // space for its exit without moving the authored product departure or
+    // adding scroll distance to the real pricing/footer content.
+    const start = to.id === "footer" ? Math.max(end - distance, previousEnd) : authoredEnd - distance;
     previousEnd = end;
     return { from, to, fromOpening, start, end };
   });
@@ -168,23 +212,31 @@ export function remapJourneyScroll(y, before, after) {
     const anchor = footer && y >= footer.top ? footer : pricing;
     return after.measurements.find(m => m.id === anchor.id).top + y - anchor.top;
   }
+  const productEntered = before.transitions.find(w => w.to.id === "product").end;
+  if (y >= productEntered) {
+    // Pricing can enter the live viewport before its cinematic join at fast
+    // preview rates. Use the same fully-entered product anchor in both layouts.
+    const nextEntered = after.transitions.find(w => w.to.id === "product").end;
+    const oldVisible = pricing.top - before.viewportHeight;
+    const newVisible = after.measurements.find(m => m.id === "open-weight").top - after.viewportHeight;
+    return nextEntered + (y - productEntered) / (oldVisible - productEntered) * (newVisible - nextEntered);
+  }
   const blend = transitionAtScroll(before.transitions, y);
   if (blend) {
     const next = after.transitions.find(w => w.from.id === blend.from && w.to.id === blend.to);
-    if (blend.to === "open-weight") {
-      // Join the visible-pixel rule continuously. Preserving the full hidden
-      // 3D fraction here could expose pricing and make a reset jump backward.
-      const previous = before.transitions.find(w => w.to.id === "open-weight");
-      const oldVisible = pricing.top - before.viewportHeight;
-      const newVisible = after.measurements.find(m => m.id === "open-weight").top - after.viewportHeight;
-      const fraction = (y - previous.start) / (oldVisible - previous.start);
-      return next.start + fraction * (newVisible - next.start);
-    }
     return next.start + (next.end - next.start) * blend.progress;
   }
   const oldOpening = before.opening, newOpening = after.opening;
-  if (y <= oldOpening.top + oldOpening.motionTravel)
-    return newOpening.top + (y - oldOpening.top) / oldOpening.motionTravel * newOpening.motionTravel;
+  if (y <= oldOpening.top + oldOpening.motionTravel) {
+    const stops = opening => {
+      const leg = (opening.motionTravel - opening.aiHoldTravel) / 2;
+      return [opening.top, opening.top + leg, opening.top + leg + opening.aiHoldTravel, opening.top + opening.motionTravel];
+    };
+    const oldStops = stops(oldOpening), newStops = stops(newOpening);
+    const segment = y <= oldStops[1] ? 0 : y <= oldStops[2] ? 1 : 2;
+    const fraction = (y - oldStops[segment]) / (oldStops[segment + 1] - oldStops[segment]);
+    return newStops[segment] + fraction * (newStops[segment + 1] - newStops[segment]);
+  }
   if (y < before.transitions[0].start) {
     const fraction = (y - oldOpening.top - oldOpening.motionTravel)
       / (before.transitions[0].start - oldOpening.top - oldOpening.motionTravel);

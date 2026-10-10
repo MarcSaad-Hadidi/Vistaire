@@ -34,7 +34,7 @@ export function dishCylinderCorners(bounds, radius, position, quaternion, scale)
 /** Fit the actual yaw-invariant cylinder, rather than the empty corners of its
  * enclosing box. Its support against each perspective plane contains every
  * scan vertex even during transitional tilt, without changing the view ray. */
-export function minimumDollyDistance(bounds, radius, root, position, look, frame) {
+export function minimumDollyDistance(bounds, radius, root, position, look, frame, fitFrame = true) {
   const normalize = v => { const length = Math.hypot(...v) || 1; return v.map(n => n / length); };
   const dot = (a, b) => a.reduce((sum, v, i) => sum + v * b[i], 0);
   const direction = normalize(position.map((v, i) => v - look[i]));
@@ -54,6 +54,9 @@ export function minimumDollyDistance(bounds, radius, root, position, look, frame
   };
   const tangent = Math.tan(frame.fov * Math.PI / 360);
   let distance = Math.max(frame.near * 2, support(direction) + frame.near * 2);
+  // Intentional close-ups may leave the frame, but the camera must remain in
+  // front of the entire food surface with the same near-plane safety margin.
+  if (!fitFrame) return distance;
   for (const [basis, lens, size, shift] of [
     [right, tangent * frame.aspect, frame.width * 0.94, frame.shiftX || 0],
     [up, tangent, frame.height * 0.94, frame.shiftY || 0],

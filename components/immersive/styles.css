@@ -393,9 +393,21 @@
 :where([data-immersive-vistaire]) .pace-preview output {
   font-variant-numeric: tabular-nums;
 }
-:where([data-immersive-vistaire]) .pace-preview-heading button {
-  margin-left: auto;
+:where([data-immersive-vistaire]) .pace-preview button {
+  min-width: 44px;
   min-height: 44px;
+}
+:where([data-immersive-vistaire]) .pace-preview .pace-step {
+  flex: 0 0 44px;
+  border: 1px solid #cec8bd66;
+  border-radius: 6px;
+  font-size: 22px;
+}
+:where([data-immersive-vistaire]) .pace-preview .pace-step:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+:where([data-immersive-vistaire]) .pace-preview-labels button {
   text-decoration: underline;
 }
 :where([data-immersive-vistaire]) .pace-preview input {
@@ -407,6 +419,7 @@
 }
 :where([data-immersive-vistaire]) .pace-preview-labels {
   display: flex;
+  align-items: center;
   justify-content: space-between;
 }
 :where([data-immersive-vistaire]) .pace-preview p {

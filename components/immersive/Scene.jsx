@@ -1346,12 +1346,12 @@ export default function Scene({
         dishOpacity: 1,
       };
       if (dishReference) {
-        // Keep the established 100% camera, aim and shift. Only the maximum
-        // zoom uses the tighter cylinder fit instead of imaginary box corners.
+        // Keep the established 100% camera, aim and shift. Intentional close-ups
+        // stop at the food's front-depth margin rather than the frame edges.
         result.minimumDistance = minimumDollyDistance(dishLocalBounds, dishFramingRadius,
           dishReference, result.camera, result.look,
-          { ...focus, fov: camera.fov, aspect: camera.aspect, near: camera.near, shiftX: result.shiftX, shiftY: result.shiftY });
-        result.zoomMax = Math.max(1.2, Math.min(4, Math.floor(distance / result.minimumDistance * 100) / 100));
+          { ...focus, fov: camera.fov, aspect: camera.aspect, near: camera.near, shiftX: result.shiftX, shiftY: result.shiftY }, false);
+        result.zoomMax = Math.floor(distance / result.minimumDistance * 100) / 100;
       }
       calibrations.set(key, result);
       return result;
@@ -1377,18 +1377,22 @@ export default function Scene({
         );
       if (state.openingProgress != null) {
         const p = state.openingProgress,
-          anchors = [0, 0.125, 0.25, 0.375, 0.5, 0.625, 0.75, 0.875, 1];
+          start = p < 0.5 ? 0 : 0.5,
+          anchors = [0, 0.125, 0.25, 0.375, 0.5].map(q => q + start);
         const sectionAt = (q) =>
           q < 0.5 ? "hero" : q < 1 ? "ai" : "wearable";
+        // AI is a reading stop between two physical legs. Give each existing
+        // camera track its own zero-slope endpoint, matching the object poses.
         return interpolatePoseTrack(
-          anchors,
+          [0, 0.25, 0.5, 0.75, 1],
           anchors.map(q => calibration(sectionAt(q), state, q)),
-          p,
+          (p - start) * 2,
         );
       }
       return calibration(state.section, state);
     }
     function frameSubjects(state, damping) {
+      const projectionEpsilon = 0.0002;
       const focus = state.sceneFrame;
       const viewportWidth = canvas.clientWidth,
         viewportHeight = canvas.clientHeight;
@@ -1411,10 +1415,11 @@ export default function Scene({
       // A transformed cylinder contains the full scan, including transitional
       // tilt, but its bounds never change under the interactive yaw rotation.
       const fitFood = (foodFrame || zoom > 1 || projectionState?.dolly > 1) && activeDish && dishRoot.visible;
+      const fitWholeFood = zoom <= 1 && (projectionState?.dolly ?? 1) <= 1 + projectionEpsilon;
       if (fitFood) {
         minimumDistance = Math.max(minimumDistance, minimumDollyDistance(dishLocalBounds, dishFramingRadius, dishRoot,
           desired.camera.map((v, i) => v + zoomLook[i] - desired.look[i]), zoomLook,
-          { ...targetFocus, fov: camera.fov, aspect: camera.aspect, near: camera.near, shiftX: desired.shiftX, shiftY: desired.shiftY }));
+          { ...targetFocus, fov: camera.fov, aspect: camera.aspect, near: camera.near, shiftX: desired.shiftX, shiftY: desired.shiftY }, fitWholeFood));
       }
       const zoomCamera = desired.camera.map(
         (v, i) => v + zoomLook[i] - desired.look[i],
@@ -1443,10 +1448,10 @@ export default function Scene({
         ([key, value]) =>
           Array.isArray(value)
             ? value.some(
-                (v, i) => Math.abs(v - projectionState[key][i]) > 0.0002,
+                (v, i) => Math.abs(v - projectionState[key][i]) > projectionEpsilon,
               )
             : typeof value === "number" &&
-              Math.abs(value - projectionState[key]) > 0.0002,
+              Math.abs(value - projectionState[key]) > projectionEpsilon,
       );
       const renderFocus = {
         x: projectionState.focusX,
@@ -1455,10 +1460,11 @@ export default function Scene({
         height: projectionState.focusHeight,
       };
       // Rotation and camera damping can briefly disagree after a gesture.
-      // Enforce the same fit on the rendered state too, not only its target.
+      // Enforce safety on the rendered state too. Restore full-food fitting on
+      // the final reset update, before the demand scheduler can become idle.
       if (fitFood) {
         const safeDistance = minimumDollyDistance(dishLocalBounds, dishFramingRadius, dishRoot, projectionState.camera, projectionState.look,
-          { ...renderFocus, fov: camera.fov, aspect: camera.aspect, near: camera.near, shiftX: projectionState.shiftX, shiftY: projectionState.shiftY });
+          { ...renderFocus, fov: camera.fov, aspect: camera.aspect, near: camera.near, shiftX: projectionState.shiftX, shiftY: projectionState.shiftY }, zoom <= 1 && projectionState.dolly <= 1 + projectionEpsilon);
         projectionState.camera = cameraDollyPose(projectionState.camera, projectionState.look, 1, safeDistance).camera;
       }
       framingReference = { ...projectionState, focus: renderFocus };

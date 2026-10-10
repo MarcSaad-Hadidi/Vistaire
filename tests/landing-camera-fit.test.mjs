@@ -9,7 +9,19 @@ import { pathToFileURL } from 'node:url';
 const dolly = await import(pathToFileURL(resolve(process.env.VISTAIRE_DOLLY_SOURCE || 'components/immersive/CameraDolly.js')));
 import { projectHullBounds } from '../components/immersive/ProjectedBounds.js';
 
-test('yaw rotation preserves the actual camera and a separate zoom step enlarges the whole food', () => {
+function assertNearClearance(vertices, root, camera, label) {
+  root.updateWorldMatrix(true, false);
+  const view = new THREE.Matrix4().multiplyMatrices(camera.matrixWorldInverse, root.matrixWorld);
+  const point = new THREE.Vector3();
+  assert.ok(vertices.every(vertex => point.fromArray(vertex).applyMatrix4(view).z <= -camera.near * 2 + 1e-9), `${label}: every actual hull vertex retains twice-near clearance`);
+}
+
+function assertWholeFoodFit(bounds, focus, width, height, label) {
+  assert.ok(bounds.x >= (focus.x - focus.width / 2) * width - 0.1 && bounds.x + bounds.width <= (focus.x + focus.width / 2) * width + 0.1, `${label}: food sides clipped`);
+  assert.ok(bounds.y >= (focus.y - focus.height / 2) * height - 0.1 && bounds.y + bounds.height <= (focus.y + focus.height / 2) * height + 0.1, `${label}: food top or bottom clipped`);
+}
+
+test('yaw preserves the camera at cropped maximum zoom and reset restores the complete food', () => {
   const source = readFileSync(process.env.VISTAIRE_SCENE_SOURCE || 'components/immersive/Scene.jsx', 'utf8');
   const hulls = JSON.parse(readFileSync('public/immersive-assets/dishes/framing-hulls.json', 'utf8')).byUrl;
   const footprints = { homard: 1.75, souffle: 1.65, huitres: 1.5, sushi: 2, "chocolat-fume": 1.5, poutine: 1.75, burger: 1.1 };
@@ -54,20 +66,24 @@ test('yaw rotation preserves the actual camera and a separate zoom step enlarges
     assert.ok(highestClearance <= 0.2, `${id}: every allowed yaw must retain the authored root height`);
     root.quaternion.setFromEuler(new THREE.Euler(0.1, 0, 0));
     const cameraPose = () => [...camera.position.toArray(), ...scope.projectionState.look, camera.view.offsetX, camera.view.offsetY];
+    const vertices = hull.vertices.map(point => point.map(v => v * displayScale));
     const food = () => {
-      root.updateMatrixWorld(true);
-      return projectHullBounds(hull.vertices.map(point => point.map(v => v * displayScale)), root.matrixWorld, camera, { width, height });
+      assertNearClearance(vertices, root, camera, `${id}/${width}`);
+      return projectHullBounds(vertices, root.matrixWorld, camera, { width, height });
     };
     scope.frameSubjects(state, 1);
     const original = food();
+    assertWholeFoodFit(original, focus, width, height, `${id}/${width} at 100%`);
     const initial = cameraPose();
     root.quaternion.setFromEuler(new THREE.Euler(0.1, Math.PI / 4, 0));
     scope.frameSubjects(state, 1);
     cameraPose().forEach((value, i) => assert.ok(Math.abs(value - initial[i]) < 1e-9, 'yaw alone must not change camera, aim or view offset'));
+    assertWholeFoodFit(food(), focus, width, height, `${id}/${width} yaw at 100%`);
     assert.equal(scope.baseComposition({ section: 'grip', dishPitch: 0.7 }, mobile).dishRotation[0], 0.1, 'interactive pitch cannot alter the authored flat rotation');
-    const cap = scope.calibration('grip', state).zoomMax;
-    assert.ok(cap >= 1.2 && cap <= 4, 'a real +20% step must be reserved');
-    if (mobile && id !== 'burger') assert.ok(cap >= 1.34, `${id}/${width}: fit the cylinder, not its empty box corners`);
+    const reference = scope.calibration('grip', state);
+    const cap = reference.zoomMax;
+    assert.ok(Number.isFinite(cap) && cap > 4, `${id}/${width}: close-up maximum must not retain the old 400% ceiling`);
+    assert.equal(cap, Math.floor(reference.distance / reference.minimumDistance * 100) / 100, 'advertise the achievable near-plane maximum rounded down to a whole percent');
     root.quaternion.setFromEuler(new THREE.Euler(0.1, 0, 0));
     state.dishZoom = 1.2;
     scope.frameSubjects(state, 1);
@@ -76,7 +92,8 @@ test('yaw rotation preserves the actual camera and a separate zoom step enlarges
     state.dishZoom = cap;
     scope.frameSubjects(state, 1);
     const maximum = cameraPose();
-    if (mobile && id !== 'burger') assert.ok(food().width > enlarged.width * 1.1, `${id}/${width}: larger advertised cap must enlarge the complete food beyond120%`);
+    assert.ok(food().width > enlarged.width * 1.1, `${id}/${width}: the larger advertised cap must visibly enlarge the food beyond 120%`);
+    assert.ok(Math.abs(reference.distance / camera.position.distanceTo(new THREE.Vector3(...reference.look)) - cap) < 1e-9, 'the camera must actually reach its advertised cap');
     assert.deepEqual(root.scale.toArray(), Array(3).fill(mobile ? 0.98 : 1), 'zoom must never resize the food');
     for (const yaw of [Math.PI / 4, Math.PI, -Math.PI, -Math.PI / 2, 0]) {
       const target = new THREE.Quaternion().setFromEuler(new THREE.Euler(0.1, yaw, 0));
@@ -85,17 +102,23 @@ test('yaw rotation preserves the actual camera and a separate zoom step enlarges
         assert.ok(scope.minimumDishY(scope.dishLocalBounds, root.quaternion, root.scale.x, -0.02) <= 0.2, `${id}: the canonical flat-yaw height must stay clear of the table`);
         scope.frameSubjects(state, 1 - Math.exp(-1 / 60 * 10));
         cameraPose().forEach((value, i) => assert.ok(Math.abs(value - maximum[i]) < 1e-8, 'damped yaw and wrap must not reframe the camera'));
-        const bounds = food();
-        assert.ok(bounds.x >= (focus.x - focus.width / 2) * width - 0.1);
-        assert.ok(bounds.x + bounds.width <= (focus.x + focus.width / 2) * width + 0.1);
-        assert.ok(bounds.y >= (focus.y - focus.height / 2) * height - 0.1);
-        assert.ok(bounds.y + bounds.height <= (focus.y + focus.height / 2) * height + 0.1);
+        food(); // Cropping is intentional at maximum; actual hull depth is not.
       }
     }
+    state.dishZoom = 1;
+    for (let frame = 0; frame < 120; frame++) {
+      scope.frameSubjects(state, 1 - Math.exp(-1 / 60 * 10));
+      const bounds = food();
+      if (scope.projectionState.dolly <= 1.0002) assertWholeFoodFit(bounds, focus, width, height, `${id}/${width} reset frame ${frame}`);
+      if (!scope.projectionSettling) break; // Match the real renderer's stop condition.
+    }
+    assert.equal(scope.projectionSettling, false, 'reset must reach the renderer idle condition');
+    assertWholeFoodFit(food(), focus, width, height, `${id}/${width} settled reset`);
+    cameraPose().forEach((value, i) => assert.ok(Math.abs(value - initial[i]) < 0.0002, 'reset restores the original 100% camera, aim and view offset'));
   }
 });
 
-test('zoom fits the complete rotated food inside the actual scissor frame at desktop and phone aspect ratios', () => {
+test('default full-fit mode contains the rotated food inside desktop and phone scissor frames', () => {
   assert.equal(typeof dolly.minimumDollyDistance, 'function', 'near-plane safety alone cannot prevent a clipped zoom');
   for (const [width, height] of [[1440, 900], [1337, 591], [390, 844], [430, 932]]) {
     for (const [yaw, pitch] of [[0, 0], [0.9, 0.45], [2.4, -0.6]]) {
@@ -143,7 +166,7 @@ test('zoom fits the complete rotated food inside the actual scissor frame at des
 
 // Actual shipped scan + actual frameSubjects/calibration code. This protects
 // the rendered damping guard, which a standalone fit-helper test cannot see.
-test('resetting a fully zoomed, reversed sushi preserves every hull point on each damped frame', () => {
+test('close-up reset and chapter transitions preserve hull depth, then restore full fit at 100%', () => {
   const source = readFileSync(process.env.VISTAIRE_SCENE_SOURCE || 'components/immersive/Scene.jsx', 'utf8');
   const hull = Object.values(JSON.parse(readFileSync('public/immersive-assets/dishes/framing-hulls.json', 'utf8')).byUrl).find(h => h.id === 'sushi');
   const scene = new THREE.Scene();
@@ -167,21 +190,26 @@ test('resetting a fully zoomed, reversed sushi preserves every hull point on eac
   vm.runInContext(source.slice(source.indexOf('    function projectedExtent('), source.indexOf('    function cameraComposition(')), scope);
   scope.cameraComposition = state => scope.calibration('grip', state);
   vm.runInContext(source.slice(source.indexOf('    function frameSubjects('), source.indexOf('      const viewport = { width: viewportWidth')) + '}', scope);
-  const state = { section: 'grip', dishZoom: 4, sceneFrame: focus, sceneFrames: { grip: focus } };
+  const state = { section: 'grip', dishZoom: 1, sceneFrame: focus, sceneFrames: { grip: focus } };
   roots[0].position.set(0, 0.2, 0);
   roots[0].quaternion.setFromEuler(new THREE.Euler(0.1, -Math.PI, 0));
   const damping = 1 - Math.exp(-1 / 60 * 10);
+  state.dishZoom = scope.calibration('grip', state).zoomMax;
   scope.frameSubjects(state, 1);
   state.dishZoom = 1;
   const target = new THREE.Quaternion().setFromEuler(new THREE.Euler(0.1, 0, 0));
-  for (let frame = 0; frame < 15; frame++) {
+  const vertices = hull.vertices.map(point => point.map(v => v * displayScale));
+  for (let frame = 0; frame < 120; frame++) {
     roots[0].quaternion.slerp(target, damping);
     roots[0].updateWorldMatrix(true, false);
     scope.frameSubjects(state, damping);
-    const bounds = projectHullBounds(hull.vertices.map(point => point.map(v => v * displayScale)), roots[0].matrixWorld, camera, { width: 1440, height: 900 });
-    assert.ok(bounds.y >= (focus.y - focus.height / 2) * 900 - 0.1, `reset frame ${frame}: food top clipped`);
-    assert.ok(bounds.y + bounds.height <= (focus.y + focus.height / 2) * 900 + 0.1, `reset frame ${frame}: food bottom clipped`);
+    assertNearClearance(vertices, roots[0], camera, `reversed sushi reset frame ${frame}`);
+    const bounds = projectHullBounds(vertices, roots[0].matrixWorld, camera, { width: 1440, height: 900 });
+    if (scope.projectionState.dolly <= 1.0002) assertWholeFoodFit(bounds, focus, 1440, 900, `reset frame ${frame}`);
+    if (!scope.projectionSettling) break;
   }
+  assert.equal(scope.projectionSettling, false, 'reversed-food reset must settle before rendering stops');
+  assertWholeFoodFit(projectHullBounds(vertices, roots[0].matrixWorld, camera, { width: 1440, height: 900 }), focus, 1440, 900, 'settled reversed-food reset');
   // Neighbor frames and cached100% reference cameras come from ddb600c's
   // retained rendered-scroll-telemetry presentation samples (no active join):
   // mobile --afa87 (390x844), desktop --c4a2d (1440x900). Grip calibration is
@@ -229,7 +257,7 @@ test('resetting a fully zoomed, reversed sushi preserves every hull point on eac
   }`, scope);
   let safetyCalls = 0;
   scope.minimumDollyDistance = (...args) => {
-    const frame = args.at(-1);
+    const frame = args[5];
     assert.ok(frame.width * 0.94 > 2 * Math.abs(frame.shiftX || 0) && frame.height * 0.94 > 2 * Math.abs(frame.shiftY || 0), 'target and rendered side-plane denominators stay positive');
     safetyCalls++;
     return dolly.minimumDollyDistance(...args);
@@ -237,6 +265,7 @@ test('resetting a fully zoomed, reversed sushi preserves every hull point on eac
   for (const profile of profiles) {
     const { width, height } = profile, mobile = width < 768;
     const currentScale = mobile ? 1 : displayScale;
+    const vertices = hull.vertices.map(point => point.map(v => v * currentScale));
     scope.mobileViewport = () => mobile;
     Object.assign(scope.canvas, { clientWidth: width, clientHeight: height, width, height, dataset: { model: 'sushi' } });
     camera.aspect = width / height;
@@ -259,15 +288,27 @@ test('resetting a fully zoomed, reversed sushi preserves every hull point on eac
         if (!roots[0].visible) continue;
         assert.ok(safetyCalls - beforeFit >= 2, 'visible transitioning food uses both target and rendered safety guards');
         roots[0].updateWorldMatrix(true, false);
-        const bounds = projectHullBounds(hull.vertices.map(point => point.map(v => v * currentScale)), roots[0].matrixWorld, camera, { width, height });
+        assertNearClearance(vertices, roots[0], camera, `${width}/${from}:${to} frame ${frame}`);
+        const bounds = projectHullBounds(vertices, roots[0].matrixWorld, camera, { width, height });
         const focus = scope.framingReference.focus;
-        assert.ok(bounds.x >= (focus.x - focus.width / 2) * width - 0.1 && bounds.x + bounds.width <= (focus.x + focus.width / 2) * width + 0.1, `${width}/${from}:${to} frame ${frame}: composed food sides clipped`);
-        assert.ok(bounds.y >= (focus.y - focus.height / 2) * height - 0.1 && bounds.y + bounds.height <= (focus.y + focus.height / 2) * height + 0.1, `${width}/${from}:${to} frame ${frame}: composed food top or bottom clipped`);
+        if (state.dishZoom <= 1 && scope.projectionState.dolly <= 1.0002) assertWholeFoodFit(bounds, focus, width, height, `${width}/${from}:${to} frame ${frame}`);
         scales.add(roots[0].scale.x.toFixed(4));
         cameras.add(camera.position.toArray().join(','));
         focuses.add(JSON.stringify(focus));
       }
       assert.ok(scales.size > 1 && cameras.size > 1 && focuses.size > 1, 'the proof must exercise actual changing scale, camera and focus');
+      if (reset) {
+        for (let frame = 0; frame < 120; frame++) {
+          scope.applyComposedPose(state, damping);
+          scope.frameSubjects(state, damping);
+          if (!roots[0].visible) continue;
+          assertNearClearance(vertices, roots[0], camera, `${width}/${from}:${to} settling frame ${frame}`);
+          if (scope.projectionState.dolly <= 1.0002) assertWholeFoodFit(projectHullBounds(vertices, roots[0].matrixWorld, camera, { width, height }), scope.framingReference.focus, width, height, `${width}/${from}:${to} settled reset frame ${frame}`);
+          if (!scope.projectionSettling) break;
+        }
+        assert.equal(scope.projectionSettling, false, 'transition reset reaches renderer idle with the complete food framed');
+        if (roots[0].visible) assertWholeFoodFit(projectHullBounds(vertices, roots[0].matrixWorld, camera, { width, height }), scope.framingReference.focus, width, height, `${width}/${from}:${to} first idle frame`);
+      }
     }
   }
 });
@@ -483,4 +524,56 @@ test('laptop model arrival replaces its empty reference before the dashboard ima
   assert.notEqual(modelReady, pending, 'real model bounds invalidate the authored fallback before the image finishes');
   assert.notDeepEqual([...modelReady.camera], [...pending.camera]);
   assert.ok([...modelReady.camera, ...modelReady.look, modelReady.distance].every(Number.isFinite));
+});
+
+test('cropped close-up uses the cylinder near guard without silently retaining a screen-fit cap', () => {
+  const bounds = new THREE.Box3(new THREE.Vector3(-1, -0.1, -1), new THREE.Vector3(1, 0.3, 1));
+  const root = new THREE.Group();
+  root.position.set(0, 0.2, 0);
+  root.rotation.x = 0.1;
+  const position = [0, 3, 10], look = [0, 0.3, 0];
+  const frame = { fov: 40, aspect: 390 / 844, near: 0.05, width: 0.9, height: 0.4, shiftX: 0, shiftY: 0.02 };
+  const whole = dolly.minimumDollyDistance(bounds, Math.SQRT2, root, position, look, frame);
+  const near = dolly.minimumDollyDistance(bounds, Math.SQRT2, root, position, look, frame, false);
+  assert.ok(near < whole / 2, 'requested close-up must be allowed past the complete-food screen fit');
+  const direction = new THREE.Vector3(...position).sub(new THREE.Vector3(...look)).normalize();
+  const pose = dolly.cameraDollyPose(position, look, 100, near);
+  const eye = new THREE.Vector3(...pose.camera);
+  let closestDepth = Infinity;
+  for (const y of [bounds.min.y, bounds.max.y]) for (let i = 0; i < 360; i++) {
+    const angle = i * Math.PI / 180;
+    const point = new THREE.Vector3(Math.SQRT2 * Math.cos(angle), y, Math.SQRT2 * Math.sin(angle)).applyQuaternion(root.quaternion).add(root.position);
+    const depth = eye.clone().sub(point).dot(direction);
+    closestDepth = Math.min(closestDepth, depth);
+    assert.ok(depth >= frame.near * 2 - 1e-9, 'cropping never cuts through the camera near plane');
+  }
+  assert.ok(Math.abs(closestDepth - frame.near * 2) < 1e-9, 'the maximum reaches the cylinder front plus the twice-near guard');
+});
+
+test('the actual opening camera track stops at the AI reading plateau in both directions', () => {
+  const source = readFileSync(process.env.VISTAIRE_SCENE_SOURCE || 'components/immersive/Scene.jsx', 'utf8');
+  // ddb600c retained mobile rendered-scroll-telemetry (--afa87), samples
+  // 202/203/206 at p=.375444/.499667/.625370, replayed as .375/.5/.625 anchors.
+  // These are measured poses, not a recreation of model calibration or GPU
+  // work; the production interpolation alone is under test at the AI midpoint.
+  const captured = [
+    { camera: [0.03743780676883769, 6.249342728233127, 10.603290393279588], look: [0.03743780676883769, 1.062870234999014, 0.7012229131872361], distance: 11.178123156566874, shiftX: 0, shiftY: 30.586785795409856 / 844, dishOpacity: 1 },
+    { camera: [0.03928231310128377, 6.96640574835967, 10.086790483483966], look: [0.03928231310128377, 1.2104652375497669, 0.6769669068202662], distance: 11.030667745332492, shiftX: 0, shiftY: 42.97166823357118 / 844, dishOpacity: 1 },
+    { camera: [0.07819529178107358, 6.144670868921719, 9.762985442217456], look: [0.07819529178107358, 1.2047920558313805, 0.6894646900596658], distance: 10.331078430050606, shiftX: 0, shiftY: 26.4184845652207 / 844, dishOpacity: 1 },
+  ];
+  const scope = { ...director, smooth: director.cinematicEase, calibrationFrames: null, serializedFrames: '', calibrationKey: '', calibrations: new Map(),
+    canvas: { width: 390, height: 844, dataset: {} }, laptopAsset: {},
+    calibration: (_section, _state, p) => captured[p < 0.5 ? 0 : p > 0.5 ? 2 : 1],
+  };
+  vm.createContext(scope);
+  vm.runInContext(source.slice(source.indexOf('    function cameraComposition('), source.indexOf('    function frameSubjects(')), scope);
+  const state = { sceneFrames: {}, openingProgress: 0.5 };
+  const at = p => scope.cameraComposition({ ...state, openingProgress: p });
+  const middle = at(0.5), epsilon = 1e-6;
+  for (const side of [-1, 1]) {
+    const adjacent = at(0.5 + side * epsilon);
+    for (const field of ['camera', 'look']) middle[field].forEach((value, i) =>
+      assert.ok(Math.abs((adjacent[field][i] - value) / epsilon) < 0.001, `${field}[${i}] has a velocity seam beside the constant AI hold`));
+  }
+  assert.deepEqual(JSON.parse(JSON.stringify(middle)), captured[1], 'the replayed midpoint itself must not move');
 });

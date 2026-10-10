@@ -355,15 +355,14 @@ test("landing performance is opt-in, hermetic, serial and fail-closed when reque
   assert.match(gate, /ordered_jobs=\([^\n]*landing-performance\)/);
 });
 
-test("composition comparison keeps a verified baseline and one exclusive performance workload", () => {
+test("full-journey composition QA uses the current build and one exclusive workload", () => {
   const job = workflow.slice(workflow.indexOf("  landing-performance:"), workflow.indexOf("  webkit-critical:"));
   assert.match(job, /inputs\.composition == true/);
   assert.match(job, /'landing-composition'/);
-  assert.match(job, /ref: dc88019ce8448c8c56390a2b6cc2c9544fe28c25/);
-  assert.match(job, /actions\/artifacts\/11677657188\/zip/);
-  assert.match(job, /sha256sum --check --status/);
-  assert.match(job, /test -s \.composition-baseline\/\.next\/BUILD_ID/);
-  assert.match(job, /node scripts\/diagnose-landing-composition\.mjs/);
+  assert.doesNotMatch(job, /\.composition-baseline|actions\/artifacts\/11677657188|dc88019ce8448c8c56390a2b6cc2c9544fe28c25/);
+  assert.match(job, /candidate: \{root, headSHA: process\.env\.VISTAIRE_BENCHMARK_HEAD_SHA/);
+  assert.match(job, /artifactName: `next-build-\$\{process\.env\.GITHUB_RUN_ID\}`/);
+  assert.match(job, /node scripts\/diagnose-landing-composition\.mjs --journey-qa/);
   assert.doesNotMatch(job, /export VISTAIRE_COMPOSITION_RUNTIMES_JSON=/);
   assert.match(job, /export VISTAIRE_COMPOSITION_RUNTIMES_JSON\n/);
   assert.match(job, /if: \$\{\{ !\(inputs\.composition == true/);

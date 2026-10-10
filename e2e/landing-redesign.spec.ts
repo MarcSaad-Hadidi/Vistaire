@@ -732,12 +732,12 @@ renderedTest.describe('rendered scroll choreography (Chromium software WebGL)', 
           }
           await saveTelemetry();
         }
-        // The measured 6.2-stage sticky travel contains a 4-stage active
-        // presentation between the common 1.1-stage entry/exit portions.
+        // Ordinary chapters retain four active stages; the two three-item reading
+        // chapters now have eight, between unchanged 1.1-stage edges.
         for (const chapter of geometry.chapters.slice(3, 10)) {
           segment = `presentation:${chapter.id}`;
           for (const fraction of [0, 0.25, 0.5, 0.75, 1])
-            await at(chapter.top + geometry.stage * (1.1 + 4 * fraction));
+            await at(chapter.top + geometry.stage * (1.1 + (['features', 'social-content'].includes(chapter.id) ? 8 : 4) * fraction));
         }
         await saveTelemetry();
         // Cross the internal opening chapter labels and sampled camera anchors.
@@ -745,9 +745,21 @@ renderedTest.describe('rendered scroll choreography (Chromium software WebGL)', 
           Number((el as HTMLElement).style.getPropertyValue('--opening-motion-vh')) * el.firstElementChild!.clientHeight / 100);
         segment = 'opening-anchors';
         for (const p of [0.125, 0.25, 0.375, 0.5, 0.625, 0.75, 0.875, 1]) {
-          const [a, b] = [await at(motion * p - 2), await at(motion * p + 2)];
+          const y = (motion - 2 * geometry.stage) * p + (p >= 0.5 ? 2 * geometry.stage : 0);
+          const [a, b] = [await at(y - 2), await at(y + 2)];
           a.values.forEach((value, n) => expect(Math.abs(value - b.values[n])).toBeLessThan(0.15));
         }
+        segment = 'opening-ai-hold';
+        const holdStart = motion / 2 - geometry.stage;
+        const holdSamples: Awaited<ReturnType<typeof at>>[] = [];
+        for (const fraction of [0.05, 0.5, 0.95, 0.5, 0.05])
+          holdSamples.push(await at(holdStart + 2 * geometry.stage * fraction));
+        for (const sample of holdSamples) {
+          expect(sample.copy.ai.opacity).toBeCloseTo(1, 6);
+          sample.values.forEach((value, index) => expect(value).toBeCloseTo(holdSamples[0].values[index], 6));
+        }
+        const [enterBefore, enterAfter] = [await at(holdStart - 2), await at(holdStart + 2)];
+        enterBefore.values.forEach((value, index) => expect(Math.abs(value - enterAfter.values[index])).toBeLessThan(0.15));
         await saveTelemetry();
         await testInfo.attach('rendered-scroll-telemetry', { path: testInfo.outputPath('rendered-scroll-telemetry.json'), contentType: 'application/json' });
         segment = 'normal-motion-stop';
@@ -845,10 +857,10 @@ renderedTest.describe('rendered scroll choreography (Chromium software WebGL)', 
   }
 });
 
-renderedTest.describe('complete-food zoom fit (Chromium software WebGL)', () => {
+renderedTest.describe('food zoom safety (Chromium software WebGL)', () => {
   renderedTest.skip(({ browserName }) => browserName !== 'chromium', 'SwiftShader verification uses Chromium');
   for (const [path, viewport] of [['/', { width: 1440, height: 900 }], ['/en', { width: 390, height: 844 }]] as const) {
-    renderedTest(`${path} keeps every food model inside its frame while zooming, rotating and resizing`, async ({ page }, testInfo) => {
+    renderedTest(`${path} preserves whole-food reset and safe close-ups while rotating and resizing`, async ({ page }, testInfo) => {
       // CI completed six desktop models while the original aggregate budget
       // expired during burger zoom polling. Retain every pose/action and the
       // 15s settle/viewport waits; only this measured whole-workload ceiling
@@ -926,11 +938,25 @@ renderedTest.describe('complete-food zoom fit (Chromium software WebGL)', () => 
       type Fit = { model: string | undefined; frame: { x: number; y: number; width: number; height: number }; food: { x: number; y: number; width: number; height: number } | null; scale: number; requested: number; fitted: number; meshScale: string | undefined; quaternion: string | undefined; width: number; height: number; viewport: { width: number; height: number }; canvasRect: { x: number; y: number; width: number; height: number }; dataset: Record<string, string | undefined> };
       const hullsByUrl = JSON.parse(readFileSync('public/immersive-assets/dishes/framing-hulls.json', 'utf8')).byUrl as Record<string, { id: string; vertices: [number, number, number][] }>;
       const desktopFootprints: Record<string, number> = { homard: 1.75, souffle: 1.65, huitres: 1.5, sushi: 2, 'chocolat-fume': 1.5, poutine: 1.75, burger: 1.1 };
-      const samples: { scenario: string; fit: Fit; minimumFoodY?: number }[] = [];
+      const samples: { scenario: string; fit: Fit; minimumFoodY?: number; minimumCameraDepth?: number }[] = [];
       let phase = 'initial';
       let lastDiagnostic: Awaited<ReturnType<typeof diagnosticSnapshot>> = null;
+      const zoomRequests: { target: number; framesBefore: number; startedAt: string; acknowledgedAfterMs: number | null }[] = [];
       const artifact = testInfo.outputPath('rendered-zoom-fit-telemetry.json');
-      const saveTelemetry = () => writeFile(artifact, JSON.stringify({ renderer: 'Chromium SwiftShader', phase, expectedViewport, lastDiagnostic, errors, samples }, null, 2));
+      const saveTelemetry = () => writeFile(artifact, JSON.stringify({ renderer: 'Chromium SwiftShader', phase, expectedViewport, lastDiagnostic, errors, samples, zoomRequests }, null, 2));
+      const requestZoom = async (target: number, action: () => Promise<unknown>) => {
+        const request = { target, framesBefore: Number(await canvas.getAttribute('data-frames')), startedAt: new Date().toISOString(), acknowledgedAfterMs: null as number | null };
+        const started = Date.now();
+        zoomRequests.push(request);
+        await action();
+        // Keep the original 5s acknowledgement contract. A matching old pose
+        // cannot satisfy it; the 15s settlement check remains a separate step.
+        await expect.poll(() => canvas.evaluate((el, framesBefore) =>
+          Number((el as HTMLCanvasElement).dataset.frames) > framesBefore
+            ? Number((el as HTMLCanvasElement).dataset.cameraDolly) : Number.NaN,
+        request.framesBefore)).toBeCloseTo(target, 6);
+        request.acknowledgedAfterMs = Date.now() - started;
+      };
       const capture = async (count = 1, reset = false) => canvas.evaluate(async (el, { count, reset }) => {
         const result = [];
         if (reset) document.querySelector<HTMLButtonElement>('.reset-dish')!.click();
@@ -962,7 +988,7 @@ renderedTest.describe('complete-food zoom fit (Chromium software WebGL)', () => 
           expect(view[field], `${scenario}: fixed view ${field}`).toBeCloseTo(baselineView[field], 6);
       };
       const check = (fit: Fit, scenario: string) => {
-        const sample: { scenario: string; fit: Fit; minimumFoodY?: number } = { scenario, fit };
+        const sample: { scenario: string; fit: Fit; minimumFoodY?: number; minimumCameraDepth?: number } = { scenario, fit };
         samples.push(sample);
         if (!fit.food) {
           expect(scenario.startsWith('chapter-handoff:'), 'only an outgoing dish may disappear').toBe(true);
@@ -984,18 +1010,41 @@ renderedTest.describe('complete-food zoom fit (Chromium software WebGL)', () => 
             + (1 - 2 * (qx * qx + qz * qz)) * y * scaleY
             + 2 * (qy * qz - qw * qx) * z * scaleZ));
         expect(sample.minimumFoodY, `${scenario}: food remains above the opaque tabletop`).toBeGreaterThanOrEqual(-0.02 - 1e-5);
+        const position = fit.dataset.dishPosition!.split(',').map(Number);
+        const camera = fit.dataset.fittedCameraPosition!.split(',').map(Number);
+        const look = fit.dataset.fittedLook!.split(',').map(Number);
+        const length = Math.hypot(...camera.map((value, index) => value - look[index]));
+        const direction = camera.map((value, index) => (value - look[index]) / length);
+        sample.minimumCameraDepth = Math.min(...hull.vertices.map(([x, y, z]) => {
+          x *= scaleX; y *= scaleY; z *= scaleZ;
+          const point = [
+            position[0] + (1 - 2 * (qy * qy + qz * qz)) * x + 2 * (qx * qy - qw * qz) * y + 2 * (qx * qz + qw * qy) * z,
+            position[1] + 2 * (qx * qy + qw * qz) * x + (1 - 2 * (qx * qx + qz * qz)) * y + 2 * (qy * qz - qw * qx) * z,
+            position[2] + 2 * (qx * qz - qw * qy) * x + 2 * (qy * qz + qw * qx) * y + (1 - 2 * (qx * qx + qy * qy)) * z,
+          ];
+          return point.reduce((depth, value, index) => depth + (camera[index] - value) * direction[index], 0);
+        }));
+        // The unchanged perspective camera uses near=.05. Requested close-ups
+        // may crop side planes but must keep the complete mesh in front of near.
+        expect(sample.minimumCameraDepth, `${scenario}: no near-plane cutting`).toBeGreaterThanOrEqual(0.05 - 1e-5);
+        const wholeFood = fit.requested <= 1.0002;
+        if (wholeFood) {
+
         expect(fit.food.x, `${scenario}: left`).toBeGreaterThanOrEqual(fit.frame.x - 2);
         expect(fit.food.y, `${scenario}: top`).toBeGreaterThanOrEqual(fit.frame.y - 2);
         expect(fit.food.x + fit.food.width, `${scenario}: right`).toBeLessThanOrEqual(fit.frame.x + fit.frame.width + 2);
         expect(fit.food.y + fit.food.height, `${scenario}: bottom`).toBeLessThanOrEqual(fit.frame.y + fit.frame.height + 2);
+        }
         if (!scenario.startsWith('chapter-handoff:')) {
           expect(fit.viewport, `${scenario}: requested viewport is current`).toEqual(expectedViewport);
+          if (wholeFood) {
           const scaleX = fit.canvasRect.width / fit.width;
           const scaleY = fit.canvasRect.height / fit.height;
           expect(fit.canvasRect.x + fit.food.x * scaleX, `${scenario}: viewport left`).toBeGreaterThanOrEqual(-2);
           expect(fit.canvasRect.y + fit.food.y * scaleY, `${scenario}: viewport top`).toBeGreaterThanOrEqual(-2);
           expect(fit.canvasRect.x + (fit.food.x + fit.food.width) * scaleX, `${scenario}: viewport right`).toBeLessThanOrEqual(fit.viewport.width + 2);
           expect(fit.canvasRect.y + (fit.food.y + fit.food.height) * scaleY, `${scenario}: viewport bottom`).toBeLessThanOrEqual(fit.viewport.height + 2);
+          }
           expect(fit.frame.height, `${scenario}: meaningful food frame`).toBeGreaterThanOrEqual(120);
           expect(fit.food.height, `${scenario}: food remains visible`).toBeGreaterThan(12);
           expect(fit.food.width, `${scenario}: food remains visible`).toBeGreaterThan(12);
@@ -1014,7 +1063,8 @@ renderedTest.describe('complete-food zoom fit (Chromium software WebGL)', () => 
           const meshScale = await canvas.getAttribute('data-dish-mesh-scale');
           const maximumZoom = Number(await canvas.getAttribute('data-zoom-max'));
           expect(maximumZoom, `${id}: one real zoom step is available`).toBeGreaterThanOrEqual(1.2 - 1e-6);
-          expect(maximumZoom).toBeLessThanOrEqual(4);
+          expect(Number.isFinite(maximumZoom)).toBe(true);
+          expect(maximumZoom, `${id}: close-up passes the old four-times ceiling`).toBeGreaterThan(4);
           if (id === 'homard') {
             phase = `${id}:default-zoom`;
             const [before] = await capture();
@@ -1022,8 +1072,7 @@ renderedTest.describe('complete-food zoom fit (Chromium software WebGL)', () => 
             expect(before.requested).toBeCloseTo(1, 6);
             expect(before.fitted).toBeCloseTo(1, 6);
             phase = `${id}:one-zoom-step`;
-            await page.locator('.dish-zoom button').nth(1).click();
-            await expect.poll(async () => Number(await canvas.getAttribute('data-camera-dolly'))).toBeCloseTo(1.2, 6);
+            await requestZoom(1.2, () => page.locator('.dish-zoom button').nth(1).click());
             await expect(canvas).toHaveAttribute('data-settled', 'true', { timeout: 15_000 });
             const [enlarged] = await capture();
             check(enlarged, phase);
@@ -1037,10 +1086,9 @@ renderedTest.describe('complete-food zoom fit (Chromium software WebGL)', () => 
           // Exercise the actual button handlers; batch requests before a frame
           // so the fit cap, rather than repeated disabled clicks, is tested.
           phase = `${id}:maximum`;
-          await page.locator('.dish-zoom button').nth(1).evaluate(el => {
-            for (let i = 0; i < 15; i++) (el as HTMLButtonElement).click();
-          });
-          await expect.poll(async () => Number(await canvas.getAttribute('data-camera-dolly'))).toBeCloseTo(maximumZoom, 6);
+          await requestZoom(maximumZoom, () => page.locator('.dish-zoom button').nth(1).evaluate((el, clicks) => {
+            for (let i = 0; i < clicks; i++) (el as HTMLButtonElement).click();
+          }, Math.ceil((maximumZoom - 0.6) / 0.2) + 1));
           await expect(canvas).toHaveAttribute('data-settled', 'true', { timeout: 15_000 });
           const [maximum] = await capture();
           check(maximum, `${id}:maximum`);
@@ -1080,15 +1128,22 @@ renderedTest.describe('complete-food zoom fit (Chromium software WebGL)', () => 
           phase = `${id}:damped-reset`;
           const resetFrames = await capture(16, true);
           for (const fit of resetFrames) check(fit, `${id}:damped-reset`);
-          expect(Math.min(...resetFrames.map(fit => fit.requested))).toBeLessThan(1.4);
+          // Keep the same16 observed reset frames. A close-up can now start near
+          // ten-times zoom, so compare progress proportionally to that start.
+          resetFrames.slice(1).forEach((fit, index) => expect(fit.requested).toBeLessThanOrEqual(resetFrames[index].requested + 1e-6));
+          expect(resetFrames.at(-1)!.requested - 1).toBeLessThanOrEqual((maximum.requested - 1) * 0.25);
           await expect(canvas).toHaveAttribute('data-settled', 'true', { timeout: 15_000 });
+          const [resetFit] = await capture();
+          check(resetFit, `${id}:settled-reset`);
+          expect(Math.abs(resetFit.requested - 1)).toBeLessThanOrEqual(0.0002);
+          expect(Math.abs(resetFit.fitted - 1)).toBeLessThanOrEqual(0.0002);
+          await expect(page.locator('.dish-zoom output')).toHaveText('100 %');
           // Leave the final burger zoomed for the resize/handoff checks below.
           await page.emulateMedia({ reducedMotion: 'reduce' });
           if (id === 'burger') {
-            await page.locator('.dish-zoom button').nth(1).evaluate(el => {
-              for (let i = 0; i < 15; i++) (el as HTMLButtonElement).click();
-            });
-            await expect.poll(async () => Number(await canvas.getAttribute('data-camera-dolly'))).toBeCloseTo(maximumZoom, 6);
+            await requestZoom(maximumZoom, () => page.locator('.dish-zoom button').nth(1).evaluate((el, clicks) => {
+              for (let i = 0; i < clicks; i++) (el as HTMLButtonElement).click();
+            }, Math.ceil((maximumZoom - 0.6) / 0.2) + 1));
           }
         }
         // CSS viewport/orientation changes while already zoomed, not a claim

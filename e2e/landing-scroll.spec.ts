@@ -237,7 +237,7 @@ touchTest("contact maintenu : inversions et changements de hauteur du Mac au foo
 });
 
 
-test("le téléphone reste lisible sur 1,5 écran de défilement supplémentaire", async ({ page }) => {
+test("les pauses de lecture gardent AI, téléphone et trois cartes pleinement lisibles", async ({ page }) => {
   await openJourney(page);
   const opening = await page.locator(".opening-journey").evaluate((el) => {
     const stage = el.firstElementChild!.clientHeight;
@@ -249,9 +249,18 @@ test("le téléphone reste lisible sur 1,5 écran de défilement supplémentaire
       release: distance("--opening-release-vh"),
     };
   });
-  // Two 3.2-screen motion legs precede the unchanged phone reading hold.
+  // Two unchanged 3.2-screen legs surround the new two-screen AI hold.
   // The release allowance belongs to the following join, not to that motion.
-  expect(opening.motion / opening.stage).toBeCloseTo(6.4, 2);
+  expect(opening.motion / opening.stage).toBeCloseTo(8.4, 2);
+  const aiHoldStart = opening.motion / 2 - opening.stage;
+  for (const fraction of [0.05, 0.5, 0.95, 0.5, 0.05]) {
+    await page.evaluate(y => scrollTo({ top: y, behavior: "instant" }), aiHoldStart + 2 * opening.stage * fraction);
+    await expect(page.locator("html")).toHaveAttribute("data-chapter", "ai");
+    await expect(page.locator("#ai")).toHaveCSS("opacity", "1");
+    await expect(page.locator("#ai")).toHaveJSProperty("inert", false);
+    await expect(page.locator("#hero")).toHaveCSS("opacity", "0");
+    await expect(page.locator("#wearable")).toHaveCSS("opacity", "0");
+  }
   expect(opening.release / opening.stage).toBeCloseTo(1.1, 2);
   expect(Math.abs(opening.height - opening.stage - opening.motion - opening.hold - opening.release)).toBeLessThanOrEqual(1);
   expect(opening.hold / opening.stage).toBeGreaterThanOrEqual(1.5);
@@ -265,6 +274,24 @@ test("le téléphone reste lisible sur 1,5 écran de défilement supplémentaire
   }
   await page.evaluate((y) => scrollTo({ top: y, behavior: "instant" }), opening.height);
   await expect(page.locator("html")).toHaveAttribute("data-chapter", "features");
+  // Three two-stage reading holds, separated by one-stage transitions, are
+  // checked in both directions. Selection is stable throughout each hold.
+  for (const id of ['features', 'social-content']) {
+    const chapter = page.locator(`#${id}`);
+    const bounds = await chapter.evaluate(el => ({ top: el.getBoundingClientRect().top + scrollY, stage: el.firstElementChild!.clientHeight }));
+    for (const index of [0, 1, 2, 1, 0]) for (const fraction of [0.05, 0.5, 0.95]) {
+      await page.evaluate(y => scrollTo({ top: y, behavior: 'instant' }), bounds.top + bounds.stage * (1.1 + index * 3 + 2 * fraction));
+      await expect(page.locator('html')).toHaveAttribute('data-chapter', id);
+      if (id === 'features') {
+        await expect(chapter.locator('.feature-number')).toHaveText(`0${index + 1}`);
+        await expect.poll(() => chapter.evaluate(el => Number(getComputedStyle(el).getPropertyValue('--detail-opacity')))).toBe(1);
+      } else {
+        await expect(chapter.locator('.social-rail article').nth(index)).toHaveAttribute('aria-hidden', 'false');
+        await expect(chapter.locator('.social-pager button').nth(index)).toHaveAttribute('aria-current', 'true');
+        await expect.poll(() => chapter.evaluate(el => Number(getComputedStyle(el).getPropertyValue('--rail-progress')))).toBe(index);
+      }
+    }
+  }
 });
 
 
@@ -351,12 +378,12 @@ test("le premier chargement mobile utilise le film portrait et garde les command
 
 test("les séquences allongées gardent des pauses lisibles et un rail réversible", async ({ page }) => {
   await openJourney(page);
-  for (const [id, expectedTravel] of [["features", 6.2], ["encryption", 6.2], ["grip", 6.2], ["sustainability", 6.2], ["testimonies", 6.2], ["social-content", 6.2], ["product", 6.2]] as const) {
+  for (const [id, expectedTravel] of [["features", 10.2], ["encryption", 6.2], ["grip", 6.2], ["sustainability", 6.2], ["testimonies", 6.2], ["social-content", 10.2], ["product", 6.2]] as const) {
     const ratio = await page.locator(`#${id}`).evaluate(el => {
       const stage = el.firstElementChild!.clientHeight;
-      return ((el as HTMLElement).offsetHeight - stage) / stage;
+      return { id: el.id, travel: ((el as HTMLElement).offsetHeight - stage) / stage };
     });
-    expect(ratio).toBeCloseTo(expectedTravel, 2);
+    expect(ratio.travel).toBeCloseTo(expectedTravel, 2);
   }
   const social = page.locator("#social-content");
   const rail = page.locator(".social-rail");
@@ -367,7 +394,7 @@ test("les séquences allongées gardent des pauses lisibles et un rail réversib
     }), progress);
   };
   const railProgress = () => rail.evaluate(el => Number(getComputedStyle(el).getPropertyValue("--rail-progress")));
-  for (const [progress, expected] of [[0.1, 0], [0.24, 0], [0.3735483871, 0.5], [0.5, 1], [0.6264516129, 1.5], [0.9, 2], [1, 2], [0.6264516129, 1.5], [0.5, 1], [0.3735483871, 0.5], [0.1, 0]]) {
+  for (const [progress, expected] of [[0.1, 0], [0.24, 0], [(1.1 + 2.5) / 10.2, 0.5], [0.5, 1], [(1.1 + 5.5) / 10.2, 1.5], [0.9, 2], [1, 2], [(1.1 + 5.5) / 10.2, 1.5], [0.5, 1], [(1.1 + 2.5) / 10.2, 0.5], [0.1, 0]]) {
     await at(progress);
     await expect.poll(railProgress).toBeCloseTo(expected, 2);
   }
@@ -469,7 +496,7 @@ for (const viewport of [
   { width: 1920, height: 1080 }, { width: 2560, height: 1440 },
   { width: 375, height: 812 }, { width: 390, height: 844 }, { width: 430, height: 932 },
 ]) {
-  test(`all chapter boundaries use measured continuous windows at ${viewport.width}×${viewport.height}`, async ({ page }) => {
+  (viewport.width === 390 ? touchTest : test)(`all chapter boundaries use measured continuous windows at ${viewport.width}×${viewport.height}`, async ({ page, browserName }) => {
     test.setTimeout(90_000);
     await page.setViewportSize(viewport);
     for (const path of ['/', '/en']) {
@@ -492,9 +519,9 @@ for (const viewport of [
       expect(windows).toHaveLength(9);
       const distances = await page.locator('.chapter').evaluateAll(elements => elements.slice(3, 10).map(el => {
         const stage = el.firstElementChild!.clientHeight;
-        return ((el as HTMLElement).offsetHeight - stage) / stage;
+        return { id: el.id, travel: ((el as HTMLElement).offsetHeight - stage) / stage };
       }));
-      for (const distance of distances) expect(distance).toBeCloseTo(6.2, 2);
+      for (const distance of distances) expect(distance.travel).toBeCloseTo(['features', 'social-content'].includes(distance.id) ? 10.2 : 6.2, 2);
       const openingDistance = await page.locator('.opening-journey').evaluate(el => ({
         top: el.getBoundingClientRect().top + scrollY,
         motion: Number((el as HTMLElement).style.getPropertyValue('--opening-motion-vh')) * el.firstElementChild!.clientHeight / 100,
@@ -580,6 +607,36 @@ for (const viewport of [
           await expect(range).toHaveValue('1');
           await expect(page.locator('html')).toHaveAttribute('data-chapter', anchor);
         }
+        const slower = page.getByRole('button', { name: english ? 'Slow down scrolling' : 'Ralentir le défilement', exact: true });
+        const faster = page.getByRole('button', { name: english ? 'Speed up scrolling' : 'Accélérer le défilement', exact: true });
+        for (const button of [slower, faster]) {
+          const box = (await button.boundingBox())!;
+          expect(box.width).toBeGreaterThanOrEqual(44);
+          expect(box.height).toBeGreaterThanOrEqual(44);
+        }
+        await slower.tap();
+        await expect(range).toHaveValue('0.95');
+        await faster.tap();
+        await expect(range).toHaveValue('1');
+        // Trusted emulated touchscreen input exercises the native range while
+        // contact is held. It is not physical iOS/address-bar verification.
+        expect(await page.evaluate(() => navigator.maxTouchPoints)).toBeGreaterThan(0);
+        if (browserName === 'chromium') {
+        const cdp = await page.context().newCDPSession(page);
+        const track = (await range.boundingBox())!;
+        const touch = (fraction: number) => ({ x: track.x + track.width * fraction, y: track.y + track.height / 2, id: 1 });
+        try {
+          await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [touch(0.2)] });
+          await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [touch(0.75)] });
+          await expect.poll(() => range.inputValue().then(Number)).toBeGreaterThan(2);
+          await expect.poll(() => range.inputValue().then(Number)).toBeLessThan(4);
+        } finally {
+          await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+          await cdp.detach();
+        }
+        }
+        await reset.tap();
+        await expect(range).toHaveValue('1');
         const geometryAtDefault = await geometry(page);
         const naturalAtDefault = geometryAtDefault.chapters.filter(chapter => ['open-weight', 'footer'].includes(chapter.id));
         const social = page.locator('#social-content');
@@ -592,7 +649,7 @@ for (const viewport of [
           const stage = Number.parseFloat(getComputedStyle(el.firstElementChild!).height);
           return -el.getBoundingClientRect().top / (el.getBoundingClientRect().height - stage);
         });
-        for (const [key, pace] of [['End', 1.5], ['Home', 0.75]] as const) {
+        for (const [key, pace] of [['End', 4], ['Home', 0.25]] as const) {
           await range.press(key);
           await expect(range).toHaveValue(String(pace));
           await expect.poll(semantic).toBeCloseTo(0.45, 3);
@@ -603,7 +660,7 @@ for (const viewport of [
           expect(actual.chapters.map(chapter => chapter.stage)).toEqual(geometryAtDefault.chapters.map(chapter => chapter.stage));
           expect(actual.chapters.filter(chapter => ['open-weight', 'footer'].includes(chapter.id)).map(chapter => chapter.height)).toEqual(naturalAtDefault.map(chapter => chapter.height));
           const travel = await social.evaluate(el => (el.getBoundingClientRect().height - el.firstElementChild!.clientHeight) / el.firstElementChild!.clientHeight);
-          expect(travel).toBeCloseTo(6.2 / pace, 2);
+          expect(travel).toBeCloseTo(10.2 / pace, 2);
           const current = new URL(page.url());
           expect(current.searchParams.get('keep')).toBe('preview');
           expect(current.searchParams.get('scrollPace')).toBe(pace.toFixed(2));
@@ -624,19 +681,22 @@ for (const viewport of [
         await pricing.evaluate(el => scrollTo({ top: el.getBoundingClientRect().top + scrollY + 120, behavior: 'instant' }));
         await expect(page.locator('html')).toHaveAttribute('data-chapter', 'open-weight');
         const pricingTop = () => pricing.evaluate(el => el.getBoundingClientRect().top);
+        // scrollTo rounds actual CSS coordinates; preserve the observed initial
+        // offset rather than comparing two rounded layouts to an ideal−120.
+        const initialPricingTop = await pricingTop();
         await range.press('End');
-        await expect(range).toHaveValue('1.5');
-        await expect.poll(pricingTop).toBeCloseTo(-120, 0);
+        await expect(range).toHaveValue('4');
+        await expect.poll(pricingTop).toBeCloseTo(initialPricingTop, 0);
         await reset.click();
         await expect(range).toHaveValue('1');
-        await expect.poll(pricingTop).toBeCloseTo(-120, 0);
+        await expect.poll(pricingTop).toBeCloseTo(initialPricingTop, 0);
         const summary = page.locator('.pace-preview summary');
         const url = page.url();
         await summary.press('Enter');
         await expect(range).toBeHidden();
         expect((await summary.boundingBox())!.height).toBeGreaterThanOrEqual(44);
         expect(page.url()).toBe(url);
-        expect(await pricingTop()).toBeCloseTo(-120, 0);
+        expect(await pricingTop()).toBeCloseTo(initialPricingTop, 0);
         await summary.press('Enter');
         await expect(range).toBeVisible();
         await page.emulateMedia({ reducedMotion: 'no-preference' });

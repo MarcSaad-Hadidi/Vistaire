@@ -113,7 +113,7 @@ test("App publishes each complete scroll and control batch before one scene wake
     sceneFrame: { x: 0.5 }, transition: null, clamp: (value) => Math.max(0, Math.min(1, value)),
     SOCIAL_TRANSITIONS: [], cinematicEase: (value) => value, writeVisualProperty() {},
     sectionRefs: { current: { "social-content": {}, features: {} } },
-    featureTextOpacity: () => 1, chapterPhase: () => 0, lastSection: "", lastChapterBeats: {},
+    readingPresentation: () => ({ position: 0, index: 0, opacity: 1 }), lastSection: "", lastChapterBeats: {},
     setChapter() {}, setChapterBeats() {}, document: { documentElement: { dataset: {} } },
   });
   assert.equal(wakes.length, 1);

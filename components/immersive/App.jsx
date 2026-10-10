@@ -27,7 +27,7 @@ import {
   site,
 } from "./content.js";
 import Pricing from "./Pricing.jsx";
-import { CINEMATIC_TIMING, scaledCinematicTiming, remapJourneyScroll, chapterNavigationTarget, chapterPhase, cinematicEase, cinematicCopyWeights, featureTextOpacity, socialTiming, cinematicStageOffset, measureChapterTransitions, transitionAtScroll, transitionSceneFrame } from "./SceneDirector.js";
+import { CINEMATIC_TIMING, SCROLL_PACE, normalizeScrollPace, scaledCinematicTiming, openingProgressAtScroll, remapJourneyScroll, chapterNavigationTarget, cinematicEase, cinematicCopyWeights, readingTiming, readingPresentation, cinematicStageOffset, measureChapterTransitions, transitionAtScroll, transitionSceneFrame } from "./SceneDirector.js";
 import { useModelGesture, useSupportGesture } from "./useModelGesture.js";
 import { ARAction, ARHelp, DishDetailLink, isIOSDevice } from "./ARActions.jsx";
 import { LandingLocaleProvider, useLandingLocale } from "./locale.jsx";
@@ -42,8 +42,8 @@ const Scene = lazy(() => import("./Scene.jsx"));
 // Keep the finished phone pose visible for another 1.5 viewports.
 const OPENING_MOTION_VH = CINEMATIC_TIMING.openingMotionScreens * 100;
 const OPENING_PHONE_HOLD_VH = CINEMATIC_TIMING.phoneHoldScreens * 100;
-// Slower rail moves share the active presentation budget; reading holds do not inflate.
-const { transitions: SOCIAL_TRANSITIONS, centers: SOCIAL_HOLD_CENTERS } = socialTiming();
+// Cards and menu videos share explicit reading holds and paced detail changes.
+const { centers: SOCIAL_HOLD_CENTERS } = readingTiming();
 const clamp = (n) => Math.max(0, Math.min(1, n));
 
 function Action({
@@ -374,6 +374,7 @@ function LandingContent() {
   const dishGestures = useModelGesture({
     angle: drag,
     zoom: dishZoom,
+    maxZoom: maxDishZoom,
     onAngle: setDrag,
     onZoom: value => setDishZoom(Math.max(0.6, Math.min(maxDishZoom, value))),
   });
@@ -492,6 +493,7 @@ function LandingContent() {
         top,
         travel,
         motionTravel,
+        aiHoldTravel: stageHeight * timing.aiHoldScreens,
         height: journeyBounds.height,
         stageHeight,
         sceneHeight,
@@ -572,7 +574,6 @@ function LandingContent() {
           });
         }
         stateRef.current.cinematicTiming = timing;
-        setScrollPace(pace);
       }
       if (arrivalAnchor != null) {
         if (Object.hasOwn(scrollTargets.current, arrivalAnchor))
@@ -580,11 +581,12 @@ function LandingContent() {
         arrivalAnchor = null;
       }
       const y = scrollY;
+      const openingPosition = openingProgressAtScroll(opening, y);
       // Once native scrolling or an interactive control is understood, leave
       // the visitor alone. No chapter resets, idle timers or extra listeners.
       const discoveryDistance = Math.max(64, Math.min(120, opening.sceneHeight * 0.1));
       if (Math.abs(y - arrivalY) >= discoveryDistance) guideDismissed.current = true;
-      const showGuide = !guideDismissed.current && y < opening.top + opening.motionTravel * 0.14;
+      const showGuide = !guideDismissed.current && openingPosition < 0.14;
       if (showGuide !== lastGuideVisible) {
         lastGuideVisible = showGuide;
         setGuideVisible(showGuide);
@@ -597,10 +599,9 @@ function LandingContent() {
       if (!current) return;
       const openingProgress =
         y < opening.top + opening.height
-          ? clamp((y - opening.top) / opening.motionTravel)
+          ? openingPosition
           : null;
       const transition = transitionAtScroll(transitions, y);
-      const openingPosition = clamp((y - opening.top) / opening.motionTravel);
       const firstLeg = cinematicCopyWeights(openingPosition / 0.5);
       const secondLeg = cinematicCopyWeights((openingPosition - 0.5) / 0.5);
       const openingExit = cinematicCopyWeights((y - transitions[0].start) / (transitions[0].end - transitions[0].start));
@@ -688,22 +689,18 @@ function LandingContent() {
       stateRef.current.sceneFrame = sceneFrame;
       stateRef.current.sceneFrames = sceneFrames;
       stateRef.current.transition = transition;
-      const socialProgress = stateRef.current.chapterProgress["social-content"];
-      const socialPosition = SOCIAL_TRANSITIONS.reduce((position, [start, end]) => {
-        const phase = clamp((socialProgress - start) / (end - start));
-        return position + cinematicEase(phase);
-      }, 0);
-      const socialIndex = Math.min(2, Math.round(socialPosition));
+      const social = readingPresentation(stateRef.current.chapterProgress["social-content"]);
+      const feature = readingPresentation(stateRef.current.chapterProgress.features);
       writeVisualProperty(
         sectionRefs.current["social-content"],
         "--rail-progress",
-        stateRef.current.reducedMotion ? socialIndex : socialPosition,
+        stateRef.current.reducedMotion ? social.index : social.position,
       );
       writeVisualProperty(sectionRefs.current.features, "--detail-opacity",
-        featureTextOpacity(stateRef.current.chapterProgress.features));
+        feature.opacity);
       const preparedBeats = {
-        features: Math.min(2, Math.floor(chapterPhase("features", stateRef.current.chapterProgress.features) * 3)),
-        "social-content": socialIndex,
+        features: feature.index,
+        "social-content": social.index,
       };
       if (current.id !== lastSection) {
         lastSection = current.id;
@@ -727,9 +724,11 @@ function LandingContent() {
       }
     };
     const requestPace = (value) => {
-      const number = Number(value);
-      pendingPace = Number.isFinite(number) && number > 0
-        ? Math.round(Math.max(0.75, Math.min(1.5, number)) * 20) / 20 : 1;
+      const currentPace = pendingPace ?? CINEMATIC_TIMING.sceneScreens / timing.sceneScreens;
+      pendingPace = normalizeScrollPace(typeof value === "function" ? value(currentPace) : value);
+      // The touch thumb and buttons respond immediately, even if rendering is
+      // busy. Only the latest geometry change waits for the existing queue.
+      setScrollPace(pendingPace);
       const url = new URL(location.href);
       url.searchParams.set("scrollPace", pendingPace.toFixed(2));
       history.replaceState(history.state, "", url);
@@ -755,9 +754,8 @@ function LandingContent() {
     measure();
     const initialPace = new URLSearchParams(location.search).get("scrollPace");
     if (initialPace != null) {
-      const number = Number(initialPace);
-      pendingPace = Number.isFinite(number) && number > 0
-        ? Math.round(Math.max(0.75, Math.min(1.5, number)) * 20) / 20 : 1;
+      pendingPace = normalizeScrollPace(initialPace);
+      setScrollPace(pendingPace);
     }
     // Overlayed opening panels share one DOM position; their deep links need
     // the same measured scroll destination as the navigation controls.
@@ -988,15 +986,24 @@ function LandingContent() {
           </summary>
           <div className="pace-preview-heading">
             <label className="sr-only" htmlFor="scroll-pace">{locale === "en" ? "Pace" : "Rythme"}</label>
-            <input id="scroll-pace" type="range" min="0.75" max="1.50" step="0.05" value={scrollPace}
+            <button type="button" className="pace-step" disabled={scrollPace <= SCROLL_PACE.min}
+              aria-label={locale === "en" ? "Slow down scrolling" : "Ralentir le défilement"}
+              onClick={() => stateRef.current.setScrollPace?.(pace => pace - SCROLL_PACE.step)}>−</button>
+            <input id="scroll-pace" type="range" min={SCROLL_PACE.min} max={SCROLL_PACE.max} step={SCROLL_PACE.step} value={scrollPace}
               aria-describedby="scroll-pace-help"
               aria-valuetext={`${scrollPace.toFixed(2)}×`}
               onChange={event => stateRef.current.setScrollPace?.(event.target.value)} />
-            <button type="button" onClick={() => stateRef.current.setScrollPace?.(1)}>
+            <button type="button" className="pace-step" disabled={scrollPace >= SCROLL_PACE.max}
+              aria-label={locale === "en" ? "Speed up scrolling" : "Accélérer le défilement"}
+              onClick={() => stateRef.current.setScrollPace?.(pace => pace + SCROLL_PACE.step)}>+</button>
+          </div>
+          <div className="pace-preview-labels">
+            <span>{locale === "en" ? "Slower" : "Plus lent"}</span>
+            <button type="button" onClick={() => stateRef.current.setScrollPace?.(SCROLL_PACE.default)}>
               {locale === "en" ? "Reset" : "Réinitialiser"}
             </button>
+            <span>{locale === "en" ? "Faster" : "Plus rapide"}</span>
           </div>
-          <div className="pace-preview-labels"><span>{locale === "en" ? "Slower" : "Plus lent"}</span><span>{locale === "en" ? "Faster" : "Plus rapide"}</span></div>
           <p id="scroll-pace-help">{locale === "en" ? "Higher pace shortens the journey’s scroll distance." : "Un rythme plus élevé raccourcit la distance à faire défiler."}</p>
         </details>
       )}
@@ -1245,7 +1252,7 @@ function LandingContent() {
         </div>
         <Chapter
           id="features"
-          height={CINEMATIC_TIMING.chapterHeightVh}
+          height={CINEMATIC_TIMING.readingChapterHeightVh}
           chapterRef={ref("features")}
           className="features"
         >
@@ -1552,7 +1559,7 @@ function LandingContent() {
         </Chapter>
         <Chapter
           id="social-content"
-          height={CINEMATIC_TIMING.chapterHeightVh}
+          height={CINEMATIC_TIMING.readingChapterHeightVh}
           chapterRef={ref("social-content")}
           className="social"
         >

@@ -12,11 +12,15 @@ const context = { ...director, THREE, HALF_PI: Math.PI / 2, clamp: (v, a, b) => 
 vm.runInNewContext(source.slice(source.indexOf('function baseComposition('), source.indexOf('\nfunction composition(')) + ';this.base = baseComposition', context);
 const ids = ['hero', 'ai', 'wearable', 'features', 'encryption', 'grip', 'sustainability', 'testimonies', 'social-content', 'product', 'open-weight', 'footer'];
 function geometry(stage) {
-  const opening = { top: 0, travel: stage * 9, motionTravel: stage * 6.4, height: stage * 10, stageHeight: stage, sceneHeight: stage };
+  const timing = director.CINEMATIC_TIMING;
+  const height = stage * (1 + timing.openingMotionScreens + timing.phoneHoldScreens + timing.openingReleaseScreens);
+  const opening = { top: 0, travel: height - stage, motionTravel: stage * timing.openingMotionScreens,
+    aiHoldTravel: stage * timing.aiHoldScreens, height, stageHeight: stage, sceneHeight: stage };
   let top = opening.height;
   const measurements = ids.map((id, i) => {
-    if (i < 3) return { id, top: stage * [0, 3.2, 6.4][i], travel: 1 };
-    const travel = stage * [6.2, 6.2, 6.2, 6.2, 6.2, 6.2, 6.2, 4.6, 0.1][i - 3];
+    if (i < 3) return { id, top: opening.motionTravel * i / 2, travel: 1 };
+    const travel = stage * (['features', 'social-content'].includes(id) ? timing.readingSceneScreens
+      : i < 10 ? timing.sceneScreens : i === 10 ? 4.6 : 0.1);
     const item = { id, top, travel };
     top += travel + stage;
     return item;
@@ -28,22 +32,21 @@ function geometry(stage) {
 // React setters are fixtures, so frame-map allocation is observed end to end.
 function appScrollFixture() {
   const app = readFileSync('components/immersive/App.jsx', 'utf8');
-  const { opening, measurements } = geometry(844);
+  const { opening, measurements } = pacedGeometry(director.CINEMATIC_TIMING);
   const style = () => ({ setProperty(name, value) { this[name] = value; } });
   const scope = {
     ...director, scrollY: 0, innerWidth: 390, location: { hash: '' },
     clamp: value => Math.max(0, Math.min(1, value)),
-    SOCIAL_TRANSITIONS: director.socialTiming().transitions,
     chapters: ids.map(id => [id]), sectionRefs: { current: {} },
     stateRef: { current: {} }, scrollTargets: { current: {} }, guideDismissed: { current: true },
-    setGuideVisible() {}, setChapter() {}, setChapterBeats() {},
+    setGuideVisible() {}, setChapter() {}, setChapterBeats(value) { scope.beats = value; },
     getComputedStyle: () => ({ height: '844px' }),
   };
   const world = { clientHeight: 932, dataset: {}, style: style() };
   scope.document = { querySelector: () => world, documentElement: { dataset: {} } };
   scope.openingRef = { current: {
     firstElementChild: { style: style() },
-    getBoundingClientRect: () => ({ top: -scope.scrollY, height: opening.height }),
+    getBoundingClientRect: () => ({ top: opening.top - scope.scrollY, height: opening.height }),
   } };
   for (const m of measurements) {
     const focus = { left: 30, width: 300, height: 400 };
@@ -102,7 +105,7 @@ test('all object and atmosphere seams are C1, reversible and independent of jump
       const current = measurements.filter(m => y >= m.top).at(-1) || measurements[0];
       return {
         section: current.id, progress: (y - current.top) / current.travel,
-        openingProgress: y < opening.height ? Math.max(0, Math.min(1, y / opening.motionTravel)) : null,
+        openingProgress: y < opening.height ? director.openingProgressAtScroll(opening, y) : null,
         transition: director.transitionAtScroll(windows, y),
       };
     };
@@ -222,17 +225,33 @@ test('the shared curve and actual authored transition poses have bounded relativ
   }
 });
 
-test('all seven chapters use the central budget and the three video holds remain ordered', () => {
+test('generic chapters retain their budget while features and social share three two-stage reading holds', () => {
   const app = readFileSync('components/immersive/App.jsx', 'utf8');
   assert.equal(director.CINEMATIC_TIMING.sceneScreens, 6.2);
   for (const id of ids.slice(3, 10)) {
-    assert.match(app, new RegExp(`id="${id}"\\s+height=\\{CINEMATIC_TIMING.chapterHeightVh\\}`));
+    const height = ['features', 'social-content'].includes(id) ? 'readingChapterHeightVh' : 'chapterHeightVh';
+    assert.match(app, new RegExp(`id="${id}"\\s+height=\\{CINEMATIC_TIMING.${height}\\}`));
   }
-  const { transitions, centers } = director.socialTiming();
-  for (const [start, end] of transitions) assert.ok(Math.abs((end - start) * 6.2 - 0.704) < 1e-8);
+  assert.equal(director.CINEMATIC_TIMING.readingHoldScreens, 2);
+  assert.equal(director.CINEMATIC_TIMING.readingActiveScreens, 8);
+  assert.equal(director.CINEMATIC_TIMING.readingSceneScreens, 10.2);
+  const { transitions, centers } = director.readingTiming();
+  for (const [start, end] of transitions) assert.ok(Math.abs((end - start) * 10.2 - 1) < 1e-8);
   for (let i = 0; i < centers.length; i++) {
     assert.ok(centers[i] > (i ? transitions[i - 1][1] : 0));
     assert.ok(centers[i] < (i < 2 ? transitions[i][0] : 1));
+  }
+  const f = appScrollFixture();
+  for (const id of ['features', 'social-content']) {
+    const chapter = f.measurements.find(m => m.id === id);
+    const holds = [[0.5, 0], [1.5, 0], [3.5, 1], [4.5, 1], [6.5, 2], [7.5, 2]];
+    for (const [distance, index] of [...holds, ...holds.toReversed()]) {
+      f.scope.scrollY = chapter.top + (director.CINEMATIC_TIMING.edgeScreens + distance) * f.opening.stageHeight;
+      f.scope.update();
+      assert.equal(f.scope.beats[id], index, `${id} card ${index + 1} stays selected through its two-stage hold`);
+      const property = id === 'features' ? '--detail-opacity' : '--rail-progress';
+      assert.equal(Number(f.scope.sectionRefs.current[id].style[property]), id === 'features' ? 1 : index, `${id} reading hold does not move or fade`);
+    }
   }
 });
 
@@ -248,13 +267,23 @@ test('the laptop hinge consumes the shared presentation phase instead of a secon
   assert.ok((sample(1) - sample(1 - h)) / h < 1e-3);
 });
 
-test('feature text swaps only at zero opacity and reverses without a flash', () => {
-  assert.equal(typeof director.featureTextOpacity, 'function');
-  for (const seam of [(1.1 + 4 / 3) / 6.2, (1.1 + 8 / 3) / 6.2]) {
-    assert.ok(director.featureTextOpacity(seam) < 1e-12);
-    assertC1(p => ({ opacity: director.featureTextOpacity(p / 3150) }), seam * 3150, 'feature copy');
-    assert.ok(director.featureTextOpacity(seam - 0.02) > 0);
-    assert.ok(director.featureTextOpacity(seam + 0.02) > 0);
+test('reading text swaps only at zero opacity and reverses without a flash', () => {
+  assert.equal(typeof director.readingPresentation, 'function');
+  for (const [index, [start, end]] of director.readingTiming().transitions.entries()) {
+    const seam = (start + end) / 2;
+    const sample = progress => director.readingPresentation(progress);
+    assert.ok(sample(seam).opacity < 1e-12);
+    assert.equal(sample(seam - 0.0001).index, index);
+    assert.equal(sample(seam + 0.0001).index, index + 1);
+    assertC1(y => ({ opacity: sample(y / 3150).opacity }), seam * 3150, 'reading copy');
+    assert.ok(sample(seam - 0.02).opacity > 0);
+    assert.ok(sample(seam + 0.02).opacity > 0);
+    const positions = [start, seam - 0.02, seam, seam + 0.02, end];
+    assert.deepEqual(positions.toReversed().map(sample).toReversed(), positions.map(sample));
+    // A rail move consumes the shared curve exactly once, including its speed cap.
+    const samples = Array.from({ length: 257 }, (_, i) => sample(start + (end - start) * i / 256).position);
+    samples.forEach((position, i) => near(position - index, director.cinematicEase(i / 256), 'reading movement phase'));
+    assert.ok(Math.max(...samples.slice(1).map((v, i) => (v - samples[i]) * 256)) <= 1.334);
   }
 });
 
@@ -366,11 +395,11 @@ test('identities surface follows copy visibility over the full world without cha
 });
 
 // The physical stage and natural pricing/footer stay fixed while paced chapter
-// travel changes. This is one geometry fixture, not another viewport matrix.
-function pacedGeometry(timing) {
-  const stageHeight = 844;
+// travel changes. Captured natural heights can be supplied for pace regressions.
+function pacedGeometry(timing, { stageHeight = 844, viewportHeight = 932, pricingHeight = stageHeight * 3.5 } = {}) {
   const opening = {
-    top: 17.5, stageHeight, sceneHeight: 932,
+    top: 17.5, stageHeight, sceneHeight: viewportHeight,
+    aiHoldTravel: (timing.aiHoldScreens ?? 0) * stageHeight,
     motionTravel: timing.openingMotionScreens * stageHeight,
     height: (1 + timing.openingMotionScreens + timing.phoneHoldScreens + timing.openingReleaseScreens) * stageHeight,
   };
@@ -378,12 +407,12 @@ function pacedGeometry(timing) {
   let top = opening.top + opening.height;
   const measurements = ids.map((id, i) => {
     if (i < 3) return { id, top: opening.top + opening.motionTravel * i / 2, travel: 1 };
-    const travel = stageHeight * (i < 10 ? timing.sceneScreens : i === 10 ? 2.5 : 0.1);
+    const travel = i < 10 ? stageHeight * (['features', 'social-content'].includes(id) ? timing.readingSceneScreens : timing.sceneScreens) : i === 10 ? pricingHeight - viewportHeight : stageHeight * 0.1;
     const item = { id, top, travel };
-    top += travel + stageHeight;
+    top += i === 10 ? pricingHeight : travel + stageHeight;
     return item;
   });
-  return { opening, measurements, viewportHeight: 932 };
+  return { opening, measurements, viewportHeight };
 }
 const near = (actual, expected, message) => assert.ok(Math.abs(actual - expected) < 1e-7, `${message}: ${actual} != ${expected}`);
 
@@ -392,8 +421,9 @@ test('selected physical timing changes measured joins and anchors while preservi
   // optional argument, independently of whether the new timing factory exists.
   const timing = {
     activeScreens: 8 / 3, edgeScreens: 11 / 15, sceneScreens: 62 / 15,
-    detailScreens: 0.704 * 2 / 3, phoneHoldScreens: 1,
-    transitionScreens: 37 / 15, openingMotionScreens: 74 / 15,
+    detailScreens: 2 / 3, phoneHoldScreens: 1,
+    readingHoldScreens: 4 / 3, readingActiveScreens: 16 / 3, readingSceneScreens: 6.8, readingChapterHeightVh: 780,
+    transitionScreens: 37 / 15, openingMotionScreens: 94 / 15, aiHoldScreens: 4 / 3,
     openingReleaseScreens: 11 / 15, chapterHeightVh: (1 + 62 / 15) * 100,
   };
   const { opening, measurements } = pacedGeometry(timing);
@@ -413,26 +443,36 @@ test('selected physical timing changes measured joins and anchors while preservi
 test('scaled timing preserves the exact default and normalized chapter and social pager phases', () => {
   assert.equal(typeof director.scaledCinematicTiming, 'function', 'the approved timing factory is required');
   const base = director.CINEMATIC_TIMING;
+  assert.equal(base.aiHoldScreens, 2, 'section 01 receives two full default reading stages');
+  assert.deepEqual(director.SCROLL_PACE, { min: 0.25, max: 4, step: 0.05, default: 1 });
+  assert.equal(typeof director.normalizeScrollPace, 'function');
+  for (const [value, expected] of [[0.1, 0.25], [0.25, 0.25], [0.78, 0.8], [4, 4], [8, 4], [0, 1], ['invalid', 1]])
+    assert.equal(director.normalizeScrollPace(value), expected, `normalize pace ${value}`);
   assert.equal(director.scaledCinematicTiming(), base);
   assert.equal(director.scaledCinematicTiming(1), base);
-  const social = director.socialTiming();
-  for (const pace of [0.75, 1.5]) {
+  const social = director.readingTiming();
+  for (const pace of [0.25, 0.75, 1.5, 4]) {
     const factor = 1 / pace;
     const timing = director.scaledCinematicTiming(factor);
     assert.deepEqual(Object.keys(timing).sort(), Object.keys(base).sort());
-    for (const key of ['activeScreens', 'edgeScreens', 'sceneScreens', 'detailScreens', 'phoneHoldScreens']) near(timing[key], base[key] * factor, key);
+    for (const key of ['activeScreens', 'edgeScreens', 'sceneScreens', 'detailScreens', 'phoneHoldScreens', 'aiHoldScreens', 'readingHoldScreens', 'readingActiveScreens', 'readingSceneScreens']) near(timing[key], base[key] * factor, key);
     near(timing.transitionScreens, 1 + 2 * timing.edgeScreens, 'the one-stage native crossing is not scaled');
-    near(timing.openingMotionScreens, 2 * timing.transitionScreens, 'opening shares both transition distances');
+    near(timing.openingMotionScreens, 2 * timing.transitionScreens + timing.aiHoldScreens, 'opening adds a reading hold between both unchanged transition distances');
     near(timing.chapterHeightVh, (1 + timing.sceneScreens) * 100, 'chapter retains a full physical sticky stage');
     near(timing.openingReleaseScreens, timing.edgeScreens, 'opening release');
     for (const phase of [0, 0.4, 1]) {
-      const raw = (timing.edgeScreens + phase * timing.activeScreens) / timing.sceneScreens;
-      near(director.chapterPhase('features', raw), phase, 'normalized chapter motion stays unchanged');
+      for (const id of ['features', 'social-content', 'grip']) {
+        const reading = id !== 'grip';
+        const raw = (timing.edgeScreens + phase * (reading ? timing.readingActiveScreens : timing.activeScreens))
+          / (reading ? timing.readingSceneScreens : timing.sceneScreens);
+        near(director.chapterPhase(id, raw), phase, `${id} normalized chapter motion stays unchanged`);
+      }
     }
-    const hold = (timing.activeScreens - 2 * timing.detailScreens) / 3;
-    const expectedCenters = [hold / 2, timing.activeScreens / 2, timing.activeScreens - hold / 2].map(distance => (timing.edgeScreens + distance) / timing.sceneScreens);
+    near(timing.readingChapterHeightVh, (1 + timing.readingSceneScreens) * 100, 'reading chapter retains one sticky stage');
+    const hold = timing.readingHoldScreens;
+    const expectedCenters = [hold / 2, timing.readingActiveScreens / 2, timing.readingActiveScreens - hold / 2].map(distance => (timing.edgeScreens + distance) / timing.readingSceneScreens);
     social.centers.forEach((center, i) => near(center, expectedCenters[i], `social pager ${i} remains in its authored hold`));
-    social.transitions.forEach(([start, end]) => near((end - start) * timing.sceneScreens, timing.detailScreens, 'social move uses scaled physical detail distance'));
+    social.transitions.forEach(([start, end]) => near((end - start) * timing.readingSceneScreens, timing.detailScreens, 'social move uses scaled physical detail distance'));
   }
 });
 
@@ -446,7 +486,7 @@ test('pace changes remap semantic position reversibly and prioritize visible nat
     return result;
   };
   const before = snapshot(1);
-  for (const factor of [1 / 1.5, 1 / 0.75]) {
+  for (const factor of [1 / 4, 1 / 1.5, 1 / 0.75, 1 / 0.25]) {
     const after = snapshot(factor);
     const point = (view, id, fraction) => {
       const chapter = view.measurements.find(m => m.id === id);
@@ -454,8 +494,13 @@ test('pace changes remap semantic position reversibly and prioritize visible nat
     };
     const hold = view => view.opening.top + view.opening.motionTravel + 0.6 * (view.transitions[0].start - view.opening.top - view.opening.motionTravel);
     const blend = view => view.transitions[2].start + (view.transitions[2].end - view.transitions[2].start) * 0.65;
+    const openingPoint = (view, leg, fraction) => {
+      const o = view.opening, half = (o.motionTravel - o.aiHoldTravel) / 2;
+      return o.top + (leg === 'first' ? half * fraction : leg === 'hold'
+        ? half + o.aiHoldTravel * fraction : half + o.aiHoldTravel + half * fraction);
+    };
     const pairs = [
-      [before.opening.top + before.opening.motionTravel * 0.3, after.opening.top + after.opening.motionTravel * 0.3, 'opening motion'],
+      ...['first', 'hold', 'second'].map(leg => [openingPoint(before, leg, 0.6), openingPoint(after, leg, 0.6), `opening ${leg} phase`]),
       [hold(before), hold(after), 'finished phone hold'],
       [blend(before), blend(after), 'shared transition fraction'],
       [point(before, 'features', 0.55), point(after, 'features', 0.55), 'ordinary chapter progress'],
@@ -468,7 +513,7 @@ test('pace changes remap semantic position reversibly and prioritize visible nat
     // Keep the pre-visible pricing interval continuous with pixel preservation
     // at its visibility threshold, including changes that cross branch priority.
     const pricingEntry = view => ({
-      start: view.transitions.find(w => w.to.id === 'open-weight').start,
+      start: view.transitions.find(w => w.to.id === 'product').end,
       end: view.measurements.find(m => m.id === 'open-weight').top - view.viewportHeight,
     });
     const oldEntry = pricingEntry(before), newEntry = pricingEntry(after);
@@ -484,6 +529,93 @@ test('pace changes remap semantic position reversibly and prioritize visible nat
       const mapped = director.remapJourneyScroll(y, before, after);
       near(mapped, target, label);
       near(director.remapJourneyScroll(mapped, after, before), y, `${label} roundtrip`);
+    }
+  }
+});
+
+
+test('the shared opening holds section 01 readable for two stages and reverses through the same pose', () => {
+  const f = appScrollFixture();
+  const stage = f.opening.stageHeight;
+  const holdStart = f.opening.top + director.CINEMATIC_TIMING.transitionScreens * stage;
+  const holdEnd = holdStart + 2 * stage;
+  const samples = [holdStart, holdStart + stage * 0.5, holdStart + stage, holdEnd];
+  const sample = y => {
+    f.scope.scrollY = y;
+    f.scope.update();
+    return {
+      progress: f.state.openingProgress,
+      frame: { ...f.state.sceneFrame },
+      pose: director.continuousComposition(f.state, true, context.base),
+      room: director.journeyCoordinate(f.state),
+    };
+  };
+  const forward = samples.map(y => {
+    const result = sample(y);
+    assert.equal(result.progress, 0.5, `AI reading hold must retain its shared pose at ${y}`);
+    assert.equal(f.state.section, 'ai');
+    assert.equal(result.room, 1);
+    for (const id of ['hero', 'ai', 'wearable']) {
+      const panel = f.scope.sectionRefs.current[id];
+      assert.equal(panel.style['--opening-opacity'], id === 'ai' ? '1' : '0');
+      assert.equal(panel.inert, id !== 'ai');
+      assert.equal(panel.getAttribute('aria-hidden'), id === 'ai' ? 'false' : 'true');
+    }
+    return result;
+  });
+  forward.forEach(result => assert.deepEqual(result, forward[0], 'text, room, camera target and object pose remain fixed through the reading hold'));
+  assert.deepEqual(samples.toReversed().map(sample).toReversed(), forward, 'reverse scroll reuses the same reading hold');
+  near(f.scope.scrollTargets.current.ai, (holdStart + holdEnd) / 2, 'AI anchor lands in the middle of its reading hold');
+  assert.ok(sample(holdStart - 1).progress < 0.5);
+  assert.ok(sample(holdEnd + 1).progress > 0.5);
+  for (const seam of [holdStart, holdEnd]) assertC1(y => sample(y).pose, seam, 'AI hold object seam');
+});
+
+test('every allowed pace keeps real desktop and mobile pricing joins positive and nonoverlapping', () => {
+  // Desktop height is the existing captured afbc fixture above. Mobile height
+  // was measured by Chromium at 9e9175f, 390×844; toolbar growth keeps stage844.
+  const viewports = [
+    { stageHeight: 900, viewportHeight: 900, pricingHeight: 3643.703125 },
+    { stageHeight: 844, viewportHeight: 932, pricingHeight: 5380.203125 },
+    // Supported same-width toolbar growth, not a captured physical device:
+    // at 4×, pricing appears before its cinematic incoming window starts.
+    { stageHeight: 730, viewportHeight: 932, pricingHeight: 5380.203125 },
+  ];
+  for (const geometry of viewports) for (let step = 5; step <= 80; step++) {
+    const pace = step / 20;
+    const timing = director.scaledCinematicTiming(1 / pace);
+    const view = pacedGeometry(timing, geometry);
+    const windows = director.measureChapterTransitions(view.measurements, view.opening, timing);
+    for (const [i, window] of windows.entries()) {
+      const label = `${geometry.stageHeight}px at ${pace}×: ${window.from.id}→${window.to.id}`;
+      assert.ok(window.end > window.start, `${label} must have a positive transition distance`);
+      if (i) assert.ok(windows[i - 1].end <= window.start, `${label} must not overlap the previous pose`);
+      if (!['open-weight', 'footer'].includes(window.to.id))
+        near(window.end - window.start, timing.transitionScreens * geometry.stageHeight, `${label} authored transition budget`);
+    }
+    near(windows.at(-1).end, view.measurements.at(-1).top, 'footer still ends at its real DOM boundary');
+    view.transitions = windows;
+    const baseTiming = director.scaledCinematicTiming();
+    const baseline = pacedGeometry(baseTiming, geometry);
+    baseline.transitions = director.measureChapterTransitions(baseline.measurements, baseline.opening, baseTiming);
+    for (const [before, after] of [[baseline, view], [view, baseline]]) {
+      const pricing = before.measurements.find(m => m.id === 'open-weight');
+      const productEntry = before.transitions.find(w => w.to.id === 'product').end;
+      const pricingVisible = pricing.top - before.viewportHeight;
+      const footerTop = before.measurements.at(-1).top;
+      const points = [productEntry, before.transitions.at(-2).start, pricingVisible, pricing.top, footerTop]
+        .flatMap(y => [-0.25, 0, 0.25].map(offset => y + offset)).sort((a, b) => a - b);
+      let previous = -Infinity;
+      for (const y of points) {
+        const label = `${geometry.stageHeight}px at ${pace}× remap near pricing ${y}`;
+        const mapped = director.remapJourneyScroll(y, before, after);
+        assert.ok(Number.isFinite(mapped) && mapped >= previous, `${label} must stay finite and monotonic`);
+        previous = mapped;
+        near(director.remapJourneyScroll(y, before, before), y, `${label} identity`);
+        near(director.remapJourneyScroll(mapped, after, before), y, `${label} round trip`);
+        if (y >= pricingVisible)
+          near(mapped - after.measurements.find(m => m.id === 'open-weight').top, y - pricing.top, `${label} visible pixel offset`);
+      }
     }
   }
 });

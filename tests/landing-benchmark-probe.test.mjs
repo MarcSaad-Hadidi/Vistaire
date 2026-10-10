@@ -144,3 +144,79 @@ test('composition cleanup awaits one original owned shutdown within the existing
   assert.equal(scope.report.cleanup[0].complete, true);
   assert.equal(scope.report.cleanup[0].browser.closed, true);
 });
+
+function journeyFixture() {
+  const source = readFileSync(process.env.VISTAIRE_COMPOSITION_SOURCE || 'scripts/diagnose-landing-composition.mjs', 'utf8');
+  const start = source.indexOf('function journeyPlan(');
+  const end = source.indexOf('\nasync function journeyPass(', start);
+  assert.ok(start >= 0 && end > start, 'Candidate-only journey validation must exist');
+  const scope = { assert };
+  vm.runInNewContext(source.slice(start, end), scope);
+  return scope;
+}
+
+function journeyGeometry() {
+  const ids = ['hero', 'ai', 'wearable', 'features', 'encryption', 'grip', 'sustainability', 'testimonies', 'social-content', 'product', 'open-weight', 'footer'];
+  let top = 1200;
+  const regions = ids.map((id, i) => {
+    const height = i < 3 ? 100 : ['features', 'social-content'].includes(id) ? 1120 : i < 10 ? 720 : i === 10 ? 1000 : 300;
+    const region = { id, top: i < 3 ? 0 : top, height, stageHeight: 100 };
+    if (i >= 3) top += height;
+    return region;
+  });
+  const windows = regions.slice(2, -1).map((region, i) => {
+    const next = regions[i + 3];
+    const end = next.top + (next.id === 'footer' ? 0 : 110);
+    return { from: region.id, to: next.id, start: end - 320, end };
+  });
+  return { regions, windows, opening: { top: 0, height: 1200, stageHeight: 100, motionVH: 840, phoneHoldVH: 150 }, maxScroll: top - 100 };
+}
+
+test('candidate journey covers all real joins, opening holds and seven interiors without accepting missing geometry', () => {
+  const { journeyPlan } = journeyFixture();
+  const geometry = journeyGeometry();
+  const plan = journeyPlan(geometry);
+  assert.equal(plan.filter(span => span.kind === 'join').length, 9);
+  assert.equal(plan.filter(span => span.kind === 'opening').length, 4);
+  assert.equal(plan.filter(span => span.kind === 'presentation').length, 7);
+  assert.equal(plan.filter(span => span.kind === 'native').length, 2);
+  assert.deepEqual(Array.from(plan.filter(span => span.kind === 'opening'), span => (span.end - span.start) / 100), [3.2, 2, 3.2, 1.5]);
+  assert.deepEqual(Array.from(plan.filter(span => span.kind === 'presentation'), span => (span.end - span.start) / 100), [8, 4, 4, 4, 4, 8, 4]);
+  for (const mutate of [
+    value => value.regions.pop(),
+    value => value.windows.pop(),
+    value => { value.windows[4].end = NaN; },
+    value => { value.opening.motionVH = 640; },
+    value => { value.windows[1].start -= 400; },
+  ]) {
+    const invalid = structuredClone(geometry); mutate(invalid);
+    assert.throws(() => journeyPlan(invalid));
+  }
+});
+
+test('journey checkpoints fail closed on missing rendered pose, coverage, scrim, card or decoded-video evidence', () => {
+  const { assertJourneySample } = journeyFixture();
+  const sample = {
+    viewport: [390, 844], dpr: 1, drawingBuffer: [390, 844], scroll: 844,
+    canvas: { top: 0, left: 0, right: 390, bottom: 844 }, world: { top: 0, left: 0, right: 390, bottom: 844 },
+    data: { ready: 'true', frames: '12', drawCalls: '2', suspended: 'false', processedScrollDistance: '1', roomPosition: '0.000,0.000,0.000', roomYaw: '0.0000', fittedCameraPosition: '1,2,3', fittedLook: '0,0,0', dishPosition: '1,2,3', dishScale: '1,1,1', dishQuaternion: '0,0,0,1', supportPosition: '1,2,3', supportScale: '1,1,1', supportQuaternion: '0,0,0,1', phonePosition: '1,2,3', phoneScale: '1,1,1', phoneQuaternion: '0,0,0,1', laptopPosition: '1,2,3', laptopScale: '1,1,1', laptopQuaternion: '0,0,0,1' },
+    identities: { copyOpacity: '0.5', stageBackground: 'rgba(0, 0, 0, 0)', scrim: { content: '\"\"', opacity: '0.5', background: 'rgba(17, 17, 16, 0.4)' } },
+    raf: { dropped: 0, hidden: false, last: { pose: { frames: '12' } } },
+    copy: { 'open-weight': { rect: { top: 2000, bottom: 3000 } } },
+    presentation: { featureIndex: 1, featureDots: [1], featureHeading: 'Readable card', featureOpacity: 1, socialIndex: 1, socialPager: [1], railProgress: 1, videos: [{ socialIndex: 1, connected: true, paused: false, readyState: 4, decodedFrames: 10, decodedClass: true, rate: 1 }] },
+  };
+  assertJourneySample(sample, 100, 'features', 1);
+  assertJourneySample(sample, 100, 'social-content', 1);
+  for (const mutate of [
+    value => { value.data.dishPosition = ''; },
+    value => { value.canvas.bottom = 843; },
+    value => { value.identities.scrim.opacity = '0'; },
+    value => { value.raf.last.pose.frames = '11'; },
+    value => { value.presentation.featureDots = [0]; },
+    value => { value.presentation.videos[0].decodedFrames = 0; },
+    value => { value.data.suspended = 'true'; },
+  ]) {
+    const invalid = structuredClone(sample); mutate(invalid);
+    assert.throws(() => { assertJourneySample(invalid, 100, 'features', 1); assertJourneySample(invalid, 100, 'social-content', 1); });
+  }
+});

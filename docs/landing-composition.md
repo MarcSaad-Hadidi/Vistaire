@@ -1,10 +1,35 @@
-# Bounded same-host composition investigation
+# Bounded landing journey QA and paired investigation
 
-This opt-in sidecar investigates the three seams visible in the supplied Oct10 contact sheets: encryption→grip, sustainability→testimonies, and testimonies→social-content. Original MP4 playback is unavailable. It does not establish complete twelve-chapter acceptance or physical iPhone smoothness.
+The App CI `composition` input (with landing/full target), or `landing-composition` label before a new push, now selects **candidate-only full-journey QA**. It consumes the current verified build without downloading a pinned baseline. Ordinary correctness suites remain selected normally. The performance runner stays 30 minutes, with the original 25-minute helper deadline, 40-second action bounds and owned-process cleanup.
 
-The existing `scripts/benchmark-landing.mjs` schema2 protocol stays byte-identical. The App CI `composition` input (with landing/full target), or `landing-composition` label before a new push, selects the composition investigation instead of the full schema2 workload. All ordinary correctness suites remain selected normally. The performance runner stays30minutes, with a25minute sidecar deadline and40second action bounds; incomplete work is retained and fails the measurement gate.
+The no-flag CLI remains the historical three-seam paired investigation. Its order, active workload, query-free measurement and separate visual passes are unchanged. `scripts/benchmark-landing.mjs` remains byte-identical. Full-journey QA is not a new paired benchmark and establishes no CPU gain or physical-iPhone smoothness claim.
 
-## Inputs
+## Candidate-only journey QA
+
+Run `node scripts/diagnose-landing-composition.mjs --journey-qa` with:
+
+- `VISTAIRE_COMPOSITION_OUTPUT`: absolute evidence directory
+- `VISTAIRE_COMPOSITION_RUNTIMES_JSON`: exactly one `candidate` object with `root`, `headSHA`, `buildSHA`, `runURL`, `artifactName`, and nullable `artifactID`/`artifactSHA256`
+
+The caller must already have the matching production build and healthy hermetic fixture on 127.0.0.1:55434, with port 3000 free. The helper does not build, install dependencies, change server configuration or start another benchmark. It checks the actual checkout against `buildSHA`, unchanged runtime sources, `.next/BUILD_ID`, and hashes the three local build manifests. A missing archive digest stays explicitly unknown. The current workflow supplies current-run provenance; there is no baseline contract or artifact dependency in this mode.
+
+One fresh normal-motion page at `/en?sceneDiagnostics=1` uses CSS 390×844, DPR 1, touch-capable pinned Chromium and the existing SwiftShader launch flags. Actual WebGL renderer identity must contain SwiftShader; canvas coverage and drawing-buffer identity are checked throughout. This instrumented QA has substantial additional callback, DOM/media observation, screenshot and serialization cost. Its durations must not be compared with visitor active costs or interpreted as display FPS.
+
+The finite default-pace coverage contract is:
+
+- All 12 regions exist exactly once and in order: hero, ai, wearable, features, encryption, grip, sustainability, testimonies, social-content, product, open-weight, footer
+- All nine external joins come from the actual published DOM windows, are finite, reachable, ordered and non-overlapping; the first seven preserve 3.2H travel, with natural-pricing capping allowed on the last two
+- Opening: two 3.2H camera legs, the new 2H AI reading hold, and unchanged 1.5H phone hold
+- Seven interior presentations use their measured neighboring join boundaries: 8H for features/social, 4H for the other five, with 1.1H entry edges; reading centers correspond to three 2H holds separated by two 1H changes
+- Nonzero native pricing and footer ranges complete the document traversal without adding artificial scroll distance
+
+Every range uses the existing requested 3000ms continuous driver forward and reverse, followed by 0/25/50/75/100 checkpoints. Reading presentations also observe 12.5/87.5%, giving all three hold centers in each direction. Requested coordinates, actual delivered scroll-event timestamps, real rendered transforms and contemporaneous inline DOM/card/pager/media state are retained. Per-replay rendered-callback counts and processed-scroll/transition divergence are evidence, with no arbitrary FPS or lag threshold. Screenshots have separate timestamps and may show a later damped pose.
+
+Completion fails closed on missing ranges/directions/checkpoints, invalid or missing rendered pose, missing full-world coverage, broken identities world-scrim ownership/opacity, wrong selected card/pager, missing normal-speed decoded social playback/advancement, buffer overflow, unexpected runtime/network errors, hidden document or unknown cleanup completion. Every region must be observed onscreen with readable non-inert copy. Intentional scene suspension is allowed only behind full-viewport opaque native pricing; its retained pose is not called a fresh draw. All three social videos must actually advance decoded frames in both directions. Each phone-hold midpoint separately retains `phoneReady` and the detached phone-video state; phone media advancement remains explicitly `unverified`, and social decoding is not phone proof.
+
+Exactly 16 forward images are retained: one midpoint per external join, the AI hold, and three feature/three social holds. Reducing redundant images keeps room for broader traversal. `landing-journey-qa.json` retains phase/checkpoint progress, inputs, passive samples, failures and cleanup evidence even when a region or later check fails. The exit gate is `complete` plus `journeyChecksPassed`, with no report errors or exceeded deadline. `comparable` stays false; `visualAcceptance` stays `not-established`. QR/support coexistence, Mac composition and overall chapter-to-chapter quality still require visual review; automated completeness is not universal visual acceptance.
+
+## Historical paired-mode inputs
 
 Caller requirements:
 
@@ -23,7 +48,7 @@ Run `node scripts/diagnose-landing-composition.mjs` with:
 
 The script fails if actual checkout differs from buildSHA, runtime sources are modified, or dependency/config/public-asset Git objects differ between revisions. It checks actual browser version, renderer capabilities, DPR, CSS size and drawing buffer equality. Unknown browser/process cleanup completion stops later measured passes, rather than risking overlap or measuring the wrong server. Cleanup retains resource timestamps, connection/exit state and nested errors. The browser uses the existing40second action bound to allow pinned Playwright’s own30second graceful-close/owned-kill sequence; repeated cleanup awaits that same original close promise. Next still has2seconds after SIGTERM and2seconds after SIGKILL. A teardown failure invalidates the pass. The first361cc808 attempt completed one baseline workload then failed cleanup; its original aggregate omitted the resource cause, so that cause remains unknown and no paired comparison is claimed.
 
-## Workloads and interpretation
+## Historical paired-mode workloads and interpretation
 
 Mobile CSS390×844, DPR1, touch-capable Chromium, normal motion, unchanged SwiftShader flags. This is controlled emulation, not a physical device.
 

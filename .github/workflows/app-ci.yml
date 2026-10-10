@@ -15,7 +15,7 @@ on:
         type: choice
         options: [targeted, full, sauge, database, admin_qr, landing, seo]
       composition:
-        description: Run the bounded same-runner composition comparison
+        description: Run bounded full-journey composition QA on the current build
         required: false
         default: false
         type: boolean
@@ -386,7 +386,7 @@ jobs:
         run: |
           # One controlled isolation experiment: preserve each complete journey,
           # its deadlines and quality, with a fresh CLI/server for mobile zoom.
-          mobile_filter='complete-food zoom fit \(Chromium software WebGL\) /en keeps every food model inside its frame while zooming, rotating and resizing$'
+          mobile_filter='food zoom safety \(Chromium software WebGL\) /en preserves whole-food reset and safe close-ups while rotating and resizing$'
           mobile_report="$GITHUB_WORKSPACE/.ci-test-report-landing-mobile-first.json"
           complement_report="$GITHUB_WORKSPACE/.ci-test-report-landing-complement.json"
           mobile_status=0
@@ -646,33 +646,7 @@ jobs:
           done
           curl --fail --silent http://127.0.0.1:3000 > /dev/null
           node scripts/benchmark-landing.mjs
-      # Bounded investigation: remove this pinned cross-run hook after evidence is retained.
-      - name: Checkout the verified composition baseline
-        if: ${{ inputs.composition == true || contains(github.event.pull_request.labels.*.name, 'landing-composition') }}
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
-        with:
-          ref: dc88019ce8448c8c56390a2b6cc2c9544fe28c25
-          path: .composition-baseline
-          lfs: false
-          persist-credentials: false
-      - name: Download the verified baseline build
-        if: ${{ inputs.composition == true || contains(github.event.pull_request.labels.*.name, 'landing-composition') }}
-        env:
-          GH_TOKEN: ${{ github.token }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          archive="$RUNNER_TEMP/composition-baseline.zip"
-          curl --fail --silent --show-error --location --connect-timeout 20 --max-time 180 \
-            --header "Authorization: Bearer $GH_TOKEN" \
-            --header 'Accept: application/vnd.github+json' \
-            'https://api.github.com/repos/MarcSaad-Hadidi/Vistaire/actions/artifacts/11677657188/zip' \
-            --output "$archive"
-          printf '%s  %s\n' 'd968b11f36d93ae1ce14723579485431c2f90332b90b9c7dc48692739348f1be' "$archive" | sha256sum --check --status
-          mkdir -p .composition-baseline/.next
-          unzip -q "$archive" -d .composition-baseline/.next
-          test -s .composition-baseline/.next/BUILD_ID
-      - name: Compare composition and active cost serially on this runner
+      - name: Validate all landing chapters on the current build
         if: ${{ inputs.composition == true || contains(github.event.pull_request.labels.*.name, 'landing-composition') }}
         env:
           VISTAIRE_COMPOSITION_OUTPUT: ${{ runner.temp }}/landing-performance/composition
@@ -680,12 +654,9 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p "$VISTAIRE_COMPOSITION_OUTPUT"
-          ln -s "$GITHUB_WORKSPACE/node_modules" "$GITHUB_WORKSPACE/.composition-baseline/node_modules"
           VISTAIRE_COMPOSITION_RUNTIMES_JSON="$(node --input-type=module <<'NODE'
-          import path from 'node:path';
           const root = process.env.GITHUB_WORKSPACE;
           console.log(JSON.stringify({
-            baseline: {root: path.join(root, '.composition-baseline'), headSHA: '31ac86733abf54aa5844386dca155465ee25872f', buildSHA: 'dc88019ce8448c8c56390a2b6cc2c9544fe28c25', runURL: 'https://github.com/MarcSaad-Hadidi/Vistaire/actions/runs/38073599002', artifactID: 11677657188, artifactSHA256: 'd968b11f36d93ae1ce14723579485431c2f90332b90b9c7dc48692739348f1be'},
             candidate: {root, headSHA: process.env.VISTAIRE_BENCHMARK_HEAD_SHA, buildSHA: process.env.VISTAIRE_BENCHMARK_SHA, runURL: process.env.VISTAIRE_BENCHMARK_RUN_URL, artifactID: null, artifactSHA256: null, artifactName: `next-build-${process.env.GITHUB_RUN_ID}`}
           }));
           NODE
@@ -699,7 +670,7 @@ jobs:
             sleep 1
           done
           curl --fail --silent http://127.0.0.1:55434/fixture/health > /dev/null
-          node scripts/diagnose-landing-composition.mjs
+          node scripts/diagnose-landing-composition.mjs --journey-qa
       - name: Preserve performance measurements and failures
         if: ${{ always() }}
         uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0

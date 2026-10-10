@@ -5,6 +5,8 @@ const clamp = (value, minimum, maximum) =>
     maximum,
     Math.max(minimum, Number.isFinite(value) ? value : minimum),
   );
+const zoomLimit = options =>
+  Number.isFinite(options.maxZoom) ? Math.max(0.6, options.maxZoom) : 4;
 const HORIZONTAL_THRESHOLD = 12;
 const HORIZONTAL_RATIO = 1.5;
 const LONG_HOLD_MS = 450;
@@ -28,7 +30,7 @@ export function createModelGestureController(getOptions) {
     const options = getOptions();
     values = {
       angle: clamp(options.angle ?? 0.5, 0, 1),
-      zoom: clamp(options.zoom ?? 1, 0.6, 4),
+      zoom: clamp(options.zoom ?? 1, 0.6, zoomLimit(options)),
     };
   }
   function emit(key, next, low, high) {
@@ -147,7 +149,7 @@ export function createModelGestureController(getOptions) {
       const second = pointers.get(pinch.ids[1]);
       if (!first || !second) return;
       const distance = Math.hypot(second.x - first.x, second.y - first.y);
-      emit("zoom", (pinch.zoom * distance) / pinch.distance, 0.6, 4);
+      emit("zoom", (pinch.zoom * distance) / pinch.distance, 0.6, zoomLimit(getOptions()));
       preventClaimedDefault(event);
       return;
     }
@@ -321,7 +323,7 @@ export function createNativeModelGestureController(getOptions) {
       }
       const distance = Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
       getOptions().onZoom?.(
-        clamp((pinch.zoom * distance) / pinch.distance, 0.6, 4),
+        clamp((pinch.zoom * distance) / pinch.distance, 0.6, zoomLimit(getOptions())),
       );
       return;
     }
