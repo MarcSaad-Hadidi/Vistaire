@@ -1,6 +1,6 @@
 import Image from "next/image";
+import { getSeoMarketingImage } from "@/lib/seoMarketingImages";
 import Link from "next/link";
-import tableImage from "@/public/images/marketing/sauge-noire-dining-room.webp";
 import type { Locale } from "@/lib/i18n";
 import { CONTACT_PHONE_DISPLAY, CONTACT_PHONE_TEL } from "@/lib/seo";
 import {
@@ -20,6 +20,8 @@ export function VistaireRendezVousPreview({
   routeMode?: VistaireRouteMode;
 }) {
   const routes = getVistaireChromeRoutes(routeMode, locale);
+  const tableImage = getSeoMarketingImage("BOOK:panel", locale);
+
   const copy =
     locale === "en"
       ? {
@@ -84,13 +86,13 @@ export function VistaireRendezVousPreview({
           <p className={styles.serviceLine}>{copy.serviceLine}</p>
           <div className={styles.imagePanel}>
             <Image
-              alt={copy.photoAlt}
+              alt={tableImage.alt}
               className={styles.imagePanelPhoto}
               fill
               priority
               quality={90}
               sizes="(max-width: 800px) calc(100vw - 40px), 620px"
-              src={tableImage}
+              src={tableImage.src}
             />
           </div>
           <div className={styles.directContact} aria-label={copy.directContact}>

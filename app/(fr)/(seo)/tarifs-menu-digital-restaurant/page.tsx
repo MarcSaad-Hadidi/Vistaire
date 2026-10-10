@@ -8,8 +8,9 @@ import {
 } from "@/lib/pricingPage";
 import { buildPageAlternates, LOCALE_OPEN_GRAPH } from "@/lib/i18n";
 import { absoluteUrl } from "@/lib/seo";
+import { getSeoMarketingImage } from "@/lib/seoMarketingImages";
 
-const socialImage = "/images/marketing/sauge-noire-acrylique.webp";
+const socialImage = getSeoMarketingImage("PRICING:collection:acrylique", "fr").src;
 
 export const metadata: Metadata = {
   title: {

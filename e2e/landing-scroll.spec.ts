@@ -283,7 +283,7 @@ test("le premier chargement mobile utilise le film portrait et garde les command
 
 test("les séquences allongées gardent des pauses lisibles et un rail réversible", async ({ page }) => {
   await openJourney(page);
-  for (const [id, expectedTravel] of [["testimonies", 3], ["social-content", 4.4], ["product", 3.2]] as const) {
+  for (const [id, expectedTravel] of [["features", 6.2], ["encryption", 6.2], ["grip", 6.2], ["sustainability", 6.2], ["testimonies", 6.2], ["social-content", 6.2], ["product", 6.2]] as const) {
     const ratio = await page.locator(`#${id}`).evaluate(el => {
       const stage = el.firstElementChild!.clientHeight;
       return ((el as HTMLElement).offsetHeight - stage) / stage;
@@ -299,7 +299,7 @@ test("les séquences allongées gardent des pauses lisibles et un rail réversib
     }), progress);
   };
   const railProgress = () => rail.evaluate(el => Number(getComputedStyle(el).getPropertyValue("--rail-progress")));
-  for (const [progress, expected] of [[0.1, 0], [0.25, 0], [0.31, 0.5], [0.5, 1], [0.69, 1.5], [0.9, 2], [1, 2], [0.69, 1.5], [0.5, 1], [0.31, 0.5], [0.1, 0]]) {
+  for (const [progress, expected] of [[0.1, 0], [0.24, 0], [0.3735483871, 0.5], [0.5, 1], [0.6264516129, 1.5], [0.9, 2], [1, 2], [0.6264516129, 1.5], [0.5, 1], [0.3735483871, 0.5], [0.1, 0]]) {
     await at(progress);
     await expect.poll(railProgress).toBeCloseTo(expected, 2);
   }
@@ -317,7 +317,7 @@ test("les séquences allongées gardent des pauses lisibles et un rail réversib
   for (const video of await page.locator("video[data-demo]").all()) {
     await expect(video).toHaveJSProperty("paused", true);
   }
-  await at(0.33);
+  await at(0.4);
   await expect.poll(railProgress).toBe(1);
 });
 
@@ -421,9 +421,19 @@ for (const viewport of [
           stage: document.querySelector('.opening-stage')!.clientHeight,
         })));
       expect(windows).toHaveLength(9);
+      const distances = await page.locator('.chapter').evaluateAll(elements => elements.slice(3, 10).map(el => {
+        const stage = el.firstElementChild!.clientHeight;
+        return ((el as HTMLElement).offsetHeight - stage) / stage;
+      }));
+      for (const distance of distances) expect(distance).toBeCloseTo(6.2, 2);
+      const openingDistance = await page.locator('.opening-journey').evaluate(el => ({
+        top: el.getBoundingClientRect().top + scrollY,
+        motion: Number((el as HTMLElement).style.getPropertyValue('--opening-motion-vh')) * el.firstElementChild!.clientHeight / 100,
+      }));
+      expect((windows[0].start - openingDistance.top - openingDistance.motion) / windows[0].stage).toBeCloseTo(1.5, 2);
+
       for (const window of windows) {
-        expect((window.end - window.start) / window.stage).toBeGreaterThanOrEqual(1.39);
-        expect((window.end - window.start) / window.stage).toBeLessThanOrEqual(2.12);
+        expect((window.end - window.start) / window.stage).toBeCloseTo(window.to === 'footer' ? Math.min(3.2, (window.end - windows.at(-2)!.end) / window.stage) : 3.2, 6);
         const sample = async (fraction: number) => page.evaluate(async ({ window, fraction }) => {
           scrollTo({ top: window.start + (window.end - window.start) * fraction, behavior: 'instant' });
           await new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
@@ -435,7 +445,7 @@ for (const viewport of [
           };
         }, { window, fraction });
         const forward = [];
-        for (const fraction of [0.05, 0.5, 0.95]) {
+        for (const fraction of [0.05, 0.125, 0.25, 0.375, 0.5, 0.625, 0.75, 0.875, 0.95]) {
           const state = await sample(fraction);
           expect(state.transition).toBe(`${window.from}:${window.to}`);
           expect(state.progress).toBeCloseTo(fraction, 2);
@@ -444,8 +454,26 @@ for (const viewport of [
           forward.push(state);
         }
         const reverse = [];
-        for (const fraction of [0.95, 0.5, 0.05]) reverse.push(await sample(fraction));
+        for (const fraction of [0.95, 0.875, 0.75, 0.625, 0.5, 0.375, 0.25, 0.125, 0.05]) reverse.push(await sample(fraction));
         expect(reverse.reverse()).toEqual(forward);
+      }
+      // Measure actual text coordinates around sticky pin/release, not just
+      // configuration values. Pricing/footer deliberately keep native flow.
+      for (const id of ['features', 'encryption', 'grip', 'sustainability', 'testimonies', 'social-content', 'product']) {
+        const chapter = page.locator(`#${id}`);
+        const bounds = await chapter.evaluate(el => ({ top: el.getBoundingClientRect().top + scrollY, travel: (el as HTMLElement).offsetHeight - el.firstElementChild!.clientHeight }));
+        for (const seam of [bounds.top, bounds.top + bounds.travel]) {
+          const positions = [];
+          for (const delta of [-2, 0, 2]) positions.push(await chapter.evaluate(async (el, y) => {
+            scrollTo({ top: y, behavior: 'instant' });
+            await new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
+            return { stage: el.firstElementChild!.getBoundingClientRect().top, text: el.querySelector('h2,h3,p')!.getBoundingClientRect().top };
+          }, seam + delta));
+          for (const position of positions) expect(Math.abs(position.stage), `${id}: sticky compensation`).toBeLessThan(1.1);
+          const before = (positions[1].text - positions[0].text) / 2;
+          const after = (positions[2].text - positions[1].text) / 2;
+          expect(Math.abs(after - before), `${id}: text velocity at pin/release`).toBeLessThan(0.04);
+        }
       }
       // Wheel deltas remain native, including coarse mouse-wheel jumps.
       await page.evaluate(() => scrollTo({ top: 0, behavior: 'instant' }));
@@ -458,6 +486,33 @@ for (const viewport of [
       await page.evaluate(() => scrollTo({ top: document.documentElement.scrollHeight, behavior: 'instant' }));
       await expect(page.locator('html')).toHaveAttribute('data-chapter', 'footer');
       expect(await footer.evaluate(el => Math.abs(el.getBoundingClientRect().bottom + scrollY - document.documentElement.scrollHeight))).toBeLessThanOrEqual(1);
+      await page.goto(`${path}#product`);
+      await expect(page.locator('.world-fallback')).toBeVisible();
+      await expect(page.locator('#product')).toHaveJSProperty('inert', false);
+      await expect.poll(() => page.locator('#product').evaluate(el => Number(getComputedStyle(el).getPropertyValue('--copy-opacity')))).toBeCloseTo(1, 3);
     }
   });
 }
+
+test('short landscape and zoom-sized viewports reserve a real food frame and reachable controls', async ({ page }) => {
+  for (const viewport of [{ width: 844, height: 390 }, { width: 1337, height: 591 }]) {
+    await page.setViewportSize(viewport);
+    await page.goto('/#grip');
+    await expect(page.locator('.world-fallback')).toBeVisible();
+    await expect(page.locator('#grip')).toHaveJSProperty('inert', false);
+    await page.evaluate(() => document.fonts.ready);
+    const geometry = await page.locator('#grip').evaluate(el => {
+      const focus = el.querySelector('.scene-focus')!.getBoundingClientRect();
+      return { focus: { width: focus.width, height: focus.height, top: focus.top, bottom: focus.bottom }, controls: [...el.querySelectorAll('.rotation-control,.grip-actions,.dish-switch')].map(control => { const r = control.getBoundingClientRect(); return { top: r.top, bottom: r.bottom, right: r.right }; }) };
+    });
+    expect(geometry.focus.height).toBeGreaterThanOrEqual(160);
+    expect(geometry.focus.width).toBeGreaterThanOrEqual(220);
+    expect(geometry.focus.top).toBeGreaterThanOrEqual(60);
+    expect(geometry.focus.bottom).toBeLessThanOrEqual(viewport.height + 1);
+    for (const control of geometry.controls) {
+      expect(control.top).toBeGreaterThanOrEqual(60);
+      expect(control.bottom).toBeLessThanOrEqual(viewport.height + 1);
+      expect(control.right).toBeLessThanOrEqual(viewport.width);
+    }
+  }
+});

@@ -58,8 +58,11 @@ async function expectNoHorizontalOverflow(page: Page) {
   expect(overflow).toBeLessThanOrEqual(2);
 }
 
-async function visibleDashText(page: Page) {
-  return page.evaluate(() => {
+// This copy contract belongs to the authored pricing sections, not the shared
+// navigation or footer (whose French rendez-vous label is correctly hyphenated).
+async function visiblePricingDashText(page: Page) {
+  return page.locator("main > section").evaluateAll((sections) => {
+    if (!sections.length) throw new Error("Pricing copy sections are missing.");
     const matches: string[] = [];
     const isVisuallyHidden = (element: Element) => {
       let current: Element | null = element;
@@ -88,15 +91,17 @@ async function visibleDashText(page: Page) {
       return false;
     };
 
-    const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
-    let node = walker.nextNode();
-    while (node) {
-      const text = node.textContent?.replace(/\s+/g, " ").trim() ?? "";
-      const parent = node.parentElement;
-      if (text && /[-–—]/.test(text) && parent && !isVisuallyHidden(parent)) {
-        matches.push(text);
+    for (const section of sections) {
+      const walker = document.createTreeWalker(section, NodeFilter.SHOW_TEXT);
+      let node = walker.nextNode();
+      while (node) {
+        const text = node.textContent?.replace(/\s+/g, " ").trim() ?? "";
+        const parent = node.parentElement;
+        if (text && /[-–—]/.test(text) && parent && !isVisuallyHidden(parent)) {
+          matches.push(text);
+        }
+        node = walker.nextNode();
       }
-      node = walker.nextNode();
     }
     return [...new Set(matches)];
   });
@@ -316,7 +321,7 @@ test.describe("Vistaire pricing collections", () => {
       );
       await expect(page.locator('meta[property="og:image"]')).toHaveAttribute(
         "content",
-        "https://www.vistaire.ca/images/marketing/sauge-noire-acrylique.webp"
+        "https://www.vistaire.ca/images/marketing/pricing-acrylique-setting.webp"
       );
       await expect(page.locator('meta[name="twitter:card"]')).toHaveAttribute(
         "content",
@@ -383,7 +388,7 @@ test.describe("Vistaire pricing collections", () => {
       expect(await page.locator("body").innerText()).not.toMatch(
         scenario.forbiddenPreviewVocabulary
       );
-      const dashText = await visibleDashText(page);
+      const dashText = await visiblePricingDashText(page);
       expect(dashText, dashText.join("\n")).toEqual([]);
 
       const publicPayload = await page.evaluate(() =>

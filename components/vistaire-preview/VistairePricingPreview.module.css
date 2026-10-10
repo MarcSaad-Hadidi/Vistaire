@@ -26,7 +26,7 @@
 .hero {
   width: var(--pricing-width);
   margin-inline: auto;
-  padding: 154px 0 54px;
+  padding: 136px 0 46px;
 }
 .eyebrow {
   margin: 0;
@@ -50,9 +50,9 @@
   text-wrap: balance;
 }
 .hero h1 {
-  max-width: 960px;
+  max-width: 1160px;
   margin-top: 22px;
-  font-size: clamp(48px, 5.2vw, 76px);
+  font-size: clamp(48px, 6.2vw, 88px);
 }
 .heroLead {
   max-width: 740px;
@@ -69,22 +69,22 @@
 .collectionGrid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 16px;
+  gap: 30px;
 }
 .collectionCard {
   display: flex;
   min-width: 0;
   flex-direction: column;
-  border: 1px solid var(--pricing-border);
-  border-radius: 4px;
-  background: var(--public-surface);
+  border: 0;
+  background: transparent;
 }
-.collectionCardFeatured {
-  border-color: #8d710b;
+.collectionCardFeatured .collectionHeader {
+  border-color: var(--pricing-champagne);
 }
 .collectionHeader {
   min-height: 122px;
-  padding: 23px 22px 20px;
+  border-bottom: 1px solid var(--pricing-border);
+  padding: 24px 0 20px;
 }
 .collectionHeader p {
   margin: 0;
@@ -109,21 +109,14 @@
 }
 .collectionVisual {
   position: relative;
-  aspect-ratio: 1.05;
+  aspect-ratio: 4 / 3;
   margin: 0;
   overflow: hidden;
-  border-block: 1px solid var(--pricing-border);
   background: var(--public-surface);
 }
 .collectionImage {
   object-fit: cover;
-  transition: transform 500ms ease;
-}
-.collectionImageShade {
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(0deg, #11111030, transparent 35%);
-  pointer-events: none;
+  transition: transform 220ms ease;
 }
 .collectionCard:hover .collectionImage {
   transform: scale(1.025);
@@ -133,7 +126,7 @@
   flex: 1;
   flex-direction: column;
   align-items: flex-start;
-  padding: 23px 22px;
+  padding: 23px 0;
 }
 .pricePrefix,
 .setupLabel,
@@ -505,7 +498,7 @@
     gap: 20px;
   }
   .collectionVisual {
-    aspect-ratio: 1.3;
+    aspect-ratio: 4 / 3;
   }
   .pilotageCopy {
     column-gap: 40px;
@@ -538,14 +531,14 @@
   }
   .collectionGrid {
     grid-template-columns: 1fr;
-    gap: 24px;
+    gap: 40px;
   }
   .collectionHeader {
     min-height: 0;
-    padding: 23px 22px;
+    padding: 23px 0;
   }
   .collectionVisual {
-    aspect-ratio: 1.3;
+    aspect-ratio: 4 / 3;
   }
   .setupPrice {
     font-size: 39px;
@@ -616,4 +609,20 @@
   .dashboardLink {
     transition: none;
   }
+}
+
+.showroomIntroduction { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.8fr); gap: 65px; align-items: start; margin-top: 28px; }
+.showroomIntroduction .heroLead { margin: 0; }
+.showroomIndex { display: grid; border-top: 1px solid var(--pricing-champagne); }
+.showroomIndex a { display: grid; grid-template-columns: 30px minmax(0, 1fr); gap: 14px; min-height: 48px; align-items: baseline; padding: 14px 0; border-bottom: 1px solid var(--pricing-border); color: var(--pricing-champagne); font-size: 11px; text-decoration: none; }
+.showroomIndex span { color: var(--pricing-cream); font-size: 15px; line-height: 1.5; }
+.collectionQuantity { margin: 16px 0 0; color: var(--pricing-muted); font-size: 13px; line-height: 1.55; }
+.page [id] { scroll-margin-top: 112px; }
+@media (max-width: 700px) {
+  .showroomIntroduction { grid-template-columns: 1fr; gap: 24px; margin-top: 22px; }
+  .showroomIndex { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 15px; }
+  .showroomIndex a { display: block; padding-block: 15px; }
+  .showroomIndex span { display: block; margin-top: 8px; font-size: 12px; }
+  .collectionQuantity { font-size: 14px; }
+  .page [id] { scroll-margin-top: 88px; }
 }

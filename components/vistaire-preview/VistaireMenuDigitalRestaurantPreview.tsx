@@ -1,9 +1,8 @@
 import Image from "next/image";
 import Link from "next/link";
 import type { ReactNode } from "react";
-import pageDigitalPhoto from "@/public/images/marketing/maison-elyse-souffle-phone.webp";
-import photoDigital2 from "@/public/images/marketing/sauge-noire-dessert-phone.webp";
-import photoDigital3 from "@/public/images/marketing/trouvable-guest-menu.webp";
+import { getSeoMarketingImage } from "@/lib/seoMarketingImages";
+import design from "./VistairePillarExperiences.module.css";
 import type { Locale } from "@/lib/i18n";
 import {
   getVistaireChromeRoutes,
@@ -258,110 +257,57 @@ export function VistaireMenuDigitalRestaurantPreview({
           comparisonRows,
           premiumPoints,
         };
+  const heroPhoto = getSeoMarketingImage("DIGITAL:hero", locale);
+  const proofPhoto = getSeoMarketingImage("DIGITAL:proof", locale);
+  const premiumPhoto = getSeoMarketingImage("DIGITAL:premium", locale);
   const pageTitle = h1 ?? copy.defaultTitle;
   const pageInternalLinks = [
     { label: copy.comparePdf, href: routes.pdfVsDigital },
     { label: copy.talk, href: routes.contact },
   ];
+  const anatomy = locale === "en" ? [
+    { title: "Navigate the menu", text: copy.comparisonRows[0].vistaire },
+    { title: "Understand the dish", text: copy.comparisonRows[3].vistaire },
+    { title: "Look closer, when useful", text: copy.comparisonRows[5].vistaire },
+  ] : [
+    { title: "Parcourir la carte", text: copy.comparisonRows[0].vistaire },
+    { title: "Comprendre le plat", text: copy.comparisonRows[3].vistaire },
+    { title: "Approfondir, si utile", text: copy.comparisonRows[5].vistaire },
+  ];
   return (
-    <main className={styles.page} data-public-vistaire>
-      <div className={styles.topNav}>
-        <PreviewNav
-          currentPath={routes.menuDigital}
-          locale={locale}
-          routeMode={routeMode}
-        />
-      </div>
-
-      <section
-        aria-labelledby="menu-digital-restaurant-preview-title"
-        className={styles.hero}
-      >
+    <main className={`${styles.page} ${design.atlasPage}`} data-public-vistaire data-seo-experience="digital-atlas">
+      <div className={styles.topNav}><PreviewNav currentPath={routes.menuDigital} locale={locale} routeMode={routeMode} /></div>
+      <div className={styles.hero}>
         <div className={styles.previewFrame}>
-          <article className={`${styles.card} ${styles.heroCopy}`}>
-            <div className={styles.heroText}>
-              <p className={styles.badge}>{copy.badge}</p>
-              <h1
-                aria-label={pageTitle}
-                id="menu-digital-restaurant-preview-title"
-              >
-                {pageTitle}
-              </h1>
-              <p className={styles.heroLead}>{copy.lead}</p>
-              <div
-                className={styles.heroActions}
-                aria-label="Actions principales"
-              >
-                <Link
-                  className={styles.primaryButton}
-                  href={routes.menu}
-                  prefetch={false}
-                >
-                  {copy.viewMenu}
-                  <ArrowIcon />
-                </Link>
-                <Link
-                  className={styles.secondaryButton}
-                  href={routes.appointment}
-                  prefetch={false}
-                >
-                  {copy.appointment}
-                </Link>
-              </div>
+          <header className={design.atlasHero} aria-labelledby="menu-digital-restaurant-preview-title">
+            <p className={styles.badge}>{copy.badge}</p>
+            <h1 id="menu-digital-restaurant-preview-title">{pageTitle}</h1>
+            <div className={design.atlasCover}>
+              <figure className={styles.visualFigure}><Image alt={heroPhoto.alt} className={styles.visualImage} fill priority quality={90} sizes="(max-width: 700px) calc(100vw - 40px), 68vw" src={heroPhoto.src} /></figure>
+              <nav className={design.atlasIndex} aria-label={locale === "en" ? "Explore the menu" : "Explorer la carte"}>
+                <a href="#anatomie"><span>01</span>{copy.mobileTitle}</a>
+                <a href="#carte"><span>02</span>{copy.revealTitle}</a>
+                <a href="#comparaison"><span>03</span>{copy.comparisonBadge}</a>
+              </nav>
             </div>
-            <figure className={`${styles.visualFigure} ${styles.heroVisual}`}>
-              <Image
-                alt={locale === "en" ? "Chocolate soufflé beside the Maison Élyse dessert page on a phone" : "Soufflé au chocolat et fiche dessert Maison Élyse sur téléphone"}
-                className={styles.visualImage}
-                fill
-                priority
-                quality={90}
-                sizes="(max-width: 920px) calc(100vw - 40px), 44vw"
-                src={pageDigitalPhoto}
-              />
-            </figure>
+            <div className={design.atlasAnswer}><p className={styles.heroLead}>{copy.lead}</p><div className={styles.heroActions}><Link className={styles.primaryButton} href={routes.menu} prefetch={false}>{copy.viewMenu}<ArrowIcon /></Link><Link className={styles.secondaryButton} href={routes.appointment} prefetch={false}>{copy.appointment}</Link></div></div>
+          </header>
+          <section className={design.anatomyChapter} id="anatomie" aria-labelledby="mobile-proof-title">
+            <div className={styles.sectionIntro}><p className={styles.badge}>{copy.mobileBadge}</p><h2 id="mobile-proof-title">{copy.mobileTitle}</h2><p>{copy.mobileBody}</p></div>
+            <ol className={design.anatomyRail}>{anatomy.map((item, index) => <li key={item.title}><span>{String(index + 1).padStart(2, "0")}</span><h3>{item.title}</h3><p>{item.text}</p></li>)}</ol>
+            <figure className={design.anatomyPhoto}><Image alt={proofPhoto.alt} className={styles.visualImage} fill  quality={90} sizes="(max-width: 700px) calc(100vw - 40px), 50vw" src={proofPhoto.src} /></figure>
+          </section>
+          <article className={design.revealChapter} id="carte" aria-labelledby="hover-reveal-title">
+            <div className={styles.revealIntro}><p>{copy.revealEyebrow}</p><h2 id="hover-reveal-title">{copy.revealTitle}</h2><span className={styles.desktopInstruction}>{copy.revealDesktop}</span><span className={styles.mobileInstruction}>{copy.revealMobile}</span></div>
+            <div className={design.revealStage}>{interactiveShowcase}</div>
           </article>
-
-          <article
-            className={`${styles.card} ${styles.problemCard}`}
-            aria-labelledby="pdf-problem-title"
-          >
-            <p className={styles.badge}>{copy.pdfBadge}</p>
-            <h2 id="pdf-problem-title">{copy.pdfTitle}</h2>
-            <p>{copy.pdfBody}</p>
-            <div className={styles.problemList}>
-              {copy.pdfProblems.map((problem) => (
-                <section key={problem.title}>
-                  <h3>{problem.title}</h3>
-                  <p>{problem.text}</p>
-                </section>
-              ))}
-            </div>
-          </article>
-
-          <article
-            className={`${styles.card} ${styles.revealCard}`}
-            id="carte"
-            aria-labelledby="hover-reveal-title"
-          >
-            <div className={styles.revealIntro}>
-              <p>{copy.revealEyebrow}</p>
-              <h2 id="hover-reveal-title">{copy.revealTitle}</h2>
-              <span className={styles.desktopInstruction}>
-                {copy.revealDesktop}
-              </span>
-              <span className={styles.mobileInstruction}>
-                {copy.revealMobile}
-              </span>
-            </div>
-            <div className={styles.revealPreviewWrap}>
-              {interactiveShowcase}
-            </div>
-          </article>
-
+          <section className={`${styles.card} ${design.atlasProblems}`} aria-labelledby="pdf-problem-title">
+            <div className={styles.sectionIntro}><p className={styles.badge}>{copy.pdfBadge}</p><h2 id="pdf-problem-title">{copy.pdfTitle}</h2><p>{copy.pdfBody}</p></div>
+            <div className={styles.problemList}>{copy.pdfProblems.map((problem) => <section key={problem.title}><h3>{problem.title}</h3><p>{problem.text}</p></section>)}</div>
+          </section>
           <section
             className={`${styles.card} ${styles.comparisonCard}`}
-            aria-labelledby="comparison-title"
+            id="comparaison" aria-labelledby="comparison-title"
           >
             <div className={styles.sectionIntro}>
               <p className={styles.badge}>{copy.comparisonBadge}</p>
@@ -390,59 +336,11 @@ export function VistaireMenuDigitalRestaurantPreview({
             </table>
           </section>
 
-          <section
-            className={`${styles.card} ${styles.mobileProofCard}`}
-            aria-labelledby="mobile-proof-title"
-          >
-            <figure className={styles.visualFigure}>
-              <Image
-                alt={locale === "en" ? "Hand holding a phone displaying the Trouvable menu at the table" : "Main tenant un téléphone affichant le menu Trouvable à table"}
-                className={styles.visualImage}
-                fill
-                quality={90}
-                sizes="(max-width: 920px) calc(100vw - 56px), 58vw"
-                src={photoDigital3}
-              />
-            </figure>
-            <div className={styles.visualCopy}>
-              <p className={styles.badge}>{copy.mobileBadge}</p>
-              <h2 id="mobile-proof-title">{copy.mobileTitle}</h2>
-              <p>{copy.mobileBody}</p>
-            </div>
-          </section>
 
-          <section
-            className={`${styles.card} ${styles.premiumPanel}`}
-            aria-labelledby="premium-title"
-          >
-            <div className={styles.premiumContent}>
-              <div className={styles.sectionIntro}>
-                <p className={styles.badge}>{copy.premiumBadge}</p>
-                <h2 id="premium-title">{copy.premiumTitle}</h2>
-                <p>{copy.premiumBody}</p>
-              </div>
-              <div className={styles.benefitGrid}>
-                {copy.premiumPoints.map((point) => (
-                  <article className={styles.benefitItem} key={point}>
-                    <h3>{point}</h3>
-                  </article>
-                ))}
-              </div>
-            </div>
-            <figure
-              className={`${styles.visualFigure} ${styles.premiumVisual}`}
-            >
-              <Image
-                alt={locale === "en" ? "Chocolat fumé beside the Sauge Noire dessert page on a phone" : "Chocolat fumé et fiche dessert Sauge Noire sur téléphone"}
-                className={styles.visualImage}
-                fill
-                quality={90}
-                sizes="(max-width: 920px) calc(100vw - 56px), 24vw"
-                src={photoDigital2}
-              />
-            </figure>
+          <section className={design.atlasClosing} aria-labelledby="premium-title">
+            <figure className={styles.visualFigure}><Image alt={premiumPhoto.alt} className={styles.visualImage} fill  quality={90} sizes="(max-width: 700px) calc(100vw - 40px), 44vw" src={premiumPhoto.src} /></figure>
+            <div className={styles.sectionIntro}><p className={styles.badge}>{copy.premiumBadge}</p><h2 id="premium-title">{copy.premiumTitle}</h2><p>{copy.premiumBody}</p><ul className={styles.proofPoints}>{copy.premiumPoints.map((point) => <li key={point}>{point}</li>)}</ul></div>
           </section>
-
           <section
             className={`${styles.card} ${styles.finalCta}`}
             aria-labelledby="final-cta-title"
@@ -483,14 +381,8 @@ export function VistaireMenuDigitalRestaurantPreview({
 
           <div className={styles.seoAppendix}>{seoAppendix}</div>
         </div>
-      </section>
-
-      <PreviewFooter
-        currentPath={routes.menuDigital}
-        locale={locale}
-        routeMode={routeMode}
-        width="wide"
-      />
+      </div>
+      <PreviewFooter currentPath={routes.menuDigital} locale={locale} routeMode={routeMode} width="wide" />
     </main>
   );
 }

@@ -1,115 +1,124 @@
 # Vistaire public marketing photography
 
-Integrated on 2026-10-10 as a continuation of PR #296 on `feat/immersive-public-vistaire`, from `29ab245b`.
+Updated on 2026-10-10 during PR #296, after the user required a unique photograph per placement and section-specific visual meaning.
 
 ## Result
 
-- 29 active legacy image paths replaced across 48 French/English public route instances
-- 14 photographic masters plus 4 useful derivatives: 3 small restaurant thumbnails and 1 portrait crop
-- 18 genuine WebP runtime files, 2,988,638 bytes in total; no raw generation output is shipped
-- Two phone-led scenes per restaurant, one room per restaurant, a Trouvable drink and four Sauge Noire-branded product scenes
-- No real menu data, genuine dish media, videos, frames, 3D/AR pipelines, models, owner/admin or authentication changes
+- **67 logical in-page placements, 67 unique photos and 67 unique file hashes** across 24 FR/EN route pairs
+- **50 new optimized WebP scenes**, 9,664,862 bytes total; 16 existing distinct photos retained and one duplicated dish placement switched to an unused genuine dish photo
+- FR/EN versions of the same placement share a photograph, as requested
+- Four removed home collection-modal placements stay removed. The new front-left product views now illustrate the four dedicated pricing-page cards
+- No raw image generations, screenshot sources, Blender renders, review sheets or processing scripts are shipped
 
-The complete route, slot, old/new path, source screenshot/model hash, compositing transform and output checksum inventory is [`marketing-photography.json`](marketing-photography.json).
+The complete slot → route → image mapping, source hashes, screenshot crops/quads, exact-model references, prompts, localized descriptions and semantic rationale are in [marketing-photography.json](marketing-photography.json). Runtime consumers use `lib/seoMarketingImages.ts`.
 
-## Fidelity method
+## Semantic audit
 
-Room and lifestyle settings are generated art-directed scenes, not documentary photographs of real premises. The final phone display pixels come from fresh live captures at `https://www.vistaire.ca` on 2026-10-10, after the corresponding real menu routes were inspected. The workflow generates a blank-screen photographic scene, then perspective-composites an aspect-preserved crop of the actual captured UI into the phone. It never asks the image generator to recreate menu text.
+All 67 remaining placements were matched to their real section heading and claim. Nine assignments were strengthened before integration:
 
-Maison Élyse uses the real soufflé and lobster detail pages; Trouvable uses its live list and PDF-style comparison panel; Sauge Noire uses its real botanical cover and Chocolat fumé detail page. The PDF side is the live site’s representation of real Trouvable data, not a claim that a restaurant uploaded that PDF. Sauge Noire’s fixed-height captured book is fitted intact with black screen margins rather than stretched.
+- Allergen hero and proof: matching physical dish beside its real scrolled allergen declarations, with the restaurant caution retained
+- Photo-in-menu proof: actual menu image cards, rather than an isolated plate photograph
+- 3D hero and decision guide: actual dish-page controls exposing the optional 3D entry point
+- AR proof: an actual dish detail page instead of a general menu list
+- PDF alternative proof: the food-first dish page rather than a generic comparison
+- Brossard proof: visible real menu categories alongside the exact Signature stand
+- Gastronomy included-features image: real menu phone in the room, rather than an empty room
 
-Physical displays use transparent-background Blender renders of the four GLBs referenced by `components/immersive/SupportModels.js`. Disposable decompressed references were compared with the originals for geometry arrays, texture bytes, material bindings/factors and node transforms. Original GLBs remain unchanged. Final compositing uses uniform scaling/translation and separate contact shadows; only the small nighttime room/QR inserts receive a light RGB grade. Shape, proportions, base, artwork and silhouette remain source-faithful.
+Room-only scenes remain where restaurant atmosphere or brand identity is the subject. They are illustrative settings and make no documentary venue/city claim. The same-page social-metadata image is allowed to match its page; metadata is not another in-page placement.
 
-All current source fronts carry Sauge Noire artwork, intentionally retained for these photographs. The user permits restaurant-matched text/logo changes in photos when the same physical geometry is retained; retaining this source branding is a production choice. The Acrylique GLB material is `OPAQUE`, so touched alt text and pricing copy no longer claim a transparent face. Its product name is retained. Embedded QR artwork is preserved, but scanning a QR from the marketing photograph has not been verified.
+## Fidelity and uniqueness
 
-## Runtime assets
+Each new photo has its own generated setting/composition. Different crops, encodings, filenames or localized routes never count as new photographs. Home identity thumbnails are three distinct new scenes, not derivatives of the home room backdrops. Pricing uses eight distinct scenes; four front-left views were freshly rendered from the exact original product models.
 
-| Master | Restaurant | Runtime file | Dimensions | Bytes |
-| --- | --- | --- | --- | ---: |
-| A-M | maison-elyse | `/images/marketing/maison-elyse-dining-room.webp` | 1672 × 941 | 214,494 |
-| A-T | trouvable | `/images/marketing/trouvable-dining-room.webp` | 1672 × 941 | 197,432 |
-| A-S | sauge-noire | `/images/marketing/sauge-noire-dining-room.webp` | 1672 × 941 | 218,478 |
-| M1 | maison-elyse | `/images/marketing/maison-elyse-souffle-phone.webp` | 1448 × 1086 | 261,516 |
-| M2 | maison-elyse | `/images/marketing/maison-elyse-homard-phone.webp` | 1364 × 1023 | 224,286 |
-| T1 | trouvable | `/images/marketing/trouvable-guest-menu.webp` | 1448 × 1086 | 187,374 |
-| T2 | trouvable | `/images/marketing/trouvable-pdf-digital.webp` | 1448 × 1086 | 318,852 |
-| S1 | sauge-noire | `/images/marketing/sauge-noire-qr-menu.webp` | 1448 × 1086 | 161,334 |
-| S2 | sauge-noire | `/images/marketing/sauge-noire-dessert-phone.webp` | 1448 × 1086 | 212,788 |
-| B1 | trouvable | `/images/marketing/restaurant-signature-drink.webp` | 1448 × 1086 | 174,532 |
-| P-A | sauge-noire | `/images/marketing/sauge-noire-acrylique.webp` | 1254 × 1254 | 149,930 |
-| P-S | sauge-noire | `/images/marketing/sauge-noire-sculpte.webp` | 1254 × 1254 | 180,756 |
-| P-C | sauge-noire | `/images/marketing/sauge-noire-carre.webp` | 1254 × 1254 | 172,766 |
-| P-G | sauge-noire | `/images/marketing/sauge-noire-signature.webp` | 1254 × 1254 | 141,860 |
+Phone displays use the original pixels of authentic Vistaire menu captures. Contiguous viewport crops preserve actual menu structure and wording; perspective/contain fitting adapts them to physical phone glass without stretching layouts or inventing content. Sauge Noire book pages retain their aspect ratio with natural black screen margins. The PDF comparison is the live site’s PDF-style representation of real Trouvable data, not an assertion that the restaurant supplied a PDF.
 
-Derivatives:
+The allergen pair shows real declarations for Soufflé and Homard. At narrow rendered sizes the heading and panel remain visible, but the photograph is not an accessible or current allergen reference. Keep the section’s text-based explanation and link to the live menu; never infer dietary safety from the image.
 
-- `/images/marketing/maison-elyse-dining-room-thumb.webp`: 480 × 270, 29,628 bytes, HOME:testimonies
-- `/images/marketing/trouvable-dining-room-thumb.webp`: 480 × 270, 28,824 bytes, HOME:testimonies
-- `/images/marketing/sauge-noire-dining-room-thumb.webp`: 480 × 270, 30,696 bytes, HOME:testimonies
-- `/images/marketing/sauge-noire-qr-menu-portrait.webp`: 800 × 960, 83,092 bytes, ABOUT:hero
+Product photos and QR/menu scenes composite exact source GLB render layers. Geometry, proportions, bases, finishes and printed artwork are preserved. Source model hashes, render hashes and transforms are recorded. Original models and their embedded Sauge Noire artwork remain unchanged. Unverified background food was removed from scenes where it had no authentic source.
 
-Master distribution: Maison Élyse 3, Trouvable 4, Sauge Noire 7. The Sauge total includes all four physical collection photos; the six phone scenes are evenly split 2/2/2.
+## Distribution
 
-## Actual replacement mapping
+All placements: Maison Élyse 26, Trouvable 15, Sauge Noire 26.
+New scenes: Maison Élyse 16, Trouvable 11, Sauge Noire 23. Sauge Noire includes the eight exact-product scenes because that is the source model artwork.
 
-| Previous active image | New runtime image | Public slots |
+## Complete placement map
+
+| Slot | Image | Role |
 | --- | --- | --- |
-| `Framer/PageDigital.png` | `/images/marketing/maison-elyse-souffle-phone.webp` | DIGITAL:hero, AR:premium, GUIDE-A:hero, G1:premium, G2:hero, G3:premium, G5:proof, G7:hero, G9:proof |
-| `Framer/PhotoDigital2.png` | `/images/marketing/sauge-noire-dessert-phone.webp` | DIGITAL:premium, AR:hero, GUIDE-3:hero, G2:premium |
-| `Framer/PhotoDigital3.png` | `/images/marketing/trouvable-guest-menu.webp` | DIGITAL:proof, AR:proof, G2:proof, G4:premium, G8:proof |
-| `Framer/PhotoQRcode1.png` | `/images/marketing/sauge-noire-qr-menu.webp` | QR:hero, GUIDE-Q:hero, G1:hero, G10:proof |
-| `Framer/PhotoQRcode2.png` | `/images/marketing/sauge-noire-dessert-phone.webp` | QR:proof, G1:proof |
-| `Framer/PhotoComparaisonPDF.png` | `/images/marketing/trouvable-pdf-digital.webp` | PDF:hero, G3:hero, G4:proof |
-| `Framer/PhotoPDFvsDigitalDetail.png` | `/images/marketing/maison-elyse-homard-phone.webp` | PDF:detail, G3:proof, G4:hero |
-| `Framer/PageApropos2.png` | `/images/marketing/sauge-noire-qr-menu-portrait.webp` | ABOUT:hero |
-| `Framer/Photo table.png` | `/images/marketing/sauge-noire-dining-room.webp` | ABOUT:closing, BOOK:panel |
-| `Framer/PageContact.png` | `/images/marketing/trouvable-dining-room.webp` | CONTACT:hero |
-| `Framer/PhotoRestoComplet4.png` | `/images/marketing/sauge-noire-dining-room.webp` | G9:hero, G11:hero |
-| `Framer/PhotoRestoComplet6.png` | `/images/marketing/maison-elyse-dining-room.webp` | G8:hero, G10:hero, G12:premium |
-| `Framer/PlatHomard.png` | `/images/marketing/maison-elyse-homard-phone.webp` | G5:hero, G11:proof, G12:hero |
-| `Framer/Desert.png` | `/images/marketing/maison-elyse-souffle-phone.webp` | G6:premium |
-| `Framer/Boisson.png` | `/images/marketing/restaurant-signature-drink.webp` | G11:premium |
-| `public/immersive-assets/experience-maison-elyse.webp` | `/images/marketing/maison-elyse-dining-room-thumb.webp` | HOME:testimonies |
-| `public/immersive-assets/ambience-maison-elyse.webp` | `/images/marketing/maison-elyse-dining-room.webp` | HOME:social-content |
-| `public/immersive-assets/experience-trouvable.webp` | `/images/marketing/trouvable-dining-room-thumb.webp` | HOME:testimonies |
-| `public/immersive-assets/ambience-trouvable.webp` | `/images/marketing/trouvable-dining-room.webp` | HOME:social-content |
-| `public/immersive-assets/experience-sauge-noire.webp` | `/images/marketing/sauge-noire-dining-room-thumb.webp` | HOME:testimonies |
-| `public/immersive-assets/ambience-sauge-noire.webp` | `/images/marketing/sauge-noire-dining-room.webp` | HOME:social-content |
-| `public/immersive-assets/support-acrylique.webp` | `/images/marketing/sauge-noire-acrylique.webp` | HOME:pricing, HOME:collection-modal |
-| `public/images/pricing/vistaire-acrylique.jpg` | `/images/marketing/sauge-noire-acrylique.webp` | PRICING:collection, PRICING:social-metadata |
-| `public/immersive-assets/support-sculpte.webp` | `/images/marketing/sauge-noire-sculpte.webp` | HOME:pricing, HOME:collection-modal |
-| `public/images/pricing/vistaire-sculpte.jpg` | `/images/marketing/sauge-noire-sculpte.webp` | PRICING:collection |
-| `public/immersive-assets/support-carre.webp` | `/images/marketing/sauge-noire-carre.webp` | HOME:pricing, HOME:collection-modal |
-| `public/images/pricing/vistaire-carre.png` | `/images/marketing/sauge-noire-carre.webp` | PRICING:collection |
-| `public/immersive-assets/support-signature.webp` | `/images/marketing/sauge-noire-signature.webp` | HOME:pricing, HOME:collection-modal |
-| `public/images/pricing/vistaire-signature.jpg` | `/images/marketing/sauge-noire-signature.webp` | PRICING:collection |
+| `G10:hero` | `/images/marketing/geo-brossard-room.webp` | Menu digital premium pour restaurants à Brossard. |
+| `G12:premium` | `/images/marketing/geo-gastronomy-room.webp` | Ce que le menu Vistaire inclut |
+| `G8:hero` | `/images/marketing/geo-montreal-room.webp` | Menu digital premium pour restaurants à Montréal. |
+| `HOME:social-content:maison-elyse` | `/images/marketing/maison-elyse-dining-room.webp` | L’envie. |
+| `HOME:testimonies:maison-elyse` | `/images/marketing/home-identity-maison-elyse.webp` | Trois expériences. Trois identités. |
+| `CONTACT:hero` | `/images/marketing/contact-trouvable-room.webp` | Parlons de votre restaurant. |
+| `HOME:social-content:trouvable` | `/images/marketing/trouvable-dining-room.webp` | Le choix. |
+| `HOME:testimonies:trouvable` | `/images/marketing/home-identity-trouvable.webp` | Trois expériences. Trois identités. |
+| `ABOUT:closing` | `/images/marketing/about-sauge-noire-room.webp` | Votre cuisine. Votre univers. Une autre dimension. |
+| `BOOK:panel` | `/images/marketing/book-sauge-noire-table.webp` | Parlons de votre restaurant. |
+| `G11:hero` | `/images/marketing/geo-premium-room.webp` | Un menu digital pour restaurant haut de gamme. |
+| `G9:hero` | `/images/marketing/geo-laval-room.webp` | Menu digital QR pour restaurants à Laval. |
+| `HOME:social-content:sauge-noire` | `/images/marketing/sauge-noire-dining-room.webp` | L’expérience. |
+| `HOME:testimonies:sauge-noire` | `/images/marketing/home-identity-sauge-noire.webp` | Trois expériences. Trois identités. |
+| `AR:premium` | `/images/marketing/ar-premium-dessert.webp` | Une carte immersive qui respecte le service |
+| `DIGITAL:hero` | `/images/marketing/maison-elyse-souffle-phone.webp` | Menu digital restaurant |
+| `G1:premium` | `/images/marketing/geo-qr-premium.webp` | Ce que le menu Vistaire inclut |
+| `G2:hero` | `/images/marketing/geo-app-free-hero.webp` | Un menu digital sans application à installer. |
+| `G3:premium` | `/images/marketing/geo-replace-pdf-dessert.webp` | Ce que le menu Vistaire inclut |
+| `G5:proof` | `/images/marketing/geo-dish-page-dessert.webp` | Une page courte, mais complète |
+| `G6:premium` | `/images/marketing/geo-food-photography-souffle.webp` | Ce que le menu Vistaire inclut |
+| `G7:hero` | `/images/marketing/geo-allergens-menu.webp` | Un menu restaurant avec allergènes lisibles. |
+| `G9:proof` | `/images/marketing/geo-laval-menu.webp` | Une carte claire pour le service |
+| `GUIDE-A:hero` | `/images/marketing/guide-anatomy-menu.webp` | L’anatomie d’un menu digital premium |
+| `G11:proof` | `/images/marketing/geo-premium-dish.webp` | Une carte premium, pas un tableau de bord |
+| `G12:hero` | `/images/marketing/geo-gastronomy-souffle.webp` | Une carte digitale pour restaurant gastronomique. |
+| `G3:proof` | `/images/marketing/geo-replace-pdf-detail.webp` | Une migration progressive |
+| `G4:hero` | `/images/marketing/geo-pdf-alternative-hero.webp` | L'alternative premium au menu PDF restaurant. |
+| `G5:hero` | `/images/marketing/geo-dish-page-hero.webp` | Des fiches plats digitales qui donnent envie de choisir. |
+| `PDF:detail` | `/images/marketing/maison-elyse-homard-phone.webp` | Un menu digital ne doit pas transformer le restaurant en application froide |
+| `AR:proof` | `/images/marketing/ar-proof-browse.webp` | La fiche plat reste le point d’entrée |
+| `DIGITAL:proof` | `/images/marketing/trouvable-guest-menu.webp` | Une carte pensée pour la table |
+| `G2:proof` | `/images/marketing/geo-app-free-dish.webp` | Une expérience web qui reste premium |
+| `G4:premium` | `/images/marketing/geo-pdf-alternative-menu.webp` | Ce que le menu Vistaire inclut |
+| `G8:proof` | `/images/marketing/geo-montreal-menu.webp` | Ce que Vistaire peut apporter à Montréal |
+| `G3:hero` | `/images/marketing/geo-replace-pdf-hero.webp` | Remplacer un menu PDF par une vraie carte digitale. |
+| `G4:proof` | `/images/marketing/geo-pdf-alternative-compare.webp` | Une alternative centrée sur le plat |
+| `PDF:hero` | `/images/marketing/trouvable-pdf-digital.webp` | Menu PDF vs menu digital |
+| `ABOUT:hero` | `/images/marketing/about-menu-portrait.webp` | Le digital doit prolonger l’expérience du restaurant |
+| `G10:proof` | `/images/marketing/geo-brossard-qr.webp` | Un menu mobile qui reste désirable |
+| `G1:hero` | `/images/marketing/geo-qr-hero.webp` | Un menu QR sans PDF, pensé pour la table. |
+| `GUIDE-Q:hero` | `/images/marketing/guide-qr-menu.webp` | Un menu QR mobile sans application |
+| `QR:hero` | `/images/marketing/sauge-noire-qr-menu.webp` | Menu QR code restaurant |
+| `AR:hero` | `/images/marketing/ar-hero-lobster.webp` | Menu 3D / AR restaurant |
+| `DIGITAL:premium` | `/images/marketing/digital-premium-burger.webp` | Pensé pour les restaurants haut de gamme |
+| `G1:proof` | `/images/marketing/geo-qr-breakfast.webp` | Ce que le client voit après le scan |
+| `G2:premium` | `/images/marketing/geo-app-free-contents.webp` | Ce que le menu Vistaire inclut |
+| `GUIDE-3:hero` | `/images/marketing/guide-3d-burger.webp` | La 3D au restaurant : utile ou gadget ? |
+| `QR:proof` | `/images/marketing/sauge-noire-dessert-phone.webp` | Le scan doit mener à quelque chose de désirable |
+| `G11:premium` | `/images/marketing/restaurant-signature-drink.webp` | Ce que le menu Vistaire inclut |
+| `HOME:pricing:acrylique` | `/images/marketing/home-pricing-acrylique.webp` | Votre collection. L’essentiel compris. acrylique |
+| `PRICING:collection:acrylique` | `/images/marketing/pricing-acrylique-setting.webp` | Choisissez l’expérience qui prendra place sur vos tables. acrylique |
+| `HOME:pricing:sculpte` | `/images/marketing/home-pricing-sculpte.webp` | Votre collection. L’essentiel compris. sculpte |
+| `PRICING:collection:sculpte` | `/images/marketing/pricing-sculpte-setting.webp` | Choisissez l’expérience qui prendra place sur vos tables. sculpte |
+| `HOME:pricing:carre` | `/images/marketing/home-pricing-carre.webp` | Votre collection. L’essentiel compris. carre |
+| `PRICING:collection:carre` | `/images/marketing/pricing-carre-setting.webp` | Choisissez l’expérience qui prendra place sur vos tables. carre |
+| `HOME:pricing:signature` | `/images/marketing/home-pricing-signature.webp` | Votre collection. L’essentiel compris. signature |
+| `PRICING:collection:signature` | `/images/marketing/pricing-signature-setting.webp` | Choisissez l’expérience qui prendra place sur vos tables. signature |
+| `G5:premium` | `/images/demo/dishes/homard-bleu-bisque-fenouil.png` | Ce que le menu Vistaire inclut |
+| `G6:hero` | `/images/demo/dishes/tartare-saumon-label-rouge.png` | Un menu restaurant avec photos, sans perdre l'élégance. |
+| `G6:proof` | `/images/marketing/geo-photos-in-menu.webp` | Des visuels intégrés à la carte |
+| `G7:proof` | `/images/marketing/geo-allergens-detail.webp` | Des fiches plats plus informatives |
+| `G7:premium` | `/images/demo/dishes/tarte-citron-basilic-pourpre.png` | Ce que le menu Vistaire inclut |
+| `G8:premium` | `/images/demo/dishes/pave-boeuf-mature-bordelaise.png` | Ce que le menu Vistaire inclut |
+| `G9:premium` | `/images/demo/dishes/canette-rotie-figues-epices.png` | Ce que le menu Vistaire inclut |
+| `G10:premium` | `/images/demo/dishes/bar-de-ligne-artichaut-citron.png` | Ce que le menu Vistaire inclut |
+| `G12:proof` | `/images/demo/dishes/souffle-chocolat-grand-cru.png` | Une expérience qui reste culinaire |
 
-Route key and full bilingual route URLs are in the JSON inventory. Every legacy file is retained; only the active consumers moved. Unused guide background fields and inactive `DemoPhoneShowcase` imports are intentionally unchanged.
+## Code and checks
 
-## Frontend changes
+- `lib/seoMarketingImages.ts`: one audited photo and FR/EN description per placement
+- Home room/identity URLs, home pricing photos, About/Contact/Booking photos and dedicated pricing data/social metadata use the registry
+- Parallel SEO/layout work consumes the same stable slot IDs for product pages, GEO/AEO pages and guides
+- Existing pricing path expectations were updated; one focused contract rejects duplicate photo paths, missing runtime files, missing descriptions and unknown slot IDs
+- Observed passing: targeted ESLint, `npm run typecheck`, `npm run assets:check`, `npm run lfs:check`, 27 focused tests, 67 unique SHA-256 hashes and `git diff --check`
 
-- `components/immersive/App.jsx`, `content.js`: canonical room/product URLs; small thumbnails for the 70–160 px identity slots; truthful room descriptions
-- `components/immersive/Pricing.jsx`, `locale.jsx`: canonical product URLs and matching French/English Acrylique copy
-- `lib/pricingPage.ts`: shared canonical products, centered crops, accurate image descriptions in both languages
-- Both pricing route pages: OpenGraph/Twitter image uses the new genuine WebP path
-- `components/vistaire-preview/Vistaire{MenuDigitalRestaurant,Menu3dArRestaurant,MenuQrCodeRestaurant,PdfVsMenuDigital,About,Contact,RendezVous}Preview.tsx`: verified master imports and factual localized alt text; About uses the safe portrait derivative
-- `components/seo/SeoGeoAeoPage.tsx`: all twelve GEO/AEO visual sets use the new masters; changed marketing photos have explicit English alt text and no fabricated city/AR state claims
-- `components/guides/editorialGuidePresentation.ts`: three guide hero images and localized descriptions
-- `tests/tarifs-carte-vistaire-public.test.mjs`, `e2e/pricing-page.spec.ts`: existing image-path expectations follow the new format/path
-
-## Crop and loading choices
-
-Existing layout ratios, Next Image sizing/quality and eager/lazy intent are preserved. Product silhouettes fit within the central 16:9 band of their 1254 × 1254 masters with at least 27 px vertical margin. Legacy off-center pricing crops are reset to 50% 50%. The About portrait preserves both the phone and stand; the other phone slots retain their 4:3 master. Home identity thumbnails are 480 px wide WebPs (about 29–31 KB each) instead of full room downloads. No dependency or custom runtime image pipeline was added.
-
-## Verification and remaining limits
-
-- All 18 output files decode as WebP; dimensions and checksums are in the manifest
-- Visual inspection covered the final phone/room photographs, product contact sheet and complete product crop bounds
-- Integration checks observed passing after all final files were copied: `npm run assets:check`, `npm run lfs:check`, `npm run lint`, `npm run typecheck` and 43 existing focused node tests (0 failures, 0 skips)
-- Exact focused test command: `node --test tests/tarifs-carte-vistaire-public.test.mjs tests/seo-public-content.test.mjs tests/seo-interactive-showcases.test.mjs tests/prompt5-editorial-guides.test.mjs tests/seo-geo-pages.test.mjs tests/landing-i18n.test.mjs tests/immersive-loading-locale.test.mjs tests/pricing-table-estimator.test.mjs`
-- Additional static verification passed: all 18 output hashes match, all 29 replacement mapping targets and every static marketing import exist; `git diff --check` is clean
-- Build and runtime/browser verification belong to the coordinating task and are not asserted as passed by this document
-- Source UI capture used real narrow responsive layouts, with a native 500 × 828 browser viewport; it is not proof of exact 390/430 px frontend QA
-- Native iPhone/Android AR, physical QR scanning, actual venue resemblance and manufactured product dimensions are not verified by these photographs
-
-Raw scenes, source renders/screenshots, prompts, compositing scripts and review contact sheets stay outside Git. Only useful optimized runtime outputs and this provenance/mapping are added. No merge is performed.
+Page-level responsive crop, console/network and runtime interaction QA belongs to the coordinating frontend validation and is not asserted here. Actual native AR, physical QR scanning, manufactured dimensions and resemblance to real venues are not verified by these photographs. Source restaurant data, genuine dish media contracts, models, video/frame pipelines, owner/admin and authentication remain unchanged.

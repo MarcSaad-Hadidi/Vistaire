@@ -7,15 +7,15 @@ import * as director from '../components/immersive/SceneDirector.js';
 
 // Exercise the real authored object poses without requiring a WebGL context.
 const source = readFileSync('components/immersive/Scene.jsx', 'utf8');
-const context = { THREE, HALF_PI: Math.PI / 2, clamp: (v, a, b) => Math.min(b, Math.max(a, v)) };
+const context = { ...director, THREE, HALF_PI: Math.PI / 2, clamp: (v, a, b) => Math.min(b, Math.max(a, v)) };
 vm.runInNewContext(source.slice(source.indexOf('function baseComposition('), source.indexOf('\nfunction composition(')) + ';this.base = baseComposition', context);
 const ids = ['hero', 'ai', 'wearable', 'features', 'encryption', 'grip', 'sustainability', 'testimonies', 'social-content', 'product', 'open-weight', 'footer'];
 function geometry(stage) {
-  const opening = { top: 0, travel: stage * 6.3, motionTravel: stage * 4.8, height: stage * 7.3, stageHeight: stage, sceneHeight: stage };
+  const opening = { top: 0, travel: stage * 9, motionTravel: stage * 6.4, height: stage * 10, stageHeight: stage, sceneHeight: stage };
   let top = opening.height;
   const measurements = ids.map((id, i) => {
-    if (i < 3) return { id, top: stage * [0, 2.304, 4.512][i], travel: 1 };
-    const travel = stage * [3, 2, 2, 2, 3, 4.4, 3.2, 4.6, 0.1][i - 3];
+    if (i < 3) return { id, top: stage * [0, 3.2, 6.4][i], travel: 1 };
+    const travel = stage * [6.2, 6.2, 6.2, 6.2, 6.2, 6.2, 6.2, 4.6, 0.1][i - 3];
     const item = { id, top, travel };
     top += travel + stage;
     return item;
@@ -32,17 +32,16 @@ function assertC1(sample, seam, label) {
   }
 }
 
-test('measured chapter windows extend every exit without consuming the phone hold or adding page length', () => {
+test('all measured cinematic joins use 3.2 stages and preserve the full phone hold', () => {
   assert.equal(typeof director.measureChapterTransitions, 'function', 'shared measured transition windows are required');
   for (const stage of [757, 800, 812, 844, 900, 932, 1080, 1440]) {
     const { measurements, opening } = geometry(stage);
     const transitions = director.measureChapterTransitions(measurements, opening);
     assert.equal(transitions.length, 9);
-    assert.equal(transitions[0].start, opening.top + opening.travel);
+    assert.ok(Math.abs(transitions[0].start - opening.top - opening.motionTravel - stage * 1.5) < 1e-8);
     assert.equal(transitions.at(-1).end, measurements.at(-1).top);
     for (const [i, window] of transitions.entries()) {
-      assert.ok(window.end - window.start >= stage * 1.4, `${window.from.id}: transition still compressed into one viewport`);
-      assert.ok(window.end - window.start <= stage * 2.11);
+      assert.ok(Math.abs(window.end - window.start - stage * 3.2) < 1e-8, `${window.from.id}: transition distance differs`);
       if (i) assert.ok(transitions[i - 1].end < window.start, 'exploration must remain between blends');
     }
   }
@@ -75,7 +74,7 @@ test('all object and atmosphere seams are C1, reversible and independent of jump
       const forward = ys.map(sample);
       assert.deepEqual(ys.toReversed().map(sample).toReversed(), forward);
     }
-    for (const p of [0, 0.02, 0.3, 0.56, 0.8, 0.9, 1]) assertC1(sample, p * opening.motionTravel, `opening@${p}`);
+    for (const p of [0, 0.25, 0.5, 0.75, 1]) assertC1(sample, p * opening.motionTravel, `opening@${p}`);
   }
 });
 
@@ -132,16 +131,109 @@ test('mobile toolbar room height does not change chapter transition scroll budge
   assert.deepEqual(tallRoom, compact, 'transition distance belongs to the frozen sticky stage, not the larger room canvas');
 });
 
-test('shorter video chapter removes excess holds without accelerating its card transitions', () => {
+test('the shared curve and actual authored transition poses have bounded relative speed', () => {
+  assert.equal(typeof director.cinematicEase, 'function');
+  const N = 256;
+  const weights = Array.from({ length: N + 1 }, (_, i) => director.cinematicEase(i / N));
+  assert.equal(weights[0], 0);
+  assert.equal(weights.at(-1), 1);
+  const speeds = weights.slice(1).map((v, i) => (v - weights[i]) * N);
+  assert.ok(speeds.every(v => v >= 0));
+  assert.ok(Math.max(...speeds) <= 1.334, 'a transition must not regain the old 1.5× middle speed');
+  for (const mobile of [false, true]) {
+    const { measurements, opening } = geometry(900);
+    for (const window of director.measureChapterTransitions(measurements, opening)) {
+      const poses = Array.from({ length: N + 1 }, (_, i) => numbers(director.continuousComposition({
+        transition: director.transitionAtScroll([window], window.start + (window.end - window.start) * i / N),
+      }, mobile, context.base)));
+      for (let field = 0; field < poses[0].length; field++) {
+        const steps = poses.slice(1).map((pose, i) => Math.abs(pose[field] - poses[i][field]));
+        const mean = steps.reduce((a, b) => a + b, 0) / N;
+        if (mean < 1e-8) continue;
+        assert.ok(Math.max(...steps) / mean <= 1.335, `${window.from.id}:${window.to.id} field ${field} has competing pose/transition velocity`);
+      }
+    }
+  }
+});
+
+test('all seven chapters use the central budget and the three video holds remain ordered', () => {
   const app = readFileSync('components/immersive/App.jsx', 'utf8');
-  const transitions = JSON.parse(app.match(/const SOCIAL_TRANSITIONS = (\[[^;]+\]);/)[1]);
-  const socialHeight = Number(app.match(/id="social-content"\s+height=\{(\d+)\}/)[1]);
-  const useful = socialHeight / 100 - 1;
-  assert.ok(useful >= 4.2 && useful <= 4.5);
-  for (const [start, end] of transitions) assert.ok((end - start) * useful >= 0.42, 'horizontal menu changes must keep their prior ~0.43-screen movement budget');
-  const centers = JSON.parse(app.match(/const SOCIAL_HOLD_CENTERS = (\[[^;]+\]);/)[1]);
+  assert.equal(director.CINEMATIC_TIMING.sceneScreens, 6.2);
+  for (const id of ids.slice(3, 10)) {
+    assert.match(app, new RegExp(`id="${id}"\\s+height=\\{CINEMATIC_TIMING.chapterHeightVh\\}`));
+  }
+  const { transitions, centers } = director.socialTiming();
+  for (const [start, end] of transitions) assert.ok(Math.abs((end - start) * 6.2 - 0.704) < 1e-8);
   for (let i = 0; i < centers.length; i++) {
     assert.ok(centers[i] > (i ? transitions[i - 1][1] : 0));
     assert.ok(centers[i] < (i < 2 ? transitions[i][0] : 1));
   }
+});
+
+test('the laptop hinge consumes the shared presentation phase instead of a second short local window', () => {
+  const laptop = readFileSync('components/immersive/LaptopModel.js', 'utf8');
+  const expression = laptop.match(/const openingProgress = desiredReduced\s*\? 1\s*: ([^;]+);/)[1];
+  const sample = progress => vm.runInNewContext(expression, { desiredProgress: progress, cinematicEase: director.cinematicEase, clamp: n => Math.max(0, Math.min(1, n)) });
+  assert.equal(sample(0), 0);
+  assert.equal(sample(1), 1);
+  assert.ok(sample(0.9) < 1, 'the lid must not finish at 64% then create a long dead hold');
+  const h = 1e-6;
+  assert.ok((sample(h) - sample(0)) / h < 1e-3);
+  assert.ok((sample(1) - sample(1 - h)) / h < 1e-3);
+});
+
+test('feature text swaps only at zero opacity and reverses without a flash', () => {
+  assert.equal(typeof director.featureTextOpacity, 'function');
+  for (const seam of [(1.1 + 4 / 3) / 6.2, (1.1 + 8 / 3) / 6.2]) {
+    assert.ok(director.featureTextOpacity(seam) < 1e-12);
+    assertC1(p => ({ opacity: director.featureTextOpacity(p / 3150) }), seam * 3150, 'feature copy');
+    assert.ok(director.featureTextOpacity(seam - 0.02) > 0);
+    assert.ok(director.featureTextOpacity(seam + 0.02) > 0);
+  }
+});
+
+test('copy remains in its measured frame through native sticky pin and release', () => {
+  assert.equal(typeof director.cinematicStageOffset, 'function');
+  const chapter = { top: 9000, travel: 3150 };
+  const start = chapter.top - 1350, end = chapter.top + chapter.travel + 1350;
+  const nativeTop = y => y < chapter.top ? chapter.top - y : y <= chapter.top + chapter.travel ? 0 : chapter.top + chapter.travel - y;
+  const sample = y => ({ top: nativeTop(y) + director.cinematicStageOffset(chapter, y, start, end) });
+  for (const y of [chapter.top, chapter.top + chapter.travel]) assertC1(sample, y, 'text stage');
+  for (const y of [start, chapter.top, chapter.top + chapter.travel, end]) assert.equal(sample(y).top, 0);
+});
+
+test('the common text envelope never overlays two headings and has smooth opacity handoffs', () => {
+  assert.equal(typeof director.cinematicCopyWeights, 'function');
+  for (let i = 0; i <= 100; i++) {
+    const weights = director.cinematicCopyWeights(i / 100);
+    assert.equal(weights.incoming * weights.outgoing, 0, 'headings must not ghost over each other');
+  }
+  for (const seam of [0, 900, 1800]) assertC1(y => director.cinematicCopyWeights(y / 1800), seam, 'copy envelope');
+});
+
+
+test('short natural pricing caps only its outgoing raccord without overlapping two poses', () => {
+  const { measurements, opening } = geometry(900);
+  const pricing = measurements.find(m => m.id === 'open-weight');
+  const footer = measurements.at(-1);
+  // Actual afbc desktop DOM height, not an artificially generous fixture.
+  pricing.travel = 3643.703125 - 900;
+  footer.top = pricing.top + 3643.703125;
+  const windows = director.measureChapterTransitions(measurements, opening);
+  assert.ok(windows.at(-1).start >= windows.at(-2).end);
+  assert.equal(windows.at(-1).end, footer.top);
+  assert.ok(Math.abs((windows.at(-1).end - windows.at(-1).start) / 900 - (3643.703125 / 900 - 1.1)) < 1e-8);
+});
+
+test('direct cinematic anchors land after the incoming fade with interactive content', () => {
+  assert.equal(typeof director.chapterNavigationTarget, 'function');
+  const { measurements, opening } = geometry(900);
+  const windows = director.measureChapterTransitions(measurements, opening);
+  for (const chapter of measurements.slice(3, 10)) {
+    const y = director.chapterNavigationTarget(chapter, opening.stageHeight);
+    const window = windows.find(w => w.to.id === chapter.id);
+    assert.equal(director.cinematicCopyWeights((y - window.start) / (window.end - window.start)).incoming, 1);
+    assert.ok(Math.abs(y - window.end) < 1e-8);
+  }
+  for (const chapter of measurements.slice(10)) assert.equal(director.chapterNavigationTarget(chapter, opening.stageHeight), chapter.top);
 });

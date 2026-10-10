@@ -4,8 +4,8 @@ import {
   publicModelBaseUrl,
   resolvePublicModelUrl,
 } from "../../lib/publicModelAssets.ts";
-import { continuousComposition, interpolatePose, interpolatePoseTrack, DEFAULT_SCENE_FRAME } from "./SceneDirector.js";
-import { cameraDollyPose } from "./CameraDolly.js";
+import { cinematicEase, chapterPhase, continuousComposition, interpolatePose, interpolatePoseTrack, DEFAULT_SCENE_FRAME } from "./SceneDirector.js";
+import { cameraDollyPose, minimumDollyDistance } from "./CameraDolly.js";
 import {
   projectHullBounds,
   projectObjectBounds,
@@ -60,7 +60,7 @@ function baseComposition(state, mobile) {
       {
         ...state,
         openingProgress: null,
-        section: p < 0.56 ? "hero" : "ai",
+        section: p < 0.5 ? "hero" : "ai",
         progress: 0,
       },
       mobile,
@@ -69,16 +69,12 @@ function baseComposition(state, mobile) {
       {
         ...state,
         openingProgress: null,
-        section: p < 0.56 ? "ai" : "wearable",
+        section: p < 0.5 ? "ai" : "wearable",
         progress: 0,
       },
       mobile,
     );
-    const t = THREE.MathUtils.smoothstep(
-      p,
-      p < 0.56 ? 0 : 0.56,
-      p < 0.56 ? 0.56 : 1,
-    );
+    const t = cinematicEase((p - (p < 0.5 ? 0 : 0.5)) / 0.5);
     const pose = {};
     for (const key of Object.keys(from)) {
       pose[key] = Array.isArray(from[key])
@@ -88,9 +84,9 @@ function baseComposition(state, mobile) {
           : to[key];
     }
     // A physical, reversible reveal: flat objects rise while the plate recedes.
-    const rise = THREE.MathUtils.smoothstep(p, 0.02, 0.56);
+    const rise = cinematicEase(p / 0.5);
     pose.dishScale = THREE.MathUtils.lerp(mobile ? 1.2 : 1.45, 0.18, rise);
-    pose.dishScale *= 1 - THREE.MathUtils.smoothstep(p, 0.56, 0.9);
+    pose.dishScale *= 1 - cinematicEase((p - 0.5) / 0.5);
     pose.dish = [0, 0.02, 0.45 + rise * 0.15];
     pose.dishOpacity = 1;
     return pose;
@@ -271,6 +267,7 @@ export default function Scene({
   onAssetError,
   onAssetLoading,
   onARStatus,
+  onZoomFit,
 }) {
   const hostRef = useRef(null);
   const callbacks = useRef({
@@ -279,10 +276,11 @@ export default function Scene({
     onAssetError,
     onAssetLoading,
     onARStatus,
+    onZoomFit,
   });
   useEffect(() => {
-    callbacks.current = { onReady, onError, onAssetError, onAssetLoading, onARStatus };
-  }, [onReady, onError, onAssetError, onAssetLoading, onARStatus]);
+    callbacks.current = { onReady, onError, onAssetError, onAssetLoading, onARStatus, onZoomFit };
+  }, [onReady, onError, onAssetError, onAssetLoading, onARStatus, onZoomFit]);
 
   useEffect(() => {
     const sceneState = stateRef.current;
@@ -787,7 +785,6 @@ export default function Scene({
     let dishDisplayScale = 1;
     const dishLocalBounds = new THREE.Box3();
     const dishZoomCenter = new THREE.Vector3();
-    const dishZoomDirection = new THREE.Vector3();
     const dishZoomCorner = new THREE.Vector3();
     let activeModelAssetId = "";
     const hullWorldMatrix = new THREE.Matrix4();
@@ -1058,11 +1055,9 @@ export default function Scene({
     let framingReference;
     let projectionState;
     let projectionSettling = false;
+    let notifiedZoom = null;
     const fallbackFocus = DEFAULT_SCENE_FRAME;
-    const smooth = (t) => {
-      t = clamp(t, 0, 1);
-      return t * t * (3 - 2 * t);
-    };
+    const smooth = cinematicEase;
     function projectedExtent(bounds, cam = camera) {
       let minX = Infinity,
         maxX = -Infinity,
@@ -1100,13 +1095,12 @@ export default function Scene({
       let focus = state.sceneFrames?.[section] || fallbackFocus;
       if (openingP != null) {
         const a =
-          state.sceneFrames?.[openingP < 0.56 ? "hero" : "ai"] || fallbackFocus;
+          state.sceneFrames?.[openingP < 0.5 ? "hero" : "ai"] || fallbackFocus;
         const b =
-          state.sceneFrames?.[openingP < 0.56 ? "ai" : "wearable"] ||
+          state.sceneFrames?.[openingP < 0.5 ? "ai" : "wearable"] ||
           fallbackFocus;
         const t = smooth(
-          (openingP - (openingP < 0.56 ? 0 : 0.56)) /
-            (openingP < 0.56 ? 0.56 : 0.44),
+          (openingP - (openingP < 0.5 ? 0 : 0.5)) / 0.5,
         );
         focus = Object.fromEntries(
           Object.keys(a).map((key) => [key, a[key] + (b[key] - a[key]) * t]),
@@ -1238,9 +1232,9 @@ export default function Scene({
         );
       if (state.openingProgress != null) {
         const p = state.openingProgress,
-          anchors = [0, 0.12, 0.28, 0.42, 0.56, 0.72, 0.86, 1];
+          anchors = [0, 0.125, 0.25, 0.375, 0.5, 0.625, 0.75, 0.875, 1];
         const sectionAt = (q) =>
-          q < 0.56 ? "hero" : q < 1 ? "ai" : "wearable";
+          q < 0.5 ? "hero" : q < 1 ? "ai" : "wearable";
         return interpolatePoseTrack(
           anchors,
           anchors.map(q => calibration(sectionAt(q), state, q)),
@@ -1266,33 +1260,19 @@ export default function Scene({
       const targetFocus = focus || fallbackFocus;
       let zoomLook = desired.look;
       let minimumDistance = camera.near * 2;
-      if (zoom > 1 && activeDish) {
+      const zoomCorners = [];
+      if ((zoom > 1 || projectionState?.dolly > 1) && activeDish && dishRoot.visible) {
         dishRoot.updateWorldMatrix(true, false);
-        dishLocalBounds
-          .getCenter(dishZoomCenter)
-          .applyMatrix4(dishRoot.matrixWorld);
-        // The shared resting frame includes air above low dishes. Approach the
-        // actual food center progressively, without reframing its live size.
+        dishLocalBounds.getCenter(dishZoomCenter).applyMatrix4(dishRoot.matrixWorld);
         const aim = smooth(Math.min(1, zoom - 1));
-        zoomLook = desired.look.map((v, i) =>
-          THREE.MathUtils.lerp(v, dishZoomCenter.getComponent(i), aim),
-        );
-        dishZoomDirection
-          .fromArray(desired.camera)
-          .sub(new THREE.Vector3().fromArray(desired.look))
-          .normalize();
+        zoomLook = desired.look.map((v, i) => THREE.MathUtils.lerp(v, dishZoomCenter.getComponent(i), aim));
         for (const x of [dishLocalBounds.min.x, dishLocalBounds.max.x])
           for (const y of [dishLocalBounds.min.y, dishLocalBounds.max.y])
-            for (const z of [dishLocalBounds.min.z, dishLocalBounds.max.z]) {
-              dishZoomCorner
-                .set(x, y, z)
-                .applyMatrix4(dishRoot.matrixWorld)
-                .sub(new THREE.Vector3().fromArray(zoomLook));
-              minimumDistance = Math.max(
-                minimumDistance,
-                dishZoomCorner.dot(dishZoomDirection) + camera.near * 2,
-              );
-            }
+            for (const z of [dishLocalBounds.min.z, dishLocalBounds.max.z])
+              zoomCorners.push(dishZoomCorner.set(x, y, z).applyMatrix4(dishRoot.matrixWorld).toArray());
+        minimumDistance = minimumDollyDistance(zoomCorners,
+          desired.camera.map((v, i) => v + zoomLook[i] - desired.look[i]), zoomLook,
+          { ...targetFocus, fov: camera.fov, aspect: camera.aspect, near: camera.near, shiftX: desired.shiftX, shiftY: desired.shiftY });
       }
       const zoomCamera = desired.camera.map(
         (v, i) => v + zoomLook[i] - desired.look[i],
@@ -1332,6 +1312,13 @@ export default function Scene({
         width: projectionState.focusWidth,
         height: projectionState.focusHeight,
       };
+      // Rotation and camera damping can briefly disagree after a gesture.
+      // Enforce the same fit on the rendered state too, not only its target.
+      if (zoomCorners.length) {
+        const safeDistance = minimumDollyDistance(zoomCorners, projectionState.camera, projectionState.look,
+          { ...renderFocus, fov: camera.fov, aspect: camera.aspect, near: camera.near, shiftX: projectionState.shiftX, shiftY: projectionState.shiftY });
+        projectionState.camera = cameraDollyPose(projectionState.camera, projectionState.look, 1, safeDistance).camera;
+      }
       framingReference = { ...projectionState, focus: renderFocus };
       // The camera and focus follow the same time damping as the objects. Fast
       // native flicks can change the target without snapping the rendered scene.
@@ -1395,6 +1382,15 @@ export default function Scene({
       canvas.dataset.cameraZoom = String(camera.zoom);
       canvas.dataset.cameraFov = String(camera.fov);
       canvas.dataset.cameraDolly = String(projectionState.dolly);
+      const fittedZoom = projectionState.baselineDistance / camera.position.distanceTo(new THREE.Vector3().fromArray(projectionState.look));
+      canvas.dataset.fittedZoom = String(fittedZoom);
+      canvas.dataset.zoomFitLimited = String(fittedZoom < zoom - 0.01);
+      const visibleZoom = Math.round(dolly.baselineDistance / dolly.distance * 100) / 100;
+      const zoomNotice = `${zoom}:${visibleZoom}`;
+      if (state.section === "grip" && !state.transition && zoomNotice !== notifiedZoom) {
+        notifiedZoom = zoomNotice;
+        callbacks.current.onZoomFit?.({ requested: zoom, zoom: visibleZoom });
+      }
       canvas.dataset.cameraDistance = String(
         camera.position.distanceTo(
           new THREE.Vector3().fromArray(projectionState.look),
@@ -1520,14 +1516,14 @@ export default function Scene({
         damping,
       );
       laptopAsset.update(
-        state.chapterProgress?.sustainability ??
+        chapterPhase("sustainability", state.chapterProgress?.sustainability ??
           (state.section === "sustainability"
             ? state.progress
             : state.transition?.to === "sustainability"
               ? 0
               : state.transition?.from === "sustainability"
                 ? 1
-                : 0),
+                : 0)),
         laptopRoot.visible ? damping : 1,
         state.reducedMotion,
       );
@@ -1554,6 +1550,11 @@ export default function Scene({
         state.openingProgress == null ? "" : String(state.openingProgress);
       canvas.dataset.supportPosition = supportRoot.position.toArray().join(",");
       canvas.dataset.phonePosition = phoneRoot.position.toArray().join(",");
+      for (const [name, root] of [["dish", dishRoot], ["support", supportRoot], ["phone", phoneRoot], ["laptop", laptopRoot]]) {
+        canvas.dataset[`${name}Quaternion`] = root.quaternion.toArray().join(",");
+        canvas.dataset[`${name}Scale`] = root.scale.toArray().join(",");
+        canvas.dataset[`${name}Position`] = root.position.toArray().join(",");
+      }
       woodMaterial.opacity = THREE.MathUtils.lerp(
         woodMaterial.opacity,
         pose.table,

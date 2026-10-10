@@ -2,8 +2,8 @@ import Image from "next/image";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import QRCode from "qrcode";
-import photoQrCode1 from "@/public/images/marketing/sauge-noire-qr-menu.webp";
-import photoQrCode2 from "@/public/images/marketing/sauge-noire-dessert-phone.webp";
+import { getSeoMarketingImage } from "@/lib/seoMarketingImages";
+import design from "./VistairePillarExperiences.module.css";
 import type { Locale } from "@/lib/i18n";
 import { absoluteUrl } from "@/lib/seo";
 import {
@@ -84,14 +84,16 @@ function ArrowIcon() {
 function QrCodeMark({
   qrSvgMarkup,
   targetUrl,
+  locale,
 }: {
   qrSvgMarkup: string;
   targetUrl: string;
+  locale: Locale;
 }) {
   return (
     <div className={styles.qrCodeMark}>
       <span
-        aria-label={`QR code Vistaire vers ${targetUrl}`}
+        aria-label={locale === "en" ? `Vistaire QR code to ${targetUrl}` : `QR code Vistaire vers ${targetUrl}`}
         role="img"
         dangerouslySetInnerHTML={{ __html: qrSvgMarkup }}
       />
@@ -236,6 +238,8 @@ export async function VistaireMenuQrCodeRestaurantPreview({
           scanPrinciples,
           comparisonItems,
         };
+  const heroPhoto = getSeoMarketingImage("QR:hero", locale);
+  const proofPhoto = getSeoMarketingImage("QR:proof", locale);
   const pageTitle = h1 ?? copy.defaultTitle;
   const pageInternalLinks = [
     { label: copy.viewMenu, href: routes.menu },
@@ -244,125 +248,31 @@ export async function VistaireMenuQrCodeRestaurantPreview({
     { label: copy.talk, href: routes.contact },
   ];
   return (
-    <main className={styles.page} data-public-vistaire>
-      <div className={styles.topNav}>
-        <PreviewNav
-          currentPath={routes.menuQrCode}
-          locale={locale}
-          routeMode={routeMode}
-        />
-      </div>
-
-      <section
-        aria-labelledby="menu-qr-code-restaurant-preview-title"
-        className={styles.hero}
-        id="accueil"
-      >
-        <div className={styles.previewFrame}>
-          <section
-            className={`${styles.card} ${styles.qrHeroPanel}`}
-            aria-labelledby="menu-qr-code-restaurant-preview-title"
-          >
-            <div className={styles.qrHeroText}>
-              <p className={styles.badge}>{copy.badge}</p>
-              <h1 id="menu-qr-code-restaurant-preview-title">{pageTitle}</h1>
-              <p className={styles.heroLead}>{copy.lead}</p>
-              <div
-                className={styles.heroActions}
-                aria-label="Actions principales"
-              >
-                <Link
-                  className={styles.primaryButton}
-                  href={routes.menu}
-                  prefetch={false}
-                >
-                  {copy.viewMenu}
-                  <ArrowIcon />
-                </Link>
-                <Link
-                  className={styles.secondaryButton}
-                  href={routes.appointment}
-                  prefetch={false}
-                >
-                  {copy.appointment}
-                </Link>
-              </div>
-            </div>
-            <figure className={`${styles.visualFigure} ${styles.qrHeroVisual}`}>
-              <Image
-                alt={locale === "en" ? "Sauge Noire menu on a phone beside a Vistaire QR display" : "Menu Sauge Noire sur téléphone à côté du support QR Vistaire"}
-                className={styles.visualImage}
-                fill
-                priority
-                quality={90}
-                sizes="(max-width: 920px) calc(100vw - 56px), 42vw"
-                src={photoQrCode1}
-              />
-            </figure>
-          </section>
-
-          <section
-            className={`${styles.card} ${styles.qrScanPanel}`}
-            aria-labelledby="scan-title"
-          >
-            <div className={styles.qrMarkWrap}>
-              <QrCodeMark qrSvgMarkup={qrSvgMarkup} targetUrl={qrTargetUrl} />
-            </div>
-            <div className={styles.qrScanCopy}>
-              <p className={styles.badge}>{copy.afterScan}</p>
-              <h2 id="scan-title">{copy.scanTitle}</h2>
-              <p>{copy.scanBody}</p>
-              <div className={styles.qrPrinciples}>
-                {copy.scanPrinciples.map((principle) => (
-                  <article key={principle}>
-                    <h3>{principle}</h3>
-                  </article>
-                ))}
-              </div>
-            </div>
-          </section>
-
-          <section
-            className={`${styles.card} ${styles.qrJourneyPanel}`}
-            aria-labelledby="journey-title"
-          >
-            <div className={styles.sectionIntro}>
-              <p className={styles.badge}>{copy.journeyBadge}</p>
-              <h2 id="journey-title">{copy.journeyTitle}</h2>
-              <p>{copy.journeyBody}</p>
-            </div>
-            <ol className={styles.qrJourneyList}>
-              {copy.journeySteps.map((item) => (
-                <li key={item.step}>
-                  <span>{item.step}</span>
-                  <h3>{item.title}</h3>
-                  <p>{item.text}</p>
-                </li>
-              ))}
-            </ol>
-          </section>
-
-          <section
-            className={`${styles.card} ${styles.qrExperiencePanel}`}
-            aria-labelledby="experience-title"
-          >
-            <figure className={styles.visualFigure}>
-              <Image
-                alt={locale === "en" ? "Chocolat fumé beside the Sauge Noire dessert page on a phone" : "Chocolat fumé et fiche dessert Sauge Noire sur téléphone"}
-                className={styles.visualImage}
-                fill
-                quality={90}
-                sizes="(max-width: 920px) calc(100vw - 56px), 38vw"
-                src={photoQrCode2}
-              />
-            </figure>
-            <div className={styles.visualCopy}>
-              <p className={styles.badge}>{copy.mobileBadge}</p>
-              <h2 id="experience-title">{copy.mobileTitle}</h2>
-              <p>{copy.mobileBody}</p>
-            </div>
-          </section>
-
+    <main className={`${styles.page} ${design.qrPage}`} data-public-vistaire data-seo-experience="qr-table-journey">
+      <div className={styles.topNav}><PreviewNav currentPath={routes.menuQrCode} locale={locale} routeMode={routeMode} /></div>
+      <div className={styles.hero} id="accueil"><div className={styles.previewFrame}>
+        <header className={design.qrCover} aria-labelledby="menu-qr-code-restaurant-preview-title">
+          <div className={design.qrTitle}><p className={styles.badge}>{copy.badge}</p><h1 id="menu-qr-code-restaurant-preview-title">{pageTitle}</h1></div>
+          <div className={styles.heroActions}><Link className={styles.primaryButton} href={routes.menu} prefetch={false}>{copy.viewMenu}<ArrowIcon /></Link><Link className={styles.secondaryButton} href={routes.appointment} prefetch={false}>{copy.appointment}</Link></div><figure className={design.qrTablePhoto}><Image alt={heroPhoto.alt} className={styles.visualImage} fill priority quality={90} sizes="(max-width: 700px) calc(100vw - 40px), 90vw" src={heroPhoto.src} /></figure>
+        </header>
+        <section className={design.qrAccess} aria-labelledby="scan-title">
+          <div className={design.qrAccessMark}>
+            <QrCodeMark qrSvgMarkup={qrSvgMarkup} targetUrl={qrTargetUrl} locale={locale} />
+            <Link className={design.qrOpenLink} href={routes.menu} prefetch={false}>{copy.viewMenu}<ArrowIcon /></Link>
+          </div>
+          <div className={styles.qrScanCopy}><p className={styles.badge}>{copy.afterScan}</p><h2 id="scan-title">{copy.scanTitle}</h2><p>{copy.lead}</p><p>{copy.scanBody}</p>
+            <ul className={styles.proofPoints}>{copy.scanPrinciples.map((principle) => <li key={principle}>{principle}</li>)}</ul>
+          </div>
+        </section>
+        <section className={design.qrJourney} aria-labelledby="journey-title">
+          <div className={styles.sectionIntro}><p className={styles.badge}>{copy.journeyBadge}</p><h2 id="journey-title">{copy.journeyTitle}</h2><p>{copy.journeyBody}</p></div>
+          <nav className={design.journeyNavigation} aria-label={copy.journeyTitle}>{copy.journeySteps.map((item) => <a key={item.step} href={`#qr-step-${item.step}`}><span>{item.step}</span>{item.title}</a>)}</nav>
+          <ol className={design.journeyRoute}>{copy.journeySteps.map((item) => <li id={`qr-step-${item.step}`} key={item.step} tabIndex={-1}><span>{item.step}</span><h3>{item.title}</h3><p>{item.text}</p>{item.step === "03" ? <a href="#qr-dish-details">{copy.mobileBadge}<ArrowIcon /></a> : null}</li>)}</ol>
+        </section>
+        <section className={design.qrDishMoment} id="qr-dish-details" aria-labelledby="experience-title">
+          <figure className={design.qrDishPhoto}><Image alt={proofPhoto.alt} className={styles.visualImage} fill  quality={90} sizes="(max-width: 700px) calc(100vw - 40px), 60vw" src={proofPhoto.src} /></figure>
+          <div className={styles.visualCopy}><p className={styles.badge}>{copy.mobileBadge}</p><h2 id="experience-title">{copy.mobileTitle}</h2><p>{copy.mobileBody}</p></div>
+        </section>
           <section
             className={`${styles.card} ${styles.qrComparisonPanel}`}
             aria-labelledby="qr-comparison-title"
@@ -423,16 +333,9 @@ export async function VistaireMenuQrCodeRestaurantPreview({
             </nav>
           </section>
 
-          <div className={styles.seoAppendix}>{seoAppendix}</div>
-        </div>
-      </section>
-
-      <PreviewFooter
-        currentPath={routes.menuQrCode}
-        locale={locale}
-        routeMode={routeMode}
-        width="wide"
-      />
+        <div className={styles.seoAppendix}>{seoAppendix}</div>
+      </div></div>
+      <PreviewFooter currentPath={routes.menuQrCode} locale={locale} routeMode={routeMode} width="wide" />
     </main>
   );
 }

@@ -1,5 +1,6 @@
 import { publicModelBaseUrl, resolvePublicModelUrl } from "../../lib/publicModelAssets.ts";
 import * as THREE from "three";
+import { cinematicEase } from "./SceneDirector.js";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { DRACOLoader } from "three/examples/jsm/loaders/DRACOLoader.js";
 import { MeshoptDecoder } from "three/examples/jsm/libs/meshopt_decoder.module.js";
@@ -238,7 +239,7 @@ export function createLaptopModel({
     if (disposed || !modelReady) return false;
     const openingProgress = desiredReduced
       ? 1
-      : clamp((desiredProgress - 0.06) / 0.58);
+      : cinematicEase(desiredProgress);
     const target = THREE.MathUtils.lerp(
       openingStart,
       openingEnd,

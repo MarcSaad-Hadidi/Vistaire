@@ -88,7 +88,7 @@ export function VistairePricingPreview({
   const copy = UI_COPY[locale];
 
   return (
-    <main className={styles.page} data-public-vistaire>
+    <main className={styles.page} data-public-vistaire data-seo-experience="pricing-support-showroom">
       <div className={styles.topNav}>
         <PreviewNav
           activeSection="pricing"
@@ -101,12 +101,20 @@ export function VistairePricingPreview({
       <section aria-labelledby="pricing-title" className={styles.hero}>
         <p className={styles.eyebrow}>{page.eyebrow}</p>
         <h1 id="pricing-title">{page.h1}</h1>
-        <p className={styles.heroLead}>{page.subtitle}</p>
+        <div className={styles.showroomIntroduction}>
+          <p className={styles.heroLead}>{page.subtitle}</p>
+          <nav className={styles.showroomIndex} aria-label={locale === "en" ? "Explore pricing" : "Explorer les tarifs"}>
+            <a href="#pricing-collections">01 <span>{copy.collectionsLabel}</span></a>
+            <a href="#pricing-3d-title">02 <span>{copy.threeDPacksLabel}</span></a>
+            <a href="#pricing-terms-title">03 <span>{copy.commercialTermsLabel}</span></a>
+          </nav>
+        </div>
       </section>
 
       <section
         aria-label={copy.collectionsLabel}
         className={styles.collectionsSection}
+        id="pricing-collections"
       >
         <PricingTableEstimator collections={page.collections} locale={locale} />
       </section>

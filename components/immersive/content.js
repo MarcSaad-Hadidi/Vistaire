@@ -1,4 +1,5 @@
 import { resolvePublicModelUrl } from "../../lib/publicModelAssets.ts";
+import { getSeoMarketingImage } from "../../lib/seoMarketingImages.ts";
 
 export const site = "https://www.vistaire.ca";
 export const collections = [
@@ -155,8 +156,8 @@ export const experiences = [
     id: "maison-elyse",
     name: "Maison Élyse",
     tag: "Éditoriale & gastronomique",
-    image: "/images/marketing/maison-elyse-dining-room.webp",
-    thumbnail: "/images/marketing/maison-elyse-dining-room-thumb.webp",
+    image: getSeoMarketingImage("HOME:social-content:maison-elyse").src,
+    thumbnail: getSeoMarketingImage("HOME:testimonies:maison-elyse").src,
     description:
       "Une carte lumineuse, des compositions soignées, une cuisine qui se raconte.",
   },
@@ -164,8 +165,8 @@ export const experiences = [
     id: "trouvable",
     name: "Trouvable",
     tag: "Moderne & interactive",
-    image: "/images/marketing/trouvable-dining-room.webp",
-    thumbnail: "/images/marketing/trouvable-dining-room-thumb.webp",
+    image: getSeoMarketingImage("HOME:social-content:trouvable").src,
+    thumbnail: getSeoMarketingImage("HOME:testimonies:trouvable").src,
     description:
       "Une navigation directe et des plats qui prennent toute leur place.",
   },
@@ -173,8 +174,8 @@ export const experiences = [
     id: "sauge-noire",
     name: "Sauge Noire",
     tag: "Signature & immersive",
-    image: "/images/marketing/sauge-noire-dining-room.webp",
-    thumbnail: "/images/marketing/sauge-noire-dining-room-thumb.webp",
+    image: getSeoMarketingImage("HOME:social-content:sauge-noire").src,
+    thumbnail: getSeoMarketingImage("HOME:testimonies:sauge-noire").src,
     description:
       "Un univers botanique, sombre et singulier. La carte devient une expérience.",
   },

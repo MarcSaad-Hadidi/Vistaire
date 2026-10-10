@@ -15,10 +15,73 @@ const CHAPTERS = [
 
 const unit = (value) =>
   Number.isFinite(value) ? Math.max(0, Math.min(1, value)) : 0;
-const smooth = (value) => {
-  const t = unit(value);
-  return t * t * (3 - 2 * t);
-};
+// All distances use the frozen sticky stage, never the room's larger mobile
+// canvas or elapsed time. Entry/exit share the same derived edge portion of each chapter.
+const paceScale = 1.6;
+const activeScreens = 2.5 * paceScale;
+const transitionScreens = 2 * paceScale;
+const edgeScreens = (transitionScreens - 1) / 2;
+const sceneScreens = activeScreens + 2 * edgeScreens;
+const detailScreens = 0.44 * paceScale;
+export const CINEMATIC_TIMING = Object.freeze({
+  sceneScreens, activeScreens, transitionScreens, edgeScreens, detailScreens,
+  chapterHeightVh: (sceneScreens + 1) * 100,
+  openingMotionScreens: transitionScreens * 2,
+  phoneHoldScreens: 1.5,
+  openingReleaseScreens: edgeScreens,
+});
+
+// C2 acceleration ramps, constant-speed middle half, zero endpoint velocity.
+// Peak normalized speed is 4/3, rather than cubic smoothstep's 3/2. Apply once
+// to a motion phase; do not smooth an already eased progress a second time.
+export function cinematicEase(value) {
+  const t = unit(value), ramp = 0.25;
+  const enter = q => {
+    const u = q / ramp;
+    return ramp * (u ** 3 - 0.5 * u ** 4) / (1 - ramp);
+  };
+  return t < ramp ? enter(t) : t > 1 - ramp ? 1 - enter(1 - t)
+    : (t - ramp / 2) / (1 - ramp);
+}
+// One shared text handoff: fade out, then fade in. Never superimpose
+// different headings at 50% alpha in the same compensated viewport frame.
+export function cinematicCopyWeights(progress) {
+  return {
+    outgoing: 1 - cinematicEase(progress * 2),
+    incoming: cinematicEase(progress * 2 - 1),
+  };
+}
+const smooth = cinematicEase;
+
+/** Navigation presents the destination, rather than stopping midway through
+ * its entrance with transparent/inert controls. Natural sections stay native. */
+export function chapterNavigationTarget(chapter, stageHeight) {
+  return chapter.top + (CHAPTERS.slice(3, 10).includes(chapter.id) ? edgeScreens * stageHeight : 0);
+}
+
+/** Internal presentation settles before the shared exit starts. This prevents
+ * a rotating chapter and its outgoing blend from accelerating each other. */
+export function chapterPhase(section, progress) {
+  if (!CHAPTERS.slice(3, 10).includes(section)) return unit(progress);
+  return unit((unit(progress) * sceneScreens - edgeScreens) / (sceneScreens - 2 * edgeScreens));
+}
+
+// Three existing feature cards exchange text at a fully transparent seam.
+// Their two short detail changes use the same distance as the video rail moves.
+export function featureTextOpacity(progress) {
+  const phase = chapterPhase("features", progress);
+  const distance = Math.min(Math.abs(phase - 1 / 3), Math.abs(phase - 2 / 3));
+  return cinematicEase(distance * activeScreens / (detailScreens / 2));
+}
+
+export function socialTiming() {
+  const hold = (activeScreens - 2 * detailScreens) / 3;
+  const phase = distance => (edgeScreens + distance) / sceneScreens;
+  return {
+    transitions: [[phase(hold), phase(hold + detailScreens)], [phase(2 * hold + detailScreens), phase(2 * (hold + detailScreens))]],
+    centers: [phase(hold / 2), 0.5, phase(activeScreens - hold / 2)],
+  };
+}
 const lerp = (a, b, t) => (t === 0 ? a : t === 1 ? b : a + (b - a) * t);
 
 export const DEFAULT_SCENE_FRAME = Object.freeze({ x: 0.5, y: 0.56, width: 0.8, height: 0.55 });
@@ -34,20 +97,32 @@ export function transitionSceneFrame(transition, frames) {
   ]));
 }
 
-/** Reuse measured sticky travel; spend existing tail/head space on the blend.
- * The opening's 1.5-screen phone hold is never borrowed. Pricing and the final
- * footer must arrive at their DOM boundary, before the room is covered/finished.
- */
+/** One measured common window at every cinematic join. Pricing stays in natural
+ * flow: its incoming final edge portion is covered by the pricing surface; much of its
+ * outgoing raccord is hidden behind that surface. The footer ends at its
+ * real DOM boundary, so no cinematic tail is appended to the document. */
 export function measureChapterTransitions(measurements, opening) {
+  const distance = opening.stageHeight * transitionScreens;
+  let previousEnd = -Infinity;
   return measurements.slice(2, -1).map((from, index) => {
     const to = measurements[index + 3];
     const fromOpening = from.id === "wearable";
-    const release = fromOpening ? opening.top + opening.travel : from.top + from.travel;
-    const tail = fromOpening ? 0 : Math.min(from.travel * 0.25, opening.stageHeight * 0.65);
-    const head = ["open-weight", "footer"].includes(to.id)
-      ? 0 : Math.min(to.travel * 0.2, opening.stageHeight * 0.45);
-    return { from, to, fromOpening, start: release - tail, end: to.top + head };
+    const end = to.top + (to.id === "footer" ? 0 : edgeScreens * opening.stageHeight);
+    // On tall viewports natural pricing can be shorter than two joins. Its
+    // opaque content must remain native: cap only this last raccord to real
+    // available space rather than overlap poses or append an empty tail.
+    const start = to.id === "footer" ? Math.max(end - distance, previousEnd) : end - distance;
+    previousEnd = end;
+    return { from, to, fromOpening, start, end };
   });
+}
+
+/** Cancel only the native stage's approach/release inside its visible blend.
+ * The section's document geometry and native scroll distance never change. */
+export function cinematicStageOffset(chapter, y, start, end) {
+  const position = Math.max(start, Math.min(end, y));
+  return position < chapter.top ? position - chapter.top
+    : Math.max(0, position - chapter.top - chapter.travel);
 }
 
 /** Stateless sampling is identical for native wheel, touch, reverse and jumps. */
@@ -139,13 +214,13 @@ export function interpolatePose(a, b, progress) {
  */
 export function continuousComposition(state, mobile, baseComposition) {
   const transition = state.transition;
-  if (!transition) return baseComposition({ ...state, progress: smooth(state.progress) }, mobile);
+  if (!transition) return baseComposition({ ...state, progress: smooth(chapterPhase(state.section, state.progress)) }, mobile);
   const from = baseComposition(
     {
       ...state,
       transition: null,
       section: transition.from,
-      progress: smooth(transition.fromProgress ?? 1),
+      progress: smooth(chapterPhase(transition.from, transition.fromProgress ?? 1)),
       openingProgress:
         transition.from === "wearable" && transition.fromOpening ? 1 : null,
     },
@@ -156,7 +231,7 @@ export function continuousComposition(state, mobile, baseComposition) {
       ...state,
       transition: null,
       section: transition.to,
-      progress: smooth(transition.toProgress ?? 0),
+      progress: smooth(chapterPhase(transition.to, transition.toProgress ?? 0)),
       openingProgress: null,
     },
     mobile,
@@ -166,7 +241,7 @@ export function continuousComposition(state, mobile, baseComposition) {
 
 function chapterCoordinate(section, progress) {
   const index = Math.max(0, CHAPTERS.indexOf(section));
-  return Math.min(CHAPTERS.length - 1, index + smooth(progress) * 0.25);
+  return Math.min(CHAPTERS.length - 1, index + smooth(chapterPhase(section, progress)) * 0.25);
 }
 
 /** A bounded fractional index usable by the room's twelve atmosphere poses. */
@@ -182,7 +257,7 @@ export function journeyCoordinate(state) {
   }
   if (state.openingProgress != null) {
     const p = unit(state.openingProgress);
-    return p < 0.56 ? smooth(p / 0.56) : 1 + smooth((p - 0.56) / 0.44);
+    return p < 0.5 ? smooth(p / 0.5) : 1 + smooth((p - 0.5) / 0.5);
   }
   return chapterCoordinate(state.section, state.progress);
 }

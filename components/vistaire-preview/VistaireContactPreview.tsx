@@ -1,6 +1,6 @@
 import Image from "next/image";
+import { getSeoMarketingImage } from "@/lib/seoMarketingImages";
 import Link from "next/link";
-import pageContactImage from "@/public/images/marketing/trouvable-dining-room.webp";
 import type { Locale } from "@/lib/i18n";
 import { CONTACT_PHONE_DISPLAY, CONTACT_PHONE_TEL } from "@/lib/seo";
 import {
@@ -33,6 +33,8 @@ export function VistaireContactPreview({
   routeMode?: VistaireRouteMode;
 }) {
   const routes = getVistaireChromeRoutes(routeMode, locale);
+  const pageContactImage = getSeoMarketingImage("CONTACT:hero", locale);
+
   const copy =
     locale === "en"
       ? {
@@ -142,13 +144,13 @@ export function VistaireContactPreview({
         </div>
         <div className={styles.heroPhoto}>
           <Image
-            alt={copy.photoAlt}
+            alt={pageContactImage.alt}
             className={styles.photo}
             fill
             priority
             quality={90}
             sizes="(max-width: 800px) calc(100vw - 40px), 620px"
-            src={pageContactImage}
+            src={pageContactImage.src}
           />
         </div>
       </section>

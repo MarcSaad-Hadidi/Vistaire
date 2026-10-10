@@ -1,7 +1,6 @@
 import Image from "next/image";
+import { getSeoMarketingImage } from "@/lib/seoMarketingImages";
 import Link from "next/link";
-import mobileQrTable from "@/public/images/marketing/sauge-noire-qr-menu-portrait.webp";
-import tableImage from "@/public/images/marketing/sauge-noire-dining-room.webp";
 import type { Locale } from "@/lib/i18n";
 import {
   getVistaireChromeRoutes,
@@ -33,6 +32,9 @@ export function VistaireAboutPreview({
   routeMode?: VistaireRouteMode;
 }) {
   const routes = getVistaireChromeRoutes(routeMode, locale);
+  const mobileQrTable = getSeoMarketingImage("ABOUT:hero", locale);
+  const tableImage = getSeoMarketingImage("ABOUT:closing", locale);
+
   const copy =
     locale === "en"
       ? {
@@ -145,13 +147,13 @@ export function VistaireAboutPreview({
         </div>
         <figure className={styles.heroPhoto}>
           <Image
-            alt={copy.photoAlt}
+            alt={mobileQrTable.alt}
             className={styles.photo}
             fill
             priority
             quality={90}
             sizes="(max-width: 800px) calc(100vw - 40px), 620px"
-            src={mobileQrTable}
+            src={mobileQrTable.src}
           />
           <figcaption>
             <span>{copy.mobileTitle}</span>
@@ -201,12 +203,12 @@ export function VistaireAboutPreview({
       <section aria-labelledby="about-closing-title" className={styles.closing}>
         <div className={styles.closingPhoto}>
           <Image
-            alt={copy.tableAlt}
+            alt={tableImage.alt}
             className={styles.photo}
             fill
             quality={90}
             sizes="(max-width: 800px) 100vw, 660px"
-            src={tableImage}
+            src={tableImage.src}
           />
         </div>
         <div className={styles.closingCopy}>

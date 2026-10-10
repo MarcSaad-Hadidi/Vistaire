@@ -1,8 +1,8 @@
 import Image from "next/image";
 import Link from "next/link";
 import type { ReactNode } from "react";
-import comparisonPhoto from "@/public/images/marketing/trouvable-pdf-digital.webp";
-import detailComparisonPhoto from "@/public/images/marketing/maison-elyse-homard-phone.webp";
+import { getSeoMarketingImage } from "@/lib/seoMarketingImages";
+import design from "./VistairePillarExperiences.module.css";
 import type { Locale } from "@/lib/i18n";
 import {
   getVistaireChromeRoutes,
@@ -269,13 +269,15 @@ export function VistairePdfVsMenuDigitalPreview({
             },
           ],
         };
+  const heroPhoto = getSeoMarketingImage("PDF:hero", locale);
+  const detailPhoto = getSeoMarketingImage("PDF:detail", locale);
   const pageTitle = h1 ?? copy.defaultTitle;
   const pageInternalLinks = [
     { label: copy.understand, href: routes.about },
     { label: copy.talk, href: routes.contact },
   ];
   return (
-    <main className={styles.page} data-public-vistaire>
+    <main className={`${styles.page} ${design.pdfPage}`} data-public-vistaire data-seo-experience="pdf-comparison-desk">
       <div className={styles.topNav}>
         <PreviewNav
           currentPath={routes.pdfVsDigital}
@@ -285,56 +287,20 @@ export function VistairePdfVsMenuDigitalPreview({
       </div>
 
       <section
-        aria-labelledby="pdf-vs-menu-digital-preview-title"
+        aria-labelledby="pdf-vs-menu-digital-title"
         className={styles.hero}
       >
         <div className={styles.previewFrame}>
-          <article className={`${styles.card} ${styles.heroCopy}`}>
-            <div className={styles.heroText}>
-              <p className={styles.badge}>{copy.badge}</p>
-              <h1 id="pdf-vs-menu-digital-preview-title">{pageTitle}</h1>
-              <p className={styles.heroLead}>{copy.lead}</p>
-              <div
-                className={styles.heroActions}
-                aria-label="Actions principales"
-              >
-                <Link
-                  className={styles.primaryButton}
-                  href={routes.menu}
-                  prefetch={false}
-                >
-                  {copy.viewMenu}
-                  <ArrowIcon />
-                </Link>
-                <Link
-                  className={styles.secondaryButton}
-                  href={routes.appointment}
-                  prefetch={false}
-                >
-                  {copy.appointment}
-                </Link>
-              </div>
-            </div>
-            <figure className={styles.heroVisual}>
-              <Image
-                alt={locale === "en" ? "Trouvable PDF-style and digital menus displayed side by side on two phones" : "Présentation PDF et menu digital Trouvable côte à côte sur deux téléphones"}
-                fill
-                priority
-                quality={90}
-                sizes="(max-width: 920px) calc(100vw - 40px), 44vw"
-                src={comparisonPhoto}
-              />
-            </figure>
+          <header className={design.pdfHeading} aria-labelledby="pdf-vs-menu-digital-title">
+            <p className={styles.badge}>{copy.badge}</p><h1 id="pdf-vs-menu-digital-title">{pageTitle}</h1>
+          </header>
+          <article className={design.pdfCompareDesk} aria-labelledby="pdf-slider-title">
+            <div className={styles.sliderIntro}><p>{copy.sliderEyebrow}</p><h2 id="pdf-slider-title">{copy.sliderTitle}</h2></div>
+            <div className={design.pdfInteractiveStage}>{interactiveShowcase}</div>
+            <div className={design.pdfAnswer}><p className={styles.heroLead}>{copy.lead}</p><div className={styles.heroActions}><Link className={styles.primaryButton} href={routes.menu} prefetch={false}>{copy.viewMenu}<ArrowIcon /></Link><Link className={styles.secondaryButton} href={routes.appointment} prefetch={false}>{copy.appointment}</Link></div></div>
           </article>
-
-          <article className={`${styles.card} ${styles.sliderCard}`}>
-            <div className={styles.sliderIntro}>
-              <p>{copy.sliderEyebrow}</p>
-              <h2>{copy.sliderTitle}</h2>
-            </div>
-            {interactiveShowcase}
-          </article>
-
+          <section className={design.pdfExplanation}>
+            <figure className={styles.visualFigure}><Image alt={heroPhoto.alt} className={styles.visualImage} fill  quality={90} sizes="(max-width: 700px) calc(100vw - 40px), 46vw" src={heroPhoto.src} /></figure>
           <article className={`${styles.card} ${styles.problemCard}`}>
             <p className={styles.badge}>{copy.pdfBadge}</p>
             <h2>{copy.pdfTitle}</h2>
@@ -347,6 +313,7 @@ export function VistairePdfVsMenuDigitalPreview({
               ))}
             </div>
           </article>
+          </section>
 
           <section
             className={`${styles.card} ${styles.digitalCard}`}
@@ -409,11 +376,11 @@ export function VistairePdfVsMenuDigitalPreview({
           >
             <figure className={styles.detailVisual}>
               <Image
-                alt={locale === "en" ? "Lobster beside the Maison Élyse dish page on a phone" : "Homard et fiche plat Maison Élyse sur téléphone"}
+                alt={detailPhoto.alt}
                 fill
                 quality={90}
                 sizes="(max-width: 920px) calc(100vw - 72px), 620px"
-                src={detailComparisonPhoto}
+                src={detailPhoto.src}
               />
             </figure>
             <p className={styles.badge}>{copy.restaurantBadge}</p>

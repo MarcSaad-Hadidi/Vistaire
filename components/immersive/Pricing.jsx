@@ -3,6 +3,7 @@ import { ArrowUpRight, Check, Plus } from "lucide-react";
 import "./pricing.css";
 import { useLandingLocale } from "./locale.jsx";
 import { SeoFaq } from "../seo/SeoFaq";
+import { getSeoMarketingImage } from "../../lib/seoMarketingImages.ts";
 
 // Verified against Vistaire's pricingPage.ts. Physical supports beyond the
 // included quantity are quoted individually; no per-support rate is assumed.
@@ -12,28 +13,28 @@ const COLLECTIONS = [
     name: "Acrylique",
     amount: 2000,
     description: "Acrylique, base en bois.",
-    image: "/images/marketing/sauge-noire-acrylique.webp",
+    image: getSeoMarketingImage("HOME:pricing:acrylique").src,
   },
   {
     id: "sculpte",
     name: "Sculpté",
     amount: 2050,
     description: "Bois sculpté, coin supérieur arrondi.",
-    image: "/images/marketing/sauge-noire-sculpte.webp",
+    image: getSeoMarketingImage("HOME:pricing:sculpte").src,
   },
   {
     id: "carre",
     name: "Carré",
     amount: 2100,
     description: "Format compact en bois, plusieurs finitions.",
-    image: "/images/marketing/sauge-noire-carre.webp",
+    image: getSeoMarketingImage("HOME:pricing:carre").src,
   },
   {
     id: "signature",
     name: "Signature",
     amount: 2200,
     description: "Bois premium, insert QR noir amovible.",
-    image: "/images/marketing/sauge-noire-signature.webp",
+    image: getSeoMarketingImage("HOME:pricing:signature").src,
   },
 ];
 const INCLUDED = [
@@ -161,11 +162,7 @@ export default function Pricing({ collection, setCollection }) {
             <span className="pricing-collection-image">
               <img
                 src={item.image}
-                alt={
-                  locale === "en"
-                    ? `Vistaire ${item.name} stand`
-                    : `Support Vistaire ${item.name}`
-                }
+                alt={getSeoMarketingImage(`HOME:pricing:${item.id}`, locale).alt}
                 loading="eager"
                 decoding="async"
                 fetchPriority="low"

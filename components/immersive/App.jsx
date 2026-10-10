@@ -27,23 +27,23 @@ import {
   site,
 } from "./content.js";
 import Pricing from "./Pricing.jsx";
-import { measureChapterTransitions, transitionAtScroll, transitionSceneFrame } from "./SceneDirector.js";
+import { CINEMATIC_TIMING, chapterNavigationTarget, chapterPhase, cinematicEase, cinematicCopyWeights, featureTextOpacity, socialTiming, cinematicStageOffset, measureChapterTransitions, transitionAtScroll, transitionSceneFrame } from "./SceneDirector.js";
 import { useModelGesture, useSupportGesture } from "./useModelGesture.js";
 import { ARAction, ARHelp, DishDetailLink, isIOSDevice } from "./ARActions.jsx";
 import { LandingLocaleProvider, useLandingLocale } from "./locale.jsx";
 import { PublicControls } from "../vistaire-preview/PublicControls";
 import { PublicFooterNavigation } from "../vistaire-preview/PublicFooterNavigation";
 import { getVistaireSocialProfiles } from "@/lib/seo";
+import { getSeoMarketingImage } from "@/lib/seoMarketingImages";
 const Scene = lazy(() => import("./Scene.jsx"));
 // Restaurant-specific menus keep their original production interface.
 // Vistaire presentation pages are part of this same styled frontend.
 // Distances use the frozen journey viewport, not elapsed time or scroll velocity.
 // Keep the finished phone pose visible for another 1.5 viewports.
-const OPENING_MOTION_VH = 480;
-const OPENING_PHONE_HOLD_VH = 150;
-// Keep each rail move near 0.44 stage heights as the reading holds shorten.
-const SOCIAL_TRANSITIONS = [[0.26, 0.36], [0.64, 0.74]];
-const SOCIAL_HOLD_CENTERS = [0.14, 0.5, 0.86];
+const OPENING_MOTION_VH = CINEMATIC_TIMING.openingMotionScreens * 100;
+const OPENING_PHONE_HOLD_VH = CINEMATIC_TIMING.phoneHoldScreens * 100;
+// Slower rail moves share the active presentation budget; reading holds do not inflate.
+const { transitions: SOCIAL_TRANSITIONS, centers: SOCIAL_HOLD_CENTERS } = socialTiming();
 const clamp = (n) => Math.max(0, Math.min(1, n));
 
 function Action({
@@ -363,6 +363,7 @@ function LandingContent() {
   const [flip, setFlip] = useState(false);
   const [drag, setDrag] = useState(0.5);
   const [dishZoom, setDishZoom] = useState(1);
+  const [fittedDishZoom, setFittedDishZoom] = useState({ requested: 1, zoom: 1 });
   const [dishPitch, setDishPitch] = useState(0);
   const dishGestures = useModelGesture({
     angle: drag,
@@ -475,7 +476,7 @@ function LandingContent() {
       const stageHeight = journey.firstElementChild.clientHeight;
       const motionTravel = Math.max(
         1,
-        travel - (stageHeight * OPENING_PHONE_HOLD_VH) / 100,
+        stageHeight * CINEMATIC_TIMING.openingMotionScreens,
       );
       const sceneHeight = world.clientHeight;
       opening = {
@@ -503,12 +504,12 @@ function LandingContent() {
               height: r.height / sceneHeight,
             };
           }
-          const openingAnchor = { hero: 0, ai: 0.48, wearable: 0.94 }[id];
+          const openingAnchor = { hero: 0, ai: 0.5, wearable: 1 }[id];
           const sectionTop =
             openingAnchor == null
               ? el.getBoundingClientRect().top + scrollY
               : top + motionTravel * openingAnchor;
-          scrollTargets.current[id] = sectionTop;
+          scrollTargets.current[id] = chapterNavigationTarget({ id, top: sectionTop }, stageHeight);
           return {
             id,
             top: sectionTop,
@@ -557,17 +558,14 @@ function LandingContent() {
           ? clamp((y - opening.top) / opening.motionTravel)
           : null;
       const transition = transitionAtScroll(transitions, y);
-      const transitionWeight = transition
-        ? transition.progress ** 2 * (3 - 2 * transition.progress) : 0;
       const openingPosition = clamp((y - opening.top) / opening.motionTravel);
-      const fade = (start, end) => {
-        const t = clamp((openingPosition - start) / (end - start));
-        return t * t * (3 - 2 * t);
-      };
+      const firstLeg = cinematicCopyWeights(openingPosition / 0.5);
+      const secondLeg = cinematicCopyWeights((openingPosition - 0.5) / 0.5);
+      const openingExit = cinematicCopyWeights((y - transitions[0].start) / (transitions[0].end - transitions[0].start));
       const openingOpacities = [
-        1 - fade(0.14, 0.3),
-        fade(0.3, 0.42) * (1 - fade(0.66, 0.8)),
-        fade(0.8, 0.92) * (transition?.fromOpening ? 1 - transitionWeight : 1),
+        firstLeg.outgoing,
+        firstLeg.incoming * secondLeg.outgoing,
+        secondLeg.incoming * openingExit.outgoing,
       ];
       // Flush the final state even if this contact left the opening entirely.
       // Native scrolling cancels PointerEvents before physical touch end.
@@ -577,36 +575,24 @@ function LandingContent() {
           const inert = openingOpacities[i] < 0.5;
           const hidden = String(openingOpacities[i] < 0.01);
           if (panel.inert !== inert) panel.inert = inert;
-          if (panel.getAttribute("aria-hidden") !== hidden)
-            panel.setAttribute("aria-hidden", hidden);
+          if (panel.getAttribute("aria-hidden") !== hidden) panel.setAttribute("aria-hidden", hidden);
         });
       let sceneFrame = current.sceneFrame;
       if (openingProgress != null) {
         const p = openingProgress;
-        current = measurements.find(
-          (m) => m.id === (p < 0.3 ? "hero" : p < 0.8 ? "ai" : "wearable"),
-        );
-        const from = measurements[p < 0.56 ? 0 : 1].sceneFrame;
-        const to = measurements[p < 0.56 ? 1 : 2].sceneFrame;
-        const t = clamp((p - (p < 0.56 ? 0 : 0.56)) / (p < 0.56 ? 0.56 : 0.44));
-        const eased = t * t * (3 - 2 * t);
-        sceneFrame = Object.fromEntries(
-          Object.keys(from).map((key) => [
-            key,
-            from[key] + (to[key] - from[key]) * eased,
-          ]),
-        );
-
-        ["hero", "ai", "wearable"].forEach((id, i) => {
-          const panel = sectionRefs.current[id];
-          writeVisualProperty(panel, "--opening-opacity", openingOpacities[i]);
-          writeVisualProperty(
-            panel,
-            "--opening-shift",
-            `${(1 - openingOpacities[i]) * (i === 0 ? -28 : 28)}px`,
-          );
-        });
+        current = measurements.find(m => m.id === (p < 0.25 ? "hero" : p < 0.75 ? "ai" : "wearable"));
+        const from = measurements[p < 0.5 ? 0 : 1].sceneFrame;
+        const to = measurements[p < 0.5 ? 1 : 2].sceneFrame;
+        const weight = cinematicEase((p - (p < 0.5 ? 0 : 0.5)) / 0.5);
+        sceneFrame = Object.fromEntries(Object.keys(from).map(key => [key, from[key] + (to[key] - from[key]) * weight]));
       }
+      ["hero", "ai", "wearable"].forEach((id, i) => {
+        const panel = sectionRefs.current[id];
+        writeVisualProperty(panel, "--opening-opacity", openingOpacities[i]);
+        writeVisualProperty(panel, "--opening-shift", `${(1 - openingOpacities[i]) * (i === 0 ? -28 : 28)}px`);
+      });
+      writeVisualProperty(openingRef.current.firstElementChild, "translate",
+        `0 ${cinematicStageOffset(opening, y, opening.top, transitions[0].end)}px`);
       // Objects, fitted camera, focus, room and copy share the same measured
       // window, including the incoming chapter's head after its DOM boundary.
       if (transition)
@@ -619,16 +605,21 @@ function LandingContent() {
         if (m.id === "open-weight") continue;
         const incoming = transitions.find(t => t.to.id === m.id);
         const outgoing = transitions.find(t => t.from.id === m.id);
-        const weight = window => {
-          if (!window) return 0;
-          const p = clamp((y - window.start) / (window.end - window.start));
-          return p * p * (3 - 2 * p);
-        };
-        const entrance = weight(incoming);
-        const alpha = entrance * (1 - weight(outgoing));
+        const weights = window => window
+          ? cinematicCopyWeights((y - window.start) / (window.end - window.start))
+          : { incoming: 1, outgoing: 1 };
+        const entrance = weights(incoming).incoming;
+        const alpha = entrance * weights(outgoing).outgoing;
         const el = sectionRefs.current[m.id];
         writeVisualProperty(el, "--copy-opacity", alpha);
         writeVisualProperty(el, "--copy-shift", `${(1 - entrance) * 24}px`);
+        if (m.id !== "footer") {
+          writeVisualProperty(el.firstElementChild, "translate",
+            `0 ${cinematicStageOffset(m, y, incoming.start, outgoing.end)}px`);
+          // Compensated transparent stages overlap visually, so only the
+          // dominant chapter may receive pointer or keyboard interactions.
+          if (!activeTouches && el.inert !== (alpha < 0.5)) el.inert = alpha < 0.5;
+        }
       }
       world.dataset.transition = transition ? `${transition.from}:${transition.to}` : "";
       world.dataset.transitionProgress = String(transition?.progress ?? "");
@@ -642,7 +633,7 @@ function LandingContent() {
         y >= pricing.top && y <= pricing.top + pricing.travel;
       stateRef.current.scrollDistance = Math.max(
         0,
-        (y - opening.top) / opening.sceneHeight,
+        (y - opening.top) / opening.stageHeight,
       );
       stateRef.current.progress = progress;
       // Preserve each chapter's endpoint while it is offscreen. Returning
@@ -660,7 +651,7 @@ function LandingContent() {
       const socialProgress = stateRef.current.chapterProgress["social-content"];
       const socialPosition = SOCIAL_TRANSITIONS.reduce((position, [start, end]) => {
         const phase = clamp((socialProgress - start) / (end - start));
-        return position + phase * phase * (3 - 2 * phase);
+        return position + cinematicEase(phase);
       }, 0);
       const socialIndex = Math.min(2, Math.round(socialPosition));
       writeVisualProperty(
@@ -668,8 +659,10 @@ function LandingContent() {
         "--rail-progress",
         stateRef.current.reducedMotion ? socialIndex : socialPosition,
       );
+      writeVisualProperty(sectionRefs.current.features, "--detail-opacity",
+        featureTextOpacity(stateRef.current.chapterProgress.features));
       const preparedBeats = {
-        features: Math.min(2, Math.floor(stateRef.current.chapterProgress.features * 3)),
+        features: Math.min(2, Math.floor(chapterPhase("features", stateRef.current.chapterProgress.features) * 3)),
         "social-content": socialIndex,
       };
       if (current.id !== lastSection) {
@@ -829,7 +822,7 @@ function LandingContent() {
       scrollTo({
         top: ["hero", "ai", "wearable"].includes(id)
           ? scrollTargets.current[id] ?? 0
-          : (sectionRefs.current[id]?.getBoundingClientRect().top ?? 0) + scrollY,
+          : chapterNavigationTarget({ id, top: (sectionRefs.current[id]?.getBoundingClientRect().top ?? 0) + scrollY }, openingRef.current?.firstElementChild.clientHeight ?? innerHeight),
         behavior: reduce ? "instant" : "smooth",
       });
       history.replaceState(null, "", `#${id}`);
@@ -867,7 +860,8 @@ function LandingContent() {
   const onSceneReady = useCallback(() => setReady(true), []);
   useEffect(() => {
     if (!ready || !new URLSearchParams(location.search).has("dish")) return;
-    sectionRefs.current.grip?.scrollIntoView({ behavior: "instant" });
+    const el = sectionRefs.current.grip;
+    if (el) scrollTo({ top: chapterNavigationTarget({ id: "grip", top: el.getBoundingClientRect().top + scrollY }, openingRef.current.firstElementChild.clientHeight), behavior: "instant" });
   }, [ready]);
   const ref = useCallback(
     (id) => (el) => {
@@ -909,6 +903,7 @@ function LandingContent() {
               onAssetError={setModelError}
               onAssetLoading={setModelLoading}
               onARStatus={setARStatus}
+              onZoomFit={setFittedDishZoom}
             />
           )}
         </Suspense>
@@ -1056,6 +1051,7 @@ function LandingContent() {
           style={{
             "--opening-motion-vh": OPENING_MOTION_VH,
             "--opening-phone-hold-vh": OPENING_PHONE_HOLD_VH,
+            "--opening-release-vh": CINEMATIC_TIMING.openingReleaseScreens * 100,
           }}
         >
           <div className="opening-stage">
@@ -1172,7 +1168,7 @@ function LandingContent() {
         </div>
         <Chapter
           id="features"
-          height={400}
+          height={CINEMATIC_TIMING.chapterHeightVh}
           chapterRef={ref("features")}
           className="features"
         >
@@ -1237,7 +1233,7 @@ function LandingContent() {
         </Chapter>
         <Chapter
           id="encryption"
-          height={300}
+          height={CINEMATIC_TIMING.chapterHeightVh}
           chapterRef={ref("encryption")}
           className="identity"
         >
@@ -1261,7 +1257,7 @@ function LandingContent() {
         </Chapter>
         <Chapter
           id="grip"
-          height={300}
+          height={CINEMATIC_TIMING.chapterHeightVh}
           chapterRef={ref("grip")}
           className="grip"
         >
@@ -1284,6 +1280,7 @@ function LandingContent() {
               .map((x) => (
                 <button
                   key={x.id}
+                  data-dish-id={x.id}
                   className={dish === x.id ? "selected" : ""}
                   aria-pressed={dish === x.id}
                   onClick={() => {
@@ -1353,15 +1350,15 @@ function LandingContent() {
                 aria-label={t("Dézoomer le plat")}
                 disabled={dishZoom <= 0.6}
                 onClick={() =>
-                  setDishZoom((z) => Math.max(0.6, +(z - 0.2).toFixed(1)))
+                  setDishZoom(Math.max(0.6, +(Math.min(dishZoom, fittedDishZoom.requested === dishZoom ? fittedDishZoom.zoom : dishZoom) - 0.2).toFixed(1)))
                 }
               >
                 −
               </button>
-              <output aria-live="polite">{Math.round(dishZoom * 100)} %</output>
+              <output aria-live="polite">{Math.round((gpuError || fittedDishZoom.requested !== dishZoom ? dishZoom : fittedDishZoom.zoom) * 100)} %</output>
               <button
                 aria-label={t("Zoomer le plat")}
-                disabled={dishZoom >= 4}
+                disabled={dishZoom >= 4 || (!gpuError && fittedDishZoom.requested === dishZoom && fittedDishZoom.zoom < dishZoom - 0.03)}
                 onClick={() =>
                   setDishZoom((z) => Math.min(4, +(z + 0.2).toFixed(1)))
                 }
@@ -1401,7 +1398,7 @@ function LandingContent() {
         </Chapter>
         <Chapter
           id="sustainability"
-          height={300}
+          height={CINEMATIC_TIMING.chapterHeightVh}
           chapterRef={ref("sustainability")}
           className="living"
         >
@@ -1439,7 +1436,7 @@ function LandingContent() {
         </Chapter>
         <Chapter
           id="testimonies"
-          height={400}
+          height={CINEMATIC_TIMING.chapterHeightVh}
           chapterRef={ref("testimonies")}
           className="identities"
         >
@@ -1469,11 +1466,7 @@ function LandingContent() {
                 </div>
                 <img
                   src={x.thumbnail}
-                  alt={
-                    locale === "en"
-                      ? `Dining scene inspired by ${x.name}`
-                      : `Ambiance inspirée de ${x.name}`
-                  }
+                  alt={getSeoMarketingImage(`HOME:testimonies:${x.id}`, locale).alt}
                   loading="lazy"
                 />
                 <ArrowUpRight />
@@ -1484,7 +1477,7 @@ function LandingContent() {
         </Chapter>
         <Chapter
           id="social-content"
-          height={540}
+          height={CINEMATIC_TIMING.chapterHeightVh}
           chapterRef={ref("social-content")}
           className="social"
         >
@@ -1502,11 +1495,7 @@ function LandingContent() {
                 <img
                   className="social-bg"
                   src={x.image}
-                  alt={
-                    locale === "en"
-                      ? `Dining scene inspired by ${x.name}`
-                      : `Ambiance inspirée de ${x.name}`
-                  }
+                  alt={getSeoMarketingImage(`HOME:social-content:${x.id}`, locale).alt}
                   loading="lazy"
                 />
                 <div className="social-inner">
@@ -1572,7 +1561,7 @@ function LandingContent() {
         </Chapter>
         <Chapter
           id="product"
-          height={420}
+          height={CINEMATIC_TIMING.chapterHeightVh}
           chapterRef={ref("product")}
           className="product"
         >

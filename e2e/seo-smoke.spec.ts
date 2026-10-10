@@ -291,6 +291,50 @@ async function expectSeoGeoRoute(
 }
 
 test.describe("Vistaire SEO smoke", () => {
+  test("each restaurant need has its own composition and three unique visual placements", async ({ page }) => {
+    test.setTimeout(120_000);
+    const assertNoUnexpectedBrowserIssues = attachPageGuards(page);
+    await page.setViewportSize({ width: 390, height: 844 });
+    const compositions = new Set<string>();
+    for (const path of seoGeoPages) {
+      await page.goto(path, { waitUntil: "domcontentloaded" });
+      const experience = page.locator("[data-seo-composition]");
+      await expect(experience).toHaveCount(1);
+      const composition = await experience.getAttribute("data-seo-composition");
+      expect(composition).toBeTruthy();
+      compositions.add(composition!);
+      await expect(page.locator("h1")).toHaveCount(1);
+      const slots = await experience.locator("[data-seo-photo-slot]").evaluateAll((nodes) =>
+        nodes.map((node) => node.getAttribute("data-seo-photo-slot"))
+      );
+      expect(slots).toHaveLength(3);
+      expect(new Set(slots).size).toBe(3);
+      await expectNoHorizontalOverflow(page);
+      await expectNoEarlyModelAssets(page);
+    }
+    expect(compositions.size).toBe(seoGeoPages.length);
+    assertNoUnexpectedBrowserIssues();
+  });
+
+  test("migration preparation and allergen explanations work with native keyboard controls", async ({ page }) => {
+    await page.setViewportSize({ width: 430, height: 932 });
+    await page.goto("/remplacer-menu-pdf-restaurant");
+    const checklist = page.getByRole("group", { name: "Préparer votre carte" });
+    const first = checklist.getByRole("checkbox").first();
+    await first.focus();
+    await first.press("Space");
+    await expect(first).toBeChecked();
+    await checklist.getByRole("button", { name: "Recommencer" }).click();
+    await expect(first).not.toBeChecked();
+    await page.goto("/menu-restaurant-allergenes");
+    const detail = page.locator("[data-allergen-service-note]");
+    await detail.locator("summary").focus();
+    await detail.locator("summary").press("Enter");
+    await expect(detail).toHaveAttribute("open", "");
+    await expect(page.locator('[data-seo-photo-slot="G7:proof"]')).toBeVisible();
+    await expectNoHorizontalOverflow(page);
+  });
+
   test("robots, llms, sitemap and legacy redirect expose only public SEO surfaces", async ({
     request
   }) => {

@@ -1,9 +1,8 @@
 import Image from "next/image";
 import Link from "next/link";
 import type { ReactNode } from "react";
-import pageDigitalPhoto from "@/public/images/marketing/maison-elyse-souffle-phone.webp";
-import photoDigital2 from "@/public/images/marketing/sauge-noire-dessert-phone.webp";
-import photoDigital3 from "@/public/images/marketing/trouvable-guest-menu.webp";
+import { getSeoMarketingImage } from "@/lib/seoMarketingImages";
+import design from "./VistairePillarExperiences.module.css";
 import type { Locale } from "@/lib/i18n";
 import {
   getVistaireChromeRoutes,
@@ -147,6 +146,9 @@ export function VistaireMenu3dArRestaurantPreview({
             "Création à expliquer sans alourdir la carte principale.",
           ],
         };
+  const heroPhoto = getSeoMarketingImage("AR:hero", locale);
+  const proofPhoto = getSeoMarketingImage("AR:proof", locale);
+  const premiumPhoto = getSeoMarketingImage("AR:premium", locale);
   const pageTitle = h1 ?? copy.defaultTitle;
   const internalLinks = [
     { label: copy.viewMenu, href: routes.menu },
@@ -154,142 +156,32 @@ export function VistaireMenu3dArRestaurantPreview({
     { label: copy.talk, href: routes.contact },
   ] as const;
 
+  const questions = locale === "en" ? ["What volume?", "What presentation?", "Which detail?"] : ["Quel volume ?", "Quelle présentation ?", "Quel détail ?"];
   return (
-    <main className={styles.page} data-public-vistaire>
-      <div className={styles.topNav}>
-        <PreviewNav
-          currentPath={routes.menu3dAr}
-          locale={locale}
-          routeMode={routeMode}
-        />
-      </div>
-
-      <section
-        aria-labelledby="menu-3d-ar-restaurant-title"
-        className={styles.hero}
-        id="accueil"
-      >
-        <div className={styles.previewFrame}>
-          <article className={`${styles.card} ${styles.heroCopy}`}>
-            <div className={styles.heroText}>
-              <p className={styles.badge}>{copy.badge}</p>
-              <h1 id="menu-3d-ar-restaurant-title">{pageTitle}</h1>
-              <p className={styles.heroLead}>{copy.lead}</p>
-              <div
-                className={styles.heroActions}
-                aria-label="Actions principales"
-              >
-                <Link
-                  className={styles.primaryButton}
-                  href={routes.menu}
-                  prefetch={false}
-                >
-                  {copy.viewMenu}
-                  <ArrowIcon />
-                </Link>
-                <Link
-                  className={styles.secondaryButton}
-                  href={routes.appointment}
-                  prefetch={false}
-                >
-                  {copy.appointment}
-                </Link>
-              </div>
-            </div>
-            <figure className={`${styles.visualFigure} ${styles.heroVisual}`}>
-              <Image
-                alt={locale === "en" ? "Chocolat fumé beside the Sauge Noire dessert page on a phone" : "Chocolat fumé et fiche dessert Sauge Noire sur téléphone"}
-                className={styles.visualImage}
-                fill
-                priority
-                quality={90}
-                sizes="(max-width: 920px) calc(100vw - 40px), 44vw"
-                src={photoDigital2}
-              />
-            </figure>
-          </article>
-
-          <section
-            className={`${styles.card} ${styles.problemCard}`}
-            aria-labelledby="selective-title"
-          >
-            <p className={styles.badge}>{copy.usageBadge}</p>
-            <h2 id="selective-title">{copy.usageTitle}</h2>
-            <p>{copy.usageBody}</p>
-            <div className={styles.problemList}>
-              {copy.selectivePrinciples.map((principle) => (
-                <section key={principle.title}>
-                  <h3>{principle.title}</h3>
-                  <p>{principle.text}</p>
-                </section>
-              ))}
-            </div>
-          </section>
-
-          <section
-            className={`${styles.card} ${styles.mobileProofCard}`}
-            aria-labelledby="ar-mobile-title"
-          >
-            <figure className={styles.visualFigure}>
-              <Image
-                alt={locale === "en" ? "Hand holding a phone displaying the Trouvable menu at the table" : "Main tenant un téléphone affichant le menu Trouvable à table"}
-                className={styles.visualImage}
-                fill
-                quality={90}
-                sizes="(max-width: 920px) calc(100vw - 56px), 58vw"
-                src={photoDigital3}
-              />
-            </figure>
-            <div className={styles.visualCopy}>
-              <p className={styles.badge}>{copy.beforeBadge}</p>
-              <h2 id="ar-mobile-title">{copy.beforeTitle}</h2>
-              <p>{copy.beforeBody}</p>
-            </div>
-          </section>
-
-          <section
-            className={`${styles.card} ${styles.comparisonCard}`}
-            aria-labelledby="use-cases-title"
-          >
-            <div className={styles.sectionIntro}>
-              <p className={styles.badge}>{copy.casesBadge}</p>
-              <h2 id="use-cases-title">{copy.casesTitle}</h2>
-              <p>{copy.casesBody}</p>
-            </div>
-            <div className={styles.benefitGrid}>
-              {copy.arUseCases.map((useCase) => (
-                <article className={styles.benefitItem} key={useCase}>
-                  <h3>{useCase}</h3>
-                </article>
-              ))}
-            </div>
-          </section>
-
-          <section
-            className={`${styles.card} ${styles.premiumPanel}`}
-            aria-labelledby="premium-ar-title"
-          >
-            <div className={styles.premiumContent}>
-              <div className={styles.sectionIntro}>
-                <p className={styles.badge}>{copy.premiumBadge}</p>
-                <h2 id="premium-ar-title">{copy.premiumTitle}</h2>
-                <p>{copy.premiumBody}</p>
-              </div>
-            </div>
-            <figure
-              className={`${styles.visualFigure} ${styles.premiumVisual}`}
-            >
-              <Image
-                alt={locale === "en" ? "Chocolate soufflé beside the Maison Élyse dessert page on a phone" : "Soufflé au chocolat et fiche dessert Maison Élyse sur téléphone"}
-                className={styles.visualImage}
-                fill
-                quality={90}
-                sizes="(max-width: 920px) calc(100vw - 56px), 24vw"
-                src={pageDigitalPhoto}
-              />
-            </figure>
-          </section>
-
+    <main className={`${styles.page} ${design.arPage}`} data-public-vistaire data-seo-experience="ar-dish-exhibition">
+      <div className={styles.topNav}><PreviewNav currentPath={routes.menu3dAr} locale={locale} routeMode={routeMode} /></div>
+      <div className={styles.hero} id="accueil"><div className={styles.previewFrame}>
+        <header className={design.arExhibition} aria-labelledby="menu-3d-ar-restaurant-title">
+          <p className={styles.badge}>{copy.badge}</p><h1 id="menu-3d-ar-restaurant-title">{pageTitle}</h1>
+          <figure className={design.exhibitionPlate}><Image alt={heroPhoto.alt} className={styles.visualImage} fill priority quality={90} sizes="(max-width: 700px) calc(100vw - 40px), 880px" src={heroPhoto.src} /></figure>
+          <p className={design.exhibitionCaption}>{copy.casesBody}</p>
+        </header>
+        <section className={design.arQuestions} aria-labelledby="use-cases-title">
+          <div className={styles.sectionIntro}><p className={styles.badge}>{copy.casesBadge}</p><h2 id="use-cases-title">{copy.casesTitle}</h2></div>
+          <div className={design.questionRail}>{questions.map((question, index) => <details key={question} open={index === 0}><summary><span>0{index + 1}</span>{question}</summary><p>{copy.arUseCases[index]}</p></details>)}</div>
+        </section>
+        <section className={design.arReadingSpread} aria-labelledby="ar-mobile-title">
+          <figure className={styles.visualFigure}><Image alt={proofPhoto.alt} className={styles.visualImage} fill  quality={90} sizes="(max-width: 700px) calc(100vw - 40px), 50vw" src={proofPhoto.src} /></figure>
+          <div className={styles.visualCopy}><p className={styles.badge}>{copy.beforeBadge}</p><h2 id="ar-mobile-title">{copy.beforeTitle}</h2><p>{copy.lead}</p><p>{copy.beforeBody}</p><div className={styles.heroActions}><Link className={styles.primaryButton} href={routes.menu} prefetch={false}>{copy.viewMenu}<ArrowIcon /></Link><Link className={styles.secondaryButton} href={routes.appointment} prefetch={false}>{copy.appointment}</Link></div></div>
+        </section>
+        <section className={design.arSelection} aria-labelledby="selective-title">
+          <div className={styles.sectionIntro}><p className={styles.badge}>{copy.usageBadge}</p><h2 id="selective-title">{copy.usageTitle}</h2><p>{copy.usageBody}</p></div>
+          <ol className={design.selectionList}>{copy.selectivePrinciples.map((principle, index) => <li key={principle.title}><span>0{index + 1}</span><div><h3>{principle.title}</h3><p>{principle.text}</p></div></li>)}</ol>
+        </section>
+        <section className={design.arService} aria-labelledby="premium-ar-title">
+          <div className={styles.sectionIntro}><p className={styles.badge}>{copy.premiumBadge}</p><h2 id="premium-ar-title">{copy.premiumTitle}</h2><p>{copy.premiumBody}</p></div>
+          <figure className={design.arDessert}><Image alt={premiumPhoto.alt} className={styles.visualImage} fill  quality={90} sizes="(max-width: 700px) calc(100vw - 40px), 34vw" src={premiumPhoto.src} /></figure>
+        </section>
           <section
             className={`${styles.card} ${styles.finalCta}`}
             aria-labelledby="final-3d-cta-title"
@@ -328,16 +220,9 @@ export function VistaireMenu3dArRestaurantPreview({
             </nav>
           </section>
 
-          <div className={styles.seoAppendix}>{seoAppendix}</div>
-        </div>
-      </section>
-
-      <PreviewFooter
-        currentPath={routes.menu3dAr}
-        locale={locale}
-        routeMode={routeMode}
-        width="wide"
-      />
+        <div className={styles.seoAppendix}>{seoAppendix}</div>
+      </div></div>
+      <PreviewFooter currentPath={routes.menu3dAr} locale={locale} routeMode={routeMode} width="wide" />
     </main>
   );
 }

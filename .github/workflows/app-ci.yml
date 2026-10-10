@@ -320,7 +320,9 @@ jobs:
       needs.classify-changes.outputs.run_menu == 'true' ||
       needs.classify-changes.outputs.run_seo == 'true')
     runs-on: ubuntu-latest
-    timeout-minutes: 35
+    # Four software-WebGL correctness cases have independent bounded budgets.
+    # Leave time for the other suites and failure-artifact upload as well.
+    timeout-minutes: 55
     outputs:
       test_report: ${{ steps.publish-test-report.outputs.report }}
     env:
@@ -347,6 +349,17 @@ jobs:
         env:
           CI_TEST_REPORT_PATH: ${{ github.workspace }}/.ci-test-report-core.json
         run: npm run test:ci:e2e:core
+      - name: Preserve native navigation diagnostics before the next suite
+        if: ${{ always() && needs.classify-changes.outputs.run_core == 'true' }}
+        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
+        with:
+          name: core-navigation-${{ github.run_id }}
+          path: |
+            test-results/**/*native-scroll*.json
+            test-results/**/error-context.md
+            test-results/**/test-failed-*.png
+          if-no-files-found: warn
+          retention-days: 7
       - name: Landing browser smoke
         if: ${{ !cancelled() && needs.classify-changes.outputs.run_landing == 'true' }}
         env:
@@ -359,7 +372,7 @@ jobs:
           name: landing-rendered-${{ github.run_id }}
           path: |
             test-results/**/rendered-*.png
-            test-results/**/rendered-scroll-telemetry.json
+            test-results/**/rendered-*-telemetry.json
           if-no-files-found: warn
           retention-days: 7
       - name: Shared menu browser smoke

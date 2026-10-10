@@ -5,6 +5,7 @@ import {
   type JsonLdObject
 } from "./seo.ts";
 import type { Locale } from "./i18n.ts";
+import { getSeoMarketingImage } from "./seoMarketingImages.ts";
 
 export const PRICING_PATH = "/tarifs-menu-digital-restaurant";
 export const SAMPLE_MENU_PATH = "/demo";
@@ -140,10 +141,10 @@ export type PricingPageContent = {
 };
 
 const collectionImages = {
-  acrylique: "/images/marketing/sauge-noire-acrylique.webp",
-  sculpte: "/images/marketing/sauge-noire-sculpte.webp",
-  carre: "/images/marketing/sauge-noire-carre.webp",
-  signature: "/images/marketing/sauge-noire-signature.webp"
+  acrylique: getSeoMarketingImage("PRICING:collection:acrylique").src,
+  sculpte: getSeoMarketingImage("PRICING:collection:sculpte").src,
+  carre: getSeoMarketingImage("PRICING:collection:carre").src,
+  signature: getSeoMarketingImage("PRICING:collection:signature").src
 } as const;
 
 export const PRICING_PAGE = {
@@ -165,8 +166,7 @@ export const PRICING_PAGE = {
       setupPrice: "2 000 $ CAD",
       monthlyPrice: "+ 200 $ CAD / mois",
       image: collectionImages.acrylique,
-      imageAlt:
-        "Support QR Vistaire Acrylique à panneau clair et base en bois, identité Sauge Noire",
+      imageAlt: getSeoMarketingImage("PRICING:collection:acrylique", "fr").alt,
       imagePosition: "50% 50%",
       cta: {
         label: "Découvrir cette collection",
@@ -184,8 +184,7 @@ export const PRICING_PAGE = {
       setupPrice: "2 050 $ CAD",
       monthlyPrice: "+ 200 $ CAD / mois",
       image: collectionImages.sculpte,
-      imageAlt:
-        "Support QR Vistaire Sculpté en bois avec coin supérieur arrondi",
+      imageAlt: getSeoMarketingImage("PRICING:collection:sculpte", "fr").alt,
       imagePosition: "50% 50%",
       cta: {
         label: "Découvrir cette collection",
@@ -203,8 +202,7 @@ export const PRICING_PAGE = {
       setupPrice: "2 100 $ CAD",
       monthlyPrice: "+ 200 $ CAD / mois",
       image: collectionImages.carre,
-      imageAlt:
-        "Support QR Vistaire Carré en bois avec identité Sauge Noire sur une table de restaurant",
+      imageAlt: getSeoMarketingImage("PRICING:collection:carre", "fr").alt,
       imagePosition: "50% 50%",
       cta: {
         label: "Découvrir cette collection",
@@ -222,8 +220,7 @@ export const PRICING_PAGE = {
       setupPrice: "2 200 $ CAD",
       monthlyPrice: "+ 200 $ CAD / mois",
       image: collectionImages.signature,
-      imageAlt:
-        "Support QR horizontal Vistaire Signature en bois avec panneau QR noir Sauge Noire",
+      imageAlt: getSeoMarketingImage("PRICING:collection:signature", "fr").alt,
       imagePosition: "50% 50%",
       featured: true,
       cta: {
@@ -436,8 +433,7 @@ export const PRICING_PAGE_EN = {
       setupPrice: "$2,000 CAD",
       monthlyPrice: "+ $200 CAD / month",
       image: collectionImages.acrylique,
-      imageAlt:
-        "Vistaire Acrylic QR display with a pale panel, wooden base and Sauge Noire branding",
+      imageAlt: getSeoMarketingImage("PRICING:collection:acrylique", "en").alt,
       imagePosition: "50% 50%",
       cta: {
         label: "Discover this collection",
@@ -455,8 +451,7 @@ export const PRICING_PAGE_EN = {
       setupPrice: "$2,050 CAD",
       monthlyPrice: "+ $200 CAD / month",
       image: collectionImages.sculpte,
-      imageAlt:
-        "Vistaire Sculpted wooden QR display with a rounded upper corner",
+      imageAlt: getSeoMarketingImage("PRICING:collection:sculpte", "en").alt,
       imagePosition: "50% 50%",
       cta: {
         label: "Discover this collection",
@@ -474,8 +469,7 @@ export const PRICING_PAGE_EN = {
       setupPrice: "$2,100 CAD",
       monthlyPrice: "+ $200 CAD / month",
       image: collectionImages.carre,
-      imageAlt:
-        "Vistaire Square wooden QR display with Sauge Noire branding on a restaurant table",
+      imageAlt: getSeoMarketingImage("PRICING:collection:carre", "en").alt,
       imagePosition: "50% 50%",
       cta: {
         label: "Discover this collection",
@@ -493,8 +487,7 @@ export const PRICING_PAGE_EN = {
       setupPrice: "$2,200 CAD",
       monthlyPrice: "+ $200 CAD / month",
       image: collectionImages.signature,
-      imageAlt:
-        "Vistaire Signature horizontal wooden display with a black Sauge Noire QR panel",
+      imageAlt: getSeoMarketingImage("PRICING:collection:signature", "en").alt,
       imagePosition: "50% 50%",
       featured: true,
       cta: {

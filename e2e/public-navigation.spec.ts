@@ -369,8 +369,10 @@ test.describe("Vistaire public navigation", () => {
     }
   });
 
-  test("keeps immersive chapter navigation valid in both locales", async ({ page }) => {
+  test("keeps immersive chapter navigation valid in both locales", async ({ page }, testInfo) => {
     test.setTimeout(240_000);
+    const runtimeErrors: string[] = [];
+    page.on("pageerror", (error) => runtimeErrors.push(error.message));
     for (const locale of ["fr", "en"] as const) {
       await page.goto(locale === "en" ? "/en" : "/", { waitUntil: "domcontentloaded" });
       // SSR-visible controls precede scene initialization and final font metrics.
@@ -389,11 +391,70 @@ test.describe("Vistaire public navigation", () => {
         await expect(nav.getByRole("button", { name: label, exact: true })).toBeVisible();
         await expect(page.locator(`#${id}`)).toHaveCount(1);
       }
-      await nav.getByRole("button", { name: "Contact", exact: true }).click();
-      await expect.poll(() => page.locator("#footer").evaluate((element) =>
-        Math.abs(element.getBoundingClientRect().top))).toBeLessThan(120);
-      await nav.getByRole("button", { name: "Intro", exact: true }).click();
-      await expect.poll(() => page.evaluate(() => window.scrollY)).toBeLessThan(10);
+      for (const [label, id, tolerance] of [
+        ["Contact", "footer", 120],
+        ["Intro", "hero", 10],
+      ] as const) {
+        const beforeClick = await page.locator(`#${id}`).evaluate((element) => ({
+          scrollY,
+          targetTop: element.getBoundingClientRect().top + scrollY,
+        }));
+        const clickStarted = Date.now();
+        await nav.getByRole("button", { name: label, exact: true }).click();
+        const clickReturned = Date.now();
+        const samples: Array<Record<string, unknown> & { elapsedMs: number; distance: number }> = [];
+        let arrived = false;
+        try {
+          // Keep native smooth scrolling and the exact destination contract.
+          // The bounded diagnostic budget measures correctness under software
+          // WebGL; an arrival beyond 5s remains a reported performance concern.
+          await expect.poll(async () => {
+            const state = await page.locator(`#${id}`).evaluate((element, targetId) => {
+              const rect = element.getBoundingClientRect();
+              const canvas = document.querySelector<HTMLCanvasElement>(".scene-canvas");
+              return {
+                distance: targetId === "hero" ? Math.abs(scrollY) : Math.abs(rect.top),
+                scrollY,
+                targetTop: rect.top + scrollY,
+                targetViewportTop: rect.top,
+                maxScroll: document.documentElement.scrollHeight - innerHeight,
+                hash: location.hash,
+                chapter: document.documentElement.dataset.chapter,
+                bodyOverflow: getComputedStyle(document.body).overflow,
+                renderer: canvas ? {
+                  ready: canvas.dataset.ready,
+                  settled: canvas.dataset.settled,
+                  suspended: canvas.dataset.suspended,
+                  section: canvas.dataset.section,
+                  progress: canvas.dataset.progress,
+                  frames: canvas.dataset.frames,
+                  renderCPUms: canvas.dataset.renderCPUms,
+                } : null,
+              };
+            }, id);
+            samples.push({ elapsedMs: Date.now() - clickReturned, ...state });
+            return state.distance;
+          }, { timeout: 30_000, intervals: [100, 250], message: `${locale}: ${label} reaches its native scroll destination` })
+            .toBeLessThan(tolerance);
+          arrived = true;
+        } finally {
+          const last = samples.at(-1);
+          await testInfo.attach(`${locale}-${id}-native-scroll.json`, {
+            contentType: "application/json",
+            body: JSON.stringify({
+              locale, target: id, tolerance, arrived, beforeClick,
+              clickDurationMs: clickReturned - clickStarted,
+              arrivalElapsedMs: arrived ? last?.elapsedMs : null,
+              performanceWarning: !arrived || (last?.elapsedMs ?? 0) > 5_000,
+              lastSampleWithinFiveSeconds: samples.filter((sample) => sample.elapsedMs <= 5_000).at(-1) ?? null,
+              firstSampleAfterFiveSeconds: samples.find((sample) => sample.elapsedMs >= 5_000) ?? null,
+              runtimeErrors,
+              samples,
+            }, null, 2),
+          });
+        }
+        expect(runtimeErrors, `${locale}: native navigation runtime errors`).toEqual([]);
+      }
     }
   });
 

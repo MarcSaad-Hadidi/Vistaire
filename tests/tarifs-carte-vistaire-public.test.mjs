@@ -12,10 +12,10 @@ const PUBLIC_FILES_FOR_THIS_TASK = [
   "components/vistaire-preview/PricingLaunchWorkflow.tsx",
   "components/vistaire-preview/PricingPageExtensions.module.css",
   "lib/pricingPage.ts",
-  "public/images/marketing/sauge-noire-acrylique.webp",
-  "public/images/marketing/sauge-noire-sculpte.webp",
-  "public/images/marketing/sauge-noire-carre.webp",
-  "public/images/marketing/sauge-noire-signature.webp"
+  "public/images/marketing/pricing-acrylique-setting.webp",
+  "public/images/marketing/pricing-sculpte-setting.webp",
+  "public/images/marketing/pricing-carre-setting.webp",
+  "public/images/marketing/pricing-signature-setting.webp"
 ];
 
 const EXPECTED_COLLECTIONS = [
@@ -26,10 +26,10 @@ const EXPECTED_COLLECTIONS = [
 ];
 
 const EXPECTED_COLLECTION_IMAGES = [
-  "/images/marketing/sauge-noire-acrylique.webp",
-  "/images/marketing/sauge-noire-sculpte.webp",
-  "/images/marketing/sauge-noire-carre.webp",
-  "/images/marketing/sauge-noire-signature.webp"
+  "/images/marketing/pricing-acrylique-setting.webp",
+  "/images/marketing/pricing-sculpte-setting.webp",
+  "/images/marketing/pricing-carre-setting.webp",
+  "/images/marketing/pricing-signature-setting.webp"
 ];
 
 const LEGACY_PRICING_TERMS = [

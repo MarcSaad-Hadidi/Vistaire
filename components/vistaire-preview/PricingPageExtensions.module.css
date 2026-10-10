@@ -39,16 +39,19 @@
 }
 .threeDPackGrid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 16px;
+  grid-template-columns: 1fr;
+  gap: 0;
   margin-top: 36px;
 }
 .threeDPack {
+  display: flex;
   min-width: 0;
-  border: 1px solid var(--pricing-border);
-  border-radius: 4px;
-  padding: 28px;
-  background: var(--public-surface);
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 25px;
+  border-top: 1px solid var(--pricing-border);
+  padding: 24px 0;
+  background: transparent;
 }
 .threeDPack span,
 .threeDIndividual span {
@@ -61,7 +64,7 @@
 }
 .threeDPack strong {
   display: block;
-  margin-top: 20px;
+  margin-top: 0;
   color: var(--pricing-cream);
   font-family: var(--pricing-display);
   font-size: clamp(36px, 3.6vw, 50px);
