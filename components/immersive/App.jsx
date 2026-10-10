@@ -14,7 +14,6 @@ import {
   Check,
   ChevronDown,
   MoveHorizontal,
-  Play,
   RotateCw,
   ScanLine,
   X,
@@ -301,7 +300,7 @@ export function App({ locale = "fr" }) {
 }
 
 function LandingContent() {
-  const { locale, languageTag, t, href: link, currency } = useLandingLocale();
+  const { locale, languageTag, t, href: link } = useLandingLocale();
   const money = (amount) => formatMoney(amount, languageTag);
   const collections = sourceCollections.map((item) => ({
     ...item,
@@ -352,7 +351,6 @@ function LandingContent() {
   const [gpuError, setGpuError] = useState(false);
   const [modal, setModal] = useState(null);
   const [collection, setCollection] = useState("acrylique");
-  const [tables, setTables] = useState(20);
   const [phoneDemo, setPhoneDemo] = useState("maison-elyse");
   const [supportAngles, setSupportAngles] = useState({
     acrylique: 0,
@@ -375,7 +373,6 @@ function LandingContent() {
   const [dish, setDish] = useState(initialDish);
   const [arStatus, setARStatus] = useState("idle");
   const [arScale, setARScale] = useState(1);
-  const [pilotage, setPilotage] = useState(false);
   const [copied, setCopied] = useState(false);
   const [reduce, setReduce] = useState(false);
   const [smallScreen, setSmallScreen] = useState(
@@ -837,17 +834,7 @@ function LandingContent() {
     },
     [reduce],
   );
-  const observe = useCallback(
-    (id) => {
-      setDish(id);
-      setModal(null);
-      goto("grip");
-    },
-    [goto],
-  );
-  const amount = selected.price;
   const currentDish = dishes.find((x) => x.id === dish);
-  const modalDish = dishes.find((item) => item.id === modal?.id);
   const launchAR = (item) => {
     if (isAndroid && navigator.xr && stateRef.current.startAR && !gpuError) {
       setModal(null);
@@ -1099,13 +1086,10 @@ function LandingContent() {
                     "Du QR code à une carte qui se vit. Sans application à télécharger.",
                   )}
                 </p>
-                <button
-                  className="text-link"
-                  onClick={() => setModal({ type: "menu" })}
-                >
+                <Link prefetch={false} className="text-link" href={link("/demo")}>
                   {t("Explorer la carte")}
                   <ArrowUpRight size={17} />
-                </button>
+                </Link>
               </div>
               <FocusFrame aria-hidden="true" />
 
@@ -1132,7 +1116,7 @@ function LandingContent() {
                     "Un simple geste ouvre tout l’univers de votre restaurant. Vos plats, vos prix, vos histoires. Une vraie carte, pensée pour le mobile.",
                   )}
                 </p>
-                <Action onClick={() => setModal({ type: "menu" })}>
+                <Action href={link("/demo")}>
                   {t("Essayez l’expérience")}
                   <ArrowUpRight size={15} />
                 </Action>
@@ -1232,9 +1216,8 @@ function LandingContent() {
               }
             </p>
             <Action
-              onClick={() =>
-                featureBeat === 1 ? goto("grip") : setModal({ type: "menu" })
-              }
+              href={featureBeat === 1 ? undefined : link("/demo")}
+              onClick={featureBeat === 1 ? () => goto("grip") : undefined}
             >
               {featureBeat === 1
                 ? t("Manipuler le plat")
@@ -1470,9 +1453,11 @@ function LandingContent() {
           </p>
           <div className="experience-list">
             {experiences.map((x, i) => (
-              <button
+              <a
                 key={x.id}
-                onClick={() => setModal({ type: "video", id: x.id })}
+                href={link(`/menu/${x.id}?lang=fr-CA`)}
+                target="_blank"
+                rel="noopener noreferrer"
               >
                 <span className="index">0{i + 1}</span>
                 <div>
@@ -1490,7 +1475,7 @@ function LandingContent() {
                   loading="lazy"
                 />
                 <ArrowUpRight />
-              </button>
+              </a>
             ))}
           </div>
 
@@ -1547,10 +1532,12 @@ function LandingContent() {
                       <ArrowUpRight size={16} />
                     </a>
                     <Action
-                      onClick={() => setModal({ type: "video", id: x.id })}
+                      href={link(`/menu/${x.id}?lang=fr-CA`)}
+                      target="_blank"
+                      rel="noopener noreferrer"
                     >
-                      <Play size={12} />
-                      {t("Explorer")}
+                      <ArrowUpRight size={12} />
+                      {t("Ouvrir le menu interactif")}
                     </Action>
                   </div>
                 </div>
@@ -1672,7 +1659,7 @@ function LandingContent() {
               </span>
               <span className="monthly">{t("Puis 200 CAD / mois")}</span>
             </div>
-            <Action dark onClick={() => setModal({ type: "collection" })}>
+            <Action dark href={link("/tarifs-menu-digital-restaurant")}>
               {t("Composer votre expérience")}
               <ArrowUpRight size={14} />
             </Action>
@@ -1685,14 +1672,7 @@ function LandingContent() {
           chapterRef={ref("open-weight")}
           className="pricing"
         >
-          <Pricing
-            collection={collection}
-            setCollection={setCollection}
-            onEstimate={(estimate) => {
-              setPilotage(estimate.pilotage);
-              setModal({ type: "collection" });
-            }}
-          />
+          <Pricing collection={collection} setCollection={setCollection} />
         </Chapter>
       </main>
       <Chapter
@@ -1814,215 +1794,9 @@ function LandingContent() {
       </div>
       {modal && (
         <Modal
-          label={
-            modal.type === "menu"
-              ? t("Carte de démonstration Vistaire")
-              : modal.type === "dish"
-                ? t("Fiche du plat")
-                : modal.type === "collection"
-                  ? t("Composer votre expérience Vistaire")
-                  : t("Expérience Vistaire")
-          }
+          label={modal.type === "share" ? t("Partagez l’expérience.") : t("Expérience Vistaire")}
           close={close}
         >
-          {modal.type === "menu" && (
-            <>
-              <div className="menu-preview-head">
-                <span className="eyebrow">{t("Menu de démonstration")}</span>
-                <h2>{t("La sélection Vistaire")}</h2>
-                <p>{t("La carte")}</p>
-              </div>
-              <div className="menu-preview-dishes">
-                {dishes.map((x) => (
-                  <button
-                    key={x.id}
-                    onClick={() => setModal({ type: "dish", id: x.id })}
-                  >
-                    <img src={`/immersive-assets/${x.image}.webp`} alt={x.fullName} />
-                    <div>
-                      <span className="eyebrow">{x.category}</span>
-                      <h3>{x.fullName}</h3>
-                      <p>{x.description}</p>
-                      {x.price !== null && (
-                        <span>{x.price.toLocaleString(languageTag)} CAD</span>
-                      )}
-                      {x.model && <small>{t("Disponible en 3D")}</small>}
-                    </div>
-                    <ArrowUpRight size={18} />
-                  </button>
-                ))}
-              </div>
-              <a
-                className="menu-preview-complete"
-                href={link("/menu/maison-elyse?lang=fr-CA")}
-                target="_blank"
-                rel="noreferrer"
-              >
-                {t("Ouvrir la carte complète")}
-                <ArrowUpRight size={16} />
-              </a>
-            </>
-          )}
-          {modal.type === "dish" && modalDish && (
-            <div className="dish-detail">
-              <img
-                src={`/immersive-assets/${modalDish.image}.webp`}
-                alt={modalDish.fullName}
-              />
-              <div>
-                <span className="eyebrow">
-                  {modalDish.restaurant || "Vistaire"} {t("· Démonstration")}
-                </span>
-                <h2>{modalDish.fullName}</h2>
-                <p>{modalDish.description}</p>
-                {modalDish.price !== null && (
-                  <strong>
-                    {modalDish.price.toLocaleString(languageTag)} CAD
-                  </strong>
-                )}
-                {modalDish.allergens && (
-                  <div className="allergens">
-                    <span>{t("Allergènes")}</span>
-                    <p>{modalDish.allergens}</p>
-                    <small>
-                      {t(
-                        "Les informations présentées appartiennent au menu de démonstration.",
-                      )}
-                    </small>
-                  </div>
-                )}
-                {modalDish.model && (
-                  <Action dark onClick={() => observe(modalDish.id)}>
-                    {t("Explorer en 3D")}
-                    <RotateCw size={16} />
-                  </Action>
-                )}
-                {modalDish.model && (modalDish.id === dish || arSupported) && (
-                  <ARAction
-                    item={modalDish}
-                    ios={arSupported}
-                    disabled={
-                      isAndroid &&
-                      !gpuError &&
-                      Boolean(modelLoading || modelError)
-                    }
-                    onLaunch={() => launchAR(modalDish)}
-                  />
-                )}
-              </div>
-            </div>
-          )}
-          {modal.type === "video" && (
-            <div className="film-modal">
-              <span className="eyebrow">
-                {t("L’expérience Vistaire ·")}{" "}
-                {modal.id === "cinematic"
-                  ? t("Une autre dimension à table")
-                  : experiences.find((x) => x.id === modal.id)?.name}
-              </span>
-              <video
-                src={
-                  modal.id === "cinematic"
-                    ? cinematicSrc
-                    : `/videos/demo/${modal.id}.mp4`
-                }
-                autoPlay
-                muted
-                playsInline
-                controls
-                data-demo="true"
-                onLoadedMetadata={(e) => {
-                  e.currentTarget.playbackRate = 2;
-                }}
-              />
-              <a
-                href={link(
-                  `/menu/${modal.id === "cinematic" ? "maison-elyse" : modal.id}?lang=fr-CA`,
-                )}
-                target="_blank"
-                rel="noreferrer"
-              >
-                {t("Ouvrir le menu interactif")}
-                <ArrowUpRight size={15} />
-              </a>
-            </div>
-          )}
-          {modal.type === "collection" && (
-            <div className="estimate">
-              <span className="eyebrow">{t("Votre expérience Vistaire")}</span>
-              <h2>
-                {t("Une collection.")}
-                <br />
-                {t("Votre signature.")}
-              </h2>
-              <div className="estimate-body">
-                <img
-                  src={selected.image}
-                  alt={selected.name}
-                />
-                <div>
-                  <label>
-                    {t("Votre collection")}
-                    <select
-                      value={collection}
-                      onChange={(e) => setCollection(e.target.value)}
-                    >
-                      {collections.map((x) => (
-                        <option key={x.id} value={x.id}>
-                          {x.name}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  <label>
-                    {t("Nombre de supports")}
-                    <input
-                      type="number"
-                      min="1"
-                      max="1000"
-                      value={tables}
-                      onChange={(e) => setTables(e.target.value)}
-                    />
-                  </label>
-                  <label className="estimate-pilotage">
-                    <input
-                      type="checkbox"
-                      checked={pilotage}
-                      onChange={(e) => setPilotage(e.target.checked)}
-                    />{" "}
-                    {t("Ajouter Pilotage · +100 CAD / mois")}
-                  </label>
-                  <div className="estimate-price">
-                    <small>{t("Mise en place · à partir de · CAD")}</small>
-                    <strong>{currency(amount)}</strong>
-                    <span>
-                      + {pilotage ? 300 : 200} {t("CAD / mois")}
-                    </span>
-                  </div>
-                  {Number(tables) > 20 && (
-                    <p className="estimate-extra">
-                      {t("Les")} {Math.floor(Number(tables)) - 20}{" "}
-                      {t(
-                        "supports supplémentaires sont sur devis et ne sont pas compris dans ce montant.",
-                      )}
-                    </p>
-                  )}
-                  <p>
-                    {t(
-                      "Jusqu’à 20 supports et 5 plats 3D inclus. Taxes en sus. Engagement initial de 12 mois.",
-                    )}
-                  </p>
-                  <Action dark href={link("/prendre-rendez-vous")}>
-                    {t("Prendre rendez-vous")}
-                    <ArrowUpRight size={15} />
-                  </Action>
-                  <a href={link("/tarifs-menu-digital-restaurant")}>
-                    {t("Détails et conditions de l’offre")}
-                  </a>
-                </div>
-              </div>
-            </div>
-          )}
           {modal.type === "ar" && (
             <ARHelp
               item={dishes.find((x) => x.id === modal.id) || currentDish}

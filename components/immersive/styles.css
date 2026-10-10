@@ -936,7 +936,7 @@
   justify-content: center;
   gap: 0;
 }
-:where([data-immersive-vistaire]) .experience-list > button {
+:where([data-immersive-vistaire]) .experience-list > a {
   display: grid;
   grid-template-columns: 40px 1fr 160px 22px;
   gap: 24px;
@@ -967,7 +967,7 @@
   object-fit: cover;
   border-radius: 3px;
 }
-:where([data-immersive-vistaire]) .experience-list button:hover {
+:where([data-immersive-vistaire]) .experience-list a:hover {
   background: #f8f3e809;
 }
 :where([data-immersive-vistaire]) .social .stage {
@@ -2047,7 +2047,7 @@
     grid-column: 1;
     grid-row: 3;
   }
-  :where([data-immersive-vistaire]) .experience-list > button {
+  :where([data-immersive-vistaire]) .experience-list > a {
     grid-template-columns: 18px 1fr 70px 13px;
     gap: 12px;
     padding: 16px 0;
@@ -2486,7 +2486,7 @@
     font-size: 48px;
     margin: 15px 0;
   }
-  :where([data-immersive-vistaire]) .experience-list > button {
+  :where([data-immersive-vistaire]) .experience-list > a {
     padding: 10px 0;
   }
   :where([data-immersive-vistaire]) .experience-list img {
@@ -2566,7 +2566,7 @@
   html.journey-compact :where([data-immersive-vistaire]) .identity-intro {
     font-size: 12px;
   }
-  html.journey-compact :where([data-immersive-vistaire]) .experience-list > button {
+  html.journey-compact :where([data-immersive-vistaire]) .experience-list > a {
     padding: 11px 0;
   }
   html.journey-compact :where([data-immersive-vistaire]) .experience-list img {

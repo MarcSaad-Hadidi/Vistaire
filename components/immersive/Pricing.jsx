@@ -110,43 +110,22 @@ const FAQ = [
       "Généralement environ deux semaines après validation du menu et des maquettes des supports, et réception de tous les éléments nécessaires. Ce délai peut varier selon la complexité du projet et les délais de production.",
   },
 ];
-function EstimateAction({ onEstimate, estimate, children }) {
+function EstimateAction({ children }) {
   const { href } = useLandingLocale();
-  const className = "pricing-cta";
-  return onEstimate ? (
-    <button
-      type="button"
-      className={className}
-      onClick={() => onEstimate(estimate)}
-    >
-      {children}
-      <ArrowUpRight size={17} aria-hidden="true" />
-    </button>
-  ) : (
-    <a
-      className={className}
-      href={href("/prendre-rendez-vous")}
-      target="_blank"
-      rel="noreferrer"
-    >
+  return (
+    <a className="pricing-cta" href={href("/prendre-rendez-vous")}>
       {children}
       <ArrowUpRight size={17} aria-hidden="true" />
     </a>
   );
 }
 
-export default function Pricing({ collection, setCollection, onEstimate }) {
+export default function Pricing({ collection, setCollection }) {
   const { t, locale, currency } = useLandingLocale();
   const [pilotage, setPilotage] = useState(false);
   const selected =
     COLLECTIONS.find((item) => item.id === collection) || COLLECTIONS[0];
   const monthlyAmount = pilotage ? 300 : 200;
-  const estimate = {
-    collection: selected.id,
-    pilotage,
-    setupAmount: selected.amount,
-    monthlyAmount,
-  };
 
   return (
     <div className="pricing-content">
@@ -230,8 +209,8 @@ export default function Pricing({ collection, setCollection, onEstimate }) {
           <p>{t("À l’activation du service. Engagement de 12 mois.")}</p>
         </div>
         <div className="pricing-summary-action">
-          <EstimateAction onEstimate={onEstimate} estimate={estimate}>
-            {t("Composer votre expérience")}
+          <EstimateAction>
+            {t("Prendre rendez-vous")}
           </EstimateAction>
           <span>{t("Prix en CAD · Taxes en sus")}</span>
         </div>
@@ -429,7 +408,7 @@ export default function Pricing({ collection, setCollection, onEstimate }) {
           </span>
           <h3>{t("Faisons place à votre expérience.")}</h3>
         </div>
-        <EstimateAction onEstimate={onEstimate} estimate={estimate}>
+        <EstimateAction>
           {t("Parlons de votre restaurant")}
         </EstimateAction>
       </div>

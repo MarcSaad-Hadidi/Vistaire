@@ -73,7 +73,7 @@ test("contact maintenu : inversions et changements de hauteur du Mac au footer",
   const cdp = await page.context().newCDPSession(page);
   const cases = [
     ["sustainability", ".living .scene-focus"],
-    ["testimonies", ".experience-list button"],
+    ["testimonies", ".experience-list a"],
     ["social-content", ".walkthrough-frame"],
     ["product", ".support-gesture"],
     ["open-weight", ".pricing-collection-image"],
@@ -309,11 +309,8 @@ test("un seul guide accueille le visiteur puis laisse explorer sans se répéter
     await page.goto(path);
     await expect(guide).toHaveAttribute("aria-hidden", "false");
     await page.locator("#hero .text-link").click();
-    await expect(page.getByRole("dialog")).toBeVisible();
-    await expect(guide).toHaveAttribute("aria-hidden", "true");
-    await page.keyboard.press("Escape");
+    await expect(page).toHaveURL(path === "/" ? /\/demo$/ : /\/en\/vistaire-menu$/);
     await expect(page.getByRole("dialog")).toHaveCount(0);
-    await expect(guide).toHaveAttribute("aria-hidden", "true");
     await page.goto(`${path}#product`);
     await expect(page.locator("html")).toHaveAttribute("data-chapter", "product");
     await expect(guide).toHaveCount(1);
@@ -322,6 +319,26 @@ test("un seul guide accueille le visiteur puis laisse explorer sans se répéter
     await expect(guide).toHaveCSS("transition-duration", "0s");
   }
 });
+
+for (const [path, discovery, pricing, booking, language] of [
+  ["/", "/demo", "/tarifs-menu-digital-restaurant", "/prendre-rendez-vous", "fr-CA"],
+  ["/en", "/en/vistaire-menu", "/en/pricing-digital-restaurant-menu", "/en/book-a-call", "en-CA"],
+] as const) {
+  test(`${path} links marketing CTAs to real experiences instead of generic dialogs`, async ({ page }) => {
+    await page.goto(path);
+    await expect(page.locator("#hero .text-link")).toHaveAttribute("href", discovery);
+    await expect(page.locator("#ai .side-copy .action")).toHaveAttribute("href", discovery);
+    for (const [index, restaurant] of ["maison-elyse", "trouvable", "sauge-noire"].entries()) {
+      const expectedMenu = `/menu/${restaurant}?lang=${language}`;
+      await expect(page.locator("#testimonies .experience-list a").nth(index)).toHaveAttribute("href", expectedMenu);
+      await expect(page.locator("#social-content .social-bottom .action").nth(index)).toHaveAttribute("href", expectedMenu);
+    }
+    await expect(page.locator("#product .collection-details .action")).toHaveAttribute("href", pricing);
+    await expect(page.locator("#open-weight .pricing-summary-action .pricing-cta")).toHaveAttribute("href", booking);
+    await expect(page.locator("#open-weight .pricing-closing .pricing-cta")).toHaveAttribute("href", booking);
+    await expect(page.getByRole("dialog")).toHaveCount(0);
+  });
+}
 
 // The fallback uses the same measured director as WebGL. These assertions
 // cover page geometry, copy and native input, not rendered 3D smoothness.
