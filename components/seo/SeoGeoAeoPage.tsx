@@ -11,23 +11,22 @@ import photoPdfDetail from "@/Framer/PhotoPDFvsDigitalDetail.png";
 import photoQrCode1 from "@/Framer/PhotoQRcode1.png";
 import photoQrCode2 from "@/Framer/PhotoQRcode2.png";
 import photoResto from "@/Framer/PhotoRestoComplet4.png";
-import restaurantBackground from "@/Framer/PhotoRestoComplet5.png";
 import photoRestoDining from "@/Framer/PhotoRestoComplet6.png";
 import lobsterPlate from "@/Framer/PlatHomard.png";
-import { SeoFaq } from "@/components/seo/SeoFaq";
+import { SeoFaq } from "./SeoFaq";
 import {
   PreviewFooter,
-  PreviewNav
-} from "@/components/vistaire-preview/VistairePreviewChrome";
-import styles from "@/components/vistaire-preview/VistaireMenuDigitalRestaurantPreview.module.css";
+  PreviewNav,
+} from "../vistaire-preview/VistairePreviewChrome";
+import styles from "../vistaire-preview/VistaireMenuDigitalRestaurantPreview.module.css";
 import type {
   SeoGeoInternalLink,
   SeoGeoPageData,
-  SeoGeoPageType
+  SeoGeoPageType,
 } from "@/lib/seoGeoPages";
 import {
   buildSeoGeoPublicFaq,
-  seoGeoPublicText as publicText
+  seoGeoPublicText as publicText,
 } from "@/lib/seoGeoPublicText";
 
 type PageVisual = {
@@ -39,171 +38,171 @@ const VISUAL_SETS: Record<string, PageVisual[]> = {
   "menu-qr-sans-pdf": [
     {
       src: photoQrCode1,
-      alt: "Client ouvrant un menu Vistaire depuis un QR code à table"
+      alt: "Client ouvrant un menu Vistaire depuis un QR code à table",
     },
     {
       src: photoQrCode2,
-      alt: "Menu mobile Vistaire consulté après le scan QR"
+      alt: "Menu mobile Vistaire consulté après le scan QR",
     },
     {
       src: pageDigitalPhoto,
-      alt: "Fiche plat mobile affichée dans un menu Vistaire"
-    }
+      alt: "Fiche plat mobile affichée dans un menu Vistaire",
+    },
   ],
   "menu-digital-sans-application": [
     {
       src: pageDigitalPhoto,
-      alt: "Menu digital Vistaire ouvert dans le navigateur mobile"
+      alt: "Menu digital Vistaire ouvert dans le navigateur mobile",
     },
     {
       src: photoDigital3,
-      alt: "Client consultant un menu digital à table sans application"
+      alt: "Client consultant un menu digital à table sans application",
     },
     {
       src: photoDigital2,
-      alt: "Expérience mobile Vistaire avec présentation visuelle des plats"
-    }
+      alt: "Expérience mobile Vistaire avec présentation visuelle des plats",
+    },
   ],
   "remplacer-menu-pdf-restaurant": [
     {
       src: photoPdfCompare,
-      alt: "Comparaison entre menu PDF et menu digital Vistaire"
+      alt: "Comparaison entre menu PDF et menu digital Vistaire",
     },
     {
       src: photoPdfDetail,
-      alt: "Détail d'un menu PDF remplacé par une lecture mobile"
+      alt: "Détail d'un menu PDF remplacé par une lecture mobile",
     },
     {
       src: pageDigitalPhoto,
-      alt: "Menu digital Vistaire utilisé comme alternative au PDF"
-    }
+      alt: "Menu digital Vistaire utilisé comme alternative au PDF",
+    },
   ],
   "alternative-menu-pdf-restaurant": [
     {
       src: photoPdfDetail,
-      alt: "Menu PDF transformé en expérience mobile lisible"
+      alt: "Menu PDF transformé en expérience mobile lisible",
     },
     {
       src: photoPdfCompare,
-      alt: "Comparaison visuelle entre PDF et carte digitale"
+      alt: "Comparaison visuelle entre PDF et carte digitale",
     },
     {
       src: photoDigital3,
-      alt: "Client lisant un menu digital plutôt qu'un PDF à table"
-    }
+      alt: "Client lisant un menu digital plutôt qu'un PDF à table",
+    },
   ],
   "fiche-plat-digitale-restaurant": [
     {
       src: lobsterPlate,
-      alt: "Plat signature présenté dans une fiche plat digitale"
+      alt: "Plat signature présenté dans une fiche plat digitale",
     },
     {
       src: pageDigitalPhoto,
-      alt: "Fiche plat Vistaire avec détails utiles sur mobile"
+      alt: "Fiche plat Vistaire avec détails utiles sur mobile",
     },
     {
       src: "/images/demo/dishes/homard-bleu-bisque-fenouil.png",
-      alt: "Homard présenté comme plat signature dans Vistaire"
-    }
+      alt: "Homard présenté comme plat signature dans Vistaire",
+    },
   ],
   "menu-restaurant-photos": [
     {
       src: "/images/demo/dishes/tartare-saumon-label-rouge.png",
-      alt: "Photo de plat utilisée dans un menu restaurant"
+      alt: "Photo de plat utilisée dans un menu restaurant",
     },
     {
       src: "/images/demo/dishes/risotto-cepes-parmesan.png",
-      alt: "Risotto photographié pour une carte digitale"
+      alt: "Risotto photographié pour une carte digitale",
     },
     {
       src: dessertPhoto,
-      alt: "Dessert présenté avec une direction photo premium"
-    }
+      alt: "Dessert présenté avec une direction photo premium",
+    },
   ],
   "menu-restaurant-allergenes": [
     {
       src: pageDigitalPhoto,
-      alt: "Fiche plat mobile avec informations utiles pour le client"
+      alt: "Fiche plat mobile avec informations utiles pour le client",
     },
     {
       src: "/images/demo/dishes/ravioles-chevre-miel-monteregie.png",
-      alt: "Plat avec informations de composition dans une fiche digitale"
+      alt: "Plat avec informations de composition dans une fiche digitale",
     },
     {
       src: "/images/demo/dishes/tarte-citron-basilic-pourpre.png",
-      alt: "Dessert affiché dans une fiche avec détails et allergènes"
-    }
+      alt: "Dessert affiché dans une fiche avec détails et allergènes",
+    },
   ],
   "menu-digital-restaurant-montreal": [
     {
       src: photoRestoDining,
-      alt: "Ambiance de restaurant à Montréal avec expérience mobile"
+      alt: "Ambiance de restaurant à Montréal avec expérience mobile",
     },
     {
       src: photoDigital3,
-      alt: "Menu digital consulté à table dans un restaurant montréalais"
+      alt: "Menu digital consulté à table dans un restaurant montréalais",
     },
     {
       src: "/images/demo/dishes/pave-boeuf-mature-bordelaise.png",
-      alt: "Plat signature présenté pour un restaurant à Montréal"
-    }
+      alt: "Plat signature présenté pour un restaurant à Montréal",
+    },
   ],
   "menu-digital-restaurant-laval": [
     {
       src: photoResto,
-      alt: "Salle de restaurant avec carte digitale pour Laval"
+      alt: "Salle de restaurant avec carte digitale pour Laval",
     },
     {
       src: pageDigitalPhoto,
-      alt: "Carte mobile Vistaire pour restaurant à Laval"
+      alt: "Carte mobile Vistaire pour restaurant à Laval",
     },
     {
       src: "/images/demo/dishes/canette-rotie-figues-epices.png",
-      alt: "Plat premium présenté dans un menu digital à Laval"
-    }
+      alt: "Plat premium présenté dans un menu digital à Laval",
+    },
   ],
   "menu-digital-restaurant-brossard": [
     {
       src: photoRestoDining,
-      alt: "Salle de restaurant avec menu digital pour Brossard"
+      alt: "Salle de restaurant avec menu digital pour Brossard",
     },
     {
       src: photoQrCode1,
-      alt: "QR code de table ouvrant une carte mobile à Brossard"
+      alt: "QR code de table ouvrant une carte mobile à Brossard",
     },
     {
       src: "/images/demo/dishes/tartare-saumon-label-rouge.png",
-      alt: "Plat présenté dans une carte digitale pour Brossard"
-    }
+      alt: "Plat présenté dans une carte digitale pour Brossard",
+    },
   ],
   "menu-digital-restaurant-haut-de-gamme": [
     {
       src: photoResto,
-      alt: "Ambiance premium de restaurant haut de gamme"
+      alt: "Ambiance premium de restaurant haut de gamme",
     },
     {
       src: lobsterPlate,
-      alt: "Plat signature mis en scène pour un menu haut de gamme"
+      alt: "Plat signature mis en scène pour un menu haut de gamme",
     },
     {
       src: beveragePhoto,
-      alt: "Boisson signature présentée dans une expérience Vistaire"
-    }
+      alt: "Boisson signature présentée dans une expérience Vistaire",
+    },
   ],
   "menu-digital-restaurant-gastronomique": [
     {
       src: lobsterPlate,
-      alt: "Plat gastronomique présenté dans une carte digitale"
+      alt: "Plat gastronomique présenté dans une carte digitale",
     },
     {
       src: "/images/demo/dishes/souffle-chocolat-grand-cru.png",
-      alt: "Dessert gastronomique dans un menu digital Vistaire"
+      alt: "Dessert gastronomique dans un menu digital Vistaire",
     },
     {
       src: photoRestoDining,
-      alt: "Salle gastronomique avec expérience mobile premium"
-    }
-  ]
+      alt: "Salle gastronomique avec expérience mobile premium",
+    },
+  ],
 };
 
 const VISUAL_ALIASES: Record<string, string> = {
@@ -219,7 +218,7 @@ const VISUAL_ALIASES: Record<string, string> = {
   "digital-restaurant-menu-brossard": "menu-digital-restaurant-brossard",
   "high-end-restaurant-digital-menu": "menu-digital-restaurant-haut-de-gamme",
   "fine-dining-restaurant-digital-menu":
-    "menu-digital-restaurant-gastronomique"
+    "menu-digital-restaurant-gastronomique",
 };
 
 const localizedCopy = {
@@ -244,7 +243,7 @@ const localizedCopy = {
     finalTitle: "Préparer une expérience Vistaire cohérente.",
     finalBody:
       "Le parcours renvoie vers les guides utiles, le menu exemple et la prise de rendez-vous pour aider le restaurateur à avancer clairement.",
-    internalLinks: "Guides Vistaire"
+    internalLinks: "Guides Vistaire",
   },
   en: {
     actions: "Primary actions",
@@ -267,14 +266,14 @@ const localizedCopy = {
     finalTitle: "Prepare a coherent Vistaire experience.",
     finalBody:
       "The path points to useful guides, the sample menu and booking flow so restaurants can keep moving clearly.",
-    internalLinks: "Vistaire guides"
-  }
+    internalLinks: "Vistaire guides",
+  },
 } as const;
 
 const layoutClasses: Record<SeoGeoPageType, string> = {
   aeo: styles.layoutAeo,
   local: styles.layoutLocal,
-  vertical: styles.layoutVertical
+  vertical: styles.layoutVertical,
 };
 
 const heroImageSizes: Record<SeoGeoPageType, string> = {
@@ -282,7 +281,7 @@ const heroImageSizes: Record<SeoGeoPageType, string> = {
   local:
     "(max-width: 920px) calc(100vw - 56px), (max-width: 1400px) 38vw, 520px",
   vertical:
-    "(max-width: 920px) calc(100vw - 56px), (max-width: 1400px) 64vw, 780px"
+    "(max-width: 920px) calc(100vw - 56px), (max-width: 1400px) 64vw, 780px",
 };
 
 function ArrowIcon() {
@@ -322,27 +321,17 @@ export function SeoGeoAeoPage({ page }: { page: SeoGeoPageData }) {
   const visuals = VISUAL_SETS[visualKey] ?? [
     page.visualImage,
     page.visualImage,
-    page.visualImage
+    page.visualImage,
   ];
   const finalLinks = uniqueLinks([
     ...page.relatedLinks,
     page.primaryCta,
-    page.secondaryCta
+    page.secondaryCta,
   ]);
   const displayFaq = buildSeoGeoPublicFaq(page);
 
   return (
-    <main className={styles.page}>
-      <Image
-        alt=""
-        aria-hidden="true"
-        className={styles.backgroundImage}
-        fill
-        quality={72}
-        sizes="100vw"
-        src={restaurantBackground}
-      />
-
+    <main className={styles.page} data-public-vistaire>
       <div className={styles.topNav}>
         <PreviewNav
           currentPath={page.path}
@@ -358,27 +347,29 @@ export function SeoGeoAeoPage({ page }: { page: SeoGeoPageData }) {
       >
         <div className={`${styles.previewFrame} ${layoutClasses[page.type]}`}>
           <article className={`${styles.card} ${styles.heroCopy}`}>
-            <p className={styles.badge}>{publicText(page.eyebrow, locale)}</p>
-            <h1 id={`${page.slug}-title`}>{publicText(page.h1, locale)}</h1>
-            <p className={styles.heroLead}>
-              {publicText(page.directAnswer, locale)}
-            </p>
-            <div className={styles.heroActions} aria-label={copy.actions}>
-              <Link
-                className={styles.primaryButton}
-                href={page.primaryCta.href}
-                prefetch={false}
-              >
-                {publicText(page.primaryCta.label, locale)}
-                <ArrowIcon />
-              </Link>
-              <Link
-                className={styles.secondaryButton}
-                href={page.secondaryCta.href}
-                prefetch={false}
-              >
-                {publicText(page.secondaryCta.label, locale)}
-              </Link>
+            <div className={styles.heroText}>
+              <p className={styles.badge}>{publicText(page.eyebrow, locale)}</p>
+              <h1 id={`${page.slug}-title`}>{publicText(page.h1, locale)}</h1>
+              <p className={styles.heroLead}>
+                {publicText(page.directAnswer, locale)}
+              </p>
+              <div className={styles.heroActions} aria-label={copy.actions}>
+                <Link
+                  className={styles.primaryButton}
+                  href={page.primaryCta.href}
+                  prefetch={false}
+                >
+                  {publicText(page.primaryCta.label, locale)}
+                  <ArrowIcon />
+                </Link>
+                <Link
+                  className={styles.secondaryButton}
+                  href={page.secondaryCta.href}
+                  prefetch={false}
+                >
+                  {publicText(page.secondaryCta.label, locale)}
+                </Link>
+              </div>
             </div>
             <figure className={`${styles.visualFigure} ${styles.heroVisual}`}>
               <Image
@@ -452,23 +443,23 @@ export function SeoGeoAeoPage({ page }: { page: SeoGeoPageData }) {
             <div className={styles.premiumContent}>
               <div className={styles.sectionIntro}>
                 <p className={styles.badge}>{copy.includedEyebrow}</p>
-                <h2 id={`${page.slug}-included-title`}>
-                  {copy.includedTitle}
-                </h2>
+                <h2 id={`${page.slug}-included-title`}>{copy.includedTitle}</h2>
                 <p>{copy.includedBody}</p>
               </div>
               <div className={styles.benefitGrid}>
                 {page.included.slice(0, 6).map((item) => (
                   <article className={styles.benefitItem} key={item.title}>
                     <h3>{publicText(item.title, locale)}</h3>
-                    <p className="mt-3 text-[13px] font-medium leading-[1.45] text-[#f4e5cd]/72">
+                    <p className={styles.benefitDescription}>
                       {publicText(item.text, locale)}
                     </p>
                   </article>
                 ))}
               </div>
             </div>
-            <figure className={`${styles.visualFigure} ${styles.premiumVisual}`}>
+            <figure
+              className={`${styles.visualFigure} ${styles.premiumVisual}`}
+            >
               <Image
                 alt={publicText(visuals[2].alt, locale)}
                 className={styles.visualImage}
@@ -489,9 +480,7 @@ export function SeoGeoAeoPage({ page }: { page: SeoGeoPageData }) {
               <h2 id={`${page.slug}-comparison-title`}>
                 {publicText(page.comparison.heading, locale)}
               </h2>
-              <p>
-                {copy.comparisonBody}
-              </p>
+              <p>{copy.comparisonBody}</p>
             </div>
             <table className={styles.comparisonTable}>
               <thead>
@@ -512,7 +501,7 @@ export function SeoGeoAeoPage({ page }: { page: SeoGeoPageData }) {
                     <td
                       data-label={publicText(
                         page.comparison.basicLabel,
-                        locale
+                        locale,
                       )}
                     >
                       {publicText(row.basic, locale)}
@@ -520,7 +509,7 @@ export function SeoGeoAeoPage({ page }: { page: SeoGeoPageData }) {
                     <td
                       data-label={publicText(
                         page.comparison.vistaireLabel,
-                        locale
+                        locale,
                       )}
                     >
                       {publicText(row.vistaire, locale)}
@@ -537,9 +526,7 @@ export function SeoGeoAeoPage({ page }: { page: SeoGeoPageData }) {
           >
             <div className={styles.sectionIntro}>
               <p className={styles.badge}>{copy.faqEyebrow}</p>
-              <h2 id={`${page.slug}-faq-title`}>
-                {copy.faqTitle}
-              </h2>
+              <h2 id={`${page.slug}-faq-title`}>{copy.faqTitle}</h2>
               <p>{copy.faqBody}</p>
             </div>
             <div className="mt-8">
@@ -553,9 +540,7 @@ export function SeoGeoAeoPage({ page }: { page: SeoGeoPageData }) {
           >
             <div>
               <p className={styles.badge}>{copy.finalEyebrow}</p>
-              <h2 id={`${page.slug}-final-title`}>
-                {copy.finalTitle}
-              </h2>
+              <h2 id={`${page.slug}-final-title`}>{copy.finalTitle}</h2>
               <p>{copy.finalBody}</p>
             </div>
             <div className={styles.finalActions}>
@@ -575,9 +560,16 @@ export function SeoGeoAeoPage({ page }: { page: SeoGeoPageData }) {
                 {publicText(page.secondaryCta.label, locale)}
               </Link>
             </div>
-            <nav className={styles.internalLinks} aria-label={copy.internalLinks}>
+            <nav
+              className={styles.internalLinks}
+              aria-label={copy.internalLinks}
+            >
               {finalLinks.map((link) => (
-                <Link href={link.href} key={`${link.href}-${link.label}`} prefetch={false}>
+                <Link
+                  href={link.href}
+                  key={`${link.href}-${link.label}`}
+                  prefetch={false}
+                >
                   {publicText(link.label, locale)}
                 </Link>
               ))}
@@ -586,7 +578,12 @@ export function SeoGeoAeoPage({ page }: { page: SeoGeoPageData }) {
         </div>
       </section>
 
-      <PreviewFooter currentPath={page.path} locale={locale} routeMode="production" width="wide" />
+      <PreviewFooter
+        currentPath={page.path}
+        locale={locale}
+        routeMode="production"
+        width="wide"
+      />
     </main>
   );
 }

@@ -1,6 +1,6 @@
 import type { Locale } from "@/lib/i18n";
 import type { SeoPageData } from "@/lib/seoPages";
-import { SeoFaqItem } from "@/components/seo/SeoFaqItem";
+import { SeoFaqItem } from "./SeoFaqItem";
 
 type SeoFaqProps = {
   faqs: SeoPageData["faq"];
@@ -13,11 +13,11 @@ export function SeoFaq({
   faqs,
   className = "",
   layout = "split",
-  locale = "fr"
+  locale = "fr",
 }: SeoFaqProps) {
   const items = (
     <div
-      className="divide-y divide-white/10 rounded-lg border border-white/10 bg-[#0d0907]"
+      className="divide-y divide-[#282825] border-y border-[#282825] bg-[#111110]"
       data-seo-faq
     >
       {faqs.map((item, index) => (
@@ -32,11 +32,7 @@ export function SeoFaq({
   );
 
   if (layout === "stack") {
-    return (
-      <div className={className}>
-        {items}
-      </div>
-    );
+    return <div className={className}>{items}</div>;
   }
 
   return (
@@ -44,9 +40,11 @@ export function SeoFaq({
       <div className="grid gap-10 lg:grid-cols-[0.7fr_1.3fr]">
         <div>
           <h2 className="font-display text-4xl font-normal leading-[1] text-cream sm:text-5xl">
-            {locale === "en" ? "Frequently asked questions" : "Questions fréquentes"}
+            {locale === "en"
+              ? "Frequently asked questions"
+              : "Questions fréquentes"}
           </h2>
-          <p className="mt-5 max-w-xl text-base leading-7 text-[#cdbfa9]">
+          <p className="mt-5 max-w-xl text-base leading-7 text-[#cec8bd]">
             {locale === "en"
               ? "Concrete answers for restaurants, without invented numbers or unproven promises."
               : "Réponses concrètes pour restaurateurs, sans chiffres inventés ni promesses non prouvées."}

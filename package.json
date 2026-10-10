@@ -88,7 +88,9 @@
     "demo:validate-ar-lite": "node scripts/validate-demo-ar-lite-assets.mjs",
     "demo:validate-ios-budget": "node scripts/validate-ios-quicklook-budget.mjs",
     "demo:validate-assets": "node scripts/validate-demo-assets.mjs",
-    "demo:validate-network": "node scripts/validate-demo-network-headers.mjs"
+    "demo:validate-network": "node scripts/validate-demo-network-headers.mjs",
+    "postinstall": "node scripts/prepare-immersive-runtime.mjs",
+    "prebuild": "node scripts/prepare-immersive-runtime.mjs"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1141.0",
@@ -115,7 +117,8 @@
     "react-dom": "^19.3.0",
     "react-pageflip": "^2.0.3",
     "resend": "6.17.2",
-    "sharp": "^0.35.5"
+    "sharp": "^0.35.5",
+    "lucide-react": "^1.53.0"
   },
   "overrides": {
     "postcss": "$postcss",

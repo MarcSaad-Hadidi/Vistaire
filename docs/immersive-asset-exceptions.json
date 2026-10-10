@@ -1,0 +1,272 @@
+[
+  {
+    "path": "assets/immersive-runtime/burger.usdz.gz",
+    "owner": "MarcSaad-Hadidi",
+    "reason": "Original user-reviewed Vistaire immersive runtime; exact source bytes, no texture or mesh degradation.",
+    "maxBytes": 9777111,
+    "sha256": [
+      "9af0bbe026358a7c571a477930a30021fe31e995dc3ccba568fa633708792462"
+    ]
+  },
+  {
+    "path": "docs/archives/vistaire-ui-before-immersive-2026-10-09.tar.gz",
+    "owner": "MarcSaad-Hadidi",
+    "reason": "User-requested original UI archive; not imported or publicly served.",
+    "maxBytes": 569443,
+    "sha256": [
+      "37e5eb0cd7042897a721a9e2cab5674085c5b837961155f19a06cbf12a74b5dd"
+    ]
+  },
+  {
+    "path": "public/immersive-assets/ar/chocolat-fume.usdz",
+    "owner": "MarcSaad-Hadidi",
+    "reason": "Original user-reviewed Vistaire immersive runtime; exact source bytes, no texture or mesh degradation.",
+    "maxBytes": 3509203,
+    "sha256": [
+      "a08d98ede061832962da1b4aaf16c181ed9c67361782f3dbfc15555a82b2f500"
+    ]
+  },
+  {
+    "path": "public/immersive-assets/ar/homard.usdz",
+    "owner": "MarcSaad-Hadidi",
+    "reason": "Original user-reviewed Vistaire immersive runtime; exact source bytes, no texture or mesh degradation.",
+    "maxBytes": 7569119,
+    "sha256": [
+      "2217d36daa0d191c538467a0d1ded3394cf7a0ba033545ccae8d8a2650623d6f"
+    ]
+  },
+  {
+    "path": "public/immersive-assets/ar/huitres.usdz",
+    "owner": "MarcSaad-Hadidi",
+    "reason": "Original user-reviewed Vistaire immersive runtime; exact source bytes, no texture or mesh degradation.",
+    "maxBytes": 6806971,
+    "sha256": [
+      "ac41cf42107a1e35aea03e0d52f95f2c6c8adb0e11507766f000fbed88e63f81"
+    ]
+  },
+  {
+    "path": "public/immersive-assets/ar/poutine.usdz",
+    "owner": "MarcSaad-Hadidi",
+    "reason": "Original user-reviewed Vistaire immersive runtime; exact source bytes, no texture or mesh degradation.",
+    "maxBytes": 5900407,
+    "sha256": [
+      "dad91af7b5c398807f752fefd4c28e979c052fb54da699f51b3b0c29cc8c3c7b"
+    ]
+  },
+  {
+    "path": "public/immersive-assets/ar/souffle.usdz",
+    "owner": "MarcSaad-Hadidi",
+    "reason": "Original user-reviewed Vistaire immersive runtime; exact source bytes, no texture or mesh degradation.",
+    "maxBytes": 6604754,
+    "sha256": [
+      "09e8c69e8b85a983f1c2d8082444993f31ec478fc51f47c44494b846e9e43caa"
+    ]
+  },
+  {
+    "path": "public/immersive-assets/ar/sushi.usdz",
+    "owner": "MarcSaad-Hadidi",
+    "reason": "Original user-reviewed Vistaire immersive runtime; exact source bytes, no texture or mesh degradation.",
+    "maxBytes": 6836987,
+    "sha256": [
+      "c2e54aa0ca6117701732682dd3929a117d6e04008e7027137f624548ad83e720"
+    ]
+  },
+  {
+    "path": "public/immersive-assets/dashboard/macbook.glb",
+    "owner": "MarcSaad-Hadidi",
+    "reason": "Original user-reviewed Vistaire immersive runtime; exact source bytes, no texture or mesh degradation.",
+    "maxBytes": 312960,
+    "sha256": [
+      "173c283b3e225eb3d657a4ef597a9886c873fb6b3b64583196e19add7d0b6cf6"
+    ]
+  },
+  {
+    "path": "public/immersive-assets/dishes/burger.glb",
+    "owner": "MarcSaad-Hadidi",
+    "reason": "Original user-reviewed Vistaire immersive runtime; exact source bytes, no texture or mesh degradation.",
+    "maxBytes": 2979416,
+    "sha256": [
+      "0452856149f975b5a8867e4d2e40f71dc69c7bc3a26942cd14a71bcdc23660ae"
+    ]
+  },
+  {
+    "path": "public/immersive-assets/dishes/chocolat-fume.glb",
+    "owner": "MarcSaad-Hadidi",
+    "reason": "Original user-reviewed Vistaire immersive runtime; exact source bytes, no texture or mesh degradation.",
+    "maxBytes": 979612,
+    "sha256": [
+      "81cc641cf08f34d1ef0854f55c0dfe1a101f0f1814de8fbefc6fda7d36ecee73"
+    ]
+  },
+  {
+    "path": "public/immersive-assets/dishes/framing-hulls.json",
+    "owner": "MarcSaad-Hadidi",
+    "reason": "Original user-reviewed Vistaire immersive runtime; exact source bytes, no texture or mesh degradation.",
+    "maxBytes": 1482540,
+    "sha256": [
+      "7dae238d5d0110261d626cd3518c54a22b4d7044ab6b22c0abf40c46b36289d9"
+    ]
+  },
+  {
+    "path": "public/immersive-assets/dishes/huitres.glb",
+    "owner": "MarcSaad-Hadidi",
+    "reason": "Original user-reviewed Vistaire immersive runtime; exact source bytes, no texture or mesh degradation.",
+    "maxBytes": 3699644,
+    "sha256": [
+      "5169fc3b87f36927a770fce880de6cc2a7f9acc4ddfd037974b82dbc319069d7"
+    ]
+  },
+  {
+    "path": "public/immersive-assets/dishes/lod/burger-mobile.glb",
+    "owner": "MarcSaad-Hadidi",
+    "reason": "Original user-reviewed Vistaire immersive runtime; exact source bytes, no texture or mesh degradation.",
+    "maxBytes": 3099768,
+    "sha256": [
+      "e1995a7f3487ae98d84e0734cdeb973234f758fa69390a74c10efda64130b6ef"
+    ]
+  },
+  {
+    "path": "public/immersive-assets/dishes/lod/chocolat-fume-mobile.glb",
+    "owner": "MarcSaad-Hadidi",
+    "reason": "Original user-reviewed Vistaire immersive runtime; exact source bytes, no texture or mesh degradation.",
+    "maxBytes": 2180100,
+    "sha256": [
+      "cff5dac881a28bbaeed85d3c0bd73072fe999a22e5824c12319d1e014c847d5f"
+    ]
+  },
+  {
+    "path": "public/immersive-assets/dishes/lod/huitres-mobile.glb",
+    "owner": "MarcSaad-Hadidi",
+    "reason": "Original user-reviewed Vistaire immersive runtime; exact source bytes, no texture or mesh degradation.",
+    "maxBytes": 2577564,
+    "sha256": [
+      "4ef77f7f9beab7fb4aa1aba7c38d100b82aad40ed18170733d13350783693742"
+    ]
+  },
+  {
+    "path": "public/immersive-assets/dishes/lod/poutine-mobile.glb",
+    "owner": "MarcSaad-Hadidi",
+    "reason": "Original user-reviewed Vistaire immersive runtime; exact source bytes, no texture or mesh degradation.",
+    "maxBytes": 1146944,
+    "sha256": [
+      "ab1631006783fb212c8833f9cb5a54582eccbaacdea7c6c0a072d002e4007f26"
+    ]
+  },
+  {
+    "path": "public/immersive-assets/dishes/lod/sushi-mobile.glb",
+    "owner": "MarcSaad-Hadidi",
+    "reason": "Original user-reviewed Vistaire immersive runtime; exact source bytes, no texture or mesh degradation.",
+    "maxBytes": 1248324,
+    "sha256": [
+      "5e42486f9e1a0895a28f7b506dc98dfcf5f5805e7ef7bfb52b5011e11337bb02"
+    ]
+  },
+  {
+    "path": "public/immersive-assets/dishes/poutine.glb",
+    "owner": "MarcSaad-Hadidi",
+    "reason": "Original user-reviewed Vistaire immersive runtime; exact source bytes, no texture or mesh degradation.",
+    "maxBytes": 1631104,
+    "sha256": [
+      "66d25e9532f04591c8f3cbd818d80dc797b1611a8fa75041beb89d52eb1d6f2d"
+    ]
+  },
+  {
+    "path": "public/immersive-assets/dishes/sushi.glb",
+    "owner": "MarcSaad-Hadidi",
+    "reason": "Original user-reviewed Vistaire immersive runtime; exact source bytes, no texture or mesh degradation.",
+    "maxBytes": 3895760,
+    "sha256": [
+      "9b94523eaf54c6789d66c02d1bcb5fafd8d910dab5237e55b0c8016323056e88"
+    ]
+  },
+  {
+    "path": "public/immersive-assets/draco/draco_decoder.wasm",
+    "owner": "MarcSaad-Hadidi",
+    "reason": "Original user-reviewed Vistaire immersive runtime; exact source bytes, no texture or mesh degradation.",
+    "maxBytes": 192420,
+    "sha256": [
+      "a680d927bed9cb864ddbd63521868891af2bfbe755092761b4837487618df8ac"
+    ]
+  },
+  {
+    "path": "public/immersive-assets/phone/iphone_16_-_free.glb",
+    "owner": "MarcSaad-Hadidi",
+    "reason": "Original user-reviewed Vistaire immersive runtime; exact source bytes, no texture or mesh degradation.",
+    "maxBytes": 2456120,
+    "sha256": [
+      "ec6002b3c4daa325643da029d192d0f3a493e66bb71fb9dbc7cef8ef887fea64"
+    ]
+  },
+  {
+    "path": "public/immersive-assets/restaurant/restaurant-evening.glb",
+    "owner": "MarcSaad-Hadidi",
+    "reason": "Original user-reviewed Vistaire immersive runtime; exact source bytes, no texture or mesh degradation.",
+    "maxBytes": 4131356,
+    "sha256": [
+      "9c9a160387f36a6830f395e5c863b44ac79863513558ffe5e1bdf24e9e6931f1"
+    ]
+  },
+  {
+    "path": "public/immersive-assets/supports/Meshy_AI_Sauge_Noire_QR_Displa_1008220727_texture.glb",
+    "owner": "MarcSaad-Hadidi",
+    "reason": "Original user-reviewed Vistaire immersive runtime; exact source bytes, no texture or mesh degradation.",
+    "maxBytes": 948164,
+    "sha256": [
+      "fb09fd8e1a793db196d52ab27eb5f71ec1f971dd7a9a26b56f4f7af7951619bb"
+    ]
+  },
+  {
+    "path": "public/immersive-assets/supports/Meshy_AI_Wooden_QR_Menu_Stand_1008220658_texture.glb",
+    "owner": "MarcSaad-Hadidi",
+    "reason": "Original user-reviewed Vistaire immersive runtime; exact source bytes, no texture or mesh degradation.",
+    "maxBytes": 1622784,
+    "sha256": [
+      "7823e4213b0ac123b2eaae7789b2a56a972d7cc8b06af3e9799ccd58922db6de"
+    ]
+  },
+  {
+    "path": "public/immersive-assets/supports/sauge-noire-carre-vistaire-corrige.glb",
+    "owner": "MarcSaad-Hadidi",
+    "reason": "Original user-reviewed Vistaire immersive runtime; exact source bytes, no texture or mesh degradation.",
+    "maxBytes": 809220,
+    "sha256": [
+      "a83703a7c49395076e86f5e568dbeeffd5df35460228eebcbf9348ed7becaa15"
+    ]
+  },
+  {
+    "path": "public/immersive-assets/supports/sauge-noire-vistaire-corrige.glb",
+    "owner": "MarcSaad-Hadidi",
+    "reason": "Original user-reviewed Vistaire immersive runtime; exact source bytes, no texture or mesh degradation.",
+    "maxBytes": 336144,
+    "sha256": [
+      "b3bf09c3073d9070923c0dd6c8ec01787602374d032e2d21e9ed7fe683e2a8cc"
+    ]
+  },
+  {
+    "path": "public/immersive-media/cinematic-landscape.mp4",
+    "owner": "MarcSaad-Hadidi",
+    "reason": "Original user-reviewed Vistaire immersive runtime; exact source bytes, no texture or mesh degradation.",
+    "maxBytes": 2452664,
+    "sha256": [
+      "4d62ac4fe90bb689a966619cc539b30a313a0a4e2e39424138b83c6b6ef73965"
+    ]
+  },
+  {
+    "path": "public/immersive-media/cinematic-portrait.mp4",
+    "owner": "MarcSaad-Hadidi",
+    "reason": "Original user-reviewed Vistaire immersive runtime; exact source bytes, no texture or mesh degradation.",
+    "maxBytes": 2788366,
+    "sha256": [
+      "9e6f75ae365eaec6ee49c0735732d8234be4f9a4e185586ca51c7b6297d5e621"
+    ]
+  },
+  {
+    "path": "public/immersive-assets/ar/burger.usdz",
+    "owner": "MarcSaad-Hadidi",
+    "reason": "Exact original USDZ restored from lossless gzip during install/prebuild; native Quick Look URL remains unchanged.",
+    "maxBytes": 13591929,
+    "sha256": [
+      "456a3bd4298b7097e1d2ba9893e433ea4dfb48bbfb2a21bdfe3dfaaf44a70f3b"
+    ]
+  }
+]

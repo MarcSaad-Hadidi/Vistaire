@@ -1,0 +1,294 @@
+@font-face {
+  font-family: "Vistaire Editorial";
+  src: url("/immersive-assets/fonts/libertine-display.woff") format("woff");
+  font-style: normal;
+  font-weight: 400 700;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Vistaire Editorial";
+  src: url("/immersive-assets/fonts/libertine-italic.woff") format("woff");
+  font-style: italic;
+  font-weight: 400 700;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Vistaire Text";
+  src: url("/immersive-assets/fonts/biolinum.woff") format("woff");
+  font-style: normal;
+  font-weight: 400 500;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Vistaire Text";
+  src: url("/immersive-assets/fonts/biolinum-bold.woff") format("woff");
+  font-style: normal;
+  font-weight: 600 900;
+  font-display: swap;
+}
+
+[data-public-vistaire] {
+  --public-black: #050505;
+  --public-surface: #111110;
+  --public-blue: #282825;
+  --public-gold: #ffc300;
+  --public-gold-light: #ffd60a;
+  --public-text: #f8f3e8;
+  --public-muted: #cec8bd;
+  --public-gold-metal: linear-gradient(
+    115deg,
+    #ffc300 0%,
+    #ffd60a 27%,
+    #fff1ad 45%,
+    #ffc300 62%,
+    #ffd60a 84%,
+    #ffc300 100%
+  );
+  --admin-accent: #ffc300;
+  --admin-bg: #050505;
+  --admin-panel: #111110;
+  --admin-text: #f8f3e8;
+  --admin-muted: #cec8bd;
+  --admin-text-muted: #cec8bd;
+  color: var(--public-text);
+  background: var(--public-black);
+  font-family: "Vistaire Text", serif;
+  min-height: 100svh;
+}
+[data-public-vistaire] h1,
+[data-public-vistaire] h2,
+[data-public-vistaire] h3,
+[data-public-vistaire] .public-brand {
+  font-family: "Vistaire Editorial", serif;
+}
+:where([data-public-vistaire] a) {
+  color: inherit;
+}
+[data-public-vistaire] :focus-visible {
+  outline: 2px solid var(--public-gold-light);
+  outline-offset: 4px;
+}
+.public-route-status {
+  padding: clamp(24px, 7vw, 100px);
+  display: grid;
+  align-content: center;
+  gap: 24px;
+}
+.public-route-status h1 {
+  font-size: clamp(36px, 7vw, 90px);
+  line-height: 1.05;
+}
+.public-brand {
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  font-size: 30px;
+}
+[data-public-vistaire] section[id] {
+  scroll-margin-top: 28px;
+}
+[data-public-vistaire] {
+  --vistaire-font-body: "Vistaire Text";
+  --vistaire-font-display: "Vistaire Editorial";
+}
+[data-public-vistaire] h1,
+[data-public-vistaire] h2,
+[data-public-vistaire] h3 {
+  font-family: "Vistaire Editorial", serif;
+}
+.public-hero-media {
+  position: absolute;
+  inset: 0;
+}
+.public-eyebrow {
+  color: var(--public-gold);
+  font-size: 12px;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+}
+.public-gold-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 24px;
+  min-height: 48px;
+  padding: 12px 24px;
+  border-radius: 6px;
+  background: var(--public-gold-metal);
+  color: #050505 !important;
+  font-weight: 700;
+}
+.public-comparison {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 360px);
+  align-items: center;
+  gap: 40px;
+  width: 100%;
+}
+.public-comparison-copy {
+  display: grid;
+  gap: 24px;
+  align-content: center;
+}
+.public-comparison h3 {
+  font-size: 36px;
+}
+.public-comparison-copy > p {
+  color: var(--public-muted);
+  max-width: 40ch;
+}
+.public-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.public-tabs button {
+  min-height: 44px;
+  padding: 10px 14px;
+  border: 1px solid #282825;
+  border-radius: 6px;
+  background: #111110;
+  color: #f8f3e8;
+  font-size: 14px;
+}
+.public-tabs button[aria-selected="true"] {
+  border-color: #ffd60a;
+  color: #ffd60a;
+}
+.public-comparison [role="tabpanel"] {
+  min-width: 0;
+}
+.public-film-frame {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: clip;
+}
+.public-film-frame video,
+.public-film-poster {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.public-film-frame video {
+  transition: opacity 160ms ease;
+}
+.public-seo-appendix {
+  grid-column: 1/-1;
+  display: grid;
+  gap: 36px;
+  border: 1px solid #282825;
+  border-radius: 12px;
+  background: rgba(5, 5, 5, 0.94);
+  padding: clamp(24px, 4vw, 48px);
+}
+.public-seo-appendix section,
+.public-seo-appendix header {
+  display: grid;
+  gap: 20px;
+}
+.public-seo-appendix h2,
+.public-related h2,
+.public-faq h2 {
+  font-size: clamp(27px, 3vw, 42px);
+  line-height: 1.1;
+}
+.public-seo-appendix h3 {
+  font-size: clamp(24px, 2.4vw, 32px);
+}
+.public-seo-appendix p,
+.public-seo-appendix li {
+  color: #cec8bd;
+  font-size: 17px;
+  line-height: 1.65;
+}
+.public-faq {
+  display: grid;
+  gap: 24px;
+}
+.public-faq-item {
+  border-bottom: 1px solid #282825;
+  padding: 24px 0;
+}
+.public-faq-item h3 button {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 24px;
+  min-height: 44px;
+  width: 100%;
+  text-align: left;
+  font-family: "Vistaire Editorial", serif;
+  font-size: 24px;
+}
+.public-faq-item h3 button > span:last-child {
+  color: #ffd60a;
+}
+.public-faq-item p {
+  margin-top: 16px;
+  color: #cec8bd;
+  font-size: 16px;
+  line-height: 1.7;
+}
+.public-related {
+  display: grid;
+  gap: 24px;
+}
+.public-related > div {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+.public-related a {
+  display: grid;
+  align-content: start;
+  gap: 16px;
+  padding: 24px;
+  background: #111110;
+  border: 1px solid #282825;
+  border-radius: 8px;
+}
+.public-related a:hover {
+  border-color: #ffc300;
+}
+.public-related a > p {
+  color: #ffd60a;
+  font-size: 12px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+.public-related a > span {
+  color: #cec8bd;
+  line-height: 1.5;
+}
+@media (max-width: 720px) {
+  .public-comparison {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 24px;
+  }
+  .public-comparison [role="tabpanel"] {
+    width: min(100%, 360px);
+    margin-inline: auto;
+  }
+  .public-related > div {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .public-film-frame video {
+    transition: none;
+  }
+}
+
+.public-related-inline {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 20px;
+}
+.public-related-inline a {
+  color: var(--public-gold);
+  font-size: 16px;
+  text-decoration: underline;
+  text-underline-offset: 5px;
+}

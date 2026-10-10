@@ -11,7 +11,7 @@ type SeoFaqItemProps = {
 export function SeoFaqItem({
   answer,
   initialOpen = false,
-  question
+  question,
 }: SeoFaqItemProps) {
   const [isOpen, setIsOpen] = useState(initialOpen);
   const reactId = useId();
@@ -22,13 +22,13 @@ export function SeoFaqItem({
   }, []);
 
   return (
-    <article className="group p-5 sm:p-6">
+    <article className="group px-5 py-6 sm:px-7 sm:py-7">
       <h3>
         <button
           ref={markHydrated}
           id={buttonId}
           type="button"
-          className="flex min-h-11 w-full items-center justify-between gap-5 rounded-md text-left font-display text-xl leading-tight text-cream outline-none transition-colors hover:text-[#f1d8a6] focus-visible:ring-2 focus-visible:ring-[#e8cf9b] focus-visible:ring-offset-4 focus-visible:ring-offset-[#0d0907] motion-reduce:transition-none"
+          className="flex min-h-11 w-full items-center justify-between gap-5 rounded-sm text-left font-display text-2xl font-normal leading-tight text-cream outline-none transition-colors hover:text-[#ffd60a] focus-visible:ring-2 focus-visible:ring-[#ffc300] focus-visible:ring-offset-4 focus-visible:ring-offset-[#111110] motion-reduce:transition-none"
           aria-controls={answerId}
           aria-expanded={isOpen}
           data-hydrated="false"
@@ -38,7 +38,7 @@ export function SeoFaqItem({
           <span>{question}</span>
           <svg
             aria-hidden="true"
-            className={`size-5 shrink-0 text-[#d7b978] transition-transform duration-200 motion-reduce:transition-none ${isOpen ? "rotate-180" : ""}`}
+            className={`size-5 shrink-0 text-[#ffc300] transition-transform duration-200 motion-reduce:transition-none ${isOpen ? "rotate-180" : ""}`}
             data-seo-faq-chevron
             viewBox="0 0 20 20"
             fill="none"
@@ -53,12 +53,8 @@ export function SeoFaqItem({
           </svg>
         </button>
       </h3>
-      <div
-        id={answerId}
-        data-seo-faq-answer
-        hidden={!isOpen}
-      >
-        <p className="mt-3 max-w-3xl text-sm leading-7 text-[#cdbfa9]">
+      <div id={answerId} data-seo-faq-answer hidden={!isOpen}>
+        <p className="mt-4 max-w-[70ch] text-base leading-7 text-[#cec8bd]">
           {answer}
         </p>
       </div>

@@ -1,850 +1,116 @@
-@font-face {
-  font-family: "BT Suave";
-  font-style: normal;
-  font-weight: 400;
-  font-display: block;
-  src: url("/fonts/vistaire-preview/btsuave-regular.otf") format("opentype");
-}
-
-@font-face {
-  font-family: "BT Suave";
-  font-style: normal;
-  font-weight: 500;
-  font-display: block;
-  src: url("/fonts/vistaire-preview/btsuave-medium.otf") format("opentype");
-}
-
-@font-face {
-  font-family: "Neue Montreal";
-  font-style: normal;
-  font-weight: 400;
-  font-display: block;
-  src: url("/fonts/vistaire-preview/NeueMontreal-Regular.otf") format("opentype");
-}
-
-@font-face {
-  font-family: "Neue Montreal";
-  font-style: normal;
-  font-weight: 500;
-  font-display: block;
-  src: url("/fonts/vistaire-preview/NeueMontreal-Medium.otf") format("opentype");
-}
-
-@font-face {
-  font-family: "Neue Montreal";
-  font-style: normal;
-  font-weight: 700;
-  font-display: block;
-  src: url("/fonts/vistaire-preview/NeueMontreal-Bold.otf") format("opentype");
-}
-
-.page {
-  --vistaire-font-body: "Neue Montreal";
-  --vistaire-font-display: "BT Suave";
-  --preview-cream: #fff7ea;
-  --preview-champagne: #e8cf9b;
-
-  position: relative;
-  min-height: 100svh;
-  overflow-x: clip;
-  background: #0d0805;
-  color: var(--preview-cream);
-  font-family: var(--vistaire-font-body);
-}
-
-.backgroundImage {
-  position: fixed !important;
-  z-index: 0;
-  object-fit: cover;
-  object-position: center top;
-}
-
-.topNav,
-.hero {
-  position: relative;
-  z-index: 2;
-}
-
-.topNav {
-  position: sticky;
-  top: 0;
-  z-index: 10;
-  display: flex;
-  justify-content: center;
-  padding: 14px 24px 10px;
-  background: transparent;
-}
-
-.topNav nav {
-  margin-top: 0;
-}
-
-.hero {
-  display: flex;
-  min-height: 742px;
-  flex-direction: column;
-  align-items: center;
-  padding: 8px 24px 18px;
-}
-
-.previewFrame {
+.sliderCard {
   display: grid;
-  width: min(1520px, calc(100vw - 48px));
-  min-height: 720px;
-  grid-template-columns: minmax(0, 1.06fr) minmax(460px, 0.94fr);
-  grid-template-rows: minmax(390px, auto) minmax(310px, auto);
-  gap: 12px;
-  border: 1px solid rgba(255, 250, 240, 0.26);
-  border-radius: 22px;
-  background: transparent;
-  padding: 14px;
-  box-shadow:
-    0 24px 70px rgba(0, 0, 0, 0.22),
-    inset 0 1px 0 rgba(255, 250, 240, 0.18),
-    inset 0 -1px 0 rgba(255, 250, 240, 0.1);
-  -webkit-backdrop-filter: blur(9px) saturate(112%);
-  backdrop-filter: blur(9px) saturate(112%);
-}
-
-.card,
-.restaurantPanel,
-.finalCta {
-  position: relative;
-  min-width: 0;
-  overflow: hidden;
-  border: 1px solid rgba(255, 250, 240, 0.26);
-  border-radius: 15px;
-  background: transparent;
-  box-shadow:
-    0 24px 70px rgba(0, 0, 0, 0.22),
-    inset 0 1px 0 rgba(255, 250, 240, 0.18),
-    inset 0 -1px 0 rgba(255, 250, 240, 0.1);
-  -webkit-backdrop-filter: blur(5px) saturate(110%);
-  backdrop-filter: blur(5px) saturate(110%);
-}
-
-.digitalCard,
-.comparisonCard,
-.restaurantPanel,
-.finalCta {
-  grid-column: 1 / -1;
-}
-
-.heroCopy {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  padding: clamp(26px, 4.4vw, 56px);
-}
-
-.badge {
-  display: inline-flex;
-  min-height: 32px;
-  width: max-content;
-  max-width: 100%;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: clamp(32px, 6vw, 96px);
   align-items: center;
-  justify-content: center;
-  border: 1px solid rgba(232, 207, 155, 0.54);
-  border-radius: 999px;
-  background: transparent;
-  padding: 0 18px;
-  color: rgba(232, 207, 155, 0.88);
-  font-size: 12px;
-  font-weight: 700;
-  line-height: 1;
-  -webkit-backdrop-filter: blur(5px) saturate(110%);
-  backdrop-filter: blur(5px) saturate(110%);
 }
-
-.heroCopy h1,
-.sectionIntro h2,
-.problemCard h2,
-.sliderIntro h2,
-.restaurantPanel h2,
-.finalCta h2 {
-  margin: 0;
-  color: #fffaf0;
-  font-family: var(--vistaire-font-display);
-  font-weight: 400;
-  letter-spacing: 0;
-}
-
-.heroCopy h1 {
-  max-width: 680px;
-  margin-top: 22px;
-  font-size: clamp(38px, 6vw, 70px);
-  line-height: 0.96;
-  text-wrap: balance;
-  text-shadow: 0 12px 32px rgba(0, 0, 0, 0.58);
-}
-
-.heroLead {
-  max-width: 650px;
-  margin: 24px 0 0;
-  color: rgba(255, 250, 240, 0.84);
-  font-size: 16px;
-  font-weight: 500;
-  line-height: 1.52;
-}
-
-.heroActions,
-.finalActions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  margin-top: 28px;
-}
-
-.primaryButton,
-.secondaryButton {
-  display: inline-flex;
-  min-height: 44px;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  border-radius: 999px;
-  padding: 0 18px;
-  font-size: 13px;
-  font-weight: 700;
-  line-height: 1;
-  text-decoration: none;
-  transition:
-    transform 180ms ease,
-    background-color 180ms ease,
-    border-color 180ms ease,
-    box-shadow 180ms ease,
-    color 180ms ease;
-}
-
-.primaryButton {
-  border: 1px solid rgba(255, 246, 225, 0.56);
-  background: transparent;
-  color: #fffaf0;
-  box-shadow:
-    0 14px 30px rgba(0, 0, 0, 0.2),
-    inset 0 1px 0 rgba(255, 250, 240, 0.2);
-  -webkit-backdrop-filter: blur(5px) saturate(110%);
-  backdrop-filter: blur(5px) saturate(110%);
-}
-
-.secondaryButton {
-  border: 1px solid rgba(232, 207, 155, 0.42);
-  background: transparent;
-  color: rgba(232, 207, 155, 0.9);
-}
-
-.primaryButton:hover,
-.secondaryButton:hover,
-.primaryButton:focus-visible,
-.secondaryButton:focus-visible {
-  transform: translateY(-1px);
-  border-color: rgba(255, 250, 240, 0.78);
-  background: rgba(0, 0, 0, 0.1);
-  color: #fffaf0;
-  box-shadow:
-    0 18px 36px rgba(0, 0, 0, 0.24),
-    inset 0 1px 0 rgba(255, 250, 240, 0.24);
-}
-
-.primaryButton:focus-visible,
-.secondaryButton:focus-visible,
-.internalLinks a:focus-visible {
-  outline: 2px solid rgba(232, 207, 155, 0.92);
-  outline-offset: 3px;
-}
-
-.buttonIcon {
-  width: 12px;
-  height: 12px;
-  flex: 0 0 auto;
-}
-
-.sliderCard {
-  min-height: 250px;
-}
-
-.sliderCard {
-  grid-row: span 2;
-  display: flex;
-  min-height: 714px;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 22px;
-}
-
 .sliderIntro {
-  width: min(100%, 470px);
-  margin-bottom: 14px;
-  text-align: center;
+  min-width: 0;
 }
-
 .sliderIntro p {
-  margin: 0 0 12px;
-  color: rgba(232, 207, 155, 0.9);
-  font-size: 12px;
-  font-weight: 700;
-  line-height: 1;
+  margin: 0;
+  color: var(--preview-champagne);
+  font-size: 11px;
+  letter-spacing: 0.17em;
   text-transform: uppercase;
 }
-
-.sliderIntro h2 {
-  font-size: 34px;
-  line-height: 1.04;
+.sliderIntro h2,
+.restaurantPanel h2 {
+  max-width: 22ch;
+  margin: 18px 0 0;
+  font-family: var(--vistaire-font-display);
+  font-size: clamp(34px, 3.6vw, 52px);
+  line-height: 1.1;
+  font-weight: 400;
+  letter-spacing: -0.025em;
+  text-wrap: balance;
 }
-
-.compareSlider {
-  width: min(100%, 410px);
+.sliderCard > :last-child {
+  width: 100%;
+  max-width: 560px;
+  justify-self: center;
 }
-
-.problemCard {
-  padding: 28px 26px;
-}
-
-.problemCard h2 {
-  margin-top: 18px;
-  font-size: 34px;
-  line-height: 1.02;
-}
-
-.problemList {
-  display: grid;
-  gap: 18px;
-  margin-top: 24px;
-}
-
-.problemList section {
-  border-top: 1px solid rgba(255, 246, 225, 0.11);
-  padding-top: 16px;
-}
-
-.problemList h3,
-.benefitItem h3 {
-  margin: 0;
-  color: rgba(255, 250, 240, 0.96);
-  font-size: 15px;
-  font-weight: 700;
-  line-height: 1.2;
-}
-
-.problemList p {
-  margin: 7px 0 0;
-  color: rgba(244, 229, 205, 0.74);
-  font-size: 13.5px;
-  font-weight: 500;
-  line-height: 1.45;
-}
-
 .digitalCard {
   display: grid;
-  gap: 22px;
-  padding: 28px 26px;
+  grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);
+  gap: clamp(32px, 6vw, 96px);
+  align-items: start;
 }
-
-.sectionIntro {
-  max-width: 760px;
+.digitalCard > :last-child {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin: 0;
 }
-
-.sectionIntro h2,
-.restaurantPanel h2,
-.finalCta h2 {
-  margin-top: 18px;
-  font-size: clamp(34px, 5vw, 54px);
-  line-height: 0.98;
-  text-wrap: balance;
-}
-
-.sectionIntro p:not(.badge),
-.restaurantPanel p:not(.badge),
-.finalCta p:not(.badge) {
-  max-width: 720px;
-  margin: 18px 0 0;
-  color: rgba(244, 229, 205, 0.78);
-  font-size: 15px;
-  font-weight: 500;
-  line-height: 1.6;
-}
-
-.benefitGrid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 10px;
-}
-
-.benefitItem {
-  min-height: 112px;
-  border: 1px solid rgba(255, 250, 240, 0.22);
-  border-radius: 14px;
-  background: transparent;
-  padding: 18px;
-  box-shadow: inset 0 1px 0 rgba(255, 250, 240, 0.1);
-  -webkit-backdrop-filter: blur(5px) saturate(110%);
-  backdrop-filter: blur(5px) saturate(110%);
-}
-
-.benefitItem::before {
-  display: block;
-  width: 28px;
-  height: 1px;
-  margin-bottom: 18px;
-  background: rgba(232, 207, 155, 0.76);
-  content: "";
-}
-
-.comparisonGrid {
-  display: grid;
-  gap: 22px;
-}
-
+.comparisonGrid,
 .comparisonContent {
-  display: grid;
   min-width: 0;
-  grid-template-columns: minmax(0, 0.92fr) minmax(320px, 0.78fr);
-  gap: 22px;
-  align-items: center;
 }
-
-.comparisonContent .sectionIntro {
-  grid-column: 1;
-}
-
-.comparisonContent .comparisonVisual {
-  grid-column: 2;
-  grid-row: 1;
-}
-
-.comparisonContent .comparisonTable {
-  grid-column: 1 / -1;
-}
-
-.comparisonCard {
-  padding: 28px 26px;
-}
-
-.comparisonVisual {
-  position: relative;
+.heroVisual {
   aspect-ratio: 4 / 3;
-  min-height: 360px;
+  position: relative;
+  min-width: 0;
   margin: 0;
   overflow: hidden;
-  border: 1px solid rgba(246, 225, 183, 0.2);
-  border-radius: 14px;
-  background:
-    linear-gradient(180deg, rgba(255, 250, 240, 0.04), rgba(5, 3, 2, 0.14)),
-    rgba(8, 5, 3, 0.22);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 250, 240, 0.12),
-    0 22px 54px rgba(0, 0, 0, 0.2);
+  background: #111110;
 }
-
-.comparisonVisual img {
-  object-fit: cover;
-  object-position: center;
-}
-
-.comparisonVisual::after {
-  position: absolute;
-  inset: 0;
-  background:
-    linear-gradient(180deg, rgba(8, 5, 3, 0.06), transparent 42%, rgba(8, 5, 3, 0.22)),
-    radial-gradient(circle at 20% 12%, rgba(232, 207, 155, 0.1), transparent 28%);
-  content: "";
-  pointer-events: none;
-}
-
-.comparisonTable {
-  width: 100%;
-  border-collapse: collapse;
-  table-layout: fixed;
-  overflow: hidden;
-  border-radius: 12px;
-  color: rgba(255, 250, 240, 0.82);
-  font-size: 13px;
-  line-height: 1.42;
-}
-
-.comparisonTable th,
-.comparisonTable td {
-  border: 1px solid rgba(255, 246, 225, 0.11);
-  padding: 15px 13px;
-  text-align: left;
-  vertical-align: top;
-}
-
-.comparisonTable thead th {
-  background: rgba(255, 250, 240, 0.08);
-  color: rgba(232, 207, 155, 0.94);
-  font-size: 11px;
-  font-weight: 700;
-  line-height: 1.2;
-  text-transform: uppercase;
-}
-
-.comparisonTable tbody th {
-  color: #fffaf0;
-  font-weight: 700;
-}
-
-.comparisonTable tbody tr {
-  background: rgba(10, 6, 3, 0.22);
-}
-
-.comparisonTable td:last-child {
-  color: rgba(255, 250, 240, 0.95);
-  background: rgba(232, 207, 155, 0.055);
-}
-
-.restaurantPanel {
-  display: grid;
-  grid-template-columns: minmax(0, 0.92fr) minmax(320px, 0.78fr);
-  gap: clamp(22px, 3.2vw, 42px);
-  align-items: center;
-  padding: clamp(28px, 4.2vw, 48px);
-}
-
-.detailVisual {
-  position: relative;
-  grid-row: 1 / span 3;
-  aspect-ratio: 4 / 3;
-  min-height: 360px;
-  margin: 0;
-  overflow: hidden;
-  border: 1px solid rgba(246, 225, 183, 0.2);
-  border-radius: 14px;
-  background: rgba(8, 5, 3, 0.24);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 250, 240, 0.12),
-    0 22px 54px rgba(0, 0, 0, 0.22);
-}
-
+.heroVisual img,
 .detailVisual img {
   object-fit: cover;
   object-position: center;
 }
-
-.detailVisual::after {
-  position: absolute;
-  inset: 0;
-  background:
-    linear-gradient(180deg, rgba(8, 5, 3, 0.03), transparent 52%, rgba(8, 5, 3, 0.16)),
-    radial-gradient(circle at 72% 18%, rgba(232, 207, 155, 0.12), transparent 30%);
-  content: "";
-  pointer-events: none;
-}
-
-.restaurantPanel > .badge,
-.restaurantPanel > h2,
-.restaurantPanel > p:not(.badge) {
-  grid-column: 2;
-}
-
-.restaurantPanel p:not(.badge) {
-  max-width: 820px;
-}
-
-.finalCta {
+.restaurantPanel {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 24px;
-  align-items: end;
-  padding: clamp(28px, 4.2vw, 48px);
-}
-
-.finalActions {
-  justify-content: flex-end;
-  margin-top: 0;
-}
-
-.internalLinks {
-  grid-column: 1 / -1;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px 18px;
-  border-top: 1px solid rgba(255, 246, 225, 0.1);
-  padding-top: 18px;
-}
-
-.internalLinks a {
-  display: inline-flex;
-  min-height: 34px;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   align-items: center;
-  border: 1px solid rgba(232, 207, 155, 0.26);
-  border-radius: 999px;
-  background: transparent;
-  padding: 0 13px;
-  color: rgba(232, 207, 155, 0.84);
-  font-size: 13px;
-  font-weight: 700;
-  line-height: 1.3;
-  text-decoration-line: underline;
-  text-decoration-color: rgba(232, 207, 155, 0.38);
-  text-underline-offset: 4px;
-  transition:
-    color 180ms ease,
-    text-decoration-color 180ms ease,
-    transform 180ms ease,
-    background-color 180ms ease,
-    border-color 180ms ease;
+  column-gap: clamp(32px, 6vw, 96px);
+  row-gap: 20px;
 }
-
-.internalLinks a:hover,
-.internalLinks a:focus-visible {
-  transform: translateY(-1px);
-  border-color: rgba(255, 250, 240, 0.48);
-  background: rgba(0, 0, 0, 0.1);
-  color: #fffaf0;
-  text-decoration-color: rgba(255, 250, 240, 0.78);
+.detailVisual {
+  position: relative;
+  grid-column: 1;
+  grid-row: 1 / span 3;
+  aspect-ratio: 4 / 3;
+  margin: 0;
+  overflow: hidden;
+  background: #111110;
 }
-
-@media (prefers-reduced-motion: reduce) {
-  .primaryButton,
-  .secondaryButton,
-  .internalLinks a {
-    transition: none;
-  }
+.restaurantPanel > h2,
+.restaurantPanel > p {
+  grid-column: 2;
+  margin: 0;
 }
-
-@media (max-width: 1180px) {
-  .hero {
-    padding-top: 8px;
-  }
-
-  .previewFrame {
-    width: min(1240px, calc(100vw - 40px));
-    grid-template-columns: minmax(0, 1fr) minmax(390px, 0.84fr);
-  }
-
-  .heroCopy h1 {
-    font-size: clamp(36px, 5.5vw, 60px);
-  }
+.restaurantPanel > p:last-child {
+  color: var(--preview-muted);
+  font-size: 18px;
+  line-height: 1.7;
 }
-
-@media (max-width: 920px) {
-  .hero {
-    min-height: auto;
-    padding: 8px 14px 18px;
-  }
-
-  .previewFrame {
-    width: min(560px, calc(100vw - 28px));
-  }
-
-  .previewFrame {
-    min-height: 0;
-    grid-template-columns: 1fr;
-    grid-template-rows: none;
-    border-radius: 21px;
-    padding: 10px;
-  }
-
-  .heroCopy {
-    min-height: 420px;
-    padding: 30px 24px;
-  }
-
-  .sliderCard {
-    grid-row: auto;
-    min-height: 0;
-    padding: 20px;
-  }
-
-  .problemCard {
-    padding: 26px 22px;
-  }
-
-  .benefitGrid {
-    grid-template-columns: 1fr 1fr;
-  }
-
+@media (max-width: 640px) {
+  .sliderCard,
   .digitalCard,
-  .comparisonCard {
-    padding: 26px 22px;
-  }
-
-  .comparisonContent {
-    grid-template-columns: 1fr;
-  }
-
-  .comparisonContent .sectionIntro,
-  .comparisonContent .comparisonTable,
-  .comparisonContent .comparisonVisual {
-    grid-column: 1;
-    grid-row: auto;
-  }
-
-  .comparisonVisual {
-    min-height: 300px;
-  }
-
   .restaurantPanel {
     grid-template-columns: 1fr;
+    gap: 30px;
   }
-
-  .detailVisual,
-  .restaurantPanel > .badge,
+  .digitalCard > :last-child {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+  .heroVisual {
+    aspect-ratio: 4 / 3;
+  }
+  .detailVisual {
+    grid-column: 1;
+    grid-row: auto;
+    aspect-ratio: 4 / 3;
+  }
   .restaurantPanel > h2,
-  .restaurantPanel > p:not(.badge) {
+  .restaurantPanel > p {
     grid-column: 1;
   }
-
-  .detailVisual {
-    grid-row: auto;
-    min-height: 300px;
-  }
-
-  .finalCta {
-    grid-template-columns: 1fr;
-  }
-
-  .finalActions {
-    justify-content: flex-start;
-  }
-}
-
-@media (max-width: 760px) {
-  .comparisonTable,
-  .comparisonTable tbody,
-  .comparisonTable tr,
-  .comparisonTable th,
-  .comparisonTable td {
-    display: block;
-  }
-
-  .comparisonTable thead {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    overflow: hidden;
-    clip: rect(0 0 0 0);
-    white-space: nowrap;
-  }
-
-  .comparisonTable tr {
-    border: 1px solid rgba(255, 246, 225, 0.12);
-    border-radius: 12px;
-    background: rgba(255, 250, 240, 0.03);
-  }
-
-  .comparisonTable tr + tr {
-    margin-top: 10px;
-  }
-
-  .comparisonTable tbody th,
-  .comparisonTable td {
-    border: 0;
-    padding: 13px 14px;
-  }
-
-  .comparisonTable tbody th {
-    border-bottom: 1px solid rgba(255, 246, 225, 0.1);
-  }
-
-  .comparisonTable td::before {
-    display: block;
-    margin-bottom: 5px;
-    color: rgba(232, 207, 155, 0.82);
-    font-size: 10.5px;
-    font-weight: 700;
-    line-height: 1;
-    text-transform: uppercase;
-    content: attr(data-label);
-  }
-}
-
-@media (max-width: 520px) {
-  .page {
-    background: #120906;
-  }
-
-  .hero {
-    padding: 8px 10px 14px;
-  }
-
-  .topNav {
-    padding: 10px 0 8px;
-  }
-
-  .previewFrame {
-    width: calc(100vw - 20px);
-  }
-
-  .previewFrame {
-    gap: 8px;
-    border-radius: 19px;
-    padding: 8px;
-  }
-
-  .card,
-  .restaurantPanel,
-  .finalCta {
-    border-radius: 13px;
-  }
-
-  .heroCopy {
-    min-height: 0;
-    padding: 24px 17px;
-  }
-
-  .heroCopy h1 {
-    font-size: 36px;
-    line-height: 1;
-  }
-
-  .heroLead,
-  .sectionIntro p:not(.badge),
-  .restaurantPanel p:not(.badge),
-  .finalCta p:not(.badge) {
-    font-size: 14px;
-    line-height: 1.5;
-  }
-
-  .heroActions,
-  .finalActions {
-    flex-direction: column;
-  }
-
-  .primaryButton,
-  .secondaryButton {
-    width: 100%;
-    min-height: 46px;
-  }
-
-  .sliderCard {
-    padding: 18px 14px;
-  }
-
-  .compareSlider {
-    width: min(100%, 330px);
-  }
-
   .sliderIntro h2,
-  .problemCard h2 {
-    font-size: 28px;
+  .restaurantPanel h2 {
+    font-size: 34px;
   }
-
-  .benefitGrid {
-    grid-template-columns: 1fr;
-    gap: 8px;
-  }
-
-  .benefitItem {
-    min-height: 0;
-  }
-
-  .digitalCard,
-  .comparisonCard,
-  .restaurantPanel,
-  .finalCta {
-    padding: 20px 16px;
-  }
-
-  .comparisonVisual {
-    min-height: 230px;
-    border-radius: 12px;
-  }
-
-  .detailVisual {
-    min-height: 230px;
-    border-radius: 12px;
+  .restaurantPanel > p:last-child {
+    font-size: 17px;
   }
 }

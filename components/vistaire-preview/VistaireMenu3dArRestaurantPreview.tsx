@@ -1,7 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
 import type { ReactNode } from "react";
-import restaurantBackground from "@/Framer/PhotoRestoComplet5.png";
 import pageDigitalPhoto from "@/Framer/PageDigital.png";
 import photoDigital2 from "@/Framer/PhotoDigital2.png";
 import photoDigital3 from "@/Framer/PhotoDigital3.png";
@@ -10,7 +9,7 @@ import {
   getVistaireChromeRoutes,
   PreviewFooter,
   PreviewNav,
-  type VistaireRouteMode
+  type VistaireRouteMode,
 } from "./VistairePreviewChrome";
 import styles from "./VistaireMenuDigitalRestaurantPreview.module.css";
 
@@ -37,7 +36,7 @@ export function VistaireMenu3dArRestaurantPreview({
   h1,
   locale = "fr",
   routeMode = "production",
-  seoAppendix
+  seoAppendix,
 }: {
   h1?: string;
   locale?: Locale;
@@ -51,8 +50,7 @@ export function VistaireMenu3dArRestaurantPreview({
           defaultTitle:
             "3D AR restaurant menu: show the dish when it truly helps",
           badge: "Selective 3D / AR",
-          lead:
-            "Vistaire integrates 3D and augmented reality with restraint: only on dishes where volume, texture or service presentation makes the decision clearer.",
+          lead: "Vistaire integrates 3D and augmented reality with restraint: only on dishes where volume, texture or service presentation makes the decision clearer.",
           viewMenu: "View the menu",
           appointment: "Book a call",
           usageBadge: "Premium use",
@@ -81,36 +79,33 @@ export function VistaireMenu3dArRestaurantPreview({
           selectivePrinciples: [
             {
               title: "Selective",
-              text:
-                "3D / AR is not applied to the whole menu. It serves signature dishes that benefit from being seen in volume."
+              text: "3D / AR is not applied to the whole menu. It serves signature dishes that benefit from being seen in volume.",
             },
             {
               title: "Mobile-first",
-              text:
-                "The guest understands the dish from the phone before requesting an immersive view."
+              text: "The guest understands the dish from the phone before requesting an immersive view.",
             },
             {
               title: "No gimmick",
-              text:
-                "Vistaire keeps the room, service and kitchen at the center. Immersion supports choice; it does not replace the experience."
-            }
+              text: "Vistaire keeps the room, service and kitchen at the center. Immersion supports choice; it does not replace the experience.",
+            },
           ],
           arUseCases: [
             "Signature dessert with important volume, texture or plating.",
             "Iconic dish where presentation influences the decision.",
-            "Creation that needs explanation without overloading the main menu."
-          ]
+            "Creation that needs explanation without overloading the main menu.",
+          ],
         }
       : {
           defaultTitle:
             "Menu 3D AR restaurant : montrer le plat quand cela aide vraiment",
           badge: "3D / AR sélective",
-          lead:
-            "Vistaire intègre la 3D et la réalité augmentée avec retenue : uniquement sur les plats où le volume, la texture ou le geste de service rendent la décision plus claire.",
+          lead: "Vistaire intègre la 3D et la réalité augmentée avec retenue : uniquement sur les plats où le volume, la texture ou le geste de service rendent la décision plus claire.",
           viewMenu: "Voir la carte",
           appointment: "Prendre rendez-vous",
           usageBadge: "Usage premium",
-          usageTitle: "La 3D / AR doit rester utile, pas spectaculaire pour rien",
+          usageTitle:
+            "La 3D / AR doit rester utile, pas spectaculaire pour rien",
           usageBody:
             "Dans un restaurant haut de gamme, une vue immersive doit prolonger la carte et rassurer le client. Elle n'a de valeur que si elle clarifie un plat, une texture ou une présentation.",
           beforeBadge: "Avant la vue immersive",
@@ -135,47 +130,32 @@ export function VistaireMenu3dArRestaurantPreview({
           selectivePrinciples: [
             {
               title: "Sélective",
-              text:
-                "La 3D / AR n'est pas appliquée à toute la carte. Elle sert les plats signatures qui gagnent à être vus en volume."
+              text: "La 3D / AR n'est pas appliquée à toute la carte. Elle sert les plats signatures qui gagnent à être vus en volume.",
             },
             {
               title: "Mobile-first",
-              text:
-                "Le client comprend le plat depuis son téléphone avant de demander une vue immersive."
+              text: "Le client comprend le plat depuis son téléphone avant de demander une vue immersive.",
             },
             {
               title: "Sans gadget",
-              text:
-                "Vistaire garde la salle, le service et la cuisine au centre. L'immersion aide le choix, elle ne remplace pas l'expérience."
-            }
+              text: "Vistaire garde la salle, le service et la cuisine au centre. L'immersion aide le choix, elle ne remplace pas l'expérience.",
+            },
           ],
           arUseCases: [
             "Dessert signature avec volume, texture ou dressage important.",
             "Plat iconique dont la présentation influence la décision.",
-            "Création à expliquer sans alourdir la carte principale."
-          ]
+            "Création à expliquer sans alourdir la carte principale.",
+          ],
         };
   const pageTitle = h1 ?? copy.defaultTitle;
   const internalLinks = [
     { label: copy.viewMenu, href: routes.menu },
     { label: copy.digitalMenu, href: routes.menuDigital },
-    { label: copy.talk, href: routes.contact }
+    { label: copy.talk, href: routes.contact },
   ] as const;
 
   return (
-    <main className={styles.page}>
-      <Image
-        alt=""
-        aria-hidden="true"
-        className={styles.backgroundImage}
-        fill
-        priority
-        quality={100}
-        sizes="100vw"
-        src={restaurantBackground}
-        unoptimized
-      />
-
+    <main className={styles.page} data-public-vistaire>
       <div className={styles.topNav}>
         <PreviewNav
           currentPath={routes.menu3dAr}
@@ -191,32 +171,40 @@ export function VistaireMenu3dArRestaurantPreview({
       >
         <div className={styles.previewFrame}>
           <article className={`${styles.card} ${styles.heroCopy}`}>
-            <p className={styles.badge}>{copy.badge}</p>
-            <h1 id="menu-3d-ar-restaurant-title">{pageTitle}</h1>
-            <p className={styles.heroLead}>{copy.lead}</p>
-            <div className={styles.heroActions} aria-label="Actions principales">
-              <Link className={styles.primaryButton} href={routes.menu} prefetch={false}>
-                {copy.viewMenu}
-                <ArrowIcon />
-              </Link>
-              <Link
-                className={styles.secondaryButton}
-                href={routes.appointment}
-                prefetch={false}
+            <div className={styles.heroText}>
+              <p className={styles.badge}>{copy.badge}</p>
+              <h1 id="menu-3d-ar-restaurant-title">{pageTitle}</h1>
+              <p className={styles.heroLead}>{copy.lead}</p>
+              <div
+                className={styles.heroActions}
+                aria-label="Actions principales"
               >
-                {copy.appointment}
-              </Link>
+                <Link
+                  className={styles.primaryButton}
+                  href={routes.menu}
+                  prefetch={false}
+                >
+                  {copy.viewMenu}
+                  <ArrowIcon />
+                </Link>
+                <Link
+                  className={styles.secondaryButton}
+                  href={routes.appointment}
+                  prefetch={false}
+                >
+                  {copy.appointment}
+                </Link>
+              </div>
             </div>
             <figure className={`${styles.visualFigure} ${styles.heroVisual}`}>
               <Image
-                alt="Vue 3D et réalité augmentée Vistaire présentées sur téléphone"
+                alt={locale === "en" ? "Vistaire 3D and augmented reality dish presentation on a phone" : "Vue 3D et réalité augmentée Vistaire présentées sur téléphone"}
                 className={styles.visualImage}
                 fill
                 priority
-                quality={100}
-                sizes="(max-width: 920px) calc(100vw - 56px), 20vw"
+                quality={90}
+                sizes="(max-width: 920px) calc(100vw - 40px), 44vw"
                 src={photoDigital2}
-                unoptimized
               />
             </figure>
           </article>
@@ -244,14 +232,12 @@ export function VistaireMenu3dArRestaurantPreview({
           >
             <figure className={styles.visualFigure}>
               <Image
-                alt="Cliente consultant une carte digitale Vistaire dans un restaurant sombre"
+                alt={locale === "en" ? "Guest browsing a Vistaire digital menu in a restaurant dining room" : "Cliente consultant une carte digitale Vistaire dans un restaurant sombre"}
                 className={styles.visualImage}
                 fill
-                priority
-                quality={100}
+                quality={90}
                 sizes="(max-width: 920px) calc(100vw - 56px), 58vw"
                 src={photoDigital3}
-                unoptimized
               />
             </figure>
             <div className={styles.visualCopy}>
@@ -290,15 +276,16 @@ export function VistaireMenu3dArRestaurantPreview({
                 <p>{copy.premiumBody}</p>
               </div>
             </div>
-            <figure className={`${styles.visualFigure} ${styles.premiumVisual}`}>
+            <figure
+              className={`${styles.visualFigure} ${styles.premiumVisual}`}
+            >
               <Image
-                alt="Fiche plat Vistaire sur téléphone à côté d'un dessert signature"
+                alt={locale === "en" ? "Vistaire dish page on a phone beside a signature dessert" : "Fiche plat Vistaire sur téléphone à côté d'un dessert signature"}
                 className={styles.visualImage}
                 fill
-                quality={100}
+                quality={90}
                 sizes="(max-width: 920px) calc(100vw - 56px), 24vw"
                 src={pageDigitalPhoto}
-                unoptimized
               />
             </figure>
           </section>
@@ -321,11 +308,18 @@ export function VistaireMenu3dArRestaurantPreview({
                 {copy.appointment}
                 <ArrowIcon />
               </Link>
-              <Link className={styles.secondaryButton} href={routes.menu} prefetch={false}>
+              <Link
+                className={styles.secondaryButton}
+                href={routes.menu}
+                prefetch={false}
+              >
                 {copy.viewMenu}
               </Link>
             </div>
-            <nav className={styles.internalLinks} aria-label={copy.internalLabel}>
+            <nav
+              className={styles.internalLinks}
+              aria-label={copy.internalLabel}
+            >
               {internalLinks.map((item) => (
                 <Link href={item.href} key={item.href} prefetch={false}>
                   {item.label}
@@ -334,7 +328,7 @@ export function VistaireMenu3dArRestaurantPreview({
             </nav>
           </section>
 
-          {seoAppendix}
+          <div className={styles.seoAppendix}>{seoAppendix}</div>
         </div>
       </section>
 

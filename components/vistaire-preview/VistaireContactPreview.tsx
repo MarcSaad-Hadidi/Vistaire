@@ -1,73 +1,33 @@
-import Image, { type StaticImageData } from "next/image";
+import Image from "next/image";
 import Link from "next/link";
-import contactBackground from "@/Framer/PhotoRestoComplet4.png";
-import cocktailImage from "@/Framer/Boisson.png";
-import diningRoomImage from "@/Framer/PhotoResto.png";
 import pageContactImage from "@/Framer/PageContact.png";
-import lobsterPlate from "@/Framer/PlatHomard.png";
-import dessertImage from "@/Framer/Desert.png";
-import tableImage from "@/Framer/Photo table.png";
 import type { Locale } from "@/lib/i18n";
 import { CONTACT_PHONE_DISPLAY, CONTACT_PHONE_TEL } from "@/lib/seo";
 import {
   getVistaireChromeRoutes,
   PreviewFooter,
   PreviewNav,
-  type VistaireRouteMode
+  type VistaireRouteMode,
 } from "./VistairePreviewChrome";
 import styles from "./VistaireContactPreview.module.css";
 
-type FramerImageProps = {
-  alt: string;
-  className?: string;
-  priority?: boolean;
-  sizes?: string;
-  src: StaticImageData;
-};
-
-const imageTiles: FramerImageProps[] = [
-  {
-    alt: "Salle de restaurant haut de gamme preparee pour le service",
-    src: diningRoomImage
-  },
-  {
-    alt: "Plat de homard premium dans une assiette noire",
-    src: lobsterPlate
-  },
-  {
-    alt: "Dessert au chocolat servi dans une assiette noire",
-    src: dessertImage
-  },
-  {
-    alt: "Table de restaurant elegante avec verres et chandelle",
-    src: tableImage
-  }
-];
-
-function FramerImage({
-  alt,
-  className,
-  priority,
-  sizes = "(max-width: 920px) calc(100vw - 36px), 360px",
-  src
-}: FramerImageProps) {
+function ArrowIcon() {
   return (
-    <Image
-      alt={alt}
-      className={className}
-      fill
-      priority={priority}
-      quality={100}
-      sizes={sizes}
-      src={src}
-      unoptimized
-    />
+    <svg aria-hidden="true" fill="none" viewBox="0 0 16 16">
+      <path
+        d="M4 12 12 4m0 0H4m8 0v8"
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="1.4"
+      />
+    </svg>
   );
 }
 
 export function VistaireContactPreview({
   locale = "fr",
-  routeMode = "production"
+  routeMode = "production",
 }: {
   locale?: Locale;
   routeMode?: VistaireRouteMode;
@@ -76,181 +36,143 @@ export function VistaireContactPreview({
   const copy =
     locale === "en"
       ? {
-          srTitle: "for your restaurant digital menu",
+          badge: "Vistaire contact",
+          title: "Let’s talk about your",
+          titleAccent: "restaurant.",
+          contactBody:
+            "Tell us about your restaurant, your menu and the experience you want to offer.",
           restaurantBadge: "For restaurants",
-          restaurantTitle: "For restaurants",
           bodyA:
             "Vistaire turns a restaurant QR code into a premium digital menu that opens on mobile, without an app.",
           bodyB:
             "We can discuss your menu, dish pages, brand identity, selective 3D/AR and adaptation to your guests.",
           bodyC: "Available for restaurants in the Montreal area.",
-          ambienceLabel: "Vistaire atmosphere",
           appointment: "Book a call",
-          contactTitle: "Vistaire contact",
-          contactBody:
-            "Tell us about your restaurant, your menu and the experience you want to offer.",
+          contactTitle: "Contact Vistaire",
           company: "Company",
           region: "Region",
           regionValue: "Montreal, Quebec, Canada",
-          phone: "Phone"
+          phone: "Phone",
+          photoAlt:
+            "A warm, elegant restaurant dining room prepared for service",
+          closing: "A menu designed for",
+          closingAccent: "your tables.",
+          explore: "Discover the Vistaire menus",
         }
       : {
-          srTitle: "pour votre carte digitale restaurant",
-          restaurantBadge: "POUR LES RESTAURANTS",
-          restaurantTitle: "Pour les restaurants",
+          badge: "Contact Vistaire",
+          title: "Parlons de votre",
+          titleAccent: "restaurant.",
+          contactBody:
+            "Parlez-nous de votre restaurant, de votre carte et de l'expérience que vous souhaitez offrir.",
+          restaurantBadge: "Pour les restaurants",
           bodyA:
             "Vistaire transforme le QR code d'un restaurant en carte digitale premium consultable sur mobile, sans application.",
           bodyB:
             "Nous pouvons discuter de votre menu, de vos fiches plats, de votre image de marque, de la 3D/AR sélective et de l'adaptation à votre clientèle.",
           bodyC: "Disponible pour les restaurants de la région de Montréal.",
-          ambienceLabel: "Ambiance Vistaire",
           appointment: "Prendre rendez-vous",
-          contactTitle: "Contact Vistaire",
-          contactBody:
-            "Parlez-nous de votre restaurant, de votre carte et de l'expérience que vous souhaitez offrir.",
+          contactTitle: "Contacter Vistaire",
           company: "Entreprise",
           region: "Région",
           regionValue: "Montréal, Québec, Canada",
-          phone: "Téléphone"
+          phone: "Téléphone",
+          photoAlt:
+            "Une salle de restaurant élégante et chaleureuse préparée pour le service",
+          closing: "Une carte pensée pour",
+          closingAccent: "vos tables.",
+          explore: "Découvrir les cartes Vistaire",
         };
 
   return (
-    <main className={styles.page}>
-      <Image
-        alt=""
-        aria-hidden="true"
-        className={styles.backgroundImage}
-        fill
-        priority
-        quality={100}
-        sizes="100vw"
-        src={contactBackground}
-        unoptimized
+    <main className={styles.page} data-public-vistaire>
+      <PreviewNav
+        activeSection="contact"
+        currentPath={routes.contact}
+        locale={locale}
+        routeMode={routeMode}
       />
-
       <section
         aria-labelledby="contact-preview-title"
         className={styles.hero}
         id="contact-preview"
       >
-        <div className={styles.previewFrame}>
-          <article className={`${styles.card} ${styles.heroImageCard}`}>
-            <FramerImage
-              alt="Cocktail rose premium servi dans une coupe sur une scene sombre"
-              className={styles.cardImage}
-              priority
-              sizes="(max-width: 920px) calc(100vw - 36px), 380px"
-              src={cocktailImage}
-            />
-            <div aria-hidden="true" className={styles.heroImageShade} />
-            <div className={styles.heroImageCopy}>
-              <h1 id="contact-preview-title">
-                CONTACT
-                <span>VISTAIRE</span>
-                <span className={styles.srOnly}>
-                  {copy.srTitle}
-                </span>
-              </h1>
+        <div className={styles.heroCopy}>
+          <p className={styles.eyebrow}>{copy.badge}</p>
+          <h1 id="contact-preview-title">
+            {copy.title} <em>{copy.titleAccent}</em>
+          </h1>
+          <p className={styles.intro}>{copy.contactBody}</p>
+          <Link
+            className={styles.ctaButton}
+            href={routes.appointment}
+            prefetch={false}
+          >
+            {copy.appointment}
+            <ArrowIcon />
+          </Link>
+          <dl aria-label={copy.contactTitle} className={styles.contactMeta}>
+            <div>
+              <dt>{locale === "en" ? "Email" : "Courriel"}</dt>
+              <dd>
+                <a href="mailto:contact@vistaire.ca">
+                  contact@vistaire.ca
+                  <ArrowIcon />
+                </a>
+              </dd>
             </div>
-          </article>
-
-          <div className={styles.middleColumn}>
-            <article
-              aria-labelledby="contact-restaurants-title"
-              className={`${styles.card} ${styles.restaurantCard}`}
-            >
-              <div aria-hidden="true" className={styles.restaurantShade} />
-              <div className={styles.restaurantContent}>
-                <p className={styles.badge}>{copy.restaurantBadge}</p>
-                <h2 id="contact-restaurants-title" className={styles.srOnly}>
-                  {copy.restaurantTitle}
-                </h2>
-                <p>{copy.bodyA}</p>
-                <p>{copy.bodyB}</p>
-                <p>{copy.bodyC}</p>
-              </div>
-            </article>
-
-            <div className={styles.tileGrid} aria-label={copy.ambienceLabel}>
-              {imageTiles.map((tile) => (
-                <article className={styles.tileCard} key={tile.alt}>
-                  <FramerImage
-                    alt={tile.alt}
-                    className={styles.cardImage}
-                    src={tile.src}
-                  />
-                </article>
-              ))}
+            <div>
+              <dt>{copy.phone}</dt>
+              <dd>
+                <a href={`tel:${CONTACT_PHONE_TEL}`}>
+                  {CONTACT_PHONE_DISPLAY}
+                  <ArrowIcon />
+                </a>
+              </dd>
             </div>
-          </div>
-
-          <div className={styles.rightColumn}>
-            <article className={`${styles.card} ${styles.barCard}`}>
-              <FramerImage
-                alt="Salle Vistaire premium avec banquettes, verres et lumière chaude"
-                className={styles.cardImage}
-                priority
-                src={pageContactImage}
-              />
-              <div aria-hidden="true" className={styles.barShade} />
-            </article>
-
-            <article
-              aria-labelledby="contact-card-title"
-              className={`${styles.card} ${styles.contactCard}`}
-            >
-              <div aria-hidden="true" className={styles.contactShade} />
-              <div className={styles.contactContent}>
-                <Link
-                  className={styles.contactButton}
-                  href={routes.appointment}
-                  prefetch={false}
-                >
-                  {copy.appointment}
-                </Link>
-                <h2 id="contact-card-title" className={styles.srOnly}>
-                  {copy.contactTitle}
-                </h2>
-                <p>{copy.contactBody}</p>
-                <dl className={styles.contactMeta}>
-                  <div>
-                    <dt>{copy.company}</dt>
-                    <dd>Vistaire</dd>
-                  </div>
-                  <div>
-                    <dt>{copy.region}</dt>
-                    <dd>{copy.regionValue}</dd>
-                  </div>
-                  <div>
-                    <dt>Email</dt>
-                    <dd>
-                      <a href="mailto:contact@vistaire.ca">
-                        contact@vistaire.ca
-                      </a>
-                    </dd>
-                  </div>
-                  <div>
-                    <dt>{copy.phone}</dt>
-                    <dd>
-                      <a href={`tel:${CONTACT_PHONE_TEL}`}>
-                        {CONTACT_PHONE_DISPLAY}
-                      </a>
-                    </dd>
-                  </div>
-                </dl>
-              </div>
-            </article>
-          </div>
+            <div>
+              <dt>{copy.region}</dt>
+              <dd>{copy.regionValue}</dd>
+            </div>
+            <div>
+              <dt>{copy.company}</dt>
+              <dd>Vistaire</dd>
+            </div>
+          </dl>
         </div>
-
-        <PreviewNav
-          activeSection="contact"
-          currentPath={routes.contact}
-          locale={locale}
-          routeMode={routeMode}
-        />
+        <div className={styles.heroPhoto}>
+          <Image
+            alt={copy.photoAlt}
+            className={styles.photo}
+            fill
+            priority
+            quality={90}
+            sizes="(max-width: 800px) calc(100vw - 40px), 620px"
+            src={pageContactImage}
+          />
+        </div>
       </section>
 
+      <section
+        aria-labelledby="contact-restaurants-title"
+        className={styles.restaurant}
+      >
+        <div>
+          <p className={styles.eyebrow}>{copy.restaurantBadge}</p>
+          <h2 id="contact-restaurants-title">
+            {copy.closing} <em>{copy.closingAccent}</em>
+          </h2>
+          <Link className={styles.textLink} href={routes.menu} prefetch={false}>
+            {copy.explore}
+            <ArrowIcon />
+          </Link>
+        </div>
+        <div className={styles.restaurantCopy}>
+          <p>{copy.bodyA}</p>
+          <p>{copy.bodyB}</p>
+          <p className={styles.regionLine}>{copy.bodyC}</p>
+        </div>
+      </section>
       <PreviewFooter
         currentPath={routes.contact}
         locale={locale}

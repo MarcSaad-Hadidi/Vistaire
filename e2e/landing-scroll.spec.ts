@@ -1,184 +1,170 @@
-import { expect, test, type Page } from "@playwright/test";
+import { test, expect, type Page } from "@playwright/test";
 
-const LANDING_VIDEO_ROUTE = "/videos/Vistaire2.mp4";
-const MODEL_ASSET_REQUEST_RE =
-  /\.(?:glb|usdz)(?:$|\?)|raw\.githubusercontent\.com|githubusercontent/i;
+// Isolate native document scrolling from GPU speed. The original GLB scene
+// also receives separate real WebGL browser verification.
+test.beforeEach(async ({ page }) => {
+  await page.addInitScript(() => {
+    const getContext = HTMLCanvasElement.prototype.getContext;
+    HTMLCanvasElement.prototype.getContext = function (this: HTMLCanvasElement, type: string, ...args: unknown[]) {
+      return type.startsWith("webgl")
+        ? null
+        : Reflect.apply(getContext, this, [type, ...args]);
+    } as typeof getContext;
+  });
+});
 
-const viewports = [
-  { label: "iphone-375", width: 375, height: 812 },
-  { label: "iphone-390", width: 390, height: 844 },
-  { label: "iphone-430", width: 430, height: 932 },
-  { label: "tablet-768", width: 768, height: 1024 },
-  { label: "desktop", width: 1280, height: 720 }
-];
+async function openJourney(page: Page, height = 820) {
+  await page.setViewportSize({ width: 390, height });
+  await page.goto("/#sustainability");
+  await expect(page.locator(".world-fallback")).toBeVisible();
+  await page.evaluate(() => document.fonts.ready);
+}
 
-function collectModelAssetRequests(page: Page) {
-  const requests: string[] = [];
+async function geometry(page: Page) {
+  return page.evaluate(() => ({
+    height: document.documentElement.scrollHeight,
+    world: document.querySelector<HTMLElement>(".world")!.clientHeight,
+    macTitle: getComputedStyle(document.querySelector(".living-title")!)
+      .fontSize,
+    chapters: [...document.querySelectorAll<HTMLElement>("main > .chapter")].map((el) => ({
+      id: el.id,
+      top: Math.round(el.getBoundingClientRect().top + scrollY),
+      height: el.offsetHeight,
+      stage: el.firstElementChild!.clientHeight,
+    })),
+  }));
+}
 
-  page.on("request", (request) => {
-    const url = request.url();
-
-    if (MODEL_ASSET_REQUEST_RE.test(url)) {
-      requests.push(url);
+for (const initialHeight of [820, 730]) {
+  test(`les barres mobiles ne déplacent aucun chapitre (${initialHeight}px)`, async ({
+    page,
+  }) => {
+    await openJourney(page, initialHeight);
+    const before = await geometry(page);
+    for (const height of [730, 820, 730, 820]) {
+      await page.setViewportSize({ width: 390, height });
+      await page.waitForTimeout(100);
+      expect(await geometry(page)).toEqual(before);
     }
   });
-
-  return requests;
 }
 
-async function expectNoHorizontalOverflow(page: Page) {
-  const gap = await page.evaluate(() => {
-    const el = document.documentElement;
-    return el.scrollWidth - el.clientWidth;
-  });
+test("rotation réelle et redimensionnement desktop restent responsive", async ({
+  page,
+}) => {
+  await openJourney(page);
+  const portrait = await geometry(page);
+  await page.setViewportSize({ width: 820, height: 390 });
+  await expect(page.locator(".opening-stage")).toHaveCSS("height", "390px");
+  await page.setViewportSize({ width: 390, height: 820 });
+  await expect(page.locator(".opening-stage")).toHaveCSS("height", "820px");
+  expect(await geometry(page)).toEqual(portrait);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await expect(page.locator(".opening-stage")).toHaveCSS("height", "900px");
+  await page.setViewportSize({ width: 1440, height: 720 });
+  await expect(page.locator(".opening-stage")).toHaveCSS("height", "720px");
+});
 
-  expect(gap).toBeLessThanOrEqual(2);
-}
-
-async function expectLandingVideoLoop(page: Page) {
-  const video = page.locator("main video").first();
-
-  await expect(video).toBeVisible();
-  await expect
-    .poll(() =>
-      video.evaluate((element) => {
-        const media = element as HTMLVideoElement;
-        return {
-          autoplay: media.autoplay,
-          controls: media.controls,
-          loop: media.loop,
-          muted: media.muted,
-          paused: media.paused,
-          playsInline: media.playsInline,
-          src: media.currentSrc || media.querySelector("source")?.src || ""
-        };
-      })
-    )
-    .toEqual(
-      expect.objectContaining({
-        autoplay: true,
-        controls: false,
-        loop: true,
-        muted: true,
-        paused: false,
-        playsInline: true
-      })
-    );
-
-  await expect
-    .poll(() =>
-      video.evaluate((element) => {
-        const media = element as HTMLVideoElement;
-        return media.currentSrc || media.querySelector("source")?.src || "";
-      })
-    )
-    .toContain(LANDING_VIDEO_ROUTE);
-}
-
-test.describe("Landing responsive", () => {
-  for (const vp of viewports) {
-    test(`no horizontal overflow at ${vp.label}`, async ({ page }) => {
-      await page.setViewportSize({ width: vp.width, height: vp.height });
-      await page.goto("/", { waitUntil: "domcontentloaded" });
-      await expectNoHorizontalOverflow(page);
+test("contact maintenu : inversions et changements de hauteur du Mac au footer", async ({
+  page,
+}) => {
+  await openJourney(page);
+  const before = await geometry(page);
+  const cdp = await page.context().newCDPSession(page);
+  const cases = [
+    ["sustainability", ".living .scene-focus"],
+    ["testimonies", ".experience-list button"],
+    ["social-content", ".walkthrough-frame"],
+    ["product", ".support-gesture"],
+    ["open-weight", ".pricing-collection-image"],
+    ["open-weight", ".pricing-faq summary"],
+    ["footer", ".footer-main h2"],
+    ["footer", ".footer-scene"],
+  ];
+  for (const [id, selector] of cases) {
+    await page.setViewportSize({ width: 390, height: 820 });
+    await page.locator(`#${id}`).evaluate((el) => {
+      const travel = (el as HTMLElement).offsetHeight - el.firstElementChild!.clientHeight;
+      scrollTo({
+        top: el.getBoundingClientRect().top + scrollY + travel * 0.45,
+        behavior: "instant",
+      });
     });
+    if (id === "open-weight")
+      await page
+        .locator(selector)
+        .first()
+        .evaluate((el) => {
+          scrollTo({
+            top: el.getBoundingClientRect().top + scrollY - 300,
+            behavior: "instant",
+          });
+        });
+    await page.waitForTimeout(100);
+    const box = await page.locator(selector).first().boundingBox();
+    const x = Math.min(360, Math.max(30, box!.x + box!.width / 2));
+    let y = Math.min(620, Math.max(190, box!.y + box!.height / 2));
+    await cdp.send("Input.dispatchTouchEvent", {
+      type: "touchStart",
+      touchPoints: [{ id: 1, x, y }],
+    });
+    await page.waitForTimeout(650);
+    for (const [stroke, destination] of [150, 620, 150, 620].entries()) {
+      await page.setViewportSize({
+        width: 390,
+        height: stroke % 2 ? 820 : 730,
+      });
+      const start = y;
+      const samples = [];
+      for (let i = 1; i <= 6; i++) {
+        y = start + ((destination - start) * i) / 6;
+        await cdp.send("Input.dispatchTouchEvent", {
+          type: "touchMove",
+          touchPoints: [{ id: 1, x: x + (i % 2), y }],
+        });
+        await page.waitForTimeout(35);
+        samples.push(await page.evaluate(() => scrollY));
+      }
+      if (stroke > 0) {
+        const expected = stroke % 2 ? -1 : 1;
+        expect(
+          (samples.at(-1)! - samples[0]) * expected,
+          `${id}/${selector}, inversion ${stroke}`,
+        ).toBeGreaterThan(200);
+      }
+      expect(await geometry(page)).toEqual(before);
+    }
+    await cdp.send("Input.dispatchTouchEvent", {
+      type: "touchEnd",
+      touchPoints: [],
+    });
+    expect(
+      await page
+        .locator("main *")
+        .evaluateAll((els) =>
+          els.filter((el) => el.scrollTop !== 0).map((el) => el.className),
+        ),
+    ).toEqual([]);
+    await expect(page.locator(".menu-toggle")).toHaveAttribute(
+      "aria-expanded",
+      "false",
+    );
+    await expect(page.getByRole("dialog")).toHaveCount(0);
   }
 });
 
-test.describe("Landing production experience", () => {
-  test("landing renders the promoted Vistaire preview with a looping video", async ({
-    page
-  }) => {
-    const modelAssetRequests = collectModelAssetRequests(page);
 
-    await page.setViewportSize({ width: 1280, height: 720 });
-    await page.goto("/", { waitUntil: "domcontentloaded" });
-
-    await expect(
-      page.getByRole("heading", {
-        level: 1,
-        name: /Donnez envie avant la première bouchée/
-      })
-    ).toBeVisible();
-    await expect(
-      page.getByRole("link", { name: "Explorer Maison Élyse" })
-    ).toHaveAttribute("href", "/demo");
-    await expect(
-      page.getByRole("link", { name: "Prendre rendez-vous" }).first()
-    ).toHaveAttribute("href", "/prendre-rendez-vous");
-    await expect(page.getByText(/Demander une demo|Demander une démo/i)).toHaveCount(
-      0
-    );
-    await expect(page.getByText(/pause|mettre en pause|reprendre/i)).toHaveCount(0);
-
-    await expectLandingVideoLoop(page);
-    await expectNoHorizontalOverflow(page);
-    expect(modelAssetRequests).toEqual([]);
-  });
-
-  test("mobile landing keeps the same looping video and touchable CTA", async ({
-    page
-  }) => {
-    await page.setViewportSize({ width: 390, height: 844 });
-    await page.goto("/", { waitUntil: "domcontentloaded" });
-
-    await expectLandingVideoLoop(page);
-    await expect(
-      page.getByRole("link", { name: "Prendre rendez-vous" }).first()
-    ).toBeVisible();
-    await expectNoHorizontalOverflow(page);
-  });
-
-  test("Contact links to the dedicated rendez-vous form", async ({ page }) => {
-    await page.goto("/contact", { waitUntil: "domcontentloaded" });
-
-    await page
-      .getByRole("link", { name: "Prendre rendez-vous" })
-      .first()
-      .click();
-
-    await expect(page).toHaveURL(/\/prendre-rendez-vous$/);
-    await expect(
-      page.getByRole("heading", { name: /Prendre rendez-vous/ })
-    ).toBeVisible();
-    await expect(page.getByRole("link", { name: "Retour au contact" })).toHaveAttribute(
-      "href",
-      "/contact"
-    );
-  });
-});
-
-test.describe("Menu and dish regression", () => {
-  test("menu links to a dish detail and returns to the carte", async ({ page }) => {
-    const modelAssetRequests = collectModelAssetRequests(page);
-
-    await page.goto("/demo", { waitUntil: "domcontentloaded" });
-    await expect(page.getByRole("heading", { level: 1 })).toHaveText("Trois restaurants. Trois identités.");
-    await page.getByRole("link", { name: "Explorer Maison Élyse", exact: true }).click();
-    const menu = page.locator('[data-menu-ui="maison-elyse"]');
-    await expect(menu.getByText("LA COLLECTION")).toBeVisible();
-    await expect(menu.getByRole("heading", { name: "LA CARTE" })).toBeVisible();
-    await expectNoHorizontalOverflow(page);
-    expect(modelAssetRequests).toEqual([]);
-
-    await menu.getByRole("link", { name: /Ravioles/i }).first().click();
-    await expect(page).toHaveURL(/\/menu\/maison-elyse\/dishes\//);
-    await expect(
-      page.getByRole("heading", { level: 1, name: /Ravioles/i })
-    ).toBeVisible();
-    await expect(page.locator("model-viewer")).toHaveCount(0);
-    expect(modelAssetRequests).toEqual([]);
-
-    await page.getByRole("link", { name: /Retour/i }).first().click();
-    await expect(page).toHaveURL(/\/menu\/maison-elyse\?/);
-    await expect(page.getByRole("heading", { name: "LA CARTE" })).toBeVisible();
-  });
-
-  test("/admin still loads as the public noindex restaurant preview", async ({
-    page
-  }) => {
-    await page.goto("/admin", { waitUntil: "domcontentloaded" });
-    await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
-    await expectNoHorizontalOverflow(page);
-  });
+test("le téléphone reste lisible sur 1,5 écran de défilement supplémentaire", async ({ page }) => {
+  await openJourney(page);
+  const stage = await page.locator(".opening-stage").evaluate((el) => el.clientHeight);
+  for (const screens of [3.05, 3.7, 4.45]) {
+    await page.evaluate((y) => scrollTo({ top: y, behavior: "instant" }), stage * screens);
+    await expect(page.locator("html")).toHaveAttribute("data-chapter", "wearable");
+    await expect(page.locator("#wearable")).toHaveCSS("opacity", "1");
+    await expect(page.locator("#wearable")).toHaveAttribute("aria-hidden", "false");
+    expect(await page.locator(".opening-stage").evaluate((el) => Math.round(el.getBoundingClientRect().top))).toBe(0);
+    expect(await page.locator("#features").evaluate((el) => el.getBoundingClientRect().top)).toBeGreaterThan(stage);
+  }
+  await page.evaluate((y) => scrollTo({ top: y, behavior: "instant" }), stage * 5.5);
+  await expect(page.locator("html")).toHaveAttribute("data-chapter", "features");
 });

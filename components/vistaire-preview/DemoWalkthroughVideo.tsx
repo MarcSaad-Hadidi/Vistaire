@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import Image from "next/image";
+import { useEffect, useRef, useState } from "react";
 
 export function DemoWalkthroughVideo({
   label,
@@ -12,6 +13,7 @@ export function DemoWalkthroughVideo({
   src: string;
 }) {
   const videoRef = useRef<HTMLVideoElement>(null);
+  const [decoded, setDecoded] = useState(false);
 
   useEffect(() => {
     const video = videoRef.current;
@@ -19,7 +21,12 @@ export function DemoWalkthroughVideo({
 
     const observer = new IntersectionObserver(
       ([entry]) => {
-        if (!entry?.isIntersecting || !video.isConnected) return;
+        if (!video.isConnected) return;
+        if (!entry?.isIntersecting) {
+          video.pause();
+          return;
+        }
+        if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
         if (!video.hasAttribute("src")) video.src = src;
         // Explicit playback also resumes a muted clip when WebKit reveals it again.
         void video.play().catch(() => undefined);
@@ -45,16 +52,32 @@ export function DemoWalkthroughVideo({
   }, [src]);
 
   return (
-    <video
-      aria-label={label}
-      autoPlay
-      data-demo-video
-      loop
-      muted
-      playsInline
-      poster={poster}
-      preload="metadata"
-      ref={videoRef}
-    />
+    <div className="public-film-frame">
+      <Image
+        alt=""
+        aria-hidden="true"
+        className="public-film-poster"
+        fill
+        sizes="(max-width: 760px) 80vw, 340px"
+        src={poster}
+        unoptimized
+      />
+      <video
+        aria-label={label}
+        autoPlay
+        data-demo-video
+        loop
+        muted
+        playsInline
+        poster={poster}
+        preload="metadata"
+        ref={videoRef}
+        onLoadedData={() => setDecoded(true)}
+        onPlaying={() => setDecoded(true)}
+        onWaiting={() => setDecoded(false)}
+        onError={() => setDecoded(false)}
+        style={{ opacity: decoded ? 1 : 0 }}
+      />
+    </div>
   );
 }

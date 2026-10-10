@@ -1,69 +1,69 @@
 import Image from "next/image";
 import type { Metadata } from "next";
 import Link from "next/link";
-import { JsonLd } from "@/components/JsonLd";
+import { JsonLd } from "../JsonLd";
 import {
   getEditorialGuidePresentation,
-  type GuideSectionLayout
-} from "@/components/guides/editorialGuidePresentation";
+  type GuideSectionLayout,
+} from "./editorialGuidePresentation";
 import {
   getEditorialGuideByPath,
-  type EditorialGuide
+  type EditorialGuide,
 } from "@/lib/editorialGuides";
 import { buildPageAlternates, LOCALE_OPEN_GRAPH } from "@/lib/i18n";
 import {
   absoluteUrl,
   buildArticleJsonLd,
   buildBreadcrumbJsonLd,
-  buildWebPageJsonLd
+  buildWebPageJsonLd,
 } from "@/lib/seo";
 import {
   PreviewFooter,
-  PreviewNav
-} from "@/components/vistaire-preview/VistairePreviewChrome";
+  PreviewNav,
+} from "../vistaire-preview/VistairePreviewChrome";
 import styles from "./VistaireEditorialGuide.module.css";
 
 const RELATED_LABELS: Record<string, { fr: string; en: string }> = {
   "/menu-digital-restaurant": {
     fr: "Comprendre le menu digital restaurant",
-    en: "Understand the digital restaurant menu"
+    en: "Understand the digital restaurant menu",
   },
   "/en/digital-restaurant-menu": {
     fr: "Comprendre le menu digital restaurant",
-    en: "Understand the digital restaurant menu"
+    en: "Understand the digital restaurant menu",
   },
   "/menu-qr-code-restaurant": {
     fr: "Le menu QR code pour restaurant",
-    en: "The QR code restaurant menu"
+    en: "The QR code restaurant menu",
   },
   "/en/qr-code-restaurant-menu": {
     fr: "Le menu QR code pour restaurant",
-    en: "The QR code restaurant menu"
+    en: "The QR code restaurant menu",
   },
   "/menu-3d-ar-restaurant": {
     fr: "La 3D et la réalité augmentée au restaurant",
-    en: "3D and augmented reality for restaurants"
+    en: "3D and augmented reality for restaurants",
   },
   "/en/3d-ar-restaurant-menu": {
     fr: "La 3D et la réalité augmentée au restaurant",
-    en: "3D and augmented reality for restaurants"
+    en: "3D and augmented reality for restaurants",
   },
   "/menu-digital-sans-application": {
     fr: "Le menu digital sans application",
-    en: "The digital menu without an app"
+    en: "The digital menu without an app",
   },
   "/en/digital-menu-without-app": {
     fr: "Le menu digital sans application",
-    en: "The digital menu without an app"
+    en: "The digital menu without an app",
   },
   "/demo": {
     fr: "Explorer une carte digitale",
-    en: "Explore a digital menu"
+    en: "Explore a digital menu",
   },
   "/en/vistaire-menu": {
     fr: "Explorer une carte digitale",
-    en: "Explore a digital menu"
-  }
+    en: "Explore a digital menu",
+  },
 };
 
 export function buildEditorialGuideMetadata(guide: EditorialGuide): Metadata {
@@ -76,13 +76,13 @@ export function buildEditorialGuideMetadata(guide: EditorialGuide): Metadata {
       url: absoluteUrl(guide.path),
       title: guide.metadataTitle,
       description: guide.metadataDescription,
-      locale: LOCALE_OPEN_GRAPH[guide.locale]
+      locale: LOCALE_OPEN_GRAPH[guide.locale],
     },
     twitter: {
       card: "summary",
       title: guide.metadataTitle,
-      description: guide.metadataDescription
-    }
+      description: guide.metadataDescription,
+    },
   };
 }
 
@@ -149,19 +149,9 @@ export function VistaireEditorialGuide({ guide }: { guide: EditorialGuide }) {
   return (
     <main
       className={`${styles.page} ${guideVariantClass}`}
+      data-public-vistaire
       data-guide-variant={presentation.guideVariant}
     >
-      <Image
-        alt=""
-        aria-hidden="true"
-        className={styles.backgroundImage}
-        fill
-        loading="lazy"
-        quality={75}
-        sizes="100vw"
-        src={presentation.backgroundImage}
-      />
-      <div aria-hidden="true" className={styles.backgroundVeil} />
       <div className={styles.navShell}>
         <PreviewNav
           currentPath={guide.path}
@@ -176,18 +166,18 @@ export function VistaireEditorialGuide({ guide }: { guide: EditorialGuide }) {
             path: guide.path,
             name: guide.h1,
             description: guide.metadataDescription,
-            locale: guide.locale
+            locale: guide.locale,
           }),
           buildArticleJsonLd({
             path: guide.path,
             headline: guide.h1,
             description: guide.metadataDescription,
-            locale: guide.locale
+            locale: guide.locale,
           }),
           buildBreadcrumbJsonLd([
             { name: breadcrumbHome, path: homePath },
-            { name: guide.h1, path: guide.path }
-          ])
+            { name: guide.h1, path: guide.path },
+          ]),
         ]}
       />
 
@@ -204,7 +194,11 @@ export function VistaireEditorialGuide({ guide }: { guide: EditorialGuide }) {
               <h1>{guide.h1}</h1>
               <p className={styles.dek}>{guide.dek}</p>
               <p className={styles.definition}>{guide.definition}</p>
-              <Link className={styles.heroCta} href={guide.cta.href} prefetch={false}>
+              <Link
+                className={styles.heroCta}
+                href={guide.cta.href}
+                prefetch={false}
+              >
                 {guide.cta.label}
                 <span aria-hidden="true">↗</span>
               </Link>
@@ -215,7 +209,7 @@ export function VistaireEditorialGuide({ guide }: { guide: EditorialGuide }) {
                 className={styles.heroImage}
                 fill
                 priority
-                sizes="(max-width: 920px) calc(100vw - 64px), 42vw"
+                sizes="(max-width: 920px) calc(100vw - 40px), 44vw"
                 src={presentation.heroImage}
               />
               <figcaption>
@@ -224,27 +218,29 @@ export function VistaireEditorialGuide({ guide }: { guide: EditorialGuide }) {
             </figure>
           </header>
 
-          <nav aria-label={contentsLabel} className={styles.contents}>
-            <p>{contentsLabel}</p>
-            <ol>
-              {guide.sections.map((section, index) => (
-                <li key={section.id}>
-                  <a href={`#${section.id}`}>
-                    <span aria-hidden="true">{String(index + 1).padStart(2, "0")}</span>
-                    {section.title}
+          <div className={styles.editorialGrid}>
+            <nav aria-label={contentsLabel} className={styles.contents}>
+              <p>{contentsLabel}</p>
+              <ol>
+                {guide.sections.map((section, index) => (
+                  <li key={section.id}>
+                    <a href={`#${section.id}`}>
+                      <span aria-hidden="true">
+                        {String(index + 1).padStart(2, "0")}
+                      </span>
+                      {section.title}
+                    </a>
+                  </li>
+                ))}
+                <li>
+                  <a href="#checklist">
+                    <span aria-hidden="true">↳</span>
+                    {guide.checklist.title}
                   </a>
                 </li>
-              ))}
-              <li>
-                <a href="#checklist">
-                  <span aria-hidden="true">↳</span>
-                  {guide.checklist.title}
-                </a>
-              </li>
-            </ol>
-          </nav>
+              </ol>
+            </nav>
 
-          <div className={styles.editorialGrid}>
             <div className={styles.body}>
               {guide.sections.map((section, index) => {
                 const sectionLayout =
@@ -286,7 +282,9 @@ export function VistaireEditorialGuide({ guide }: { guide: EditorialGuide }) {
                           <thead>
                             <tr>
                               {section.table.headers.map((header) => (
-                                <th key={header} scope="col">{header}</th>
+                                <th key={header} scope="col">
+                                  {header}
+                                </th>
                               ))}
                             </tr>
                           </thead>
@@ -318,7 +316,9 @@ export function VistaireEditorialGuide({ guide }: { guide: EditorialGuide }) {
                 <h2>{guide.checklist.title}</h2>
               </div>
             </div>
-            <p className={styles.checklistIntro}>{guide.checklist.introduction}</p>
+            <p className={styles.checklistIntro}>
+              {guide.checklist.introduction}
+            </p>
             <ul>
               {guide.checklist.items.map((item) => (
                 <li key={item}>
@@ -329,7 +329,10 @@ export function VistaireEditorialGuide({ guide }: { guide: EditorialGuide }) {
             </ul>
           </section>
 
-          <section className={styles.related} aria-labelledby="related-guides-title">
+          <section
+            className={styles.related}
+            aria-labelledby="related-guides-title"
+          >
             <div className={styles.sectionHeading}>
               <p className={styles.sectionNumber}>↗</p>
               <h2 id="related-guides-title">{guide.relatedTitle}</h2>
@@ -338,12 +341,17 @@ export function VistaireEditorialGuide({ guide }: { guide: EditorialGuide }) {
               {guide.relatedPaths.map((path, index) => (
                 <Link href={path} key={path} prefetch={false}>
                   <span className={styles.relatedCardMeta}>
-                    {String(index + 1).padStart(2, "0")} · {relatedCardMeta(path, guide)}
+                    {String(index + 1).padStart(2, "0")} ·{" "}
+                    {relatedCardMeta(path, guide)}
                   </span>
-                  <span className={styles.relatedCardTitle}>{relatedLabel(path, guide)}</span>
+                  <span className={styles.relatedCardTitle}>
+                    {relatedLabel(path, guide)}
+                  </span>
                   <span className={styles.relatedCardAction}>
                     {relatedCardAction(path, guide)}
-                    <span aria-hidden="true" className={styles.relatedArrow}>↗</span>
+                    <span aria-hidden="true" className={styles.relatedArrow}>
+                      ↗
+                    </span>
                   </span>
                 </Link>
               ))}
@@ -356,7 +364,11 @@ export function VistaireEditorialGuide({ guide }: { guide: EditorialGuide }) {
               <h2>{guide.cta.title}</h2>
               <p>{guide.cta.text}</p>
             </div>
-            <Link className={styles.ctaButton} href={guide.cta.href} prefetch={false}>
+            <Link
+              className={styles.ctaButton}
+              href={guide.cta.href}
+              prefetch={false}
+            >
               {guide.cta.label}
               <span aria-hidden="true">↗</span>
             </Link>

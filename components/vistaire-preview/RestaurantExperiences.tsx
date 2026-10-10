@@ -1,5 +1,3 @@
-import Image from "next/image";
-import restaurantBackground from "@/Framer/PhotoRestoComplet5.png";
 import { LOCALE_LANGUAGE_TAG, type Locale } from "@/lib/i18n";
 import { getLandingExperiences } from "@/lib/landing/menuExperiences";
 import { hasPublicMenu3d } from "@/lib/menu/hasPublicMenu3d";
@@ -92,42 +90,41 @@ export async function RestaurantExperiences({
     : null;
 
   return (
-    <div className={styles.page}>
-      <Image
-        alt=""
-        aria-hidden="true"
-        className={styles.backgroundImage}
-        fill
-        priority
-        quality={75}
-        sizes="100vw"
-        src={restaurantBackground}
-      />
-      <div aria-hidden="true" className={styles.backgroundWash} />
+    <div className={styles.page} data-public-vistaire>
       <header className={styles.navShell}>
         <PreviewNav activeSection="menu" currentPath={currentPath} locale={locale} />
       </header>
       <main id="carte" className={styles.main}>
         <div className={styles.hero}>
           <p className={styles.eyebrow}>{content.eyebrow}</p>
-          <h1>{content.heading[0]} <br />{content.heading[1]}</h1>
+          <h1>
+            {content.heading[0]} <br />
+            <em>{content.heading[1]}</em>
+          </h1>
           <p className={styles.introduction}>{content.introduction}</p>
         </div>
         <div className={styles.experiences}>
-          {experiences.map((experience) => {
+          {experiences.map((experience, index) => {
             const copy = content.experiences[experience.id];
             const dish = experience.featuredDish;
 
             return (
               <section
                 aria-labelledby={`experience-${experience.id}`}
-                className={`${styles.experience} ${styles[experience.id]}`}
+                className={`${styles.experience} ${experience.id === "trouvable" ? styles.trouvable : ""}`}
                 data-demo-experience={experience.id}
                 key={experience.id}
               >
                 <div className={styles.copy}>
-                  <p className={styles.label}>{experience.label}</p>
-                  <h2 id={`experience-${experience.id}`}>{experience.name}</h2>
+                  <p className={styles.label}>
+                    <span aria-hidden="true">0{index + 1}</span>
+                    {experience.label}
+                  </p>
+                  <h2 id={`experience-${experience.id}`}>
+                    <a href={experience.publicMenuHref}>
+                      {experience.name}<Arrow />
+                    </a>
+                  </h2>
                   <p className={styles.description}>{copy.description}</p>
                   <ul className={styles.features}>
                     {copy.features.map((feature) => <li key={feature}>{feature}</li>)}

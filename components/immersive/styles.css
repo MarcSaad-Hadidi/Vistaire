@@ -1,0 +1,3094 @@
+@font-face {
+  font-family: "Vistaire Editorial";
+  src: url("/immersive-assets/fonts/libertine-display.woff") format("woff");
+  font-style: normal;
+  font-weight: 400 700;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Vistaire Editorial";
+  src: url("/immersive-assets/fonts/libertine-italic.woff") format("woff");
+  font-style: italic;
+  font-weight: 400 700;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Vistaire Text";
+  src: url("/immersive-assets/fonts/biolinum.woff") format("woff");
+  font-style: normal;
+  font-weight: 400 500;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Vistaire Text";
+  src: url("/immersive-assets/fonts/biolinum-bold.woff") format("woff");
+  font-style: normal;
+  font-weight: 600 900;
+  font-display: swap;
+}
+:where([data-immersive-vistaire]) {
+  font-family: "Vistaire Text", sans-serif;
+  color: #f8f3e8;
+  background: #050505;
+  font-synthesis: none;
+  --cream: #f8f3e8;
+  --muted: #cec8bd;
+  --amber: #ffc300;
+  --black: #050505;
+  --surface: #111110;
+  --blue: #282825;
+  --gold-light: #ffd60a;
+  --gold-metal: linear-gradient(
+    112deg,
+    #ffc300,
+    #ffd60a 38%,
+    #f8f3e8 48%,
+    #ffd60a 58%,
+    #ffc300
+  );
+  --gold-button: linear-gradient(112deg, #ffc300, #ffd60a);
+  --pad: 4vw;
+  --body: clamp(15px, 1.25vw, 20px);
+  --journey-vh: var(--vistaire-journey-vh, 1svh);
+  --scene-vh: var(--vistaire-scene-vh, 1lvh);
+  color-scheme: dark;
+  scroll-behavior: auto;
+}
+:where([data-immersive-vistaire]) * {
+  box-sizing: border-box;
+}
+:where([data-immersive-vistaire]),
+:where([data-immersive-vistaire]),
+:where([data-immersive-vistaire]) {
+  margin: 0;
+  min-height: 100%;
+  width: 100%;
+}
+:where([data-immersive-vistaire]) {
+  overflow: visible;
+  overflow-anchor: none;
+}
+:where([data-immersive-vistaire]) button,
+:where([data-immersive-vistaire]) a,
+:where([data-immersive-vistaire]) input,
+:where([data-immersive-vistaire]) select {
+  -webkit-tap-highlight-color: transparent;
+}
+:where([data-immersive-vistaire]) button,
+:where([data-immersive-vistaire]) input,
+:where([data-immersive-vistaire]) select {
+  font: inherit;
+}
+:where([data-immersive-vistaire]) button,
+:where([data-immersive-vistaire]) a {
+  color: inherit;
+}
+:where([data-immersive-vistaire]) button {
+  cursor: pointer;
+  border: 0;
+  background: none;
+}
+:where([data-immersive-vistaire]) a {
+  text-decoration: none;
+}
+:where([data-immersive-vistaire]) button:focus-visible,
+:where([data-immersive-vistaire]) a:focus-visible,
+:where([data-immersive-vistaire]) input:focus-visible,
+:where([data-immersive-vistaire]) select:focus-visible,
+:where([data-immersive-vistaire]) [role="slider"]:focus-visible {
+  outline: 2px solid var(--amber);
+  outline-offset: 5px;
+}
+:where([data-immersive-vistaire]) h1,
+:where([data-immersive-vistaire]) h2,
+:where([data-immersive-vistaire]) h3,
+:where([data-immersive-vistaire]) p {
+  margin: 0;
+}
+:where([data-immersive-vistaire]) h1,
+:where([data-immersive-vistaire]) h2,
+:where([data-immersive-vistaire]) h3 {
+  font-family: "Vistaire Editorial", Georgia, serif;
+  font-weight: 400;
+  letter-spacing: -0.025em;
+  line-height: 1.03;
+  text-wrap: balance;
+}
+:where([data-immersive-vistaire]) em {
+  font-style: italic;
+  color: var(--amber);
+  background: var(--gold-metal);
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+:where([data-immersive-vistaire]) p {
+  line-height: 1.45;
+  text-wrap: pretty;
+}
+:where([data-immersive-vistaire]) .sr-only {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  padding: 0 !important;
+}
+:where([data-immersive-vistaire]) .skip-link {
+  position: fixed;
+  top: -100px;
+  left: 24px;
+  background: var(--cream);
+  color: var(--black);
+  padding: 15px;
+  z-index: 999;
+}
+:where([data-immersive-vistaire]) .skip-link:focus {
+  top: 15px;
+}
+:where([data-immersive-vistaire]) .world {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  overflow: clip;
+  height: calc(100 * var(--scene-vh));
+  bottom: auto;
+}
+:where([data-immersive-vistaire]) .scene-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+:where([data-immersive-vistaire]) .fallback-film {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+:where([data-immersive-vistaire]) .fallback-shade {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, #050505b3, #1111103b 60%, #11111080);
+}
+:where([data-immersive-vistaire]) .world-fallback canvas {
+  display: none;
+}
+:where([data-immersive-vistaire]) .world:after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    180deg,
+    #050505bf,
+    #05050566 29%,
+    transparent 52%,
+    #05050530 70%,
+    #0505058f
+  );
+  pointer-events: none;
+}
+:where([data-immersive-vistaire]) .preloader {
+  position: fixed;
+  inset: 0;
+  background: var(--black);
+  z-index: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 28px;
+}
+:where([data-immersive-vistaire]) .loading-word {
+  font-family: "Vistaire Editorial", serif;
+  font-size: 80px;
+  letter-spacing: 0.02em;
+}
+:where([data-immersive-vistaire]) .loading-line {
+  height: 1px;
+  width: 100px;
+  background: #f8f3e82b;
+  overflow: hidden;
+}
+:where([data-immersive-vistaire]) .loading-line:after {
+  content: "";
+  display: block;
+  background: var(--amber);
+  width: 40px;
+  height: 1px;
+  animation: loading 1s infinite ease-in-out;
+}
+:where([data-immersive-vistaire]) .preloader > span {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+@keyframes loading {
+  from {
+    transform: translateX(-40px);
+  }
+  to {
+    transform: translateX(140px);
+  }
+}
+:where([data-immersive-vistaire]) .site-header {
+  position: fixed;
+  top: 16px;
+  left: var(--pad);
+  right: var(--pad);
+  height: 64px;
+  padding: 0 24px;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  border: 1px solid #f8f3e824;
+  border-radius: 10px;
+  background: #050505eb;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  box-shadow: 0 8px 30px #0002;
+}
+:where([data-immersive-vistaire]) .brand {
+  font-family: "Vistaire Editorial", serif;
+  font-size: 28px;
+  letter-spacing: 0.11em;
+  line-height: 1;
+  padding: 8px 0;
+  color: var(--amber);
+  background: var(--gold-metal);
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+:where([data-immersive-vistaire]) .small-dot {
+  display: inline-block;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: currentColor;
+  flex-shrink: 0;
+}
+:where([data-immersive-vistaire]) .desktop-nav {
+  display: flex;
+  align-items: center;
+  gap: 28px;
+  margin-left: auto;
+  font-size: 12px;
+  letter-spacing: 0.05em;
+}
+:where([data-immersive-vistaire]) .desktop-nav button {
+  position: relative;
+  padding: 12px 0;
+}
+:where([data-immersive-vistaire]) .desktop-nav button:after {
+  content: "";
+  position: absolute;
+  bottom: 6px;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: var(--amber);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 0.2s;
+}
+:where([data-immersive-vistaire]) .desktop-nav button:hover:after,
+:where([data-immersive-vistaire]) .desktop-nav button.active:after {
+  transform: scaleX(1);
+}
+:where([data-immersive-vistaire]) .header-3d {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 17px;
+  border-radius: 5px;
+  background: var(--gold-button);
+  color: var(--black);
+  font-size: 12px;
+  white-space: nowrap;
+}
+:where([data-immersive-vistaire]) .header-3d:hover {
+  background: var(--gold-light);
+}
+:where([data-immersive-vistaire]) .menu-toggle,
+:where([data-immersive-vistaire]) .mobile-menu,
+:where([data-immersive-vistaire]) .menu-shade {
+  display: none;
+}
+:where([data-immersive-vistaire]) main {
+  position: relative;
+  z-index: 2;
+}
+:where([data-immersive-vistaire]) .chapter {
+  position: relative;
+  height: calc(var(--chapter-height) * var(--journey-vh));
+  pointer-events: none;
+  --progress: 0;
+}
+:where([data-immersive-vistaire]) .chapter:not(.pricing):not(.footer) {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+:where([data-immersive-vistaire]) .chapter a,
+:where([data-immersive-vistaire]) .chapter button,
+:where([data-immersive-vistaire]) .chapter input,
+:where([data-immersive-vistaire]) .chapter select,
+:where([data-immersive-vistaire]) .chapter video {
+  pointer-events: auto;
+}
+:where([data-immersive-vistaire]) .stage {
+  position: sticky;
+  top: 0;
+  height: calc(100 * var(--journey-vh));
+  width: 100%;
+  padding: 108px var(--pad) 60px;
+  overflow: clip;
+}
+:where([data-immersive-vistaire]) .eyebrow,
+:where([data-immersive-vistaire]) .hero-kicker {
+  font-size: 11px;
+  line-height: 1.4;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  font-weight: 600;
+}
+:where([data-immersive-vistaire]) .chapter-heading {
+  display: grid;
+  gap: 16px;
+  align-content: start;
+  text-align: center;
+}
+:where([data-immersive-vistaire]) .chapter-heading h2 {
+  font-size: clamp(38px, min(4.8vw, calc(7.3 * var(--scene-vh))), 82px);
+}
+:where([data-immersive-vistaire]) .chapter-heading p {
+  font-size: var(--body);
+  color: var(--muted);
+}
+:where([data-immersive-vistaire]) .scene-focus {
+  min-width: 0;
+  min-height: 0;
+  position: relative;
+}
+:where([data-immersive-vistaire]) .opening-journey {
+  height: calc((400 + var(--opening-phone-hold-vh, 0)) * var(--journey-vh));
+  position: relative;
+  pointer-events: none;
+}
+:where([data-immersive-vistaire]) .opening-stage {
+  position: sticky;
+  top: 0;
+  height: calc(100 * var(--journey-vh));
+}
+:where([data-immersive-vistaire]) .opening-stage > .chapter {
+  position: absolute;
+  inset: 0;
+  height: 100%;
+  opacity: var(--opening-opacity, 0);
+  visibility: visible;
+}
+:where([data-immersive-vistaire]) .opening-stage > .chapter[aria-hidden="false"],
+:where([data-immersive-vistaire]) .opening-stage > .hero {
+  visibility: visible;
+}
+:where([data-immersive-vistaire]) .opening-stage > .hero {
+  --opening-opacity: 1;
+}
+:where([data-immersive-vistaire]) .opening-stage > .chapter > .stage {
+  position: absolute;
+  inset: 0;
+}
+:where([data-immersive-vistaire]) .opening-stage .stage > :not(.scene-focus) {
+  transform: translateY(var(--opening-shift, 0px));
+}
+:where([data-immersive-vistaire]) .action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  border: 1px solid #f8f3e860;
+  padding: 14px 22px;
+  border-radius: 5px;
+  font-size: 13px;
+  line-height: 1.2;
+  transition:
+    background 0.18s,
+    color 0.18s,
+    border-color 0.18s;
+  max-width: 100%;
+  white-space: normal;
+  min-height: 44px;
+}
+:where([data-immersive-vistaire]) .action:hover {
+  background: var(--cream);
+  color: var(--black);
+  border-color: var(--cream);
+}
+:where([data-immersive-vistaire]) .action-dark {
+  background: #111110d9;
+  border-color: #ffc30080;
+  color: var(--cream);
+}
+:where([data-immersive-vistaire]) .action-dark:hover {
+  background: #282825;
+  color: var(--cream);
+  border-color: var(--amber);
+}
+:where([data-immersive-vistaire]) .scroll-hint {
+  position: absolute;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  pointer-events: none;
+}
+:where([data-immersive-vistaire]) .scroll-hint svg {
+  width: 22px;
+  height: 22px;
+  padding: 5px;
+  border-radius: 50%;
+  border: 1px solid #f8f3e850;
+  order: -1;
+}
+:where([data-immersive-vistaire]) .hero .stage {
+  display: grid;
+  grid-template-columns: 27fr 43fr 30fr;
+  grid-template-rows: auto 1fr;
+  column-gap: 0;
+  row-gap: 24px;
+}
+:where([data-immersive-vistaire]) .hero-kicker {
+  grid-column: 1/-1;
+  text-align: center;
+  align-self: start;
+}
+:where([data-immersive-vistaire]) .hero-word {
+  position: absolute;
+  top: 138px;
+  left: var(--pad);
+  font-size: min(13vw, calc(17 * var(--scene-vh)));
+  letter-spacing: 0.045em;
+  line-height: 1;
+}
+:where([data-immersive-vistaire]) .hero-glass {
+  grid-column: 1;
+  grid-row: 2;
+  align-self: end;
+  padding: 22px;
+  max-width: 280px;
+  background: #111110a6;
+  border: 1px solid #f8f3e82b;
+  border-radius: 8px;
+  backdrop-filter: blur(10px);
+  display: grid;
+  gap: 20px;
+}
+:where([data-immersive-vistaire]) .hero-glass h2 {
+  font-size: clamp(22px, 2vw, 34px);
+  line-height: 1.04;
+}
+:where([data-immersive-vistaire]) .hero-glass p {
+  border-top: 1px solid #f8f3e830;
+  padding-top: 18px;
+  font-size: 15px;
+  color: var(--muted);
+}
+:where([data-immersive-vistaire]) .text-link {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  padding: 0;
+  font-size: 12px;
+  text-align: left;
+}
+:where([data-immersive-vistaire]) .text-link:hover {
+  color: var(--amber);
+}
+:where([data-immersive-vistaire]) .hero-copy {
+  grid-column: 3;
+  grid-row: 2;
+  align-self: center;
+  padding-left: 20px;
+  font-family: "Vistaire Editorial", serif;
+  font-size: clamp(22px, 2.4vw, 39px);
+  line-height: 1.18;
+}
+:where([data-immersive-vistaire]) .hero .scene-focus {
+  grid-column: 2;
+  grid-row: 2;
+  margin-top: 110px;
+}
+:where([data-immersive-vistaire]) .experience .stage {
+  display: grid;
+  grid-template-columns: 26fr 46fr 28fr;
+  grid-template-rows: 1fr 36px;
+  column-gap: 10px;
+}
+:where([data-immersive-vistaire]) .side-heading {
+  grid-column: 1;
+  grid-row: 1;
+  align-self: center;
+  font-size: clamp(32px, min(4vw, calc(7 * var(--scene-vh))), 68px);
+  line-height: 1.03;
+}
+:where([data-immersive-vistaire]) .side-copy {
+  grid-column: 3;
+  grid-row: 1;
+  align-self: center;
+  padding: 22px;
+  background: #111110ad;
+  border: 1px solid #f8f3e820;
+  border-radius: 8px;
+}
+:where([data-immersive-vistaire]) .side-copy p {
+  font-size: var(--body);
+  margin: 18px 0 24px;
+  color: var(--muted);
+}
+:where([data-immersive-vistaire]) .experience .scene-focus {
+  grid-column: 2;
+  grid-row: 1;
+}
+:where([data-immersive-vistaire]) .chapter-bottom {
+  grid-row: 2;
+  grid-column: 1/-1;
+  display: flex;
+  justify-content: space-between;
+  align-items: end;
+  font-size: 10px;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+}
+:where([data-immersive-vistaire]) .wearable .stage {
+  display: grid;
+  grid-template-columns: 43fr 57fr;
+  grid-template-rows: 1fr auto;
+  column-gap: 24px;
+  row-gap: 20px;
+}
+:where([data-immersive-vistaire]) .wearable .chapter-heading {
+  grid-column: 1;
+  grid-row: 1;
+  align-self: center;
+  text-align: left;
+  max-width: 460px;
+}
+:where([data-immersive-vistaire]) .wearable .chapter-heading h2 {
+  font-size: clamp(42px, min(5.4vw, calc(9 * var(--scene-vh))), 90px);
+}
+:where([data-immersive-vistaire]) .wearable .scene-focus {
+  grid-column: 2;
+  grid-row: 1;
+}
+:where([data-immersive-vistaire]) .menu-demo-picker {
+  grid-row: 2;
+  grid-column: 1/-1;
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+}
+:where([data-immersive-vistaire]) .menu-demo-picker button {
+  display: grid;
+  gap: 7px;
+  border: 1px solid #f8f3e833;
+  background: #111110b5;
+  border-radius: 5px;
+  padding: 14px 22px;
+  text-align: left;
+  min-width: 0;
+}
+:where([data-immersive-vistaire]) .menu-demo-picker button[aria-pressed="true"] {
+  background: #f8f3e816;
+  border-color: var(--amber);
+}
+:where([data-immersive-vistaire]) .menu-demo-picker button > span {
+  font-family: "Vistaire Editorial", serif;
+  font-size: 22px;
+}
+:where([data-immersive-vistaire]) .menu-demo-picker small {
+  font-size: 10px;
+  letter-spacing: 0.02em;
+  color: var(--muted);
+}
+:where([data-immersive-vistaire]) .features .stage {
+  display: grid;
+  grid-template-columns: 55fr 45fr;
+  grid-template-rows: auto 1fr;
+  gap: 20px;
+}
+:where([data-immersive-vistaire]) .feature-top {
+  grid-row: 1;
+  grid-column: 1/-1;
+  display: flex;
+  gap: 16px;
+  align-items: center;
+}
+:where([data-immersive-vistaire]) .feature-number {
+  width: 32px;
+  height: 32px;
+  border: 1px solid #f8f3e850;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 12px;
+}
+:where([data-immersive-vistaire]) .feature-card {
+  grid-column: 2;
+  grid-row: 2;
+  align-self: center;
+  border: 1px solid #f8f3e82b;
+  border-radius: 8px;
+  background: #111110c5;
+  padding: 28px;
+  max-width: 540px;
+}
+:where([data-immersive-vistaire]) .feature-card h3 {
+  font-size: clamp(30px, min(3.3vw, calc(6 * var(--scene-vh))), 55px);
+  margin: 18px 0;
+}
+:where([data-immersive-vistaire]) .feature-card p {
+  font-size: var(--body);
+  color: var(--muted);
+  margin-bottom: 24px;
+}
+:where([data-immersive-vistaire]) .features .scene-focus {
+  grid-column: 1;
+  grid-row: 2;
+}
+:where([data-immersive-vistaire]) .feature-dots {
+  position: absolute;
+  bottom: 26px;
+  left: var(--pad);
+  display: flex;
+  gap: 8px;
+}
+:where([data-immersive-vistaire]) .feature-dots span {
+  width: 5px;
+  height: 5px;
+  background: #f8f3e840;
+  border-radius: 50%;
+}
+:where([data-immersive-vistaire]) .feature-dots .selected {
+  background: var(--amber);
+}
+:where([data-immersive-vistaire]) .identity .stage {
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  gap: 20px;
+}
+:where([data-immersive-vistaire]) .identity .scene-focus {
+  width: 65%;
+  justify-self: center;
+}
+:where([data-immersive-vistaire]) .identity .action {
+  justify-self: center;
+}
+:where([data-immersive-vistaire]) .grip .stage {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: auto minmax(0, 1fr) auto auto;
+  gap: 16px;
+}
+:where([data-immersive-vistaire]) .grip .chapter-heading {
+  grid-column: 1/-1;
+  gap: 12px;
+}
+:where([data-immersive-vistaire]) .grip .chapter-heading h2 {
+  font-size: clamp(36px, min(4.6vw, calc(6.5 * var(--scene-vh))), 76px);
+}
+:where([data-immersive-vistaire]) .grip .dish-gesture {
+  grid-column: 1/-1;
+  grid-row: 2;
+  max-width: 90%;
+  width: 100%;
+  justify-self: center;
+}
+:where([data-immersive-vistaire]) .dish-gesture,
+:where([data-immersive-vistaire]) .support-gesture {
+  pointer-events: auto;
+  touch-action: pan-y;
+  cursor: grab;
+}
+:where([data-immersive-vistaire]) .dish-gesture:active,
+:where([data-immersive-vistaire]) .support-gesture:active {
+  cursor: grabbing;
+}
+:where([data-immersive-vistaire]) .dish-switch {
+  grid-column: 1/-1;
+  grid-row: 3;
+  display: flex;
+  gap: 3px;
+  padding: 5px;
+  background: #111110d9;
+  border: 1px solid #f8f3e82b;
+  border-radius: 5px;
+  overflow-x: auto;
+  max-width: 100%;
+  white-space: nowrap;
+  scrollbar-width: thin;
+  overscroll-behavior-x: contain;
+  justify-self: center;
+}
+:where([data-immersive-vistaire]) .dish-switch button {
+  flex-shrink: 0;
+  padding: 10px 16px;
+  border-radius: 3px;
+  color: var(--muted);
+  font-size: 12px;
+}
+:where([data-immersive-vistaire]) .dish-switch button.selected {
+  background: #f8f3e81c;
+  color: var(--cream);
+}
+:where([data-immersive-vistaire]) .rotation-control {
+  grid-column: 1;
+  grid-row: 4;
+  width: 260px;
+  max-width: 100%;
+  font-size: 11px;
+}
+:where([data-immersive-vistaire]) .rotation-control > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+}
+:where([data-immersive-vistaire]) .rotation-control .rotation-track {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  padding-top: 10px;
+}
+:where([data-immersive-vistaire]) .rotation-range {
+  pointer-events: auto;
+  position: relative;
+  width: 100%;
+  height: 20px;
+  touch-action: manipulation;
+  cursor: ew-resize;
+}
+:where([data-immersive-vistaire]) .rotation-range::before {
+  content: "";
+  position: absolute;
+  inset: 7px 0;
+  border: 1px solid #f8f3e84a;
+  border-radius: 8px;
+  background: linear-gradient(
+    to right,
+    var(--amber) var(--rotation),
+    #f8f3e824 var(--rotation)
+  );
+}
+:where([data-immersive-vistaire]) .rotation-range::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: clamp(8px, var(--rotation), calc(100% - 8px));
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--amber);
+  translate: -50% 0;
+}
+:where([data-immersive-vistaire]) .rotation-control small {
+  display: block;
+  padding-top: 8px;
+  color: var(--muted);
+}
+:where([data-immersive-vistaire]) .rotation-control > .dish-zoom {
+  align-items: center;
+  justify-content: start;
+  gap: 7px;
+  padding-top: 8px;
+}
+:where([data-immersive-vistaire]) .dish-zoom button {
+  min-width: 36px;
+  min-height: 36px;
+  border: 1px solid #f8f3e84a;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 19px;
+}
+:where([data-immersive-vistaire]) .dish-zoom button:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+:where([data-immersive-vistaire]) .dish-zoom button:hover:not(:disabled) {
+  background: #f8f3e81c;
+}
+:where([data-immersive-vistaire]) .dish-zoom output {
+  min-width: 42px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+:where([data-immersive-vistaire]) .detail-link {
+  grid-column: 2;
+  grid-row: 4;
+  align-self: center;
+  justify-self: end;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 0;
+  border-bottom: 1px solid #f8f3e850;
+}
+:where([data-immersive-vistaire]) .detail-link:hover {
+  color: var(--amber);
+}
+:where([data-immersive-vistaire]) .detail-link:disabled {
+  opacity: 0.5;
+  cursor: wait;
+}
+:where([data-immersive-vistaire]) .grip .scroll-hint,
+:where([data-immersive-vistaire]) .product .scroll-hint {
+  display: none;
+}
+:where([data-immersive-vistaire]) .model-loading,
+:where([data-immersive-vistaire]) .model-error {
+  position: absolute;
+  top: 30%;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 4;
+  max-width: 85%;
+  font-size: 12px;
+  padding: 10px 15px;
+  background: #111110e8;
+  border: 1px solid #ffc30070;
+  border-radius: 6px;
+}
+:where([data-immersive-vistaire]) .model-error button {
+  border-bottom: 1px solid;
+  padding: 5px 0;
+  margin-top: 6px;
+}
+:where([data-immersive-vistaire]) .living .stage {
+  display: grid;
+  grid-template-columns: 44fr 56fr;
+  grid-template-rows: 1fr auto;
+  gap: 20px;
+}
+:where([data-immersive-vistaire]) .living-copy {
+  grid-column: 1;
+  grid-row: 1;
+  align-self: center;
+  background: #111110b3;
+  border: 1px solid #f8f3e824;
+  border-radius: 8px;
+  padding: 28px;
+}
+:where([data-immersive-vistaire]) .dashboard-caption {
+  display: block;
+  margin-top: 12px;
+  font-size: 11px;
+  line-height: 1.5;
+  opacity: 0.65;
+}
+:where([data-immersive-vistaire]) .living-title {
+  font-size: clamp(42px, min(5.6vw, calc(9 * var(--scene-vh))), 94px);
+  margin: 22px 0;
+}
+:where([data-immersive-vistaire]) .living-title em {
+  color: var(--cream);
+}
+:where([data-immersive-vistaire]) .living-description {
+  font-size: var(--body);
+}
+:where([data-immersive-vistaire]) .living-description a {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+  border-bottom: 1px solid #f8f3e850;
+  padding-bottom: 7px;
+  margin-top: 24px;
+}
+:where([data-immersive-vistaire]) .living .scene-focus {
+  grid-column: 2;
+  grid-row: 1;
+}
+:where([data-immersive-vistaire]) .living-facts {
+  grid-column: 1/-1;
+  grid-row: 2;
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  font-size: 11px;
+  color: var(--muted);
+  border-top: 1px solid #f8f3e830;
+  padding-top: 16px;
+}
+:where([data-immersive-vistaire]) .identities .stage {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: auto 1fr;
+  gap: 26px;
+  background: #11111066;
+}
+:where([data-immersive-vistaire]) .identities h2 {
+  grid-column: 1;
+  grid-row: 1;
+  font-size: clamp(34px, min(4.1vw, calc(7 * var(--scene-vh))), 72px);
+}
+:where([data-immersive-vistaire]) .identity-intro {
+  grid-column: 2;
+  grid-row: 1;
+  align-self: center;
+  justify-self: end;
+  font-size: var(--body);
+  color: var(--muted);
+}
+:where([data-immersive-vistaire]) .experience-list {
+  grid-column: 1/-1;
+  grid-row: 2;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 0;
+}
+:where([data-immersive-vistaire]) .experience-list > button {
+  display: grid;
+  grid-template-columns: 40px 1fr 160px 22px;
+  gap: 24px;
+  align-items: center;
+  border-top: 1px solid #f8f3e835;
+  padding: 14px 0;
+  text-align: left;
+  width: 100%;
+}
+:where([data-immersive-vistaire]) .experience-list .index {
+  font-size: 11px;
+  color: var(--muted);
+}
+:where([data-immersive-vistaire]) .experience-list h3 {
+  font-size: 30px;
+  margin: 4px 0;
+}
+:where([data-immersive-vistaire]) .experience-list p {
+  font-size: 13px;
+  color: var(--muted);
+}
+:where([data-immersive-vistaire]) .experience-list .eyebrow {
+  font-size: 9px;
+}
+:where([data-immersive-vistaire]) .experience-list img {
+  width: 160px;
+  height: 76px;
+  object-fit: cover;
+  border-radius: 3px;
+}
+:where([data-immersive-vistaire]) .experience-list button:hover {
+  background: #f8f3e809;
+}
+:where([data-immersive-vistaire]) .social .stage {
+  padding-bottom: 78px;
+}
+:where([data-immersive-vistaire]) .social-rail {
+  height: 100%;
+  pointer-events: none;
+  display: flex;
+  gap: 20px;
+  width: calc(300% + 40px);
+  transform: translateX(
+    calc(var(--rail-progress) * ((100% - 40px) / 3 + 20px) * -1)
+  );
+  transition: transform 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+}
+:where([data-immersive-vistaire]) .social-rail article {
+  flex: 0 0 calc((100% - 40px) / 3);
+  position: relative;
+  overflow: clip;
+  border: 1px solid #f8f3e826;
+  border-radius: 8px;
+}
+:where([data-immersive-vistaire]) .social-bg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+}
+:where([data-immersive-vistaire]) .social-rail article:after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    #050505dc,
+    #05050587 44%,
+    #0505051a 74%,
+    #05050533
+  );
+  pointer-events: none;
+}
+:where([data-immersive-vistaire]) .social-inner {
+  position: relative;
+  z-index: 1;
+  height: 100%;
+  padding: clamp(24px, 3.5vw, 52px);
+  display: grid;
+  grid-template-columns: 45fr 55fr;
+  grid-template-rows: auto 1fr auto;
+  column-gap: 16px;
+  row-gap: 16px;
+}
+:where([data-immersive-vistaire]) .social-inner > .eyebrow {
+  grid-column: 1;
+  grid-row: 1;
+  align-self: end;
+}
+:where([data-immersive-vistaire]) .social-inner h3 {
+  grid-column: 1;
+  grid-row: 2;
+  align-self: start;
+  font-size: clamp(44px, min(5.8vw, calc(10 * var(--scene-vh))), 96px);
+  line-height: 1.06;
+  margin-top: 16px;
+}
+:where([data-immersive-vistaire]) .social-description {
+  grid-column: 1;
+  grid-row: 2;
+  align-self: end;
+  font-size: var(--body);
+  max-width: 350px;
+  color: var(--muted);
+  padding-bottom: 20px;
+}
+:where([data-immersive-vistaire]) .walkthrough-frame {
+  position: relative;
+  grid-column: 2;
+  grid-row: 1/4;
+  justify-self: center;
+  align-self: center;
+  height: 100%;
+  max-height: 100%;
+  max-width: 100%;
+  aspect-ratio: 390/844;
+  background: #050505;
+  outline: 5px solid #111110;
+  border-radius: 28px;
+  overflow: clip;
+  box-shadow: 0 20px 60px #0007;
+}
+:where([data-immersive-vistaire]) .walkthrough-frame video {
+  position: relative;
+  opacity: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: center;
+  pointer-events: none;
+}
+:where([data-immersive-vistaire]) .walkthrough-poster,
+:where([data-immersive-vistaire]) .social-bg {
+  pointer-events: none;
+}
+
+/* The document owns every vertical pan. A stable stage, rather than a
+   moving video or the underlying root, receives the original contact. */
+:where([data-immersive-vistaire]) main > .chapter {
+  pointer-events: auto;
+  touch-action: manipulation;
+}
+:where([data-immersive-vistaire]) .walkthrough-frame video.has-decoded-frame {
+  opacity: 1;
+}
+:where([data-immersive-vistaire]) .social-bottom {
+  grid-column: 1;
+  grid-row: 3;
+  display: grid;
+  gap: 16px;
+  justify-items: start;
+}
+:where([data-immersive-vistaire]) .social-bottom > span {
+  font-family: "Vistaire Editorial", serif;
+  font-size: 24px;
+}
+:where([data-immersive-vistaire]) .social-pager {
+  position: absolute;
+  bottom: 48px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 10px;
+}
+:where([data-immersive-vistaire]) .social-pager button {
+  padding: 0;
+  width: 36px;
+  height: 5px;
+  border-radius: 3px;
+  background: #f8f3e835;
+  position: relative;
+}
+:where([data-immersive-vistaire]) .social-pager button:before {
+  content: "";
+  position: absolute;
+  inset: -10px 0;
+}
+:where([data-immersive-vistaire]) .social-pager .selected {
+  background: var(--amber);
+}
+:where([data-immersive-vistaire]) .social .scroll-hint {
+  bottom: 13px;
+}
+:where([data-immersive-vistaire]) .product .stage {
+  display: grid;
+  grid-template-columns: 36fr 64fr;
+  grid-template-rows: auto auto minmax(0, 1fr) auto;
+  column-gap: 28px;
+  row-gap: 18px;
+}
+:where([data-immersive-vistaire]) .product > .stage > .stage-eyebrow {
+  grid-column: 1/-1;
+  grid-row: 1;
+  text-align: center;
+}
+:where([data-immersive-vistaire]) .product h2 {
+  grid-column: 1/-1;
+  grid-row: 1;
+  align-self: end;
+  font-size: clamp(40px, min(5.4vw, calc(8 * var(--scene-vh))), 90px);
+  text-align: center;
+  padding-top: 23px;
+}
+:where([data-immersive-vistaire]) .collection-tabs {
+  grid-column: 1/-1;
+  grid-row: 2;
+  justify-self: center;
+  display: flex;
+  gap: 5px;
+  padding: 5px;
+  border: 1px solid #f8f3e833;
+  border-radius: 5px;
+  background: #111110bf;
+}
+:where([data-immersive-vistaire]) .collection-tabs button {
+  font-size: 13px;
+  padding: 12px 25px;
+  border-radius: 3px;
+  color: var(--muted);
+}
+:where([data-immersive-vistaire]) .collection-tabs button.selected {
+  background: #f8f3e818;
+  color: var(--cream);
+  box-shadow: inset 0 -1px var(--amber);
+}
+:where([data-immersive-vistaire]) .collection-details {
+  grid-column: 1;
+  grid-row: 3;
+  align-self: center;
+  display: grid;
+  gap: 24px;
+  background: #111110bb;
+  border: 1px solid #f8f3e824;
+  padding: 24px;
+  border-radius: 8px;
+}
+:where([data-immersive-vistaire]) .collection-details p {
+  font-size: var(--body);
+  color: var(--muted);
+  margin: 16px 0;
+}
+:where([data-immersive-vistaire]) .price {
+  font-family: "Vistaire Editorial", serif;
+  font-size: 34px;
+  display: block;
+}
+:where([data-immersive-vistaire]) .price small {
+  font-family: "Vistaire Text", sans-serif;
+  font-size: 11px;
+}
+:where([data-immersive-vistaire]) .monthly {
+  display: block;
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 8px;
+}
+:where([data-immersive-vistaire]) .product .scene-focus {
+  grid-column: 2;
+  grid-row: 3;
+}
+:where([data-immersive-vistaire]) .support-controls {
+  grid-column: 2;
+  grid-row: 4;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 24px;
+  font-size: 11px;
+  color: var(--muted);
+}
+:where([data-immersive-vistaire]) .support-controls button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border: 1px solid #f8f3e850;
+  border-radius: 4px;
+  color: var(--cream);
+}
+:where([data-immersive-vistaire]) .accompaniment .stage {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 9%;
+  align-items: center;
+  background: #111110bf;
+}
+:where([data-immersive-vistaire]) .accompaniment h2 {
+  font-size: clamp(40px, min(4.8vw, calc(8 * var(--scene-vh))), 82px);
+  margin: 22px 0;
+}
+:where([data-immersive-vistaire]) .accompaniment p {
+  font-size: var(--body);
+  color: var(--muted);
+  max-width: 480px;
+  margin-bottom: 28px;
+}
+:where([data-immersive-vistaire]) .included > div {
+  border-top: 1px solid #f8f3e830;
+  display: flex;
+  gap: 25px;
+  padding: 20px 0;
+}
+:where([data-immersive-vistaire]) .included > div > span {
+  font-size: 11px;
+  padding-top: 7px;
+  color: var(--muted);
+}
+:where([data-immersive-vistaire]) .included h3 {
+  font-size: 28px;
+  line-height: 1.15;
+}
+:where([data-immersive-vistaire]) .included > small {
+  font-size: 11px;
+  color: var(--muted);
+  line-height: 1.6;
+  display: block;
+  margin: 18px 0;
+}
+:where([data-immersive-vistaire]) .included > a {
+  font-size: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  border-bottom: 1px solid #f8f3e850;
+  padding-bottom: 7px;
+}
+:where([data-immersive-vistaire]) .footer .stage {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: minmax(0, 1fr) auto auto;
+  gap: 30px;
+  background: linear-gradient(#11111026, #050505a8);
+}
+:where([data-immersive-vistaire]) .footer-main {
+  align-self: center;
+  grid-column: 1;
+  grid-row: 1;
+}
+:where([data-immersive-vistaire]) .footer-main h2 {
+  font-size: clamp(46px, min(6.3vw, calc(10 * var(--scene-vh))), 105px);
+  margin: 24px 0;
+}
+:where([data-immersive-vistaire]) .footer-grid {
+  grid-column: 1/-1;
+  grid-row: 2;
+  align-self: center;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 36px;
+}
+:where([data-immersive-vistaire]) .footer .scene-focus {
+  grid-column: 2;
+  grid-row: 1;
+}
+:where([data-immersive-vistaire]) .footer-grid > div {
+  display: grid;
+  gap: 12px;
+  border-top: 1px solid #f8f3e840;
+  padding-top: 20px;
+}
+:where([data-immersive-vistaire]) .footer-grid .eyebrow {
+  color: var(--muted);
+  font-size: 9px;
+}
+:where([data-immersive-vistaire]) .footer-grid a,
+:where([data-immersive-vistaire]) .footer-grid button {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  text-align: left;
+  padding: 0;
+  font-size: 16px;
+}
+:where([data-immersive-vistaire]) .footer-grid a:hover,
+:where([data-immersive-vistaire]) .footer-grid button:hover {
+  color: var(--amber);
+}
+:where([data-immersive-vistaire]) .footer-bottom {
+  grid-column: 1/-1;
+  grid-row: 3;
+  display: flex;
+  justify-content: space-between;
+  border-top: 1px solid #f8f3e830;
+  padding-top: 18px;
+  font-size: 10px;
+  letter-spacing: 0.04em;
+}
+:where([data-immersive-vistaire]) .footer-bottom a {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+:where([data-immersive-vistaire]) .chapter-progress {
+  position: fixed;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  z-index: 20;
+  background: #f8f3e810;
+}
+:where([data-immersive-vistaire]) .chapter-progress span {
+  display: block;
+  background: #ffc300;
+  transition: height 0.3s;
+}
+:where([data-immersive-vistaire]) .gpu-status {
+  position: fixed;
+  bottom: 2px;
+  left: 3px;
+  color: #f8f3e890;
+  font-size: 8px;
+  z-index: 10;
+  background: #05050560;
+  padding: 3px 7px;
+  pointer-events: none;
+}
+:where([data-immersive-vistaire]) .modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  background: #050505b8;
+  backdrop-filter: blur(15px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 35px;
+  animation: gallery-in 0.25s ease both;
+}
+:where([data-immersive-vistaire]) .modal {
+  background: #111110;
+  color: var(--cream);
+  border: 1px solid #f8f3e82a;
+  position: relative;
+  width: min(1060px, 100%);
+  max-height: calc(100svh - 70px);
+  overflow: auto;
+  outline: none;
+  box-shadow: 0 30px 100px #0008;
+}
+:where([data-immersive-vistaire]) .close-modal {
+  position: sticky;
+  top: 14px;
+  float: right;
+  right: 14px;
+  margin: 14px 14px 0 0;
+  border: 1px solid #f8f3e860;
+  border-radius: 50%;
+  width: 38px;
+  height: 38px;
+  padding: 8px;
+  background: #111110;
+  z-index: 5;
+}
+:where([data-immersive-vistaire]) .close-modal svg {
+  width: 100%;
+  height: 100%;
+}
+:where([data-immersive-vistaire]) .menu-preview-head {
+  padding: 45px 45px 28px;
+  border-bottom: 1px dotted #f8f3e840;
+}
+:where([data-immersive-vistaire]) .menu-preview-head h2 {
+  font-size: 54px;
+  letter-spacing: -0.04em;
+  font-weight: 500;
+  margin: 20px 0 10px;
+}
+:where([data-immersive-vistaire]) .menu-preview-head > p {
+  text-transform: uppercase;
+  font-size: 13px;
+  color: var(--muted);
+}
+:where([data-immersive-vistaire]) .menu-preview-dishes {
+  padding: 0 45px;
+}
+:where([data-immersive-vistaire]) .menu-preview-dishes > button {
+  display: flex;
+  gap: 24px;
+  align-items: center;
+  border-bottom: 1px dotted #f8f3e840;
+  width: 100%;
+  padding: 24px 0;
+  text-align: left;
+}
+:where([data-immersive-vistaire]) .menu-preview-dishes img {
+  width: 110px;
+  height: 140px;
+  object-fit: cover;
+}
+:where([data-immersive-vistaire]) .menu-preview-dishes > button > div {
+  flex: 1;
+}
+:where([data-immersive-vistaire]) .menu-preview-dishes h3 {
+  font-size: 25px;
+  line-height: 1.13;
+  font-weight: 500;
+  margin: 12px 0;
+}
+:where([data-immersive-vistaire]) .menu-preview-dishes p {
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.5;
+  max-width: 570px;
+  margin-bottom: 10px;
+}
+:where([data-immersive-vistaire]) .menu-preview-dishes span,
+:where([data-immersive-vistaire]) .menu-preview-dishes small {
+  font-size: 12px;
+}
+:where([data-immersive-vistaire]) .menu-preview-dishes small {
+  display: inline-block;
+  margin-left: 20px;
+  border: 1px solid #f8f3e840;
+  border-radius: 20px;
+  padding: 4px 8px;
+}
+:where([data-immersive-vistaire]) .menu-preview-complete {
+  display: flex;
+  justify-content: flex-end;
+  gap: 15px;
+  align-items: center;
+  font-size: 13px;
+  padding: 25px 45px;
+}
+:where([data-immersive-vistaire]) .dish-detail {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+}
+:where([data-immersive-vistaire]) .dish-detail > img {
+  height: 100%;
+  min-height: 620px;
+  width: 100%;
+  object-fit: cover;
+}
+:where([data-immersive-vistaire]) .dish-detail > div {
+  padding: 55px 40px 35px;
+}
+:where([data-immersive-vistaire]) .dish-detail h2 {
+  font-size: 38px;
+  line-height: 1.1;
+  font-weight: 500;
+  letter-spacing: -0.03em;
+  margin: 24px 0;
+}
+:where([data-immersive-vistaire]) .dish-detail p {
+  font-size: 16px;
+  line-height: 1.5;
+  color: var(--muted);
+  margin-bottom: 22px;
+}
+:where([data-immersive-vistaire]) .dish-detail strong {
+  font-size: 24px;
+  font-weight: 500;
+}
+:where([data-immersive-vistaire]) .allergens {
+  border-top: 1px dotted #f8f3e840;
+  padding-top: 24px;
+  margin: 30px 0;
+}
+:where([data-immersive-vistaire]) .allergens > span {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+:where([data-immersive-vistaire]) .allergens p {
+  font-size: 13px;
+  margin: 10px 0;
+}
+:where([data-immersive-vistaire]) .allergens small {
+  font-size: 10px;
+  color: var(--muted);
+  line-height: 1.5;
+}
+:where([data-immersive-vistaire]) .ar-link {
+  display: flex;
+  gap: 10px;
+  font-size: 11px;
+  align-items: center;
+  margin-top: 20px;
+  text-decoration: underline;
+  text-underline-offset: 5px;
+}
+:where([data-immersive-vistaire]) .ar-link img {
+  width: 24px;
+  height: 24px;
+  object-fit: cover;
+}
+:where([data-immersive-vistaire]) .film-modal {
+  display: flex;
+  align-items: center;
+  flex-direction: column;
+  gap: 20px;
+  padding: 40px 25px 25px;
+}
+:where([data-immersive-vistaire]) .film-modal video {
+  display: block;
+  max-height: 65svh;
+  max-width: 100%;
+  aspect-ratio: 390/844;
+  border: 1px solid #f8f3e840;
+}
+:where([data-immersive-vistaire]) .film-modal > a {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  font-size: 13px;
+}
+:where([data-immersive-vistaire]) .estimate,
+:where([data-immersive-vistaire]) .share-modal {
+  padding: 45px;
+}
+:where([data-immersive-vistaire]) .estimate h2,
+:where([data-immersive-vistaire]) .share-modal h2 {
+  font-size: 50px;
+  line-height: 1.05;
+  letter-spacing: -0.04em;
+  font-weight: 500;
+  margin: 20px 0 30px;
+}
+:where([data-immersive-vistaire]) .estimate-body {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 40px;
+}
+:where([data-immersive-vistaire]) .estimate-body > img {
+  width: 100%;
+  height: 100%;
+  max-height: 420px;
+  object-fit: cover;
+}
+:where([data-immersive-vistaire]) .estimate-body label,
+:where([data-immersive-vistaire]) .share-modal label {
+  display: grid;
+  gap: 10px;
+  font-size: 12px;
+  margin-bottom: 20px;
+}
+:where([data-immersive-vistaire]) .estimate-body input,
+:where([data-immersive-vistaire]) .estimate-body select,
+:where([data-immersive-vistaire]) .share-modal input {
+  border: 1px solid #f8f3e840;
+  padding: 12px;
+  background: #f8f3e807;
+  color: var(--cream);
+  font-size: 16px;
+  width: 100%;
+}
+:where([data-immersive-vistaire]) .estimate-body option {
+  background: #111110;
+}
+:where([data-immersive-vistaire]) .estimate-price {
+  border-top: 1px dotted #f8f3e840;
+  border-bottom: 1px dotted #f8f3e840;
+  padding: 18px 0;
+  display: grid;
+  gap: 7px;
+}
+:where([data-immersive-vistaire]) .estimate-price strong {
+  font-size: 46px;
+  letter-spacing: -0.045em;
+  font-weight: 500;
+}
+:where([data-immersive-vistaire]) .estimate-price small,
+:where([data-immersive-vistaire]) .estimate-price > span {
+  font-size: 12px;
+}
+:where([data-immersive-vistaire]) .estimate-body p {
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.6;
+  margin: 16px 0;
+}
+:where([data-immersive-vistaire]) .estimate-body a:not(.action) {
+  font-size: 11px;
+  text-decoration: underline;
+  display: block;
+  margin-top: 16px;
+  text-underline-offset: 5px;
+}
+
+/* Every responsive layout reserves real space for copy and the interactive scene. */
+@media (max-width: 1050px) {
+  :where([data-immersive-vistaire]) .site-header {
+    padding: 0 18px;
+    gap: 18px;
+  }
+  :where([data-immersive-vistaire]) .desktop-nav {
+    gap: 18px;
+  }
+  :where([data-immersive-vistaire]) .header-3d {
+    font-size: 11px;
+    padding: 11px 13px;
+  }
+  :where([data-immersive-vistaire]) .side-copy {
+    padding: 18px;
+  }
+  :where([data-immersive-vistaire]) .experience .stage {
+    grid-template-columns: 25fr 43fr 32fr;
+  }
+  :where([data-immersive-vistaire]) .menu-demo-picker button {
+    padding: 12px 16px;
+  }
+  :where([data-immersive-vistaire]) .social-inner {
+    grid-template-columns: 44fr 56fr;
+  }
+  :where([data-immersive-vistaire]) .social-description {
+    font-size: 15px;
+  }
+  :where([data-immersive-vistaire]) .social-inner h3 {
+    font-size: min(5.5vw, calc(9 * var(--scene-vh)));
+  }
+  :where([data-immersive-vistaire]) .collection-details {
+    padding: 20px;
+  }
+  :where([data-immersive-vistaire]) .included h3 {
+    font-size: 25px;
+  }
+  :where([data-immersive-vistaire]) .footer-grid a,
+  :where([data-immersive-vistaire]) .footer-grid button {
+    font-size: 14px;
+  }
+}
+@media (max-width: 767.98px) {
+  :where([data-immersive-vistaire]) {
+    --pad: 5vw;
+    --body: 15px;
+  }
+  :where([data-immersive-vistaire]) .site-header {
+    top: 12px;
+    height: 54px;
+    padding: 0 16px;
+    gap: 12px;
+  }
+  :where([data-immersive-vistaire]) .brand {
+    font-size: 22px;
+    letter-spacing: 0.08em;
+  }
+  :where([data-immersive-vistaire]) .desktop-nav,
+  :where([data-immersive-vistaire]) .header-3d,
+  :where([data-immersive-vistaire]) .chapter-progress {
+    display: none;
+  }
+  :where([data-immersive-vistaire]) .menu-toggle {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    margin-left: auto;
+    padding: 10px 13px;
+    border: 1px solid #f8f3e850;
+    border-radius: 4px;
+    font-size: 11px;
+    position: relative;
+    z-index: 55;
+  }
+  :where([data-immersive-vistaire]) .mobile-menu {
+    display: flex;
+    position: fixed;
+    right: 0;
+    top: 0;
+    width: min(82%, 360px);
+    height: 100svh;
+    background: #111110;
+    z-index: 49;
+    padding: 100px 24px 36px;
+    flex-direction: column;
+    justify-content: space-between;
+    transform: translateX(101%);
+    transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  :where([data-immersive-vistaire]) .mobile-menu.is-open {
+    transform: translateX(0);
+  }
+  :where([data-immersive-vistaire]) .mobile-menu nav {
+    display: grid;
+    gap: 18px;
+  }
+  :where([data-immersive-vistaire]) .mobile-menu nav button {
+    display: flex;
+    gap: 14px;
+    align-items: center;
+    text-align: left;
+    font-family: "Vistaire Editorial", serif;
+    font-size: 28px;
+    padding: 14px 0;
+    border-bottom: 1px solid #f8f3e830;
+  }
+  :where([data-immersive-vistaire]) .mobile-menu nav small {
+    font-family: "Vistaire Text", sans-serif;
+    font-size: 10px;
+    color: var(--muted);
+  }
+  :where([data-immersive-vistaire]) .mobile-menu nav svg {
+    margin-left: auto;
+    width: 18px;
+  }
+  :where([data-immersive-vistaire]) .mobile-menu > div {
+    display: grid;
+    gap: 18px;
+    font-size: 13px;
+    color: var(--muted);
+  }
+  :where([data-immersive-vistaire]) .menu-shade {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: #05050580;
+    z-index: 48;
+  }
+  :where([data-immersive-vistaire]) .stage {
+    padding: 90px var(--pad) 48px;
+  }
+  :where([data-immersive-vistaire]) .eyebrow,
+  :where([data-immersive-vistaire]) .hero-kicker {
+    font-size: 9px;
+    letter-spacing: 0.09em;
+  }
+  :where([data-immersive-vistaire]) .chapter-heading {
+    gap: 12px;
+  }
+  :where([data-immersive-vistaire]) .chapter-heading h2 {
+    font-size: clamp(31px, 8.8vw, 43px);
+  }
+  :where([data-immersive-vistaire]) .chapter-heading p {
+    font-size: 14px;
+  }
+  :where([data-immersive-vistaire]) .action {
+    font-size: 12px;
+    padding: 12px 16px;
+    min-height: 42px;
+    gap: 9px;
+  }
+  :where([data-immersive-vistaire]) .scroll-hint {
+    font-size: 8px;
+    bottom: 15px;
+    gap: 8px;
+  }
+  :where([data-immersive-vistaire]) .hero .stage {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto auto minmax(0, 1fr) auto;
+    gap: 16px;
+  }
+  :where([data-immersive-vistaire]) .hero-word {
+    position: static;
+    grid-column: 1;
+    grid-row: 1;
+    font-size: 16vw;
+    line-height: 1;
+    text-align: center;
+    letter-spacing: 0.02em;
+  }
+  :where([data-immersive-vistaire]) .hero-kicker {
+    grid-column: 1;
+    grid-row: 2;
+    font-size: 8px;
+    text-align: center;
+  }
+  :where([data-immersive-vistaire]) .hero-copy {
+    grid-column: 1;
+    grid-row: 2;
+    align-self: start;
+    padding: 32px 12px 0;
+    text-align: center;
+    font-size: 23px;
+    line-height: 1.2;
+  }
+  :where([data-immersive-vistaire]) .hero .scene-focus {
+    grid-column: 1;
+    grid-row: 3;
+    margin-top: 68px;
+  }
+  :where([data-immersive-vistaire]) .hero-glass {
+    grid-column: 1;
+    grid-row: 4;
+    padding: 16px;
+    max-width: none;
+    gap: 12px;
+    background: #111110c2;
+  }
+  :where([data-immersive-vistaire]) .hero-glass h2 {
+    font-size: 22px;
+  }
+  :where([data-immersive-vistaire]) .hero-glass h2 br {
+    display: none;
+  }
+  :where([data-immersive-vistaire]) .hero-glass p {
+    padding-top: 12px;
+    font-size: 13px;
+  }
+  :where([data-immersive-vistaire]) .hero .scroll-hint {
+    display: none;
+  }
+  :where([data-immersive-vistaire]) .experience .stage {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto minmax(0, 1fr) auto;
+    gap: 16px;
+  }
+  :where([data-immersive-vistaire]) .side-heading {
+    grid-column: 1;
+    grid-row: 1;
+    align-self: start;
+    font-size: 36px;
+    max-width: 75%;
+  }
+  :where([data-immersive-vistaire]) .side-heading br:nth-of-type(2) {
+    display: none;
+  }
+  :where([data-immersive-vistaire]) .experience .scene-focus {
+    grid-column: 1;
+    grid-row: 2;
+  }
+  :where([data-immersive-vistaire]) .side-copy {
+    grid-column: 1;
+    grid-row: 3;
+    align-self: end;
+    text-align: center;
+    padding: 16px;
+  }
+  :where([data-immersive-vistaire]) .side-copy p {
+    font-size: 14px;
+    line-height: 1.4;
+    margin: 12px 0 16px;
+  }
+  :where([data-immersive-vistaire]) .side-copy .eyebrow {
+    font-size: 8px;
+  }
+  :where([data-immersive-vistaire]) .chapter-bottom {
+    display: none;
+  }
+  :where([data-immersive-vistaire]) .wearable .stage {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto minmax(0, 1fr) auto;
+    gap: 16px;
+  }
+  :where([data-immersive-vistaire]) .wearable .chapter-heading {
+    grid-column: 1;
+    grid-row: 1;
+    text-align: center;
+    align-self: start;
+  }
+  :where([data-immersive-vistaire]) .wearable .chapter-heading h2 {
+    font-size: 38px;
+  }
+  :where([data-immersive-vistaire]) .wearable .scene-focus {
+    grid-column: 1;
+    grid-row: 2;
+  }
+  :where([data-immersive-vistaire]) .menu-demo-picker {
+    grid-column: 1;
+    grid-row: 3;
+    gap: 5px;
+  }
+  :where([data-immersive-vistaire]) .menu-demo-picker button {
+    flex: 1;
+    padding: 11px 7px;
+    text-align: center;
+    gap: 5px;
+  }
+  :where([data-immersive-vistaire]) .menu-demo-picker button > span {
+    font-size: 16px;
+  }
+  :where([data-immersive-vistaire]) .menu-demo-picker small {
+    font-size: 8px;
+    line-height: 1.3;
+  }
+  :where([data-immersive-vistaire]) .features .stage {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto minmax(0, 1fr) auto;
+    gap: 14px;
+  }
+  :where([data-immersive-vistaire]) .feature-top {
+    grid-column: 1;
+    grid-row: 1;
+    justify-content: center;
+  }
+  :where([data-immersive-vistaire]) .feature-number {
+    width: 26px;
+    height: 26px;
+    font-size: 10px;
+  }
+  :where([data-immersive-vistaire]) .features .scene-focus {
+    grid-column: 1;
+    grid-row: 2;
+  }
+  :where([data-immersive-vistaire]) .feature-card {
+    grid-column: 1;
+    grid-row: 3;
+    padding: 18px;
+    text-align: center;
+  }
+  :where([data-immersive-vistaire]) .feature-card h3 {
+    font-size: 29px;
+    margin: 12px 0;
+  }
+  :where([data-immersive-vistaire]) .feature-card p {
+    font-size: 13px;
+    line-height: 1.45;
+    margin-bottom: 16px;
+  }
+  :where([data-immersive-vistaire]) .feature-dots {
+    bottom: 18px;
+  }
+  :where([data-immersive-vistaire]) .identity .stage {
+    gap: 14px;
+  }
+  :where([data-immersive-vistaire]) .identity .scene-focus {
+    width: 100%;
+  }
+  :where([data-immersive-vistaire]) .grip .stage {
+    gap: 14px;
+  }
+  :where([data-immersive-vistaire]) .grip .chapter-heading h2 {
+    font-size: 32px;
+  }
+  :where([data-immersive-vistaire]) .grip .chapter-heading h2 em {
+    display: block;
+  }
+  :where([data-immersive-vistaire]) .grip .chapter-heading p {
+    font-size: 13px;
+  }
+  :where([data-immersive-vistaire]) .grip .dish-gesture {
+    max-width: 100%;
+  }
+  :where([data-immersive-vistaire]) .dish-switch {
+    width: 100%;
+    justify-self: start;
+    gap: 2px;
+    padding: 4px;
+  }
+  :where([data-immersive-vistaire]) .dish-switch button {
+    padding: 9px 12px;
+    font-size: 11px;
+  }
+  :where([data-immersive-vistaire]) .rotation-control {
+    width: 100%;
+    font-size: 10px;
+  }
+  :where([data-immersive-vistaire]) .detail-link {
+    font-size: 11px;
+    gap: 6px;
+    text-align: right;
+    max-width: 100%;
+  }
+  :where([data-immersive-vistaire]) .detail-link svg {
+    min-width: 13px;
+    width: 13px;
+  }
+  :where([data-immersive-vistaire]) .rotation-control label {
+    gap: 8px;
+    padding-top: 10px;
+  }
+  :where([data-immersive-vistaire]) .model-error,
+  :where([data-immersive-vistaire]) .model-loading {
+    top: 37%;
+    font-size: 11px;
+  }
+  :where([data-immersive-vistaire]) .living .stage {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto minmax(0, 1fr) auto;
+    gap: 16px;
+  }
+  :where([data-immersive-vistaire]) .living-copy {
+    grid-column: 1;
+    grid-row: 1;
+    padding: 18px;
+    text-align: center;
+  }
+  :where([data-immersive-vistaire]) .living-title {
+    font-size: 43px;
+    margin: 14px 0;
+  }
+  :where([data-immersive-vistaire]) .living-title br {
+    display: none;
+  }
+  :where([data-immersive-vistaire]) .living-description {
+    font-size: 14px;
+  }
+  :where([data-immersive-vistaire]) .living-description a {
+    font-size: 11px;
+    margin-top: 16px;
+  }
+  :where([data-immersive-vistaire]) .living .scene-focus {
+    grid-column: 1;
+    grid-row: 2;
+  }
+  :where([data-immersive-vistaire]) .living-facts {
+    grid-column: 1;
+    grid-row: 3;
+    font-size: 9px;
+    gap: 8px;
+    text-align: center;
+    padding-top: 12px;
+  }
+  :where([data-immersive-vistaire]) .living-facts span {
+    flex: 1;
+  }
+  :where([data-immersive-vistaire]) .identities .stage {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto auto 1fr;
+    gap: 16px;
+  }
+  :where([data-immersive-vistaire]) .identities h2 {
+    grid-column: 1;
+    grid-row: 1;
+    font-size: 35px;
+  }
+  :where([data-immersive-vistaire]) .identity-intro {
+    grid-column: 1;
+    grid-row: 2;
+    font-size: 14px;
+    justify-self: start;
+  }
+  :where([data-immersive-vistaire]) .experience-list {
+    grid-column: 1;
+    grid-row: 3;
+  }
+  :where([data-immersive-vistaire]) .experience-list > button {
+    grid-template-columns: 18px 1fr 70px 13px;
+    gap: 12px;
+    padding: 16px 0;
+  }
+  :where([data-immersive-vistaire]) .experience-list .index {
+    font-size: 9px;
+  }
+  :where([data-immersive-vistaire]) .experience-list h3 {
+    font-size: 26px;
+    margin: 4px 0;
+  }
+  :where([data-immersive-vistaire]) .experience-list .eyebrow {
+    font-size: 8px;
+  }
+  :where([data-immersive-vistaire]) .experience-list p {
+    display: none;
+  }
+  :where([data-immersive-vistaire]) .experience-list img {
+    width: 70px;
+    height: 79px;
+  }
+  :where([data-immersive-vistaire]) .experience-list svg {
+    width: 13px;
+  }
+  :where([data-immersive-vistaire]) .social .stage {
+    padding-bottom: 74px;
+  }
+  :where([data-immersive-vistaire]) .social-inner {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto auto minmax(0, 1fr) auto;
+    gap: 10px;
+    padding: 19px;
+  }
+  :where([data-immersive-vistaire]) .social-inner > .eyebrow {
+    grid-column: 1;
+    grid-row: 1;
+  }
+  :where([data-immersive-vistaire]) .social-inner h3 {
+    grid-column: 1;
+    grid-row: 2;
+    font-size: 39px;
+    margin: 0;
+    align-self: start;
+  }
+  :where([data-immersive-vistaire]) .social-description {
+    display: none;
+  }
+  :where([data-immersive-vistaire]) .walkthrough-frame {
+    grid-column: 1;
+    grid-row: 3;
+    max-width: 100%;
+    border-radius: 18px;
+    outline-width: 3px;
+  }
+  :where([data-immersive-vistaire]) .social-bottom {
+    grid-column: 1;
+    grid-row: 4;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding-top: 8px;
+  }
+  :where([data-immersive-vistaire]) .social-bottom > span {
+    font-size: 21px;
+  }
+  :where([data-immersive-vistaire]) .social-bottom .action {
+    font-size: 11px;
+    padding: 10px 13px;
+    min-height: 38px;
+  }
+  :where([data-immersive-vistaire]) .social-pager {
+    bottom: 44px;
+  }
+  :where([data-immersive-vistaire]) .product .stage {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto auto minmax(0, 1fr) auto auto;
+    gap: 13px;
+  }
+  :where([data-immersive-vistaire]) .product > .stage > .stage-eyebrow {
+    grid-column: 1;
+    grid-row: 1;
+  }
+  :where([data-immersive-vistaire]) .product h2 {
+    grid-column: 1;
+    grid-row: 1;
+    font-size: 40px;
+    padding-top: 20px;
+  }
+  :where([data-immersive-vistaire]) .collection-tabs {
+    grid-column: 1;
+    grid-row: 2;
+    justify-self: stretch;
+    justify-content: center;
+    gap: 2px;
+    padding: 4px;
+  }
+  :where([data-immersive-vistaire]) .collection-tabs button {
+    flex: 1;
+    padding: 11px 8px;
+    font-size: 11px;
+  }
+  :where([data-immersive-vistaire]) .product .scene-focus {
+    grid-column: 1;
+    grid-row: 3;
+  }
+  :where([data-immersive-vistaire]) .support-controls {
+    grid-column: 1;
+    grid-row: 4;
+    font-size: 10px;
+    gap: 14px;
+  }
+  :where([data-immersive-vistaire]) .support-controls button {
+    padding: 8px 10px;
+    font-size: 10px;
+  }
+  :where([data-immersive-vistaire]) .collection-details {
+    grid-column: 1;
+    grid-row: 5;
+    padding: 15px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  :where([data-immersive-vistaire]) .collection-details > div {
+    flex: 1;
+    min-width: 0;
+  }
+  :where([data-immersive-vistaire]) .collection-details .eyebrow {
+    font-size: 8px;
+  }
+  :where([data-immersive-vistaire]) .collection-details p {
+    display: none;
+  }
+  :where([data-immersive-vistaire]) .price {
+    font-size: 26px;
+    margin-top: 7px;
+  }
+  :where([data-immersive-vistaire]) .price small {
+    font-size: 9px;
+  }
+  :where([data-immersive-vistaire]) .monthly {
+    font-size: 10px;
+    margin-top: 4px;
+  }
+  :where([data-immersive-vistaire]) .collection-details > .action {
+    flex: 0 0 43%;
+    padding: 11px;
+    font-size: 11px;
+  }
+  :where([data-immersive-vistaire]) .accompaniment .stage {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: stretch;
+    gap: 28px;
+    padding-top: 92px;
+  }
+  :where([data-immersive-vistaire]) .accompaniment h2 {
+    font-size: 37px;
+    margin: 16px 0;
+  }
+  :where([data-immersive-vistaire]) .accompaniment p {
+    font-size: 14px;
+    margin-bottom: 19px;
+  }
+  :where([data-immersive-vistaire]) .included > div {
+    padding: 13px 0;
+    gap: 15px;
+  }
+  :where([data-immersive-vistaire]) .included h3 {
+    font-size: 21px;
+    line-height: 1.1;
+  }
+  :where([data-immersive-vistaire]) .included > div > span {
+    font-size: 9px;
+    padding-top: 4px;
+  }
+  :where([data-immersive-vistaire]) .included > small {
+    font-size: 10px;
+    margin: 12px 0;
+  }
+  :where([data-immersive-vistaire]) .included > a {
+    font-size: 10px;
+  }
+  :where([data-immersive-vistaire]) .footer .stage {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto minmax(0, 1fr) auto auto;
+    gap: 15px;
+  }
+  :where([data-immersive-vistaire]) .footer-main {
+    grid-column: 1;
+    grid-row: 1;
+    align-self: center;
+  }
+  :where([data-immersive-vistaire]) .footer-main h2 {
+    font-size: 34px;
+    margin: 12px 0;
+  }
+  :where([data-immersive-vistaire]) .footer-main h2 br {
+    display: none;
+  }
+  :where([data-immersive-vistaire]) .footer-main .eyebrow {
+    font-size: 8px;
+  }
+  :where([data-immersive-vistaire]) .footer-main .action {
+    padding: 10px 16px;
+    font-size: 12px;
+  }
+  :where([data-immersive-vistaire]) .footer .scene-focus {
+    grid-column: 1;
+    grid-row: 2;
+  }
+  :where([data-immersive-vistaire]) .footer-grid {
+    grid-column: 1;
+    grid-row: 3;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+  }
+  :where([data-immersive-vistaire]) .footer-grid > div {
+    gap: 10px;
+    padding-top: 14px;
+  }
+  :where([data-immersive-vistaire]) .footer-grid .eyebrow {
+    font-size: 8px;
+  }
+  :where([data-immersive-vistaire]) .footer-grid a,
+  :where([data-immersive-vistaire]) .footer-grid button {
+    font-size: 12px;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  :where([data-immersive-vistaire]) .footer-grid svg {
+    width: 12px;
+  }
+  :where([data-immersive-vistaire]) .footer .footer-bottom {
+    grid-row: 4;
+  }
+  :where([data-immersive-vistaire]) .footer-bottom {
+    grid-column: 1;
+    grid-row: 3;
+    font-size: 8px;
+    gap: 12px;
+    padding-top: 14px;
+  }
+  :where([data-immersive-vistaire]) .modal-backdrop {
+    padding: 15px;
+  }
+  :where([data-immersive-vistaire]) .modal {
+    max-height: calc(100svh - 30px);
+  }
+  :where([data-immersive-vistaire]) .close-modal {
+    width: 32px;
+    height: 32px;
+    top: 10px;
+    margin: 10px 10px 0 0;
+  }
+  :where([data-immersive-vistaire]) .menu-preview-head {
+    padding: 38px 20px 22px;
+  }
+  :where([data-immersive-vistaire]) .menu-preview-head h2 {
+    font-size: 38px;
+    margin: 17px 0 10px;
+  }
+  :where([data-immersive-vistaire]) .menu-preview-dishes {
+    padding: 0 20px;
+  }
+  :where([data-immersive-vistaire]) .menu-preview-dishes > button {
+    gap: 14px;
+    padding: 20px 0;
+    align-items: start;
+  }
+  :where([data-immersive-vistaire]) .menu-preview-dishes img {
+    width: 75px;
+    height: 104px;
+  }
+  :where([data-immersive-vistaire]) .menu-preview-dishes h3 {
+    font-size: 20px;
+    margin: 9px 0;
+  }
+  :where([data-immersive-vistaire]) .menu-preview-dishes p {
+    font-size: 11px;
+    line-height: 1.4;
+    margin-bottom: 8px;
+  }
+  :where([data-immersive-vistaire]) .menu-preview-dishes .eyebrow {
+    font-size: 8px;
+  }
+  :where([data-immersive-vistaire]) .menu-preview-dishes small {
+    font-size: 8px;
+    margin: 8px 0 0;
+    display: block;
+    width: max-content;
+    padding: 3px 6px;
+  }
+  :where([data-immersive-vistaire]) .menu-preview-dishes > button > svg {
+    width: 14px;
+    min-width: 14px;
+    margin-top: 8px;
+  }
+  :where([data-immersive-vistaire]) .menu-preview-complete {
+    padding: 20px;
+    font-size: 11px;
+  }
+  :where([data-immersive-vistaire]) .dish-detail {
+    display: flex;
+    flex-direction: column;
+  }
+  :where([data-immersive-vistaire]) .dish-detail > img {
+    min-height: 0;
+    height: 245px;
+    object-position: center 45%;
+  }
+  :where([data-immersive-vistaire]) .dish-detail > div {
+    padding: 25px 22px;
+  }
+  :where([data-immersive-vistaire]) .dish-detail h2 {
+    font-size: 32px;
+    margin: 18px 0;
+  }
+  :where([data-immersive-vistaire]) .dish-detail p {
+    font-size: 14px;
+    margin-bottom: 18px;
+  }
+  :where([data-immersive-vistaire]) .dish-detail strong {
+    font-size: 22px;
+  }
+  :where([data-immersive-vistaire]) .allergens {
+    margin: 22px 0;
+    padding-top: 20px;
+  }
+  :where([data-immersive-vistaire]) .film-modal {
+    padding: 35px 15px 20px;
+    gap: 16px;
+  }
+  :where([data-immersive-vistaire]) .film-modal .eyebrow {
+    font-size: 9px;
+  }
+  :where([data-immersive-vistaire]) .film-modal video {
+    max-height: 69svh;
+  }
+  :where([data-immersive-vistaire]) .film-modal > a {
+    font-size: 11px;
+  }
+  :where([data-immersive-vistaire]) .estimate,
+  :where([data-immersive-vistaire]) .share-modal {
+    padding: 35px 20px 25px;
+  }
+  :where([data-immersive-vistaire]) .estimate h2,
+  :where([data-immersive-vistaire]) .share-modal h2 {
+    font-size: 34px;
+    margin: 18px 0 20px;
+  }
+  :where([data-immersive-vistaire]) .estimate-body {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+  :where([data-immersive-vistaire]) .estimate-body > img {
+    height: 160px;
+    object-position: center 58%;
+  }
+  :where([data-immersive-vistaire]) .estimate-body label {
+    font-size: 11px;
+    margin-bottom: 16px;
+  }
+  :where([data-immersive-vistaire]) .estimate-body input,
+  :where([data-immersive-vistaire]) .estimate-body select {
+    font-size: 14px;
+    padding: 10px;
+  }
+  :where([data-immersive-vistaire]) .estimate-price strong {
+    font-size: 36px;
+  }
+  :where([data-immersive-vistaire]) .estimate-price {
+    padding: 15px 0;
+  }
+  :where([data-immersive-vistaire]) .estimate-body p {
+    font-size: 11px;
+  }
+  :where([data-immersive-vistaire]) .estimate-body a:not(.action) {
+    font-size: 10px;
+  }
+}
+@media (max-height: 700px) and (min-width: 768px) {
+  :where([data-immersive-vistaire]) .stage {
+    padding-top: 98px;
+    padding-bottom: 42px;
+  }
+  :where([data-immersive-vistaire]) .site-header {
+    height: 54px;
+    top: 12px;
+  }
+  :where([data-immersive-vistaire]) .chapter-heading {
+    gap: 10px;
+  }
+  :where([data-immersive-vistaire]) .chapter-heading h2 {
+    font-size: 38px;
+  }
+  :where([data-immersive-vistaire]) .chapter-heading p {
+    font-size: 14px;
+  }
+  :where([data-immersive-vistaire]) .hero-word {
+    top: 112px;
+    font-size: calc(14 * var(--scene-vh));
+  }
+  :where([data-immersive-vistaire]) .hero .scene-focus {
+    margin-top: 70px;
+  }
+  :where([data-immersive-vistaire]) .hero-glass {
+    padding: 16px;
+    gap: 14px;
+  }
+  :where([data-immersive-vistaire]) .hero-glass h2 {
+    font-size: 25px;
+  }
+  :where([data-immersive-vistaire]) .hero-glass p {
+    font-size: 13px;
+  }
+  :where([data-immersive-vistaire]) .feature-card {
+    padding: 19px;
+  }
+  :where([data-immersive-vistaire]) .feature-card h3 {
+    font-size: 30px;
+    margin: 12px 0;
+  }
+  :where([data-immersive-vistaire]) .feature-card p {
+    font-size: 14px;
+    margin-bottom: 16px;
+  }
+  :where([data-immersive-vistaire]) .living-copy {
+    padding: 19px;
+  }
+  :where([data-immersive-vistaire]) .living-title {
+    font-size: 48px;
+    margin: 15px 0;
+  }
+  :where([data-immersive-vistaire]) .experience-list > button {
+    padding: 10px 0;
+  }
+  :where([data-immersive-vistaire]) .experience-list img {
+    height: 57px;
+  }
+  :where([data-immersive-vistaire]) .included > div {
+    padding: 14px 0;
+  }
+  :where([data-immersive-vistaire]) .included h3 {
+    font-size: 23px;
+  }
+  :where([data-immersive-vistaire]) .footer-main h2 {
+    font-size: 60px;
+  }
+}
+@media (max-width: 767.98px) {
+  html.journey-compact :where([data-immersive-vistaire]) .stage {
+    padding-top: 82px;
+    padding-bottom: 38px;
+  }
+  html.journey-compact :where([data-immersive-vistaire]) .hero-glass h2 {
+    font-size: 19px;
+  }
+  html.journey-compact :where([data-immersive-vistaire]) .hero-glass p {
+    font-size: 12px;
+  }
+  html.journey-compact :where([data-immersive-vistaire]) .hero-copy {
+    font-size: 21px;
+  }
+  html.journey-compact :where([data-immersive-vistaire]) .hero .scene-focus {
+    margin-top: 60px;
+  }
+  html.journey-compact :where([data-immersive-vistaire]) .chapter-heading h2 {
+    font-size: 30px;
+  }
+  html.journey-compact :where([data-immersive-vistaire]) .chapter-heading p {
+    font-size: 12px;
+  }
+  html.journey-compact :where([data-immersive-vistaire]) .side-heading {
+    font-size: 31px;
+  }
+  html.journey-compact :where([data-immersive-vistaire]) .side-copy {
+    padding: 12px;
+  }
+  html.journey-compact :where([data-immersive-vistaire]) .side-copy p {
+    font-size: 12px;
+    margin: 9px 0 12px;
+  }
+  html.journey-compact :where([data-immersive-vistaire]) .wearable .chapter-heading h2 {
+    font-size: 32px;
+  }
+  html.journey-compact :where([data-immersive-vistaire]) .menu-demo-picker small {
+    display: none;
+  }
+  html.journey-compact :where([data-immersive-vistaire]) .feature-card {
+    padding: 14px;
+  }
+  html.journey-compact :where([data-immersive-vistaire]) .feature-card h3 {
+    font-size: 25px;
+  }
+  html.journey-compact :where([data-immersive-vistaire]) .feature-card p {
+    font-size: 12px;
+  }
+  html.journey-compact :where([data-immersive-vistaire]) .living-copy {
+    padding: 14px;
+  }
+  html.journey-compact :where([data-immersive-vistaire]) .living-title {
+    font-size: 35px;
+    margin: 12px 0;
+  }
+  html.journey-compact :where([data-immersive-vistaire]) .living-description {
+    font-size: 12px;
+  }
+  html.journey-compact :where([data-immersive-vistaire]) .identities h2 {
+    font-size: 30px;
+  }
+  html.journey-compact :where([data-immersive-vistaire]) .identity-intro {
+    font-size: 12px;
+  }
+  html.journey-compact :where([data-immersive-vistaire]) .experience-list > button {
+    padding: 11px 0;
+  }
+  html.journey-compact :where([data-immersive-vistaire]) .experience-list img {
+    height: 64px;
+  }
+  html.journey-compact :where([data-immersive-vistaire]) .social-inner h3 {
+    font-size: 32px;
+  }
+  html.journey-compact :where([data-immersive-vistaire]) .collection-details {
+    padding: 12px;
+  }
+  html.journey-compact :where([data-immersive-vistaire]) .accompaniment .stage {
+    gap: 16px;
+  }
+  html.journey-compact :where([data-immersive-vistaire]) .accompaniment h2 {
+    font-size: 31px;
+    margin: 12px 0;
+  }
+  html.journey-compact :where([data-immersive-vistaire]) .accompaniment p {
+    font-size: 12px;
+  }
+  html.journey-compact :where([data-immersive-vistaire]) .included > div {
+    padding: 10px 0;
+  }
+  html.journey-compact :where([data-immersive-vistaire]) .included h3 {
+    font-size: 18px;
+  }
+  html.journey-compact :where([data-immersive-vistaire]) .footer-main h2 {
+    font-size: 38px;
+  }
+  html.journey-compact :where([data-immersive-vistaire]) .footer-grid {
+    gap: 15px;
+  }
+  html.journey-compact :where([data-immersive-vistaire]) .footer-grid a,
+  html.journey-compact :where([data-immersive-vistaire]) .footer-grid button {
+    font-size: 11px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  :where([data-immersive-vistaire]) {
+    scroll-behavior: auto;
+  }
+  :where([data-immersive-vistaire]) *,
+  :where([data-immersive-vistaire]) *:before,
+  :where([data-immersive-vistaire]) *:after {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
+:where([data-immersive-vistaire]) .walkthrough-poster {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  pointer-events: none;
+}
+
+/* AR controls occupy their own grid cell, below the plate. */
+:where([data-immersive-vistaire]) .grip-actions {
+  grid-column: 2;
+  grid-row: 4;
+  justify-self: end;
+  align-self: center;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+:where([data-immersive-vistaire]) .grip-actions .detail-link {
+  grid-area: auto;
+  margin: 0;
+}
+:where([data-immersive-vistaire]) .ar-action {
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  gap: 9px;
+  padding: 13px 18px;
+  border: 1px solid #ffc30088;
+  border-radius: 50px;
+  background: #111110e8;
+  color: var(--cream);
+  font-size: 15px;
+  white-space: nowrap;
+  transition:
+    background 0.2s,
+    border-color 0.2s;
+}
+:where([data-immersive-vistaire]) .ar-action:hover {
+  background: #ffc300;
+  color: #050505;
+  border-color: #ffc300;
+}
+:where([data-immersive-vistaire]) .ar-action:disabled {
+  opacity: 0.5;
+  cursor: wait;
+}
+:where([data-immersive-vistaire]) .ar-action > img {
+  width: 1px;
+  height: 1px;
+  position: absolute;
+  opacity: 0;
+}
+:where([data-immersive-vistaire]) .dish-detail .ar-action {
+  margin-top: 14px;
+}
+:where([data-immersive-vistaire]) .restaurant-menu-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 21px;
+  text-decoration: underline;
+  text-underline-offset: 6px;
+  text-decoration-color: #f8f3e860;
+}
+:where([data-immersive-vistaire]) .restaurant-menu-link:hover {
+  color: var(--amber);
+}
+:where([data-immersive-vistaire]) .ar-help {
+  padding: 55px 35px 35px;
+  max-width: 620px;
+  margin: auto;
+  text-align: center;
+}
+:where([data-immersive-vistaire]) .ar-help h2 {
+  font-size: clamp(38px, 5vw, 64px);
+  line-height: 1;
+  margin: 20px 0;
+}
+:where([data-immersive-vistaire]) .ar-help p {
+  line-height: 1.5;
+  margin: 15px 0;
+}
+:where([data-immersive-vistaire]) .ar-qr {
+  width: min(230px, 65vw);
+  display: block;
+  margin: 22px auto;
+  border-radius: 10px;
+}
+:where([data-immersive-vistaire]) .ar-page-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  text-decoration: underline;
+}
+:where([data-immersive-vistaire]) .ar-feedback {
+  color: var(--amber);
+}
+:where([data-immersive-vistaire]) .ar-overlay {
+  display: none;
+}
+:where([data-immersive-vistaire]) .ar-overlay.is-active {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: max(20px, env(safe-area-inset-top)) 20px
+    max(20px, env(safe-area-inset-bottom));
+  pointer-events: none;
+  color: #f8f3e8;
+}
+:where([data-immersive-vistaire]) .ar-toolbar,
+:where([data-immersive-vistaire]) .ar-controls {
+  background: #111110ea;
+  backdrop-filter: blur(12px);
+  border: 1px solid #ffc30066;
+  border-radius: 16px;
+  padding: 18px;
+  display: flex;
+  gap: 16px;
+  justify-content: space-between;
+}
+:where([data-immersive-vistaire]) .ar-toolbar strong,
+:where([data-immersive-vistaire]) .ar-toolbar span {
+  display: block;
+}
+:where([data-immersive-vistaire]) .ar-toolbar span {
+  margin-top: 7px;
+  font-size: 15px;
+  line-height: 1.4;
+}
+:where([data-immersive-vistaire]) .ar-overlay button,
+:where([data-immersive-vistaire]) .ar-overlay input {
+  pointer-events: auto;
+}
+:where([data-immersive-vistaire]) .ar-overlay button {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+}
+:where([data-immersive-vistaire]) .ar-controls {
+  flex-wrap: wrap;
+}
+:where([data-immersive-vistaire]) .ar-controls label {
+  width: 100%;
+}
+:where([data-immersive-vistaire]) .ar-controls input {
+  width: 100%;
+  margin-top: 12px;
+}
+:where([data-immersive-vistaire]) .ar-controls small {
+  width: 100%;
+  opacity: 0.8;
+}
+:where([data-immersive-vistaire]) .estimate-pilotage {
+  display: flex;
+  flex-direction: row !important;
+  align-items: center;
+  gap: 12px;
+}
+:where([data-immersive-vistaire]) .estimate-pilotage input {
+  width: 20px !important;
+  height: 20px;
+}
+:where([data-immersive-vistaire]) .estimate-extra {
+  color: var(--amber);
+}
+@media (max-width: 767.98px) {
+  :where([data-immersive-vistaire]) .grip-actions {
+    gap: 7px;
+    flex-direction: column;
+    align-items: stretch;
+    justify-self: stretch;
+    margin-left: 12px;
+  }
+  :where([data-immersive-vistaire]) .grip-actions .ar-action {
+    padding: 10px 12px;
+    font-size: 13px;
+    gap: 5px;
+  }
+  :where([data-immersive-vistaire]) .grip-actions .detail-link {
+    font-size: 12px;
+    justify-content: center;
+  }
+  :where([data-immersive-vistaire]) .restaurant-menu-link {
+    font-size: 17px;
+  }
+  :where([data-immersive-vistaire]) .ar-help {
+    padding: 45px 20px 25px;
+  }
+}
+
+/* Scroll is native. Only scene content is choreographed between sticky stages. */
+:where([data-immersive-vistaire]) .chapter:not(.hero):not(.experience):not(.wearable):not(.pricing)
+  .stage
+  > :not(.scene-focus) {
+  opacity: var(--copy-opacity, 1);
+  translate: 0 var(--copy-shift, 0px);
+}
+:where([data-immersive-vistaire]) .dish-gesture {
+  touch-action: pan-x pan-y;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
+:where([data-immersive-vistaire]) .support-gesture {
+  touch-action: manipulation;
+}
+
+@media (max-width: 767.98px) {
+  :where([data-immersive-vistaire]) main,
+  :where([data-immersive-vistaire]) .site-header {
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+  }
+}
+
+/* Controls remain readable against the original white tablecloth. */
+:where([data-immersive-vistaire]) .rotation-control,
+:where([data-immersive-vistaire]) .grip-actions {
+  background: #111110ed;
+  border: 1px solid #f8f3e82b;
+  border-radius: 6px;
+  padding: 12px;
+}
+@media (max-width: 767.98px) {
+  :where([data-immersive-vistaire]) .grip .stage {
+    grid-template-rows: auto minmax(0, 1fr) auto auto auto;
+    gap: 12px;
+  }
+  :where([data-immersive-vistaire]) .rotation-control {
+    grid-column: 1/-1;
+    grid-row: 4;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 6px 12px;
+    padding: 10px;
+  }
+  :where([data-immersive-vistaire]) .rotation-control > div:first-child {
+    grid-column: 1;
+    grid-row: 1;
+  }
+  :where([data-immersive-vistaire]) .rotation-control label {
+    grid-column: 1;
+    grid-row: 2;
+    padding-top: 0;
+  }
+  :where([data-immersive-vistaire]) .rotation-control > .dish-zoom {
+    grid-column: 2;
+    grid-row: 1/3;
+    padding-top: 0;
+    gap: 5px;
+    align-items: center;
+  }
+  :where([data-immersive-vistaire]) .rotation-control small {
+    grid-column: 1/-1;
+    grid-row: 3;
+    padding-top: 2px;
+    font-size: 9px;
+  }
+  :where([data-immersive-vistaire]) .dish-zoom button {
+    min-width: 38px;
+    min-height: 38px;
+  }
+  :where([data-immersive-vistaire]) .dish-zoom output {
+    min-width: 36px;
+  }
+  :where([data-immersive-vistaire]) .grip-actions {
+    grid-column: 1/-1;
+    grid-row: 5;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 8px;
+  }
+  :where([data-immersive-vistaire]) .grip-actions .ar-action {
+    font-size: 12px;
+    padding: 11px 12px;
+  }
+  :where([data-immersive-vistaire]) .grip-actions .detail-link {
+    font-size: 10px;
+  }
+}
+
+@media (max-width: 767.98px) {
+  :where([data-immersive-vistaire]) .grip-actions {
+    flex-direction: row;
+    margin-left: 0;
+    width: 100%;
+  }
+}
+
+:where([data-immersive-vistaire]) .feature-card {
+  animation: vistaire-copy-enter 0.4s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+@keyframes vistaire-copy-enter {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  :where([data-immersive-vistaire]) .feature-card {
+    animation: none;
+  }
+}
+@media (max-width: 767.98px) {
+  :where([data-immersive-vistaire]) .feature-card {
+    min-height: 244px;
+  }
+}
+@media (max-width: 767.98px) {
+  :where([data-immersive-vistaire]) .site-header,
+  :where([data-immersive-vistaire]) .hero-glass {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    background: #111110ed;
+  }
+}
+
+/* Public Vistaire routes share the same navigation and precious accents. */
+:where([data-immersive-vistaire]) .menu-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 10px 13px;
+  border: 1px solid #ffc30055;
+  border-radius: 4px;
+  font-size: 12px;
+  position: relative;
+  z-index: 55;
+}
+:where([data-immersive-vistaire]) .mobile-menu {
+  display: flex;
+  position: fixed;
+  right: 0;
+  top: 0;
+  width: min(90vw, 440px);
+  height: 100svh;
+  overflow-y: auto;
+  background: var(--black);
+  border-left: 1px solid var(--blue);
+  z-index: 49;
+  padding: 100px 24px 30px;
+  flex-direction: column;
+  justify-content: flex-start;
+  transform: translateX(101%);
+  transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+}
+:where([data-immersive-vistaire]) .mobile-menu.is-open {
+  transform: translateX(0);
+}
+:where([data-immersive-vistaire]) .mobile-menu nav {
+  display: grid;
+  gap: 6px;
+}
+:where([data-immersive-vistaire]) .mobile-menu nav button {
+  display: flex;
+  align-items: center;
+  text-align: left;
+  gap: 14px;
+  min-height: 46px;
+  padding: 8px 0;
+  border-bottom: 1px solid #f8f3e820;
+  font-family: "Vistaire Editorial", serif;
+  font-size: 25px;
+}
+:where([data-immersive-vistaire]) .mobile-menu nav small {
+  font:
+    11px "Vistaire Text",
+    sans-serif;
+  color: var(--amber);
+}
+:where([data-immersive-vistaire]) .mobile-menu nav svg {
+  margin-left: auto;
+  width: 18px;
+}
+:where([data-immersive-vistaire]) .mobile-menu .menu-page-links {
+  grid-template-columns: 1fr 1fr;
+  gap: 4px 18px;
+  margin: 24px 0;
+}
+:where([data-immersive-vistaire]) .menu-page-links a {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  font-size: 15px;
+  line-height: 1.3;
+}
+:where([data-immersive-vistaire]) .menu-page-links a:hover {
+  color: var(--gold-light);
+}
+:where([data-immersive-vistaire]) .mobile-menu > div {
+  display: grid;
+  gap: 10px;
+  color: var(--muted);
+  font-size: 14px;
+  margin-top: auto;
+  padding-top: 12px;
+}
+:where([data-immersive-vistaire]) .menu-shade {
+  display: block;
+  position: fixed;
+  inset: 0;
+  background: #05050599;
+  z-index: 48;
+}
+:where([data-immersive-vistaire]) .footer-page-links {
+  display: flex;
+  flex-wrap: wrap;
+  column-gap: 18px;
+  row-gap: 8px;
+}
+:where([data-immersive-vistaire]) .public-footer-wrap {
+  position: relative;
+  background: #050505;
+  padding: 1px 0 24px;
+}
+:where([data-immersive-vistaire]) .footer-grid .footer-page-links a {
+  font-size: 12px;
+  min-height: 32px;
+}
+:where([data-immersive-vistaire]) .pricing .pricing-cta {
+  background: var(--gold-button);
+}
+:where([data-immersive-vistaire]) .pricing .pricing-cta:hover {
+  background: var(--gold-light);
+  border-color: var(--gold-light);
+}
+@media (prefers-reduced-motion: reduce) {
+  :where([data-immersive-vistaire]) .mobile-menu {
+    transition: none;
+  }
+}
+
+:where([data-immersive-vistaire]) .public-footer-wrap { min-height: 0; }

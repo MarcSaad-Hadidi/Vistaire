@@ -1,14 +1,20 @@
 import Link from "next/link";
+import { PublicNavigation } from "./PublicNavigation";
 import { getEditorialGuideNavigation } from "@/lib/editorialGuideRoutes";
-import { getLocalizedPath, normalizePathname, type Locale } from "@/lib/i18n";
+import {
+  getLocalizedPath,
+  normalizePathname,
+  type Locale,
+} from "@/lib/i18n";
 import { getPricingPage } from "@/lib/pricingPage";
 import {
   CONTACT_PHONE_DISPLAY,
   CONTACT_PHONE_TEL,
-  getVistaireSocialProfiles
+  getVistaireSocialProfiles,
 } from "@/lib/seo";
 import { SEO_GEO_PAGES, SEO_GEO_PAGES_EN } from "@/lib/seoGeoPages";
 import styles from "./VistairePreviewChrome.module.css";
+import "./public-pages.css";
 
 type PreviewNavItem = {
   active: boolean;
@@ -37,7 +43,7 @@ type VistaireChromeRoutes = {
 
 export function getVistaireChromeRoutes(
   mode: VistaireRouteMode = "production",
-  locale: Locale = "fr"
+  locale: Locale = "fr",
 ): VistaireChromeRoutes {
   const pricingPage = getPricingPage(locale);
   void mode;
@@ -55,7 +61,7 @@ export function getVistaireChromeRoutes(
       menuQrCode: "/en/qr-code-restaurant-menu",
       pdfVsDigital: "/en/pdf-vs-digital-menu",
       pricing: pricingPage.path,
-      restaurateurDashboard: "/en/restaurant-preview"
+      restaurateurDashboard: "/en/restaurant-preview",
     };
   }
 
@@ -71,7 +77,7 @@ export function getVistaireChromeRoutes(
     menuQrCode: "/menu-qr-code-restaurant",
     pdfVsDigital: "/menu-pdf-vs-menu-digital",
     pricing: pricingPage.path,
-    restaurateurDashboard: "/apercu-restaurateur"
+    restaurateurDashboard: "/apercu-restaurateur",
   };
 }
 
@@ -81,15 +87,15 @@ const navLabels: Record<Locale, Record<PreviewNavSection, string>> = {
     menu: "Carte",
     pricing: "Tarifs",
     about: "À propos",
-    contact: "Contact"
+    contact: "Contact",
   },
   en: {
     home: "Home",
     menu: "Menu",
     pricing: "Pricing",
     about: "About",
-    contact: "Contact"
-  }
+    contact: "Contact",
+  },
 };
 
 const useCaseGeoSlugs = [
@@ -99,13 +105,13 @@ const useCaseGeoSlugs = [
   "alternative-menu-pdf-restaurant",
   "fiche-plat-digitale-restaurant",
   "menu-restaurant-photos",
-  "menu-restaurant-allergenes"
+  "menu-restaurant-allergenes",
 ] as const;
 
 const localGeoSlugs = [
   "menu-digital-restaurant-montreal",
   "menu-digital-restaurant-laval",
-  "menu-digital-restaurant-brossard"
+  "menu-digital-restaurant-brossard",
 ] as const;
 
 const useCaseGeoSlugsEn = [
@@ -115,19 +121,16 @@ const useCaseGeoSlugsEn = [
   "restaurant-pdf-menu-alternative",
   "digital-dish-page-restaurant",
   "restaurant-menu-photos",
-  "restaurant-menu-allergens"
+  "restaurant-menu-allergens",
 ] as const;
 
 const localGeoSlugsEn = [
   "digital-restaurant-menu-montreal",
   "digital-restaurant-menu-laval",
-  "digital-restaurant-menu-brossard"
+  "digital-restaurant-menu-brossard",
 ] as const;
 
-function getGeoFooterLinks(
-  slugs: readonly string[],
-  locale: Locale = "fr"
-) {
+function getGeoFooterLinks(slugs: readonly string[], locale: Locale = "fr") {
   const pages = locale === "en" ? SEO_GEO_PAGES_EN : SEO_GEO_PAGES;
 
   return slugs
@@ -135,7 +138,7 @@ function getGeoFooterLinks(
     .filter((page): page is (typeof pages)[number] => Boolean(page))
     .map((page) => ({
       label: page.eyebrow,
-      href: page.path
+      href: page.path,
     }));
 }
 
@@ -144,7 +147,7 @@ function getPreviewNav(
   activeSection?: PreviewNavSection,
   contactHref = "#contact-preview",
   locale: Locale = "fr",
-  currentPath = routes.home
+  currentPath = routes.home,
 ): PreviewNavItem[] {
   const labels = navLabels[locale];
   const normalizedCurrentPath = normalizePathname(currentPath);
@@ -156,22 +159,22 @@ function getPreviewNav(
     {
       label: labels.home,
       href: isCurrentRoute(routes.home) ? "#accueil" : routes.home,
-      active: activeSection === "home"
+      active: activeSection === "home" && isCurrentRoute(routes.home),
     },
     {
       label: labels.menu,
       href: isCurrentRoute(routes.menu) ? "#carte" : routes.menu,
-      active: activeSection === "menu"
+      active: activeSection === "menu" && isCurrentRoute(routes.menu),
     },
     {
       label: labels.pricing,
       href: isCurrentRoute(routes.pricing) ? "#pricing-title" : routes.pricing,
-      active: activeSection === "pricing"
+      active: activeSection === "pricing" && isCurrentRoute(routes.pricing),
     },
     {
       label: labels.about,
       href: isCurrentRoute(routes.about) ? "#a-propos" : routes.about,
-      active: activeSection === "about"
+      active: activeSection === "about" && isCurrentRoute(routes.about),
     },
     {
       label: labels.contact,
@@ -179,21 +182,29 @@ function getPreviewNav(
         isCurrentRoute(routes.contact) && isLocalHref(contactHref)
           ? contactHref
           : routes.contact,
-      active: activeSection === "contact"
-    }
+      active: activeSection === "contact" && isCurrentRoute(routes.contact),
+    },
   ];
 }
 
 function LanguageSwitcher({
   currentPath,
-  locale
+  locale,
 }: {
   currentPath: string;
   locale: Locale;
 }) {
   const options = [
-    { locale: "fr" as const, label: "FR", href: getLocalizedPath(currentPath, "fr") },
-    { locale: "en" as const, label: "EN", href: getLocalizedPath(currentPath, "en") }
+    {
+      locale: "fr" as const,
+      label: "FR",
+      href: getLocalizedPath(currentPath, "fr"),
+    },
+    {
+      locale: "en" as const,
+      label: "EN",
+      href: getLocalizedPath(currentPath, "en"),
+    },
   ];
 
   return (
@@ -230,7 +241,7 @@ export function PreviewNav({
   contactHref,
   currentPath,
   locale = "fr",
-  routeMode = "production"
+  routeMode = "production",
 }: {
   activeSection?: PreviewNavSection;
   contactHref?: string;
@@ -241,70 +252,57 @@ export function PreviewNav({
   const routes = getVistaireChromeRoutes(routeMode, locale);
   const resolvedCurrentPath = normalizePathname(currentPath ?? routes.home);
 
+  const items = getPreviewNav(
+    routes,
+    activeSection,
+    contactHref,
+    locale,
+    resolvedCurrentPath,
+  );
   return (
-    <nav
-      aria-label={locale === "en" ? "Main navigation" : "Navigation preview"}
-      className={styles.previewNav}
-    >
-      <Link
-        aria-label={locale === "en" ? "Vistaire - home" : "Vistaire - accueil"}
-        className={styles.navBrand}
-        href={routes.home}
-        prefetch={false}
-      >
-        <span className={styles.navBrandName}>Vistaire</span>
-        <span className={styles.navBrandSubline}>
-          {locale === "en" ? "Premium digital menu" : "Carte digitale premium"}
-        </span>
-      </Link>
-
-      <div className={styles.navLinks}>
-        {getPreviewNav(
-          routes,
-          activeSection,
-          contactHref,
-          locale,
-          resolvedCurrentPath
-        ).map((item) => {
-          const isCurrentPage = item.active && item.href.startsWith("#");
-
-          return (
-            <Link
-              aria-current={isCurrentPage ? "page" : undefined}
-              className={
-                item.active
-                  ? `${styles.navLink} ${styles.navActive}`
-                  : styles.navLink
-              }
-              href={item.href}
-              key={item.label}
-              prefetch={false}
-            >
-              {item.label}
-            </Link>
-          );
-        })}
-      </div>
-
-      <LanguageSwitcher currentPath={resolvedCurrentPath} locale={locale} />
-
-      <Link
-        aria-label={locale === "en" ? "Book a call" : "Prendre rendez-vous"}
-        className={styles.navCta}
-        href={routes.appointment}
-        prefetch={false}
-      >
-        <span className={styles.navCtaFull}>
-          {locale === "en" ? "Book a call" : "Prendre rendez vous"}
-        </span>
-        <span className={styles.navCtaShort}>
-          {locale === "en" ? "Book" : "Rendez vous"}
-        </span>
-        <span aria-hidden="true" className={styles.navCtaArrow}>
-          ↗
-        </span>
-      </Link>
-    </nav>
+    <PublicNavigation
+      items={items}
+      home={routes.home}
+      appointment={routes.appointment}
+      locale={locale}
+      appointmentLabel={
+        locale === "fr" && resolvedCurrentPath === routes.pricing
+          ? "Prendre rendez vous"
+          : undefined
+      }
+      appointmentShortLabel={
+        locale === "fr" && resolvedCurrentPath === routes.pricing
+          ? "Rendez vous"
+          : undefined
+      }
+      languages={[
+        {
+          href: getLocalizedPath(resolvedCurrentPath, "fr"),
+          label: "FR",
+          active: locale === "fr",
+        },
+        {
+          href: getLocalizedPath(resolvedCurrentPath, "en"),
+          label: "EN",
+          active: locale === "en",
+        },
+      ]}
+      extraItems={[
+        {
+          href: routes.menuDigital,
+          label: locale === "en" ? "Digital menu" : "Menu digital",
+        },
+        {
+          href: routes.menuQrCode,
+          label: locale === "en" ? "Table QR codes" : "Supports QR",
+        },
+        { href: routes.menu3dAr, label: "3D / AR" },
+        {
+          href: routes.restaurateurDashboard,
+          label: locale === "en" ? "Restaurant preview" : "Aperçu restaurateur",
+        },
+      ]}
+    />
   );
 }
 
@@ -312,7 +310,7 @@ export function PreviewFooter({
   currentPath,
   locale = "fr",
   routeMode = "production",
-  width = "standard"
+  width = "standard",
 }: {
   currentPath?: string;
   locale?: Locale;
@@ -322,7 +320,8 @@ export function PreviewFooter({
   const routes = getVistaireChromeRoutes(routeMode, locale);
   const resolvedCurrentPath = currentPath ?? routes.home;
   const isPricingPage =
-    normalizePathname(resolvedCurrentPath) === normalizePathname(routes.pricing);
+    normalizePathname(resolvedCurrentPath) ===
+    normalizePathname(routes.pricing);
   const contactPhoneDisplay = isPricingPage
     ? CONTACT_PHONE_DISPLAY.replace(/-/g, " ")
     : CONTACT_PHONE_DISPLAY;
@@ -335,7 +334,8 @@ export function PreviewFooter({
           { label: "Selective 3D / AR", href: routes.menu3dAr },
           { label: "Pricing", href: routes.pricing },
           { label: "Restaurant preview", href: routes.restaurateurDashboard },
-          { label: "About", href: routes.about }
+          { label: "About", href: routes.about },
+          { label: "Contact", href: routes.contact },
         ]
       : [
           { label: "Carte digitale", href: routes.menu },
@@ -344,22 +344,23 @@ export function PreviewFooter({
           { label: "3D / AR sélective", href: routes.menu3dAr },
           { label: "Tarifs", href: routes.pricing },
           { label: "Aperçu restaurateur", href: routes.restaurateurDashboard },
-          { label: "À propos", href: routes.about }
+          { label: "À propos", href: routes.about },
+          { label: "Contact", href: routes.contact },
         ];
   const guideLinks = getEditorialGuideNavigation(locale);
   const solutionLinks = [
     {
       label: locale === "en" ? "PDF vs digital menu" : "PDF vs menu digital",
-      href: routes.pdfVsDigital
+      href: routes.pdfVsDigital,
     },
     ...getGeoFooterLinks(
       locale === "en" ? useCaseGeoSlugsEn : useCaseGeoSlugs,
-      locale
-    )
+      locale,
+    ),
   ];
   const localLinks = getGeoFooterLinks(
     locale === "en" ? localGeoSlugsEn : localGeoSlugs,
-    locale
+    locale,
   );
   const socialProfiles = getVistaireSocialProfiles();
 
@@ -370,6 +371,30 @@ export function PreviewFooter({
       }`}
       id="contact"
     >
+      <div className={styles.footerInvitation}>
+        <h2>
+          {locale === "en"
+            ? "A menu worthy of your restaurant."
+            : "Une carte à la hauteur de votre restaurant."}
+        </h2>
+        <Link
+          href={routes.appointment}
+          className={styles.footerInvitationCta}
+          prefetch={false}
+        >
+          {locale === "en"
+            ? "Let’s talk about your menu"
+            : "Parlons de votre carte"}
+          <svg aria-hidden="true" viewBox="0 0 16 16">
+            <path
+              d="M3 13 13 3M3 3h10v10"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.4"
+            />
+          </svg>
+        </Link>
+      </div>
       <section className={styles.footerBrand} aria-label="Vistaire">
         <h2>Vistaire</h2>
         <p className={styles.footerTagline}>
@@ -402,12 +427,12 @@ export function PreviewFooter({
       </section>
 
       <section
-        className={`${styles.footerColumn} ${styles.footerColumnWide}`}
+        className={styles.footerColumn}
         aria-label="Guides"
       >
         <h2>Guides</h2>
         <nav
-          className={`${styles.footerLinkList} ${styles.footerLinkListBalanced}`}
+          className={styles.footerLinkList}
           aria-label={locale === "en" ? "Vistaire guides" : "Guides Vistaire"}
         >
           {guideLinks.map((item) => (
@@ -469,7 +494,9 @@ export function PreviewFooter({
       <section className={styles.footerColumn} aria-label="Contact">
         <h2>Contact</h2>
         <p className={styles.footerPlace}>
-          {locale === "en" ? "Montreal, Quebec, Canada" : "Montréal, Québec, Canada"}
+          {locale === "en"
+            ? "Montreal, Quebec, Canada"
+            : "Montréal, Québec, Canada"}
         </p>
         <a className={styles.footerEmail} href="mailto:contact@vistaire.ca">
           contact@vistaire.ca

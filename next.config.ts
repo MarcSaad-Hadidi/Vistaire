@@ -304,6 +304,8 @@ const nextConfig: NextConfig = {
         source: "/",
         headers: [...HOMEPAGE_AGENT_DISCOVERY_HEADERS],
       },
+      { source: "/immersive-assets/ar/:path*.usdz", headers: [...USDZ_MODEL_HEADERS, { key: "Accept-Ranges", value: "bytes" }] },
+      { source: "/immersive-assets/:path*.glb", headers: [...GLB_MODEL_HEADERS] },
       {
         source: "/models/demo/:path*.usdz",
         headers: [...USDZ_MODEL_HEADERS],
