@@ -373,13 +373,30 @@ jobs:
         if: ${{ !cancelled() && needs.classify-changes.outputs.run_landing == 'true' }}
         env:
           CI_TEST_REPORT_PATH: ${{ github.workspace }}/.ci-test-report-landing.json
-        run: npm run test:ci:e2e:landing
+        shell: bash
+        run: |
+          # One controlled isolation experiment: preserve each complete journey,
+          # its deadlines and quality, with a fresh CLI/server for mobile zoom.
+          mobile_filter='complete-food zoom fit \(Chromium software WebGL\) /en keeps every food model inside its frame while zooming, rotating and resizing$'
+          mobile_report="$GITHUB_WORKSPACE/.ci-test-report-landing-mobile-first.json"
+          complement_report="$GITHUB_WORKSPACE/.ci-test-report-landing-complement.json"
+          mobile_status=0
+          CI_TEST_REPORT_PATH="$mobile_report" npm run test:ci:e2e:landing -- \
+            --grep "$mobile_filter" --output=test-results/landing-mobile-first || mobile_status=$?
+          complement_status=0
+          CI_TEST_REPORT_PATH="$complement_report" npm run test:ci:e2e:landing -- \
+            --grep-invert "$mobile_filter" --output=test-results/landing-complement || complement_status=$?
+          printf 'Landing exit codes: mobile=%s complement=%s\n' "$mobile_status" "$complement_status"
+          CI_TEST_REPORT_PATHS="$mobile_report,$complement_report" node scripts/ci/aggregate-test-reports.mjs
+          if (( mobile_status != 0 || complement_status != 0 )); then exit 1; fi
       - name: Upload rendered landing evidence
         if: ${{ always() && needs.classify-changes.outputs.run_landing == 'true' }}
         uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
         with:
           name: landing-rendered-${{ github.run_id }}
+          include-hidden-files: true
           path: |
+            .ci-test-report-landing*.json
             test-results/**/rendered-*.png
             test-results/**/rendered-*-telemetry.json
             test-results/**/error-context.md
