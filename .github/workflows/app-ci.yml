@@ -681,7 +681,7 @@ jobs:
           set -euo pipefail
           mkdir -p "$VISTAIRE_COMPOSITION_OUTPUT"
           ln -s "$GITHUB_WORKSPACE/node_modules" "$GITHUB_WORKSPACE/.composition-baseline/node_modules"
-          export VISTAIRE_COMPOSITION_RUNTIMES_JSON="$(node --input-type=module <<'NODE'
+          VISTAIRE_COMPOSITION_RUNTIMES_JSON="$(node --input-type=module <<'NODE'
           import path from 'node:path';
           const root = process.env.GITHUB_WORKSPACE;
           console.log(JSON.stringify({
@@ -690,6 +690,7 @@ jobs:
           }));
           NODE
           )"
+          export VISTAIRE_COMPOSITION_RUNTIMES_JSON
           node e2e/support/sauge-noire-fixture-server.mjs > "$VISTAIRE_COMPOSITION_OUTPUT/fixture.log" 2>&1 &
           fixture_pid=$!
           trap 'kill "$fixture_pid" 2>/dev/null || true' EXIT

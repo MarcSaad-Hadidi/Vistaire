@@ -364,6 +364,8 @@ test("composition comparison keeps a verified baseline and one exclusive perform
   assert.match(job, /sha256sum --check --status/);
   assert.match(job, /test -s \.composition-baseline\/\.next\/BUILD_ID/);
   assert.match(job, /node scripts\/diagnose-landing-composition\.mjs/);
+  assert.doesNotMatch(job, /export VISTAIRE_COMPOSITION_RUNTIMES_JSON=/);
+  assert.match(job, /export VISTAIRE_COMPOSITION_RUNTIMES_JSON\n/);
   assert.match(job, /if: \$\{\{ !\(inputs\.composition == true/);
   assert.match(job, /timeout-minutes: 30/);
   assert.doesNotMatch(job, /continue-on-error: true|--disable-frame-rate-limit/);
