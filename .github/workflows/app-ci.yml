@@ -579,7 +579,6 @@ jobs:
       VISTAIRE_BENCHMARK_SHA: ${{ github.sha }}
       VISTAIRE_BENCHMARK_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
       VISTAIRE_BENCHMARK_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}/attempts/${{ github.run_attempt }}
-      VISTAIRE_BENCHMARK_OUTPUT: ${{ runner.temp }}/landing-performance
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
@@ -597,6 +596,8 @@ jobs:
           name: next-build-${{ github.run_id }}
           path: .next
       - name: Measure normal-motion landing against hermetic production server
+        env:
+          VISTAIRE_BENCHMARK_OUTPUT: ${{ runner.temp }}/landing-performance
         shell: bash
         run: |
           set -euo pipefail
