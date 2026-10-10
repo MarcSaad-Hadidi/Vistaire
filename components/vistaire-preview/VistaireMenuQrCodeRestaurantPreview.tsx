@@ -2,8 +2,8 @@ import Image from "next/image";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import QRCode from "qrcode";
-import photoQrCode1 from "@/Framer/PhotoQRcode1.png";
-import photoQrCode2 from "@/Framer/PhotoQRcode2.png";
+import photoQrCode1 from "@/public/images/marketing/sauge-noire-qr-menu.webp";
+import photoQrCode2 from "@/public/images/marketing/sauge-noire-dessert-phone.webp";
 import type { Locale } from "@/lib/i18n";
 import { absoluteUrl } from "@/lib/seo";
 import {
@@ -290,7 +290,7 @@ export async function VistaireMenuQrCodeRestaurantPreview({
             </div>
             <figure className={`${styles.visualFigure} ${styles.qrHeroVisual}`}>
               <Image
-                alt={locale === "en" ? "Guest browsing a Vistaire menu after scanning the table QR code" : "Cliente consultant une carte Vistaire ouverte après scan QR à table"}
+                alt={locale === "en" ? "Sauge Noire menu on a phone beside a Vistaire QR display" : "Menu Sauge Noire sur téléphone à côté du support QR Vistaire"}
                 className={styles.visualImage}
                 fill
                 priority
@@ -348,7 +348,7 @@ export async function VistaireMenuQrCodeRestaurantPreview({
           >
             <figure className={styles.visualFigure}>
               <Image
-                alt={locale === "en" ? "Vistaire 3D and augmented reality on a phone after opening the QR menu" : "Vue 3D et réalité augmentée Vistaire sur téléphone après ouverture du menu QR"}
+                alt={locale === "en" ? "Chocolat fumé beside the Sauge Noire dessert page on a phone" : "Chocolat fumé et fiche dessert Sauge Noire sur téléphone"}
                 className={styles.visualImage}
                 fill
                 quality={90}

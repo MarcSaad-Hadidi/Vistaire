@@ -320,8 +320,8 @@ test.describe("Vistaire public navigation", () => {
         brand: "Vistaire - accueil",
         home: "/",
         links: ["Accueil", "Carte", "À propos", "Contact"],
-        cta: "Prendre rendez-vous",
-        compactCta: "Rendez-vous"
+        cta: "Prendre rendez vous",
+        compactCta: "Rendez vous"
       },
       {
         path: "/en/pricing-digital-restaurant-menu",
@@ -348,7 +348,7 @@ test.describe("Vistaire public navigation", () => {
         scenario.path.startsWith("/en/") ? "en" : "fr",
         true
       );
-      const compactNavigation = (page.viewportSize()?.width ?? 0) <= 520;
+      const compactNavigation = (page.viewportSize()?.width ?? 0) <= 1100;
       await expect(
         nav.getByRole("link", {
           name: compactNavigation ? scenario.compactCta : scenario.cta,
@@ -361,6 +361,10 @@ test.describe("Vistaire public navigation", () => {
   test("keeps immersive chapter navigation valid in both locales", async ({ page }) => {
     for (const locale of ["fr", "en"] as const) {
       await page.goto(locale === "en" ? "/en" : "/", { waitUntil: "domcontentloaded" });
+      // SSR-visible controls precede scene initialization and final font metrics.
+      // Exercise a ready journey, while retaining the actual smooth-scroll check.
+      await expect(page.locator(".preloader")).toBeHidden();
+      await page.evaluate(() => document.fonts.ready);
       const nav = topNavigation(page);
       const chapters = [
         ["Intro", "hero"],

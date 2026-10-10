@@ -1,7 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
-import mobileQrTable from "@/Framer/PageApropos2.png";
-import tableImage from "@/Framer/Photo table.png";
+import mobileQrTable from "@/public/images/marketing/sauge-noire-qr-menu-portrait.webp";
+import tableImage from "@/public/images/marketing/sauge-noire-dining-room.webp";
 import type { Locale } from "@/lib/i18n";
 import {
   getVistaireChromeRoutes,
@@ -45,7 +45,7 @@ export function VistaireAboutPreview({
             "Vistaire helps high-end restaurants present their menu in an elegant mobile experience: clear navigation, visual dish pages, allergens, prices and selective 3D/AR.",
           appointment: "Book a call",
           discover: "Discover Vistaire",
-          photoAlt: "A Vistaire mobile menu beside a restaurant table QR code",
+          photoAlt: "Sauge Noire menu on a phone beside a Vistaire QR display",
           mobileTitle: "A premium mobile menu",
           mobileLine: "Built for table service",
           visionBadge: "Our vision",
@@ -70,7 +70,7 @@ export function VistaireAboutPreview({
             },
           ],
           tableAlt:
-            "An elegantly set restaurant table with glasses, a candle and a Vistaire QR code",
+            "Sauge Noire botanical dining scene with a Vistaire QR display",
           closing: "Your cuisine. Your world.",
           closingAccent: "Another dimension.",
           explore: "Explore the menus",
@@ -86,7 +86,7 @@ export function VistaireAboutPreview({
           appointment: "Prendre rendez-vous",
           discover: "Découvrir Vistaire",
           photoAlt:
-            "Une carte Vistaire sur téléphone à côté d’un QR code de table",
+            "Menu Sauge Noire sur téléphone à côté du support QR Vistaire",
           mobileTitle: "Une carte mobile premium",
           mobileLine: "Pensée pour le service à table",
           visionBadge: "Notre vision",
@@ -112,7 +112,7 @@ export function VistaireAboutPreview({
             },
           ],
           tableAlt:
-            "Une table de restaurant élégante avec verres, chandelle et QR code Vistaire",
+            "Ambiance botanique Sauge Noire avec support QR Vistaire",
           closing: "Votre cuisine. Votre univers.",
           closingAccent: "Une autre dimension.",
           explore: "Explorer les cartes",

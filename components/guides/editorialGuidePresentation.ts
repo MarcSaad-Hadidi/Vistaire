@@ -2,9 +2,9 @@ import type { StaticImageData } from "next/image";
 import restaurantBackground from "@/Framer/PhotoRestoComplet5.png";
 import restaurantBackground2 from "@/Framer/PhotoRestoComplet6.png";
 import restaurantBackground3 from "@/Framer/PhotoRestoComplet4.png";
-import pageDigitalPhoto from "@/Framer/PageDigital.png";
-import photoDigital2 from "@/Framer/PhotoDigital2.png";
-import photoQrCode1 from "@/Framer/PhotoQRcode1.png";
+import pageDigitalPhoto from "@/public/images/marketing/maison-elyse-souffle-phone.webp";
+import photoDigital2 from "@/public/images/marketing/sauge-noire-dessert-phone.webp";
+import photoQrCode1 from "@/public/images/marketing/sauge-noire-qr-menu.webp";
 import type {
   EditorialGuideKey,
   EditorialGuideLocale
@@ -27,8 +27,8 @@ const PRESENTATIONS: Record<EditorialGuideKey, EditorialGuidePresentation> = {
     heroImage: pageDigitalPhoto,
     backgroundImage: restaurantBackground,
     heroImageAlt: {
-      fr: "Aperçu d’une fiche plat Vistaire sur téléphone",
-      en: "Preview of a Vistaire dish page on a phone"
+      fr: "Soufflé au chocolat et fiche dessert Maison Élyse sur téléphone",
+      en: "Chocolate soufflé beside the Maison Élyse dessert page on a phone"
     },
     heroVariant: "visual-right",
     guideVariant: "anatomy",
@@ -51,8 +51,8 @@ const PRESENTATIONS: Record<EditorialGuideKey, EditorialGuidePresentation> = {
     heroImage: photoQrCode1,
     backgroundImage: restaurantBackground2,
     heroImageAlt: {
-      fr: "Carte de restaurant Vistaire ouverte après un scan QR",
-      en: "Vistaire restaurant menu opened after a QR scan"
+      fr: "Menu Sauge Noire sur téléphone à côté du support QR Vistaire",
+      en: "Sauge Noire menu on a phone beside a Vistaire QR display"
     },
     heroVariant: "visual-left",
     guideVariant: "journey",
@@ -74,8 +74,8 @@ const PRESENTATIONS: Record<EditorialGuideKey, EditorialGuidePresentation> = {
     heroImage: photoDigital2,
     backgroundImage: restaurantBackground3,
     heroImageAlt: {
-      fr: "Présentation d’un plat Vistaire avec une vue immersive",
-      en: "Vistaire dish presentation with an immersive view"
+      fr: "Chocolat fumé et fiche dessert Sauge Noire sur téléphone",
+      en: "Chocolat fumé beside the Sauge Noire dessert page on a phone"
     },
     heroVariant: "editorial-stack",
     guideVariant: "decision",

@@ -107,10 +107,10 @@ for (const route of ROUTES) {
     const second = questions.nth(1);
     const third = questions.nth(2);
     await expect(second).toHaveAttribute("data-hydrated", "true");
-    const panelId = await second.getAttribute("aria-controls");
-
-    expect(panelId).toBeTruthy();
     await expect(second).toHaveAttribute("aria-expanded", "false");
+    const panel = page.locator('[data-slot="accordion-item"]').nth(1).locator('[data-seo-faq-answer]');
+    await expect(panel).toHaveCount(1);
+    await expect(panel).toBeHidden();
     await second.focus();
     await expect(second).toBeFocused();
     expect(await second.evaluate((element) => element.matches(":focus-visible"))).toBe(true);
@@ -119,13 +119,21 @@ for (const route of ROUTES) {
     ).not.toBe("none");
 
     await openHydratedFaqItem(second);
+    // Radix exposes aria-controls only while the disclosure is expanded.
+    const panelId = await second.getAttribute("aria-controls");
+    const triggerId = await second.getAttribute("id");
+    expect(panelId).toBeTruthy();
+    expect(triggerId).toBeTruthy();
+    await expect(panel).toHaveAttribute("id", panelId!);
+    await expect(panel).toHaveAttribute("aria-labelledby", triggerId!);
+    await expect(panel).toBeVisible();
     await second.click();
     await expect(second).toHaveAttribute("aria-expanded", "false");
     await second.focus();
 
     await page.keyboard.press("Enter");
     await expect(second).toHaveAttribute("aria-expanded", "true");
-    const panel = page.locator(`[id=${JSON.stringify(panelId)}]`);
+    await expect(second).toHaveAttribute("aria-controls", panelId!);
     await expect(panel).toBeVisible();
 
     await page.keyboard.press("Space");
@@ -180,12 +188,18 @@ test("a shared stack-layout FAQ consumer keeps disclosure and schema parity", as
   await expect(questions.first()).toHaveAttribute("aria-expanded", "true");
   await expect(answers.first()).toBeVisible();
   await expect(questions.nth(1)).toHaveAttribute("aria-expanded", "false");
-  const secondPanelId = await questions.nth(1).getAttribute("aria-controls");
-  const secondPanel = page.locator(`[id=${JSON.stringify(secondPanelId)}]`);
+  const secondPanel = faq.locator('[data-slot="accordion-item"]').nth(1).locator('[data-seo-faq-answer]');
+  await expect(secondPanel).toHaveCount(1);
   await expect(secondPanel).toBeHidden();
 
   await openHydratedFaqItem(questions.nth(1));
   await expect(questions.nth(1)).toHaveAttribute("aria-expanded", "true");
+  const secondPanelId = await questions.nth(1).getAttribute("aria-controls");
+  const secondTriggerId = await questions.nth(1).getAttribute("id");
+  expect(secondPanelId).toBeTruthy();
+  expect(secondTriggerId).toBeTruthy();
+  await expect(secondPanel).toHaveAttribute("id", secondPanelId!);
+  await expect(secondPanel).toHaveAttribute("aria-labelledby", secondTriggerId!);
   await expect(secondPanel).toBeVisible();
   await expect(questions.first()).toHaveAttribute("aria-expanded", "false");
   await expectRenderedParity(page, STACK_REGRESSION_ROUTE.count, {

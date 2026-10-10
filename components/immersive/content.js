@@ -5,7 +5,7 @@ export const collections = [
     name: "Acrylique",
     price: 2000,
     extra: 40,
-    image: "support-acrylique",
+    image: "/images/marketing/sauge-noire-acrylique.webp",
     description:
       "Une présence légère et lumineuse. Le support laisse toute la place à votre identité.",
   },
@@ -14,7 +14,7 @@ export const collections = [
     name: "Sculpté",
     price: 2050,
     extra: 45,
-    image: "support-sculpte",
+    image: "/images/marketing/sauge-noire-sculpte.webp",
     description:
       "Une forme expressive, pensée pour prolonger le caractère du lieu.",
   },
@@ -23,7 +23,7 @@ export const collections = [
     name: "Carré",
     price: 2100,
     extra: 55,
-    image: "support-carre",
+    image: "/images/marketing/sauge-noire-carre.webp",
     description:
       "Des lignes nettes et une silhouette discrète, naturellement à sa place à table.",
   },
@@ -32,7 +32,7 @@ export const collections = [
     name: "Signature",
     price: 2200,
     extra: 55,
-    image: "support-signature",
+    image: "/images/marketing/sauge-noire-signature.webp",
     description:
       "Une pièce de caractère, pour une expérience qui porte votre signature.",
   },
@@ -153,7 +153,8 @@ export const experiences = [
     id: "maison-elyse",
     name: "Maison Élyse",
     tag: "Éditoriale & gastronomique",
-    image: "experience-maison-elyse",
+    image: "/images/marketing/maison-elyse-dining-room.webp",
+    thumbnail: "/images/marketing/maison-elyse-dining-room-thumb.webp",
     description:
       "Une carte lumineuse, des compositions soignées, une cuisine qui se raconte.",
   },
@@ -161,7 +162,8 @@ export const experiences = [
     id: "trouvable",
     name: "Trouvable",
     tag: "Moderne & interactive",
-    image: "experience-trouvable",
+    image: "/images/marketing/trouvable-dining-room.webp",
+    thumbnail: "/images/marketing/trouvable-dining-room-thumb.webp",
     description:
       "Une navigation directe et des plats qui prennent toute leur place.",
   },
@@ -169,7 +171,8 @@ export const experiences = [
     id: "sauge-noire",
     name: "Sauge Noire",
     tag: "Signature & immersive",
-    image: "experience-sauge-noire",
+    image: "/images/marketing/sauge-noire-dining-room.webp",
+    thumbnail: "/images/marketing/sauge-noire-dining-room-thumb.webp",
     description:
       "Un univers botanique, sombre et singulier. La carte devient une expérience.",
   },

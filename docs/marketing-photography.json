@@ -1,0 +1,1477 @@
+{
+  "date": "2026-10-10",
+  "integrationBase": "29ab245b",
+  "sourcePathsReplaced": 29,
+  "photographicMasters": 14,
+  "runtimeDerivatives": 4,
+  "publicRouteInstances": 48,
+  "routes": {
+    "HOME": [
+      "/",
+      "/en"
+    ],
+    "DIGITAL": [
+      "/menu-digital-restaurant",
+      "/en/digital-restaurant-menu"
+    ],
+    "QR": [
+      "/menu-qr-code-restaurant",
+      "/en/qr-code-restaurant-menu"
+    ],
+    "AR": [
+      "/menu-3d-ar-restaurant",
+      "/en/3d-ar-restaurant-menu"
+    ],
+    "PDF": [
+      "/menu-pdf-vs-menu-digital",
+      "/en/pdf-vs-digital-menu"
+    ],
+    "ABOUT": [
+      "/a-propos",
+      "/en/about"
+    ],
+    "CONTACT": [
+      "/contact",
+      "/en/contact"
+    ],
+    "BOOK": [
+      "/prendre-rendez-vous",
+      "/en/book-a-call"
+    ],
+    "PRICING": [
+      "/tarifs-menu-digital-restaurant",
+      "/en/pricing-digital-restaurant-menu"
+    ],
+    "GUIDE-A": [
+      "/guides/anatomie-menu-digital-premium",
+      "/en/guides/premium-digital-menu-anatomy"
+    ],
+    "GUIDE-Q": [
+      "/guides/menu-qr-mobile-sans-application",
+      "/en/guides/mobile-qr-menu-without-app"
+    ],
+    "GUIDE-3": [
+      "/guides/3d-restaurant-utile-vs-gadget",
+      "/en/guides/restaurant-3d-useful-vs-gimmick"
+    ],
+    "G1": [
+      "/menu-qr-sans-pdf",
+      "/en/qr-menu-without-pdf"
+    ],
+    "G2": [
+      "/menu-digital-sans-application",
+      "/en/digital-menu-without-app"
+    ],
+    "G3": [
+      "/remplacer-menu-pdf-restaurant",
+      "/en/replace-restaurant-pdf-menu"
+    ],
+    "G4": [
+      "/alternative-menu-pdf-restaurant",
+      "/en/restaurant-pdf-menu-alternative"
+    ],
+    "G5": [
+      "/fiche-plat-digitale-restaurant",
+      "/en/digital-dish-page-restaurant"
+    ],
+    "G6": [
+      "/menu-restaurant-photos",
+      "/en/restaurant-menu-photos"
+    ],
+    "G7": [
+      "/menu-restaurant-allergenes",
+      "/en/restaurant-menu-allergens"
+    ],
+    "G8": [
+      "/menu-digital-restaurant-montreal",
+      "/en/digital-restaurant-menu-montreal"
+    ],
+    "G9": [
+      "/menu-digital-restaurant-laval",
+      "/en/digital-restaurant-menu-laval"
+    ],
+    "G10": [
+      "/menu-digital-restaurant-brossard",
+      "/en/digital-restaurant-menu-brossard"
+    ],
+    "G11": [
+      "/menu-digital-restaurant-haut-de-gamme",
+      "/en/high-end-restaurant-digital-menu"
+    ],
+    "G12": [
+      "/menu-digital-restaurant-gastronomique",
+      "/en/fine-dining-restaurant-digital-menu"
+    ]
+  },
+  "methodNotes": [
+    "Ambience and lifestyle settings are generated art-directed scenes, not documentary photos of actual restaurant interiors.",
+    "Every visible phone screen is composited from an actual captured Vistaire menu surface; screenshots, not generated lettering, supply the final UI.",
+    "Products retain exact GLB geometry, proportions and embedded Sauge Noire artwork; no support file is modified. Sauge Noire artwork was intentionally retained from current references; the user permits restaurant-matched artwork changes in photos when geometry is preserved.",
+    "The Acrylique source material is OPAQUE. Image alt text and affected pricing copy avoid claiming transparency.",
+    "Existing inactive legacy image files and real menu/dish/video/model assets are preserved."
+  ],
+  "assets": [
+    {
+      "id": "A-M",
+      "path": "/images/marketing/maison-elyse-dining-room.webp",
+      "restaurant": "maison-elyse",
+      "scene": "room",
+      "width": 1672,
+      "height": 941,
+      "bytes": 214494,
+      "sha256": "d6b485fede9106379a72d1fc8526b5c6cc77b71b13ef599a76f810faa1d42e70",
+      "generation": "Warm ivory fine dining, cream linen, walnut/brass, original room. Generated plated dish removed in an image edit to avoid implying an unverified restaurant dish.",
+      "ambienceReference": "public/immersive-assets/ambience-maison-elyse.webp",
+      "slots": [
+        "G10:hero",
+        "G12:premium",
+        "G8:hero",
+        "HOME:social-content",
+        "HOME:testimonies"
+      ]
+    },
+    {
+      "id": "A-T",
+      "path": "/images/marketing/trouvable-dining-room.webp",
+      "restaurant": "trouvable",
+      "scene": "room",
+      "width": 1672,
+      "height": 941,
+      "bytes": 197432,
+      "sha256": "7837ec7dec4e12f58ae9b009a60997d258c15ce6e85ddb1c6a91e9f71e6b1b5c",
+      "generation": "Modern Montreal-style bistro, cognac leather, walnut, charcoal walls, warm bar and blue evening street. No screens or products.",
+      "ambienceReference": "public/immersive-assets/ambience-trouvable.webp",
+      "slots": [
+        "CONTACT:hero",
+        "HOME:social-content",
+        "HOME:testimonies"
+      ]
+    },
+    {
+      "id": "A-S",
+      "path": "/images/marketing/sauge-noire-dining-room.webp",
+      "restaurant": "sauge-noire",
+      "scene": "room",
+      "width": 1672,
+      "height": 941,
+      "bytes": 218478,
+      "sha256": "4054d0acaf73b3d6580a6f3815f4dad7084083e9d8091375b1866ac659b4e86e",
+      "support": {
+        "id": "acrylique",
+        "source": "public/immersive-assets/supports/Meshy_AI_Sauge_Noire_QR_Displa_1008220727_texture.glb",
+        "sourceSHA256": "fb09fd8e1a793db196d52ab27eb5f71ec1f971dd7a9a26b56f4f7af7951619bb",
+        "render": "acrylique-front-three-quarter.png",
+        "renderSHA256": "0ed9b0333d43c0afa530ea46271ad515173a56aa976e30833153d1091d912728",
+        "method": "Exact model render alpha composite; uniform scaling and translation, no geometry or artwork generation",
+        "placement": {
+          "sourceAlphaCrop": [
+            290,
+            123,
+            911,
+            1100
+          ],
+          "targetProductBoundingBox": [
+            456,
+            391,
+            635,
+            673
+          ],
+          "uniformResizeScale": 0.2882447665056361,
+          "RGBLightingMultipliers": [
+            0.64,
+            0.58,
+            0.49
+          ],
+          "transform": "uniform resize and translation only; no projective warp",
+          "contactShadow": "separate soft shadow below exact lower alpha silhouette"
+        }
+      },
+      "generation": "Generated restaurant background with composited exact product render",
+      "slots": [
+        "ABOUT:closing",
+        "BOOK:panel",
+        "G11:hero",
+        "G9:hero",
+        "HOME:social-content",
+        "HOME:testimonies"
+      ]
+    },
+    {
+      "id": "M1",
+      "path": "/images/marketing/maison-elyse-souffle-phone.webp",
+      "restaurant": "maison-elyse",
+      "scene": "phone-dish",
+      "width": 1448,
+      "height": 1086,
+      "bytes": 261516,
+      "sha256": "872b33a45b611d27d5e3078a9b7c4af81d330620a40e060f22fe0877039a8844",
+      "generation": "Generated lifestyle scene with real menu capture composited into every visible screen",
+      "dish": "Soufflé tiède au chocolat grand cru",
+      "captureOrigin": "https://www.vistaire.ca",
+      "captureDate": "2026-10-10",
+      "captureRouteAndState": "/menu/maison-elyse/dishes/souffle-tiede-au-chocolat-grand-cru?lang=fr-CA",
+      "screens": [
+        {
+          "screenshot": "maison-elyse-dish-souffle-full.jpg",
+          "sha256": "3ca6cad2a77bd088ddbd1aac924eb212e6070fc661446d8b6c7a5ebaf3767b07",
+          "sourceCrop": [
+            0,
+            12,
+            485,
+            2015
+          ],
+          "furtherTopViewportCrop": [
+            0,
+            0,
+            485,
+            1041
+          ],
+          "fit": "full",
+          "quad": [
+            [
+              904,
+              149
+            ],
+            [
+              1176,
+              121
+            ],
+            [
+              1274,
+              696
+            ],
+            [
+              1001,
+              733
+            ]
+          ],
+          "opticalGlareMax": 0.015,
+          "screenCanvas": [
+            822,
+            1764
+          ],
+          "sourcePlacement": [
+            0,
+            0,
+            822,
+            1764
+          ],
+          "outputPNGQuad": [
+            [
+              904,
+              149
+            ],
+            [
+              1176,
+              121
+            ],
+            [
+              1274,
+              696
+            ],
+            [
+              1001,
+              733
+            ]
+          ],
+          "meaning": "actual route screenshot; not generatively redrawn"
+        }
+      ],
+      "screenMethod": "Preserve screenshot aspect ratio, perspective-map its pixels into the generated blank display, retain screen mask and subtle optical glare; never synthesize UI lettering",
+      "slots": [
+        "AR:premium",
+        "DIGITAL:hero",
+        "G1:premium",
+        "G2:hero",
+        "G3:premium",
+        "G5:proof",
+        "G6:premium",
+        "G7:hero",
+        "G9:proof",
+        "GUIDE-A:hero"
+      ]
+    },
+    {
+      "id": "M2",
+      "path": "/images/marketing/maison-elyse-homard-phone.webp",
+      "restaurant": "maison-elyse",
+      "scene": "phone-dish",
+      "width": 1364,
+      "height": 1023,
+      "bytes": 224286,
+      "sha256": "714ce795fdcb63aff933e58113499e4e4953848d7ad4c37773d44becef36722a",
+      "generation": "Generated lifestyle scene with real menu capture composited into every visible screen",
+      "dish": "Homard bleu, bisque corsée & fenouil",
+      "captureOrigin": "https://www.vistaire.ca",
+      "captureDate": "2026-10-10",
+      "captureRouteAndState": "/menu/maison-elyse/dishes/homard-bleu-bisque-corsee-fenouil?lang=fr-CA",
+      "screens": [
+        {
+          "screenshot": "maison-elyse-dish-homard-full.jpg",
+          "sha256": "f19838ab95860af4f9cdb8d3d775bcf9fef378ba01242a79767792413bb29653",
+          "sourceCrop": [
+            0,
+            12,
+            485,
+            1960
+          ],
+          "furtherTopViewportCrop": [
+            0,
+            0,
+            485,
+            1018
+          ],
+          "fit": "full",
+          "quad": [
+            [
+              1074,
+              179
+            ],
+            [
+              1347,
+              173
+            ],
+            [
+              1361,
+              750
+            ],
+            [
+              1086,
+              751
+            ]
+          ],
+          "opticalGlareMax": 0.015,
+          "screenCanvas": [
+            822,
+            1725
+          ],
+          "sourcePlacement": [
+            0,
+            0,
+            822,
+            1725
+          ],
+          "outputPNGQuad": [
+            [
+              998,
+              179
+            ],
+            [
+              1271,
+              173
+            ],
+            [
+              1285,
+              750
+            ],
+            [
+              1010,
+              751
+            ]
+          ],
+          "meaning": "actual route screenshot; not generatively redrawn"
+        }
+      ],
+      "screenMethod": "Preserve screenshot aspect ratio, perspective-map its pixels into the generated blank display, retain screen mask and subtle optical glare; never synthesize UI lettering",
+      "slots": [
+        "G11:proof",
+        "G12:hero",
+        "G3:proof",
+        "G4:hero",
+        "G5:hero",
+        "PDF:detail"
+      ]
+    },
+    {
+      "id": "T1",
+      "path": "/images/marketing/trouvable-guest-menu.webp",
+      "restaurant": "trouvable",
+      "scene": "hand-phone",
+      "width": 1448,
+      "height": 1086,
+      "bytes": 187374,
+      "sha256": "2e84dee577644e27e493936e1d574c317e69be93699cd332629895b7450f196c",
+      "generation": "Generated lifestyle scene with real menu capture composited into every visible screen",
+      "dish": "Poutine du Vieux-Montréal",
+      "captureOrigin": "https://www.vistaire.ca",
+      "captureDate": "2026-10-10",
+      "captureRouteAndState": "/menu/trouvable?lang=fr-CA",
+      "screens": [
+        {
+          "screenshot": "trouvable-landing-full.jpg",
+          "sha256": "ac43552dbaf660beaf564d284db380dd1363cb5eeee89dcdf79fa43295f18a1b",
+          "sourceCrop": [
+            0,
+            12,
+            485,
+            5752
+          ],
+          "furtherTopViewportCrop": [
+            0,
+            0,
+            485,
+            1035
+          ],
+          "fit": "full",
+          "quad": [
+            [
+              400,
+              141
+            ],
+            [
+              648,
+              160
+            ],
+            [
+              603,
+              698
+            ],
+            [
+              345,
+              683
+            ]
+          ],
+          "opticalGlareMax": 0.015,
+          "screenCanvas": [
+            762,
+            1626
+          ],
+          "sourcePlacement": [
+            0,
+            0,
+            762,
+            1626
+          ],
+          "outputPNGQuad": [
+            [
+              400,
+              141
+            ],
+            [
+              648,
+              160
+            ],
+            [
+              603,
+              698
+            ],
+            [
+              345,
+              683
+            ]
+          ],
+          "meaning": "actual route screenshot; not generatively redrawn"
+        }
+      ],
+      "screenMethod": "Preserve screenshot aspect ratio, perspective-map its pixels into the generated blank display, retain screen mask and subtle optical glare; never synthesize UI lettering",
+      "slots": [
+        "AR:proof",
+        "DIGITAL:proof",
+        "G2:proof",
+        "G4:premium",
+        "G8:proof"
+      ]
+    },
+    {
+      "id": "T2",
+      "path": "/images/marketing/trouvable-pdf-digital.webp",
+      "restaurant": "trouvable",
+      "scene": "phone-comparison",
+      "width": 1448,
+      "height": 1086,
+      "bytes": 318852,
+      "sha256": "aeff36a9a34658c50c01ec43919e3825908b1893f4f85b68222c22eb4b670b48",
+      "generation": "Generated lifestyle scene with real menu capture composited into every visible screen",
+      "dish": null,
+      "captureOrigin": "https://www.vistaire.ca",
+      "captureDate": "2026-10-10",
+      "captureRouteAndState": "/menu/trouvable?lang=fr-CA and /menu-pdf-vs-menu-digital (Trouvable tab, PDF slider100)",
+      "screens": [
+        {
+          "screenshot": "trouvable-pdf-panel-viewport.jpg",
+          "sha256": "ad6b8cd3837c43ea9647f7af024048b00dcf8cd8bd44aaf087d43846858a1f5e",
+          "sourceCrop": [
+            62,
+            83,
+            452,
+            748
+          ],
+          "furtherTopViewportCrop": null,
+          "fit": "contain",
+          "quad": [
+            [
+              336,
+              230
+            ],
+            [
+              645,
+              200
+            ],
+            [
+              713,
+              730
+            ],
+            [
+              372,
+              764
+            ]
+          ],
+          "opticalGlareMax": 0.015,
+          "screenCanvas": [
+            981,
+            1605
+          ],
+          "sourcePlacement": [
+            20,
+            0,
+            961,
+            1605
+          ],
+          "outputPNGQuad": [
+            [
+              336,
+              230
+            ],
+            [
+              645,
+              200
+            ],
+            [
+              713,
+              730
+            ],
+            [
+              372,
+              764
+            ]
+          ],
+          "meaning": "actual route screenshot; not generatively redrawn"
+        },
+        {
+          "screenshot": "trouvable-landing-full.jpg",
+          "sha256": "ac43552dbaf660beaf564d284db380dd1363cb5eeee89dcdf79fa43295f18a1b",
+          "sourceCrop": [
+            0,
+            12,
+            485,
+            5752
+          ],
+          "furtherTopViewportCrop": [
+            0,
+            0,
+            485,
+            973
+          ],
+          "fit": "full",
+          "quad": [
+            [
+              853,
+              174
+            ],
+            [
+              1137,
+              200
+            ],
+            [
+              1107,
+              807
+            ],
+            [
+              788,
+              779
+            ]
+          ],
+          "opticalGlareMax": 0.015,
+          "screenCanvas": [
+            909,
+            1824
+          ],
+          "sourcePlacement": [
+            0,
+            0,
+            909,
+            1824
+          ],
+          "outputPNGQuad": [
+            [
+              853,
+              174
+            ],
+            [
+              1137,
+              200
+            ],
+            [
+              1107,
+              807
+            ],
+            [
+              788,
+              779
+            ]
+          ],
+          "meaning": "actual route screenshot; not generatively redrawn"
+        }
+      ],
+      "screenMethod": "Preserve screenshot aspect ratio, perspective-map its pixels into the generated blank display, retain screen mask and subtle optical glare; never synthesize UI lettering",
+      "slots": [
+        "G3:hero",
+        "G4:proof",
+        "PDF:hero"
+      ]
+    },
+    {
+      "id": "S1",
+      "path": "/images/marketing/sauge-noire-qr-menu.webp",
+      "restaurant": "sauge-noire",
+      "scene": "support-phone",
+      "width": 1448,
+      "height": 1086,
+      "bytes": 161334,
+      "sha256": "f7a787433f6e38a79f13b5dbace8f48f761a27a4d2f1ff3f84aae7463b6524bf",
+      "generation": "Generated lifestyle scene with real menu capture composited into every visible screen",
+      "dish": null,
+      "captureOrigin": "https://www.vistaire.ca",
+      "captureDate": "2026-10-10",
+      "captureRouteAndState": "/menu/sauge-noire?lang=fr-CA",
+      "screens": [
+        {
+          "screenshot": "sauge-noire-cover-full.jpg",
+          "sha256": "00a296f7b68f05fafbea4bb6a98bac979b7dea61c8535d425b9b163c286ac162",
+          "sourceCrop": [
+            0,
+            12,
+            500,
+            828
+          ],
+          "furtherTopViewportCrop": null,
+          "fit": "contain",
+          "quad": [
+            [
+              796,
+              252
+            ],
+            [
+              1032,
+              245
+            ],
+            [
+              1074,
+              765
+            ],
+            [
+              836,
+              779
+            ]
+          ],
+          "opticalGlareMax": 0.015,
+          "screenCanvas": [
+            711,
+            1575
+          ],
+          "sourcePlacement": [
+            0,
+            207,
+            711,
+            1367
+          ],
+          "outputPNGQuad": [
+            [
+              796,
+              252
+            ],
+            [
+              1032,
+              245
+            ],
+            [
+              1074,
+              765
+            ],
+            [
+              836,
+              779
+            ]
+          ],
+          "meaning": "actual route screenshot; not generatively redrawn"
+        }
+      ],
+      "screenMethod": "Preserve screenshot aspect ratio, perspective-map its pixels into the generated blank display, retain screen mask and subtle optical glare; never synthesize UI lettering",
+      "support": {
+        "render": "acrylique-front-three-quarter.png",
+        "sha256": "0ed9b0333d43c0afa530ea46271ad515173a56aa976e30833153d1091d912728",
+        "sourceAlphaBBox": [
+          290,
+          123,
+          911,
+          1100
+        ],
+        "placement": [
+          448,
+          392,
+          270,
+          424
+        ],
+        "method": "uniform scale, unchanged alpha silhouette and artwork; warm lighting multipliers 0.87/0.84/0.78; contact shadow",
+        "source": "public/immersive-assets/supports/Meshy_AI_Sauge_Noire_QR_Displa_1008220727_texture.glb",
+        "sourceSHA256": "fb09fd8e1a793db196d52ab27eb5f71ec1f971dd7a9a26b56f4f7af7951619bb"
+      },
+      "slots": [
+        "ABOUT:hero",
+        "G10:proof",
+        "G1:hero",
+        "GUIDE-Q:hero",
+        "QR:hero"
+      ]
+    },
+    {
+      "id": "S2",
+      "path": "/images/marketing/sauge-noire-dessert-phone.webp",
+      "restaurant": "sauge-noire",
+      "scene": "hand-phone-dish",
+      "width": 1448,
+      "height": 1086,
+      "bytes": 212788,
+      "sha256": "b4446a1e06a24bf5645f9a95bc41755a532913fff2c00dde9b0f257713878f25",
+      "generation": "Generated lifestyle scene with real menu capture composited into every visible screen",
+      "dish": "Chocolat fumé",
+      "captureOrigin": "https://www.vistaire.ca",
+      "captureDate": "2026-10-10",
+      "captureRouteAndState": "/menu/sauge-noire/dishes/chocolat-fume?lang=fr-CA&currency=CAD&view=sauge-6",
+      "screens": [
+        {
+          "screenshot": "sauge-noire-dish-chocolat-full.jpg",
+          "sha256": "fd2171d28842f07bcb469f03d968061156eb831e9591efaa9c0539ece4b50656",
+          "sourceCrop": [
+            0,
+            12,
+            500,
+            828
+          ],
+          "furtherTopViewportCrop": null,
+          "fit": "contain",
+          "quad": [
+            [
+              950,
+              168
+            ],
+            [
+              1208,
+              168
+            ],
+            [
+              1221,
+              726
+            ],
+            [
+              956,
+              726
+            ]
+          ],
+          "opticalGlareMax": 0.015,
+          "screenCanvas": [
+            786,
+            1674
+          ],
+          "sourcePlacement": [
+            0,
+            195,
+            786,
+            1478
+          ],
+          "outputPNGQuad": [
+            [
+              950,
+              168
+            ],
+            [
+              1208,
+              168
+            ],
+            [
+              1221,
+              726
+            ],
+            [
+              956,
+              726
+            ]
+          ],
+          "meaning": "actual route screenshot; not generatively redrawn"
+        }
+      ],
+      "screenMethod": "Preserve screenshot aspect ratio, perspective-map its pixels into the generated blank display, retain screen mask and subtle optical glare; never synthesize UI lettering",
+      "slots": [
+        "AR:hero",
+        "DIGITAL:premium",
+        "G1:proof",
+        "G2:premium",
+        "GUIDE-3:hero",
+        "QR:proof"
+      ]
+    },
+    {
+      "id": "B1",
+      "path": "/images/marketing/restaurant-signature-drink.webp",
+      "restaurant": "trouvable",
+      "scene": "beverage",
+      "width": 1448,
+      "height": 1086,
+      "bytes": 174532,
+      "sha256": "df1af79c95fb18241165fe964f8456214dc3361139b589c9639bbfc6143b929e",
+      "generation": "Generated still life based on the verified Trouvable Spritz Riviera menu photo",
+      "dish": "Spritz Riviera",
+      "referenceCapture": {
+        "source": "trouvable-dish-spritz-modal.jpg",
+        "sha256": "380368e93282918452a6be35d58354a7cd4c186dd75baaf59c909d4ac56f1a27",
+        "url": "https://www.vistaire.ca/menu/trouvable?lang=fr-CA",
+        "state": "Click Spritz Riviera in Verres & bulles; 13.99 CAD in capture"
+      },
+      "slots": [
+        "G11:premium"
+      ]
+    },
+    {
+      "id": "P-A",
+      "path": "/images/marketing/sauge-noire-acrylique.webp",
+      "restaurant": "sauge-noire",
+      "scene": "product",
+      "width": 1254,
+      "height": 1254,
+      "bytes": 149930,
+      "sha256": "c66ac37c4b16c4790b9c2af3d53f78ba122fcf786d8035c16c1b05246bf9dca1",
+      "support": {
+        "id": "acrylique",
+        "source": "public/immersive-assets/supports/Meshy_AI_Sauge_Noire_QR_Displa_1008220727_texture.glb",
+        "sourceSHA256": "fb09fd8e1a793db196d52ab27eb5f71ec1f971dd7a9a26b56f4f7af7951619bb",
+        "render": "acrylique-front-three-quarter.png",
+        "renderSHA256": "0ed9b0333d43c0afa530ea46271ad515173a56aa976e30833153d1091d912728",
+        "method": "Exact model render alpha composite; uniform scaling and translation, no geometry or artwork generation",
+        "placement": {
+          "sourceAlphaCrop": [
+            290,
+            123,
+            911,
+            1100
+          ],
+          "targetProductBoundingBox": [
+            420,
+            302,
+            834,
+            953
+          ],
+          "uniformResizeScale": 0.6666666666666666,
+          "RGBLightingMultipliers": [
+            1,
+            1,
+            1
+          ],
+          "transform": "uniform resize and translation only; no projective warp",
+          "contactShadow": "separate soft shadow below exact lower alpha silhouette"
+        }
+      },
+      "generation": "Generated restaurant background with composited exact product render",
+      "slots": [
+        "HOME:collection-modal",
+        "HOME:pricing",
+        "PRICING:collection",
+        "PRICING:social-metadata"
+      ]
+    },
+    {
+      "id": "P-S",
+      "path": "/images/marketing/sauge-noire-sculpte.webp",
+      "restaurant": "sauge-noire",
+      "scene": "product",
+      "width": 1254,
+      "height": 1254,
+      "bytes": 180756,
+      "sha256": "ce807b525bc5745418d23df6210e18b01981e5628af2770ebb0ed72d5d729139",
+      "support": {
+        "id": "sculpte",
+        "source": "public/immersive-assets/supports/Meshy_AI_Wooden_QR_Menu_Stand_1008220658_texture.glb",
+        "sourceSHA256": "7823e4213b0ac123b2eaae7789b2a56a972d7cc8b06af3e9799ccd58922db6de",
+        "render": "sculpte-front-three-quarter.png",
+        "renderSHA256": "7acbb9d43596c9deda165062412fb2c5d46578c2b0085904c6e527acdd41c32e",
+        "method": "Exact model render alpha composite; uniform scaling and translation, no geometry or artwork generation",
+        "placement": {
+          "sourceAlphaCrop": [
+            142,
+            111,
+            1058,
+            1126
+          ],
+          "targetProductBoundingBox": [
+            338,
+            314,
+            915,
+            953
+          ],
+          "uniformResizeScale": 0.6299126637554585,
+          "RGBLightingMultipliers": [
+            1,
+            1,
+            1
+          ],
+          "transform": "uniform resize and translation only; no projective warp",
+          "contactShadow": "separate soft shadow below exact lower alpha silhouette"
+        }
+      },
+      "generation": "Generated restaurant background with composited exact product render",
+      "slots": [
+        "HOME:collection-modal",
+        "HOME:pricing",
+        "PRICING:collection"
+      ]
+    },
+    {
+      "id": "P-C",
+      "path": "/images/marketing/sauge-noire-carre.webp",
+      "restaurant": "sauge-noire",
+      "scene": "product",
+      "width": 1254,
+      "height": 1254,
+      "bytes": 172766,
+      "sha256": "93778be43eea9111222b028ca0401c9208c39de4856bb4a64b3b72641b798b4c",
+      "support": {
+        "id": "carre",
+        "source": "public/immersive-assets/supports/sauge-noire-carre-vistaire-corrige.glb",
+        "sourceSHA256": "a83703a7c49395076e86f5e568dbeeffd5df35460228eebcbf9348ed7becaa15",
+        "render": "carre-front-three-quarter.png",
+        "renderSHA256": "6ea47c4697379677ade1f8eaa41b9ea279a7783647648f328673eade22e7e469",
+        "method": "Exact model render alpha composite; uniform scaling and translation, no geometry or artwork generation",
+        "placement": {
+          "sourceAlphaCrop": [
+            150,
+            104,
+            1050,
+            1096
+          ],
+          "targetProductBoundingBox": [
+            351,
+            345,
+            903,
+            953
+          ],
+          "uniformResizeScale": 0.6133333333333333,
+          "RGBLightingMultipliers": [
+            1,
+            1,
+            1
+          ],
+          "transform": "uniform resize and translation only; no projective warp",
+          "contactShadow": "separate soft shadow below exact lower alpha silhouette"
+        }
+      },
+      "generation": "Generated restaurant background with composited exact product render",
+      "slots": [
+        "HOME:collection-modal",
+        "HOME:pricing",
+        "PRICING:collection"
+      ]
+    },
+    {
+      "id": "P-G",
+      "path": "/images/marketing/sauge-noire-signature.webp",
+      "restaurant": "sauge-noire",
+      "scene": "product",
+      "width": 1254,
+      "height": 1254,
+      "bytes": 141860,
+      "sha256": "20f03cd7fb1c6b67203dad75e9e5ca813b8930978cff41c2dfe9c39000e0a6cc",
+      "support": {
+        "id": "signature",
+        "source": "public/immersive-assets/supports/sauge-noire-vistaire-corrige.glb",
+        "sourceSHA256": "b3bf09c3073d9070923c0dd6c8ec01787602374d032e2d21e9ed7fe683e2a8cc",
+        "render": "signature-front-three-quarter.png",
+        "renderSHA256": "67e4f26e0d51d98ae7e35eb1d8f7348efa2421d97b975eb5476da94477adbef2",
+        "method": "Exact model render alpha composite; uniform scaling and translation, no geometry or artwork generation",
+        "placement": {
+          "sourceAlphaCrop": [
+            145,
+            240,
+            1040,
+            968
+          ],
+          "targetProductBoundingBox": [
+            294,
+            412,
+            959,
+            953
+          ],
+          "uniformResizeScale": 0.7430167597765364,
+          "RGBLightingMultipliers": [
+            1,
+            1,
+            1
+          ],
+          "transform": "uniform resize and translation only; no projective warp",
+          "contactShadow": "separate soft shadow below exact lower alpha silhouette"
+        }
+      },
+      "generation": "Generated restaurant background with composited exact product render",
+      "slots": [
+        "HOME:collection-modal",
+        "HOME:pricing",
+        "PRICING:collection"
+      ]
+    }
+  ],
+  "derivatives": [
+    {
+      "path": "/images/marketing/maison-elyse-dining-room-thumb.webp",
+      "source": "/images/marketing/maison-elyse-dining-room.webp",
+      "width": 480,
+      "height": 270,
+      "bytes": 29628,
+      "sha256": "b2bfbc81244660604b814769c8b2479ff6eb891f90e6da82596a406865d24e32",
+      "method": "480 px wide WebP, quality 82, generated from final master with existing Sharp dependency",
+      "slot": "HOME:testimonies"
+    },
+    {
+      "path": "/images/marketing/trouvable-dining-room-thumb.webp",
+      "source": "/images/marketing/trouvable-dining-room.webp",
+      "width": 480,
+      "height": 270,
+      "bytes": 28824,
+      "sha256": "388a88cc1ff6951026ef11124ca720ed083492b4c1a63e9295ce92b8b0e4efc2",
+      "method": "480 px wide WebP, quality 82, generated from final master with existing Sharp dependency",
+      "slot": "HOME:testimonies"
+    },
+    {
+      "path": "/images/marketing/sauge-noire-dining-room-thumb.webp",
+      "source": "/images/marketing/sauge-noire-dining-room.webp",
+      "width": 480,
+      "height": 270,
+      "bytes": 30696,
+      "sha256": "2f171c86b23ffe555a7093670422ddc76905decdd685de8b44b833240b435676",
+      "method": "480 px wide WebP, quality 82, generated from final master with existing Sharp dependency",
+      "slot": "HOME:testimonies"
+    },
+    {
+      "path": "/images/marketing/sauge-noire-qr-menu-portrait.webp",
+      "source": "/images/marketing/sauge-noire-qr-menu.webp",
+      "width": 800,
+      "height": 960,
+      "bytes": 83092,
+      "sha256": "d2e58127b82de43ea2dad294ddd2af9dd0756bfb69157246fc55617868259d8d",
+      "method": "Crop [385,102,1185,1062] from the verified phone composition; preserve both stand and screen in the About portrait slot",
+      "slot": "ABOUT:hero"
+    }
+  ],
+  "mappings": [
+    {
+      "previousPath": "Framer/PageDigital.png",
+      "runtimePath": "/images/marketing/maison-elyse-souffle-phone.webp",
+      "masterId": "M1",
+      "slots": [
+        "DIGITAL:hero",
+        "AR:premium",
+        "GUIDE-A:hero",
+        "G1:premium",
+        "G2:hero",
+        "G3:premium",
+        "G5:proof",
+        "G7:hero",
+        "G9:proof"
+      ],
+      "components": [
+        "components/vistaire-preview/VistaireMenuDigitalRestaurantPreview.tsx",
+        "components/vistaire-preview/VistaireMenu3dArRestaurantPreview.tsx",
+        "components/seo/SeoGeoAeoPage.tsx",
+        "components/guides/editorialGuidePresentation.ts"
+      ],
+      "previousBytes": 1888198
+    },
+    {
+      "previousPath": "Framer/PhotoDigital2.png",
+      "runtimePath": "/images/marketing/sauge-noire-dessert-phone.webp",
+      "masterId": "S2",
+      "slots": [
+        "DIGITAL:premium",
+        "AR:hero",
+        "GUIDE-3:hero",
+        "G2:premium"
+      ],
+      "components": [
+        "components/vistaire-preview/VistaireMenuDigitalRestaurantPreview.tsx",
+        "components/vistaire-preview/VistaireMenu3dArRestaurantPreview.tsx",
+        "components/seo/SeoGeoAeoPage.tsx",
+        "components/guides/editorialGuidePresentation.ts"
+      ],
+      "previousBytes": 1995551
+    },
+    {
+      "previousPath": "Framer/PhotoDigital3.png",
+      "runtimePath": "/images/marketing/trouvable-guest-menu.webp",
+      "masterId": "T1",
+      "slots": [
+        "DIGITAL:proof",
+        "AR:proof",
+        "G2:proof",
+        "G4:premium",
+        "G8:proof"
+      ],
+      "components": [
+        "components/vistaire-preview/VistaireMenuDigitalRestaurantPreview.tsx",
+        "components/vistaire-preview/VistaireMenu3dArRestaurantPreview.tsx",
+        "components/seo/SeoGeoAeoPage.tsx"
+      ],
+      "previousBytes": 1803894
+    },
+    {
+      "previousPath": "Framer/PhotoQRcode1.png",
+      "runtimePath": "/images/marketing/sauge-noire-qr-menu.webp",
+      "masterId": "S1",
+      "slots": [
+        "QR:hero",
+        "GUIDE-Q:hero",
+        "G1:hero",
+        "G10:proof"
+      ],
+      "components": [
+        "components/vistaire-preview/VistaireMenuQrCodeRestaurantPreview.tsx",
+        "components/guides/editorialGuidePresentation.ts",
+        "components/seo/SeoGeoAeoPage.tsx"
+      ],
+      "previousBytes": 2043298
+    },
+    {
+      "previousPath": "Framer/PhotoQRcode2.png",
+      "runtimePath": "/images/marketing/sauge-noire-dessert-phone.webp",
+      "masterId": "S2",
+      "slots": [
+        "QR:proof",
+        "G1:proof"
+      ],
+      "components": [
+        "components/vistaire-preview/VistaireMenuQrCodeRestaurantPreview.tsx",
+        "components/seo/SeoGeoAeoPage.tsx"
+      ],
+      "previousBytes": 1906086
+    },
+    {
+      "previousPath": "Framer/PhotoComparaisonPDF.png",
+      "runtimePath": "/images/marketing/trouvable-pdf-digital.webp",
+      "masterId": "T2",
+      "slots": [
+        "PDF:hero",
+        "G3:hero",
+        "G4:proof"
+      ],
+      "components": [
+        "components/vistaire-preview/VistairePdfVsMenuDigitalPreview.tsx",
+        "components/seo/SeoGeoAeoPage.tsx"
+      ],
+      "previousBytes": 2046429
+    },
+    {
+      "previousPath": "Framer/PhotoPDFvsDigitalDetail.png",
+      "runtimePath": "/images/marketing/maison-elyse-homard-phone.webp",
+      "masterId": "M2",
+      "slots": [
+        "PDF:detail",
+        "G3:proof",
+        "G4:hero"
+      ],
+      "components": [
+        "components/vistaire-preview/VistairePdfVsMenuDigitalPreview.tsx",
+        "components/seo/SeoGeoAeoPage.tsx"
+      ],
+      "previousBytes": 1962850
+    },
+    {
+      "previousPath": "Framer/PageApropos2.png",
+      "runtimePath": "/images/marketing/sauge-noire-qr-menu-portrait.webp",
+      "masterId": "S1",
+      "slots": [
+        "ABOUT:hero"
+      ],
+      "components": [
+        "components/vistaire-preview/VistaireAboutPreview.tsx"
+      ],
+      "previousBytes": 1977831
+    },
+    {
+      "previousPath": "Framer/Photo table.png",
+      "runtimePath": "/images/marketing/sauge-noire-dining-room.webp",
+      "masterId": "A-S",
+      "slots": [
+        "ABOUT:closing",
+        "BOOK:panel"
+      ],
+      "components": [
+        "components/vistaire-preview/VistaireAboutPreview.tsx",
+        "components/vistaire-preview/VistaireRendezVousPreview.tsx"
+      ],
+      "previousBytes": 1747803
+    },
+    {
+      "previousPath": "Framer/PageContact.png",
+      "runtimePath": "/images/marketing/trouvable-dining-room.webp",
+      "masterId": "A-T",
+      "slots": [
+        "CONTACT:hero"
+      ],
+      "components": [
+        "components/vistaire-preview/VistaireContactPreview.tsx"
+      ],
+      "previousBytes": 1908683
+    },
+    {
+      "previousPath": "Framer/PhotoRestoComplet4.png",
+      "runtimePath": "/images/marketing/sauge-noire-dining-room.webp",
+      "masterId": "A-S",
+      "slots": [
+        "G9:hero",
+        "G11:hero"
+      ],
+      "components": [
+        "components/seo/SeoGeoAeoPage.tsx"
+      ],
+      "previousBytes": 2126653
+    },
+    {
+      "previousPath": "Framer/PhotoRestoComplet6.png",
+      "runtimePath": "/images/marketing/maison-elyse-dining-room.webp",
+      "masterId": "A-M",
+      "slots": [
+        "G8:hero",
+        "G10:hero",
+        "G12:premium"
+      ],
+      "components": [
+        "components/seo/SeoGeoAeoPage.tsx"
+      ],
+      "previousBytes": 1891285
+    },
+    {
+      "previousPath": "Framer/PlatHomard.png",
+      "runtimePath": "/images/marketing/maison-elyse-homard-phone.webp",
+      "masterId": "M2",
+      "slots": [
+        "G5:hero",
+        "G11:proof",
+        "G12:hero"
+      ],
+      "components": [
+        "components/seo/SeoGeoAeoPage.tsx"
+      ],
+      "previousBytes": 2138886
+    },
+    {
+      "previousPath": "Framer/Desert.png",
+      "runtimePath": "/images/marketing/maison-elyse-souffle-phone.webp",
+      "masterId": "M1",
+      "slots": [
+        "G6:premium"
+      ],
+      "components": [
+        "components/seo/SeoGeoAeoPage.tsx"
+      ],
+      "previousBytes": 2297365
+    },
+    {
+      "previousPath": "Framer/Boisson.png",
+      "runtimePath": "/images/marketing/restaurant-signature-drink.webp",
+      "masterId": "B1",
+      "slots": [
+        "G11:premium"
+      ],
+      "components": [
+        "components/seo/SeoGeoAeoPage.tsx"
+      ],
+      "previousBytes": 2004339
+    },
+    {
+      "previousPath": "public/immersive-assets/experience-maison-elyse.webp",
+      "runtimePath": "/images/marketing/maison-elyse-dining-room-thumb.webp",
+      "masterId": "A-M",
+      "slots": [
+        "HOME:testimonies"
+      ],
+      "components": [
+        "components/immersive/App.jsx",
+        "components/immersive/content.js"
+      ],
+      "previousBytes": 118316
+    },
+    {
+      "previousPath": "public/immersive-assets/ambience-maison-elyse.webp",
+      "runtimePath": "/images/marketing/maison-elyse-dining-room.webp",
+      "masterId": "A-M",
+      "slots": [
+        "HOME:social-content"
+      ],
+      "components": [
+        "components/immersive/App.jsx"
+      ],
+      "previousBytes": 463964
+    },
+    {
+      "previousPath": "public/immersive-assets/experience-trouvable.webp",
+      "runtimePath": "/images/marketing/trouvable-dining-room-thumb.webp",
+      "masterId": "A-T",
+      "slots": [
+        "HOME:testimonies"
+      ],
+      "components": [
+        "components/immersive/App.jsx",
+        "components/immersive/content.js"
+      ],
+      "previousBytes": 152944
+    },
+    {
+      "previousPath": "public/immersive-assets/ambience-trouvable.webp",
+      "runtimePath": "/images/marketing/trouvable-dining-room.webp",
+      "masterId": "A-T",
+      "slots": [
+        "HOME:social-content"
+      ],
+      "components": [
+        "components/immersive/App.jsx"
+      ],
+      "previousBytes": 434982
+    },
+    {
+      "previousPath": "public/immersive-assets/experience-sauge-noire.webp",
+      "runtimePath": "/images/marketing/sauge-noire-dining-room-thumb.webp",
+      "masterId": "A-S",
+      "slots": [
+        "HOME:testimonies"
+      ],
+      "components": [
+        "components/immersive/App.jsx",
+        "components/immersive/content.js"
+      ],
+      "previousBytes": 91844
+    },
+    {
+      "previousPath": "public/immersive-assets/ambience-sauge-noire.webp",
+      "runtimePath": "/images/marketing/sauge-noire-dining-room.webp",
+      "masterId": "A-S",
+      "slots": [
+        "HOME:social-content"
+      ],
+      "components": [
+        "components/immersive/App.jsx"
+      ],
+      "previousBytes": 510150
+    },
+    {
+      "previousPath": "public/immersive-assets/support-acrylique.webp",
+      "runtimePath": "/images/marketing/sauge-noire-acrylique.webp",
+      "masterId": "P-A",
+      "slots": [
+        "HOME:pricing",
+        "HOME:collection-modal"
+      ],
+      "components": [
+        "components/immersive/Pricing.jsx",
+        "components/immersive/content.js",
+        "components/immersive/App.jsx"
+      ],
+      "previousBytes": 109434
+    },
+    {
+      "previousPath": "public/images/pricing/vistaire-acrylique.jpg",
+      "runtimePath": "/images/marketing/sauge-noire-acrylique.webp",
+      "masterId": "P-A",
+      "slots": [
+        "PRICING:collection",
+        "PRICING:social-metadata"
+      ],
+      "components": [
+        "lib/pricingPage.ts",
+        "components/vistaire-preview/PricingTableEstimator.tsx",
+        "app/(fr)/(seo)/tarifs-menu-digital-restaurant/page.tsx",
+        "app/(en)/en/pricing-digital-restaurant-menu/page.tsx"
+      ],
+      "previousBytes": 220705
+    },
+    {
+      "previousPath": "public/immersive-assets/support-sculpte.webp",
+      "runtimePath": "/images/marketing/sauge-noire-sculpte.webp",
+      "masterId": "P-S",
+      "slots": [
+        "HOME:pricing",
+        "HOME:collection-modal"
+      ],
+      "components": [
+        "components/immersive/Pricing.jsx",
+        "components/immersive/content.js",
+        "components/immersive/App.jsx"
+      ],
+      "previousBytes": 156390
+    },
+    {
+      "previousPath": "public/images/pricing/vistaire-sculpte.jpg",
+      "runtimePath": "/images/marketing/sauge-noire-sculpte.webp",
+      "masterId": "P-S",
+      "slots": [
+        "PRICING:collection"
+      ],
+      "components": [
+        "lib/pricingPage.ts",
+        "components/vistaire-preview/PricingTableEstimator.tsx"
+      ],
+      "previousBytes": 307411
+    },
+    {
+      "previousPath": "public/immersive-assets/support-carre.webp",
+      "runtimePath": "/images/marketing/sauge-noire-carre.webp",
+      "masterId": "P-C",
+      "slots": [
+        "HOME:pricing",
+        "HOME:collection-modal"
+      ],
+      "components": [
+        "components/immersive/Pricing.jsx",
+        "components/immersive/content.js",
+        "components/immersive/App.jsx"
+      ],
+      "previousBytes": 174502
+    },
+    {
+      "previousPath": "public/images/pricing/vistaire-carre.png",
+      "runtimePath": "/images/marketing/sauge-noire-carre.webp",
+      "masterId": "P-C",
+      "slots": [
+        "PRICING:collection"
+      ],
+      "components": [
+        "lib/pricingPage.ts",
+        "components/vistaire-preview/PricingTableEstimator.tsx"
+      ],
+      "previousBytes": 1641332
+    },
+    {
+      "previousPath": "public/immersive-assets/support-signature.webp",
+      "runtimePath": "/images/marketing/sauge-noire-signature.webp",
+      "masterId": "P-G",
+      "slots": [
+        "HOME:pricing",
+        "HOME:collection-modal"
+      ],
+      "components": [
+        "components/immersive/Pricing.jsx",
+        "components/immersive/content.js",
+        "components/immersive/App.jsx"
+      ],
+      "previousBytes": 171510
+    },
+    {
+      "previousPath": "public/images/pricing/vistaire-signature.jpg",
+      "runtimePath": "/images/marketing/sauge-noire-signature.webp",
+      "masterId": "P-G",
+      "slots": [
+        "PRICING:collection"
+      ],
+      "components": [
+        "lib/pricingPage.ts",
+        "components/vistaire-preview/PricingTableEstimator.tsx"
+      ],
+      "previousBytes": 292926
+    }
+  ]
+}

@@ -136,7 +136,7 @@ for (const locale of locales) {
           viewportWidth: document.documentElement.clientWidth
         };
       });
-      expect(geometry.columns).toBe(5);
+      expect(geometry.columns).toBe(viewport.width <= 1100 ? 3 : 5);
       expect(geometry.left).toBeGreaterThanOrEqual(0);
       expect(geometry.right).toBeLessThanOrEqual(geometry.viewportWidth);
       await expectNoHorizontalOverflow(page);

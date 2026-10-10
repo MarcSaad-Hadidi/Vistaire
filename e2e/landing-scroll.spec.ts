@@ -229,7 +229,7 @@ test("le premier chargement mobile utilise le film portrait et garde les command
 
 test("les séquences allongées gardent des pauses lisibles et un rail réversible", async ({ page }) => {
   await openJourney(page);
-  for (const [id, expectedTravel] of [["testimonies", 3], ["social-content", 5.4], ["product", 3.2]] as const) {
+  for (const [id, expectedTravel] of [["testimonies", 3], ["social-content", 4.4], ["product", 3.2]] as const) {
     const ratio = await page.locator(`#${id}`).evaluate(el => {
       const stage = el.firstElementChild!.clientHeight;
       return ((el as HTMLElement).offsetHeight - stage) / stage;
@@ -245,7 +245,7 @@ test("les séquences allongées gardent des pauses lisibles et un rail réversib
     }), progress);
   };
   const railProgress = () => rail.evaluate(el => Number(getComputedStyle(el).getPropertyValue("--rail-progress")));
-  for (const [progress, expected] of [[0.1, 0], [0.25, 0], [0.32, 0.5], [0.5, 1], [0.68, 1.5], [0.9, 2], [1, 2], [0.68, 1.5], [0.5, 1], [0.32, 0.5], [0.1, 0]]) {
+  for (const [progress, expected] of [[0.1, 0], [0.25, 0], [0.31, 0.5], [0.5, 1], [0.69, 1.5], [0.9, 2], [1, 2], [0.69, 1.5], [0.5, 1], [0.31, 0.5], [0.1, 0]]) {
     await at(progress);
     await expect.poll(railProgress).toBeCloseTo(expected, 2);
   }
@@ -302,8 +302,8 @@ test("un seul guide accueille le visiteur puis laisse explorer sans se répéter
     await expect(guide).toHaveAttribute("aria-hidden", "true");
     await page.goto(path);
     await expect(guide).toHaveAttribute("aria-hidden", "false");
-    await page.keyboard.press("Tab"); // Skip link
-    await page.keyboard.press("Tab"); // First header control
+    await page.locator('.skip-link[href="#ai"]').focus();
+    await page.keyboard.press("Tab"); // First header control, independent of document autofocus
     await expect(page.locator(".brand")).toBeFocused();
     await expect(guide).toHaveAttribute("aria-hidden", "true");
     await page.goto(path);
@@ -322,3 +322,71 @@ test("un seul guide accueille le visiteur puis laisse explorer sans se répéter
     await expect(guide).toHaveCSS("transition-duration", "0s");
   }
 });
+
+// The fallback uses the same measured director as WebGL. These assertions
+// cover page geometry, copy and native input, not rendered 3D smoothness.
+for (const viewport of [
+  { width: 1280, height: 800 }, { width: 1440, height: 900 },
+  { width: 1920, height: 1080 }, { width: 2560, height: 1440 },
+  { width: 375, height: 812 }, { width: 390, height: 844 }, { width: 430, height: 932 },
+]) {
+  test(`all chapter boundaries use measured continuous windows at ${viewport.width}×${viewport.height}`, async ({ page }) => {
+    test.setTimeout(90_000);
+    await page.setViewportSize(viewport);
+    for (const path of ['/', '/en']) {
+      await page.goto(path);
+      await expect(page.locator('.world-fallback')).toBeVisible();
+      await page.evaluate(() => document.fonts.ready);
+      const chapters = page.locator('.chapter');
+      await expect(chapters).toHaveCount(12);
+      await expect(page.locator('#wearable')).toHaveAttribute('data-exit-start', /\d/);
+      const windows = await chapters.evaluateAll(elements => elements
+        .filter(el => (el as HTMLElement).dataset.exitStart)
+        .map(el => ({
+          from: el.id,
+          to: (el as HTMLElement).dataset.exitTo!,
+          start: Number((el as HTMLElement).dataset.exitStart),
+          end: Number((el as HTMLElement).dataset.exitEnd),
+          stage: document.querySelector('.opening-stage')!.clientHeight,
+        })));
+      expect(windows).toHaveLength(9);
+      for (const window of windows) {
+        expect((window.end - window.start) / window.stage).toBeGreaterThanOrEqual(1.39);
+        expect((window.end - window.start) / window.stage).toBeLessThanOrEqual(2.12);
+        const sample = async (fraction: number) => page.evaluate(async ({ window, fraction }) => {
+          scrollTo({ top: window.start + (window.end - window.start) * fraction, behavior: 'instant' });
+          await new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
+          const world = document.querySelector<HTMLElement>('.world')!;
+          return {
+            transition: world.dataset.transition,
+            progress: Number(world.dataset.transitionProgress),
+            opacity: Number(getComputedStyle(document.getElementById(window.to)!).getPropertyValue('--copy-opacity') || 1),
+          };
+        }, { window, fraction });
+        const forward = [];
+        for (const fraction of [0.05, 0.5, 0.95]) {
+          const state = await sample(fraction);
+          expect(state.transition).toBe(`${window.from}:${window.to}`);
+          expect(state.progress).toBeCloseTo(fraction, 2);
+          expect(state.opacity).toBeGreaterThanOrEqual(0);
+          expect(state.opacity).toBeLessThanOrEqual(1);
+          forward.push(state);
+        }
+        const reverse = [];
+        for (const fraction of [0.95, 0.5, 0.05]) reverse.push(await sample(fraction));
+        expect(reverse.reverse()).toEqual(forward);
+      }
+      // Wheel deltas remain native, including coarse mouse-wheel jumps.
+      await page.evaluate(() => scrollTo({ top: 0, behavior: 'instant' }));
+      await page.mouse.move(viewport.width / 2, viewport.height / 2);
+      await page.mouse.wheel(0, viewport.height * 4);
+      await expect.poll(() => page.evaluate(() => scrollY)).toBeGreaterThan(viewport.height * 3);
+      await page.mouse.wheel(0, -viewport.height * 4);
+      await expect.poll(() => page.evaluate(() => scrollY)).toBeLessThan(viewport.height);
+      const footer = page.locator('#footer');
+      await page.evaluate(() => scrollTo({ top: document.documentElement.scrollHeight, behavior: 'instant' }));
+      await expect(page.locator('html')).toHaveAttribute('data-chapter', 'footer');
+      expect(await footer.evaluate(el => Math.abs(el.getBoundingClientRect().bottom + scrollY - document.documentElement.scrollHeight))).toBeLessThanOrEqual(1);
+    }
+  });
+}

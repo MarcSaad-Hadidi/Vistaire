@@ -141,3 +141,93 @@ test("collections support keyboard selection and accessible stand rotation", asy
   await page.keyboard.press("ArrowRight");
   await expect(stand).toHaveAttribute("aria-valuenow", "15");
 });
+
+test.describe('rendered scroll choreography (Chromium software WebGL)', () => {
+  // This is actual Three.js rendering under SwiftShader, not physical GPU or
+  // trackpad validation. Keep launch settings local to these two regressions.
+  test.use({ launchOptions: { args: ['--use-angle=swiftshader', '--use-gl=angle'] } });
+  for (const [path, viewport] of [
+    ['/', { width: 1440, height: 900 }],
+    ['/en', { width: 390, height: 844 }],
+  ] as const) {
+    test(`${path} renders reversible chapter poses and resumes after pricing`, async ({ page }) => {
+      test.setTimeout(240_000);
+      await page.setViewportSize(viewport);
+      // Remove temporal damping for deterministic target-pose comparisons.
+      // The separate stop/resume sample below restores normal motion.
+      await page.emulateMedia({ reducedMotion: 'reduce' });
+      const errors: string[] = [];
+      page.on('pageerror', error => errors.push(error.message));
+      await page.goto(path, { waitUntil: 'domcontentloaded' });
+      const canvas = page.locator('.scene-canvas');
+      await expect(canvas).toHaveAttribute('data-ready', 'true', { timeout: 120_000 });
+      await expect(canvas).toHaveAttribute('data-laptop-ready', 'true', { timeout: 60_000 });
+      await expect(page.locator('.world-fallback')).toHaveCount(0);
+      await page.evaluate(() => document.fonts.ready);
+      const windows = await page.locator('.chapter[data-exit-start]').evaluateAll(elements => elements.map(el => ({
+        from: el.id,
+        to: (el as HTMLElement).dataset.exitTo!,
+        start: Number((el as HTMLElement).dataset.exitStart),
+        end: Number((el as HTMLElement).dataset.exitEnd),
+      })));
+      expect(windows).toHaveLength(9);
+      const at = async (y: number) => {
+        await page.evaluate(async y => {
+          scrollTo({ top: y, behavior: 'instant' });
+          for (let i = 0; i < 4; i++) await new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
+        }, y);
+        return canvas.evaluate(el => {
+          const data = (el as HTMLCanvasElement).dataset;
+          const view = JSON.parse(data.cameraViewOffset ?? '{}');
+          return {
+            suspended: data.suspended,
+            values: [data.fittedCameraPosition, data.fittedLook, data.supportPosition, data.phonePosition,
+              data.dishScale, data.dishOpacity, data.roomPosition, data.roomYaw]
+              .flatMap(value => (value ?? '').split(',').map(Number))
+              .concat([view.offsetX / el.clientWidth, view.offsetY / el.clientHeight]),
+          };
+        });
+      };
+      for (const window of windows) {
+        const ys = window.from === 'open-weight'
+          ? [window.end - 2, window.end + 2]
+          : [window.start - 2, window.start + 2, (window.start + window.end) / 2, window.end - 2, window.end + 2];
+        const forward: Awaited<ReturnType<typeof at>>[] = [];
+        for (const y of ys) {
+          const pose = await at(y);
+          // Pricing is intentionally opaque; there is no rendered pose there.
+          if (window.to === 'open-weight' && y >= window.end) {
+            expect(pose.suspended).toBe('true');
+          } else {
+            expect(pose.suspended).toBe('false');
+            expect(pose.values.every(Number.isFinite)).toBe(true);
+          }
+          forward.push(pose);
+        }
+        for (const pair of [[0, 1], [ys.length - 2, ys.length - 1]]) {
+          const [a, b] = pair.map(i => forward[i]);
+          if (a.suspended === 'true' || b.suspended === 'true') continue;
+          for (let i = 0; i < a.values.length; i++) expect(Math.abs(a.values[i] - b.values[i]), `${window.from}:${window.to} boundary pose`).toBeLessThan(0.15);
+        }
+        for (let i = ys.length - 1; i >= 0; i--) {
+          const reverse = await at(ys[i]);
+          if (reverse.suspended === 'true') continue;
+          reverse.values.forEach((value, n) => expect(value).toBeCloseTo(forward[i].values[n], 3));
+        }
+      }
+      // Cross the internal opening chapter labels and sampled camera anchors.
+      const motion = await page.locator('.opening-journey').evaluate(el =>
+        Number((el as HTMLElement).style.getPropertyValue('--opening-motion-vh')) * el.firstElementChild!.clientHeight / 100);
+      for (const p of [0.12, 0.28, 0.3, 0.42, 0.56, 0.72, 0.8, 0.86, 1]) {
+        const [a, b] = [await at(motion * p - 2), await at(motion * p + 2)];
+        a.values.forEach((value, n) => expect(Math.abs(value - b.values[n])).toBeLessThan(0.15));
+      }
+      await page.emulateMedia({ reducedMotion: 'no-preference' });
+      const feature = windows.find(window => window.from === 'features')!;
+      await at((feature.start + feature.end) / 2);
+      await expect(canvas).toHaveAttribute('data-settled', 'true', { timeout: 10_000 });
+      await expect(canvas).toHaveAttribute('data-transition', 'features:encryption');
+      expect(errors).toEqual([]);
+    });
+  }
+});

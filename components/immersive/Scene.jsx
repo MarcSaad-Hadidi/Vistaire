@@ -1,4 +1,4 @@
-import { continuousComposition, interpolatePose } from "./SceneDirector.js";
+import { continuousComposition, interpolatePose, interpolatePoseTrack, DEFAULT_SCENE_FRAME } from "./SceneDirector.js";
 import { cameraDollyPose } from "./CameraDolly.js";
 import {
   projectHullBounds,
@@ -1053,7 +1053,7 @@ export default function Scene({
     let framingReference;
     let projectionState;
     let projectionSettling = false;
-    const fallbackFocus = { x: 0.5, y: 0.56, width: 0.8, height: 0.55 };
+    const fallbackFocus = DEFAULT_SCENE_FRAME;
     const smooth = (t) => {
       t = clamp(t, 0, 1);
       return t * t * (3 - 2 * t);
@@ -1234,15 +1234,12 @@ export default function Scene({
       if (state.openingProgress != null) {
         const p = state.openingProgress,
           anchors = [0, 0.12, 0.28, 0.42, 0.56, 0.72, 0.86, 1];
-        const upper = anchors.findIndex((x) => x >= p);
-        const right = anchors[Math.max(1, upper)],
-          left = anchors[Math.max(0, upper - 1)];
         const sectionAt = (q) =>
           q < 0.56 ? "hero" : q < 1 ? "ai" : "wearable";
-        return interpolatePose(
-          calibration(sectionAt(left), state, left),
-          calibration(sectionAt(right), state, right),
-          (p - left) / (right - left),
+        return interpolatePoseTrack(
+          anchors,
+          anchors.map(q => calibration(sectionAt(q), state, q)),
+          p,
         );
       }
       return calibration(state.section, state);
@@ -1499,7 +1496,7 @@ export default function Scene({
           !state.reducedMotion &&
           !state.modalOpen &&
           !state.menuOpen,
-        state.section === "wearable"
+        state.section === "wearable" || state.transition?.from === "wearable"
           ? state.phoneDemo || "maison-elyse"
           : "maison-elyse",
       );

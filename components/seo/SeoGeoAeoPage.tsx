@@ -1,18 +1,18 @@
 import Image from "next/image";
 import type { StaticImageData } from "next/image";
 import Link from "next/link";
-import beveragePhoto from "@/Framer/Boisson.png";
-import dessertPhoto from "@/Framer/Desert.png";
-import pageDigitalPhoto from "@/Framer/PageDigital.png";
-import photoPdfCompare from "@/Framer/PhotoComparaisonPDF.png";
-import photoDigital2 from "@/Framer/PhotoDigital2.png";
-import photoDigital3 from "@/Framer/PhotoDigital3.png";
-import photoPdfDetail from "@/Framer/PhotoPDFvsDigitalDetail.png";
-import photoQrCode1 from "@/Framer/PhotoQRcode1.png";
-import photoQrCode2 from "@/Framer/PhotoQRcode2.png";
-import photoResto from "@/Framer/PhotoRestoComplet4.png";
-import photoRestoDining from "@/Framer/PhotoRestoComplet6.png";
-import lobsterPlate from "@/Framer/PlatHomard.png";
+import beveragePhoto from "@/public/images/marketing/restaurant-signature-drink.webp";
+import dessertPhoto from "@/public/images/marketing/maison-elyse-souffle-phone.webp";
+import pageDigitalPhoto from "@/public/images/marketing/maison-elyse-souffle-phone.webp";
+import photoPdfCompare from "@/public/images/marketing/trouvable-pdf-digital.webp";
+import photoDigital2 from "@/public/images/marketing/sauge-noire-dessert-phone.webp";
+import photoDigital3 from "@/public/images/marketing/trouvable-guest-menu.webp";
+import photoPdfDetail from "@/public/images/marketing/maison-elyse-homard-phone.webp";
+import photoQrCode1 from "@/public/images/marketing/sauge-noire-qr-menu.webp";
+import photoQrCode2 from "@/public/images/marketing/sauge-noire-dessert-phone.webp";
+import photoResto from "@/public/images/marketing/sauge-noire-dining-room.webp";
+import photoRestoDining from "@/public/images/marketing/maison-elyse-dining-room.webp";
+import lobsterPlate from "@/public/images/marketing/maison-elyse-homard-phone.webp";
 import { SeoFaq } from "./SeoFaq";
 import {
   PreviewFooter,
@@ -31,6 +31,7 @@ import {
 
 type PageVisual = {
   alt: string;
+  altEn?: string;
   src: StaticImageData | string;
 };
 
@@ -38,67 +39,81 @@ const VISUAL_SETS: Record<string, PageVisual[]> = {
   "menu-qr-sans-pdf": [
     {
       src: photoQrCode1,
-      alt: "Client ouvrant un menu Vistaire depuis un QR code à table",
+      alt: "Menu Sauge Noire sur téléphone à côté du support QR Vistaire",
+      altEn: "Sauge Noire menu on a phone beside a Vistaire QR display",
     },
     {
       src: photoQrCode2,
-      alt: "Menu mobile Vistaire consulté après le scan QR",
+      alt: "Chocolat fumé et fiche dessert Sauge Noire sur téléphone",
+      altEn: "Chocolat fumé beside the Sauge Noire dessert page on a phone",
     },
     {
       src: pageDigitalPhoto,
-      alt: "Fiche plat mobile affichée dans un menu Vistaire",
+      alt: "Soufflé au chocolat et fiche dessert Maison Élyse sur téléphone",
+      altEn: "Chocolate soufflé beside the Maison Élyse dessert page on a phone",
     },
   ],
   "menu-digital-sans-application": [
     {
       src: pageDigitalPhoto,
-      alt: "Menu digital Vistaire ouvert dans le navigateur mobile",
+      alt: "Soufflé au chocolat et fiche dessert Maison Élyse sur téléphone",
+      altEn: "Chocolate soufflé beside the Maison Élyse dessert page on a phone",
     },
     {
       src: photoDigital3,
-      alt: "Client consultant un menu digital à table sans application",
+      alt: "Main tenant un téléphone affichant le menu Trouvable à table",
+      altEn: "Hand holding a phone displaying the Trouvable menu at the table",
     },
     {
       src: photoDigital2,
-      alt: "Expérience mobile Vistaire avec présentation visuelle des plats",
+      alt: "Chocolat fumé et fiche dessert Sauge Noire sur téléphone",
+      altEn: "Chocolat fumé beside the Sauge Noire dessert page on a phone",
     },
   ],
   "remplacer-menu-pdf-restaurant": [
     {
       src: photoPdfCompare,
-      alt: "Comparaison entre menu PDF et menu digital Vistaire",
+      alt: "Présentation PDF et menu digital Trouvable côte à côte sur deux téléphones",
+      altEn: "Trouvable PDF-style and digital menus displayed side by side on two phones",
     },
     {
       src: photoPdfDetail,
-      alt: "Détail d'un menu PDF remplacé par une lecture mobile",
+      alt: "Homard et fiche plat Maison Élyse sur téléphone",
+      altEn: "Lobster beside the Maison Élyse dish page on a phone",
     },
     {
       src: pageDigitalPhoto,
-      alt: "Menu digital Vistaire utilisé comme alternative au PDF",
+      alt: "Soufflé au chocolat et fiche dessert Maison Élyse sur téléphone",
+      altEn: "Chocolate soufflé beside the Maison Élyse dessert page on a phone",
     },
   ],
   "alternative-menu-pdf-restaurant": [
     {
       src: photoPdfDetail,
-      alt: "Menu PDF transformé en expérience mobile lisible",
+      alt: "Homard et fiche plat Maison Élyse sur téléphone",
+      altEn: "Lobster beside the Maison Élyse dish page on a phone",
     },
     {
       src: photoPdfCompare,
-      alt: "Comparaison visuelle entre PDF et carte digitale",
+      alt: "Présentation PDF et menu digital Trouvable côte à côte sur deux téléphones",
+      altEn: "Trouvable PDF-style and digital menus displayed side by side on two phones",
     },
     {
       src: photoDigital3,
-      alt: "Client lisant un menu digital plutôt qu'un PDF à table",
+      alt: "Main tenant un téléphone affichant le menu Trouvable à table",
+      altEn: "Hand holding a phone displaying the Trouvable menu at the table",
     },
   ],
   "fiche-plat-digitale-restaurant": [
     {
       src: lobsterPlate,
-      alt: "Plat signature présenté dans une fiche plat digitale",
+      alt: "Homard et fiche plat Maison Élyse sur téléphone",
+      altEn: "Lobster beside the Maison Élyse dish page on a phone",
     },
     {
       src: pageDigitalPhoto,
-      alt: "Fiche plat Vistaire avec détails utiles sur mobile",
+      alt: "Soufflé au chocolat et fiche dessert Maison Élyse sur téléphone",
+      altEn: "Chocolate soufflé beside the Maison Élyse dessert page on a phone",
     },
     {
       src: "/images/demo/dishes/homard-bleu-bisque-fenouil.png",
@@ -116,13 +131,15 @@ const VISUAL_SETS: Record<string, PageVisual[]> = {
     },
     {
       src: dessertPhoto,
-      alt: "Dessert présenté avec une direction photo premium",
+      alt: "Soufflé au chocolat et fiche dessert Maison Élyse sur téléphone",
+      altEn: "Chocolate soufflé beside the Maison Élyse dessert page on a phone",
     },
   ],
   "menu-restaurant-allergenes": [
     {
       src: pageDigitalPhoto,
-      alt: "Fiche plat mobile avec informations utiles pour le client",
+      alt: "Soufflé au chocolat et fiche dessert Maison Élyse sur téléphone",
+      altEn: "Chocolate soufflé beside the Maison Élyse dessert page on a phone",
     },
     {
       src: "/images/demo/dishes/ravioles-chevre-miel-monteregie.png",
@@ -136,11 +153,13 @@ const VISUAL_SETS: Record<string, PageVisual[]> = {
   "menu-digital-restaurant-montreal": [
     {
       src: photoRestoDining,
-      alt: "Ambiance de restaurant à Montréal avec expérience mobile",
+      alt: "Mise en scène lumineuse de l’univers Maison Élyse",
+      altEn: "Warm dining scene inspired by Maison Élyse",
     },
     {
       src: photoDigital3,
-      alt: "Menu digital consulté à table dans un restaurant montréalais",
+      alt: "Main tenant un téléphone affichant le menu Trouvable à table",
+      altEn: "Hand holding a phone displaying the Trouvable menu at the table",
     },
     {
       src: "/images/demo/dishes/pave-boeuf-mature-bordelaise.png",
@@ -150,11 +169,13 @@ const VISUAL_SETS: Record<string, PageVisual[]> = {
   "menu-digital-restaurant-laval": [
     {
       src: photoResto,
-      alt: "Salle de restaurant avec carte digitale pour Laval",
+      alt: "Ambiance botanique Sauge Noire avec support QR Vistaire",
+      altEn: "Sauge Noire botanical dining scene with a Vistaire QR display",
     },
     {
       src: pageDigitalPhoto,
-      alt: "Carte mobile Vistaire pour restaurant à Laval",
+      alt: "Soufflé au chocolat et fiche dessert Maison Élyse sur téléphone",
+      altEn: "Chocolate soufflé beside the Maison Élyse dessert page on a phone",
     },
     {
       src: "/images/demo/dishes/canette-rotie-figues-epices.png",
@@ -164,11 +185,13 @@ const VISUAL_SETS: Record<string, PageVisual[]> = {
   "menu-digital-restaurant-brossard": [
     {
       src: photoRestoDining,
-      alt: "Salle de restaurant avec menu digital pour Brossard",
+      alt: "Mise en scène lumineuse de l’univers Maison Élyse",
+      altEn: "Warm dining scene inspired by Maison Élyse",
     },
     {
       src: photoQrCode1,
-      alt: "QR code de table ouvrant une carte mobile à Brossard",
+      alt: "Menu Sauge Noire sur téléphone à côté du support QR Vistaire",
+      altEn: "Sauge Noire menu on a phone beside a Vistaire QR display",
     },
     {
       src: "/images/demo/dishes/tartare-saumon-label-rouge.png",
@@ -178,21 +201,25 @@ const VISUAL_SETS: Record<string, PageVisual[]> = {
   "menu-digital-restaurant-haut-de-gamme": [
     {
       src: photoResto,
-      alt: "Ambiance premium de restaurant haut de gamme",
+      alt: "Ambiance botanique Sauge Noire avec support QR Vistaire",
+      altEn: "Sauge Noire botanical dining scene with a Vistaire QR display",
     },
     {
       src: lobsterPlate,
-      alt: "Plat signature mis en scène pour un menu haut de gamme",
+      alt: "Homard et fiche plat Maison Élyse sur téléphone",
+      altEn: "Lobster beside the Maison Élyse dish page on a phone",
     },
     {
       src: beveragePhoto,
-      alt: "Boisson signature présentée dans une expérience Vistaire",
+      alt: "Spritz Riviera Trouvable avec tranche d’orange dans une ambiance de bistrot",
+      altEn: "Trouvable Spritz Riviera with an orange slice in a bistro setting",
     },
   ],
   "menu-digital-restaurant-gastronomique": [
     {
       src: lobsterPlate,
-      alt: "Plat gastronomique présenté dans une carte digitale",
+      alt: "Homard et fiche plat Maison Élyse sur téléphone",
+      altEn: "Lobster beside the Maison Élyse dish page on a phone",
     },
     {
       src: "/images/demo/dishes/souffle-chocolat-grand-cru.png",
@@ -200,7 +227,8 @@ const VISUAL_SETS: Record<string, PageVisual[]> = {
     },
     {
       src: photoRestoDining,
-      alt: "Salle gastronomique avec expérience mobile premium",
+      alt: "Mise en scène lumineuse de l’univers Maison Élyse",
+      altEn: "Warm dining scene inspired by Maison Élyse",
     },
   ],
 };
@@ -318,7 +346,7 @@ export function SeoGeoAeoPage({ page }: { page: SeoGeoPageData }) {
   const locale = page.locale ?? "fr";
   const copy = localizedCopy[locale];
   const visualKey = VISUAL_ALIASES[page.slug] ?? page.slug;
-  const visuals = VISUAL_SETS[visualKey] ?? [
+  const visuals: PageVisual[] = VISUAL_SETS[visualKey] ?? [
     page.visualImage,
     page.visualImage,
     page.visualImage,
@@ -373,7 +401,7 @@ export function SeoGeoAeoPage({ page }: { page: SeoGeoPageData }) {
             </div>
             <figure className={`${styles.visualFigure} ${styles.heroVisual}`}>
               <Image
-                alt={publicText(visuals[0].alt, locale)}
+                alt={locale === "en" && visuals[0].altEn ? visuals[0].altEn : publicText(visuals[0].alt, locale)}
                 className={styles.visualImage}
                 fill
                 priority
@@ -412,7 +440,7 @@ export function SeoGeoAeoPage({ page }: { page: SeoGeoPageData }) {
           >
             <figure className={styles.visualFigure}>
               <Image
-                alt={publicText(visuals[1].alt, locale)}
+                alt={locale === "en" && visuals[1].altEn ? visuals[1].altEn : publicText(visuals[1].alt, locale)}
                 className={styles.visualImage}
                 fill
                 quality={80}
@@ -461,7 +489,7 @@ export function SeoGeoAeoPage({ page }: { page: SeoGeoPageData }) {
               className={`${styles.visualFigure} ${styles.premiumVisual}`}
             >
               <Image
-                alt={publicText(visuals[2].alt, locale)}
+                alt={locale === "en" && visuals[2].altEn ? visuals[2].altEn : publicText(visuals[2].alt, locale)}
                 className={styles.visualImage}
                 fill
                 quality={80}

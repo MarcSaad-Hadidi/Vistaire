@@ -9,7 +9,7 @@ import {
 import { buildPageAlternates, LOCALE_OPEN_GRAPH } from "@/lib/i18n";
 import { absoluteUrl } from "@/lib/seo";
 
-const socialImage = "/images/pricing/vistaire-acrylique.jpg";
+const socialImage = "/images/marketing/sauge-noire-acrylique.webp";
 
 export const metadata: Metadata = {
   title: {

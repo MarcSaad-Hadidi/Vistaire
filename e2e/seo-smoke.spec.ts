@@ -145,14 +145,14 @@ function pathnameFromHref(href: string | null | undefined) {
   return new URL(href as string, "https://www.vistaire.ca").pathname || "/";
 }
 
-function attachPageGuards(page: Page) {
+function attachPageGuards(page: Page, expectedConsoleErrors: readonly string[] = []) {
   const consoleErrors: string[] = [];
   const pageErrors: string[] = [];
   const badResponses: string[] = [];
   const requestFailures: string[] = [];
 
   page.on("console", (message) => {
-    if (message.type() === "error") {
+    if (message.type() === "error" && !expectedConsoleErrors.includes(message.text())) {
       consoleErrors.push(message.text());
     }
   });
@@ -269,12 +269,12 @@ async function expectSeoGeoRoute(
   await expect(page.locator("h1")).toHaveCount(1);
   await expect(page.locator('script[type="application/ld+json"]')).not.toHaveCount(0);
   await expect(page.locator('[aria-label="Langue"], [aria-label="Language"]').first()).toBeVisible();
-  await expect(page.locator(`a[href="${route.ctaHref}"]`).first()).toBeVisible();
+  await expect(page.locator(`#accueil a[href="${route.ctaHref}"]`).first()).toBeVisible();
 
   const slug = route.path.split("/").filter(Boolean).at(-1);
   await expect(page.locator(`#${slug}-faq-title`)).toBeVisible();
   const visibleFaqCount = await page
-    .locator(`section[aria-labelledby="${slug}-faq-title"] article h3`)
+    .locator(`section[aria-labelledby="${slug}-faq-title"] [data-seo-faq-question]`)
     .count();
   expect(visibleFaqCount, route.path).toBeGreaterThanOrEqual(5);
 
@@ -387,7 +387,9 @@ test.describe("Vistaire SEO smoke", () => {
   test("homepage loads with canonical metadata on required mobile viewports", async ({
     page
   }) => {
-    const assertNoUnexpectedBrowserIssues = attachPageGuards(page);
+    const assertNoUnexpectedBrowserIssues = attachPageGuards(page, [
+      "THREE.WebGLRenderer: Error creating WebGL context."
+    ]);
     // Exercise the supported video fallback deterministically; WebGL/3D behavior
     // is covered by the immersive landing suite rather than this SEO smoke.
     await page.addInitScript(() => {

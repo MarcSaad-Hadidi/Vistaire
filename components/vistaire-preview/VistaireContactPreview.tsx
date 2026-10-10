@@ -1,6 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
-import pageContactImage from "@/Framer/PageContact.png";
+import pageContactImage from "@/public/images/marketing/trouvable-dining-room.webp";
 import type { Locale } from "@/lib/i18n";
 import { CONTACT_PHONE_DISPLAY, CONTACT_PHONE_TEL } from "@/lib/seo";
 import {
@@ -54,7 +54,7 @@ export function VistaireContactPreview({
           regionValue: "Montreal, Quebec, Canada",
           phone: "Phone",
           photoAlt:
-            "A warm, elegant restaurant dining room prepared for service",
+            "Contemporary dining scene inspired by Trouvable",
           closing: "A menu designed for",
           closingAccent: "your tables.",
           explore: "Discover the Vistaire menus",
@@ -78,7 +78,7 @@ export function VistaireContactPreview({
           regionValue: "Montréal, Québec, Canada",
           phone: "Téléphone",
           photoAlt:
-            "Une salle de restaurant élégante et chaleureuse préparée pour le service",
+            "Mise en scène contemporaine de l’univers Trouvable",
           closing: "Une carte pensée pour",
           closingAccent: "vos tables.",
           explore: "Découvrir les cartes Vistaire",

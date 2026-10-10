@@ -2407,8 +2407,9 @@
     gap: 20px;
   }
   :where([data-immersive-vistaire]) .estimate-body > img {
-    height: 160px;
-    object-position: center 58%;
+    height: auto;
+    aspect-ratio: 16 / 9;
+    object-position: center;
   }
   :where([data-immersive-vistaire]) .estimate-body label {
     font-size: 11px;
@@ -2914,24 +2915,6 @@
   }
 }
 
-:where([data-immersive-vistaire]) .feature-card {
-  animation: vistaire-copy-enter 0.4s cubic-bezier(0.2, 0.7, 0.2, 1) both;
-}
-@keyframes vistaire-copy-enter {
-  from {
-    opacity: 0;
-    transform: translateY(12px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-@media (prefers-reduced-motion: reduce) {
-  :where([data-immersive-vistaire]) .feature-card {
-    animation: none;
-  }
-}
 @media (max-width: 767.98px) {
   :where([data-immersive-vistaire]) .feature-card {
     min-height: 244px;
@@ -3197,6 +3180,16 @@ html[data-vistaire-theme="light"] :where([data-immersive-vistaire]) .footer .act
 @media (max-width: 767.98px) {
   html[data-vistaire-theme="light"] :where([data-immersive-vistaire]) .footer .stage {
     background: linear-gradient(180deg, #f7f3e9 0%, #f7f3e9f5 35%, #f7f3e91a 54%, #f7f3e9f5 68%, #f7f3e9 100%);
+  }
+}
+
+/* Keep the discovery guide below the hero actions, including compact phones. */
+:where([data-immersive-vistaire]) .hero .stage {
+  padding-bottom: max(68px, calc(58px + env(safe-area-inset-bottom, 0px)));
+}
+@media (max-width: 767.98px) {
+  html.journey-compact :where([data-immersive-vistaire]) .hero .stage {
+    padding-bottom: max(68px, calc(58px + env(safe-area-inset-bottom, 0px)));
   }
 }
 

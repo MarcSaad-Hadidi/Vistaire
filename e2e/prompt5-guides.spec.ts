@@ -157,7 +157,7 @@ test("localized landing guide links lead to all three editorial guides", async (
     const section = page.locator("footer#contact");
     await section.scrollIntoViewIfNeeded();
     for (const route of localeRoutes) {
-      await expect(section.locator(`a[href="${route.path}"]`)).toBeVisible();
+      await expect(section.getByRole("region", { name: "Guides", exact: true }).locator(`a[href="${route.path}"]`)).toBeVisible();
     }
     await expectNoHorizontalOverflow(page);
   }

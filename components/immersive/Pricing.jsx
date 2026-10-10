@@ -11,29 +11,29 @@ const COLLECTIONS = [
     id: "acrylique",
     name: "Acrylique",
     amount: 2000,
-    description: "Acrylique transparent, base en bois.",
-    image: "support-acrylique",
+    description: "Acrylique, base en bois.",
+    image: "/images/marketing/sauge-noire-acrylique.webp",
   },
   {
     id: "sculpte",
     name: "Sculpté",
     amount: 2050,
     description: "Bois sculpté, coin supérieur arrondi.",
-    image: "support-sculpte",
+    image: "/images/marketing/sauge-noire-sculpte.webp",
   },
   {
     id: "carre",
     name: "Carré",
     amount: 2100,
     description: "Format compact en bois, plusieurs finitions.",
-    image: "support-carre",
+    image: "/images/marketing/sauge-noire-carre.webp",
   },
   {
     id: "signature",
     name: "Signature",
     amount: 2200,
     description: "Bois premium, insert QR noir amovible.",
-    image: "support-signature",
+    image: "/images/marketing/sauge-noire-signature.webp",
   },
 ];
 const INCLUDED = [
@@ -181,7 +181,7 @@ export default function Pricing({ collection, setCollection, onEstimate }) {
           >
             <span className="pricing-collection-image">
               <img
-                src={`/immersive-assets/${item.image}.webp`}
+                src={item.image}
                 alt={
                   locale === "en"
                     ? `Vistaire ${item.name} stand`

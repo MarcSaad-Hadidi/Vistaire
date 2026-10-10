@@ -1,9 +1,9 @@
 import Image from "next/image";
 import Link from "next/link";
 import type { ReactNode } from "react";
-import pageDigitalPhoto from "@/Framer/PageDigital.png";
-import photoDigital2 from "@/Framer/PhotoDigital2.png";
-import photoDigital3 from "@/Framer/PhotoDigital3.png";
+import pageDigitalPhoto from "@/public/images/marketing/maison-elyse-souffle-phone.webp";
+import photoDigital2 from "@/public/images/marketing/sauge-noire-dessert-phone.webp";
+import photoDigital3 from "@/public/images/marketing/trouvable-guest-menu.webp";
 import type { Locale } from "@/lib/i18n";
 import {
   getVistaireChromeRoutes,
@@ -198,7 +198,7 @@ export function VistaireMenu3dArRestaurantPreview({
             </div>
             <figure className={`${styles.visualFigure} ${styles.heroVisual}`}>
               <Image
-                alt={locale === "en" ? "Vistaire 3D and augmented reality dish presentation on a phone" : "Vue 3D et réalité augmentée Vistaire présentées sur téléphone"}
+                alt={locale === "en" ? "Chocolat fumé beside the Sauge Noire dessert page on a phone" : "Chocolat fumé et fiche dessert Sauge Noire sur téléphone"}
                 className={styles.visualImage}
                 fill
                 priority
@@ -232,7 +232,7 @@ export function VistaireMenu3dArRestaurantPreview({
           >
             <figure className={styles.visualFigure}>
               <Image
-                alt={locale === "en" ? "Guest browsing a Vistaire digital menu in a restaurant dining room" : "Cliente consultant une carte digitale Vistaire dans un restaurant sombre"}
+                alt={locale === "en" ? "Hand holding a phone displaying the Trouvable menu at the table" : "Main tenant un téléphone affichant le menu Trouvable à table"}
                 className={styles.visualImage}
                 fill
                 quality={90}
@@ -280,7 +280,7 @@ export function VistaireMenu3dArRestaurantPreview({
               className={`${styles.visualFigure} ${styles.premiumVisual}`}
             >
               <Image
-                alt={locale === "en" ? "Vistaire dish page on a phone beside a signature dessert" : "Fiche plat Vistaire sur téléphone à côté d'un dessert signature"}
+                alt={locale === "en" ? "Chocolate soufflé beside the Maison Élyse dessert page on a phone" : "Soufflé au chocolat et fiche dessert Maison Élyse sur téléphone"}
                 className={styles.visualImage}
                 fill
                 quality={90}

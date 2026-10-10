@@ -28,6 +28,7 @@ import {
   site,
 } from "./content.js";
 import Pricing from "./Pricing.jsx";
+import { measureChapterTransitions, transitionAtScroll, transitionSceneFrame } from "./SceneDirector.js";
 import { useModelGesture, useSupportGesture } from "./useModelGesture.js";
 import { ARAction, ARHelp, DishDetailLink, isIOSDevice } from "./ARActions.jsx";
 import { LandingLocaleProvider, useLandingLocale } from "./locale.jsx";
@@ -39,7 +40,8 @@ const Scene = lazy(() => import("./Scene.jsx"));
 // Keep the finished phone pose visible for another 1.5 viewports.
 const OPENING_MOTION_VH = 480;
 const OPENING_PHONE_HOLD_VH = 150;
-const SOCIAL_TRANSITIONS = [[0.28, 0.36], [0.64, 0.72]];
+// Keep each rail move near 0.44 stage heights as the reading holds shorten.
+const SOCIAL_TRANSITIONS = [[0.26, 0.36], [0.64, 0.74]];
 const SOCIAL_HOLD_CENTERS = [0.14, 0.5, 0.86];
 const clamp = (n) => Math.max(0, Math.min(1, n));
 
@@ -445,6 +447,8 @@ function LandingContent() {
     let lastSection = "";
     let lastChapterBeats = {};
     let measurements = [];
+    let transitions = [];
+    const world = document.querySelector(".world");
     let opening = null;
     let stopped = false;
     let needsMeasure = false;
@@ -474,12 +478,13 @@ function LandingContent() {
         1,
         travel - (stageHeight * OPENING_PHONE_HOLD_VH) / 100,
       );
-      const sceneHeight = document.querySelector(".world").clientHeight;
+      const sceneHeight = world.clientHeight;
       opening = {
         top,
         travel,
         motionTravel,
         height: journey.offsetHeight,
+        stageHeight,
         sceneHeight,
       };
       measurements = chapters
@@ -517,6 +522,13 @@ function LandingContent() {
           };
         })
         .filter(Boolean);
+      transitions = measureChapterTransitions(measurements, opening);
+      for (const { from, to, start, end } of transitions) {
+        const el = sectionRefs.current[from.id];
+        el.dataset.exitTo = to.id;
+        el.dataset.exitStart = String(start);
+        el.dataset.exitEnd = String(end);
+      }
     };
     const update = () => {
       ticking = false;
@@ -545,6 +557,9 @@ function LandingContent() {
         y < opening.top + opening.height
           ? clamp((y - opening.top) / opening.motionTravel)
           : null;
+      const transition = transitionAtScroll(transitions, y);
+      const transitionWeight = transition
+        ? transition.progress ** 2 * (3 - 2 * transition.progress) : 0;
       const openingPosition = clamp((y - opening.top) / opening.motionTravel);
       const fade = (start, end) => {
         const t = clamp((openingPosition - start) / (end - start));
@@ -553,7 +568,7 @@ function LandingContent() {
       const openingOpacities = [
         1 - fade(0.14, 0.3),
         fade(0.3, 0.42) * (1 - fade(0.66, 0.8)),
-        fade(0.8, 0.92),
+        fade(0.8, 0.92) * (transition?.fromOpening ? 1 - transitionWeight : 1),
       ];
       // Flush the final state even if this contact left the opening entirely.
       // Native scrolling cancels PointerEvents before physical touch end.
@@ -566,7 +581,6 @@ function LandingContent() {
           if (panel.getAttribute("aria-hidden") !== hidden)
             panel.setAttribute("aria-hidden", hidden);
         });
-      let transition = null;
       let sceneFrame = current.sceneFrame;
       if (openingProgress != null) {
         const p = openingProgress;
@@ -594,50 +608,31 @@ function LandingContent() {
           );
         });
       }
-      // The sticky exit is a full viewport of choreography: the next scene
-      // is already being prepared before its chapter becomes active.
-      const fromOpening = openingProgress != null;
-      const from = fromOpening ? measurements[2] : current;
-      const next = measurements[measurements.indexOf(from) + 1];
-      const exitStart = fromOpening
-        ? opening.top + opening.travel
-        : from.top + from.travel;
-      if (next && y >= exitStart) {
-        const t = clamp((y - exitStart) / Math.max(1, next.top - exitStart));
-        const eased = t * t * (3 - 2 * t);
-        transition = {
-          from: from.id,
-          to: next.id,
-          fromProgress: fromOpening ? 0 : 1,
-          toProgress: 0,
-          fromOpening,
-          progress: t,
-        };
-        const a = sceneFrame || next.sceneFrame;
-        const b = next.sceneFrame || a;
-        if (a && b)
-          sceneFrame = Object.fromEntries(
-            Object.keys(a).map((key) => [
-              key,
-              a[key] + (b[key] - a[key]) * eased,
-            ]),
-          );
-      }
-      // Text follows the native page; fading its exit prevents a moving model
-      // from passing over the previous copy. No wheel/touch position rewriting.
+      // Objects, fitted camera, focus, room and copy share the same measured
+      // window, including the incoming chapter's head after its DOM boundary.
+      if (transition)
+        sceneFrame = transitionSceneFrame(transition, Object.fromEntries(
+          measurements.map(m => [m.id, m.sceneFrame]),
+        ));
+      // Native sticky positioning is unchanged. Copy fades over that same
+      // choreography instead of disappearing in a separate one-screen exit.
       for (const m of measurements.slice(3)) {
         if (m.id === "open-weight") continue;
+        const incoming = transitions.find(t => t.to.id === m.id);
+        const outgoing = transitions.find(t => t.from.id === m.id);
+        const weight = window => {
+          if (!window) return 0;
+          const p = clamp((y - window.start) / (window.end - window.start));
+          return p * p * (3 - 2 * p);
+        };
+        const entrance = weight(incoming);
+        const alpha = entrance * (1 - weight(outgoing));
         const el = sectionRefs.current[m.id];
-        const entrance =
-          y < m.top ? clamp(1 - (m.top - y) / opening.sceneHeight) : 1;
-        const exit =
-          m.id === "footer"
-            ? 0
-            : clamp((y - m.top - m.travel) / opening.sceneHeight);
-        const alpha = entrance * (1 - exit * exit * (3 - 2 * exit));
         writeVisualProperty(el, "--copy-opacity", alpha);
         writeVisualProperty(el, "--copy-shift", `${(1 - entrance) * 24}px`);
       }
+      world.dataset.transition = transition ? `${transition.from}:${transition.to}` : "";
+      world.dataset.transitionProgress = String(transition?.progress ?? "");
       const progress =
         openingProgress == null
           ? clamp((y - current.top) / current.travel)
@@ -833,7 +828,9 @@ function LandingContent() {
     (id) => {
       setMenu(false);
       scrollTo({
-        top: scrollTargets.current[id] || 0,
+        top: ["hero", "ai", "wearable"].includes(id)
+          ? scrollTargets.current[id] ?? 0
+          : (sectionRefs.current[id]?.getBoundingClientRect().top ?? 0) + scrollY,
         behavior: reduce ? "instant" : "smooth",
       });
       history.replaceState(null, "", `#${id}`);
@@ -1484,11 +1481,11 @@ function LandingContent() {
                   <p>{x.description}</p>
                 </div>
                 <img
-                  src={`/immersive-assets/${x.image}.webp`}
+                  src={x.thumbnail}
                   alt={
                     locale === "en"
-                      ? `${x.name} atmosphere`
-                      : `Ambiance ${x.name}`
+                      ? `Dining scene inspired by ${x.name}`
+                      : `Ambiance inspirée de ${x.name}`
                   }
                   loading="lazy"
                 />
@@ -1500,7 +1497,7 @@ function LandingContent() {
         </Chapter>
         <Chapter
           id="social-content"
-          height={640}
+          height={540}
           chapterRef={ref("social-content")}
           className="social"
         >
@@ -1517,11 +1514,11 @@ function LandingContent() {
               >
                 <img
                   className="social-bg"
-                  src={`/immersive-assets/ambience-${x.id}.webp`}
+                  src={x.image}
                   alt={
                     locale === "en"
-                      ? `${x.name} atmosphere`
-                      : `Ambiance ${x.name}`
+                      ? `Dining scene inspired by ${x.name}`
+                      : `Ambiance inspirée de ${x.name}`
                   }
                   loading="lazy"
                 />
@@ -1710,7 +1707,7 @@ function LandingContent() {
             {t("La prochaine expérience commence ici.")}
           </span>
           <h2 id="footer-title">
-            {t("À la hauteur")}
+            {t("À la hauteur")}{" "}
             <br />
             {t("de votre")}
             <br /> <em>{t("restaurant.")}</em>
@@ -1960,7 +1957,7 @@ function LandingContent() {
               </h2>
               <div className="estimate-body">
                 <img
-                  src={`/immersive-assets/${selected.image}.webp`}
+                  src={selected.image}
                   alt={selected.name}
                 />
                 <div>

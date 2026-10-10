@@ -368,6 +368,11 @@
     display: flex;
     gap: 16px;
   }
+  .previewFooter section a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+  }
   .previewFooter {
     width: calc(100% - 40px);
     grid-template-columns: 1fr 1fr;

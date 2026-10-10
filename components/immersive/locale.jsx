@@ -239,7 +239,7 @@ const EN = {
   "Un univers botanique, sombre et singulier. La carte devient une expérience.":
     "A dark, distinctive botanical world. The menu becomes an experience.",
   "Votre menu digital": "Your digital menu",
-  "Acrylique transparent, base en bois.": "Clear acrylic with a wooden base.",
+  "Acrylique, base en bois.": "Acrylic with a wooden base.",
   "Bois sculpté, coin supérieur arrondi.":
     "Sculpted wood with a rounded upper corner.",
   "Format compact en bois, plusieurs finitions.":

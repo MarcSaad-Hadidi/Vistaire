@@ -10,7 +10,7 @@ import {
 import { absoluteUrl } from "@/lib/seo";
 
 const pricingMetadata = getPricingMetadata("en");
-const socialImage = "/images/pricing/vistaire-acrylique.jpg";
+const socialImage = "/images/marketing/sauge-noire-acrylique.webp";
 
 export const metadata: Metadata = {
   title: {

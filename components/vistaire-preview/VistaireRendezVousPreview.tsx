@@ -1,6 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
-import tableImage from "@/Framer/Photo table.png";
+import tableImage from "@/public/images/marketing/sauge-noire-dining-room.webp";
 import type { Locale } from "@/lib/i18n";
 import { CONTACT_PHONE_DISPLAY, CONTACT_PHONE_TEL } from "@/lib/seo";
 import {
@@ -35,7 +35,7 @@ export function VistaireRendezVousPreview({
           exchangeBody:
             "Signature dishes, allergens, visuals, readable prices, PDF replacement and cases where 3D/AR brings real value.",
           photoAlt:
-            "An elegantly set restaurant table with glasses, a candle and a Vistaire QR code",
+            "Sauge Noire botanical dining scene with a Vistaire QR display",
           directContact: "Direct contact",
           back: "Back to contact",
           closing: "A menu designed for your tables.",
@@ -54,7 +54,7 @@ export function VistaireRendezVousPreview({
           exchangeBody:
             "Plats signatures, allergènes, visuels, prix lisibles, remplacement PDF et cas où la 3D/AR apporte une vraie valeur.",
           photoAlt:
-            "Une table de restaurant élégante avec verres, chandelle et QR code Vistaire",
+            "Ambiance botanique Sauge Noire avec support QR Vistaire",
           directContact: "Contact direct",
           back: "Retour au contact",
           closing: "Une carte pensée pour vos tables.",

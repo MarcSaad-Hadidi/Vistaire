@@ -1,8 +1,8 @@
 import Image from "next/image";
 import Link from "next/link";
 import type { ReactNode } from "react";
-import comparisonPhoto from "@/Framer/PhotoComparaisonPDF.png";
-import detailComparisonPhoto from "@/Framer/PhotoPDFvsDigitalDetail.png";
+import comparisonPhoto from "@/public/images/marketing/trouvable-pdf-digital.webp";
+import detailComparisonPhoto from "@/public/images/marketing/maison-elyse-homard-phone.webp";
 import type { Locale } from "@/lib/i18n";
 import {
   getVistaireChromeRoutes,
@@ -317,11 +317,7 @@ export function VistairePdfVsMenuDigitalPreview({
             </div>
             <figure className={styles.heroVisual}>
               <Image
-                alt={
-                  locale === "en"
-                    ? "A PDF menu and Vistaire's visual digital menu, side by side at the table."
-                    : "Un menu PDF et la carte digitale visuelle Vistaire, côte à côte à table."
-                }
+                alt={locale === "en" ? "Trouvable PDF-style and digital menus displayed side by side on two phones" : "Présentation PDF et menu digital Trouvable côte à côte sur deux téléphones"}
                 fill
                 priority
                 quality={90}
@@ -413,7 +409,7 @@ export function VistairePdfVsMenuDigitalPreview({
           >
             <figure className={styles.detailVisual}>
               <Image
-                alt={locale === "en" ? "Vistaire dish page on a phone beside a lobster dish in a fine dining restaurant." : "Fiche plat Vistaire affichée sur téléphone à côté d'un plat de homard dans un restaurant haut de gamme."}
+                alt={locale === "en" ? "Lobster beside the Maison Élyse dish page on a phone" : "Homard et fiche plat Maison Élyse sur téléphone"}
                 fill
                 quality={90}
                 sizes="(max-width: 920px) calc(100vw - 72px), 620px"

@@ -316,7 +316,7 @@ test.describe("Vistaire pricing collections", () => {
       );
       await expect(page.locator('meta[property="og:image"]')).toHaveAttribute(
         "content",
-        "https://www.vistaire.ca/images/pricing/vistaire-acrylique.jpg"
+        "https://www.vistaire.ca/images/marketing/sauge-noire-acrylique.webp"
       );
       await expect(page.locator('meta[name="twitter:card"]')).toHaveAttribute(
         "content",
