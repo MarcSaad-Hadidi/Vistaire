@@ -316,6 +316,7 @@ export default function Scene({
     let arExperience;
     let frame = 0;
     let lastTime = 0;
+    let lastScrollDistance = stateRef.current?.scrollDistance;
     let renderRequested = false;
     let wasOccluded = false;
     let assetRequest;
@@ -350,6 +351,18 @@ export default function Scene({
       if (ready && wasOccluded && stateRef.current?.sceneOccluded && !diagnosticsEnabled)
         return;
       frame = requestAnimationFrame(draw);
+    }
+
+    // App can publish copy and submit the matching scene in one browser frame.
+    // Cancel an older asset/video RAF rather than drawing the same pose twice.
+    function renderSceneFrame(now) {
+      if (disposed || failed || document.hidden || arExperience?.active) return;
+      if (ready && wasOccluded && stateRef.current?.sceneOccluded && !diagnosticsEnabled)
+        return;
+      cancelAnimationFrame(frame);
+      frame = 0;
+      renderRequested = true;
+      draw(now);
     }
 
     function fail(error) {
@@ -1079,15 +1092,15 @@ export default function Scene({
     function resize() {
       if (arExperience?.active) return;
       if (disposed) return;
-      // Keep native Retina detail on phones. The pixel budget bounds large
-      // displays without silently reducing every mobile canvas to DPR 1.
-      const pixelBudget = 4_000_000;
+      // Keep HTML/UI at native density while bounding the expensive 3D layer.
+      // A 1.5 DPR cap uses one quarter of DPR 3's fragments on Retina phones.
+      const pixelBudget = 2560 * 1440;
       const width = canvas.clientWidth;
       const height = canvas.clientHeight;
       if (!width || !height) return;
       const pixelRatio = Math.min(
         window.devicePixelRatio || 1,
-        3,
+        1.5,
         Math.sqrt(pixelBudget / (width * height)),
       );
       // Browser bars emit resize while 100lvh stays unchanged. Rewriting the
@@ -1600,6 +1613,10 @@ export default function Scene({
         lastTime = 0;
         return;
       }
+      // An already queued Scene RAF may run before App's scroll RAF. Flush
+      // the latest copy/state first, then draw; the reciprocal App path below
+      // cancels this pending RAF when App runs first.
+      stateRef.current.beforeSceneFrame?.(now);
       const requested = renderRequested;
       renderRequested = false;
       const dt = lastTime ? Math.min((now - lastTime) / 1000, 0.5) : 1 / 60;
@@ -1629,8 +1646,14 @@ export default function Scene({
       }
       // Resume at the current pose while the first pixel is revealed, rather
       // than replaying a stale pose from before the long pricing section.
+      const scrollMoved = Number.isFinite(state.scrollDistance) &&
+        state.scrollDistance !== lastScrollDistance;
+      lastScrollDistance = state.scrollDistance;
+      // The shared cinematic timeline already eases authored scroll poses.
+      // Easing those poses again lets 3D lag behind the copy at every handoff.
+      // Keep temporal damping for direct manipulation, not timeline sampling.
       const damping =
-        resume || state.reducedMotion ? 1 : 1 - Math.exp(-dt * 10);
+        resume || state.reducedMotion || scrollMoved ? 1 : 1 - Math.exp(-dt * 10);
       // A genuine responsive-width change can keep the same GLB URL. Resize
       // its presentation once without another download; toolbar height changes
       // never enter this path, and camera zoom never changes this scale.
@@ -2060,6 +2083,7 @@ export default function Scene({
     });
     Object.assign(stateRef.current, {
       invalidateScene,
+      renderSceneFrame,
       startAR: arExperience.start,
       endAR: arExperience.end,
       scaleAR: arExperience.setScale,
@@ -2078,6 +2102,7 @@ export default function Scene({
       cancelAnimationFrame(frame);
       frame = 0;
       if (sceneState.invalidateScene === invalidateScene) delete sceneState.invalidateScene;
+      if (sceneState.renderSceneFrame === renderSceneFrame) delete sceneState.renderSceneFrame;
       phoneVideoEvents.forEach((event) => phoneVideo.removeEventListener(event, phoneVideoChanged));
       pausePhoneVideo();
       assetRequest?.abort();

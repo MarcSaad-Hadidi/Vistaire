@@ -428,3 +428,68 @@ test('model-only laptop completion wakes Scene and refreshes geometry, foregroun
   }, { wakes: 1, ready: 'false', boundsAvailable: true, geometryChanged: true, foregroundAssigned: true, shadowsInvalidated: true });
   assert.equal(f.pending.size, 0, 'a completed model update must not poll for the pending image');
 });
+
+// Scroll copy and the fitted scene must consume the same browser frame. This
+// catches the former App RAF -> Scene RAF delay, including reverse callback order.
+test('scroll publishes and renders in one frame without losing idle, gestures or lifecycle guards', () => {
+  const f = fixture();
+  f.step();
+  assert.equal(typeof f.state.renderSceneFrame, 'function', 'App can finish its frame without queuing a second RAF');
+  const seen = [];
+  f.fit(damping => seen.push({ progress: f.state.progress, damping }));
+  let prepared = 0;
+  f.state.beforeSceneFrame = () => {
+    if (prepared++) return;
+    f.state.progress = 0.4;
+    f.state.scrollDistance = 4;
+  };
+  f.wake();
+  const renders = f.renders;
+  f.state.renderSceneFrame(32);
+  assert.equal(f.renders, renders + 1);
+  assert.equal(f.pending.size, 0, 'the older pending Scene callback is cancelled');
+  assert.deepEqual(seen.at(-1), { progress: 0.4, damping: 1 }, 'authored scroll pose has no second temporal lag behind copy');
+
+  f.state.drag = 0.75;
+  f.wake(); f.step(48);
+  assert.ok(seen.at(-1).damping > 0 && seen.at(-1).damping < 1, 'direct manipulation retains time-based damping');
+  f.state.beforeSceneFrame = () => { f.state.progress = 0.6; f.state.scrollDistance = 6; };
+  f.wake(); f.step(64);
+  assert.deepEqual(seen.at(-1), { progress: 0.6, damping: 1 }, 'an asset/video RAF also flushes newer queued copy before drawing');
+
+  const beforeHidden = f.renders;
+  f.scope.document.hidden = true;
+  f.state.renderSceneFrame(80);
+  assert.equal(f.renders, beforeHidden);
+  f.scope.document.hidden = false;
+  f.state.sceneOccluded = true;
+  f.state.renderSceneFrame(96);
+  assert.equal(f.renders, beforeHidden, 'natural opaque pricing remains suspended');
+  assert.equal(f.pending.size, 0);
+  const lateRender = f.state.renderSceneFrame;
+  f.dispose(); lateRender(112);
+  assert.equal(f.renders, beforeHidden, 'stale callbacks cannot render after unmount');
+  assert.equal(f.state.renderSceneFrame, undefined, 'owned same-frame handle is removed');
+});
+
+test('drawing resolution bounds high-density GPU work without repeated buffer clears', () => {
+  for (const [width, height, dpr] of [[390, 844, 3], [430, 932, 3], [1440, 900, 1], [3840, 2160, 2]]) {
+    let resizes = 0, wakes = 0;
+    const canvas = { clientWidth: width, clientHeight: height, width: 0, height: 0, dataset: {} };
+    const scope = {
+      canvas, drawingSize: undefined, viewportRevision: 0, disposed: false, arExperience: null,
+      window: { devicePixelRatio: dpr }, camera: new THREE.PerspectiveCamera(),
+      renderer: { setDrawingBufferSize(w, h, ratio) { resizes++; canvas.width = Math.floor(w * ratio); canvas.height = Math.floor(h * ratio); } },
+      invalidateScene() { wakes++; },
+    };
+    vm.createContext(scope);
+    vm.runInContext(productionFunction('resize'), scope);
+    scope.resize();
+    assert.ok(scope.drawingSize.pixelRatio <= 1.5, 'Retina must not multiply the scene workload by nine');
+    assert.ok(canvas.width * canvas.height <= 2560 * 1440, 'large screens respect the pixel budget');
+    if (dpr === 1) assert.equal(scope.drawingSize.pixelRatio, 1, 'ordinary desktop resolution stays native');
+    scope.resize();
+    assert.equal(resizes, 1, 'unchanged viewport never clears the drawing buffer');
+    assert.equal(wakes, 1);
+  }
+});

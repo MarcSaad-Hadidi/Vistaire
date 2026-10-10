@@ -547,7 +547,7 @@ function LandingContent() {
         el.dataset.exitEnd = String(end);
       }
     };
-    const update = () => {
+    const update = (now, insideSceneFrame = false) => {
       ticking = false;
       if (stopped || !openingRef.current) return;
       if (needsMeasure) {
@@ -715,7 +715,13 @@ function LandingContent() {
         lastChapterBeats = preparedBeats;
         setChapterBeats(preparedBeats);
       }
-      stateRef.current.invalidateScene?.();
+      if (!insideSceneFrame) {
+        // Publish all copy, background and timeline state before the renderer
+        // consumes it, without an extra requestAnimationFrame of latency.
+        if (Number.isFinite(now) && stateRef.current.renderSceneFrame)
+          stateRef.current.renderSceneFrame(now);
+        else stateRef.current.invalidateScene?.();
+      }
     };
     const queue = () => {
       if (!ticking && !stopped) {
@@ -723,6 +729,12 @@ function LandingContent() {
         queuedFrame = requestAnimationFrame(update);
       }
     };
+    const beforeSceneFrame = (now) => {
+      if (!ticking || stopped) return;
+      cancelAnimationFrame(queuedFrame);
+      update(now, true);
+    };
+    stateRef.current.beforeSceneFrame = beforeSceneFrame;
     const requestPace = (value) => {
       const currentPace = pendingPace ?? CINEMATIC_TIMING.sceneScreens / timing.sceneScreens;
       pendingPace = normalizeScrollPace(typeof value === "function" ? value(currentPace) : value);
@@ -783,6 +795,7 @@ function LandingContent() {
       removeEventListener("scroll", queue);
       stopped = true;
       delete paceState.setScrollPace;
+      if (paceState.beforeSceneFrame === beforeSceneFrame) delete paceState.beforeSceneFrame;
       cancelAnimationFrame(queuedFrame);
       observer.disconnect();
       removeEventListener("pointermove", pointer);
