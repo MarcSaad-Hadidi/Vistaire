@@ -5,7 +5,7 @@ const locales = [
     path: "/menu-digital-restaurant",
     menu: "/demo",
     appointment: "/prendre-rendez-vous",
-    groups: ["Produit", "Guides", "Besoins", "Local", "Contact"],
+    groups: ["Produit", "Les cartes", "Guides", "Besoins", "Local", "L’entreprise", "Contact"],
     guides: [
       "/guides/anatomie-menu-digital-premium",
       "/guides/menu-qr-mobile-sans-application",
@@ -21,7 +21,7 @@ const locales = [
     path: "/en/digital-restaurant-menu",
     menu: "/en/vistaire-menu",
     appointment: "/en/book-a-call",
-    groups: ["Product", "Guides", "Solutions", "Local", "Contact"],
+    groups: ["Product", "The menus", "Guides", "Solutions", "Local", "Company", "Contact"],
     guides: [
       "/en/guides/premium-digital-menu-anatomy",
       "/en/guides/mobile-qr-menu-without-app",
@@ -63,13 +63,9 @@ for (const locale of locales) {
     for (const href of [...locale.guides, ...locale.locals]) {
       await expect(footer.locator(`a[href="${href}"]`)).toHaveCount(1);
     }
-    await expect(
-      footer.locator(
-        'a[href*="haut-de-gamme"], a[href*="gastronomique"], a[href*="high-end"], a[href*="fine-dining"]'
-      )
-    ).toHaveCount(0);
+    await expect(footer.locator('[data-footer-navigation] a[href^="/menu/"]')).toHaveCount(3);
 
-    const sectionHrefs = await footer.locator("section a").evaluateAll((links) =>
+    const sectionHrefs = await footer.locator("[data-footer-navigation] a").evaluateAll((links) =>
       links.map((link) => link.getAttribute("href") ?? "")
     );
     expect(sectionHrefs.some((href) => href === "" || href === "#")).toBe(false);
@@ -99,12 +95,12 @@ for (const locale of locales) {
       expect(response?.status()).toBeLessThan(400);
 
       const footer = page.locator("footer#contact");
-      const columns = await footer.evaluate(
+      const columns = await footer.locator("[data-footer-navigation]").evaluate(
         (element) => getComputedStyle(element).gridTemplateColumns.split(" ").length
       );
       expect(columns).toBe(2);
 
-      const undersizedTargets = await footer.locator("section a").evaluateAll((links) =>
+      const undersizedTargets = await footer.locator("[data-footer-navigation] a").evaluateAll((links) =>
         links
           .map((link) => ({
             href: link.getAttribute("href"),
@@ -127,7 +123,7 @@ for (const locale of locales) {
 
       const footer = page.locator("footer#contact");
       await expect(footer).toBeVisible();
-      const geometry = await footer.evaluate((element) => {
+      const geometry = await footer.locator("[data-footer-navigation]").evaluate((element) => {
         const box = element.getBoundingClientRect();
         return {
           columns: getComputedStyle(element).gridTemplateColumns.split(" ").length,
@@ -136,7 +132,7 @@ for (const locale of locales) {
           viewportWidth: document.documentElement.clientWidth
         };
       });
-      expect(geometry.columns).toBe(viewport.width <= 1100 ? 3 : 5);
+      expect(geometry.columns).toBe(viewport.width <= 1100 ? 3 : 6);
       expect(geometry.left).toBeGreaterThanOrEqual(0);
       expect(geometry.right).toBeLessThanOrEqual(geometry.viewportWidth);
       await expectNoHorizontalOverflow(page);

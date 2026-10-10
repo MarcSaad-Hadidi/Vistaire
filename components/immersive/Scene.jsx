@@ -411,7 +411,6 @@ export default function Scene({
     stone.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy());
     ownedTextures.add(stone);
     let nativeTable;
-    let updateTableClearance = () => {};
     const restaurantWorld = createRestaurantModel(scene, {
       renderer,
       canvas,
@@ -432,7 +431,7 @@ export default function Scene({
           -0.38353 - center[0],
           center[2] + 10.13489,
         );
-        updateTableClearance = arrangePresentationTable(nativeTable);
+        arrangePresentationTable(nativeTable);
         canvas.dataset.roomTableTrianglesOmitted = String(
           nativeTable.excludeCopiedObjectsFromRoom(),
         );
@@ -1604,12 +1603,7 @@ export default function Scene({
       }
       // A settled still scene does not need another GPU frame. Keep the small
       // state loop alive so scroll, input and asynchronous media can wake it.
-      updateTableClearance([
-        dishRoot,
-        supportRoot.visible ? supportAssets.active : null,
-        phoneRoot,
-        laptopRoot,
-      ]);
+      canvas.dataset.tableSettingVisible = String(nativeTable?.accessories.placeSetting.visible ?? false);
       const geometrySignature = [
         state.section,
         state.progress,

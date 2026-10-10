@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { PublicNavigation } from "./PublicNavigation";
-import { getEditorialGuideNavigation } from "@/lib/editorialGuideRoutes";
+import { PublicFooterNavigation } from "./PublicFooterNavigation";
 import {
   getLocalizedPath,
   normalizePathname,
@@ -12,7 +12,6 @@ import {
   CONTACT_PHONE_TEL,
   getVistaireSocialProfiles,
 } from "@/lib/seo";
-import { SEO_GEO_PAGES, SEO_GEO_PAGES_EN } from "@/lib/seoGeoPages";
 import styles from "./VistairePreviewChrome.module.css";
 import "./public-pages.css";
 
@@ -97,50 +96,6 @@ const navLabels: Record<Locale, Record<PreviewNavSection, string>> = {
     contact: "Contact",
   },
 };
-
-const useCaseGeoSlugs = [
-  "menu-qr-sans-pdf",
-  "menu-digital-sans-application",
-  "remplacer-menu-pdf-restaurant",
-  "alternative-menu-pdf-restaurant",
-  "fiche-plat-digitale-restaurant",
-  "menu-restaurant-photos",
-  "menu-restaurant-allergenes",
-] as const;
-
-const localGeoSlugs = [
-  "menu-digital-restaurant-montreal",
-  "menu-digital-restaurant-laval",
-  "menu-digital-restaurant-brossard",
-] as const;
-
-const useCaseGeoSlugsEn = [
-  "qr-menu-without-pdf",
-  "digital-menu-without-app",
-  "replace-restaurant-pdf-menu",
-  "restaurant-pdf-menu-alternative",
-  "digital-dish-page-restaurant",
-  "restaurant-menu-photos",
-  "restaurant-menu-allergens",
-] as const;
-
-const localGeoSlugsEn = [
-  "digital-restaurant-menu-montreal",
-  "digital-restaurant-menu-laval",
-  "digital-restaurant-menu-brossard",
-] as const;
-
-function getGeoFooterLinks(slugs: readonly string[], locale: Locale = "fr") {
-  const pages = locale === "en" ? SEO_GEO_PAGES_EN : SEO_GEO_PAGES;
-
-  return slugs
-    .map((slug) => pages.find((page) => page.slug === slug))
-    .filter((page): page is (typeof pages)[number] => Boolean(page))
-    .map((page) => ({
-      label: page.eyebrow,
-      href: page.path,
-    }));
-}
 
 function getPreviewNav(
   routes: VistaireChromeRoutes,
@@ -325,43 +280,6 @@ export function PreviewFooter({
   const contactPhoneDisplay = isPricingPage
     ? CONTACT_PHONE_DISPLAY.replace(/-/g, " ")
     : CONTACT_PHONE_DISPLAY;
-  const productLinks =
-    locale === "en"
-      ? [
-          { label: "Sample menu", href: routes.menu },
-          { label: "Digital restaurant menu", href: routes.menuDigital },
-          { label: "QR code restaurant menu", href: routes.menuQrCode },
-          { label: "Selective 3D / AR", href: routes.menu3dAr },
-          { label: "Pricing", href: routes.pricing },
-          { label: "Restaurant preview", href: routes.restaurateurDashboard },
-          { label: "About", href: routes.about },
-          { label: "Contact", href: routes.contact },
-        ]
-      : [
-          { label: "Carte digitale", href: routes.menu },
-          { label: "Menu digital restaurant", href: routes.menuDigital },
-          { label: "Menu QR code restaurant", href: routes.menuQrCode },
-          { label: "3D / AR sélective", href: routes.menu3dAr },
-          { label: "Tarifs", href: routes.pricing },
-          { label: "Aperçu restaurateur", href: routes.restaurateurDashboard },
-          { label: "À propos", href: routes.about },
-          { label: "Contact", href: routes.contact },
-        ];
-  const guideLinks = getEditorialGuideNavigation(locale);
-  const solutionLinks = [
-    {
-      label: locale === "en" ? "PDF vs digital menu" : "PDF vs menu digital",
-      href: routes.pdfVsDigital,
-    },
-    ...getGeoFooterLinks(
-      locale === "en" ? useCaseGeoSlugsEn : useCaseGeoSlugs,
-      locale,
-    ),
-  ];
-  const localLinks = getGeoFooterLinks(
-    locale === "en" ? localGeoSlugsEn : localGeoSlugs,
-    locale,
-  );
   const socialProfiles = getVistaireSocialProfiles();
 
   return (
@@ -409,87 +327,7 @@ export function PreviewFooter({
         </p>
       </section>
 
-      <section
-        className={styles.footerColumn}
-        aria-label={locale === "en" ? "Product" : "Produit"}
-      >
-        <h2>{locale === "en" ? "Product" : "Produit"}</h2>
-        <nav
-          className={styles.footerLinkList}
-          aria-label={locale === "en" ? "Vistaire product" : "Produit Vistaire"}
-        >
-          {productLinks.map((item) => (
-            <Link href={item.href} key={item.label} prefetch={false}>
-              {item.label}
-            </Link>
-          ))}
-        </nav>
-      </section>
-
-      <section
-        className={styles.footerColumn}
-        aria-label="Guides"
-      >
-        <h2>Guides</h2>
-        <nav
-          className={styles.footerLinkList}
-          aria-label={locale === "en" ? "Vistaire guides" : "Guides Vistaire"}
-        >
-          {guideLinks.map((item) => (
-            <Link href={item.href} key={item.label} prefetch={false}>
-              {item.label}
-            </Link>
-          ))}
-        </nav>
-      </section>
-
-      {solutionLinks.length > 0 ? (
-        <section
-          className={styles.footerColumn}
-          aria-label={
-            locale === "en" ? "Restaurant solutions" : "Besoins restaurants"
-          }
-        >
-          <h2>{locale === "en" ? "Solutions" : "Besoins"}</h2>
-          <nav
-            className={styles.footerLinkList}
-            aria-label={
-              locale === "en"
-                ? "Guides by restaurant solution"
-                : "Guides par besoin restaurant"
-            }
-          >
-            {solutionLinks.map((item) => (
-              <Link href={item.href} key={item.href} prefetch={false}>
-                {item.label}
-              </Link>
-            ))}
-          </nav>
-        </section>
-      ) : null}
-
-      {localLinks.length > 0 ? (
-        <section
-          className={styles.footerColumn}
-          aria-label={locale === "en" ? "Local guides" : "Guides locaux"}
-        >
-          <h2>{locale === "en" ? "Local" : "Local"}</h2>
-          <nav
-            className={styles.footerLinkList}
-            aria-label={
-              locale === "en"
-                ? "Local restaurant guides"
-                : "Guides restaurants locaux"
-            }
-          >
-            {localLinks.map((item) => (
-              <Link href={item.href} key={item.href} prefetch={false}>
-                {item.label}
-              </Link>
-            ))}
-          </nav>
-        </section>
-      ) : null}
+      <PublicFooterNavigation locale={locale} />
 
       <section className={styles.footerColumn} aria-label="Contact">
         <h2>Contact</h2>
@@ -541,6 +379,9 @@ export function PreviewFooter({
             ? "© 2026 Vistaire. All rights reserved."
             : "© 2026 Vistaire. Tous droits réservés."}
         </p>
+        <Link href={`${routes.pricing}#pricing-terms-title`} prefetch={false}>
+          {locale === "en" ? "Offer terms" : "Conditions de l’offre"}
+        </Link>
         <LanguageSwitcher currentPath={resolvedCurrentPath} locale={locale} />
       </div>
     </footer>

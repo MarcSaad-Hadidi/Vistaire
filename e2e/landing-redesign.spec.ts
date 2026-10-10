@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { writeFile } from "node:fs/promises";
 
 async function disableWebGL(page: Page) {
   await page.addInitScript(() => {
@@ -28,8 +29,9 @@ for (const [path, links] of [
     await expect(footer).toHaveCount(1);
     await expect(footer).toHaveAttribute("id", "footer");
     await expect(page.locator(".public-footer-wrap")).toHaveCount(0);
-    await expect(footer.getByRole("heading")).toBeInViewport();
-    for (const href of links) await expect(page.locator(`a[href="${href}"]`).first()).toBeAttached();
+    await expect(footer.locator(".footer-bottom")).toBeInViewport();
+    for (const href of links) await expect(footer.locator(`[data-footer-navigation] a[href="${href}"]`)).toHaveCount(1);
+    await expect(footer.locator("[data-footer-navigation] section")).toHaveCount(6);
     const endGap = await footer.evaluate(el => document.documentElement.scrollHeight - el.getBoundingClientRect().bottom - scrollY);
     expect(Math.abs(endGap)).toBeLessThanOrEqual(1);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
@@ -160,7 +162,9 @@ renderedTest.describe('rendered scroll choreography (Chromium software WebGL)', 
     ['/en', { width: 390, height: 844 }],
   ] as const) {
     renderedTest(`${path} renders reversible chapter poses and resumes after pricing`, async ({ page }, testInfo) => {
-      renderedTest.setTimeout(240_000);
+      // Software rasterization is slow; this is a bounded correctness budget,
+      // never a performance/FPS acceptance threshold.
+      renderedTest.setTimeout(viewport.width > 768 ? 600_000 : 480_000);
       await page.setViewportSize(viewport);
       // Remove temporal damping for deterministic target-pose comparisons.
       // The separate stop/resume sample below restores normal motion.
@@ -180,32 +184,81 @@ renderedTest.describe('rendered scroll choreography (Chromium software WebGL)', 
         end: Number((el as HTMLElement).dataset.exitEnd),
       })));
       expect(windows).toHaveLength(9);
+      const geometry = await page.evaluate(() => ({
+        viewport: { width: innerWidth, height: innerHeight },
+        stage: document.querySelector('.opening-stage')!.clientHeight,
+        canvasHeight: document.querySelector('.world')!.clientHeight,
+        chapters: [...document.querySelectorAll<HTMLElement>('.chapter')].map(el => ({
+          id: el.id, top: el.getBoundingClientRect().top + scrollY,
+          height: el.getBoundingClientRect().height, stage: el.firstElementChild!.clientHeight,
+        })),
+      }));
+      const pricing = geometry.chapters.find(chapter => chapter.id === 'open-weight')!;
+      const telemetry: { segment: string; target: number; snapshot: unknown }[] = [];
+      let segment = 'initial';
+      const saveTelemetry = async () => {
+        const telemetryPath = testInfo.outputPath('rendered-scroll-telemetry.json');
+        await writeFile(telemetryPath, JSON.stringify({
+          renderer: 'Chromium SwiftShader; target poses sampled with reduced motion, not physical input or FPS',
+          geometry, windows, samples: telemetry,
+          units: 'World positions/look use authored Three.js units; scale and alpha are dimensionless; view offsets and text positions are normalized by canvas/stage size. Hidden pricing samples are excluded from motion speed. Root rotations not exposed by canvas are measured in pure authored-pose tests.',
+        }, null, 2));
+      };
       const at = async (y: number) => {
         await page.evaluate(async y => {
           scrollTo({ top: y, behavior: 'instant' });
           for (let i = 0; i < 4; i++) await new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
         }, y);
-        return canvas.evaluate(el => {
+        const snapshot = await canvas.evaluate(el => {
           const data = (el as HTMLCanvasElement).dataset;
           const view = JSON.parse(data.cameraViewOffset ?? '{}');
           return {
+            scroll: scrollY,
+            section: data.section,
+            progress: Number(data.progress),
+            transition: data.transition,
+            transitionProgress: Number(data.transitionProgress),
             suspended: data.suspended,
+            camera: data.fittedCameraPosition,
+            look: data.fittedLook,
+            supportPosition: data.supportPosition,
+            phonePosition: data.phonePosition,
+            dishScale: data.dishScale,
+            dishOpacity: Number(data.dishOpacity),
+            roomPosition: data.roomPosition,
+            roomYaw: Number(data.roomYaw),
+            laptopAngle: Number(data.laptopAngle),
+            renderCPUms: Number(data.renderCPUms),
+            viewOffset: [view.offsetX / el.clientWidth, view.offsetY / el.clientHeight],
+            copy: Object.fromEntries([...document.querySelectorAll<HTMLElement>('.chapter')].map(chapter => {
+              const text = chapter.querySelector('h1,h2,h3,p')!;
+              let opacity = 1;
+              for (let ancestor: Element | null = text; ancestor && ancestor !== chapter.parentElement; ancestor = ancestor.parentElement)
+                opacity *= Number(getComputedStyle(ancestor).opacity);
+              const rect = text.getBoundingClientRect();
+              return [chapter.id, { opacity, top: rect.top / el.clientHeight, left: rect.left / el.clientWidth }];
+            })),
             values: [data.fittedCameraPosition, data.fittedLook, data.supportPosition, data.phonePosition,
               data.dishScale, data.dishOpacity, data.roomPosition, data.roomYaw]
               .flatMap(value => (value ?? '').split(',').map(Number))
               .concat([view.offsetX / el.clientWidth, view.offsetY / el.clientHeight]),
           };
         });
+        telemetry.push({ segment, target: y, snapshot });
+        return snapshot;
       };
       for (const window of windows) {
-        const ys = window.from === 'open-weight'
-          ? [window.end - 2, window.end + 2]
-          : [window.start - 2, window.start + 2, (window.start + window.end) / 2, window.end - 2, window.end + 2];
+        segment = `transition:${window.from}:${window.to}:forward`;
+        // Add uniform samples to the original five seam/midpoint samples.
+        const ys = [...new Set([
+          window.start - 2, window.start + 2, window.end - 2, window.end + 2,
+          ...Array.from({ length: 9 }, (_, i) => window.start + (window.end - window.start) * i / 8),
+        ])].sort((a, b) => a - b);
         const forward: Awaited<ReturnType<typeof at>>[] = [];
         for (const y of ys) {
           const pose = await at(y);
           // Pricing is intentionally opaque; there is no rendered pose there.
-          if (window.to === 'open-weight' && y >= window.end) {
+          if (pose.scroll >= pricing.top && pose.scroll <= pricing.top + Math.round(pricing.height) - geometry.canvasHeight) {
             expect(pose.suspended).toBe('true');
           } else {
             expect(pose.suspended).toBe('false');
@@ -218,19 +271,28 @@ renderedTest.describe('rendered scroll choreography (Chromium software WebGL)', 
           if (a.suspended === 'true' || b.suspended === 'true') continue;
           for (let i = 0; i < a.values.length; i++) expect(Math.abs(a.values[i] - b.values[i]), `${window.from}:${window.to} boundary pose`).toBeLessThan(0.15);
         }
-        for (let i = ys.length - 1; i >= 0; i--) {
-          const reverse = await at(ys[i]);
+        // Retain reversal checks for all original seam/midpoint positions.
+        segment = `transition:${window.from}:${window.to}:reverse`;
+        const reverseYs = [window.end + 2, window.end - 2, (window.start + window.end) / 2, window.start + 2, window.start - 2];
+        for (const y of reverseYs) {
+          const i = ys.findIndex(sample => Math.abs(sample - y) < 0.001);
+          const reverse = await at(y);
           if (reverse.suspended === 'true') continue;
           reverse.values.forEach((value, n) => expect(value).toBeCloseTo(forward[i].values[n], 3));
         }
+        await saveTelemetry();
       }
       // Cross the internal opening chapter labels and sampled camera anchors.
       const motion = await page.locator('.opening-journey').evaluate(el =>
         Number((el as HTMLElement).style.getPropertyValue('--opening-motion-vh')) * el.firstElementChild!.clientHeight / 100);
+      segment = 'opening-anchors';
       for (const p of [0.12, 0.28, 0.3, 0.42, 0.56, 0.72, 0.8, 0.86, 1]) {
         const [a, b] = [await at(motion * p - 2), await at(motion * p + 2)];
         a.values.forEach((value, n) => expect(Math.abs(value - b.values[n])).toBeLessThan(0.15));
       }
+      await saveTelemetry();
+      await testInfo.attach('rendered-scroll-telemetry', { path: testInfo.outputPath('rendered-scroll-telemetry.json'), contentType: 'application/json' });
+      segment = 'normal-motion-stop';
       await page.emulateMedia({ reducedMotion: 'no-preference' });
       const feature = windows.find(window => window.from === 'features')!;
       await at((feature.start + feature.end) / 2);

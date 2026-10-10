@@ -7,6 +7,56 @@ async function expectShowcaseInteractive(page: import("@playwright/test").Page) 
   );
 }
 
+test("public comparison labels and tabs stay readable in light mode without recoloring restaurant menus", async ({ page }) => {
+  test.setTimeout(120_000);
+  for (const scenario of [
+    { path: "/menu-pdf-vs-menu-digital", width: 390 },
+    { path: "/menu-digital-restaurant", width: 430 },
+    { path: "/en/pdf-vs-digital-menu", width: 1440 },
+    { path: "/en/digital-restaurant-menu", width: 390 },
+  ]) {
+    await page.setViewportSize({ width: scenario.width, height: 900 });
+    await page.goto(scenario.path);
+    await expectShowcaseInteractive(page);
+    const comparison = page.getByTestId("landing-comparison");
+    const title = comparison.locator('[class*="activeCopy"] h3');
+    const label = comparison.locator('[class*="activeCopy"] p');
+    const link = comparison.locator('[class*="activeLink"]');
+    const toggle = page.locator("[data-public-theme-toggle]").first();
+    if (await toggle.getAttribute("aria-pressed") === "true") await toggle.click();
+    await expect(title).toHaveCSS("color", "rgb(255, 250, 240)");
+    const menu = comparison.locator('[data-public-menu-renderer]').first();
+    await expect(menu).toBeAttached();
+    const before = await menu.evaluate((element) => {
+      const style = getComputedStyle(element);
+      return [style.color, style.backgroundColor];
+    });
+    await toggle.click();
+    await expect(title).toHaveCSS("color", "rgb(40, 37, 31)");
+    await expect(label).toHaveCSS("color", "rgb(128, 96, 13)");
+    await expect(link).toHaveCSS("color", "rgb(128, 96, 13)");
+    await expect(comparison.getByRole("tablist")).toHaveCSS("background-color", "rgb(255, 252, 245)");
+    await expect(comparison.getByRole("tab", { selected: true })).toHaveCSS("color", "rgb(40, 37, 31)");
+    await expect(comparison.getByRole("tab", { selected: false }).first()).toHaveCSS("color", "rgb(98, 91, 80)");
+    expect(await menu.evaluate((element) => {
+      const style = getComputedStyle(element);
+      return [style.color, style.backgroundColor];
+    })).toEqual(before);
+    const next = comparison.getByRole("tab", { name: "Trouvable", exact: true });
+    await next.click();
+    await expect(next).toHaveAttribute("aria-selected", "true");
+    await expect(next).toHaveCSS("border-top-color", "rgb(128, 96, 13)");
+    await expect(next).toHaveCSS("background-color", "rgb(238, 231, 217)");
+    await next.press("ArrowRight");
+    const focused = comparison.getByRole("tab", { name: "Sauge Noire", exact: true });
+    await expect(focused).toBeFocused();
+    await expect(focused).toHaveCSS("outline-color", "rgb(109, 80, 8)");
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 2)).toBe(true);
+    await toggle.click();
+    await expect(title).toHaveCSS("color", "rgb(255, 250, 240)");
+  }
+});
+
 test("PDF versus digital menu keeps its accessible restaurant switcher and comparison slider", async ({
   page
 }) => {

@@ -35,6 +35,53 @@ async function geometry(page: Page) {
   }));
 }
 
+test("light immersive controls keep readable nested actions, selection and AR help", async ({ page }) => {
+  test.setTimeout(120_000);
+  for (const scenario of [
+    { path: "/", width: 390 },
+    { path: "/en", width: 430 },
+    { path: "/", width: 1440 },
+  ]) {
+    await page.setViewportSize({ width: scenario.width, height: 900 });
+    await page.goto(scenario.path);
+    await expect(page.locator(".world-fallback")).toBeVisible();
+    const toggle = page.locator("[data-public-theme-toggle]").first();
+    if (await toggle.getAttribute("aria-pressed") !== "true") await toggle.click();
+    await expect(page.locator(".site-header")).toHaveCSS("color", "rgb(40, 37, 31)");
+    const ar = page.locator(".grip-actions .ar-action");
+    await page.locator("#grip").evaluate((element) => {
+      const travel = (element as HTMLElement).offsetHeight - element.firstElementChild!.clientHeight;
+      scrollTo({ top: element.getBoundingClientRect().top + scrollY + travel * 0.45, behavior: "instant" });
+    });
+    await expect(ar).toBeVisible();
+    await expect(ar).toHaveCSS("color", "rgb(40, 37, 31)");
+    await expect(ar).toHaveCSS("background-color", "rgb(238, 231, 217)");
+    await ar.hover();
+    await expect(ar).toHaveCSS("color", "rgb(255, 250, 240)");
+    await expect(ar).toHaveCSS("background-color", "rgb(128, 96, 13)");
+    await ar.click();
+    await expect(page.getByRole("dialog")).toBeVisible();
+    await expect(page.getByRole("dialog")).toHaveCSS("color", "rgb(40, 37, 31)");
+    await expect(page.locator(".close-modal")).toHaveCSS("background-color", "rgb(255, 252, 245)");
+    await page.keyboard.press("Escape");
+    await expect(page.getByRole("dialog")).toHaveCount(0);
+    await expect(page.locator('.menu-demo-picker button[aria-pressed="true"]')).toHaveCSS("border-top-color", "rgb(128, 96, 13)");
+    await expect(page.locator(".dish-zoom button").first()).toHaveCSS("border-top-color", "rgb(112, 103, 89)");
+    expect(await page.locator(".rotation-range").evaluate((element) => getComputedStyle(element, "::before").borderTopColor)).toBe("rgb(112, 103, 89)");
+    await expect(page.locator(".pricing-heading em")).toHaveCSS("color", "rgb(128, 96, 13)");
+    await expect(page.locator(".pricing-faq [data-seo-faq-question]").first()).toHaveCSS("color", "rgb(40, 37, 31)");
+    await expect(page.locator(".support-controls")).toHaveCSS("background-color", "rgb(255, 252, 245)");
+    await expect(page.locator(".support-controls button")).toHaveCSS("color", "rgb(40, 37, 31)");
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 2)).toBe(true);
+    await toggle.click();
+    await page.mouse.move(0, 0);
+    await expect(ar).toHaveCSS("color", "rgb(248, 243, 232)");
+    await expect(ar).toHaveCSS("background-color", "rgba(17, 17, 16, 0.91)");
+    await expect(page.locator(".support-controls")).toHaveCSS("background-color", "rgb(17, 17, 16)");
+    await expect(page.locator(".support-controls button")).toHaveCSS("color", "rgb(248, 243, 232)");
+  }
+});
+
 for (const initialHeight of [820, 730]) {
   test(`les barres mobiles ne déplacent aucun chapitre (${initialHeight}px)`, async ({
     page,
@@ -188,8 +235,15 @@ test("la scène contact est le seul footer et termine exactement la page FR/EN",
     await expect(footer).toHaveAttribute("id", "footer");
     await expect(page.locator("main footer, .public-footer-wrap")).toHaveCount(0);
     await expect(page.locator("html")).toHaveAttribute("data-chapter", "footer");
-    await expect(footer.locator("h2")).toBeInViewport();
-    await expect(footer.locator(`a[href="${locale === "fr" ? "/prendre-rendez-vous" : "/en/book-a-call"}"]`)).toBeInViewport();
+    await footer.locator("#footer-title").scrollIntoViewIfNeeded();
+    await expect(footer.locator("#footer-title")).toBeInViewport();
+    await expect(footer.locator(`.footer-main a[href="${locale === "fr" ? "/prendre-rendez-vous" : "/en/book-a-call"}"]`)).toBeVisible();
+    for (const link of await footer.locator("[data-footer-navigation] a").all()) {
+      await link.scrollIntoViewIfNeeded();
+      await expect(link).toBeInViewport();
+      expect(await link.evaluate(el => el.getBoundingClientRect().height)).toBeGreaterThanOrEqual(44);
+    }
+    await page.evaluate(() => scrollTo({ top: document.documentElement.scrollHeight, behavior: "instant" }));
     await expect(footer.locator('a[href="mailto:contact@vistaire.ca"]')).toBeInViewport();
     await expect(footer.locator(".footer-bottom a").last()).toBeInViewport();
     const end = await footer.evaluate(el => ({

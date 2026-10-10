@@ -32,6 +32,8 @@ import { useModelGesture, useSupportGesture } from "./useModelGesture.js";
 import { ARAction, ARHelp, DishDetailLink, isIOSDevice } from "./ARActions.jsx";
 import { LandingLocaleProvider, useLandingLocale } from "./locale.jsx";
 import { PublicControls } from "../vistaire-preview/PublicControls";
+import { PublicFooterNavigation } from "../vistaire-preview/PublicFooterNavigation";
+import { getVistaireSocialProfiles } from "@/lib/seo";
 const Scene = lazy(() => import("./Scene.jsx"));
 // Restaurant-specific menus keep their original production interface.
 // Vistaire presentation pages are part of this same styled frontend.
@@ -1698,9 +1700,11 @@ function LandingContent() {
           </Action>
         </div>
         <FocusFrame className="footer-scene" aria-hidden="true" />
+        <PublicFooterNavigation locale={locale} />
         <div className="footer-grid">
           <div>
             <span className="eyebrow">{t("Un projet ?")}</span>
+            <p className="footer-place">{locale === "en" ? "Montreal, Quebec, Canada" : "Montréal, Québec, Canada"}</p>
             <a href="mailto:contact@vistaire.ca">contact@vistaire.ca</a>
             <a href="tel:+15147152421">514-715-2421</a>
           </div>
@@ -1710,18 +1714,19 @@ function LandingContent() {
               {copied ? t("Lien copié") : t("Copier le lien Vistaire")}
               {copied ? <Check size={15} /> : <ArrowUpRight size={15} />}
             </button>
-            <a href={link("/demo")}>
-              {t("Voir les cartes Vistaire")}
-              <ArrowUpRight size={15} />
-            </a>
+            {getVistaireSocialProfiles().map((profile) => (
+              <a href={profile.url} key={profile.url} target="_blank" rel="me noopener noreferrer">
+                {profile.label}<ArrowUpRight size={15} />
+              </a>
+            ))}
           </div>
         </div>
-        <nav className="footer-bottom" aria-label={t("Les pages Vistaire")}>
-          <span>© 2026 Vistaire</span>
-          <Link prefetch={false} href={link("/menu-digital-restaurant")}>{t("Découvrir Vistaire")}</Link>
-          <Link prefetch={false} href={link("/guides/anatomie-menu-digital-premium")}>Guides</Link>
-          <Link prefetch={false} href={link("/a-propos")}>{t("À propos")}</Link>
-        </nav>
+        <div className="footer-bottom">
+          <span>{locale === "en" ? "© 2026 Vistaire. All rights reserved." : "© 2026 Vistaire. Tous droits réservés."}</span>
+          <Link prefetch={false} href={`${link("/tarifs-menu-digital-restaurant")}#pricing-terms-title`}>
+            {locale === "en" ? "Offer terms" : "Conditions de l’offre"}
+          </Link>
+        </div>
       </Chapter>
       <AdaptiveScrollGuide visible={guideVisible && ready && !menu && !modal && chapter !== "footer"} />
       <div className="chapter-progress" aria-hidden="true">

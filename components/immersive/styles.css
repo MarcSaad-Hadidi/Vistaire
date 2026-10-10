@@ -1205,16 +1205,22 @@
   justify-content: center;
   gap: 24px;
   font-size: 11px;
-  color: var(--muted);
+  color: var(--public-muted);
+  justify-self: center;
+  max-width: 100%;
+  padding: 8px 12px;
+  border: 1px solid var(--public-blue);
+  border-radius: 6px;
+  background: var(--public-surface);
 }
 :where([data-immersive-vistaire]) .support-controls button {
   display: flex;
   align-items: center;
   gap: 8px;
   padding: 10px 14px;
-  border: 1px solid #f8f3e850;
+  border: 1px solid var(--public-muted-soft);
   border-radius: 4px;
-  color: var(--cream);
+  color: var(--public-text);
 }
 :where([data-immersive-vistaire]) .accompaniment .stage {
   display: grid;
@@ -1263,12 +1269,31 @@
   border-bottom: 1px solid #f8f3e850;
   padding-bottom: 7px;
 }
+:where([data-immersive-vistaire]) .chapter.footer {
+  height: auto;
+}
 :where([data-immersive-vistaire]) .footer .stage {
+  position: relative;
+  height: auto;
+  min-height: calc(100 * var(--journey-vh));
+  overflow: visible;
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  grid-template-rows: minmax(0, 1fr) auto auto;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  grid-template-rows: minmax(400px, calc(58 * var(--journey-vh))) auto auto auto;
   gap: 30px;
-  background: linear-gradient(#11111026, #050505a8);
+  padding-bottom: 28px;
+  background: linear-gradient(180deg, #11111026, var(--public-black) 700px);
+}
+:where([data-immersive-vistaire]) .footer [data-footer-navigation] {
+  grid-row: 2;
+  margin-inline: calc(-1 * var(--pad));
+  padding-inline: var(--pad);
+  background: var(--public-black);
+}
+:where([data-immersive-vistaire]) .footer-place {
+  margin: 12px 0 4px;
+  color: var(--muted);
+  font-size: 15px;
 }
 :where([data-immersive-vistaire]) .footer-main {
   align-self: center;
@@ -1281,10 +1306,10 @@
 }
 :where([data-immersive-vistaire]) .footer-grid {
   grid-column: 1/-1;
-  grid-row: 2;
-  align-self: center;
+  grid-row: 3;
+  align-self: start;
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 36px;
 }
 :where([data-immersive-vistaire]) .footer .scene-focus {
@@ -1293,6 +1318,7 @@
 }
 :where([data-immersive-vistaire]) .footer-grid > div {
   display: grid;
+  align-content: start;
   gap: 12px;
   border-top: 1px solid #f8f3e840;
   padding-top: 20px;
@@ -1316,7 +1342,7 @@
 }
 :where([data-immersive-vistaire]) .footer-bottom {
   grid-column: 1/-1;
-  grid-row: 3;
+  grid-row: 4;
   display: flex;
   justify-content: space-between;
   border-top: 1px solid #f8f3e830;
@@ -2235,8 +2261,9 @@
   }
   :where([data-immersive-vistaire]) .footer .stage {
     grid-template-columns: 1fr;
-    grid-template-rows: auto minmax(0, 1fr) auto auto;
-    gap: 15px;
+    grid-template-rows: auto 220px auto auto auto;
+    gap: 24px;
+    padding-top: 104px;
   }
   :where([data-immersive-vistaire]) .footer-main {
     grid-column: 1;
@@ -2261,9 +2288,12 @@
     grid-column: 1;
     grid-row: 2;
   }
+  :where([data-immersive-vistaire]) .footer [data-footer-navigation] {
+    grid-row: 3;
+  }
   :where([data-immersive-vistaire]) .footer-grid {
     grid-column: 1;
-    grid-row: 3;
+    grid-row: 4;
     grid-template-columns: 1fr 1fr;
     gap: 20px;
   }
@@ -2284,7 +2314,7 @@
     width: 12px;
   }
   :where([data-immersive-vistaire]) .footer .footer-bottom {
-    grid-row: 4;
+    grid-row: 5;
   }
   :where([data-immersive-vistaire]) .footer-bottom {
     grid-column: 1;
@@ -3017,16 +3047,6 @@
   background: #05050599;
   z-index: 48;
 }
-:where([data-immersive-vistaire]) .footer-page-links {
-  display: flex;
-  flex-wrap: wrap;
-  column-gap: 18px;
-  row-gap: 8px;
-}
-:where([data-immersive-vistaire]) .footer-grid .footer-page-links a {
-  font-size: 12px;
-  min-height: 32px;
-}
 :where([data-immersive-vistaire]) .pricing .pricing-cta {
   background: var(--gold-button);
 }
@@ -3041,7 +3061,7 @@
 }
 
 
-/* The last measured chapter is the page footer, with all links inside its stage. */
+/* The last measured chapter grows with its directory, without an empty scroll tail. */
 :where([data-immersive-vistaire]) .footer-grid a,
 :where([data-immersive-vistaire]) .footer-grid button,
 :where([data-immersive-vistaire]) .footer-bottom a {
@@ -3084,9 +3104,9 @@
   }
   :where([data-immersive-vistaire]) .footer-bottom {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: 1fr;
     gap: 0 12px;
-    font-size: 10px;
+    font-size: 12px;
   }
   :where([data-immersive-vistaire]) .footer-grid {
     gap: 12px;
@@ -3121,7 +3141,7 @@
 html[data-vistaire-theme="light"] :where([data-immersive-vistaire]) :is(
   .site-header, .mobile-menu, .hero-glass, .side-copy, .living-copy,
   .collection-details, .collection-tabs, .dish-switch, .menu-demo-picker,
-  .feature-card, .model-loading, .model-error, .modal, .footer,
+  .feature-card, .model-loading, .model-error, .modal, .footer, .pricing,
   .rotation-control, .grip-actions, .action-dark
 ) {
   --cream: var(--public-text);
@@ -3159,11 +3179,36 @@ html[data-vistaire-theme="light"] :where([data-immersive-vistaire]) :is(
 }
 html[data-vistaire-theme="light"] :where([data-immersive-vistaire]) :is(
   .menu-demo-picker button, .dish-switch button.selected, .collection-tabs button.selected,
-  .modal select, .modal input
+  .modal select, .modal select option, .modal input
 ) {
   background: var(--public-black);
   color: var(--public-text);
   border-color: var(--public-blue);
+}
+/* Nested controls must follow their ivory card, not the cinematic backdrop. */
+html[data-vistaire-theme="light"] :where([data-immersive-vistaire]) .ar-action {
+  background: var(--public-surface-raised);
+  border-color: var(--public-gold);
+  color: var(--public-text);
+}
+html[data-vistaire-theme="light"] :where([data-immersive-vistaire]) :is(.ar-action, .action-dark):hover {
+  background: var(--public-gold);
+  border-color: var(--public-gold);
+  color: var(--public-on-accent);
+}
+html[data-vistaire-theme="light"] :where([data-immersive-vistaire]) .menu-demo-picker button[aria-pressed="true"] {
+  background: var(--public-surface-raised);
+  border-color: var(--public-gold);
+}
+html[data-vistaire-theme="light"] :where([data-immersive-vistaire]) .rotation-range::before {
+  border-color: var(--public-muted-soft);
+  background: linear-gradient(to right, var(--public-gold) var(--rotation), var(--public-muted-soft) var(--rotation));
+}
+html[data-vistaire-theme="light"] :where([data-immersive-vistaire]) .dish-zoom button {
+  border-color: var(--public-muted-soft);
+}
+html[data-vistaire-theme="light"] :where([data-immersive-vistaire]) .dish-zoom button:hover:not(:disabled) {
+  background: var(--public-surface-raised);
 }
 html[data-vistaire-theme="light"] :where([data-immersive-vistaire]) :is(.header-3d, .footer .action:hover) {
   background: var(--public-gold);
@@ -3171,7 +3216,7 @@ html[data-vistaire-theme="light"] :where([data-immersive-vistaire]) :is(.header-
 }
 html[data-vistaire-theme="light"] :where([data-immersive-vistaire]) .footer .stage {
   background: linear-gradient(90deg, #f7f3e9fa, #f7f3e9ed 40%, #f7f3e91a 68%),
-    linear-gradient(0deg, #f7f3e9 0%, #f7f3e9f5 22%, transparent 52%);
+    linear-gradient(180deg, transparent 300px, #f7f3e9 700px);
 }
 html[data-vistaire-theme="light"] :where([data-immersive-vistaire]) .footer .action {
   border-color: var(--public-gold);
@@ -3179,7 +3224,7 @@ html[data-vistaire-theme="light"] :where([data-immersive-vistaire]) .footer .act
 }
 @media (max-width: 767.98px) {
   html[data-vistaire-theme="light"] :where([data-immersive-vistaire]) .footer .stage {
-    background: linear-gradient(180deg, #f7f3e9 0%, #f7f3e9f5 35%, #f7f3e91a 54%, #f7f3e9f5 68%, #f7f3e9 100%);
+    background: linear-gradient(180deg, #f7f3e9 0, #f7f3e9f5 250px, #f7f3e91a 380px, #f7f3e9 550px);
   }
 }
 

@@ -198,6 +198,11 @@ async function expectFullDocumentLocaleSwitch(
     scenario.sourceLocale
   );
   await expect(page.locator("html")).toHaveAttribute("lang", scenario.sourceLocale);
+  if (scenario.sourcePath === "/" || scenario.sourcePath === "/en") {
+    // Cold software-rendered scene startup is separate from navigation
+    // correctness. Keep this bounded; it is not a site performance allowance.
+    await expect(page.locator(".preloader")).toHaveCount(0, { timeout: 120_000 });
+  }
 
   const sourceLanguageControl = page
     .locator(`[data-public-controls] div[aria-label="${scenario.sourceControl}"]`)
@@ -234,6 +239,9 @@ async function expectFullDocumentLocaleSwitch(
   await destinationLink.click();
   const navigationResponse = await navigationResponsePromise;
   await page.waitForLoadState("domcontentloaded");
+  if (scenario.destinationPath === "/" || scenario.destinationPath === "/en") {
+    await expect(page.locator(".preloader")).toHaveCount(0, { timeout: 120_000 });
+  }
   expect(
     navigationResponse,
     `${scenario.sourcePath} -> ${scenario.destinationPath}: main-document response`
@@ -297,6 +305,9 @@ test.describe("Vistaire public navigation", () => {
     test(`uses a full document navigation from ${scenario.sourcePath} to ${scenario.destinationPath}`, async ({
       page
     }) => {
+      if (scenario.sourcePath === "/" || scenario.sourcePath === "/en") {
+        test.setTimeout(240_000);
+      }
       await expectFullDocumentLocaleSwitch(page, scenario);
     });
   }
@@ -359,11 +370,12 @@ test.describe("Vistaire public navigation", () => {
   });
 
   test("keeps immersive chapter navigation valid in both locales", async ({ page }) => {
+    test.setTimeout(240_000);
     for (const locale of ["fr", "en"] as const) {
       await page.goto(locale === "en" ? "/en" : "/", { waitUntil: "domcontentloaded" });
       // SSR-visible controls precede scene initialization and final font metrics.
       // Exercise a ready journey, while retaining the actual smooth-scroll check.
-      await expect(page.locator(".preloader")).toBeHidden();
+      await expect(page.locator(".preloader")).toHaveCount(0, { timeout: 120_000 });
       await page.evaluate(() => document.fonts.ready);
       const nav = topNavigation(page);
       const chapters = [

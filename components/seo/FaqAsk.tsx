@@ -17,7 +17,6 @@ const COPY = {
     placeholder: "Posez votre question sur Vistaire",
     submit: "Envoyer la question",
     loading: "Recherche dans la documentation Vistaire…",
-    note: "Réponse générée par IA (Mistral AI) à partir de la documentation officielle Vistaire. N’indiquez aucune donnée personnelle.",
     source: "Source",
     sources: "Sources",
     tooShort: "Écrivez au moins 5 caractères.",
@@ -28,7 +27,6 @@ const COPY = {
     placeholder: "Ask your question about Vistaire",
     submit: "Send question",
     loading: "Searching the Vistaire documentation…",
-    note: "AI-generated answer (Mistral AI) based on official Vistaire documentation. Do not include personal information.",
     source: "Source",
     sources: "Sources",
     tooShort: "Write at least 5 characters.",
@@ -119,7 +117,7 @@ export function FaqAsk({ locale = "fr", compact = false }: { locale?: Locale; co
             placeholder={copy.placeholder}
             autoComplete="off"
             enterKeyHint="send"
-            aria-describedby={noteId}
+            aria-describedby={hint ? noteId : undefined}
             aria-invalid={hint ? true : undefined}
             onChange={(event) => {
               setQuestion(event.target.value);
@@ -149,9 +147,11 @@ export function FaqAsk({ locale = "fr", compact = false }: { locale?: Locale; co
             )}
           </button>
         </div>
-        <p id={noteId} className={styles.note}>
-          {hint ? <span className={styles.hint}>{hint}</span> : copy.note}
-        </p>
+        {hint ? (
+          <p id={noteId} className={styles.note}>
+            <span className={styles.hint}>{hint}</span>
+          </p>
+        ) : null}
       </form>
 
       <div className={styles.result} aria-live="polite" aria-busy={pending ? true : undefined} data-faq-ask-result>

@@ -156,6 +156,55 @@
   box-shadow: 0 30px 90px rgba(0, 0, 0, 0.38);
   background: var(--public-surface) !important;
 }
+/* Shared admin primitives keep their dark palette outside this public demo. */
+:global(html[data-vistaire-theme="light"]) .dashboardDemo {
+  --admin-success: #41622f;
+}
+:global(html[data-vistaire-theme="light"]) .dashboardDemo :global([class*="badge_available"]),
+:global(html[data-vistaire-theme="light"]) .dashboardDemo :global([class*="badge_unavailable"]) {
+  border-color: currentColor;
+  background: var(--public-surface-raised);
+}
+:global(html[data-vistaire-theme="light"]) .dashboardDemo :global([class*="badge_available"]) {
+  color: var(--admin-success);
+}
+:global(html[data-vistaire-theme="light"]) .dashboardDemo :global([class*="badge_unavailable"]) {
+  color: var(--public-error);
+}
+:global(html[data-vistaire-theme="light"]) .dashboardDemo :global([data-chart-chrome] > span),
+:global(html[data-vistaire-theme="light"]) .dashboardDemo :global([data-chart-plot-stack] > output),
+:global(html[data-vistaire-theme="light"]) .dashboardDemo > :global([role="status"]),
+:global(html[data-vistaire-theme="light"]) .dashboardDemo :global([role="switch"])::before {
+  background: var(--public-surface-raised);
+}
+:global(html[data-vistaire-theme="light"]) .dashboardDemo :global([data-chart-plot-stack] > output > span:first-child) {
+  color: var(--public-text);
+}
+:global(html[data-vistaire-theme="light"]) .dashboardDemo :global([data-chart-plot-stack] > output [data-tone="muted"] strong),
+:global(html[data-vistaire-theme="light"]) .dashboardDemo :global([data-chart-delta]) {
+  color: var(--public-muted);
+}
+:global(html[data-vistaire-theme="light"]) .dashboardDemo > :global([role="status"]) {
+  border-color: var(--admin-success);
+}
+:global(html[data-vistaire-theme="light"]) .dashboardDemo input::placeholder {
+  color: var(--public-muted-soft);
+  opacity: 1;
+}
+:global(html[data-vistaire-theme="light"]) .dashboardDemo :global([data-chart-crosshair]) {
+  stroke: var(--public-muted);
+}
+:global(html[data-vistaire-theme="light"]) .dashboardDemo :global([data-chart-animated="heat-cell"]) {
+  fill: color-mix(in srgb, var(--admin-accent) calc(var(--intensity) * 86%), var(--public-surface-raised));
+  stroke: var(--public-surface);
+}
+:global(html[data-vistaire-theme="light"]) .dashboardDemo :global([data-chart-heat-legend] i) {
+  background: linear-gradient(90deg, var(--public-surface-raised), var(--admin-accent));
+}
+:global(html[data-vistaire-theme="light"]) .dashboardDemo :global([data-chart-animated="heat-cell"]:focus-visible),
+:global(html[data-vistaire-theme="light"]) .dashboardDemo :global([data-chart-animated="donut-segment"]:focus-visible) {
+  stroke: var(--public-text);
+}
 .demoHeader {
   display: flex;
   align-items: flex-end;

@@ -104,7 +104,15 @@ for (const scenario of DISCOVERY_ROUTES) {
             element.videoWidth / element.videoHeight
           )).toBeCloseTo(780 / 1688, 2);
           const initialTime = await video.evaluate((element: HTMLVideoElement) => element.currentTime);
-          await expect.poll(() => video.evaluate((element: HTMLVideoElement) => element.currentTime)).not.toBe(initialTime);
+          await expect.poll(() => video.evaluate((element: HTMLVideoElement) => ({
+            currentTime: element.currentTime,
+            paused: element.paused,
+            readyState: element.readyState,
+            networkState: element.networkState,
+            error: element.error?.message ?? null,
+            opacity: getComputedStyle(element).opacity
+          })), { message: `${experience.id} playback at ${viewport.width}px must advance` })
+            .not.toMatchObject({ currentTime: initialTime });
           expect(await video.evaluate(async (element: HTMLVideoElement) => {
             const poster = new Image();
             poster.src = element.poster;

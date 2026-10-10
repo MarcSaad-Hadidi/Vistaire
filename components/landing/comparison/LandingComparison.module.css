@@ -125,6 +125,37 @@
   text-decoration: none;
 }
 
+/* The surrounding marketing page follows the public theme. The restaurant
+   renderer inside the phone keeps its own independent visual identity. */
+:global(html[data-vistaire-theme="light"] [data-public-vistaire]) .tabs {
+  border-color: var(--public-blue);
+  background: var(--public-surface);
+}
+:global(html[data-vistaire-theme="light"] [data-public-vistaire]) .tab {
+  color: var(--public-muted);
+}
+:global(html[data-vistaire-theme="light"] [data-public-vistaire]) .tab[aria-selected="true"] {
+  border-color: var(--public-gold);
+  background: var(--public-surface-raised);
+  color: var(--public-text);
+}
+:global(html[data-vistaire-theme="light"] [data-public-vistaire]) .tab:hover,
+:global(html[data-vistaire-theme="light"] [data-public-vistaire]) .activeCopy h3 {
+  color: var(--public-text);
+}
+:global(html[data-vistaire-theme="light"] [data-public-vistaire]) .activeCopy p,
+:global(html[data-vistaire-theme="light"] [data-public-vistaire]) .activeLink {
+  color: var(--public-gold);
+  border-color: var(--public-gold);
+}
+:global(html[data-vistaire-theme="light"] [data-public-vistaire]) .activeLink:hover {
+  color: var(--public-gold-light);
+}
+:global(html[data-vistaire-theme="light"] [data-public-vistaire]) .tab:focus-visible,
+:global(html[data-vistaire-theme="light"] [data-public-vistaire]) .activeLink:focus-visible {
+  outline-color: var(--public-focus);
+}
+
 @media (max-width: 720px) {
   .comparison {
     gap: 16px;

@@ -106,7 +106,7 @@
   position: relative;
   z-index: 2;
   display: grid;
-  grid-template-columns: 1.5fr 1fr 1.2fr 1fr 1fr;
+  grid-template-columns: 1fr;
   gap: 36px 28px;
   width: min(1320px, 92vw);
   margin: 100px auto 0;
@@ -151,6 +151,12 @@
   background: var(--public-gold);
   color: var(--public-on-accent);
 }
+.footerBrand {
+  display: grid;
+  grid-template-columns: 1fr 1.3fr 1.7fr;
+  align-items: start;
+  gap: 24px;
+}
 .footerBrand h2 {
   font-family: "Vistaire Editorial", serif;
   letter-spacing: 0.07em;
@@ -161,15 +167,15 @@
 .footerTagline {
   font-size: 20px;
   line-height: 1.35;
-  margin-top: 16px;
-  max-width: 22ch;
+  margin-top: 0;
+  max-width: 26ch;
   color: var(--public-text);
 }
 .footerDescription {
   font-size: 16px;
   line-height: 1.65;
-  margin-top: 16px;
-  max-width: 28ch;
+  margin-top: 0;
+  max-width: 48ch;
 }
 .footerColumn h2 {
   font-family: "Vistaire Text", serif;
@@ -180,19 +186,15 @@
   letter-spacing: 0.13em;
   margin-bottom: 20px;
 }
-.footerLinkList {
-  display: grid;
-  gap: 12px;
-}
-.footerLinkList a,
 .footerEmail,
 .footerSocialLinks a {
-  min-height: 28px;
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
   text-decoration: none;
   font-size: 16px;
   line-height: 1.4;
 }
-.footerLinkList a:hover,
 .footerEmail:hover {
   color: var(--public-gold-light);
 }
@@ -218,6 +220,15 @@
   display: flex;
   flex-wrap: wrap;
   gap: 20px;
+}
+.footerBottom > a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  text-decoration: none;
+}
+.footerBottom > a:hover {
+  color: var(--public-gold-light);
 }
 .footerBottom {
   grid-column: 1/-1;
@@ -263,10 +274,10 @@
     display: inline;
   }
   .previewFooter {
-    grid-template-columns: 1.4fr 1fr 1fr;
+    grid-template-columns: 1fr;
   }
   .footerBrand {
-    grid-row: span 2;
+    grid-row: auto;
   }
   .footerInvitation {
     gap: 24px;
@@ -375,8 +386,8 @@
   }
   .previewFooter {
     width: calc(100% - 40px);
-    grid-template-columns: 1fr 1fr;
-    gap: 36px 20px;
+    grid-template-columns: 1fr;
+    gap: 28px;
     margin-top: 64px;
   }
   .footerInvitation {
@@ -393,6 +404,8 @@
     white-space: normal;
   }
   .footerBrand {
+    grid-template-columns: 1fr;
+    gap: 14px;
     grid-column: 1/-1;
     grid-row: auto;
     padding-bottom: 24px;

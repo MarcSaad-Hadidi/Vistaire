@@ -81,7 +81,6 @@ export function DemoWalkthroughVideo({
         ref={videoRef}
         onLoadedData={() => setDecoded(true)}
         onPlaying={() => setDecoded(true)}
-        onWaiting={() => setDecoded(false)}
         onError={() => setDecoded(false)}
         style={{ opacity: decoded ? 1 : 0 }}
       />

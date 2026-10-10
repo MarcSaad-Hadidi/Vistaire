@@ -36,3 +36,8 @@ html[data-vistaire-theme="light"] :is([data-public-vistaire], [data-immersive-vi
   --public-error: #9a3824;
   --public-gold-metal: linear-gradient(115deg, #80600d, #937017 45%, #80600d);
 }
+/* Global cream selection text is unreadable on the ivory marketing pages. */
+html[data-vistaire-theme="light"] :is([data-public-vistaire], [data-vistaire-chrome]) ::selection {
+  color: var(--public-on-accent);
+  background: var(--public-gold);
+}
