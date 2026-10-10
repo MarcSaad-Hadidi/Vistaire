@@ -20,18 +20,21 @@ export function bindJourneyViewport(view = window) {
     const nextWidth = root.clientWidth;
     const nextPortrait = view.matchMedia("(orientation: portrait)").matches;
     const mobile = nextWidth < 768;
+    const touch = view.matchMedia("(hover: none) and (pointer: coarse)").matches;
     if (
       stageHeight &&
       mobile &&
-      view.matchMedia("(hover: none) and (pointer: coarse)").matches &&
+      touch &&
       width === nextWidth &&
       portrait === nextPortrait
     )
       return;
+    // Desktop viewport-unit probes can lag the only resize event. Its live
+    // layout height has no mobile-toolbar split and is already authoritative.
     const nextStage =
-      probes[0].getBoundingClientRect().height || view.innerHeight;
+      (touch && probes[0].getBoundingClientRect().height) || view.innerHeight;
     const nextScene =
-      probes[1].getBoundingClientRect().height || view.innerHeight;
+      (touch && probes[1].getBoundingClientRect().height) || view.innerHeight;
     width = nextWidth;
     portrait = nextPortrait;
     if (nextStage !== stageHeight) {

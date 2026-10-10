@@ -28,7 +28,7 @@ function viewport({ width = 390, height = 844, touch = false } = {}) {
   };
 }
 
-test('narrow desktop resizing updates height even when width and height arrive as separate events', () => {
+test('narrow desktop resizing follows live height across split events and stale viewport-unit probes', () => {
   const page = viewport();
   const release = bindJourneyViewport(page.view);
   assert.deepEqual(page.dimensions(), ['8.44px', '8.44px']);
@@ -38,6 +38,11 @@ test('narrow desktop resizing updates height even when width and height arrive a
   assert.deepEqual(page.dimensions(), ['9.32px', '9.32px']);
   page.resize({ width: 430, height: 700 });
   assert.deepEqual(page.dimensions(), ['7px', '7px']);
+  // Exact rendered CI failure: one native resize already reports 932px while
+  // both CSS viewport-unit probes retain 844px until after the final event.
+  page.resize({ width: 390, height: 844 });
+  page.resize({ width: 430, height: 932, small: 844, large: 844 });
+  assert.deepEqual(page.dimensions(), ['9.32px', '9.32px']);
   release();
 });
 

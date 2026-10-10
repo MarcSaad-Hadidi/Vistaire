@@ -245,12 +245,77 @@ async function diagnosticSnapshot(page: Page, expectedViewport?: { width: number
           journeyVH: root.getPropertyValue('--vistaire-journey-vh'), sceneVH: root.getPropertyValue('--vistaire-scene-vh'),
           world: rect('.world'), openingStage: rect('.opening-stage'), grip: rect('#grip'), gripStage: rect('#grip > .stage'), canvasRect: canvas?.getBoundingClientRect().toJSON() ?? null,
           resizeDiagnostics: (window as typeof window & { sceneResizeDiagnostics?: { read: () => unknown } }).sceneResizeDiagnostics?.read() ?? null,
+          rafDiagnostics: (window as typeof window & { sceneRAFDiagnostics?: { read: () => unknown } }).sceneRAFDiagnostics?.read() ?? null,
           dataset: { ...canvas?.dataset } };
       }, expectedViewport),
       new Promise<null>(resolve => { timer = setTimeout(() => resolve(null), 1_000); }),
     ]);
   } catch { return null; }
   finally { clearTimeout(timer); }
+}
+
+// Passive owned-RAF evidence for the rare Home-settle failure. The wrapper
+// never schedules a probe frame, forces layout, or changes callback arguments.
+async function installSceneRAFDiagnostics(page: Page) {
+  await page.addInitScript(() => {
+    const nativeRAF = window.requestAnimationFrame.bind(window);
+    const nativeCancel = window.cancelAnimationFrame.bind(window);
+    const sceneCallbacks = new WeakSet<FrameRequestCallback>();
+    const pending = new Map<number, { callback: FrameRequestCallback; requestedAt: number }>();
+    const samples: unknown[] = [];
+    let callbacks = 0, droppedSamples = 0;
+    let canvas: HTMLCanvasElement | null = null;
+    const state = () => {
+      if (!canvas?.isConnected) canvas = document.querySelector<HTMLCanvasElement>('.scene-canvas');
+      const data = canvas?.dataset;
+      return { frames: Number(data?.frames ?? 0), settled: data?.settled, reasons: data?.settlingReasons,
+        section: data?.section, hidden: document.hidden, visibility: document.visibilityState };
+    };
+    const ownedPending = () => [...pending.entries()]
+      .filter(([, request]) => sceneCallbacks.has(request.callback))
+      .map(([id, request]) => ({ id, requestedAt: request.requestedAt }));
+    const record = (sample: unknown) => {
+      samples.push(sample);
+      if (samples.length > 20) { samples.shift(); droppedSamples++; }
+    };
+    window.requestAnimationFrame = callback => {
+      const requestedAt = performance.now();
+      const id = nativeRAF(function (this: Window, timestamp) {
+        pending.delete(id);
+        const startedAt = performance.now();
+        const before = state();
+        const pendingBefore = ownedPending().length;
+        try { Reflect.apply(callback, this, [timestamp]); }
+        finally {
+          const endedAt = performance.now();
+          const after = state();
+          if (after.frames > before.frames) sceneCallbacks.add(callback);
+          if (sceneCallbacks.has(callback)) {
+            callbacks++;
+            record({ kind: 'callback', id, requestedAt, startedAt, endedAt,
+              durationMs: endedAt - startedAt, rafTimestamp: timestamp,
+              pendingBefore, pendingAfter: ownedPending().length, before, after });
+          }
+        }
+      });
+      pending.set(id, { callback, requestedAt });
+      return id;
+    };
+    window.cancelAnimationFrame = id => {
+      const request = pending.get(id);
+      if (request && sceneCallbacks.has(request.callback))
+        record({ kind: 'cancel', id, at: performance.now(), requestedAt: request.requestedAt, state: state() });
+      pending.delete(id);
+      nativeCancel(id);
+    };
+    (window as typeof window & { sceneRAFDiagnostics: { read: () => unknown } }).sceneRAFDiagnostics = {
+      read: () => {
+        const at = performance.now();
+        return { at, callbacks, droppedSamples,
+          pending: ownedPending().map(request => ({ ...request, ageMs: at - request.requestedAt })), samples, current: state() };
+      },
+    };
+  });
 }
 
 // Desktop Chromium viewport emulation has no physical browser toolbar. A
@@ -416,7 +481,7 @@ renderedTest.describe('optional scene framing diagnostics (Chromium software Web
     } finally { releaseHull(); }
   });
 
-  renderedTest('a rejected QA hull stays diagnostic-only while the real scene renders', async ({ page }) => {
+  renderedTest('a rejected QA hull stays diagnostic-only while the real scene renders and resizes', async ({ page }, testInfo) => {
     renderedTest.setTimeout(180_000);
     await page.setViewportSize({ width: 390, height: 844 });
     await page.emulateMedia({ reducedMotion: 'reduce' });
@@ -425,14 +490,43 @@ renderedTest.describe('optional scene framing diagnostics (Chromium software Web
     await page.route('**/immersive-assets/dishes/framing-hulls.json', route => route.fulfill({ status: 503, contentType: 'application/json', body: '{}' }));
     await page.goto('/?sceneDiagnostics=1', { waitUntil: 'domcontentloaded' });
     const canvas = page.locator('.scene-canvas');
-    await expect(canvas).toHaveAttribute('data-ready', 'true', { timeout: 120_000 });
-    await expect(canvas).toHaveAttribute('data-framing-ready', 'error');
-    await expect(canvas).toHaveAttribute('data-framing-error', /.+/);
-    await expect(canvas).toHaveAttribute('data-rendered-model', 'homard');
-    await expect(page.locator('.preloader')).toHaveCount(0);
-    await expect(page.locator('.world-fallback')).toHaveCount(0);
-    await expect(canvas).not.toHaveAttribute('data-dish-bounds', /.+/);
-    expect(errors).toEqual([]);
+    let expectedViewport = { width: 390, height: 844 };
+    let before: { frames: number; revision: number } | null = null;
+    try {
+      await expect(canvas).toHaveAttribute('data-ready', 'true', { timeout: 120_000 });
+      await expect(canvas).toHaveAttribute('data-framing-ready', 'error');
+      await expect(canvas).toHaveAttribute('data-framing-error', /.+/);
+      await expect(canvas).toHaveAttribute('data-rendered-model', 'homard');
+      await expect(page.locator('.preloader')).toHaveCount(0);
+      await expect(page.locator('.world-fallback')).toHaveCount(0);
+      await expect(canvas).not.toHaveAttribute('data-dish-bounds', /.+/);
+      await waitForViewportLayout(page, expectedViewport);
+      before = await canvas.evaluate(el => ({ frames: Number((el as HTMLCanvasElement).dataset.frames),
+        revision: Number((el as HTMLCanvasElement).dataset.processedViewportRevision) }));
+      // One combined width/height resize, before the long food-model journey.
+      // The helper unit replay supplies deterministic stale-CSS-probe coverage.
+      expectedViewport = { width: 430, height: 932 };
+      await page.setViewportSize(expectedViewport);
+      await waitForViewportLayout(page, expectedViewport);
+      await waitForProcessedPose(page, before.frames);
+      await expect(canvas).toHaveAttribute('data-suspended', 'false');
+      expect(Number(await canvas.getAttribute('data-frames'))).toBeGreaterThan(before.frames);
+      expect(Number(await canvas.getAttribute('data-processed-viewport-revision'))).toBeGreaterThan(before.revision);
+      await expect(canvas).toHaveAttribute('data-ready', 'true');
+      await expect(canvas).toHaveAttribute('data-rendered-model', 'homard');
+      await expect(page.locator('.world-fallback')).toHaveCount(0);
+      expect(errors).toEqual([]);
+    } finally {
+      const snapshot = await diagnosticSnapshot(page, expectedViewport);
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      try {
+        await Promise.race([
+          writeFile(testInfo.outputPath('rendered-resize-telemetry.json'), JSON.stringify({ expectedViewport, before, snapshot, errors }, null, 2)),
+          new Promise<never>((_, reject) => { timer = setTimeout(() => reject(new Error('Early resize persistence exceeded 1s')), 1_000); }),
+        ]);
+      } catch (error) { console.warn('Could not preserve early resize diagnostics:', error); }
+      finally { clearTimeout(timer); }
+    }
   });
 });
 
@@ -684,6 +778,7 @@ renderedTest.describe('complete-food zoom fit (Chromium software WebGL)', () => 
       renderedTest.setTimeout(viewport.width > 768 ? 900_000 : 600_000);
       await page.setViewportSize(viewport);
       await page.emulateMedia({ reducedMotion: 'reduce' });
+      await installSceneRAFDiagnostics(page);
       // Observe native resize delivery and the real CSS viewport probes. This
       // bounded QA recorder never dispatches/retries a resize or repairs layout.
       await page.addInitScript(() => {
