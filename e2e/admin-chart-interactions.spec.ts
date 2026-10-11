@@ -35,7 +35,8 @@ async function enterFullMenuPreview(page: Page, testInfo: TestInfo) {
 
   const adminResponse = await page.goto(new URL("/admin", origin).toString(), { waitUntil: "domcontentloaded" });
   expect(adminResponse?.status()).toBe(200);
-  await expect(page.getByRole("heading", { name: /Maison Élysée/ })).toBeVisible({ timeout: 30_000 });
+  await expect(page.locator("[data-admin-studio]")).toBeVisible({ timeout: 30_000 });
+  await expect(page.locator("[data-admin-studio]")).toContainText("Maison Élysée");
   await page.waitForLoadState("networkidle");
 }
 
@@ -331,7 +332,7 @@ test("full-menu admin parity keeps unavailable dishes private while matching ava
   expect(await page.locator('article[data-available="false"]').count()).toBeGreaterThan(0);
   const names = await rows.locator("h3").allTextContents();
   expect(new Set(names).size).toBe(12);
-  const categories = await rows.locator("h3 + p").allTextContents();
+  const categories = await rows.evaluateAll(elements => elements.map(element => element.getAttribute("data-category-id")));
   expect(new Set(categories).size).toBeGreaterThanOrEqual(4);
   const adminDishes = await rows.evaluateAll((elements) => elements.map((element) => ({
     id: element.getAttribute("data-dish-id"),

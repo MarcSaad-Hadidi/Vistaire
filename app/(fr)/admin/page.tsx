@@ -1,4 +1,4 @@
-import { AdminOverview } from "@/components/admin/overview/AdminOverview";
+import { AdminStudio } from "@/components/admin/studio/AdminStudio";
 import styles from "@/components/admin/AdminDashboard.module.css";
 import { requireAdminRestaurantAccess } from "@/lib/admin/access";
 import { loadAdminDashboardData } from "@/lib/admin/dashboardData";
@@ -12,5 +12,5 @@ export default async function AdminPage({ searchParams }: { searchParams?: Promi
   const range = parseAdminPageSearchParams(await searchParams);
   const result = await loadAdminDashboardData(access.restaurantId, range);
   if (!result.ok) return <main className={styles.center}><section className={styles.panel}><h1>Dashboard indisponible</h1><p>La carte ne peut pas être chargée. Aucun plat ne peut être modifié.</p></section></main>;
-  return <AdminOverview data={result.data} range={range} />;
+  return <AdminStudio data={result.data} range={range} page="overview" canWrite={access.capabilities.includes("dish:availability:write") && access.qrId !== null}/>;
 }

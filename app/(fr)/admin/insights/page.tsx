@@ -1,4 +1,4 @@
-import { AdminInsightsPage } from "@/components/admin/insights/AdminInsightsPage";
+import { AdminStudio } from "@/components/admin/studio/AdminStudio";
 import styles from "@/components/admin/AdminDashboard.module.css";
 import { requireAdminRestaurantAccess } from "@/lib/admin/access";
 import { loadAdminDashboardData } from "@/lib/admin/dashboardData";
@@ -12,5 +12,5 @@ export default async function AdminInsightsRoute({ searchParams }: { searchParam
   const range = parseAdminPageSearchParams(await searchParams);
   const result = await loadAdminDashboardData(access.restaurantId, range);
   if (!result.ok) return <main className={styles.center}><section className={styles.panel}><h1>Analyses indisponibles</h1><p>Les données du restaurant ne peuvent pas être chargées.</p></section></main>;
-  return <AdminInsightsPage data={result.data} range={range}/>;
+  return <AdminStudio data={result.data} range={range} page="insights" canWrite={access.capabilities.includes("dish:availability:write") && access.qrId !== null}/>;
 }

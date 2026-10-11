@@ -175,7 +175,7 @@ test("admin page and loader delegate fallback handling to the analytics state bo
   const combined = `${page}\n${loader}`;
 
   assert.match(loader, /import\s*\{[\s\S]*?buildAdminAnalyticsState[\s\S]*?\}\s*from\s*["']@\/lib\/admin\/analyticsState["']/);
-  assert.match(loader, /analytics:\s*buildAdminAnalyticsState\(/);
+  assert.match(loader, /const analytics = buildAdminAnalyticsState\(/);
   assert.doesNotMatch(page, /getDemoRestaurantId|getDemoAdminInsights|source\s*===\s*["']preview/);
   assert.doesNotMatch(page, /@\/lib\/analytics\/insights/);
   assert.doesNotMatch(combined, /insights\.summary|insights\.topDishes/);
@@ -187,6 +187,6 @@ test("admin page loads only the authorized restaurant and renders the dashboard 
   assert.match(page, /import\s*\{\s*loadAdminDashboardData\s*\}/);
   assert.match(page, /const\s+result\s*=\s*await\s+loadAdminDashboardData\(access\.restaurantId, range\)/);
   assert.match(page, /if\s*\(!result\.ok\)/);
-  assert.match(page, /<AdminOverview\s+data=\{result\.data\}\s+range=\{range\}\s*\/>/);
+  assert.match(page, /<AdminStudio\s+data=\{result\.data\}\s+range=\{range\}\s+page="overview"\s+canWrite=\{access\.capabilities\.includes\("dish:availability:write"\) && access\.qrId !== null\}\s*\/>/);
   assert.doesNotMatch(page, /getDemo|getRestaurantInsights|@\/lib\/analytics\/insights/);
 });

@@ -389,7 +389,8 @@ test("full-menu admin image coverage has a dedicated non-skipping cross-browser 
   assert.match(packageJson, /"test:admin:full-menu":\s*"node scripts\/run-admin-full-menu-e2e\.mjs"/);
   assert.match(runner, /VISTAIRE_ADMIN_FIXTURE_SCENARIO:\s*"full-menu"/);
   const grep = runner.match(/--grep", "([^"]+)"/)?.[1];
-  assert.equal(grep, "full-menu admin (?:parity|thumbnails)");
+  assert.equal(grep, "full-menu admin (?:parity|thumbnails)|studio ");
+  assert.match(runner, /e2e\/admin-studio\.spec\.ts/);
   for (const title of [
     "full-menu admin parity",
     "full-menu admin thumbnails",

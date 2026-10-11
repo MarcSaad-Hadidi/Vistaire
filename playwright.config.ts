@@ -75,6 +75,7 @@ process.env.VISTAIRE_OWNER_E2E_AUTH_BYPASS_TOKEN = ownerE2eToken;
 const fixtureOnlyTestIgnore = [
   ...(adminVisualFixture ? [] : [
       "**/admin-chart-interactions.spec.ts",
+      "**/admin-studio.spec.ts",
       "**/admin-insights-fidelity.spec.ts",
       "**/admin-visual.spec.ts",
       ...(process.env.VISTAIRE_ADMIN_PERFORMANCE_SESSION_SECRET

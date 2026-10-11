@@ -583,6 +583,14 @@ jobs:
         env:
           VISTAIRE_ADMIN_FULL_MENU_PROJECT: chromium
         run: npm run test:admin:full-menu
+      - name: Preserve Studio visual evidence (chromium)
+        if: ${{ always() }}
+        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
+        with:
+          name: admin-studio-chromium-${{ github.run_id }}
+          path: test-results/**/vistaire-studio-*.png
+          if-no-files-found: ignore
+          retention-days: 7
       - name: Publish structured test report
         id: publish-test-report
         if: ${{ always() }}
@@ -748,6 +756,14 @@ jobs:
         env:
           VISTAIRE_ADMIN_FULL_MENU_PROJECT: webkit
         run: npm run test:admin:full-menu
+      - name: Preserve Studio visual evidence (webkit)
+        if: ${{ always() }}
+        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
+        with:
+          name: admin-studio-webkit-${{ github.run_id }}
+          path: test-results/**/vistaire-studio-*.png
+          if-no-files-found: ignore
+          retention-days: 7
       - name: Publish structured test report
         id: publish-test-report
         if: ${{ always() }}

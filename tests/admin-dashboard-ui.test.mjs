@@ -145,7 +145,7 @@ test("overview composes honest evidence panels with accessible exact values", as
     read("components/admin/overview/AdminOverview.module.css")
   ]);
   const source = `${page}\n${overview}\n${activity}\n${top}\n${strip}`;
-  assert.match(page, /<AdminOverview/);
+  assert.match(page, /<AdminStudio/);
   assert.match(source, /AdminShell/);
   assert.match(source, /href="\/admin\/insights"/);
   assert.match(source, /href="\/admin\/availability"/);

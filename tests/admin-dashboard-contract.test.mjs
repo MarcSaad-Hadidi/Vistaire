@@ -32,7 +32,9 @@ test("dashboard reads explicit fields and scopes selected menu in the database",
 test("range parser remains exported for UI-owned page wiring", async () => {
   const range = await readFile("lib/admin/dashboardRange.ts", "utf8");
   assert.match(range, /export function parseAdminDashboardRange/);
-  assert.match(range, /value === "today-utc" \|\| value === "7d" \|\| value === "30d"/);
+  const { parseAdminDashboardRange } = await import("../lib/admin/dashboardRange.ts");
+  for (const value of ["today-utc", "7d", "30d", "90d", "365d", "month", "year"]) assert.equal(parseAdminDashboardRange(value), value);
+  for (const value of ["all", "restaurant:attacker", [], null]) assert.equal(parseAdminDashboardRange(value), "7d");
 });
 
 test("admin page search params parser exposes range only", async () => {
