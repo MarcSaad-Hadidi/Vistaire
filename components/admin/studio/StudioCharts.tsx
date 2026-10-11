@@ -19,6 +19,10 @@ import "@kind-ui/charts/styles.css";
 import type { AdminMetricSeries } from "@/lib/admin/analyticsState";
 import styles from "./Studio.module.css";
 
+// Native grid-cell labels and the focus/touch tooltip retain exact values.
+// Text inside all 168 cells would make a 24-hour mobile matrix unreadable.
+function HeatmapSwatch() { return null; }
+
 export function StudioTrend({
   series,
   label,
@@ -226,14 +230,19 @@ export function StudioHeatmap({
           colors: ["#e8f7ff", "#46c5de", "#3b82f6", "#5b21b6"],
         })}
         formatValue={number}
+        missingLabel={t("Indisponible")}
         aria-label={t("Événements par jour et heure UTC")}
       >
-        <div className={styles.tableScroll}>
           <HeatmapGrid
+            className={styles.heatmapGrid}
             caption={t("Moments d’activité · heures UTC")}
-            layout={{ cellSize: 24, gap: 3 }}
+            layout={{ gap: 2 }}
+            Cell={HeatmapSwatch}
+            columnLabel={(column) => {
+              const hour = Number.parseInt(column, 10);
+              return <><span aria-hidden="true">{hour % 6 === 0 || hour === 23 ? hour : ""}</span><span className={styles.srOnly}>{column}</span></>;
+            }}
           />
-        </div>
         <HeatmapTooltip />
         <HeatmapLegend label={t("Nombre d’événements")} />
       </HeatmapChart>

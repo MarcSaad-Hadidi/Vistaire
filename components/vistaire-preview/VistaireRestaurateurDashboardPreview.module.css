@@ -1132,3 +1132,29 @@
   .studioDemo :global(aside) { min-height: 0; padding: 8px; }
   .studioDemo :global(#studio-preview-main) { padding-bottom: 0; }
 }
+
+.dashboardFilm {
+  width: 100%;
+  max-width: 1100px;
+  margin: 0;
+}
+.dashboardScreen {
+  aspect-ratio: 1168 / 748;
+  overflow: hidden;
+  border: 5px solid #171716;
+  border-radius: 18px;
+  background: #090909;
+  box-shadow: 0 24px 70px #0005, 0 0 0 1px var(--public-blue);
+}
+.dashboardScreen video { object-fit: contain; }
+.dashboardFilm figcaption {
+  margin-top: 18px;
+  color: var(--public-muted-soft);
+  font-size: 14px;
+  line-height: 1.6;
+}
+.filmTranscript { margin-top: 12px; font-size: 14px; line-height: 1.7; }
+.filmTranscript summary { width: fit-content; padding-block: 10px; cursor: pointer; }
+.filmTranscript summary:focus-visible { outline: 2px solid var(--public-gold); outline-offset: 4px; }
+.filmTranscript ol { padding-left: 24px; color: var(--public-muted-soft); }
+@media (max-width: 650px) { .dashboardScreen { border-width: 3px; border-radius: 10px; } }

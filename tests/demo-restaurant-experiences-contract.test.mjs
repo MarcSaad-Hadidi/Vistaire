@@ -130,3 +130,20 @@ test("landing stable render context derives the legacy readiness gate from a con
   assert.match(renderContext, /readState:\s*["']not-found["']/);
   assert.match(renderContext, /readState:\s*["']unavailable["']/);
 });
+
+test("dashboard presentation uses an accessible recorded walkthrough without changing pricing or menu playback", async () => {
+  const [presentation, player, pricing] = await Promise.all([
+    source("components/vistaire-preview/VistaireRestaurateurDashboardPreview.tsx"),
+    source("components/vistaire-preview/DemoWalkthroughVideo.tsx"),
+    source("components/vistaire-preview/VistairePricingPreview.tsx")
+  ]);
+  assert.doesNotMatch(presentation, /RestaurateurDashboardDemo|AdminStudio/);
+  assert.match(presentation, /DashboardWalkthrough/);
+  assert.match(player, /controls = false/);
+  assert.match(player, /autoPlay = true/);
+  assert.match(player, /controls=\{controls\}/);
+  assert.match(player, /autoPlay && !motion\.matches/);
+  assert.match(player, /rootMargin: controls \? "0px" : "200px 0px"/);
+  assert.match(player, /video\.pause\(\)/);
+  assert.match(pricing, /RestaurateurDashboardDemo/);
+});

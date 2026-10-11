@@ -750,8 +750,6 @@ jobs:
         with:
           name: next-build-${{ github.run_id }}
           path: .next
-      - run: |
-          npm run test:ci:e2e:webkit
       - name: Admin dish image browser suite (WebKit)
         if: ${{ !cancelled() && needs.classify-changes.outputs.run_admin_qr == 'true' }}
         env:
@@ -762,9 +760,15 @@ jobs:
         uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
         with:
           name: admin-studio-webkit-${{ github.run_id }}
-          path: test-results/**/vistaire-studio-*.png
+          path: |
+            test-results/**/vistaire-studio-*.png
+            test-results/**/error-context.md
+            test-results/**/test-failed-*.png
           if-no-files-found: ignore
           retention-days: 7
+      - name: Public critical browser suite (WebKit)
+        if: ${{ !cancelled() }}
+        run: npm run test:ci:e2e:webkit
       - name: Publish structured test report
         id: publish-test-report
         if: ${{ always() }}

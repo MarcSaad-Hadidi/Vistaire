@@ -123,3 +123,35 @@ already been documented and approved.
 The user-authorized immersive presentation imports original runtime assets under `public/immersive-assets` and `public/immersive-media`. Their narrow exceptions live in `docs/immersive-asset-exceptions.json`, with MarcSaad-Hadidi as owner, exact byte limits, SHA-256 checksums and individual reasons. The policy checker loads this manifest; it does not permit arbitrary future assets. Existing assets under `public/models`, `public/videos` and `public/frames` are unchanged.
 
 `assets/immersive-runtime/burger.usdz.gz` is a deterministic, lossless copy of the original USDZ. `postinstall` and `prebuild` restore its exact original bytes to the ignored public runtime destination after verifying both checksums. The compressed form fits the publishing connector's request limit without reducing 3D quality. The archived previous public UI is a separately pinned exception; see `docs/immersive-integration.md`.
+
+## Restaurant Studio presentation walkthrough
+
+Requested by `MarcSaad-Hadidi` on 2026-10-11 for the French and English dashboard
+presentation pages. Owner: `MarcSaad-Hadidi`. This is a genuine silent recording
+of the approved public demonstration at
+`https://sauge-noire-dashboard-demo.plumtuna4.chatgpt.site/`, captured through
+supported cloud-browser screenshots while operating the UI. All figures are
+fictional; the availability change is explicitly a local simulation. No private
+restaurant session or customer data was recorded.
+
+The 20-second sequence selects seven days and 3D clicks, enlarges the chart,
+opens analyses and dishes, searches for the duck dish, and changes its simulated
+availability. Five continuous four-second segments supplied 610 captured frames
+at measured segment cadences of 19.6–37.5 fps. Encoding selects the nearest
+captured frame at 24 fps, with no generated frames or motion interpolation.
+The final clip contains 86 distinct recorded frames, including real transitions.
+Raw captures and encoding intermediates remain outside Git.
+
+- Runtime: `public/videos/demo/dashboard-studio.mp4`
+- Format: H264, 1168 × 748, 24 fps, yuv420p, no audio, MP4 faststart
+- Duration: 20.000 seconds
+- Reviewed bytes: 729,591; exact-file budget: 1,048,576 bytes
+- SHA-256: `925c5543b216dc05b41f00234da7001bc640b6e594b91ac313ac8a42335da650`
+- Poster: `public/images/demo-walkthrough/dashboard-studio.webp` (48,406 bytes)
+
+The player requires user playback, exposes native controls/fullscreen, pauses
+when outside the viewport, and includes localized text describing the sequence.
+Existing menu videos and private Studio remain unchanged. The exception is
+limited to this exact reviewed clip; replacement requires an updated checksum.
+Source interactions and decoded output frames were inspected; deployed-browser
+playback remains covered by the public preview E2E suite.

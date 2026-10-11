@@ -1,4 +1,3 @@
-import { readFile } from "node:fs/promises";
 import { expect, test, type Page, type Request } from "@playwright/test";
 // @ts-expect-error -- dependency-free ESM policy is also exercised directly by Node contracts.
 import { classifyRestaurateurPreviewRequest, shouldIgnoreRestaurateurPreviewRequestFailure } from "./support/restaurateur-preview-request-policy.mjs";
@@ -6,13 +5,12 @@ import { classifyRestaurateurPreviewRequest, shouldIgnoreRestaurateurPreviewRequ
 type Scenario = {
   path: "/apercu-restaurateur" | "/en/restaurant-preview";
   sampleMenu: {label: string; href: string};
-  navigation: string; pages: readonly [string, string, string, string];
-  period: string; search: string; availability: string; category: string;
-  export: string; exportTitle: string; close: string; download: string; schedule: string;
+  videoLabel: string;
+  transcript: string;
 };
 const scenarios: Scenario[] = [
-  {path: "/apercu-restaurateur", sampleMenu: {label: "Voir la carte exemple", href: "/demo"}, navigation: "Navigation principale", pages: ["Vue d’ensemble", "Analyses", "Les plats", "Planning"], period: "Période fictive (UTC)", search: "Rechercher un plat", availability: "Disponibilité", category: "Catégorie", export: "Exporter", exportTitle: "Exporter les données", close: "Fermer", download: "Télécharger JSON", schedule: "Planifier"},
-  {path: "/en/restaurant-preview", sampleMenu: {label: "View sample menu", href: "/en/vistaire-menu"}, navigation: "Main navigation", pages: ["Overview", "Insights", "Dishes", "Scheduling"], period: "Sample period (UTC)", search: "Search dishes", availability: "Availability", category: "Category", export: "Export", exportTitle: "Export data", close: "Close", download: "Download JSON", schedule: "Schedule"}
+  {path: "/apercu-restaurateur", sampleMenu: {label: "Voir la carte exemple", href: "/demo"}, videoLabel: "Vidéo de démonstration du Studio Vistaire, 20 secondes", transcript: "Ce que montre la vidéo"},
+  {path: "/en/restaurant-preview", sampleMenu: {label: "View sample menu", href: "/en/vistaire-menu"}, videoLabel: "Vistaire Studio demonstration video, 20 seconds", transcript: "What the video shows"}
 ];
 const canonicalOrigin = "https://www.vistaire.ca";
 
@@ -102,6 +100,7 @@ function observeRuntime(page: Page, baseURL: string) {
       /^(?:1|true|prefetch)$/i.test(headers["next-router-prefetch"] ?? "");
     const errorText = request.failure()?.errorText ?? "request failed";
     if (errorText === "net::ERR_ABORTED" && explicitPrefetch) return;
+    if (errorText === "net::ERR_ABORTED" && request.method() === "GET" && new URL(request.url()).pathname === "/videos/demo/dashboard-studio.mp4") return;
     if (shouldIgnoreRestaurateurPreviewRequestFailure({
       baseOrigin: baseURL,
       url: request.url(),
@@ -131,7 +130,7 @@ function observeRuntime(page: Page, baseURL: string) {
       expect(productMutations, "private product or analytics mutations").toEqual([]);
       expect(unexpectedWrites, `unexpected writes; Next internals: ${frameworkPosts.join(", ")}`).toEqual([]);
       expect(modelRequests, "GLB or USDZ requests").toEqual([]);
-      expect(videoRequests, "video requests").toEqual([]);
+      expect(videoRequests.filter(path => path !== "/videos/demo/dashboard-studio.mp4"), "only the requested walkthrough video may load").toEqual([]);
     }
   };
 }
@@ -222,93 +221,49 @@ async function expectSafeSeo(page: Page, scenario: Scenario) {
 
 
 for (const scenario of scenarios) {
-  test(`${scenario.path} uses the shared Studio with anonymous, localized, synthetic data`, async ({baseURL, page}) => {
-    test.setTimeout(60_000);
+  test(`${scenario.path} presents a genuine video with private data isolation and user-controlled playback`, async ({baseURL, page}) => {
     const runtime = observeRuntime(page, baseURL ?? "http://127.0.0.1:3000");
+    await page.setViewportSize({width: 1280, height: 720});
     const response = await page.goto(scenario.path, {waitUntil: "domcontentloaded"});
     expect(response?.status()).toBe(200);
-    const studio = page.locator("[data-public-studio-demo] [data-admin-studio]");
-    await expect(studio).toHaveCount(1);
     await expect(page.getByRole("heading", {level: 1})).toHaveCount(1);
-    await expect(studio.locator("[data-studio-preview-banner]")).toContainText(/données fictives|fictional data/);
-    await expect(studio.locator("[data-studio-preview-banner]")).toContainText(/illustratives|illustrative/);
-    const nav = studio.getByRole("navigation", {name: scenario.navigation});
-    for (const name of scenario.pages) await expect(nav.getByRole("button", {name, exact: true})).toBeVisible();
-    const period = studio.getByRole("combobox", {name: scenario.period});
-    await expect(period.locator("option")).toHaveCount(3);
-    const kpis = studio.locator('[class*="kpis"] > button');
-    await expect(kpis).toHaveCount(4);
-    const initial = await kpis.allTextContents();
-    await period.selectOption("7d");
-    await expect.poll(() => kpis.allTextContents()).not.toEqual(initial);
-    await period.selectOption("today-utc");
-    await expect.poll(() => kpis.allTextContents()).toEqual(initial);
-    await kpis.first().click();
-    await expect(page.getByRole("dialog")).toBeVisible();
-    await page.keyboard.press("Escape");
-    await expect(page.getByRole("dialog")).toHaveCount(0);
-    await expect(kpis.first()).toBeFocused();
-
-    await nav.getByRole("button", {name: scenario.pages[1], exact: true}).click();
-    await expect(studio.locator('[data-studio-chart="trend"]')).toBeVisible();
-    const chart = studio.getByRole("application").first();
-    await chart.focus();
-    await page.keyboard.press("ArrowRight");
-    await page.keyboard.press("Escape");
-    await nav.getByRole("button", {name: scenario.pages[2], exact: true}).click();
-    const dishes = studio.locator("[data-admin-menu-dish]");
-    await expect(dishes).toHaveCount(12);
-    for (const toggle of await dishes.getByRole("switch").all()) await expect(toggle).toBeDisabled();
-    await studio.getByRole("combobox", {name: scenario.availability, exact: true}).selectOption("unavailable");
-    await expect(dishes).toHaveCount(2);
-    await studio.getByRole("combobox", {name: scenario.availability, exact: true}).selectOption("all");
-    await studio.getByRole("searchbox", {name: scenario.search, exact: true}).fill("vistaire-no-matching-dish-zzzz");
-    await expect(dishes).toHaveCount(0);
-    await expect(studio.getByRole("status").filter({hasText: /Aucun plat trouvé|No dishes found/})).toBeVisible();
-    await studio.getByRole("searchbox", {name: scenario.search, exact: true}).fill("");
-    await expect(dishes).toHaveCount(12);
-    await nav.getByRole("button", {name: scenario.pages[3], exact: true}).click();
-    await studio.getByRole("button", {name: scenario.schedule, exact: true}).first().click();
-    await expect(page.getByRole("dialog")).toContainText(/Aucune règle|No demonstration rule/);
-    await page.getByRole("dialog").getByRole("button", {name: scenario.close, exact: true}).first().click();
-    await expect(page.getByRole("dialog")).toHaveCount(0);
-
-    await studio.getByRole("button", {name: scenario.export, exact: true}).click();
-    const dialog = page.getByRole("dialog", {name: scenario.exportTitle});
-    await expect(dialog).toContainText(/Données fictives|Fictional demonstration data/);
-    await dialog.getByRole("radio", {name: /JSON/}).check();
-    const downloadEvent = page.waitForEvent("download");
-    await dialog.getByRole("button", {name: scenario.download, exact: true}).click();
-    const download = await downloadEvent;
-    const file = await download.path();
-    expect(file).toBeTruthy();
-    const report = JSON.parse(await readFile(file!, "utf8"));
-    expect(report.synthetic).toBe(true);
-    await dialog.getByRole("button", {name: scenario.close, exact: true}).first().click();
+    await expect(page.locator("[data-admin-studio]")).toHaveCount(0);
+    const film = page.locator("[data-dashboard-walkthrough]");
+    const video = film.locator("video");
+    await expect(video).toHaveAttribute("aria-label", scenario.videoLabel);
+    await expect(video).toHaveAttribute("controls", "");
+    await expect(video).toHaveAttribute("playsinline", "");
+    await expect(video).toHaveAttribute("preload", "none");
+    await expect(video).not.toHaveAttribute("autoplay", "");
+    await expect(video).toHaveAttribute("poster", "/images/demo-walkthrough/dashboard-studio.webp");
+    await video.scrollIntoViewIfNeeded();
+    await expect(video).toHaveAttribute("src", "/videos/demo/dashboard-studio.mp4");
+    expect(await video.evaluate(element => (element as HTMLVideoElement).paused)).toBe(true);
+    await video.evaluate(element => (element as HTMLVideoElement).play());
+    await expect.poll(() => video.evaluate(element => (element as HTMLVideoElement).currentTime)).toBeGreaterThan(.2);
+    expect(await video.evaluate(element => (element as HTMLVideoElement).duration)).toBeCloseTo(20, 0);
+    await page.getByRole("contentinfo").scrollIntoViewIfNeeded();
+    await expect.poll(() => video.evaluate(element => (element as HTMLVideoElement).paused)).toBe(true);
+    await film.getByText(scenario.transcript, {exact: true}).click();
+    await expect(film.locator("ol li")).toHaveCount(4);
     await expectSafeDom(page, scenario);
     await expectSafeSeo(page, scenario);
-    await expect(page.locator("model-viewer")).toHaveCount(0);
     runtime.expectClean();
   });
 
-  test(`${scenario.path} keeps Studio embedded at mobile and desktop widths in both themes`, async ({page}) => {
+  test(`${scenario.path} keeps the video readable at mobile widths and still under reduced motion`, async ({page}) => {
+    await page.emulateMedia({reducedMotion: "reduce"});
     for (const width of [390, 430, 1440]) {
       await page.setViewportSize({width, height: 900});
       await page.goto(scenario.path, {waitUntil: "domcontentloaded"});
-      const studio = page.locator("[data-public-studio-demo] [data-admin-studio]");
-      await expect(studio).toBeVisible();
+      const video = page.locator("[data-dashboard-walkthrough] video");
+      await video.scrollIntoViewIfNeeded();
+      await expect(video).toBeVisible();
+      expect(await video.evaluate(element => (element as HTMLVideoElement).paused)).toBe(true);
+      expect(await video.evaluate(element => (element as HTMLVideoElement).controls)).toBe(true);
       await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(2);
-      const sidebar = studio.locator("aside");
-      expect(await sidebar.evaluate(element => getComputedStyle(element).position)).toBe("static");
-      for (const control of await studio.getByRole("navigation").getByRole("button").all()) {
-        const box = await control.boundingBox();
-        expect(box?.height ?? 0).toBeGreaterThanOrEqual(44);
-        expect(box?.width ?? 0).toBeGreaterThanOrEqual(44);
-      }
-      const before = await studio.getAttribute("data-theme");
-      await studio.getByRole("button", {name: /Passer au thème|Switch to .* theme/}).click();
-      await expect(studio).toHaveAttribute("data-theme", before === "dark" ? "light" : "dark");
-      await expect(page.locator("html")).toHaveAttribute("data-vistaire-theme", before === "dark" ? "light" : "dark");
     }
+    await page.locator("[data-dashboard-walkthrough] video").evaluate(element => (element as HTMLVideoElement).play());
+    await expect.poll(() => page.locator("[data-dashboard-walkthrough] video").evaluate(element => (element as HTMLVideoElement).currentTime)).toBeGreaterThan(.2);
   });
 }

@@ -13,7 +13,7 @@ import {
 const canonicalPath = "/apercu-restaurateur";
 const title = "Aperçu restaurateur Vistaire";
 const description =
-  "Explorez une démonstration interactive du dashboard restaurateur Vistaire : vue d’ensemble, disponibilités et analyses, avec des données fictives isolées.";
+  "Découvrez en vidéo le Studio restaurateur Vistaire : navigation, graphiques et gestion des plats, dans une démonstration de 20 secondes avec des données fictives.";
 
 export const metadata: Metadata = {
   title,

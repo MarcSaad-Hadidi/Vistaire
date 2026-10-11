@@ -248,8 +248,8 @@ test("the public restaurateur fixture is deterministic, synthetic, and mathemati
     );
   }
 
-  assert.equal(fixture.restaurant.name.fr, "Maison Élyse — Démo");
-  assert.equal(fixture.restaurant.name.en, "Maison Élyse — Demo");
+  assert.equal(fixture.restaurant.name.fr, "Maison Élyse · Démo");
+  assert.equal(fixture.restaurant.name.en, "Maison Élyse · Demo");
 });
 
 
@@ -284,5 +284,14 @@ test("public Studio data stays synthetic, localized and coherent across its samp
     }
     assert.equal(createPublicStudioDemo(range, "fr").restaurant.publicMenuPath, "/demo");
     assert.throws(() => createPublicStudioDemo("365d", "fr"), /Unsupported public demo range/);
+  }
+});
+
+test("public Studio restaurant labels retain the pricing copy separator contract", async () => {
+  const { createPublicStudioDemo } = await import("../lib/restaurateurPreview/studioFixture.ts");
+  for (const locale of ["fr", "en"]) {
+    const data = createPublicStudioDemo("7d", locale);
+    assert.doesNotMatch(data.restaurant.name, /[-–—]/);
+    assert.match(data.restaurant.name, /Maison Élyse/);
   }
 });

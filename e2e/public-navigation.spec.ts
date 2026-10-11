@@ -747,3 +747,85 @@ test("public theme remains usable when local storage is blocked", async ({ page 
   await page.locator("[data-public-theme-toggle]").click();
   await expect(page.locator("html")).toHaveAttribute("data-vistaire-theme", "light");
 });
+
+test("public theme uses BeUI blinds with keyboard and rapid-click safety on mobile and desktop", async ({ page }) => {
+  test.setTimeout(60_000);
+  const errors: string[] = [];
+  page.on("pageerror", (error) => errors.push(error.message));
+  await page.addInitScript(() => {
+    localStorage.removeItem("vistaire-public-theme");
+    const nativeStart = document.startViewTransition.bind(document);
+    const captures: { variant: string | null; animation: string; mask: string }[] = [];
+    Object.assign(window, { themeTransitionCaptures: captures });
+    Object.defineProperty(document, "startViewTransition", { value: (update: () => void) => {
+      const transition = nativeStart(update);
+      void transition.ready.then(() => {
+        const style = getComputedStyle(document.documentElement, "::view-transition-new(root)");
+        captures.push({
+          variant: document.documentElement.getAttribute("data-vistaire-theme-transition"),
+          animation: style.animationName,
+          mask: style.maskImage,
+        });
+      }).catch(() => {});
+      return transition;
+    } });
+  });
+  for (const scenario of [
+    { path: "/a-propos", width: 390, label: "Thème clair" },
+    { path: "/en/about", width: 430, label: "Light theme" },
+    { path: "/contact", width: 1440, label: "Thème clair" },
+  ]) {
+    await page.setViewportSize({ width: scenario.width, height: 900 });
+    await page.goto(scenario.path);
+    const toggle = page.getByRole("button", { name: scenario.label, exact: true });
+    await toggle.focus();
+    await page.keyboard.press("Enter");
+    await expect(toggle).toHaveAttribute("aria-pressed", "true");
+    await expect(page.locator("html")).not.toHaveAttribute("data-vistaire-theme-transition");
+    await expect(toggle).toBeFocused();
+    // Two synchronous activations must not create competing page snapshots.
+    await toggle.evaluate((button) => { (button as HTMLButtonElement).click(); (button as HTMLButtonElement).click(); });
+    await expect(toggle).toHaveAttribute("aria-pressed", "false");
+    await expect(page.locator("html")).not.toHaveAttribute("data-vistaire-theme-transition");
+    const captures = await page.evaluate(() => (window as unknown as {
+      themeTransitionCaptures: { variant: string; animation: string; mask: string }[];
+    }).themeTransitionCaptures);
+    expect(captures).toHaveLength(2);
+    for (const capture of captures) {
+      expect(capture.variant).toBe("blinds");
+      expect(capture.animation).toBe("vistaire-theme-blinds-reveal");
+      expect(capture.mask).toContain("linear-gradient");
+    }
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  }
+  expect(errors).toEqual([]);
+});
+
+test("public theme skips animation for reduced motion and unsupported browsers", async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.removeItem("vistaire-public-theme");
+    const probe = { starts: 0 };
+    Object.assign(window, { themeTransitionProbe: probe });
+    Object.defineProperty(document, "startViewTransition", { value: () => {
+      probe.starts += 1;
+      throw new Error("Reduced motion started a transition");
+    }, configurable: true });
+  });
+  const errors: string[] = [];
+  page.on("pageerror", (error) => errors.push(error.message));
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.goto("/contact");
+  const toggle = page.locator("[data-public-theme-toggle]");
+  await toggle.click();
+  await expect(toggle).toHaveAttribute("aria-pressed", "true");
+  await expect(page.locator("html")).not.toHaveAttribute("data-vistaire-theme-transition");
+  expect(await page.evaluate(() => (window as unknown as { themeTransitionProbe: { starts: number } }).themeTransitionProbe.starts)).toBe(0);
+  await page.emulateMedia({ reducedMotion: "no-preference" });
+  await page.evaluate(() => Object.defineProperty(document, "startViewTransition", { value: undefined }));
+  await toggle.focus();
+  await page.keyboard.press("Space");
+  await expect(toggle).toHaveAttribute("aria-pressed", "false");
+  await expect(toggle).toBeFocused();
+  await expect(page.locator("html")).not.toHaveAttribute("data-vistaire-theme-transition");
+  expect(errors).toEqual([]);
+});

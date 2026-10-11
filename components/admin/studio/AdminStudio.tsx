@@ -80,7 +80,7 @@ const baseMetrics = [
   { id: "immersive", series: "immersive", label: "Clics 3D et AR", Icon: Box },
   { id: "searches", series: "searches", label: "Recherches", Icon: ScanLine },
 ] as const;
-function Delta({ rate }: { rate: number | null | undefined }) {
+function Delta({ rate, compact = false }: { rate: number | null | undefined; compact?: boolean }) {
  const {t}=useStudioLocale();
   return (
     <span
@@ -90,11 +90,11 @@ function Delta({ rate }: { rate: number | null | undefined }) {
       }
     >
       {rate == null
-        ? t("Comparaison N/A")
+        ? compact ? "N/A" : t("Comparaison N/A")
         : `${rate > 0 ? "+" : ""}${Math.round(rate * 100)} %`}{" "}
-      <span className={styles.muted}>
+      {!compact && <span className={styles.muted}>
         {rate == null ? "" : t("vs période précédente")}
-      </span>
+      </span>}
     </span>
   );
 }
@@ -257,7 +257,10 @@ export function AdminStudio({
   const dishRanking = (
     <section className={styles.panel}>
       <header className={styles.panelHead}>
-        <h2>{t("Les plats les plus consultés")}</h2>
+        <div>
+          <h2>{t("Les plats les plus consultés")}</h2>
+          <p>{t("Évolution")} {t("vs période précédente")}</p>
+        </div>
         {demo ? (
           <button onClick={() => onPageChange?.("dishes")}>{t("Tous les plats")}<ArrowUpRight size={15} />
           </button>
@@ -268,7 +271,7 @@ export function AdminStudio({
       </header>
       {ranking.length ? (
         <div className={styles.tableScroll}>
-          <table className={styles.table}>
+          <table className={`${styles.table} ${styles.rankingTable}`} data-studio-table="ranking">
             <thead>
               <tr>
                 <th>{t("Plat")}</th>
@@ -290,6 +293,7 @@ export function AdminStudio({
                     <td>{number(row.count)}</td>
                     <td>
                       <Delta
+                        compact
                         rate={
                           item
                             ? data.dishStatistics?.[item.id]?.changeRate

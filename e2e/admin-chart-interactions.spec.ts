@@ -65,17 +65,20 @@ test("studio all required viewports stay within the document width", async ({
       { width: 1672, height: 941 },
       { width: 1920, height: 1080 },
     ]) {
-      await page.setViewportSize(viewport);
-      await page.goto(route, { waitUntil: "domcontentloaded" });
-      await expect
-        .poll(() =>
-          page.evaluate(
-            () =>
-              document.documentElement.scrollWidth <=
-              document.documentElement.clientWidth,
-          ),
-        )
-        .toBe(true);
+      await test.step(`${route} at ${viewport.width}px`, async () => {
+        await page.setViewportSize(viewport);
+        await page.goto(route, { waitUntil: "domcontentloaded" });
+        await expect(page.locator("[data-admin-studio]")).toBeVisible();
+        await expect
+          .poll(() =>
+            page.evaluate(
+              () =>
+                document.documentElement.scrollWidth <=
+                document.documentElement.clientWidth,
+            ),
+          )
+          .toBe(true);
+      });
     }
   }
 });

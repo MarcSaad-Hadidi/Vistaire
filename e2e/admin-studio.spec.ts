@@ -19,6 +19,23 @@ async function preview(page: Page) {
   await page.goto("/admin");
   await expect(page.locator("[data-admin-studio]")).toBeVisible();
 }
+async function expectSemanticSwitchTracks(page: Page) {
+  for (const available of [true, false]) {
+    const track = await page
+      .locator(`[role="switch"][aria-checked="${available}"]`)
+      .first()
+      .evaluate((element, isAvailable) => {
+        const style = getComputedStyle(element);
+        const token = style.getPropertyValue(isAvailable ? "--available" : "--unavailable").trim();
+        const channels = token.match(/^#(..)(..)(..)$/)?.slice(1).map((channel) => Number.parseInt(channel, 16));
+        return {
+          actual: getComputedStyle(element, "::before").backgroundColor,
+          expected: channels ? `rgb(${channels.join(", ")})` : token,
+        };
+      }, available);
+    expect(track.actual).toBe(track.expected);
+  }
+}
 for (const width of [390, 430, 1440])
   test(`studio four destinations, theme, evidence and export cancellation at ${width}px`, async ({
     page,
@@ -79,6 +96,19 @@ for (const width of [390, 430, 1440])
     await expect(page.getByRole("dialog")).toBeVisible();
     await page.keyboard.press("Escape");
     await expect(page.getByRole("dialog")).toHaveCount(0);
+    const ranking = page.locator('[data-studio-table="ranking"]');
+    const rankingBox = await ranking.boundingBox();
+    const nameBox = await ranking.locator("tbody tr").first().locator("td").first().boundingBox();
+    expect(nameBox!.width).toBeGreaterThanOrEqual(rankingBox!.width * 0.48);
+    await expect(ranking.getByText("vs période précédente")).toHaveCount(0);
+    const heatmap = page.locator('[data-kind-ui="heatmap-grid"]');
+    await expect(heatmap.getByRole("gridcell")).toHaveCount(168);
+    const heatmapBox = await heatmap.boundingBox();
+    const lastHour = await heatmap.getByRole("gridcell").last().boundingBox();
+    expect(lastHour!.width).toBeGreaterThan(0);
+    expect(lastHour!.x + lastHour!.width).toBeLessThanOrEqual(heatmapBox!.x + heatmapBox!.width + 1);
+    expect(await heatmap.evaluate((table) => table.scrollWidth <= table.clientWidth + 1)).toBe(true);
+    expect(await heatmap.locator("..").evaluate((wrapper) => wrapper.scrollWidth <= wrapper.clientWidth + 1)).toBe(true);
     await page.screenshot({
       path: testInfo.outputPath(`vistaire-studio-overview-dark-${width}.png`),
       fullPage: true,
@@ -113,6 +143,15 @@ for (const width of [390, 430, 1440])
     ).toBeVisible();
     for (const input of await page.getByRole("switch").all())
       await expect(input).toBeDisabled();
+    await expectSemanticSwitchTracks(page);
+    if (width < 650) {
+      for (const name of ["Catégorie", "Disponibilité"]) {
+        const control = page.getByRole("combobox", { name, exact: true });
+        const box = await control.boundingBox();
+        expect(box!.width).toBeGreaterThanOrEqual(280);
+        expect(box!.height).toBeGreaterThanOrEqual(44);
+      }
+    }
     await page
       .getByRole("searchbox", { name: "Rechercher un plat" })
       .fill("no-such-dish");
@@ -145,6 +184,7 @@ for (const width of [390, 430, 1440])
         .filter({ visible: true }),
     ).toHaveCount(1);
     await page.getByRole("button", { name: "Passer au thème clair" }).click();
+    await expectSemanticSwitchTracks(page);
     await page.screenshot({
       path: testInfo.outputPath(`vistaire-studio-${width}.png`),
       fullPage: true,
@@ -219,6 +259,7 @@ test("studio exact chart evidence, keyboard inspection, legends and periods repl
   const day = new Intl.DateTimeFormat("fr-CA", {
     day: "numeric",
     month: "short",
+    year: "numeric",
     timeZone: "UTC",
   }).format(new Date(bucket));
   const row = trend
@@ -304,6 +345,21 @@ test("studio reduced motion retains chart geometry and touch exposes exact value
       )
       .toBe(0);
     await page.goto("/admin/insights");
+    // Responsive chart surfaces mount after the route's server HTML arrives.
+    // Await the same geometry contract rather than sampling before hydration.
+    await expect
+      .poll(() => page.locator("svg.recharts-surface").count())
+      .toBeGreaterThanOrEqual(6);
+    await expect
+      .poll(() =>
+        page.locator("svg.recharts-surface").evaluateAll((elements) =>
+          elements.every((element) => {
+            const box = element.getBoundingClientRect();
+            return box.width > 0 && box.height > 0;
+          }),
+        ),
+      )
+      .toBe(true);
     const chartBoxes = await page
       .locator("svg.recharts-surface")
       .evaluateAll((elements) =>

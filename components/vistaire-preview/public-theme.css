@@ -41,3 +41,33 @@ html[data-vistaire-theme="light"] :is([data-public-vistaire], [data-vistaire-chr
   color: var(--public-on-accent);
   background: var(--public-gold);
 }
+
+/*! BeUI ThemeToggle, Copyright (c) 2026 Saurabh Chauhan, MIT.
+ * https://beui.dev/components/motion/theme-toggle — docs/licenses/beui-MIT.txt
+ * Blinds variant, shortened to 450ms; no full-page blur or extra dependency. */
+@property --vistaire-theme-slat {
+  syntax: "<length>";
+  inherits: false;
+  initial-value: 72px;
+}
+html[data-vistaire-theme-transition="blinds"]::view-transition-old(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+html[data-vistaire-theme-transition="blinds"]::view-transition-new(root) {
+  mix-blend-mode: normal;
+  mask-image: linear-gradient(90deg, #000 0 var(--vistaire-theme-slat), transparent calc(var(--vistaire-theme-slat) + 20px));
+  mask-size: 72px 100%;
+  mask-repeat: repeat;
+  animation: vistaire-theme-blinds-reveal 450ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+@keyframes vistaire-theme-blinds-reveal {
+  from { --vistaire-theme-slat: -20px; }
+  to { --vistaire-theme-slat: 72px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  html[data-vistaire-theme-transition="blinds"]::view-transition-new(root) {
+    animation: none;
+    mask-image: none;
+  }
+}

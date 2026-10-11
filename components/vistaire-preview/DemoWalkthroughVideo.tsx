@@ -6,11 +6,17 @@ import { useEffect, useRef, useState } from "react";
 export function DemoWalkthroughVideo({
   label,
   poster,
-  src
+  src,
+  controls = false,
+  autoPlay = true,
+  sizes = "(max-width: 760px) 80vw, 340px"
 }: {
   label: string;
   poster: string;
   src: string;
+  controls?: boolean;
+  autoPlay?: boolean;
+  sizes?: string;
 }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [decoded, setDecoded] = useState(false);
@@ -23,20 +29,20 @@ export function DemoWalkthroughVideo({
     let isIntersecting = false;
     const updatePlayback = () => {
       if (!video.isConnected) return;
-      if (!isIntersecting || motion.matches) {
+      if (!isIntersecting || (motion.matches && !controls)) {
         video.pause();
         return;
       }
       if (!video.hasAttribute("src")) video.src = src;
       // Explicit playback also resumes a muted clip when WebKit reveals it again.
-      void video.play().catch(() => undefined);
+      if (autoPlay && !motion.matches) void video.play().catch(() => undefined);
     };
     const observer = new IntersectionObserver(
       ([entry]) => {
         isIntersecting = Boolean(entry?.isIntersecting);
         updatePlayback();
       },
-      { rootMargin: "200px 0px" }
+      { rootMargin: controls ? "0px" : "200px 0px" }
     );
     motion.addEventListener("change", updatePlayback);
     const observeVideo = () => observer.observe(video);
@@ -56,7 +62,7 @@ export function DemoWalkthroughVideo({
       observer.disconnect();
       releaseVideo();
     };
-  }, [src]);
+  }, [src, controls, autoPlay]);
 
   return (
     <div className="public-film-frame">
@@ -65,24 +71,25 @@ export function DemoWalkthroughVideo({
         aria-hidden="true"
         className="public-film-poster"
         fill
-        sizes="(max-width: 760px) 80vw, 340px"
+        sizes={sizes}
         src={poster}
         unoptimized
       />
       <video
         aria-label={label}
-        autoPlay
+        autoPlay={autoPlay}
+        controls={controls}
         data-demo-video
         loop
         muted
         playsInline
         poster={poster}
-        preload="metadata"
+        preload={controls ? "none" : "metadata"}
         ref={videoRef}
         onLoadedData={() => setDecoded(true)}
         onPlaying={() => setDecoded(true)}
         onError={() => setDecoded(false)}
-        style={{ opacity: decoded ? 1 : 0 }}
+        style={{ opacity: decoded || controls ? 1 : 0 }}
       />
     </div>
   );

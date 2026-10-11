@@ -1,7 +1,7 @@
 import Link from "next/link";
 import type { Locale } from "@/lib/i18n";
 import { RESTAURATEUR_PREVIEW_COPY } from "@/lib/restaurateurPreview/copy";
-import { RestaurateurDashboardDemo } from "./RestaurateurDashboardDemo";
+import { DashboardWalkthrough } from "./DashboardWalkthrough";
 import {
   getVistaireChromeRoutes,
   PreviewFooter,
@@ -84,7 +84,7 @@ export function VistaireRestaurateurDashboardPreview({
             <h2 id="demo-data-title">{copy.demoLabel}</h2>
             <p>{copy.demoStatement}</p>
           </header>
-          <RestaurateurDashboardDemo locale={locale} />
+          <DashboardWalkthrough locale={locale} />
         </section>
         <section className={styles.afterDemo}>
           <article className={`${styles.card} ${styles.finalCopy}`}>

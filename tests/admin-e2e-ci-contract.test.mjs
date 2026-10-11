@@ -445,3 +445,11 @@ test("admin E2E specification contains no mojibake", async () => {
   assert.match(spec, /Déconnexion/);
   assert.match(spec, /Accès dashboard restaurant requis/);
 });
+
+test("WebKit validates Studio before independent public video journeys without suppressing either suite", async () => {
+  const workflow = await readFile(".github/workflows/app-ci.yml", "utf8");
+  const webkit = workflow.slice(workflow.indexOf("  webkit-critical:"), workflow.indexOf("  ci-gate:"));
+  assert.ok(webkit.indexOf("npm run test:admin:full-menu") < webkit.indexOf("npm run test:ci:e2e:webkit"));
+  assert.match(webkit, /name: Public critical browser suite \(WebKit\)\n\s+if: \$\{\{ !cancelled\(\) \}\}\n\s+run: npm run test:ci:e2e:webkit/);
+  assert.doesNotMatch(webkit, /continue-on-error/);
+});

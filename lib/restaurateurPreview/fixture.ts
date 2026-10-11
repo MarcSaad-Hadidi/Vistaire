@@ -158,7 +158,7 @@ const label = (fr: string, en = fr) => text(fr, en);
 
 export const RESTAURATEUR_PREVIEW_FIXTURE: RestaurateurPreviewFixture = {
   generatedAt: "2026-08-08T22:00:00.000Z",
-  restaurant: { demo: true, name: text("Maison Élyse — Démo", "Maison Élyse — Demo") },
+  restaurant: { demo: true, name: text("Maison Élyse · Démo", "Maison Élyse · Demo") },
   categories: [...categories],
   dishes,
   periods: {
