@@ -24,6 +24,36 @@ const e2eRunner = await readFile(new URL("../scripts/run-playwright-e2e.mjs", im
 const fetchGraph = await readFile(new URL("../scripts/ci/fetch-pr-graph.mjs", import.meta.url), "utf8");
 const packageJson = JSON.parse(await readFile(new URL("../package.json", import.meta.url), "utf8"));
 
+test("CPU diagnostic is opt-in, preserves the full journey gate, and passes its flag through an environment variable", () => {
+  const dispatch = workflow.slice(workflow.indexOf('  workflow_dispatch:'), workflow.indexOf('\npermissions:'));
+  assert.equal([...dispatch.matchAll(/diagnostic_profile:/g)].length, 2, 'dispatch and reusable workflow expose the option');
+  assert.equal([...dispatch.matchAll(/diagnostic_profile:\n(?:.*\n)*?\s+default: false/g)].length, 2);
+  const job = workflow.slice(workflow.indexOf('  landing-performance:'), workflow.indexOf('  webkit-critical:'));
+  assert.match(job, /inputs\.diagnostic_profile == true/);
+  assert.match(job, /DIAGNOSTIC_PROFILE:.*inputs\.diagnostic_profile/);
+  assert.match(job, /--diagnostic-profile/);
+  assert.match(job, /timeout-minutes: 30/);
+  assert.match(job, /node scripts\/diagnose-landing-composition\.mjs --journey-qa/);
+  assert.doesNotMatch(job, /run:.*\$\{\{.*diagnostic_profile/);
+  const gate = workflow.slice(workflow.indexOf('  ci-gate:'));
+  assert.match(gate, /RUN_PERFORMANCE:.*inputs\.diagnostic_profile == true/);
+});
+
+test("landing-diagnostic label selects one profiled journey and keeps the performance gate required", () => {
+  const job = workflow.slice(workflow.indexOf('  landing-performance:'), workflow.indexOf('  webkit-critical:'));
+  const label = /contains\(github\.event\.pull_request\.labels\.\*\.name, 'landing-diagnostic'\)/;
+  assert.match(job.slice(0, job.indexOf('    runs-on:')), label, 'label activates job');
+  const normal = job.slice(job.indexOf('      - name: Measure normal-motion'), job.indexOf('      - name: Validate all landing chapters'));
+  const normalCondition = normal.match(/if: (.*)/)?.[1] || '';
+  assert.match(normalCondition, /!\(/, 'normal benchmark is excluded for diagnostic workload');
+  assert.match(normalCondition, label);
+  const journey = job.slice(job.indexOf('      - name: Validate all landing chapters'));
+  assert.match(journey.match(/if: (.*)/)?.[1] || '', label, 'label selects full journey');
+  assert.match(journey.match(/DIAGNOSTIC_PROFILE: (.*)/)?.[1] || '', label, 'label enables profiler boolean');
+  const gate = workflow.slice(workflow.indexOf('  ci-gate:'));
+  assert.match(gate.match(/RUN_PERFORMANCE: (.*)/)?.[1] || '', label, 'requested diagnostic remains required by gate');
+});
+
 test("App CI exposes the production job topology and all event modes", () => {
   for (const job of [
     "classify-changes", "fast-gate", "static-quality", "database-contracts", "build-app",

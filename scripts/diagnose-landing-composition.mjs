@@ -7,13 +7,16 @@ import { spawn, execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import os from 'node:os';
+import { summarizeCPUProfile } from './landing-cpu-profile.mjs';
 
 // One caller-owned hermetic fixture; verified builds already exist. No build,
 // dependency installation, remote server, or concurrent benchmark is started.
 const require = createRequire(import.meta.url);
 const { chromium } = require('@playwright/test');
 const journeyQA = process.argv.includes('--journey-qa');
-assert.ok(process.argv.slice(2).every(arg => arg === '--journey-qa'), 'Only --journey-qa is supported');
+const diagnosticProfile = process.argv.includes('--diagnostic-profile');
+assert.ok(process.argv.slice(2).every(arg => ['--journey-qa', '--diagnostic-profile'].includes(arg)), 'Unknown diagnostic argument');
+assert.ok(!diagnosticProfile || journeyQA, 'CPU profiling is a separate journey diagnostic, never a paired performance result');
 const runtimes = JSON.parse(process.env.VISTAIRE_COMPOSITION_RUNTIMES_JSON || '{}');
 const output = path.resolve(process.env.VISTAIRE_COMPOSITION_OUTPUT || 'composition-results');
 const baseURL = 'http://127.0.0.1:3000';
@@ -552,14 +555,25 @@ function assertJourneySample(sample, stageHeight, region, cardIndex) {
 async function journeyPass() {
   const result = { label: 'candidate', status: 'running', replays: [], checkpoints: [], findings: [], regionCoverage: {} };
   report.visual.push(result); await save();
-  let page;
+  let page, client, profileStarted = false;
   const captureEvidence = async () => {
     result.draws = await bounded(() => page.evaluate(() => window.__compositionVisual.read()), 'journey passive evidence');
     result.inputs = await bounded(() => page.evaluate(() => ({ requested: window.__compositionInputs.requested, delivered: window.__compositionInputs.delivered, overflow: window.__compositionInputs.overflow })), 'journey input evidence');
   };
   try {
     await startRuntime('candidate', 'journey-qa');
-    ({ page } = await openPage('candidate', result, true, true));
+    ({ page, client } = await openPage('candidate', result, true, true));
+    if (diagnosticProfile) {
+      result.cpuProfile = { status: 'starting', samplingIntervalUs: 10000,
+        scope: 'Heavy journey QA after readiness; screenshots, probes and profiling add overhead. Not visitor performance or a baseline/candidate gain.' };
+      await bounded(() => client.send('Profiler.enable'), 'CPU profiler enable');
+      await bounded(() => client.send('Profiler.setSamplingInterval', { interval: 10000 }), 'CPU profiler interval');
+      result.cpuProfile.startedAt = new Date().toISOString();
+      result.cpuProfile.pageStartedAt = await page.evaluate(() => performance.now());
+      await bounded(() => client.send('Profiler.start'), 'CPU profiler start');
+      profileStarted = true;
+      result.cpuProfile.status = 'recording';
+    }
     report.renderer = await page.evaluate(() => {
       const canvas = document.querySelector('.scene-canvas'), gl = canvas.getContext('webgl2') || canvas.getContext('webgl');
       if (!gl) return null;
@@ -619,7 +633,21 @@ async function journeyPass() {
       const screenshot = direction === 'forward' && ((span.kind === 'join' && fraction === .5) || (span.name === 'ai:hold' && fraction === .5) || cardIndex != null);
       if (screenshot) {
         record.image = { file: `candidate-${span.name.replaceAll(':', '-')}-${cardIndex == null ? 'midpoint' : `hold-${cardIndex}`}.png`, startedAt: await page.evaluate(() => performance.now()) };
-        await bounded(() => page.screenshot({ path: path.join(output, record.image.file) }), 'journey checkpoint screenshot');
+        record.image.options = { animations: 'allow', timeout: 40000 };
+        const captureStarted = performance.now();
+        try {
+          // Let Playwright enforce the same existing 40s bound so its own error
+          // retains the capture call log (fonts/preparation/capture), rather
+          // than replacing it with a generic Promise.race deadline.
+          await page.screenshot({ path: path.join(output, record.image.file), ...record.image.options });
+          record.image.status = 'completed';
+        } catch (error) {
+          record.image.status = 'failed';
+          record.image.error = describeCleanupError(error);
+          throw error;
+        } finally {
+          record.image.wallElapsedMs = performance.now() - captureStarted;
+        }
         record.image.endedAt = await page.evaluate(() => performance.now());
       }
       await save();
@@ -672,6 +700,20 @@ async function journeyPass() {
       await bounded(captureEvidence, 'failure journey evidence', 1000).catch(() => {});
     }
   } finally {
+    if (profileStarted) {
+      try {
+        const { profile } = await bounded(() => client.send('Profiler.stop'), 'CPU profiler stop');
+        result.cpuProfile.file = 'candidate-journey.cpuprofile';
+        await writeFile(path.join(output, result.cpuProfile.file), JSON.stringify(profile));
+        result.cpuProfile.summary = summarizeCPUProfile(profile);
+        result.cpuProfile.status = 'saved';
+        result.cpuProfile.finishedAt = new Date().toISOString();
+      } catch (error) {
+        result.cpuProfile.status = 'failed';
+        result.cpuProfile.error = describeCleanupError(error);
+        result.status = 'failed';
+      }
+    }
     await save();
     try { await stopRuntime('candidate:journey-qa'); result.cleanupComplete = true; }
     catch (error) { result.cleanupComplete = false; result.cleanupError = describeCleanupError(error); await save(); throw error; }
