@@ -8,6 +8,7 @@ import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import os from 'node:os';
 import { summarizeCPUProfile } from './landing-cpu-profile.mjs';
+import { traceScreenshot } from './landing-screenshot-trace.mjs';
 
 // One caller-owned hermetic fixture; verified builds already exist. No build,
 // dependency installation, remote server, or concurrent benchmark is started.
@@ -639,7 +640,11 @@ async function journeyPass() {
           // Let Playwright enforce the same existing 40s bound so its own error
           // retains the capture call log (fonts/preparation/capture), rather
           // than replacing it with a generic Promise.race deadline.
-          await page.screenshot({ path: path.join(output, record.image.file), ...record.image.options });
+          const capture = () => page.screenshot({ path: path.join(output, record.image.file), ...record.image.options });
+          if (diagnosticProfile && result.phase === 'features:presentation:forward:hold-2') {
+            record.image.nativeTrace = {};
+            await traceScreenshot(client, capture, { file: path.join(output, 'candidate-features-hold-2.trace.json'), record: record.image.nativeTrace });
+          } else await capture();
           record.image.status = 'completed';
         } catch (error) {
           record.image.status = 'failed';

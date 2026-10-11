@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
+import vm from "node:vm";
 
 const workflow = await readFile(new URL("../.github/workflows/app-ci.yml", import.meta.url), "utf8");
 const nightly = await readFile(new URL("../.github/workflows/nightly.yml", import.meta.url), "utf8");
@@ -52,6 +53,27 @@ test("landing-diagnostic label selects one profiled journey and keeps the perfor
   assert.match(journey.match(/DIAGNOSTIC_PROFILE: (.*)/)?.[1] || '', label, 'label enables profiler boolean');
   const gate = workflow.slice(workflow.indexOf('  ci-gate:'));
   assert.match(gate.match(/RUN_PERFORMANCE: (.*)/)?.[1] || '', label, 'requested diagnostic remains required by gate');
+});
+
+test("diagnostic matrix separates native QA tracing from the unchanged active workload", () => {
+  const job = workflow.slice(workflow.indexOf('  landing-performance:'), workflow.indexOf('  webkit-critical:'));
+  assert.match(job, /fail-fast: false/);
+  assert.match(job, /workload:.*fromJSON.*composition.*active.*selected/);
+  assert.match(job, /workload:.*inputs\.diagnostic_profile.*landing-diagnostic/);
+  assert.match(job, /timeout-minutes: 30/);
+  const normal = job.slice(job.indexOf('      - name: Measure normal-motion'), job.indexOf('      - name: Validate all landing chapters'));
+  assert.match(normal.match(/if: (.*)/)?.[1] || '', /matrix\.workload == 'active'/);
+  assert.match(normal.match(/if: (.*)/)?.[1] || '', /matrix\.workload == 'selected'/);
+  assert.match(normal, /node scripts\/benchmark-landing\.mjs/);
+  assert.doesNotMatch(normal, /--diagnostic-profile|diagnose-landing-composition|Profiler\.|Tracing\./);
+  const journey = job.slice(job.indexOf('      - name: Validate all landing chapters'), job.indexOf('      - name: Preserve performance'));
+  assert.match(journey.match(/if: (.*)/)?.[1] || '', /matrix\.workload == 'composition'/);
+  assert.match(journey.match(/if: (.*)/)?.[1] || '', /matrix\.workload == 'selected'/);
+  assert.doesNotMatch(journey.match(/if: (.*)/)?.[1] || '', /matrix\.workload == 'active'/);
+  assert.match(job, /name: landing-performance-\$\{\{ github\.run_id \}\}-\$\{\{ matrix\.workload \}\}/);
+  const gate = workflow.slice(workflow.indexOf('  ci-gate:'), workflow.indexOf('  ci-metrics:'));
+  assert.match(gate, /needs\.landing-performance\.result/);
+  assert.match(gate, /\[landing-performance\]="\$RUN_PERFORMANCE"/);
 });
 
 test("App CI exposes the production job topology and all event modes", () => {
@@ -377,7 +399,7 @@ test("landing performance is opt-in, hermetic, serial and fail-closed when reque
   assert.match(job, /name: next-build-\$\{\{ github\.run_id \}\}/);
   assert.match(job, /NEXT_PUBLIC_SUPABASE_URL: http:\/\/127\.0\.0\.1:55434/);
   assert.match(job, /node scripts\/benchmark-landing\.mjs/);
-  assert.doesNotMatch(job, /npm run build|strategy:|--disable-frame-rate-limit/);
+  assert.doesNotMatch(job, /npm run build|--disable-frame-rate-limit/);
   assert.match(job, /if-no-files-found: error/);
   const gate = workflow.slice(workflow.indexOf("  ci-gate:"), workflow.indexOf("  ci-metrics:"));
   assert.match(gate, /needs\.landing-performance\.result/);
@@ -395,7 +417,29 @@ test("full-journey composition QA uses the current build and one exclusive workl
   assert.match(job, /node scripts\/diagnose-landing-composition\.mjs --journey-qa/);
   assert.doesNotMatch(job, /export VISTAIRE_COMPOSITION_RUNTIMES_JSON=/);
   assert.match(job, /export VISTAIRE_COMPOSITION_RUNTIMES_JSON\n/);
-  assert.match(job, /if: \$\{\{ !\(inputs\.composition == true/);
+  const normalStep = job.slice(job.indexOf('      - name: Measure normal-motion'), job.indexOf('      - name: Validate all landing chapters'));
+  const journeyStep = job.slice(job.indexOf('      - name: Validate all landing chapters'));
+  const evaluate = (step, workload, composition, diagnostic, compositionLabel, diagnosticLabel) => {
+    const expression = step.match(/if: \$\{\{ (.*?) \}\}/)?.[1];
+    assert.ok(expression, 'workload condition must be explicit');
+    const labels = [compositionLabel && 'landing-composition', diagnosticLabel && 'landing-diagnostic'].filter(Boolean);
+    return vm.runInNewContext(expression.replaceAll('github.event.pull_request.labels.*.name', 'labels'), {
+      matrix: { workload }, inputs: { composition, diagnostic_profile: diagnostic }, labels,
+      contains: (values, value) => values.includes(value),
+    });
+  };
+  for (const workload of ['selected', 'active', 'composition']) {
+    for (const composition of [false, true]) for (const diagnostic of [false, true]) {
+      for (const compositionLabel of [false, true]) for (const diagnosticLabel of [false, true]) {
+        const qa = composition || diagnostic || compositionLabel || diagnosticLabel;
+        const args = [workload, composition, diagnostic, compositionLabel, diagnosticLabel];
+        const normal = evaluate(normalStep, ...args), journey = evaluate(journeyStep, ...args);
+        assert.equal(normal, workload === 'active' || (workload === 'selected' && !qa), `normal workload ${JSON.stringify(args)}`);
+        assert.equal(journey, workload === 'composition' || (workload === 'selected' && qa), `journey workload ${JSON.stringify(args)}`);
+        assert.notEqual(normal, journey, 'exactly one workload per runner');
+      }
+    }
+  }
   assert.match(job, /timeout-minutes: 30/);
   assert.doesNotMatch(job, /continue-on-error: true|--disable-frame-rate-limit/);
   const gate = workflow.slice(workflow.indexOf("  ci-gate:"), workflow.indexOf("  ci-metrics:"));

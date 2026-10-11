@@ -601,8 +601,13 @@ jobs:
     needs: [classify-changes, fast-gate, static-quality, build-app]
     if: ${{ !cancelled() && needs.classify-changes.result == 'success' && needs.fast-gate.result == 'success' && needs.static-quality.result == 'success' && needs.build-app.result == 'success' && needs.classify-changes.outputs.run_landing == 'true' && (inputs.benchmark == true || contains(github.event.pull_request.labels.*.name, 'landing-performance') || inputs.composition == true || contains(github.event.pull_request.labels.*.name, 'landing-composition') || (inputs.diagnostic_profile == true || contains(github.event.pull_request.labels.*.name, 'landing-diagnostic'))) }}
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        workload: ${{ (inputs.diagnostic_profile == true || contains(github.event.pull_request.labels.*.name, 'landing-diagnostic')) && fromJSON('["composition","active"]') || fromJSON('["selected"]') }}
     timeout-minutes: 30
-    # Measurements run serially on a separate runner after the production build.
+    # Each workload runs serially on its own runner after the same production build.
+    # Diagnostic and active runners are distinct experiments, not an A/B comparison.
     # SwiftShader results establish software-renderer behavior, not physical GPU FPS.
     env:
       NEXT_PUBLIC_SUPABASE_URL: http://127.0.0.1:55434
@@ -631,7 +636,7 @@ jobs:
           name: next-build-${{ github.run_id }}
           path: .next
       - name: Measure normal-motion landing against hermetic production server
-        if: ${{ !(inputs.composition == true || contains(github.event.pull_request.labels.*.name, 'landing-composition') || (inputs.diagnostic_profile == true || contains(github.event.pull_request.labels.*.name, 'landing-diagnostic'))) }}
+        if: ${{ matrix.workload == 'active' || (matrix.workload == 'selected' && !(inputs.composition == true || contains(github.event.pull_request.labels.*.name, 'landing-composition') || (inputs.diagnostic_profile == true || contains(github.event.pull_request.labels.*.name, 'landing-diagnostic')))) }}
         env:
           VISTAIRE_BENCHMARK_OUTPUT: ${{ runner.temp }}/landing-performance
         shell: bash
@@ -656,7 +661,7 @@ jobs:
           curl --fail --silent http://127.0.0.1:3000 > /dev/null
           node scripts/benchmark-landing.mjs
       - name: Validate all landing chapters on the current build
-        if: ${{ inputs.composition == true || contains(github.event.pull_request.labels.*.name, 'landing-composition') || (inputs.diagnostic_profile == true || contains(github.event.pull_request.labels.*.name, 'landing-diagnostic')) }}
+        if: ${{ matrix.workload == 'composition' || (matrix.workload == 'selected' && (inputs.composition == true || contains(github.event.pull_request.labels.*.name, 'landing-composition') || (inputs.diagnostic_profile == true || contains(github.event.pull_request.labels.*.name, 'landing-diagnostic')))) }}
         env:
           VISTAIRE_COMPOSITION_OUTPUT: ${{ runner.temp }}/landing-performance/composition
           DIAGNOSTIC_PROFILE: ${{ inputs.diagnostic_profile == true || contains(github.event.pull_request.labels.*.name, 'landing-diagnostic') }}
@@ -687,7 +692,7 @@ jobs:
         if: ${{ always() }}
         uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
         with:
-          name: landing-performance-${{ github.run_id }}
+          name: landing-performance-${{ github.run_id }}-${{ matrix.workload }}
           path: ${{ runner.temp }}/landing-performance/
           if-no-files-found: error
           retention-days: 7
