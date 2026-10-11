@@ -53,7 +53,7 @@ permissions:
   actions: read
 
 concurrency:
-  group: vistaire-ci-${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.event.pull_request.number || github.ref }}
+  group: vistaire-ci-${{ github.workflow }}-${{ (inputs.diagnostic_profile == true || contains(github.event.pull_request.labels.*.name, 'landing-diagnostic')) && format('diagnostic-{0}', github.run_id) || (github.event_name == 'pull_request' && github.event.pull_request.number || github.ref) }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:

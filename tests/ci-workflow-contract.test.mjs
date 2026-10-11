@@ -76,6 +76,27 @@ test("diagnostic matrix separates native QA tracing from the unchanged active wo
   assert.match(gate, /\[landing-performance\]="\$RUN_PERFORMANCE"/);
 });
 
+test("diagnostic concurrency preserves existing runs while ordinary PR concurrency remains unchanged", () => {
+  const block = workflow.slice(workflow.indexOf('\nconcurrency:'), workflow.indexOf('\nenv:'));
+  const group = block.match(/group: (.*)/)?.[1];
+  assert.ok(group);
+  const evaluate = ({ diagnostic = false, labeled = false, run = 1, event = 'pull_request' } = {}) =>
+    group.replace(/\$\{\{ (.*?) \}\}/g, (_, expression) => String(vm.runInNewContext(
+      expression.replaceAll('github.event.pull_request.labels.*.name', 'labels'), {
+        inputs: { diagnostic_profile: diagnostic }, labels: labeled ? ['landing-diagnostic'] : [],
+        github: { workflow: 'App CI', run_id: run, event_name: event, ref: 'refs/heads/main', event: { pull_request: { number: 296 } } },
+        contains: (values, value) => values.includes(value),
+        format: (template, ...values) => template.replace(/\{(\d+)\}/g, (_, index) => String(values[Number(index)])),
+      })));
+  assert.equal(evaluate(), 'vistaire-ci-App CI-296');
+  assert.equal(evaluate({ run: 2 }), evaluate(), 'ordinary PR pushes keep cancellation group');
+  assert.equal(evaluate({ event: 'push' }), 'vistaire-ci-App CI-refs/heads/main');
+  assert.notEqual(evaluate({ diagnostic: true, run: 1 }), evaluate({ diagnostic: true, run: 2 }));
+  assert.notEqual(evaluate({ labeled: true, run: 1 }), evaluate({ labeled: true, run: 2 }));
+  assert.notEqual(evaluate({ labeled: true }), evaluate(), 'diagnostic must not cancel ordinary PR run');
+  assert.match(block, /cancel-in-progress: \$\{\{ github\.event_name == 'pull_request' \}\}/);
+});
+
 test("App CI exposes the production job topology and all event modes", () => {
   for (const job of [
     "classify-changes", "fast-gate", "static-quality", "database-contracts", "build-app",
