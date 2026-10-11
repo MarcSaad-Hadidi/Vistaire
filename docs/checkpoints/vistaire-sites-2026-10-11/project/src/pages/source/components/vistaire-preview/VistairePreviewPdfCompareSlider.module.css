@@ -1,0 +1,530 @@
+.figure {
+  width: min(100%, 430px);
+  margin: 0;
+}
+
+.phoneFrame {
+  position: relative;
+  width: 100%;
+  border: 9px solid #050505;
+  border-radius: 42px;
+  background: #050505;
+  box-shadow:
+    0 28px 80px rgba(5, 5, 5, 0.55),
+    0 0 0 1px rgba(248, 243, 232, 0.05);
+}
+
+.notch {
+  position: absolute;
+  left: 50%;
+  top: 8px;
+  z-index: 40;
+  width: 34%;
+  height: 18px;
+  transform: translateX(-50%);
+  border-radius: 999px;
+  background: rgba(5, 5, 5, 0.92);
+  pointer-events: none;
+}
+
+.screen {
+  position: relative;
+  aspect-ratio: 9 / 16;
+  overflow: hidden;
+  border-radius: 34px;
+  background: #050505;
+}
+
+.slider {
+  --split: 50%;
+
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  touch-action: manipulation;
+  user-select: none;
+}
+
+.vistaireLayer,
+.pdfLayer {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  transform: translateZ(0);
+  will-change: clip-path;
+}
+
+.vistaireLayer {
+  clip-path: inset(0 0 0 var(--split));
+}
+
+.pdfLayer {
+  z-index: 10;
+  clip-path: inset(0 calc(100% - var(--split)) 0 0);
+}
+
+.pdfScene {
+  position: absolute;
+  inset: 0;
+  overflow: clip;
+  overscroll-behavior: contain;
+  background: #f8f3e8;
+  color: #050505;
+  font-family: "Vistaire Editorial", serif;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-color: rgba(5, 5, 5, 0.55) transparent;
+  scrollbar-width: thin;
+  touch-action: manipulation;
+}
+
+.pdfScene:focus-visible {
+  outline: 2px solid rgba(5, 5, 5, 0.88);
+  outline-offset: -3px;
+}
+
+.pdfContent {
+  display: flex;
+  min-height: 100%;
+  flex-direction: column;
+  padding: 9% 9% 5%;
+}
+
+.pdfRestaurant {
+  margin: 0;
+  text-align: center;
+  color: #111110;
+  font-size: 10px;
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+
+.pdfTitle {
+  margin: 5px 0 0;
+  text-align: center;
+  color: #050505;
+  font-family: "Vistaire Editorial", serif;
+  font-size: 24px;
+  font-weight: 400;
+  line-height: 1;
+}
+
+.pdfDivider {
+  width: 42px;
+  height: 1px;
+  margin: 10px auto 0;
+  background: rgba(5, 5, 5, 0.55);
+}
+
+.pdfSections {
+  display: grid;
+  gap: 9px;
+  margin-top: 14px;
+}
+
+.pdfSectionTitle {
+  margin: 0 0 5px;
+  color: #111110;
+  font-family: "Vistaire Text", serif;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.pdfRow {
+  display: flex;
+  align-items: flex-end;
+  gap: 5px;
+  color: #050505;
+  font-family: "Vistaire Text", serif;
+  font-size: 12px;
+  line-height: 1.24;
+}
+
+.pdfDishName {
+  min-width: 0;
+  flex: 1;
+}
+
+.pdfDots {
+  min-width: 8px;
+  flex: 1;
+  border-bottom: 1px dotted rgba(5, 5, 5, 0.45);
+}
+
+.pdfPrice {
+  flex: 0 0 auto;
+  color: #050505;
+  font-weight: 700;
+}
+
+.previewMenu {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  gap: 9px;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 50% 0%, rgba(255, 195, 0, 0.12), transparent 36%),
+    linear-gradient(180deg, #050505 0%, #050505 22%, #050505 68%, #050505 100%);
+  color: #f8f3e8;
+  font-family: "Vistaire Text", serif;
+  padding: 29px 12px 12px;
+}
+
+.previewMenu[data-preview-theme="trouvable"] {
+  background:
+    radial-gradient(circle at 82% 4%, rgba(255, 195, 0, 0.24), transparent 34%),
+    linear-gradient(180deg, #050505 0%, #050505 42%, #050505 100%);
+}
+
+.previewMenu[data-preview-theme="sauge-noire"] {
+  background:
+    radial-gradient(
+      circle at 14% 4%,
+      rgba(248, 243, 232, 0.2),
+      transparent 34%
+    ),
+    linear-gradient(180deg, #050505 0%, #050505 44%, #050505 100%);
+}
+
+.previewMenu[data-preview-theme="trouvable"] .previewEyebrow,
+.previewMenu[data-preview-theme="trouvable"] .featuredKicker,
+.previewMenu[data-preview-theme="trouvable"] .featuredPrice {
+  color: #ffc300;
+}
+
+.previewMenu[data-preview-theme="sauge-noire"] .previewEyebrow,
+.previewMenu[data-preview-theme="sauge-noire"] .featuredKicker,
+.previewMenu[data-preview-theme="sauge-noire"] .featuredPrice {
+  color: #cec8bd;
+}
+
+.previewMenu[data-preview-theme="sauge-noire"] .categoryCard {
+  border-color: rgba(248, 243, 232, 0.2);
+}
+
+.previewHeader {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.previewEyebrow {
+  margin: 0;
+  color: #ffc300;
+  font-size: 8.5px;
+  font-weight: 800;
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+
+.previewHeader h3 {
+  max-width: 250px;
+  margin: 0;
+  color: #f8f3e8;
+  font-family: "Vistaire Editorial", serif;
+  font-size: 30px;
+  font-weight: 400;
+  line-height: 0.94;
+}
+
+.previewTagline {
+  max-width: 270px;
+  margin: 0;
+  color: rgba(248, 243, 232, 0.86);
+  font-size: 10.5px;
+  font-weight: 700;
+  line-height: 1.38;
+}
+
+.categoryGrid {
+  display: grid;
+  align-content: start;
+  gap: 9px;
+  min-height: 0;
+  overflow: clip;
+  overscroll-behavior: contain;
+  padding-right: 1px;
+  scrollbar-color: rgba(255, 195, 0, 0.45) transparent;
+  scrollbar-width: thin;
+}
+
+.categoryGrid::-webkit-scrollbar {
+  width: 5px;
+}
+
+.categoryGrid::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: rgba(255, 195, 0, 0.42);
+}
+
+.categoryCard {
+  position: relative;
+  display: grid;
+  min-height: 88px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 195, 0, 0.2);
+  border-radius: 16px;
+  background: #050505;
+  box-shadow: inset 0 1px 0 rgba(248, 243, 232, 0.05);
+}
+
+.categoryImage {
+  position: absolute;
+  inset: 0;
+  background: rgba(255, 195, 0, 0.07);
+}
+
+.categoryImage img,
+.featuredImage img {
+  object-fit: cover;
+}
+
+.categoryShade {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(
+      90deg,
+      rgba(5, 5, 5, 0.66),
+      rgba(5, 5, 5, 0.18) 56%,
+      rgba(5, 5, 5, 0.45)
+    ),
+    linear-gradient(180deg, rgba(5, 5, 5, 0.1), rgba(5, 5, 5, 0.58));
+}
+
+.categoryCopy {
+  position: relative;
+  z-index: 1;
+  align-self: end;
+  display: grid;
+  gap: 3px;
+  padding: 0 13px 11px;
+}
+
+.categoryCopy strong,
+.featuredSection h4 {
+  margin: 0;
+  color: #f8f3e8;
+  font-family: "Vistaire Editorial", serif;
+  font-size: 21px;
+  font-weight: 400;
+  line-height: 0.98;
+}
+
+.categoryCopy small {
+  color: rgba(248, 243, 232, 0.86);
+  font-size: 8.5px;
+  font-weight: 800;
+  line-height: 1.15;
+}
+
+.featuredSection {
+  display: grid;
+  gap: 6px;
+  border-top: 1px solid rgba(255, 195, 0, 0.14);
+  padding-top: 9px;
+}
+
+.featuredKicker {
+  margin: 0;
+  color: #ffc300;
+  font-size: 8px;
+  font-weight: 800;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.featuredDish {
+  display: grid;
+  grid-template-columns: 46px minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+  border: 1px solid rgba(255, 195, 0, 0.18);
+  background: rgba(255, 195, 0, 0.045);
+  padding: 6px;
+}
+
+.featuredImage {
+  position: relative;
+  width: 46px;
+  height: 46px;
+  overflow: hidden;
+  background: rgba(248, 243, 232, 0.055);
+}
+
+.featuredCopy {
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+
+.featuredCopy strong {
+  overflow: hidden;
+  color: #f8f3e8;
+  font-size: 9.5px;
+  font-weight: 800;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.featuredCopy small {
+  display: -webkit-box;
+  overflow: hidden;
+  color: rgba(248, 243, 232, 0.68);
+  font-size: 7.5px;
+  font-weight: 700;
+  line-height: 1.22;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.featuredPrice {
+  color: #ffc300;
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.previewCta {
+  display: inline-flex;
+  min-height: 28px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(255, 195, 0, 0.24);
+  background: rgba(255, 195, 0, 0.08);
+  color: #ffc300;
+  font-size: 9px;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.layerLabel {
+  position: absolute;
+  top: 6%;
+  z-index: 30;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border-radius: 999px;
+  padding: 4px 8px;
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.pdfLabel {
+  left: 5%;
+  border: 1px solid rgba(5, 5, 5, 0.4);
+  background: rgba(248, 243, 232, 0.92);
+  color: #111110;
+}
+
+.handle {
+  position: absolute;
+  inset-block: 0;
+  left: var(--split);
+  z-index: 24;
+  width: 52px;
+  transform: translateX(-50%);
+  will-change: left;
+  cursor: ew-resize;
+  pointer-events: auto;
+  touch-action: manipulation;
+}
+
+.handle:focus-visible {
+  outline: 2px solid rgba(255, 195, 0, 0.96);
+  outline-offset: -5px;
+}
+
+.handleLine {
+  position: absolute;
+  inset-block: 8%;
+  left: 50%;
+  width: 1px;
+  transform: translateX(-50%);
+  background: linear-gradient(
+    180deg,
+    rgba(248, 243, 232, 0.2),
+    rgba(255, 195, 0, 0.9),
+    rgba(248, 243, 232, 0.2)
+  );
+  box-shadow: 0 0 16px rgba(255, 195, 0, 0.45);
+}
+
+.handleButton {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  display: grid;
+  width: 46px;
+  height: 46px;
+  transform: translate(-50%, -50%);
+  place-items: center;
+  border: 1px solid rgba(255, 195, 0, 0.62);
+  border-radius: 999px;
+  background: rgba(5, 5, 5, 0.84);
+  color: #f8f3e8;
+  box-shadow: 0 6px 24px rgba(5, 5, 5, 0.55);
+}
+
+.hint {
+  position: absolute;
+  right: 50%;
+  bottom: 8%;
+  z-index: 32;
+  max-width: 82%;
+  transform: translateX(50%);
+  border: 1px solid rgba(248, 243, 232, 0.14);
+  border-radius: 999px;
+  background: rgba(5, 5, 5, 0.76);
+  padding: 6px 9px;
+  color: rgba(248, 243, 232, 0.82);
+  font-size: 8.5px;
+  font-weight: 700;
+  line-height: 1;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.homeBar {
+  display: flex;
+  justify-content: center;
+  padding: 8px 0;
+}
+
+.homeBar span {
+  width: 28%;
+  height: 3px;
+  border-radius: 999px;
+  background: rgba(248, 243, 232, 0.18);
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+@media (max-width: 520px) {
+  .figure {
+    width: min(100%, 330px);
+  }
+
+  .phoneFrame {
+    border-width: 8px;
+    border-radius: 36px;
+  }
+
+  .screen {
+    border-radius: 29px;
+  }
+}

@@ -1,0 +1,986 @@
+[
+  {
+    "path": "public/_headers",
+    "url": "https://vistaire-actuel-fluide-e820d3.plumtuna4.chatgpt.site/_headers",
+    "bytes": 53,
+    "sha256": "d4f8032fa9c99009929feabc308bf514e16bd4cfdc833c39705ee72543d377b4"
+  },
+  {
+    "path": "public/assets/ambience-maison-elyse.webp",
+    "url": "https://vistaire-actuel-fluide-e820d3.plumtuna4.chatgpt.site/assets/ambience-maison-elyse.webp",
+    "bytes": 463964,
+    "sha256": "91f585e5a34665f900ece691855f0949ad0653db31f0b531408da726f30d9d09"
+  },
+  {
+    "path": "public/assets/ambience-sauge-noire.webp",
+    "url": "https://vistaire-actuel-fluide-e820d3.plumtuna4.chatgpt.site/assets/ambience-sauge-noire.webp",
+    "bytes": 510150,
+    "sha256": "4953c6d51d7b23478ca07c6dd61ae489eb864904494f1ce6039ff3c66113dccd"
+  },
+  {
+    "path": "public/assets/ambience-trouvable.webp",
+    "url": "https://vistaire-actuel-fluide-e820d3.plumtuna4.chatgpt.site/assets/ambience-trouvable.webp",
+    "bytes": 434982,
+    "sha256": "7503635c3366bc3f35b4ca6b88fae27f07aa1856b7a6d3903fa61da02df80470"
+  },
+  {
+    "path": "public/assets/ar/burger.usdz",
+    "url": "https://vistaire-actuel-fluide-e820d3.plumtuna4.chatgpt.site/assets/ar/burger.usdz",
+    "bytes": 13591929,
+    "sha256": "456a3bd4298b7097e1d2ba9893e433ea4dfb48bbfb2a21bdfe3dfaaf44a70f3b"
+  },
+  {
+    "path": "public/assets/ar/chocolat-fume.usdz",
+    "url": "https://vistaire-actuel-fluide-e820d3.plumtuna4.chatgpt.site/assets/ar/chocolat-fume.usdz",
+    "bytes": 3509203,
+    "sha256": "a08d98ede061832962da1b4aaf16c181ed9c67361782f3dbfc15555a82b2f500"
+  },
+  {
+    "path": "public/assets/ar/homard.usdz",
+    "url": "https://vistaire-actuel-fluide-e820d3.plumtuna4.chatgpt.site/assets/ar/homard.usdz",
+    "bytes": 7569119,
+    "sha256": "2217d36daa0d191c538467a0d1ded3394cf7a0ba033545ccae8d8a2650623d6f"
+  },
+  {
+    "path": "public/assets/ar/huitres.usdz",
+    "url": "https://vistaire-actuel-fluide-e820d3.plumtuna4.chatgpt.site/assets/ar/huitres.usdz",
+    "bytes": 6806971,
+    "sha256": "ac41cf42107a1e35aea03e0d52f95f2c6c8adb0e11507766f000fbed88e63f81"
+  },
+  {
+    "path": "public/assets/ar/poutine.usdz",
+    "url": "https://vistaire-actuel-fluide-e820d3.plumtuna4.chatgpt.site/assets/ar/poutine.usdz",
+    "bytes": 5900407,
+    "sha256": "dad91af7b5c398807f752fefd4c28e979c052fb54da699f51b3b0c29cc8c3c7b"
+  },
+  {
+    "path": "public/assets/ar/souffle.usdz",
+    "url": "https://vistaire-actuel-fluide-e820d3.plumtuna4.chatgpt.site/assets/ar/souffle.usdz",
+    "bytes": 6604754,
+    "sha256": "09e8c69e8b85a983f1c2d8082444993f31ec478fc51f47c44494b846e9e43caa"
+  },
+  {
+    "path": "public/assets/ar/sushi.usdz",
+    "url": "https://vistaire-actuel-fluide-e820d3.plumtuna4.chatgpt.site/assets/ar/sushi.usdz",
+    "bytes": 6836987,
+    "sha256": "c2e54aa0ca6117701732682dd3929a117d6e04008e7027137f624548ad83e720"
+  },
+  {
+    "path": "public/assets/bar.webp",
+    "url": "https://vistaire-actuel-fluide-e820d3.plumtuna4.chatgpt.site/assets/bar.webp",
+    "bytes": 201886,
+    "sha256": "31b9046bf5371a6c3a62a4b458ef360ee01931bdc83d641ae3fd229da73e05e8"
+  },
+  {
+    "path": "public/assets/boeuf.webp",
+    "url": "https://vistaire-actuel-fluide-e820d3.plumtuna4.chatgpt.site/assets/boeuf.webp",
+    "bytes": 217628,
+    "sha256": "44177937f3e6f384e111a72f68e61ff7cacf136087729a4ecbbca2ea15972994"
+  },
+  {
+    "path": "public/assets/burger.webp",
+    "url": "https://vistaire-actuel-fluide-e820d3.plumtuna4.chatgpt.site/assets/burger.webp",
+    "bytes": 88060,
+    "sha256": "e199e43b940c77d364cec27cb0b9cc1028ec173b6e1e8ff72a941fef31da5d3d"
+  },
+  {
+    "path": "public/assets/canette.webp",
+    "url": "https://vistaire-actuel-fluide-e820d3.plumtuna4.chatgpt.site/assets/canette.webp",
+    "bytes": 219910,
+    "sha256": "ec70ca11882eb451d366bef196eddc2b7124f96e30f286608279cc0df9a3c486"
+  },
+  {
+    "path": "public/assets/chocolat-fume.webp",
+    "url": "https://vistaire-actuel-fluide-e820d3.plumtuna4.chatgpt.site/assets/chocolat-fume.webp",
+    "bytes": 67854,
+    "sha256": "313e0ea80ad9d19db61f2d59cdb3cb1037a1a7ec7d60b4dc3dde5b71fc270f50"
+  },
+  {
+    "path": "public/assets/cinematic-landscape.webp",
+    "url": "https://vistaire-actuel-fluide-e820d3.plumtuna4.chatgpt.site/assets/cinematic-landscape.webp",
+    "bytes": 98536,
+    "sha256": "e7ba5128bcd91200ff5bc309a5a0ae51e3b76b898f7d6162495fcd26d77038bf"
+  },
+  {
+    "path": "public/assets/cinematic-portrait.webp",
+    "url": "https://vistaire-actuel-fluide-e820d3.plumtuna4.chatgpt.site/assets/cinematic-portrait.webp",
+    "bytes": 107532,
+    "sha256": "68d9ad7b687c9b05e562a2e73e4b8ba3f41f581c243629ef21cb28e70a5766d9"
+  },
+  {
+    "path": "public/assets/dashboard/dashboard-black-gold-source.jpg",
+    "url": "https://vistaire-actuel-fluide-e820d3.plumtuna4.chatgpt.site/assets/dashboard/dashboard-black-gold-source.jpg",
+    "bytes": 363144,
+    "sha256": "a6e14d32dfffeaa8834d2e39be91a87f59aaef59d8c85aeddd11fcc2b125ab50"
+  },
+  {
+    "path": "public/assets/dashboard/dashboard-black-gold.webp",
+    "url": "https://vistaire-actuel-fluide-e820d3.plumtuna4.chatgpt.site/assets/dashboard/dashboard-black-gold.webp",
+    "bytes": 108398,
+    "sha256": "4764d03f46974e8b1d1218c0120cea7cc008c71234dadc9d958674234f72ad54"
+  },
+  {
+    "path": "public/assets/dashboard/dashboard-preview.webp",
+    "url": "https://vistaire-actuel-fluide-e820d3.plumtuna4.chatgpt.site/assets/dashboard/dashboard-preview.webp",
+    "bytes": 72742,
+    "sha256": "c0a6d89a33cc79507b6f41e40ed815f0d2a0991d188a0bebb5af016c78f77346"
+  },
+  {
+    "path": "public/assets/dashboard/dashboard-public-source.jpg",
+    "url": "https://vistaire-actuel-fluide-e820d3.plumtuna4.chatgpt.site/assets/dashboard/dashboard-public-source.jpg",
+    "bytes": 214091,
+    "sha256": "0a7182176fd0ac725fbb5f269a97abfc1dab8031623f7ecd1c5b112621f07842"
+  },
+  {
+    "path": "public/assets/dashboard/macbook.glb",
+    "url": "https://vistaire-actuel-fluide-e820d3.plumtuna4.chatgpt.site/assets/dashboard/macbook.glb",
+    "bytes": 312960,
+    "sha256": "173c283b3e225eb3d657a4ef597a9886c873fb6b3b64583196e19add7d0b6cf6"
+  },
+  {
+    "path": "public/assets/dashboard/provenance.json",
+    "url": "https://vistaire-actuel-fluide-e820d3.plumtuna4.chatgpt.site/assets/dashboard/provenance.json",
+    "bytes": 4032,
+    "sha256": "6a4143b4f99403c0526ca6611de12c89cb0d9ec4679447142bbb675d9f2de454"
+  },
+  {
+    "path": "public/assets/dashboard/studio-mobile-overview-light.webp",
+    "url": "https://vistaire-actuel-fluide-e820d3.plumtuna4.chatgpt.site/assets/dashboard/studio-mobile-overview-light.webp",
+    "bytes": 28038,
+    "sha256": "ea1e90957d56a939923c25c15e9d2eba0ffe972a5c631096c32fa87b8058e9ea"
+  },
+  {
+    "path": "public/assets/dashboard/studio-mobile-overview.webp",
+    "url": "https://vistaire-actuel-fluide-e820d3.plumtuna4.chatgpt.site/assets/dashboard/studio-mobile-overview.webp",
+    "bytes": 27076,
+    "sha256": "30006d5b32d90c6e42d52b371f1c2cf88fb6b571a629459b0d0445a631fb717f"
+  },
+  {
+    "path": "public/assets/dashboard/studio-overview-light.webp",
+    "url": "https://vistaire-actuel-fluide-e820d3.plumtuna4.chatgpt.site/assets/dashboard/studio-overview-light.webp",
+    "bytes": 79204,
+    "sha256": "8c85ea0bea82f2fb0d9146a01fb1b3f2149b0ad8019452b9e610c442237ce480"
+  },
+  {
+    "path": "public/assets/dashboard/studio-overview.webp",
+    "url": "https://vistaire-actuel-fluide-e820d3.plumtuna4.chatgpt.site/assets/dashboard/studio-overview.webp",
+    "bytes": 75646,
+    "sha256": "e3c3287f4f15b7e6d781c1608533bbe734941311808483e7c9945eee614620ad"
+  },
+  {
+    "path": "public/assets/dashboard/studio-provenance.json",
+    "url": "https://vistaire-actuel-fluide-e820d3.plumtuna4.chatgpt.site/assets/dashboard/studio-provenance.json",
+    "bytes": 1137,
+    "sha256": "52f58b01381856f746491e7ca6c42f97ce8572a549b18d2252f1356b32f1044a"
+  },
+  {
+    "path": "public/assets/dishes/burger.glb",
+    "url": "https://vistaire-actuel-fluide-e820d3.plumtuna4.chatgpt.site/assets/dishes/burger.glb",
+    "bytes": 2979416,
+    "sha256": "0452856149f975b5a8867e4d2e40f71dc69c7bc3a26942cd14a71bcdc23660ae"
+  },
+  {
+    "path": "public/assets/dishes/chocolat-fume.glb",
+    "url": "https://vistaire-actuel-fluide-e820d3.plumtuna4.chatgpt.site/assets/dishes/chocolat-fume.glb",
+    "bytes": 979612,
+    "sha256": "81cc641cf08f34d1ef0854f55c0dfe1a101f0f1814de8fbefc6fda7d36ecee73"
+  },
+  {
+    "path": "public/assets/dishes/framing-hulls.json",
+    "url": "https://vistaire-actuel-fluide-e820d3.plumtuna4.chatgpt.site/assets/dishes/framing-hulls.json",
+    "bytes": 1482540,
+    "sha256": "7dae238d5d0110261d626cd3518c54a22b4d7044ab6b22c0abf40c46b36289d9"
+  },
+  {
+    "path": "public/assets/dishes/huitres.glb",
+    "url": "https://vistaire-actuel-fluide-e820d3.plumtuna4.chatgpt.site/assets/dishes/huitres.glb",
+    "bytes": 3699644,
+    "sha256": "5169fc3b87f36927a770fce880de6cc2a7f9acc4ddfd037974b82dbc319069d7"
+  },
+  {
+    "path": "public/assets/dishes/lod/burger-mobile.glb",
+    "url": "https://vistaire-actuel-fluide-e820d3.plumtuna4.chatgpt.site/assets/dishes/lod/burger-mobile.glb",
+    "bytes": 3099768,
+    "sha256": "e1995a7f3487ae98d84e0734cdeb973234f758fa69390a74c10efda64130b6ef"
+  },
+  {
+    "path": "public/assets/dishes/lod/chocolat-fume-mobile.glb",
+    "url": "https://vistaire-actuel-fluide-e820d3.plumtuna4.chatgpt.site/assets/dishes/lod/chocolat-fume-mobile.glb",
+    "bytes": 2180100,
+    "sha256": "cff5dac881a28bbaeed85d3c0bd73072fe999a22e5824c12319d1e014c847d5f"
+  },
+  {
+    "path": "public/assets/dishes/lod/huitres-mobile.glb",
+    "url": "https://vistaire-actuel-fluide-e820d3.plumtuna4.chatgpt.site/assets/dishes/lod/huitres-mobile.glb",
+    "bytes": 2577564,
+    "sha256": "4ef77f7f9beab7fb4aa1aba7c38d100b82aad40ed18170733d13350783693742"
+  },
+  {
+    "path": "public/assets/dishes/lod/poutine-mobile.glb",
+    "url": "https://vistaire-actuel-fluide-e820d3.plumtuna4.chatgpt.site/assets/dishes/lod/poutine-mobile.glb",
+    "bytes": 1146944,
+    "sha256": "ab1631006783fb212c8833f9cb5a54582eccbaacdea7c6c0a072d002e4007f26"
+  },
+  {
+    "path": "public/assets/dishes/lod/sushi-mobile.glb",
+    "url": "https://vistaire-actuel-fluide-e820d3.plumtuna4.chatgpt.site/assets/dishes/lod/sushi-mobile.glb",
+    "bytes": 1248324,
+    "sha256": "5e42486f9e1a0895a28f7b506dc98dfcf5f5805e7ef7bfb52b5011e11337bb02"
+  },
+  {
+    "path": "public/assets/dishes/poutine.glb",
+    "url": "https://vistaire-actuel-fluide-e820d3.plumtuna4.chatgpt.site/assets/dishes/poutine.glb",
+    "bytes": 1631104,
+    "sha256": "66d25e9532f04591c8f3cbd818d80dc797b1611a8fa75041beb89d52eb1d6f2d"
+  },
+  {
+    "path": "public/assets/dishes/sushi.glb",
+    "url": "https://vistaire-actuel-fluide-e820d3.plumtuna4.chatgpt.site/assets/dishes/sushi.glb",
+    "bytes": 3895760,
+    "sha256": "9b94523eaf54c6789d66c02d1bcb5fafd8d910dab5237e55b0c8016323056e88"
+  },
+  {
+    "path": "public/assets/draco/LICENSE-APACHE-2.0.txt",
+    "url": "https://vistaire-actuel-fluide-e820d3.plumtuna4.chatgpt.site/assets/draco/LICENSE-APACHE-2.0.txt",
+    "bytes": 11358,
+    "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+  },
+  {
+    "path": "public/assets/draco/LICENSE-THREE.txt",
+    "url": "https://vistaire-actuel-fluide-e820d3.plumtuna4.chatgpt.site/assets/draco/LICENSE-THREE.txt",
+    "bytes": 1081,
+    "sha256": "8b378ebe60e2fe500158cb0ac71cb5e8b7d92953c2abcc63a0eb90499653b5bc"
+  },
+  {
+    "path": "public/assets/draco/draco_decoder.wasm",
+    "url": "https://vistaire-actuel-fluide-e820d3.plumtuna4.chatgpt.site/assets/draco/draco_decoder.wasm",
+    "bytes": 192420,
+    "sha256": "a680d927bed9cb864ddbd63521868891af2bfbe755092761b4837487618df8ac"
+  },
+  {
+    "path": "public/assets/draco/draco_wasm_wrapper.js",
+    "url": "https://vistaire-actuel-fluide-e820d3.plumtuna4.chatgpt.site/assets/draco/draco_wasm_wrapper.js",
+    "bytes": 58456,
+    "sha256": "8bb2952d2ba7d67e1414f8df819410cb0434a666be53f671fff75f68843d76f6"
+  },
+  {
+    "path": "public/assets/experience-maison-elyse.webp",
+    "url": "https://vistaire-actuel-fluide-e820d3.plumtuna4.chatgpt.site/assets/experience-maison-elyse.webp",
+    "bytes": 118316,
+    "sha256": "e6e30c5f013be9248c7b3062bf25a7bf83c0f389d2a2b3383bbf46f61012228a"
+  },
+  {
+    "path": "public/assets/experience-sauge-noire.webp",
+    "url": "https://vistaire-actuel-fluide-e820d3.plumtuna4.chatgpt.site/assets/experience-sauge-noire.webp",
+    "bytes": 91844,
+    "sha256": "7659060703096a98f87113f8794b74b289536c0c99c074f1548963f55a6fb1f7"
+  },
+  {
+    "path": "public/assets/experience-trouvable.webp",
+    "url": "https://vistaire-actuel-fluide-e820d3.plumtuna4.chatgpt.site/assets/experience-trouvable.webp",
+    "bytes": 152944,
+    "sha256": "bbd521a288685a756d12acc17836fd0da58b8435babc5743eb1d903c00d49572"
+  },
+  {
+    "path": "public/assets/fonts/OFL.txt",
+    "url": "https://vistaire-actuel-fluide-e820d3.plumtuna4.chatgpt.site/assets/fonts/OFL.txt",
+    "bytes": 4332,
+    "sha256": "72362a011b71daa5e327b2abe7e8203462b6a937498f74d8164a279c32ae4006"
+  },
+  {
+    "path": "public/assets/fonts/biolinum-bold.woff",
+    "url": "https://vistaire-actuel-fluide-e820d3.plumtuna4.chatgpt.site/assets/fonts/biolinum-bold.woff",
+    "bytes": 149032,
+    "sha256": "37b1b60129c6dd584f91b292284064de40136c85be1010e7eaa202af5e835f08"
+  },
+  {
+    "path": "public/assets/fonts/biolinum-bold.woff.license.txt",
+    "url": "https://vistaire-actuel-fluide-e820d3.plumtuna4.chatgpt.site/assets/fonts/biolinum-bold.woff.license.txt",
+    "bytes": 515,
+    "sha256": "a5cd5a89cecf44c969c361d543e8074ea77ce1f123f56d40c2ffddad4b153308"
+  },
+  {
+    "path": "public/assets/fonts/biolinum.woff",
+    "url": "https://vistaire-actuel-fluide-e820d3.plumtuna4.chatgpt.site/assets/fonts/biolinum.woff",
+    "bytes": 138232,
+    "sha256": "df89b821ce59c71454002521dd4a01363e850e5aa99101d1409b1ece7a05db4d"
+  },
+  {
+    "path": "public/assets/fonts/biolinum.woff.license.txt",
+    "url": "https://vistaire-actuel-fluide-e820d3.plumtuna4.chatgpt.site/assets/fonts/biolinum.woff.license.txt",
+    "bytes": 515,
+    "sha256": "a5cd5a89cecf44c969c361d543e8074ea77ce1f123f56d40c2ffddad4b153308"
+  },
+  {
+    "path": "public/assets/fonts/libertine-display.woff",
+    "url": "https://vistaire-actuel-fluide-e820d3.plumtuna4.chatgpt.site/assets/fonts/libertine-display.woff",
+    "bytes": 149804,
+    "sha256": "6d311e30fc60306bf16c3a99d9161b4941b5d53602dc8b95e348ba329f7dea9b"
+  },
+  {
+    "path": "public/assets/fonts/libertine-display.woff.license.txt",
+    "url": "https://vistaire-actuel-fluide-e820d3.plumtuna4.chatgpt.site/assets/fonts/libertine-display.woff.license.txt",
+    "bytes": 524,
+    "sha256": "e8a3303c04fd234410ac02a42fa2197fa8d983ad07f6c3e04dbaae65406fe61e"
+  },
+  {
+    "path": "public/assets/fonts/libertine-italic.woff",
+    "url": "https://vistaire-actuel-fluide-e820d3.plumtuna4.chatgpt.site/assets/fonts/libertine-italic.woff",
+    "bytes": 162244,
+    "sha256": "8c2ad98c6068811ff3fe07528dba61e738a66b5fe5b332f287a6b3d6d019ae85"
+  },
+  {
+    "path": "public/assets/fonts/libertine-italic.woff.license.txt",
+    "url": "https://vistaire-actuel-fluide-e820d3.plumtuna4.chatgpt.site/assets/fonts/libertine-italic.woff.license.txt",
+    "bytes": 519,
+    "sha256": "8c6685abfedd47e824283671aea6dc79d5ba726e4356397cffdd132b911cdb77"
+  },
+  {
+    "path": "public/assets/homard.webp",
+    "url": "https://vistaire-actuel-fluide-e820d3.plumtuna4.chatgpt.site/assets/homard.webp",
+    "bytes": 172524,
+    "sha256": "f2efbe11b8744b42d627fbd523dd102fdc52fcf9bc714b0353cf0f3163f4fd55"
+  },
+  {
+    "path": "public/assets/huitres.webp",
+    "url": "https://vistaire-actuel-fluide-e820d3.plumtuna4.chatgpt.site/assets/huitres.webp",
+    "bytes": 82662,
+    "sha256": "c5d194aa9881e7dce7127e47b726d3ca8e8d898eb248f3ec166975a50c00cada"
+  },
+  {
+    "path": "public/assets/pages/Framer/Boisson.webp",
+    "url": "https://vistaire-actuel-fluide-e820d3.plumtuna4.chatgpt.site/assets/pages/Framer/Boisson.webp",
+    "bytes": 237906,
+    "sha256": "b1a18846ac41cb300e99edc3847699441693df52d0980ba415338951fa020222"
+  },
+  {
+    "path": "public/assets/pages/Framer/Desert.webp",
+    "url": "https://vistaire-actuel-fluide-e820d3.plumtuna4.chatgpt.site/assets/pages/Framer/Desert.webp",
+    "bytes": 342582,
+    "sha256": "04ab8954a07ea706c49ed6acfc1823a33bd1ab74ef6e096220807a8b96d2d4f2"
+  },
+  {
+    "path": "public/assets/pages/Framer/PageApropos.webp",
+    "url": "https://vistaire-actuel-fluide-e820d3.plumtuna4.chatgpt.site/assets/pages/Framer/PageApropos.webp",
+    "bytes": 150062,
+    "sha256": "32417752f18eba30e89daf86ba7ebcbe2e4234ed2ba81e0080a6b1adeeee6f98"
+  },
+  {
+    "path": "public/assets/pages/Framer/PageApropos2.webp",
+    "url": "https://vistaire-actuel-fluide-e820d3.plumtuna4.chatgpt.site/assets/pages/Framer/PageApropos2.webp",
+    "bytes": 199118,
+    "sha256": "521341d8c15bf11d4f5f4a966b8a425a66092e9d0ddb6a42a4cf6ed68cfc65e8"
+  },
+  {
+    "path": "public/assets/pages/Framer/PageContact.webp",
+    "url": "https://vistaire-actuel-fluide-e820d3.plumtuna4.chatgpt.site/assets/pages/Framer/PageContact.webp",
+    "bytes": 239864,
+    "sha256": "25927e9d6de972121587a716f03450de0131f5f2bfffd807a28fe243973dc9e8"
+  },
+  {
+    "path": "public/assets/pages/Framer/PageDigital.webp",
+    "url": "https://vistaire-actuel-fluide-e820d3.plumtuna4.chatgpt.site/assets/pages/Framer/PageDigital.webp",
+    "bytes": 228176,
+    "sha256": "5d0504d221c89dc6e2df9068f6c01507019bd007a642fccbf09244e08076aaa6"
+  },
+  {
+    "path": "public/assets/pages/Framer/Photo table.webp",
+    "url": "https://vistaire-actuel-fluide-e820d3.plumtuna4.chatgpt.site/assets/pages/Framer/Photo table.webp",
+    "bytes": 164374,
+    "sha256": "ade702d81c1ded25635388f1b69b1ed7806b79e58737789898cacb736f3660b6"
+  },
+  {
+    "path": "public/assets/pages/Framer/PhotoComparaisonPDF.webp",
+    "url": "https://vistaire-actuel-fluide-e820d3.plumtuna4.chatgpt.site/assets/pages/Framer/PhotoComparaisonPDF.webp",
+    "bytes": 265800,
+    "sha256": "0bc30abfc4b10919055bffa687cfcc616f2859c7dc81008eaaa943955c6c0467"
+  },
+  {
+    "path": "public/assets/pages/Framer/PhotoDigital2.webp",
+    "url": "https://vistaire-actuel-fluide-e820d3.plumtuna4.chatgpt.site/assets/pages/Framer/PhotoDigital2.webp",
+    "bytes": 241722,
+    "sha256": "9f74e90f922bcf45ea4dbcee57741820fb2733fa11fb47f7982d1c02d8328fe5"
+  },
+  {
+    "path": "public/assets/pages/Framer/PhotoDigital3.webp",
+    "url": "https://vistaire-actuel-fluide-e820d3.plumtuna4.chatgpt.site/assets/pages/Framer/PhotoDigital3.webp",
+    "bytes": 197284,
+    "sha256": "5f16e7954a757c34fed5d07f481466a0f4679e5cf64b8f98a7e56360b35d796d"
+  },
+  {
+    "path": "public/assets/pages/Framer/PhotoPDFvsDigitalDetail.webp",
+    "url": "https://vistaire-actuel-fluide-e820d3.plumtuna4.chatgpt.site/assets/pages/Framer/PhotoPDFvsDigitalDetail.webp",
+    "bytes": 245682,
+    "sha256": "252fd8493339ab2532ae687240b01030eccf1fd81c476ff0434d9db9d551ec4e"
+  },
+  {
+    "path": "public/assets/pages/Framer/PhotoQRcode1.webp",
+    "url": "https://vistaire-actuel-fluide-e820d3.plumtuna4.chatgpt.site/assets/pages/Framer/PhotoQRcode1.webp",
+    "bytes": 285522,
+    "sha256": "ec3cf6053e0c1dd495b9403a1af252fbdba861358f639487652f9a30d35fdaaa"
+  },
+  {
+    "path": "public/assets/pages/Framer/PhotoQRcode2.webp",
+    "url": "https://vistaire-actuel-fluide-e820d3.plumtuna4.chatgpt.site/assets/pages/Framer/PhotoQRcode2.webp",
+    "bytes": 217348,
+    "sha256": "c690aed1609207967140dc7464b2d7a78f70a2c84e032ce2c14576904f4c1c8b"
+  },
+  {
+    "path": "public/assets/pages/Framer/PhotoResto.webp",
+    "url": "https://vistaire-actuel-fluide-e820d3.plumtuna4.chatgpt.site/assets/pages/Framer/PhotoResto.webp",
+    "bytes": 268038,
+    "sha256": "32ff909ef84495de7b037574089040f909b8e8b3f42ae0d1bf85a28ca5ca666f"
+  },
+  {
+    "path": "public/assets/pages/Framer/PhotoRestoComplet.webp",
+    "url": "https://vistaire-actuel-fluide-e820d3.plumtuna4.chatgpt.site/assets/pages/Framer/PhotoRestoComplet.webp",
+    "bytes": 354300,
+    "sha256": "3907fd3abc06ff55ef24c1f463bbfed6af09b29596e29bbaaf72c36277e3b830"
+  },
+  {
+    "path": "public/assets/pages/Framer/PhotoRestoComplet2.webp",
+    "url": "https://vistaire-actuel-fluide-e820d3.plumtuna4.chatgpt.site/assets/pages/Framer/PhotoRestoComplet2.webp",
+    "bytes": 377508,
+    "sha256": "2470c98c805ee69ca8155bd5e0a4f2b2872c11bf7d2427155f9095c61caee4e0"
+  },
+  {
+    "path": "public/assets/pages/Framer/PhotoRestoComplet3.webp",
+    "url": "https://vistaire-actuel-fluide-e820d3.plumtuna4.chatgpt.site/assets/pages/Framer/PhotoRestoComplet3.webp",
+    "bytes": 377174,
+    "sha256": "27c0ddf03f5926a1227b0ce7ea0147d569e71c8e9a87b08fda1f6659615317c3"
+  },
+  {
+    "path": "public/assets/pages/Framer/PhotoRestoComplet4.webp",
+    "url": "https://vistaire-actuel-fluide-e820d3.plumtuna4.chatgpt.site/assets/pages/Framer/PhotoRestoComplet4.webp",
+    "bytes": 280554,
+    "sha256": "bcea4fa1d5f7ac6e38fb9795f2089d9a2cb5ffe42f8c524d732581ede5f5a5d4"
+  },
+  {
+    "path": "public/assets/pages/Framer/PhotoRestoComplet5.webp",
+    "url": "https://vistaire-actuel-fluide-e820d3.plumtuna4.chatgpt.site/assets/pages/Framer/PhotoRestoComplet5.webp",
+    "bytes": 377508,
+    "sha256": "2470c98c805ee69ca8155bd5e0a4f2b2872c11bf7d2427155f9095c61caee4e0"
+  },
+  {
+    "path": "public/assets/pages/Framer/PhotoRestoComplet6.webp",
+    "url": "https://vistaire-actuel-fluide-e820d3.plumtuna4.chatgpt.site/assets/pages/Framer/PhotoRestoComplet6.webp",
+    "bytes": 207840,
+    "sha256": "f8f90b4cedcf189360a2bef60d7c0108d9522f9417e79ad7518874c8c8e96481"
+  },
+  {
+    "path": "public/assets/pages/Framer/PlatHomard.webp",
+    "url": "https://vistaire-actuel-fluide-e820d3.plumtuna4.chatgpt.site/assets/pages/Framer/PlatHomard.webp",
+    "bytes": 280130,
+    "sha256": "feb5d3a77ad800b9418791b6b1869b6042f7a531f39b2fc2688921aba688d3f4"
+  },
+  {
+    "path": "public/assets/pages/Framer/pageCarte.webp",
+    "url": "https://vistaire-actuel-fluide-e820d3.plumtuna4.chatgpt.site/assets/pages/Framer/pageCarte.webp",
+    "bytes": 260922,
+    "sha256": "d298ca334873bf07760cd90d02ecfaaa478869f01d10677a3c90aafb6cafdc54"
+  },
+  {
+    "path": "public/assets/pages/images/demo/dishes/bar-de-ligne-artichaut-citron.webp",
+    "url": "https://vistaire-actuel-fluide-e820d3.plumtuna4.chatgpt.site/assets/pages/images/demo/dishes/bar-de-ligne-artichaut-citron.webp",
+    "bytes": 226862,
+    "sha256": "52983022a3c49a9bd5df4e99e1123a806b686e9c53fe4ac082ab1d3115243d73"
+  },
+  {
+    "path": "public/assets/pages/images/demo/dishes/canette-rotie-figues-epices.webp",
+    "url": "https://vistaire-actuel-fluide-e820d3.plumtuna4.chatgpt.site/assets/pages/images/demo/dishes/canette-rotie-figues-epices.webp",
+    "bytes": 248026,
+    "sha256": "abf6ef66a07fb9c73ed33064df5d26b365121e2368eb7b7794aaf94c9656ee79"
+  },
+  {
+    "path": "public/assets/pages/images/demo/dishes/elixir-bergamote-earl-grey.webp",
+    "url": "https://vistaire-actuel-fluide-e820d3.plumtuna4.chatgpt.site/assets/pages/images/demo/dishes/elixir-bergamote-earl-grey.webp",
+    "bytes": 242426,
+    "sha256": "db4a1dbd6fb4a0d209e06ba98ade382e724b49a938968c2111913ebbc8657436"
+  },
+  {
+    "path": "public/assets/pages/images/demo/dishes/homard-bleu-bisque-fenouil.webp",
+    "url": "https://vistaire-actuel-fluide-e820d3.plumtuna4.chatgpt.site/assets/pages/images/demo/dishes/homard-bleu-bisque-fenouil.webp",
+    "bytes": 255958,
+    "sha256": "03a1f199e41f9416c3a048933c97d166e85150175c9f2c121cb2dfabbdc584a7"
+  },
+  {
+    "path": "public/assets/pages/images/demo/dishes/maison-elyse-n1.webp",
+    "url": "https://vistaire-actuel-fluide-e820d3.plumtuna4.chatgpt.site/assets/pages/images/demo/dishes/maison-elyse-n1.webp",
+    "bytes": 228978,
+    "sha256": "764d5a55081650366b10e1285b8cfa6100847a469f0702251430d6f603fd4d47"
+  },
+  {
+    "path": "public/assets/pages/images/demo/dishes/negroni-vieilli-fut.webp",
+    "url": "https://vistaire-actuel-fluide-e820d3.plumtuna4.chatgpt.site/assets/pages/images/demo/dishes/negroni-vieilli-fut.webp",
+    "bytes": 302008,
+    "sha256": "3b9b08219d14613373954e1ef8237a14493d4636cb40db9058766e77dd619373"
+  },
+  {
+    "path": "public/assets/pages/images/demo/dishes/pave-boeuf-mature-bordelaise.webp",
+    "url": "https://vistaire-actuel-fluide-e820d3.plumtuna4.chatgpt.site/assets/pages/images/demo/dishes/pave-boeuf-mature-bordelaise.webp",
+    "bytes": 249952,
+    "sha256": "a3690f77a536a91064d3759d50ea35b8ca477c6ba2c524f93f10f0493a7f90a0"
+  },
+  {
+    "path": "public/assets/pages/images/demo/dishes/ravioles-chevre-miel-monteregie.webp",
+    "url": "https://vistaire-actuel-fluide-e820d3.plumtuna4.chatgpt.site/assets/pages/images/demo/dishes/ravioles-chevre-miel-monteregie.webp",
+    "bytes": 290300,
+    "sha256": "28020de08bdebebd656434080d395e5abe40a23c0380b2f1b8142f2e7e9765b3"
+  },
+  {
+    "path": "public/assets/pages/images/demo/dishes/risotto-cepes-parmesan.webp",
+    "url": "https://vistaire-actuel-fluide-e820d3.plumtuna4.chatgpt.site/assets/pages/images/demo/dishes/risotto-cepes-parmesan.webp",
+    "bytes": 210300,
+    "sha256": "f982f63bd8e524eaa6abae7b08893c3fad77fdc4e723479f73f981fcd65ad088"
+  },
+  {
+    "path": "public/assets/pages/images/demo/dishes/souffle-chocolat-grand-cru.webp",
+    "url": "https://vistaire-actuel-fluide-e820d3.plumtuna4.chatgpt.site/assets/pages/images/demo/dishes/souffle-chocolat-grand-cru.webp",
+    "bytes": 290644,
+    "sha256": "3d3bf185740c7517ceec89afb2ab418fa286e33111122668da88b2c5c9db428e"
+  },
+  {
+    "path": "public/assets/pages/images/demo/dishes/tartare-saumon-label-rouge.webp",
+    "url": "https://vistaire-actuel-fluide-e820d3.plumtuna4.chatgpt.site/assets/pages/images/demo/dishes/tartare-saumon-label-rouge.webp",
+    "bytes": 254644,
+    "sha256": "740f7589eb62f5f61f5edaefd660b544bfbabce5889e0b17327bce9a28549725"
+  },
+  {
+    "path": "public/assets/pages/images/demo/dishes/tarte-citron-basilic-pourpre.webp",
+    "url": "https://vistaire-actuel-fluide-e820d3.plumtuna4.chatgpt.site/assets/pages/images/demo/dishes/tarte-citron-basilic-pourpre.webp",
+    "bytes": 190338,
+    "sha256": "2545dfa1b7665361b6080c5cacd8d5ebd935a35425356b7705fee7deb5f7601b"
+  },
+  {
+    "path": "public/assets/pages/images/landing/logos/hero-management.webp",
+    "url": "https://vistaire-actuel-fluide-e820d3.plumtuna4.chatgpt.site/assets/pages/images/landing/logos/hero-management.webp",
+    "bytes": 46496,
+    "sha256": "85476911e31d2a46f70c8ebda6891335b384ed48f09873ea1bce9604f551a14e"
+  },
+  {
+    "path": "public/assets/pages/images/landing/logos/hero-mobile.webp",
+    "url": "https://vistaire-actuel-fluide-e820d3.plumtuna4.chatgpt.site/assets/pages/images/landing/logos/hero-mobile.webp",
+    "bytes": 17478,
+    "sha256": "d49a50dc03b87e9576710742cd872c84ede6e59159efc97ea25a50fc9dd79f35"
+  },
+  {
+    "path": "public/assets/pages/images/landing/logos/owner-allergens.webp",
+    "url": "https://vistaire-actuel-fluide-e820d3.plumtuna4.chatgpt.site/assets/pages/images/landing/logos/owner-allergens.webp",
+    "bytes": 19860,
+    "sha256": "da2360d7e9742671d1ab0343d439697ef3e7e3b58dafd7c15bcd6d2ad950f99a"
+  },
+  {
+    "path": "public/assets/pages/images/landing/logos/owner-languages.webp",
+    "url": "https://vistaire-actuel-fluide-e820d3.plumtuna4.chatgpt.site/assets/pages/images/landing/logos/owner-languages.webp",
+    "bytes": 24242,
+    "sha256": "3ac4e4eddffa789ee980fe72726281a1cc2b97025e1fe45a654fd079699ccf74"
+  },
+  {
+    "path": "public/assets/pages/images/landing/logos/owner-menu-content.webp",
+    "url": "https://vistaire-actuel-fluide-e820d3.plumtuna4.chatgpt.site/assets/pages/images/landing/logos/owner-menu-content.webp",
+    "bytes": 19602,
+    "sha256": "31f335ad6a909a11529c3b4fe011aceb0ffa7aef61c9253fa4a2c1defd2d262e"
+  },
+  {
+    "path": "public/assets/pages/images/landing/logos/owner-signals.webp",
+    "url": "https://vistaire-actuel-fluide-e820d3.plumtuna4.chatgpt.site/assets/pages/images/landing/logos/owner-signals.webp",
+    "bytes": 12702,
+    "sha256": "6c4e6c62950c83f984d9c9f80e070a86d66ffae7df589613d0c5171e0ed83f8f"
+  },
+  {
+    "path": "public/assets/pages/images/landing/logos/value-ar.webp",
+    "url": "https://vistaire-actuel-fluide-e820d3.plumtuna4.chatgpt.site/assets/pages/images/landing/logos/value-ar.webp",
+    "bytes": 12916,
+    "sha256": "1af7c17972a3bfe19ad4cbac9ae98c69224b9b5a2be4635830d6046d6da3a993"
+  },
+  {
+    "path": "public/assets/pages/images/landing/logos/value-dish-pages.webp",
+    "url": "https://vistaire-actuel-fluide-e820d3.plumtuna4.chatgpt.site/assets/pages/images/landing/logos/value-dish-pages.webp",
+    "bytes": 28348,
+    "sha256": "f7ede489dc9eec629da17007c8c94822faf08bfc4b4243bb1d27dd80ade47069"
+  },
+  {
+    "path": "public/assets/pages/images/landing/logos/value-information.webp",
+    "url": "https://vistaire-actuel-fluide-e820d3.plumtuna4.chatgpt.site/assets/pages/images/landing/logos/value-information.webp",
+    "bytes": 22350,
+    "sha256": "15cff55554f17335f6cc5ea520816e695ab40e5ffb1291d5628aa6741d11e6e5"
+  },
+  {
+    "path": "public/assets/pages/images/landing/logos/value-mobile.webp",
+    "url": "https://vistaire-actuel-fluide-e820d3.plumtuna4.chatgpt.site/assets/pages/images/landing/logos/value-mobile.webp",
+    "bytes": 15964,
+    "sha256": "3d4eb8538b405ff9c787d586778a4a0f7ca3dcf53db2c6bcb91868bbd7c21560"
+  },
+  {
+    "path": "public/assets/pages/images/landing/logos/value-navigation.webp",
+    "url": "https://vistaire-actuel-fluide-e820d3.plumtuna4.chatgpt.site/assets/pages/images/landing/logos/value-navigation.webp",
+    "bytes": 25242,
+    "sha256": "d5082b8eb545dd775cff1919a3f278a1cbbb086ebba7eca5d59dd9cafae75105"
+  },
+  {
+    "path": "public/assets/pages/images/landing/logos/value-photography.webp",
+    "url": "https://vistaire-actuel-fluide-e820d3.plumtuna4.chatgpt.site/assets/pages/images/landing/logos/value-photography.webp",
+    "bytes": 12092,
+    "sha256": "5b326e93378a3c26002eb0d664a673b7a60589bea47da17f2e60427ce2f8204f"
+  },
+  {
+    "path": "public/assets/pages/provenance.json",
+    "url": "https://vistaire-actuel-fluide-e820d3.plumtuna4.chatgpt.site/assets/pages/provenance.json",
+    "bytes": 21570,
+    "sha256": "3c6ba42be7ad56582ff9ce2fba8db103c205a91ddeb9e3678020dd6085f712bb"
+  },
+  {
+    "path": "public/assets/phone/iphone_16_-_free.glb",
+    "url": "https://vistaire-actuel-fluide-e820d3.plumtuna4.chatgpt.site/assets/phone/iphone_16_-_free.glb",
+    "bytes": 2456120,
+    "sha256": "ec6002b3c4daa325643da029d192d0f3a493e66bb71fb9dbc7cef8ef887fea64"
+  },
+  {
+    "path": "public/assets/phone-poster-maison-elyse.webp",
+    "url": "https://vistaire-actuel-fluide-e820d3.plumtuna4.chatgpt.site/assets/phone-poster-maison-elyse.webp",
+    "bytes": 126392,
+    "sha256": "cb122572ae9173849953404887edf37a6e474ac7c2fe83b57af46142b176d7de"
+  },
+  {
+    "path": "public/assets/phone-poster-sauge-noire.webp",
+    "url": "https://vistaire-actuel-fluide-e820d3.plumtuna4.chatgpt.site/assets/phone-poster-sauge-noire.webp",
+    "bytes": 54196,
+    "sha256": "87a569e228ae79947fe02eeea3ffd503c69e59722d2ae50374ece7cdf67b6857"
+  },
+  {
+    "path": "public/assets/phone-poster-trouvable.webp",
+    "url": "https://vistaire-actuel-fluide-e820d3.plumtuna4.chatgpt.site/assets/phone-poster-trouvable.webp",
+    "bytes": 122790,
+    "sha256": "3416fb477d9089c3b0b7e66a363d58dec1773cbefed9969780b22170208ffd1b"
+  },
+  {
+    "path": "public/assets/phone-poster.webp",
+    "url": "https://vistaire-actuel-fluide-e820d3.plumtuna4.chatgpt.site/assets/phone-poster.webp",
+    "bytes": 73972,
+    "sha256": "117216da959f64e3a633c63dad75bb46cc6e1502846555b6726233f2e372f35a"
+  },
+  {
+    "path": "public/assets/poutine.webp",
+    "url": "https://vistaire-actuel-fluide-e820d3.plumtuna4.chatgpt.site/assets/poutine.webp",
+    "bytes": 61882,
+    "sha256": "bc8fc327702c296f5ab6e5ef28eef3454a1e97cc26dfce1c26527f0d64468c3e"
+  },
+  {
+    "path": "public/assets/pricing-hand/fair-hand-grip-v2.png",
+    "url": "https://vistaire-actuel-fluide-e820d3.plumtuna4.chatgpt.site/assets/pricing-hand/fair-hand-grip-v2.png",
+    "bytes": 838419,
+    "sha256": "7ef429f8c4d8bb7a4cc24e647635c1aaec666176d8e3e8ed55e953c72e6bb01c"
+  },
+  {
+    "path": "public/assets/pricing-hand/fair-hand-grip-v3.png",
+    "url": "https://vistaire-actuel-fluide-e820d3.plumtuna4.chatgpt.site/assets/pricing-hand/fair-hand-grip-v3.png",
+    "bytes": 1101344,
+    "sha256": "8f3254bd90ca10e189596207f23a910edc90ef056976fa95805c94a01c1e0a31"
+  },
+  {
+    "path": "public/assets/pricing-hand/fair-hand-grip.png",
+    "url": "https://vistaire-actuel-fluide-e820d3.plumtuna4.chatgpt.site/assets/pricing-hand/fair-hand-grip.png",
+    "bytes": 856219,
+    "sha256": "9f2fccec1c878566d004046b41be634fe1ad79cf5858820f0be31cc4dfd49594"
+  },
+  {
+    "path": "public/assets/pricing-hand/hand-atlas.webp",
+    "url": "https://vistaire-actuel-fluide-e820d3.plumtuna4.chatgpt.site/assets/pricing-hand/hand-atlas.webp",
+    "bytes": 208588,
+    "sha256": "a28b0652bef4e45f4423f4dc6bcdd6f2cda3bfcac16e79b223fd09fc142a9beb"
+  },
+  {
+    "path": "public/assets/pricing-hand/hand.buf",
+    "url": "https://vistaire-actuel-fluide-e820d3.plumtuna4.chatgpt.site/assets/pricing-hand/hand.buf",
+    "bytes": 381034,
+    "sha256": "937c22ba535042c02a75ce775a30399205cc2e5f633615393b078c17e8131815"
+  },
+  {
+    "path": "public/assets/pricing-hand/hand_animation.buf",
+    "url": "https://vistaire-actuel-fluide-e820d3.plumtuna4.chatgpt.site/assets/pricing-hand/hand_animation.buf",
+    "bytes": 41512,
+    "sha256": "07d2b53b3d18056960ce61c4467a479906d2dc57a07bb3ace16c5755808e9724"
+  },
+  {
+    "path": "public/assets/pricing-hand/hero_camera.buf",
+    "url": "https://vistaire-actuel-fluide-e820d3.plumtuna4.chatgpt.site/assets/pricing-hand/hero_camera.buf",
+    "bytes": 2360,
+    "sha256": "630dec10376945e410eb0cbc8d2f873c9fa4eef562108bf5032a92d4fcefd9cc"
+  },
+  {
+    "path": "public/assets/pricing-hand/product_animation.buf",
+    "url": "https://vistaire-actuel-fluide-e820d3.plumtuna4.chatgpt.site/assets/pricing-hand/product_animation.buf",
+    "bytes": 2964,
+    "sha256": "5ff003d014d597a49baaee763f80a05062c030cdbba611d5281620147f3d88f1"
+  },
+  {
+    "path": "public/assets/pricing-hand/provenance.json",
+    "url": "https://vistaire-actuel-fluide-e820d3.plumtuna4.chatgpt.site/assets/pricing-hand/provenance.json",
+    "bytes": 2938,
+    "sha256": "d229486211e5bced0d22c15f5d0c82caf93aff19c25f1a5718262eb7cafa6d6d"
+  },
+  {
+    "path": "public/assets/ravioles.webp",
+    "url": "https://vistaire-actuel-fluide-e820d3.plumtuna4.chatgpt.site/assets/ravioles.webp",
+    "bytes": 248180,
+    "sha256": "f32221e0089b08d02f9fbcc4dd8f6261c566b91a9b4e81ee9bcba244733263de"
+  },
+  {
+    "path": "public/assets/restaurant/restaurant-evening.glb",
+    "url": "https://vistaire-actuel-fluide-e820d3.plumtuna4.chatgpt.site/assets/restaurant/restaurant-evening.glb",
+    "bytes": 4131356,
+    "sha256": "9c9a160387f36a6830f395e5c863b44ac79863513558ffe5e1bdf24e9e6931f1"
+  },
+  {
+    "path": "public/assets/restaurant-courtyard.webp",
+    "url": "https://vistaire-actuel-fluide-e820d3.plumtuna4.chatgpt.site/assets/restaurant-courtyard.webp",
+    "bytes": 416502,
+    "sha256": "a542a8006c766c041ce8f6ff3a6849aa09db7502cacad7105fa23dad48e26709"
+  },
+  {
+    "path": "public/assets/restaurant-stone.webp",
+    "url": "https://vistaire-actuel-fluide-e820d3.plumtuna4.chatgpt.site/assets/restaurant-stone.webp",
+    "bytes": 537700,
+    "sha256": "58b265e64e72fbf591526fabbdae03362146957ccc57c9a409c49e0a40f2086b"
+  },
+  {
+    "path": "public/assets/restaurant-table.webp",
+    "url": "https://vistaire-actuel-fluide-e820d3.plumtuna4.chatgpt.site/assets/restaurant-table.webp",
+    "bytes": 112642,
+    "sha256": "ca515edac0093b055c7de65391c29d0de8f7a38ede941d8675be1e7bfb6d17fc"
+  },
+  {
+    "path": "public/assets/souffle.webp",
+    "url": "https://vistaire-actuel-fluide-e820d3.plumtuna4.chatgpt.site/assets/souffle.webp",
+    "bytes": 196368,
+    "sha256": "55245384253136d8114afb1d314a8ba4d36a46f1015be8fcf8fdeb8afd5021f9"
+  },
+  {
+    "path": "public/assets/support-acrylique.webp",
+    "url": "https://vistaire-actuel-fluide-e820d3.plumtuna4.chatgpt.site/assets/support-acrylique.webp",
+    "bytes": 109434,
+    "sha256": "76645bd1b861d5713bbcc8fa32990c33262588634bfb21a6c350e7093f2d4620"
+  },
+  {
+    "path": "public/assets/support-carre.webp",
+    "url": "https://vistaire-actuel-fluide-e820d3.plumtuna4.chatgpt.site/assets/support-carre.webp",
+    "bytes": 174502,
+    "sha256": "2c1a74e5b98a3742931fccbb9e902dc9939ace1b6e65f4e09b62e5fe5e666e51"
+  },
+  {
+    "path": "public/assets/support-sculpte.webp",
+    "url": "https://vistaire-actuel-fluide-e820d3.plumtuna4.chatgpt.site/assets/support-sculpte.webp",
+    "bytes": 156390,
+    "sha256": "23d8918bc91b8c7f32436fbc65182e73f90aaa2125b3204d2325cc74a673a578"
+  },
+  {
+    "path": "public/assets/support-signature.webp",
+    "url": "https://vistaire-actuel-fluide-e820d3.plumtuna4.chatgpt.site/assets/support-signature.webp",
+    "bytes": 171510,
+    "sha256": "99cb0e33cb929defe7a6aca980533e57ce0cd554dc94ee5575a0632105f097f8"
+  },
+  {
+    "path": "public/assets/supports/Meshy_AI_Sauge_Noire_QR_Displa_1008220727_texture.glb",
+    "url": "https://vistaire-actuel-fluide-e820d3.plumtuna4.chatgpt.site/assets/supports/Meshy_AI_Sauge_Noire_QR_Displa_1008220727_texture.glb",
+    "bytes": 948164,
+    "sha256": "fb09fd8e1a793db196d52ab27eb5f71ec1f971dd7a9a26b56f4f7af7951619bb"
+  },
+  {
+    "path": "public/assets/supports/Meshy_AI_Wooden_QR_Menu_Stand_1008220658_texture.glb",
+    "url": "https://vistaire-actuel-fluide-e820d3.plumtuna4.chatgpt.site/assets/supports/Meshy_AI_Wooden_QR_Menu_Stand_1008220658_texture.glb",
+    "bytes": 1622784,
+    "sha256": "7823e4213b0ac123b2eaae7789b2a56a972d7cc8b06af3e9799ccd58922db6de"
+  },
+  {
+    "path": "public/assets/supports/sauge-noire-carre-vistaire-corrige.glb",
+    "url": "https://vistaire-actuel-fluide-e820d3.plumtuna4.chatgpt.site/assets/supports/sauge-noire-carre-vistaire-corrige.glb",
+    "bytes": 809220,
+    "sha256": "a83703a7c49395076e86f5e568dbeeffd5df35460228eebcbf9348ed7becaa15"
+  },
+  {
+    "path": "public/assets/supports/sauge-noire-vistaire-corrige.glb",
+    "url": "https://vistaire-actuel-fluide-e820d3.plumtuna4.chatgpt.site/assets/supports/sauge-noire-vistaire-corrige.glb",
+    "bytes": 336144,
+    "sha256": "b3bf09c3073d9070923c0dd6c8ec01787602374d032e2d21e9ed7fe683e2a8cc"
+  },
+  {
+    "path": "public/assets/sushi.webp",
+    "url": "https://vistaire-actuel-fluide-e820d3.plumtuna4.chatgpt.site/assets/sushi.webp",
+    "bytes": 69380,
+    "sha256": "5e2eb531839b5c90d47cba1d43908f5c536dc7e7387d591a17b6c1117fe16781"
+  },
+  {
+    "path": "public/assets/tartare.webp",
+    "url": "https://vistaire-actuel-fluide-e820d3.plumtuna4.chatgpt.site/assets/tartare.webp",
+    "bytes": 218094,
+    "sha256": "3c59ed311afbd77d1b21425e347f491d8f3cea9777655c25b7d966112465fd29"
+  },
+  {
+    "path": "public/assets/tarte.webp",
+    "url": "https://vistaire-actuel-fluide-e820d3.plumtuna4.chatgpt.site/assets/tarte.webp",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "path": "public/assets/walnut-texture.webp",
+    "url": "https://vistaire-actuel-fluide-e820d3.plumtuna4.chatgpt.site/assets/walnut-texture.webp",
+    "bytes": 367386,
+    "sha256": "58530f52ef8b710510bea50b386ad46cedc73aec71c3b3b0975bff62f3b1bc2a"
+  },
+  {
+    "path": "public/fonts/vistaire-preview/NeueMontreal-Bold.otf",
+    "url": "https://vistaire-actuel-fluide-e820d3.plumtuna4.chatgpt.site/fonts/vistaire-preview/NeueMontreal-Bold.otf",
+    "bytes": 42916,
+    "sha256": "6fd352df5cc3c1d79e517d214db5ba0f5380e96d5a9dfba35e179f597df033a4"
+  },
+  {
+    "path": "public/fonts/vistaire-preview/NeueMontreal-Regular.otf",
+    "url": "https://vistaire-actuel-fluide-e820d3.plumtuna4.chatgpt.site/fonts/vistaire-preview/NeueMontreal-Regular.otf",
+    "bytes": 40516,
+    "sha256": "94bbc90559398826cc2e1bf35b01312589512727cf1b2dc2a59eaa3fc51542ad"
+  },
+  {
+    "path": "public/images/marketing/home-identity-maison-elyse.webp",
+    "url": "https://vistaire-actuel-fluide-e820d3.plumtuna4.chatgpt.site/images/marketing/home-identity-maison-elyse.webp",
+    "bytes": 32366,
+    "sha256": "781025308264519659b81231118dbedc5bd33b3f1080656aa1fb5826f35ff549"
+  },
+  {
+    "path": "public/images/marketing/home-identity-sauge-noire.webp",
+    "url": "https://vistaire-actuel-fluide-e820d3.plumtuna4.chatgpt.site/images/marketing/home-identity-sauge-noire.webp",
+    "bytes": 52546,
+    "sha256": "81f0c4eaa3d877ba3e080c6a8c66e0d07b9798f5def2809155d51452b486ac50"
+  },
+  {
+    "path": "public/images/marketing/home-identity-trouvable.webp",
+    "url": "https://vistaire-actuel-fluide-e820d3.plumtuna4.chatgpt.site/images/marketing/home-identity-trouvable.webp",
+    "bytes": 40386,
+    "sha256": "e2ebedc14dce12364b52b485dfdff662a0a3c3f17988cc7b13f67825cc0c1f13"
+  },
+  {
+    "path": "public/images/marketing/home-pricing-acrylique.webp",
+    "url": "https://vistaire-actuel-fluide-e820d3.plumtuna4.chatgpt.site/images/marketing/home-pricing-acrylique.webp",
+    "bytes": 144804,
+    "sha256": "51b7251eb371dbd2458f5cbaa8123a5554172156426416e6615e4ab394a19acd"
+  },
+  {
+    "path": "public/images/marketing/home-pricing-carre.webp",
+    "url": "https://vistaire-actuel-fluide-e820d3.plumtuna4.chatgpt.site/images/marketing/home-pricing-carre.webp",
+    "bytes": 137892,
+    "sha256": "88d605eef1e2ffe40180f5410143865f5abdf1cb9635121e212360d23696a4e9"
+  },
+  {
+    "path": "public/images/marketing/home-pricing-sculpte.webp",
+    "url": "https://vistaire-actuel-fluide-e820d3.plumtuna4.chatgpt.site/images/marketing/home-pricing-sculpte.webp",
+    "bytes": 167822,
+    "sha256": "682bef1f297259a7624d52190a6286cc3873a1932a1d86c4f6e422ed5504ae2d"
+  },
+  {
+    "path": "public/images/marketing/home-pricing-signature.webp",
+    "url": "https://vistaire-actuel-fluide-e820d3.plumtuna4.chatgpt.site/images/marketing/home-pricing-signature.webp",
+    "bytes": 192222,
+    "sha256": "db9f87417843750c86e88dc982a45cc94ecc300e74bce8ab82c4ffa308e118ca"
+  },
+  {
+    "path": "public/images/marketing/maison-elyse-dining-room.webp",
+    "url": "https://vistaire-actuel-fluide-e820d3.plumtuna4.chatgpt.site/images/marketing/maison-elyse-dining-room.webp",
+    "bytes": 214494,
+    "sha256": "d6b485fede9106379a72d1fc8526b5c6cc77b71b13ef599a76f810faa1d42e70"
+  },
+  {
+    "path": "public/images/marketing/sauge-noire-acrylique.webp",
+    "url": "https://vistaire-actuel-fluide-e820d3.plumtuna4.chatgpt.site/images/marketing/sauge-noire-acrylique.webp",
+    "bytes": 149930,
+    "sha256": "c66ac37c4b16c4790b9c2af3d53f78ba122fcf786d8035c16c1b05246bf9dca1"
+  },
+  {
+    "path": "public/images/marketing/sauge-noire-carre.webp",
+    "url": "https://vistaire-actuel-fluide-e820d3.plumtuna4.chatgpt.site/images/marketing/sauge-noire-carre.webp",
+    "bytes": 172766,
+    "sha256": "93778be43eea9111222b028ca0401c9208c39de4856bb4a64b3b72641b798b4c"
+  },
+  {
+    "path": "public/images/marketing/sauge-noire-dining-room.webp",
+    "url": "https://vistaire-actuel-fluide-e820d3.plumtuna4.chatgpt.site/images/marketing/sauge-noire-dining-room.webp",
+    "bytes": 218478,
+    "sha256": "4054d0acaf73b3d6580a6f3815f4dad7084083e9d8091375b1866ac659b4e86e"
+  },
+  {
+    "path": "public/images/marketing/sauge-noire-sculpte.webp",
+    "url": "https://vistaire-actuel-fluide-e820d3.plumtuna4.chatgpt.site/images/marketing/sauge-noire-sculpte.webp",
+    "bytes": 180756,
+    "sha256": "ce807b525bc5745418d23df6210e18b01981e5628af2770ebb0ed72d5d729139"
+  },
+  {
+    "path": "public/images/marketing/sauge-noire-signature.webp",
+    "url": "https://vistaire-actuel-fluide-e820d3.plumtuna4.chatgpt.site/images/marketing/sauge-noire-signature.webp",
+    "bytes": 141860,
+    "sha256": "20f03cd7fb1c6b67203dad75e9e5ca813b8930978cff41c2dfe9c39000e0a6cc"
+  },
+  {
+    "path": "public/images/marketing/trouvable-dining-room.webp",
+    "url": "https://vistaire-actuel-fluide-e820d3.plumtuna4.chatgpt.site/images/marketing/trouvable-dining-room.webp",
+    "bytes": 197432,
+    "sha256": "7837ec7dec4e12f58ae9b009a60997d258c15ce6e85ddb1c6a91e9f71e6b1b5c"
+  },
+  {
+    "path": "public/media/cinematic-landscape.mp4",
+    "url": "https://vistaire-actuel-fluide-e820d3.plumtuna4.chatgpt.site/media/cinematic-landscape.mp4",
+    "bytes": 2452664,
+    "sha256": "4d62ac4fe90bb689a966619cc539b30a313a0a4e2e39424138b83c6b6ef73965"
+  },
+  {
+    "path": "public/media/cinematic-portrait.mp4",
+    "url": "https://vistaire-actuel-fluide-e820d3.plumtuna4.chatgpt.site/media/cinematic-portrait.mp4",
+    "bytes": 2788366,
+    "sha256": "9e6f75ae365eaec6ee49c0735732d8234be4f9a4e185586ca51c7b6297d5e621"
+  },
+  {
+    "path": "public/media/homard-mobile.glb",
+    "url": "https://vistaire-actuel-fluide-e820d3.plumtuna4.chatgpt.site/media/homard-mobile.glb",
+    "bytes": 8590900,
+    "sha256": "ed79969621acd82c0bb55cc3b7ec2973dfd8be843da7ee697ac57a0c059a3001"
+  },
+  {
+    "path": "public/media/homard.glb",
+    "url": "https://vistaire-actuel-fluide-e820d3.plumtuna4.chatgpt.site/media/homard.glb",
+    "bytes": 4955904,
+    "sha256": "ee44bc6028b8dff1f7bedef686f995c6b3b51ac5298bcc55d8da31be65267874"
+  },
+  {
+    "path": "public/media/souffle.glb",
+    "url": "https://vistaire-actuel-fluide-e820d3.plumtuna4.chatgpt.site/media/souffle.glb",
+    "bytes": 1754380,
+    "sha256": "0ad050afaba40a739c0a2bc794e52a080125dc78072440d8ef0b0441093eee95"
+  },
+  {
+    "path": "public/media/walkthrough-maison-elyse.mp4",
+    "url": "https://vistaire-actuel-fluide-e820d3.plumtuna4.chatgpt.site/media/walkthrough-maison-elyse.mp4",
+    "bytes": 4053916,
+    "sha256": "179465b86ac821e3e4aef6a0669f055334d7f87610d7db30a1486b1d73c8ec6a"
+  },
+  {
+    "path": "public/media/walkthrough-sauge-noire.mp4",
+    "url": "https://vistaire-actuel-fluide-e820d3.plumtuna4.chatgpt.site/media/walkthrough-sauge-noire.mp4",
+    "bytes": 7772626,
+    "sha256": "98dec39df7c10ac9036f0c0c533a8e2d80baae88370d950a92da651aa76a3089"
+  },
+  {
+    "path": "public/media/walkthrough-trouvable.mp4",
+    "url": "https://vistaire-actuel-fluide-e820d3.plumtuna4.chatgpt.site/media/walkthrough-trouvable.mp4",
+    "bytes": 7031957,
+    "sha256": "223505b2c8eee29a1f6aa59726fe215badfeecf1775e7917831fe963c6a5138c"
+  },
+  {
+    "path": "runtime-sources/cinematic-landscape.mp4",
+    "url": "https://vistaire-actuel-fluide-e820d3.plumtuna4.chatgpt.site/media/cinematic-landscape.mp4",
+    "bytes": 2452664,
+    "sha256": "4d62ac4fe90bb689a966619cc539b30a313a0a4e2e39424138b83c6b6ef73965"
+  },
+  {
+    "path": "runtime-sources/cinematic-portrait.mp4",
+    "url": "https://vistaire-actuel-fluide-e820d3.plumtuna4.chatgpt.site/media/cinematic-portrait.mp4",
+    "bytes": 2788366,
+    "sha256": "9e6f75ae365eaec6ee49c0735732d8234be4f9a4e185586ca51c7b6297d5e621"
+  }
+]

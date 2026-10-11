@@ -1,0 +1,437 @@
+[
+  {
+    "id": "homard",
+    "upload": "restaurants_11111111-1111-1111-1111-111111111111_models_ar-ios-doux_homard-bisque-20260722-33610104.usdz",
+    "path": "/assets/ar/homard.usdz",
+    "bytes": 7568649,
+    "sha256": "0882a44fda866f47df1a2a5ec1956b3689c355f41ca8b7f4a17d6a37ea979c91",
+    "entries": [
+      {
+        "name": "dec.usdc",
+        "bytes": 6275749,
+        "stored": true,
+        "alignment": 38
+      },
+      {
+        "name": "textures/extracted_image_0.jpg",
+        "bytes": 6732,
+        "stored": true,
+        "alignment": 7
+      },
+      {
+        "name": "textures/extracted_image_1.jpg",
+        "bytes": 44412,
+        "stored": true,
+        "alignment": 15
+      },
+      {
+        "name": "textures/extracted_image_3.jpg_roughness.png",
+        "bytes": 523153,
+        "stored": true,
+        "alignment": 21
+      },
+      {
+        "name": "textures/extracted_image_3.jpg_metallic.png",
+        "bytes": 544490,
+        "stored": true,
+        "alignment": 47
+      },
+      {
+        "name": "textures/extracted_image_2.jpg",
+        "bytes": 173265,
+        "stored": true,
+        "alignment": 21
+      }
+    ],
+    "containerRepair": "64-byte payload alignment only; embedded layers and textures unchanged",
+    "servedBytes": 7569119,
+    "servedSha256": "2217d36daa0d191c538467a0d1ded3394cf7a0ba033545ccae8d8a2650623d6f",
+    "servedAlignmentVerified": true,
+    "cpuLayerValidation": {
+      "parser": "Three USDCParser, binary v0.8.0, no warning",
+      "defaultPrim": "root",
+      "metersPerUnit": 1,
+      "upAxis": "Z",
+      "dimensionsMetersXYZ": [
+        0.26,
+        0.2596,
+        0.0689
+      ],
+      "externalAssets": false,
+      "schemaCertification": false,
+      "nativeQuickLookTested": false
+    }
+  },
+  {
+    "id": "souffle",
+    "upload": "restaurants_11111111-1111-1111-1111-111111111111_models_ar-ios-doux_souffle-chocolat-20260722-a13b6380.usdz",
+    "path": "/assets/ar/souffle.usdz",
+    "bytes": 6604462,
+    "sha256": "19a07c5adab7956cc41d2ff73a38c3ddcfc4d2d09329f76d8e679f5d03187f73",
+    "entries": [
+      {
+        "name": "dec.usdc",
+        "bytes": 5722363,
+        "stored": true,
+        "alignment": 38
+      },
+      {
+        "name": "textures/extracted_image_3.jpg",
+        "bytes": 20657,
+        "stored": true,
+        "alignment": 29
+      },
+      {
+        "name": "textures/extracted_image_2.jpg",
+        "bytes": 32149,
+        "stored": true,
+        "alignment": 10
+      },
+      {
+        "name": "textures/extracted_image_1.jpg_roughness.png",
+        "bytes": 313136,
+        "stored": true,
+        "alignment": 41
+      },
+      {
+        "name": "textures/extracted_image_1.jpg_metallic.png",
+        "bytes": 375568,
+        "stored": true,
+        "alignment": 34
+      },
+      {
+        "name": "textures/extracted_image_0.jpg",
+        "bytes": 139741,
+        "stored": true,
+        "alignment": 46
+      }
+    ],
+    "containerRepair": "64-byte payload alignment only; embedded layers and textures unchanged",
+    "servedBytes": 6604754,
+    "servedSha256": "09e8c69e8b85a983f1c2d8082444993f31ec478fc51f47c44494b846e9e43caa",
+    "servedAlignmentVerified": true,
+    "cpuLayerValidation": {
+      "parser": "Three USDCParser, binary v0.8.0, no warning",
+      "defaultPrim": "root",
+      "metersPerUnit": 1,
+      "upAxis": "Z",
+      "dimensionsMetersXYZ": [
+        0.12,
+        0.12,
+        0.0375
+      ],
+      "externalAssets": false,
+      "schemaCertification": false,
+      "nativeQuickLookTested": false
+    }
+  },
+  {
+    "id": "huitres",
+    "upload": "restaurants_86c56c72-d63c-4077-b79b-73e810236033_models_ar-ios_huitres-tiedes-au-kombu-20260727-da1ae76f.usdz",
+    "path": "/assets/ar/huitres.usdz",
+    "bytes": 6806729,
+    "sha256": "9a4d604f6ef026fe974c6cabea27afd832950913be1ab6b8c987b8e9309f1dc1",
+    "entries": [
+      {
+        "name": "model.usd",
+        "bytes": 5908691,
+        "stored": true,
+        "alignment": 39
+      },
+      {
+        "name": "textures/extracted_image_2.jpg",
+        "bytes": 56993,
+        "stored": true,
+        "alignment": 54
+      },
+      {
+        "name": "textures/extracted_image_1.jpg_roughness.png",
+        "bytes": 352997,
+        "stored": true,
+        "alignment": 33
+      },
+      {
+        "name": "textures/extracted_image_1.jpg_metallic.png",
+        "bytes": 310268,
+        "stored": true,
+        "alignment": 15
+      },
+      {
+        "name": "textures/extracted_image_0.jpg",
+        "bytes": 177066,
+        "stored": true,
+        "alignment": 7
+      }
+    ],
+    "containerRepair": "64-byte payload alignment only; embedded layers and textures unchanged",
+    "servedBytes": 6806971,
+    "servedSha256": "ac41cf42107a1e35aea03e0d52f95f2c6c8adb0e11507766f000fbed88e63f81",
+    "servedAlignmentVerified": true,
+    "cpuLayerValidation": {
+      "parser": "Three USDCParser, binary v0.8.0, no warning",
+      "defaultPrim": "root",
+      "metersPerUnit": 1,
+      "upAxis": "Z",
+      "dimensionsMetersXYZ": [
+        0.1202,
+        0.12,
+        0.0306
+      ],
+      "externalAssets": false,
+      "schemaCertification": false,
+      "nativeQuickLookTested": false
+    }
+  },
+  {
+    "id": "sushi",
+    "upload": "restaurants_bc1845b3-3f42-480f-aee2-6ec472c52e41_models_ar-ios_plateau-sushi-horizon-20260706-eb023d58.usdz",
+    "path": "/assets/ar/sushi.usdz",
+    "bytes": 6836639,
+    "sha256": "609388de15d393e9da1f058fe7547362842c0851e70dd3e45da68ef8c4930aeb",
+    "entries": [
+      {
+        "name": "model.usd",
+        "bytes": 5868699,
+        "stored": true,
+        "alignment": 39
+      },
+      {
+        "name": "textures/extracted_image_3.jpg",
+        "bytes": 31409,
+        "stored": true,
+        "alignment": 62
+      },
+      {
+        "name": "textures/extracted_image_2.jpg",
+        "bytes": 41699,
+        "stored": true,
+        "alignment": 43
+      },
+      {
+        "name": "textures/extracted_image_1.jpg_roughness.png",
+        "bytes": 453801,
+        "stored": true,
+        "alignment": 24
+      },
+      {
+        "name": "textures/extracted_image_1.jpg_metallic.png",
+        "bytes": 246284,
+        "stored": true,
+        "alignment": 10
+      },
+      {
+        "name": "textures/extracted_image_0.jpg",
+        "bytes": 193897,
+        "stored": true,
+        "alignment": 18
+      }
+    ],
+    "containerRepair": "64-byte payload alignment only; embedded layers and textures unchanged",
+    "servedBytes": 6836987,
+    "servedSha256": "c2e54aa0ca6117701732682dd3929a117d6e04008e7027137f624548ad83e720",
+    "servedAlignmentVerified": true,
+    "cpuLayerValidation": {
+      "parser": "Three USDCParser, binary v0.8.0, no warning",
+      "defaultPrim": "root",
+      "metersPerUnit": 1,
+      "upAxis": "Z",
+      "dimensionsMetersXYZ": [
+        0.2602,
+        0.1748,
+        0.0394
+      ],
+      "externalAssets": false,
+      "schemaCertification": false,
+      "nativeQuickLookTested": false
+    }
+  },
+  {
+    "id": "chocolat-fume",
+    "upload": "restaurants_86c56c72-d63c-4077-b79b-73e810236033_models_ar-ios_chocolat-fume-20260727-7df7787c.usdz",
+    "path": "/assets/ar/chocolat-fume.usdz",
+    "bytes": 3508859,
+    "sha256": "62e77f5705cb58e8cfe4c572258eba7405887574e5bb66f54cb13cd0c9fa645e",
+    "entries": [
+      {
+        "name": "model.usd",
+        "bytes": 2816576,
+        "stored": true,
+        "alignment": 39
+      },
+      {
+        "name": "textures/extracted_image_2.jpg",
+        "bytes": 42044,
+        "stored": true,
+        "alignment": 35
+      },
+      {
+        "name": "textures/extracted_image_1.jpg_roughness.png",
+        "bytes": 310816,
+        "stored": true,
+        "alignment": 41
+      },
+      {
+        "name": "textures/extracted_image_1.jpg_metallic.png",
+        "bytes": 189958,
+        "stored": true,
+        "alignment": 18
+      },
+      {
+        "name": "textures/extracted_image_0.jpg",
+        "bytes": 148751,
+        "stored": true,
+        "alignment": 20
+      }
+    ],
+    "containerRepair": "64-byte payload alignment only; embedded layers and textures unchanged",
+    "servedBytes": 3509203,
+    "servedSha256": "a08d98ede061832962da1b4aaf16c181ed9c67361782f3dbfc15555a82b2f500",
+    "servedAlignmentVerified": true,
+    "cpuLayerValidation": {
+      "parser": "Three USDCParser, binary v0.8.0, no warning",
+      "defaultPrim": "root",
+      "metersPerUnit": 1,
+      "upAxis": "Z",
+      "dimensionsMetersXYZ": [
+        0.12,
+        0.12,
+        0.0555
+      ],
+      "externalAssets": false,
+      "schemaCertification": false,
+      "nativeQuickLookTested": false
+    }
+  },
+  {
+    "id": "poutine",
+    "upload": "restaurants_bc1845b3-3f42-480f-aee2-6ec472c52e41_models_ar-ios_poutine-du-vieux-montreal-20260706-0d6c46d4.usdz",
+    "path": "/assets/ar/poutine.usdz",
+    "bytes": 5899965,
+    "sha256": "8f35b82695904abc238c5ffae3ce4fbdd8edfb833e49b30e59412b8bb9ae6ee5",
+    "entries": [
+      {
+        "name": "model.usd",
+        "bytes": 5147001,
+        "stored": true,
+        "alignment": 39
+      },
+      {
+        "name": "textures/extracted_image_3.jpg",
+        "bytes": 6427,
+        "stored": true,
+        "alignment": 28
+      },
+      {
+        "name": "textures/extracted_image_2.jpg",
+        "bytes": 32312,
+        "stored": true,
+        "alignment": 51
+      },
+      {
+        "name": "textures/extracted_image_1.jpg_roughness.png",
+        "bytes": 387227,
+        "stored": true,
+        "alignment": 53
+      },
+      {
+        "name": "textures/extracted_image_1.jpg_metallic.png",
+        "bytes": 175566,
+        "stored": true,
+        "alignment": 25
+      },
+      {
+        "name": "textures/extracted_image_0.jpg",
+        "bytes": 150582,
+        "stored": true,
+        "alignment": 35
+      }
+    ],
+    "containerRepair": "64-byte payload alignment only; embedded layers and textures unchanged",
+    "servedBytes": 5900407,
+    "servedSha256": "dad91af7b5c398807f752fefd4c28e979c052fb54da699f51b3b0c29cc8c3c7b",
+    "servedAlignmentVerified": true,
+    "cpuLayerValidation": {
+      "parser": "Three USDCParser, binary v0.8.0, no warning",
+      "defaultPrim": "root",
+      "metersPerUnit": 1,
+      "upAxis": "Z",
+      "dimensionsMetersXYZ": [
+        0.1799,
+        0.18,
+        0.0487
+      ],
+      "externalAssets": false,
+      "schemaCertification": false,
+      "nativeQuickLookTested": false
+    }
+  },
+  {
+    "id": "burger",
+    "upload": "restaurants_bc1845b3-3f42-480f-aee2-6ec472c52e41_models_ar-ios_burger-signature-maison-20260706-6b20d909.usdz",
+    "path": "/assets/ar/burger.usdz",
+    "bytes": 13591929,
+    "sha256": "456a3bd4298b7097e1d2ba9893e433ea4dfb48bbfb2a21bdfe3dfaaf44a70f3b",
+    "entries": [
+      {
+        "name": "__vistaire_geometry_optimized.usdc",
+        "bytes": 11609170,
+        "stored": true,
+        "alignment": 0
+      },
+      {
+        "name": "textures/color_0C0C0C.exr",
+        "bytes": 461,
+        "stored": true,
+        "alignment": 0
+      },
+      {
+        "name": "textures/extracted_image_3.jpg",
+        "bytes": 48289,
+        "stored": true,
+        "alignment": 0
+      },
+      {
+        "name": "textures/extracted_image_2.jpg",
+        "bytes": 526551,
+        "stored": true,
+        "alignment": 0
+      },
+      {
+        "name": "textures/extracted_image_1.jpg_roughness.png",
+        "bytes": 455394,
+        "stored": true,
+        "alignment": 0
+      },
+      {
+        "name": "textures/extracted_image_1.jpg_metallic.png",
+        "bytes": 251492,
+        "stored": true,
+        "alignment": 0
+      },
+      {
+        "name": "textures/extracted_image_0.jpg",
+        "bytes": 699088,
+        "stored": true,
+        "alignment": 0
+      }
+    ],
+    "containerRepair": null,
+    "servedBytes": 13591929,
+    "servedSha256": "456a3bd4298b7097e1d2ba9893e433ea4dfb48bbfb2a21bdfe3dfaaf44a70f3b",
+    "servedAlignmentVerified": true,
+    "cpuLayerValidation": {
+      "parser": "Three USDCParser, binary v0.8.0, no warning",
+      "defaultPrim": "root",
+      "metersPerUnit": 1,
+      "upAxis": "Z",
+      "dimensionsMetersXYZ": [
+        0.1549,
+        0.1546,
+        0.15
+      ],
+      "externalAssets": false,
+      "schemaCertification": false,
+      "nativeQuickLookTested": false
+    }
+  }
+]

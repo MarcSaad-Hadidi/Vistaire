@@ -1,0 +1,515 @@
+.previewNav {
+  position: fixed;
+  z-index: 90;
+  top: 16px;
+  left: 4vw;
+  right: 4vw;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-height: 72px;
+  padding: 12px 24px;
+  border: 1px solid var(--public-border);
+  border-radius: 12px;
+  background: var(--public-nav);
+  color: var(--public-text);
+  font-family: "Vistaire Text", serif;
+}
+.navBrand {
+  color: var(--public-gold);
+  font-family: "Vistaire Editorial", serif;
+  font-size: 30px;
+  letter-spacing: 0.08em;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.navLinks {
+  display: flex;
+  align-items: center;
+  gap: 22px;
+  margin-left: auto;
+}
+.navLink {
+  position: relative;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  font-size: 15px;
+  white-space: nowrap;
+  text-decoration: none;
+  color: var(--public-muted);
+}
+.navLink:hover,
+.navActive {
+  color: var(--public-text);
+}
+.navActive:after {
+  content: "";
+  position: absolute;
+  bottom: 6px;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: var(--public-gold-light);
+}
+.languageSwitcher {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+.languageLink {
+  display: inline-flex;
+  min-width: 30px;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  text-decoration: none;
+  color: var(--public-muted);
+}
+.languageLinkActive {
+  color: var(--public-gold-light);
+  text-decoration: underline;
+  text-underline-offset: 6px;
+}
+.navCta {
+  display: inline-flex;
+  gap: 20px;
+  align-items: center;
+  justify-content: center;
+  min-height: 46px;
+  padding: 12px 20px;
+  border-radius: 5px;
+  background: var(--public-gold);
+  color: var(--public-on-accent);
+  text-decoration: none;
+  font-size: 15px;
+  white-space: nowrap;
+  transition: background 160ms;
+}
+.navCta:hover {
+  background: var(--public-gold-light);
+}
+.navCta svg,
+.footerInvitationCta svg {
+  width: 16px;
+  height: 16px;
+  flex: none;
+}
+.navCtaShort {
+  display: none;
+}
+.mobileMenu {
+  display: block;
+  flex: none;
+}
+.mobileMenu summary {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-height: 44px;
+  padding-inline: 10px;
+  color: var(--public-text);
+  font-size: 16px;
+  list-style: none;
+  cursor: pointer;
+}
+.mobileMenu summary::-webkit-details-marker {
+  display: none;
+}
+.mobileMenu summary svg {
+  width: 18px;
+  height: 18px;
+}
+.mobilePanel {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: auto;
+  right: 0;
+  width: min(440px, calc(100vw - 8vw));
+  display: grid;
+  padding: 24px;
+  gap: 4px;
+  background: var(--public-surface);
+  border: 1px solid var(--public-border);
+  border-radius: 10px;
+  max-height: 75svh;
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+.mobilePanel > a {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding-block: 10px;
+  border-bottom: 1px solid var(--public-border);
+  min-height: 44px;
+  text-decoration: none;
+  font-family: "Vistaire Editorial", serif;
+  font-size: 28px;
+  color: var(--public-text);
+}
+.menuHeading {
+  margin: 0 0 12px;
+  color: var(--public-muted);
+  font: 12px/1.4 "Vistaire Text", sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+.mobilePanel > a small {
+  font: 11px/1 "Vistaire Text", sans-serif;
+  color: var(--public-gold);
+}
+.mobilePanel > a svg {
+  width: 16px;
+  height: 16px;
+  flex: none;
+  margin-left: auto;
+}
+.mobilePanel > a:hover { color: var(--public-gold); }
+.mobilePanel > a[aria-current] {
+  color: var(--public-gold-light);
+}
+.mobileExtras {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px 20px;
+  border-block: 1px solid var(--public-border);
+  padding-block: 12px;
+  margin-block: 8px;
+}
+.mobileExtras a {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  text-decoration: none;
+  color: var(--public-muted);
+  font-size: 14px;
+}
+.mobilePanel .mobileBooking {
+  font-family: "Vistaire Text", serif;
+  font-size: 18px;
+  margin-top: 8px;
+  padding: 14px 16px;
+  border: 1px solid var(--public-gold);
+  border-radius: 6px;
+  background: var(--public-gold);
+  color: var(--public-on-accent);
+}
+.mobilePanel .mobileBooking:hover {
+  background: var(--public-gold-light);
+  color: var(--public-on-accent);
+}
+.previewFooter {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  grid-template-columns: 1.5fr 1fr 1.2fr 1fr 1fr;
+  gap: 36px 28px;
+  width: min(1320px, 92vw);
+  margin: 100px auto 0;
+  padding: 0 0 32px;
+  color: var(--public-muted);
+  font-family: "Vistaire Text", serif;
+  background: var(--public-black);
+}
+.footerInvitation {
+  grid-column: 1/-1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 40px;
+  padding: 64px 0;
+  border-top: 1px solid var(--public-border);
+  border-bottom: 1px solid var(--public-border);
+  margin-bottom: 24px;
+}
+.footerInvitation h2 {
+  max-width: 17ch;
+  font-family: "Vistaire Editorial", serif;
+  font-weight: 400;
+  line-height: 1.06;
+  font-size: clamp(38px, 4vw, 62px);
+  color: var(--public-text);
+}
+.footerInvitationCta {
+  display: inline-flex;
+  min-height: 50px;
+  align-items: center;
+  gap: 30px;
+  padding: 16px 24px;
+  border: 1px solid var(--public-gold);
+  color: var(--public-gold);
+  text-decoration: none;
+  border-radius: 5px;
+  font-size: 18px;
+  white-space: nowrap;
+}
+.footerInvitationCta:hover {
+  background: var(--public-gold);
+  color: var(--public-on-accent);
+}
+.footerBrand h2 {
+  font-family: "Vistaire Editorial", serif;
+  letter-spacing: 0.07em;
+  font-size: 32px;
+  font-weight: 400;
+  color: var(--public-gold);
+}
+.footerTagline {
+  font-size: 20px;
+  line-height: 1.35;
+  margin-top: 16px;
+  max-width: 22ch;
+  color: var(--public-text);
+}
+.footerDescription {
+  font-size: 16px;
+  line-height: 1.65;
+  margin-top: 16px;
+  max-width: 28ch;
+}
+.footerColumn h2 {
+  font-family: "Vistaire Text", serif;
+  color: var(--public-text);
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.13em;
+  margin-bottom: 20px;
+}
+.footerLinkList {
+  display: grid;
+  gap: 12px;
+}
+.footerLinkList a,
+.footerEmail,
+.footerSocialLinks a {
+  min-height: 28px;
+  text-decoration: none;
+  font-size: 16px;
+  line-height: 1.4;
+}
+.footerLinkList a:hover,
+.footerEmail:hover {
+  color: var(--public-gold-light);
+}
+.footerPlace {
+  font-size: 16px;
+  line-height: 1.5;
+  margin-bottom: 12px;
+}
+.footerEmail {
+  display: block;
+  margin-bottom: 12px;
+}
+.footerCta {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--public-gold-light);
+  text-decoration: none;
+  font-size: 16px;
+  margin-top: 8px;
+}
+.footerSocialLinks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+}
+.footerBottom {
+  grid-column: 1/-1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  border-top: 1px solid var(--public-border);
+  padding-top: 24px;
+  margin-top: 24px;
+  font-size: 14px;
+}
+.footerCopyright {
+  font-size: 14px;
+}
+.footerColumn:last-of-type {
+  grid-column: 1/-1;
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 12px 28px;
+  border-top: 1px solid var(--public-border);
+  padding-top: 28px;
+}
+.footerColumn:last-of-type h2 {
+  margin: 0;
+}
+.previewFooterWide {
+  width: min(1320px, 92vw);
+}
+@media (max-width: 1100px) {
+  .previewNav {
+    gap: 16px;
+    padding-inline: 20px;
+  }
+  .navLinks {
+    gap: 18px;
+  }
+  .navCtaFull {
+    display: none;
+  }
+  .navCtaShort {
+    display: inline;
+  }
+  .previewFooter {
+    grid-template-columns: 1.4fr 1fr 1fr;
+  }
+  .footerBrand {
+    grid-row: span 2;
+  }
+  .footerInvitation {
+    gap: 24px;
+  }
+  .footerInvitationCta {
+    font-size: 16px;
+    gap: 18px;
+  }
+}
+@media (max-width: 760px) {
+  .previewNav {
+    top: 10px;
+    left: 18px;
+    right: 18px;
+    min-height: 64px;
+    padding: 10px 16px;
+    gap: 12px;
+    border-radius: 10px;
+  }
+  .navBrand {
+    font-size: 24px;
+  }
+  .navLinks,
+  .previewNav > .languageSwitcher,
+  .navCta {
+    display: none;
+  }
+  .mobileMenu {
+    display: block;
+    margin-left: auto;
+  }
+
+  .mobileLanguages {
+    display: flex;
+    gap: 16px;
+  }
+  .previewFooter {
+    width: calc(100% - 40px);
+    grid-template-columns: 1fr 1fr;
+    gap: 36px 20px;
+    margin-top: 64px;
+  }
+  .footerInvitation {
+    display: block;
+    padding-block: 40px;
+    margin-bottom: 0;
+  }
+  .footerInvitation h2 {
+    font-size: 40px;
+    max-width: 17ch;
+  }
+  .footerInvitationCta {
+    margin-top: 28px;
+    white-space: normal;
+  }
+  .footerBrand {
+    grid-column: 1/-1;
+    grid-row: auto;
+    padding-bottom: 24px;
+    border-bottom: 1px solid var(--public-border);
+  }
+  .footerTagline,
+  .footerDescription {
+    max-width: 38ch;
+  }
+  .footerBottom {
+    flex-wrap: wrap;
+    gap: 16px;
+    padding-top: 20px;
+    margin-top: 0;
+  }
+  .footerColumn:last-of-type {
+    display: block;
+  }
+  .footerColumn:last-of-type h2 {
+    margin-bottom: 16px;
+  }
+  .footerColumn:last-of-type .footerPlace {
+    margin-top: 12px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .navCta {
+    transition: none;
+  }
+}
+
+/* One navigation on every route, with the same controls at each viewport size. */
+.previewNav {
+  box-sizing: border-box;
+}
+.navLinks { min-width: 0; }
+.navBrand, .navCta { flex-shrink: 0; }
+.mobilePanel {
+  max-height: calc(100svh - 120px);
+}
+.previewNav :focus-visible {
+  outline: 2px solid var(--public-focus);
+  outline-offset: 3px;
+}
+@media (max-width: 1200px) {
+  .navCtaFull {
+    display: none;
+  }
+  .navCtaShort {
+    display: inline;
+  }
+}
+@media (max-width: 1100px) {
+  .navLinks {
+    display: none;
+  }
+  .previewNav > :global([data-public-controls]) {
+    margin-left: auto;
+  }
+}
+@media (max-width: 760px) {
+  .mobileMenu {
+    margin-left: 0;
+  }
+}
+@media (max-width: 430px) {
+  .previewNav {
+    left: 10px;
+    right: 10px;
+    padding: 8px;
+    gap: 6px;
+    min-height: 60px;
+  }
+  .navBrand {
+    font-size: 20px;
+    letter-spacing: 0.05em;
+  }
+  .mobileMenu summary {
+    width: 44px;
+    padding: 0;
+    justify-content: center;
+  }
+  .mobileMenu summary span {
+    display: none;
+  }
+  .mobileExtras {
+    gap: 4px 16px;
+  }
+  .mobilePanel { width: calc(100vw - 20px); padding: 20px; }
+  .mobilePanel > a { font-size: 24px; }
+  .mobilePanel .mobileBooking { font-size: 15px; }
+}

@@ -1,0 +1,24 @@
+{
+  "generated": [
+    {
+      "file": "public/assets/walnut-texture.webp",
+      "type": "generated raster texture",
+      "tool": "imagegen",
+      "sourceImage": "Vistaire Framer/Photo table.png",
+      "dimensions": [
+        1536,
+        1536
+      ],
+      "usage": "Three.js diffuse and bump material",
+      "prompt": "Photoreal seamless warm dark walnut top-down PBR base-color texture, uniform lighting, fine grain, no baked shadows or reflections, no objects, no text, no seams. Match the warm fine-dining Vistaire table reference."
+    }
+  ],
+  "derived": [
+    {
+      "file": "public/assets/phone-poster.webp",
+      "source": "public/videos/demo/maison-elyse.mp4",
+      "timeSeconds": 2,
+      "usage": "Real menu video first-frame placeholder on the 3D phone"
+    }
+  ]
+}
