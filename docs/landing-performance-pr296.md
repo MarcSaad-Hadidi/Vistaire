@@ -69,3 +69,9 @@ This comparison covers three seams only. Full twelve-region QA remains separate;
 ## Local validation limits
 
 Node tests exercise the real passive probe and scheduler without a browser. The profiler summary test verifies that callback delivery gaps are not fabricated as application self time. Browser execution here is not a substitute for CI: local Chromium was previously blocked and the available cloud browser lacks the required WebGL workload. No blocked route is retried or bypassed.
+
+### Features natural geometry correction
+
+The early browser regression at head `78b99a8d338b22fa958d49fd58b3d944e0fec179` (run `38113151281`, artifact `11692801092`) executed all four FR/EN × 390/430 cases. Both 390 px cases failed on a 16.25 CSS px focus-height variation between the three stable reading holds; both 430 px cases passed. This is independent of the software-GPU capture failure. The desktop cloud fallback at 1188 × 761 was stable and does not establish mobile correctness.
+
+The candidate reserves the natural maximum translated content height by placing the three panels in one grid cell. Inactive panels remain in layout but are hidden, inert and excluded from the accessibility tree. Text, links, scroll distances, renderer and quality are unchanged. The regression now persists its geometry JSON and additionally checks positive focus dimensions and unclipped card bounds. The composition probe reads the active panel while retaining its baseline selector for the previous DOM. Candidate browser results are pending; no whole-landing or hardware performance gain is claimed from this local correction.

@@ -721,6 +721,7 @@
   font-size: 12px;
 }
 :where([data-immersive-vistaire]) .feature-card {
+  display: grid;
   grid-column: 2;
   grid-row: 2;
   align-self: center;
@@ -729,6 +730,16 @@
   background: #111110c5;
   padding: 28px;
   max-width: 540px;
+}
+/* Every translated panel contributes its natural height. Changing the active
+   copy must not resize the adjacent scene focus or recalculate its camera fit. */
+:where([data-immersive-vistaire]) .feature-panel {
+  grid-area: 1 / 1;
+  min-width: 0;
+}
+:where([data-immersive-vistaire]) .feature-panel[data-feature-active="false"] {
+  visibility: hidden;
+  pointer-events: none;
 }
 :where([data-immersive-vistaire]) .feature-card h3 {
   font-size: clamp(30px, min(3.3vw, calc(6 * var(--scene-vh))), 55px);

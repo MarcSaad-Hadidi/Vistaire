@@ -25,7 +25,7 @@ for (const route of ['/', '/en']) for (const width of [390, 430]) {
     await page.goto(route, { waitUntil: 'domcontentloaded' });
     await expect(page.locator('.world-fallback')).toBeVisible();
     await page.evaluate(() => document.fonts.ready);
-    const samples: Array<{ index: number; title: string; focus: number[]; cardHeight: number; contentFits: boolean }> = [];
+    const samples: Array<{ index: number; title: string; focus: number[]; cardHeight: number; contentFits: boolean; cardFitsStage: boolean }> = [];
     try {
       for (const [index, fraction] of [0.125, 0.5, 0.875].entries()) {
         await page.locator('#features').evaluate((chapter, fraction) => {
@@ -46,6 +46,8 @@ for (const route of ['/', '/en']) for (const width of [390, 430]) {
             .filter(element => !element.closest('[aria-hidden="true"]') && getComputedStyle(element).visibility !== 'hidden');
           return { focus: [focus.left - stage.left, focus.top - stage.top, focus.width, focus.height],
             cardHeight: bounds.height,
+            cardFitsStage: bounds.left >= stage.left - 0.5 && bounds.right <= stage.right + 0.5
+              && bounds.top >= stage.top - 0.5 && bounds.bottom <= stage.bottom + 0.5,
             contentFits: content.length > 0 && content.every(element => {
               const box = element.getBoundingClientRect();
               return box.left >= bounds.left - 0.5 && box.right <= bounds.right + 0.5
@@ -56,7 +58,12 @@ for (const route of ['/', '/en']) for (const width of [390, 430]) {
         samples.push({ index, title, ...geometry });
       }
       expect(new Set(samples.map(sample => sample.title)).size).toBe(3);
-      for (const sample of samples) expect(sample.contentFits, `card ${sample.index}: natural copy remains inside card`).toBe(true);
+      for (const sample of samples) {
+        expect(sample.contentFits, `card ${sample.index}: natural copy remains inside card`).toBe(true);
+        expect(sample.cardFitsStage, `card ${sample.index}: card remains inside unclipped stage`).toBe(true);
+        expect(sample.focus[2], `card ${sample.index}: positive focus width`).toBeGreaterThan(0);
+        expect(sample.focus[3], `card ${sample.index}: positive focus height`).toBeGreaterThan(0);
+      }
       for (const axis of [0, 1, 2, 3]) {
         const values = samples.map(sample => sample.focus[axis]);
         expect(Math.max(...values) - Math.min(...values), `focus axis ${axis}: text replacement must not move the camera frame`).toBeLessThanOrEqual(0.5);
@@ -64,7 +71,9 @@ for (const route of ['/', '/en']) for (const width of [390, 430]) {
       const heights = samples.map(sample => sample.cardHeight);
       expect(Math.max(...heights) - Math.min(...heights), 'card keeps the natural maximum copy envelope').toBeLessThanOrEqual(0.5);
     } finally {
-      await testInfo.attach('features-reading-frame', { body: JSON.stringify({ route, width, samples }, null, 2), contentType: 'application/json' });
+      const evidence = testInfo.outputPath('features-reading-frame.json');
+      await writeFile(evidence, JSON.stringify({ route, width, samples }, null, 2));
+      await testInfo.attach('features-reading-frame', { path: evidence, contentType: 'application/json' });
     }
   });
 }

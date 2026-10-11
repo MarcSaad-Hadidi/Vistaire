@@ -1277,48 +1277,50 @@ function LandingContent() {
             <span className="eyebrow">{t("Chaque détail compte")}</span>
           </div>
           <div className="feature-card">
-            <span className="eyebrow">
+            {[
               {
-                [
-                  t("Une carte claire"),
-                  t("Des plats qui se racontent"),
-                  t("Le bon choix, simplement"),
-                ][featureBeat]
-              }
-            </span>
-            <h3>
+                eyebrow: t("Une carte claire"),
+                title: t("De l’envie à la première bouchée."),
+                description: t(
+                  "Des catégories lisibles, une navigation intuitive et une expérience rapide. Le menu s’ouvre dans le navigateur du client.",
+                ),
+              },
               {
-                [
-                  t("De l’envie à la première bouchée."),
-                  t("Vos signatures, sous tous les angles."),
-                  t("Les bonnes informations. Au bon endroit."),
-                ][featureBeat]
-              }
-            </h3>
-            <p>
+                eyebrow: t("Des plats qui se racontent"),
+                title: t("Vos signatures, sous tous les angles."),
+                description: t(
+                  "La 3D apporte un vrai plus aux plats qui le méritent. Explorez leur présentation avant de les découvrir à table.",
+                ),
+              },
               {
-                [
-                  t(
-                    "Des catégories lisibles, une navigation intuitive et une expérience rapide. Le menu s’ouvre dans le navigateur du client.",
-                  ),
-                  t(
-                    "La 3D apporte un vrai plus aux plats qui le méritent. Explorez leur présentation avant de les découvrir à table.",
-                  ),
-                  t(
-                    "Prix, descriptions, langues et allergènes : votre carte aide chacun à choisir avec confiance.",
-                  ),
-                ][featureBeat]
-              }
-            </p>
-            <Action
-              href={featureBeat === 1 ? undefined : link("/demo")}
-              onClick={featureBeat === 1 ? () => goto("grip") : undefined}
-            >
-              {featureBeat === 1
-                ? t("Manipuler le plat")
-                : t("Découvrir la carte")}
-              <ArrowUpRight size={15} />
-            </Action>
+                eyebrow: t("Le bon choix, simplement"),
+                title: t("Les bonnes informations. Au bon endroit."),
+                description: t(
+                  "Prix, descriptions, langues et allergènes : votre carte aide chacun à choisir avec confiance.",
+                ),
+              },
+            ].map((feature, index) => (
+              <div
+                key={index}
+                className="feature-panel"
+                data-feature-active={index === featureBeat}
+                aria-hidden={index !== featureBeat ? true : undefined}
+                inert={index !== featureBeat ? true : undefined}
+              >
+                <span className="eyebrow">{feature.eyebrow}</span>
+                <h3>{feature.title}</h3>
+                <p>{feature.description}</p>
+                <Action
+                  href={index === 1 ? undefined : link("/demo")}
+                  onClick={index === 1 ? () => goto("grip") : undefined}
+                >
+                  {index === 1
+                    ? t("Manipuler le plat")
+                    : t("Découvrir la carte")}
+                  <ArrowUpRight size={15} />
+                </Action>
+              </div>
+            ))}
           </div>
           <FocusFrame aria-hidden="true" />
           <div className="feature-dots">

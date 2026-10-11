@@ -250,7 +250,7 @@ function installJourneyObservation() {
     const current = [...document.querySelectorAll('.social-rail article')].flatMap((el, i) => el.classList.contains('is-current') ? [i] : []);
     return {
       featureIndex: Number(document.querySelector('.feature-number')?.textContent) - 1,
-      featureDots: selected('.feature-dots > span'), featureHeading: document.querySelector('.feature-card h3')?.textContent,
+      featureDots: selected('.feature-dots > span'), featureHeading: (document.querySelector('.feature-panel[data-feature-active="true"] h3') ?? document.querySelector('.feature-card > h3'))?.textContent,
       featureOpacity: Number(document.querySelector('#features')?.style.getPropertyValue('--detail-opacity')),
       socialIndex: current.length === 1 ? current[0] : null, socialPager: selected('.social-pager button'),
       railProgress: Number(document.querySelector('#social-content')?.style.getPropertyValue('--rail-progress')),

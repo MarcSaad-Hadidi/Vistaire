@@ -67,3 +67,23 @@ test('known callbacks that stop drawing remain observable without claiming a new
   assert.equal(f.read().samples[1].rendered, false);
   assert.equal(f.read().samples[1].pose.frames, '1');
 });
+
+test('journey evidence reads only the active Features heading across baseline and stable-panel layouts', () => {
+  const source = readFileSync('scripts/diagnose-landing-composition.mjs', 'utf8');
+  const start = source.indexOf('function installJourneyObservation(');
+  const end = source.indexOf('\nasync function openPage(', start);
+  for (const panels of [false, true]) {
+    const window = {};
+    const document = {
+      createElement() { return {}; }, querySelectorAll() { return []; },
+      querySelector(selector) {
+        if (selector === '.feature-panel[data-feature-active="true"] h3' && panels) return { textContent: 'Active second card' };
+        if (selector === '.feature-card > h3' && !panels) return { textContent: 'Active second card' };
+        if (selector === '.feature-card h3') return { textContent: panels ? 'Hidden first card' : 'Active second card' };
+        return null;
+      },
+    };
+    vm.runInNewContext(`(${source.slice(start, end)})();`, { window, document });
+    assert.equal(window.__compositionJourney.read().featureHeading, 'Active second card');
+  }
+});
