@@ -1,0 +1,363 @@
+.page {
+  min-height: 100svh;
+  background: var(--public-black, #050505);
+  color: var(--public-text);
+  font-family: var(--vistaire-font-body, "Vistaire Text", serif);
+}
+
+.hero,
+.vision,
+.service,
+.closing {
+  width: min(1280px, calc(100% - 96px));
+  margin-inline: auto;
+  min-width: 0;
+}
+
+.hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  align-items: center;
+  gap: clamp(32px, 5vw, 80px);
+  padding-top: 132px;
+  padding-bottom: 100px;
+  scroll-margin-top: 112px;
+}
+
+.heroCopy {
+  min-width: 0;
+  padding-block: 36px;
+}
+
+.eyebrow {
+  margin: 0 0 26px;
+  color: var(--public-gold, #ffc300);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.17em;
+  line-height: 1.5;
+  text-transform: uppercase;
+}
+
+.hero h1,
+.vision h2,
+.service h2,
+.closing h2 {
+  margin: 0;
+  font-family: var(--vistaire-font-display, "Vistaire Editorial", serif);
+  font-weight: 400;
+  letter-spacing: -0.025em;
+}
+
+.hero h1 {
+  max-width: 590px;
+  font-size: clamp(46px, 4.5vw, 68px);
+  line-height: 1.06;
+}
+
+.hero h1 em,
+.closing h2 em {
+  color: var(--public-gold, #ffc300);
+  font-weight: 400;
+}
+
+.proposition {
+  max-width: 510px;
+  margin: 30px 0 0;
+  font-size: 21px;
+  line-height: 1.5;
+}
+
+.intro {
+  max-width: 500px;
+  margin: 18px 0 30px;
+  color: var(--public-muted);
+  font-size: 16px;
+  line-height: 1.75;
+}
+
+.heroPhoto {
+  position: relative;
+  min-width: 0;
+  margin: 0;
+  aspect-ratio: 0.83;
+  overflow: hidden;
+}
+
+.photo {
+  object-fit: cover;
+}
+
+.heroPhoto .photo {
+  object-position: 50% 40%;
+}
+
+.heroPhoto figcaption {
+  position: absolute;
+  inset: auto 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 72px 28px 28px;
+  background: linear-gradient(transparent, color-mix(in srgb, var(--public-black) 88%, transparent));
+  font-size: 13px;
+}
+
+.heroPhoto figcaption span:first-child {
+  font-family: var(--vistaire-font-display, "Vistaire Editorial", serif);
+  font-size: 27px;
+}
+
+.heroPhoto figcaption span:last-child {
+  color: var(--public-muted);
+}
+
+.textLink,
+.ctaButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 22px;
+  min-height: 48px;
+  font-size: 15px;
+  text-decoration: none;
+  transition:
+    color 180ms ease,
+    border-color 180ms ease,
+    background-color 180ms ease;
+}
+
+.textLink {
+  border-bottom: 1px solid color-mix(in srgb, var(--public-text) 40%, transparent);
+  color: var(--public-text);
+}
+
+.textLink svg,
+.ctaButton svg {
+  width: 17px;
+  height: 17px;
+  flex: 0 0 auto;
+}
+
+.textLink:hover {
+  border-color: var(--public-gold, #ffc300);
+  color: var(--public-gold, #ffc300);
+}
+
+.textLink:focus-visible,
+.ctaButton:focus-visible {
+  outline: 2px solid var(--public-gold, #ffc300);
+  outline-offset: 6px;
+}
+
+.vision {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: clamp(32px, 5vw, 80px);
+  padding-block: 72px 88px;
+  border-top: 1px solid color-mix(in srgb, var(--public-text) 20%, transparent);
+  scroll-margin-top: 112px;
+}
+
+.vision h2 {
+  max-width: 520px;
+  font-size: clamp(32px, 3.2vw, 48px);
+  line-height: 1.12;
+}
+
+.visionCopy {
+  padding-top: 44px;
+}
+
+.visionCopy p {
+  margin: 0;
+  color: var(--public-muted);
+  font-size: 18px;
+  line-height: 1.7;
+}
+
+.visionCopy p + p {
+  margin-top: 24px;
+}
+
+.service {
+  padding-block: 0 88px;
+}
+
+.service h2 {
+  margin-bottom: 36px;
+  font-size: clamp(34px, 3.6vw, 52px);
+  line-height: 1.1;
+}
+
+.values {
+  margin: 0 0 34px;
+  border-top: 1px solid color-mix(in srgb, var(--public-text) 20%, transparent);
+}
+
+.values > div {
+  display: grid;
+  grid-template-columns: 56px minmax(200px, 0.8fr) minmax(0, 1fr);
+  align-items: baseline;
+  gap: 24px;
+  padding: 30px 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--public-text) 20%, transparent);
+}
+
+.valueIndex {
+  color: var(--public-gold, #ffc300);
+  font-size: 12px;
+}
+
+.values dt {
+  font-family: var(--vistaire-font-display, "Vistaire Editorial", serif);
+  font-size: 29px;
+  line-height: 1.2;
+}
+
+.values dd {
+  max-width: 520px;
+  margin: 0;
+  color: var(--public-muted);
+  font-size: 17px;
+  line-height: 1.6;
+}
+
+.ctaButton {
+  border: 1px solid var(--public-gold, #ffc300);
+  background: var(--public-gold, #ffc300);
+  padding: 0 25px;
+  color: var(--public-on-accent);
+  font-weight: 600;
+}
+
+.ctaButton:hover {
+  border-color: var(--public-gold-light);
+  background: var(--public-gold-light);
+}
+
+.closing {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  align-items: center;
+  gap: clamp(32px, 5vw, 80px);
+  padding-bottom: 100px;
+}
+
+.closingPhoto {
+  position: relative;
+  min-width: 0;
+  aspect-ratio: 1.3;
+  overflow: hidden;
+}
+
+.closingPhoto .photo {
+  object-position: 65% 60%;
+}
+
+.closing h2 {
+  font-size: clamp(36px, 3.5vw, 52px);
+  line-height: 1.15;
+}
+
+.closingCopy .textLink {
+  margin-top: 28px;
+}
+
+@media (max-width: 800px) {
+  .hero,
+  .vision,
+  .service,
+  .closing {
+    width: calc(100% - 40px);
+  }
+
+  .hero {
+    grid-template-columns: 1fr;
+    gap: 32px;
+    padding-top: 104px;
+    padding-bottom: 64px;
+  }
+
+  .heroCopy {
+    padding-block: 12px 0;
+  }
+
+  .hero h1 {
+    max-width: 600px;
+    font-size: clamp(42px, 7.6vw, 60px);
+  }
+
+  .eyebrow {
+    margin-bottom: 20px;
+    font-size: 11px;
+  }
+
+  .proposition {
+    margin-top: 24px;
+    font-size: 20px;
+  }
+
+  .intro {
+    margin-top: 16px;
+    font-size: 16px;
+  }
+
+  .heroPhoto {
+    aspect-ratio: 0.94;
+    max-height: 620px;
+  }
+
+  .vision {
+    grid-template-columns: 1fr;
+    gap: 24px;
+    padding-block: 48px 60px;
+  }
+
+  .visionCopy {
+    padding-top: 0;
+  }
+
+  .visionCopy p {
+    font-size: 17px;
+  }
+
+  .service {
+    padding-bottom: 64px;
+  }
+
+  .values > div {
+    grid-template-columns: 30px 1fr;
+    gap: 12px;
+    padding-block: 26px;
+  }
+
+  .values dt {
+    font-size: 27px;
+  }
+
+  .values dd {
+    grid-column: 2;
+    font-size: 16px;
+  }
+
+  .closing {
+    grid-template-columns: 1fr;
+    gap: 30px;
+    padding-bottom: 64px;
+  }
+
+  .closing h2 {
+    font-size: 36px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .textLink,
+  .ctaButton {
+    transition: none;
+  }
+}
+
+.heroPhoto figcaption { background: linear-gradient(transparent, rgba(5,5,5,.88)); color: #f8f3e8; }
+.heroPhoto figcaption span:last-child { color: #cec8bd; }

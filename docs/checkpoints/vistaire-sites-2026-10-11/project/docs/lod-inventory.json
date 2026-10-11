@@ -1,0 +1,1093 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-10-09T03:01:58.663Z",
+  "scope": "Five derived mobile GLBs. Source GLBs and textures unchanged. No Scene/App/RestaurantWorld modification.",
+  "tools": [
+    {
+      "name": "glTF Transform",
+      "version": "4.5.1",
+      "licence": "MIT",
+      "author": "Don McCurdy",
+      "source": "https://github.com/donmccurdy/glTF-Transform",
+      "registry": "https://registry.npmjs.org"
+    },
+    {
+      "name": "meshoptimizer",
+      "version": "1.1.1",
+      "licence": "MIT",
+      "author": "Arseny Kapoulkine",
+      "source": "https://github.com/zeux/meshoptimizer"
+    },
+    {
+      "name": "draco3dgltf",
+      "version": "1.5.7",
+      "licence": "Apache-2.0",
+      "author": "Google LLC",
+      "source": "https://github.com/google/draco"
+    },
+    {
+      "name": "glTF Validator",
+      "version": "2.0.0-dev.3.10",
+      "licence": "Apache-2.0",
+      "author": "The Khronos Group Inc.",
+      "source": "https://github.com/KhronosGroup/glTF-Validator"
+    }
+  ],
+  "method": "Exact weld, Meshopt simplifyWithAttributes (existing vertices only, no permissive/sloppy/prune flags), compact all surviving attributes, reorder for GPU locality, lossless Meshopt encoding of existing component arrays. No new quantization or texture conversion.",
+  "validated": [
+    "Original SHA-256 unchanged",
+    "Embedded image bytes identical",
+    "Materials, samplers, transforms and copyright unchanged",
+    "Surviving vertex attributes identical",
+    "Serialized Meshopt attribute roundtrip exact",
+    "Finite attributes and in-range indices",
+    "Khronos raw and fully decoded glTF validation"
+  ],
+  "notVerified": [
+    "Side-by-side rendered visual parity",
+    "Physical mobile FPS and thermal behaviour",
+    "AR placement quality",
+    "Hausdorff/pixel-error bounds; Meshopt combined error is only an estimate"
+  ],
+  "dishes": [
+    {
+      "id": "huitres",
+      "original": {
+        "path": "public/assets/dishes/huitres.glb",
+        "bytes": 3699644,
+        "sha256": "5169fc3b87f36927a770fce880de6cc2a7f9acc4ddfd037974b82dbc319069d7",
+        "triangles": 991760,
+        "vertices": 566919,
+        "decodedAttributeBytes": 18141408,
+        "decodedIndexBytes": 11901120,
+        "decodedGeometryBytes": 30042528,
+        "bounds": {
+          "min": [
+            -0.9505850076675415, -0.24231000244617462, -0.9503039717674255
+          ],
+          "max": [0.9486960172653198, 0.23937909305095673, 0.9481654763221741]
+        }
+      },
+      "mobile": {
+        "path": "public/assets/dishes/lod/huitres-mobile.glb",
+        "href": "/assets/dishes/lod/huitres-mobile.glb",
+        "bytes": 2577564,
+        "sha256": "4ef77f7f9beab7fb4aa1aba7c38d100b82aad40ed18170733d13350783693742",
+        "triangles": 119970,
+        "vertices": 85253,
+        "decodedAttributeBytes": 2728096,
+        "decodedIndexBytes": 1439640,
+        "decodedGeometryBytes": 4167736,
+        "bounds": {
+          "min": [
+            -0.9503531455993652, -0.24231000244617462, -0.9501880407333374
+          ],
+          "max": [0.9485800266265869, 0.2389153689146042, 0.9471221566200256]
+        }
+      },
+      "triangleReductionPercent": 87.90332338468984,
+      "maximumWorldBoundsDelta": 0.0010433197021484375,
+      "imagesRetainedExactly": [
+        {
+          "name": "",
+          "mimeType": "image/webp",
+          "bytes": 190388,
+          "sha256": "dba84b476a00a1f0a26e4b12d5bdb0aff0781dddedba9684017b2bb6b271ccf0"
+        },
+        {
+          "name": "",
+          "mimeType": "image/webp",
+          "bytes": 64138,
+          "sha256": "24ca9bffa334c25da8c9a461cad949faff05cc74dfdbba764031239436007b9e"
+        },
+        {
+          "name": "",
+          "mimeType": "image/webp",
+          "bytes": 61252,
+          "sha256": "aaccf5aaf64668d0292aaaf9be94a9558d40b41703d93f5860bbbc253d2b7002"
+        }
+      ],
+      "materialsSamplersTransformsRetained": true,
+      "originalFileRetainedUnchanged": true,
+      "simplification": [
+        {
+          "targetTriangles": 120000,
+          "maximumCombinedError": 0.002,
+          "estimatedCombinedError": 0.0019529040437191725,
+          "normalWeight": 0.2,
+          "uvWeight": 4,
+          "preservedVertexAttributeValues": true,
+          "note": "Combined position/attribute error is Meshopt's estimate, not a Hausdorff or pixel-error bound."
+        }
+      ],
+      "validation": {
+        "originalDecoded": {
+          "numErrors": 0,
+          "numWarnings": 4,
+          "numInfos": 0,
+          "numHints": 0,
+          "truncated": false,
+          "messages": [
+            {
+              "code": "MESH_PRIMITIVE_GENERATED_TANGENT_SPACE",
+              "message": "Material requires a tangent space but the mesh primitive does not provide it. Runtime-generated tangent space may be non-portable across implementations.",
+              "severity": 1,
+              "pointer": "/meshes/0/primitives/0/material"
+            },
+            {
+              "code": "IMAGE_FEATURES_UNSUPPORTED",
+              "message": "Image contains unsupported features like non-default colorspace information, non-square pixels, or animation.",
+              "severity": 1,
+              "pointer": "/images/0"
+            },
+            {
+              "code": "IMAGE_FEATURES_UNSUPPORTED",
+              "message": "Image contains unsupported features like non-default colorspace information, non-square pixels, or animation.",
+              "severity": 1,
+              "pointer": "/images/1"
+            },
+            {
+              "code": "IMAGE_FEATURES_UNSUPPORTED",
+              "message": "Image contains unsupported features like non-default colorspace information, non-square pixels, or animation.",
+              "severity": 1,
+              "pointer": "/images/2"
+            }
+          ]
+        },
+        "encoded": {
+          "numErrors": 0,
+          "numWarnings": 4,
+          "numInfos": 1,
+          "numHints": 0,
+          "truncated": false,
+          "messages": [
+            {
+              "code": "UNSUPPORTED_EXTENSION",
+              "message": "Cannot validate an extension as it is not supported by the validator: 'EXT_meshopt_compression'.",
+              "severity": 2,
+              "pointer": "/extensionsUsed/0"
+            },
+            {
+              "code": "MESH_PRIMITIVE_GENERATED_TANGENT_SPACE",
+              "message": "Material requires a tangent space but the mesh primitive does not provide it. Runtime-generated tangent space may be non-portable across implementations.",
+              "severity": 1,
+              "pointer": "/meshes/0/primitives/0/material"
+            },
+            {
+              "code": "IMAGE_FEATURES_UNSUPPORTED",
+              "message": "Image contains unsupported features like non-default colorspace information, non-square pixels, or animation.",
+              "severity": 1,
+              "pointer": "/images/0"
+            },
+            {
+              "code": "IMAGE_FEATURES_UNSUPPORTED",
+              "message": "Image contains unsupported features like non-default colorspace information, non-square pixels, or animation.",
+              "severity": 1,
+              "pointer": "/images/1"
+            },
+            {
+              "code": "IMAGE_FEATURES_UNSUPPORTED",
+              "message": "Image contains unsupported features like non-default colorspace information, non-square pixels, or animation.",
+              "severity": 1,
+              "pointer": "/images/2"
+            }
+          ]
+        },
+        "decoded": {
+          "numErrors": 0,
+          "numWarnings": 4,
+          "numInfos": 0,
+          "numHints": 0,
+          "truncated": false,
+          "messages": [
+            {
+              "code": "MESH_PRIMITIVE_GENERATED_TANGENT_SPACE",
+              "message": "Material requires a tangent space but the mesh primitive does not provide it. Runtime-generated tangent space may be non-portable across implementations.",
+              "severity": 1,
+              "pointer": "/meshes/0/primitives/0/material"
+            },
+            {
+              "code": "IMAGE_FEATURES_UNSUPPORTED",
+              "message": "Image contains unsupported features like non-default colorspace information, non-square pixels, or animation.",
+              "severity": 1,
+              "pointer": "/images/0"
+            },
+            {
+              "code": "IMAGE_FEATURES_UNSUPPORTED",
+              "message": "Image contains unsupported features like non-default colorspace information, non-square pixels, or animation.",
+              "severity": 1,
+              "pointer": "/images/1"
+            },
+            {
+              "code": "IMAGE_FEATURES_UNSUPPORTED",
+              "message": "Image contains unsupported features like non-default colorspace information, non-square pixels, or animation.",
+              "severity": 1,
+              "pointer": "/images/2"
+            }
+          ]
+        }
+      },
+      "rights": "Derived from the user's supplied Vistaire model under their explicit authorization. No broader model licence inferred. Embedded metadata and copyright retained."
+    },
+    {
+      "id": "sushi",
+      "original": {
+        "path": "public/assets/dishes/sushi.glb",
+        "bytes": 3895760,
+        "sha256": "9b94523eaf54c6789d66c02d1bcb5fafd8d910dab5237e55b0c8016323056e88",
+        "triangles": 590186,
+        "vertices": 345541,
+        "decodedAttributeBytes": 4492033,
+        "decodedIndexBytes": 7082232,
+        "decodedGeometryBytes": 11574265,
+        "bounds": {
+          "min": [
+            -0.09976944327354431, 4.5722327796961226e-7, -0.06704243357378661
+          ],
+          "max": [0.0997149795293808, 0.03000195981957348, 0.06685631807047546]
+        }
+      },
+      "mobile": {
+        "path": "public/assets/dishes/lod/sushi-mobile.glb",
+        "href": "/assets/dishes/lod/sushi-mobile.glb",
+        "bytes": 1248324,
+        "sha256": "5e42486f9e1a0895a28f7b506dc98dfcf5f5805e7ef7bfb52b5011e11337bb02",
+        "triangles": 119995,
+        "vertices": 83242,
+        "decodedAttributeBytes": 1082146,
+        "decodedIndexBytes": 1439940,
+        "decodedGeometryBytes": 2522086,
+        "bounds": {
+          "min": [
+            -0.09973291547005857, 4.5722327796961226e-7, -0.06703025763929137
+          ],
+          "max": [0.09970280359488555, 0.03000195981957348, 0.0668197902669897]
+        }
+      },
+      "triangleReductionPercent": 79.66827406953063,
+      "maximumWorldBoundsDelta": 0.00003652780348575857,
+      "imagesRetainedExactly": [
+        {
+          "name": "Image_3",
+          "mimeType": "image/webp",
+          "bytes": 17040,
+          "sha256": "1a5a42ab442b09e6fcab769c7a01675af91c60ba66fb25e985a7399944d2fa69"
+        },
+        {
+          "name": "Image_2",
+          "mimeType": "image/webp",
+          "bytes": 32850,
+          "sha256": "cc4f10f5cbc642265dca68879d1865787f6daf38adfaabe97422c9afa6c538de"
+        },
+        {
+          "name": "Image_0",
+          "mimeType": "image/webp",
+          "bytes": 193446,
+          "sha256": "9a74e36249136ce69ea47c3cbb3c32d5e7c0e3cf6c4b9f13310c491da46dd634"
+        },
+        {
+          "name": "Image_1",
+          "mimeType": "image/webp",
+          "bytes": 39664,
+          "sha256": "4de5fc8f73b4fec2011123b3c7ec056cee4e34f56bacaf52ff7ec84cd7d346b3"
+        }
+      ],
+      "materialsSamplersTransformsRetained": true,
+      "originalFileRetainedUnchanged": true,
+      "simplification": [
+        {
+          "targetTriangles": 120000,
+          "maximumCombinedError": 0.002,
+          "estimatedCombinedError": 0.0011187923373654485,
+          "normalWeight": 0.2,
+          "uvWeight": 4,
+          "preservedVertexAttributeValues": true,
+          "note": "Combined position/attribute error is Meshopt's estimate, not a Hausdorff or pixel-error bound."
+        }
+      ],
+      "validation": {
+        "originalDecoded": {
+          "numErrors": 0,
+          "numWarnings": 1,
+          "numInfos": 0,
+          "numHints": 0,
+          "truncated": false,
+          "messages": [
+            {
+              "code": "MESH_PRIMITIVE_GENERATED_TANGENT_SPACE",
+              "message": "Material requires a tangent space but the mesh primitive does not provide it. Runtime-generated tangent space may be non-portable across implementations.",
+              "severity": 1,
+              "pointer": "/meshes/0/primitives/0/material"
+            }
+          ]
+        },
+        "encoded": {
+          "numErrors": 0,
+          "numWarnings": 1,
+          "numInfos": 1,
+          "numHints": 0,
+          "truncated": false,
+          "messages": [
+            {
+              "code": "UNSUPPORTED_EXTENSION",
+              "message": "Cannot validate an extension as it is not supported by the validator: 'EXT_meshopt_compression'.",
+              "severity": 2,
+              "pointer": "/extensionsUsed/0"
+            },
+            {
+              "code": "MESH_PRIMITIVE_GENERATED_TANGENT_SPACE",
+              "message": "Material requires a tangent space but the mesh primitive does not provide it. Runtime-generated tangent space may be non-portable across implementations.",
+              "severity": 1,
+              "pointer": "/meshes/0/primitives/0/material"
+            }
+          ]
+        },
+        "decoded": {
+          "numErrors": 0,
+          "numWarnings": 1,
+          "numInfos": 0,
+          "numHints": 0,
+          "truncated": false,
+          "messages": [
+            {
+              "code": "MESH_PRIMITIVE_GENERATED_TANGENT_SPACE",
+              "message": "Material requires a tangent space but the mesh primitive does not provide it. Runtime-generated tangent space may be non-portable across implementations.",
+              "severity": 1,
+              "pointer": "/meshes/0/primitives/0/material"
+            }
+          ]
+        }
+      },
+      "rights": "Derived from the user's supplied Vistaire model under their explicit authorization. No broader model licence inferred. Embedded metadata and copyright retained."
+    },
+    {
+      "id": "chocolat-fume",
+      "original": {
+        "path": "public/assets/dishes/chocolat-fume.glb",
+        "bytes": 979612,
+        "sha256": "81cc641cf08f34d1ef0854f55c0dfe1a101f0f1814de8fbefc6fda7d36ecee73",
+        "triangles": 193524,
+        "vertices": 112711,
+        "decodedAttributeBytes": 3606752,
+        "decodedIndexBytes": 2322288,
+        "decodedGeometryBytes": 5929040,
+        "bounds": {
+          "min": [
+            -0.9503250122070312, -0.4414159953594208, -0.9502620100975037
+          ],
+          "max": [0.9483850002288818, 0.4359101951122284, 0.9484480023384094]
+        }
+      },
+      "mobile": {
+        "path": "public/assets/dishes/lod/chocolat-fume-mobile.glb",
+        "href": "/assets/dishes/lod/chocolat-fume-mobile.glb",
+        "bytes": 2180100,
+        "sha256": "cff5dac881a28bbaeed85d3c0bd73072fe999a22e5824c12319d1e014c847d5f",
+        "triangles": 120000,
+        "vertices": 74457,
+        "decodedAttributeBytes": 2382624,
+        "decodedIndexBytes": 1440000,
+        "decodedGeometryBytes": 3822624,
+        "bounds": {
+          "min": [
+            -0.9503250122070312, -0.4414159953594208, -0.9502620100975037
+          ],
+          "max": [0.9483850002288818, 0.4359101951122284, 0.9484480023384094]
+        }
+      },
+      "triangleReductionPercent": 37.992187015563964,
+      "maximumWorldBoundsDelta": 0,
+      "imagesRetainedExactly": [
+        {
+          "name": "",
+          "mimeType": "image/webp",
+          "bytes": 177608,
+          "sha256": "1147f714629dff0399cda80aa44b9a3cd008039e2ded3e11f5d1611fa1186f0d"
+        },
+        {
+          "name": "",
+          "mimeType": "image/webp",
+          "bytes": 27108,
+          "sha256": "e83012df0b1480238f926fe528a4e34466ff16cc19ffa56e625a9779f3a04569"
+        },
+        {
+          "name": "",
+          "mimeType": "image/webp",
+          "bytes": 66450,
+          "sha256": "009e58a4c8c4fed1008d5fd0fd82c5509eee6afbae9de8515686b967b5f4a168"
+        }
+      ],
+      "materialsSamplersTransformsRetained": true,
+      "originalFileRetainedUnchanged": true,
+      "simplification": [
+        {
+          "targetTriangles": 120000,
+          "maximumCombinedError": 0.002,
+          "estimatedCombinedError": 0.00024413001665379852,
+          "normalWeight": 0.2,
+          "uvWeight": 4,
+          "preservedVertexAttributeValues": true,
+          "note": "Combined position/attribute error is Meshopt's estimate, not a Hausdorff or pixel-error bound."
+        }
+      ],
+      "validation": {
+        "originalDecoded": {
+          "numErrors": 0,
+          "numWarnings": 4,
+          "numInfos": 0,
+          "numHints": 0,
+          "truncated": false,
+          "messages": [
+            {
+              "code": "MESH_PRIMITIVE_GENERATED_TANGENT_SPACE",
+              "message": "Material requires a tangent space but the mesh primitive does not provide it. Runtime-generated tangent space may be non-portable across implementations.",
+              "severity": 1,
+              "pointer": "/meshes/0/primitives/0/material"
+            },
+            {
+              "code": "IMAGE_FEATURES_UNSUPPORTED",
+              "message": "Image contains unsupported features like non-default colorspace information, non-square pixels, or animation.",
+              "severity": 1,
+              "pointer": "/images/0"
+            },
+            {
+              "code": "IMAGE_FEATURES_UNSUPPORTED",
+              "message": "Image contains unsupported features like non-default colorspace information, non-square pixels, or animation.",
+              "severity": 1,
+              "pointer": "/images/1"
+            },
+            {
+              "code": "IMAGE_FEATURES_UNSUPPORTED",
+              "message": "Image contains unsupported features like non-default colorspace information, non-square pixels, or animation.",
+              "severity": 1,
+              "pointer": "/images/2"
+            }
+          ]
+        },
+        "encoded": {
+          "numErrors": 0,
+          "numWarnings": 4,
+          "numInfos": 1,
+          "numHints": 0,
+          "truncated": false,
+          "messages": [
+            {
+              "code": "UNSUPPORTED_EXTENSION",
+              "message": "Cannot validate an extension as it is not supported by the validator: 'EXT_meshopt_compression'.",
+              "severity": 2,
+              "pointer": "/extensionsUsed/0"
+            },
+            {
+              "code": "MESH_PRIMITIVE_GENERATED_TANGENT_SPACE",
+              "message": "Material requires a tangent space but the mesh primitive does not provide it. Runtime-generated tangent space may be non-portable across implementations.",
+              "severity": 1,
+              "pointer": "/meshes/0/primitives/0/material"
+            },
+            {
+              "code": "IMAGE_FEATURES_UNSUPPORTED",
+              "message": "Image contains unsupported features like non-default colorspace information, non-square pixels, or animation.",
+              "severity": 1,
+              "pointer": "/images/0"
+            },
+            {
+              "code": "IMAGE_FEATURES_UNSUPPORTED",
+              "message": "Image contains unsupported features like non-default colorspace information, non-square pixels, or animation.",
+              "severity": 1,
+              "pointer": "/images/1"
+            },
+            {
+              "code": "IMAGE_FEATURES_UNSUPPORTED",
+              "message": "Image contains unsupported features like non-default colorspace information, non-square pixels, or animation.",
+              "severity": 1,
+              "pointer": "/images/2"
+            }
+          ]
+        },
+        "decoded": {
+          "numErrors": 0,
+          "numWarnings": 4,
+          "numInfos": 0,
+          "numHints": 0,
+          "truncated": false,
+          "messages": [
+            {
+              "code": "MESH_PRIMITIVE_GENERATED_TANGENT_SPACE",
+              "message": "Material requires a tangent space but the mesh primitive does not provide it. Runtime-generated tangent space may be non-portable across implementations.",
+              "severity": 1,
+              "pointer": "/meshes/0/primitives/0/material"
+            },
+            {
+              "code": "IMAGE_FEATURES_UNSUPPORTED",
+              "message": "Image contains unsupported features like non-default colorspace information, non-square pixels, or animation.",
+              "severity": 1,
+              "pointer": "/images/0"
+            },
+            {
+              "code": "IMAGE_FEATURES_UNSUPPORTED",
+              "message": "Image contains unsupported features like non-default colorspace information, non-square pixels, or animation.",
+              "severity": 1,
+              "pointer": "/images/1"
+            },
+            {
+              "code": "IMAGE_FEATURES_UNSUPPORTED",
+              "message": "Image contains unsupported features like non-default colorspace information, non-square pixels, or animation.",
+              "severity": 1,
+              "pointer": "/images/2"
+            }
+          ]
+        }
+      },
+      "rights": "Derived from the user's supplied Vistaire model under their explicit authorization. No broader model licence inferred. Embedded metadata and copyright retained."
+    },
+    {
+      "id": "poutine",
+      "original": {
+        "path": "public/assets/dishes/poutine.glb",
+        "bytes": 1631104,
+        "sha256": "66d25e9532f04591c8f3cbd818d80dc797b1611a8fa75041beb89d52eb1d6f2d",
+        "triangles": 224586,
+        "vertices": 137426,
+        "decodedAttributeBytes": 1786538,
+        "decodedIndexBytes": 2695032,
+        "decodedGeometryBytes": 4481570,
+        "bounds": {
+          "min": [
+            -0.05549160901084281, -0.000001234426447791273, -0.05551304295659065
+          ],
+          "max": [
+            0.05536135796084739, 0.030004308983036916, 0.05539407953619957
+          ]
+        }
+      },
+      "mobile": {
+        "path": "public/assets/dishes/lod/poutine-mobile.glb",
+        "href": "/assets/dishes/lod/poutine-mobile.glb",
+        "bytes": 1146944,
+        "sha256": "ab1631006783fb212c8833f9cb5a54582eccbaacdea7c6c0a072d002e4007f26",
+        "triangles": 120000,
+        "vertices": 82331,
+        "decodedAttributeBytes": 1070303,
+        "decodedIndexBytes": 1440000,
+        "decodedGeometryBytes": 2510303,
+        "bounds": {
+          "min": [
+            -0.05549160901084281, -0.000001234426447791273,
+            -0.055499504076315646
+          ],
+          "max": [
+            0.05536135796084739, 0.030004308983036916, 0.05539407953619957
+          ]
+        }
+      },
+      "triangleReductionPercent": 46.56835243514734,
+      "maximumWorldBoundsDelta": 0.000013538880275006104,
+      "imagesRetainedExactly": [
+        {
+          "name": "Image_2",
+          "mimeType": "image/webp",
+          "bytes": 20208,
+          "sha256": "b2a23ebe4b2fcb5de8717eccee94026b3e22431cc927f1f081f7fc09c079b9ad"
+        },
+        {
+          "name": "Image_0",
+          "mimeType": "image/webp",
+          "bytes": 132256,
+          "sha256": "5c8dc0be6655ca19204ec312588d8886dab4fc6a6057b44420dd001068746436"
+        },
+        {
+          "name": "Image_1",
+          "mimeType": "image/webp",
+          "bytes": 36114,
+          "sha256": "d90a9570658996ef54e73bf945668c907910a68b2c3f8662f8047406419445b3"
+        }
+      ],
+      "materialsSamplersTransformsRetained": true,
+      "originalFileRetainedUnchanged": true,
+      "simplification": [
+        {
+          "targetTriangles": 120000,
+          "maximumCombinedError": 0.002,
+          "estimatedCombinedError": 0.0003838115662802011,
+          "normalWeight": 0.2,
+          "uvWeight": 4,
+          "preservedVertexAttributeValues": true,
+          "note": "Combined position/attribute error is Meshopt's estimate, not a Hausdorff or pixel-error bound."
+        }
+      ],
+      "validation": {
+        "originalDecoded": {
+          "numErrors": 0,
+          "numWarnings": 1,
+          "numInfos": 0,
+          "numHints": 0,
+          "truncated": false,
+          "messages": [
+            {
+              "code": "MESH_PRIMITIVE_GENERATED_TANGENT_SPACE",
+              "message": "Material requires a tangent space but the mesh primitive does not provide it. Runtime-generated tangent space may be non-portable across implementations.",
+              "severity": 1,
+              "pointer": "/meshes/0/primitives/0/material"
+            }
+          ]
+        },
+        "encoded": {
+          "numErrors": 0,
+          "numWarnings": 1,
+          "numInfos": 1,
+          "numHints": 0,
+          "truncated": false,
+          "messages": [
+            {
+              "code": "UNSUPPORTED_EXTENSION",
+              "message": "Cannot validate an extension as it is not supported by the validator: 'EXT_meshopt_compression'.",
+              "severity": 2,
+              "pointer": "/extensionsUsed/0"
+            },
+            {
+              "code": "MESH_PRIMITIVE_GENERATED_TANGENT_SPACE",
+              "message": "Material requires a tangent space but the mesh primitive does not provide it. Runtime-generated tangent space may be non-portable across implementations.",
+              "severity": 1,
+              "pointer": "/meshes/0/primitives/0/material"
+            }
+          ]
+        },
+        "decoded": {
+          "numErrors": 0,
+          "numWarnings": 1,
+          "numInfos": 0,
+          "numHints": 0,
+          "truncated": false,
+          "messages": [
+            {
+              "code": "MESH_PRIMITIVE_GENERATED_TANGENT_SPACE",
+              "message": "Material requires a tangent space but the mesh primitive does not provide it. Runtime-generated tangent space may be non-portable across implementations.",
+              "severity": 1,
+              "pointer": "/meshes/0/primitives/0/material"
+            }
+          ]
+        }
+      },
+      "rights": "Derived from the user's supplied Vistaire model under their explicit authorization. No broader model licence inferred. Embedded metadata and copyright retained."
+    },
+    {
+      "id": "burger",
+      "original": {
+        "path": "public/assets/dishes/burger.glb",
+        "bytes": 2979416,
+        "sha256": "0452856149f975b5a8867e4d2e40f71dc69c7bc3a26942cd14a71bcdc23660ae",
+        "triangles": 777884,
+        "vertices": 466850,
+        "decodedAttributeBytes": 14939200,
+        "decodedIndexBytes": 9334608,
+        "decodedGeometryBytes": 24273808,
+        "bounds": {
+          "min": [
+            -0.06211576983332634, 8.456408977508545e-7, -0.06196600943803787
+          ],
+          "max": [0.061862144619226456, 0.1199679970741272, 0.06184542179107666]
+        }
+      },
+      "mobile": {
+        "path": "public/assets/dishes/lod/burger-mobile.glb",
+        "href": "/assets/dishes/lod/burger-mobile.glb",
+        "bytes": 3099768,
+        "sha256": "e1995a7f3487ae98d84e0734cdeb973234f758fa69390a74c10efda64130b6ef",
+        "triangles": 145031,
+        "vertices": 108453,
+        "decodedAttributeBytes": 3470496,
+        "decodedIndexBytes": 1740372,
+        "decodedGeometryBytes": 5210868,
+        "bounds": {
+          "min": [
+            -0.06211576983332634, 8.456408977508545e-7, -0.06196600943803787
+          ],
+          "max": [0.061862144619226456, 0.1199679970741272, 0.06184542179107666]
+        }
+      },
+      "triangleReductionPercent": 81.35570342107563,
+      "maximumWorldBoundsDelta": 0,
+      "imagesRetainedExactly": [
+        {
+          "name": "Image_3",
+          "mimeType": "image/webp",
+          "bytes": 6434,
+          "sha256": "8f6d74ee34df167a3ceb036680d84401b238cd0afc785c789ffbcded45b73290"
+        },
+        {
+          "name": "Image_2",
+          "mimeType": "image/webp",
+          "bytes": 47464,
+          "sha256": "6dfe0e8574163c224099d534868bf79a6631666ac485f750220f0f56bc40ccf8"
+        },
+        {
+          "name": "Image_0",
+          "mimeType": "image/webp",
+          "bytes": 204714,
+          "sha256": "ede03fe932ccd057a3661cac8fe99950ff86a99ddf23c0fff20fc142f70da3a4"
+        },
+        {
+          "name": "Image_1",
+          "mimeType": "image/webp",
+          "bytes": 50506,
+          "sha256": "934e0a4b612c4d44728145004f9c8028f84bb9761090e0b49fb201d10e70a5ab"
+        }
+      ],
+      "materialsSamplersTransformsRetained": true,
+      "originalFileRetainedUnchanged": true,
+      "simplification": [
+        {
+          "targetTriangles": 120000,
+          "maximumCombinedError": 0.002,
+          "estimatedCombinedError": 0.0019989553838968277,
+          "normalWeight": 0.2,
+          "uvWeight": 4,
+          "preservedVertexAttributeValues": true,
+          "note": "Combined position/attribute error is Meshopt's estimate, not a Hausdorff or pixel-error bound."
+        }
+      ],
+      "validation": {
+        "originalDecoded": {
+          "numErrors": 0,
+          "numWarnings": 5,
+          "numInfos": 0,
+          "numHints": 0,
+          "truncated": false,
+          "messages": [
+            {
+              "code": "MESH_PRIMITIVE_GENERATED_TANGENT_SPACE",
+              "message": "Material requires a tangent space but the mesh primitive does not provide it. Runtime-generated tangent space may be non-portable across implementations.",
+              "severity": 1,
+              "pointer": "/meshes/0/primitives/0/material"
+            },
+            {
+              "code": "IMAGE_FEATURES_UNSUPPORTED",
+              "message": "Image contains unsupported features like non-default colorspace information, non-square pixels, or animation.",
+              "severity": 1,
+              "pointer": "/images/0"
+            },
+            {
+              "code": "IMAGE_FEATURES_UNSUPPORTED",
+              "message": "Image contains unsupported features like non-default colorspace information, non-square pixels, or animation.",
+              "severity": 1,
+              "pointer": "/images/1"
+            },
+            {
+              "code": "IMAGE_FEATURES_UNSUPPORTED",
+              "message": "Image contains unsupported features like non-default colorspace information, non-square pixels, or animation.",
+              "severity": 1,
+              "pointer": "/images/2"
+            },
+            {
+              "code": "IMAGE_FEATURES_UNSUPPORTED",
+              "message": "Image contains unsupported features like non-default colorspace information, non-square pixels, or animation.",
+              "severity": 1,
+              "pointer": "/images/3"
+            }
+          ]
+        },
+        "encoded": {
+          "numErrors": 0,
+          "numWarnings": 5,
+          "numInfos": 1,
+          "numHints": 0,
+          "truncated": false,
+          "messages": [
+            {
+              "code": "UNSUPPORTED_EXTENSION",
+              "message": "Cannot validate an extension as it is not supported by the validator: 'EXT_meshopt_compression'.",
+              "severity": 2,
+              "pointer": "/extensionsUsed/0"
+            },
+            {
+              "code": "MESH_PRIMITIVE_GENERATED_TANGENT_SPACE",
+              "message": "Material requires a tangent space but the mesh primitive does not provide it. Runtime-generated tangent space may be non-portable across implementations.",
+              "severity": 1,
+              "pointer": "/meshes/0/primitives/0/material"
+            },
+            {
+              "code": "IMAGE_FEATURES_UNSUPPORTED",
+              "message": "Image contains unsupported features like non-default colorspace information, non-square pixels, or animation.",
+              "severity": 1,
+              "pointer": "/images/0"
+            },
+            {
+              "code": "IMAGE_FEATURES_UNSUPPORTED",
+              "message": "Image contains unsupported features like non-default colorspace information, non-square pixels, or animation.",
+              "severity": 1,
+              "pointer": "/images/1"
+            },
+            {
+              "code": "IMAGE_FEATURES_UNSUPPORTED",
+              "message": "Image contains unsupported features like non-default colorspace information, non-square pixels, or animation.",
+              "severity": 1,
+              "pointer": "/images/2"
+            },
+            {
+              "code": "IMAGE_FEATURES_UNSUPPORTED",
+              "message": "Image contains unsupported features like non-default colorspace information, non-square pixels, or animation.",
+              "severity": 1,
+              "pointer": "/images/3"
+            }
+          ]
+        },
+        "decoded": {
+          "numErrors": 0,
+          "numWarnings": 5,
+          "numInfos": 0,
+          "numHints": 0,
+          "truncated": false,
+          "messages": [
+            {
+              "code": "MESH_PRIMITIVE_GENERATED_TANGENT_SPACE",
+              "message": "Material requires a tangent space but the mesh primitive does not provide it. Runtime-generated tangent space may be non-portable across implementations.",
+              "severity": 1,
+              "pointer": "/meshes/0/primitives/0/material"
+            },
+            {
+              "code": "IMAGE_FEATURES_UNSUPPORTED",
+              "message": "Image contains unsupported features like non-default colorspace information, non-square pixels, or animation.",
+              "severity": 1,
+              "pointer": "/images/0"
+            },
+            {
+              "code": "IMAGE_FEATURES_UNSUPPORTED",
+              "message": "Image contains unsupported features like non-default colorspace information, non-square pixels, or animation.",
+              "severity": 1,
+              "pointer": "/images/1"
+            },
+            {
+              "code": "IMAGE_FEATURES_UNSUPPORTED",
+              "message": "Image contains unsupported features like non-default colorspace information, non-square pixels, or animation.",
+              "severity": 1,
+              "pointer": "/images/2"
+            },
+            {
+              "code": "IMAGE_FEATURES_UNSUPPORTED",
+              "message": "Image contains unsupported features like non-default colorspace information, non-square pixels, or animation.",
+              "severity": 1,
+              "pointer": "/images/3"
+            }
+          ]
+        }
+      },
+      "rights": "Derived from the user's supplied Vistaire model under their explicit authorization. No broader model licence inferred. Embedded metadata and copyright retained."
+    }
+  ],
+  "memoryEstimateNote": "DecodedGeometryBytes sums tightly packed decoded attribute/index arrays. It excludes stride padding, extra allocations, textures/mipmaps, render targets and GPU-driver overhead; it is not measured GPU memory.",
+  "independentByteVerification": {
+    "checkedAt": "2026-10-09T03:52:34.739Z",
+    "method": "Independent GLB chunk parsing, image bufferView byte extraction and SHA-256 comparison; no generation/decode library or image resampling.",
+    "script": "scripts/assets/verify-asset-integrity.mjs",
+    "dishes": [
+      {
+        "id": "huitres",
+        "originalSha256": "5169fc3b87f36927a770fce880de6cc2a7f9acc4ddfd037974b82dbc319069d7",
+        "mobileSha256": "4ef77f7f9beab7fb4aa1aba7c38d100b82aad40ed18170733d13350783693742",
+        "originalUnchanged": true,
+        "imageCount": 3,
+        "embeddedImageBytes": 315778,
+        "imageBytesMimeAndOrderIdentical": true,
+        "copyrightUnchanged": true,
+        "images": [
+          {
+            "index": 0,
+            "mimeType": "image/webp",
+            "bytes": 190388,
+            "sha256": "dba84b476a00a1f0a26e4b12d5bdb0aff0781dddedba9684017b2bb6b271ccf0"
+          },
+          {
+            "index": 1,
+            "mimeType": "image/webp",
+            "bytes": 64138,
+            "sha256": "24ca9bffa334c25da8c9a461cad949faff05cc74dfdbba764031239436007b9e"
+          },
+          {
+            "index": 2,
+            "mimeType": "image/webp",
+            "bytes": 61252,
+            "sha256": "aaccf5aaf64668d0292aaaf9be94a9558d40b41703d93f5860bbbc253d2b7002"
+          }
+        ]
+      },
+      {
+        "id": "sushi",
+        "originalSha256": "9b94523eaf54c6789d66c02d1bcb5fafd8d910dab5237e55b0c8016323056e88",
+        "mobileSha256": "5e42486f9e1a0895a28f7b506dc98dfcf5f5805e7ef7bfb52b5011e11337bb02",
+        "originalUnchanged": true,
+        "imageCount": 4,
+        "embeddedImageBytes": 283000,
+        "imageBytesMimeAndOrderIdentical": true,
+        "copyrightUnchanged": true,
+        "images": [
+          {
+            "index": 0,
+            "mimeType": "image/webp",
+            "bytes": 17040,
+            "sha256": "1a5a42ab442b09e6fcab769c7a01675af91c60ba66fb25e985a7399944d2fa69"
+          },
+          {
+            "index": 1,
+            "mimeType": "image/webp",
+            "bytes": 32850,
+            "sha256": "cc4f10f5cbc642265dca68879d1865787f6daf38adfaabe97422c9afa6c538de"
+          },
+          {
+            "index": 2,
+            "mimeType": "image/webp",
+            "bytes": 193446,
+            "sha256": "9a74e36249136ce69ea47c3cbb3c32d5e7c0e3cf6c4b9f13310c491da46dd634"
+          },
+          {
+            "index": 3,
+            "mimeType": "image/webp",
+            "bytes": 39664,
+            "sha256": "4de5fc8f73b4fec2011123b3c7ec056cee4e34f56bacaf52ff7ec84cd7d346b3"
+          }
+        ]
+      },
+      {
+        "id": "chocolat-fume",
+        "originalSha256": "81cc641cf08f34d1ef0854f55c0dfe1a101f0f1814de8fbefc6fda7d36ecee73",
+        "mobileSha256": "cff5dac881a28bbaeed85d3c0bd73072fe999a22e5824c12319d1e014c847d5f",
+        "originalUnchanged": true,
+        "imageCount": 3,
+        "embeddedImageBytes": 271166,
+        "imageBytesMimeAndOrderIdentical": true,
+        "copyrightUnchanged": true,
+        "images": [
+          {
+            "index": 0,
+            "mimeType": "image/webp",
+            "bytes": 177608,
+            "sha256": "1147f714629dff0399cda80aa44b9a3cd008039e2ded3e11f5d1611fa1186f0d"
+          },
+          {
+            "index": 1,
+            "mimeType": "image/webp",
+            "bytes": 27108,
+            "sha256": "e83012df0b1480238f926fe528a4e34466ff16cc19ffa56e625a9779f3a04569"
+          },
+          {
+            "index": 2,
+            "mimeType": "image/webp",
+            "bytes": 66450,
+            "sha256": "009e58a4c8c4fed1008d5fd0fd82c5509eee6afbae9de8515686b967b5f4a168"
+          }
+        ]
+      },
+      {
+        "id": "poutine",
+        "originalSha256": "66d25e9532f04591c8f3cbd818d80dc797b1611a8fa75041beb89d52eb1d6f2d",
+        "mobileSha256": "ab1631006783fb212c8833f9cb5a54582eccbaacdea7c6c0a072d002e4007f26",
+        "originalUnchanged": true,
+        "imageCount": 3,
+        "embeddedImageBytes": 188578,
+        "imageBytesMimeAndOrderIdentical": true,
+        "copyrightUnchanged": true,
+        "images": [
+          {
+            "index": 0,
+            "mimeType": "image/webp",
+            "bytes": 20208,
+            "sha256": "b2a23ebe4b2fcb5de8717eccee94026b3e22431cc927f1f081f7fc09c079b9ad"
+          },
+          {
+            "index": 1,
+            "mimeType": "image/webp",
+            "bytes": 132256,
+            "sha256": "5c8dc0be6655ca19204ec312588d8886dab4fc6a6057b44420dd001068746436"
+          },
+          {
+            "index": 2,
+            "mimeType": "image/webp",
+            "bytes": 36114,
+            "sha256": "d90a9570658996ef54e73bf945668c907910a68b2c3f8662f8047406419445b3"
+          }
+        ]
+      },
+      {
+        "id": "burger",
+        "originalSha256": "0452856149f975b5a8867e4d2e40f71dc69c7bc3a26942cd14a71bcdc23660ae",
+        "mobileSha256": "e1995a7f3487ae98d84e0734cdeb973234f758fa69390a74c10efda64130b6ef",
+        "originalUnchanged": true,
+        "imageCount": 4,
+        "embeddedImageBytes": 309118,
+        "imageBytesMimeAndOrderIdentical": true,
+        "copyrightUnchanged": true,
+        "images": [
+          {
+            "index": 0,
+            "mimeType": "image/webp",
+            "bytes": 6434,
+            "sha256": "8f6d74ee34df167a3ceb036680d84401b238cd0afc785c789ffbcded45b73290"
+          },
+          {
+            "index": 1,
+            "mimeType": "image/webp",
+            "bytes": 47464,
+            "sha256": "6dfe0e8574163c224099d534868bf79a6631666ac485f750220f0f56bc40ccf8"
+          },
+          {
+            "index": 2,
+            "mimeType": "image/webp",
+            "bytes": 204714,
+            "sha256": "ede03fe932ccd057a3661cac8fe99950ff86a99ddf23c0fff20fc142f70da3a4"
+          },
+          {
+            "index": 3,
+            "mimeType": "image/webp",
+            "bytes": 50506,
+            "sha256": "934e0a4b612c4d44728145004f9c8028f84bb9761090e0b49fb201d10e70a5ab"
+          }
+        ]
+      }
+    ],
+    "restaurant": {
+      "sha256": "9c9a160387f36a6830f395e5c863b44ac79863513558ffe5e1bdf24e9e6931f1",
+      "unchanged": true,
+      "imageCount": 44
+    },
+    "hulls": [
+      {
+        "variant": "homard-desktop",
+        "sourceSha256": "ee44bc6028b8dff1f7bedef686f995c6b3b51ac5298bcc55d8da31be65267874",
+        "unchanged": true
+      },
+      {
+        "variant": "homard-mobile",
+        "sourceSha256": "ed79969621acd82c0bb55cc3b7ec2973dfd8be843da7ee697ac57a0c059a3001",
+        "unchanged": true
+      },
+      {
+        "variant": "souffle",
+        "sourceSha256": "0ad050afaba40a739c0a2bc794e52a080125dc78072440d8ef0b0441093eee95",
+        "unchanged": true
+      },
+      {
+        "variant": "huitres",
+        "sourceSha256": "4ef77f7f9beab7fb4aa1aba7c38d100b82aad40ed18170733d13350783693742",
+        "unchanged": true
+      },
+      {
+        "variant": "sushi",
+        "sourceSha256": "5e42486f9e1a0895a28f7b506dc98dfcf5f5805e7ef7bfb52b5011e11337bb02",
+        "unchanged": true
+      },
+      {
+        "variant": "chocolat-fume",
+        "sourceSha256": "cff5dac881a28bbaeed85d3c0bd73072fe999a22e5824c12319d1e014c847d5f",
+        "unchanged": true
+      },
+      {
+        "variant": "poutine",
+        "sourceSha256": "ab1631006783fb212c8833f9cb5a54582eccbaacdea7c6c0a072d002e4007f26",
+        "unchanged": true
+      },
+      {
+        "variant": "burger",
+        "sourceSha256": "e1995a7f3487ae98d84e0734cdeb973234f758fa69390a74c10efda64130b6ef",
+        "unchanged": true
+      }
+    ]
+  }
+}

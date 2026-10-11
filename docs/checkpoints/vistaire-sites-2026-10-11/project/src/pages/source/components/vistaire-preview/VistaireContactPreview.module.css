@@ -1,0 +1,278 @@
+.page {
+  min-height: 100svh;
+  background: var(--public-black, #050505);
+  color: var(--public-text);
+  font-family: var(--vistaire-font-body, "Vistaire Text", serif);
+}
+
+.hero,
+.restaurant {
+  width: min(1280px, calc(100% - 96px));
+  margin-inline: auto;
+  min-width: 0;
+}
+
+.hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  align-items: center;
+  gap: clamp(32px, 5vw, 80px);
+  padding-block: 132px 100px;
+  scroll-margin-top: 112px;
+}
+
+.heroCopy {
+  min-width: 0;
+}
+
+.eyebrow {
+  margin: 0 0 26px;
+  color: var(--public-gold, #ffc300);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.17em;
+  line-height: 1.5;
+  text-transform: uppercase;
+}
+
+.hero h1,
+.restaurant h2 {
+  margin: 0;
+  font-family: var(--vistaire-font-display, "Vistaire Editorial", serif);
+  font-weight: 400;
+  letter-spacing: -0.025em;
+}
+
+.hero h1 {
+  max-width: 600px;
+  font-size: clamp(48px, 4.8vw, 72px);
+  line-height: 1.07;
+}
+
+.hero h1 em,
+.restaurant h2 em {
+  color: var(--public-gold, #ffc300);
+  font-weight: 400;
+}
+
+.intro {
+  max-width: 490px;
+  margin: 28px 0 30px;
+  color: var(--public-muted);
+  font-size: 20px;
+  line-height: 1.6;
+}
+
+.heroPhoto {
+  position: relative;
+  min-width: 0;
+  aspect-ratio: 0.86;
+  overflow: hidden;
+}
+
+.photo {
+  object-fit: cover;
+  object-position: 50% 50%;
+}
+
+.contactMeta {
+  margin: 44px 0 0;
+  border-top: 1px solid color-mix(in srgb, var(--public-text) 20%, transparent);
+}
+
+.contactMeta > div {
+  display: grid;
+  grid-template-columns: 110px minmax(0, 1fr);
+  align-items: baseline;
+  gap: 18px;
+  padding: 18px 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--public-text) 20%, transparent);
+}
+
+.contactMeta dt {
+  color: var(--public-muted);
+  font-size: 13px;
+}
+
+.contactMeta dd {
+  margin: 0;
+  font-size: 17px;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+.contactMeta a {
+  display: flex;
+  width: fit-content;
+  align-items: center;
+  gap: 18px;
+  color: var(--public-text);
+  text-decoration: none;
+  transition: color 180ms ease;
+}
+
+.contactMeta a:hover {
+  color: var(--public-gold, #ffc300);
+}
+
+.contactMeta svg,
+.textLink svg,
+.ctaButton svg {
+  width: 17px;
+  height: 17px;
+  flex: 0 0 auto;
+}
+
+.textLink,
+.ctaButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 22px;
+  min-height: 48px;
+  font-size: 15px;
+  text-decoration: none;
+  transition:
+    color 180ms ease,
+    border-color 180ms ease,
+    background-color 180ms ease;
+}
+
+.ctaButton {
+  border: 1px solid var(--public-gold, #ffc300);
+  background: var(--public-gold, #ffc300);
+  padding: 0 25px;
+  color: var(--public-on-accent);
+  font-weight: 600;
+}
+
+.ctaButton:hover {
+  border-color: var(--public-gold-light);
+  background: var(--public-gold-light);
+}
+
+.ctaButton:focus-visible,
+.textLink:focus-visible,
+.contactMeta a:focus-visible {
+  outline: 2px solid var(--public-gold, #ffc300);
+  outline-offset: 6px;
+}
+
+.textLink {
+  border-bottom: 1px solid color-mix(in srgb, var(--public-text) 40%, transparent);
+  color: var(--public-text);
+}
+
+.textLink:hover {
+  border-color: var(--public-gold, #ffc300);
+  color: var(--public-gold, #ffc300);
+}
+
+.restaurant {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: clamp(32px, 5vw, 80px);
+  padding-block: 64px 96px;
+  border-top: 1px solid color-mix(in srgb, var(--public-text) 20%, transparent);
+}
+
+.restaurant h2 {
+  max-width: 530px;
+  font-size: clamp(36px, 3.6vw, 52px);
+  line-height: 1.13;
+}
+
+.restaurant .textLink {
+  margin-top: 28px;
+}
+
+.restaurantCopy {
+  padding-top: 42px;
+}
+
+.restaurantCopy p {
+  margin: 0;
+  color: var(--public-muted);
+  font-size: 18px;
+  line-height: 1.7;
+}
+
+.restaurantCopy p + p {
+  margin-top: 24px;
+}
+
+.restaurantCopy .regionLine {
+  color: var(--public-gold, #ffc300);
+  font-size: 14px;
+}
+
+@media (max-width: 800px) {
+  .hero,
+  .restaurant {
+    width: calc(100% - 40px);
+  }
+
+  .hero {
+    grid-template-columns: 1fr;
+    gap: 36px;
+    padding-block: 112px 64px;
+  }
+
+  .hero h1 {
+    font-size: clamp(44px, 8.6vw, 64px);
+  }
+
+  .eyebrow {
+    margin-bottom: 20px;
+    font-size: 11px;
+  }
+
+  .intro {
+    margin-top: 24px;
+    font-size: 19px;
+  }
+
+  .contactMeta {
+    margin-top: 34px;
+  }
+
+  .contactMeta > div {
+    grid-template-columns: 80px minmax(0, 1fr);
+    gap: 12px;
+  }
+
+  .contactMeta dd {
+    font-size: 16px;
+  }
+
+  .heroPhoto {
+    aspect-ratio: 1.1;
+    max-height: 560px;
+  }
+
+  .restaurant {
+    grid-template-columns: 1fr;
+    gap: 28px;
+    padding-block: 48px 64px;
+  }
+
+  .restaurant h2 {
+    font-size: 38px;
+  }
+
+  .restaurantCopy {
+    padding-top: 0;
+  }
+
+  .restaurantCopy p {
+    font-size: 17px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .textLink,
+  .ctaButton,
+  .contactMeta a {
+    transition: none;
+  }
+}

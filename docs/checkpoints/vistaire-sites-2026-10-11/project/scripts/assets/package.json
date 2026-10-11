@@ -1,0 +1,17 @@
+{
+  "name": "vistaire-asset-tools",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "generate:dish-lods": "node generate-dish-lods.mjs"
+  },
+  "dependencies": {
+    "@gltf-transform/core": "4.5.1",
+    "@gltf-transform/extensions": "4.5.1",
+    "@gltf-transform/functions": "4.5.1",
+    "draco3dgltf": "1.5.7",
+    "gltf-validator": "2.0.0-dev.3.10",
+    "meshoptimizer": "1.1.1"
+  }
+}

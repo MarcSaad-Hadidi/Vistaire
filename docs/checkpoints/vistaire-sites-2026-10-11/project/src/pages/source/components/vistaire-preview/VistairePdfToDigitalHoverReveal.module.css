@@ -1,0 +1,149 @@
+.figure {
+  width: min(100%, 430px);
+  margin: 0 auto;
+}
+
+.frame {
+  --reveal-x: 50%;
+  --reveal-y: 50%;
+
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  cursor: pointer;
+  outline: none;
+  user-select: none;
+}
+
+.frame:focus-visible {
+  box-shadow: inset 0 0 0 3px color-mix(in srgb, var(--public-gold) 86%, transparent);
+}
+
+.pdfLayer,
+.vistaireLayer {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  transform: translateZ(0);
+}
+
+.vistaireLayer {
+  z-index: 2;
+  clip-path: circle(0% at var(--reveal-x) var(--reveal-y));
+  opacity: 0;
+  will-change: clip-path, opacity;
+  transition:
+    clip-path 520ms cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 180ms ease;
+}
+
+.pdfLayer {
+  z-index: 1;
+}
+
+.cursorRing {
+  position: absolute;
+  z-index: 4;
+  top: var(--reveal-y);
+  left: var(--reveal-x);
+  width: 72px;
+  height: 72px;
+  border: 1px solid color-mix(in srgb, var(--public-text) 58%, transparent);
+  border-radius: 999px;
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--public-gold) 28%, transparent),
+    inset 0 1px 0 color-mix(in srgb, var(--public-text) 22%, transparent);
+  opacity: 0;
+  pointer-events: none;
+  transform: translate(-50%, -50%) scale(0.78);
+  transition:
+    opacity 180ms ease,
+    transform 260ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.hint {
+  position: absolute;
+  right: 50%;
+  bottom: 8%;
+  z-index: 5;
+  max-width: 82%;
+  transform: translateX(50%);
+  border: 1px solid color-mix(in srgb, var(--public-text) 14%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--public-black) 76%, transparent);
+  padding: 7px 10px;
+  color: color-mix(in srgb, var(--public-text) 84%, transparent);
+  font-size: 8.5px;
+  font-weight: 800;
+  line-height: 1;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.frame[data-revealed="true"] .vistaireLayer {
+  clip-path: circle(150% at 50% 50%);
+  opacity: 1;
+}
+
+.frame[data-revealed="true"] .cursorRing {
+  opacity: 0;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .frame:hover .vistaireLayer,
+  .frame:focus-visible .vistaireLayer {
+    clip-path: circle(36% at var(--reveal-x) var(--reveal-y));
+    opacity: 1;
+  }
+
+  .frame:hover .cursorRing,
+  .frame:focus-visible .cursorRing {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+
+  .frame[data-revealed="true"] .vistaireLayer {
+    clip-path: circle(150% at 50% 50%);
+  }
+}
+
+@media (hover: none), (pointer: coarse), (max-width: 640px) {
+  .frame {
+    cursor: crosshair;
+    touch-action: manipulation pinch-zoom;
+  }
+
+  .hint {
+    display: none;
+  }
+
+  .vistaireLayer {
+    clip-path: circle(0% at 50% 50%);
+    transition:
+      clip-path 260ms cubic-bezier(0.22, 1, 0.36, 1),
+      opacity 120ms ease;
+  }
+
+  .frame[data-touching="true"] .vistaireLayer {
+    clip-path: circle(38% at var(--reveal-x) var(--reveal-y));
+    opacity: 1;
+    transition: none;
+  }
+
+  .frame[data-revealed="true"] .vistaireLayer {
+    clip-path: circle(150% at 50% 50%);
+  }
+}
+
+@media (max-width: 520px) {
+  .figure {
+    width: min(100%, 330px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vistaireLayer,
+  .cursorRing {
+    transition: none;
+  }
+}
