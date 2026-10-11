@@ -16,6 +16,10 @@ test("public FAQs share the official ReUI rotating-arrow composition with native
   assert.match(faq, /useSyncExternalStore/);
   assert.equal((faq.match(/<FaqAsk\b/g) ?? []).length, 1);
   const pricing = read("components/immersive/Pricing.jsx");
-  assert.match(pricing, /<SeoFaq/);
+  const landingFaq = read("components/immersive/LandingFaq.jsx");
+  assert.match(pricing, /<LandingFaq/);
+  assert.match(landingFaq, /import \{ SeoFaq \} from "\.\.\/seo\/SeoFaq"/);
+  assert.match(landingFaq, /<SeoFaq/);
+  assert.doesNotMatch(landingFaq, /<FaqAsk|<details/);
   assert.doesNotMatch(pricing, /<FaqAsk|<details/);
 });

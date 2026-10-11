@@ -202,7 +202,7 @@ test("exact run_* policy matrix is stable", () => {
     ["translation", ["content/translations/en.json"], ["run_static", "run_database", "run_build", "run_menu", "run_webkit"]],
     ["QR", ["app/api/owner/qr-codes/route.ts"], ["run_static", "run_database", "run_build", "run_admin_qr"]],
     ["SEO", ["app/seo/page.tsx"], ["run_static", "run_build", "run_seo"]],
-    ["landing", ["app/(landing)/page.tsx"], ["run_static", "run_build", "run_core", "run_landing"]],
+    ["landing", ["app/(landing)/page.tsx"], ["run_static", "run_build", "run_core", "run_landing", "run_webkit"]],
     ["menu shared", ["components/menu/MenuCard.tsx"], ["run_static", "run_build", "run_menu", "run_webkit"]],
     ["Sauge", ["components/menu/unique/sauge-noire/Renderer.tsx"], [
       "run_static", "run_build", "run_menu", "run_sauge", "run_webkit"
@@ -304,4 +304,13 @@ test("GitHub outputs escape hostile filenames and reasons", () => {
 test("classifyPath exposes known status", () => {
   assert.equal(classifyPath("components/menu/Card.tsx").known, true);
   assert.equal(classifyPath("unknown.blob").known, false);
+});
+
+test("immersive offers runtime, hand assets and acceptance select both hosted browser families", () => {
+  for (const file of ["components/immersive/pricing.css", "components/immersive/PricingRoomBackdrop.js", "components/immersive/Scene.jsx", "public/immersive-assets/pricing-hand/fair-hand-grip-v3.png", "e2e/landing-offers.spec.ts"]) {
+    const result = classify([file]);
+    assert.equal(result.landing, true, file);
+    assert.equal(result.run_landing, true, file);
+    assert.equal(result.run_webkit, true, file);
+  }
 });

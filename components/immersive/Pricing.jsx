@@ -1,9 +1,23 @@
-import { useState } from "react";
-import { ArrowUpRight, Check, Plus } from "lucide-react";
+import { useEffect, useRef, useSyncExternalStore } from "react";
+import { createPortal } from "react-dom";
+import { ArrowUpRight } from "lucide-react";
 import "./pricing.css";
 import { useLandingLocale } from "./locale.jsx";
-import { SeoFaq } from "../seo/SeoFaq";
+import LandingFaq from "./LandingFaq.jsx";
+import { getPricingPage } from "../../lib/pricingPage.ts";
 import { getSeoMarketingImage } from "../../lib/seoMarketingImages.ts";
+import {
+  createPricingPhonePresenter,
+  pricingStageAtScroll,
+} from "./PricingPhonePresenter.js";
+import {
+  PRICING_SCREEN_WIDTH,
+  PRICING_SCREEN_HEIGHT,
+  PRICING_SCREEN_HEADER,
+  pricingScrollLayout,
+  pricingScreenScroll,
+  pricingPagePosition,
+} from "./PricingPhoneLayout.js";
 
 // Verified against Vistaire's pricingPage.ts. Physical supports beyond the
 // included quantity are quoted individually; no per-support rate is assumed.
@@ -11,404 +25,539 @@ const COLLECTIONS = [
   {
     id: "acrylique",
     name: "Acrylique",
-    amount: 2000,
-    description: "Acrylique, base en bois.",
     image: getSeoMarketingImage("HOME:pricing:acrylique").src,
+    material: ["Acrylique & bois", "Acrylic & wood"],
+    imageAlt: [
+      "Support Vistaire Acrylique sur une table de restaurant",
+      "Vistaire Acrylique stand on a restaurant table",
+    ],
   },
   {
     id: "sculpte",
     name: "Sculpté",
-    amount: 2050,
-    description: "Bois sculpté, coin supérieur arrondi.",
     image: getSeoMarketingImage("HOME:pricing:sculpte").src,
+    material: ["Bois sculpté", "Sculpted wood"],
+    imageAlt: [
+      "Support Vistaire Sculpté en bois sur une table de restaurant",
+      "Vistaire Sculpté wooden stand on a restaurant table",
+    ],
   },
   {
     id: "carre",
     name: "Carré",
-    amount: 2100,
-    description: "Format compact en bois, plusieurs finitions.",
     image: getSeoMarketingImage("HOME:pricing:carre").src,
+    material: ["Bois · format compact", "Wood · compact format"],
+    imageAlt: [
+      "Support carré Vistaire avec son QR code sur une table de restaurant",
+      "Vistaire square QR stand on a restaurant table",
+    ],
   },
   {
     id: "signature",
     name: "Signature",
-    amount: 2200,
-    description: "Bois premium, insert QR noir amovible.",
     image: getSeoMarketingImage("HOME:pricing:signature").src,
-  },
-];
-const INCLUDED = [
-  {
-    title: "Votre menu digital",
-    items: [
-      "Menu personnalisé à l’identité du restaurant",
-      "Intégration de votre carte",
-      "Expérience mobile optimisée",
-      "Plusieurs langues et devises",
-    ],
-  },
-  {
-    title: "Sur vos tables",
-    items: [
-      "Jusqu’à 20 supports QR personnalisés",
-      "QR code personnalisé",
-      "Jusqu’à 5 plats en 3D",
-      "Expériences 3D / AR lorsque disponibles",
-    ],
-  },
-  {
-    title: "À vos côtés",
-    items: [
-      "Photographie des plats sur place par Vistaire",
-      "Configuration initiale et mise en place",
-      "Hébergement et maintenance",
-      "Accompagnement Vistaire",
+    material: ["Bois & insert noir", "Wood & black insert"],
+    imageAlt: [
+      "Support Vistaire Signature en bois avec insert QR noir",
+      "Vistaire Signature wooden stand with a black QR insert",
     ],
   },
 ];
-const PACKS = [
-  { quantity: 5, amount: 149 },
-  { quantity: 10, amount: 249 },
-  { quantity: 20, amount: 449 },
-];
-const STEPS = [
-  ["Préparer", "Photographie sur place et collecte des éléments du projet."],
-  ["Créer", "Maquettes du menu digital et des supports personnalisés."],
-  ["Valider", "Votre restaurant approuve les maquettes avant production."],
-  ["Produire", "Fabrication des supports et finalisation du menu."],
-  ["Activer", "Mise en ligne du menu et démarrage du service."],
-];
-const FAQ = [
-  {
-    question: "Pourquoi les prix sont-ils indiqués « à partir de » ?",
-    answer:
-      "Le montant final tient compte de la taille et du nombre de menus, des plats, du contenu à préparer, des expériences 3D, des établissements, des supports et de la complexité du projet. Nous confirmons votre estimation avant le lancement.",
-  },
-  {
-    question: "Et si j’ai besoin de plus de 20 supports ?",
-    answer:
-      "Les supports supplémentaires ou de remplacement font l’objet d’une estimation selon la collection et votre besoin. Aucun tarif unitaire supplémentaire n’est présumé.",
-  },
-  {
-    question:
-      "Un nouveau plat remplace-t-il gratuitement un ancien modèle 3D ?",
-    answer:
-      "Un nouveau plat nécessitant une nouvelle production 3D est facturé séparément, même s’il remplace un ancien plat. Une correction d’un modèle défectueux imputable à Vistaire n’est pas considérée comme une nouvelle production.",
-  },
-  {
-    question: "Que permet l’option Pilotage ?",
-    answer:
-      "Le dashboard permet de gérer les disponibilités, répercutées sur la carte après validation, et de suivre les ouvertures du menu, les plats consultés par catégorie et les interactions 3D / AR. Les recherches sont anonymisées lorsque l’échantillon est suffisant. Les périodes Aujourd’hui, 7 jours et 30 jours se comparent à la période précédente ; les plages horaires d’activité sont en UTC. Les données dépendent de l’activité enregistrée et respectent les seuils de confidentialité du produit.",
-  },
-  {
-    question: "Quand mon abonnement commence-t-il ?",
-    answer:
-      "La facturation mensuelle commence à l’activation du service. L’engagement initial est de 12 mois et le tarif mensuel convenu reste fixe sur cette période. Les conditions de la période suivante sont établies et communiquées au renouvellement.",
-  },
-  {
-    question: "Quel délai prévoir pour la mise en place ?",
-    answer:
-      "Généralement environ deux semaines après validation du menu et des maquettes des supports, et réception de tous les éléments nécessaires. Ce délai peut varier selon la complexité du projet et les délais de production.",
-  },
-];
-function EstimateAction({ children }) {
-  const { href } = useLandingLocale();
+export function PricingPhoneContent({
+  layerRef,
+  screenRef,
+  viewportRef,
+  bodyRef,
+  guardHiddenControl,
+  revealFocusedControl,
+  scrollWithKeyboard,
+} = {}) {
+  const { t, locale, currency, href } = useLandingLocale();
+  const pricing = getPricingPage(locale);
+  const monthlyAmount = pricing.monthlyAmount;
   return (
-    <a className="pricing-cta" href={href("/prendre-rendez-vous")}>
-      {children}
-      <ArrowUpRight size={17} aria-hidden="true" />
-    </a>
+    <div
+      className="pricing pricing-phone-layer"
+      ref={layerRef}
+      style={{ visibility: "hidden" }}
+      aria-hidden="true"
+      inert
+    >
+      <div
+        className="pricing-phone-screen"
+        ref={screenRef}
+        onPointerDownCapture={guardHiddenControl}
+        onClickCapture={guardHiddenControl}
+        style={{ width: PRICING_SCREEN_WIDTH, height: PRICING_SCREEN_HEIGHT }}
+      >
+        <header className="pricing-phone-header">
+          <span>VISTAIRE</span>
+          <h2 id="open-weight-title">{t("Tarifs")}</h2>
+        </header>
+        <div
+          className="pricing-phone-viewport"
+          ref={viewportRef}
+          tabIndex={0}
+          aria-label={
+            locale === "en"
+              ? "Vistaire pricing in the phone"
+              : "Les tarifs Vistaire dans le téléphone"
+          }
+          style={{ top: PRICING_SCREEN_HEADER }}
+          onFocusCapture={revealFocusedControl}
+          onKeyDown={scrollWithKeyboard}
+        >
+          <div className="pricing-phone-body" ref={bodyRef}>
+            <section
+              className="pricing-offer"
+              aria-labelledby="pricing-offer-title"
+            >
+              <h3 id="pricing-offer-title">
+                {locale === "en" ? "Our collections." : "Nos collections."}
+              </h3>
+              <p className="pricing-setup-label">
+                {locale === "en"
+                  ? "One-time setup · CAD"
+                  : "Mise en place · CAD"}
+              </p>
+              <div
+                className="pricing-offers"
+                aria-label={t("Votre collection")}
+              >
+                {COLLECTIONS.map((item, index) => (
+                  <a
+                    key={item.id}
+                    className="pricing-offer-card"
+                    href={`${href("/tarifs-menu-digital-restaurant")}#collection-${item.id}`}
+                  >
+                    <span className="pricing-offer-photo">
+                      <img
+                        src={item.image}
+                        alt={item.imageAlt[locale === "en" ? 1 : 0]}
+                        width={1280}
+                        height={960}
+                        decoding="async"
+                        fetchPriority="low"
+                      />
+                      <span className="pricing-offer-number">0{index + 1}</span>
+                    </span>
+                    <span className="pricing-offer-summary">
+                      <span className="pricing-offer-name">
+                        <h4>{item.name}</h4>
+                        <span className="pricing-offer-material">
+                          {item.material[locale === "en" ? 1 : 0]}
+                        </span>
+                      </span>
+                      <span className="pricing-offer-price">
+                        <small>{t("À partir de")}</small>
+                        {currency(pricing.collections.find((entry) => entry.id === item.id).setupAmount)}
+                      </span>
+                      <ArrowUpRight size={14} aria-hidden="true" />
+                    </span>
+                  </a>
+                ))}
+              </div>
+              <div className="pricing-monthly">
+                <span>
+                  {currency(monthlyAmount)} <small>{t("/ mois")}</small>
+                </span>
+                <small>
+                  {locale === "en"
+                    ? "Digital menu · All collections"
+                    : "Menu digital · Toutes les collections"}
+                </small>
+              </div>
+              <section
+                className="pricing-pilotage"
+                aria-labelledby="pricing-pilotage-title"
+              >
+                <span className="pricing-pilotage-label">
+                  VISTAIRE PILOTAGE
+                </span>
+                <h4 id="pricing-pilotage-title">
+                  {locale === "en"
+                    ? "Your restaurant. At a glance."
+                    : "Votre restaurant. En un regard."}
+                </h4>
+                <div className="pricing-pilotage-visual">
+                  <img
+                    src="/images/demo-walkthrough/dashboard-studio.webp"
+                    width="1168"
+                    height="748"
+                    decoding="async"
+                    alt={
+                      locale === "en"
+                        ? "Vistaire Restaurant Studio preview: menu activity and analytics. Synthetic demo data."
+                        : "Aperçu réel de Restaurant Studio : activité du menu et analyses. Données de démonstration fictives."
+                    }
+                  />
+                </div>
+                <small className="pricing-pilotage-note">
+                  {locale === "en" ? "Preview · Synthetic demo data" : "Aperçu · Données de démonstration fictives"}
+                </small>
+                <span className="pricing-pilotage-price">
+                  + {currency(pricing.pilotage.monthlyAmount)} <small>{t("/ mois")}</small>
+                </span>
+                <p>
+                  {locale === "en"
+                    ? "The dashboard to manage availability and understand your guests’ choices."
+                    : "Le dashboard pour gérer vos disponibilités et comprendre les choix de vos clients."}
+                </p>
+                <small className="pricing-pilotage-note">
+                  {locale === "en"
+                    ? "Optional · In addition to the digital menu"
+                    : "En option · En complément du menu digital"}
+                </small>
+              </section>
+            </section>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
 
-export default function Pricing({ collection, setCollection }) {
-  const { t, locale, currency } = useLandingLocale();
-  const [pilotage, setPilotage] = useState(false);
-  const selected =
-    COLLECTIONS.find((item) => item.id === collection) || COLLECTIONS[0];
-  const monthlyAmount = pilotage ? 300 : 200;
-
+export function PricingStageContent({ layerRef } = {}) {
+  const { locale, href } = useLandingLocale();
+  const en = locale === "en";
   return (
-    <div className="pricing-content">
-      <header className="pricing-heading">
+    <div
+      className="pricing-aside-layer"
+      ref={layerRef}
+      style={{ visibility: "hidden", opacity: 0 }}
+      aria-hidden="true"
+      inert
+    >
+      <div className="pricing-aside-intro">
         <span className="pricing-eyebrow">
-          {t("L’offre Vistaire · Tarifs")}
+          {en ? "Your Vistaire experience" : "Votre expérience Vistaire"}
         </span>
-        <h2 id="open-weight-title">
-          {t("Votre collection.")}
+        <h2 id="pricing-stage-title">
+          {en ? "Your collection." : "Votre collection."}
           <br />
-          <em>{t("L’essentiel compris.")}</em>
+          <em>{en ? "Your signature." : "Votre signature."}</em>
         </h2>
         <p>
-          {t(
-            "Quatre collections, une même expérience digitale et le même accompagnement. Choisissez la présence qui s’accorde à votre lieu.",
-          )}
+          {en
+            ? "Four styles. One experience, designed for your restaurant."
+            : "Quatre styles. Une expérience pensée pour votre restaurant."}
         </p>
-      </header>
-
-      <div
-        className="pricing-collections"
-        role="group"
-        aria-label={t("Choisir la collection pour votre offre Vistaire")}
-      >
-        {COLLECTIONS.map((item) => (
-          <button
-            key={item.id}
-            type="button"
-            className={`pricing-collection ${selected.id === item.id ? "is-selected" : ""}`}
-            aria-pressed={selected.id === item.id}
-            onClick={() => setCollection(item.id)}
+      </div>
+      <div className="pricing-aside-actions">
+        <p>
+          {en
+            ? "Compare the materials, prices and everything included."
+            : "Comparez les matières, les prix et tout ce qui est inclus."}
+        </p>
+        <div className="pricing-aside-links">
+          <a
+            className="pricing-cta pricing-details-link"
+            href={href("/tarifs-menu-digital-restaurant")}
           >
-            <span className="pricing-collection-image">
-              <img
-                src={item.image}
-                alt={getSeoMarketingImage(`HOME:pricing:${item.id}`, locale).alt}
-                loading="eager"
-                decoding="async"
-                fetchPriority="low"
-                width="480"
-                height="360"
-              />
-              <span className="pricing-collection-check" aria-hidden="true">
-                <Check size={15} />
-              </span>
-            </span>
-            <span className="pricing-collection-name">{item.name}</span>
-            <span className="pricing-collection-description">
-              {t(item.description)}
-            </span>
-            <span className="pricing-collection-price">
-              <span>{t("À partir de")}</span> {currency(item.amount)}
-            </span>
-          </button>
-        ))}
+            {en ? "See full pricing" : "Voir les tarifs complets"}
+            <ArrowUpRight size={17} aria-hidden="true" />
+          </a>
+          <a className="pricing-cta" href={href("/prendre-rendez-vous")}>
+            {en ? "Book a meeting" : "Prendre rendez-vous"}
+            <ArrowUpRight size={17} aria-hidden="true" />
+          </a>
+        </div>
+        <a className="pricing-studio-link" href={href("/apercu-restaurateur")}>
+          {en ? "Explore the dashboard" : "Découvrir le dashboard"}
+          <ArrowUpRight size={16} aria-hidden="true" />
+        </a>
+        <small className="pricing-aside-terms">
+          {en ? "Prices in CAD · Taxes extra" : "Prix en CAD · Taxes en sus"}
+          <br />{" "}
+          {en
+            ? "Initial 12-month commitment."
+            : "Engagement initial de 12 mois."}
+        </small>
       </div>
+    </div>
+  );
+}
 
-      <div className="pricing-summary">
-        <div className="pricing-rate">
-          <span className="pricing-eyebrow">
-            {t("Mise en place ·")} {selected.name}
-          </span>
-          <output className="pricing-amount" aria-live="polite">
-            <small>{t("À partir de")}</small>
-            <span>{currency(selected.amount)}</span>
-          </output>
-          <p>{t("Une seule fois, avant le début du projet.")}</p>
-        </div>
-        <div className="pricing-rate">
-          <span className="pricing-eyebrow">{t("Votre service mensuel")}</span>
-          <output className="pricing-amount" aria-live="polite">
-            <small>{pilotage ? "Vistaire + Pilotage" : "Vistaire"}</small>
-            <span>
-              {currency(monthlyAmount)} <small>{t("/ mois")}</small>
-            </span>
-          </output>
-          <p>{t("À l’activation du service. Engagement de 12 mois.")}</p>
-        </div>
-        <div className="pricing-summary-action">
-          <EstimateAction>
-            {t("Prendre rendez-vous")}
-          </EstimateAction>
-          <span>{t("Prix en CAD · Taxes en sus")}</span>
-        </div>
-      </div>
+const subscribePortalHost = () => () => {};
+const serverPortalHost = () => null;
+const pricingScreenHost = () => document.getElementById("pricing-screen-host");
+const pricingActionsHost = () => document.getElementById("pricing-actions-host");
 
-      <section
-        className="pricing-block"
-        aria-labelledby="pricing-included-title"
-      >
-        <div className="pricing-block-heading">
-          <span className="pricing-eyebrow">
-            {t("01 · L’offre, au complet")}
-          </span>
-          <h3 id="pricing-included-title">{t("Tout commence ici.")}</h3>
-          <p>
-            {t(
-              "Les services inclus restent les mêmes. La différence de prix vient principalement du support physique et de son positionnement.",
-            )}
-          </p>
-        </div>
-        <div className="pricing-included">
-          {INCLUDED.map((group, index) => (
-            <article key={group.title}>
-              <span className="pricing-index">0{index + 1}</span>
-              <h4>{t(group.title)}</h4>
-              <ul>
-                {group.items.map((item) => (
-                  <li key={item}>
-                    <Check size={15} aria-hidden="true" />
-                    <span>{t(item)}</span>
-                  </li>
-                ))}
-              </ul>
-            </article>
-          ))}
-        </div>
-      </section>
+export default function Pricing({ collection, stateRef }) {
+  const { locale } = useLandingLocale();
+  const pricing = getPricingPage(locale);
+  const selected = pricing.collections.find((item) => item.id === collection) || pricing.collections[0];
+  const monthlyAmount = pricing.monthlyAmount;
+  const portalHost = useSyncExternalStore(subscribePortalHost, pricingScreenHost, serverPortalHost);
+  const actionsHost = useSyncExternalStore(subscribePortalHost, pricingActionsHost, serverPortalHost);
+  const layerRef = useRef(null);
+  const asideRef = useRef(null);
+  const introRef = useRef(null);
+  const visualRef = useRef(null);
+  const screenRef = useRef(null);
+  const viewportRef = useRef(null);
+  const bodyRef = useRef(null);
+  const layoutRef = useRef(null);
+  const presenterRef = useRef(null);
+  useEffect(() => {
+    const state = stateRef?.current;
+    if (!state || !portalHost || !actionsHost) return;
+    const intro = introRef.current,
+      visual = visualRef.current,
+      screen = screenRef.current;
+    const viewport = viewportRef.current,
+      body = bodyRef.current;
+    let disposed = false,
+      measureFrame = 0,
+      lastReducedMotion = state.reducedMotion,
+      sectionTop = 0;
+    const presenter = createPricingPhonePresenter(
+      screen,
+      viewport,
+      layerRef.current,
+      asideRef.current,
+    );
+    presenterRef.current = presenter;
+    Object.assign(state, { pricingIntro: intro, pricingStage: visual });
+    const syncScroll = (
+      pageY = window.scrollY,
+      top = state.pricingSectionTop ?? sectionTop,
+      force = false,
+    ) => {
+      if (!layoutRef.current) return;
+      if (lastReducedMotion !== state.reducedMotion) queueMeasure();
+      presenter.scroll(pageY, top, layoutRef.current, force);
+      if (!state.renderSceneFrame || state.pricingHandUnavailable) {
+        const stage = pricingStageAtScroll(top, pageY, state.pricingViewport);
+        const scale = layoutRef.current.fallbackScale;
+        presenter.project(
+          {
+            matrix: [
+              scale,
+              0,
+              0,
+              scale,
+              (stage.width - PRICING_SCREEN_WIDTH * scale) / 2,
+              (stage.height - PRICING_SCREEN_HEIGHT * scale) / 2 +
+                (layoutRef.current.stackedCopy ? 20 : 0),
+            ],
+          },
+          stage.top,
+        );
+        presenter.show(stage.top <= 0 && stage.bottom > 0, false);
+        presenter.copy(
+          stage.top <= 0 && stage.bottom > 0,
+          1,
+          Math.max(0, -stage.top),
+          stage.height,
+        );
+      }
+    };
+    const measure = () => {
+      measureFrame = 0;
+      if (disposed) return;
+      const height = visual.clientHeight;
+      const width = visual.clientWidth;
+      const contentHeight = body.scrollHeight;
+      const viewportHeight = viewport.clientHeight;
+      sectionTop = intro.getBoundingClientRect().top + window.scrollY;
+      if (!height) return;
+      lastReducedMotion = state.reducedMotion;
+      const stackedCopy = width < 1024 && !(width >= 700 && height <= 500);
+      const fallbackScale = Math.min(
+        (width * 0.74) / PRICING_SCREEN_WIDTH,
+        Math.max(180, height - (stackedCopy ? 320 : 170)) /
+          PRICING_SCREEN_HEIGHT,
+      );
+      screen.style.setProperty("--pricing-fallback-scale", fallbackScale);
+      layoutRef.current = pricingScrollLayout(
+        height,
+        contentHeight,
+        viewportHeight,
+        // Document travel is fixed before the hand texture/model is ready.
+        // The exact screen projection places HTML but cannot move the FAQ.
+        fallbackScale,
+        state.reducedMotion,
+      );
+      layoutRef.current.fallbackScale = fallbackScale;
+      layoutRef.current.stackedCopy = stackedCopy;
+      const sectionHeight = `${layoutRef.current.sectionHeight.toFixed(2)}px`;
+      Object.assign(state, { pricingViewport: {
+        width,
+        height,
+        introHeight: layoutRef.current.sectionHeight,
+      } });
+      if (intro.style.height !== sectionHeight)
+        intro.style.height = sectionHeight;
+      syncScroll(window.scrollY, sectionTop, true);
+      state.invalidateScene?.();
+    };
+    const queueMeasure = () => {
+      if (!disposed && !measureFrame)
+        measureFrame = requestAnimationFrame(measure);
+    };
+    const present = (
+      projection,
+      stageTop = 0,
+      visible = true,
+      entryProgress = 1,
+    ) => {
+      if (disposed) return;
+      presenter.show(visible, Boolean(projection));
+      presenter.copy(
+        visible,
+        entryProgress,
+        stageTop,
+        state.pricingViewport?.height,
+      );
+      if (!projection) return;
+      presenter.project(projection, stageTop);
+    };
+    // The page owns scrolling. Its latest sample moves only this inner viewport,
+    // including the CSS phone fallback when WebGL is unavailable.
+    Object.assign(state, { presentPricingScreen: present, syncPricingScroll: syncScroll });
+    const observer = new ResizeObserver(queueMeasure);
+    observer.observe(visual);
+    observer.observe(body);
+    document.fonts.ready.then(queueMeasure);
+    measure();
+    return () => {
+      disposed = true;
+      cancelAnimationFrame(measureFrame);
+      observer.disconnect();
+      if (state.pricingIntro === intro) delete state.pricingIntro;
+      if (state.pricingStage === visual) delete state.pricingStage;
+      if (presenterRef.current === presenter) {
+        presenterRef.current = null;
+        delete state.pricingViewport;
+      }
+      if (state.presentPricingScreen === present)
+        delete state.presentPricingScreen;
+      delete state.pricingHandUnavailable;
+      if (state.syncPricingScroll === syncScroll)
+        delete state.syncPricingScroll;
+    };
+  }, [stateRef, portalHost, actionsHost]);
+  const revealFocusedControl = (event) => {
+    const viewport = viewportRef.current,
+      body = bodyRef.current,
+      target = event.target;
+    const layout = layoutRef.current;
+    if (!layout) return;
+    const sectionTop =
+      introRef.current.getBoundingClientRect().top + window.scrollY;
+    presenterRef.current?.scroll(window.scrollY, sectionTop, layout, true);
+    if (target === viewport) return;
+    let top = 0,
+      element = target;
+    while (element && element !== body) {
+      top += element.offsetTop;
+      element = element.offsetParent;
+    }
+    const usable = viewport.clientHeight - 24;
+    const expected = pricingScreenScroll(
+      introRef.current.getBoundingClientRect().top,
+      layout,
+    );
+    if (top >= expected && top + target.offsetHeight <= expected + usable)
+      return;
+    const screenScroll = Math.max(0, top - 20);
+    window.scrollTo({
+      top: pricingPagePosition(sectionTop, screenScroll, layout),
+      behavior: "instant",
+    });
+  };
+  const scrollWithKeyboard = (event) => {
+    if (event.target !== viewportRef.current) return;
+    const layout = layoutRef.current;
+    if (!layout) return;
+    const sectionTop =
+      introRef.current.getBoundingClientRect().top + window.scrollY;
+    const changes = {
+      ArrowDown: 48,
+      ArrowUp: -48,
+      PageDown: viewportRef.current.clientHeight * 0.7,
+      PageUp: -viewportRef.current.clientHeight * 0.7,
+    };
+    let next;
+    if (event.key === "Home") next = 0;
+    else if (event.key === "End") next = layout.maxScroll;
+    else if (event.key in changes)
+      next = viewportRef.current.scrollTop + changes[event.key];
+    else return;
+    // At either boundary, let the browser continue scrolling the page. The
+    // readable phone is not a nested keyboard-scroll trap before the FAQ.
+    const current = viewportRef.current.scrollTop;
+    if ((current <= 0.5 && next <= 0) ||
+        (current >= layout.maxScroll - 0.5 && next >= layout.maxScroll)) return;
+    event.preventDefault();
+    window.scrollTo({
+      top: pricingPagePosition(sectionTop, next, layout),
+      behavior: "instant",
+    });
+  };
+  const guardHiddenControl = (event) => {
+    if (event.type === "click" && event.detail === 0) return;
+    if (layerRef.current?.dataset.handReady !== "true") return;
+    if (
+      stateRef.current.pricingScreenHit?.(event.clientX, event.clientY) ===
+      false
+    ) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+  };
+  useEffect(() => {
+    if (!stateRef?.current) return;
+    const state = stateRef.current;
+    const offer = {
+      id: selected.id,
+      name: selected.name,
+      amount: selected.setupAmount,
+      monthlyAmount,
+      pilotage: false,
+      locale,
+    };
+    Object.assign(state, { pricingOffer: offer });
+    state.invalidateScene?.();
+    return () => {
+      if (state.pricingOffer === offer) delete state.pricingOffer;
+    };
+  }, [
+    stateRef,
+    selected.id,
+    selected.name,
+    selected.setupAmount,
+    monthlyAmount,
+    locale,
+  ]);
 
-      <section
-        className="pricing-block"
-        aria-labelledby="pricing-options-title"
-      >
-        <div className="pricing-block-heading">
-          <span className="pricing-eyebrow">{t("02 · Selon vos besoins")}</span>
-          <h3 id="pricing-options-title">{t("Une carte qui peut évoluer.")}</h3>
-        </div>
-        <div className="pricing-options">
-          <article className="pricing-pilotage">
-            <div className="pricing-option-heading">
-              <div>
-                <span className="pricing-eyebrow">
-                  Option · Vistaire Pilotage
-                </span>
-                <h4>{t("Prenez le contrôle.")}</h4>
-              </div>
-              <span className="pricing-option-price">
-                {t("+ 100 $")} <small>{t("/ mois")}</small>
-              </span>
-            </div>
-            <p>
-              {t(
-                "Votre dashboard pour gérer les disponibilités après validation et analyser l’expérience de vos clients.",
-              )}
-            </p>
-            <ul className="pricing-pilotage-features">
-              <li>{t("Disponibilités des plats")}</li>
-              <li>{t("Ouvertures et consultations du menu")}</li>
-              <li>Interactions 3D / AR</li>
-              <li>{t("Comparaison des périodes d’activité")}</li>
-            </ul>
-            <label className="pricing-toggle">
-              <span>
-                <strong>{t("Ajouter Pilotage")}</strong>
-                <small>{t("200 $ + 100 $ = 300 $ CAD / mois")}</small>
-              </span>
-              <input
-                type="checkbox"
-                role="switch"
-                checked={pilotage}
-                onChange={(event) => setPilotage(event.target.checked)}
-                aria-label={t(
-                  "Ajouter Vistaire Pilotage pour 100 CAD par mois",
-                )}
-              />
-            </label>
-            <small className="pricing-note">
-              {t(
-                "Les données dépendent de l’activité enregistrée et des seuils de confidentialité. Détails dans les questions ci-dessous.",
-              )}
-            </small>
-          </article>
-          <article className="pricing-productions">
-            <span className="pricing-eyebrow">
-              {t("Productions 3D supplémentaires")}
-            </span>
-            <h4>{t("De nouvelles envies, en volume.")}</h4>
-            <p>
-              {t(
-                "Au-delà des 5 plats inclus, les nouvelles productions 3D sont facturées séparément.",
-              )}
-            </p>
-            <div className="pricing-packs">
-              {PACKS.map((pack) => (
-                <div key={pack.quantity}>
-                  <span>
-                    <Plus size={13} aria-hidden="true" /> {pack.quantity}
-                    {t("plats")}
-                  </span>
-                  <strong>{currency(pack.amount)}</strong>
-                  <small>CAD</small>
-                </div>
-              ))}
-            </div>
-            <p className="pricing-individual">
-              {t("Un plat supplémentaire :")}
-              <strong>{t("35 à 50 $ CAD")}</strong>
-              {t(", selon la complexité de sa production.")}
-            </p>
-            <small className="pricing-note">
-              {t(
-                "Plus de 20 supports ou un remplacement ? Une estimation est établie selon la collection et votre besoin.",
-              )}
-            </small>
-          </article>
-        </div>
-      </section>
-
-      <section
-        className="pricing-block"
-        aria-labelledby="pricing-workflow-title"
-      >
-        <div className="pricing-block-heading">
-          <span className="pricing-eyebrow">
-            {t("03 · De votre lieu à leur écran")}
-          </span>
-          <h3 id="pricing-workflow-title">
-            {t("Un lancement, étape par étape.")}
-          </h3>
-        </div>
-        <ol className="pricing-workflow">
-          {STEPS.map(([title, description], index) => (
-            <li key={title}>
-              <span className="pricing-index">0{index + 1}</span>
-              <div>
-                <h4>{t(title)}</h4>
-                <p>{t(description)}</p>
-              </div>
-            </li>
-          ))}
-        </ol>
-        <p className="pricing-lead-time">
-          <strong>{t("Généralement environ deux semaines")}</strong>
-          {t(
-            "après validation du menu et des maquettes, et réception des éléments nécessaires. Le délai varie selon la complexité et la production.",
-          )}
-        </p>
-      </section>
-
-      <section className="pricing-terms" aria-labelledby="pricing-terms-title">
-        <h3 id="pricing-terms-title">{t("Des repères clairs.")}</h3>
-        <ul>
-          <li>{t("Prix en dollars canadiens, taxes en sus.")}</li>
-          <li>
-            {t("100 % des frais de mise en place avant le début du projet.")}
-          </li>
-          <li>{t("Engagement initial de 12 mois.")}</li>
-          <li>{t("L’abonnement débute à l’activation du service.")}</li>
-          <li>
-            {t(
-              "Tarif mensuel convenu fixe pendant ces 12 mois. Les conditions suivantes sont communiquées au renouvellement.",
-            )}
-          </li>
-        </ul>
-      </section>
-
-      <section className="pricing-faq" aria-labelledby="pricing-faq-title">
-        <div>
-          <span className="pricing-eyebrow">{t("Avant de commencer")}</span>
-          <h3 id="pricing-faq-title">{t("Vos questions.")}</h3>
-        </div>
-        <div className="pricing-faq-list">
-          <SeoFaq
-            faqs={FAQ.map((item) => ({ question: t(item.question), answer: t(item.answer) }))}
-            locale={locale}
-            layout="stack"
-            compact
+  const phone = (
+    <PricingPhoneContent
+      layerRef={layerRef}
+      screenRef={screenRef}
+      viewportRef={viewportRef}
+      bodyRef={bodyRef}
+      guardHiddenControl={guardHiddenControl}
+      revealFocusedControl={revealFocusedControl}
+      scrollWithKeyboard={scrollWithKeyboard}
+    />
+  );
+  return (
+    <div className="pricing-content">
+      <div className="pricing-hero" ref={introRef}>
+        <div className="pricing-cinematic-stage">
+          <div
+            className="pricing-hand-visual"
+            ref={visualRef}
+            aria-hidden="true"
           />
         </div>
-      </section>
-
-      <div className="pricing-closing">
-        <div>
-          <span className="pricing-eyebrow">
-            {t("Votre lieu. Votre signature.")}
-          </span>
-          <h3>{t("Faisons place à votre expérience.")}</h3>
-        </div>
-        <EstimateAction>
-          {t("Parlons de votre restaurant")}
-        </EstimateAction>
       </div>
+      {portalHost && createPortal(phone, portalHost)}
+      {actionsHost &&
+        createPortal(<PricingStageContent layerRef={asideRef} />, actionsHost)}
+      <LandingFaq />
     </div>
   );
 }

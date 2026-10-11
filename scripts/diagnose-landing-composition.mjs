@@ -85,7 +85,7 @@ if (journeyQA) {
     visual: 'One sceneDiagnostics=1 page; all nine real external joins, two opening camera legs, AI/phone holds, seven internal presentations and native pricing/footer. Each range uses the existing 3000ms requested driver forward/reverse, then 0/25/50/75/100 checkpoints. Reading-hold centers add selected-card and decoded-video checks.',
     overhead: 'QA-only passive callback wrapping, actual pose/inline DOM/media samples, checkpoints, screenshots and serialization add substantial overhead. No active benchmark, FPS threshold, visitor CPU comparison or performance gain claim.',
     timing: 'Requested scroll coordinates and delivered event timestamps are retained separately. Draw samples retain actual rendered pose and contemporaneous inline DOM state; phase divergence is quantified, not reinterpreted as physical display lag. Screenshots carry their own later timestamps.',
-    limits: 'Real browser software-renderer QA only. No physical iOS input/display FPS, GPU elapsed, VRAM, power, thermal or isolated React/CPU measurement. Native opaque pricing legitimately suspends the hidden scene; it must not be mistaken for a fresh draw.',
+    limits: 'Real browser software-renderer QA only. No physical iOS input/display FPS, GPU elapsed, VRAM, power, thermal or isolated React/CPU measurement. Opaque legacy pricing or a verified current lower-section room cache may legitimately reuse pixels; reuse is recorded separately and is never a fresh draw.',
   };
 }
 const save = () => writeFile(path.join(output, journeyQA ? 'landing-journey-qa.json' : 'composition-pair.json'), JSON.stringify(report, null, 2));
@@ -210,7 +210,7 @@ function installVisualProbe(journey = false) {
   const pending = new Map(), known = new WeakSet(), samples = [];
   let dropped = 0;
   const keys = ['frames', 'section', 'transition', 'transitionProgress', 'settled', 'settlingReasons', 'processedScrollDistance', 'fittedCameraPosition', 'fittedLook', 'cameraViewOffset', 'dishPosition', 'dishScale', 'dishQuaternion', 'supportPosition', 'supportScale', 'supportQuaternion', 'phoneScale', 'laptopPosition', 'laptopScale', 'laptopAngle', 'roomPosition', 'roomYaw'];
-  if (journey) keys.push('openingProgress', 'suspended', 'phonePosition', 'phoneQuaternion', 'laptopQuaternion', 'roomCameraPosition', 'tableCameraPosition');
+  if (journey) keys.push('openingProgress', 'suspended', 'phonePosition', 'phoneQuaternion', 'laptopQuaternion', 'roomCameraPosition', 'tableCameraPosition', 'pricingBackdrop', 'pricingBackdropGeneration', 'pricingBackdropWidth', 'pricingBackdropHeight', 'pricingBackdropTheme', 'pricingBackdropPose');
   window.requestAnimationFrame = function (callback) {
     const requestedAt = performance.now();
     let id;
@@ -223,7 +223,7 @@ function installVisualProbe(journey = false) {
         if (canvas?.dataset.frames !== before) known.add(callback);
         if (known.has(callback)) {
           if (samples.length < 10_000) samples.push({ requestedAt, startedAt: start, endedAt: performance.now(), rafTimestamp: timestamp, scroll: scrollY,
-            ...(journey ? { rendered: canvas?.dataset.frames !== before, presentation: window.__compositionJourney?.read() } : {}),
+            ...(journey ? { rendered: canvas?.dataset.frames !== before, drawingBuffer: [canvas.width, canvas.height], theme: document.documentElement.getAttribute('data-vistaire-theme') === 'light' ? 'light' : 'dark', presentation: window.__compositionJourney?.read() } : {}),
             pose: Object.fromEntries(keys.map(key => [key, canvas?.dataset[key] ?? null])),
             copy: Object.fromEntries([...document.querySelectorAll('.chapter')].map(el => [el.id, { alpha: el.style.getPropertyValue('--copy-opacity'), openingAlpha: el.style.getPropertyValue('--opening-opacity'), inert: el.inert }])),
           }); else dropped++;
@@ -339,7 +339,7 @@ async function snapshot(page, journey = false) {
       identities: { rect: rect(identities), stage: rect(stage), copyOpacity: identities.style.getPropertyValue('--copy-opacity'), stageBackground: getComputedStyle(stage).backgroundColor,
         scrim: { content: getComputedStyle(world, '::before').content, opacity: getComputedStyle(world, '::before').opacity, background: getComputedStyle(world, '::before').backgroundColor } },
       copy: Object.fromEntries([...document.querySelectorAll('.chapter')].map(el => [el.id, { rect: rect(el), alpha: el.style.getPropertyValue('--copy-opacity'), inert: el.inert, ...(journey ? { openingAlpha: el.style.getPropertyValue('--opening-opacity') } : {}) }])),
-      ...(journey ? { dpr: devicePixelRatio, drawingBuffer: [canvas.width, canvas.height], presentation: window.__compositionJourney.read() } : {}),
+      ...(journey ? { dpr: devicePixelRatio, theme: document.documentElement.getAttribute('data-vistaire-theme') === 'light' ? 'light' : 'dark', drawingBuffer: [canvas.width, canvas.height], presentation: window.__compositionJourney.read() } : {}),
       raf: (() => { const raf = window.__compositionVisual?.read(); return journey && raf
         ? { at: raf.at, pending: raf.pending, dropped: raf.dropped, hidden: raf.hidden, last: raf.samples.at(-1) } : raf ?? null; })() };
   }, journey);
@@ -524,6 +524,19 @@ function journeyPlan(geometry) {
   return plan.sort((a, b) => a.start - b.start);
 }
 
+function hasReadyPricingBackdrop(data, buffer, theme) {
+  if (!['open-weight', 'footer'].includes(data?.section) || data.pricingBackdrop !== 'ready' ||
+    !Number.isInteger(Number(data.pricingBackdropGeneration)) || Number(data.pricingBackdropGeneration) <= 0 ||
+    !Array.isArray(buffer) || buffer.length !== 2 || !buffer.every(value => Number.isFinite(value) && value > 0) ||
+    Number(data.pricingBackdropWidth) !== buffer[0] || Number(data.pricingBackdropHeight) !== buffer[1] ||
+    !['dark', 'light'].includes(theme) || data.pricingBackdropTheme !== theme) return false;
+  const match = /^pricing-entry:([^:]+):[0-9a-f]{6}$/.exec(data.pricingBackdropPose ?? '');
+  if (!match) return false;
+  const pose = match[1].split(',').map(Number);
+  return pose.length === 23 && pose.every(Number.isFinite) &&
+    Math.abs(Math.hypot(...pose.slice(3, 7)) - 1) < .001 && pose[7] > 0 && pose[12] > 0 && pose[18] === -1;
+}
+
 function assertJourneySample(sample, stageHeight, region, cardIndex) {
   assert.equal(sample.viewport.join(','), '390,844'); assert.equal(sample.dpr, 1);
   assert.ok(sample.drawingBuffer.every(value => Number.isFinite(value) && value > 0), 'Real drawing buffer required');
@@ -539,7 +552,9 @@ function assertJourneySample(sample, stageHeight, region, cardIndex) {
   assert.equal(sample.raf.last?.pose.frames, sample.data.frames, 'Passive draw evidence must match the observed rendered frame');
   if (sample.data.suspended === 'true') {
     const pricing = sample.copy['open-weight'].rect;
-    assert.ok(pricing.top <= 1 && pricing.bottom >= 844 - 1, 'Scene suspension only valid behind opaque native pricing');
+    assert.ok(hasReadyPricingBackdrop(sample.data, sample.drawingBuffer, sample.theme) ||
+      (pricing.top <= 1 && pricing.bottom >= 844 - 1 && !sample.data.pricingBackdrop),
+      'Scene suspension requires opaque legacy pricing or a current, proven visible lower backdrop');
   }
   const alpha = Number(sample.identities.copyOpacity || 0), scrim = sample.identities.scrim;
   assert.equal(sample.identities.stageBackground, 'rgba(0, 0, 0, 0)', 'Identities stage must not own the tint');
@@ -633,6 +648,13 @@ async function journeyPass() {
         assert.ok(record.phoneMedia.state, 'Detached phone-video state must be retained separately from social playback');
       }
       runtimeAlive(); assertJourneySample(sample, h, span.region, cardIndex);
+      if (hasReadyPricingBackdrop(sample.data, sample.drawingBuffer, sample.theme)) {
+        result.pricingCachePoses ??= {};
+        const key = `${sample.drawingBuffer.join('x')}:${sample.theme}`;
+        result.pricingCachePoses[key] ??= sample.data.pricingBackdropPose;
+        assert.equal(sample.data.pricingBackdropPose, result.pricingCachePoses[key], 'Same viewport/theme must capture the same canonical lower pose across forward/reverse entry');
+        record.presentationMode = 'verified-cached-room';
+      }
       assert.deepEqual(sample.drawingBuffer, report.renderer.drawingBuffer, 'Drawing buffer must remain fixed through the journey');
       for (const [id, copy] of Object.entries(sample.copy)) {
         const alpha = Number(copy.openingAlpha || copy.alpha || (id === 'open-weight' ? 1 : 0));
@@ -680,8 +702,11 @@ async function journeyPass() {
       const delivered = result.inputs.delivered.slice(replay.start.deliveredIndex, replay.end.deliveredIndex);
       assert.ok(draws.length && inputs.length && delivered.length, 'Actual callback and requested/delivered motion evidence required');
       assert.equal(inputs.at(-1).fraction, 1); assert.ok(Math.abs(inputs.at(-1).target - to) <= 1);
-      assert.ok(draws.some(draw => draw.rendered) || (span.region === 'open-weight' && draws.every(draw => draw.pose.suspended === 'true')), 'Missing actual rendered progression outside opaque pricing');
-      replay.observed = { callbackCount: draws.length, renderedCallbacks: draws.filter(draw => draw.rendered).length, requestedCount: inputs.length, deliveredCount: delivered.length,
+      const cachedDraws = draws.filter(draw => hasReadyPricingBackdrop(draw.pose, draw.drawingBuffer, draw.theme));
+      const legacyOpaque = span.region === 'open-weight' && draws.every(draw => draw.pose.suspended === 'true' && !draw.pose.pricingBackdrop);
+      assert.ok(draws.some(draw => draw.rendered) || cachedDraws.length === draws.length || legacyOpaque,
+        'Missing actual rendered progression or proven current lower-cache reuse');
+      replay.observed = { callbackCount: draws.length, renderedCallbacks: draws.filter(draw => draw.rendered).length, cachedCallbacks: cachedDraws.filter(draw => !draw.rendered).length, requestedCount: inputs.length, deliveredCount: delivered.length,
         deliveredWallMs: delivered.at(-1).at - delivered[0].at, requestedWallMs: inputs.at(-1).at - inputs[0].at,
         maxProcessedScrollDifferencePx: Math.max(...draws.map(draw => Math.abs(draw.scroll - result.geometry.opening.top - Number(draw.pose.processedScrollDistance) * h))),
         transitionDifferences: draws.map(draw => {

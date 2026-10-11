@@ -27,6 +27,7 @@ import { createRestaurantModel } from "./RestaurantModel";
 import { createRestaurantTable } from "./RestaurantTable.js";
 import { arrangePresentationTable } from "./TablePresentationLayout.js";
 import { createVideoPlaybackController } from "./videoPlayback.js";
+import { createPricingSceneAdapter } from "./PricingSceneAdapter.js";
 
 const HALF_PI = Math.PI / 2;
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
@@ -319,6 +320,7 @@ export default function Scene({
     let lastScrollDistance = stateRef.current?.scrollDistance;
     let renderRequested = false;
     let wasOccluded = false;
+    let pricingPresentation;
     let assetRequest;
     let ready = false;
     let stoneReady = false;
@@ -346,9 +348,9 @@ export default function Scene({
       if (disposed || failed) return;
       renderRequested = true;
       if (frame || document.hidden || arExperience?.active) return;
-      // App keeps the latest scroll state while opaque pricing covers the room.
-      // QA alone needs processed-pose markers inside that hidden interval.
-      if (ready && wasOccluded && stateRef.current?.sceneOccluded && !diagnosticsEnabled)
+      // The FAQ stays idle; the measured offers stage may still need a frame.
+      if (ready && wasOccluded && stateRef.current?.sceneOccluded &&
+        !pricingPresentation?.needsFrame(stateRef.current) && !diagnosticsEnabled)
         return;
       frame = requestAnimationFrame(draw);
     }
@@ -357,7 +359,8 @@ export default function Scene({
     // Cancel an older asset/video RAF rather than drawing the same pose twice.
     function renderSceneFrame(now) {
       if (disposed || failed || document.hidden || arExperience?.active) return;
-      if (ready && wasOccluded && stateRef.current?.sceneOccluded && !diagnosticsEnabled)
+      if (ready && wasOccluded && stateRef.current?.sceneOccluded &&
+        !pricingPresentation?.needsFrame(stateRef.current) && !diagnosticsEnabled)
         return;
       cancelAnimationFrame(frame);
       frame = 0;
@@ -380,7 +383,9 @@ export default function Scene({
       renderer = new THREE.WebGLRenderer({
         canvas,
         antialias: true,
-        alpha: false,
+        // Pricing's real screen mesh cuts a depth-tested HTML aperture. The
+        // main restaurant still paints its unchanged opaque scene background.
+        alpha: true,
         powerPreference: "high-performance",
       });
       renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -1623,15 +1628,29 @@ export default function Scene({
       renderRequested = false;
       const dt = lastTime ? Math.min((now - lastTime) / 1000, 0.5) : 1 / 60;
       lastTime = now;
-      const state = stateRef.current || initialState;
+      const liveState = stateRef.current || initialState;
+      const preparePricing = ready && liveState.sceneOccluded &&
+        pricingPresentation?.needsPreparation();
+      // Build the cache from the exact entry boundary, regardless of whether
+      // native scrolling approached it normally, jumped, or reversed into it.
+      const state = preparePricing ? {
+        ...liveState, ...liveState.pricingSceneEntry, sceneOccluded: false,
+        capturePricing: () => pricingPresentation.draw(liveState, drawingSize, ready),
+      } : liveState;
       ensureLaptop(state);
-      // The pricing section is fully opaque. Do not render its hidden room,
-      // models or screen video while the native document is being scrolled.
-      if (ready && state.sceneOccluded) {
+      const pricingActive = !preparePricing && pricingPresentation?.draw(state, drawingSize, ready);
+      // Offers use the same renderer on demand; the FAQ keeps one cached room.
+      // Neither presentation advances the hidden restaurant or phone video.
+      if (ready && (pricingActive || state.sceneOccluded)) {
         wasOccluded = true;
         lastTime = 0;
         pausePhoneVideo();
-        canvas.dataset.suspended = "true";
+        canvas.dataset.suspended = String(!pricingActive);
+        if (pricingActive) {
+          canvas.dataset.drawCalls = String(renderer.info.render.calls);
+          canvas.dataset.triangles = String(renderer.info.render.triangles);
+          canvas.dataset.frames = String(renderer.info.render.frame);
+        }
         canvas.dataset.section = state.section;
         canvas.dataset.progress = state.progress.toFixed(4);
         canvas.dataset.settled = "true";
@@ -1655,7 +1674,7 @@ export default function Scene({
       // Easing those poses again lets 3D lag behind the copy at every handoff.
       // Keep temporal damping for direct manipulation, not timeline sampling.
       const damping =
-        resume || state.reducedMotion || scrollMoved ? 1 : 1 - Math.exp(-dt * 10);
+        preparePricing || resume || state.reducedMotion || scrollMoved ? 1 : 1 - Math.exp(-dt * 10);
       // A genuine responsive-width change can keep the same GLB URL. Resize
       // its presentation once without another download; toolbar height changes
       // never enter this path, and camera zoom never changes this scale.
@@ -2002,8 +2021,10 @@ export default function Scene({
           scene.background = background;
           camera.layers.set(0);
           camera.layers.enable(1);
-          canvas.dataset.renderCPUms = String(performance.now() - startRender);
           if (diagnosticsEnabled) canvas.dataset.zoomClipped = String(Boolean(clipped));
+          // Capture while the existing fitted entry camera is still applied.
+          state.capturePricing?.();
+          canvas.dataset.renderCPUms = String(performance.now() - startRender);
           camera.position.copy(authoredCamera);
           canvas.dataset.drawCalls = String(renderer.info.render.calls);
           canvas.dataset.triangles = String(renderer.info.render.triangles);
@@ -2026,6 +2047,18 @@ export default function Scene({
         }
       } catch (error) {
         fail(error);
+        return;
+      }
+      if (preparePricing) {
+        wasOccluded = true;
+        pausePhoneVideo();
+        lastTime = 0;
+        canvas.dataset.suspended = String(canvas.dataset.pricingActive !== "true");
+        canvas.dataset.section = liveState.section;
+        canvas.dataset.progress = liveState.progress.toFixed(4);
+        canvas.dataset.settled = "true";
+        if (diagnosticsEnabled) canvas.dataset.settlingReasons = "0";
+        recordProcessedPose(liveState);
         return;
       }
       if (diagnosticsEnabled) {
@@ -2091,6 +2124,10 @@ export default function Scene({
         invalidateScene();
       },
     });
+    pricingPresentation = createPricingSceneAdapter({
+      renderer, phoneRoot, scene, camera, environment: environmentTarget.texture,
+      world: hostRef.current.parentElement, stateRef, invalidate: invalidateScene,
+    });
     Object.assign(stateRef.current, {
       invalidateScene,
       renderSceneFrame,
@@ -2115,6 +2152,7 @@ export default function Scene({
       if (sceneState.renderSceneFrame === renderSceneFrame) delete sceneState.renderSceneFrame;
       phoneVideoEvents.forEach((event) => phoneVideo.removeEventListener(event, phoneVideoChanged));
       pausePhoneVideo();
+      pricingPresentation?.dispose();
       assetRequest?.abort();
       hullRequest?.abort();
       canvas.removeEventListener("webglcontextlost", contextLost);

@@ -123,7 +123,7 @@ export function classifyPath(input) {
     add(categories, "assets");
   }
 
-  if (/^public\/(?:images\/landing|videos\/|frames\/menualive)/.test(lower)) {
+  if (/^public\/(?:images\/landing|immersive-assets\/|videos\/|frames\/menualive)/.test(lower)) {
     add(categories, "landing");
   }
 
@@ -139,7 +139,7 @@ export function classifyPath(input) {
     add(categories, "translations");
   }
 
-  if (/^(?:app\/(?:\(?(?:landing|marketing)\)?|page(?:\.|\/)|\(fr\)\/page\.tsx)|components\/landing\/|lib\/landing\/|styles\/landing(?:\/|\.|$)|e2e\/landing[-/])/.test(lower) ||
+  if (/^(?:app\/(?:\(?(?:landing|marketing)\)?|page(?:\.|\/)|\(fr\)\/page\.tsx)|components\/(?:landing|immersive)\/|lib\/landing\/|styles\/landing(?:\/|\.|$)|e2e\/landing[-/])/.test(lower) ||
       /(?:landing|marketing|showcase)/.test(base)) {
     add(categories, "landing");
   }
@@ -286,7 +286,7 @@ export function deriveRunOutputs(flags) {
     run_sauge: full || flags.sauge_renderer === true || flags.pageflip_gestures === true,
     run_admin_qr: full || flags.admin === true || flags.qr === true,
     run_seo: full || flags.seo === true,
-    run_webkit: full || flags.public_navigation === true || flags.menu_shared === true || flags.translations === true ||
+    run_webkit: full || flags.landing === true || flags.public_navigation === true || flags.menu_shared === true || flags.translations === true ||
       flags.sauge_renderer === true || flags.pageflip_gestures === true
   };
 }

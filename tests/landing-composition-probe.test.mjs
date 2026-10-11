@@ -11,13 +11,13 @@ function fixture() {
   assert.ok(start >= 0 && end > start);
   let now = 0, sequence = 0;
   const callbacks = new Map();
-  const canvas = { dataset: { frames: '0' } };
+  const canvas = { width: 390, height: 844, dataset: { frames: '0' } };
   const window = {
     requestAnimationFrame(callback) { const id = ++sequence; callbacks.set(id, callback); return id; },
     cancelAnimationFrame(id) { callbacks.delete(id); },
   };
   vm.runInNewContext(`(${source.slice(start, end)})(true)`, {
-    window, document: { hidden: false, querySelector: () => canvas, querySelectorAll: () => [] },
+    window, document: { documentElement: { getAttribute: () => 'dark' }, hidden: false, querySelector: () => canvas, querySelectorAll: () => [] },
     performance: { now: () => now }, scrollY: 0,
   });
   return { window, canvas, callbacks, time(value) { now = value; },
@@ -86,4 +86,21 @@ test('journey evidence reads only the active Features heading across baseline an
     vm.runInNewContext(`(${source.slice(start, end)})();`, { window, document });
     assert.equal(window.__compositionJourney.read().featureHeading, 'Active second card');
   }
+});
+
+
+test('passive lower-cache evidence records current buffer and theme without claiming fresh draws', () => {
+  const f = fixture();
+  let draw = true;
+  function render() { if (draw) f.canvas.dataset.frames = '1'; }
+  f.deliver(f.window.requestAnimationFrame(render), 10);
+  Object.assign(f.canvas.dataset, { pricingBackdrop: 'ready', pricingBackdropGeneration: '1', pricingBackdropWidth: '390', pricingBackdropHeight: '844', pricingBackdropTheme: 'dark', pricingBackdropPose: 'pricing-entry:fixture' });
+  draw = false;
+  f.deliver(f.window.requestAnimationFrame(render), 20);
+  const sample = f.read().samples[1];
+  assert.equal(sample.rendered, false);
+  assert.deepEqual(Array.from(sample.drawingBuffer), [390, 844]);
+  assert.equal(sample.theme, 'dark');
+  assert.equal(sample.pose.pricingBackdropGeneration, '1');
+  assert.equal(sample.pose.pricingBackdropPose, 'pricing-entry:fixture');
 });

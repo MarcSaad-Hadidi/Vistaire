@@ -33,6 +33,9 @@ for (const [path, links] of [
     await expect(footer).toHaveAttribute("id", "footer");
     await expect(page.locator(".public-footer-wrap")).toHaveCount(0);
     await expect(footer.locator(".footer-bottom")).toBeInViewport();
+    await expect(footer.locator(".footer-main, .footer-scene")).toHaveCount(0);
+    await expect(footer.locator("#footer-title")).toHaveText("Contact");
+    expect(await footer.evaluate(el => el.getBoundingClientRect().top + scrollY <= document.documentElement.scrollHeight - innerHeight + 1)).toBe(true);
     for (const href of links) await expect(footer.locator(`[data-footer-navigation] a[href="${href}"]`)).toHaveCount(1);
     await expect(footer.locator("[data-footer-navigation] section")).toHaveCount(6);
     const endGap = await footer.evaluate(el => document.documentElement.scrollHeight - el.getBoundingClientRect().bottom - scrollY);
@@ -604,6 +607,12 @@ renderedTest.describe('rendered scroll choreography (Chromium software WebGL)', 
           if (before.ready !== 'true') await expect.poll(() => canvas.evaluate(el => Number((el as HTMLCanvasElement).dataset.frames))).toBeGreaterThan(before.frames);
         }
         await waitForProcessedPose(page, undefined, false, { target: y, artifact: testInfo.outputPath('rendered-pending-pose-telemetry.json') });
+        if (await canvas.getAttribute('data-pricing-active') === 'true') {
+          await expect(page.locator('.pricing-hand-visual')).toHaveAttribute('data-hand-ready', 'true', { timeout: 60_000 });
+          await expect(page.locator('.pricing-phone-layer')).toHaveAttribute('aria-hidden', 'false');
+          await expect(page.locator('.pricing-phone-layer')).not.toHaveAttribute('inert');
+          expect(await page.locator('#open-weight').evaluate(el => el.getBoundingClientRect().height)).toBeCloseTo(pricing.height, 1);
+        }
         if (settle) await expect(canvas).toHaveAttribute('data-settled', 'true', { timeout: 15_000 });
         const snapshot = await canvas.evaluate(el => {
           const data = (el as HTMLCanvasElement).dataset;
@@ -624,6 +633,17 @@ renderedTest.describe('rendered scroll choreography (Chromium software WebGL)', 
             transition: data.transition,
             transitionProgress: Number(data.transitionProgress),
             suspended: data.suspended,
+            pricingActive: data.pricingActive === 'true',
+            pricingProgress: Number(data.pricingHandProgress),
+            buffer: { width: (el as HTMLCanvasElement).width, height: (el as HTMLCanvasElement).height },
+            pricingScreen: (() => {
+              const screen = document.querySelector<HTMLElement>('.pricing-phone-screen');
+              const viewport = document.querySelector<HTMLElement>('.pricing-phone-viewport');
+              if (!screen || !viewport) return null;
+              const rect = screen.getBoundingClientRect();
+              return { left: rect.left, top: rect.top, width: rect.width, height: rect.height,
+                scroll: viewport.scrollTop, transform: getComputedStyle(screen).transform };
+            })(),
             camera: data.fittedCameraPosition,
             look: data.fittedLook,
             supportPosition: data.supportPosition,
@@ -651,7 +671,7 @@ renderedTest.describe('rendered scroll choreography (Chromium software WebGL)', 
           };
         });
         telemetry.push({ segment, target: y, snapshot });
-        if (snapshot.suspended !== 'true') {
+        if (snapshot.suspended !== 'true' && !snapshot.pricingActive) {
           // The source room and extracted table share one fixed registration;
           // their common camera may move, but the room must not drift alone.
           expect(snapshot.roomPosition?.split(',').map(Number), `${segment}: room registration`).toEqual([0, 0, 0]);
@@ -671,9 +691,24 @@ renderedTest.describe('rendered scroll choreography (Chromium software WebGL)', 
           const forward: Awaited<ReturnType<typeof at>>[] = [];
           for (const y of ys) {
             const pose = await at(y);
-            // Pricing is intentionally opaque; there is no rendered pose there.
-            if (pose.scroll >= pricing.top && pose.scroll <= pricing.top + Math.round(pricing.height) - geometry.canvasHeight) {
-              expect(pose.suspended).toBe('true');
+            // Offers borrow the renderer; FAQ keeps the cached restaurant idle.
+            if (pose.scroll >= pricing.top) {
+              expect(pose.suspended).toBe(pose.pricingActive ? 'false' : 'true');
+              expect(pose.dataset.pricingBackdrop).toBe('ready');
+              expect(Number(pose.dataset.pricingBackdropGeneration)).toBeGreaterThan(0);
+              expect(Number(pose.dataset.pricingBackdropWidth)).toBe(pose.buffer.width);
+              expect(Number(pose.dataset.pricingBackdropHeight)).toBe(pose.buffer.height);
+              expect(pose.dataset.pricingBackdropTheme).toBe('dark');
+              expect(pose.dataset.pricingBackdropPose).toMatch(/^pricing-entry:/);
+              if (pose.pricingActive) {
+                expect(pose.pricingProgress).toBe(1); // reduced-motion final pose
+                expect(pose.pricingScreen?.width).toBeGreaterThan(0);
+                expect(pose.pricingScreen?.height).toBeGreaterThan(0);
+                expect(pose.pricingScreen?.transform).toMatch(/^matrix\(/);
+                expect(pose.pricingScreen!.left).toBeGreaterThanOrEqual(0);
+                expect(pose.pricingScreen!.left + pose.pricingScreen!.width).toBeLessThanOrEqual(geometry.viewport.width + 1);
+                expect(Number(pose.dataset.drawCalls)).toBeGreaterThan(0);
+              }
             } else {
               expect(pose.suspended).toBe('false');
               expect(pose.values.every(Number.isFinite)).toBe(true);
@@ -682,13 +717,13 @@ renderedTest.describe('rendered scroll choreography (Chromium software WebGL)', 
           }
           for (const pair of [[0, 1], [ys.length - 2, ys.length - 1]]) {
             const [a, b] = pair.map(i => forward[i]);
-            if (a.suspended === 'true' || b.suspended === 'true') continue;
+            if (a.suspended === 'true' || b.suspended === 'true' || a.pricingActive || b.pricingActive) continue;
             for (let i = 0; i < a.values.length; i++) expect(Math.abs(a.values[i] - b.values[i]), `${window.from}:${window.to} boundary pose`).toBeLessThan(0.15);
           }
           const regular = Array.from({ length: 9 }, (_, i) => forward[ys.findIndex(y => Math.abs(y - window.start - (window.end - window.start) * i / 8) < 0.001)]);
           // Normalize each path by its own traveled distance. World units of a
           // phone, room and camera are not interchangeable physical velocities.
-          if (regular.every(sample => sample.suspended !== 'true')) {
+          if (regular.every(sample => sample.suspended !== 'true' && !sample.pricingActive)) {
             for (const name of Object.keys(regular[0].channels)) {
               const distances = regular.slice(1).map((sample, i) => {
                 const a = regular[i].channels[name], b = sample.channels[name];
@@ -728,10 +763,58 @@ renderedTest.describe('rendered scroll choreography (Chromium software WebGL)', 
             const i = ys.findIndex(sample => Math.abs(sample - y) < 0.001);
             const reverse = await at(y);
             if (reverse.suspended === 'true') continue;
+            if (reverse.pricingActive) {
+              expect(reverse.pricingProgress).toBeCloseTo(forward[i].pricingProgress, 6);
+              expect(reverse.pricingScreen!.scroll).toBeCloseTo(forward[i].pricingScreen!.scroll, 1);
+              expect(reverse.pricingScreen!.transform).toBe(forward[i].pricingScreen!.transform);
+              continue;
+            }
             reverse.values.forEach((value, n) => expect(value).toBeCloseTo(forward[i].values[n], 3));
           }
           await saveTelemetry();
         }
+        segment = 'pricing-reading-faq-reverse';
+        const phoneGeometry = await page.locator('.pricing-hero').evaluate(el => ({
+          top: el.getBoundingClientRect().top + scrollY,
+          height: el.getBoundingClientRect().height,
+          stage: el.querySelector<HTMLElement>('.pricing-hand-visual')!.clientHeight,
+        }));
+        const readY = phoneGeometry.top + (phoneGeometry.height - phoneGeometry.stage) * 0.5;
+        const firstRead = await at(readY);
+        expect(firstRead.pricingActive).toBe(true);
+        expect(firstRead.pricingScreen!.scroll).toBeGreaterThan(0);
+        const faq = await at(phoneGeometry.top + phoneGeometry.height + 2);
+        expect(faq.suspended).toBe('true');
+        expect(faq.pricingActive).toBe(false);
+        await expect(page.locator('.pricing-phone-layer')).toHaveAttribute('aria-hidden', 'true');
+        const framesAtFaq = await canvas.getAttribute('data-frames');
+        await page.evaluate(() => new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
+        expect(await canvas.getAttribute('data-frames')).toBe(framesAtFaq);
+        const reversedRead = await at(readY);
+        expect(reversedRead.pricingActive).toBe(true);
+        expect(reversedRead.pricingScreen!.scroll).toBeCloseTo(firstRead.pricingScreen!.scroll, 1);
+        expect(reversedRead.pricingScreen!.transform).toBe(firstRead.pricingScreen!.transform);
+        const footer = geometry.chapters.find(chapter => chapter.id === 'footer')!;
+        const completedFooter = await at(footer.top);
+        expect(completedFooter.section).toBe('footer');
+        expect(completedFooter.suspended).toBe('true');
+        expect(completedFooter.dataset.pricingBackdrop).toBe('ready');
+        expect(completedFooter.dataset.pricingBackdropGeneration).toBe(reversedRead.dataset.pricingBackdropGeneration);
+        expect(completedFooter.dataset.pricingBackdropPose).toBe(reversedRead.dataset.pricingBackdropPose);
+        const pricingFooterScreenshot = testInfo.outputPath('rendered-pricing-footer.png');
+        await page.screenshot({ path: pricingFooterScreenshot });
+        await testInfo.attach('rendered-pricing-footer', { path: pricingFooterScreenshot, contentType: 'image/png' });
+        const beforePricing = await at(pricing.top - 2);
+        expect(beforePricing.suspended).toBe('false');
+        expect(beforePricing.dataset.pricingBackdrop).toBe('released');
+        const jumpedRead = await at(readY);
+        expect(jumpedRead.dataset.pricingBackdropPose).toBe(firstRead.dataset.pricingBackdropPose);
+        expect(Number(jumpedRead.dataset.pricingBackdropGeneration)).toBeGreaterThan(Number(firstRead.dataset.pricingBackdropGeneration));
+        const entryCamera = jumpedRead.dataset.pricingBackdropPose!.slice('pricing-entry:'.length).split(',').slice(0, 3).map(Number);
+        beforePricing.camera!.split(',').map(Number).forEach((value, index) => expect(value).toBeCloseTo(entryCamera[index], 1));
+        const pricingScreenshot = testInfo.outputPath('rendered-pricing-phone.png');
+        await page.screenshot({ path: pricingScreenshot });
+        await testInfo.attach('rendered-pricing-phone', { path: pricingScreenshot, contentType: 'image/png' });
         // Ordinary chapters retain four active stages; the two three-item reading
         // chapters now have eight, between unchanged 1.1-stage edges.
         for (const chapter of geometry.chapters.slice(3, 10)) {
@@ -841,7 +924,16 @@ renderedTest.describe('rendered scroll choreography (Chromium software WebGL)', 
         segment = 'screenshot:footer-directory';
         await at(await page.evaluate(() => document.documentElement.scrollHeight));
         await expect(canvas).toHaveAttribute('data-section', 'footer');
-        await expect(canvas).toHaveAttribute('data-suspended', 'false');
+        await expect(canvas).toHaveAttribute('data-suspended', 'true');
+        await expect(canvas).toHaveAttribute('data-pricing-active', 'false');
+        await expect(canvas).toHaveAttribute('data-pricing-backdrop', 'ready');
+        expect(await canvas.evaluate(el => {
+          const node = el as HTMLCanvasElement;
+          return Number(node.dataset.pricingBackdropGeneration) > 0 &&
+            Number(node.dataset.pricingBackdropWidth) === node.width &&
+            Number(node.dataset.pricingBackdropHeight) === node.height &&
+            node.dataset.pricingBackdropPose?.startsWith('pricing-entry:');
+        })).toBe(true);
         await expect(canvas).toHaveAttribute('data-settled', 'true', { timeout: 10_000 });
         await expect(page.locator('#footer .footer-bottom')).toBeInViewport();
         const footerScreenshot = testInfo.outputPath('rendered-footer-directory.png');

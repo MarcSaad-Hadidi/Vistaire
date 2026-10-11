@@ -543,6 +543,14 @@ function LandingContent() {
       // Framing changes only with measured geometry, not on every scroll tick.
       sceneFrames = Object.fromEntries(measurements.map(m => [m.id, m.sceneFrame]));
       transitions = measureChapterTransitions(measurements, opening, timing);
+      const pricingEntry = measurements.find(m => m.id === "open-weight");
+      const pricingTransition = transitionAtScroll(transitions, pricingEntry.top);
+      stateRef.current.pricingSceneEntry = {
+        section: "open-weight", progress: 0, openingProgress: null,
+        scrollDistance: Math.max(0, (pricingEntry.top - opening.top) / opening.stageHeight),
+        transition: pricingTransition, sceneFrames,
+        sceneFrame: pricingTransition ? transitionSceneFrame(pricingTransition, sceneFrames) : null,
+      };
       for (const { from, to, start, end } of transitions) {
         const el = sectionRefs.current[from.id];
         el.dataset.exitTo = to.id;
@@ -675,8 +683,11 @@ function LandingContent() {
           : openingProgress;
       stateRef.current.section = current.id;
       const pricing = measurements.find((m) => m.id === "open-weight");
-      stateRef.current.sceneOccluded =
-        y >= pricing.top && y <= pricing.top + pricing.travel;
+      stateRef.current.pageScrollY = y;
+      stateRef.current.pricingSectionTop = pricing.top;
+      // The source's transparent FAQ/footer retain the completed restaurant
+      // backdrop. Only reversing above offers resumes the cinematic scene.
+      stateRef.current.sceneOccluded = y >= pricing.top;
       stateRef.current.scrollDistance = Math.max(
         0,
         (y - opening.top) / opening.stageHeight,
@@ -720,6 +731,7 @@ function LandingContent() {
       }
       // Keep the raw native position, including elastic overscroll, separate
       // from the clamped cinematic distance so an unchanged bounce stays idle.
+      stateRef.current.syncPricingScroll?.(y, pricing.top);
       lastPublishedScrollY = y;
       if (!insideSceneFrame) {
         // Publish all copy, background and timeline state before the renderer
@@ -930,6 +942,8 @@ function LandingContent() {
     } else setModal({ type: "ar", id: item.id });
   };
   const onSceneError = useCallback(() => {
+    stateRef.current.pricingHandUnavailable = true;
+    stateRef.current.syncPricingScroll?.();
     setGpuError(true);
     setModelLoading(null);
     setModelError(null);
@@ -970,8 +984,8 @@ function LandingContent() {
       </a>
       <div
         className={`world ${gpuError ? "world-fallback" : ""}`}
-        aria-hidden="true"
       >
+        <div id="pricing-screen-host" />
         <Suspense fallback={null}>
           {!gpuError && (
             <Scene
@@ -992,6 +1006,7 @@ function LandingContent() {
           <>
             <video
               className="fallback-film"
+              aria-hidden="true"
               src={cinematicSrc}
               poster={cinematicPoster}
               data-play-when="fallback"
@@ -1004,6 +1019,7 @@ function LandingContent() {
           </>
         )}
       </div>
+      <div id="pricing-actions-host" />
       {performanceCapture && (
         <Suspense fallback={null}>
           <PerformanceCapturePanel stateRef={stateRef} locale={locale} onClose={() => setPerformanceCapture(false)} />
@@ -1778,7 +1794,7 @@ function LandingContent() {
           chapterRef={ref("open-weight")}
           className="pricing"
         >
-          <Pricing collection={collection} setCollection={setCollection} />
+          <Pricing collection={collection} stateRef={stateRef} />
         </Chapter>
       </main>
       <Chapter
@@ -1788,22 +1804,7 @@ function LandingContent() {
         chapterRef={ref("footer")}
         className="footer"
       >
-        <div className="footer-main">
-          <span className="eyebrow">
-            {t("La prochaine expérience commence ici.")}
-          </span>
-          <h2 id="footer-title">
-            {t("À la hauteur")}{" "}
-            <br />
-            {t("de votre")}
-            <br /> <em>{t("restaurant.")}</em>
-          </h2>
-          <Action href={link("/prendre-rendez-vous")}>
-            {t("Prendre rendez-vous")}
-            <ArrowUpRight size={15} />
-          </Action>
-        </div>
-        <FocusFrame className="footer-scene" aria-hidden="true" />
+        <h2 id="footer-title" className="sr-only">{t("Contact")}</h2>
         <PublicFooterNavigation locale={locale} />
         <div className="footer-grid">
           <div>

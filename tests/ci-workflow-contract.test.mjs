@@ -501,3 +501,29 @@ test("full-journey composition QA uses the current build and one exclusive workl
   const gate = workflow.slice(workflow.indexOf("  ci-gate:"), workflow.indexOf("  ci-metrics:"));
   assert.match(gate, /RUN_PERFORMANCE:.*inputs\.composition == true/);
 });
+
+test("new offers acceptance runs before heavy suites in both existing browser jobs and retains evidence", () => {
+  for (const [name, end, project, later] of [
+    ['e2e-public-chromium', 'e2e-sauge-chromium', 'chromium', 'Features reading frame regression'],
+    ['webkit-critical', 'ci-gate', 'webkit', 'Admin dish image browser suite (WebKit)'],
+  ]) {
+    const job = workflow.slice(workflow.indexOf(`  ${name}:`), workflow.indexOf(`  ${end}:`));
+    const acceptance = job.indexOf(`Offers presentation acceptance (${project})`);
+    assert.ok(acceptance > 0 && acceptance < job.indexOf(later));
+    assert.match(job, new RegExp(`e2e/landing-offers\\.spec\\.ts --project=${project} --workers=1 --retries=0 --forbid-only`));
+    assert.match(job, /CI_TEST_REPORT_PATH:.*\.ci-test-report-offers\.json/);
+    assert.match(job, /Retain offers projection and input evidence/);
+    assert.match(job, /test-results\/offers-acceptance/);
+    assert.match(job, /if-no-files-found: error/);
+    assert.match(job, /CI_TEST_REPORT_PATHS=.*\.ci-test-report-offers\.json|paths\+=\([^\n]*\.ci-test-report-offers\.json/);
+    assert.doesNotMatch(job, /continue-on-error/);
+  }
+});
+
+
+test("offers browser acceptance selects the existing hermetic fixture in both runners", async () => {
+  for (const path of ["scripts/run-playwright-e2e.mjs", "playwright.config.ts"]) {
+    const text = await readFile(new URL(`../${path}`, import.meta.url), "utf8");
+    assert.ok(text.includes("landing-(?:redesign|production-photo|offers)"), path);
+  }
+});

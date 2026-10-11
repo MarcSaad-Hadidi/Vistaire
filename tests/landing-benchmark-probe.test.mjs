@@ -220,3 +220,18 @@ test('journey checkpoints fail closed on missing rendered pose, coverage, scrim,
     assert.throws(() => { assertJourneySample(invalid, 100, 'features', 1); assertJourneySample(invalid, 100, 'social-content', 1); });
   }
 });
+
+test('visible lower backdrop reuse requires a current proven capture, not a blanket suspension exemption', () => {
+  const { hasReadyPricingBackdrop } = journeyFixture();
+  assert.equal(typeof hasReadyPricingBackdrop, 'function');
+  const pose = [1, 2, 3, 0, 0, 0, 1, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, -1, -1, 0, 0, -1, 0];
+  const data = { section: 'footer', pricingBackdrop: 'ready', pricingBackdropGeneration: '2', pricingBackdropWidth: '390', pricingBackdropHeight: '844', pricingBackdropTheme: 'dark', pricingBackdropPose: `pricing-entry:${pose.join(',')}:050505` };
+  assert.equal(hasReadyPricingBackdrop(data, [390, 844], 'dark'), true);
+  assert.equal(hasReadyPricingBackdrop({...data, section: 'open-weight'}, [390, 844], 'dark'), true);
+  for (const patch of [
+    {section: 'hero'}, {pricingBackdrop: 'released'}, {pricingBackdrop: 'unavailable'},
+    {pricingBackdropGeneration: '0'}, {pricingBackdropWidth: '430'}, {pricingBackdropHeight: '900'},
+    {pricingBackdropTheme: 'light'}, {pricingBackdropPose: 'hero:old'}, {pricingBackdropPose: 'pricing-entry:NaN:050505'},
+  ]) assert.equal(hasReadyPricingBackdrop({...data, ...patch}, [390, 844], 'dark'), false, JSON.stringify(patch));
+  assert.equal(hasReadyPricingBackdrop(data, [390, 844], 'light'), false);
+});

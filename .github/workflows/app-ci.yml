@@ -371,6 +371,22 @@ jobs:
         with:
           name: next-build-${{ github.run_id }}
           path: .next
+      - name: Offers presentation acceptance (chromium)
+        if: ${{ !cancelled() && needs.classify-changes.outputs.run_landing == 'true' }}
+        env:
+          CI_TEST_REPORT_PATH: ${{ github.workspace }}/.ci-test-report-offers.json
+        run: node scripts/run-playwright-e2e.mjs e2e/landing-offers.spec.ts --project=chromium --workers=1 --retries=0 --forbid-only --reporter=list,./e2e/support/forbid-skipped-tests-reporter.ts --output=test-results/offers-acceptance
+      - name: Retain offers projection and input evidence
+        if: ${{ always() && needs.classify-changes.outputs.run_landing == 'true' }}
+        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
+        with:
+          name: landing-offers-chromium-${{ github.run_id }}
+          path: |
+            test-results/offers-acceptance/
+            .ci-test-report-offers.json
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 7
       - name: Features reading frame regression
         if: ${{ !cancelled() && needs.classify-changes.outputs.run_landing == 'true' }}
         env:
@@ -459,7 +475,7 @@ jobs:
         run: |
           paths=()
           [[ "$RUN_CORE" == true ]] && paths+=("$GITHUB_WORKSPACE/.ci-test-report-core.json")
-          [[ "$RUN_LANDING" == true ]] && paths+=("$GITHUB_WORKSPACE/.ci-test-report-landing.json")
+          [[ "$RUN_LANDING" == true ]] && paths+=("$GITHUB_WORKSPACE/.ci-test-report-landing.json" "$GITHUB_WORKSPACE/.ci-test-report-offers.json")
           [[ "$RUN_MENU" == true ]] && paths+=("$GITHUB_WORKSPACE/.ci-test-report-menu.json")
           [[ "$RUN_SEO" == true ]] && paths+=("$GITHUB_WORKSPACE/.ci-test-report-seo.json")
           if [[ "${#paths[@]}" -eq 0 ]]; then
@@ -750,6 +766,22 @@ jobs:
         with:
           name: next-build-${{ github.run_id }}
           path: .next
+      - name: Offers presentation acceptance (webkit)
+        if: ${{ !cancelled() && needs.classify-changes.outputs.run_landing == 'true' }}
+        env:
+          CI_TEST_REPORT_PATH: ${{ github.workspace }}/.ci-test-report-offers.json
+        run: node scripts/run-playwright-e2e.mjs e2e/landing-offers.spec.ts --project=webkit --workers=1 --retries=0 --forbid-only --reporter=list,./e2e/support/forbid-skipped-tests-reporter.ts --output=test-results/offers-acceptance
+      - name: Retain offers projection and input evidence
+        if: ${{ always() && needs.classify-changes.outputs.run_landing == 'true' }}
+        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
+        with:
+          name: landing-offers-webkit-${{ github.run_id }}
+          path: |
+            test-results/offers-acceptance/
+            .ci-test-report-offers.json
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 7
       - name: Admin dish image browser suite (WebKit)
         if: ${{ !cancelled() && needs.classify-changes.outputs.run_admin_qr == 'true' }}
         env:
@@ -773,7 +805,12 @@ jobs:
         id: publish-test-report
         if: ${{ always() }}
         shell: bash
+        env:
+          RUN_LANDING: ${{ needs.classify-changes.outputs.run_landing }}
         run: |
+          if [[ "$RUN_LANDING" == true ]]; then
+            CI_TEST_REPORT_PATHS="$CI_TEST_REPORT_PATH,$GITHUB_WORKSPACE/.ci-test-report-offers.json" node scripts/ci/aggregate-test-reports.mjs
+          fi
           if [[ ! -s "$CI_TEST_REPORT_PATH" ]]; then
             echo '::error::WebKit suite did not publish a structured test report.'
             echo 'report=' >> "$GITHUB_OUTPUT"
