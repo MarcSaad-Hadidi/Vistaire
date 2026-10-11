@@ -31,11 +31,15 @@ function geometry(stage) {
 // Run App's actual measurement/update closure; only the browser geometry and
 // React setters are fixtures, so frame-map allocation is observed end to end.
 function appScrollFixture() {
-  const app = readFileSync('components/immersive/App.jsx', 'utf8');
+  const app = readFileSync(process.env.VISTAIRE_APP_SOURCE || 'components/immersive/App.jsx', 'utf8');
   const { opening, measurements } = pacedGeometry(director.CINEMATIC_TIMING);
+  const pending = new Map();
+  let frame = 0;
   const style = () => ({ setProperty(name, value) { this[name] = value; } });
   const scope = {
     ...director, scrollY: 0, innerWidth: 390, location: { hash: '' },
+    requestAnimationFrame(callback) { pending.set(++frame, callback); return frame; },
+    cancelAnimationFrame(id) { pending.delete(id); },
     clamp: value => Math.max(0, Math.min(1, value)),
     chapters: ids.map(id => [id]), sectionRefs: { current: {} },
     stateRef: { current: {} }, scrollTargets: { current: {} }, guideDismissed: { current: true },
@@ -60,11 +64,11 @@ function appScrollFixture() {
     };
   }
   const start = app.indexOf('    let ticking = false;');
-  const end = app.indexOf('    const queue = () => {', start);
+  const end = app.indexOf('    const requestPace = (value) => {', start);
   assert.ok(start >= 0 && end > start, 'execute App measurement and scroll update functions');
-  vm.runInNewContext(app.slice(start, end) + '\nthis.measure = measure; this.update = update;', scope);
+  vm.runInNewContext(app.slice(start, end) + '\nthis.measure = measure; this.update = update; this.queue = queue; this.stop = () => { stopped = true; };', scope);
   scope.measure();
-  return { scope, world, opening, measurements, state: scope.stateRef.current };
+  return { scope, world, opening, measurements, pending, state: scope.stateRef.current };
 }
 const numbers = (pose) => Object.values(pose).flat().filter(v => typeof v === 'number');
 function assertC1(sample, seam, label) {
@@ -618,4 +622,67 @@ test('every allowed pace keeps real desktop and mobile pricing joins positive an
       }
     }
   }
+});
+
+
+test('App consumes native scroll before an existing Scene frame even before the scroll event arrives', () => {
+  const f = appScrollFixture();
+  f.scope.update(0, true);
+  let renders = 0, invalidations = 0;
+  f.state.renderSceneFrame = () => { renders++; };
+  f.state.invalidateScene = () => { invalidations++; };
+  const targets = [9367, 16120, 8357, 0];
+  for (const y of targets) {
+    f.scope.scrollY = y;
+    // No queue()/scroll event yet: another existing Scene wake reaches App first.
+    f.state.beforeSceneFrame(16);
+    const expected = appScrollFixture(); expected.scope.scrollY = y; expected.scope.update(16, true);
+    assert.equal(f.state.scrollDistance, expected.state.scrollDistance, `native target ${y} must be consumed before draw`);
+    assert.equal(f.state.section, expected.state.section);
+    assert.equal(f.state.progress, expected.state.progress);
+    assert.equal(f.pending.size, 0, 'synchronizing native scroll must not create another RAF');
+  }
+  assert.equal(renders, 0, 'beforeSceneFrame must not recursively render');
+  assert.equal(invalidations, 0, 'the existing frame owns the draw');
+  f.state.beforeSceneFrame(32);
+  assert.equal(f.pending.size, 0, 'unchanged idle native scroll stays asleep');
+  const before = f.state.scrollDistance; f.scope.stop(); f.scope.scrollY = 1000;
+  f.state.beforeSceneFrame(48); assert.equal(f.state.scrollDistance, before, 'disposed App must not update');
+});
+
+test('App flushes a queued scroll exactly once before the Scene frame', () => {
+  const f = appScrollFixture(); f.scope.update(0, true);
+  f.scope.scrollY = 9367; f.scope.queue(); f.scope.queue();
+  assert.equal(f.pending.size, 1);
+  f.state.beforeSceneFrame(16);
+  assert.equal(f.pending.size, 0);
+  const expected = appScrollFixture(); expected.scope.scrollY = 9367; expected.scope.update(16, true);
+  assert.equal(f.state.scrollDistance, expected.state.scrollDistance);
+});
+
+test('App leaves unchanged and stable overscroll asleep in either RAF order', () => {
+  const f = appScrollFixture();
+  let published = 0, distance;
+  Object.defineProperty(f.state, 'scrollDistance', {
+    get: () => distance,
+    set: value => { distance = value; published++; },
+    configurable: true,
+  });
+  f.scope.update(0, true);
+  const initial = published;
+  f.state.beforeSceneFrame(16); f.state.beforeSceneFrame(32);
+  assert.equal(published, initial, 'unchanged native position must not republish on Scene wakes');
+  f.scope.scrollY = -80;
+  f.state.beforeSceneFrame(48);
+  assert.equal(published, initial + 1, 'new native overscroll is consumed once');
+  assert.equal(distance, 0, 'public normalized distance stays clamped');
+  f.state.beforeSceneFrame(64); f.state.beforeSceneFrame(80);
+  assert.equal(published, initial + 1, 'stable raw overscroll must not trigger repeated updates');
+  f.scope.scrollY = 9367; f.scope.queue();
+  const [id, callback] = f.pending.entries().next().value;
+  f.pending.delete(id); callback(96);
+  const afterApp = published;
+  f.state.beforeSceneFrame(96);
+  assert.equal(published, afterApp, 'App-first RAF already consumed the target');
+  assert.equal(f.pending.size, 0);
 });

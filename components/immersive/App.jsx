@@ -451,6 +451,7 @@ function LandingContent() {
   useEffect(() => {
     let ticking = false;
     let queuedFrame = 0;
+    let lastPublishedScrollY;
     let lastSection = "";
     let lastChapterBeats = {};
     let measurements = [];
@@ -717,6 +718,9 @@ function LandingContent() {
         lastChapterBeats = preparedBeats;
         setChapterBeats(preparedBeats);
       }
+      // Keep the raw native position, including elastic overscroll, separate
+      // from the clamped cinematic distance so an unchanged bounce stays idle.
+      lastPublishedScrollY = y;
       if (!insideSceneFrame) {
         // Publish all copy, background and timeline state before the renderer
         // consumes it, without an extra requestAnimationFrame of latency.
@@ -732,7 +736,10 @@ function LandingContent() {
       }
     };
     const beforeSceneFrame = (now) => {
-      if (!ticking || stopped) return;
+      // Native scroll can change before its scroll event is delivered (including
+      // scrollTo in another RAF). An already pending scene must sample that
+      // position too, without waiting for another frame or starting a loop.
+      if (stopped || (!ticking && scrollY === lastPublishedScrollY)) return;
       cancelAnimationFrame(queuedFrame);
       update(now, true);
     };
