@@ -36,6 +36,7 @@ import { PublicFooterNavigation } from "../vistaire-preview/PublicFooterNavigati
 import { getVistaireSocialProfiles } from "@/lib/seo";
 import { getSeoMarketingImage } from "@/lib/seoMarketingImages";
 const Scene = lazy(() => import("./Scene.jsx"));
+const PerformanceCapturePanel = lazy(() => import("./PerformanceCapturePanel.jsx"));
 // Restaurant-specific menus keep their original production interface.
 // Vistaire presentation pages are part of this same styled frontend.
 // Distances use the frozen journey viewport, not elapsed time or scroll velocity.
@@ -338,6 +339,7 @@ function LandingContent() {
   const openingRef = useRef(null);
   const scrollTargets = useRef({});
   const [scrollPace, setScrollPace] = useState(null);
+  const [performanceCapture, setPerformanceCapture] = useState(false);
   const [chapter, setChapter] = useState("hero");
   const [chapterBeats, setChapterBeats] = useState({
     features: 0,
@@ -764,7 +766,11 @@ function LandingContent() {
       if (!stopped) layoutChanged();
     });
     measure();
-    const initialPace = new URLSearchParams(location.search).get("scrollPace");
+    const parameters = new URLSearchParams(location.search);
+    if (parameters.get("performanceCapture") === "1") {
+      queueMicrotask(() => { if (!stopped) setPerformanceCapture(true); });
+    }
+    const initialPace = parameters.get("scrollPace");
     if (initialPace != null) {
       pendingPace = normalizeScrollPace(initialPace);
       setScrollPace(pendingPace);
@@ -991,6 +997,11 @@ function LandingContent() {
           </>
         )}
       </div>
+      {performanceCapture && (
+        <Suspense fallback={null}>
+          <PerformanceCapturePanel stateRef={stateRef} locale={locale} onClose={() => setPerformanceCapture(false)} />
+        </Suspense>
+      )}
       {scrollPace != null && (
         <details open className="pace-preview" aria-label={locale === "en" ? "Journey pace preview" : "Aperçu du rythme du parcours"}>
           <summary>
