@@ -21,16 +21,19 @@
 .previewFrame {
   display: grid;
   width: min(1400px, calc(100% - 80px));
-  gap: 48px;
+  gap: 24px;
   margin: 0 auto 80px;
-  padding-top: 154px;
+  padding-top: 108px;
 }
 .card {
   position: relative;
   min-width: 0;
 }
 .hero {
-  max-width: 1000px;
+  width: 100%;
+  max-width: 1100px;
+  margin-inline: auto;
+  text-align: center;
 }
 .introBadge {
   margin: 0;
@@ -41,21 +44,21 @@
   text-transform: uppercase;
 }
 .hero h1 {
-  max-width: 960px;
-  margin: 22px 0 0;
+  max-width: 1100px;
+  margin: 8px auto 0;
   font-family: var(--vistaire-font-display);
-  font-size: clamp(46px, 5.5vw, 78px);
+  font-size: clamp(30px, 3.25vw, 46px);
   font-weight: 400;
   letter-spacing: -0.035em;
   line-height: 1.05;
   text-wrap: balance;
 }
 .lead {
-  max-width: 800px;
-  margin: 24px 0 0;
+  max-width: 760px;
+  margin: 0 auto;
   color: var(--public-muted-soft);
-  font-size: 21px;
-  line-height: 1.6;
+  font-size: 17px;
+  line-height: 1.5;
 }
 .heroActions {
   display: flex;
@@ -114,10 +117,11 @@
 .demoDisclosure {
   display: flex;
   align-items: center;
-  gap: 20px;
+  gap: 12px;
+  max-width: 1000px;
+  margin: 24px auto 0;
+  padding-top: 16px;
   border-top: 1px solid var(--public-blue);
-  margin: 0 0 24px;
-  padding-top: 24px;
 }
 .demoDisclosure h2 {
   flex: 0 0 auto;
@@ -131,8 +135,16 @@
 .demoDisclosure p {
   margin: 0;
   color: var(--public-muted-soft);
-  font-size: 15px;
+  font-size: 13px;
   line-height: 1.5;
+}
+.filmSummary {
+  margin-top: 24px;
+  text-align: center;
+}
+.filmSummary .heroActions {
+  justify-content: center;
+  margin-top: 16px;
 }
 .dashboardDemo {
   --admin-bg: var(--public-surface);
@@ -870,9 +882,9 @@
 
 @media (max-width: 700px) {
   .previewFrame {
-    width: calc(100% - 40px);
-    gap: 32px;
-    padding-top: 120px;
+    width: calc(100% - 32px);
+    gap: 20px;
+    padding-top: 94px;
   }
   .card {
     border-radius: 4px;
@@ -880,14 +892,14 @@
   .hero {
     min-height: 0;
     padding: 0;
-    text-align: left;
+    text-align: center;
   }
   .hero h1 {
-    margin-inline: 0;
-    font-size: 45px;
+    margin-inline: auto;
+    font-size: 30px;
   }
   .lead {
-    margin-inline: 0;
+    margin-inline: auto;
   }
   .heroActions {
     justify-content: flex-start;
@@ -905,7 +917,7 @@
     align-items: flex-start;
     flex-direction: column;
     gap: 10px;
-    padding: 4px 4px 0;
+    padding: 16px 0 0;
   }
   .dashboardDemo {
     border-radius: 4px;
@@ -1086,10 +1098,10 @@
 
 @media (max-width: 700px) {
   .lead {
-    font-size: 19px;
+    font-size: 15px;
   }
   .demoDisclosure {
-    margin-bottom: 20px;
+    margin-bottom: 0;
   }
   .qrCard span {
     font-size: 17px;
@@ -1134,27 +1146,55 @@
 }
 
 .dashboardFilm {
-  width: 100%;
-  max-width: 1100px;
-  margin: 0;
+  width: min(100%, 1168px, calc((100svh - 260px) * 1.5615));
+  margin: 0 auto;
 }
 .dashboardScreen {
   aspect-ratio: 1168 / 748;
   overflow: hidden;
-  border: 5px solid #171716;
-  border-radius: 18px;
+  border: 3px solid #171716;
+  border-radius: 14px;
   background: #090909;
   box-shadow: 0 24px 70px #0005, 0 0 0 1px var(--public-blue);
 }
 .dashboardScreen video { object-fit: contain; }
+.dashboardScreen :global([data-video-play-fallback]) {
+  position: absolute;
+  z-index: 1;
+  inset: 50% auto auto 50%;
+  transform: translate(-50%, -50%);
+  display: inline-flex;
+  min-height: 48px;
+  max-width: calc(100% - 32px);
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  border: 1px solid var(--public-gold);
+  border-radius: 6px;
+  padding: 12px 20px;
+  color: var(--public-on-accent);
+  background: var(--public-gold);
+  font: inherit;
+  cursor: pointer;
+}
+.dashboardScreen :global([data-video-play-fallback]):focus-visible {
+  outline: 2px solid var(--public-gold);
+  outline-offset: 4px;
+}
 .dashboardFilm figcaption {
-  margin-top: 18px;
+  margin-top: 12px;
   color: var(--public-muted-soft);
-  font-size: 14px;
+  font-size: 12px;
+  text-align: center;
   line-height: 1.6;
 }
-.filmTranscript { margin-top: 12px; font-size: 14px; line-height: 1.7; }
-.filmTranscript summary { width: fit-content; padding-block: 10px; cursor: pointer; }
+.filmTranscript { margin-top: 4px; font-size: 13px; line-height: 1.7; }
+.filmTranscript summary { width: fit-content; margin-inline: auto; padding-block: 8px; cursor: pointer; }
 .filmTranscript summary:focus-visible { outline: 2px solid var(--public-gold); outline-offset: 4px; }
 .filmTranscript ol { padding-left: 24px; color: var(--public-muted-soft); }
-@media (max-width: 650px) { .dashboardScreen { border-width: 3px; border-radius: 10px; } }
+@media (max-width: 700px) {
+  .dashboardFilm { width: 100%; }
+  .dashboardScreen { border-width: 2px; border-radius: 10px; }
+  .filmSummary .heroActions { flex-direction: row; gap: 8px; }
+  .filmSummary .heroActions a { width: auto; flex: 1; min-height: 44px; padding: 10px 8px; gap: 6px; font-size: 13px; }
+}

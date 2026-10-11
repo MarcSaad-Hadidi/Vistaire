@@ -295,3 +295,11 @@ test("public Studio restaurant labels retain the pricing copy separator contract
     assert.match(data.restaurant.name, /Maison Élyse/);
   }
 });
+
+test("English dishes and visible demo notes obey the pricing no-dash copy contract", async () => {
+  const { createPublicStudioDemo } = await import("../lib/restaurateurPreview/studioFixture.ts");
+  const data = createPublicStudioDemo("7d", "en");
+  for (const dish of data.menu.dishes) assert.doesNotMatch(dish.name, /[-–—]/);
+  const locale = readFileSync("components/admin/studio/studioLocale.tsx", "utf8");
+  assert.doesNotMatch(locale, /per-dish comparisons/);
+});

@@ -582,9 +582,9 @@ const ALLOWLIST = new Map(
     [
       "public/videos/demo/dashboard-studio.mp4",
       {
-        maxBytes: 1048576,
-        sha256: ["925c5543b216dc05b41f00234da7001bc640b6e594b91ac313ac8a42335da650"],
-        reason: "User-requested genuine 20-second Studio walkthrough from the approved public demo; 1168x748 H264, 24 fps, no audio, raw frames outside Git. See docs/repo-asset-policy.md.",
+        maxBytes: 3145728,
+        sha256: ["e23fee4660945b73a16e6cd6ebabb1ad8de91053a414a0fbb7763232d4d7fcb2"],
+        reason: "User-requested genuine 128-second Studio feature walkthrough from the approved public demo; 1168x748 H264, 24 fps, no audio, raw frames outside Git. See docs/repo-asset-policy.md.",
         owner: DEMO_RUNTIME_ASSET_OWNER
       }
     ],

@@ -9,8 +9,8 @@ type Scenario = {
   transcript: string;
 };
 const scenarios: Scenario[] = [
-  {path: "/apercu-restaurateur", sampleMenu: {label: "Voir la carte exemple", href: "/demo"}, videoLabel: "Vidéo de démonstration du Studio Vistaire, 20 secondes", transcript: "Ce que montre la vidéo"},
-  {path: "/en/restaurant-preview", sampleMenu: {label: "View sample menu", href: "/en/vistaire-menu"}, videoLabel: "Vistaire Studio demonstration video, 20 seconds", transcript: "What the video shows"}
+  {path: "/apercu-restaurateur", sampleMenu: {label: "Voir la carte exemple", href: "/demo"}, videoLabel: "Vidéo de démonstration du Studio Vistaire", transcript: "Ce que montre la vidéo"},
+  {path: "/en/restaurant-preview", sampleMenu: {label: "View sample menu", href: "/en/vistaire-menu"}, videoLabel: "Vistaire Studio demonstration video", transcript: "What the video shows"}
 ];
 const canonicalOrigin = "https://www.vistaire.ca";
 
@@ -221,7 +221,7 @@ async function expectSafeSeo(page: Page, scenario: Scenario) {
 
 
 for (const scenario of scenarios) {
-  test(`${scenario.path} presents a genuine video with private data isolation and user-controlled playback`, async ({baseURL, page}) => {
+  test(`${scenario.path} presents a genuine video with private data isolation and arrival autoplay and user-controlled playback`, async ({baseURL, page}) => {
     const runtime = observeRuntime(page, baseURL ?? "http://127.0.0.1:3000");
     await page.setViewportSize({width: 1280, height: 720});
     const response = await page.goto(scenario.path, {waitUntil: "domcontentloaded"});
@@ -236,16 +236,35 @@ for (const scenario of scenarios) {
     await expect(video).toHaveAttribute("preload", "none");
     await expect(video).not.toHaveAttribute("autoplay", "");
     await expect(video).toHaveAttribute("poster", "/images/demo-walkthrough/dashboard-studio.webp");
-    await video.scrollIntoViewIfNeeded();
+    const box = await video.boundingBox();
+    expect(box).not.toBeNull();
+    expect(box!.y).toBeGreaterThan(88);
+    expect(box!.y + box!.height).toBeLessThanOrEqual(720);
+    expect(Math.abs(box!.x + box!.width / 2 - 640)).toBeLessThan(2);
     await expect(video).toHaveAttribute("src", "/videos/demo/dashboard-studio.mp4");
+    expect(await video.evaluate(element => (element as HTMLVideoElement).muted)).toBe(true);
+    await expect.poll(() => video.evaluate(element => (element as HTMLVideoElement).currentTime)).toBeGreaterThan(.2);
+    expect(await video.evaluate(element => (element as HTMLVideoElement).duration)).toBeGreaterThan(60);
+    await video.evaluate(element => (element as HTMLVideoElement).pause());
+    await expect.poll(() => video.evaluate(element => (element as HTMLVideoElement).paused)).toBe(true);
+    await page.getByRole("contentinfo").scrollIntoViewIfNeeded();
+    await video.scrollIntoViewIfNeeded();
     expect(await video.evaluate(element => (element as HTMLVideoElement).paused)).toBe(true);
     await video.evaluate(element => (element as HTMLVideoElement).play());
-    await expect.poll(() => video.evaluate(element => (element as HTMLVideoElement).currentTime)).toBeGreaterThan(.2);
-    expect(await video.evaluate(element => (element as HTMLVideoElement).duration)).toBeCloseTo(20, 0);
+    await page.evaluate(() => {
+      Object.defineProperty(document, "hidden", {configurable: true, value: true});
+      document.dispatchEvent(new Event("visibilitychange"));
+    });
+    await expect.poll(() => video.evaluate(element => (element as HTMLVideoElement).paused)).toBe(true);
+    await page.evaluate(() => {
+      Reflect.deleteProperty(document, "hidden");
+      document.dispatchEvent(new Event("visibilitychange"));
+    });
+    await expect.poll(() => video.evaluate(element => (element as HTMLVideoElement).paused)).toBe(false);
     await page.getByRole("contentinfo").scrollIntoViewIfNeeded();
     await expect.poll(() => video.evaluate(element => (element as HTMLVideoElement).paused)).toBe(true);
     await film.getByText(scenario.transcript, {exact: true}).click();
-    await expect(film.locator("ol li")).toHaveCount(4);
+    expect(await film.locator("ol li").count()).toBeGreaterThanOrEqual(6);
     await expectSafeDom(page, scenario);
     await expectSafeSeo(page, scenario);
     runtime.expectClean();
@@ -257,13 +276,39 @@ for (const scenario of scenarios) {
       await page.setViewportSize({width, height: 900});
       await page.goto(scenario.path, {waitUntil: "domcontentloaded"});
       const video = page.locator("[data-dashboard-walkthrough] video");
-      await video.scrollIntoViewIfNeeded();
       await expect(video).toBeVisible();
+      const box = await video.boundingBox();
+      expect(box!.y).toBeGreaterThan(74);
+      expect(box!.y + box!.height).toBeLessThanOrEqual(900);
+      expect(Math.abs(box!.x + box!.width / 2 - width / 2)).toBeLessThan(2);
+      await expect(video).not.toHaveAttribute("autoplay", "");
       expect(await video.evaluate(element => (element as HTMLVideoElement).paused)).toBe(true);
       expect(await video.evaluate(element => (element as HTMLVideoElement).controls)).toBe(true);
       await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(2);
     }
     await page.locator("[data-dashboard-walkthrough] video").evaluate(element => (element as HTMLVideoElement).play());
     await expect.poll(() => page.locator("[data-dashboard-walkthrough] video").evaluate(element => (element as HTMLVideoElement).currentTime)).toBeGreaterThan(.2);
+  });
+
+  test(`${scenario.path} offers a working play button when autoplay is blocked`, async ({page}) => {
+    await page.addInitScript(() => {
+      const originalPlay = HTMLMediaElement.prototype.play;
+      let firstAttempt = true;
+      HTMLMediaElement.prototype.play = function () {
+        if (firstAttempt) {
+          firstAttempt = false;
+          return Promise.reject(new DOMException("Autoplay blocked", "NotAllowedError"));
+        }
+        return originalPlay.call(this);
+      };
+    });
+    await page.goto(scenario.path, {waitUntil: "domcontentloaded"});
+    const video = page.locator("[data-dashboard-walkthrough] video");
+    const fallback = page.locator("[data-video-play-fallback]");
+    await expect(fallback).toBeVisible();
+    expect(await video.evaluate(element => (element as HTMLVideoElement).paused)).toBe(true);
+    await fallback.click();
+    await expect.poll(() => video.evaluate(element => (element as HTMLVideoElement).currentTime)).toBeGreaterThan(.2);
+    await expect(fallback).toBeHidden();
   });
 }

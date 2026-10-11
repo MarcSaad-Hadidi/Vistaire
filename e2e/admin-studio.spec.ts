@@ -36,11 +36,7 @@ async function expectSemanticSwitchTracks(page: Page) {
     expect(track.actual).toBe(track.expected);
   }
 }
-for (const width of [390, 430, 1440])
-  test(`studio four destinations, theme, evidence and export cancellation at ${width}px`, async ({
-    page,
-  }, testInfo) => {
-    await page.setViewportSize({ width, height: 900 });
+function watchPrivatePage(page: Page) {
     const errors: string[] = [];
     const badResponses: string[] = [];
     const heavyRequests: string[] = [];
@@ -58,6 +54,18 @@ for (const width of [390, 430, 1440])
           `${response.status()} ${new URL(response.url()).pathname}`,
         );
     });
+    return () => {
+      expect(errors).toEqual([]);
+      expect(badResponses).toEqual([]);
+      expect(heavyRequests).toEqual([]);
+    };
+}
+for (const width of [390, 430, 1440]) {
+  test(`studio four destinations, theme, evidence and export cancellation at ${width}px`, async ({
+    page,
+  }, testInfo) => {
+    await page.setViewportSize({ width, height: 900 });
+    const expectHealthyPage = watchPrivatePage(page);
     await preview(page);
     const nav = page.getByRole("navigation", { name: "Navigation principale" });
     await expect(nav.getByRole("link")).toHaveCount(4);
@@ -137,6 +145,15 @@ for (const width of [390, 430, 1440])
         ),
       ).toBe(true);
     }
+    expectHealthyPage();
+  });
+  test(`studio dish filters, semantic states and read-only controls at ${width}px`, async ({ page }, testInfo) => {
+    await page.setViewportSize({ width, height: 900 });
+    const expectHealthyPage = watchPrivatePage(page);
+    await preview(page);
+    await page.getByRole("button", { name: "Passer au thème sombre" }).click();
+    await expect(page.locator("[data-admin-studio]")).toHaveAttribute("data-theme", "dark");
+    const nav = page.getByRole("navigation", { name: "Navigation principale" });
     await nav.getByRole("link", { name: "Les plats", exact: true }).click();
     await expect(
       page.getByText("Accès en lecture seule.", { exact: false }),
@@ -189,10 +206,9 @@ for (const width of [390, 430, 1440])
       path: testInfo.outputPath(`vistaire-studio-${width}.png`),
       fullPage: true,
     });
-    expect(errors).toEqual([]);
-    expect(badResponses).toEqual([]);
-    expect(heavyRequests).toEqual([]);
+    expectHealthyPage();
   });
+}
 test("studio downloads all four real formats without leaving the private page", async ({
   page,
 }) => {

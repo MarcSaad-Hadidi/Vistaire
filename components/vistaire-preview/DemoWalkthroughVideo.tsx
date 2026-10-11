@@ -9,6 +9,7 @@ export function DemoWalkthroughVideo({
   src,
   controls = false,
   autoPlay = true,
+  playLabel = "Play video",
   sizes = "(max-width: 760px) 80vw, 340px"
 }: {
   label: string;
@@ -16,10 +17,12 @@ export function DemoWalkthroughVideo({
   src: string;
   controls?: boolean;
   autoPlay?: boolean;
+  playLabel?: string;
   sizes?: string;
 }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [decoded, setDecoded] = useState(false);
+  const [playbackBlocked, setPlaybackBlocked] = useState(false);
 
   useEffect(() => {
     const video = videoRef.current;
@@ -27,15 +30,47 @@ export function DemoWalkthroughVideo({
 
     const motion = window.matchMedia("(prefers-reduced-motion: reduce)");
     let isIntersecting = false;
+    let userPaused = false;
+    let lifecyclePause = false;
+    let disposed = false;
+    const pauseForVisibility = () => {
+      if (video.paused) return;
+      lifecyclePause = true;
+      video.pause();
+    };
     const updatePlayback = () => {
       if (!video.isConnected) return;
-      if (!isIntersecting || (motion.matches && !controls)) {
-        video.pause();
+      // Keep decorative menu clips autoplaying only after checking preferences.
+      video.autoplay = autoPlay && !controls && !motion.matches && isIntersecting && !document.hidden;
+      if (!isIntersecting || document.hidden || (motion.matches && !controls)) {
+        pauseForVisibility();
         return;
       }
+      // Native controls remain usable with reduced motion, but never auto-start.
       if (!video.hasAttribute("src")) video.src = src;
-      // Explicit playback also resumes a muted clip when WebKit reveals it again.
-      if (autoPlay && !motion.matches) void video.play().catch(() => undefined);
+      if (autoPlay && !motion.matches && !userPaused && video.paused) {
+        void video.play().catch((error: unknown) => {
+          if (!disposed && controls && (error as DOMException)?.name !== "AbortError") {
+            setPlaybackBlocked(true);
+          }
+        });
+      }
+    };
+    const onPlay = () => {
+      userPaused = false;
+      setPlaybackBlocked(false);
+    };
+    const onPause = () => {
+      // A pause from the native controls must survive viewport/tab changes.
+      if (lifecyclePause) lifecyclePause = false;
+      else if (controls) userPaused = true;
+    };
+    const onMotionChange = () => {
+      if (motion.matches) {
+        video.autoplay = false;
+        pauseForVisibility();
+      }
+      else updatePlayback();
     };
     const observer = new IntersectionObserver(
       ([entry]) => {
@@ -44,21 +79,30 @@ export function DemoWalkthroughVideo({
       },
       { rootMargin: controls ? "0px" : "200px 0px" }
     );
-    motion.addEventListener("change", updatePlayback);
     const observeVideo = () => observer.observe(video);
     const releaseVideo = () => {
       observer.unobserve(video);
+      isIntersecting = false;
+      pauseForVisibility();
       video.removeAttribute("src");
       video.load();
     };
 
+    video.addEventListener("play", onPlay);
+    video.addEventListener("pause", onPause);
+    motion.addEventListener("change", onMotionChange);
+    document.addEventListener("visibilitychange", updatePlayback);
     observeVideo();
     window.addEventListener("pagehide", releaseVideo);
     window.addEventListener("pageshow", observeVideo);
     return () => {
+      disposed = true;
       window.removeEventListener("pagehide", releaseVideo);
       window.removeEventListener("pageshow", observeVideo);
-      motion.removeEventListener("change", updatePlayback);
+      document.removeEventListener("visibilitychange", updatePlayback);
+      motion.removeEventListener("change", onMotionChange);
+      video.removeEventListener("play", onPlay);
+      video.removeEventListener("pause", onPause);
       observer.disconnect();
       releaseVideo();
     };
@@ -77,7 +121,6 @@ export function DemoWalkthroughVideo({
       />
       <video
         aria-label={label}
-        autoPlay={autoPlay}
         controls={controls}
         data-demo-video
         loop
@@ -91,6 +134,18 @@ export function DemoWalkthroughVideo({
         onError={() => setDecoded(false)}
         style={{ opacity: decoded || controls ? 1 : 0 }}
       />
+      {controls && playbackBlocked && (
+        <button
+          data-video-play-fallback
+          type="button"
+          onClick={() => {
+            const video = videoRef.current;
+            if (video) void video.play().catch(() => setPlaybackBlocked(true));
+          }}
+        >
+          <span aria-hidden="true">▶</span> {playLabel}
+        </button>
+      )}
     </div>
   );
 }

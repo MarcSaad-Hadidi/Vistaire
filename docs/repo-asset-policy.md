@@ -126,32 +126,44 @@ The user-authorized immersive presentation imports original runtime assets under
 
 ## Restaurant Studio presentation walkthrough
 
-Requested by `MarcSaad-Hadidi` on 2026-10-11 for the French and English dashboard
-presentation pages. Owner: `MarcSaad-Hadidi`. This is a genuine silent recording
-of the approved public demonstration at
+Requested and revised by `MarcSaad-Hadidi` on 2026-10-11 for the French and
+English dashboard presentation pages. Owner: `MarcSaad-Hadidi`. This is a genuine
+silent recording of the approved public demonstration at
 `https://sauge-noire-dashboard-demo.plumtuna4.chatgpt.site/`, captured through
 supported cloud-browser screenshots while operating the UI. All figures are
-fictional; the availability change is explicitly a local simulation. No private
-restaurant session or customer data was recorded.
+fictional and actions are local simulations. No private restaurant session or
+customer data was recorded.
 
-The 20-second sequence selects seven days and 3D clicks, enlarges the chart,
-opens analyses and dishes, searches for the duck dish, and changes its simulated
-availability. Five continuous four-second segments supplied 610 captured frames
-at measured segment cadences of 19.6–37.5 fps. Encoding selects the nearest
-captured frame at 24 fps, with no generated frames or motion interpolation.
-The final clip contains 86 distinct recorded frames, including real transitions.
-Raw captures and encoding intermediates remain outside Git.
+The revised 128-second user journey covers reporting presets and custom dates;
+chart measures, tooltip, comparison legend, enlarged view and data table; ten
+analysis chart families and category drill-down; dish search and details;
+selection, batch availability and undo; weekly/one-time scheduling choices
+followed by Cancel; calendar and service-date/time preview; PDF, Excel, CSV and
+JSON format choices and the actual synthetic PDF download; light/dark theme.
+The public prototype's schedule Save throws when adding to a frozen rules array,
+so failed-save takes are excluded. The film shows no successful schedule save
+and makes no claim of backend persistence. That separate prototype was not edited.
+
+Fourteen retained sections supplied 3,937 captured frames at measured section
+cadences of 20.4–40.3 fps. Encoding selects the nearest genuinely captured frame
+at 24 fps, with no generated frames or motion interpolation. The retained
+sections contain 314 distinct recorded frames, including actual transitions.
+Raw captures, rejected takes, review sheets, encoding intermediates and the
+previous reviewed clip remain outside Git.
 
 - Runtime: `public/videos/demo/dashboard-studio.mp4`
 - Format: H264, 1168 × 748, 24 fps, yuv420p, no audio, MP4 faststart
-- Duration: 20.000 seconds
-- Reviewed bytes: 729,591; exact-file budget: 1,048,576 bytes
-- SHA-256: `925c5543b216dc05b41f00234da7001bc640b6e594b91ac313ac8a42335da650`
-- Poster: `public/images/demo-walkthrough/dashboard-studio.webp` (48,406 bytes)
+- Duration: 128.000 seconds
+- Reviewed bytes: 2,756,273; exact-file budget: 3,145,728 bytes
+- SHA-256: `e23fee4660945b73a16e6cd6ebabb1ad8de91053a414a0fbb7763232d4d7fcb2`
+- Poster: `public/images/demo-walkthrough/dashboard-studio.webp` (46,066 bytes)
 
-The player requires user playback, exposes native controls/fullscreen, pauses
-when outside the viewport, and includes localized text describing the sequence.
-Existing menu videos and private Studio remain unchanged. The exception is
-limited to this exact reviewed clip; replacement requires an updated checksum.
-Source interactions and decoded output frames were inspected; deployed-browser
-playback remains covered by the public preview E2E suite.
+The centered hero starts muted when visible unless reduced motion is preferred.
+Native pause/fullscreen controls remain available, a failed-autoplay button is
+visible when necessary, and playback pauses offscreen or when the tab is hidden.
+Manual pause is retained. Localized text describes each chapter and the English
+page discloses the recorded French interface. Existing menu video behavior and
+private Studio are preserved. The exception is limited to this exact reviewed
+clip; replacement requires an updated checksum. Source interactions, a contact
+sheet and full decoding were checked. Deployed layout and playback verification
+remain covered by the public preview E2E suite and must run on the final revision.

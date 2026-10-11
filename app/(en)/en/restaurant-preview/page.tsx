@@ -13,7 +13,7 @@ import {
 const canonicalPath = "/en/restaurant-preview";
 const title = "Vistaire restaurant preview";
 const description =
-  "Watch a 20-second Vistaire restaurant Studio walkthrough: navigation, charts and dish management with fictional demonstration data.";
+  "Watch a Vistaire restaurant Studio walkthrough: metrics, charts, dishes, planning and exports with fictional demonstration data.";
 
 export const metadata: Metadata = {
   title,

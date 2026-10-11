@@ -31,3 +31,7 @@ Shared chart primitives still used elsewhere retain their existing unit tests. H
 ## Execution status
 
 Local browser launch remains blocked by the environment's socket permission. Active tests are discoverable and typechecked; successful browser execution is only claimed when the exact follow-up commit's hosted Chromium/WebKit jobs complete. The Studio step now runs independently of an earlier suite failure, while the overall job and CI gate still fail on that earlier error.
+
+### Bounded WebKit workload split
+
+The 1440px WebKit combined scenario reached its global 30-second deadline after several DPR3 full-page captures, with the availability control present and the unavailable filter already showing exactly two rows. Navigation/evidence/screenshots and dish filters/semantic state controls are now independent scenarios at each of 390/430/1440. All previous assertions and runtime-health checks remain; no timeout, retry or numerical threshold is increased. The selected Studio/full-menu suite now collects 12 scenarios per browser.

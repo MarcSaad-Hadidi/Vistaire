@@ -65,3 +65,13 @@ Hosted Chromium on `db8898a` passed QR (7/7) and six of nine Studio scenarios, i
 Screenshot review additionally corrected narrow mobile filter selects, gray unavailable switch tracks, unnecessarily narrow ranking names and a horizontally clipped heatmap. The ranking now shows short signed changes with comparison context once; the fluid heatmap retains all 168 native accessible cells with sparse visual hour labels and exact keyboard/touch tooltips. Browser assertions cover control widths, red/green tracks in both themes, ranking-name width and the final heatmap column. These new fixes still require exact-commit hosted browser confirmation.
 
 WebKit Studio now runs before the independent public video journeys, and its screenshot/error context artifact is saved before subsequent suites replace test output. Both suites retain fail-closed job behavior; no timeout, retry or acceptance threshold was loosened.
+
+## Expanded walkthrough revision
+
+The dedicated presentation now leads with a centered, viewport-bounded 2m08s recording rather than the earlier 20-second clip. It starts muted when visible, respects reduced motion, preserves a user's manual pause, pauses offscreen/when the tab is hidden, and offers a playback button if autoplay is refused. The native controls and localized transcript remain available.
+
+The genuine sequence covers date choices, chart metric/tooltip/legend/table/enlargement, analysis families and drilldowns, dish search/detail, batch availability and undo, scheduling choices (cancelled without a persistence claim), planning preview, all export choices and an actual synthetic PDF download, and theme switching. All activity shown is explicitly a synthetic demonstration. The clip is 2,756,273 bytes with the exact checksum/provenance in the asset policy.
+
+On `4ef9eaf`, hosted Chromium passed QR 7/7 and Studio 9/9. WebKit passed eight Studio scenarios and all 49 public scenarios, including the earlier film's FR/EN playback tests; its long 1440px combined scenario reached the overall 30-second deadline near the final filters. The next tests separate navigation/evidence from dish filtering at each width, retaining all assertions and the existing timeout. English fixture copy is also corrected to honor the existing pricing no-dash rule without removing that browser assertion.
+
+The replacement video's layout/autoplay and the split WebKit scenarios still require hosted validation on their new commit. Landing geometry/runtime optimizations are being handled separately and are excluded from this video checkpoint.

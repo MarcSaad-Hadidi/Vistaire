@@ -146,7 +146,7 @@ const english: Record<string, string> = {
   "1 journée exemple": "1 sample day",
   "7 jours exemple": "7 sample days",
   "30 jours exemple": "30 sample days",
-  "Données de démonstration uniquement. Les répartitions 3D/AR et comparaisons par plat sont illustratives.": "Demo data only. The 3D/AR split and per-dish comparisons are illustrative.",
+  "Données de démonstration uniquement. Les répartitions 3D/AR et comparaisons par plat sont illustratives.": "Demo data only. The 3D/AR split and comparisons by dish are illustrative.",
   "Dernier événement": "Last event",
   "Jeu de démonstration": "Demo dataset",
   "À lire ou imprimer": "Read or print",

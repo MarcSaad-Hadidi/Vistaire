@@ -3,7 +3,7 @@ import type { RestaurateurPreviewLocale, RestaurateurPreviewMetricId } from "./t
 const fr = {
   introBadge: "Aperçu restaurateur",
   h1: "Explorez le vrai fonctionnement du dashboard Vistaire.",
-  lead: "En 20 secondes, découvrez la navigation, les graphiques et la gestion des plats dans une vidéo du Studio Vistaire.",
+  lead: "Suivez un parcours dans le Studio : lire les chiffres, explorer les graphiques, gérer les plats et préparer le service.",
   demoLabel: "Données de démonstration",
   demoStatement: "Cette vidéo montre une démonstration avec des données fictives et des actions simulées. Aucune donnée client n’est affichée ni modifiée.",
   appointment: "Prendre rendez-vous",
@@ -88,7 +88,7 @@ const fr = {
 const en = {
   introBadge: "Restaurant preview",
   h1: "Explore how the Vistaire dashboard really works.",
-  lead: "See navigation, charts and dish management in 20 seconds of Vistaire Studio.",
+  lead: "Follow a journey through Studio: read your metrics, explore charts, manage dishes and prepare for service.",
   demoLabel: "Demo data",
   demoStatement: "This video shows a demonstration with fictional data and simulated actions. No customer data is displayed or modified.",
   appointment: "Book a call",

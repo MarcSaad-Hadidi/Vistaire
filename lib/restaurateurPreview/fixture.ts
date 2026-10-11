@@ -40,15 +40,15 @@ const dishes = [
   ["tartare-saumon-label-rouge", "entrees", "Tartare de saumon Label Rouge", "Label Rouge salmon tartare", 2400, true],
   ["ravioles-chevre-miel-monteregie", "entrees", "Ravioles chèvre et miel de Montérégie", "Goat cheese ravioli with Montérégie honey", 2200, true],
   ["homard-bleu-bisque-fenouil", "signatures", "Homard bleu, bisque et fenouil", "Blue lobster, bisque and fennel", 5800, true],
-  ["pave-boeuf-mature-bordelaise", "signatures", "Pavé de bœuf maturé, bordelaise", "Dry-aged beef, Bordelaise sauce", 5200, true],
+  ["pave-boeuf-mature-bordelaise", "signatures", "Pavé de bœuf maturé, bordelaise", "Matured beef, Bordelaise sauce", 5200, true],
   ["canette-rotie-figues-epices", "signatures", "Canette rôtie, figues et épices", "Roasted duckling, figs and spices", 4600, true],
-  ["bar-de-ligne-artichaut-citron", "signatures", "Bar de ligne, artichaut et citron", "Line-caught sea bass, artichoke and lemon", 4900, false],
+  ["bar-de-ligne-artichaut-citron", "signatures", "Bar de ligne, artichaut et citron", "Sea bass caught by line, artichoke and lemon", 4900, false],
   ["risotto-cepes-parmesan", "signatures", "Risotto aux cèpes et parmesan", "Porcini and Parmesan risotto", 3600, true],
   ["souffle-chocolat-grand-cru", "desserts", "Soufflé chocolat grand cru", "Grand cru chocolate soufflé", 1800, true],
   ["tarte-citron-basilic-pourpre", "desserts", "Tarte citron et basilic pourpre", "Lemon tart with purple basil", 1600, true],
   ["maison-elyse-n1", "cocktails", "Maison Élyse N°1", "Maison Élyse No. 1", 1900, true],
   ["elixir-bergamote-earl-grey", "cocktails", "Élixir bergamote et Earl Grey", "Bergamot and Earl Grey elixir", 1700, true],
-  ["negroni-vieilli-fut", "cocktails", "Negroni vieilli en fût", "Barrel-aged Negroni", 2100, false]
+  ["negroni-vieilli-fut", "cocktails", "Negroni vieilli en fût", "Negroni aged in a barrel", 2100, false]
 ].map(([id, categoryId, fr, en, priceCents, available]) => ({
   id: id as string,
   categoryId: categoryId as string,

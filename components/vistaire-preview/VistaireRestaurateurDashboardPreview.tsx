@@ -57,34 +57,36 @@ export function VistaireRestaurateurDashboardPreview({
         >
           <p className={styles.introBadge}>{copy.introBadge}</p>
           <h1 id="restaurateur-dashboard-title">{copy.h1}</h1>
-          <p className={styles.lead}>{copy.lead}</p>
-          <div className={styles.heroActions}>
-            <Link
-              className={styles.primaryButton}
-              href={routes.appointment}
-              prefetch={false}
-            >
-              {copy.appointment}
-              <ArrowIcon />
-            </Link>
-            <Link
-              className={styles.secondaryButton}
-              href={routes.menu}
-              prefetch={false}
-            >
-              {copy.sampleMenu}
-            </Link>
-          </div>
         </section>
         <section
           aria-labelledby="demo-data-title"
           className={`${styles.card} ${styles.dashboardSection}`}
         >
-          <header className={styles.demoDisclosure}>
+          <DashboardWalkthrough locale={locale} />
+          <div className={styles.filmSummary}>
+            <p className={styles.lead}>{copy.lead}</p>
+            <div className={styles.heroActions}>
+              <Link
+                className={styles.primaryButton}
+                href={routes.appointment}
+                prefetch={false}
+              >
+                {copy.appointment}
+                <ArrowIcon />
+              </Link>
+              <Link
+                className={styles.secondaryButton}
+                href={routes.menu}
+                prefetch={false}
+              >
+                {copy.sampleMenu}
+              </Link>
+            </div>
+          </div>
+          <div className={styles.demoDisclosure}>
             <h2 id="demo-data-title">{copy.demoLabel}</h2>
             <p>{copy.demoStatement}</p>
-          </header>
-          <DashboardWalkthrough locale={locale} />
+          </div>
         </section>
         <section className={styles.afterDemo}>
           <article className={`${styles.card} ${styles.finalCopy}`}>
