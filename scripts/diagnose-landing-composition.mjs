@@ -12,12 +12,18 @@ import { traceScreenshot } from './landing-screenshot-trace.mjs';
 
 // One caller-owned hermetic fixture; verified builds already exist. No build,
 // dependency installation, remote server, or concurrent benchmark is started.
-const require = createRequire(import.meta.url);
-const { chromium } = require('@playwright/test');
 const journeyQA = process.argv.includes('--journey-qa');
 const diagnosticProfile = process.argv.includes('--diagnostic-profile');
-assert.ok(process.argv.slice(2).every(arg => ['--journey-qa', '--diagnostic-profile'].includes(arg)), 'Unknown diagnostic argument');
+const legacyScreenshotDiagnostic = process.argv.includes('--legacy-screenshot-diagnostic');
+assert.ok(process.argv.slice(2).every(arg => ['--journey-qa', '--diagnostic-profile', '--legacy-screenshot-diagnostic'].includes(arg)), 'Unknown diagnostic argument');
 assert.ok(!diagnosticProfile || journeyQA, 'CPU profiling is a separate journey diagnostic, never a paired performance result');
+assert.ok(!legacyScreenshotDiagnostic || (journeyQA && diagnosticProfile), 'Legacy screenshot experiment requires journey diagnostic profiling');
+assert.ok(legacyScreenshotDiagnostic || !process.env.PLAYWRIGHT_LEGACY_SCREENSHOT, 'Legacy screenshot mode requires the explicit diagnostic argument');
+// Playwright reads this switch when preparing Chromium launch switches.
+// Scope it to this diagnostic process before require, never the active runner.
+if (legacyScreenshotDiagnostic) process.env.PLAYWRIGHT_LEGACY_SCREENSHOT = '1';
+const require = createRequire(import.meta.url);
+const { chromium } = require('@playwright/test');
 const runtimes = JSON.parse(process.env.VISTAIRE_COMPOSITION_RUNTIMES_JSON || '{}');
 const output = path.resolve(process.env.VISTAIRE_COMPOSITION_OUTPUT || 'composition-results');
 const baseURL = 'http://127.0.0.1:3000';
@@ -55,6 +61,7 @@ await mkdir(output, { recursive: true });
 const report = {
   schema: 1, protocol: 'composition-pair-three-seams', startedAt: new Date().toISOString(),
   helperSHA256: hash(readFileSync(fileURLToPath(import.meta.url))), frozenProbeSHA256: frozenProbeSHA,
+  screenshotMode: legacyScreenshotDiagnostic ? 'legacy-capture-diagnostic' : 'default-new-surface',
   runtimes, host: { cpu: os.cpus()[0]?.model, logicalCPUs: os.cpus().length, platform: os.platform(), release: os.release(), totalRAMBytes: os.totalmem() },
   viewport: { width: 390, height: 844 }, requestedDPR: 1,
   methodology: {

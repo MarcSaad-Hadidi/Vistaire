@@ -371,6 +371,22 @@ jobs:
         with:
           name: next-build-${{ github.run_id }}
           path: .next
+      - name: Features reading frame regression
+        if: ${{ !cancelled() && needs.classify-changes.outputs.run_landing == 'true' }}
+        env:
+          CI_TEST_REPORT_PATH: ${{ github.workspace }}/.ci-test-report-features-frame.json
+        run: npm run test:ci:e2e:landing -- --grep 'Features keeps a stable natural reading frame' --output=test-results/features-frame-baseline
+      - name: Upload Features reading frame evidence
+        if: ${{ always() && needs.classify-changes.outputs.run_landing == 'true' }}
+        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
+        with:
+          name: features-frame-${{ github.run_id }}
+          include-hidden-files: true
+          path: |
+            test-results/features-frame-baseline/
+            .ci-test-report-features-frame.json
+          if-no-files-found: error
+          retention-days: 7
       - name: Core browser smoke
         if: ${{ !cancelled() && needs.classify-changes.outputs.run_core == 'true' }}
         env:
@@ -665,6 +681,7 @@ jobs:
         env:
           VISTAIRE_COMPOSITION_OUTPUT: ${{ runner.temp }}/landing-performance/composition
           DIAGNOSTIC_PROFILE: ${{ inputs.diagnostic_profile == true || contains(github.event.pull_request.labels.*.name, 'landing-diagnostic') }}
+          LEGACY_SCREENSHOT_DIAGNOSTIC: ${{ contains(github.event.pull_request.labels.*.name, 'landing-legacy-screenshot') }}
         shell: bash
         run: |
           set -euo pipefail
@@ -687,6 +704,7 @@ jobs:
           curl --fail --silent http://127.0.0.1:55434/fixture/health > /dev/null
           profile_args=()
           if [[ "$DIAGNOSTIC_PROFILE" == "true" ]]; then profile_args+=(--diagnostic-profile); fi
+          if [[ "$LEGACY_SCREENSHOT_DIAGNOSTIC" == true ]]; then profile_args+=(--legacy-screenshot-diagnostic); fi
           node scripts/diagnose-landing-composition.mjs --journey-qa "${profile_args[@]}"
       - name: Preserve performance measurements and failures
         if: ${{ always() }}

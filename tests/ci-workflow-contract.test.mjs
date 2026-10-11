@@ -97,6 +97,41 @@ test("diagnostic concurrency preserves existing runs while ordinary PR concurren
   assert.match(block, /cancel-in-progress: \$\{\{ github\.event_name == 'pull_request' \}\}/);
 });
 
+test("early Features geometry evidence is uploaded before full browser coverage and never masks failure", () => {
+  const job = workflow.slice(workflow.indexOf('  e2e-public-chromium:'), workflow.indexOf('  e2e-sauge-chromium:'));
+  const earlyAt = job.indexOf('      - name: Features reading frame regression');
+  const uploadAt = job.indexOf('      - name: Upload Features reading frame evidence');
+  const coreAt = job.indexOf('      - name: Core browser smoke');
+  assert.ok(earlyAt >= 0 && uploadAt > earlyAt && coreAt > uploadAt, 'fast geometry evidence precedes longer suites');
+  const early = job.slice(earlyAt, uploadAt);
+  assert.match(early, /!cancelled\(\).*run_landing/);
+  assert.match(early, /npm run test:ci:e2e:landing -- --grep 'Features keeps a stable natural reading frame'/);
+  assert.match(early, /--output=test-results\/features-frame-baseline/);
+  assert.match(early, /CI_TEST_REPORT_PATH:.*\.ci-test-report-features-frame\.json/);
+  assert.doesNotMatch(early, /continue-on-error|\|\| true/);
+  const upload = job.slice(uploadAt, coreAt);
+  assert.match(upload, /always\(\)/);
+  assert.match(upload, /name: features-frame-\$\{\{ github\.run_id \}\}/);
+  assert.match(upload, /test-results\/features-frame-baseline/);
+  assert.match(upload, /\.ci-test-report-features-frame\.json/);
+  for (const name of ['Core browser smoke', 'Landing browser smoke', 'Shared menu browser smoke', 'SEO browser smoke']) {
+    const step = job.slice(job.indexOf(`      - name: ${name}`)).split('\n      - name:')[0];
+    assert.match(step, /if:.*!cancelled\(\)/, `${name} must still run after early geometry failure`);
+  }
+});
+
+test("legacy screenshot experiment is confined to the opt-in composition command", () => {
+  const job = workflow.slice(workflow.indexOf('  landing-performance:'), workflow.indexOf('  webkit-critical:'));
+  const start = job.indexOf('      - name: Validate all landing chapters');
+  const end = job.indexOf('      - name: Preserve performance');
+  const composition = job.slice(start, end);
+  assert.match(composition, /LEGACY_SCREENSHOT_DIAGNOSTIC:.*landing-legacy-screenshot/);
+  assert.match(composition, /if \[\[ "\$LEGACY_SCREENSHOT_DIAGNOSTIC" == true \]\]/);
+  assert.match(composition, /--legacy-screenshot-diagnostic/);
+  assert.doesNotMatch(job.slice(0, start) + job.slice(end), /PLAYWRIGHT_LEGACY_SCREENSHOT|LEGACY_SCREENSHOT_DIAGNOSTIC|--legacy-screenshot-diagnostic/);
+  assert.doesNotMatch(workflow, /PLAYWRIGHT_LEGACY_SCREENSHOT:/, 'do not leak screenshot switch into other browser processes');
+});
+
 test("App CI exposes the production job topology and all event modes", () => {
   for (const job of [
     "classify-changes", "fast-gate", "static-quality", "database-contracts", "build-app",

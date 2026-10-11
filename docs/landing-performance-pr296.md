@@ -36,6 +36,20 @@ Trace setup commands each have a 5-second bound, flush/read has a shared 5-secon
 
 Protocol references: [CDP Tracing](https://chromedevtools.github.io/devtools-protocol/tot/Tracing/), [CDP IO](https://chromedevtools.github.io/devtools-protocol/tot/IO/). Installed Playwright protocol definitions verify the trace-buffer, data-loss and stream fields.
 
+### Controlled legacy screenshot experiment (opt-in, not a product fix)
+
+Run `38111937302` reproduced the timeout with a complete 7,605,359-byte trace (`dataLossOccurred=false`). Two native `CopyOutputRequest` spans remained open; the GPU process ran 16,874 delayed tasks from `ScheduleDelayedGPUTaskFromGPUThread`. Renderer-main task wall time summed to 21.7 ms over the capture window. This localizes the observed screenshot stall to native capture/readback processing; it does not establish the cause of visitor scroll latency.
+
+The trace's actual launch command includes `--enable-features=CDPScreenshotNewSurface`. Installed `playwright-core` 1.62.1 conditionally omits that switch when `PLAYWRIGHT_LEGACY_SCREENSHOT` is truthy (`lib/coreBundle.js`, launcher configuration). The controlled experiment is:
+
+```sh
+node scripts/diagnose-landing-composition.mjs --journey-qa --diagnostic-profile --legacy-screenshot-diagnostic
+```
+
+The opt-in flag sets Playwright's existing environment switch before loading its launcher. It is rejected without both journey QA and profiling; inherited legacy-mode configuration is rejected unless explicitly requested. `screenshotMode` records the requested mode and the native trace command line must confirm the actual launch change. No browser security flag is added, no browser version/quality/viewport/DPR/runtime asset is changed, and all screenshots, assertions, coverage and capture deadlines remain intact. The active benchmark process is unaffected. A changed outcome is evidence about the capture implementation only, not an application performance improvement. Do not adopt this mode as default or erase the failed default-mode evidence without reviewing the controlled result.
+
+Source: [Playwright Chromium switches](https://github.com/microsoft/playwright/blob/main/packages/playwright-core/src/server/chromium/chromiumSwitches.ts). The installed version, not the moving main branch, was checked for the exact condition. [Chromium 151.0.7922.34 readback implementation](https://raw.githubusercontent.com/chromium/chromium/151.0.7922.34/components/viz/service/display_embedder/skia_output_surface_impl_on_gpu.cc) identifies the repeated readback-completion scheduling path; the pending callback's internal cause remains unresolved.
+
 Diagnostic CI runs may use two matrix workloads on separate runners: composition (heavy QA/profiler/trace) and active (the frozen query-free benchmark without composition screenshots). Both consume the same build and both must pass the aggregate job gate; artifacts have workload suffixes. Different runners cannot support a before/after performance comparison. Normal benchmark/composition behavior remains a single selected workload. The later before/after comparison below still requires the same runner.
 
 ## Same-runner comparison after a justified fix

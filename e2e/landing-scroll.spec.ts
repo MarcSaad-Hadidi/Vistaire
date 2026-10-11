@@ -19,6 +19,56 @@ test.beforeEach(async ({ page }) => {
 const touchTest = test.extend({ hasTouch: true });
 const desktopTest = test.extend({ hasTouch: false, isMobile: false });
 
+for (const route of ['/', '/en']) for (const width of [390, 430]) {
+  touchTest(`Features keeps a stable natural reading frame across three cards at ${width}px ${route}`, async ({ page }, testInfo) => {
+    await page.setViewportSize({ width, height: width === 390 ? 844 : 932 });
+    await page.goto(route, { waitUntil: 'domcontentloaded' });
+    await expect(page.locator('.world-fallback')).toBeVisible();
+    await page.evaluate(() => document.fonts.ready);
+    const samples: Array<{ index: number; title: string; focus: number[]; cardHeight: number; contentFits: boolean }> = [];
+    try {
+      for (const [index, fraction] of [0.125, 0.5, 0.875].entries()) {
+        await page.locator('#features').evaluate((chapter, fraction) => {
+          const stage = chapter.querySelector<HTMLElement>('.stage')!;
+          const top = chapter.getBoundingClientRect().top + scrollY;
+          scrollTo({ top: top + stage.clientHeight * (1.1 + 8 * fraction), behavior: 'instant' });
+        }, fraction);
+        await expect(page.locator('#features .feature-number')).toHaveText(`0${index + 1}`);
+        const heading = page.locator('#features .feature-card').getByRole('heading', { level: 3 });
+        await expect(heading).toHaveCount(1);
+        const title = await heading.innerText();
+        const geometry = await page.locator('#features').evaluate(chapter => {
+          const stage = chapter.querySelector('.stage')!.getBoundingClientRect();
+          const focus = chapter.querySelector('.scene-focus')!.getBoundingClientRect();
+          const card = chapter.querySelector<HTMLElement>('.feature-card')!;
+          const bounds = card.getBoundingClientRect();
+          const content = [...card.querySelectorAll<HTMLElement>('h3, p, a, button')]
+            .filter(element => !element.closest('[aria-hidden="true"]') && getComputedStyle(element).visibility !== 'hidden');
+          return { focus: [focus.left - stage.left, focus.top - stage.top, focus.width, focus.height],
+            cardHeight: bounds.height,
+            contentFits: content.length > 0 && content.every(element => {
+              const box = element.getBoundingClientRect();
+              return box.left >= bounds.left - 0.5 && box.right <= bounds.right + 0.5
+                && box.top >= bounds.top - 0.5 && box.bottom <= bounds.bottom + 0.5;
+            }),
+          };
+        });
+        samples.push({ index, title, ...geometry });
+      }
+      expect(new Set(samples.map(sample => sample.title)).size).toBe(3);
+      for (const sample of samples) expect(sample.contentFits, `card ${sample.index}: natural copy remains inside card`).toBe(true);
+      for (const axis of [0, 1, 2, 3]) {
+        const values = samples.map(sample => sample.focus[axis]);
+        expect(Math.max(...values) - Math.min(...values), `focus axis ${axis}: text replacement must not move the camera frame`).toBeLessThanOrEqual(0.5);
+      }
+      const heights = samples.map(sample => sample.cardHeight);
+      expect(Math.max(...heights) - Math.min(...heights), 'card keeps the natural maximum copy envelope').toBeLessThanOrEqual(0.5);
+    } finally {
+      await testInfo.attach('features-reading-frame', { body: JSON.stringify({ route, width, samples }, null, 2), contentType: 'application/json' });
+    }
+  });
+}
+
 async function openJourney(page: Page, height = 820) {
   await page.setViewportSize({ width: 390, height });
   await page.goto("/#sustainability");
