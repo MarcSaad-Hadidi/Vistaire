@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 import vm from "node:vm";
+import { spawnSync } from "node:child_process";
 
 const workflow = await readFile(new URL("../.github/workflows/app-ci.yml", import.meta.url), "utf8");
 const nightly = await readFile(new URL("../.github/workflows/nightly.yml", import.meta.url), "utf8");
@@ -526,4 +527,46 @@ test("offers browser acceptance selects the existing hermetic fixture in both ru
     const text = await readFile(new URL(`../${path}`, import.meta.url), "utf8");
     assert.ok(text.includes("landing-(?:redesign|production-photo|offers)"), path);
   }
+});
+
+
+test("restaurant crop experiment uses isolated profiles and fails closed without activating the candidate", () => {
+  const job = workflow.slice(workflow.indexOf('  restaurant-geometry-ab:'), workflow.indexOf('  landing-performance:'));
+  assert.match(job, /needs: \[classify-changes, fast-gate, static-quality, build-app\]/);
+  assert.match(job, /github\.event\.pull_request\.number == 296/);
+  assert.match(job, /inputs\.restaurant_ab == true/);
+  assert.match(job, /fail-fast: false/);
+  assert.match(job, /profile: \[phone, phone430, phoneLandscape, desktop, desktop1337, wide, wide3440\]/);
+  assert.match(job, /timeout-minutes: 30/);
+  assert.match(job, /name: next-build-\$\{\{ github\.run_id \}\}/);
+  assert.match(job, /VISTAIRE_RESTAURANT_AB_PROFILE: \$\{\{ matrix\.profile \}\}/);
+  assert.match(job, /node scripts\/run-playwright-e2e\.mjs e2e\/restaurant-geometry-ab\.spec\.ts/);
+  assert.match(job, /--workers=1 --retries=0 --forbid-only/);
+  assert.match(job, /forbid-skipped-tests-reporter/);
+  assert.match(job, /report\.total !== 1 \|\| report\.passed !== 1/);
+  assert.match(job, /if: \$\{\{ always\(\) \}\}/);
+  assert.match(job, /name: restaurant-geometry-ab-\$\{\{ matrix\.profile \}\}-\$\{\{ github\.run_id \}\}/);
+  assert.doesNotMatch(job, /continue-on-error|GITHUB_TOKEN|ALLOW_PRODUCTION|npm run build/);
+  const gate = workflow.slice(workflow.indexOf('  ci-gate:'), workflow.indexOf('  ci-metrics:'));
+  assert.match(gate, /needs\.restaurant-geometry-ab\.result/);
+  assert.match(gate, /\[restaurant-geometry-ab\]="\$RESTAURANT_AB"/);
+  assert.match(gate, /\[restaurant-geometry-ab\]="\$RUN_RESTAURANT_AB"/);
+  assert.match(gate, /ordered_jobs=\([^\n]*restaurant-geometry-ab/);
+});
+
+
+test("the actual CI gate rejects every incomplete selected restaurant profile", () => {
+  const block = workflow.slice(workflow.indexOf("      - name: Fail closed on missing or failed applicable jobs"), workflow.indexOf("      - name: Diagnose root failure"));
+  const match = block.match(/        run: \|\n([\s\S]*?)(?=\n      -|$)/);
+  assert.ok(match, "the real fail-closed shell must be found");
+  const script = match[1].replace(/^          /gm, "");
+  const env = { ...process.env, CLASSIFY: "success", CLASSIFY_FULL: "false", CLASSIFICATION_VALID: "true", EVENT: "pull_request", GITHUB_STEP_SUMMARY: "/dev/null" };
+  for (const key of ["FAST_GATE", "STATIC", "DATABASE", "BUILD", "PUBLIC_CHROMIUM", "SAUGE_CHROMIUM", "ADMIN_QR_CHROMIUM", "WEBKIT", "PERFORMANCE"]) env[key] = "success";
+  for (const key of ["STATIC", "DATABASE", "BUILD", "CORE", "LANDING", "MENU", "SAUGE", "ADMIN_QR", "SEO", "WEBKIT", "PERFORMANCE", "RESTAURANT_AB"]) env[`RUN_${key}`] = "true";
+  for (const result of ["success", "failure", "cancelled", "skipped", ""]) {
+    const run = spawnSync("bash", ["-c", script], { env: { ...env, RESTAURANT_AB: result }, encoding: "utf8" });
+    assert.equal(run.status, result === "success" ? 0 : 1, `${result || "missing"}: ${run.stdout} ${run.stderr}`);
+  }
+  const unselected = spawnSync("bash", ["-c", script], { env: { ...env, RUN_RESTAURANT_AB: "false", RESTAURANT_AB: "skipped" }, encoding: "utf8" });
+  assert.equal(unselected.status, 0, "an explicitly unselected crop experiment remains optional");
 });

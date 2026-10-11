@@ -24,6 +24,11 @@ on:
         required: false
         default: false
         type: boolean
+      restaurant_ab:
+        description: Run the inactive restaurant crop gate (select landing scope)
+        required: false
+        default: false
+        type: boolean
       benchmark:
         description: Run serial landing performance measurements (software WebGL)
         required: false
@@ -40,6 +45,10 @@ on:
         default: false
         type: boolean
       diagnostic_profile:
+        required: false
+        default: false
+        type: boolean
+      restaurant_ab:
         required: false
         default: false
         type: boolean
@@ -637,6 +646,65 @@ jobs:
           echo '## e2e-admin-qr-chromium' >> "$GITHUB_STEP_SUMMARY"
           echo "- Categories: \`${CATEGORIES}\`" >> "$GITHUB_STEP_SUMMARY"
 
+  restaurant-geometry-ab:
+    name: restaurant-geometry-ab (${{ matrix.profile }})
+    needs: [classify-changes, fast-gate, static-quality, build-app]
+    if: ${{ !cancelled() && needs.classify-changes.result == 'success' && needs.fast-gate.result == 'success' && needs.static-quality.result == 'success' && needs.build-app.result == 'success' && needs.classify-changes.outputs.run_landing == 'true' && (inputs.restaurant_ab == true || github.event.pull_request.number == 296) }}
+    runs-on: ubuntu-latest
+    # The test has a 20-minute correctness cap; setup and retained evidence get a separate margin.
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        profile: [phone, phone430, phoneLandscape, desktop, desktop1337, wide, wide3440]
+    env:
+      VISTAIRE_RESTAURANT_AB_PROFILE: ${{ matrix.profile }}
+      CI_TEST_REPORT_PATH: ${{ github.workspace }}/.ci-test-report-restaurant-ab.json
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          lfs: false
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - run: npm ci
+      - name: Install pinned Chromium for the isolated profile
+        run: npx --no-install playwright install --with-deps chromium
+      - name: Download the same verified production build
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: next-build-${{ github.run_id }}
+          path: .next
+      - name: Compare the inactive crop against the default restaurant
+        run: >-
+          node scripts/run-playwright-e2e.mjs e2e/restaurant-geometry-ab.spec.ts
+          --project=chromium --workers=1 --retries=0 --forbid-only
+          --reporter=list,./e2e/support/forbid-skipped-tests-reporter.ts
+          --output=test-results/restaurant-geometry-ab
+      - name: Require one complete passing comparison per profile
+        if: ${{ !cancelled() }}
+        run: |
+          node --input-type=module <<'NODE'
+          import { readFileSync } from 'node:fs';
+          const report = JSON.parse(readFileSync(process.env.CI_TEST_REPORT_PATH, 'utf8'));
+          if (report.total !== 1 || report.passed !== 1 || report.failed !== 0 || report.skipped !== 0 || report.flaky !== 0 || report.interrupted !== 0) {
+            throw new Error(`Incomplete restaurant A/B profile: ${JSON.stringify(report)}`);
+          }
+          NODE
+      - name: Retain profile poses, pixel pairs and failure diagnostics
+        if: ${{ always() }}
+        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
+        with:
+          name: restaurant-geometry-ab-${{ matrix.profile }}-${{ github.run_id }}
+          path: |
+            test-results/restaurant-geometry-ab/
+            .ci-test-report-restaurant-ab.json
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 7
+
   landing-performance:
     name: landing-performance
     needs: [classify-changes, fast-gate, static-quality, build-app]
@@ -840,7 +908,7 @@ jobs:
     if: ${{ always() }}
     outputs:
       root_failure: ${{ steps.diagnostics.outputs.root_failure }}
-    needs: [classify-changes, fast-gate, static-quality, database-contracts, build-app, e2e-public-chromium, e2e-sauge-chromium, e2e-admin-qr-chromium, webkit-critical, landing-performance]
+    needs: [classify-changes, fast-gate, static-quality, database-contracts, build-app, e2e-public-chromium, e2e-sauge-chromium, e2e-admin-qr-chromium, webkit-critical, restaurant-geometry-ab, landing-performance]
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -857,6 +925,8 @@ jobs:
           SAUGE_CHROMIUM: ${{ needs.e2e-sauge-chromium.result }}
           ADMIN_QR_CHROMIUM: ${{ needs.e2e-admin-qr-chromium.result }}
           WEBKIT: ${{ needs.webkit-critical.result }}
+          RESTAURANT_AB: ${{ needs.restaurant-geometry-ab.result }}
+          RUN_RESTAURANT_AB: ${{ needs.classify-changes.outputs.run_landing == 'true' && (inputs.restaurant_ab == true || github.event.pull_request.number == 296) }}
           PERFORMANCE: ${{ needs.landing-performance.result }}
           RUN_PERFORMANCE: ${{ needs.classify-changes.outputs.run_landing == 'true' && (inputs.benchmark == true || contains(github.event.pull_request.labels.*.name, 'landing-performance') || inputs.composition == true || contains(github.event.pull_request.labels.*.name, 'landing-composition') || (inputs.diagnostic_profile == true || contains(github.event.pull_request.labels.*.name, 'landing-diagnostic'))) }}
           EVENT: ${{ needs.classify-changes.outputs.event }}
@@ -875,14 +945,14 @@ jobs:
           [[ "$CLASSIFY" == success ]] || { echo "classifier result: $CLASSIFY"; exit 1; }
           [[ "$CLASSIFY_FULL" == true || "$CLASSIFY_FULL" == false ]] || { echo "invalid full_ci output"; exit 1; }
           [[ "$CLASSIFICATION_VALID" == true ]] || { echo "invalid classifier policy output"; exit 1; }
-          for output in "$RUN_STATIC" "$RUN_DATABASE" "$RUN_BUILD" "$RUN_CORE" "$RUN_LANDING" "$RUN_MENU" "$RUN_SAUGE" "$RUN_ADMIN_QR" "$RUN_SEO" "$RUN_WEBKIT" "$RUN_PERFORMANCE"; do
+          for output in "$RUN_STATIC" "$RUN_DATABASE" "$RUN_BUILD" "$RUN_CORE" "$RUN_LANDING" "$RUN_MENU" "$RUN_SAUGE" "$RUN_ADMIN_QR" "$RUN_SEO" "$RUN_WEBKIT" "$RUN_PERFORMANCE" "$RUN_RESTAURANT_AB"; do
             [[ "$output" == true || "$output" == false ]] || { echo "invalid run_* output: $output"; exit 1; }
           done
           public_expected=false
           if [[ "$RUN_CORE" == true || "$RUN_LANDING" == true || "$RUN_MENU" == true || "$RUN_SEO" == true ]]; then public_expected=true; fi
-          declare -A results=( [fast-gate]="$FAST_GATE" [static-quality]="$STATIC" [database-contracts]="$DATABASE" [build-app]="$BUILD" [e2e-public-chromium]="$PUBLIC_CHROMIUM" [e2e-sauge-chromium]="$SAUGE_CHROMIUM" [e2e-admin-qr-chromium]="$ADMIN_QR_CHROMIUM" [webkit-critical]="$WEBKIT" [landing-performance]="$PERFORMANCE" )
-          declare -A expected=( [fast-gate]="true" [static-quality]="$RUN_STATIC" [database-contracts]="$RUN_DATABASE" [build-app]="$RUN_BUILD" [e2e-public-chromium]="$public_expected" [e2e-sauge-chromium]="$RUN_SAUGE" [e2e-admin-qr-chromium]="$RUN_ADMIN_QR" [webkit-critical]="$RUN_WEBKIT" [landing-performance]="$RUN_PERFORMANCE" )
-          ordered_jobs=(fast-gate static-quality database-contracts build-app e2e-public-chromium e2e-sauge-chromium e2e-admin-qr-chromium webkit-critical landing-performance)
+          declare -A results=( [fast-gate]="$FAST_GATE" [static-quality]="$STATIC" [database-contracts]="$DATABASE" [build-app]="$BUILD" [e2e-public-chromium]="$PUBLIC_CHROMIUM" [e2e-sauge-chromium]="$SAUGE_CHROMIUM" [e2e-admin-qr-chromium]="$ADMIN_QR_CHROMIUM" [webkit-critical]="$WEBKIT" [restaurant-geometry-ab]="$RESTAURANT_AB" [landing-performance]="$PERFORMANCE" )
+          declare -A expected=( [fast-gate]="true" [static-quality]="$RUN_STATIC" [database-contracts]="$RUN_DATABASE" [build-app]="$RUN_BUILD" [e2e-public-chromium]="$public_expected" [e2e-sauge-chromium]="$RUN_SAUGE" [e2e-admin-qr-chromium]="$RUN_ADMIN_QR" [webkit-critical]="$RUN_WEBKIT" [restaurant-geometry-ab]="$RUN_RESTAURANT_AB" [landing-performance]="$RUN_PERFORMANCE" )
+          ordered_jobs=(fast-gate static-quality database-contracts build-app e2e-public-chromium e2e-sauge-chromium e2e-admin-qr-chromium webkit-critical restaurant-geometry-ab landing-performance)
           failed=0
           root_failure=none
           for root_job in classify-changes fast-gate build-app static-quality database-contracts; do
@@ -955,7 +1025,7 @@ jobs:
   ci-metrics:
     name: CI metrics
     if: ${{ always() && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) }}
-    needs: [classify-changes, fast-gate, static-quality, database-contracts, build-app, e2e-public-chromium, e2e-sauge-chromium, e2e-admin-qr-chromium, webkit-critical, landing-performance, ci-gate]
+    needs: [classify-changes, fast-gate, static-quality, database-contracts, build-app, e2e-public-chromium, e2e-sauge-chromium, e2e-admin-qr-chromium, webkit-critical, restaurant-geometry-ab, landing-performance, ci-gate]
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
