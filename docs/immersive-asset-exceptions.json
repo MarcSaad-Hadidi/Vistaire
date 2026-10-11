@@ -268,5 +268,14 @@
     "sha256": [
       "456a3bd4298b7097e1d2ba9893e433ea4dfb48bbfb2a21bdfe3dfaaf44a70f3b"
     ]
+  },
+  {
+    "path": "public/immersive-assets/restaurant/restaurant-visible-59412334.glb",
+    "owner": "MarcSaad-Hadidi",
+    "reason": "User-authorized lossless derived restaurant: remove only four zero-alpha BLEND meshes and unreferenced resources; retain original for rollback. See docs/restaurant-geometry-optimization.md.",
+    "maxBytes": 3091452,
+    "sha256": [
+      "594123340aa71cf74cb0e83c69b966c399230fc03e2188ed5cb80931d05f4f66"
+    ]
   }
 ]

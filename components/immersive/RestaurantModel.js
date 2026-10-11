@@ -42,7 +42,7 @@ export function createRestaurantModel(
       ) > 0.0001
     );
   });
-  const url = resolvePublicModelUrl("immersive.restaurant");
+  const url = resolvePublicModelUrl("immersive.restaurant.visible");
   const loading = fetch(url, {
     signal: request.signal,
   })
@@ -61,8 +61,8 @@ export function createRestaurantModel(
         disposeTree(model);
         return;
       }
-      // Original root already converts Z-up and centimetres. Fit this complete
-      // room uniformly to our foreground table/cinematic camera height.
+      // The derived room omits only zero-alpha backing meshes. Its unchanged
+      // root converts Z-up/centimetres; all visible surfaces keep their transform.
       const scale = 2;
       const anchor = new THREE.Group();
       anchor.scale.setScalar(scale);

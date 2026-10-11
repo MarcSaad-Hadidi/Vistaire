@@ -243,6 +243,17 @@
       "publicUrl": null
     },
     {
+      "id": "immersive.restaurant.visible",
+      "kind": "restaurant",
+      "visibility": "public",
+      "format": "glb",
+      "bytes": 3091452,
+      "sha256": "594123340aa71cf74cb0e83c69b966c399230fc03e2188ed5cb80931d05f4f66",
+      "version": "sha256-594123340aa71cf74cb0e83c69b966c399230fc03e2188ed5cb80931d05f4f66",
+      "legacyUrl": "/immersive-assets/restaurant/restaurant-visible-59412334.glb",
+      "publicUrl": null
+    },
+    {
       "id": "immersive.support.acrylique",
       "kind": "supports",
       "visibility": "public",

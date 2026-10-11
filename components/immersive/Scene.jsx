@@ -1407,8 +1407,10 @@ export default function Scene({
     function frameSubjects(state, damping) {
       const projectionEpsilon = 0.0002;
       const focus = state.sceneFrame;
-      const viewportWidth = canvas.clientWidth,
-        viewportHeight = canvas.clientHeight;
+      // Fit against the same logical dimensions that sized the drawing buffer.
+      // Reading layout here could flush App’s preceding scroll-style writes.
+      const viewportWidth = drawingSize?.width ?? canvas.clientWidth,
+        viewportHeight = drawingSize?.height ?? canvas.clientHeight;
       const desired = cameraComposition(state);
       const zoomFor = (section) =>
         section === "grip" ? clamp(state.dishZoom || 1, 0.6, desired.zoomMax ?? 4) : 1;
@@ -1975,8 +1977,8 @@ export default function Scene({
           }
           if (clipped) {
             const f = framingReference.focus,
-              w = canvas.clientWidth,
-              h = canvas.clientHeight;
+              w = drawingSize?.width ?? canvas.clientWidth,
+              h = drawingSize?.height ?? canvas.clientHeight;
             renderer.setScissor(
               (f.x - f.width / 2) * w,
               (1 - f.y - f.height / 2) * h,
@@ -1986,7 +1988,15 @@ export default function Scene({
             renderer.setScissorTest(true);
           }
           camera.layers.set(1);
-          renderer.render(scene, camera);
+          // The first pass updated every world matrix. Only layers/background
+          // changed since then; reuse those exact transforms for the foreground.
+          const matrixWorldAutoUpdate = scene.matrixWorldAutoUpdate;
+          scene.matrixWorldAutoUpdate = false;
+          try {
+            renderer.render(scene, camera);
+          } finally {
+            scene.matrixWorldAutoUpdate = matrixWorldAutoUpdate;
+          }
           renderer.setScissorTest(false);
           renderer.autoClear = true;
           scene.background = background;
