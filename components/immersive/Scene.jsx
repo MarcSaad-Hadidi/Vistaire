@@ -1092,15 +1092,15 @@ export default function Scene({
     function resize() {
       if (arExperience?.active) return;
       if (disposed) return;
-      // Keep HTML/UI at native density while bounding the expensive 3D layer.
-      // A 1.5 DPR cap uses one quarter of DPR 3's fragments on Retina phones.
-      const pixelBudget = 2560 * 1440;
+      // Preserve native Retina detail on phones. Bound large displays by
+      // total pixels rather than halving every high-density mobile canvas.
+      const pixelBudget = 4_000_000;
       const width = canvas.clientWidth;
       const height = canvas.clientHeight;
       if (!width || !height) return;
       const pixelRatio = Math.min(
         window.devicePixelRatio || 1,
-        1.5,
+        3,
         Math.sqrt(pixelBudget / (width * height)),
       );
       // Browser bars emit resize while 100lvh stays unchanged. Rewriting the

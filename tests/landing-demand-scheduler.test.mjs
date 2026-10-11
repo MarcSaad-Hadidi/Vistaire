@@ -472,7 +472,7 @@ test('scroll publishes and renders in one frame without losing idle, gestures or
   assert.equal(f.state.renderSceneFrame, undefined, 'owned same-frame handle is removed');
 });
 
-test('drawing resolution bounds high-density GPU work without repeated buffer clears', () => {
+test('drawing resolution preserves Retina quality and its four-million-pixel bound without repeated buffer clears', () => {
   for (const [width, height, dpr] of [[390, 844, 3], [430, 932, 3], [1440, 900, 1], [3840, 2160, 2]]) {
     let resizes = 0, wakes = 0;
     const canvas = { clientWidth: width, clientHeight: height, width: 0, height: 0, dataset: {} };
@@ -485,11 +485,35 @@ test('drawing resolution bounds high-density GPU work without repeated buffer cl
     vm.createContext(scope);
     vm.runInContext(productionFunction('resize'), scope);
     scope.resize();
-    assert.ok(scope.drawingSize.pixelRatio <= 1.5, 'Retina must not multiply the scene workload by nine');
-    assert.ok(canvas.width * canvas.height <= 2560 * 1440, 'large screens respect the pixel budget');
+    assert.ok(scope.drawingSize.pixelRatio <= 3, 'drawing density must not exceed the restored native Retina cap');
+    assert.ok(canvas.width * canvas.height <= 4_000_000, 'large screens respect the original pixel budget');
+    if (width === 390 || width === 430) {
+      assert.equal(scope.drawingSize.pixelRatio, 3, '390/430 Retina phones preserve native density when within the pixel budget');
+      assert.equal(canvas.width, width * 3);
+      assert.equal(canvas.height, height * 3);
+    }
+    if (width === 3840) {
+      assert.ok(Math.abs(scope.drawingSize.pixelRatio - 25 / 36) < 1e-12, '4K uses the restored four-million-pixel budget');
+      assert.equal(canvas.width, 2666);
+      assert.equal(canvas.height, 1500);
+    }
     if (dpr === 1) assert.equal(scope.drawingSize.pixelRatio, 1, 'ordinary desktop resolution stays native');
     scope.resize();
     assert.equal(resizes, 1, 'unchanged viewport never clears the drawing buffer');
     assert.equal(wakes, 1);
+    canvas.clientWidth = height; canvas.clientHeight = width;
+    scope.resize();
+    assert.equal(resizes, 2, 'orientation changes the buffer exactly once');
+    assert.ok(canvas.width * canvas.height <= 4_000_000);
+    if (width === 390 || width === 430) {
+      assert.equal(canvas.width, height * 3);
+      assert.equal(canvas.height, width * 3);
+    }
+    scope.resize();
+    assert.equal(resizes, 2, 'repeated orientation notification does not clear the buffer');
+    canvas.clientWidth = width; canvas.clientHeight = height;
+    scope.resize();
+    assert.equal(resizes, 3, 'return to portrait restores the exact prior dimensions');
+    assert.equal(wakes, 3);
   }
 });
