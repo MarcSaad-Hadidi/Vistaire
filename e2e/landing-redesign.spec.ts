@@ -1,1218 +1,1177 @@
-import { expect, test, type Locator, type Page } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
+import { writeFile } from "node:fs/promises";
+import { readFileSync } from "node:fs";
 
-const MODEL_REQUEST_RE =
-  /\.(?:glb|usdz)(?:$|[?#])|\/model\/(?:glb|usdz)(?:$|[/?#])|model-viewer|babylon|three(?:\.module)?(?:\.min)?\.js|raw\.githubusercontent\.com|\/api\/.*(?:convert|conversion)/i;
-const MENU_ANALYTICS_REQUEST_RE = /\/api\/public\/menu-events(?:$|[/?#])/i;
-const LAZY_PREVIEW_TIMEOUT_MS = 15_000;
-const DESKTOP_HERO_VIDEO = "/videos/Vistaire2.mp4";
-const MOBILE_HERO_VIDEO =
-  "/videos/optimized/upscaled-video-mobile-scrub.mp4";
-const HERO_POSTER = "/frames/menualive/frame_0200.webp";
+const laptopAssetPaths = new Set(['/immersive-assets/dashboard/macbook.glb', '/immersive-assets/dashboard/dashboard-black-gold.webp']);
 
-function collectRuntimeFailures(page: Page) {
-  const modelRequests: string[] = [];
-  const consoleErrors: string[] = [];
-  const pageErrors: string[] = [];
-  const failedResponses: string[] = [];
-  const failedRequests: string[] = [];
-  const menuAnalyticsRequests: string[] = [];
-  const previewPayloadRequests: string[] = [];
-  const heroVideoRequests: string[] = [];
+async function disableWebGL(page: Page) {
+  await page.addInitScript(() => {
+    const original = HTMLCanvasElement.prototype.getContext;
+    HTMLCanvasElement.prototype.getContext = function (this: HTMLCanvasElement, type: string, ...args: unknown[]) {
+      return type.startsWith("webgl") ? null : Reflect.apply(original, this, [type, ...args]);
+    } as typeof original;
+  });
+}
 
-  page.on("request", (request) => {
-    if (MODEL_REQUEST_RE.test(request.url())) modelRequests.push(request.url());
-    if (MENU_ANALYTICS_REQUEST_RE.test(request.url())) {
-      menuAnalyticsRequests.push(request.url());
+async function openFallback(page: Page, path = "/") {
+  await disableWebGL(page);
+  await page.goto(path, { waitUntil: "domcontentloaded" });
+  await expect(page.locator(".world-fallback")).toBeVisible();
+  await expect(page.locator(".preloader")).toHaveCount(0);
+}
+
+for (const [path, links] of [
+  ["/", ["/menu-digital-restaurant", "/menu-qr-code-restaurant", "/menu-3d-ar-restaurant", "/menu-pdf-vs-menu-digital", "/apercu-restaurateur", "/demo", "/contact", "/prendre-rendez-vous", "/guides/anatomie-menu-digital-premium"]],
+  ["/en", ["/en/digital-restaurant-menu", "/en/qr-code-restaurant-menu", "/en/3d-ar-restaurant-menu", "/en/pdf-vs-digital-menu", "/en/restaurant-preview", "/en/vistaire-menu", "/en/contact", "/en/book-a-call", "/en/guides/premium-digital-menu-anatomy"]],
+] as const) {
+  test(`${path} ends at one immersive footer and retains localized public destinations`, async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await openFallback(page, path);
+    await page.evaluate(() => scrollTo({ top: document.documentElement.scrollHeight, behavior: "instant" }));
+    const footer = page.getByRole("contentinfo");
+    await expect(footer).toHaveCount(1);
+    await expect(footer).toHaveAttribute("id", "footer");
+    await expect(page.locator(".public-footer-wrap")).toHaveCount(0);
+    await expect(footer.locator(".footer-bottom")).toBeInViewport();
+    for (const href of links) await expect(footer.locator(`[data-footer-navigation] a[href="${href}"]`)).toHaveCount(1);
+    await expect(footer.locator("[data-footer-navigation] section")).toHaveCount(6);
+    const endGap = await footer.evaluate(el => document.documentElement.scrollHeight - el.getBoundingClientRect().bottom - scrollY);
+    expect(Math.abs(endGap)).toBeLessThanOrEqual(1);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
+    await page.locator(".menu-toggle").click();
+    for (const href of links.slice(0, -1)) {
+      await expect(page.locator(`.menu-page-links a[href="${href}"]`)).toBeVisible();
     }
-    if (/\/api\/public\/landing-menu-preview\//.test(request.url())) {
-      previewPayloadRequests.push(request.url());
-    }
-    try {
-      const pathname = new URL(request.url()).pathname;
-      if (pathname === DESKTOP_HERO_VIDEO || pathname === MOBILE_HERO_VIDEO) {
-        heroVideoRequests.push(pathname);
+  });
+}
+
+for (const viewport of [
+  { width: 320, height: 740 },
+  { width: 375, height: 812 }, { width: 390, height: 844 },
+  { width: 430, height: 932 }, { width: 768, height: 1024 },
+  { width: 1440, height: 900 },
+]) {
+  test(`immersive landing stays usable without WebGL at ${viewport.width}px`, async ({ page }) => {
+    await page.setViewportSize(viewport);
+    const errors: string[] = [];
+    page.on("pageerror", (error) => errors.push(error.message));
+    await openFallback(page);
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText("VISTAIRE");
+    const film = page.locator(".fallback-film");
+    await expect(film).toHaveAttribute("src", /\/immersive-media\/cinematic-(portrait|landscape)\.mp4/);
+    await expect.poll(() => film.evaluate((el) => (el as HTMLVideoElement).readyState)).toBeGreaterThanOrEqual(2);
+    await expect(film).toHaveJSProperty("muted", true);
+    await expect(film).toHaveJSProperty("loop", true);
+    for (const theme of ["dark", "light"]) {
+      if (theme === "light") {
+        // A stored preference tests the visible guide; clicking the theme
+        // control intentionally teaches/dismisses the initial guide.
+        await page.evaluate(() => localStorage.setItem("vistaire-public-theme", "light"));
+        await page.reload({ waitUntil: "domcontentloaded" });
+        await expect(page.locator(".world-fallback")).toBeVisible();
       }
-    } catch {
-      // Ignore non-URL browser internals.
+      await expect(page.locator("html")).toHaveAttribute("data-vistaire-theme", theme);
+      const guide = page.locator("[data-scroll-guide]");
+      await expect(guide).toHaveCount(1);
+      await expect(guide).toHaveAttribute("aria-hidden", "false");
+      await page.evaluate(() => document.fonts.ready);
+      const geometry = await guide.evaluate(el => {
+        const guide = el.getBoundingClientRect();
+        const overlaps = [...document.querySelectorAll(".site-header a, .site-header button, #hero a, #hero button")]
+          .filter(control => {
+            const box = control.getBoundingClientRect();
+            return box.width > 0 && box.height > 0 &&
+              box.left < guide.right && box.right > guide.left &&
+              box.top < guide.bottom && box.bottom > guide.top;
+          }).map(control => control.textContent?.trim());
+        return {
+          left: guide.left, right: guide.right, top: guide.top, bottom: guide.bottom,
+          viewportWidth: innerWidth, viewportHeight: innerHeight, overlaps,
+        };
+      });
+      expect(geometry.left).toBeGreaterThanOrEqual(0);
+      expect(geometry.right).toBeLessThanOrEqual(geometry.viewportWidth);
+      expect(geometry.top).toBeGreaterThanOrEqual(0);
+      expect(geometry.bottom).toBeLessThanOrEqual(geometry.viewportHeight);
+      expect(geometry.overlaps, `${theme} guide at ${viewport.width}px`).toEqual([]);
     }
-  });
-  page.on("requestfailed", (request) => {
-    const failure = request.failure()?.errorText;
-    if (
-      failure === "net::ERR_ABORTED" &&
-      /\/videos\/Vistaire2\.mp4(?:$|[?#])/i.test(request.url())
-    ) {
-      return;
-    }
-    failedRequests.push(
-      `${failure ?? "request failed"} ${request.url()}`
-    );
-  });
-  page.on("console", (message) => {
-    if (message.type() === "error") consoleErrors.push(message.text());
-  });
-  page.on("pageerror", (error) => pageErrors.push(error.message));
-  page.on("response", (response) => {
-    let isSameOrigin = false;
-    try {
-      isSameOrigin =
-        new URL(response.url()).origin === new URL(page.url()).origin;
-    } catch {
-      // Ignore non-HTTP pages such as about:blank during browser startup.
-    }
-    if (response.status() >= 400 && isSameOrigin) {
-      failedResponses.push(`${response.status()} ${response.url()}`);
-    }
-  });
-
-  return {
-    modelRequests,
-    consoleErrors,
-    failedRequests,
-    failedResponses,
-    menuAnalyticsRequests,
-    previewPayloadRequests,
-    heroVideoRequests,
-    pageErrors
-  };
-}
-
-async function expectNoHorizontalOverflow(page: Page) {
-  await expect
-    .poll(() =>
-      page.evaluate(
-        () => document.documentElement.scrollWidth - document.documentElement.clientWidth
-      )
-    )
-    .toBeLessThanOrEqual(2);
-}
-
-async function scrollThroughLanding(page: Page) {
-  await page.evaluate(async () => {
-    for (let y = 0; y < document.documentElement.scrollHeight; y += 520) {
-      window.scrollTo(0, y);
-      await new Promise((resolve) => window.setTimeout(resolve, 35));
-    }
-    window.scrollTo(0, 0);
+    const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+    expect(overflow).toBeLessThanOrEqual(2);
+    expect(errors).toEqual([]);
   });
 }
 
-async function expectPromotedHeroUsableAcrossScroll(page: Page, video: Locator) {
-  const before = await video.evaluate((element) => {
-    const media = element as HTMLVideoElement;
-    return { currentTime: media.currentTime, state: media.dataset.heroVideoState };
+for (const path of ["/", "/en"]) {
+  test(`${path} delivers initial headings and localized real routes without JavaScript`, async ({ request }) => {
+    const response = await request.get(path);
+    expect(response.status()).toBe(200);
+    const html = await response.text();
+    expect(html).toMatch(/<h1\b[^>]*>VISTAIRE<\/h1>/);
+    expect(html).toContain(path === "/en" ? '/en/book-a-call' : '/prendre-rendez-vous');
+    expect(html).toContain(path === "/en" ? '/en/guides/premium-digital-menu-anatomy' : '/guides/anatomie-menu-digital-premium');
   });
-  await page.locator("#fonctionnalites").scrollIntoViewIfNeeded();
-  await expect
-    .poll(
-      () =>
-        video.evaluate((element, previousTime) => {
-          const media = element as HTMLVideoElement;
-          const state = media.dataset.heroVideoState;
-          return (
-            state === "poster" ||
-            (state === "playing" &&
-              media.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA &&
-              Math.abs(media.currentTime - previousTime) > 0.02)
-          );
-        }, before.currentTime),
-      {
-        message:
-          "the promoted loop should remain usable or cleanly fall back to its poster after scrolling"
-      }
-    )
-    .toBe(true);
-  expect(["playing", "poster"]).toContain(
-    await video.getAttribute("data-hero-video-state")
-  );
 }
 
-async function expectLoadedImages(images: Locator, minimum = 1) {
-  await expect
-    .poll(
-      async () =>
-        images.evaluateAll((elements) =>
-          elements.filter((element) => {
-            const image = element as HTMLImageElement;
-            const rect = image.getBoundingClientRect();
-            return (
-              rect.width > 0 &&
-              rect.height > 0 &&
-              image.complete &&
-              image.naturalWidth > 0 &&
-              image.naturalHeight > 0
-            );
-          }).length
-        ),
-      { message: "visible menu images should finish loading with real dimensions" }
-    )
-    .toBeGreaterThanOrEqual(minimum);
+test("a Next navigation releases the immersive viewport and queued scroll work", async ({ page }) => {
+  const errors: string[] = [];
+  page.on("pageerror", (error) => errors.push(error.message));
+  await page.setViewportSize({ width: 390, height: 844 });
+  await openFallback(page);
+  await page.locator(".menu-toggle").click();
+  await expect(page.locator(".menu-toggle")).toHaveAttribute("aria-expanded", "true");
+  await page.locator('.menu-page-links a[href="/a-propos"]').click();
+  await expect(page).toHaveURL(/\/a-propos$/);
+  await expect(page.locator("[data-public-vistaire]")).toBeVisible();
+  await expect(page.locator("[data-immersive-vistaire]")).toHaveCount(0);
+  const state = await page.evaluate(() => ({
+    stage: document.documentElement.style.getPropertyValue("--vistaire-journey-vh"),
+    scene: document.documentElement.style.getPropertyValue("--vistaire-scene-vh"),
+    compact: document.documentElement.classList.contains("journey-compact"),
+    bodyLocked: document.body.style.overflow === "hidden",
+  }));
+  expect(state).toEqual({ stage: "", scene: "", compact: false, bodyLocked: false });
+  expect(errors).toEqual([]);
+});
+
+test("collections support keyboard selection and accessible stand rotation", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await openFallback(page, "/#product");
+  const tabs = page.getByRole("tablist", { name: "Collections de supports" });
+  await tabs.getByRole("tab", { selected: true }).focus();
+  await page.keyboard.press("ArrowRight");
+  await expect(tabs.getByRole("tab", { selected: true })).toBeFocused();
+  await expect(page.getByRole("tabpanel")).toHaveAttribute("aria-labelledby", await tabs.getByRole("tab", { selected: true }).getAttribute("id") ?? "");
+  const stand = page.locator(".support-gesture");
+  await stand.focus();
+  await page.keyboard.press("ArrowRight");
+  await expect(stand).toHaveAttribute("aria-valuenow", "15");
+});
+
+// Launch options are worker-scoped and cannot be set inside a describe group.
+// Keep actual SwiftShader rendering local to these two regressions; this does
+// not represent physical GPU or trackpad validation.
+const renderedTest = test.extend({
+  launchOptions: async ({ browserName }, provideOptions) => {
+    await provideOptions(browserName === 'chromium'
+      ? { args: ['--use-angle=swiftshader', '--use-gl=angle'] }
+      : {});
+  },
+});
+
+// A processed-pose acknowledgement replaces the former four blind RAF waits.
+// It is published only after a rendered/update pass (or explicit occlusion),
+// not when App first mutates state. Repeat positions can reuse a valid pose.
+async function waitForProcessedPose(page: Page, framesBeforeResize?: number, requireGripFrame = false, diagnostic?: { target: number; artifact: string }) {
+  const startedAt = new Date().toISOString();
+  let pendingDiagnostic: Promise<void> | undefined;
+  const timer = diagnostic ? setTimeout(() => {
+    pendingDiagnostic = (async () => {
+      let captureTimer: ReturnType<typeof setTimeout> | undefined;
+      let snapshot = null;
+      let captureError: string | null = null;
+      try {
+        snapshot = await Promise.race([
+          page.evaluate(() => {
+            const canvas = document.querySelector<HTMLCanvasElement>('.scene-canvas');
+            const opening = document.querySelector<HTMLElement>('.opening-journey');
+            const data = canvas?.dataset;
+            const openingTop = opening ? opening.getBoundingClientRect().top + scrollY : null;
+            const stageHeight = opening?.firstElementChild?.getBoundingClientRect().height ?? null;
+            const layoutStageHeight = opening?.firstElementChild ? Number.parseFloat(getComputedStyle(opening.firstElementChild).height) : null;
+            const grip = document.querySelector('#grip');
+            return { scrollY, openingTop, stageHeight, layoutStageHeight,
+              expectedDistance: openingTop != null && layoutStageHeight ? Math.max(0, (scrollY - openingTop) / layoutStageHeight) : null,
+              canvasExists: Boolean(canvas), openingExists: Boolean(opening), fallbackExists: Boolean(document.querySelector('.world-fallback')),
+              hidden: document.hidden, visibility: document.visibilityState, chapter: document.documentElement.dataset.chapter,
+              selectedSocialCards: [...document.querySelectorAll('.social-pager button')].map(button => button.getAttribute('aria-current')),
+              viewport: { width: innerWidth, height: innerHeight }, clientWidth: canvas?.clientWidth, clientHeight: canvas?.clientHeight,
+              gripFocus: grip?.querySelector('.scene-focus')?.getBoundingClientRect().toJSON(), gripStage: grip?.firstElementChild?.getBoundingClientRect().toJSON(), worldHeight: document.querySelector<HTMLElement>('.world')?.clientHeight,
+              dataset: { ...data } };
+          }),
+          new Promise<null>(resolve => { captureTimer = setTimeout(() => resolve(null), 1_000); }),
+        ]);
+      } catch (error) { captureError = String(error); }
+      finally { clearTimeout(captureTimer); }
+      if (snapshot === null && captureError === null) captureError = 'Pending pose capture exceeded 1s';
+      try {
+        await Promise.race([
+          writeFile(diagnostic.artifact, JSON.stringify({ target: diagnostic.target, startedAt, observedAt: new Date().toISOString(), framesBeforeResize, requireGripFrame, snapshot, captureError }, null, 2)),
+          new Promise<never>((_, reject) => { captureTimer = setTimeout(() => reject(new Error('Pending pose persistence exceeded 1s')), 1_000); }),
+        ]);
+      } finally { clearTimeout(captureTimer); }
+    })().catch(error => console.warn('Could not preserve pending pose diagnostics:', error));
+  }, 15_000) : undefined;
+  try {
+    await page.waitForFunction(({ framesBeforeResize, requireGripFrame }) => {
+    const canvas = document.querySelector<HTMLCanvasElement>('.scene-canvas');
+    const opening = document.querySelector<HTMLElement>('.opening-journey');
+    if (!canvas || !opening) return false;
+    const data = canvas.dataset;
+    // This unpadded, border-box stage has a declared CSS height. Its translated
+    // visual rect loses precision far down the long journey (844→844.001953125).
+    const stageHeight = Number.parseFloat(getComputedStyle(opening.firstElementChild!).height);
+    if (!Number.isFinite(stageHeight) || stageHeight <= 0) return false;
+    const openingTop = opening.getBoundingClientRect().top + scrollY;
+    const distance = Math.max(0, (scrollY - openingTop) / stageHeight);
+    if (!Number.isFinite(Number(data.processedScrollDistance)) || Math.abs(Number(data.processedScrollDistance) - distance) > 1e-6) return false;
+    if (data.processedViewportRevision !== data.viewportResizes || !data.processedViewportRevision) return false;
+    if (Number(data.processedViewportWidth) !== canvas.clientWidth || Number(data.processedViewportHeight) !== canvas.clientHeight) return false;
+    if (data.suspended !== 'true' && framesBeforeResize !== undefined && (!Number.isFinite(framesBeforeResize) || !Number.isFinite(Number(data.frames)) || Number(data.frames) <= framesBeforeResize)) return false;
+    if (requireGripFrame) {
+      if (data.section !== 'grip' || !data.focusBounds) return false;
+      const chapter = document.querySelector<HTMLElement>('#grip')!;
+      const focus = chapter.querySelector('.scene-focus')!.getBoundingClientRect();
+      const stage = chapter.firstElementChild!.getBoundingClientRect();
+      const actual = JSON.parse(data.focusBounds);
+      const scaleX = canvas.clientWidth / innerWidth;
+      const scaleY = canvas.clientHeight / document.querySelector<HTMLElement>('.world')!.clientHeight;
+      if ([actual.x - focus.left * scaleX, actual.y - (focus.top - stage.top) * scaleY, actual.width - focus.width * scaleX, actual.height - focus.height * scaleY].some(value => !Number.isFinite(value) || Math.abs(value) > 0.1)) return false;
+    }
+    return true;
+    }, { framesBeforeResize, requireGripFrame }, { timeout: 0 });
+  } finally {
+    clearTimeout(timer);
+    if (pendingDiagnostic) await pendingDiagnostic;
+  }
 }
 
-async function expectAccessibleNewTabLink(
-  link: Locator,
-  label: string,
-  unexpectedLabel: string
-) {
-  const hiddenLabel = link.locator('span[class*="srOnly"]');
-  await expect(hiddenLabel).toHaveCount(1);
-  await expect(hiddenLabel).toHaveText(label);
-  await expect(hiddenLabel).not.toHaveAttribute("aria-hidden", "true");
-  await expect(link).toHaveAccessibleName(new RegExp(label.replace(".", "\\.")));
-  await expect(link).not.toHaveAccessibleName(
-    new RegExp(unexpectedLabel.replace(".", "\\."))
-  );
+async function diagnosticSnapshot(page: Page, expectedViewport?: { width: number; height: number }) {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      page.evaluate(expectedViewport => {
+        const canvas = document.querySelector<HTMLCanvasElement>('.scene-canvas');
+        const root = getComputedStyle(document.documentElement);
+        const rect = (selector: string) => document.querySelector(selector)?.getBoundingClientRect().toJSON() ?? null;
+        return { scroll: scrollY, viewport: { width: innerWidth, height: innerHeight }, expectedViewport,
+          journeyVH: root.getPropertyValue('--vistaire-journey-vh'), sceneVH: root.getPropertyValue('--vistaire-scene-vh'),
+          world: rect('.world'), openingStage: rect('.opening-stage'), grip: rect('#grip'), gripStage: rect('#grip > .stage'), canvasRect: canvas?.getBoundingClientRect().toJSON() ?? null,
+          resizeDiagnostics: (window as typeof window & { sceneResizeDiagnostics?: { read: () => unknown } }).sceneResizeDiagnostics?.read() ?? null,
+          rafDiagnostics: (window as typeof window & { sceneRAFDiagnostics?: { read: () => unknown } }).sceneRAFDiagnostics?.read() ?? null,
+          dataset: { ...canvas?.dataset } };
+      }, expectedViewport),
+      new Promise<null>(resolve => { timer = setTimeout(() => resolve(null), 1_000); }),
+    ]);
+  } catch { return null; }
+  finally { clearTimeout(timer); }
+}
 
-  const hiddenLabelStyles = await hiddenLabel.evaluate((element) => {
-    const style = getComputedStyle(element);
-    return {
-      clip: style.clip,
-      height: style.height,
-      overflow: style.overflow,
-      position: style.position,
-      whiteSpace: style.whiteSpace,
-      width: style.width
+// Passive owned-RAF evidence for the rare Home-settle failure. The wrapper
+// never schedules a probe frame, forces layout, or changes callback arguments.
+async function installSceneRAFDiagnostics(page: Page) {
+  await page.addInitScript(() => {
+    const nativeRAF = window.requestAnimationFrame.bind(window);
+    const nativeCancel = window.cancelAnimationFrame.bind(window);
+    const sceneCallbacks = new WeakSet<FrameRequestCallback>();
+    const pending = new Map<number, { callback: FrameRequestCallback; requestedAt: number }>();
+    const samples: unknown[] = [];
+    let callbacks = 0, droppedSamples = 0;
+    let canvas: HTMLCanvasElement | null = null;
+    const state = () => {
+      if (!canvas?.isConnected) canvas = document.querySelector<HTMLCanvasElement>('.scene-canvas');
+      const data = canvas?.dataset;
+      return { frames: Number(data?.frames ?? 0), settled: data?.settled, reasons: data?.settlingReasons,
+        section: data?.section, hidden: document.hidden, visibility: document.visibilityState };
+    };
+    const ownedPending = () => [...pending.entries()]
+      .filter(([, request]) => sceneCallbacks.has(request.callback))
+      .map(([id, request]) => ({ id, requestedAt: request.requestedAt }));
+    const record = (sample: unknown) => {
+      samples.push(sample);
+      if (samples.length > 20) { samples.shift(); droppedSamples++; }
+    };
+    window.requestAnimationFrame = callback => {
+      const requestedAt = performance.now();
+      const id = nativeRAF(function (this: Window, timestamp) {
+        pending.delete(id);
+        const startedAt = performance.now();
+        const before = state();
+        const pendingBefore = ownedPending().length;
+        try { Reflect.apply(callback, this, [timestamp]); }
+        finally {
+          const endedAt = performance.now();
+          const after = state();
+          if (after.frames > before.frames) sceneCallbacks.add(callback);
+          if (sceneCallbacks.has(callback)) {
+            callbacks++;
+            record({ kind: 'callback', id, requestedAt, startedAt, endedAt,
+              durationMs: endedAt - startedAt, rafTimestamp: timestamp,
+              pendingBefore, pendingAfter: ownedPending().length, before, after });
+          }
+        }
+      });
+      pending.set(id, { callback, requestedAt });
+      return id;
+    };
+    window.cancelAnimationFrame = id => {
+      const request = pending.get(id);
+      if (request && sceneCallbacks.has(request.callback))
+        record({ kind: 'cancel', id, at: performance.now(), requestedAt: request.requestedAt, state: state() });
+      pending.delete(id);
+      nativeCancel(id);
+    };
+    (window as typeof window & { sceneRAFDiagnostics: { read: () => unknown } }).sceneRAFDiagnostics = {
+      read: () => {
+        const at = performance.now();
+        return { at, callbacks, droppedSamples,
+          pending: ownedPending().map(request => ({ ...request, ageMs: at - request.requestedAt })), samples, current: state() };
+      },
     };
   });
-  expect(hiddenLabelStyles).toEqual(
-    expect.objectContaining({
-      height: "1px",
-      overflow: "hidden",
-      position: "absolute",
-      whiteSpace: "nowrap",
-      width: "1px"
-    })
-  );
-  expect(hiddenLabelStyles.clip).toContain("0px");
 }
 
-async function expectIndependentComparisonScrollRoots(comparison: Locator) {
-  const roots = comparison.locator("[data-comparison-scroll-root]");
-  await expect(roots).toHaveCount(2);
-  await expect
-    .poll(
-      () =>
-      roots.evaluateAll((elements) =>
-          elements.map(
-            (element) => element.scrollHeight - element.clientHeight > 24
-          )
-        ),
-      { timeout: LAZY_PREVIEW_TIMEOUT_MS }
-    )
-    .toEqual([true, true]);
+// Desktop Chromium viewport emulation has no physical browser toolbar. A
+// requested height must reach the frozen CSS references before a scroll target
+// is computed; width may be observed before the frozen height catches up.
+async function waitForViewportLayout(page: Page, expected: { width: number; height: number }) {
+  await page.waitForFunction(({ width, height }) => {
+    const root = getComputedStyle(document.documentElement);
+    const world = document.querySelector<HTMLElement>('.world');
+    const stage = document.querySelector<HTMLElement>('.opening-stage');
+    const canvas = document.querySelector<HTMLCanvasElement>('.scene-canvas');
+    return innerWidth === width && innerHeight === height && world && stage && canvas
+      && [parseFloat(root.getPropertyValue('--vistaire-journey-vh')) * 100,
+        parseFloat(root.getPropertyValue('--vistaire-scene-vh')) * 100,
+        world.getBoundingClientRect().height, stage.getBoundingClientRect().height,
+        canvas.clientHeight, Number(canvas.dataset.processedViewportHeight)]
+        .every(value => Number.isFinite(value) && Math.abs(value - height) < 0.1)
+      && canvas.clientWidth === width && Number(canvas.dataset.processedViewportWidth) === width
+      && canvas.dataset.processedViewportRevision === canvas.dataset.viewportResizes;
+  }, expected, { timeout: 15_000 });
 }
 
-async function performTouchGesture(
-  page: Page,
-  start: { x: number; y: number },
-  end: { x: number; y: number }
-) {
-  const session = await page.context().newCDPSession(page);
-  try {
-    await session.send("Input.dispatchTouchEvent", {
-      type: "touchStart",
-      touchPoints: [{ ...start, id: 1 }]
+renderedTest.describe('optional scene framing diagnostics (Chromium software WebGL)', () => {
+  renderedTest.skip(({ browserName }) => browserName !== 'chromium', 'SwiftShader verification uses Chromium');
+
+  renderedTest('default rendering skips hulls and wakes for an essential phone while QA hulls stay optional', async ({ page }, testInfo) => {
+    renderedTest.setTimeout(240_000);
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    const requests: string[] = [];
+    const laptopRequests: string[] = [];
+    page.on('request', request => {
+      if (new URL(request.url()).pathname === '/immersive-assets/dishes/framing-hulls.json') requests.push(request.url());
+      if (laptopAssetPaths.has(new URL(request.url()).pathname)) laptopRequests.push(request.url());
     });
-    for (let step = 1; step <= 4; step += 1) {
-      const progress = step / 4;
-      await session.send("Input.dispatchTouchEvent", {
-        type: "touchMove",
-        touchPoints: [
-          {
-            id: 1,
-            x: start.x + (end.x - start.x) * progress,
-            y: start.y + (end.y - start.y) * progress
+    // Identify the real Scene callback by its rendered frame publication, and
+    // track owned RAF handles. Pending ownership distinguishes sleep from a
+    // software renderer whose callbacks are merely delayed.
+    await page.addInitScript(() => {
+      const nativeRAF = window.requestAnimationFrame.bind(window);
+      const nativeCancel = window.cancelAnimationFrame.bind(window);
+      const sceneCallbacks = new WeakSet<FrameRequestCallback>();
+      const pending = new Map<number, FrameRequestCallback>();
+      // Three loads these textures through detached ImageLoader elements.
+      // Observe their real completion so a late texture wake cannot conceal a
+      // missing phone-completion wake after the scene has gone to sleep.
+      const texturePaths = new Set(['/immersive-assets/restaurant-stone.webp', '/immersive-assets/phone-poster-maison-elyse.webp']);
+      const images: WeakRef<HTMLImageElement>[] = [];
+      const observed = new WeakSet<HTMLImageElement>();
+      const loaded = new Set<string>();
+      const createElementNS = document.createElementNS;
+      document.createElementNS = function (this: Document, ...args: Parameters<Document['createElementNS']>) {
+        const element = Reflect.apply(createElementNS, this, args);
+        if (element instanceof HTMLImageElement) images.push(new WeakRef(element));
+        return element;
+      } as typeof createElementNS;
+      const probe = {
+        callbacks: 0,
+        get pending() { return [...pending.values()].filter(callback => sceneCallbacks.has(callback)).length; },
+        get texturesReady() {
+          for (const reference of images) {
+            const image = reference.deref();
+            if (!image?.src) continue;
+            const url = new URL(image.currentSrc || image.src, location.href);
+            if (url.origin !== location.origin || !texturePaths.has(url.pathname)) continue;
+            const record = () => { if (image.complete && image.naturalWidth > 0) loaded.add(url.pathname); };
+            if (!observed.has(image)) { observed.add(image); image.addEventListener('load', record, { once: true }); }
+            record(); // Includes cached loads completed before the first read.
           }
-        ]
-      });
-    }
-    await session.send("Input.dispatchTouchEvent", {
-      type: "touchEnd",
-      touchPoints: []
+          return loaded.size === texturePaths.size;
+        },
+      };
+      (window as typeof window & { sceneWakeProbe: typeof probe }).sceneWakeProbe = probe;
+      window.requestAnimationFrame = callback => {
+        const id = nativeRAF(function (this: Window, timestamp) {
+          pending.delete(id);
+          const before = Number(document.querySelector<HTMLCanvasElement>('.scene-canvas')?.dataset.frames ?? 0);
+          try { Reflect.apply(callback, this, [timestamp]); }
+          finally {
+            const after = Number(document.querySelector<HTMLCanvasElement>('.scene-canvas')?.dataset.frames ?? 0);
+            if (after > before) sceneCallbacks.add(callback);
+            if (sceneCallbacks.has(callback)) probe.callbacks++;
+          }
+        });
+        pending.set(id, callback);
+        return id;
+      };
+      window.cancelAnimationFrame = id => { pending.delete(id); nativeCancel(id); };
     });
-  } finally {
-    await session.detach();
-  }
-}
-
-function landingUrl(path = "/") {
-  const protectedPreview = process.env.VISTAIRE_PROTECTED_PREVIEW_URL;
-  if (!protectedPreview) return path;
-  const url = new URL(protectedPreview);
-  url.pathname = path;
-  return url.toString();
-}
-
-type LandingExperienceId = "maison-elyse" | "trouvable" | "sauge-noire";
-
-const LANDING_EXPERIENCES: readonly {
-  id: LandingExperienceId;
-  name: RegExp;
-}[] = [
-  { id: "maison-elyse", name: /Maison Élyse|Maison Elyse/ },
-  { id: "trouvable", name: /Trouvable/ },
-  { id: "sauge-noire", name: /Sauge Noire/ }
-];
-
-async function expectSecureLandingMenuLinks(page: Page) {
-  const links = page.locator('a[href^="/menu/"]');
-  await expect(links).toHaveCount(9);
-  const attributes = await links.evaluateAll((elements) =>
-    elements.map((element) => ({
-      href: element.getAttribute("href"),
-      rel: element.getAttribute("rel")?.split(/\s+/).filter(Boolean) ?? [],
-      target: element.getAttribute("target")
-    }))
-  );
-
-  for (const attributesForLink of attributes) {
-    expect(attributesForLink.href).toMatch(/^\/menu\//);
-    expect(attributesForLink.target).toBe("_blank");
-    expect(attributesForLink.rel).toContain("noopener");
-    expect(attributesForLink.rel).toContain("noreferrer");
-  }
-}
-
-async function openRealPopup(page: Page, link: Locator) {
-  const [popup] = await Promise.all([
-    page.waitForEvent("popup"),
-    link.click()
-  ]);
-  await popup.waitForLoadState("domcontentloaded");
-  return popup;
-}
-
-async function expectPopupRoute(
-  popup: Page,
-  pathname: RegExp,
-  locale: "fr-CA" | "en-CA"
-) {
-  await expect.poll(() => new URL(popup.url()).pathname).toMatch(pathname);
-  expect(new URL(popup.url()).searchParams.get("lang")).toBe(locale);
-}
-
-test.describe("Vistaire landing redesign", () => {
-  test("keeps the existing top bar and promoted hero video", async ({ page }) => {
-    const runtime = collectRuntimeFailures(page);
-    await page.setViewportSize({ width: 1366, height: 900 });
-    await page.goto(landingUrl(), { waitUntil: "domcontentloaded" });
-
-    const nav = page.getByRole("navigation", { name: "Navigation preview" });
-    await expect(nav).toBeVisible();
-    await expect(nav.getByText("Vistaire", { exact: true })).toBeVisible();
-    await expect(nav.getByText("Carte digitale premium")).toBeVisible();
-    await expect(nav.getByRole("link")).toHaveCount(9);
-    for (const label of [
-      "Accueil",
-      "Carte",
-      "Tarifs",
-      "\u00c0 propos",
-      "Contact"
-    ]) {
-      await expect(
-        nav.getByRole("link", { name: label, exact: true })
-      ).toBeVisible();
+    const phonePattern = '**/immersive-assets/phone/iphone_16_-_free.glb';
+    let releasePhone!: () => void;
+    const phoneReleased = new Promise<void>(resolve => { releasePhone = resolve; });
+    let phoneRequestHeld = false;
+    await page.route(phonePattern, async route => { phoneRequestHeld = true; await phoneReleased; await route.continue(); });
+    const canvas = page.locator('.scene-canvas');
+    try {
+      await page.goto('/#wearable', { waitUntil: 'domcontentloaded' });
+      await page.evaluate(() => document.fonts.ready);
+      for (const attribute of ['restaurant', 'support'])
+        await expect(canvas).toHaveAttribute(`data-${attribute}-ready`, 'true', { timeout: 120_000 });
+      await expect(canvas).toHaveAttribute('data-laptop-ready', 'false');
+      expect(laptopRequests).toEqual([]);
+      await expect(canvas).toHaveAttribute('data-rendered-model', 'homard');
+      await expect(canvas).toHaveAttribute('data-section', 'wearable');
+      expect(phoneRequestHeld).toBe(true);
+      await expect(canvas).toHaveAttribute('data-phone-ready', 'false');
+      await expect(canvas).not.toHaveAttribute('data-ready', 'true');
+      await expect.poll(() => page.evaluate(() =>
+        (window as typeof window & { sceneWakeProbe: { texturesReady: boolean } }).sceneWakeProbe.texturesReady,
+      ), { timeout: 15_000 }).toBe(true);
+      await expect.poll(() => page.evaluate(async () => {
+        const probe = (window as typeof window & { sceneWakeProbe: { callbacks: number; pending: number } }).sceneWakeProbe;
+        if (!probe.callbacks || probe.pending || document.querySelector<HTMLCanvasElement>('.scene-canvas')?.dataset.settled !== 'true') return false;
+        const before = probe.callbacks;
+        await new Promise(resolve => setTimeout(resolve, 500));
+        return probe.pending === 0 && probe.callbacks === before;
+      }), { timeout: 15_000 }).toBe(true);
+      const asleep = await canvas.evaluate(el => ({ frames: Number((el as HTMLCanvasElement).dataset.frames), triangles: Number((el as HTMLCanvasElement).dataset.triangles), scrollY,
+        callbacks: (window as typeof window & { sceneWakeProbe: { callbacks: number } }).sceneWakeProbe.callbacks }));
+      releasePhone();
+      // No scroll, gesture or retry may wake the missing-phone completion.
+      await expect(canvas).toHaveAttribute('data-ready', 'true', { timeout: 120_000 });
+      await expect(canvas).toHaveAttribute('data-phone-ready', 'true');
+      await expect(canvas).toHaveAttribute('data-phone', 'iphone-16');
+      await expect(canvas).toHaveAttribute('data-section', 'wearable');
+      await expect.poll(() => canvas.evaluate(el => Number((el as HTMLCanvasElement).dataset.frames))).toBeGreaterThan(asleep.frames);
+      const awake = await canvas.evaluate(el => ({ scrollY, triangles: Number((el as HTMLCanvasElement).dataset.triangles),
+        callbacks: (window as typeof window & { sceneWakeProbe: { callbacks: number } }).sceneWakeProbe.callbacks }));
+      expect(awake.callbacks).toBeGreaterThan(asleep.callbacks);
+      expect(awake.scrollY).toBe(asleep.scrollY);
+      expect(awake.triangles).toBeGreaterThan(asleep.triangles);
+      expect(laptopRequests).toEqual([]);
+      await expect(canvas).not.toHaveAttribute('data-phone-scale', /.+/);
+      await expect(canvas).toHaveAttribute('data-framing-ready', 'disabled');
+      await expect(canvas).not.toHaveAttribute('data-dish-bounds', /.+/);
+      await expect(canvas).not.toHaveAttribute('data-focus-bounds', /.+/);
+      await expect(page.locator('.preloader')).toHaveCount(0);
+      await expect(page.locator('.world-fallback')).toHaveCount(0);
+      expect(requests).toEqual([]);
+      const image = testInfo.outputPath('rendered-phone-essential-wake.png');
+      await page.screenshot({ path: image });
+      await testInfo.attach('phone-essential-wake', { path: image, contentType: 'image/png' });
+    } finally {
+      releasePhone();
+      await page.unroute(phonePattern).catch(error => console.warn('Phone route cleanup after release failed:', error));
     }
-    await expect(
-      nav.getByRole("link", { name: "Tarifs", exact: true })
-    ).toHaveAttribute("href", "/tarifs-menu-digital-restaurant");
-    for (const label of ["FR", "EN"]) {
-      await expect(nav.getByText(label, { exact: true })).toBeVisible();
-    }
-    const appointmentCta = nav.getByRole("link", {
-      name: /Prendre rendez-vous/
+
+    let releaseHull!: () => void;
+    const released = new Promise<void>(resolve => { releaseHull = resolve; });
+    await page.route('**/immersive-assets/dishes/framing-hulls.json', async route => {
+      await released;
+      await route.continue();
     });
-    await expect(appointmentCta).toBeVisible();
-    await expect(appointmentCta).toHaveAttribute(
-      "href",
-      "/prendre-rendez-vous"
-    );
-    await expect(appointmentCta).toHaveAccessibleName(
-      "Prendre rendez-vous"
-    );
-    const decorativeArrow = appointmentCta.locator('[aria-hidden="true"]');
-    await expect(decorativeArrow).toHaveCount(1);
-    await expect(decorativeArrow).toHaveText("↗");
-    await expect(decorativeArrow).toHaveAttribute("aria-hidden", "true");
-
-    await expect(
-      page.getByRole("heading", {
-        level: 1,
-        name: "Donnez envie avant la première bouchée."
-      })
-    ).toBeVisible();
-
-    const video = page.locator('[data-hero-media="video"] video');
-    await expect(video).toBeVisible();
-    await expect
-      .poll(() =>
-        video.evaluate((element) => {
-          const media = element as HTMLVideoElement;
-          return {
-            autoplay: media.autoplay,
-            loop: media.loop,
-            muted: media.muted,
-            playsInline: media.playsInline,
-            poster: media.poster,
-            src: media.currentSrc || media.querySelector("source")?.src || ""
-          };
-        })
-      )
-      .toEqual(
-        expect.objectContaining({
-          autoplay: true,
-          loop: true,
-          muted: true,
-          playsInline: true
-        })
-      );
-    await expect(video).toHaveAttribute(
-      "poster",
-      HERO_POSTER
-    );
-    await expect
-      .poll(() =>
-        video.evaluate((node) => new URL((node as HTMLVideoElement).currentSrc).pathname)
-      )
-      .toBe(DESKTOP_HERO_VIDEO);
-    await expect(page.locator("[data-hero-media]")).toHaveAttribute(
-      "data-hero-media",
-      "video"
-    );
-    await expect(video).toHaveAttribute("data-hero-video-state", "playing");
-    await expect
-      .poll(() => video.evaluate((node) => (node as HTMLVideoElement).currentTime))
-      .toBeGreaterThan(0.05);
-    expect(runtime.heroVideoRequests).toContain(DESKTOP_HERO_VIDEO);
-    expect(runtime.heroVideoRequests).not.toContain(MOBILE_HERO_VIDEO);
-
-    await expectPromotedHeroUsableAcrossScroll(page, video);
-    await scrollThroughLanding(page);
-    await expectNoHorizontalOverflow(page);
-    await expect(page.locator("model-viewer")).toHaveCount(0);
-    expect(runtime.modelRequests).toEqual([]);
-    expect(runtime.menuAnalyticsRequests).toEqual([]);
-    expect(runtime.consoleErrors).toEqual([]);
-    expect(runtime.failedRequests).toEqual([]);
-    expect(runtime.failedResponses).toEqual([]);
-    expect(runtime.pageErrors).toEqual([]);
+    try {
+      await page.goto('/?sceneDiagnostics=1', { waitUntil: 'domcontentloaded' });
+      await expect(canvas).toHaveAttribute('data-ready', 'true', { timeout: 120_000 });
+      await expect(canvas).toHaveAttribute('data-rendered-model', 'homard');
+      await expect(page.locator('.preloader')).toHaveCount(0);
+      await expect(page.locator('.world-fallback')).toHaveCount(0);
+      await expect(canvas).toHaveAttribute('data-framing-ready', 'false');
+      expect(requests).toHaveLength(1);
+      await expect(canvas).not.toHaveAttribute('data-dish-bounds', /.+/);
+      releaseHull();
+      await expect(canvas).toHaveAttribute('data-framing-ready', 'true', { timeout: 60_000 });
+      // Ready describes the fetch; a later rendered update publishes the bounds.
+      await expect(canvas).toHaveAttribute('data-dish-bounds', /^\{/, { timeout: 60_000 });
+      await expect(canvas).toHaveAttribute('data-focus-bounds', /^\{/);
+      expect(requests).toHaveLength(1);
+    } finally { releaseHull(); }
   });
 
-  test("switches one accessible comparison preview at a time", async ({ page }) => {
-    const runtime = collectRuntimeFailures(page);
-    await page.setViewportSize({ width: 430, height: 932 });
-    await page.goto(landingUrl(), { waitUntil: "domcontentloaded" });
-
-    const comparison = page.getByTestId("landing-comparison");
-    await comparison.scrollIntoViewIfNeeded();
-    const tabs = comparison.getByRole("tab");
-    await expect(tabs).toHaveCount(3);
-    await expect(tabs).toHaveText(["Maison \u00c9lyse", "Trouvable", "Sauge Noire"]);
-    await expect(tabs.nth(0)).toHaveAttribute("aria-selected", "true");
-    await expect(comparison.locator('[data-active-preview="maison-elyse"]')).toHaveCount(
-      1
-    );
-    await expect(
-      comparison.locator('[data-preview-comparison="pdf-vs-digital"]')
-    ).toHaveCount(1);
-    await expect(
-      comparison.locator('[data-public-menu-renderer="maison-elyse"]')
-    ).toHaveCount(1);
-    await expect(
-      comparison.locator(
-        '[data-landing-menu-renderer="maison-elyse"][data-menu-ui="maison-elyse"]'
-      )
-    ).toHaveCount(1);
-    await expect(
-      comparison.locator('[data-public-menu-renderer="trouvable"]')
-    ).toHaveCount(0);
-    await expect(
-      comparison.locator('[data-public-menu-renderer="sauge-noire"]')
-    ).toHaveCount(0);
-    await expect(comparison.locator("[data-comparison-preview]")).toHaveCount(0);
-    await expect(comparison.locator("iframe")).toHaveCount(0);
-    await expect(
-      comparison.locator(".stf__parent, [data-page-flip-fallback]")
-    ).toHaveCount(0);
-    await expectLoadedImages(
-      comparison.locator('[data-public-menu-renderer="maison-elyse"] img')
-    );
-    const initialPayloadRequestCount = runtime.previewPayloadRequests.length;
-    expect(initialPayloadRequestCount).toBeLessThanOrEqual(1);
-    if (initialPayloadRequestCount === 1) {
-      expect(runtime.previewPayloadRequests[0]).toContain(
-        "/api/public/landing-menu-preview/maison-elyse?locale=fr"
-      );
-    }
-    const initialSlider = comparison.getByRole("slider");
-    await expect(initialSlider).toHaveAttribute("aria-valuenow", "50");
-
-    await tabs.nth(1).click();
-    await expect(tabs.nth(1)).toHaveAttribute("aria-selected", "true");
-    await expect(comparison.locator('[data-active-preview="trouvable"]')).toHaveCount(1);
-    await expect(
-      comparison.locator('[data-public-menu-renderer="trouvable"]')
-    ).toHaveCount(1, { timeout: LAZY_PREVIEW_TIMEOUT_MS });
-    await expect(
-      comparison.locator(
-        '[data-landing-menu-renderer="trouvable"][data-menu-ui="trouvable"]'
-      )
-    ).toHaveCount(1);
-    await expect(
-      comparison.locator('[data-public-menu-renderer="maison-elyse"]')
-    ).toHaveCount(0);
-    await expect(
-      comparison.locator('[data-public-menu-renderer="sauge-noire"]')
-    ).toHaveCount(0);
-    await expectLoadedImages(
-      comparison.locator('[data-public-menu-renderer="trouvable"] img')
-    );
-    expect(runtime.previewPayloadRequests).toHaveLength(
-      initialPayloadRequestCount + 1
-    );
-    expect(runtime.previewPayloadRequests.at(-1)).toContain(
-      "/api/public/landing-menu-preview/trouvable?locale=fr"
-    );
-    await expect(
-      comparison.locator('[data-preview-comparison="pdf-vs-digital"]')
-    ).toHaveCount(1);
-    await expect(comparison.getByRole("slider")).toHaveAttribute(
-      "aria-valuenow",
-      "50"
-    );
-
-    const landingLocationBeforeSauge = page.url();
-    await tabs.nth(1).press("ArrowRight");
-    await expect(tabs.nth(2)).toBeFocused();
-    await expect(tabs.nth(2)).toHaveAttribute("aria-selected", "true");
-    await expect(comparison.locator('[data-active-preview="sauge-noire"]')).toHaveCount(1);
-    await expect(
-      comparison.locator('[data-public-menu-renderer="sauge-noire"]')
-    ).toHaveCount(1, { timeout: LAZY_PREVIEW_TIMEOUT_MS });
-    await expect(
-      comparison.locator(
-        '[data-landing-menu-renderer="sauge-noire"][data-menu-ui="sauge-noire"]'
-      )
-    ).toHaveCount(1);
-    await expect(
-      comparison.locator('[data-public-menu-renderer="maison-elyse"]')
-    ).toHaveCount(0);
-    await expect(
-      comparison.locator('[data-public-menu-renderer="trouvable"]')
-    ).toHaveCount(0);
-    await expect(
-      comparison.locator('[data-public-menu-renderer="sauge-noire"]')
-    ).toHaveAttribute("data-display-mode", "comparison-preview");
-    await expectLoadedImages(
-      comparison.locator('[data-public-menu-renderer="sauge-noire"] img')
-    );
-    await expectIndependentComparisonScrollRoots(comparison);
-    expect(runtime.previewPayloadRequests).toHaveLength(
-      initialPayloadRequestCount + 2
-    );
-    expect(runtime.previewPayloadRequests.at(-1)).toContain(
-      "/api/public/landing-menu-preview/sauge-noire?locale=fr"
-    );
-    await expect(comparison.getByTestId("google-review-cta")).toHaveCount(0);
-    expect(page.url()).toBe(landingLocationBeforeSauge);
-
-    await tabs.nth(2).press("Home");
-    await expect(tabs.nth(0)).toBeFocused();
-    await expect(tabs.nth(0)).toHaveAttribute("aria-selected", "true");
-
-    const slider = comparison.getByRole("slider");
-    await slider.focus();
-    await slider.press("Home");
-    await expect(slider).toHaveAttribute("aria-valuenow", "0");
-    await slider.press("ArrowRight");
-    await expect(slider).toHaveAttribute("aria-valuenow", "4");
-    await slider.press("End");
-    await expect(slider).toHaveAttribute("aria-valuenow", "100");
-    await slider.press("Home");
-    await slider.press("Shift+ArrowRight");
-    await expect(slider).toHaveAttribute("aria-valuenow", "10");
-    await slider.press("Shift+ArrowRight");
-    await expect(slider).toHaveAttribute("aria-valuenow", "20");
-    await slider.press("Shift+ArrowRight");
-    await expect(slider).toHaveAttribute("aria-valuenow", "30");
-    await slider.press("Shift+ArrowRight");
-    await expect(slider).toHaveAttribute("aria-valuenow", "40");
-    await slider.press("Shift+ArrowRight");
-    await expect(slider).toHaveAttribute("aria-valuenow", "50");
-    const sliderBox = await slider.boundingBox();
-    const comparisonBox = await comparison
-      .locator('[data-preview-comparison="pdf-vs-digital"]')
-      .boundingBox();
-    expect(sliderBox).not.toBeNull();
-    expect(comparisonBox).not.toBeNull();
-    if (sliderBox && comparisonBox) {
-      await page.mouse.move(
-        sliderBox.x + sliderBox.width / 2,
-        sliderBox.y + sliderBox.height / 2
-      );
-      await page.mouse.down();
-      await page.mouse.move(
-        comparisonBox.x + comparisonBox.width * 0.25,
-        sliderBox.y + sliderBox.height / 2
-      );
-      await page.mouse.up();
-      await expect
-        .poll(async () => Number(await slider.getAttribute("aria-valuenow")))
-        .toBeLessThan(40);
-    }
-
-    await expectNoHorizontalOverflow(page);
-    expect(runtime.modelRequests).toEqual([]);
-    expect(runtime.menuAnalyticsRequests).toEqual([]);
-    expect(runtime.consoleErrors).toEqual([]);
-    expect(runtime.failedRequests).toEqual([]);
-    expect(runtime.failedResponses).toEqual([]);
-    expect(runtime.pageErrors).toEqual([]);
-  });
-
-  test("keeps the restaurant links real and bilingual", async ({ page }) => {
-    await page.goto(landingUrl(), { waitUntil: "domcontentloaded" });
-    await expectSecureLandingMenuLinks(page);
-    const experiences = page.getByTestId("landing-experiences");
-    const frenchExperienceLinks = experiences.getByRole("link");
-    await expect(frenchExperienceLinks).toHaveCount(3);
-    for (const link of await frenchExperienceLinks.all()) {
-      await expectAccessibleNewTabLink(
-        link,
-        "S\u2019ouvre dans un nouvel onglet.",
-        "Opens in a new tab."
-      );
-    }
-    await expect(
-      experiences.getByRole("link", { name: /Maison Élyse/ })
-    ).toHaveAttribute("href", "/menu/maison-elyse?lang=fr-CA");
-    await expect(
-      experiences.getByRole("link", { name: /Maison Élyse/ })
-    ).toHaveAttribute("target", "_blank");
-    await expect(
-      experiences.getByRole("link", { name: /Maison Élyse/ })
-    ).toHaveAttribute("rel", /noopener/);
-    await expect(
-      experiences.getByRole("link", { name: /Trouvable/ })
-    ).toHaveAttribute("href", "/menu/trouvable?lang=fr-CA");
-    await expect(
-      experiences.getByRole("link", { name: /Trouvable/ })
-    ).toHaveAttribute("target", "_blank");
-    await expect(
-      experiences.getByRole("link", { name: /Sauge Noire/ })
-    ).toHaveAttribute("href", "/menu/sauge-noire?lang=fr-CA");
-    await expect(
-      experiences.getByRole("link", { name: /Sauge Noire/ })
-    ).toHaveAttribute("target", "_blank");
-    await expect(
-      page.getByRole("link", { name: "Prendre rendez-vous" }).first()
-    ).toHaveAttribute("href", "/prendre-rendez-vous");
-
-    await page.goto(landingUrl("/en"), { waitUntil: "domcontentloaded" });
-    await expectSecureLandingMenuLinks(page);
-    const englishNavigation = page.getByRole("navigation", {
-      name: "Main navigation"
-    });
-    await expect(
-      englishNavigation.getByRole("link", { name: "Pricing", exact: true })
-    ).toHaveAttribute("href", "/en/pricing-digital-restaurant-menu");
-    await expect(
-      page.getByRole("heading", {
-        level: 1,
-        name: "Make every dish tempting before the first bite."
-      })
-    ).toBeVisible();
-    const englishExperiences = page.getByTestId("landing-experiences");
-    const englishExperienceLinks = englishExperiences.getByRole("link");
-    await expect(englishExperienceLinks).toHaveCount(3);
-    for (const link of await englishExperienceLinks.all()) {
-      await expectAccessibleNewTabLink(
-        link,
-        "Opens in a new tab.",
-        "S\u2019ouvre dans un nouvel onglet."
-      );
-    }
-    await expect(
-      englishExperiences.getByRole("link", { name: /Maison Élyse/ })
-    ).toHaveAttribute("href", "/menu/maison-elyse?lang=en-CA");
-    await expect(
-      englishExperiences.getByRole("link", { name: /Trouvable/ })
-    ).toHaveAttribute("href", "/menu/trouvable?lang=en-CA");
-    await expect(
-      englishExperiences.getByRole("link", { name: /Sauge Noire/ })
-    ).toHaveAttribute("href", "/menu/sauge-noire?lang=en-CA");
-  });
-
-  test("matches public menu markers with every active comparison renderer through real popups", async ({
-    page
-  }) => {
-    const runtime = collectRuntimeFailures(page);
-    await page.goto(landingUrl(), { waitUntil: "domcontentloaded" });
-    const comparison = page.getByTestId("landing-comparison");
-    await comparison.scrollIntoViewIfNeeded();
-    const tabs = comparison.getByRole("tab");
-    const landingLocation = page.url();
-
-    for (const [index, experience] of LANDING_EXPERIENCES.entries()) {
-      await tabs.nth(index).click();
-      await expect(tabs.nth(index)).toHaveAttribute("aria-selected", "true");
-      await expect(
-        comparison.locator(
-          `[data-landing-menu-renderer="${experience.id}"][data-menu-ui="${experience.id}"]`
-        )
-      ).toHaveCount(1, { timeout: LAZY_PREVIEW_TIMEOUT_MS });
-      await expect(
-        comparison.locator("[data-public-menu-renderer]")
-      ).toHaveCount(1);
-      await expect(comparison.locator("[data-comparison-preview]")).toHaveCount(
-        0
-      );
-
-      const link = comparison.getByRole("link", {
-        name: /Ouvrir l’expérience complète/
-      });
-      const popup = await openRealPopup(page, link);
+  renderedTest('a rejected QA hull stays diagnostic-only while the real scene renders and resizes', async ({ page }, testInfo) => {
+    renderedTest.setTimeout(180_000);
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    const errors: string[] = [];
+    page.on('pageerror', error => errors.push(error.message));
+    await page.route('**/immersive-assets/dishes/framing-hulls.json', route => route.fulfill({ status: 503, contentType: 'application/json', body: '{}' }));
+    await page.goto('/?sceneDiagnostics=1', { waitUntil: 'domcontentloaded' });
+    const canvas = page.locator('.scene-canvas');
+    let expectedViewport = { width: 390, height: 844 };
+    let before: { frames: number; revision: number } | null = null;
+    try {
+      await expect(canvas).toHaveAttribute('data-ready', 'true', { timeout: 120_000 });
+      await expect(canvas).toHaveAttribute('data-framing-ready', 'error');
+      await expect(canvas).toHaveAttribute('data-framing-error', /.+/);
+      await expect(canvas).toHaveAttribute('data-rendered-model', 'homard');
+      await expect(page.locator('.preloader')).toHaveCount(0);
+      await expect(page.locator('.world-fallback')).toHaveCount(0);
+      await expect(canvas).not.toHaveAttribute('data-dish-bounds', /.+/);
+      await waitForViewportLayout(page, expectedViewport);
+      before = await canvas.evaluate(el => ({ frames: Number((el as HTMLCanvasElement).dataset.frames),
+        revision: Number((el as HTMLCanvasElement).dataset.processedViewportRevision) }));
+      // One combined width/height resize, before the long food-model journey.
+      // The helper unit replay supplies deterministic stale-CSS-probe coverage.
+      expectedViewport = { width: 430, height: 932 };
+      await page.setViewportSize(expectedViewport);
+      await waitForViewportLayout(page, expectedViewport);
+      await waitForProcessedPose(page, before.frames);
+      await expect(canvas).toHaveAttribute('data-suspended', 'false');
+      expect(Number(await canvas.getAttribute('data-frames'))).toBeGreaterThan(before.frames);
+      expect(Number(await canvas.getAttribute('data-processed-viewport-revision'))).toBeGreaterThan(before.revision);
+      await expect(canvas).toHaveAttribute('data-ready', 'true');
+      await expect(canvas).toHaveAttribute('data-rendered-model', 'homard');
+      await expect(page.locator('.world-fallback')).toHaveCount(0);
+      expect(errors).toEqual([]);
+    } finally {
+      const snapshot = await diagnosticSnapshot(page, expectedViewport);
+      let timer: ReturnType<typeof setTimeout> | undefined;
       try {
-        await expectPopupRoute(
-          popup,
-          new RegExp(`^/menu/${experience.id}$`),
-          "fr-CA"
-        );
-        await expect(
-          popup.locator(
-            `[data-menu-ui="${experience.id}"][data-public-menu-renderer="${experience.id}"]`
-          )
-        ).toBeVisible();
-      } finally {
-        await popup.close();
-      }
-      expect(page.url()).toBe(landingLocation);
-      await expect(page.getByTestId("landing-comparison")).toBeVisible();
-      await expect(
-        comparison.locator(`[data-active-preview="${experience.id}"]`)
-      ).toHaveCount(1);
+        await Promise.race([
+          writeFile(testInfo.outputPath('rendered-resize-telemetry.json'), JSON.stringify({ expectedViewport, before, snapshot, errors }, null, 2)),
+          new Promise<never>((_, reject) => { timer = setTimeout(() => reject(new Error('Early resize persistence exceeded 1s')), 1_000); }),
+        ]);
+      } catch (error) { console.warn('Could not preserve early resize diagnostics:', error); }
+      finally { clearTimeout(timer); }
     }
-
-    expect(runtime.modelRequests).toEqual([]);
-    expect(runtime.menuAnalyticsRequests).toEqual([]);
   });
+});
 
-  test("opens all three featured dishes in real renderer popups", async ({
-    page
-  }) => {
-    await page.goto(landingUrl(), { waitUntil: "domcontentloaded" });
-    const landingDishes = page.getByTestId("landing-dishes");
-    const cards = landingDishes.locator("[data-menu-slug]");
-    await expect(cards).toHaveCount(3);
-
-    for (const [index, experience] of LANDING_EXPERIENCES.entries()) {
-      const card = cards.nth(index);
-      await expect(card).toHaveAttribute("data-menu-slug", experience.id);
-      const link = card.getByRole("link");
-      const expectedName = (await card.locator("h3").textContent())?.trim() ?? "";
-      const expectedDescription =
-        (await card.locator("h3 + span").textContent())?.trim() ?? "";
-      const expectedDishId = await card.getAttribute("data-dish-id");
-      const popup = await openRealPopup(page, link);
-
-      try {
-        await expectPopupRoute(
-          popup,
-          new RegExp(`^/menu/${experience.id}/dishes/[^/]+$`),
-          "fr-CA"
-        );
-        await expect(
-          popup.locator(
-            `[data-public-dish-renderer="${experience.id}"]`
-          )
-        ).toBeVisible();
-
-        if (experience.id === "trouvable") {
-          await expect(
-            popup.locator('[data-public-dish-renderer="trouvable"]')
-          ).toHaveAttribute("data-palette-source", "reference");
-          await expect(popup.getByText(expectedName, { exact: true })).toBeVisible();
-          await expect(
-            popup.getByText(expectedDescription, { exact: true })
-          ).toHaveCount(0);
-          const detailsButton = popup.getByRole("button", {
-            name: "Voir détails"
-          });
-          await expect
-            .poll(async () => {
-              await detailsButton.click();
-              return detailsButton.getAttribute("aria-expanded");
-            })
-            .toBe("true");
-          const detailSheet = popup.locator(
-            '[role="dialog"][data-sheet-state="open"]'
-          );
-          await expect(detailSheet).toBeVisible();
-          await expect(
-            detailSheet.getByText(
-              "Burrata, pesto vert et herbes fraiches.",
-              { exact: true }
-            )
-          ).toHaveCount(1);
-          expect(expectedDishId).toBeTruthy();
-          await expect(
-            popup.locator(
-              '[data-public-dish-renderer="trouvable"] img[src*="/api/public/menu-dishes/"][src*="/photo"]'
-            )
-          ).toBeVisible();
-          await expect(
-            popup.locator('a[href^="/menu/trouvable"]').first()
-          ).toHaveAttribute("href", "/menu/trouvable?lang=fr-CA");
-          await expect(
-            popup.locator(
-              'main[data-theme][data-blueprint]:not([data-public-dish-renderer="trouvable"])'
-            )
-          ).toHaveCount(0);
-          await expect(
-            popup.locator(
-              '[data-public-dish-renderer="maison-elyse"], [data-public-dish-renderer="sauge-noire"]'
-            )
-          ).toHaveCount(0);
+renderedTest.describe('rendered scroll choreography (Chromium software WebGL)', () => {
+  renderedTest.skip(({ browserName }) => browserName !== 'chromium', 'SwiftShader verification uses Chromium');
+  for (const [path, viewport] of [
+    ['/', { width: 1440, height: 900 }],
+    ['/en', { width: 390, height: 844 }],
+  ] as const) {
+    const scrollTest = viewport.width < 768 ? renderedTest.extend({ hasTouch: true }) : renderedTest;
+    scrollTest(`${path} renders reversible chapter poses and resumes after pricing`, async ({ page }, testInfo) => {
+      // Software rasterization is slow; this is a bounded correctness budget,
+      // never a performance/FPS acceptance threshold.
+      renderedTest.setTimeout(viewport.width > 768 ? 600_000 : 480_000);
+      await page.setViewportSize(viewport);
+      // Remove temporal damping for deterministic target-pose comparisons.
+      // The separate stop/resume sample below restores normal motion.
+      await page.emulateMedia({ reducedMotion: 'reduce' });
+      const errors: string[] = [];
+      const laptopRequests: string[] = [];
+      page.on('pageerror', error => errors.push(error.message));
+      page.on('request', request => { if (laptopAssetPaths.has(new URL(request.url()).pathname)) laptopRequests.push(request.url()); });
+      await page.goto(`${path}?sceneDiagnostics=1`, { waitUntil: 'domcontentloaded' });
+      const canvas = page.locator('.scene-canvas');
+      await expect(canvas).toHaveAttribute('data-ready', 'true', { timeout: 120_000 });
+      await expect(canvas).toHaveAttribute('data-framing-ready', 'true', { timeout: 60_000 });
+      await expect(canvas).toHaveAttribute('data-laptop-ready', 'false');
+      expect(laptopRequests).toEqual([]);
+      await expect(page.locator('.world-fallback')).toHaveCount(0);
+      await page.evaluate(() => document.fonts.ready);
+      const windows = await page.locator('.chapter[data-exit-start]').evaluateAll(elements => elements.map(el => ({
+        from: el.id,
+        to: (el as HTMLElement).dataset.exitTo!,
+        start: Number((el as HTMLElement).dataset.exitStart),
+        end: Number((el as HTMLElement).dataset.exitEnd),
+      })));
+      expect(windows).toHaveLength(9);
+      const geometry = await page.evaluate(() => ({
+        viewport: { width: innerWidth, height: innerHeight },
+        stage: document.querySelector('.opening-stage')!.clientHeight,
+        canvasHeight: document.querySelector('.world')!.clientHeight,
+        chapters: [...document.querySelectorAll<HTMLElement>('.chapter')].map(el => ({
+          id: el.id, top: el.getBoundingClientRect().top + scrollY,
+          height: el.getBoundingClientRect().height, stage: el.firstElementChild!.clientHeight,
+        })),
+      }));
+      const pricing = geometry.chapters.find(chapter => chapter.id === 'open-weight')!;
+      const telemetry: { segment: string; target: number; snapshot: unknown }[] = [];
+      const viewportCoverage: unknown[] = [];
+      let segment = 'initial';
+      let lastDiagnostic: Awaited<ReturnType<typeof diagnosticSnapshot>> = null;
+      const saveTelemetry = async () => {
+        const telemetryPath = testInfo.outputPath('rendered-scroll-telemetry.json');
+        await writeFile(telemetryPath, JSON.stringify({
+          renderer: 'Chromium SwiftShader; target poses sampled with reduced motion, not physical input or FPS',
+          geometry, windows, phase: segment, lastDiagnostic, errors, samples: telemetry, viewportCoverage,
+          units: 'World positions/look use authored Three.js units; scale and alpha are dimensionless; view offsets and text positions are normalized by canvas/stage size. Hidden pricing samples are excluded from motion speed. Root orientations use quaternion angular distance in radians; world paths are normalized independently by their own traveled length.',
+        }, null, 2));
+      };
+      const at = async (y: number, settle = false) => {
+        await page.evaluate(y => scrollTo({ top: y, behavior: 'instant' }), y);
+        const macWindow = windows.find(window => window.to === 'sustainability')!;
+        const macExit = windows.find(window => window.from === 'sustainability')!;
+        if (y >= macWindow.start && y <= macExit.end) {
+          const before = await canvas.evaluate(el => ({ ready: (el as HTMLCanvasElement).dataset.laptopReady, frames: Number((el as HTMLCanvasElement).dataset.frames) }));
+          await expect(canvas).toHaveAttribute('data-laptop-ready', 'true', { timeout: 60_000 });
+          if (before.ready !== 'true') await expect.poll(() => canvas.evaluate(el => Number((el as HTMLCanvasElement).dataset.frames))).toBeGreaterThan(before.frames);
         }
-      } finally {
-        await popup.close();
-      }
-      await expect(page.getByTestId("landing-dishes")).toBeVisible();
-    }
-  });
-
-  test("renders English menu copy while localizing Maison dish names", async ({
-    page
-  }) => {
-    await page.goto(landingUrl("/en"), { waitUntil: "domcontentloaded" });
-    await expectSecureLandingMenuLinks(page);
-
-    const comparison = page.getByTestId("landing-comparison");
-    await comparison.scrollIntoViewIfNeeded();
-    const tabs = comparison.getByRole("tab");
-    const expectedEnglish = [
-      {
-        category: "Starters",
-        categoryDescription: "Maison Elyse's current menu.",
-        dish: "Fresh goat cheese ravioli & Monteregie honey",
-        dishDescription:
-          "Brown butter, preserved lemon, and garden herbs."
-      },
-      {
-        category: "Mains",
-        categoryDescription: "Trouvable's current menu.",
-        dish: "Pesto Burrata Verde",
-        dishDescription: "Burrata, green pesto, and fresh herbs."
-      },
-      {
-        category: "First bites",
-        categoryDescription:
-          "Small plates, bites, and opening seasonal flavors to share.",
-        dish: "Betterave sous la cendre",
-        dishDescription:
-          "Ash-roasted beetroot with smoked labneh, blackcurrant, pistachio, and raspberry vinegar."
-      }
-    ];
-
-    for (const [index, experience] of LANDING_EXPERIENCES.entries()) {
-      await tabs.nth(index).click();
-      await expect(tabs.nth(index)).toHaveAttribute("aria-selected", "true");
-      const active = comparison.locator(
-        `[data-landing-menu-renderer="${experience.id}"][data-menu-ui="${experience.id}"][lang="en-CA"]`
-      );
-      await expect(active).toBeVisible({ timeout: LAZY_PREVIEW_TIMEOUT_MS });
-      await expect(active).toHaveAttribute("data-menu-slug", experience.id);
-      await expect(active).toHaveAttribute("data-preview-locale", "en-CA");
-      await expect(active).toHaveAttribute("data-preview-status", "ready");
-      await expect(active).toHaveAttribute("data-menu-active-locale", "en-CA");
-      await expect(active).toHaveAttribute("data-translation-status", "up_to_date");
-      await expect(comparison.getByText("Menu", { exact: true }).first()).toBeVisible();
-      await expect(
-        comparison.locator('[data-comparison-scroll-root="pdf"]')
-      ).toHaveAttribute(
-        "aria-label",
-        new RegExp(`^Full PDF menu for (?:${experience.name.source})$`)
-      );
-      await expect(active.getByText(expectedEnglish[index].category).first()).toBeVisible({
-        timeout: LAZY_PREVIEW_TIMEOUT_MS
-      });
-      await expect(active.getByText(expectedEnglish[index].dish).first()).toBeVisible({
-        timeout: LAZY_PREVIEW_TIMEOUT_MS
-      });
-
-      const payloadResponse = await page.request.get(
-        new URL(
-          `/api/public/landing-menu-preview/${experience.id}?locale=en`,
-          page.url()
-        ).toString()
-      );
-      expect(payloadResponse.ok()).toBe(true);
-      const payload = (await payloadResponse.json()) as {
-        payload?: {
-          locale?: string;
-          menuSlug?: string;
-          comparison?: {
-            pdfSections?: unknown[];
-            categoryTabs?: unknown[];
-            categoryCards?: unknown[];
+        await waitForProcessedPose(page, undefined, false, { target: y, artifact: testInfo.outputPath('rendered-pending-pose-telemetry.json') });
+        if (settle) await expect(canvas).toHaveAttribute('data-settled', 'true', { timeout: 15_000 });
+        const snapshot = await canvas.evaluate(el => {
+          const data = (el as HTMLCanvasElement).dataset;
+          const view = JSON.parse(data.cameraViewOffset ?? '{}');
+          const vector = (value: string | undefined) => (value ?? '').split(',').map(Number);
+          const channels = Object.fromEntries([
+            ['camera', vector(data.fittedCameraPosition)], ['look', vector(data.fittedLook)],
+            ...['dish', 'support', 'phone', 'laptop'].flatMap(name => ['Position', 'Scale', 'Quaternion'].map(kind => [name + kind, vector(data[name + kind])])),
+            ['dishOpacity', [Number(data.dishOpacity)]],
+            ['viewOffset', [view.offsetX / el.clientWidth, view.offsetY / el.clientHeight]],
+          ]) as Record<string, number[]>;
+          return {
+            scroll: scrollY,
+            dataset: { ...data },
+            channels,
+            section: data.section,
+            progress: Number(data.progress),
+            transition: data.transition,
+            transitionProgress: Number(data.transitionProgress),
+            suspended: data.suspended,
+            camera: data.fittedCameraPosition,
+            look: data.fittedLook,
+            supportPosition: data.supportPosition,
+            phonePosition: data.phonePosition,
+            dishScale: data.dishScale,
+            dishOpacity: Number(data.dishOpacity),
+            roomPosition: data.roomPosition,
+            roomYaw: Number(data.roomYaw),
+            laptopAngle: Number(data.laptopAngle),
+            renderCPUms: Number(data.renderCPUms),
+            viewOffset: [view.offsetX / el.clientWidth, view.offsetY / el.clientHeight],
+            copy: Object.fromEntries([...document.querySelectorAll<HTMLElement>('.chapter')].map(chapter => {
+              const text = chapter.querySelector('.is-current h3') || chapter.querySelector('h1:not(.sr-only),h2:not(.sr-only),h3:not(.sr-only),p:not(.sr-only)')!;
+              let opacity = 1;
+              for (let ancestor: Element | null = text; ancestor && ancestor !== chapter.parentElement; ancestor = ancestor.parentElement)
+                opacity *= Number(getComputedStyle(ancestor).opacity);
+              const rect = text.getBoundingClientRect();
+              return [chapter.id, { opacity, top: rect.top / el.clientHeight, left: rect.left / el.clientWidth }];
+            })),
+            values: [data.fittedCameraPosition, data.fittedLook, data.supportPosition, data.phonePosition,
+              data.dishScale, data.dishOpacity, data.roomPosition, data.roomYaw]
+              .flatMap(value => (value ?? '').split(',').map(Number))
+              .concat([view.offsetX / el.clientWidth, view.offsetY / el.clientHeight])
+              .concat(...Object.values(channels)),
           };
-          menuUi?: {
-            menu?: {
-              activeLocale?: string;
-              translationStatus?: { status?: string };
-              dishes?: Array<{
-                category: string;
-                categoryDescription?: string;
-                categorySlug?: string;
-                description: string;
-                name: string;
-              }>;
-            };
+        });
+        telemetry.push({ segment, target: y, snapshot });
+        if (snapshot.suspended !== 'true') {
+          // The source room and extracted table share one fixed registration;
+          // their common camera may move, but the room must not drift alone.
+          expect(snapshot.roomPosition?.split(',').map(Number), `${segment}: room registration`).toEqual([0, 0, 0]);
+          expect(snapshot.roomYaw, `${segment}: room yaw`).toBe(0);
+        }
+        return snapshot;
+      };
+      try {
+        for (const window of windows) {
+          segment = `transition:${window.from}:${window.to}:forward`;
+          // Add uniform samples to the original five seam/midpoint samples.
+          const ys = [...new Set([
+            window.start - 2, window.start + 2, window.end - 2, window.end + 2,
+            ...Array.from({ length: 9 }, (_, i) => window.start + (window.end - window.start) * i / 8),
+          ])].sort((a, b) => a - b);
+          expect((window.end - window.start) / geometry.stage).toBeCloseTo(window.to === 'footer' ? Math.min(3.2, (window.end - windows.at(-2)!.end) / geometry.stage) : 3.2, 6);
+          const forward: Awaited<ReturnType<typeof at>>[] = [];
+          for (const y of ys) {
+            const pose = await at(y);
+            // Pricing is intentionally opaque; there is no rendered pose there.
+            if (pose.scroll >= pricing.top && pose.scroll <= pricing.top + Math.round(pricing.height) - geometry.canvasHeight) {
+              expect(pose.suspended).toBe('true');
+            } else {
+              expect(pose.suspended).toBe('false');
+              expect(pose.values.every(Number.isFinite)).toBe(true);
+            }
+            forward.push(pose);
+          }
+          for (const pair of [[0, 1], [ys.length - 2, ys.length - 1]]) {
+            const [a, b] = pair.map(i => forward[i]);
+            if (a.suspended === 'true' || b.suspended === 'true') continue;
+            for (let i = 0; i < a.values.length; i++) expect(Math.abs(a.values[i] - b.values[i]), `${window.from}:${window.to} boundary pose`).toBeLessThan(0.15);
+          }
+          const regular = Array.from({ length: 9 }, (_, i) => forward[ys.findIndex(y => Math.abs(y - window.start - (window.end - window.start) * i / 8) < 0.001)]);
+          // Normalize each path by its own traveled distance. World units of a
+          // phone, room and camera are not interchangeable physical velocities.
+          if (regular.every(sample => sample.suspended !== 'true')) {
+            for (const name of Object.keys(regular[0].channels)) {
+              const distances = regular.slice(1).map((sample, i) => {
+                const a = regular[i].channels[name], b = sample.channels[name];
+                return name.endsWith('Quaternion')
+                  ? 2 * Math.acos(Math.min(1, Math.abs(a.reduce((sum, v, n) => sum + v * b[n], 0))))
+                  : Math.hypot(...a.map((v, n) => v - b[n]));
+              });
+              const length = distances.reduce((a, b) => a + b, 0);
+              if (length < 0.001) continue;
+              const mean = length / ((regular.at(-1)!.scroll - regular[0].scroll) / geometry.stage);
+              const speeds = distances.map((distance, i) => distance / ((regular[i + 1].scroll - regular[i].scroll) / geometry.stage));
+              expect(Math.max(...speeds) / mean, `${window.from}:${window.to} ${name} normalized velocity`).toBeLessThan(1.42);
+            }
+          }
+          // Copy uses a deliberate 1.6-stage active fade in each half of the
+          // common 3.2-stage handoff; normalize that active interval, not its
+          // intentional zero-opacity hold (whole-window peak would be 8/3).
+          for (const [id, active] of [[window.from, regular.slice(0, 5)], [window.to, regular.slice(4)]] as const) {
+            if (id === 'open-weight') continue; // Interactive pricing is native.
+            for (const field of ['opacity', 'top'] as const) {
+              const steps = active.slice(1).map((sample, i) => Math.abs(sample.copy[id][field] - active[i].copy[id][field]));
+              const length = steps.reduce((a, b) => a + b, 0);
+              if (length < 0.0001) continue;
+              const mean = length / ((active.at(-1)!.scroll - active[0].scroll) / geometry.stage);
+              const speeds = steps.map((distance, i) => distance / ((active[i + 1].scroll - active[i].scroll) / geometry.stage));
+              expect(Math.max(...speeds) / mean, `${id}: rendered text ${field} active-phase velocity`).toBeLessThan(1.42);
+            }
+          }
+          if (window.from !== 'open-weight' && window.to !== 'open-weight') {
+            expect(regular[4].copy[window.from].opacity).toBeLessThan(0.001);
+            expect(regular[4].copy[window.to].opacity).toBeLessThan(0.001);
+          }
+          // Retain reversal checks for all original seam/midpoint positions.
+          segment = `transition:${window.from}:${window.to}:reverse`;
+          const reverseYs = [window.end + 2, window.end - 2, (window.start + window.end) / 2, window.start + 2, window.start - 2];
+          for (const y of reverseYs) {
+            const i = ys.findIndex(sample => Math.abs(sample - y) < 0.001);
+            const reverse = await at(y);
+            if (reverse.suspended === 'true') continue;
+            reverse.values.forEach((value, n) => expect(value).toBeCloseTo(forward[i].values[n], 3));
+          }
+          await saveTelemetry();
+        }
+        // Ordinary chapters retain four active stages; the two three-item reading
+        // chapters now have eight, between unchanged 1.1-stage edges.
+        for (const chapter of geometry.chapters.slice(3, 10)) {
+          segment = `presentation:${chapter.id}`;
+          for (const fraction of [0, 0.25, 0.5, 0.75, 1])
+            await at(chapter.top + geometry.stage * (1.1 + (['features', 'social-content'].includes(chapter.id) ? 8 : 4) * fraction));
+        }
+        await saveTelemetry();
+        // Cross the internal opening chapter labels and sampled camera anchors.
+        const motion = await page.locator('.opening-journey').evaluate(el =>
+          Number((el as HTMLElement).style.getPropertyValue('--opening-motion-vh')) * el.firstElementChild!.clientHeight / 100);
+        segment = 'opening-anchors';
+        for (const p of [0.125, 0.25, 0.375, 0.5, 0.625, 0.75, 0.875, 1]) {
+          const y = (motion - 2 * geometry.stage) * p + (p >= 0.5 ? 2 * geometry.stage : 0);
+          const [a, b] = [await at(y - 2), await at(y + 2)];
+          a.values.forEach((value, n) => expect(Math.abs(value - b.values[n])).toBeLessThan(0.15));
+        }
+        segment = 'opening-ai-hold';
+        const holdStart = motion / 2 - geometry.stage;
+        const holdSamples: Awaited<ReturnType<typeof at>>[] = [];
+        for (const fraction of [0.05, 0.5, 0.95, 0.5, 0.05])
+          holdSamples.push(await at(holdStart + 2 * geometry.stage * fraction));
+        for (const sample of holdSamples) {
+          expect(sample.copy.ai.opacity).toBeCloseTo(1, 6);
+          sample.values.forEach((value, index) => expect(value).toBeCloseTo(holdSamples[0].values[index], 6));
+        }
+        const [enterBefore, enterAfter] = [await at(holdStart - 2), await at(holdStart + 2)];
+        enterBefore.values.forEach((value, index) => expect(Math.abs(value - enterAfter.values[index])).toBeLessThan(0.15));
+        await saveTelemetry();
+        await testInfo.attach('rendered-scroll-telemetry', { path: testInfo.outputPath('rendered-scroll-telemetry.json'), contentType: 'application/json' });
+        segment = 'normal-motion-stop';
+        await page.emulateMedia({ reducedMotion: 'no-preference' });
+        const feature = windows.find(window => window.from === 'features')!;
+        await at((feature.start + feature.end) / 2);
+        await expect(canvas).toHaveAttribute('data-settled', 'true', { timeout: 10_000 });
+        await expect(canvas).toHaveAttribute('data-transition', 'features:encryption');
+        segment = 'normal-motion-laptop-hinge';
+        const laptopChapter = geometry.chapters.find(chapter => chapter.id === 'sustainability')!;
+        for (const fraction of [0, 0.25, 0.5, 0.75, 1])
+          await at(laptopChapter.top + geometry.stage * (1.1 + 4 * fraction), true);
+        await saveTelemetry();
+        // Keep actual rendered evidence, including successful runs. The workflow
+        // uploads these before another browser family clears test-results.
+        await page.emulateMedia({ reducedMotion: 'reduce' });
+        const productEntry = windows.find(window => window.to === 'product')!;
+        const productExit = windows.find(window => window.from === 'product')!;
+        for (const [name, section, y] of [
+          ['room', 'hero', 0],
+          ['phone', 'wearable', motion],
+          ['laptop', 'sustainability', laptopChapter.top + geometry.stage * 3.1],
+          ['support', 'product', (productEntry.end + productExit.start) / 2],
+        ] as const) {
+          segment = `screenshot:${name}`;
+          await at(y);
+          await expect(canvas).toHaveAttribute('data-section', section);
+          await expect(canvas).toHaveAttribute('data-table-setting-visible', 'false');
+          await expect(canvas).toHaveAttribute('data-suspended', 'false');
+          await expect(canvas).toHaveAttribute('data-settled', 'true', { timeout: 10_000 });
+          await expect(page.locator('.preloader')).toHaveCount(0);
+          expect(await canvas.evaluate(el => Number((el as HTMLCanvasElement).dataset.drawCalls))).toBeGreaterThan(0);
+          const screenshotPath = testInfo.outputPath(`rendered-${name}.png`);
+          await page.screenshot({ path: screenshotPath });
+          await testInfo.attach(`rendered-${name}`, { path: screenshotPath, contentType: 'image/png' });
+        }
+        if (viewport.width < 768) {
+          expect(await page.evaluate(() => matchMedia('(hover: none) and (pointer: coarse)').matches)).toBe(true);
+          const frozenLayout = () => page.evaluate(() => ({
+            scroll: scrollY, height: document.documentElement.scrollHeight,
+            journeyVH: document.documentElement.style.getPropertyValue('--vistaire-journey-vh'),
+            sceneVH: document.documentElement.style.getPropertyValue('--vistaire-scene-vh'),
+            macTitle: getComputedStyle(document.querySelector('.living-title')!).fontSize,
+            chapters: [...document.querySelectorAll<HTMLElement>('.chapter')].map(el => ({
+              id: el.id, top: el.offsetTop, height: el.offsetHeight, stage: el.firstElementChild!.clientHeight,
+            })),
+          }));
+          const before = await frozenLayout();
+          for (const height of [932, viewport.height]) {
+            segment = `mobile-toolbar:${height}`;
+            const framesBeforeResize = Number(await canvas.getAttribute('data-frames'));
+            await page.setViewportSize({ width: viewport.width, height });
+            await expect.poll(() => page.locator('.world').evaluate(el => el.getBoundingClientRect().bottom)).toBeGreaterThanOrEqual(height);
+            await waitForProcessedPose(page, framesBeforeResize, false, { target: before.scroll, artifact: testInfo.outputPath('rendered-pending-pose-telemetry.json') });
+            expect(await frozenLayout()).toEqual(before);
+            const coverage = await canvas.evaluate(el => ({
+              viewport: { width: innerWidth, height: innerHeight },
+              world: document.querySelector('.world')!.getBoundingClientRect().toJSON(),
+              canvas: el.getBoundingClientRect().toJSON(),
+              processedWidth: Number((el as HTMLCanvasElement).dataset.processedViewportWidth),
+              processedHeight: Number((el as HTMLCanvasElement).dataset.processedViewportHeight),
+              frames: Number((el as HTMLCanvasElement).dataset.frames),
+            }));
+            viewportCoverage.push(coverage);
+            expect(coverage.viewport).toEqual({ width: viewport.width, height });
+            for (const surface of [coverage.world, coverage.canvas]) {
+              expect(surface.top).toBeLessThanOrEqual(0);
+              expect(surface.bottom).toBeGreaterThanOrEqual(height);
+              expect(surface.width).toBe(coverage.processedWidth);
+              expect(surface.height).toBe(coverage.processedHeight);
+            }
+            if (height === 932) {
+              const screenshotPath = testInfo.outputPath('rendered-support-expanded.png');
+              await page.screenshot({ path: screenshotPath });
+              await testInfo.attach('rendered-support-expanded', { path: screenshotPath, contentType: 'image/png' });
+            }
+          }
+        }
+        segment = 'screenshot:footer-directory';
+        await at(await page.evaluate(() => document.documentElement.scrollHeight));
+        await expect(canvas).toHaveAttribute('data-section', 'footer');
+        await expect(canvas).toHaveAttribute('data-suspended', 'false');
+        await expect(canvas).toHaveAttribute('data-settled', 'true', { timeout: 10_000 });
+        await expect(page.locator('#footer .footer-bottom')).toBeInViewport();
+        const footerScreenshot = testInfo.outputPath('rendered-footer-directory.png');
+        await page.screenshot({ path: footerScreenshot });
+        await testInfo.attach('rendered-footer-directory', { path: footerScreenshot, contentType: 'image/png' });
+        expect(errors).toEqual([]);
+      } finally {
+        // Keep the failing window too; later suites clear test-results.
+        lastDiagnostic = await diagnosticSnapshot(page);
+        await saveTelemetry();
+      }
+    });
+  }
+});
+
+renderedTest.describe('food zoom safety (Chromium software WebGL)', () => {
+  renderedTest.skip(({ browserName }) => browserName !== 'chromium', 'SwiftShader verification uses Chromium');
+  for (const [path, viewport] of [['/', { width: 1440, height: 900 }], ['/en', { width: 390, height: 844 }]] as const) {
+    renderedTest(`${path} preserves whole-food reset and safe close-ups while rotating and resizing`, async ({ page }, testInfo) => {
+      // CI completed six desktop models while the original aggregate budget
+      // expired during burger zoom polling. Retain every pose/action and the
+      // 15s settle/viewport waits; only this measured whole-workload ceiling
+      // grows. timeout:0 pose waits/evaluations still rely on that global cap.
+      renderedTest.setTimeout(viewport.width > 768 ? 900_000 : 600_000);
+      await page.setViewportSize(viewport);
+      await page.emulateMedia({ reducedMotion: 'reduce' });
+      await installSceneRAFDiagnostics(page);
+      // Observe native resize delivery and the real CSS viewport probes. This
+      // bounded QA recorder never dispatches/retries a resize or repairs layout.
+      await page.addInitScript(() => {
+        const samples: unknown[] = [];
+        let resizeEvents = 0, droppedSamples = 0, pendingFrame = 0;
+        const snapshot = (kind: string) => {
+          const input = {
+            kind, at: performance.now(), innerWidth, innerHeight,
+            screenWidth: screen.width, screenHeight: screen.height,
+            maxTouchPoints: navigator.maxTouchPoints,
+            coarseNoHover: matchMedia('(hover: none) and (pointer: coarse)').matches,
+            coarsePointer: matchMedia('(pointer: coarse)').matches,
+            finePointer: matchMedia('(pointer: fine)').matches,
+            hover: matchMedia('(hover: hover)').matches,
+          };
+          // This listener is installed before production handlers. Do not force
+          // style/layout here and accidentally hide a stale-probe resize race.
+          if (kind === 'resize') return input;
+          const root = document.documentElement;
+          const style = root ? getComputedStyle(root) : null;
+          return {
+            ...input, clientWidth: root?.clientWidth, clientHeight: root?.clientHeight,
+            probes: [...(document.body?.children ?? [])]
+              .filter((element): element is HTMLElement => element instanceof HTMLElement &&
+                ['100svh', '100lvh'].includes(element.style.height) && element.style.contain === 'strict')
+              .map(element => ({ unit: element.style.height, rect: element.getBoundingClientRect().toJSON(), computedHeight: getComputedStyle(element).height })),
+            journeyVH: style?.getPropertyValue('--vistaire-journey-vh'),
+            sceneVH: style?.getPropertyValue('--vistaire-scene-vh'),
           };
         };
-      };
-      expect(payload.payload?.locale).toBe("en");
-      expect(payload.payload?.menuSlug).toBe(experience.id);
-      expect(payload.payload?.menuUi?.menu?.activeLocale).toBe("en-CA");
-      expect(payload.payload?.menuUi?.menu?.translationStatus?.status).toBe(
-        "up_to_date"
-      );
-      expect(payload.payload?.comparison?.pdfSections?.length ?? 0).toBeGreaterThan(0);
-      expect(payload.payload?.comparison?.categoryTabs?.length ?? 0).toBeGreaterThan(1);
-      expect(payload.payload?.comparison?.categoryCards?.length ?? 0).toBeGreaterThan(0);
-      expect(payload.payload?.menuUi?.menu?.dishes?.length ?? 0).toBeGreaterThan(0);
-      expect(
-        payload.payload?.menuUi?.menu?.dishes?.some(
-          (dish) =>
-            dish.category === "Current selection" ||
-            dish.categoryDescription === "A real dish from the public menu" ||
-            dish.categorySlug === "current"
-        )
-      ).toBe(false);
-      const expectedDish = payload.payload?.menuUi?.menu?.dishes?.find(
-        (dish) => dish.name === expectedEnglish[index].dish
-      );
-      expect(expectedDish).toEqual(
-        expect.objectContaining({
-          category: expectedEnglish[index].category,
-          categoryDescription: expectedEnglish[index].categoryDescription,
-          description: expectedEnglish[index].dishDescription
-        })
-      );
-    }
-
-    const dishes = page.getByTestId("landing-dishes");
-    await expect(dishes.locator("[data-menu-slug]")).toHaveCount(3);
-    const expectedEnglishFeaturedDescriptions = [
-      [
-        "Brown butter, preserved lemon, and garden herbs.",
-        "Delicate, tender ravioli balanced by the sweetness of honey and the woodland notes of burnt rosemary."
-      ],
-      [
-        "Burrata, green pesto, and fresh herbs.",
-        "Basil pesto pasta, creamy burrata, Parmesan, and a drizzle of olive oil."
-      ],
-      [
-        "Ash-roasted beetroot with smoked labneh, blackcurrant, pistachio, and raspberry vinegar."
-      ]
-    ];
-    for (const [index, card] of (
-      await dishes.locator("[data-menu-slug]").all()
-    ).entries()) {
-      await expect(card).toHaveAttribute("lang", "en-CA");
-      await expect(card.locator("img")).toHaveAttribute(
-        "alt",
-        / from (Maison Élyse|Trouvable|Sauge Noire)$/
-      );
-      expect(expectedEnglishFeaturedDescriptions[index]).toContain(
-        (await card.locator("h3 + span").textContent())?.trim()
-      );
-    }
-    await expect(dishes).toContainText(
-      "Fresh goat cheese ravioli & Monteregie honey"
-    );
-    await expect(dishes).toContainText("Pesto Burrata Verde");
-    await expect(dishes).toContainText("Betterave sous la cendre");
-    await expect(page.getByText("Open the full experience").first()).toBeVisible();
-
-    const englishPageText = await page.locator("body").innerText();
-    for (const forbiddenFrench of [
-      "La carte du moment",
-      "Herbier de la carte",
-      "Menu PDF complet de",
-      "Photo du plat",
-      "Ouvrez la fiche actuelle",
-      "dans la carte"
-    ]) {
-      expect(englishPageText).not.toContain(forbiddenFrench);
-    }
-  });
-
-  test("links one current dish from each experience to its real detail page", async ({
-    page
-  }) => {
-    await page.goto(landingUrl(), { waitUntil: "domcontentloaded" });
-    const dishes = page.getByTestId("landing-dishes");
-    const dishLinks = dishes.getByRole("link");
-    await expect(dishLinks).toHaveCount(3);
-    await expect(dishLinks.nth(0)).toHaveAttribute(
-      "href",
-      /^\/menu\/maison-elyse\/dishes\/[^?]+\?lang=fr-CA$/
-    );
-    await expect(dishLinks.nth(1)).toHaveAttribute(
-      "href",
-      /^\/menu\/trouvable\/dishes\/[^?]+\?lang=fr-CA$/
-    );
-    const saugeHref = await dishLinks.nth(2).getAttribute("href");
-    expect(saugeHref).not.toBeNull();
-    const saugeUrl = new URL(saugeHref ?? "", "https://vistaire.test");
-    expect(saugeUrl.pathname).toMatch(
-      /^\/menu\/sauge-noire\/dishes\/[^/]+$/
-    );
-    expect(saugeUrl.searchParams.get("lang")).toBe("fr-CA");
-    expect(saugeUrl.searchParams.get("view")).toBe("sauge-2");
-  });
-
-  test("loads all three featured dish photos without broken image dimensions", async ({
-    page
-  }) => {
-    const runtime = collectRuntimeFailures(page);
-    await page.goto(landingUrl(), { waitUntil: "domcontentloaded" });
-    const dishes = page.getByTestId("landing-dishes");
-    await dishes.scrollIntoViewIfNeeded();
-    const images = dishes.locator("img");
-    await expect(images).toHaveCount(3);
-    await expectLoadedImages(images, 3);
-    expect(runtime.failedRequests).toEqual([]);
-    expect(runtime.failedResponses).toEqual([]);
-  });
-
-  for (const viewport of [
-    { width: 390, height: 844 },
-    { width: 430, height: 932 },
-    { width: 768, height: 1024 },
-    { width: 1280, height: 900 },
-    { width: 1440, height: 900 }
-  ]) {
-    test(`has no horizontal overflow at ${viewport.width}x${viewport.height}`, async ({
-      page
-    }) => {
-      await page.setViewportSize(viewport);
-      await page.goto(landingUrl(), { waitUntil: "domcontentloaded" });
-      await scrollThroughLanding(page);
-      await expectNoHorizontalOverflow(page);
-      await expect(page.getByTestId("landing-comparison-phone")).toBeVisible();
-    });
-  }
-
-  test("keeps the hero video looping when Save-Data is enabled", async ({ page }) => {
-    await page.addInitScript(() => {
-      Object.defineProperty(navigator, "connection", {
-        configurable: true,
-        value: { saveData: true }
+        const record = (kind: string) => {
+          samples.push(snapshot(kind));
+          if (samples.length > 20) { samples.shift(); droppedSamples++; }
+        };
+        addEventListener('resize', () => {
+          resizeEvents++;
+          record('resize');
+          if (!pendingFrame) pendingFrame = requestAnimationFrame(() => {
+            pendingFrame = 0;
+            record('next-frame');
+          });
+        }, { passive: true });
+        addEventListener('DOMContentLoaded', () => record('document-ready'), { once: true });
+        (window as typeof window & { sceneResizeDiagnostics: { read: () => unknown } }).sceneResizeDiagnostics = {
+          read: () => ({ resizeEvents, droppedSamples, samples, current: snapshot('current') }),
+        };
       });
-    });
-    await page.goto(landingUrl(), { waitUntil: "domcontentloaded" });
-    const video = page.locator("#landing-hero-video");
-    await expect(video).toHaveCount(1);
-    await expect(video).toHaveAttribute("preload", "metadata");
-    await expect(video).toHaveAttribute("autoplay", "");
-    await expect(video).toHaveAttribute("loop", "");
-    await expect(video.locator("xpath=..").getByRole("button")).toHaveCount(0);
-  });
+      const errors: string[] = [];
+      page.on('pageerror', error => errors.push(error.message));
+      await page.goto(`${path}?sceneDiagnostics=1`, { waitUntil: 'domcontentloaded' });
+      const canvas = page.locator('.scene-canvas');
+      await expect(canvas).toHaveAttribute('data-ready', 'true', { timeout: 120_000 });
+      await expect(canvas).toHaveAttribute('data-framing-ready', 'true', { timeout: 60_000 });
+      await expect(canvas).toHaveAttribute('data-laptop-ready', 'false');
+      await expect(page.locator('.preloader')).toHaveCount(0);
+      let expectedViewport: { width: number; height: number } = viewport;
+      const atGrip = async (framesBeforeResize?: number) => {
+        await waitForViewportLayout(page, expectedViewport);
+        const target = await page.locator('#grip').evaluate(el => {
+          const y = el.getBoundingClientRect().top + scrollY + ((el as HTMLElement).offsetHeight - el.firstElementChild!.clientHeight) / 2;
+          scrollTo({ top: y, behavior: 'instant' });
+          return y;
+        });
+        await waitForProcessedPose(page, framesBeforeResize, true, { target, artifact: testInfo.outputPath('rendered-pending-pose-telemetry.json') });
+        await expect(canvas).toHaveAttribute('data-section', 'grip');
+      };
+      type Fit = { model: string | undefined; frame: { x: number; y: number; width: number; height: number }; food: { x: number; y: number; width: number; height: number } | null; scale: number; requested: number; fitted: number; meshScale: string | undefined; quaternion: string | undefined; width: number; height: number; viewport: { width: number; height: number }; canvasRect: { x: number; y: number; width: number; height: number }; dataset: Record<string, string | undefined> };
+      const hullsByUrl = JSON.parse(readFileSync('public/immersive-assets/dishes/framing-hulls.json', 'utf8')).byUrl as Record<string, { id: string; vertices: [number, number, number][] }>;
+      const desktopFootprints: Record<string, number> = { homard: 1.75, souffle: 1.65, huitres: 1.5, sushi: 2, 'chocolat-fume': 1.5, poutine: 1.75, burger: 1.1 };
+      const samples: { scenario: string; fit: Fit; minimumFoodY?: number; minimumCameraDepth?: number }[] = [];
+      let phase = 'initial';
+      let lastDiagnostic: Awaited<ReturnType<typeof diagnosticSnapshot>> = null;
+      const zoomRequests: { target: number; framesBefore: number; startedAt: string; acknowledgedAfterMs: number | null }[] = [];
+      const artifact = testInfo.outputPath('rendered-zoom-fit-telemetry.json');
+      const saveTelemetry = () => writeFile(artifact, JSON.stringify({ renderer: 'Chromium SwiftShader', phase, expectedViewport, lastDiagnostic, errors, samples, zoomRequests }, null, 2));
+      const requestZoom = async (target: number, action: () => Promise<unknown>) => {
+        const request = { target, framesBefore: Number(await canvas.getAttribute('data-frames')), startedAt: new Date().toISOString(), acknowledgedAfterMs: null as number | null };
+        const started = Date.now();
+        zoomRequests.push(request);
+        await action();
+        // Keep the original 5s acknowledgement contract. A matching old pose
+        // cannot satisfy it; the 15s settlement check remains a separate step.
+        await expect.poll(() => canvas.evaluate((el, framesBefore) =>
+          Number((el as HTMLCanvasElement).dataset.frames) > framesBefore
+            ? Number((el as HTMLCanvasElement).dataset.cameraDolly) : Number.NaN,
+        request.framesBefore)).toBeCloseTo(target, 6);
+        request.acknowledgedAfterMs = Date.now() - started;
+      };
+      const capture = async (count = 1, reset = false) => canvas.evaluate(async (el, { count, reset }) => {
+        const result = [];
+        if (reset) document.querySelector<HTMLButtonElement>('.reset-dish')!.click();
+        for (let i = 0; i < count; i++) {
+          await new Promise<void>(resolve => requestAnimationFrame(() => resolve()));
+          const d = (el as HTMLCanvasElement).dataset;
+          result.push({ model: d.renderedModel, frame: JSON.parse(d.focusBounds!), food: JSON.parse(d.dishBounds ?? 'null'), scale: Number(d.dishScale?.split(',')[0]), requested: Number(d.cameraDolly), fitted: Number(d.fittedZoom), meshScale: d.dishMeshScale, quaternion: d.dishQuaternion, width: el.clientWidth, height: el.clientHeight, viewport: { width: innerWidth, height: innerHeight }, canvasRect: el.getBoundingClientRect().toJSON(), dataset: { ...d } });
+        }
+        return result;
+      }, { count, reset }) as Promise<Fit[]>;
+      const dishUp = (fit: Fit) => {
+        const [x, y, z, w] = fit.quaternion!.split(',').map(Number);
+        return [2 * (x * y - z * w), 1 - 2 * (x * x + z * z), 2 * (y * z + x * w)];
+      };
+      const checkYawOnly = (fit: Fit, baseline: Fit, scenario: string) => {
+        // A diagonal gesture still rotates yaw, but cannot tilt the authored
+        // dish up-axis or move the camera to refit each changing silhouette.
+        dishUp(fit).forEach((value, index) => expect(value, `${scenario}: fixed dish up-axis`).toBeCloseTo(dishUp(baseline)[index], 6));
+        for (const field of ['fittedCameraPosition', 'fittedLook']) {
+          const before = baseline.dataset[field]!.split(',').map(Number);
+          fit.dataset[field]!.split(',').map(Number).forEach((value, index) =>
+            expect(value, `${scenario}: fixed ${field}`).toBeCloseTo(before[index], 6));
+        }
+        for (const field of ['cameraDistance', 'cameraDolly', 'fittedZoom', 'zoomMax'])
+          expect(Number(fit.dataset[field]), `${scenario}: fixed ${field}`).toBeCloseTo(Number(baseline.dataset[field]), 6);
+        const view = JSON.parse(fit.dataset.cameraViewOffset!);
+        const baselineView = JSON.parse(baseline.dataset.cameraViewOffset!);
+        for (const field of ['fullWidth', 'fullHeight', 'offsetX', 'offsetY', 'width', 'height'])
+          expect(view[field], `${scenario}: fixed view ${field}`).toBeCloseTo(baselineView[field], 6);
+      };
+      const check = (fit: Fit, scenario: string) => {
+        const sample: { scenario: string; fit: Fit; minimumFoodY?: number; minimumCameraDepth?: number } = { scenario, fit };
+        samples.push(sample);
+        if (!fit.food) {
+          expect(scenario.startsWith('chapter-handoff:'), 'only an outgoing dish may disappear').toBe(true);
+          expect(fit.scale).toBeLessThan(0.003);
+          return;
+        }
+        const hull = fit.model === 'homard'
+          ? hullsByUrl[viewport.width < 768 ? '/media/homard-mobile.glb' : '/media/homard.glb']
+          : Object.values(hullsByUrl).find(hull => hull.id === fit.model)!;
+        expect(hull, `${scenario}: actual shipped food hull`).toBeDefined();
+        const displayScale = fit.width < 768 ? (fit.model === 'burger' ? 0.55 : 1) : desktopFootprints[fit.model!] / 2.35;
+        const positionY = Number(fit.dataset.dishPosition!.split(',')[1]);
+        const [scaleX, scaleY, scaleZ] = fit.dataset.dishScale!.split(',').map(value => Number(value) * displayScale);
+        const [qx, qy, qz, qw] = fit.quaternion!.split(',').map(Number);
+        // Independently transform each shipped vertex with the captured pose:
+        // scale, rotate by the unit quaternion, then translate into world Y.
+        sample.minimumFoodY = Math.min(...hull.vertices.map(([x, y, z]) =>
+          positionY + 2 * (qx * qy + qw * qz) * x * scaleX
+            + (1 - 2 * (qx * qx + qz * qz)) * y * scaleY
+            + 2 * (qy * qz - qw * qx) * z * scaleZ));
+        expect(sample.minimumFoodY, `${scenario}: food remains above the opaque tabletop`).toBeGreaterThanOrEqual(-0.02 - 1e-5);
+        const position = fit.dataset.dishPosition!.split(',').map(Number);
+        const camera = fit.dataset.fittedCameraPosition!.split(',').map(Number);
+        const look = fit.dataset.fittedLook!.split(',').map(Number);
+        const length = Math.hypot(...camera.map((value, index) => value - look[index]));
+        const direction = camera.map((value, index) => (value - look[index]) / length);
+        sample.minimumCameraDepth = Math.min(...hull.vertices.map(([x, y, z]) => {
+          x *= scaleX; y *= scaleY; z *= scaleZ;
+          const point = [
+            position[0] + (1 - 2 * (qy * qy + qz * qz)) * x + 2 * (qx * qy - qw * qz) * y + 2 * (qx * qz + qw * qy) * z,
+            position[1] + 2 * (qx * qy + qw * qz) * x + (1 - 2 * (qx * qx + qz * qz)) * y + 2 * (qy * qz - qw * qx) * z,
+            position[2] + 2 * (qx * qz - qw * qy) * x + 2 * (qy * qz + qw * qx) * y + (1 - 2 * (qx * qx + qy * qy)) * z,
+          ];
+          return point.reduce((depth, value, index) => depth + (camera[index] - value) * direction[index], 0);
+        }));
+        // The unchanged perspective camera uses near=.05. Requested close-ups
+        // may crop side planes but must keep the complete mesh in front of near.
+        expect(sample.minimumCameraDepth, `${scenario}: no near-plane cutting`).toBeGreaterThanOrEqual(0.05 - 1e-5);
+        const wholeFood = fit.requested <= 1.0002;
+        if (wholeFood) {
 
-  test("keeps the hero video loop configured with reduced motion", async ({ page }) => {
-    await page.emulateMedia({ reducedMotion: "reduce" });
-    await page.goto(landingUrl(), { waitUntil: "domcontentloaded" });
-    const video = page.locator("#landing-hero-video");
-    await expect(video).toHaveCount(1);
-    await expect(video).toHaveAttribute("autoplay", "");
-    await expect(video).toHaveAttribute("loop", "");
-    await expect(video.locator("xpath=..").getByRole("button")).toHaveCount(0);
-    const transitionDuration = await page
-      .getByTestId("landing-comparison")
-      .evaluate((element) => getComputedStyle(element).transitionDuration);
-    expect(Number.parseFloat(transitionDuration)).toBeLessThanOrEqual(0.001);
-  });
-
-  test("keeps the loop contract without a manual playback control", async ({ page }) => {
-    await page.addInitScript(() => {
-      HTMLMediaElement.prototype.play = () => Promise.reject(new DOMException("Autoplay refused", "NotAllowedError"));
-    });
-    await page.goto(landingUrl(), { waitUntil: "domcontentloaded" });
-
-    const video = page.locator("#landing-hero-video");
-    await expect(video).toHaveCount(1);
-    await expect(video).toHaveAttribute("autoplay", "");
-    await expect(video).toHaveAttribute("loop", "");
-    await expect(video.locator("xpath=..").getByRole("button")).toHaveCount(0);
-    await expect(video).toHaveAttribute("poster", "/frames/menualive/frame_0200.webp");
-
-    await page.goto(landingUrl("/en"), { waitUntil: "domcontentloaded" });
-    await expect(video.locator("xpath=..").getByRole("button")).toHaveCount(0);
-  });
-
-  for (const viewport of [
-    { width: 390, height: 844 },
-    { width: 430, height: 932 }
-  ]) {
-    test(`autoplays only the optimized mobile hero video at ${viewport.width}px`, async ({
-      page
-    }) => {
-      const runtime = collectRuntimeFailures(page);
-      await page.setViewportSize(viewport);
-      await page.goto(landingUrl(), { waitUntil: "domcontentloaded" });
-
-      const video = page.locator("#landing-hero-video");
-      await expect(video.locator("xpath=..").getByRole("button")).toHaveCount(0);
-      await expect(video).toHaveAttribute("autoplay", "");
-      await expect(video).toHaveAttribute("loop", "");
-      await expect(video).toHaveAttribute("muted", "");
-      await expect(video).toHaveAttribute("playsinline", "");
-      await expect(video).toHaveAttribute("poster", HERO_POSTER);
-      await expect
-        .poll(() =>
-          video.evaluate((node) => new URL((node as HTMLVideoElement).currentSrc).pathname)
-        )
-        .toBe(MOBILE_HERO_VIDEO);
-      await expect(page.locator("[data-hero-media]")).toHaveAttribute(
-        "data-hero-media",
-        "video"
-      );
-      await expect(video).toHaveAttribute("data-hero-video-state", "playing");
-      await expect
-        .poll(() => video.evaluate((node) => (node as HTMLVideoElement).currentTime))
-        .toBeGreaterThan(0.05);
-      expect(runtime.heroVideoRequests).toContain(MOBILE_HERO_VIDEO);
-      expect(runtime.heroVideoRequests).not.toContain(DESKTOP_HERO_VIDEO);
-
-      await expectPromotedHeroUsableAcrossScroll(page, video);
-      await expectNoHorizontalOverflow(page);
-      await expect(page.locator("model-viewer")).toHaveCount(0);
-      expect(runtime.modelRequests).toEqual([]);
-      expect(runtime.consoleErrors).toEqual([]);
-      expect(runtime.failedRequests).toEqual([]);
-      expect(runtime.failedResponses).toEqual([]);
-      expect(runtime.pageErrors).toEqual([]);
+        expect(fit.food.x, `${scenario}: left`).toBeGreaterThanOrEqual(fit.frame.x - 2);
+        expect(fit.food.y, `${scenario}: top`).toBeGreaterThanOrEqual(fit.frame.y - 2);
+        expect(fit.food.x + fit.food.width, `${scenario}: right`).toBeLessThanOrEqual(fit.frame.x + fit.frame.width + 2);
+        expect(fit.food.y + fit.food.height, `${scenario}: bottom`).toBeLessThanOrEqual(fit.frame.y + fit.frame.height + 2);
+        }
+        if (!scenario.startsWith('chapter-handoff:')) {
+          expect(fit.viewport, `${scenario}: requested viewport is current`).toEqual(expectedViewport);
+          if (wholeFood) {
+          const scaleX = fit.canvasRect.width / fit.width;
+          const scaleY = fit.canvasRect.height / fit.height;
+          expect(fit.canvasRect.x + fit.food.x * scaleX, `${scenario}: viewport left`).toBeGreaterThanOrEqual(-2);
+          expect(fit.canvasRect.y + fit.food.y * scaleY, `${scenario}: viewport top`).toBeGreaterThanOrEqual(-2);
+          expect(fit.canvasRect.x + (fit.food.x + fit.food.width) * scaleX, `${scenario}: viewport right`).toBeLessThanOrEqual(fit.viewport.width + 2);
+          expect(fit.canvasRect.y + (fit.food.y + fit.food.height) * scaleY, `${scenario}: viewport bottom`).toBeLessThanOrEqual(fit.viewport.height + 2);
+          }
+          expect(fit.frame.height, `${scenario}: meaningful food frame`).toBeGreaterThanOrEqual(120);
+          expect(fit.food.height, `${scenario}: food remains visible`).toBeGreaterThan(12);
+          expect(fit.food.width, `${scenario}: food remains visible`).toBeGreaterThan(12);
+        }
+        expect(fit.fitted).toBeGreaterThan(0);
+        expect(fit.fitted).toBeLessThanOrEqual(fit.requested + 0.02);
+      };
+      try {
+        phase = 'initial-grip';
+        await atGrip();
+        for (const id of ['homard', 'souffle', 'huitres', 'sushi', 'chocolat-fume', 'poutine', 'burger']) {
+          phase = `${id}:selection`;
+          await page.locator(`.dish-switch [data-dish-id="${id}"]`).click();
+          await expect(canvas).toHaveAttribute('data-rendered-model', id, { timeout: 90_000 });
+          await atGrip();
+          const meshScale = await canvas.getAttribute('data-dish-mesh-scale');
+          const maximumZoom = Number(await canvas.getAttribute('data-zoom-max'));
+          expect(maximumZoom, `${id}: one real zoom step is available`).toBeGreaterThanOrEqual(1.2 - 1e-6);
+          expect(Number.isFinite(maximumZoom)).toBe(true);
+          expect(maximumZoom, `${id}: close-up passes the old four-times ceiling`).toBeGreaterThan(4);
+          if (id === 'homard') {
+            phase = `${id}:default-zoom`;
+            const [before] = await capture();
+            check(before, phase);
+            expect(before.requested).toBeCloseTo(1, 6);
+            expect(before.fitted).toBeCloseTo(1, 6);
+            phase = `${id}:one-zoom-step`;
+            await requestZoom(1.2, () => page.locator('.dish-zoom button').nth(1).click());
+            await expect(canvas).toHaveAttribute('data-settled', 'true', { timeout: 15_000 });
+            const [enlarged] = await capture();
+            check(enlarged, phase);
+            expect(enlarged.fitted).toBeCloseTo(1.2, 6);
+            expect(enlarged.quaternion).toBe(before.quaternion);
+            expect(enlarged.meshScale).toBe(before.meshScale);
+            expect(enlarged.food!.width, 'zoom visibly enlarges the unchanged food').toBeGreaterThan(before.food!.width + 1);
+            expect(enlarged.food!.height, 'zoom visibly enlarges the unchanged food').toBeGreaterThan(before.food!.height + 1);
+            await expect(page.locator('.dish-zoom output')).toHaveText('120 %');
+          }
+          // Exercise the actual button handlers; batch requests before a frame
+          // so the fit cap, rather than repeated disabled clicks, is tested.
+          phase = `${id}:maximum`;
+          await requestZoom(maximumZoom, () => page.locator('.dish-zoom button').nth(1).evaluate((el, clicks) => {
+            for (let i = 0; i < clicks; i++) (el as HTMLButtonElement).click();
+          }, Math.ceil((maximumZoom - 0.6) / 0.2) + 1));
+          await expect(canvas).toHaveAttribute('data-settled', 'true', { timeout: 15_000 });
+          const [maximum] = await capture();
+          check(maximum, `${id}:maximum`);
+          expect(maximum.fitted).toBeCloseTo(maximumZoom, 6);
+          await expect(page.locator('.dish-zoom button').nth(1)).toBeDisabled();
+          await expect(page.locator('.dish-zoom output')).toHaveText(`${Math.round(maximumZoom * 100)} %`);
+          expect(await canvas.getAttribute('data-dish-mesh-scale')).toBe(meshScale);
+          phase = `${id}:damped-rotation`;
+          await page.emulateMedia({ reducedMotion: 'no-preference' });
+          const box = await page.locator('.dish-gesture').boundingBox();
+          expect(box).not.toBeNull();
+          const frames = capture(16);
+          await page.mouse.move(box!.x + box!.width * 0.45, box!.y + box!.height * 0.3);
+          await page.mouse.down();
+          await page.mouse.move(box!.x + box!.width * 0.7, box!.y + box!.height * 0.7, { steps: 4 });
+          await page.mouse.up();
+          const rotationFrames = await frames;
+          for (const fit of rotationFrames) {
+            check(fit, `${id}:damped-rotation`);
+            checkYawOnly(fit, maximum, `${id}:damped-rotation`);
+          }
+          expect(new Set(rotationFrames.map(fit => fit.quaternion)).size, `${id}: capture must contain actual rotation`).toBeGreaterThan(1);
+          await expect(canvas).toHaveAttribute('data-settled', 'true', { timeout: 15_000 });
+          for (const fit of await capture()) {
+            check(fit, `${id}:rotated`);
+            checkYawOnly(fit, maximum, `${id}:rotated`);
+          }
+          await expect(canvas).toHaveAttribute('data-table-setting-visible', 'false');
+          const screenshot = testInfo.outputPath(`rendered-zoom-${id}.png`);
+          await page.screenshot({ path: screenshot });
+          await testInfo.attach(`zoom-${id}`, { path: screenshot, contentType: 'image/png' });
+          phase = `${id}:home-settle`;
+          await page.locator('.rotation-range').focus();
+          await page.keyboard.press('Home'); // yaw −π, the reproduced reset case
+          await expect(page.locator('.rotation-range')).toHaveAttribute('aria-valuenow', '0');
+          await expect(canvas).toHaveAttribute('data-settled', 'true', { timeout: 15_000 });
+          phase = `${id}:damped-reset`;
+          const resetFrames = await capture(16, true);
+          for (const fit of resetFrames) check(fit, `${id}:damped-reset`);
+          // Keep the same16 observed reset frames. A close-up can now start near
+          // ten-times zoom, so compare progress proportionally to that start.
+          resetFrames.slice(1).forEach((fit, index) => expect(fit.requested).toBeLessThanOrEqual(resetFrames[index].requested + 1e-6));
+          expect(resetFrames.at(-1)!.requested - 1).toBeLessThanOrEqual((maximum.requested - 1) * 0.25);
+          await expect(canvas).toHaveAttribute('data-settled', 'true', { timeout: 15_000 });
+          const [resetFit] = await capture();
+          check(resetFit, `${id}:settled-reset`);
+          expect(Math.abs(resetFit.requested - 1)).toBeLessThanOrEqual(0.0002);
+          expect(Math.abs(resetFit.fitted - 1)).toBeLessThanOrEqual(0.0002);
+          await expect(page.locator('.dish-zoom output')).toHaveText('100 %');
+          // Leave the final burger zoomed for the resize/handoff checks below.
+          await page.emulateMedia({ reducedMotion: 'reduce' });
+          if (id === 'burger') {
+            await requestZoom(maximumZoom, () => page.locator('.dish-zoom button').nth(1).evaluate((el, clicks) => {
+              for (let i = 0; i < clicks; i++) (el as HTMLButtonElement).click();
+            }, Math.ceil((maximumZoom - 0.6) / 0.2) + 1));
+          }
+        }
+        // CSS viewport/orientation changes while already zoomed, not a claim
+        // about desktop browser-zoom UI or physical mobile address bars.
+        for (const size of viewport.width < 768 ? [{ width: 430, height: 932 }, { width: 844, height: 390 }, viewport] : [{ width: 1337, height: 591 }, viewport]) {
+          phase = `resize:${size.width}x${size.height}`;
+          const framesBeforeResize = Number(await canvas.getAttribute('data-frames'));
+          expectedViewport = size;
+          await page.setViewportSize(size);
+          await atGrip(framesBeforeResize);
+          for (const fit of await capture()) check(fit, `resize:${size.width}x${size.height}`);
+        }
+        const window = await page.locator('#grip').evaluate(el => ({ start: Number((el as HTMLElement).dataset.exitStart), end: Number((el as HTMLElement).dataset.exitEnd) }));
+        for (const fraction of [0, 0.25, 0.5, 0.75, 1, 0.75, 0.5, 0.25, 0]) {
+          phase = `chapter-handoff:${fraction}`;
+          const target = window.start + (window.end - window.start) * fraction;
+          await page.evaluate(y => scrollTo({ top: y, behavior: 'instant' }), target);
+          await waitForProcessedPose(page, undefined, false, { target, artifact: testInfo.outputPath('rendered-pending-pose-telemetry.json') });
+          for (const fit of await capture()) check(fit, `chapter-handoff:${fraction}`);
+        }
+        await saveTelemetry();
+        await testInfo.attach('zoom-fit-telemetry', { path: artifact, contentType: 'application/json' });
+        expect(errors).toEqual([]);
+      } finally {
+        // Preserve the violating fit or last completed pose on assertions/timeouts.
+        lastDiagnostic = await diagnosticSnapshot(page, expectedViewport);
+        await saveTelemetry();
+      }
     });
   }
-
-  test("keeps the slider usable in a real touch-enabled mobile context", async ({
-    browser
-  }) => {
-    const context = await browser.newContext({
-      hasTouch: true,
-      isMobile: true,
-      locale: "fr-CA",
-      viewport: { width: 390, height: 844 }
-    });
-    const page = await context.newPage();
-    try {
-      const runtime = collectRuntimeFailures(page);
-      await page.goto(landingUrl(), { waitUntil: "domcontentloaded" });
-      const comparison = page.getByTestId("landing-comparison");
-      await comparison.scrollIntoViewIfNeeded();
-      await expect(
-        comparison.locator('[data-public-menu-renderer="maison-elyse"]')
-      ).toHaveCount(1);
-      const tabs = comparison.getByRole("tab");
-      await expect
-        .poll(async () => {
-          await tabs.nth(2).click();
-          return tabs.nth(2).getAttribute("aria-selected");
-        })
-        .toBe("true");
-      await expect(
-        comparison.locator('[data-public-menu-renderer="sauge-noire"]')
-      ).toHaveCount(1, { timeout: LAZY_PREVIEW_TIMEOUT_MS });
-      await expectIndependentComparisonScrollRoots(comparison);
-
-      const slider = comparison.getByRole("slider");
-      const handleBox = await slider.boundingBox();
-      const frameBox = await comparison
-        .locator('[data-preview-comparison="pdf-vs-digital"]')
-        .boundingBox();
-      expect(handleBox).not.toBeNull();
-      expect(frameBox).not.toBeNull();
-      if (handleBox && frameBox) {
-        await performTouchGesture(
-          page,
-          {
-            x: handleBox.x + handleBox.width / 2,
-            y: handleBox.y + handleBox.height / 2
-          },
-          {
-            x: frameBox.x + frameBox.width * 0.2,
-            y: handleBox.y + handleBox.height / 2
-          }
-        );
-        await expect
-          .poll(async () => Number(await slider.getAttribute("aria-valuenow")))
-          .toBeLessThan(35);
-
-        await slider.press("Home");
-        await slider.press("Shift+ArrowRight");
-        await expect(slider).toHaveAttribute("aria-valuenow", "10");
-        await slider.press("Shift+ArrowRight");
-        await expect(slider).toHaveAttribute("aria-valuenow", "20");
-        await slider.press("Shift+ArrowRight");
-        await expect(slider).toHaveAttribute("aria-valuenow", "30");
-        await slider.press("Shift+ArrowRight");
-        await expect(slider).toHaveAttribute("aria-valuenow", "40");
-        await slider.press("Shift+ArrowRight");
-        await expect(slider).toHaveAttribute("aria-valuenow", "50");
-
-        const pdfRoot = comparison.locator(
-          '[data-comparison-scroll-root="pdf"]'
-        );
-        const digitalRoot = comparison.locator(
-          '[data-comparison-scroll-root="digital"]'
-        );
-        const windowScrollBefore = await page.evaluate(() => window.scrollY);
-        const pdfScrollBefore = await pdfRoot.evaluate(
-          (element) => element.scrollTop
-        );
-        const digitalScrollBefore = await digitalRoot.evaluate(
-          (element) => element.scrollTop
-        );
-        await performTouchGesture(
-          page,
-          {
-            x: frameBox.x + frameBox.width * 0.25,
-            y: frameBox.y + frameBox.height * 0.72
-          },
-          {
-            x: frameBox.x + frameBox.width * 0.25,
-            y: frameBox.y + frameBox.height * 0.3
-          }
-        );
-        await expect
-          .poll(() => pdfRoot.evaluate((element) => element.scrollTop))
-          .toBeGreaterThan(pdfScrollBefore);
-
-        await performTouchGesture(
-          page,
-          {
-            x: frameBox.x + frameBox.width * 0.75,
-            y: frameBox.y + frameBox.height * 0.72
-          },
-          {
-            x: frameBox.x + frameBox.width * 0.75,
-            y: frameBox.y + frameBox.height * 0.3
-          }
-        );
-        await expect
-          .poll(() => digitalRoot.evaluate((element) => element.scrollTop))
-          .toBeGreaterThan(digitalScrollBefore);
-        await expect
-          .poll(() => page.evaluate(() => window.scrollY))
-          .toBe(windowScrollBefore);
-      }
-      await expectNoHorizontalOverflow(page);
-      expect(runtime.modelRequests).toEqual([]);
-      expect(runtime.menuAnalyticsRequests).toEqual([]);
-    } finally {
-      await context.close();
-    }
-  });
 });

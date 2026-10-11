@@ -1,0 +1,198 @@
+import { resolvePublicModelUrl } from "../../lib/publicModelAssets.ts";
+import { getSeoMarketingImage } from "../../lib/seoMarketingImages.ts";
+
+export const site = "https://www.vistaire.ca";
+export const collections = [
+  {
+    id: "acrylique",
+    name: "Acrylique",
+    price: 2000,
+    extra: 40,
+    image: "/images/marketing/sauge-noire-acrylique.webp",
+    description:
+      "Une présence légère et lumineuse. Le support laisse toute la place à votre identité.",
+  },
+  {
+    id: "sculpte",
+    name: "Sculpté",
+    price: 2050,
+    extra: 45,
+    image: "/images/marketing/sauge-noire-sculpte.webp",
+    description:
+      "Une forme expressive, pensée pour prolonger le caractère du lieu.",
+  },
+  {
+    id: "carre",
+    name: "Carré",
+    price: 2100,
+    extra: 55,
+    image: "/images/marketing/sauge-noire-carre.webp",
+    description:
+      "Des lignes nettes et une silhouette discrète, naturellement à sa place à table.",
+  },
+  {
+    id: "signature",
+    name: "Signature",
+    price: 2200,
+    extra: 55,
+    image: "/images/marketing/sauge-noire-signature.webp",
+    description:
+      "Une pièce de caractère, pour une expérience qui porte votre signature.",
+  },
+];
+export const dishes = [
+  {
+    id: "homard",
+    iosModel: resolvePublicModelUrl("immersive.dish.homard.ios"),
+    arWidthMeters: 0.26,
+    label: "Homard bleu",
+    name: "Homard bleu",
+    fullName: "Homard bleu, bisque corsée & fenouil",
+    price: 104,
+    image: "homard",
+    category: "Plats signatures",
+    restaurant: "Maison Élyse",
+    description:
+      "La chair délicate du homard rencontre une bisque profonde et les notes anisées du fenouil.",
+    model: true,
+    allergens: "Crustacés, lait",
+  },
+  {
+    id: "souffle",
+    iosModel: resolvePublicModelUrl("immersive.dish.souffle.ios"),
+    arWidthMeters: 0.12,
+    label: "Soufflé chocolat",
+    name: "Soufflé chocolat",
+    fullName: "Soufflé tiède au chocolat grand cru",
+    price: 28,
+    image: "souffle",
+    category: "Desserts",
+    restaurant: "Maison Élyse",
+    description:
+      "Un soufflé aérien au chocolat intense, un cœur coulant et une glace délicatement parfumée à la vanille.",
+    model: true,
+    allergens: "Gluten / céréales, produits laitiers, œufs",
+  },
+  {
+    id: "huitres",
+    iosModel: resolvePublicModelUrl("immersive.dish.huitres.ios"),
+    arWidthMeters: 0.1202,
+    label: "Huîtres au kombu",
+    name: "Huîtres au kombu",
+    fullName: "Huîtres tièdes au kombu",
+    price: 20,
+    image: "huitres",
+    category: "Entrées",
+    restaurant: "Sauge Noire",
+    description:
+      "Trois huîtres tièdes au kombu sont servies avec de la pomme verte, du beurre noisette et une huile de livèche.",
+    model: resolvePublicModelUrl("immersive.dish.huitres.web"),
+    allergens: "Mollusques, produits laitiers",
+  },
+  {
+    id: "sushi",
+    iosModel: resolvePublicModelUrl("immersive.dish.sushi.ios"),
+    arWidthMeters: 0.2602,
+    label: "Plateau sushi Horizon",
+    name: "Plateau sushi Horizon",
+    fullName: "Plateau sushi Horizon",
+    price: 30.99,
+    image: "sushi",
+    category: "Voyage à l’assiette",
+    restaurant: "Trouvable",
+    description: "Une présentation à découvrir sous tous les angles.",
+    model: resolvePublicModelUrl("immersive.dish.sushi.web"),
+    allergens: null,
+  },
+  {
+    id: "chocolat-fume",
+    iosModel: resolvePublicModelUrl("immersive.dish.chocolat-fume.ios"),
+    arWidthMeters: 0.12,
+    label: "Chocolat fumé",
+    name: "Chocolat fumé",
+    fullName: "Chocolat fumé",
+    price: 15,
+    image: "chocolat-fume",
+    category: "Desserts",
+    restaurant: "Sauge Noire",
+    description:
+      "Le chocolat noir à 70 % est servi avec de l’huile d’olive, du sel fumé et du grué de cacao.",
+    model: resolvePublicModelUrl("immersive.dish.chocolat-fume.web"),
+    allergens: null,
+  },
+  {
+    id: "poutine",
+    iosModel: resolvePublicModelUrl("immersive.dish.poutine.ios"),
+    arWidthMeters: 0.18,
+    label: "Poutine du Vieux-Montréal",
+    name: "Poutine du Vieux-Montréal",
+    fullName: "Poutine du Vieux-Montréal",
+    price: 16.99,
+    image: "poutine",
+    category: "Classiques réinventés",
+    restaurant: "Trouvable",
+    description: "Une présentation à découvrir sous tous les angles.",
+    model: resolvePublicModelUrl("immersive.dish.poutine.web"),
+    allergens: null,
+  },
+  {
+    id: "burger",
+    iosModel: resolvePublicModelUrl("immersive.dish.burger.ios"),
+    arWidthMeters: 0.1549,
+    label: "Burger signature",
+    name: "Burger signature",
+    fullName: "Burger signature maison",
+    price: 22.99,
+    image: "burger",
+    category: "Classiques réinventés",
+    restaurant: "Trouvable",
+    description: "Une présentation à découvrir sous tous les angles.",
+    model: resolvePublicModelUrl("immersive.dish.burger.web"),
+    allergens: null,
+  },
+];
+export const experiences = [
+  {
+    id: "maison-elyse",
+    name: "Maison Élyse",
+    tag: "Éditoriale & gastronomique",
+    image: getSeoMarketingImage("HOME:social-content:maison-elyse").src,
+    thumbnail: getSeoMarketingImage("HOME:testimonies:maison-elyse").src,
+    description:
+      "Une carte lumineuse, des compositions soignées, une cuisine qui se raconte.",
+  },
+  {
+    id: "trouvable",
+    name: "Trouvable",
+    tag: "Moderne & interactive",
+    image: getSeoMarketingImage("HOME:social-content:trouvable").src,
+    thumbnail: getSeoMarketingImage("HOME:testimonies:trouvable").src,
+    description:
+      "Une navigation directe et des plats qui prennent toute leur place.",
+  },
+  {
+    id: "sauge-noire",
+    name: "Sauge Noire",
+    tag: "Signature & immersive",
+    image: getSeoMarketingImage("HOME:social-content:sauge-noire").src,
+    thumbnail: getSeoMarketingImage("HOME:testimonies:sauge-noire").src,
+    description:
+      "Un univers botanique, sombre et singulier. La carte devient une expérience.",
+  },
+];
+export const chapters = [
+  ["hero", "Introduction"],
+  ["ai", "Du scan à la carte"],
+  ["wearable", "Pensé pour le mobile"],
+  ["features", "Chaque détail compte"],
+  ["encryption", "Votre identité"],
+  ["grip", "Plats en 3D"],
+  ["sustainability", "Une carte vivante"],
+  ["testimonies", "Trois identités"],
+  ["social-content", "À table"],
+  ["product", "Les collections"],
+  ["open-weight", "Tarifs et accompagnement"],
+  ["footer", "Contact"],
+];
+export const money = (n) =>
+  new Intl.NumberFormat("fr-CA", { maximumFractionDigits: 0 }).format(n);

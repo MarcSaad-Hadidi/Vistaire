@@ -4,6 +4,15 @@ import test from "node:test";
 
 const source = (path) => readFile(new URL(`../${path}`, import.meta.url), "utf8");
 
+test("demo videos retain their decoded frame while temporarily buffering", async () => {
+  const video = await source("components/vistaire-preview/DemoWalkthroughVideo.tsx");
+
+  assert.match(video, /onLoadedData=\{\(\) => setDecoded\(true\)\}/);
+  assert.match(video, /onPlaying=\{\(\) => setDecoded\(true\)\}/);
+  assert.match(video, /onError=\{\(\) => setDecoded\(false\)\}/);
+  assert.doesNotMatch(video, /onWaiting=\{\(\) => setDecoded\(false\)\}/);
+});
+
 test("French and English discovery share real public links and the same restaurant design", async () => {
   const [discovery, demo, demoLayout, english, landing] = await Promise.all([
     source("components/vistaire-preview/RestaurantExperiences.tsx"),

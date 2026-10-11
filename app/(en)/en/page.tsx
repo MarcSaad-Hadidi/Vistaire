@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { JsonLd } from "@/components/JsonLd";
-import { VistairePreviewLanding } from "@/components/vistaire-preview/VistairePreviewLanding";
+import { ImmersiveLanding } from "@/components/immersive/ImmersiveLanding";
 import { absoluteUrl, buildVistaireServiceJsonLd, buildWebPageJsonLd } from "@/lib/seo";
 import { buildPageAlternates, LOCALE_OPEN_GRAPH } from "@/lib/i18n";
 
@@ -42,7 +42,7 @@ export default function EnglishHome() {
           buildVistaireServiceJsonLd()
         ]}
       />
-      <VistairePreviewLanding locale="en" routeMode="production" />
+      <ImmersiveLanding locale="en" />
     </>
   );
 }

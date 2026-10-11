@@ -117,3 +117,9 @@ npm run lfs:check
 If either command fails, move the asset out of Git or add a reviewed exact
 exception. Do not bypass the guard with `git add -f` unless the exception has
 already been documented and approved.
+
+## Immersive public presentation
+
+The user-authorized immersive presentation imports original runtime assets under `public/immersive-assets` and `public/immersive-media`. Their narrow exceptions live in `docs/immersive-asset-exceptions.json`, with MarcSaad-Hadidi as owner, exact byte limits, SHA-256 checksums and individual reasons. The policy checker loads this manifest; it does not permit arbitrary future assets. Existing assets under `public/models`, `public/videos` and `public/frames` are unchanged.
+
+`assets/immersive-runtime/burger.usdz.gz` is a deterministic, lossless copy of the original USDZ. `postinstall` and `prebuild` restore its exact original bytes to the ignored public runtime destination after verifying both checksums. The compressed form fits the publishing connector's request limit without reducing 3D quality. The archived previous public UI is a separately pinned exception; see `docs/immersive-integration.md`.

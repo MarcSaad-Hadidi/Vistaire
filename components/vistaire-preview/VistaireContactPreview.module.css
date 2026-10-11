@@ -1,541 +1,278 @@
-@font-face {
-  font-family: "BT Suave";
-  font-style: normal;
-  font-weight: 400;
-  font-display: block;
-  src: url("/fonts/vistaire-preview/btsuave-regular.otf") format("opentype");
-}
-
-@font-face {
-  font-family: "BT Suave";
-  font-style: normal;
-  font-weight: 500;
-  font-display: block;
-  src: url("/fonts/vistaire-preview/btsuave-medium.otf") format("opentype");
-}
-
-@font-face {
-  font-family: "Neue Montreal";
-  font-style: normal;
-  font-weight: 400;
-  font-display: block;
-  src: url("/fonts/vistaire-preview/NeueMontreal-Regular.otf") format("opentype");
-}
-
-@font-face {
-  font-family: "Neue Montreal";
-  font-style: normal;
-  font-weight: 500;
-  font-display: block;
-  src: url("/fonts/vistaire-preview/NeueMontreal-Medium.otf") format("opentype");
-}
-
-@font-face {
-  font-family: "Neue Montreal";
-  font-style: normal;
-  font-weight: 700;
-  font-display: block;
-  src: url("/fonts/vistaire-preview/NeueMontreal-Bold.otf") format("opentype");
-}
-
 .page {
-  --vistaire-font-body: "Neue Montreal";
-  --vistaire-font-display: "BT Suave";
-  --preview-cream: #fff7ea;
-  --preview-champagne: #e8cf9b;
-
-  position: relative;
   min-height: 100svh;
-  overflow-x: clip;
-  background: #0d0805;
-  color: var(--preview-cream);
-  font-family: var(--vistaire-font-body);
+  background: var(--public-black);
+  color: var(--public-text);
+  font-family: var(--vistaire-font-body, "Vistaire Text", serif);
 }
 
-.backgroundImage {
-  position: fixed !important;
-  z-index: 0;
-  object-fit: cover;
-  object-position: center;
+.hero,
+.restaurant {
+  width: min(1280px, calc(100% - 96px));
+  margin-inline: auto;
+  min-width: 0;
 }
 
 .hero {
-  position: relative;
-  z-index: 2;
-  display: flex;
-  min-height: 742px;
-  flex-direction: column;
-  align-items: center;
-  padding: 84px 24px 18px;
-}
-
-.previewFrame {
   display: grid;
-  width: min(1124px, calc(100vw - 48px));
-  min-height: 568px;
-  grid-template-columns: minmax(330px, 0.96fr) minmax(300px, 0.9fr) minmax(300px, 0.9fr);
-  gap: 10px;
-  border: 1px solid rgba(255, 250, 240, 0.26);
-  border-radius: 22px;
-  background: transparent;
-  padding: 14px;
-  box-shadow:
-    0 24px 70px rgba(0, 0, 0, 0.22),
-    inset 0 1px 0 rgba(255, 250, 240, 0.18),
-    inset 0 -1px 0 rgba(255, 250, 240, 0.1);
-  -webkit-backdrop-filter: blur(9px) saturate(112%);
-  backdrop-filter: blur(9px) saturate(112%);
-}
-
-.card,
-.tileCard {
-  position: relative;
-  min-width: 0;
-  overflow: hidden;
-  border: 1px solid rgba(255, 250, 240, 0.26);
-  border-radius: 15px;
-  background: transparent;
-  box-shadow:
-    0 24px 70px rgba(0, 0, 0, 0.22),
-    inset 0 1px 0 rgba(255, 250, 240, 0.18),
-    inset 0 -1px 0 rgba(255, 250, 240, 0.1);
-  -webkit-backdrop-filter: blur(5px) saturate(110%);
-  backdrop-filter: blur(5px) saturate(110%);
-}
-
-.cardImage {
-  object-fit: cover;
-}
-
-.heroImageCard {
-  min-height: 536px;
-  border-radius: 17px;
-}
-
-/* Recadre le cocktail vers la droite : la zone sombre à gauche de la photo
-   occupait près d'un quart de la carte. */
-.heroImageCard .cardImage {
-  transform: scale(1.16);
-  transform-origin: 70% 42%;
-}
-
-.heroImageShade {
-  position: absolute;
-  inset: 0;
-  background: transparent;
-  pointer-events: none;
-}
-
-.heroImageCopy {
-  position: absolute;
-  left: 33px;
-  bottom: 36px;
-  z-index: 1;
-  text-shadow: 0 12px 34px rgba(0, 0, 0, 0.68);
-}
-
-.heroImageCopy h1 {
-  margin: 0;
-  color: #fffaf0;
-  font-family: var(--vistaire-font-display);
-  font-size: 36px;
-  font-weight: 400;
-  line-height: 0.98;
-  letter-spacing: 0;
-}
-
-.heroImageCopy span {
-  display: block;
-  margin-top: 8px;
-}
-
-.middleColumn,
-.rightColumn {
-  display: grid;
-  min-width: 0;
-  grid-template-rows: 276px 1fr;
-  gap: 10px;
-}
-
-.restaurantCard {
-  border-radius: 18px;
-  background: transparent;
-  padding: 0;
-  text-align: center;
-}
-
-.restaurantShade {
-  position: absolute;
-  inset: 0;
-  background: transparent;
-  pointer-events: none;
-}
-
-.restaurantContent {
-  position: relative;
-  z-index: 1;
-  display: flex;
-  height: 100%;
-  flex-direction: column;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   align-items: center;
-  justify-content: center;
-  padding: 22px 27px 20px;
+  gap: clamp(32px, 5vw, 80px);
+  padding-block: 132px 100px;
+  scroll-margin-top: 112px;
 }
 
-.badge,
-.contactButton {
-  display: inline-flex;
-  min-height: 32px;
-  width: max-content;
-  align-items: center;
-  justify-content: center;
-  border: 1px solid rgba(232, 207, 155, 0.54);
-  border-radius: 999px;
-  background: rgba(255, 250, 240, 0.05);
-  padding: 0 15px;
-  color: rgba(232, 207, 155, 0.88);
+.heroCopy {
+  min-width: 0;
+}
+
+.eyebrow {
+  margin: 0 0 26px;
+  color: var(--public-gold);
   font-size: 12px;
-  font-weight: 500;
-  line-height: 1;
-  text-decoration: none;
+  font-weight: 600;
+  letter-spacing: 0.17em;
+  line-height: 1.5;
+  text-transform: uppercase;
 }
 
-.restaurantContent p:not(.badge) {
-  max-width: 296px;
-  margin: 20px 0 0;
-  color: rgba(255, 250, 240, 0.94);
-  font-size: 14px;
-  font-weight: 500;
-  line-height: 1.16;
-  text-shadow: 0 8px 24px rgba(0, 0, 0, 0.52);
+.hero h1,
+.restaurant h2 {
+  margin: 0;
+  font-family: var(--vistaire-font-display, "Vistaire Editorial", serif);
+  font-weight: 400;
+  letter-spacing: -0.025em;
 }
 
-.restaurantContent p:last-child {
-  color: rgba(255, 247, 234, 0.9);
+.hero h1 {
+  max-width: 600px;
+  font-size: clamp(48px, 4.8vw, 72px);
+  line-height: 1.07;
 }
 
-.tileGrid {
-  display: grid;
-  min-height: 250px;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
+.hero h1 em,
+.restaurant h2 em {
+  color: var(--public-gold);
+  font-weight: 400;
 }
 
-.tileCard {
-  min-height: 120px;
+.intro {
+  max-width: 490px;
+  margin: 28px 0 30px;
+  color: var(--public-muted);
+  font-size: 20px;
+  line-height: 1.6;
 }
 
-.barCard {
-  min-height: 276px;
-}
-
-.barShade {
-  position: absolute;
-  inset: 0;
-  background: transparent;
-  pointer-events: none;
-}
-
-.contactCard {
-  min-height: 250px;
-  border-radius: 18px;
-  background: transparent;
-}
-
-.contactShade {
-  position: absolute;
-  inset: 0;
-  background: transparent;
-  pointer-events: none;
-}
-
-.contactContent {
+.heroPhoto {
   position: relative;
-  z-index: 1;
-  display: flex;
-  height: 100%;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 26px 23px 23px;
-  text-align: center;
+  min-width: 0;
+  aspect-ratio: 0.86;
+  overflow: hidden;
 }
 
-.contactButton {
-  min-height: 34px;
-  padding: 0 18px;
-  color: rgba(255, 247, 234, 0.84);
-  transition:
-    transform 180ms ease,
-    background-color 180ms ease,
-    border-color 180ms ease,
-    box-shadow 180ms ease;
-}
-
-.contactButton:hover,
-.contactButton:focus-visible,
-.contactMeta a:hover,
-.contactMeta a:focus-visible {
-  color: #fffaf0;
-}
-
-.contactButton:hover,
-.contactButton:focus-visible {
-  transform: translateY(-1px);
-  border-color: rgba(255, 250, 240, 0.78);
-  background: rgba(255, 244, 220, 0.15);
-}
-
-.contactButton:focus-visible,
-.contactMeta a:focus-visible {
-  outline: 2px solid rgba(232, 207, 155, 0.92);
-  outline-offset: 3px;
-}
-
-.contactContent > p {
-  max-width: 324px;
-  margin: 36px 0 0;
-  color: rgba(255, 250, 240, 0.96);
-  font-size: 14px;
-  font-weight: 500;
-  line-height: 1.17;
-  text-shadow: 0 8px 24px rgba(0, 0, 0, 0.55);
+.photo {
+  object-fit: cover;
+  object-position: 50% 50%;
 }
 
 .contactMeta {
-  display: grid;
-  width: 100%;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 14px 10px;
-  margin: 26px 0 0;
-  text-align: left;
+  margin: 44px 0 0;
+  border-top: 1px solid color-mix(in srgb, var(--public-text) 20%, transparent);
 }
 
-.contactMeta div {
-  min-width: 0;
+.contactMeta > div {
+  display: grid;
+  grid-template-columns: 110px minmax(0, 1fr);
+  align-items: baseline;
+  gap: 18px;
+  padding: 18px 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--public-text) 20%, transparent);
 }
 
 .contactMeta dt {
-  margin: 0 0 5px;
-  color: rgba(232, 207, 155, 0.72);
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.16em;
-  line-height: 1;
-  text-transform: uppercase;
+  color: var(--public-muted);
+  font-size: 13px;
 }
 
 .contactMeta dd {
   margin: 0;
-  color: rgba(255, 250, 240, 0.94);
-  font-size: 12.5px;
-  font-weight: 500;
-  line-height: 1.35;
+  font-size: 17px;
+  line-height: 1.4;
   overflow-wrap: anywhere;
 }
 
 .contactMeta a {
-  color: inherit;
+  display: flex;
+  width: fit-content;
+  align-items: center;
+  gap: 18px;
+  color: var(--public-text);
   text-decoration: none;
-  text-decoration-line: underline;
-  text-decoration-color: transparent;
-  text-underline-offset: 4px;
+  transition: color 180ms ease;
+}
+
+.contactMeta a:hover {
+  color: var(--public-gold);
+}
+
+.contactMeta svg,
+.textLink svg,
+.ctaButton svg {
+  width: 17px;
+  height: 17px;
+  flex: 0 0 auto;
+}
+
+.textLink,
+.ctaButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 22px;
+  min-height: 48px;
+  font-size: 15px;
+  text-decoration: none;
   transition:
     color 180ms ease,
-    text-decoration-color 180ms ease;
+    border-color 180ms ease,
+    background-color 180ms ease;
 }
 
-.contactMeta a:hover,
+.ctaButton {
+  border: 1px solid var(--public-gold);
+  background: var(--public-gold);
+  padding: 0 25px;
+  color: var(--public-on-accent);
+  font-weight: 600;
+}
+
+.ctaButton:hover {
+  border-color: var(--public-gold-light);
+  background: var(--public-gold-light);
+}
+
+.ctaButton:focus-visible,
+.textLink:focus-visible,
 .contactMeta a:focus-visible {
-  text-decoration-color: rgba(232, 207, 155, 0.48);
+  outline: 2px solid var(--public-gold);
+  outline-offset: 6px;
 }
 
-.srOnly {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip: rect(0 0 0 0);
-  white-space: nowrap;
+.textLink {
+  border-bottom: 1px solid color-mix(in srgb, var(--public-text) 40%, transparent);
+  color: var(--public-text);
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .contactButton,
-  .contactMeta a {
-    transition: none;
+.textLink:hover {
+  border-color: var(--public-gold);
+  color: var(--public-gold);
+}
+
+.restaurant {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: clamp(32px, 5vw, 80px);
+  padding-block: 64px 96px;
+  border-top: 1px solid color-mix(in srgb, var(--public-text) 20%, transparent);
+}
+
+.restaurant h2 {
+  max-width: 530px;
+  font-size: clamp(36px, 3.6vw, 52px);
+  line-height: 1.13;
+}
+
+.restaurant .textLink {
+  margin-top: 28px;
+}
+
+.restaurantCopy {
+  padding-top: 42px;
+}
+
+.restaurantCopy p {
+  margin: 0;
+  color: var(--public-muted);
+  font-size: 18px;
+  line-height: 1.7;
+}
+
+.restaurantCopy p + p {
+  margin-top: 24px;
+}
+
+.restaurantCopy .regionLine {
+  color: var(--public-gold);
+  font-size: 14px;
+}
+
+@media (max-width: 800px) {
+  .hero,
+  .restaurant {
+    width: calc(100% - 40px);
   }
-}
 
-@media (max-width: 1180px) {
   .hero {
-    padding-top: 48px;
-  }
-
-  .previewFrame {
-    width: min(1000px, calc(100vw - 40px));
-    grid-template-columns: minmax(300px, 0.94fr) minmax(280px, 0.9fr) minmax(280px, 0.9fr);
-  }
-
-  .restaurantCard {
-    padding-inline: 18px;
-  }
-
-  .restaurantContent p:not(.badge),
-  .contactContent > p {
-    font-size: 13px;
-  }
-}
-
-@media (max-width: 920px) {
-  .hero {
-    min-height: auto;
-    padding: 24px 14px 18px;
-  }
-
-  .previewFrame {
-    width: min(560px, calc(100vw - 28px));
-    min-height: 0;
     grid-template-columns: 1fr;
-    border-radius: 21px;
-    padding: 10px;
+    gap: 36px;
+    padding-block: 112px 64px;
   }
 
-  .heroImageCard {
-    min-height: 0;
-    aspect-ratio: 1 / 1.18;
+  .hero h1 {
+    font-size: clamp(44px, 8.6vw, 64px);
   }
 
-  .middleColumn,
-  .rightColumn {
-    grid-template-rows: none;
+  .eyebrow {
+    margin-bottom: 20px;
+    font-size: 11px;
   }
 
-  .restaurantCard,
-  .contactCard {
-    min-height: 270px;
-  }
-
-  .restaurantContent p:not(.badge) {
-    max-width: 410px;
-    font-size: 14px;
-  }
-
-  .tileGrid {
-    min-height: 0;
-  }
-
-  .tileCard {
-    min-height: 0;
-    aspect-ratio: 1.24 / 1;
-  }
-
-  .barCard {
-    min-height: 0;
-    aspect-ratio: 1.85 / 1;
-  }
-
-  .contactContent > p {
-    margin-top: 28px;
-    font-size: 14px;
-  }
-}
-
-@media (max-width: 520px) {
-  .page {
-    background: #120906;
-  }
-
-  .backgroundImage {
-    object-position: center top;
-  }
-
-  .hero {
-    padding: 16px 10px 14px;
-  }
-
-  .previewFrame {
-    width: calc(100vw - 20px);
-    gap: 8px;
-    border-radius: 19px;
-    background: transparent;
-    padding: 8px;
-  }
-
-  .card,
-  .tileCard {
-    border-radius: 13px;
-  }
-
-  .heroImageCard {
-    aspect-ratio: 1 / 1.22;
-  }
-
-  .heroImageCopy {
-    left: 22px;
-    bottom: 29px;
-  }
-
-  .heroImageCopy h1 {
-    font-size: 34px;
-  }
-
-  .restaurantCard {
-    min-height: 292px;
-  }
-
-  .restaurantContent {
-    padding: 23px 17px 21px;
-  }
-
-  .badge,
-  .contactButton {
-    min-height: 44px;
-    font-size: 12px;
-    -webkit-backdrop-filter: none;
-    backdrop-filter: none;
-  }
-
-  .restaurantContent p:not(.badge) {
-    margin-top: 21px;
-    font-size: 13.5px;
-    line-height: 1.2;
-  }
-
-  .tileGrid {
-    grid-template-columns: 1fr 1fr;
-    gap: 8px;
-  }
-
-  .tileCard {
-    aspect-ratio: 1.08 / 1;
-  }
-
-  .barCard {
-    aspect-ratio: 1.25 / 1;
-  }
-
-  .contactCard {
-    min-height: 282px;
-  }
-
-  .contactContent {
-    padding: 23px 17px 22px;
-  }
-
-  .contactContent > p {
+  .intro {
     margin-top: 24px;
-    font-size: 13.5px;
-    line-height: 1.2;
+    font-size: 19px;
   }
 
   .contactMeta {
-    grid-template-columns: 1fr;
-    gap: 8px;
-    margin-top: 22px;
+    margin-top: 34px;
+  }
+
+  .contactMeta > div {
+    grid-template-columns: 80px minmax(0, 1fr);
+    gap: 12px;
   }
 
   .contactMeta dd {
-    min-height: 24px;
-    font-size: 13px;
+    font-size: 16px;
+  }
+
+  .heroPhoto {
+    aspect-ratio: 1.1;
+    max-height: 560px;
+  }
+
+  .restaurant {
+    grid-template-columns: 1fr;
+    gap: 28px;
+    padding-block: 48px 64px;
+  }
+
+  .restaurant h2 {
+    font-size: 38px;
+  }
+
+  .restaurantCopy {
+    padding-top: 0;
+  }
+
+  .restaurantCopy p {
+    font-size: 17px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .textLink,
+  .ctaButton,
+  .contactMeta a {
+    transition: none;
   }
 }

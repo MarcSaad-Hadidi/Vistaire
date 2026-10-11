@@ -1,0 +1,29 @@
+.controls,
+.languages { display: flex; align-items: center; flex: none; }
+.controls { gap: 4px; color: var(--public-text, #f8f3e8); }
+.languages a,
+.theme {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 44px;
+  width: 44px;
+  min-height: 44px;
+  padding: 0;
+  border: 0;
+  border-radius: 5px;
+  font: 13px "Vistaire Text", Georgia, serif;
+  color: var(--public-muted, #cec8bd);
+  background: transparent;
+  text-decoration: none;
+  cursor: pointer;
+}
+.languages a[aria-current] { color: var(--public-gold-light, #ffd60a); text-decoration: underline; text-underline-offset: 6px; }
+.languages a:hover,
+.theme:hover { color: var(--public-gold-light, #ffd60a); }
+.controls :focus-visible { outline: 2px solid var(--public-focus, #ffd60a); outline-offset: 2px; }
+.theme svg { width: 18px; height: 18px; flex: none; }
+.moon { display: none; }
+:global(html[data-vistaire-theme="light"]) .sun { display: none; }
+:global(html[data-vistaire-theme="light"]) .moon { display: block; }
+@media (max-width: 760px) { .controls { gap: 0; } }

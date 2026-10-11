@@ -1,6 +1,4 @@
-import Image from "next/image";
 import Link from "next/link";
-import restaurantBackground from "@/Framer/PhotoRestoComplet5.png";
 import type { Locale } from "@/lib/i18n";
 import { getPricingPage } from "@/lib/pricingPage";
 import { PricingLaunchWorkflow } from "./PricingLaunchWorkflow";
@@ -10,7 +8,7 @@ import {
   getVistaireChromeRoutes,
   PreviewFooter,
   PreviewNav,
-  type VistaireRouteMode
+  type VistaireRouteMode,
 } from "./VistairePreviewChrome";
 import extensionStyles from "./PricingPageExtensions.module.css";
 import styles from "./VistairePricingPreview.module.css";
@@ -19,30 +17,35 @@ const UI_COPY = {
   fr: {
     collectionsLabel: "Collections physiques Vistaire",
     includedLabel: "Ce qui est inclus dans l’offre Vistaire",
-    pilotagePreview: "Aperçu du vrai dashboard Vistaire",
+    pilotagePreview: "Aperçu du tableau de bord · Données de démonstration",
     pricingEquation: "Abonnement mensuel avec l’option Pilotage",
     dashboardLink: "Explorer l’aperçu restaurateur",
     extrasLabel: "Options complémentaires",
     variablesLabel: "Variables du devis",
     threeDPacksLabel: "Packs de productions 3D supplémentaires",
-    commercialTermsLabel: "Conditions commerciales essentielles"
+    commercialTermsLabel: "Conditions commerciales essentielles",
   },
   en: {
     collectionsLabel: "Vistaire physical collections",
     includedLabel: "What the Vistaire offer includes",
-    pilotagePreview: "Preview of the real Vistaire dashboard",
+    pilotagePreview: "Dashboard preview · Demonstration data",
     pricingEquation: "Monthly subscription with the Pilotage option",
     dashboardLink: "Explore the restaurant preview",
     extrasLabel: "Additional options",
     variablesLabel: "Quote variables",
     threeDPacksLabel: "Additional 3D production packs",
-    commercialTermsLabel: "Essential commercial terms"
-  }
+    commercialTermsLabel: "Essential commercial terms",
+  },
 } as const;
 
 function ArrowIcon() {
   return (
-    <svg aria-hidden="true" className={styles.arrowIcon} fill="none" viewBox="0 0 14 14">
+    <svg
+      aria-hidden="true"
+      className={styles.arrowIcon}
+      fill="none"
+      viewBox="0 0 14 14"
+    >
       <path
         d="M3.5 10.5 10.6 3.4m0 0H4.8m5.8 0v5.8"
         stroke="currentColor"
@@ -56,7 +59,12 @@ function ArrowIcon() {
 
 function CheckIcon() {
   return (
-    <svg aria-hidden="true" className={styles.checkIcon} fill="none" viewBox="0 0 18 18">
+    <svg
+      aria-hidden="true"
+      className={styles.checkIcon}
+      fill="none"
+      viewBox="0 0 18 18"
+    >
       <path
         d="m4.5 9.3 2.7 2.7 6.4-6.5"
         stroke="currentColor"
@@ -70,7 +78,7 @@ function CheckIcon() {
 
 export function VistairePricingPreview({
   locale = "fr",
-  routeMode = "production"
+  routeMode = "production",
 }: {
   locale?: Locale;
   routeMode?: VistaireRouteMode;
@@ -80,19 +88,7 @@ export function VistairePricingPreview({
   const copy = UI_COPY[locale];
 
   return (
-    <main className={styles.page}>
-      <Image
-        alt=""
-        aria-hidden="true"
-        className={styles.backgroundImage}
-        fill
-        priority
-        quality={90}
-        sizes="100vw"
-        src={restaurantBackground}
-      />
-      <div aria-hidden="true" className={styles.backgroundWash} />
-
+    <main className={styles.page} data-public-vistaire data-seo-experience="pricing-support-showroom">
       <div className={styles.topNav}>
         <PreviewNav
           activeSection="pricing"
@@ -105,10 +101,21 @@ export function VistairePricingPreview({
       <section aria-labelledby="pricing-title" className={styles.hero}>
         <p className={styles.eyebrow}>{page.eyebrow}</p>
         <h1 id="pricing-title">{page.h1}</h1>
-        <p className={styles.heroLead}>{page.subtitle}</p>
+        <div className={styles.showroomIntroduction}>
+          <p className={styles.heroLead}>{page.subtitle}</p>
+          <nav className={styles.showroomIndex} aria-label={locale === "en" ? "Explore pricing" : "Explorer les tarifs"}>
+            <a href="#pricing-collections">01 <span>{copy.collectionsLabel}</span></a>
+            <a href="#pricing-3d-title">02 <span>{copy.threeDPacksLabel}</span></a>
+            <a href="#pricing-terms-title">03 <span>{copy.commercialTermsLabel}</span></a>
+          </nav>
+        </div>
       </section>
 
-      <section aria-label={copy.collectionsLabel} className={styles.collectionsSection}>
+      <section
+        aria-label={copy.collectionsLabel}
+        className={styles.collectionsSection}
+        id="pricing-collections"
+      >
         <PricingTableEstimator collections={page.collections} locale={locale} />
       </section>
 
@@ -142,7 +149,9 @@ export function VistairePricingPreview({
           ))}
         </div>
 
-        <p className={styles.priceDifference}>{page.included.priceDifference}</p>
+        <p className={styles.priceDifference}>
+          {page.included.priceDifference}
+        </p>
       </section>
 
       <section
@@ -176,7 +185,9 @@ export function VistairePricingPreview({
           <strong>{page.threeDAddOns.individualPrice}</strong>
         </div>
 
-        <p className={extensionStyles.threeDNote}>{page.threeDAddOns.replacementNote}</p>
+        <p className={extensionStyles.threeDNote}>
+          {page.threeDAddOns.replacementNote}
+        </p>
       </section>
 
       <section className={styles.pilotageSection} data-pricing-pilotage>
@@ -198,9 +209,14 @@ export function VistairePricingPreview({
                 </li>
               ))}
             </ul>
-            <p className={styles.pilotageDisclosure}>{page.pilotage.disclosure}</p>
+            <p className={styles.pilotageDisclosure}>
+              {page.pilotage.disclosure}
+            </p>
 
-            <dl aria-label={copy.pricingEquation} className={styles.priceEquation}>
+            <dl
+              aria-label={copy.pricingEquation}
+              className={styles.priceEquation}
+            >
               <div>
                 <dt>01</dt>
                 <dd>{page.pilotage.standardLabel}</dd>
@@ -219,23 +235,22 @@ export function VistairePricingPreview({
           <div className={styles.pilotageVisual}>
             <p className={styles.dashboardCaption}>{copy.pilotagePreview}</p>
             <div
-              aria-hidden="true"
-              className={styles.laptop}
+              className={styles.dashboardCanvas}
               data-pricing-dashboard
+              aria-hidden="true"
               inert
             >
-              <div className={styles.laptopScreen}>
-                <div className={styles.dashboardCanvas}>
-                  <RestaurateurDashboardDemo
-                    initialPeriodId="30d"
-                    locale={locale}
-                    presentation="pilotage"
-                  />
-                </div>
-              </div>
-              <div aria-hidden="true" className={styles.laptopBase} />
+              <RestaurateurDashboardDemo
+                initialPeriodId="30d"
+                locale={locale}
+                presentation="pilotage"
+              />
             </div>
-            <Link className={styles.dashboardLink} href={routes.restaurateurDashboard} prefetch={false}>
+            <Link
+              className={styles.dashboardLink}
+              href={routes.restaurateurDashboard}
+              prefetch={false}
+            >
               {copy.dashboardLink}
               <ArrowIcon />
             </Link>
@@ -245,7 +260,10 @@ export function VistairePricingPreview({
 
       <PricingLaunchWorkflow content={page.workflow} />
 
-      <section aria-labelledby="pricing-additional-title" className={styles.additionalSection}>
+      <section
+        aria-labelledby="pricing-additional-title"
+        className={styles.additionalSection}
+      >
         <div className={styles.additionalInner}>
           <div aria-label={copy.extrasLabel} className={styles.extrasList}>
             <p className={styles.eyebrow}>{page.additional.eyebrow}</p>
@@ -257,7 +275,9 @@ export function VistairePricingPreview({
             ))}
           </div>
           <div className={styles.startingAtCopy}>
-            <h2 id="pricing-additional-title">{page.additional.startingAtTitle}</h2>
+            <h2 id="pricing-additional-title">
+              {page.additional.startingAtTitle}
+            </h2>
             <p>{page.additional.startingAtBody}</p>
             <ul aria-label={copy.variablesLabel}>
               {page.additional.variables.map((variable) => (
@@ -290,14 +310,21 @@ export function VistairePricingPreview({
         </ul>
       </section>
 
-      <section aria-labelledby="pricing-final-title" className={styles.finalCta}>
+      <section
+        aria-labelledby="pricing-final-title"
+        className={styles.finalCta}
+      >
         <div>
           <p className={styles.eyebrow}>{page.finalCta.eyebrow}</p>
           <h2 id="pricing-final-title">{page.finalCta.title}</h2>
           <p>{page.finalCta.body}</p>
         </div>
         <div className={styles.finalActions}>
-          <Link className={styles.primaryButton} href={page.finalCta.primary.href} prefetch={false}>
+          <Link
+            className={styles.primaryButton}
+            href={page.finalCta.primary.href}
+            prefetch={false}
+          >
             {page.finalCta.primary.label}
             <ArrowIcon />
           </Link>

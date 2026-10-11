@@ -1,0 +1,2167 @@
+import {
+  getPublicModelAsset,
+  indexPublicModelFramingHulls,
+  publicModelBaseUrl,
+  resolvePublicModelUrl,
+} from "../../lib/publicModelAssets.ts";
+import { cinematicEase, chapterPhase, continuousComposition, interpolatePose, interpolatePoseTrack, DEFAULT_SCENE_FRAME } from "./SceneDirector.js";
+import { cameraDollyPose, minimumDollyDistance, dishCylinderCorners } from "./CameraDolly.js";
+import {
+  projectHullBounds,
+  projectObjectBounds,
+  unionScreenBounds,
+} from "./ProjectedBounds.js";
+import { createARExperience } from "./ARExperience.js";
+import { useEffect, useRef } from "react";
+import * as THREE from "three";
+import { DRACOLoader } from "three/examples/jsm/loaders/DRACOLoader.js";
+import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
+import { MeshoptDecoder } from "three/examples/jsm/libs/meshopt_decoder.module.js";
+import { RoundedBoxGeometry } from "three/examples/jsm/geometries/RoundedBoxGeometry.js";
+import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
+import { createSupportModels } from "./SupportModels";
+import { createPhoneModel } from "./PhoneModel";
+import { createLaptopModel } from "./LaptopModel.js";
+import { dishes } from "./content";
+import { createRestaurantModel } from "./RestaurantModel";
+import { createRestaurantTable } from "./RestaurantTable.js";
+import { arrangePresentationTable } from "./TablePresentationLayout.js";
+import { createVideoPlaybackController } from "./videoPlayback.js";
+
+const HALF_PI = Math.PI / 2;
+const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
+// The source scans use different authoring units. Size their desktop portions
+// against the original table's 5.16-unit usable top, rather than making every
+// dessert/plate 2.35 units wide and then enlarging it again in the viewer.
+// These are presentation dimensions, not claimed real-world measurements.
+const DESKTOP_DISH_FOOTPRINTS = Object.freeze({
+  homard: 1.75,
+  souffle: 1.65,
+  huitres: 1.5,
+  sushi: 2,
+  "chocolat-fume": 1.5,
+  poutine: 1.75,
+  burger: 1.1,
+});
+const FRAMING_HULL_SIZE = 2.35;
+const dishPresentationScale = (name, mobile) =>
+  mobile
+    ? name === "burger"
+      ? 0.55
+      : 1
+    : (DESKTOP_DISH_FOOTPRINTS[name] ?? 1.75) / FRAMING_HULL_SIZE;
+
+// The food rotates around its normalized bottom. Find the lowest rotated
+// bounding-box corner without changing the scan's geometry or presentation size.
+function minimumDishY(bounds, quaternion, scale, surfaceY) {
+  const { x, y, z, w } = quaternion;
+  const rowX = 2 * (x * y + w * z);
+  const rowY = 1 - 2 * (x * x + z * z);
+  const rowZ = 2 * (y * z - w * x);
+  const lowest =
+    rowX * (rowX < 0 ? bounds.max.x : bounds.min.x) +
+    rowY * (rowY < 0 ? bounds.max.y : bounds.min.y) +
+    rowZ * (rowZ < 0 ? bounds.max.z : bounds.min.z);
+  return surfaceY - lowest * scale;
+}
+
+// Each pose is an independent composition. Scroll changes geometry and camera,
+// while the DOM remains responsible for readable text and accessible controls.
+function baseComposition(state, mobile) {
+  if (state.openingProgress != null) {
+    const p = clamp(state.openingProgress, 0, 1);
+    const from = baseComposition(
+      {
+        ...state,
+        openingProgress: null,
+        section: p < 0.5 ? "hero" : "ai",
+        progress: 0,
+      },
+      mobile,
+    );
+    const to = baseComposition(
+      {
+        ...state,
+        openingProgress: null,
+        section: p < 0.5 ? "ai" : "wearable",
+        progress: 0,
+      },
+      mobile,
+    );
+    const t = cinematicEase((p - (p < 0.5 ? 0 : 0.5)) / 0.5);
+    const pose = {};
+    for (const key of Object.keys(from)) {
+      pose[key] = Array.isArray(from[key])
+        ? from[key].map((v, i) => THREE.MathUtils.lerp(v, to[key][i], t))
+        : typeof from[key] === "number"
+          ? THREE.MathUtils.lerp(from[key], to[key], t)
+          : to[key];
+    }
+    // A physical, reversible reveal: flat objects rise while the plate recedes.
+    const rise = cinematicEase(p / 0.5);
+    pose.dishScale = THREE.MathUtils.lerp(mobile ? 1.2 : 1.45, 0.18, rise);
+    pose.dishScale *= 1 - cinematicEase((p - 0.5) / 0.5);
+    pose.dish = [0, 0.02, 0.45 + rise * 0.15];
+    pose.dishOpacity = 1;
+    return pose;
+  }
+  const p = clamp(state.progress || 0, 0, 1);
+  const pose = {
+    camera: mobile ? [0, 5.8, 7.4] : [0, 4.6, 6.4],
+    look: [0, 0.6, 0],
+    support: [0, 0.2, 0],
+    supportRotation: [0, -0.2, 0],
+    supportScale: 0,
+    phone: [0, 0.8, 0],
+    phoneRotation: [-0.1, -0.1, 0],
+    phoneScale: 0,
+    dish: [0, 0.15, 0],
+    dishRotation: [0, -0.25, 0],
+    dishScale: 0,
+    dishOpacity: 1,
+    laptop: [0, 0.08, 0],
+    laptopRotation: [0, -0.1, 0],
+    laptopScale: 0,
+    table: 1,
+    particles: false,
+  };
+  switch (state.section) {
+    case "hero":
+      Object.assign(pose, {
+        camera: mobile ? [0, 2.1, 9.6] : [0, 1.8, 8.6],
+        look: [0, 0.25, -1.1],
+        table: 1,
+        support: [-2.1, 0.13, 0.85],
+        supportRotation: [-HALF_PI + 0.2, 0, -0.2],
+        supportScale: mobile ? 0.65 : 0.8,
+        dish: [0, 0.02, 0.45],
+        dishScale: mobile ? 1.2 : 1.45,
+        phone: [2.1, 0.16, 0.95],
+        phoneRotation: [-HALF_PI, 0, 0.15],
+        phoneScale: mobile ? 0.63 : 0.68,
+      });
+      break;
+    case "ai":
+      Object.assign(pose, {
+        camera: mobile
+          ? [0.18 * p, 5.8 - p * 0.6, 8.5 - p * 1.1]
+          : [0.2 * p, 4.8 - p * 0.3, 7.5 - p * 1.1],
+        support: [mobile ? -0.55 : -1.35, 0.35 + p * 0.25, -0.3],
+        supportRotation: [-0.06, -0.35 + p * 0.2, -0.04],
+        supportScale: mobile ? 0.6 : 1,
+        phone: [
+          mobile ? 0.45 : 0.85,
+          mobile ? 1.3 + p * 0.12 : 1.55 + p * 0.28,
+          mobile ? 1.7 : 1.55,
+        ],
+        phoneRotation: [-0.05, 0.28 - p * 0.48, 0.05 - p * 0.1],
+        phoneScale: mobile ? 1 : 1.2,
+      });
+      break;
+    case "wearable":
+      Object.assign(pose, {
+        phone: [0, 1.25, 1.25],
+        phoneScale: 1,
+        phoneRotation: [-0.02, 0.12, 0],
+        camera: [0, 2.8, 7.4],
+        look: [0, 2.3, 1.25],
+      });
+      break;
+    case "features":
+      Object.assign(pose, {
+        dish: [mobile ? 0 : -1.0, mobile ? 1.1 : 0.2, 0.1],
+        dishScale: mobile ? 0.91 : 1,
+        dishRotation: [0.08, -0.55 + p * Math.PI * 1.35, 0.02],
+        camera: mobile ? [0, 5.5, 6.8] : [0.4, 4.5, 6.3],
+      });
+      break;
+    case "encryption":
+      Object.assign(pose, {
+        support: [0, 0.08, mobile ? 2.6 : 2.1],
+        supportScale: mobile ? 1.14 : 1.1,
+        supportRotation: [-0.06, state.flip ? Math.PI : -0.18, -0.025],
+        look: [0, 1.1, 0],
+      });
+      break;
+    case "grip":
+      Object.assign(pose, {
+        dish: [0, 0.2, 0],
+        dishScale: mobile ? 0.98 : 1,
+        dishRotation: [
+          0.1,
+          (clamp(state.drag ?? 0.5, 0, 1) - 0.5) * Math.PI * 2,
+          0,
+        ],
+        camera: mobile ? [0, 4.1, 6.4] : [0, 2.8, 6.3],
+      });
+      break;
+    case "sustainability":
+      Object.assign(pose, {
+        laptop: [0, 0.08, 0],
+        laptopScale: 1,
+        laptopRotation: [0, mobile ? -0.02 : -0.12, 0],
+        camera: mobile ? [0, 3.6, 7.2] : [0, 3.2, 6.6],
+        look: [0, 0.95, 0],
+      });
+      break;
+    case "testimonies":
+    case "social-content":
+      break;
+    case "product":
+      Object.assign(pose, {
+        support: [0, 0.08, mobile ? 0.45 : 0.6],
+        supportScale: mobile ? 0.9 : 1.1,
+        supportRotation: [
+          -0.06,
+          -0.18 + ((state.supportAngle || 0) * Math.PI) / 180,
+          0,
+        ],
+        look: [0, 1.1, 0],
+      });
+      break;
+    case "open-weight":
+      Object.assign(pose, {
+        support: [mobile ? 0.2 : 1.3, 0.13, -0.1],
+        supportScale: mobile ? 0.95 : 1.1,
+        supportRotation: [-0.15, -0.3, 0],
+      });
+      break;
+    case "footer":
+      Object.assign(pose, {
+        camera: mobile ? [0, 4.2, 9.2] : [0, 3.6, 8.4],
+        dish: [0, 0.04, 0.55],
+        dishScale: mobile ? 0.84 : 1,
+        support: [mobile ? -0.9 : -1.45, 0.08, -0.25],
+        supportScale: mobile ? 0.7 : 0.95,
+        supportRotation: [-0.05, -0.2, 0],
+        phone: [mobile ? 0.8 : 1.4, 1.18, 0.4],
+        phoneScale: mobile ? 0.77 : 0.95,
+        phoneRotation: [-0.07, -0.14, 0],
+      });
+      break;
+    default:
+      break;
+  }
+  return pose;
+}
+
+function composition(state, mobile) {
+  return continuousComposition(state, mobile, baseComposition);
+}
+
+function disposeTree(root) {
+  const geometries = new Set();
+  const materials = new Set();
+  const textures = new Set();
+  root.traverse((object) => {
+    if (object.geometry) geometries.add(object.geometry);
+    for (const material of Array.isArray(object.material)
+      ? object.material
+      : [object.material]) {
+      if (!material) continue;
+      materials.add(material);
+      for (const value of Object.values(material)) {
+        if (value?.isTexture) textures.add(value);
+      }
+    }
+  });
+  geometries.forEach((geometry) => geometry.dispose());
+  materials.forEach((material) => material.dispose());
+  textures.forEach((texture) => {
+    texture.dispose();
+    // GLTFLoader may decode embedded images to ImageBitmap objects.
+    if (texture.image?.close) texture.image.close();
+  });
+}
+
+export default function Scene({
+  stateRef,
+  onReady,
+  onError,
+  onAssetError,
+  onAssetLoading,
+  onARStatus,
+  onZoomFit,
+}) {
+  const hostRef = useRef(null);
+  const callbacks = useRef({
+    onReady,
+    onError,
+    onAssetError,
+    onAssetLoading,
+    onARStatus,
+    onZoomFit,
+  });
+  useEffect(() => {
+    callbacks.current = { onReady, onError, onAssetError, onAssetLoading, onARStatus, onZoomFit };
+  }, [onReady, onError, onAssetError, onAssetLoading, onARStatus, onZoomFit]);
+
+  useEffect(() => {
+    const sceneState = stateRef.current;
+    const diagnosticsEnabled = new URLSearchParams(window.location.search).get("sceneDiagnostics") === "1";
+    // A fresh canvas per effect avoids reusing a lost context in StrictMode.
+    const canvas = document.createElement("canvas");
+    canvas.className = "scene-canvas";
+    canvas.dataset.ready = "false";
+    canvas.setAttribute("aria-hidden", "true");
+    Object.assign(canvas.style, {
+      width: "100%",
+      height: "100%",
+      display: "block",
+    });
+    hostRef.current.appendChild(canvas);
+    let disposed = false;
+    let failed = false;
+    let renderer;
+    let arExperience;
+    let frame = 0;
+    let lastTime = 0;
+    let lastScrollDistance = stateRef.current?.scrollDistance;
+    let renderRequested = false;
+    let wasOccluded = false;
+    let assetRequest;
+    let ready = false;
+    let stoneReady = false;
+    let decodeQueue = Promise.resolve();
+    let currentDish = "";
+    let currentModelUrl = "";
+    let lastRetryModel = stateRef.current?.retryModel ?? 0;
+    let activeDish;
+    let lastCollection = "";
+    const ownedTextures = new Set();
+    const mobileViewport = () => window.innerWidth < 768;
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color("#050505");
+    scene.fog = new THREE.FogExp2("#050505", 0.028);
+    const camera = new THREE.PerspectiveCamera(40, 1, 0.05, 150);
+    const lookAt = new THREE.Vector3(0, 0, 0);
+    const cameraTarget = new THREE.Vector3();
+    const objectTarget = new THREE.Vector3();
+    const targetQuaternion = new THREE.Quaternion();
+    const targetEuler = new THREE.Euler();
+    let environmentTarget;
+    let environmentScene;
+
+    function invalidateScene() {
+      if (disposed || failed) return;
+      renderRequested = true;
+      if (frame || document.hidden || arExperience?.active) return;
+      // App keeps the latest scroll state while opaque pricing covers the room.
+      // QA alone needs processed-pose markers inside that hidden interval.
+      if (ready && wasOccluded && stateRef.current?.sceneOccluded && !diagnosticsEnabled)
+        return;
+      frame = requestAnimationFrame(draw);
+    }
+
+    // App can publish copy and submit the matching scene in one browser frame.
+    // Cancel an older asset/video RAF rather than drawing the same pose twice.
+    function renderSceneFrame(now) {
+      if (disposed || failed || document.hidden || arExperience?.active) return;
+      if (ready && wasOccluded && stateRef.current?.sceneOccluded && !diagnosticsEnabled)
+        return;
+      cancelAnimationFrame(frame);
+      frame = 0;
+      renderRequested = true;
+      draw(now);
+    }
+
+    function fail(error) {
+      if (disposed || failed) return;
+      failed = true;
+      cancelAnimationFrame(frame);
+      frame = 0;
+      canvas.dataset.ready = "error";
+      callbacks.current.onError?.(
+        error instanceof Error ? error : new Error(String(error)),
+      );
+    }
+
+    try {
+      renderer = new THREE.WebGLRenderer({
+        canvas,
+        antialias: true,
+        alpha: false,
+        powerPreference: "high-performance",
+      });
+      renderer.outputColorSpace = THREE.SRGBColorSpace;
+      renderer.toneMapping = THREE.ACESFilmicToneMapping;
+      renderer.toneMappingExposure = 1.05;
+      renderer.shadowMap.enabled = true;
+      renderer.shadowMap.autoUpdate = false;
+      renderer.shadowMap.type = THREE.PCFShadowMap;
+      environmentScene = new RoomEnvironment();
+      const pmrem = new THREE.PMREMGenerator(renderer);
+      environmentTarget = pmrem.fromScene(environmentScene, 0.08);
+      scene.environment = environmentTarget.texture;
+      scene.environmentIntensity = 0.48;
+      pmrem.dispose();
+    } catch (error) {
+      fail(error);
+      renderer?.dispose();
+      environmentTarget?.dispose();
+      environmentScene?.dispose();
+      return () => {
+        disposed = true;
+        canvas.remove();
+      };
+    }
+
+    const warmFill = new THREE.HemisphereLight("#f1e9da", "#1b1813", 1.5);
+    scene.add(warmFill);
+    const keyLight = new THREE.DirectionalLight("#fff1d8", 3.0);
+    keyLight.position.set(-3.5, 7.5, 3.5);
+    keyLight.castShadow = true;
+    keyLight.shadow.mapSize.set(
+      mobileViewport() ? 1024 : 2048,
+      mobileViewport() ? 1024 : 2048,
+    );
+    keyLight.shadow.camera.left = -6;
+    keyLight.shadow.camera.right = 6;
+    keyLight.shadow.camera.top = 6;
+    keyLight.shadow.camera.bottom = -6;
+    keyLight.shadow.camera.near = 0.1;
+    keyLight.shadow.camera.far = 18;
+    keyLight.shadow.normalBias = 0.025;
+    keyLight.shadow.bias = -0.00015;
+    keyLight.shadow.radius = 4;
+    keyLight.shadow.intensity = 0.7;
+    scene.add(keyLight);
+    const rimLight = new THREE.DirectionalLight("#dca66a", 2.8);
+    rimLight.position.set(4, 3.5, -4);
+    scene.add(rimLight);
+    const frontLight = new THREE.DirectionalLight("#f1e9db", 0.8);
+    frontLight.position.set(0, 2, 5);
+    scene.add(frontLight);
+
+    const textureLoader = new THREE.TextureLoader();
+    const stone = textureLoader.load(
+      "/immersive-assets/restaurant-stone.webp",
+      (texture) => {
+        if (disposed) texture.dispose();
+        else {
+          stoneReady = true;
+          invalidateScene();
+        }
+      },
+      undefined,
+      () =>
+        fail(new Error("La matière du restaurant ne peut pas être chargée.")),
+    );
+    stone.colorSpace = THREE.SRGBColorSpace;
+    stone.wrapS = stone.wrapT = THREE.RepeatWrapping;
+    stone.repeat.set(3, 3);
+    stone.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy());
+    ownedTextures.add(stone);
+    let nativeTable;
+    const restaurantWorld = createRestaurantModel(scene, {
+      renderer,
+      canvas,
+      disposeTree,
+      onError: fail,
+      onReady: (model) => {
+        nativeTable = createRestaurantTable(model, {
+          width: 6,
+          surfaceY: -0.02,
+          placements: {
+            placeSetting: [-1.8, 0.01, 0.7],
+            glass: [2.05, 0.01, 0.3],
+            candle: [-2.05, 0.01, 0.15],
+          },
+        });
+        const center = nativeTable.metadata.sourceCenter;
+        nativeTable.group.rotation.y = Math.atan2(
+          -0.38353 - center[0],
+          center[2] + 10.13489,
+        );
+        arrangePresentationTable(nativeTable);
+        canvas.dataset.roomTableTrianglesOmitted = String(
+          nativeTable.excludeCopiedObjectsFromRoom(),
+        );
+        nativeTable.group.traverse((object) => object.layers.set(2));
+        scene.add(nativeTable.group);
+        for (const object of [table, tablePedestal, decor]) {
+          scene.remove(object);
+          disposeTree(object);
+        }
+        canvas.dataset.table = "original-white-table-chair-accessories";
+        canvas.dataset.tableMetadata = JSON.stringify(nativeTable.metadata);
+        return nativeTable.metadata;
+      },
+    });
+    restaurantWorld.loading.then(invalidateScene, () => {});
+    const woodMaterial = new THREE.MeshStandardMaterial({
+      color: "#2c4148",
+      map: stone,
+      bumpMap: stone,
+      bumpScale: 0.01,
+      roughness: 0.64,
+      metalness: 0.02,
+      transparent: false,
+    });
+    const table = new THREE.Mesh(
+      new THREE.CylinderGeometry(3.2, 3.2, 0.16, 96),
+      woodMaterial,
+    );
+    table.position.y = -0.12;
+    table.scale.x = 1.24;
+    table.receiveShadow = true;
+    scene.add(table);
+    const tablePedestal = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.16, 0.23, 1.72, 20),
+      new THREE.MeshStandardMaterial({
+        color: "#ad996f",
+        metalness: 0.8,
+        roughness: 0.35,
+      }),
+    );
+    tablePedestal.position.y = -1.04;
+    scene.add(tablePedestal);
+    const shadowCanvas = document.createElement("canvas");
+    shadowCanvas.width = shadowCanvas.height = 256;
+    const shadowContext = shadowCanvas.getContext("2d");
+    const gradient = shadowContext.createRadialGradient(
+      128,
+      128,
+      20,
+      128,
+      128,
+      128,
+    );
+    gradient.addColorStop(0, "rgba(0,0,0,0.5)");
+    gradient.addColorStop(0.65, "rgba(0,0,0,0.22)");
+    gradient.addColorStop(1, "rgba(0,0,0,0)");
+    shadowContext.fillStyle = gradient;
+    shadowContext.fillRect(0, 0, 256, 256);
+    const softShadowTexture = new THREE.CanvasTexture(shadowCanvas);
+    ownedTextures.add(softShadowTexture);
+    const contactShadow = new THREE.Mesh(
+      new THREE.PlaneGeometry(2.8, 2.8),
+      new THREE.MeshBasicMaterial({
+        map: softShadowTexture,
+        transparent: true,
+        depthWrite: false,
+        opacity: 0.8,
+      }),
+    );
+    contactShadow.rotation.x = -HALF_PI;
+    contactShadow.position.y = -0.012;
+    contactShadow.layers.set(2);
+    scene.add(contactShadow);
+
+    function mesh(geometry, material, parent, x = 0, y = 0, z = 0) {
+      const object = new THREE.Mesh(geometry, material);
+      object.position.set(x, y, z);
+      object.castShadow = true;
+      object.receiveShadow = true;
+      parent.add(object);
+      return object;
+    }
+
+    const gold = new THREE.MeshStandardMaterial({
+      color: "#b99a66",
+      metalness: 0.88,
+      roughness: 0.27,
+    });
+    const glass = new THREE.MeshPhysicalMaterial({
+      color: "#fff4dc",
+      roughness: 0.12,
+      metalness: 0,
+      transmission: 0,
+      thickness: 0.05,
+      transparent: true,
+      opacity: 0.24,
+      ior: 1.45,
+    });
+    const decor = new THREE.Group();
+    scene.add(decor);
+    const napkin = mesh(
+      new RoundedBoxGeometry(1.12, 0.06, 1.6, 3, 0.025),
+      new THREE.MeshStandardMaterial({ color: "#4a4136", roughness: 0.95 }),
+      decor,
+      -2.6,
+      0.025,
+      1.25,
+    );
+    napkin.rotation.y = 0.2;
+    const cutlery = new THREE.Group();
+    cutlery.position.set(-2.6, 0.07, 1.25);
+    cutlery.rotation.y = 0.2;
+    decor.add(cutlery);
+    for (const x of [-0.23, 0.23]) {
+      mesh(
+        new RoundedBoxGeometry(0.055, 0.025, 0.85, 2, 0.018),
+        gold,
+        cutlery,
+        x,
+        0,
+        0.15,
+      );
+    }
+    mesh(
+      new RoundedBoxGeometry(0.14, 0.025, 0.5, 2, 0.018),
+      gold,
+      cutlery,
+      0.265,
+      0,
+      -0.46,
+    );
+    mesh(
+      new THREE.BoxGeometry(0.18, 0.025, 0.11),
+      gold,
+      cutlery,
+      -0.23,
+      0,
+      -0.32,
+    );
+    for (let i = 0; i < 4; i++)
+      mesh(
+        new THREE.BoxGeometry(0.023, 0.025, 0.23),
+        gold,
+        cutlery,
+        -0.3 + i * 0.047,
+        0,
+        -0.45,
+      );
+    const wine = new THREE.Group();
+    wine.position.set(2.4, 0.02, -1.5);
+    decor.add(wine);
+    mesh(
+      new THREE.CylinderGeometry(0.31, 0.32, 0.025, 32),
+      glass,
+      wine,
+      0,
+      0.013,
+      0,
+    );
+    mesh(
+      new THREE.CylinderGeometry(0.022, 0.024, 0.64, 16),
+      glass,
+      wine,
+      0,
+      0.34,
+      0,
+    );
+    const bowlProfile = [
+      [0.045, 0.61],
+      [0.14, 0.66],
+      [0.28, 0.8],
+      [0.34, 1.03],
+      [0.31, 1.3],
+      [0.28, 1.4],
+    ];
+    mesh(
+      new THREE.LatheGeometry(
+        bowlProfile.map(([x, y]) => new THREE.Vector2(x, y)),
+        40,
+      ),
+      glass,
+      wine,
+    );
+    const candle = new THREE.Group();
+    candle.position.set(-2.4, 0.02, -1.45);
+    decor.add(candle);
+    mesh(
+      new THREE.CylinderGeometry(0.25, 0.25, 0.37, 32, 1, true),
+      glass,
+      candle,
+      0,
+      0.19,
+      0,
+    );
+    mesh(
+      new THREE.CylinderGeometry(0.21, 0.21, 0.13, 32),
+      new THREE.MeshStandardMaterial({ color: "#dccaaa", roughness: 0.9 }),
+      candle,
+      0,
+      0.08,
+      0,
+    );
+    const flame = mesh(
+      new THREE.SphereGeometry(0.028, 12, 12),
+      new THREE.MeshBasicMaterial({ color: "#ffe3a2", toneMapped: false }),
+      candle,
+      0,
+      0.2,
+      0,
+    );
+    flame.scale.y = 2.4;
+    const candleLight = new THREE.PointLight("#f2ac55", 0.7, 4, 2);
+    candleLight.position.set(-2.4, 0.5, -1.45);
+    scene.add(candleLight);
+
+    const supportAssets = createSupportModels({
+      canvas,
+      renderer,
+      disposeTree,
+      onError: fail,
+      onInvalidate: invalidateScene,
+    });
+    const supportRoot = supportAssets.root;
+    scene.add(supportRoot);
+
+    const phoneScreenMaterial = new THREE.MeshBasicMaterial({
+      color: "#ead9bd",
+      toneMapped: false,
+      polygonOffset: true,
+      polygonOffsetFactor: 1,
+      polygonOffsetUnits: 1,
+    });
+    const phoneAsset = createPhoneModel({
+      canvas,
+      screenMaterial: phoneScreenMaterial,
+      disposeTree,
+      onError: fail,
+      onInvalidate: invalidateScene,
+    });
+    const phoneRoot = phoneAsset.root;
+    scene.add(phoneRoot);
+    const laptopAsset = createLaptopModel({
+      canvas,
+      renderer,
+      disposeTree,
+      onError: fail,
+      onInvalidate: invalidateScene,
+    });
+    const laptopRoot = laptopAsset.root;
+    scene.add(laptopRoot);
+    function ensureLaptop(state) {
+      // Preload from either neighboring chapter; direct links and skipped
+      // chapters still request the original model as soon as it is needed.
+      if (state.section === "grip" || state.section === "sustainability" ||
+        state.section === "testimonies" || state.transition?.from === "sustainability" ||
+        state.transition?.to === "sustainability") laptopAsset.load();
+    }
+    let posterReady = false;
+    let videoReady = false;
+    let videoStarted = false;
+    let currentPhoneDemo = "";
+    const posters = new Map();
+    let currentPosterDemo = "";
+    function selectPoster(demo) {
+      if (currentPosterDemo === demo) return;
+      currentPosterDemo = demo;
+      posterReady = false;
+      const applyPoster = (texture) => {
+        if (disposed) {
+          texture.dispose();
+          return;
+        }
+        if (currentPosterDemo !== demo) return;
+        posterReady = true;
+        // A late poster must not replace a moving frame already on screen.
+        if (!videoReady) {
+          phoneScreenMaterial.map = texture;
+          phoneScreenMaterial.color.set("#ffffff");
+          phoneScreenMaterial.needsUpdate = true;
+        }
+        invalidateScene();
+      };
+      if (posters.has(demo)) {
+        applyPoster(posters.get(demo));
+        return;
+      }
+      const texture = textureLoader.load(
+        `/immersive-assets/phone-poster-${demo}.webp`,
+        applyPoster,
+        undefined,
+        () =>
+          fail(new Error("L’aperçu du menu mobile ne peut pas être chargé.")),
+      );
+      texture.colorSpace = THREE.SRGBColorSpace;
+      posters.set(demo, texture);
+      ownedTextures.add(texture);
+    }
+    selectPoster("maison-elyse");
+    const phoneVideo = document.createElement("video");
+    phoneVideo.muted = true;
+    phoneVideo.loop = true;
+    phoneVideo.playsInline = true;
+    phoneVideo.preload = "none";
+    phoneVideo.setAttribute("playsinline", "");
+    const phonePlayback = createVideoPlaybackController(phoneVideo);
+    phoneVideo.onerror = () =>
+      fail(
+        new Error("La démonstration du menu mobile ne peut pas être chargée."),
+      );
+    let phoneFrame = 0;
+    let videoFrameCallback;
+    let phonePlaybackWanted = false;
+    let videoPlaying = false;
+    let phonePlayIntent = 0;
+    function canPlayPhoneVideo() {
+      const state = stateRef.current || {};
+      return phonePlaybackWanted && phoneRoot.visible &&
+        !disposed && !failed && !document.hidden && !arExperience?.active &&
+        !state.sceneOccluded && !state.reducedMotion && !state.modalOpen && !state.menuOpen;
+    }
+    function cancelPhoneFrame() {
+      if (videoFrameCallback !== undefined) {
+        phoneVideo.cancelVideoFrameCallback?.(videoFrameCallback);
+        videoFrameCallback = undefined;
+      }
+    }
+    function decodedPhoneFrame() {
+      videoFrameCallback = undefined;
+      if (!canPlayPhoneVideo() || phoneVideo.paused || phoneVideo.ended) return;
+      phoneFrame++;
+      invalidateScene();
+      requestPhoneFrame();
+    }
+    function requestPhoneFrame() {
+      if (phoneVideo.requestVideoFrameCallback && videoFrameCallback === undefined &&
+        canPlayPhoneVideo() && !phoneVideo.paused && !phoneVideo.ended)
+        videoFrameCallback = phoneVideo.requestVideoFrameCallback(decodedPhoneFrame);
+    }
+    function pausePhoneVideo() {
+      if (phonePlaybackWanted) phonePlayIntent++;
+      phonePlaybackWanted = false;
+      videoPlaying = false;
+      cancelPhoneFrame();
+      if (!phoneVideo.paused) phoneVideo.pause();
+    }
+    function phoneVideoChanged(event) {
+      if (disposed || failed) return;
+      if (event.type === "pause" || event.type === "waiting" ||
+        event.type === "ended" || event.type === "emptied") {
+        videoPlaying = false;
+        cancelPhoneFrame();
+        if (canPlayPhoneVideo()) invalidateScene();
+        return;
+      }
+      if (event.type === "playing") videoPlaying = true;
+      if (canPlayPhoneVideo()) {
+        requestPhoneFrame();
+        invalidateScene();
+      }
+    }
+    const phoneVideoEvents = ["loadeddata", "canplay", "playing", "seeked", "pause", "waiting", "ended", "emptied"];
+    phoneVideoEvents.forEach((event) => phoneVideo.addEventListener(event, phoneVideoChanged));
+    const videoTexture = new THREE.VideoTexture(phoneVideo);
+    videoTexture.colorSpace = THREE.SRGBColorSpace;
+    ownedTextures.add(videoTexture);
+    function updatePhoneVideo(shouldPlay, demo) {
+      if (!shouldPlay || currentPhoneDemo !== demo) videoReady = false;
+      selectPoster(demo);
+      if (!shouldPlay) {
+        pausePhoneVideo();
+        const still = posters.get(demo);
+        if (still && posterReady && phoneScreenMaterial.map !== still) {
+          phoneScreenMaterial.map = still;
+          phoneScreenMaterial.needsUpdate = true;
+          videoReady = false;
+        }
+        return;
+      }
+      if (!phonePlaybackWanted) phonePlayIntent++;
+      phonePlaybackWanted = true;
+      if (!videoStarted || currentPhoneDemo !== demo) {
+        phonePlayIntent++;
+        videoPlaying = false;
+        cancelPhoneFrame();
+        phoneVideo.pause();
+        phoneVideo.src = `/videos/demo/${demo}.mp4`;
+        currentPhoneDemo = demo;
+        videoReady = false;
+        phonePlayback.reset();
+        phoneVideo.defaultPlaybackRate = 1;
+        phoneVideo.playbackRate = 1;
+        phoneVideo.load();
+        videoStarted = true;
+        canvas.dataset.phoneDemo = demo;
+      }
+      const intent = phonePlayIntent;
+      phonePlayback.play()?.then(() => {
+        // A pause/resume can overtake an interrupted pending play. Wake once
+        // for the newer intent; never poll an unchanged autoplay rejection.
+        if (intent !== phonePlayIntent && canPlayPhoneVideo()) invalidateScene();
+      });
+      requestPhoneFrame();
+      // Keep the actual menu poster until a decoded moving frame is available.
+      if (
+        !videoReady &&
+        phoneVideo.readyState >= 2 &&
+        phoneVideo.currentTime > 0.05
+      ) {
+        videoReady = true;
+        phoneScreenMaterial.map = videoTexture;
+        phoneScreenMaterial.color.set("#ffffff");
+        phoneScreenMaterial.needsUpdate = true;
+      }
+    }
+
+    const dishRoot = new THREE.Group();
+    const originalFoodOpacity = new WeakMap();
+    let foodMaterials = [];
+    let dishDisplayScale = 1;
+    const dishLocalBounds = new THREE.Box3();
+    let dishFramingRadius = 0;
+    const dishFramingPoint = new THREE.Vector3();
+    const dishZoomCorner = new THREE.Vector3();
+    let activeModelAssetId = "";
+    const hullWorldMatrix = new THREE.Matrix4();
+    const hullScale = new THREE.Vector3();
+    let framingHulls = {};
+    const hullRequest = diagnosticsEnabled ? new AbortController() : null;
+    canvas.dataset.framingReady = diagnosticsEnabled ? "false" : "disabled";
+    if (diagnosticsEnabled) {
+      fetch("/immersive-assets/dishes/framing-hulls.json", { signal: hullRequest.signal })
+        .then((response) => {
+          if (!response.ok)
+            throw new Error("Le cadrage des plats ne peut pas être chargé.");
+          return response.json();
+        })
+        .then((data) => {
+          if (disposed) return;
+          framingHulls = indexPublicModelFramingHulls(data.byUrl);
+          canvas.dataset.framingReady = "true";
+          // Functional readiness may already have settled the scene. Publish
+          // the requested QA bounds on the next explicitly scheduled update.
+          renderSignature = "";
+          invalidateScene();
+        })
+        .catch((error) => {
+          if (disposed || error.name === "AbortError") return;
+          canvas.dataset.framingReady = "error";
+          canvas.dataset.framingError = error.message || String(error);
+        });
+    }
+    scene.add(dishRoot);
+    const foodDraco = new DRACOLoader()
+      .setDecoderPath("/immersive-assets/draco/")
+      .setDecoderConfig({ type: "wasm" })
+      .setWorkerLimit(1);
+    const loader = new GLTFLoader()
+      .setMeshoptDecoder(MeshoptDecoder)
+      .setDRACOLoader(foodDraco);
+    function modelUrl(name) {
+      if (name === "homard")
+        return resolvePublicModelUrl(mobileViewport()
+          ? "demo.homard-bisque.mobile"
+          : "demo.homard-bisque.web");
+      if (
+        ["huitres", "sushi", "chocolat-fume", "poutine", "burger"].includes(
+          name,
+        )
+      )
+        return resolvePublicModelUrl(`immersive.dish.${name}.mobile`);
+      const dish = dishes.find((dish) => dish.id === name && dish.model);
+      return typeof dish?.model === "string"
+        ? dish.model
+        : resolvePublicModelUrl("demo.souffle-chocolat.web");
+    }
+    function loadDish(name) {
+      currentDish = name;
+      canvas.dataset.loadingModel = name;
+      callbacks.current.onAssetLoading?.(name);
+      assetRequest?.abort();
+      assetRequest = new AbortController();
+      const request = assetRequest;
+      const url = modelUrl(name);
+      currentModelUrl = url;
+      fetch(url, { signal: request.signal })
+        .then((response) => {
+          if (!response.ok)
+            throw new Error(
+              `Le modèle 3D ne peut pas être chargé (${response.status}).`,
+            );
+          return response.arrayBuffer();
+        })
+        .then((buffer) => {
+          const decoding = decodeQueue
+            .catch(() => {})
+            .then(() => {
+              if (disposed || request.signal.aborted)
+                throw new DOMException("Cancelled model", "AbortError");
+              return loader.parseAsync(buffer, publicModelBaseUrl(url));
+            });
+          decodeQueue = decoding;
+          return decoding;
+        })
+        .then((gltf) => {
+          if (disposed || request.signal.aborted || currentDish !== name) {
+            disposeTree(gltf.scene);
+            return;
+          }
+          if (activeDish) {
+            dishRoot.remove(activeDish);
+            disposeTree(activeDish);
+          }
+          activeDish = gltf.scene;
+          activeModelAssetId = getPublicModelAsset(url)?.id ?? "";
+          // Keep the approved mobile art direction. On desktop, the platter,
+          // plated desserts and bare burger each have a table-sized footprint.
+          // The offline hulls retain their original 2.35-unit normalization;
+          // applying this same factor to their matrix keeps hit/framing bounds
+          // aligned with the visible mesh without rewriting any source asset.
+          dishDisplayScale = dishPresentationScale(name, mobileViewport());
+          foodMaterials = [];
+          const bounds = new THREE.Box3().setFromObject(activeDish);
+          const size = bounds.getSize(new THREE.Vector3());
+          const center = bounds.getCenter(new THREE.Vector3());
+          const scale =
+            (FRAMING_HULL_SIZE * dishDisplayScale) /
+            Math.max(size.x, size.z, size.y * 1.3, 0.001);
+          activeDish.scale.multiplyScalar(scale);
+          activeDish.position.set(
+            -center.x * scale,
+            -bounds.min.y * scale,
+            -center.z * scale,
+          );
+          activeDish.updateMatrixWorld(true);
+          // Store the normalized geometry once. Zoom changes the camera, never
+          // this mesh scale. The grip framing is fixed for each selected scan.
+          dishLocalBounds.setFromObject(activeDish);
+          dishFramingRadius = 0;
+          activeDish.traverse((object) => {
+            if (!object.isMesh) return;
+            // One pass over the already loaded scan, never a diagnostic asset
+            // request or a per-frame vertex scan. A box diagonal overfits plates.
+            const positions = object.geometry.getAttribute("position");
+            for (let i = 0; i < positions.count; i++) {
+              dishFramingPoint.fromBufferAttribute(positions, i).applyMatrix4(object.matrixWorld);
+              dishFramingRadius = Math.max(dishFramingRadius, Math.hypot(dishFramingPoint.x, dishFramingPoint.z));
+            }
+            object.castShadow = false;
+            object.receiveShadow = true;
+            for (const material of Array.isArray(object.material)
+              ? object.material
+              : [object.material]) {
+              if (material.emissiveMap) material.emissiveIntensity = 0.35;
+              if ("envMapIntensity" in material) material.envMapIntensity = 0.5;
+              originalFoodOpacity.set(material, material.opacity);
+              foodMaterials.push(material);
+              material.transparent = false;
+              material.depthWrite = true;
+              material.forceSinglePass = true;
+              for (const texture of Object.values(material)) {
+                if (texture?.isTexture)
+                  texture.anisotropy = Math.min(
+                    8,
+                    renderer.capabilities.getMaxAnisotropy(),
+                  );
+              }
+            }
+          });
+          dishRoot.add(activeDish);
+          canvas.dataset.model = name;
+          delete canvas.dataset.loadingModel;
+          delete canvas.dataset.modelError;
+          callbacks.current.onAssetLoading?.(null);
+          callbacks.current.onAssetError?.(null);
+          invalidateScene();
+        })
+        .catch((error) => {
+          if (disposed || request.signal.aborted || error.name === "AbortError")
+            return;
+          delete canvas.dataset.loadingModel;
+          callbacks.current.onAssetLoading?.(null);
+          if (activeDish) {
+            canvas.dataset.modelError = error.message || String(error);
+            callbacks.current.onAssetError?.(error);
+          } else fail(error);
+        });
+    }
+
+    const particlesGeometry = new THREE.BufferGeometry();
+    const particlePositions = new Float32Array(60 * 3);
+    for (let i = 0; i < 60; i++) {
+      const seed = Math.sin(i * 12.9898 + 0.731) * 43758.5453;
+      const random = seed - Math.floor(seed);
+      particlePositions[i * 3] = (random - 0.5) * 7;
+      particlePositions[i * 3 + 1] = (i % 13) * 0.18 + 0.15;
+      particlePositions[i * 3 + 2] = Math.sin(i * 0.75) * 3 - 1;
+    }
+    particlesGeometry.setAttribute(
+      "position",
+      new THREE.BufferAttribute(particlePositions, 3),
+    );
+    const particles = new THREE.Points(
+      particlesGeometry,
+      new THREE.PointsMaterial({
+        color: "#b3915c",
+        size: 0.014,
+        transparent: true,
+        opacity: 0.45,
+        depthWrite: false,
+      }),
+    );
+    scene.add(particles);
+
+    let drawingSize;
+    let viewportRevision = 0;
+    function resize() {
+      if (arExperience?.active) return;
+      if (disposed) return;
+      // Keep HTML/UI at native density while bounding the expensive 3D layer.
+      // A 1.5 DPR cap uses one quarter of DPR 3's fragments on Retina phones.
+      const pixelBudget = 2560 * 1440;
+      const width = canvas.clientWidth;
+      const height = canvas.clientHeight;
+      if (!width || !height) return;
+      const pixelRatio = Math.min(
+        window.devicePixelRatio || 1,
+        1.5,
+        Math.sqrt(pixelBudget / (width * height)),
+      );
+      // Browser bars emit resize while 100lvh stays unchanged. Rewriting the
+      // same canvas dimensions would still clear its drawing buffer.
+      if (
+        drawingSize?.width === width &&
+        drawingSize.height === height &&
+        drawingSize.pixelRatio === pixelRatio &&
+        canvas.width === Math.floor(width * pixelRatio) &&
+        canvas.height === Math.floor(height * pixelRatio)
+      )
+        return;
+      drawingSize = { width, height, pixelRatio };
+      renderer.setDrawingBufferSize(width, height, pixelRatio);
+      viewportRevision++;
+      canvas.dataset.viewportResizes = String(viewportRevision);
+      camera.aspect = width / height;
+      camera.updateProjectionMatrix();
+      invalidateScene();
+    }
+    function applyTransform(object, position, rotation, scale, damping) {
+      objectTarget.fromArray(position);
+      object.position.lerp(objectTarget, damping);
+      targetEuler.set(...rotation);
+      targetQuaternion.setFromEuler(targetEuler);
+      object.quaternion.slerp(targetQuaternion, damping);
+      const nextScale = THREE.MathUtils.lerp(object.scale.x, scale, damping);
+      object.scale.setScalar(nextScale);
+      object.visible = nextScale > 0.003;
+    }
+    const initialState = stateRef.current || { section: "hero", progress: 0 };
+    ensureLaptop(initialState);
+    const initial = composition(initialState, mobileViewport());
+    camera.position.fromArray(initial.camera);
+    camera.up.set(0, 1, 0);
+    lookAt.fromArray(initial.look);
+    applyTransform(
+      supportRoot,
+      initial.support,
+      initial.supportRotation,
+      initial.supportScale,
+      1,
+    );
+    applyTransform(
+      phoneRoot,
+      initial.phone,
+      initial.phoneRotation,
+      initial.phoneScale,
+      1,
+    );
+    applyTransform(
+      dishRoot,
+      initial.dish,
+      initial.dishRotation,
+      initial.dishScale,
+      1,
+    );
+    applyTransform(
+      laptopRoot,
+      initial.laptop,
+      initial.laptopRotation,
+      initial.laptopScale,
+      1,
+    );
+    loadDish(
+      dishes.some((d) => d.id === initialState.dish && d.model)
+        ? initialState.dish
+        : "homard",
+    );
+    restaurantWorld.update(initialState, 1, canvas);
+    resize();
+
+    const corner = new THREE.Vector3();
+    const referenceCamera = new THREE.PerspectiveCamera(
+      40,
+      camera.aspect,
+      0.05,
+      200,
+    );
+    const calibrations = new Map();
+    let calibrationKey = "";
+    let calibrationFrames;
+    let serializedFrames = "";
+    let framingReference;
+    let projectionState;
+    let projectionSettling = false;
+    let notifiedZoom = null;
+    const fallbackFocus = DEFAULT_SCENE_FRAME;
+    const smooth = cinematicEase;
+    function projectedExtent(bounds, cam = camera) {
+      let minX = Infinity,
+        maxX = -Infinity,
+        minY = Infinity,
+        maxY = -Infinity;
+      for (const x of [bounds.min.x, bounds.max.x])
+        for (const y of [bounds.min.y, bounds.max.y])
+          for (const z of [bounds.min.z, bounds.max.z]) {
+            corner.set(x, y, z).project(cam);
+            minX = Math.min(minX, corner.x);
+            maxX = Math.max(maxX, corner.x);
+            minY = Math.min(minY, corner.y);
+            maxY = Math.max(maxY, corner.y);
+          }
+      return { minX, maxX, minY, maxY };
+    }
+    // Fit immutable reference poses, never the live shrinking/rotating geometry.
+    // The normal 40-degree lens remains fixed; dolly distance handles fitting.
+    function calibration(section, state, openingP = null) {
+      const key = `${section}:${openingP}`;
+      if (calibrations.has(key)) return calibrations.get(key);
+      const pose = baseComposition(
+        {
+          ...state,
+          section,
+          progress: 0,
+          openingProgress: openingP,
+          drag: 0.5,
+          flip: false,
+          supportAngle: 0,
+        },
+        mobileViewport(),
+      );
+      let focus = state.sceneFrames?.[section] || fallbackFocus;
+      if (openingP != null) {
+        const a =
+          state.sceneFrames?.[openingP < 0.5 ? "hero" : "ai"] || fallbackFocus;
+        const b =
+          state.sceneFrames?.[openingP < 0.5 ? "ai" : "wearable"] ||
+          fallbackFocus;
+        const t = smooth(
+          (openingP - (openingP < 0.5 ? 0 : 0.5)) / 0.5,
+        );
+        focus = Object.fromEntries(
+          Object.keys(a).map((key) => [key, a[key] + (b[key] - a[key]) * t]),
+        );
+      }
+      const bounds = new THREE.Box3();
+      let dishReference;
+      const roots = [
+        [dishRoot, "dish"],
+        [supportRoot, "support"],
+        [phoneRoot, "phone"],
+        [laptopRoot, "laptop"],
+      ];
+      const snapshots = roots.map(([root]) => ({
+        position: root.position.clone(),
+        quaternion: root.quaternion.clone(),
+        scale: root.scale.clone(),
+        visible: root.visible,
+      }));
+      for (const [root, name] of roots)
+        applyTransform(
+          root,
+          pose[name],
+          pose[`${name}Rotation`],
+          pose[`${name}Scale`],
+          1,
+        );
+      scene.updateMatrixWorld(true);
+      for (const [root, name] of roots)
+        if (root.visible && (name !== "support" || supportAssets.active)) {
+          if (name === "laptop" && laptopAsset.framingBounds)
+            bounds.union(
+              laptopAsset.framingBounds.clone().applyMatrix4(root.matrixWorld),
+            );
+          else if (name === "dish" && section === "grip" && activeDish) {
+            dishReference = {
+              position: root.position.clone(),
+              quaternion: root.quaternion.clone(),
+              scale: root.scale.clone(),
+            };
+            for (const point of dishCylinderCorners(dishLocalBounds, dishFramingRadius,
+              root.position, root.quaternion, root.scale.x)) bounds.expandByPoint(corner.fromArray(point));
+          } else if (name === "dish" && ["features", "grip"].includes(section)) {
+            // A shared reference keeps table scale and lens distance stable
+            // across dish selection; fitting each live model would enlarge
+            // smaller portions again and make the table visibly breathe.
+            const radius = (mobileViewport() ? 1.3 : 1.05) * pose.dishScale;
+            bounds.union(
+              new THREE.Box3(
+                new THREE.Vector3(
+                  pose.dish[0] - radius,
+                  pose.dish[1] - radius * 0.1,
+                  pose.dish[2] - radius,
+                ),
+                new THREE.Vector3(
+                  pose.dish[0] + radius,
+                  pose.dish[1] + 1.05 * pose.dishScale + radius * 0.1,
+                  pose.dish[2] + radius,
+                ),
+              ),
+            );
+          } else
+            bounds.expandByObject(
+              name === "support" ? supportAssets.active : root,
+            );
+        }
+      roots.forEach(([root], i) => {
+        root.position.copy(snapshots[i].position);
+        root.quaternion.copy(snapshots[i].quaternion);
+        root.scale.copy(snapshots[i].scale);
+        root.visible = snapshots[i].visible;
+      });
+      scene.updateMatrixWorld(true);
+      const center = bounds.isEmpty()
+        ? new THREE.Vector3().fromArray(pose.look)
+        : bounds.getCenter(new THREE.Vector3());
+      const direction = new THREE.Vector3()
+        .fromArray(pose.camera)
+        .sub(new THREE.Vector3().fromArray(pose.look))
+        .normalize();
+      let distance = new THREE.Vector3()
+        .fromArray(pose.camera)
+        .distanceTo(new THREE.Vector3().fromArray(pose.look));
+      const authoredDistance = distance;
+      if (!bounds.isEmpty()) {
+        referenceCamera.aspect = camera.aspect;
+        referenceCamera.zoom = 1;
+        referenceCamera.clearViewOffset();
+        const width = focus.width * (openingP != null ? 0.87 : 0.94);
+        const height = focus.height * (openingP != null ? 0.86 : 0.92);
+        let lo = Math.max(
+            0.3,
+            bounds.getSize(new THREE.Vector3()).length() * 0.45,
+          ),
+          hi = 80;
+        for (let i = 0; i < 24; i++) {
+          const d = (lo + hi) / 2;
+          referenceCamera.position.copy(center).addScaledVector(direction, d);
+          referenceCamera.lookAt(center);
+          referenceCamera.updateMatrixWorld(true);
+          const e = projectedExtent(bounds, referenceCamera);
+          if ((e.maxX - e.minX) / 2 > width || (e.maxY - e.minY) / 2 > height)
+            lo = d;
+          else hi = d;
+        }
+        distance = hi;
+        referenceCamera.position
+          .copy(center)
+          .addScaledVector(direction, distance);
+        referenceCamera.lookAt(center);
+        referenceCamera.updateMatrixWorld(true);
+      }
+      const e = bounds.isEmpty()
+        ? { minX: 0, maxX: 0, minY: 0, maxY: 0 }
+        : projectedExtent(bounds, referenceCamera);
+      const minimumDistance = distance;
+      if (section === "grip" && activeDish)
+        distance = Math.max(authoredDistance, minimumDistance * 1.2);
+      const result = {
+        camera: center.clone().addScaledVector(direction, distance).toArray(),
+        look: center.toArray(),
+        distance,
+        shiftX: (e.maxX + e.minX) / 4,
+        shiftY: (e.maxY + e.minY) / 4,
+        dishOpacity: 1,
+      };
+      if (dishReference) {
+        // Keep the established 100% camera, aim and shift. Intentional close-ups
+        // stop at the food's front-depth margin rather than the frame edges.
+        result.minimumDistance = minimumDollyDistance(dishLocalBounds, dishFramingRadius,
+          dishReference, result.camera, result.look,
+          { ...focus, fov: camera.fov, aspect: camera.aspect, near: camera.near, shiftX: result.shiftX, shiftY: result.shiftY }, false);
+        result.zoomMax = Math.floor(distance / result.minimumDistance * 100) / 100;
+      }
+      calibrations.set(key, result);
+      return result;
+    }
+    function cameraComposition(state) {
+      // App publishes immutable measured frames only when layout is measured.
+      // Decoded video frames and ordinary scroll do not reserialize that map.
+      if (state.sceneFrames !== calibrationFrames) {
+        calibrationFrames = state.sceneFrames;
+        serializedFrames = JSON.stringify(calibrationFrames);
+      }
+      const key = `${canvas.dataset.model}|${canvas.dataset.support}|${canvas.dataset.supportReady}|${canvas.dataset.phoneReady}|${canvas.dataset.laptopReady}|${laptopAsset.framingBounds?.isEmpty()}|${canvas.width}|${canvas.height}|${serializedFrames}`;
+      if (key !== calibrationKey) {
+        calibrationKey = key;
+        calibrations.clear();
+      }
+      const t = state.transition;
+      if (t)
+        return interpolatePose(
+          calibration(t.from, state, t.fromOpening ? 1 : null),
+          calibration(t.to, state),
+          smooth(t.progress),
+        );
+      if (state.openingProgress != null) {
+        const p = state.openingProgress,
+          start = p < 0.5 ? 0 : 0.5,
+          anchors = [0, 0.125, 0.25, 0.375, 0.5].map(q => q + start);
+        const sectionAt = (q) =>
+          q < 0.5 ? "hero" : q < 1 ? "ai" : "wearable";
+        // AI is a reading stop between two physical legs. Give each existing
+        // camera track its own zero-slope endpoint, matching the object poses.
+        return interpolatePoseTrack(
+          [0, 0.25, 0.5, 0.75, 1],
+          anchors.map(q => calibration(sectionAt(q), state, q)),
+          (p - start) * 2,
+        );
+      }
+      return calibration(state.section, state);
+    }
+    function frameSubjects(state, damping) {
+      const projectionEpsilon = 0.0002;
+      const focus = state.sceneFrame;
+      const viewportWidth = canvas.clientWidth,
+        viewportHeight = canvas.clientHeight;
+      const desired = cameraComposition(state);
+      const zoomFor = (section) =>
+        section === "grip" ? clamp(state.dishZoom || 1, 0.6, desired.zoomMax ?? 4) : 1;
+      const zoom = state.transition
+        ? THREE.MathUtils.lerp(
+            zoomFor(state.transition.from),
+            zoomFor(state.transition.to),
+            smooth(state.transition.progress),
+          )
+        : zoomFor(state.section);
+      const targetFocus = focus || fallbackFocus;
+      const zoomLook = desired.look;
+      let minimumDistance = state.section === "grip" && !state.transition
+        ? desired.minimumDistance ?? camera.near * 2 : camera.near * 2;
+      const foodFrame = state.section === "grip" ||
+        state.transition?.from === "grip" || state.transition?.to === "grip";
+      // A transformed cylinder contains the full scan, including transitional
+      // tilt, but its bounds never change under the interactive yaw rotation.
+      const fitFood = (foodFrame || zoom > 1 || projectionState?.dolly > 1) && activeDish && dishRoot.visible;
+      const fitWholeFood = zoom <= 1 && (projectionState?.dolly ?? 1) <= 1 + projectionEpsilon;
+      if (fitFood) {
+        minimumDistance = Math.max(minimumDistance, minimumDollyDistance(dishLocalBounds, dishFramingRadius, dishRoot,
+          desired.camera.map((v, i) => v + zoomLook[i] - desired.look[i]), zoomLook,
+          { ...targetFocus, fov: camera.fov, aspect: camera.aspect, near: camera.near, shiftX: desired.shiftX, shiftY: desired.shiftY }, fitWholeFood));
+      }
+      const zoomCamera = desired.camera.map(
+        (v, i) => v + zoomLook[i] - desired.look[i],
+      );
+      const dolly = cameraDollyPose(
+        zoomCamera,
+        zoomLook,
+        zoom,
+        minimumDistance,
+      );
+      const targetProjection = {
+        ...desired,
+        ...dolly,
+        dolly: zoom,
+        baseCamera: desired.camera,
+        baseLook: desired.look,
+        focusX: targetFocus.x,
+        focusY: targetFocus.y,
+        focusWidth: targetFocus.width,
+        focusHeight: targetFocus.height,
+      };
+      projectionState = projectionState
+        ? interpolatePose(projectionState, targetProjection, damping)
+        : targetProjection;
+      projectionSettling = Object.entries(targetProjection).some(
+        ([key, value]) =>
+          Array.isArray(value)
+            ? value.some(
+                (v, i) => Math.abs(v - projectionState[key][i]) > projectionEpsilon,
+              )
+            : typeof value === "number" &&
+              Math.abs(value - projectionState[key]) > projectionEpsilon,
+      );
+      const renderFocus = {
+        x: projectionState.focusX,
+        y: projectionState.focusY,
+        width: projectionState.focusWidth,
+        height: projectionState.focusHeight,
+      };
+      // Rotation and camera damping can briefly disagree after a gesture.
+      // Enforce safety on the rendered state too. Restore full-food fitting on
+      // the final reset update, before the demand scheduler can become idle.
+      if (fitFood) {
+        const safeDistance = minimumDollyDistance(dishLocalBounds, dishFramingRadius, dishRoot, projectionState.camera, projectionState.look,
+          { ...renderFocus, fov: camera.fov, aspect: camera.aspect, near: camera.near, shiftX: projectionState.shiftX, shiftY: projectionState.shiftY }, zoom <= 1 && projectionState.dolly <= 1 + projectionEpsilon);
+        projectionState.camera = cameraDollyPose(projectionState.camera, projectionState.look, 1, safeDistance).camera;
+      }
+      framingReference = { ...projectionState, focus: renderFocus };
+      // The camera and focus follow the same time damping as the objects. Fast
+      // native flicks can change the target without snapping the rendered scene.
+      camera.position.fromArray(projectionState.camera);
+      camera.lookAt(new THREE.Vector3().fromArray(projectionState.look));
+      camera.zoom = 1;
+      camera.setViewOffset(
+        viewportWidth,
+        viewportHeight,
+        (0.5 - renderFocus.x + projectionState.shiftX) * viewportWidth,
+        (0.5 - renderFocus.y - projectionState.shiftY) * viewportHeight,
+        viewportWidth,
+        viewportHeight,
+      );
+      camera.updateMatrixWorld(true);
+      const viewport = { width: viewportWidth, height: viewportHeight };
+      if (diagnosticsEnabled && canvas.dataset.framingReady === "true") {
+        const rectangles = [];
+        for (const [name, root] of [
+          ["dish", dishRoot],
+          ["support", supportRoot],
+          ["phone", phoneRoot],
+          ["laptop", laptopRoot],
+        ]) {
+          if (!root.visible || (name === "support" && !supportAssets.active)) {
+            delete canvas.dataset[`${name}Bounds`];
+            continue;
+          }
+          root.updateWorldMatrix(true, false);
+          const hull = name === "dish" && framingHulls[activeModelAssetId]?.vertices;
+          const bounds = hull
+            ? projectHullBounds(
+                hull,
+                hullWorldMatrix
+                  .copy(root.matrixWorld)
+                  .scale(hullScale.setScalar(dishDisplayScale)),
+                camera,
+                viewport,
+              )
+            : projectObjectBounds(
+                name === "support" ? supportAssets.active : root,
+                camera,
+                viewport,
+              );
+          if (bounds) {
+            rectangles.push(bounds);
+            canvas.dataset[`${name}Bounds`] = JSON.stringify(bounds);
+          } else delete canvas.dataset[`${name}Bounds`];
+        }
+        const subjectBounds = unionScreenBounds(rectangles);
+        if (subjectBounds)
+          canvas.dataset.subjectBounds = JSON.stringify(subjectBounds);
+        else delete canvas.dataset.subjectBounds;
+        if (focus)
+          canvas.dataset.focusBounds = JSON.stringify({
+            x: (renderFocus.x - renderFocus.width / 2) * viewportWidth,
+            y: (renderFocus.y - renderFocus.height / 2) * viewportHeight,
+            width: renderFocus.width * viewportWidth,
+            height: renderFocus.height * viewportHeight,
+          });
+        else delete canvas.dataset.focusBounds;
+      }
+      if (diagnosticsEnabled) {
+        canvas.dataset.cameraZoom = String(camera.zoom);
+        canvas.dataset.cameraFov = String(camera.fov);
+        canvas.dataset.cameraDolly = String(projectionState.dolly);
+        if (state.section === "grip" && desired.zoomMax)
+          canvas.dataset.zoomMax = String(desired.zoomMax);
+        const fittedZoom = projectionState.baselineDistance / camera.position.distanceTo(new THREE.Vector3().fromArray(projectionState.look));
+        canvas.dataset.fittedZoom = String(fittedZoom);
+        canvas.dataset.zoomFitLimited = String(fittedZoom < zoom - 0.01);
+      }
+      const visibleZoom = Math.round(dolly.baselineDistance / dolly.distance * 100) / 100;
+      const requestedZoom = state.dishZoom || 1;
+      const zoomNotice = `${requestedZoom}:${visibleZoom}:${desired.zoomMax}`;
+      if (state.section === "grip" && !state.transition && zoomNotice !== notifiedZoom) {
+        notifiedZoom = zoomNotice;
+        callbacks.current.onZoomFit?.({ requested: requestedZoom, zoom: visibleZoom, max: desired.zoomMax ?? 4 });
+      }
+      if (diagnosticsEnabled) {
+        canvas.dataset.cameraDistance = String(
+          camera.position.distanceTo(
+            new THREE.Vector3().fromArray(projectionState.look),
+          ),
+        );
+        canvas.dataset.cameraBaselineDistance = String(
+          projectionState.baselineDistance,
+        );
+        canvas.dataset.dishScale = dishRoot.scale.toArray().join(",");
+        canvas.dataset.dishMeshScale =
+          activeDish?.scale.toArray().join(",") || "";
+        if (activeDish && nativeTable) {
+          const size = dishLocalBounds.getSize(dishZoomCorner);
+          canvas.dataset.dishTableRatio = String(
+            (Math.max(size.x, size.z) * dishRoot.scale.x) /
+              Math.min(
+                nativeTable.metadata.topWidth,
+                nativeTable.metadata.topDepth,
+              ),
+          );
+        }
+        canvas.dataset.fittedCameraPosition = camera.position.toArray().join(",");
+        canvas.dataset.fittedLook = projectionState.look.join(",");
+        canvas.dataset.cameraViewOffset = JSON.stringify(camera.view);
+        canvas.dataset.transition = state.transition
+          ? `${state.transition.from}:${state.transition.to}`
+          : "";
+        canvas.dataset.transitionProgress = String(
+          state.transition?.progress ?? "",
+        );
+        canvas.dataset.supportAngle = String(state.supportAngle || 0);
+      }
+      canvas.dataset.phoneRate = String(phoneVideo.playbackRate);
+    }
+    let foregroundLayerKey = "";
+    camera.layers.enable(1);
+    renderer.info.autoReset = false;
+    let renderSignature = "";
+    let previousShadowSignature = "";
+    let lastSceneChange = 0;
+    function recordProcessedPose(state) {
+      if (!diagnosticsEnabled) return;
+      canvas.dataset.processedScrollDistance = String(state.scrollDistance);
+      canvas.dataset.processedViewportRevision = String(viewportRevision);
+      canvas.dataset.processedViewportWidth = String(drawingSize?.width ?? 0);
+      canvas.dataset.processedViewportHeight = String(drawingSize?.height ?? 0);
+    }
+    function draw(now) {
+      frame = 0;
+      if (disposed || failed || document.hidden || arExperience?.active) {
+        lastTime = 0;
+        return;
+      }
+      // An already queued Scene RAF may run before App's scroll RAF. Flush
+      // the latest copy/state first, then draw; the reciprocal App path below
+      // cancels this pending RAF when App runs first.
+      stateRef.current.beforeSceneFrame?.(now);
+      const requested = renderRequested;
+      renderRequested = false;
+      const dt = lastTime ? Math.min((now - lastTime) / 1000, 0.5) : 1 / 60;
+      lastTime = now;
+      const state = stateRef.current || initialState;
+      ensureLaptop(state);
+      // The pricing section is fully opaque. Do not render its hidden room,
+      // models or screen video while the native document is being scrolled.
+      if (ready && state.sceneOccluded) {
+        wasOccluded = true;
+        lastTime = 0;
+        pausePhoneVideo();
+        canvas.dataset.suspended = "true";
+        canvas.dataset.section = state.section;
+        canvas.dataset.progress = state.progress.toFixed(4);
+        canvas.dataset.settled = "true";
+        if (diagnosticsEnabled) canvas.dataset.settlingReasons = "0";
+        recordProcessedPose(state);
+        return;
+      }
+      const resume = wasOccluded;
+      wasOccluded = false;
+      canvas.dataset.suspended = "false";
+      if (resume) {
+        renderSignature = "";
+        previousShadowSignature = "";
+      }
+      // Resume at the current pose while the first pixel is revealed, rather
+      // than replaying a stale pose from before the long pricing section.
+      const scrollMoved = Number.isFinite(state.scrollDistance) &&
+        state.scrollDistance !== lastScrollDistance;
+      lastScrollDistance = state.scrollDistance;
+      // The shared cinematic timeline already eases authored scroll poses.
+      // Easing those poses again lets 3D lag behind the copy at every handoff.
+      // Keep temporal damping for direct manipulation, not timeline sampling.
+      const damping =
+        resume || state.reducedMotion || scrollMoved ? 1 : 1 - Math.exp(-dt * 10);
+      // A genuine responsive-width change can keep the same GLB URL. Resize
+      // its presentation once without another download; toolbar height changes
+      // never enter this path, and camera zoom never changes this scale.
+      // Clearance and framing below must use these current normalized bounds.
+      if (activeDish) {
+        const scale = dishPresentationScale(
+          canvas.dataset.model,
+          mobileViewport(),
+        );
+        if (scale !== dishDisplayScale) {
+          const ratio = scale / dishDisplayScale;
+          activeDish.scale.multiplyScalar(ratio);
+          activeDish.position.multiplyScalar(ratio);
+          dishLocalBounds.min.multiplyScalar(ratio);
+          dishLocalBounds.max.multiplyScalar(ratio);
+          dishFramingRadius *= ratio;
+          dishDisplayScale = scale;
+          activeDish.updateMatrixWorld(true);
+        }
+      }
+      const pose = composition(state, mobileViewport());
+      const tableSurfaceY = nativeTable?.metadata.surfaceY ?? -0.02;
+      if (activeDish) {
+        targetEuler.set(...pose.dishRotation);
+        targetQuaternion.setFromEuler(targetEuler);
+        pose.dish[1] = Math.max(pose.dish[1], minimumDishY(
+          dishLocalBounds, targetQuaternion, pose.dishScale, tableSurfaceY,
+        ));
+      }
+      const pointer = state.pointer || { x: 0, y: 0 };
+      const cameraInteractive = false;
+      cameraTarget.fromArray(pose.camera);
+      camera.position.lerp(cameraTarget, damping);
+      camera.up.set(0, 1, 0);
+      objectTarget.fromArray(pose.look);
+      lookAt.lerp(objectTarget, damping);
+      camera.lookAt(lookAt);
+      if (diagnosticsEnabled) {
+        canvas.dataset.cameraPosition = camera.position
+          .toArray()
+          .map((n) => n.toFixed(3))
+          .join(",");
+      }
+      const roomSettling = restaurantWorld.update(state, damping, canvas);
+      applyTransform(
+        supportRoot,
+        pose.support,
+        pose.supportRotation,
+        pose.supportScale,
+        damping,
+      );
+      applyTransform(
+        phoneRoot,
+        pose.phone,
+        pose.phoneRotation,
+        pose.phoneScale,
+        damping,
+      );
+      updatePhoneVideo(
+        phoneRoot.visible &&
+          state.section !== "hero" &&
+          pose.phoneScale > 0.03 &&
+          !state.reducedMotion &&
+          !state.modalOpen &&
+          !state.menuOpen,
+        state.section === "wearable" || state.transition?.from === "wearable"
+          ? state.phoneDemo || "maison-elyse"
+          : "maison-elyse",
+      );
+      applyTransform(
+        dishRoot,
+        pose.dish,
+        pose.dishRotation,
+        pose.dishScale,
+        damping,
+      );
+      // Intermediate rotations can dip below both endpoint poses. Constrain
+      // the rendered pose too, before the camera fits the complete food.
+      if (activeDish) dishRoot.position.y = Math.max(dishRoot.position.y, minimumDishY(
+        dishLocalBounds, dishRoot.quaternion, dishRoot.scale.x, tableSurfaceY,
+      ));
+      applyTransform(
+        laptopRoot,
+        pose.laptop,
+        pose.laptopRotation,
+        pose.laptopScale,
+        damping,
+      );
+      laptopAsset.update(
+        chapterPhase("sustainability", state.chapterProgress?.sustainability ??
+          (state.section === "sustainability"
+            ? state.progress
+            : state.transition?.to === "sustainability"
+              ? 0
+              : state.transition?.from === "sustainability"
+                ? 1
+                : 0)),
+        laptopRoot.visible ? damping : 1,
+        state.reducedMotion,
+      );
+      for (const material of foodMaterials) {
+        material.opacity =
+          (originalFoodOpacity.get(material) ?? 1) * pose.dishOpacity;
+        const fading = pose.dishOpacity < 0.999;
+        if (material.transparent !== fading) {
+          material.transparent = fading;
+          material.needsUpdate = true;
+        }
+        material.depthWrite = !fading;
+      }
+      dishRoot.visible &&= pose.dishOpacity > 0.003;
+      contactShadow.visible = dishRoot.visible;
+      contactShadow.position.set(
+        dishRoot.position.x,
+        -0.012,
+        dishRoot.position.z,
+      );
+      contactShadow.scale.setScalar(Math.max(0.001, dishRoot.scale.x));
+      if (diagnosticsEnabled) {
+        canvas.dataset.dishOpacity = pose.dishOpacity.toFixed(4);
+        canvas.dataset.openingProgress =
+          state.openingProgress == null ? "" : String(state.openingProgress);
+        for (const [name, root] of [["dish", dishRoot], ["support", supportRoot], ["phone", phoneRoot], ["laptop", laptopRoot]]) {
+          canvas.dataset[`${name}Quaternion`] = root.quaternion.toArray().join(",");
+          canvas.dataset[`${name}Scale`] = root.scale.toArray().join(",");
+          canvas.dataset[`${name}Position`] = root.position.toArray().join(",");
+        }
+      }
+      woodMaterial.opacity = THREE.MathUtils.lerp(
+        woodMaterial.opacity,
+        pose.table,
+        damping,
+      );
+      table.visible = woodMaterial.opacity > 0.003;
+      decor.visible = woodMaterial.opacity > 0.08;
+      decor.scale.setScalar(clamp(woodMaterial.opacity, 0.001, 1));
+      candleLight.intensity = 0.7 * woodMaterial.opacity;
+      particles.visible = pose.particles;
+      if (particles.visible)
+        particles.rotation.y = state.reducedMotion ? 0 : now * 0.000025;
+      const collection = state.collection || "acrylique";
+      if (collection !== lastCollection) {
+        supportAssets.select(collection);
+        lastCollection = collection;
+      }
+      const dish = dishes.some((d) => d.id === state.dish && d.model)
+        ? state.dish
+        : "homard";
+      const retryModel = state.retryModel ?? 0;
+      if (
+        dish !== currentDish ||
+        currentModelUrl !== modelUrl(dish) ||
+        retryModel !== lastRetryModel
+      ) {
+        lastRetryModel = retryModel;
+        loadDish(dish);
+      }
+      // Scroll, input and asset/media completion explicitly wake a still scene.
+      if (diagnosticsEnabled)
+        canvas.dataset.tableSettingVisible = String(nativeTable?.accessories.placeSetting.visible ?? false);
+      const geometrySignature = [
+        state.section,
+        state.progress,
+        state.scrollDistance,
+        viewportRevision,
+        state.flip,
+        state.collection,
+        state.supportAngle,
+        state.phoneDemo,
+        JSON.stringify(state.sceneFrame),
+        state.drag,
+        state.dishZoom,
+        state.transition?.progress,
+        state.dish,
+        state.retryModel,
+        state.modalOpen,
+        state.menuOpen,
+        state.reducedMotion,
+        cameraInteractive ? pointer.x : 0,
+        cameraInteractive ? pointer.y : 0,
+        canvas.width,
+        canvas.height,
+        canvas.dataset.model,
+        canvas.dataset.supportReady,
+        canvas.dataset.phoneReady,
+        canvas.dataset.laptopReady,
+        laptopAsset.framingBounds?.isEmpty(),
+        posterReady,
+        videoReady,
+        stoneReady,
+        canvas.dataset.restaurantReady,
+        nativeTable?.accessories.placeSetting.visible,
+      ].join("|");
+      // A moving view does not move the key light or cast geometry. Rebuilding
+      // the shadow map on every page pixel needlessly stalls mobile scrolling.
+      const shadowSignature = [
+        ...[supportRoot, phoneRoot, laptopRoot].flatMap((root) =>
+          root.visible
+            ? [
+                true,
+                ...root.position.toArray().map((v) => v.toFixed(4)),
+                ...root.quaternion.toArray().map((v) => v.toFixed(4)),
+                root.scale.x.toFixed(4),
+              ]
+            : [false],
+        ),
+        laptopRoot.visible ? canvas.dataset.laptopAngle : "",
+        canvas.dataset.support,
+        canvas.dataset.supportReady,
+        canvas.dataset.phoneReady,
+        canvas.dataset.laptopReady,
+        laptopAsset.framingBounds?.isEmpty(),
+        canvas.dataset.restaurantReady,
+      ].join("|");
+      const shadowInvalidated = shadowSignature !== previousShadowSignature;
+      previousShadowSignature = shadowSignature;
+      const signature = `${geometrySignature}|${phoneRoot.visible ? phoneFrame : 0}`;
+      if (signature !== renderSignature) {
+        renderSignature = signature;
+        lastSceneChange = now;
+      }
+      const settled = (object, position, rotation, scale) => {
+        objectTarget.fromArray(position);
+        targetEuler.set(...rotation);
+        targetQuaternion.setFromEuler(targetEuler);
+        return (
+          object.position.distanceToSquared(objectTarget) < 1e-7 &&
+          Math.abs(1 - Math.abs(object.quaternion.dot(targetQuaternion))) <
+            1e-7 &&
+          Math.abs(object.scale.x - scale) < 0.0002
+        );
+      };
+      const settling =
+        camera.position.distanceToSquared(cameraTarget) > 1e-7 ||
+        lookAt.distanceToSquared(objectTarget.fromArray(pose.look)) > 1e-7 ||
+        !settled(
+          supportRoot,
+          pose.support,
+          pose.supportRotation,
+          pose.supportScale,
+        ) ||
+        !settled(phoneRoot, pose.phone, pose.phoneRotation, pose.phoneScale) ||
+        !settled(dishRoot, pose.dish, pose.dishRotation, pose.dishScale) ||
+        !settled(
+          laptopRoot,
+          pose.laptop,
+          pose.laptopRotation,
+          pose.laptopScale,
+        ) ||
+        (laptopRoot.visible && !laptopAsset.settled) ||
+        Math.abs(woodMaterial.opacity - pose.table) > 0.0002 ||
+        roomSettling;
+      const invalidated = now === lastSceneChange;
+      canvas.dataset.section = state.section;
+      canvas.dataset.progress = state.progress.toFixed(4);
+      if (diagnosticsEnabled) canvas.dataset.supportFlipped = String(Boolean(state.flip));
+      canvas.dataset.settled = String(!settling && !projectionSettling);
+      const animated =
+        (!phoneVideo.requestVideoFrameCallback &&
+          videoPlaying && canPlayPhoneVideo() &&
+          !phoneVideo.paused &&
+          !phoneVideo.ended) ||
+        (particles.visible &&
+          !state.reducedMotion &&
+          !state.modalOpen &&
+          !state.menuOpen);
+      try {
+        if (!ready || requested || settling || projectionSettling || animated || invalidated) {
+          // A new screen-video frame changes its pixels, not any geometry.
+          // Preserve the cached shadows until a casting object or asset changes.
+          renderer.shadowMap.needsUpdate = !ready || shadowInvalidated;
+          const authoredCamera = camera.position.clone();
+          frameSubjects(state, damping);
+          canvas.dataset.settled = String(!settling && !projectionSettling);
+          const layerKey = [
+            canvas.dataset.model,
+            canvas.dataset.supportReady,
+            canvas.dataset.phoneReady,
+            canvas.dataset.laptopReady,
+            laptopAsset.framingBounds?.isEmpty(),
+            canvas.dataset.restaurantReady,
+          ].join("|");
+          if (layerKey !== foregroundLayerKey) {
+            foregroundLayerKey = layerKey;
+            [dishRoot, supportRoot, phoneRoot, laptopRoot].forEach((root) =>
+              root.traverse((o) => o.layers.set(1)),
+            );
+            scene.traverse((o) => {
+              if (o.isLight) {
+                o.layers.enable(1);
+                o.layers.enable(2);
+                o.shadow?.camera.layers.enable(1);
+                o.shadow?.camera.layers.enable(2);
+              }
+            });
+          }
+          renderer.info.reset();
+          const startRender = performance.now();
+          canvas.dataset.shadowUpdated = String(renderer.shadowMap.needsUpdate);
+          const clipped =
+            state.sceneFrame &&
+            (state.section === "grip" ||
+              state.transition?.from === "grip" ||
+              state.transition?.to === "grip");
+          // One physical camera sees the room, table, props and products.
+          // The foreground-only pass exists solely to keep close-ups below
+          // the heading. Preserve the depth buffer between both passes.
+          camera.layers.set(0);
+          camera.layers.enable(2);
+          renderer.render(scene, camera);
+          const background = scene.background;
+          scene.background = null;
+          renderer.autoClear = false;
+          if (diagnosticsEnabled) {
+            const sharedPosition = camera.position.toArray().join(",");
+            canvas.dataset.tableCameraPosition = sharedPosition;
+            canvas.dataset.roomCameraPosition = sharedPosition;
+            canvas.dataset.cameraSceneDolly = "shared-room-table-and-products";
+          }
+          if (clipped) {
+            const f = framingReference.focus,
+              w = canvas.clientWidth,
+              h = canvas.clientHeight;
+            renderer.setScissor(
+              (f.x - f.width / 2) * w,
+              (1 - f.y - f.height / 2) * h,
+              f.width * w,
+              f.height * h,
+            );
+            renderer.setScissorTest(true);
+          }
+          camera.layers.set(1);
+          renderer.render(scene, camera);
+          renderer.setScissorTest(false);
+          renderer.autoClear = true;
+          scene.background = background;
+          camera.layers.set(0);
+          camera.layers.enable(1);
+          canvas.dataset.renderCPUms = String(performance.now() - startRender);
+          if (diagnosticsEnabled) canvas.dataset.zoomClipped = String(Boolean(clipped));
+          camera.position.copy(authoredCamera);
+          canvas.dataset.drawCalls = String(renderer.info.render.calls);
+          canvas.dataset.triangles = String(renderer.info.render.triangles);
+          canvas.dataset.frames = String(renderer.info.render.frame);
+          canvas.dataset.renderedModel = canvas.dataset.model || "";
+        }
+        if (
+          !ready &&
+          activeDish &&
+          canvas.dataset.supportReady === "true" &&
+          canvas.dataset.phoneReady === "true" &&
+          stoneReady &&
+          canvas.dataset.restaurantReady === "true" &&
+          (!phoneRoot.visible || posterReady || videoReady)
+        ) {
+          ready = true;
+          canvas.dataset.ready = "true";
+          callbacks.current.onReady?.();
+          if (state.sceneOccluded) invalidateScene();
+        }
+      } catch (error) {
+        fail(error);
+        return;
+      }
+      if (diagnosticsEnabled) {
+        // Same tolerances as the render decision; report each cause even when
+        // its normal short-circuit check was skipped. No extra visitor work.
+        const reasons =
+          (camera.position.distanceToSquared(cameraTarget) > 1e-7 ? 1 : 0) |
+          (lookAt.distanceToSquared(objectTarget.fromArray(pose.look)) > 1e-7 ? 2 : 0) |
+          (!settled(supportRoot, pose.support, pose.supportRotation, pose.supportScale) ? 4 : 0) |
+          (!settled(phoneRoot, pose.phone, pose.phoneRotation, pose.phoneScale) ? 8 : 0) |
+          (!settled(dishRoot, pose.dish, pose.dishRotation, pose.dishScale) ? 16 : 0) |
+          (!settled(laptopRoot, pose.laptop, pose.laptopRotation, pose.laptopScale) ? 32 : 0) |
+          (laptopRoot.visible && !laptopAsset.settled ? 64 : 0) |
+          (Math.abs(woodMaterial.opacity - pose.table) > 0.0002 ? 128 : 0) |
+          (roomSettling ? 256 : 0) |
+          (projectionSettling ? 512 : 0);
+        canvas.dataset.settlingReasons = String(reasons);
+      }
+      recordProcessedPose(state);
+      if (settling || projectionSettling || animated || renderRequested)
+        invalidateScene();
+      if (!frame) lastTime = 0;
+    }
+    function visibilityChanged() {
+      if (arExperience?.active) return;
+      cancelAnimationFrame(frame);
+      frame = 0;
+      lastTime = 0;
+      if (document.hidden) pausePhoneVideo();
+      else {
+        resize();
+        invalidateScene();
+      }
+    }
+    function contextLost(event) {
+      event.preventDefault();
+      cancelAnimationFrame(frame);
+      frame = 0;
+      fail(new Error("Le contexte graphique 3D a été interrompu."));
+    }
+    arExperience = createARExperience({
+      renderer,
+      environment: environmentTarget.texture,
+      getModel: () => activeDish,
+      getPlateWidthMeters: () =>
+        dishes.find((d) => d.id === currentDish)?.arWidthMeters,
+      overlay: document.getElementById("ar-overlay"),
+      onStatus: (status) => {
+        if (!disposed) callbacks.current.onARStatus?.(status);
+      },
+      onSuspend: () => {
+        cancelAnimationFrame(frame);
+        frame = 0;
+        lastTime = 0;
+        pausePhoneVideo();
+      },
+      onResume: () => {
+        if (disposed || failed) return;
+        lastTime = 0;
+        renderSignature = "";
+        drawingSize = null;
+        resize();
+        invalidateScene();
+      },
+    });
+    Object.assign(stateRef.current, {
+      invalidateScene,
+      renderSceneFrame,
+      startAR: arExperience.start,
+      endAR: arExperience.end,
+      scaleAR: arExperience.setScale,
+      rotateAR: arExperience.rotate,
+      repositionAR: arExperience.reposition,
+    });
+    canvas.addEventListener("webglcontextlost", contextLost);
+    const sizeObserver = new ResizeObserver(resize);
+    sizeObserver.observe(canvas);
+    window.addEventListener("resize", resize);
+    document.addEventListener("visibilitychange", visibilityChanged);
+    invalidateScene();
+
+    return () => {
+      disposed = true;
+      cancelAnimationFrame(frame);
+      frame = 0;
+      if (sceneState.invalidateScene === invalidateScene) delete sceneState.invalidateScene;
+      if (sceneState.renderSceneFrame === renderSceneFrame) delete sceneState.renderSceneFrame;
+      phoneVideoEvents.forEach((event) => phoneVideo.removeEventListener(event, phoneVideoChanged));
+      pausePhoneVideo();
+      assetRequest?.abort();
+      hullRequest?.abort();
+      canvas.removeEventListener("webglcontextlost", contextLost);
+      sizeObserver.disconnect();
+      window.removeEventListener("resize", resize);
+      document.removeEventListener("visibilitychange", visibilityChanged);
+      if (sceneState.startAR === arExperience.start) {
+        for (const key of [
+          "startAR",
+          "endAR",
+          "scaleAR",
+          "rotateAR",
+          "repositionAR",
+        ])
+          delete sceneState[key];
+      }
+      // AR clones share the source geometry and materials. End the native
+      // session before releasing those resources or its reused renderer.
+      arExperience
+        .dispose()
+        .catch(() => {})
+        .finally(() => {
+          decodeQueue.catch(() => {}).finally(() => foodDraco.dispose());
+          supportAssets.dispose();
+          phoneAsset.dispose();
+          laptopAsset.dispose();
+          nativeTable?.dispose();
+          restaurantWorld.dispose();
+          phoneScreenMaterial.dispose();
+          phoneVideo.onerror = null;
+          phoneVideo.removeAttribute("src");
+          phoneVideo.load();
+          disposeTree(scene);
+          ownedTextures.forEach((texture) => texture.dispose());
+          environmentTarget?.dispose();
+          environmentScene?.dispose();
+          keyLight.shadow.map?.dispose();
+          renderer.renderLists.dispose();
+          renderer.dispose();
+          renderer.forceContextLoss();
+          canvas.remove();
+        });
+    };
+  }, [stateRef]);
+
+  return (
+    <div
+      ref={hostRef}
+      className="scene-layer"
+      aria-hidden="true"
+      style={{
+        position: "absolute",
+        inset: 0,
+        width: "100%",
+        height: "100%",
+        pointerEvents: "none",
+      }}
+    />
+  );
+}

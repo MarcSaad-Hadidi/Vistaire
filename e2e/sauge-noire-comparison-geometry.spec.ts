@@ -3,7 +3,7 @@ import { expect, test, type Page } from "@playwright/test";
 type Split = 0 | 50 | 100;
 
 async function openSaugeComparison(page: Page, locale: "fr" | "en") {
-  await page.goto(locale === "en" ? "/en" : "/", {
+  await page.goto(locale === "en" ? "/en/pdf-vs-digital-menu" : "/menu-pdf-vs-menu-digital", {
     waitUntil: "domcontentloaded"
   });
   const comparison = page.getByTestId("landing-comparison");

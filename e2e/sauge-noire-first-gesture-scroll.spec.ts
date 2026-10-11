@@ -714,6 +714,22 @@ for (const viewport of [
           .poll(() => new URL(page.url()).pathname, { timeout: 15_000 })
           .not.toBe(sourcePathname);
         await expectSettledSurface(page);
+        // Engine/route readiness precedes the media-and-layout scroll handoff.
+        // Wait for this transition, rather than coercing absent or stale
+        // handoff attributes to zero before the two stable frames complete.
+        const transitionSequence = await page
+          .locator("[data-page-flip-source-scroll-top]")
+          .getAttribute("data-page-flip-transition-sequence");
+        expect(transitionSequence).not.toBeNull();
+        await expect(sourceSurface).toHaveAttribute(
+          "data-page-flip-transition-sequence",
+          transitionSequence!,
+          { timeout: 5_000 }
+        );
+        await expect(sourceSurface).toHaveAttribute(
+          "data-page-flip-handoff-applied",
+          "true"
+        );
         await expect
           .poll(
             async () => {

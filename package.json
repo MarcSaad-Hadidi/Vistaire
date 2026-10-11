@@ -52,7 +52,7 @@
     "test:smoke": "node scripts/run-playwright-e2e.mjs e2e/mvp-smoke.spec.ts",
     "test:smoke:bootstrap": "node scripts/run-playwright-e2e.mjs e2e/ci-smoke.spec.ts",
     "test:ci:e2e:core": "node scripts/run-playwright-e2e.mjs e2e/ci-smoke.spec.ts e2e/public-navigation.spec.ts e2e/demo-restaurant-experiences.spec.ts e2e/restaurateur-preview.spec.ts --project=chromium --workers=1 --retries=0 --forbid-only --reporter=list,./e2e/support/forbid-skipped-tests-reporter.ts",
-    "test:ci:e2e:landing": "node scripts/run-playwright-e2e.mjs e2e/landing-production-photo.spec.ts e2e/landing-redesign.spec.ts --project=chromium --workers=1 --retries=0 --forbid-only --reporter=list,./e2e/support/forbid-skipped-tests-reporter.ts",
+    "test:ci:e2e:landing": "node scripts/run-playwright-e2e.mjs e2e/landing-production-photo.spec.ts e2e/landing-redesign.spec.ts e2e/landing-scroll.spec.ts --project=chromium --workers=1 --retries=0 --forbid-only --reporter=list,./e2e/support/forbid-skipped-tests-reporter.ts",
     "test:ci:e2e:menu": "node scripts/run-playwright-e2e.mjs e2e/google-review-direct-cta.spec.ts e2e/maison-elyse-public-menu.spec.ts e2e/ar-handoff.spec.ts e2e/sauge-noire-menu-shared-smoke.spec.ts e2e/trouvable-menu-browser-qa.spec.ts --project=chromium --workers=1 --retries=0 --forbid-only --reporter=list,./e2e/support/forbid-skipped-tests-reporter.ts",
     "test:ci:e2e:sauge": "node scripts/run-playwright-e2e.mjs e2e/sauge-noire-3d-state-reset.spec.ts e2e/sauge-noire-first-gesture-scroll.spec.ts e2e/sauge-noire-swipe-intent.spec.ts e2e/sauge-noire-contents-single-flip.spec.ts e2e/sauge-noire-static-page-handoff.spec.ts e2e/ar-renderer-handoff.spec.ts e2e/sauge-noire-viewport.spec.ts e2e/sauge-noire-comparison-geometry.spec.ts e2e/sauge-noire-runtime-media-policy.spec.ts --project=chromium --workers=1 --retries=0 --forbid-only --reporter=list,./e2e/support/forbid-skipped-tests-reporter.ts",
     "test:ci:e2e:webkit": "node scripts/run-playwright-e2e.mjs e2e/maison-elyse-public-menu.spec.ts e2e/sauge-noire-3d-state-reset.spec.ts e2e/sauge-noire-contents-single-flip.spec.ts e2e/sauge-noire-static-page-handoff.spec.ts e2e/demo-restaurant-experiences.spec.ts e2e/seo-interactive-showcases.spec.ts e2e/restaurateur-preview.spec.ts --project=webkit --workers=1 --retries=0 --forbid-only --reporter=list,./e2e/support/forbid-skipped-tests-reporter.ts",
@@ -88,7 +88,9 @@
     "demo:validate-ar-lite": "node scripts/validate-demo-ar-lite-assets.mjs",
     "demo:validate-ios-budget": "node scripts/validate-ios-quicklook-budget.mjs",
     "demo:validate-assets": "node scripts/validate-demo-assets.mjs",
-    "demo:validate-network": "node scripts/validate-demo-network-headers.mjs"
+    "demo:validate-network": "node scripts/validate-demo-network-headers.mjs",
+    "postinstall": "node scripts/prepare-immersive-runtime.mjs",
+    "prebuild": "node scripts/prepare-immersive-runtime.mjs"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1141.0",
@@ -105,17 +107,21 @@
     "@supabase/ssr": "^0.12.7",
     "@supabase/supabase-js": "^2.117.2",
     "@vercel/analytics": "^2.0.1",
+    "clsx": "^2.1.1",
     "fflate": "^0.8.3",
     "gsap": "^3.13.0",
     "lenis": "^1.3.26",
+    "lucide-react": "^1.53.0",
     "meshoptimizer": "~1.3.0",
     "next": "^16.3.8",
     "qrcode": "^1.5.4",
+    "radix-ui": "^1.7.0",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
     "react-pageflip": "^2.0.3",
     "resend": "6.17.2",
-    "sharp": "^0.35.5"
+    "sharp": "^0.35.5",
+    "tailwind-merge": "^3.7.0"
   },
   "overrides": {
     "postcss": "$postcss",

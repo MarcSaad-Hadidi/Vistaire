@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
+import vm from "node:vm";
 
 const workflow = await readFile(new URL("../.github/workflows/app-ci.yml", import.meta.url), "utf8");
 const nightly = await readFile(new URL("../.github/workflows/nightly.yml", import.meta.url), "utf8");
@@ -23,6 +24,78 @@ const menuExperiences = await readFile(new URL("../lib/landing/menuExperiences.t
 const e2eRunner = await readFile(new URL("../scripts/run-playwright-e2e.mjs", import.meta.url), "utf8");
 const fetchGraph = await readFile(new URL("../scripts/ci/fetch-pr-graph.mjs", import.meta.url), "utf8");
 const packageJson = JSON.parse(await readFile(new URL("../package.json", import.meta.url), "utf8"));
+
+test("CPU diagnostic is opt-in, preserves the full journey gate, and passes its flag through an environment variable", () => {
+  const dispatch = workflow.slice(workflow.indexOf('  workflow_dispatch:'), workflow.indexOf('\npermissions:'));
+  assert.equal([...dispatch.matchAll(/diagnostic_profile:/g)].length, 2, 'dispatch and reusable workflow expose the option');
+  assert.equal([...dispatch.matchAll(/diagnostic_profile:\n(?:.*\n)*?\s+default: false/g)].length, 2);
+  const job = workflow.slice(workflow.indexOf('  landing-performance:'), workflow.indexOf('  webkit-critical:'));
+  assert.match(job, /inputs\.diagnostic_profile == true/);
+  assert.match(job, /DIAGNOSTIC_PROFILE:.*inputs\.diagnostic_profile/);
+  assert.match(job, /--diagnostic-profile/);
+  assert.match(job, /timeout-minutes: 30/);
+  assert.match(job, /node scripts\/diagnose-landing-composition\.mjs --journey-qa/);
+  assert.doesNotMatch(job, /run:.*\$\{\{.*diagnostic_profile/);
+  const gate = workflow.slice(workflow.indexOf('  ci-gate:'));
+  assert.match(gate, /RUN_PERFORMANCE:.*inputs\.diagnostic_profile == true/);
+});
+
+test("landing-diagnostic label selects one profiled journey and keeps the performance gate required", () => {
+  const job = workflow.slice(workflow.indexOf('  landing-performance:'), workflow.indexOf('  webkit-critical:'));
+  const label = /contains\(github\.event\.pull_request\.labels\.\*\.name, 'landing-diagnostic'\)/;
+  assert.match(job.slice(0, job.indexOf('    runs-on:')), label, 'label activates job');
+  const normal = job.slice(job.indexOf('      - name: Measure normal-motion'), job.indexOf('      - name: Validate all landing chapters'));
+  const normalCondition = normal.match(/if: (.*)/)?.[1] || '';
+  assert.match(normalCondition, /!\(/, 'normal benchmark is excluded for diagnostic workload');
+  assert.match(normalCondition, label);
+  const journey = job.slice(job.indexOf('      - name: Validate all landing chapters'));
+  assert.match(journey.match(/if: (.*)/)?.[1] || '', label, 'label selects full journey');
+  assert.match(journey.match(/DIAGNOSTIC_PROFILE: (.*)/)?.[1] || '', label, 'label enables profiler boolean');
+  const gate = workflow.slice(workflow.indexOf('  ci-gate:'));
+  assert.match(gate.match(/RUN_PERFORMANCE: (.*)/)?.[1] || '', label, 'requested diagnostic remains required by gate');
+});
+
+test("diagnostic matrix separates native QA tracing from the unchanged active workload", () => {
+  const job = workflow.slice(workflow.indexOf('  landing-performance:'), workflow.indexOf('  webkit-critical:'));
+  assert.match(job, /fail-fast: false/);
+  assert.match(job, /workload:.*fromJSON.*composition.*active.*selected/);
+  assert.match(job, /workload:.*inputs\.diagnostic_profile.*landing-diagnostic/);
+  assert.match(job, /timeout-minutes: 30/);
+  const normal = job.slice(job.indexOf('      - name: Measure normal-motion'), job.indexOf('      - name: Validate all landing chapters'));
+  assert.match(normal.match(/if: (.*)/)?.[1] || '', /matrix\.workload == 'active'/);
+  assert.match(normal.match(/if: (.*)/)?.[1] || '', /matrix\.workload == 'selected'/);
+  assert.match(normal, /node scripts\/benchmark-landing\.mjs/);
+  assert.doesNotMatch(normal, /--diagnostic-profile|diagnose-landing-composition|Profiler\.|Tracing\./);
+  const journey = job.slice(job.indexOf('      - name: Validate all landing chapters'), job.indexOf('      - name: Preserve performance'));
+  assert.match(journey.match(/if: (.*)/)?.[1] || '', /matrix\.workload == 'composition'/);
+  assert.match(journey.match(/if: (.*)/)?.[1] || '', /matrix\.workload == 'selected'/);
+  assert.doesNotMatch(journey.match(/if: (.*)/)?.[1] || '', /matrix\.workload == 'active'/);
+  assert.match(job, /name: landing-performance-\$\{\{ github\.run_id \}\}-\$\{\{ matrix\.workload \}\}/);
+  const gate = workflow.slice(workflow.indexOf('  ci-gate:'), workflow.indexOf('  ci-metrics:'));
+  assert.match(gate, /needs\.landing-performance\.result/);
+  assert.match(gate, /\[landing-performance\]="\$RUN_PERFORMANCE"/);
+});
+
+test("diagnostic concurrency preserves existing runs while ordinary PR concurrency remains unchanged", () => {
+  const block = workflow.slice(workflow.indexOf('\nconcurrency:'), workflow.indexOf('\nenv:'));
+  const group = block.match(/group: (.*)/)?.[1];
+  assert.ok(group);
+  const evaluate = ({ diagnostic = false, labeled = false, run = 1, event = 'pull_request' } = {}) =>
+    group.replace(/\$\{\{ (.*?) \}\}/g, (_, expression) => String(vm.runInNewContext(
+      expression.replaceAll('github.event.pull_request.labels.*.name', 'labels'), {
+        inputs: { diagnostic_profile: diagnostic }, labels: labeled ? ['landing-diagnostic'] : [],
+        github: { workflow: 'App CI', run_id: run, event_name: event, ref: 'refs/heads/main', event: { pull_request: { number: 296 } } },
+        contains: (values, value) => values.includes(value),
+        format: (template, ...values) => template.replace(/\{(\d+)\}/g, (_, index) => String(values[Number(index)])),
+      })));
+  assert.equal(evaluate(), 'vistaire-ci-App CI-296');
+  assert.equal(evaluate({ run: 2 }), evaluate(), 'ordinary PR pushes keep cancellation group');
+  assert.equal(evaluate({ event: 'push' }), 'vistaire-ci-App CI-refs/heads/main');
+  assert.notEqual(evaluate({ diagnostic: true, run: 1 }), evaluate({ diagnostic: true, run: 2 }));
+  assert.notEqual(evaluate({ labeled: true, run: 1 }), evaluate({ labeled: true, run: 2 }));
+  assert.notEqual(evaluate({ labeled: true }), evaluate(), 'diagnostic must not cancel ordinary PR run');
+  assert.match(block, /cancel-in-progress: \$\{\{ github\.event_name == 'pull_request' \}\}/);
+});
 
 test("App CI exposes the production job topology and all event modes", () => {
   for (const job of [
@@ -336,4 +409,60 @@ test("Asset Policy owns the repository asset checks", async () => {
   assert.match(assetWorkflow, /npm run assets:check/);
   assert.match(assetWorkflow, /npm run lfs:check/);
   assert.doesNotMatch(staticJob, /assets:check|lfs:check/);
+});
+
+test("landing performance is opt-in, hermetic, serial and fail-closed when requested", () => {
+  const job = workflow.slice(workflow.indexOf("  landing-performance:"), workflow.indexOf("  webkit-critical:"));
+  assert.match(job, /inputs\.benchmark == true/);
+  assert.match(job, /contains\(github\.event\.pull_request\.labels\.\*\.name, 'landing-performance'\)/);
+  assert.match(job, /outputs\.run_landing == 'true'/);
+  assert.match(job, /needs\.build-app\.result == 'success'/);
+  assert.match(job, /name: next-build-\$\{\{ github\.run_id \}\}/);
+  assert.match(job, /NEXT_PUBLIC_SUPABASE_URL: http:\/\/127\.0\.0\.1:55434/);
+  assert.match(job, /node scripts\/benchmark-landing\.mjs/);
+  assert.doesNotMatch(job, /npm run build|--disable-frame-rate-limit/);
+  assert.match(job, /if-no-files-found: error/);
+  const gate = workflow.slice(workflow.indexOf("  ci-gate:"), workflow.indexOf("  ci-metrics:"));
+  assert.match(gate, /needs\.landing-performance\.result/);
+  assert.match(gate, /\[landing-performance\]="\$RUN_PERFORMANCE"/);
+  assert.match(gate, /ordered_jobs=\([^\n]*landing-performance\)/);
+});
+
+test("full-journey composition QA uses the current build and one exclusive workload", () => {
+  const job = workflow.slice(workflow.indexOf("  landing-performance:"), workflow.indexOf("  webkit-critical:"));
+  assert.match(job, /inputs\.composition == true/);
+  assert.match(job, /'landing-composition'/);
+  assert.doesNotMatch(job, /\.composition-baseline|actions\/artifacts\/11677657188|dc88019ce8448c8c56390a2b6cc2c9544fe28c25/);
+  assert.match(job, /candidate: \{root, headSHA: process\.env\.VISTAIRE_BENCHMARK_HEAD_SHA/);
+  assert.match(job, /artifactName: `next-build-\$\{process\.env\.GITHUB_RUN_ID\}`/);
+  assert.match(job, /node scripts\/diagnose-landing-composition\.mjs --journey-qa/);
+  assert.doesNotMatch(job, /export VISTAIRE_COMPOSITION_RUNTIMES_JSON=/);
+  assert.match(job, /export VISTAIRE_COMPOSITION_RUNTIMES_JSON\n/);
+  const normalStep = job.slice(job.indexOf('      - name: Measure normal-motion'), job.indexOf('      - name: Validate all landing chapters'));
+  const journeyStep = job.slice(job.indexOf('      - name: Validate all landing chapters'));
+  const evaluate = (step, workload, composition, diagnostic, compositionLabel, diagnosticLabel) => {
+    const expression = step.match(/if: \$\{\{ (.*?) \}\}/)?.[1];
+    assert.ok(expression, 'workload condition must be explicit');
+    const labels = [compositionLabel && 'landing-composition', diagnosticLabel && 'landing-diagnostic'].filter(Boolean);
+    return vm.runInNewContext(expression.replaceAll('github.event.pull_request.labels.*.name', 'labels'), {
+      matrix: { workload }, inputs: { composition, diagnostic_profile: diagnostic }, labels,
+      contains: (values, value) => values.includes(value),
+    });
+  };
+  for (const workload of ['selected', 'active', 'composition']) {
+    for (const composition of [false, true]) for (const diagnostic of [false, true]) {
+      for (const compositionLabel of [false, true]) for (const diagnosticLabel of [false, true]) {
+        const qa = composition || diagnostic || compositionLabel || diagnosticLabel;
+        const args = [workload, composition, diagnostic, compositionLabel, diagnosticLabel];
+        const normal = evaluate(normalStep, ...args), journey = evaluate(journeyStep, ...args);
+        assert.equal(normal, workload === 'active' || (workload === 'selected' && !qa), `normal workload ${JSON.stringify(args)}`);
+        assert.equal(journey, workload === 'composition' || (workload === 'selected' && qa), `journey workload ${JSON.stringify(args)}`);
+        assert.notEqual(normal, journey, 'exactly one workload per runner');
+      }
+    }
+  }
+  assert.match(job, /timeout-minutes: 30/);
+  assert.doesNotMatch(job, /continue-on-error: true|--disable-frame-rate-limit/);
+  const gate = workflow.slice(workflow.indexOf("  ci-gate:"), workflow.indexOf("  ci-metrics:"));
+  assert.match(gate, /RUN_PERFORMANCE:.*inputs\.composition == true/);
 });

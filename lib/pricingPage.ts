@@ -5,6 +5,7 @@ import {
   type JsonLdObject
 } from "./seo.ts";
 import type { Locale } from "./i18n.ts";
+import { getSeoMarketingImage } from "./seoMarketingImages.ts";
 
 export const PRICING_PATH = "/tarifs-menu-digital-restaurant";
 export const SAMPLE_MENU_PATH = "/demo";
@@ -140,10 +141,10 @@ export type PricingPageContent = {
 };
 
 const collectionImages = {
-  acrylique: "/images/pricing/vistaire-acrylique.jpg",
-  sculpte: "/images/pricing/vistaire-sculpte.jpg",
-  carre: "/images/pricing/vistaire-carre.png",
-  signature: "/images/pricing/vistaire-signature.jpg"
+  acrylique: getSeoMarketingImage("PRICING:collection:acrylique").src,
+  sculpte: getSeoMarketingImage("PRICING:collection:sculpte").src,
+  carre: getSeoMarketingImage("PRICING:collection:carre").src,
+  signature: getSeoMarketingImage("PRICING:collection:signature").src
 } as const;
 
 export const PRICING_PAGE = {
@@ -160,13 +161,12 @@ export const PRICING_PAGE = {
       label: "Vistaire",
       positioning: "Minimal. Moderne. Épuré.",
       description:
-        "Support vertical transparent en acrylique avec base en bois.",
+        "Support vertical en acrylique avec base en bois.",
       setupAmount: 2_000,
       setupPrice: "2 000 $ CAD",
       monthlyPrice: "+ 200 $ CAD / mois",
       image: collectionImages.acrylique,
-      imageAlt:
-        "Support QR Vistaire Acrylique transparent sur une table de restaurant",
+      imageAlt: getSeoMarketingImage("PRICING:collection:acrylique", "fr").alt,
       imagePosition: "50% 50%",
       cta: {
         label: "Découvrir cette collection",
@@ -184,9 +184,8 @@ export const PRICING_PAGE = {
       setupPrice: "2 050 $ CAD",
       monthlyPrice: "+ 200 $ CAD / mois",
       image: collectionImages.sculpte,
-      imageAlt:
-        "Support QR Vistaire Sculpté en bois avec coin supérieur arrondi",
-      imagePosition: "50% 52%",
+      imageAlt: getSeoMarketingImage("PRICING:collection:sculpte", "fr").alt,
+      imagePosition: "50% 50%",
       cta: {
         label: "Découvrir cette collection",
         href: "/prendre-rendez-vous"
@@ -203,9 +202,8 @@ export const PRICING_PAGE = {
       setupPrice: "2 100 $ CAD",
       monthlyPrice: "+ 200 $ CAD / mois",
       image: collectionImages.carre,
-      imageAlt:
-        "Support QR carré Vistaire présenté recto et verso sur une table de restaurant",
-      imagePosition: "84% 50%",
+      imageAlt: getSeoMarketingImage("PRICING:collection:carre", "fr").alt,
+      imagePosition: "50% 50%",
       cta: {
         label: "Découvrir cette collection",
         href: "/prendre-rendez-vous"
@@ -222,8 +220,7 @@ export const PRICING_PAGE = {
       setupPrice: "2 200 $ CAD",
       monthlyPrice: "+ 200 $ CAD / mois",
       image: collectionImages.signature,
-      imageAlt:
-        "Support QR horizontal Vistaire Signature en bois avec insert noir amovible",
+      imageAlt: getSeoMarketingImage("PRICING:collection:signature", "fr").alt,
       imagePosition: "50% 50%",
       featured: true,
       cta: {
@@ -431,13 +428,12 @@ export const PRICING_PAGE_EN = {
       label: "Vistaire",
       positioning: "Minimal. Modern. Refined.",
       description:
-        "A transparent vertical acrylic display set into a wooden base.",
+        "A vertical acrylic display set into a wooden base.",
       setupAmount: 2_000,
       setupPrice: "$2,000 CAD",
       monthlyPrice: "+ $200 CAD / month",
       image: collectionImages.acrylique,
-      imageAlt:
-        "Transparent Vistaire Acrylic QR display on a restaurant table",
+      imageAlt: getSeoMarketingImage("PRICING:collection:acrylique", "en").alt,
       imagePosition: "50% 50%",
       cta: {
         label: "Discover this collection",
@@ -455,9 +451,8 @@ export const PRICING_PAGE_EN = {
       setupPrice: "$2,050 CAD",
       monthlyPrice: "+ $200 CAD / month",
       image: collectionImages.sculpte,
-      imageAlt:
-        "Vistaire Sculpted wooden QR display with a rounded upper corner",
-      imagePosition: "50% 52%",
+      imageAlt: getSeoMarketingImage("PRICING:collection:sculpte", "en").alt,
+      imagePosition: "50% 50%",
       cta: {
         label: "Discover this collection",
         href: "/en/book-a-call"
@@ -474,9 +469,8 @@ export const PRICING_PAGE_EN = {
       setupPrice: "$2,100 CAD",
       monthlyPrice: "+ $200 CAD / month",
       image: collectionImages.carre,
-      imageAlt:
-        "Vistaire Square QR display shown from the front and back on a restaurant table",
-      imagePosition: "84% 50%",
+      imageAlt: getSeoMarketingImage("PRICING:collection:carre", "en").alt,
+      imagePosition: "50% 50%",
       cta: {
         label: "Discover this collection",
         href: "/en/book-a-call"
@@ -493,8 +487,7 @@ export const PRICING_PAGE_EN = {
       setupPrice: "$2,200 CAD",
       monthlyPrice: "+ $200 CAD / month",
       image: collectionImages.signature,
-      imageAlt:
-        "Horizontal Vistaire Signature wooden QR display with a removable black insert",
+      imageAlt: getSeoMarketingImage("PRICING:collection:signature", "en").alt,
       imagePosition: "50% 50%",
       featured: true,
       cta: {

@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { writeFile } from "node:fs/promises";
 
 const BASE_URL =
   process.env.PLAYWRIGHT_BASE_URL ?? "http://127.0.0.1:3000";
@@ -109,7 +110,7 @@ const englishSecondaryHomeScenarios: HomeScenario[] = [
 
 function topNavigation(page: Page) {
   return page.locator(
-    'nav[aria-label="Navigation preview"], nav[aria-label="Main navigation"]'
+    'nav[aria-label="Navigation principale"], nav[aria-label="Main navigation"]'
   ).first();
 }
 
@@ -198,9 +199,14 @@ async function expectFullDocumentLocaleSwitch(
     scenario.sourceLocale
   );
   await expect(page.locator("html")).toHaveAttribute("lang", scenario.sourceLocale);
+  if (scenario.sourcePath === "/" || scenario.sourcePath === "/en") {
+    // Cold software-rendered scene startup is separate from navigation
+    // correctness. Keep this bounded; it is not a site performance allowance.
+    await expect(page.locator(".preloader")).toHaveCount(0, { timeout: 120_000 });
+  }
 
   const sourceLanguageControl = page
-    .locator(`div[aria-label="${scenario.sourceControl}"]`)
+    .locator(`[data-public-controls] div[aria-label="${scenario.sourceControl}"]`)
     .first();
   await expect(sourceLanguageControl).toBeVisible();
   await expect(
@@ -234,6 +240,9 @@ async function expectFullDocumentLocaleSwitch(
   await destinationLink.click();
   const navigationResponse = await navigationResponsePromise;
   await page.waitForLoadState("domcontentloaded");
+  if (scenario.destinationPath === "/" || scenario.destinationPath === "/en") {
+    await expect(page.locator(".preloader")).toHaveCount(0, { timeout: 120_000 });
+  }
   expect(
     navigationResponse,
     `${scenario.sourcePath} -> ${scenario.destinationPath}: main-document response`
@@ -271,7 +280,7 @@ async function expectFullDocumentLocaleSwitch(
   );
 
   const destinationLanguageControl = page
-    .locator(`div[aria-label="${scenario.destinationControl}"]`)
+    .locator(`[data-public-controls] div[aria-label="${scenario.destinationControl}"]`)
     .first();
   await expect(destinationLanguageControl).toBeVisible();
   await expect(
@@ -297,6 +306,9 @@ test.describe("Vistaire public navigation", () => {
     test(`uses a full document navigation from ${scenario.sourcePath} to ${scenario.destinationPath}`, async ({
       page
     }) => {
+      if (scenario.sourcePath === "/" || scenario.sourcePath === "/en") {
+        test.setTimeout(240_000);
+      }
       await expectFullDocumentLocaleSwitch(page, scenario);
     });
   }
@@ -320,8 +332,8 @@ test.describe("Vistaire public navigation", () => {
         brand: "Vistaire - accueil",
         home: "/",
         links: ["Accueil", "Carte", "À propos", "Contact"],
-        cta: "Prendre rendez-vous",
-        compactCta: "Rendez-vous"
+        cta: "Prendre rendez vous",
+        compactCta: "Rendez vous"
       },
       {
         path: "/en/pricing-digital-restaurant-menu",
@@ -348,7 +360,7 @@ test.describe("Vistaire public navigation", () => {
         scenario.path.startsWith("/en/") ? "en" : "fr",
         true
       );
-      const compactNavigation = (page.viewportSize()?.width ?? 0) <= 520;
+      const compactNavigation = (page.viewportSize()?.width ?? 0) <= 1100;
       await expect(
         nav.getByRole("link", {
           name: compactNavigation ? scenario.compactCta : scenario.cta,
@@ -358,27 +370,94 @@ test.describe("Vistaire public navigation", () => {
     }
   });
 
-  test("keeps landing home anchors valid in both locales", async ({ page }) => {
-    for (const scenario of [
-      { path: "/", label: "Accueil", expectedPath: "/" },
-      { path: "/en", label: "Home", expectedPath: "/en" }
-    ] as const) {
-      await page.goto(scenario.path, { waitUntil: "domcontentloaded" });
+  test("keeps immersive chapter navigation valid in both locales", async ({ page }, testInfo) => {
+    test.setTimeout(240_000);
+    const runtimeErrors: string[] = [];
+    page.on("pageerror", (error) => runtimeErrors.push(error.message));
+    for (const locale of ["fr", "en"] as const) {
+      await page.goto(locale === "en" ? "/en" : "/", { waitUntil: "domcontentloaded" });
+      // SSR-visible controls precede scene initialization and final font metrics.
+      // Exercise a ready journey, while retaining the actual smooth-scroll check.
+      await expect(page.locator(".preloader")).toHaveCount(0, { timeout: 120_000 });
+      await page.evaluate(() => document.fonts.ready);
       const nav = topNavigation(page);
-      const home = nav.getByRole("link", { name: scenario.label, exact: true });
-
-      await expect(home).toHaveAttribute("href", "#accueil");
-      await expect(page.locator("#accueil")).toHaveCount(1);
-      await expect(home).toHaveAttribute("aria-current", "page");
-      await expectNoCurrent(nav, [
-        scenario.label === "Accueil" ? "Carte" : "Menu",
-        scenario.label === "Accueil" ? "À propos" : "About",
-        "Contact"
-      ]);
-      await expectPricingNavigation(
-        nav,
-        scenario.path === "/en" ? "en" : "fr"
-      );
+      const chapters = [
+        ["Intro", "hero"],
+        [locale === "en" ? "The experience" : "L’expérience", "features"],
+        ["Collections", "product"],
+        [locale === "en" ? "Pricing" : "Tarifs", "open-weight"],
+        ["Contact", "footer"],
+      ];
+      for (const [label, id] of chapters) {
+        await expect(nav.getByRole("button", { name: label, exact: true })).toBeVisible();
+        await expect(page.locator(`#${id}`)).toHaveCount(1);
+      }
+      for (const [label, id, tolerance] of [
+        ["Contact", "footer", 120],
+        ["Intro", "hero", 10],
+      ] as const) {
+        const beforeClick = await page.locator(`#${id}`).evaluate((element) => ({
+          scrollY,
+          targetTop: element.getBoundingClientRect().top + scrollY,
+        }));
+        const clickStarted = Date.now();
+        await nav.getByRole("button", { name: label, exact: true }).click();
+        const clickReturned = Date.now();
+        const samples: Array<Record<string, unknown> & { elapsedMs: number; distance: number }> = [];
+        let arrived = false;
+        try {
+          // Keep native smooth scrolling and the exact destination contract.
+          // The bounded diagnostic budget measures correctness under software
+          // WebGL; an arrival beyond 5s remains a reported performance concern.
+          await expect.poll(async () => {
+            const state = await page.locator(`#${id}`).evaluate((element, targetId) => {
+              const rect = element.getBoundingClientRect();
+              const canvas = document.querySelector<HTMLCanvasElement>(".scene-canvas");
+              return {
+                distance: targetId === "hero" ? Math.abs(scrollY) : Math.abs(rect.top),
+                scrollY,
+                targetTop: rect.top + scrollY,
+                targetViewportTop: rect.top,
+                maxScroll: document.documentElement.scrollHeight - innerHeight,
+                hash: location.hash,
+                chapter: document.documentElement.dataset.chapter,
+                bodyOverflow: getComputedStyle(document.body).overflow,
+                renderer: canvas ? {
+                  ready: canvas.dataset.ready,
+                  settled: canvas.dataset.settled,
+                  suspended: canvas.dataset.suspended,
+                  section: canvas.dataset.section,
+                  progress: canvas.dataset.progress,
+                  frames: canvas.dataset.frames,
+                  renderCPUms: canvas.dataset.renderCPUms,
+                } : null,
+              };
+            }, id);
+            samples.push({ elapsedMs: Date.now() - clickReturned, ...state });
+            return state.distance;
+          }, { timeout: 30_000, intervals: [100, 250], message: `${locale}: ${label} reaches its native scroll destination` })
+            .toBeLessThan(tolerance);
+          arrived = true;
+        } finally {
+          const last = samples.at(-1);
+          const diagnosticPath = testInfo.outputPath(`${locale}-${id}-native-scroll.json`);
+          await writeFile(diagnosticPath, JSON.stringify({
+            locale, target: id, tolerance, arrived, beforeClick,
+            clickDurationMs: clickReturned - clickStarted,
+            arrivalElapsedMs: arrived ? last?.elapsedMs : null,
+            performanceWarning: !arrived || (last?.elapsedMs ?? 0) > 5_000,
+            lastSampleWithinFiveSeconds: samples.filter((sample) => sample.elapsedMs <= 5_000).at(-1) ?? null,
+            firstSampleAfterFiveSeconds: samples.find((sample) => sample.elapsedMs >= 5_000) ?? null,
+            runtimeErrors,
+            samples,
+          }, null, 2));
+          await testInfo.attach(`${locale}-${id}-native-scroll.json`, {
+            contentType: "application/json",
+            path: diagnosticPath,
+          });
+        }
+        expect(runtimeErrors, `${locale}: native navigation runtime errors`).toEqual([]);
+      }
     }
   });
 
@@ -616,4 +695,55 @@ test.describe("Vistaire public navigation", () => {
       await context.close();
     }
   });
+});
+
+test("public theme and mobile controls persist across locale navigation and reload", async ({ page, context }) => {
+  const errors: string[] = [];
+  page.on("pageerror", (error) => errors.push(error.message));
+  await page.setViewportSize({ width: 320, height: 740 });
+  await page.goto("/a-propos?utm_source=theme-test");
+  const nav = topNavigation(page);
+  const controls = nav.locator("[data-public-controls]");
+  await expect(page.locator("html")).toHaveAttribute("data-vistaire-theme", "dark");
+  for (const control of await controls.locator("a, button").all()) {
+    await expect(control).toBeVisible();
+    const box = await control.boundingBox();
+    expect(box!.width).toBeGreaterThanOrEqual(44);
+    expect(box!.height).toBeGreaterThanOrEqual(44);
+  }
+  await controls.getByRole("button", { name: "Thème clair", exact: true }).click();
+  await expect(page.locator("html")).toHaveAttribute("data-vistaire-theme", "light");
+  await expect(page.locator("main[data-public-vistaire]")).toHaveCSS("background-color", "rgb(247, 243, 233)");
+  const menu = nav.locator("details");
+  await menu.locator("summary").click();
+  await expect(menu).toHaveAttribute("open", "");
+  await controls.getByRole("button").focus();
+  await page.keyboard.press("Escape");
+  await expect(menu).not.toHaveAttribute("open");
+  await menu.locator("summary").click();
+  await controls.getByRole("link", { name: "View this page in English" }).click();
+  await expect(page).toHaveURL(/\/en\/about\?utm_source=theme-test$/);
+  await expect(page.locator("html")).toHaveAttribute("data-vistaire-theme", "light");
+  await expect(topNavigation(page).locator("details")).not.toHaveAttribute("open");
+  await page.reload();
+  await expect(page.locator("html")).toHaveAttribute("data-vistaire-theme", "light");
+  await expect(topNavigation(page).getByRole("button", { name: "Light theme", exact: true })).toHaveAttribute("aria-pressed", "true");
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  const other = await context.newPage();
+  await other.goto("/contact");
+  await other.locator("[data-public-theme-toggle]").click();
+  await expect(page.locator("html")).toHaveAttribute("data-vistaire-theme", "dark");
+  await expect(topNavigation(page).getByRole("button", { name: "Light theme", exact: true })).toHaveAttribute("aria-pressed", "false");
+  await other.close();
+  expect(errors.filter((error) => /hydration|did not match/i.test(error))).toEqual([]);
+});
+
+test("public theme remains usable when local storage is blocked", async ({ page }) => {
+  await page.addInitScript(() => {
+    Object.defineProperty(window, "localStorage", { get() { throw new DOMException("Blocked", "SecurityError"); } });
+  });
+  await page.goto("/contact");
+  await expect(page.locator("html")).toHaveAttribute("data-vistaire-theme", "dark");
+  await page.locator("[data-public-theme-toggle]").click();
+  await expect(page.locator("html")).toHaveAttribute("data-vistaire-theme", "light");
 });

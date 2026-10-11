@@ -685,6 +685,11 @@ const ALLOWLIST = new Map(
   ]
 );
 
+// Reviewed original assets for the requested immersive public integration.
+for (const entry of JSON.parse(readFileSync(new URL("../docs/immersive-asset-exceptions.json", import.meta.url), "utf8"))) {
+  ALLOWLIST.set(entry.path, entry);
+}
+
 const GRANDFATHERED_DEMO_RUNTIME_ALLOWLIST = new Set([
   "public/models/demo/homard-bisque-meshopt-ee44bc60.glb",
   "public/models/demo/homard-bisque.usdz"

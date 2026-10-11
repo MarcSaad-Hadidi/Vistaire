@@ -1,4 +1,5 @@
 import type { Dish } from "@/lib/demoMenuData";
+import { isPublicModelCdnUrl } from "./publicModelAssets.ts";
 
 export type ImmersiveDevice = "desktop" | "ios" | "android" | "unknown";
 export type ImmersiveBrowser =
@@ -170,7 +171,8 @@ function hasAllowedExternalAssetUrl(
   allowedOrigins: string[],
   role: VariantKey | "asset"
 ): boolean {
-  if (allowedOrigins.length === 0) return false;
+  const isReviewedPublicModel = isPublicModelCdnUrl(url);
+  if (allowedOrigins.length === 0 && !isReviewedPublicModel) return false;
   try {
     const parsed = new URL(url);
     const pathname = parsed.pathname.toLowerCase();
@@ -186,7 +188,7 @@ function hasAllowedExternalAssetUrl(
       parsed.protocol === "https:" &&
       !parsed.search &&
       !parsed.hash &&
-      allowedOrigins.includes(parsed.origin) &&
+      (isReviewedPublicModel || allowedOrigins.includes(parsed.origin)) &&
       extensionOk
     );
   } catch {

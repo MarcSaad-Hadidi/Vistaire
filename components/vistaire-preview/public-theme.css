@@ -1,0 +1,43 @@
+/* Marketing-only tokens: never theme html/body or restaurant/private roots. */
+:is([data-public-vistaire], [data-immersive-vistaire], [data-vistaire-chrome]) {
+  color-scheme: dark;
+  --public-black: #050505;
+  --public-background: var(--public-black);
+  --public-surface: #111110;
+  --public-surface-raised: #191918;
+  --public-text: #f8f3e8;
+  --public-muted: #cec8bd;
+  --public-muted-soft: #b9b6ae;
+  --public-blue: #282825;
+  --public-border: var(--public-blue);
+  --public-gold: #ffc300;
+  --public-gold-light: #ffd60a;
+  --public-on-accent: #050505;
+  --public-focus: var(--public-gold-light);
+  --public-overlay: rgba(5, 5, 5, 0.94);
+  --public-nav: rgba(5, 5, 5, 0.97);
+  --public-error: #f1beac;
+  --public-gold-metal: linear-gradient(115deg, #ffc300 0%, #ffd60a 27%, #fff1ad 45%, #ffc300 62%, #ffd60a 84%, #ffc300 100%);
+}
+html[data-vistaire-theme="light"] :is([data-public-vistaire], [data-immersive-vistaire], [data-vistaire-chrome]) {
+  color-scheme: light;
+  --public-black: #f7f3e9;
+  --public-surface: #fffcf5;
+  --public-surface-raised: #eee7d9;
+  --public-text: #28251f;
+  --public-muted: #625b50;
+  --public-muted-soft: #706759;
+  --public-blue: #d9d0be;
+  --public-gold: #80600d;
+  --public-gold-light: #6d5008;
+  --public-on-accent: #fffaf0;
+  --public-overlay: rgba(247, 243, 233, 0.94);
+  --public-nav: rgba(255, 252, 245, 0.97);
+  --public-error: #9a3824;
+  --public-gold-metal: linear-gradient(115deg, #80600d, #937017 45%, #80600d);
+}
+/* Global cream selection text is unreadable on the ivory marketing pages. */
+html[data-vistaire-theme="light"] :is([data-public-vistaire], [data-vistaire-chrome]) ::selection {
+  color: var(--public-on-accent);
+  background: var(--public-gold);
+}

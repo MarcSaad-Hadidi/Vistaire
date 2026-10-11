@@ -456,7 +456,76 @@ async function exerciseCharts(page: Page) {
   }
 }
 
+async function expectReadableText(text: Locator, surface: Locator) {
+  const [foreground, background] = await Promise.all([
+    text.evaluate((element) => getComputedStyle(element).color),
+    surface.evaluate((element) => getComputedStyle(element).backgroundColor)
+  ]);
+  const luminance = (color: string) => {
+    const channels = color.match(/[\d.]+/g)?.map(Number) ?? [];
+    expect(channels.length).toBeGreaterThanOrEqual(3);
+    expect(channels[3] ?? 1, `Expected an opaque surface: ${color}`).toBe(1);
+    return channels.slice(0, 3).reduce((sum, channel, index) => {
+      const value = channel / 255;
+      const linear = value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4;
+      return sum + linear * [0.2126, 0.7152, 0.0722][index];
+    }, 0);
+  };
+  const values = [luminance(foreground), luminance(background)].sort((a, b) => a - b);
+  expect((values[1] + 0.05) / (values[0] + 0.05), `${foreground} on ${background}`).toBeGreaterThanOrEqual(4.5);
+}
+
 test.describe("public restaurateur dashboard preview", () => {
+  test("light mode keeps dashboard status, chart details and feedback readable", async ({ page }) => {
+    test.setTimeout(45_000);
+    await page.addInitScript(() => localStorage.setItem("vistaire-public-theme", "light"));
+    for (const [index, scenario] of scenarios.entries()) {
+      await page.setViewportSize(index === 0 ? { width: 390, height: 844 } : { width: 1440, height: 900 });
+      await page.goto(scenario.path, { waitUntil: "domcontentloaded" });
+      await expect(page.locator("html")).toHaveAttribute("data-vistaire-theme", "light");
+      const kpi = page.locator("[data-demo-kpi]").first();
+      await expectReadableText(kpi.locator('[class*="kpiDetail"]'), kpi);
+      for (const chrome of await page.locator("[data-chart-chrome] > span").all()) {
+        await expectReadableText(chrome, chrome);
+      }
+      for (const badge of await page.locator('[class*="availabilityStrip"] [class*="badge_"]').all()) {
+        await expectReadableText(badge, badge);
+      }
+
+      await page.getByRole("tab", { name: scenario.tabs[2], exact: true }).click();
+      await expect(page.locator('[data-chart-frame][data-chart-kind="comparison"]')).toBeVisible();
+      for (const chart of await page.locator("[data-chart-frame]").all()) {
+        const mark = chart.locator("[tabindex]").first();
+        if (await mark.count() === 0) continue;
+        await mark.focus();
+        const tooltip = chart.locator("output[data-visible=true]");
+        await expect(tooltip).toBeVisible();
+        for (const text of await tooltip.locator(":scope > span:first-child, strong, small, [data-chart-delta]").all()) {
+          await expectReadableText(text, tooltip);
+        }
+        await page.keyboard.press("Escape");
+        await expect(tooltip).toBeHidden();
+      }
+
+      const availabilityTab = page.getByRole("tab", { name: scenario.tabs[1], exact: true });
+      // Chart focus can leave smooth scrolling in progress. Settle the return
+      // clear of the fixed navigation before testing a normal pointer activation.
+      await availabilityTab.evaluate((element) => element.scrollIntoView({ block: "center", behavior: "instant" }));
+      await availabilityTab.click();
+      await expect(availabilityTab).toHaveAttribute("aria-selected", "true");
+      await expect(page.getByRole("tabpanel", { name: scenario.tabs[1], exact: true })).toBeVisible();
+      const availabilityBadges = page.locator('[data-demo-dish] > [class*="badge_"]');
+      await expect(availabilityBadges).toHaveCount(12);
+      for (const badge of await availabilityBadges.all()) {
+        await expectReadableText(badge, badge);
+      }
+      await page.locator("[data-demo-dish]").first().getByRole("switch").click();
+      const feedback = page.getByRole("status").filter({ hasText: scenario.simulation });
+      await expect(feedback).toBeVisible();
+      await expectReadableText(feedback, feedback);
+    }
+  });
+
   test("availability feedback clears after its live announcement", async ({ page }) => {
     const scenario = scenarios[0];
     const response = await page.goto(scenario.path, { waitUntil: "domcontentloaded" });

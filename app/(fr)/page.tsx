@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { JsonLd } from "@/components/JsonLd";
-import { VistairePreviewLanding } from "@/components/vistaire-preview/VistairePreviewLanding";
+import { ImmersiveLanding } from "@/components/immersive/ImmersiveLanding";
 import {
   DEFAULT_SITE_DESCRIPTION,
   absoluteUrl,
@@ -41,7 +41,7 @@ export default function Home() {
           buildVistaireServiceJsonLd()
         ]}
       />
-      <VistairePreviewLanding routeMode="production" />
+      <ImmersiveLanding />
     </>
   );
 }

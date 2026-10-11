@@ -1,0 +1,796 @@
+:where([data-immersive-vistaire]) .pricing.chapter {
+  height: auto;
+  min-height: 0;
+  pointer-events: auto;
+  scroll-margin-top: 90px;
+  background: var(--public-black, #050505);
+  color: var(--public-text, #f5ead8);
+}
+
+:where([data-immersive-vistaire]) .pricing > .stage {
+  position: relative;
+  top: auto;
+  display: block;
+  height: auto;
+  min-height: 0;
+  overflow: visible;
+  padding: clamp(80px, 7vw, 120px) var(--pad) clamp(60px, 7vw, 100px);
+  background: linear-gradient(155deg, var(--public-surface, #111110), var(--public-black, #050505) 45%);
+}
+
+:where([data-immersive-vistaire]) .pricing .pricing-content {
+  max-width: 1320px;
+  margin-inline: auto;
+}
+
+:where([data-immersive-vistaire]) .pricing h2,
+:where([data-immersive-vistaire]) .pricing h3,
+:where([data-immersive-vistaire]) .pricing h4 {
+  font-family: "Vistaire Editorial", Georgia, serif;
+  font-weight: 400;
+  text-wrap: balance;
+}
+
+:where([data-immersive-vistaire]) .pricing h4 {
+  margin: 0;
+  font-size: 26px;
+  letter-spacing: -0.015em;
+  line-height: 1.15;
+}
+
+:where([data-immersive-vistaire]) .pricing .pricing-eyebrow {
+  display: block;
+  font-family: "Vistaire Text", sans-serif;
+  font-size: 11px;
+  line-height: 1.5;
+  font-weight: 600;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+  color: var(--public-gold, #ffc300);
+}
+
+:where([data-immersive-vistaire]) .pricing .pricing-heading {
+  max-width: 770px;
+  margin-bottom: 42px;
+}
+
+:where([data-immersive-vistaire]) .pricing .pricing-heading h2 {
+  margin: 18px 0 22px;
+  font-size: clamp(40px, 5.4vw, 76px);
+  letter-spacing: -0.025em;
+  line-height: 1.04;
+}
+
+:where([data-immersive-vistaire]) .pricing .pricing-heading > p {
+  max-width: 560px;
+  font-size: 18px;
+  line-height: 1.5;
+  color: var(--public-muted, #cec8bd);
+}
+
+:where([data-immersive-vistaire]) .pricing .pricing-collections {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+}
+
+:where([data-immersive-vistaire]) .pricing .pricing-collection {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  min-width: 0;
+  padding: 10px 10px 22px;
+  border: 1px solid var(--public-blue, #282825);
+  border-radius: 6px;
+  background: var(--public-surface, #111110);
+  text-align: left;
+  transition:
+    border-color 0.2s,
+    background-color 0.2s;
+}
+
+:where([data-immersive-vistaire]) .pricing .pricing-collection:hover {
+  border-color: color-mix(in srgb, var(--public-gold, #ffc300) 56%, transparent);
+  background: var(--public-surface, #111110);
+}
+
+:where([data-immersive-vistaire]) .pricing .pricing-collection.is-selected {
+  border-color: var(--public-gold, #ffc300);
+  background: color-mix(in srgb, var(--public-gold, #ffc300) 5%, transparent);
+}
+
+:where([data-immersive-vistaire]) .pricing .pricing-collection-image {
+  position: relative;
+  display: block;
+  aspect-ratio: 4 / 3;
+  flex-shrink: 0;
+  overflow: clip;
+  background: var(--public-surface, #111110);
+  border-radius: 3px;
+  margin-bottom: 19px;
+}
+
+:where([data-immersive-vistaire]) .pricing .pricing-collection-image img {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+:where([data-immersive-vistaire]) .pricing .pricing-collection-check {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border: 1px solid var(--public-blue, #282825);
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--public-black, #050505) 60%, transparent);
+  color: transparent;
+}
+
+:where([data-immersive-vistaire]) .pricing .is-selected .pricing-collection-check {
+  background: var(--public-gold, #ffc300);
+  border-color: var(--public-gold, #ffc300);
+  color: var(--public-black, #050505);
+}
+
+:where([data-immersive-vistaire]) .pricing .pricing-collection-name {
+  font-family: "Vistaire Editorial", Georgia, serif;
+  font-size: 29px;
+  line-height: 1.15;
+  padding-inline: 8px;
+}
+
+:where([data-immersive-vistaire]) .pricing .pricing-collection-description {
+  display: block;
+  margin: 9px 0 20px;
+  padding-inline: 8px;
+  font-size: 14px;
+  line-height: 1.4;
+  color: var(--public-muted, #cec8bd);
+}
+
+:where([data-immersive-vistaire]) .pricing .pricing-collection-price {
+  margin-top: auto;
+  padding-inline: 8px;
+  font-size: 18px;
+  line-height: 1.4;
+}
+
+:where([data-immersive-vistaire]) .pricing .pricing-collection-price > span {
+  color: var(--public-muted, #cec8bd);
+  font-size: 12px;
+}
+
+:where([data-immersive-vistaire]) .pricing .pricing-summary {
+  display: grid;
+  grid-template-columns: 1fr 1fr auto;
+  align-items: center;
+  gap: 30px;
+  margin-top: 24px;
+  padding: 30px;
+  border: 1px solid color-mix(in srgb, var(--public-gold, #ffc300) 29%, transparent);
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--public-gold, #ffc300) 3%, transparent);
+}
+
+:where([data-immersive-vistaire]) .pricing .pricing-rate {
+  min-width: 0;
+}
+
+:where([data-immersive-vistaire]) .pricing .pricing-amount {
+  display: grid;
+  gap: 7px;
+  margin: 13px 0 12px;
+  font-family: "Vistaire Editorial", Georgia, serif;
+  font-size: clamp(36px, 3.5vw, 52px);
+  line-height: 1;
+  font-variant-numeric: lining-nums;
+}
+
+:where([data-immersive-vistaire]) .pricing .pricing-amount > span {
+  white-space: nowrap;
+}
+
+:where([data-immersive-vistaire]) .pricing .pricing-amount small {
+  font-family: "Vistaire Text", sans-serif;
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--public-muted, #cec8bd);
+}
+
+:where([data-immersive-vistaire]) .pricing .pricing-rate > p {
+  max-width: 240px;
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--public-muted, #cec8bd);
+}
+
+:where([data-immersive-vistaire]) .pricing .pricing-summary-action {
+  display: grid;
+  gap: 13px;
+  text-align: center;
+}
+
+:where([data-immersive-vistaire]) .pricing .pricing-summary-action > span {
+  font-size: 11px;
+  color: var(--public-muted, #cec8bd);
+}
+
+:where([data-immersive-vistaire]) .pricing .pricing-cta {
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  gap: 12px;
+  min-height: 48px;
+  max-width: 100%;
+  padding: 15px 22px;
+  border: 1px solid var(--public-gold, #ffc300);
+  border-radius: 4px;
+  background: var(--public-gold, #ffc300);
+  color: var(--public-black, #050505);
+  font-family: "Vistaire Text", sans-serif;
+  font-size: 14px;
+  line-height: 1.3;
+  transition:
+    background-color 0.2s,
+    border-color 0.2s;
+}
+
+:where([data-immersive-vistaire]) .pricing .pricing-cta:hover {
+  background: var(--public-text, #f5ead8);
+  border-color: var(--public-text, #f5ead8);
+}
+
+:where([data-immersive-vistaire]) .pricing .pricing-cta svg {
+  flex-shrink: 0;
+}
+
+:where([data-immersive-vistaire]) .pricing .pricing-block {
+  margin-top: clamp(54px, 6vw, 82px);
+}
+
+:where([data-immersive-vistaire]) .pricing .pricing-block-heading {
+  display: grid;
+  gap: 14px;
+  margin-bottom: 28px;
+  max-width: 660px;
+}
+
+:where([data-immersive-vistaire]) .pricing .pricing-block-heading h3,
+:where([data-immersive-vistaire]) .pricing .pricing-faq > div:first-child h3,
+:where([data-immersive-vistaire]) .pricing .pricing-closing h3 {
+  font-size: clamp(31px, 3.2vw, 45px);
+  line-height: 1.1;
+}
+
+:where([data-immersive-vistaire]) .pricing .pricing-block-heading > p {
+  max-width: 580px;
+  font-size: 16px;
+  color: var(--public-muted, #cec8bd);
+}
+
+:where([data-immersive-vistaire]) .pricing .pricing-included {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 30px;
+}
+
+:where([data-immersive-vistaire]) .pricing .pricing-included > article {
+  padding-top: 24px;
+  border-top: 1px solid var(--public-blue, #282825);
+}
+
+:where([data-immersive-vistaire]) .pricing .pricing-index {
+  display: block;
+  margin-bottom: 17px;
+  color: var(--public-gold, #ffc300);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.08em;
+}
+
+:where([data-immersive-vistaire]) .pricing .pricing-included ul,
+:where([data-immersive-vistaire]) .pricing .pricing-pilotage-features,
+:where([data-immersive-vistaire]) .pricing .pricing-terms ul,
+:where([data-immersive-vistaire]) .pricing .pricing-workflow {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+:where([data-immersive-vistaire]) .pricing .pricing-included ul {
+  display: grid;
+  gap: 12px;
+  margin-top: 22px;
+}
+
+:where([data-immersive-vistaire]) .pricing .pricing-included li {
+  display: flex;
+  gap: 10px;
+  font-size: 15px;
+  line-height: 1.4;
+  color: var(--public-muted, #cec8bd);
+}
+
+:where([data-immersive-vistaire]) .pricing .pricing-included li svg {
+  flex-shrink: 0;
+  margin-top: 3px;
+  color: var(--public-gold, #ffc300);
+}
+
+:where([data-immersive-vistaire]) .pricing .pricing-options {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+}
+
+:where([data-immersive-vistaire]) .pricing .pricing-options > article {
+  min-width: 0;
+  padding: 28px;
+  border: 1px solid var(--public-blue, #282825);
+  border-radius: 6px;
+  background: var(--public-surface, #111110);
+}
+
+:where([data-immersive-vistaire]) .pricing .pricing-options h4 {
+  margin-top: 12px;
+}
+
+:where([data-immersive-vistaire]) .pricing .pricing-option-heading {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: start;
+  gap: 18px;
+}
+
+:where([data-immersive-vistaire]) .pricing .pricing-option-price {
+  font-size: 20px;
+  white-space: nowrap;
+}
+
+:where([data-immersive-vistaire]) .pricing .pricing-option-price small {
+  font-size: 12px;
+  color: var(--public-muted, #cec8bd);
+}
+
+:where([data-immersive-vistaire]) .pricing .pricing-options > article > p {
+  margin-top: 18px;
+  font-size: 15px;
+  line-height: 1.45;
+  color: var(--public-muted, #cec8bd);
+}
+
+:where([data-immersive-vistaire]) .pricing .pricing-pilotage-features {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px 20px;
+  margin: 23px 0;
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+:where([data-immersive-vistaire]) .pricing .pricing-pilotage-features li {
+  padding-left: 12px;
+  border-left: 1px solid var(--public-gold, #ffc300);
+}
+
+:where([data-immersive-vistaire]) .pricing .pricing-toggle {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 20px;
+  padding: 17px 0;
+  border-block: 1px solid var(--public-blue, #282825);
+  cursor: pointer;
+}
+
+:where([data-immersive-vistaire]) .pricing .pricing-toggle > span {
+  display: grid;
+  gap: 6px;
+  font-size: 15px;
+}
+
+:where([data-immersive-vistaire]) .pricing .pricing-toggle strong {
+  font-weight: 600;
+}
+
+:where([data-immersive-vistaire]) .pricing .pricing-toggle small {
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--public-muted, #cec8bd);
+}
+
+:where([data-immersive-vistaire]) .pricing .pricing-toggle input {
+  appearance: none;
+  flex-shrink: 0;
+  width: 46px;
+  height: 26px;
+  margin: 0;
+  padding: 3px;
+  border: 1px solid var(--public-blue, #282825);
+  border-radius: 20px;
+  background: var(--public-black, #050505);
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+:where([data-immersive-vistaire]) .pricing .pricing-toggle input::before {
+  content: "";
+  display: block;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--public-text, #f5ead8);
+  transition: transform 0.2s;
+}
+
+:where([data-immersive-vistaire]) .pricing .pricing-toggle input:checked {
+  background: var(--public-gold, #ffc300);
+  border-color: var(--public-gold, #ffc300);
+}
+
+:where([data-immersive-vistaire]) .pricing .pricing-toggle input:checked::before {
+  transform: translateX(20px);
+  background: var(--public-black, #050505);
+}
+
+:where([data-immersive-vistaire]) .pricing .pricing-note {
+  display: block;
+  margin-top: 18px;
+  color: var(--public-muted, #cec8bd);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+:where([data-immersive-vistaire]) .pricing .pricing-packs {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 24px;
+}
+
+:where([data-immersive-vistaire]) .pricing .pricing-packs > div {
+  display: grid;
+  gap: 10px;
+  padding: 18px 10px;
+  border: 1px solid var(--public-blue, #282825);
+  border-radius: 4px;
+  text-align: center;
+}
+
+:where([data-immersive-vistaire]) .pricing .pricing-packs > div > span {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 3px;
+  font-size: 12px;
+}
+
+:where([data-immersive-vistaire]) .pricing .pricing-packs strong {
+  font-family: "Vistaire Editorial", Georgia, serif;
+  font-size: 34px;
+  font-weight: 400;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+:where([data-immersive-vistaire]) .pricing .pricing-packs small {
+  font-size: 10px;
+  color: var(--public-muted, #cec8bd);
+}
+
+:where([data-immersive-vistaire]) .pricing .pricing-individual strong {
+  font-weight: 600;
+  color: var(--public-text, #f5ead8);
+}
+
+:where([data-immersive-vistaire]) .pricing .pricing-workflow {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 24px;
+}
+
+:where([data-immersive-vistaire]) .pricing .pricing-workflow li {
+  padding-top: 20px;
+  border-top: 1px solid var(--public-blue, #282825);
+}
+
+:where([data-immersive-vistaire]) .pricing .pricing-workflow h4 {
+  font-size: 24px;
+}
+
+:where([data-immersive-vistaire]) .pricing .pricing-workflow p {
+  margin-top: 12px;
+  color: var(--public-muted, #cec8bd);
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+:where([data-immersive-vistaire]) .pricing .pricing-lead-time {
+  max-width: 840px;
+  margin-top: 28px;
+  padding-left: 20px;
+  border-left: 1px solid var(--public-gold, #ffc300);
+  color: var(--public-muted, #cec8bd);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+:where([data-immersive-vistaire]) .pricing .pricing-lead-time strong {
+  font-weight: 600;
+  color: var(--public-text, #f5ead8);
+}
+
+:where([data-immersive-vistaire]) .pricing .pricing-terms {
+  display: grid;
+  grid-template-columns: 1fr 2fr;
+  gap: 40px;
+  margin-top: 52px;
+  padding: 30px 0;
+  border-block: 1px solid var(--public-blue, #282825);
+}
+
+:where([data-immersive-vistaire]) .pricing .pricing-terms h3 {
+  font-size: 31px;
+}
+
+:where([data-immersive-vistaire]) .pricing .pricing-terms ul {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 13px 30px;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--public-muted, #cec8bd);
+}
+
+:where([data-immersive-vistaire]) .pricing .pricing-terms li:last-child {
+  grid-column: 1 / -1;
+}
+
+:where([data-immersive-vistaire]) .pricing .pricing-faq {
+  display: grid;
+  grid-template-columns: 1fr 2fr;
+  gap: 40px;
+  margin-top: 60px;
+}
+
+:where([data-immersive-vistaire]) .pricing .pricing-faq > div:first-child h3 {
+  margin-top: 15px;
+}
+
+:where([data-immersive-vistaire]) .pricing .pricing-closing {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 26px;
+  margin-top: 60px;
+  padding-top: 30px;
+  border-top: 1px solid var(--public-blue, #282825);
+}
+
+:where([data-immersive-vistaire]) .pricing .pricing-closing > div {
+  display: grid;
+  gap: 13px;
+}
+
+:where([data-immersive-vistaire]) .pricing button:focus-visible,
+:where([data-immersive-vistaire]) .pricing a:focus-visible,
+:where([data-immersive-vistaire]) .pricing input:focus-visible,
+:where([data-immersive-vistaire]) .pricing summary:focus-visible {
+  outline: 2px solid var(--public-gold, #ffc300);
+  outline-offset: 5px;
+}
+
+@media (max-width: 1050px) {
+  :where([data-immersive-vistaire]) .pricing .pricing-collections {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  :where([data-immersive-vistaire]) .pricing .pricing-collection-image {
+    aspect-ratio: 16 / 9;
+  }
+
+  :where([data-immersive-vistaire]) .pricing .pricing-summary {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  :where([data-immersive-vistaire]) .pricing .pricing-summary-action {
+    grid-column: 1 / -1;
+    justify-items: start;
+  }
+
+  :where([data-immersive-vistaire]) .pricing .pricing-workflow {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  :where([data-immersive-vistaire]) .pricing .pricing-options {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 767.98px) {
+  :where([data-immersive-vistaire]) .pricing.chapter {
+    scroll-margin-top: 78px;
+  }
+
+  :where([data-immersive-vistaire]) .pricing > .stage {
+    padding: 68px var(--pad) 56px;
+  }
+
+  :where([data-immersive-vistaire]) .pricing .pricing-heading {
+    margin-bottom: 28px;
+  }
+
+  :where([data-immersive-vistaire]) .pricing .pricing-heading h2 {
+    font-size: clamp(37px, 10vw, 52px);
+    margin: 16px 0 20px;
+  }
+
+  :where([data-immersive-vistaire]) .pricing .pricing-heading > p {
+    font-size: 16px;
+  }
+
+  :where([data-immersive-vistaire]) .pricing .pricing-collections {
+    gap: 10px;
+  }
+
+  :where([data-immersive-vistaire]) .pricing .pricing-collection {
+    padding: 6px 6px 16px;
+  }
+
+  :where([data-immersive-vistaire]) .pricing .pricing-collection-image {
+    aspect-ratio: 4 / 3;
+    margin-bottom: 14px;
+  }
+
+  :where([data-immersive-vistaire]) .pricing .pricing-collection-name {
+    font-size: 25px;
+    padding-inline: 6px;
+  }
+
+  :where([data-immersive-vistaire]) .pricing .pricing-collection-description {
+    font-size: 13px;
+    margin: 8px 0 15px;
+    padding-inline: 6px;
+  }
+
+  :where([data-immersive-vistaire]) .pricing .pricing-collection-price {
+    padding-inline: 6px;
+    font-size: 17px;
+  }
+
+  :where([data-immersive-vistaire]) .pricing .pricing-collection-price > span {
+    display: block;
+    font-size: 11px;
+    margin-bottom: 3px;
+  }
+
+  :where([data-immersive-vistaire]) .pricing .pricing-summary {
+    padding: 22px 16px;
+    gap: 24px 16px;
+  }
+
+  :where([data-immersive-vistaire]) .pricing .pricing-summary .pricing-eyebrow {
+    font-size: 10px;
+    letter-spacing: 0.06em;
+  }
+
+  :where([data-immersive-vistaire]) .pricing .pricing-amount {
+    font-size: 36px;
+  }
+
+  :where([data-immersive-vistaire]) .pricing .pricing-amount small,
+  :where([data-immersive-vistaire]) .pricing .pricing-rate > p {
+    font-size: 12px;
+  }
+
+  :where([data-immersive-vistaire]) .pricing .pricing-summary-action {
+    justify-items: stretch;
+    text-align: center;
+  }
+
+  :where([data-immersive-vistaire]) .pricing .pricing-included {
+    grid-template-columns: 1fr;
+    gap: 28px;
+  }
+
+  :where([data-immersive-vistaire]) .pricing .pricing-included > article {
+    padding-top: 18px;
+  }
+
+  :where([data-immersive-vistaire]) .pricing .pricing-included ul {
+    margin-top: 18px;
+  }
+
+  :where([data-immersive-vistaire]) .pricing .pricing-options {
+    gap: 18px;
+  }
+
+  :where([data-immersive-vistaire]) .pricing .pricing-options > article {
+    padding: 22px 18px;
+  }
+
+  :where([data-immersive-vistaire]) .pricing .pricing-option-heading {
+    gap: 12px;
+  }
+
+  :where([data-immersive-vistaire]) .pricing .pricing-option-price {
+    font-size: 18px;
+  }
+
+  :where([data-immersive-vistaire]) .pricing .pricing-pilotage-features {
+    gap: 14px;
+    font-size: 13px;
+  }
+
+  :where([data-immersive-vistaire]) .pricing .pricing-packs {
+    gap: 8px;
+  }
+
+  :where([data-immersive-vistaire]) .pricing .pricing-packs > div {
+    padding: 15px 5px;
+  }
+
+  :where([data-immersive-vistaire]) .pricing .pricing-packs strong {
+    font-size: 29px;
+  }
+
+  :where([data-immersive-vistaire]) .pricing .pricing-workflow {
+    grid-template-columns: 1fr;
+    gap: 18px;
+  }
+
+  :where([data-immersive-vistaire]) .pricing .pricing-workflow li {
+    display: grid;
+    grid-template-columns: 24px 1fr;
+    gap: 15px;
+    padding-top: 18px;
+  }
+
+  :where([data-immersive-vistaire]) .pricing .pricing-workflow .pricing-index {
+    margin-top: 6px;
+    margin-bottom: 0;
+  }
+
+  :where([data-immersive-vistaire]) .pricing .pricing-workflow p {
+    margin-top: 8px;
+  }
+
+  :where([data-immersive-vistaire]) .pricing .pricing-terms,
+  :where([data-immersive-vistaire]) .pricing .pricing-faq {
+    grid-template-columns: 1fr;
+    gap: 24px;
+  }
+
+  :where([data-immersive-vistaire]) .pricing .pricing-terms ul {
+    grid-template-columns: 1fr;
+    gap: 13px;
+  }
+
+  :where([data-immersive-vistaire]) .pricing .pricing-faq {
+    margin-top: 48px;
+  }
+
+  :where([data-immersive-vistaire]) .pricing .pricing-closing {
+    margin-top: 44px;
+  }
+
+  :where([data-immersive-vistaire]) .pricing .pricing-closing .pricing-cta {
+    width: 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :where([data-immersive-vistaire]) .pricing *,
+  :where([data-immersive-vistaire]) .pricing *::before {
+    transition: none;
+  }
+}
