@@ -34,6 +34,19 @@ const forbiddenLocalModules = [
 ];
 
 const allowedAdminComponentModules = new Set([
+  "components/admin/studio/AdminStudio",
+  "components/admin/studio/StudioCharts",
+  "components/admin/studio/StudioAnalysisCharts",
+  "components/admin/studio/StudioDishes",
+  "components/admin/studio/StudioDialog",
+  "components/admin/studio/StudioExportDialog",
+  "components/admin/studio/Studio.module.css",
+  "components/admin/studio/StudioExportDialog.module.css",
+  "components/admin/studio/studioTheme",
+  "components/admin/studio/studioLocale",
+  "components/admin/availability/availabilityMutation",
+  "components/admin/AdminDishThumbnail",
+  "components/admin/AdminDishThumbnail.module.css",
   "components/admin/system/AdminIcons",
   "components/admin/system/AdminPresentationPrimitives",
   "components/admin/system/AdminSystem.module.css",
@@ -84,7 +97,11 @@ function isForbiddenLocalModule(file) {
   if (/^components\/admin(?:\/|$)/.test(modulePath)) {
     return !allowedAdminComponentModules.has(modulePath);
   }
-  return forbiddenLocalModules.some((pattern) => pattern.test(modulePath));
+  const pureStudioDependencies = new Set([
+    "lib/admin/studioExport", "lib/admin/studioExportFiles", "lib/admin/analyticsPresentation", "lib/admin/analyticsThresholds",
+    "lib/admin/export-fonts/DejaVuSans", "lib/admin/dishPhotoUrl", "lib/owner/storageSafeIdentifier"
+  ]);
+  return !pureStudioDependencies.has(modulePath) && forbiddenLocalModules.some((pattern) => pattern.test(modulePath));
 }
 
 function localSpecifierPath(specifier, importer) {
@@ -126,7 +143,10 @@ function importsFrom(source, file) {
       node.moduleSpecifier &&
       ts.isStringLiteralLike(node.moduleSpecifier)
     ) {
-      imports.push(node.moduleSpecifier.text);
+      // Type-only contracts are erased from the public runtime bundle.
+      const typeOnly = node.isTypeOnly || (ts.isImportDeclaration(node) && (node.importClause?.isTypeOnly ||
+        (!node.importClause?.name && node.importClause?.namedBindings && ts.isNamedImports(node.importClause.namedBindings) && node.importClause.namedBindings.elements.every(item => item.isTypeOnly))));
+      if (!typeOnly) imports.push(node.moduleSpecifier.text);
     }
     if (ts.isCallExpression(node) && node.expression.kind === ts.SyntaxKind.ImportKeyword) {
       if (node.arguments.length === 1 && ts.isStringLiteralLike(node.arguments[0])) {
@@ -194,18 +214,14 @@ function assertPrivateModulePolicy() {
   const relativeModules = parsed.imports.map((specifier) => specifier.replace(/^@\//, ""));
 
   assert.deepEqual(relativeModules, [
-    "lib/admin/dashboardTypes",
-    "app/api/owner/restaurants/route",
     "app/api/private-preview/route",
-    "components/admin/AdminDishWorklist",
     "components/admin/AdminInsightCard",
     "components/admin/system/AdminPrimitives",
     "components/admin/system/AdminPresentationPrimitives",
-    "components/admin/charts/types"
   ]);
   assert.deepEqual(
     relativeModules.map(isForbiddenLocalModule),
-    [true, true, true, true, true, true, false, false]
+    [true, true, true, false]
   );
 }
 
@@ -220,6 +236,14 @@ function hasForbiddenBrowserPersistence(file, source) {
     checkedSource = source
       .replaceAll('localStorage.getItem("vistaire-public-theme")', "undefined")
       .replaceAll("localStorage.setItem(PUBLIC_THEME_KEY, theme)", "undefined");
+  }
+  if (normalized(file) === "components/admin/studio/studioTheme.ts") {
+    assert.match(source, /demo \? getPublicTheme : snapshot/);
+    checkedSource = checkedSource.replaceAll('localStorage.getItem("vistaire-studio-theme")', "undefined");
+  }
+  if (normalized(file) === "components/admin/studio/AdminStudio.tsx") {
+    assert.match(source, /if \(demo\) \{[\s\S]*?setPublicTheme[\s\S]*?return;/);
+    checkedSource = checkedSource.replace(/localStorage\.setItem\(\s*"vistaire-studio-theme",[\s\S]*?\);/, "undefined");
   }
   return /\b(?:localStorage|sessionStorage)\b/.test(checkedSource);
 }
@@ -278,10 +302,24 @@ test("the public preview import graph cannot reach private capabilities or persi
       const forbidden = label === "browser persistence"
         ? hasForbiddenBrowserPersistence(file, source)
         : pattern.test(source);
-      if (forbidden) graph.violations.push(`${normalized(file)} contains ${label}`);
+      const modulePath = normalized(file);
+      const guardedStudioCapability =
+        (modulePath === "components/admin/studio/AdminStudio.tsx" && ["router navigation", "private rendered destination"].includes(label)) ||
+        (modulePath === "components/admin/studio/StudioDishes.tsx" && ["network fetch", "router navigation"].includes(label));
+      if (forbidden && !guardedStudioCapability) graph.violations.push(`${normalized(file)} contains ${label}`);
     }
   }
   assert.deepEqual(graph.violations, []);
+  const adapter = readFileSync(path.join(root, "components/vistaire-preview/RestaurateurDashboardDemo.tsx"), "utf8");
+  assert.match(adapter, /canWrite=\{false\} demo/);
+  assert.match(adapter, /createPublicStudioDemo/);
+  const studio = readFileSync(path.join(root, "components/admin/studio/AdminStudio.tsx"), "utf8");
+  assert.match(studio, /canWrite=\{!demo && canWrite\}/);
+  assert.match(studio, /synthetic=\{demo\}/);
+  assert.match(studio, /!demo && <option value="custom"/);
+  const dishes = readFileSync(path.join(root, "components/admin/studio/StudioDishes.tsx"), "utf8");
+  assert.match(dishes, /if \(lock.current \|\| !canWrite\) return;/);
+
 });
 
 test("request policy distinguishes Next internals from private product mutations without retaining secrets", async () => {

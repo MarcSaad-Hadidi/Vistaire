@@ -9,7 +9,7 @@ Vistaire Studio dashboard (demo source `c9063216ab7a868524319ec7e0115cbdadaba068
 It is outside `app/` and `public/` and cannot be requested as a legacy dashboard.
 There is no `/admin/legacy` route. The four protected admin routes render Studio.
 
-`manifest.json` records the original paths and SHA-256 of all 76 files. The
+`manifest.json` records the original paths and SHA-256 of all 81 files. The
 `.txt` suffix prevents these archived modules from being compiled or imported.
 
 To inspect or recover, copy into a separate temporary directory and remove only
@@ -32,3 +32,7 @@ rollback. Restore the required presentation in a reviewed branch, preserving
 subsequent security and data fixes. Shared presentation/chart primitives remain
 in their original source locations where used by existing public previews;
 none is a separately served dashboard.
+
+Three legacy visual E2E files are also preserved as inert text. Their old pixel composition, animation markers and removed controls are historical contracts, not active Studio tests. Current equivalent coverage is mapped in `../../admin-studio-test-mapping.md`.
+
+The previous public restaurateur demo and its stylesheet are preserved as well, so the public preview can be inspected alongside the authenticated predecessor.

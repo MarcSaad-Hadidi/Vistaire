@@ -1,4 +1,5 @@
 "use client";
+import { useStudioLocale } from "./studioLocale";
 import {
   LineChart,
   HeatmapChart,
@@ -18,13 +19,6 @@ import "@kind-ui/charts/styles.css";
 import type { AdminMetricSeries } from "@/lib/admin/analyticsState";
 import styles from "./Studio.module.css";
 
-const number = (value: number) => new Intl.NumberFormat("fr-CA").format(value);
-const day = (value: string) =>
-  new Intl.DateTimeFormat("fr-CA", {
-    day: "numeric",
-    month: "short",
-    timeZone: "UTC",
-  }).format(new Date(value));
 export function StudioTrend({
   series,
   label,
@@ -34,17 +28,18 @@ export function StudioTrend({
   label: string;
   comparison: boolean;
 }) {
+ const {t,locale,number,date:day}=useStudioLocale();
   const data = series.current.map((point, index) => ({
     date: point.bucket,
     current: point.value,
     previous: comparison ? (series.previous[index]?.value ?? null) : null,
   }));
   const config = {
-    current: { label: "Période sélectionnée", color: "var(--chart-current)" },
+    current: { label: t("Période sélectionnée"), color: "var(--chart-current)" },
     ...(comparison
       ? {
           previous: {
-            label: "Période précédente",
+            label: t("Période précédente"),
             color: "var(--chart-previous)",
           },
         }
@@ -60,7 +55,7 @@ export function StudioTrend({
         height={300}
         curve="linear"
         accessibilityLayer
-        aria-label={`${label} par jour. Flèches gauche et droite pour explorer.`}
+        aria-label={locale === "en" ? `${label} by day. Use left and right arrows to explore.` : `${label} par jour. Flèches gauche et droite pour explorer.`}
         rootProps={{
           interaction: {
             kind: "series",
@@ -108,20 +103,20 @@ export function StudioTrend({
               ]
             : []),
         ]}
-        legend={{ "aria-label": "Afficher ou masquer une période" }}
+        legend={{ "aria-label": t("Afficher ou masquer une période") }}
       />
       {!comparison && (
-        <p className={styles.muted}>Comparaison précédente indisponible</p>
+        <p className={styles.muted}>{t("Comparaison précédente indisponible")}</p>
       )}
       <details className={styles.dataDisclosure}>
-        <summary>Voir les chiffres</summary>
+        <summary>{t("Voir les chiffres")}</summary>
         <div className={styles.tableScroll}>
           <table className={styles.table}>
             <thead>
               <tr>
                 <th>Date (UTC)</th>
-                <th>Actuel</th>
-                <th>Précédent</th>
+                <th>{t("Actuel")}</th>
+                <th>{t("Précédent")}</th>
               </tr>
             </thead>
             <tbody>
@@ -148,6 +143,7 @@ export function StudioBars({
   rows: { label: string; count: number }[];
   label: string;
 }) {
+  const {t,number}=useStudioLocale();
   return (
     <div className={styles.chart}>
       <Root config={{ count: { label, color: "var(--chart-current)" } }}>
@@ -185,7 +181,7 @@ export function StudioBars({
         </BarChart>
       </Root>
       <details className={styles.dataDisclosure}>
-        <summary>Voir les chiffres</summary>
+        <summary>{t("Voir les chiffres")}</summary>
         <table className={styles.table}>
           <tbody>
             {rows.map((row) => (
@@ -205,7 +201,8 @@ export function StudioHeatmap({
 }: {
   cells: { weekdayUtc: number; hourUtc: number; count: number }[];
 }) {
-  const rows = ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"];
+  const {t,number}=useStudioLocale();
+  const rows = [t("Lun"), t("Mar"), t("Mer"), t("Jeu"), t("Ven"), t("Sam"), t("Dim")];
   const columns = Array.from({ length: 24 }, (_, i) => `${i} h`);
   const counts = new Map(
     cells.map((cell) => [`${cell.weekdayUtc}:${cell.hourUtc}`, cell.count]),
@@ -229,16 +226,16 @@ export function StudioHeatmap({
           colors: ["#e8f7ff", "#46c5de", "#3b82f6", "#5b21b6"],
         })}
         formatValue={number}
-        aria-label="Événements par jour et heure UTC"
+        aria-label={t("Événements par jour et heure UTC")}
       >
         <div className={styles.tableScroll}>
           <HeatmapGrid
-            caption="Moments d’activité · heures UTC"
+            caption={t("Moments d’activité · heures UTC")}
             layout={{ cellSize: 24, gap: 3 }}
           />
         </div>
         <HeatmapTooltip />
-        <HeatmapLegend label="Nombre d’événements" />
+        <HeatmapLegend label={t("Nombre d’événements")} />
       </HeatmapChart>
     </div>
   );

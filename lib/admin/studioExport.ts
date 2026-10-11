@@ -9,7 +9,7 @@ export type ExportDataset = { id: string; title: string; columns: ExportColumn[]
 export type StudioExport = {
   schemaVersion: 1;
   title: string;
-  synthetic: false;
+  synthetic: boolean;
   generatedAt: string;
   observationWindow: AdminObservationWindow | null;
   analytics: { status: AdminDashboardData["analytics"]["kind"]; completeness: string; reason: string | null; lastUpdatedAt: string | null; freshness: string | null; coverage: { menuOpened: boolean; dishOpened: boolean } | null };
@@ -24,7 +24,7 @@ const seriesLabels = { menuOpened: "Ouvertures du menu", dishOpened: "Consultati
 const finite = (value: number | null | undefined) => typeof value === "number" && Number.isFinite(value) ? value : null;
 
 /** Only the authenticated, tenant-scoped dashboard projection is accepted. No event logs are serialized. */
-export function createStudioExport(data: AdminDashboardData, { generatedAt = new Date().toISOString() }: { generatedAt?: string } = {}): StudioExport {
+export function createStudioExport(data: AdminDashboardData, { generatedAt = new Date().toISOString(), synthetic = false }: { generatedAt?: string; synthetic?: boolean } = {}): StudioExport {
   const analytics = data.analytics;
   const real = analytics.kind === "real" ? analytics : null;
   const observed = analytics.kind === "unavailable" ? null : analytics.observationWindow;
@@ -70,11 +70,11 @@ export function createStudioExport(data: AdminDashboardData, { generatedAt = new
   add("funnel", "Parcours agrégé", [column("sessions", "Sessions avec menu", "number"), column("dishOpened", "Sessions avec plat ensuite", "number"), column("rate", "Taux", "percent")], real?.funnel.kind === "measured" ? [{ sessions: finite(real.funnel.sessions), dishOpened: finite(real.funnel.dishOpened), rate: finite(real.funnel.rate) }] : [], real?.funnel.kind === "measured" ? "supported" : unavailableStatus, real ? real.funnel.kind === "unsupported" ? "insufficient-session-evidence" : null : unavailableReason);
 
   return {
-    schemaVersion: 1, title: `${data.restaurant.name} — Rapport complet`, synthetic: false, generatedAt, observationWindow,
+    schemaVersion: 1, title: `${data.restaurant.name} — Rapport complet`, synthetic, generatedAt, observationWindow,
     analytics: { status: analytics.kind, completeness: analytics.completeness, reason: analytics.kind === "real" ? null : analytics.reason, lastUpdatedAt: real?.lastUpdatedAt ?? null, freshness: real?.freshness ?? null, coverage: real ? { menuOpened: real.coverage.menuOpened, dishOpened: real.coverage.dishOpened } : null },
     comparison: { available: comparisonAvailable, from: comparisonAvailable ? observationWindow!.comparisonStartInclusive : null, to: comparisonAvailable ? observationWindow!.comparisonEndExclusive : null },
     notes: [
-      "Données du tableau de bord authentifié, limitées au restaurant et au menu sélectionnés. Tous les plats et agrégats disponibles sont inclus, indépendamment de la page affichée.",
+      synthetic ? "Données fictives de démonstration. Aucun restaurant réel, visiteur ou service privé n’est connecté à cet aperçu." : "Données du tableau de bord authentifié, limitées au restaurant et au menu sélectionnés. Tous les plats et agrégats disponibles sont inclus, indépendamment de la page affichée.",
       "Période analytique exacte : début inclus, fin exclue, en UTC. Les créneaux quotidiens suivent les bornes de cette période glissante ; leur date indique le début du créneau. Aucun historique supplémentaire n’est chargé.",
       "Les mesures comptent des événements, pas des personnes ni des ventes. Les recherches sont agrégées et soumises aux seuils de confidentialité du tableau de bord. Aucun événement individuel ni identifiant de session n’est exporté.",
       "N/A signifie indisponible, preuve insuffisante ou comparaison non prise en charge. Les tableaux supprimés restent vides et leur état est indiqué. Les valeurs absentes ne sont jamais remplacées par zéro.",

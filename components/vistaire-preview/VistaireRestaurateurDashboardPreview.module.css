@@ -1098,3 +1098,37 @@
     margin-bottom: 48px;
   }
 }
+
+/* The public wrapper embeds the actual Studio without changing its design. */
+.studioDemo {
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid var(--public-blue);
+  border-radius: 16px;
+}
+.studioDemo > :global([data-admin-studio]) {
+  min-height: 760px;
+}
+.studioDemo[data-presentation="pilotage"] {
+  height: 600px;
+  pointer-events: none;
+}
+.studioDemo[data-presentation="pilotage"] > :global([data-admin-studio]) {
+  width: 1120px;
+  transform: scale(.55);
+  transform-origin: top left;
+}
+@media (max-width: 650px) {
+  .studioDemo > :global([data-admin-studio]) { min-height: 0; }
+  .studioDemo[data-presentation="pilotage"] { height: 470px; }
+  .studioDemo[data-presentation="pilotage"] > :global([data-admin-studio]) { width: 900px; transform: scale(.4); }
+}
+.studioDemo :global(aside) {
+  position: static;
+  height: auto;
+  min-height: 100%;
+}
+@media (max-width: 650px) {
+  .studioDemo :global(aside) { min-height: 0; padding: 8px; }
+  .studioDemo :global(#studio-preview-main) { padding-bottom: 0; }
+}

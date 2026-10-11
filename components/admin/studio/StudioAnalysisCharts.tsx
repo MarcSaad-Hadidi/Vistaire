@@ -1,4 +1,5 @@
 "use client";
+import { useStudioLocale } from "./studioLocale";
 import {
   Root,
   PieChart,
@@ -31,8 +32,9 @@ const colors = [
   "#db2777",
   "#0d9488",
 ];
-const fmt = (value: number) => new Intl.NumberFormat("fr-CA").format(value);
+
 export function StudioAnalysisCharts({ data }: { data: AdminDashboardData }) {
+  const {t,number:fmt}=useStudioLocale();
   const evidence =
     data.analytics.kind === "real" &&
     data.analytics.panels.ranking.kind === "supported";
@@ -93,9 +95,9 @@ export function StudioAnalysisCharts({ data }: { data: AdminDashboardData }) {
   }));
   const nodes = [
     ...categories.map((row) => ({ id: row.key, name: row.name })),
-    { id: "views", name: "Consultations" },
-    { id: "three", name: "Clics 3D" },
-    { id: "ar", name: "Clics AR" },
+    { id: "views", name: t("Consultations") },
+    { id: "three", name: t("Clics 3D") },
+    { id: "ar", name: t("Clics AR") },
   ];
   const links = categories.flatMap((row) =>
     (["views", "three", "ar"] as const)
@@ -109,21 +111,21 @@ export function StudioAnalysisCharts({ data }: { data: AdminDashboardData }) {
   );
   const flowConfig = {
     ...config,
-    views: { label: "Consultations", color: "var(--chart-current)" },
-    three: { label: "Clics 3D", color: "var(--chart-three)" },
-    ar: { label: "Clics AR", color: "var(--chart-ar)" },
+    views: { label: t("Consultations"), color: "var(--chart-current)" },
+    three: { label: t("Clics 3D"), color: "var(--chart-three)" },
+    ar: { label: t("Clics AR"), color: "var(--chart-ar)" },
   };
   const table = (
     <details className={styles.dataDisclosure}>
-      <summary>Voir les chiffres par catégorie</summary>
+      <summary>{t("Voir les chiffres par catégorie")}</summary>
       <div className={styles.tableScroll}>
         <table className={styles.table}>
           <thead>
             <tr>
-              <th>Catégorie</th>
-              <th>Consultations</th>
-              <th>Clics 3D</th>
-              <th>Clics AR</th>
+              <th>{t("Catégorie")}</th>
+              <th>{t("Consultations")}</th>
+              <th>{t("Clics 3D")}</th>
+              <th>{t("Clics AR")}</th>
             </tr>
           </thead>
           <tbody>
@@ -145,8 +147,8 @@ export function StudioAnalysisCharts({ data }: { data: AdminDashboardData }) {
       <section className={styles.panel}>
         <header className={styles.panelHead}>
           <div>
-            <h2>Répartition par catégorie</h2>
-            <p>Part des consultations des plats actuels du menu</p>
+            <h2>{t("Répartition par catégorie")}</h2>
+            <p>{t("Part des consultations des plats actuels du menu")}</p>
           </div>
         </header>
         <div className={`${styles.chartBody} ${styles.chart}`}>
@@ -163,7 +165,7 @@ export function StudioAnalysisCharts({ data }: { data: AdminDashboardData }) {
               responsive
               style={{ width: "100%", height: 280 }}
               accessibilityLayer
-              aria-label="Consultations par catégorie"
+              aria-label={t("Consultations par catégorie")}
             >
               <PieSeries
                 data={categories}
@@ -197,13 +199,13 @@ export function StudioAnalysisCharts({ data }: { data: AdminDashboardData }) {
       <section className={styles.panel}>
         <header className={styles.panelHead}>
           <div>
-            <h2>Consultations et clics 3D</h2>
-            <p>Un point par plat · volumes, sans preuve de conversion</p>
+            <h2>{t("Consultations et clics 3D")}</h2>
+            <p>{t("Un point par plat · volumes, sans preuve de conversion")}</p>
           </div>
         </header>
         <div className={`${styles.chartBody} ${styles.chart}`}>
           <Root
-            config={{ dishes: { label: "Plats", color: "var(--chart-three)" } }}
+            config={{ dishes: { label: t("Plats"), color: "var(--chart-three)" } }}
           >
             <ScatterChart
               responsive
@@ -215,7 +217,7 @@ export function StudioAnalysisCharts({ data }: { data: AdminDashboardData }) {
               <XAxis
                 type="number"
                 dataKey="views"
-                name="Consultations"
+                name={t("Consultations")}
                 domain={[0, "auto"]}
                 tick={{ fill: "var(--muted)", fontSize: 11 }}
                 allowDecimals={false}
@@ -223,7 +225,7 @@ export function StudioAnalysisCharts({ data }: { data: AdminDashboardData }) {
               <YAxis
                 type="number"
                 dataKey="three"
-                name="Clics 3D"
+                name={t("Clics 3D")}
                 domain={[0, "auto"]}
                 tick={{ fill: "var(--muted)", fontSize: 11 }}
                 allowDecimals={false}
@@ -233,20 +235,20 @@ export function StudioAnalysisCharts({ data }: { data: AdminDashboardData }) {
               <ScatterSeries
                 seriesKey="dishes"
                 data={dishes}
-                name="Plats"
+                name={t("Plats")}
                 fill="var(--chart-three)"
               />
             </ScatterChart>
           </Root>
         </div>
         <details className={styles.dataDisclosure}>
-          <summary>Voir les chiffres par plat</summary>
+          <summary>{t("Voir les chiffres par plat")}</summary>
           <table className={styles.table}>
             <thead>
               <tr>
-                <th>Plat</th>
-                <th>Consultations</th>
-                <th>Clics 3D</th>
+                <th>{t("Plat")}</th>
+                <th>{t("Consultations")}</th>
+                <th>{t("Clics 3D")}</th>
               </tr>
             </thead>
             <tbody>
@@ -264,8 +266,8 @@ export function StudioAnalysisCharts({ data }: { data: AdminDashboardData }) {
       <section className={styles.panel}>
         <header className={styles.panelHead}>
           <div>
-            <h2>Catégories et événements</h2>
-            <p>La largeur représente le nombre d’événements</p>
+            <h2>{t("Catégories et événements")}</h2>
+            <p>{t("La largeur représente le nombre d’événements")}</p>
           </div>
         </header>
         <div className={`${styles.chartBody} ${styles.chart}`}>
@@ -303,19 +305,19 @@ export function StudioAnalysisCharts({ data }: { data: AdminDashboardData }) {
       <section className={styles.panel}>
         <header className={styles.panelHead}>
           <div>
-            <h2>Le profil des catégories</h2>
-            <p>Part des consultations par période, en pourcentage</p>
+            <h2>{t("Le profil des catégories")}</h2>
+            <p>{t("Part des consultations par période, en pourcentage")}</p>
           </div>
         </header>
         {categories.length >= 3 && total > 0 ? (
           <div className={`${styles.chartBody} ${styles.chart}`}>
             <Root
               config={{
-                current: { label: "Actuel", color: "var(--chart-current)" },
+                current: { label: t("Actuel"), color: "var(--chart-current)" },
                 ...(prior > 0
                   ? {
                       previous: {
-                        label: "Précédent",
+                        label: t("Précédent"),
                         color: "var(--chart-previous)",
                       },
                     }
@@ -362,10 +364,7 @@ export function StudioAnalysisCharts({ data }: { data: AdminDashboardData }) {
           </div>
         ) : (
           <div className={styles.empty}>
-            <p>
-              Trois catégories avec des consultations sont nécessaires pour
-              comparer leur profil.
-            </p>
+            <p>{t("Trois catégories avec des consultations sont nécessaires pour comparer leur profil.")}</p>
           </div>
         )}
         {table}

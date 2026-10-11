@@ -76,8 +76,6 @@ const fixtureOnlyTestIgnore = [
   ...(adminVisualFixture ? [] : [
       "**/admin-chart-interactions.spec.ts",
       "**/admin-studio.spec.ts",
-      "**/admin-insights-fidelity.spec.ts",
-      "**/admin-visual.spec.ts",
       ...(process.env.VISTAIRE_ADMIN_PERFORMANCE_SESSION_SECRET
         ? []
         : ["**/admin-performance.spec.ts"])

@@ -105,7 +105,7 @@ export async function buildPdf(report: StudioExport): Promise<Uint8Array> {
   doc.addFileToVFS("VistaireExportSans.ttf", fontBase64);
   doc.addFont("VistaireExportSans.ttf", "VistaireExportSans", "normal");
   doc.setFont("VistaireExportSans", "normal");
-  doc.setProperties({ title: report.title, author: "Vistaire", subject: `Données agrégées du tableau de bord authentifié. Police embarquée : ${fontLicense}` });
+  doc.setProperties({ title: report.title, author: "Vistaire", subject: `${report.synthetic ? "Données fictives de démonstration" : "Données agrégées du tableau de bord authentifié"}. Police embarquée : ${fontLicense}` });
   const width = doc.internal.pageSize.getWidth();
   const height = doc.internal.pageSize.getHeight();
   const margin = 14;

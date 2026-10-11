@@ -41,3 +41,15 @@ Local checkpoint results (2026-10-11):
 - Dependency audit: no new high/critical advisories; the existing six high findings remain under the repository's exact advisory baseline. The new export dependency's moderate UUID advisory was removed with a scoped override and its XLSX round-trip was rerun successfully.
 
 This is an integration checkpoint, not a claim of completed persistent scheduling or completed hosted browser verification.
+
+## Related-surface follow-up
+
+The private access/refusal/failure views, route loading, error boundary and wrapper now use Studio. The shared invalid-QR page retains a public homepage action, without sending menu visitors to private administration.
+
+The FR/EN restaurateur preview and pricing Pilotage embed now reuse the same Studio presentation with a server-free, explicitly synthetic adapter. Private links, logout and mutations are absent in demo mode. Public theme preferences remain separate from private preferences. Demo exports carry `synthetic: true`, explicit sample-data notes and sample PDF metadata.
+
+The landing laptop illustration at `public/immersive-assets/dashboard/dashboard-black-gold.webp` is a real capture of approved public v28, captured 2026-10-11, 1160×725 WebP, 47,690 bytes. Its path and scene loading logic are unchanged; no landing animation, model or scheduler was modified.
+
+[The test migration map](admin-studio-test-mapping.md) distinguishes retained behavior from archived old-layout contracts. The current checkpoint's Chromium QR test had a stale heading assertion; the follow-up ports it. Its WebKit public video test and landing composition diagnostic also failed before Studio could run. They are not classified as identical inherited failures. Studio fixture steps now execute independently after earlier suite failures, without softening the overall job/gate result.
+
+Follow-up local verification: full Node now contains 2,004 tests, 1,997 passed, the same reproduced base IPv6 failure, and six skips. Build, lint, typecheck, asset/LFS checks and audit baseline pass. The exact public import graph remains restricted; six named browser-safe projection/serialization helpers are allowed but still recursively checked, with a negative regression blocking private auth, environment and signing capabilities. Browser discovery lists nine current Studio/full-menu scenarios per browser; their hosted execution remains pending publication of this follow-up.

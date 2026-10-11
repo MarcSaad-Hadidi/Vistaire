@@ -380,6 +380,31 @@
       "path": "lib/admin/requestBody.ts",
       "snapshot": "source/lib/admin/requestBody.ts.txt",
       "sha256": "2551a4e66cc5b8cacff2ffa4f077c6439c8f4b3358ac627fa5ad775888e51c90"
+    },
+    {
+      "path": "e2e/admin-chart-interactions.spec.ts",
+      "snapshot": "source/e2e/admin-chart-interactions.spec.ts.txt",
+      "sha256": "6645c80fb1a864ffd39498a467fabfd0877daa2696af32b3886c1523d8c652be"
+    },
+    {
+      "path": "e2e/admin-insights-fidelity.spec.ts",
+      "snapshot": "source/e2e/admin-insights-fidelity.spec.ts.txt",
+      "sha256": "6cbb313ca246e9cb5c0c5f490c30aad99987665aadfa2c856fe326f2fa881562"
+    },
+    {
+      "path": "e2e/admin-visual.spec.ts",
+      "snapshot": "source/e2e/admin-visual.spec.ts.txt",
+      "sha256": "6b9b58aa10f3d04700910d2b0991fc60c2833008f6f9d84a8c154d1716bad218"
+    },
+    {
+      "path": "components/vistaire-preview/RestaurateurDashboardDemo.tsx",
+      "snapshot": "source/components/vistaire-preview/RestaurateurDashboardDemo.tsx.txt",
+      "sha256": "406e6dae92c6de078d5ec56c6e8d56bba21b100a54423e0e87f64d7870f1cdb1"
+    },
+    {
+      "path": "components/vistaire-preview/VistaireRestaurateurDashboardPreview.module.css",
+      "snapshot": "source/components/vistaire-preview/VistaireRestaurateurDashboardPreview.module.css.txt",
+      "sha256": "67ef4a8eea49f96cd6913a424135412ce9bc7b5ea5ef9b6d1343acd2dccc2868"
     }
   ]
 }

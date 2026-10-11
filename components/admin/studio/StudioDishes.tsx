@@ -1,4 +1,5 @@
 "use client";
+import { useStudioLocale } from "./studioLocale";
 import { useRef, useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Search, CalendarClock, SlidersHorizontal } from "lucide-react";
@@ -8,19 +9,20 @@ import { resolveAvailabilityForSource } from "../availability/availabilityMutati
 import { AdminDishThumbnail } from "../AdminDishThumbnail";
 import styles from "./Studio.module.css";
 
-const number = (value: number | undefined) =>
-  value === undefined ? "N/A" : new Intl.NumberFormat("fr-CA").format(value);
 export function StudioDishes({
   data,
   canWrite,
+  demo = false,
   onDish,
   onSchedule,
 }: {
   data: AdminDashboardData;
   canWrite: boolean;
+  demo?: boolean;
   onDish: (dish: AdminMenuDish) => void;
   onSchedule: (dish: AdminMenuDish) => void;
 }) {
+  const {t,locale,number}=useStudioLocale();
   const router = useRouter();
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState("");
@@ -94,7 +96,7 @@ export function StudioDishes({
           result.dishId !== dish.id ||
           result.available !== value
         )
-          throw new Error(result.error || "Mise à jour refusée");
+          throw new Error(result.error || t("Mise à jour refusée"));
         succeeded++;
         if (live.current && source.current === initial)
           setCommitted((previous) => ({
@@ -120,10 +122,7 @@ export function StudioDishes({
   return (
     <>
       {!canWrite && (
-        <p className={styles.notice}>
-          Accès en lecture seule. Un QR admin autorisé est nécessaire pour
-          modifier les plats.
-        </p>
+        <p className={styles.notice}>{t(demo ? "Cette démonstration ne modifie aucun restaurant. Les disponibilités sont en lecture seule." : "Accès en lecture seule. Un QR admin autorisé est nécessaire pour modifier les plats.")}</p>
       )}
       {feedback && (
         <p
@@ -133,23 +132,23 @@ export function StudioDishes({
           {feedback}
         </p>
       )}
-      <section className={styles.panel} aria-label="Les plats">
+      <section className={styles.panel} aria-label={t("Les plats")}>
         <div className={styles.filterBar}>
           <label className={styles.search}>
             <Search size={18} />
-            <span className={styles.srOnly}>Rechercher un plat</span>
+            <span className={styles.srOnly}>{t("Rechercher un plat")}</span>
             <input
               value={query}
               onChange={(event) => {
                 setQuery(event.target.value);
                 setSelected([]);
               }}
-              placeholder="Rechercher un plat…"
+              placeholder={t("Rechercher un plat…")}
               type="search"
             />
           </label>
           <label>
-            <span className={styles.srOnly}>Catégorie</span>
+            <span className={styles.srOnly}>{t("Catégorie")}</span>
             <select
               value={category}
               onChange={(event) => {
@@ -157,7 +156,7 @@ export function StudioDishes({
                 setSelected([]);
               }}
             >
-              <option value="">Toutes les catégories</option>
+              <option value="">{t("Toutes les catégories")}</option>
               {[...new Set(data.menu.dishes.map((dish) => dish.category))].map(
                 (value) => (
                   <option key={value}>{value}</option>
@@ -166,7 +165,7 @@ export function StudioDishes({
             </select>
           </label>
           <label>
-            <span className={styles.srOnly}>Disponibilité</span>
+            <span className={styles.srOnly}>{t("Disponibilité")}</span>
             <select
               value={status}
               onChange={(event) => {
@@ -174,9 +173,9 @@ export function StudioDishes({
                 setSelected([]);
               }}
             >
-              <option value="all">Tous les plats</option>
-              <option value="available">Disponibles</option>
-              <option value="unavailable">Indisponibles</option>
+              <option value="all">{t("Tous les plats")}</option>
+              <option value="available">{t("Disponibles")}</option>
+              <option value="unavailable">{t("Indisponibles")}</option>
             </select>
           </label>
         </div>
@@ -189,13 +188,12 @@ export function StudioDishes({
               onChange={() =>
                 setSelected(all ? [] : visible.map((dish) => dish.id))
               }
-            />
-            Tout sélectionner <span>({visible.length})</span>
+            />{t("Tout sélectionner")}<span role="status" aria-live="polite">({visible.length})</span>
           </label>
           {picked.length > 0 && (
-            <div className={styles.batchActions} aria-label="Actions groupées">
+            <div className={styles.batchActions} aria-label={t("Actions groupées")}>
               <strong>
-                {picked.length} sélectionné{picked.length > 1 ? "s" : ""}
+                {picked.length}{t("sélectionné")}{picked.length > 1 ? "s" : ""}
               </strong>
               <button
                 type="button"
@@ -206,9 +204,7 @@ export function StudioDishes({
                     true,
                   )
                 }
-              >
-                Rendre disponibles
-              </button>
+              >{t("Rendre disponibles")}</button>
               <button
                 type="button"
                 disabled={pending}
@@ -218,26 +214,22 @@ export function StudioDishes({
                     false,
                   )
                 }
-              >
-                Rendre indisponibles
-              </button>
+              >{t("Rendre indisponibles")}</button>
             </div>
           )}
         </div>
         {!visible.length ? (
           <div className={styles.empty}>
             <SlidersHorizontal size={25} />
-            <strong>Aucun plat trouvé</strong>
-            <p>Essayez une autre recherche ou catégorie.</p>
+            <strong role="status">{t("Aucun plat trouvé")}</strong>
+            <p>{t("Essayez une autre recherche ou catégorie.")}</p>
             <button
               onClick={() => {
                 setQuery("");
                 setCategory("");
                 setStatus("all");
               }}
-            >
-              Effacer les filtres
-            </button>
+            >{t("Effacer les filtres")}</button>
           </div>
         ) : (
           visible.map((dish) => {
@@ -257,7 +249,7 @@ export function StudioDishes({
                     type="checkbox"
                     checked={picked.includes(dish.id)}
                     disabled={pending || !canWrite}
-                    aria-label={`Sélectionner ${dish.name}`}
+                    aria-label={`${locale === "en" ? "Select" : "Sélectionner"} ${dish.name}`}
                     onChange={() =>
                       setSelected((previous) =>
                         previous.includes(dish.id)
@@ -291,7 +283,7 @@ export function StudioDishes({
                 </div>
                 <dl className={styles.dishStats}>
                   <div>
-                    <dt>Consultations</dt>
+                    <dt>{t("Consultations")}</dt>
                     <dd>
                       {number(stats?.views)}
                       <small
@@ -305,17 +297,17 @@ export function StudioDishes({
                         }
                       >
                         {stats?.changeRate == null
-                          ? "Évolution N/A"
+                          ? t("Évolution N/A")
                           : `${stats.changeRate > 0 ? "+" : ""}${Math.round(stats.changeRate * 100)} %`}
                       </small>
                     </dd>
                   </div>
                   <div>
-                    <dt>Clics 3D</dt>
+                    <dt>{t("Clics 3D")}</dt>
                     <dd>{number(stats?.three)}</dd>
                   </div>
                   <div>
-                    <dt>Clics AR</dt>
+                    <dt>{t("Clics AR")}</dt>
                     <dd>{number(stats?.ar)}</dd>
                   </div>
                 </dl>
@@ -325,12 +317,12 @@ export function StudioDishes({
                       className={styles.status}
                       data-status={isAvailable ? "available" : "unavailable"}
                     >
-                      {isAvailable ? "Disponible" : "Indisponible"}
+                      {isAvailable ? t("Disponible") : t("Indisponible")}
                     </span>
                     <small className={styles.muted}>
                       {committed[dish.id]?.source === data
-                        ? "Modifié manuellement"
-                        : "Disponibilité enregistrée"}
+                        ? t("Modifié manuellement")
+                        : t("Disponibilité enregistrée")}
                     </small>
                   </div>
                   <div className={styles.dishControls}>
@@ -338,14 +330,12 @@ export function StudioDishes({
                       className={styles.switch}
                       role="switch"
                       aria-checked={isAvailable}
-                      aria-label={`Disponibilité de ${dish.name}`}
+                      aria-label={`${locale === "en" ? "Availability of" : "Disponibilité de"} ${dish.name}`}
                       disabled={pending || !canWrite}
                       onClick={() => update([dish], !isAvailable)}
                     />
                     <button disabled={pending} onClick={() => onSchedule(dish)}>
-                      <CalendarClock size={15} />
-                      Planifier
-                    </button>
+                      <CalendarClock size={15} />{t("Planifier")}</button>
                   </div>
                 </div>
               </article>

@@ -7,15 +7,15 @@ const read = (path) => readFile(path, "utf8");
 test("admin has a private dedicated shell without marketing or heavy media", async () => {
   const [layout, page, css] = await Promise.all([
     read("app/(fr)/admin/layout.tsx"), read("app/(fr)/admin/page.tsx"),
-    read("components/admin/AdminDashboard.module.css")
+    read("components/admin/studio/Studio.module.css")
   ]);
   const source = `${layout}\n${page}`;
   assert.match(layout, /index:\s*false/);
   assert.match(layout, /follow:\s*true/);
   assert.match(layout, /noarchive:\s*true/);
-  assert.match(source, /AdminDashboard\.module\.css/);
+  assert.match(source, /studio\/Studio\.module\.css/);
   assert.doesNotMatch(source, /VistaireRestaurateurDashboardPreview|next\/image|PhotoResto|AdminAssistant|\/api\/owner|model-viewer|\.glb|\.usdz|<canvas/i);
-  assert.doesNotMatch(css, /background-image|url\(/i);
+  assert.doesNotMatch(css, /background-image|url\((?!["']?\/fonts\/)/i);
 });
 
 test("page strictly allowlists server ranges and scopes the authorized restaurant", async () => {
@@ -102,7 +102,8 @@ test("admin visual system is scoped, locally typeset and accessible", async () =
   assert.match(primitives, /role="alert"/);
   assert.match(primitives, /aria-describedby/);
   assert.match(primitives, /aria-checked/);
-  assert.match(loading, /aria-busy="true"/);
+  assert.match(loading, /StudioState kind="loading"/);
+  assert.match(await read("components/admin/studio/StudioState.tsx"), /aria-busy=\{kind === "loading"/);
 });
 
 test("admin compact controls preserve 44px hit areas and direct tooltip semantics", async () => {
@@ -189,7 +190,7 @@ test("insights renders nine truthful panels with non-hover exact alternatives", 
   assert.match(css, /@media\s*\(prefers-reduced-motion:\s*reduce\)/);
 });
 
-test("insights review fixes lock bottom proportions, complete heatmap orientation and evidence fidelity", async () => {
+test("archived insights review fixes lock bottom proportions, complete heatmap orientation and evidence fidelity", async () => {
   const [overview, insights, heatmap, css, overviewE2e, insightsE2e] = await Promise.all([
     read("components/admin/overview/AdminOverview.tsx"),
     read("components/admin/insights/AdminInsightsPage.tsx"),
@@ -349,7 +350,7 @@ test("PR150 pages expose complete premium analytics with controlled visible rank
 
 test("full-menu parity exposes stable identity while keeping unavailable dishes private", async () => {
   const [admin, publicMenu, e2e] = await Promise.all([
-    read("components/admin/availability/AdminAvailabilityList.tsx"),
+    read("components/admin/studio/StudioDishes.tsx"),
     read("components/menu/PublicMenuRenderer.tsx"),
     read("e2e/admin-chart-interactions.spec.ts"),
   ]);
@@ -357,7 +358,7 @@ test("full-menu parity exposes stable identity while keeping unavailable dishes 
     assert.match(admin, new RegExp(attribute));
     assert.match(publicMenu, new RegExp(attribute));
   }
-  assert.match(e2e, /adminDishes\.filter\(\(\{ available \}\) => available === "true"\)/);
+  assert.match(e2e, /adminDishes\.filter\(\s*\(\{ available \}\) => available === "true",?\s*\)/);
   assert.match(e2e, /expect\(publicDishes\)\.toEqual\(availableAdminDishes\)/);
 });
 

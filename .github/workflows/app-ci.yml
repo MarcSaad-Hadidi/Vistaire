@@ -580,6 +580,7 @@ jobs:
       - name: Admin QR browser suite
         run: npm run test:qr:functional
       - name: Admin dish image browser suite (Chromium)
+        if: ${{ !cancelled() }}
         env:
           VISTAIRE_ADMIN_FULL_MENU_PROJECT: chromium
         run: npm run test:admin:full-menu
@@ -752,7 +753,7 @@ jobs:
       - run: |
           npm run test:ci:e2e:webkit
       - name: Admin dish image browser suite (WebKit)
-        if: ${{ needs.classify-changes.outputs.run_admin_qr == 'true' }}
+        if: ${{ !cancelled() && needs.classify-changes.outputs.run_admin_qr == 'true' }}
         env:
           VISTAIRE_ADMIN_FULL_MENU_PROJECT: webkit
         run: npm run test:admin:full-menu

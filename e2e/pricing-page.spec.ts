@@ -534,10 +534,9 @@ test.describe("Vistaire pricing collections", () => {
     await dashboard.scrollIntoViewIfNeeded();
     await expect(dashboard).toHaveAttribute("aria-hidden", "true");
     await expect(dashboard).toHaveAttribute("inert", "");
-    await expect(dashboard.locator('button[data-demo-period="30d"]')).toHaveAttribute(
-      "aria-pressed",
-      "true"
-    );
+    await expect(dashboard.locator("[data-admin-studio]")).toHaveCount(1);
+    await expect(dashboard.locator("select").first()).toHaveValue("30d");
+    await expect(dashboard.locator("[data-studio-preview-banner]")).toContainText("données fictives");
     await expect(dashboard.locator("a, button, input, select, textarea").first()).not.toBeFocused();
     await expect(
       page.getByRole("link", { name: "Explorer l’aperçu restaurateur", exact: true })

@@ -1,4 +1,5 @@
 "use client";
+import { useStudioLocale } from "./studioLocale";
 import { useEffect, useId, useRef, type ReactNode } from "react";
 import { X } from "lucide-react";
 import styles from "./Studio.module.css";
@@ -12,6 +13,7 @@ export function StudioDialog({
   onClose: () => void;
   children: ReactNode;
 }) {
+  const {t}=useStudioLocale();
   const ref = useRef<HTMLDialogElement>(null);
   const heading = useId();
   const closeRef = useRef(onClose);
@@ -57,7 +59,7 @@ export function StudioDialog({
     >
       <header className={styles.dialogHeader}>
         <h2 id={heading}>{title}</h2>
-        <button type="button" aria-label="Fermer" onClick={onClose}>
+        <button type="button" aria-label={t("Fermer")} onClick={onClose}>
           <X size={20} />
         </button>
       </header>

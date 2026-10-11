@@ -61,3 +61,15 @@ test("analysis retains approved category, distribution and relationship chart fa
     /Math\.random|Sauge Noire|Array\.from\(\{length:6\}/,
   );
 });
+
+test("all private access, loading and failure surfaces use the Studio shell", async () => {
+  for (const path of ["page.tsx", "availability/page.tsx", "insights/page.tsx", "planning/page.tsx", "loading.tsx", "error.tsx"]) {
+    const source = await readFile(`app/(fr)/admin/${path}`, "utf8");
+    assert.match(source, /StudioState/, path);
+    assert.doesNotMatch(source, /AdminDashboard\.module|AdminSystem\.module|AdminSkeleton/, path);
+  }
+  const layout = await readFile("app/(fr)/admin/layout.tsx", "utf8");
+  assert.match(layout, /studio\/Studio\.module/);
+  const qr = await readFile("app/(fr)/q/invalid/page.tsx", "utf8");
+  assert.match(qr, /StudioState kind="qr"/);
+});

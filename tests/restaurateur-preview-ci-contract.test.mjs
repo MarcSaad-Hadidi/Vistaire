@@ -21,6 +21,10 @@ const previewOwnedPaths = [
 ];
 
 const previewSharedPaths = [
+  "components/admin/studio/AdminStudio.tsx",
+  "components/admin/studio/studioLocale.tsx",
+  "lib/admin/studioExport.ts",
+  "lib/admin/studioExportFiles.ts",
   "components/admin/charts/InteractiveLineChart.tsx",
   "components/admin/charts/geometry.ts",
   "components/admin/charts/Charts.module.css",

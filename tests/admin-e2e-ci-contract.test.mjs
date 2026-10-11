@@ -413,8 +413,7 @@ test("default E2E isolates fixture-only admin specs", async () => {
 
   for (const spec of [
     "admin-chart-interactions.spec.ts",
-    "admin-insights-fidelity.spec.ts",
-    "admin-visual.spec.ts"
+    "admin-studio.spec.ts"
   ]) {
     assert.match(config, new RegExp(spec.replaceAll(".", "\\.")));
   }
@@ -424,11 +423,11 @@ test("default E2E isolates fixture-only admin specs", async () => {
   assert.match(config, /admin-performance\.spec\.ts/);
 });
 
-test("official visual audit covers all four external references", async () => {
+test("archived visual audit covers all four external references", async () => {
   const [audit, visualSpec, insightsSpec] = await Promise.all([
     readFile("scripts/admin-visual-audit.mjs", "utf8"),
-    readFile("e2e/admin-visual.spec.ts", "utf8"),
-    readFile("e2e/admin-insights-fidelity.spec.ts", "utf8"),
+    readFile("docs/archives/admin-before-studio-2026-10-11/source/e2e/admin-visual.spec.ts.txt", "utf8"),
+    readFile("docs/archives/admin-before-studio-2026-10-11/source/e2e/admin-insights-fidelity.spec.ts.txt", "utf8"),
   ]);
   for (const file of ["01-overview-desktop.png", "02-availability-desktop.png", "03-overview-mobile.png", "04-insights-desktop.png"]) assert.match(audit, new RegExp(file.replaceAll(".", "\\.")));
   assert.match(audit, /changedRatio/);

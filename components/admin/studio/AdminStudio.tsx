@@ -1,6 +1,7 @@
 "use client";
+import { useStudioLocale } from "./studioLocale";
 import Link from "next/link";
-import { useState, useMemo, useSyncExternalStore } from "react";
+import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import {
   LayoutDashboard,
@@ -31,9 +32,11 @@ import { StudioDishes } from "./StudioDishes";
 import { StudioDialog } from "./StudioDialog";
 import { StudioExportDialog } from "./StudioExportDialog";
 import styles from "./Studio.module.css";
+import { useStudioTheme } from "./studioTheme";
+import { setPublicTheme } from "@/lib/publicTheme";
 
 export type StudioPage = "overview" | "insights" | "dishes" | "planning";
-const pages = [
+const basePages = [
   {
     id: "overview",
     label: "Vue d’ensemble",
@@ -59,7 +62,7 @@ const pages = [
     Icon: CalendarDays,
   },
 ] as const;
-const metrics = [
+const baseMetrics = [
   {
     id: "menu-opens",
     series: "menuOpened",
@@ -77,33 +80,8 @@ const metrics = [
   { id: "immersive", series: "immersive", label: "Clics 3D et AR", Icon: Box },
   { id: "searches", series: "searches", label: "Recherches", Icon: ScanLine },
 ] as const;
-const number = (value: number | undefined) =>
-  value === undefined ? "N/A" : new Intl.NumberFormat("fr-CA").format(value);
-const formatDate = (date: string) =>
-  new Intl.DateTimeFormat("fr-CA", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-    timeZone: "UTC",
-  }).format(new Date(date));
-function subscribeTheme(notify: () => void) {
-  window.addEventListener("storage", notify);
-  window.addEventListener("vistaire-studio-theme", notify);
-  return () => {
-    window.removeEventListener("storage", notify);
-    window.removeEventListener("vistaire-studio-theme", notify);
-  };
-}
-function themeSnapshot() {
-  try {
-    return localStorage.getItem("vistaire-studio-theme") === "dark"
-      ? "dark"
-      : "light";
-  } catch {
-    return "light";
-  }
-}
 function Delta({ rate }: { rate: number | null | undefined }) {
+ const {t}=useStudioLocale();
   return (
     <span
       className={styles.delta}
@@ -112,27 +90,28 @@ function Delta({ rate }: { rate: number | null | undefined }) {
       }
     >
       {rate == null
-        ? "Comparaison N/A"
+        ? t("Comparaison N/A")
         : `${rate > 0 ? "+" : ""}${Math.round(rate * 100)} %`}{" "}
       <span className={styles.muted}>
-        {rate == null ? "" : "vs période précédente"}
+        {rate == null ? "" : t("vs période précédente")}
       </span>
     </span>
   );
 }
 function Evidence({ data }: { data: AdminDashboardData }) {
+ const {t}=useStudioLocale();
   return (
     <div className={styles.empty}>
       <AlertCircle size={26} />
       <strong>
         {data.analytics.kind === "unavailable"
-          ? "Données indisponibles"
-          : "Pas encore assez de données"}
+          ? t("Données indisponibles")
+          : t("Pas encore assez de données")}
       </strong>
       <p>
         {data.analytics.kind === "unavailable"
-          ? "La lecture est incomplète. Réessayez plus tard ; aucun chiffre partiel n’est présenté comme un total."
-          : "Les premiers chiffres apparaîtront lorsque suffisamment de consultations auront été enregistrées."}
+          ? t("La lecture est incomplète. Réessayez plus tard ; aucun chiffre partiel n’est présenté comme un total.")
+          : t("Les premiers chiffres apparaîtront lorsque suffisamment de consultations auront été enregistrées.")}
       </p>
     </div>
   );
@@ -143,18 +122,28 @@ export function AdminStudio({
   range,
   page,
   canWrite = false,
+  demo = false,
+  demoRanges = ["today-utc", "7d", "30d"],
+  onPageChange,
+  onRangeChange,
 }: {
   data: AdminDashboardData;
   range: AdminDashboardRange;
   page: StudioPage;
   canWrite?: boolean;
+  demo?: boolean;
+  demoRanges?: AdminDashboardRange[];
+  onPageChange?: (page: StudioPage) => void;
+  onRangeChange?: (range: AdminDashboardRange) => void;
 }) {
+  const {t,locale,number,date:formatDate}=useStudioLocale();
+ const pages=basePages.map(item=>({...item,label:t(item.label)}));
+ const metrics=baseMetrics.map(item=>({...item,label:t(item.label)}));
   const router = useRouter();
-  const theme = useSyncExternalStore(
-    subscribeTheme,
-    themeSnapshot,
-    () => "light",
-  );
+  const theme = useStudioTheme(demo);
+  const Content = demo ? "section" : "main";
+  const Heading = demo ? "h2" : "h1";
+  const mainId = demo ? "studio-preview-main" : "studio-main";
   const [datesOpen, setDatesOpen] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
   const [selectedMetric, setSelectedMetric] =
@@ -170,8 +159,8 @@ export function AdminStudio({
   const selected = metrics.find((item) => item.series === selectedMetric)!;
   const rangeLabel =
     analytics.kind !== "unavailable"
-      ? `${formatDate(analytics.observationWindow.startInclusive)} au ${formatDate(new Date(Date.parse(analytics.observationWindow.endExclusive) - 1).toISOString())}`
-      : "Période indisponible";
+      ? `${formatDate(analytics.observationWindow.startInclusive)} ${locale === "en" ? "to" : "au"} ${formatDate(new Date(Date.parse(analytics.observationWindow.endExclusive) - 1).toISOString())}`
+      : t("Période indisponible");
   const metricValue = (id: string) =>
     real?.metrics.find((item) => item.id === id);
   const dishMap = useMemo(
@@ -189,6 +178,10 @@ export function AdminStudio({
       ? real.panels.hourWeekday.data
       : null;
   function toggleTheme() {
+    if (demo) {
+      setPublicTheme(theme === "dark" ? "light" : "dark");
+      return;
+    }
     try {
       localStorage.setItem(
         "vistaire-studio-theme",
@@ -196,7 +189,7 @@ export function AdminStudio({
       );
       window.dispatchEvent(new Event("vistaire-studio-theme"));
     } catch {
-      setNotice("Le thème ne peut pas être enregistré dans ce navigateur.");
+      setNotice(t("Le thème ne peut pas être enregistré dans ce navigateur."));
     }
   }
   async function copyMenu() {
@@ -204,10 +197,10 @@ export function AdminStudio({
       await navigator.clipboard.writeText(
         new URL(data.restaurant.publicMenuPath, window.location.origin).href,
       );
-      setNotice("Lien du menu copié");
+      setNotice(t("Lien du menu copié"));
     } catch {
       setNotice(
-        "Impossible de copier le lien. Vous pouvez ouvrir le menu puis copier son adresse.",
+        t("Impossible de copier le lien. Vous pouvez ouvrir le menu puis copier son adresse."),
       );
     }
   }
@@ -217,13 +210,13 @@ export function AdminStudio({
         <div>
           <h2>
             {page === "overview"
-              ? "L’activité de votre menu"
-              : "Évolution dans le temps"}
+              ? t("L’activité de votre menu")
+              : t("Évolution dans le temps")}
           </h2>
-          <p>{rangeLabel} · heures UTC</p>
+          <p>{rangeLabel}{t("· heures UTC")}</p>
         </div>
         <select
-          aria-label="Indicateur du graphique"
+          aria-label={t("Indicateur du graphique")}
           value={selectedMetric}
           onChange={(event) =>
             setSelectedMetric(event.target.value as AdminMetricSeriesId)
@@ -242,7 +235,7 @@ export function AdminStudio({
             <strong>{number(metricValue(selected.id)?.value)}</strong>
             <span>{selected.label.toLowerCase()}</span>
             <button
-              aria-label={`Agrandir ${selected.label.toLowerCase()}`}
+              aria-label={`${locale === "en" ? "Expand" : "Agrandir"} ${selected.label.toLowerCase()}`}
               onClick={() => setExplore(selectedMetric)}
             >
               <Expand size={16} />
@@ -264,19 +257,23 @@ export function AdminStudio({
   const dishRanking = (
     <section className={styles.panel}>
       <header className={styles.panelHead}>
-        <h2>Les plats les plus consultés</h2>
-        <Link href={`/admin/availability?range=${range}`}>
-          Tous les plats <ArrowUpRight size={15} />
-        </Link>
+        <h2>{t("Les plats les plus consultés")}</h2>
+        {demo ? (
+          <button onClick={() => onPageChange?.("dishes")}>{t("Tous les plats")}<ArrowUpRight size={15} />
+          </button>
+        ) : (
+          <Link href={`/admin/availability?range=${range}`}>{t("Tous les plats")}<ArrowUpRight size={15} />
+          </Link>
+        )}
       </header>
       {ranking.length ? (
         <div className={styles.tableScroll}>
           <table className={styles.table}>
             <thead>
               <tr>
-                <th>Plat</th>
-                <th>Consultations</th>
-                <th>Évolution</th>
+                <th>{t("Plat")}</th>
+                <th>{t("Consultations")}</th>
+                <th>{t("Évolution")}</th>
               </tr>
             </thead>
             <tbody>
@@ -312,10 +309,13 @@ export function AdminStudio({
     </section>
   );
   return (
-    <div className={styles.studio} data-theme={theme} data-admin-studio>
-      <a className={styles.skip} href="#studio-main">
-        Aller au contenu
-      </a>
+    <div
+      className={styles.studio}
+      data-theme={theme}
+      data-admin-studio
+      data-demo={demo || undefined}
+    >
+      <a className={styles.skip} href={`#${mainId}`}>{t("Aller au contenu")}</a>
       <aside className={styles.sidebar}>
         <div className={styles.wordmark}>
           vistaire<span>RESTAURANT STUDIO</span>
@@ -324,21 +324,32 @@ export function AdminStudio({
           <span className={styles.seal}>{data.restaurant.name[0]}</span>
           <div>
             <strong>{data.restaurant.name}</strong>
-            <small>ESPACE RESTAURATEUR</small>
+            <small>{t("ESPACE RESTAURATEUR")}</small>
           </div>
         </div>
-        <div className={styles.navLabel}>VOTRE RESTAURANT</div>
-        <nav className={styles.nav} aria-label="Navigation principale">
-          {pages.map(({ id, label, href, Icon }) => (
-            <Link
-              key={id}
-              href={`${href}?range=${range}`}
-              aria-current={id === page ? "page" : undefined}
-            >
-              <Icon size={18} />
-              <span>{label}</span>
-            </Link>
-          ))}
+        <div className={styles.navLabel}>{t("VOTRE RESTAURANT")}</div>
+        <nav className={styles.nav} aria-label={t("Navigation principale")}>
+          {pages.map(({ id, label, href, Icon }) =>
+            demo ? (
+              <button
+                key={id}
+                onClick={() => onPageChange?.(id)}
+                aria-current={id === page ? "page" : undefined}
+              >
+                <Icon size={18} />
+                <span>{label}</span>
+              </button>
+            ) : (
+              <Link
+                key={id}
+                href={`${href}?range=${range}`}
+                aria-current={id === page ? "page" : undefined}
+              >
+                <Icon size={18} />
+                <span>{label}</span>
+              </Link>
+            ),
+          )}
         </nav>
         <div className={styles.sidebarFoot}>
           <Link
@@ -346,18 +357,16 @@ export function AdminStudio({
             target="_blank"
             rel="noopener noreferrer"
           >
-            <ExternalLink size={16} />
-            Ouvrir le menu client
-          </Link>
-          <form action="/admin/logout" method="post">
-            <button type="submit">
-              <LogOut size={16} />
-              Déconnexion
-            </button>
-          </form>
+            <ExternalLink size={16} />{t("Ouvrir le menu client")}</Link>
+          {!demo && (
+            <form action="/admin/logout" method="post">
+              <button type="submit">
+                <LogOut size={16} />{t("Déconnexion")}</button>
+            </form>
+          )}
         </div>
       </aside>
-      <main id="studio-main" className={styles.main}>
+      <Content id={mainId} className={styles.main}>
         <header className={styles.topbar}>
           <div className={styles.breadcrumbs}>
             <span>{data.restaurant.name} /</span>
@@ -365,26 +374,32 @@ export function AdminStudio({
           </div>
           <div className={styles.topActions}>
             <span className={styles.accountStatus}>
-              {canWrite ? "Espace privé" : "Lecture seule"}
+              {demo
+                ? t("Démonstration")
+                : canWrite
+                  ? t("Espace privé")
+                  : t("Lecture seule")}
             </span>
-            <button onClick={copyMenu} aria-label="Copier le lien du menu">
+            <button onClick={copyMenu} aria-label={t("Copier le lien du menu")}>
               <Copy size={17} />
             </button>
-            <form
-              action="/admin/logout"
-              method="post"
-              className={styles.mobileLogout}
-            >
-              <button type="submit" aria-label="Déconnexion">
-                <LogOut size={17} />
-              </button>
-            </form>
+            {!demo && (
+              <form
+                action="/admin/logout"
+                method="post"
+                className={styles.mobileLogout}
+              >
+                <button type="submit" aria-label={t("Déconnexion")}>
+                  <LogOut size={17} />
+                </button>
+              </form>
+            )}
             <button
               onClick={toggleTheme}
               aria-label={
                 theme === "dark"
-                  ? "Passer au thème clair"
-                  : "Passer au thème sombre"
+                  ? t("Passer au thème clair")
+                  : t("Passer au thème sombre")
               }
             >
               {theme === "dark" ? <Sun size={18} /> : <Moon size={18} />}
@@ -392,7 +407,7 @@ export function AdminStudio({
             <Link
               href={data.restaurant.publicMenuPath}
               className={styles.button}
-              aria-label="Ouvrir le menu client"
+              aria-label={t("Ouvrir le menu client")}
               target="_blank"
               rel="noopener noreferrer"
             >
@@ -402,57 +417,81 @@ export function AdminStudio({
         </header>
         <div className={styles.content}>
           <header className={styles.pageHead}>
-            <h1>{active.label}</h1>
+            <Heading>{active.label}</Heading>
             <div className={styles.toolbar}>
               <label>
-                <span className={styles.srOnly}>Période des statistiques</span>
+                <span className={styles.srOnly}>{t(demo ? "Période fictive (UTC)" : "Période des statistiques")}</span>
                 <select
                   value={range}
                   onChange={(event) =>
                     event.target.value === "custom"
                       ? setDatesOpen(true)
-                      : router.push(
-                          `${active.href}?range=${encodeURIComponent(event.target.value)}`,
-                        )
+                      : demo
+                        ? onRangeChange?.(
+                            event.target.value as AdminDashboardRange,
+                          )
+                        : router.push(
+                            `${active.href}?range=${encodeURIComponent(event.target.value)}`,
+                          )
                   }
                 >
-                  <option value="today-utc">Aujourd’hui (UTC)</option>
-                  <option value="7d">7 derniers jours</option>
-                  <option value="30d">30 derniers jours</option>
-                  <option value="90d">90 derniers jours</option>
-                  <option value="365d">365 derniers jours</option>
-                  <option value="month">Ce mois-ci</option>
-                  <option value="year">Cette année</option>
+                  {(!demo || demoRanges.includes("today-utc")) && (
+                    <option value="today-utc">{t(demo ? "1 journée exemple" : "Aujourd’hui (UTC)")}</option>
+                  )}
+                  {(!demo || demoRanges.includes("7d")) && (
+                    <option value="7d">{t(demo ? "7 jours exemple" : "7 derniers jours")}</option>
+                  )}
+                  {(!demo || demoRanges.includes("30d")) && (
+                    <option value="30d">{t(demo ? "30 jours exemple" : "30 derniers jours")}</option>
+                  )}
+                  {(!demo || demoRanges.includes("90d")) && (
+                    <option value="90d">{t("90 derniers jours")}</option>
+                  )}
+                  {(!demo || demoRanges.includes("365d")) && (
+                    <option value="365d">{t("365 derniers jours")}</option>
+                  )}
+                  {(!demo || demoRanges.includes("month")) && (
+                    <option value="month">{t("Ce mois-ci")}</option>
+                  )}
+                  {(!demo || demoRanges.includes("year")) && (
+                    <option value="year">{t("Cette année")}</option>
+                  )}
                   {range.startsWith("custom:") && (
                     <option value={range}>{rangeLabel}</option>
                   )}
-                  <option value="custom">Choisir des dates…</option>
+                  {!demo && <option value="custom">{t("Choisir des dates…")}</option>}
                 </select>
               </label>
               <button onClick={() => setExportOpen(true)}>
                 <Download size={17} />
-                <span>Exporter</span>
+                <span>{t("Exporter")}</span>
               </button>
             </div>
           </header>
+          {demo && (
+            <p className={styles.demoBanner} data-studio-preview-banner>{t("Démonstration · données fictives. Aucun restaurant réel n’est connecté ; les disponibilités sont en lecture seule.")} {t("Données de démonstration uniquement. Les répartitions 3D/AR et comparaisons par plat sont illustratives.")}</p>
+          )}
           {notice && (
             <p className={styles.feedback} role="status">
               {notice}
-              <button onClick={() => setNotice("")}>Fermer</button>
+              <button onClick={() => setNotice("")}>{t("Fermer")}</button>
             </p>
           )}
           {page === "overview" && (
             <>
               <div className={styles.contextRow}>
-                <p>{rangeLabel} · données du menu</p>
-                <Link href={`/admin/availability?range=${range}`}>
-                  <strong>
-                    {data.menu.readiness.counts.available} /{" "}
-                    {data.menu.dishes.length}
-                  </strong>{" "}
-                  plats disponibles<small>Gérer les plats</small>
-                  <ArrowUpRight size={15} />
-                </Link>
+                <p>{rangeLabel}{t("· données du menu")}</p>
+                {demo ? (
+                  <button onClick={() => onPageChange?.("dishes")}>{t("Gérer les plats · démonstration")}</button>
+                ) : (
+                  <Link href={`/admin/availability?range=${range}`}>
+                    <strong>
+                      {data.menu.readiness.counts.available} /{" "}
+                      {data.menu.dishes.length}
+                    </strong>{" "}{t("plats disponibles")}<small>{t("Gérer les plats")}</small>
+                    <ArrowUpRight size={15} />
+                  </Link>
+                )}
               </div>
               <div className={styles.kpis}>
                 {metrics.slice(0, 4).map(({ id, series, label, Icon }) => (
@@ -480,8 +519,8 @@ export function AdminStudio({
                 <section className={styles.panel} style={{ marginTop: 18 }}>
                   <header className={styles.panelHead}>
                     <div>
-                      <h2>Quand votre menu est consulté</h2>
-                      <p>Événements enregistrés par jour et heure UTC</p>
+                      <h2>{t("Quand votre menu est consulté")}</h2>
+                      <p>{t("Événements enregistrés par jour et heure UTC")}</p>
                     </div>
                   </header>
                   <div className={styles.chartBody}>
@@ -494,14 +533,14 @@ export function AdminStudio({
           {page === "insights" && (
             <>
               <div className={styles.contextRow}>
-                <p>{rangeLabel} · comparaison à durée égale</p>
-                <span>Consultations et clics, sans estimation de ventes</span>
+                <p>{rangeLabel}{t("· comparaison à durée égale")}</p>
+                <span>{t("Consultations et clics, sans estimation de ventes")}</span>
               </div>
               {trendPanel}
               <div className={styles.twoColumns}>
                 <section className={styles.panel}>
                   <header className={styles.panelHead}>
-                    <h2>Par catégorie</h2>
+                    <h2>{t("Par catégorie")}</h2>
                   </header>
                   {categories.length ? (
                     <div className={styles.chartBody}>
@@ -510,7 +549,7 @@ export function AdminStudio({
                           label: row.label ?? row.slug,
                           count: row.count,
                         }))}
-                        label="Consultations"
+                        label={t("Consultations")}
                       />
                     </div>
                   ) : (
@@ -520,7 +559,7 @@ export function AdminStudio({
                 {dishRanking}
                 <section className={styles.panel}>
                   <header className={styles.panelHead}>
-                    <h2>Par moment de la journée</h2>
+                    <h2>{t("Par moment de la journée")}</h2>
                   </header>
                   {real?.panels.serviceWindows.kind === "supported" ? (
                     <div className={styles.chartBody}>
@@ -528,7 +567,7 @@ export function AdminStudio({
                         rows={real.panels.serviceWindows.data.windows.map(
                           (row) => ({ label: row.label, count: row.count }),
                         )}
-                        label="Événements (UTC)"
+                        label={t("Événements (UTC)")}
                       />
                     </div>
                   ) : (
@@ -537,7 +576,7 @@ export function AdminStudio({
                 </section>
                 <section className={styles.panel}>
                   <header className={styles.panelHead}>
-                    <h2>Recherches fréquentes</h2>
+                    <h2>{t("Recherches fréquentes")}</h2>
                   </header>
                   {real?.panels.searches.kind === "supported" ? (
                     <div className={styles.barList}>
@@ -558,10 +597,7 @@ export function AdminStudio({
                     </div>
                   ) : (
                     <div className={styles.empty}>
-                      <p>
-                        Aucune recherche suffisamment fréquente à afficher. Les
-                        termes personnels restent exclus.
-                      </p>
+                      <p>{t("Aucune recherche suffisamment fréquente à afficher. Les termes personnels restent exclus.")}</p>
                     </div>
                   )}
                 </section>
@@ -569,7 +605,7 @@ export function AdminStudio({
               {heatmap && (
                 <section className={styles.panel} style={{ marginTop: 18 }}>
                   <header className={styles.panelHead}>
-                    <h2>Jours et heures d’activité</h2>
+                    <h2>{t("Jours et heures d’activité")}</h2>
                   </header>
                   <div className={styles.chartBody}>
                     <StudioHeatmap cells={heatmap} />
@@ -578,31 +614,22 @@ export function AdminStudio({
               )}
               <StudioAnalysisCharts data={data} />
               <details className={styles.dataDisclosure}>
-                <summary>Comment lire ces chiffres</summary>
-                <p>
-                  Les ouvertures, consultations, recherches et clics 3D/AR sont
-                  des événements enregistrés sur ce menu. Ils ne représentent ni
-                  des personnes uniques ni des achats. Les heures sont en UTC.
-                  Les chiffres ne sont affichés que lorsque les sources sont
-                  complètes et le volume suffisant. Une comparaison sans période
-                  précédente exploitable reste N/A.
-                </p>
+                <summary>{t("Comment lire ces chiffres")}</summary>
+                <p>{t("Les ouvertures, consultations, recherches et clics 3D/AR sont des événements enregistrés sur ce menu. Ils ne représentent ni des personnes uniques ni des achats. Les heures sont en UTC. Les chiffres ne sont affichés que lorsque les sources sont complètes et le volume suffisant. Une comparaison sans période précédente exploitable reste N/A.")}</p>
               </details>
             </>
           )}
           {page === "dishes" && (
             <>
               <div className={styles.contextRow}>
-                <p>
-                  Les chiffres de chaque plat et leur disponibilité, au même
-                  endroit
-                </p>
-                <span>{data.menu.dishes.length} plats au menu</span>
+                <p>{t("Les chiffres de chaque plat et leur disponibilité, au même endroit")}</p>
+                <span>{data.menu.dishes.length}{t("plats au menu")}</span>
               </div>
               <StudioDishes
                 key={`${data.restaurant.id}:${data.menu.id}`}
                 data={data}
-                canWrite={canWrite}
+                canWrite={!demo && canWrite}
+                demo={demo}
                 onDish={setDish}
                 onSchedule={setScheduleDish}
               />
@@ -611,15 +638,12 @@ export function AdminStudio({
           {page === "planning" && (
             <>
               <p className={styles.notice}>
-                <strong>Planning des disponibilités</strong> · Les horaires
-                automatiques nécessitent le service de planification du
-                restaurant. Aucune règle simulée n’est enregistrée.
-              </p>
+                <strong>{t("Planning des disponibilités")}</strong>{t("· Les horaires automatiques nécessitent le service de planification du restaurant. Aucune règle simulée n’est enregistrée.")}</p>
               <section className={styles.panel}>
                 <header className={styles.panelHead}>
                   <div>
-                    <h2>Les horaires de vos plats</h2>
-                    <p>Choisissez un plat pour consulter sa planification.</p>
+                    <h2>{t("Les horaires de vos plats")}</h2>
+                    <p>{t("Choisissez un plat pour consulter sa planification.")}</p>
                   </div>
                 </header>
                 <div className={styles.planningList}>
@@ -630,9 +654,7 @@ export function AdminStudio({
                         <small>{item.category}</small>
                       </div>
                       <button onClick={() => setScheduleDish(item)}>
-                        <CalendarDays size={16} />
-                        Planifier
-                      </button>
+                        <CalendarDays size={16} />{t("Planifier")}</button>
                     </div>
                   ))}
                 </div>
@@ -643,15 +665,15 @@ export function AdminStudio({
             <span>{data.restaurant.name} · Vistaire Studio</span>
             <span>
               {real?.lastUpdatedAt
-                ? `Dernier événement : ${formatDate(real.lastUpdatedAt)} (UTC)`
-                : "Aucun événement récent confirmé"}
+                ? `${t(demo ? "Jeu de démonstration" : "Dernier événement")} : ${formatDate(real.lastUpdatedAt)} (UTC)`
+                : t("Aucun événement récent confirmé")}
             </span>
           </footer>
         </div>
-      </main>
+      </Content>
       {datesOpen && (
         <StudioDialog
-          title="Choisir une période"
+          title={t("Choisir une période")}
           onClose={() => setDatesOpen(false)}
         >
           <form
@@ -665,7 +687,7 @@ export function AdminStudio({
                 Date.parse(to) - Date.parse(from) >= 730 * 86400000
               ) {
                 setNotice(
-                  "Choisissez une période de 730 jours maximum avec une fin après le début.",
+                  t("Choisissez une période de 730 jours maximum avec une fin après le début."),
                 );
                 return;
               }
@@ -677,9 +699,7 @@ export function AdminStudio({
           >
             <div className={styles.dialogBody}>
               <div className={styles.formGrid}>
-                <label>
-                  Du (inclus)
-                  <input
+                <label>{t("Du (inclus)")}<input
                     name="from"
                     type="date"
                     required
@@ -694,9 +714,7 @@ export function AdminStudio({
                     }
                   />
                 </label>
-                <label>
-                  Au (inclus)
-                  <input
+                <label>{t("Au (inclus)")}<input
                     name="to"
                     type="date"
                     required
@@ -715,24 +733,21 @@ export function AdminStudio({
                   />
                 </label>
               </div>
-              <p className={styles.muted}>
-                Dates en UTC · 730 jours maximum. Une période dépassant la
-                limite de lecture sera indiquée comme indisponible.
-              </p>
+              <p className={styles.muted}>{t("Dates en UTC · 730 jours maximum. Une période dépassant la limite de lecture sera indiquée comme indisponible.")}</p>
             </div>
             <div className={styles.dialogFooter}>
-              <button type="button" onClick={() => setDatesOpen(false)}>
-                Annuler
-              </button>
-              <button className={styles.primary} type="submit">
-                Appliquer
-              </button>
+              <button type="button" onClick={() => setDatesOpen(false)}>{t("Annuler")}</button>
+              <button className={styles.primary} type="submit">{t("Appliquer")}</button>
             </div>
           </form>
         </StudioDialog>
       )}
       {exportOpen && (
-        <StudioExportDialog data={data} onClose={() => setExportOpen(false)} />
+        <StudioExportDialog
+          data={data}
+          synthetic={demo}
+          onClose={() => setExportOpen(false)}
+        />
       )}
       {explore && (
         <StudioDialog
@@ -744,7 +759,7 @@ export function AdminStudio({
               <>
                 <div className={styles.metricSummary}>
                   <div>
-                    <span>Période sélectionnée</span>
+                    <span>{t("Période sélectionnée")}</span>
                     <strong>
                       {number(
                         metricValue(
@@ -754,7 +769,7 @@ export function AdminStudio({
                     </strong>
                   </div>
                   <div>
-                    <span>Période précédente</span>
+                    <span>{t("Période précédente")}</span>
                     <strong>
                       {comparable
                         ? number(
@@ -767,7 +782,7 @@ export function AdminStudio({
                     </strong>
                   </div>
                   <div>
-                    <span>Évolution</span>
+                    <span>{t("Évolution")}</span>
                     <strong>
                       <Delta
                         rate={
@@ -802,9 +817,9 @@ export function AdminStudio({
             </p>
             <div className={styles.metricSummary}>
               {[
-                ["Consultations", data.dishStatistics?.[dish.id]?.views],
-                ["Clics 3D", data.dishStatistics?.[dish.id]?.three],
-                ["Clics AR", data.dishStatistics?.[dish.id]?.ar],
+                [t("Consultations"), data.dishStatistics?.[dish.id]?.views],
+                [t("Clics 3D"), data.dishStatistics?.[dish.id]?.three],
+                [t("Clics AR"), data.dishStatistics?.[dish.id]?.ar],
               ].map(([label, value]) => (
                 <div key={String(label)}>
                   <span>{label}</span>
@@ -817,12 +832,9 @@ export function AdminStudio({
               className={styles.status}
               data-status={dish.available ? "available" : "unavailable"}
             >
-              {dish.available ? "Disponible" : "Indisponible"}
+              {dish.available ? t("Disponible") : t("Indisponible")}
             </span>
-            <p className={styles.muted}>
-              Les clics ne sont pas des commandes. N/A signifie que les données
-              ne sont pas suffisamment complètes ou nombreuses.
-            </p>
+            <p className={styles.muted}>{t("Les clics ne sont pas des commandes. N/A signifie que les données ne sont pas suffisamment complètes ou nombreuses.")}</p>
           </div>
         </StudioDialog>
       )}
@@ -832,17 +844,11 @@ export function AdminStudio({
           onClose={() => setScheduleDish(null)}
         >
           <div className={styles.dialogBody}>
-            <p>
-              La planification automatique doit être activée côté serveur pour
-              enregistrer des horaires. La disponibilité actuelle reste
-              inchangée.
-            </p>
-            <p className={styles.muted}>
-              Aucune règle de démonstration n’est utilisée sur votre menu.
-            </p>
+            <p>{t("La planification automatique doit être activée côté serveur pour enregistrer des horaires. La disponibilité actuelle reste inchangée.")}</p>
+            <p className={styles.muted}>{t("Aucune règle de démonstration n’est utilisée sur votre menu.")}</p>
           </div>
           <div className={styles.dialogFooter}>
-            <button onClick={() => setScheduleDish(null)}>Fermer</button>
+            <button onClick={() => setScheduleDish(null)}>{t("Fermer")}</button>
           </div>
         </StudioDialog>
       )}

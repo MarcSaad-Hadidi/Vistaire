@@ -1,86 +1,19 @@
-import { expect, test, type Locator, type Page, type Request } from "@playwright/test";
+import { readFile } from "node:fs/promises";
+import { expect, test, type Page, type Request } from "@playwright/test";
 // @ts-expect-error -- dependency-free ESM policy is also exercised directly by Node contracts.
 import { classifyRestaurateurPreviewRequest, shouldIgnoreRestaurateurPreviewRequestFailure } from "./support/restaurateur-preview-request-policy.mjs";
 
 type Scenario = {
   path: "/apercu-restaurateur" | "/en/restaurant-preview";
-  demoLabel: RegExp;
-  forbiddenCopy: RegExp;
-  metricSelectorLabel: string;
-  periodsLabel: string;
-  metricButtons: readonly [string, string, string];
-  activityChartTitle: string;
-  noDishes: string;
-  tabs: readonly [string, string, string];
-  searchLabel: string;
-  filters: readonly [string, string, string];
-  simulation: RegExp;
-  sampleMenu: { label: string; href: string };
-  insights: readonly string[];
+  sampleMenu: {label: string; href: string};
+  navigation: string; pages: readonly [string, string, string, string];
+  period: string; search: string; availability: string; category: string;
+  export: string; exportTitle: string; close: string; download: string; schedule: string;
 };
-
-const scenarios: readonly Scenario[] = [
-  {
-    path: "/apercu-restaurateur",
-    demoLabel: /Données de démonstration/i,
-    forbiddenCopy: /Demo data|No customer data|Search dishes|View sample menu|this change is not saved/i,
-    metricSelectorLabel: "Métrique affichée",
-    periodsLabel: "Période analysée",
-    metricButtons: ["Ouvertures du menu", "Consultations de plats", "Recherches"],
-    activityChartTitle: "Activité du menu sur la période",
-    noDishes: "Aucun plat ne correspond à cette recherche.",
-    tabs: ["Vue d’ensemble", "Disponibilités", "Analyses"],
-    searchLabel: "Rechercher un plat",
-    filters: ["Tous", "Disponibles", "Indisponibles"],
-    simulation: /Simulation — ce changement n’est pas enregistré\./i,
-    sampleMenu: { label: "Voir la carte exemple", href: "/demo" },
-    insights: [
-      "Activité",
-      "Comparaison",
-      "Moments d’activité",
-      "Top plats consultés",
-      "Top recherches",
-      "Activité par catégorie",
-      "Moments de service",
-      "Résumé de la période",
-      "Insights clés"
-    ]
-  },
-  {
-    path: "/en/restaurant-preview",
-    demoLabel: /Demo data/i,
-    forbiddenCopy: /Données de démonstration|Aucune donnée client|Rechercher un plat|Voir la carte exemple|ce changement n’est pas enregistré/i,
-    metricSelectorLabel: "Metric shown",
-    periodsLabel: "Analysis period",
-    metricButtons: ["Menu opens", "Dish views", "Searches"],
-    activityChartTitle: "Menu activity over the period",
-    noDishes: "No dishes match this search.",
-    tabs: ["Overview", "Availability", "Insights"],
-    searchLabel: "Search dishes",
-    filters: ["All", "Available", "Unavailable"],
-    simulation: /Simulation — this change is not saved\./i,
-    sampleMenu: { label: "View sample menu", href: "/en/vistaire-menu" },
-    insights: [
-      "Activity",
-      "Comparison",
-      "Activity times",
-      "Top viewed dishes",
-      "Top searches",
-      "Activity by category",
-      "Service times",
-      "Period summary",
-      "Key insights"
-    ]
-  }
+const scenarios: Scenario[] = [
+  {path: "/apercu-restaurateur", sampleMenu: {label: "Voir la carte exemple", href: "/demo"}, navigation: "Navigation principale", pages: ["Vue d’ensemble", "Analyses", "Les plats", "Planning"], period: "Période fictive (UTC)", search: "Rechercher un plat", availability: "Disponibilité", category: "Catégorie", export: "Exporter", exportTitle: "Exporter les données", close: "Fermer", download: "Télécharger JSON", schedule: "Planifier"},
+  {path: "/en/restaurant-preview", sampleMenu: {label: "View sample menu", href: "/en/vistaire-menu"}, navigation: "Main navigation", pages: ["Overview", "Insights", "Dishes", "Scheduling"], period: "Sample period (UTC)", search: "Search dishes", availability: "Availability", category: "Category", export: "Export", exportTitle: "Export data", close: "Close", download: "Download JSON", schedule: "Schedule"}
 ];
-
-const viewports = [
-  { width: 390, height: 844 },
-  { width: 430, height: 932 },
-  { width: 768, height: 1024 },
-  { width: 1280, height: 800 },
-  { width: 1440, height: 900 }
-] as const;
 const canonicalOrigin = "https://www.vistaire.ca";
 
 const allowedJsonLdDocumentTypes = new Set(["WebPage", "Service", "BreadcrumbList"]);
@@ -203,43 +136,6 @@ function observeRuntime(page: Page, baseURL: string) {
   };
 }
 
-async function activateTab(tab: Locator) {
-  await tab.focus();
-  if ((await tab.getAttribute("aria-selected")) !== "true") await tab.press("Enter");
-  await expect(tab).toHaveAttribute("aria-selected", "true");
-}
-
-async function expectTabContract(page: Page, scenario: Scenario) {
-  const tablist = page.getByRole("tablist");
-  const tabs = tablist.getByRole("tab");
-  await expect(tablist).toBeVisible();
-  await expect(tabs).toHaveCount(3);
-  await expect(tablist.locator('[role="tab"][aria-selected="true"]')).toHaveCount(1);
-  for (const label of scenario.tabs) await expect(tablist.getByRole("tab", { name: label, exact: true })).toBeVisible();
-
-  const first = tablist.getByRole("tab", { name: scenario.tabs[0], exact: true });
-  const second = tablist.getByRole("tab", { name: scenario.tabs[1], exact: true });
-  const last = tablist.getByRole("tab", { name: scenario.tabs[2], exact: true });
-  await first.focus();
-  await first.press("End");
-  await expect(last).toBeFocused();
-  await activateTab(last);
-  await last.press("Home");
-  await expect(first).toBeFocused();
-  await activateTab(first);
-  await first.press("ArrowRight");
-  await expect(second).toBeFocused();
-  await activateTab(second);
-  await second.press("ArrowLeft");
-  await expect(first).toBeFocused();
-  await activateTab(first);
-
-  const active = tablist.locator('[role="tab"][aria-selected="true"]');
-  const controls = await active.getAttribute("aria-controls");
-  expect(controls).toBeTruthy();
-  await expect(page.locator(`#${controls}`)).toHaveAttribute("role", "tabpanel");
-}
-
 async function expectSafeDom(page: Page, scenario: Scenario) {
   const privateDestinations = await page.locator("a[href], form[action], [formaction]").evaluateAll(
     (elements) => elements.flatMap((element) => {
@@ -324,315 +220,95 @@ async function expectSafeSeo(page: Page, scenario: Scenario) {
   expect(new Set(documentTypes)).toEqual(new Set(["WebPage", "Service", "BreadcrumbList"]));
 }
 
-async function periodSignature(page: Page) {
-  return page.locator("[data-demo-kpi]").allTextContents();
-}
 
-async function exercisePeriods(page: Page) {
-  const periods = page.locator("button[data-demo-period]");
-  await expect(periods).toHaveCount(3);
-  await expect(page.locator('button[data-demo-period][aria-pressed="true"]')).toHaveCount(1);
-  const initial = await periodSignature(page);
-  await periods.filter({ hasText: "7" }).click();
-  await expect.poll(() => periodSignature(page)).not.toEqual(initial);
-  const sevenDays = await periodSignature(page);
-  await periods.filter({ hasText: "30" }).click();
-  await expect.poll(() => periodSignature(page)).not.toEqual(sevenDays);
-  await periods.filter({ hasText: "24" }).click();
-  await expect.poll(() => periodSignature(page)).toEqual(initial);
-}
-
-async function exerciseAvailability(page: Page, scenario: Scenario) {
-  await page.getByRole("tab", { name: scenario.tabs[1], exact: true }).click();
-  await expect(page.getByRole("group", { name: scenario.periodsLabel })).toHaveCount(0);
-  const summary = (id: string) => page.locator(`[data-demo-availability-metric="${id}"]`);
-  await expect(summary("total")).toContainText("12");
-  await expect(summary("available")).toContainText("10");
-  await expect(summary("unavailable")).toContainText("2");
-  const rows = page.locator("[data-demo-dish]");
-  await expect(rows).toHaveCount(12);
-
-  const firstName = await rows.first().getByRole("heading").innerText();
-  const search = page.getByRole("searchbox", { name: scenario.searchLabel });
-  await search.fill(firstName);
-  await expect.poll(() => rows.filter({ visible: true }).count()).toBeLessThan(12);
-  const matchingRows = rows.filter({ visible: true });
-  expect(await matchingRows.count()).toBeGreaterThan(0);
-  for (const row of await matchingRows.all()) await expect(row).toContainText(firstName);
-  await search.fill("vistaire-no-matching-dish-zzzz");
-  await expect(rows.filter({ visible: true })).toHaveCount(0);
-  await expect(page.getByRole("status").filter({ hasText: scenario.noDishes })).toBeVisible();
-  await search.fill("");
-  await expect(page.getByText(scenario.noDishes, { exact: true })).toBeHidden();
-
-  const all = page.getByRole("button", { name: scenario.filters[0], exact: true });
-  const available = page.getByRole("button", { name: scenario.filters[1], exact: true });
-  const unavailable = page.getByRole("button", { name: scenario.filters[2], exact: true });
-  for (const filter of [all, available, unavailable]) await expect(filter).toHaveAttribute("aria-pressed", /true|false/);
-  await unavailable.click();
-  await expect(unavailable).toHaveAttribute("aria-pressed", "true");
-  expect(await rows.evaluateAll((items) => items.filter((item) => getComputedStyle(item).display !== "none").every((item) => item.getAttribute("data-available") === "false"))).toBe(true);
-  await available.click();
-  expect(await rows.evaluateAll((items) => items.filter((item) => getComputedStyle(item).display !== "none").every((item) => item.getAttribute("data-available") === "true"))).toBe(true);
-  await all.click();
-
-  const toggle = rows.first().getByRole("switch");
-  await expect(toggle).toBeVisible();
-  await expect(toggle).toHaveAttribute("aria-checked", "true");
-  await toggle.click();
-  await expect(toggle).toHaveAttribute("aria-checked", "false");
-  const simulationStatus = page.getByRole("status").filter({ hasText: scenario.simulation });
-  await expect(simulationStatus).toBeVisible();
-  const unavailableAnnouncement = await simulationStatus.innerText();
-  await toggle.click();
-  await expect(toggle).toHaveAttribute("aria-checked", "true");
-  await expect(simulationStatus).not.toHaveText(unavailableAnnouncement);
-  await toggle.click();
-  await expect(toggle).toHaveAttribute("aria-checked", "false");
-  await expect(summary("available")).toContainText("9");
-  await expect(summary("unavailable")).toContainText("3");
-}
-
-async function exerciseInsightsMetricSelector(page: Page, scenario: Scenario) {
-  const selector = page.getByRole("group", { name: scenario.metricSelectorLabel });
-  const buttons = selector.getByRole("button");
-  await expect(buttons).toHaveCount(3);
-  for (const label of scenario.metricButtons) {
-    await expect(selector.getByRole("button", { name: label, exact: true })).toHaveAttribute("aria-pressed", /true|false/);
-  }
-  const activityChart = page.locator("[data-chart-frame]").filter({
-    has: page.getByRole("heading", { name: scenario.activityChartTitle, exact: true })
-  });
-  await expect(activityChart).toHaveCount(1);
-  const signature = () => activityChart.locator("tbody").innerText();
-  const menu = selector.getByRole("button", { name: scenario.metricButtons[0], exact: true });
-  const dishes = selector.getByRole("button", { name: scenario.metricButtons[1], exact: true });
-  const searches = selector.getByRole("button", { name: scenario.metricButtons[2], exact: true });
-  const selectedButtons = selector.locator('button[aria-pressed="true"]');
-  await expect(selectedButtons).toHaveCount(1);
-  await expect(menu).toHaveAttribute("aria-pressed", "true");
-  const menuSignature = await signature();
-  await dishes.click();
-  await expect(selectedButtons).toHaveCount(1);
-  await expect(dishes).toHaveAttribute("aria-pressed", "true");
-  await expect.poll(signature).not.toEqual(menuSignature);
-  const dishSignature = await signature();
-  await searches.click();
-  await expect(selectedButtons).toHaveCount(1);
-  await expect(searches).toHaveAttribute("aria-pressed", "true");
-  await expect.poll(signature).not.toEqual(dishSignature);
-  const searchSignature = await signature();
-  expect(searchSignature).not.toEqual(menuSignature);
-  expect(searchSignature).not.toEqual(dishSignature);
-  await dishes.click();
-  await expect(selectedButtons).toHaveCount(1);
-  await expect.poll(signature).toEqual(dishSignature);
-  await menu.click();
-  await expect(selectedButtons).toHaveCount(1);
-  await expect(menu).toHaveAttribute("aria-pressed", "true");
-  await expect.poll(signature).toEqual(menuSignature);
-}
-
-async function exerciseCharts(page: Page) {
-  const heatmap = page.locator('[role="grid"][data-chart-kind="heatmap"]');
-  await expect(heatmap).toHaveCount(1);
-  await expect(heatmap).toHaveAttribute("aria-rowcount", "7");
-  await expect(heatmap).toHaveAttribute("aria-colcount", "24");
-  await expect(heatmap.getByRole("gridcell")).toHaveCount(168);
-  const charts = page.locator("[data-chart-frame]");
-  expect(await charts.count()).toBeGreaterThanOrEqual(3);
-  for (const chart of await charts.all()) {
-    await expect(chart.locator("table")).toHaveCount(1);
-    const marks = chart.locator("[tabindex]");
-    if ((await marks.count()) === 0) continue;
-    await marks.first().focus();
-    await expect(chart.locator("output[data-visible=true]")).toBeVisible();
-    if ((await marks.count()) > 1) {
-      await marks.first().press("ArrowRight");
-      await expect(marks.nth(1)).toBeFocused();
-    }
-    await page.keyboard.press("Escape");
-    await expect(chart.locator("output[data-visible=true]")).toHaveCount(0);
-  }
-}
-
-async function expectReadableText(text: Locator, surface: Locator) {
-  const [foreground, background] = await Promise.all([
-    text.evaluate((element) => getComputedStyle(element).color),
-    surface.evaluate((element) => getComputedStyle(element).backgroundColor)
-  ]);
-  const luminance = (color: string) => {
-    const channels = color.match(/[\d.]+/g)?.map(Number) ?? [];
-    expect(channels.length).toBeGreaterThanOrEqual(3);
-    expect(channels[3] ?? 1, `Expected an opaque surface: ${color}`).toBe(1);
-    return channels.slice(0, 3).reduce((sum, channel, index) => {
-      const value = channel / 255;
-      const linear = value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4;
-      return sum + linear * [0.2126, 0.7152, 0.0722][index];
-    }, 0);
-  };
-  const values = [luminance(foreground), luminance(background)].sort((a, b) => a - b);
-  expect((values[1] + 0.05) / (values[0] + 0.05), `${foreground} on ${background}`).toBeGreaterThanOrEqual(4.5);
-}
-
-test.describe("public restaurateur dashboard preview", () => {
-  test("light mode keeps dashboard status, chart details and feedback readable", async ({ page }) => {
-    test.setTimeout(45_000);
-    await page.addInitScript(() => localStorage.setItem("vistaire-public-theme", "light"));
-    for (const [index, scenario] of scenarios.entries()) {
-      await page.setViewportSize(index === 0 ? { width: 390, height: 844 } : { width: 1440, height: 900 });
-      await page.goto(scenario.path, { waitUntil: "domcontentloaded" });
-      await expect(page.locator("html")).toHaveAttribute("data-vistaire-theme", "light");
-      const kpi = page.locator("[data-demo-kpi]").first();
-      await expectReadableText(kpi.locator('[class*="kpiDetail"]'), kpi);
-      for (const chrome of await page.locator("[data-chart-chrome] > span").all()) {
-        await expectReadableText(chrome, chrome);
-      }
-      for (const badge of await page.locator('[class*="availabilityStrip"] [class*="badge_"]').all()) {
-        await expectReadableText(badge, badge);
-      }
-
-      await page.getByRole("tab", { name: scenario.tabs[2], exact: true }).click();
-      await expect(page.locator('[data-chart-frame][data-chart-kind="comparison"]')).toBeVisible();
-      for (const chart of await page.locator("[data-chart-frame]").all()) {
-        const mark = chart.locator("[tabindex]").first();
-        if (await mark.count() === 0) continue;
-        await mark.focus();
-        const tooltip = chart.locator("output[data-visible=true]");
-        await expect(tooltip).toBeVisible();
-        for (const text of await tooltip.locator(":scope > span:first-child, strong, small, [data-chart-delta]").all()) {
-          await expectReadableText(text, tooltip);
-        }
-        await page.keyboard.press("Escape");
-        await expect(tooltip).toBeHidden();
-      }
-
-      const availabilityTab = page.getByRole("tab", { name: scenario.tabs[1], exact: true });
-      // Chart focus can leave smooth scrolling in progress. Settle the return
-      // clear of the fixed navigation before testing a normal pointer activation.
-      await availabilityTab.evaluate((element) => element.scrollIntoView({ block: "center", behavior: "instant" }));
-      await availabilityTab.click();
-      await expect(availabilityTab).toHaveAttribute("aria-selected", "true");
-      await expect(page.getByRole("tabpanel", { name: scenario.tabs[1], exact: true })).toBeVisible();
-      const availabilityBadges = page.locator('[data-demo-dish] > [class*="badge_"]');
-      await expect(availabilityBadges).toHaveCount(12);
-      for (const badge of await availabilityBadges.all()) {
-        await expectReadableText(badge, badge);
-      }
-      await page.locator("[data-demo-dish]").first().getByRole("switch").click();
-      const feedback = page.getByRole("status").filter({ hasText: scenario.simulation });
-      await expect(feedback).toBeVisible();
-      await expectReadableText(feedback, feedback);
-    }
-  });
-
-  test("availability feedback clears after its live announcement", async ({ page }) => {
-    const scenario = scenarios[0];
-    const response = await page.goto(scenario.path, { waitUntil: "domcontentloaded" });
+for (const scenario of scenarios) {
+  test(`${scenario.path} uses the shared Studio with anonymous, localized, synthetic data`, async ({baseURL, page}) => {
+    test.setTimeout(60_000);
+    const runtime = observeRuntime(page, baseURL ?? "http://127.0.0.1:3000");
+    const response = await page.goto(scenario.path, {waitUntil: "domcontentloaded"});
     expect(response?.status()).toBe(200);
-    await page.getByRole("tab", { name: scenario.tabs[1], exact: true }).click();
-    const toggle = page.locator("[data-demo-dish]").first().getByRole("switch");
-    await toggle.click();
-    const simulationStatus = page.getByRole("status").filter({ hasText: scenario.simulation });
-    await expect(simulationStatus).toBeVisible();
-    await expect(simulationStatus).toBeHidden();
+    const studio = page.locator("[data-public-studio-demo] [data-admin-studio]");
+    await expect(studio).toHaveCount(1);
+    await expect(page.getByRole("heading", {level: 1})).toHaveCount(1);
+    await expect(studio.locator("[data-studio-preview-banner]")).toContainText(/données fictives|fictional data/);
+    await expect(studio.locator("[data-studio-preview-banner]")).toContainText(/illustratives|illustrative/);
+    const nav = studio.getByRole("navigation", {name: scenario.navigation});
+    for (const name of scenario.pages) await expect(nav.getByRole("button", {name, exact: true})).toBeVisible();
+    const period = studio.getByRole("combobox", {name: scenario.period});
+    await expect(period.locator("option")).toHaveCount(3);
+    const kpis = studio.locator('[class*="kpis"] > button');
+    await expect(kpis).toHaveCount(4);
+    const initial = await kpis.allTextContents();
+    await period.selectOption("7d");
+    await expect.poll(() => kpis.allTextContents()).not.toEqual(initial);
+    await period.selectOption("today-utc");
+    await expect.poll(() => kpis.allTextContents()).toEqual(initial);
+    await kpis.first().click();
+    await expect(page.getByRole("dialog")).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(page.getByRole("dialog")).toHaveCount(0);
+    await expect(kpis.first()).toBeFocused();
+
+    await nav.getByRole("button", {name: scenario.pages[1], exact: true}).click();
+    await expect(studio.locator('[data-studio-chart="trend"]')).toBeVisible();
+    const chart = studio.getByRole("application").first();
+    await chart.focus();
+    await page.keyboard.press("ArrowRight");
+    await page.keyboard.press("Escape");
+    await nav.getByRole("button", {name: scenario.pages[2], exact: true}).click();
+    const dishes = studio.locator("[data-admin-menu-dish]");
+    await expect(dishes).toHaveCount(12);
+    for (const toggle of await dishes.getByRole("switch").all()) await expect(toggle).toBeDisabled();
+    await studio.getByRole("combobox", {name: scenario.availability, exact: true}).selectOption("unavailable");
+    await expect(dishes).toHaveCount(2);
+    await studio.getByRole("combobox", {name: scenario.availability, exact: true}).selectOption("all");
+    await studio.getByRole("searchbox", {name: scenario.search, exact: true}).fill("vistaire-no-matching-dish-zzzz");
+    await expect(dishes).toHaveCount(0);
+    await expect(studio.getByRole("status").filter({hasText: /Aucun plat trouvé|No dishes found/})).toBeVisible();
+    await studio.getByRole("searchbox", {name: scenario.search, exact: true}).fill("");
+    await expect(dishes).toHaveCount(12);
+    await nav.getByRole("button", {name: scenario.pages[3], exact: true}).click();
+    await studio.getByRole("button", {name: scenario.schedule, exact: true}).first().click();
+    await expect(page.getByRole("dialog")).toContainText(/Aucune règle|No demonstration rule/);
+    await page.getByRole("dialog").getByRole("button", {name: scenario.close, exact: true}).first().click();
+    await expect(page.getByRole("dialog")).toHaveCount(0);
+
+    await studio.getByRole("button", {name: scenario.export, exact: true}).click();
+    const dialog = page.getByRole("dialog", {name: scenario.exportTitle});
+    await expect(dialog).toContainText(/Données fictives|Fictional demonstration data/);
+    await dialog.getByRole("radio", {name: /JSON/}).check();
+    const downloadEvent = page.waitForEvent("download");
+    await dialog.getByRole("button", {name: scenario.download, exact: true}).click();
+    const download = await downloadEvent;
+    const file = await download.path();
+    expect(file).toBeTruthy();
+    const report = JSON.parse(await readFile(file!, "utf8"));
+    expect(report.synthetic).toBe(true);
+    await dialog.getByRole("button", {name: scenario.close, exact: true}).first().click();
+    await expectSafeDom(page, scenario);
+    await expectSafeSeo(page, scenario);
+    await expect(page.locator("model-viewer")).toHaveCount(0);
+    runtime.expectClean();
   });
 
-  for (const scenario of scenarios) {
-    test(`${scenario.path} keeps the availability simulation anonymous and local`, async ({ baseURL, page }) => {
-      // This full keyboard, filtering, mutation, reload and SEO contract exceeds 30s on WebKit CI.
-      test.setTimeout(45_000);
-      const origin = baseURL ?? "http://127.0.0.1:3000";
-      const runtime = observeRuntime(page, origin);
-      const response = await page.goto(scenario.path, { waitUntil: "domcontentloaded" });
-      expect(response?.status()).toBe(200);
-      await expect(page.getByRole("heading", { level: 1 })).toHaveCount(1);
-      await expect(page.getByText(scenario.demoLabel).first()).toBeVisible();
-      await expect(page.getByText(/Aucune donnée client|No customer data/i)).toBeVisible();
-      await expect(page.getByText(scenario.forbiddenCopy)).toHaveCount(0);
-      await expect(page.getByRole("group", { name: scenario.periodsLabel })).toBeVisible();
-      await expectTabContract(page, scenario);
-
-      const kpis = page.locator("[data-demo-kpi]");
-      await expect(kpis).toHaveCount(5);
-      for (const id of ["menu-opens", "dish-opens", "searches", "immersive", "available"]) {
-        await expect(page.locator(`[data-demo-kpi="${id}"]`)).toBeVisible();
+  test(`${scenario.path} keeps Studio embedded at mobile and desktop widths in both themes`, async ({page}) => {
+    for (const width of [390, 430, 1440]) {
+      await page.setViewportSize({width, height: 900});
+      await page.goto(scenario.path, {waitUntil: "domcontentloaded"});
+      const studio = page.locator("[data-public-studio-demo] [data-admin-studio]");
+      await expect(studio).toBeVisible();
+      await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(2);
+      const sidebar = studio.locator("aside");
+      expect(await sidebar.evaluate(element => getComputedStyle(element).position)).toBe("static");
+      for (const control of await studio.getByRole("navigation").getByRole("button").all()) {
+        const box = await control.boundingBox();
+        expect(box?.height ?? 0).toBeGreaterThanOrEqual(44);
+        expect(box?.width ?? 0).toBeGreaterThanOrEqual(44);
       }
-      const availableKpi = page.locator('[data-demo-kpi="available"]');
-      await expect(availableKpi).toContainText("10 / 12");
-      await exercisePeriods(page);
-      await exerciseAvailability(page, scenario);
-
-      await page.getByRole("tab", { name: scenario.tabs[0], exact: true }).click();
-      await expect(page.getByRole("group", { name: scenario.periodsLabel })).toBeVisible();
-      await expect(availableKpi).toContainText("9 / 12");
-      await page.reload({ waitUntil: "domcontentloaded" });
-      await expect(availableKpi).toContainText("10 / 12");
-      await expect(availableKpi).not.toContainText("9 / 12");
-
-      await expectSafeDom(page, scenario);
-      await expectSafeSeo(page, scenario);
-      await expect(page.locator("model-viewer")).toHaveCount(0);
-      expect(await page.evaluate(() => customElements.get("model-viewer") === undefined)).toBe(true);
-      runtime.expectClean();
-    });
-
-    test(`${scenario.path} keeps localized insights metrics and charts interactive`, async ({ baseURL, page }) => {
-      const origin = baseURL ?? "http://127.0.0.1:3000";
-      const runtime = observeRuntime(page, origin);
-      const response = await page.goto(scenario.path, { waitUntil: "domcontentloaded" });
-      expect(response?.status()).toBe(200);
-      await expect(page.getByRole("group", { name: scenario.periodsLabel })).toBeVisible();
-      await expectTabContract(page, scenario);
-
-      await page.getByRole("tab", { name: scenario.tabs[2], exact: true }).click();
-      await expect(page.getByRole("group", { name: scenario.periodsLabel })).toBeVisible();
-      for (const heading of scenario.insights) {
-        await expect(page.getByRole("heading", { name: heading, exact: true })).toBeVisible();
-      }
-      await exerciseInsightsMetricSelector(page, scenario);
-      await exercisePeriods(page);
-      await exerciseCharts(page);
-      const insightsPanelMaxHeight = (page.viewportSize()?.width ?? 1280) < 700 ? 460 : 420;
-      for (const panel of await page.locator('[class*="insightsSecondaryGrid"] > section').all()) {
-        const box = await panel.boundingBox();
-        expect(box?.height ?? Number.POSITIVE_INFINITY).toBeLessThan(insightsPanelMaxHeight);
-      }
-      await expectSafeDom(page, scenario);
-      await expect(page.locator("model-viewer")).toHaveCount(0);
-      expect(await page.evaluate(() => customElements.get("model-viewer") === undefined)).toBe(true);
-      runtime.expectClean();
-    });
-
-    test(`${scenario.path} fits every required viewport with mobile touch targets`, async ({ page }) => {
-      for (const viewport of viewports) {
-        await page.setViewportSize(viewport);
-        await page.goto(scenario.path, { waitUntil: "domcontentloaded" });
-        await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(2);
-        if (viewport.width > 430) continue;
-        for (const control of await page.locator('[role="tab"], button[data-demo-period]').all()) {
-          const box = await control.boundingBox();
-          expect(box?.width ?? 0).toBeGreaterThanOrEqual(44);
-          expect(box?.height ?? 0).toBeGreaterThanOrEqual(44);
-        }
-        const availabilityTab = page.getByRole("tab", { name: scenario.tabs[1], exact: true });
-        await expect(availabilityTab).toBeVisible();
-        await availabilityTab.click();
-        for (const control of await page.locator('button[data-demo-filter], [role="switch"]').all()) {
-          const box = await control.boundingBox();
-          expect(box?.width ?? 0).toBeGreaterThanOrEqual(44);
-          expect(box?.height ?? 0).toBeGreaterThanOrEqual(44);
-        }
-      }
-    });
-  }
-
-  test("reduced motion removes chart transitions during a real period change", async ({ page }) => {
-    await page.emulateMedia({ reducedMotion: "reduce" });
-    await page.goto("/apercu-restaurateur", { waitUntil: "domcontentloaded" });
-    const reducedCharts = page.locator('[data-chart-frame] svg[data-reduced-motion="true"]');
-    await expect.poll(() => reducedCharts.count()).toBeGreaterThan(0);
-    await page.locator('button[data-demo-period="7d"]').click();
-    await expect.poll(() => reducedCharts.evaluateAll((elements) => elements.flatMap((element) => element.getAnimations({ subtree: true })).length)).toBe(0);
+      const before = await studio.getAttribute("data-theme");
+      await studio.getByRole("button", {name: /Passer au thème|Switch to .* theme/}).click();
+      await expect(studio).toHaveAttribute("data-theme", before === "dark" ? "light" : "dark");
+      await expect(page.locator("html")).toHaveAttribute("data-vistaire-theme", before === "dark" ? "light" : "dark");
+    }
   });
-});
+}

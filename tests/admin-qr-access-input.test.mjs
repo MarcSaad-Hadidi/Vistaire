@@ -42,14 +42,16 @@ test("rejects external, malformed, unrelated, and oversized QR access input", as
 test("production access form delegates to the existing q exchange without cookies", async () => {
   const route = await readFile("app/(fr)/admin/access/route.ts", "utf8");
   const page = await readFile("app/(fr)/admin/page.tsx", "utf8");
+  const state = await readFile("components/admin/studio/StudioState.tsx", "utf8");
+  assert.match(page, /if \(!access.ok\) return <StudioState kind="access"/);
 
   assert.match(route, /parseAdminQrAccessRequest/);
   assert.doesNotMatch(route, /request\.formData\(\)/);
   assert.match(route, /encodeURIComponent\(token\)/);
   assert.match(route, /status:\s*303/);
   assert.doesNotMatch(route, /cookies\.set|vistaire_admin_access/);
-  assert.match(page, /Code ou lien QR admin/);
-  assert.match(page, /action="\/admin\/access"/);
-  assert.match(page, /Accéder au dashboard/);
-  assert.doesNotMatch(page, /href="\/owner\//);
+  assert.match(state, /Code ou lien QR admin/);
+  assert.match(state, /action="\/admin\/access"/);
+  assert.match(state, /Accéder au dashboard/);
+  assert.doesNotMatch(`${page}\n${state}`, /href="\/owner\//);
 });

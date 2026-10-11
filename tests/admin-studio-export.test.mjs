@@ -170,3 +170,10 @@ test("export dialog uses current scope, local lazy formats and an accessible can
   assert.match(source, /locked\.current/);
   assert.doesNotMatch(source, /Tout l.historique|fetch\(|supabase|\/api\//);
 });
+
+test("public demonstration exports are explicitly synthetic", async () => {
+  const { createStudioExport } = await load();
+  const report = createStudioExport(fixture(), { generatedAt, synthetic: true });
+  assert.equal(report.synthetic, true);
+  assert.ok(report.notes.some((note) => /démonstration/i.test(note)));
+});
