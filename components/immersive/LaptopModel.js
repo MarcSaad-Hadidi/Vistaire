@@ -1,12 +1,16 @@
 import { publicModelBaseUrl, resolvePublicModelUrl } from "../../lib/publicModelAssets.ts";
 import * as THREE from "three";
 import { cinematicEase } from "./SceneDirector.js";
+import { pricingLightTheme, subscribePricingTheme } from "./PricingTheme.js";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { DRACOLoader } from "three/examples/jsm/loaders/DRACOLoader.js";
 import { MeshoptDecoder } from "three/examples/jsm/libs/meshopt_decoder.module.js";
 
 const MODEL_URL = resolvePublicModelUrl("immersive.laptop");
-const SCREEN_URL = "/immersive-assets/dashboard/dashboard-black-gold.webp";
+const SCREEN_URLS = {
+  dark: "/immersive-assets/dashboard/dashboard-black-gold.webp",
+  light: "/immersive-assets/dashboard/dashboard-light.webp",
+};
 const clamp = (value, low = 0, high = 1) =>
   Math.min(high, Math.max(low, Number.isFinite(value) ? value : low));
 
@@ -68,7 +72,10 @@ export function createLaptopModel({
   let framingBounds = new THREE.Box3();
   let mixer = null;
   let action = null;
-  let screenTexture = null;
+  const screenTextures = new Map();
+  const screenPending = new Set();
+  let screenRequested = false;
+  let screenTheme = pricingLightTheme() ? "light" : "dark";
   let originalScreenMaterial = null;
   let currentTime = 0;
   let openingStart = 0;
@@ -116,11 +123,28 @@ export function createLaptopModel({
     model.updateMatrixWorld(true);
   }
 
-  function load() {
-    if (disposed || loading) return loading;
+  function applyScreenTexture(theme, texture) {
+    if (disposed || theme !== screenTheme || screenMaterial.map === texture) return;
+    screenMaterial.map = texture;
+    screenMaterial.color.set(0xffffff);
+    screenMaterial.needsUpdate = true;
+    imageReady = true;
+    if (canvas?.dataset) canvas.dataset.laptopDashboardTheme = theme;
+    notifyReady();
+    // The image may arrive before the model or while the settled scene sleeps.
+    if (!modelReady) onInvalidate?.();
+  }
+  function loadScreen(theme) {
+    if (screenTextures.has(theme)) {
+      applyScreenTexture(theme, screenTextures.get(theme));
+      return;
+    }
+    if (screenPending.has(theme)) return;
+    screenPending.add(theme);
     new THREE.TextureLoader().load(
-      SCREEN_URL,
+      SCREEN_URLS[theme],
       (texture) => {
+        screenPending.delete(theme);
         if (disposed) {
           texture.dispose();
           return;
@@ -132,20 +156,22 @@ export function createLaptopModel({
         }
         texture.flipY = true;
         texture.colorSpace = THREE.SRGBColorSpace;
-        texture.anisotropy = Math.min(
-          8,
-          renderer?.capabilities.getMaxAnisotropy?.() ?? 4,
-        );
-        screenTexture = texture;
-        screenMaterial.map = texture;
-        screenMaterial.color.set(0xffffff);
-        screenMaterial.needsUpdate = true;
-        imageReady = true;
-        notifyReady();
+        texture.anisotropy = Math.min(8, renderer?.capabilities.getMaxAnisotropy?.() ?? 4);
+        screenTextures.set(theme, texture);
+        applyScreenTexture(theme, texture);
       },
       undefined,
-      fail,
+      (error) => { screenPending.delete(theme); if (theme === screenTheme) fail(error); },
     );
+  }
+  const unsubscribeTheme = subscribePricingTheme((light) => {
+    screenTheme = light ? "light" : "dark";
+    if (screenRequested && !disposed) loadScreen(screenTheme);
+  });
+  function load() {
+    if (disposed || loading) return loading;
+    screenRequested = true;
+    loadScreen(screenTheme);
 
     loading = fetch(MODEL_URL, { signal: abort.signal })
       .then((response) => {
@@ -279,6 +305,7 @@ export function createLaptopModel({
   function dispose() {
     if (disposed) return;
     disposed = true;
+    unsubscribeTheme();
     abort.abort();
     // GLTF parsing can reject while Draco's preload is still initializing.
     // Wait only for work already started; cleanup must not fetch the decoder.
@@ -296,7 +323,8 @@ export function createLaptopModel({
       originalScreenMaterial.dispose();
     }
     screenMaterial.dispose();
-    screenTexture?.dispose();
+    for (const texture of screenTextures.values()) texture.dispose();
+    screenTextures.clear();
   }
   return {
     root,

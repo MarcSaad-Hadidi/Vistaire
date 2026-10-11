@@ -524,7 +524,9 @@ function LandingContent() {
             openingAnchor == null
               ? bounds.top + scrollY
               : top + motionTravel * openingAnchor;
-          scrollTargets.current[id] = chapterNavigationTarget({ id, top: sectionTop }, stageHeight, timing);
+          scrollTargets.current[id] = id === "open-weight" && stateRef.current.pricingNavigationTarget
+            ? stateRef.current.pricingNavigationTarget()
+            : chapterNavigationTarget({ id, top: sectionTop }, stageHeight, timing);
           return {
             id,
             top: sectionTop,
@@ -586,9 +588,9 @@ function LandingContent() {
         }
         stateRef.current.cinematicTiming = timing;
       }
-      if (arrivalAnchor != null) {
+      if (arrivalAnchor != null && (arrivalAnchor !== "open-weight" || stateRef.current.pricingNavigationTarget)) {
         if (Object.hasOwn(scrollTargets.current, arrivalAnchor))
-          scrollTo({ top: scrollTargets.current[arrivalAnchor], behavior: "instant" });
+          scrollTo({ top: arrivalAnchor === "open-weight" ? stateRef.current.pricingNavigationTarget() : scrollTargets.current[arrivalAnchor], behavior: "instant" });
         arrivalAnchor = null;
       }
       const y = scrollY;
@@ -809,6 +811,8 @@ function LandingContent() {
     };
     if (initialPace == null) update();
     else queue();
+    const navigateHash = () => { arrivalAnchor = location.hash.slice(1); queue(); };
+    addEventListener("hashchange", navigateHash);
     addEventListener("scroll", queue, { passive: true });
     // ResizeObserver tracks real stage/focus sizes, without measuring the
     // whole page again for toolbar-only resize notifications.
@@ -818,6 +822,7 @@ function LandingContent() {
     document.addEventListener("touchcancel", contactChanged, { passive: true });
     return () => {
       removeEventListener("scroll", queue);
+      removeEventListener("hashchange", navigateHash);
       stopped = true;
       delete paceState.setScrollPace;
       if (paceState.beforeSceneFrame === beforeSceneFrame) delete paceState.beforeSceneFrame;
@@ -910,7 +915,9 @@ function LandingContent() {
     (id) => {
       setMenu(false);
       scrollTo({
-        top: ["hero", "ai", "wearable"].includes(id)
+        top: id === "open-weight" && stateRef.current.pricingNavigationTarget
+          ? stateRef.current.pricingNavigationTarget()
+          : ["hero", "ai", "wearable"].includes(id)
           ? scrollTargets.current[id] ?? 0
           : chapterNavigationTarget({ id, top: (sectionRefs.current[id]?.getBoundingClientRect().top ?? 0) + scrollY }, openingRef.current?.firstElementChild.getBoundingClientRect().height ?? innerHeight, stateRef.current.cinematicTiming),
         behavior: reduce ? "instant" : "smooth",

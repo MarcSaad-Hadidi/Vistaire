@@ -129,6 +129,21 @@ function installProbe() {
       snapshot.phaseWindow = { ...completed };
       return snapshot;
     },
+    pricingReady(section = 'open-weight') {
+      const c = getCanvas(), d = c?.dataset;
+      if (!d || d.ready !== 'true' || d.settled !== 'true' || d.section !== section || !['open-weight', 'footer'].includes(section)) return false;
+      // Baseline-only opaque pricing has no cached-room diagnostic at all.
+      if (d.pricingBackdrop == null) return section === 'open-weight' ? d.suspended === 'true' : d.suspended !== 'true';
+      const presentationReady = section === 'footer'
+        ? d.pricingActive === 'false' && d.suspended === 'true'
+        : d.pricingActive === 'true' && d.pricingHandProgress === '1' &&
+          d.pricingHand === 'fair-photo-shared-3d-phone' &&
+          document.querySelector('.pricing-hand-visual')?.dataset.handReady === 'true';
+      return d.pricingBackdrop === 'ready' && presentationReady &&
+        Number(d.pricingBackdropGeneration) > 0 && Number(d.pricingBackdropWidth) === c.width &&
+        Number(d.pricingBackdropHeight) === c.height &&
+        d.pricingBackdropTheme === (document.documentElement.dataset.vistaireTheme || 'dark');
+    },
     stopDriver() { driverGeneration++; },
     loadingObserved() { return Number.isFinite(readiness.first3DReadyMs) && Number.isFinite(readiness.usableScreenMs); },
     animateScroll({ to, duration }) {
@@ -153,7 +168,8 @@ function installProbe() {
         decodedFrames: v.getVideoPlaybackQuality?.().totalVideoFrames ?? null, droppedFrames: v.getVideoPlaybackQuality?.().droppedVideoFrames ?? null,
       }));
       const data = c ? Object.fromEntries(['ready', 'settled', 'suspended', 'section', 'frames', 'model', 'renderedModel',
-        'support', 'supportReady', 'phoneReady', 'laptopReady', 'phoneRate', 'phoneDemo', 'drawCalls', 'triangles', 'renderCPUms']
+        'support', 'supportReady', 'phoneReady', 'laptopReady', 'phoneRate', 'phoneDemo', 'drawCalls', 'triangles', 'renderCPUms',
+        'pricingActive', 'pricingBackdrop', 'pricingBackdropGeneration', 'pricingBackdropWidth', 'pricingBackdropHeight', 'pricingBackdropTheme', 'pricingBackdropPose', 'pricingHandProgress']
         .map(key => [key, c.dataset[key] ?? null])) : null;
       const s = { name, at: performance.now(), scrollY, visibility: document.visibilityState,
         cssViewport: [innerWidth, innerHeight], canvasCSS: c ? [c.clientWidth, c.clientHeight] : null,
@@ -334,9 +350,10 @@ try {
           throw new Error(`${name}: required decoded video workload was not verified; comparison invalid.`);
       };
       const at = async id => { await page.locator(`#${id}`).evaluate(el => {
-        const stage = el.firstElementChild?.clientHeight || innerHeight;
-        const travel = Math.max(0, el.offsetHeight - stage);
-        scrollTo({ top: el.getBoundingClientRect().top + scrollY + travel * .5, behavior: 'instant' });
+        const region = el.querySelector('.pricing-hero') || el;
+        const stage = region.querySelector('.pricing-hand-visual')?.clientHeight || region.firstElementChild?.clientHeight || innerHeight;
+        const travel = Math.max(0, region.offsetHeight - stage);
+        scrollTo({ top: region.getBoundingClientRect().top + scrollY + travel * .5, behavior: 'instant' });
       });
         await page.waitForFunction(id => document.querySelector('.scene-canvas')?.dataset.section === id && !document.getElementById(id)?.inert, id);
       };
@@ -351,7 +368,8 @@ try {
           const travel = Math.max(1, bounds.height - chapter.firstElementChild.getBoundingClientRect().height);
           const expectedProgress = to === 'hero' ? 0 : Math.min(1, Math.max(0, -bounds.top / travel));
           const processedProgress = Number(canvas.dataset.progress);
-          return Math.abs(scrollY - target) <= 1 && canvas.dataset.ready === 'true' && canvas.dataset.section === to && canvas.dataset.suspended !== 'true' && !chapter.inert
+          const presentationReady = to === 'footer' ? window.__vistaireBenchmark.pricingReady('footer') : canvas.dataset.suspended !== 'true';
+          return Math.abs(scrollY - target) <= 1 && canvas.dataset.ready === 'true' && canvas.dataset.section === to && presentationReady && !chapter.inert
             && Number.isFinite(processedProgress) && Math.abs(processedProgress - expectedProgress) <= 0.00011;
         }, to));
       };
@@ -374,9 +392,15 @@ try {
         await phase(`r${repetition}:phone-video`, async () => {}, 8000);
         await phase(`r${repetition}:pricing-setup`, async () => {
           await at('open-weight');
-          await page.waitForFunction(() => document.querySelector('.scene-canvas')?.dataset.suspended === 'true');
+          await page.waitForFunction(() => window.__vistaireBenchmark.pricingReady());
         });
         await phase(`r${repetition}:pricing-idle`, async () => {}, 8000);
+        const idle = result.cycles.at(-1);
+        const idleWork = result.session.phases.find(phase => phase.name === idle.name);
+        if (idle.startSnapshot.data.frames !== idle.snapshot.data.frames ||
+            (idleWork && (idleWork.webglDrawSubmissions !== 0 || idleWork.sceneCallbackCount !== 0)))
+          throw new Error(`${idle.name}: pricing idle submitted work or kept the scene loop awake.`);
+
       }
       result.workloads.isolated = { status: 'completed', comparable: unexpectedErrors().length === 0, repetitions: 3, requiredPhases: ['idle', 'phone-video', 'pricing-idle'] };
       result.workloads.stress.status = 'in-progress';

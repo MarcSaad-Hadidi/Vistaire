@@ -100,7 +100,74 @@
   display: none;
 }
 .mobileMenu {
+  display: block;
+  margin-left: 0;
+}
+.mobileMenu summary {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 44px;
+  min-height: 44px;
+  padding-inline: 4px;
+  color: var(--public-text);
+  font-size: 16px;
+  list-style: none;
+  cursor: pointer;
+}
+.mobileMenu summary::-webkit-details-marker {
   display: none;
+}
+.mobileMenu summary svg {
+  width: 18px;
+  height: 18px;
+}
+.mobilePanel {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  right: 0;
+  display: grid;
+  padding: 20px 24px;
+  gap: 4px;
+  background: var(--public-surface);
+  border: 1px solid var(--public-blue);
+  border-radius: 10px;
+  max-height: 75svh;
+  overflow: auto;
+  overscroll-behavior: contain;
+}
+.mobilePanel > a {
+  padding-block: 12px;
+  min-height: 44px;
+  text-decoration: none;
+  font-family: "Vistaire Editorial", serif;
+  font-size: 28px;
+  color: var(--public-text);
+}
+.mobilePanel > a[aria-current] {
+  color: var(--public-gold-light);
+}
+.mobileExtras {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px 20px;
+  border-block: 1px solid var(--public-blue);
+  padding-block: 12px;
+  margin-block: 8px;
+}
+.mobileExtras a {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  text-decoration: none;
+  color: var(--public-muted);
+  font-size: 16px;
+}
+.mobilePanel .mobileBooking {
+  font-family: "Vistaire Text", serif;
+  font-size: 18px;
+  color: var(--public-gold);
 }
 .previewFooter {
   position: relative;
@@ -305,76 +372,6 @@
   .navCta {
     display: none;
   }
-  .mobileMenu {
-    display: block;
-    margin-left: 0;
-  }
-  .mobileMenu summary {
-    display: flex;
-    align-items: center;
-    gap: 5px;
-    min-width: 44px;
-    min-height: 44px;
-    padding-inline: 4px;
-    color: var(--public-text);
-    font-size: 16px;
-    list-style: none;
-    cursor: pointer;
-  }
-  .mobileMenu summary::-webkit-details-marker {
-    display: none;
-  }
-  .mobileMenu summary svg {
-    width: 18px;
-    height: 18px;
-  }
-  .mobilePanel {
-    position: absolute;
-    top: calc(100% + 8px);
-    left: 0;
-    right: 0;
-    display: grid;
-    padding: 20px 24px;
-    gap: 4px;
-    background: var(--public-surface);
-    border: 1px solid var(--public-blue);
-    border-radius: 10px;
-    max-height: 75svh;
-    overflow: auto;
-    overscroll-behavior: contain;
-  }
-  .mobilePanel > a {
-    padding-block: 12px;
-    min-height: 44px;
-    text-decoration: none;
-    font-family: "Vistaire Editorial", serif;
-    font-size: 28px;
-    color: var(--public-text);
-  }
-  .mobilePanel > a[aria-current] {
-    color: var(--public-gold-light);
-  }
-  .mobileExtras {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 4px 20px;
-    border-block: 1px solid var(--public-blue);
-    padding-block: 12px;
-    margin-block: 8px;
-  }
-  .mobileExtras a {
-    display: flex;
-    align-items: center;
-    min-height: 44px;
-    text-decoration: none;
-    color: var(--public-muted);
-    font-size: 16px;
-  }
-  .mobilePanel .mobileBooking {
-    font-family: "Vistaire Text", serif;
-    font-size: 18px;
-    color: var(--public-gold);
-  }
   .mobileLanguages {
     display: flex;
     gap: 16px;
@@ -442,4 +439,9 @@
   .navBrand { font-size: 19px; letter-spacing: 0.035em; }
   .mobileMenu summary { font-size: 13px; gap: 3px; }
   .mobileMenu summary svg { width: 14px; height: 14px; }
+}
+
+@media (max-width: 1250px) {
+  .navLinks { display: none; }
+  .navBrand { margin-right: auto; }
 }

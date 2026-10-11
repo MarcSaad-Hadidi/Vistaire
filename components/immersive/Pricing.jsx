@@ -4,6 +4,7 @@ import { ArrowUpRight } from "lucide-react";
 import "./pricing.css";
 import { useLandingLocale } from "./locale.jsx";
 import LandingFaq from "./LandingFaq.jsx";
+import { pricingLightTheme, subscribePricingTheme } from "./PricingTheme.js";
 import { getPricingPage } from "../../lib/pricingPage.ts";
 import { getSeoMarketingImage } from "../../lib/seoMarketingImages.ts";
 import {
@@ -73,6 +74,7 @@ export function PricingPhoneContent({
   scrollWithKeyboard,
 } = {}) {
   const { t, locale, currency, href } = useLandingLocale();
+  const lightTheme = useSyncExternalStore(subscribePricingTheme, pricingLightTheme, () => false);
   const pricing = getPricingPage(locale);
   const monthlyAmount = pricing.monthlyAmount;
   return (
@@ -181,9 +183,9 @@ export function PricingPhoneContent({
                 </h4>
                 <div className="pricing-pilotage-visual">
                   <img
-                    src="/images/demo-walkthrough/dashboard-studio.webp"
-                    width="1168"
-                    height="748"
+                    src={lightTheme ? "/immersive-assets/dashboard/dashboard-light.webp" : "/immersive-assets/dashboard/dashboard-black-gold.webp"}
+                    width="1184"
+                    height="758"
                     decoding="async"
                     alt={
                       locale === "en"
@@ -318,7 +320,8 @@ export default function Pricing({ collection, stateRef }) {
       asideRef.current,
     );
     presenterRef.current = presenter;
-    Object.assign(state, { pricingIntro: intro, pricingStage: visual });
+    const navigationTarget = () => pricingPagePosition(intro.getBoundingClientRect().top + window.scrollY, 0, layoutRef.current);
+    Object.assign(state, { pricingIntro: intro, pricingStage: visual, pricingNavigationTarget: navigationTarget });
     const syncScroll = (
       pageY = window.scrollY,
       top = state.pricingSectionTop ?? sectionTop,
@@ -425,6 +428,7 @@ export default function Pricing({ collection, stateRef }) {
       disposed = true;
       cancelAnimationFrame(measureFrame);
       observer.disconnect();
+      if (state.pricingNavigationTarget === navigationTarget) delete state.pricingNavigationTarget;
       if (state.pricingIntro === intro) delete state.pricingIntro;
       if (state.pricingStage === visual) delete state.pricingStage;
       if (presenterRef.current === presenter) {

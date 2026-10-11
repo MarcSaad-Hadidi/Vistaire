@@ -829,3 +829,28 @@ test("public theme skips animation for reduced motion and unsupported browsers",
   await expect(page.locator("html")).not.toHaveAttribute("data-vistaire-theme-transition");
   expect(errors).toEqual([]);
 });
+
+for (const [width, path, target, label] of [
+  [1440, '/a-propos', '/apercu-restaurateur', 'Aperçu restaurateur'],
+  [390, '/en/about', '/en/restaurant-preview', 'Restaurant preview'],
+] as const) {
+  test(`public Menu remains reachable through routes, themes and history at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({width,height:900});
+    await page.emulateMedia({reducedMotion:'reduce'});
+    await page.goto(path);
+    const nav=topNavigation(page), menu=nav.locator('details'), trigger=menu.locator('summary');
+    await expect(trigger).toBeVisible();
+    await trigger.focus();await page.keyboard.press('Enter');await expect(menu).toHaveAttribute('open','');
+    await page.keyboard.press('Escape');await expect(menu).not.toHaveAttribute('open');await expect(trigger).toBeFocused();
+    await nav.locator('[data-public-theme-toggle]').click();
+    await trigger.click();
+    await menu.getByRole('link',{name:label,exact:true}).click();
+    await expect(page).toHaveURL(new RegExp(`${target}$`));
+    await expect(topNavigation(page).locator('summary')).toBeVisible();
+    await expect(topNavigation(page).locator('details')).not.toHaveAttribute('open');
+    await expect(page.locator('html')).toHaveAttribute('data-vistaire-theme','light');
+    await page.goBack();await expect(page).toHaveURL(new RegExp(`${path}$`));
+    await expect(topNavigation(page).locator('summary')).toBeVisible();
+    expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+  });
+}

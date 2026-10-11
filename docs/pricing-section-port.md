@@ -27,7 +27,7 @@ The existing cinematic scheduler, main camera, restaurant assets/geometry, table
 
 ## Reused images
 
-The four offer photos remain the current `HOME:pricing:*` marketing assets. Pilotage reuses the approved genuine public-demo Studio screenshot at `/images/demo-walkthrough/dashboard-studio.webp`, with an explicit fictional-demonstration-data label. It does not mount an admin dashboard or expose private restaurant data. The checkpoint's separate code-rendered Studio illustrations are not imported.
+The four offer photos remain the current `HOME:pricing:*` marketing assets. Pilotage reuses the approved genuine public-demo Studio screenshot from matched v29 light/dark captures under `/immersive-assets/dashboard/`, with an explicit fictional-demonstration-data label. It does not mount an admin dashboard or expose private restaurant data. The checkpoint's separate code-rendered Studio illustrations are not imported.
 
 ## Reading and interaction contract
 
@@ -62,8 +62,25 @@ quantizing the linear HDR room into an unverified 8-bit texture. Existing contex
 loss behavior falls back to the video/semantic presentation; automatic WebGL
 restoration is not claimed.
 
-External on-photo text retains light readable tokens and a translucent dark
-surface in either theme; the phone keeps its own light/dark surface. Browser
+External on-photo panels now follow the selected theme: ivory panels and dark
+text in light mode, translucent dark panels and cream text in dark mode. The
+phone and dashboard still use the same selected theme. Browser
 projection, theme, input and visual acceptance remain hosted checks. The earlier
 restaurant file savings do not establish a net GPU-memory or FPS improvement
 for this different lower-section design.
+
+## Screenshot feedback follow-up
+
+The v29 overview stills were extracted from genuine settled light/dark frames
+of the approved public demo on 2026-10-11. They show the same synthetic 30-day
+period and the single date control. Each is 1184×758, WebP quality86: dark
+54,136 bytes; light51,866 bytes. Only the selected laptop theme is requested on
+demand; decoded captures are reused on repeat toggles and disposed on teardown.
+No recorded video is recolored or replaced by this change.
+
+Tarifs now resolves the actual measured phone reading start for button and hash
+navigation, including arrival before the portal is ready. The transparent main
+wrapper yields hit testing to the visible phone portal without changing visual
+stacking. Browser regression checks retain real trial clicks and add native
+normal-motion anchors/history, theme-matched laptop images and public Menu
+access after route changes.

@@ -75,3 +75,10 @@ The genuine sequence covers date choices, chart metric/tooltip/legend/table/enla
 On `4ef9eaf`, hosted Chromium passed QR 7/7 and Studio 9/9. WebKit passed eight Studio scenarios and all 49 public scenarios, including the earlier film's FR/EN playback tests; its long 1440px combined scenario reached the overall 30-second deadline near the final filters. The next tests separate navigation/evidence from dish filtering at each width, retaining all assertions and the existing timeout. English fixture copy is also corrected to honor the existing pricing no-dash rule without removing that browser assertion.
 
 The replacement video's layout/autoplay and the split WebKit scenarios still require hosted validation on their new commit. Landing geometry/runtime optimizations are being handled separately and are excluded from this video checkpoint.
+
+### Current landing illustrations (v29)
+The laptop and offers stills now use matched genuine light/dark v29 overview
+frames at 1184×758, captured from the same synthetic 30-day period. The dark
+path is retained; `dashboard-light.webp` is selected only for the light site
+theme. This supersedes the prior v28 illustration note above and does not
+change the separately reviewed walkthrough video.

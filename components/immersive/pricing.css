@@ -600,8 +600,7 @@ html[data-vistaire-theme="light"]
 }
 
 
-/* The real approved Studio capture keeps its own dark interface in either
-   marketing theme; it is a read-only preview, never a mounted admin screen. */
+/* The current approved Studio still follows the marketing theme. */
 :where([data-immersive-vistaire]) .pricing .pricing-offer-price small {
   display: block;
   margin-bottom: 4px;
@@ -624,7 +623,7 @@ html[data-vistaire-theme="light"]
 :where([data-immersive-vistaire]) .pricing-aside-layer,
 :where([data-immersive-vistaire]) .pricing .landing-faq,
 :where([data-immersive-vistaire]) .chapter.footer {
-  color: var(--public-text);
+  --pricing-panel: #111110b3;
   --public-text: #f8f3e8;
   --public-black: #050505;
   --public-focus: #ffd60a;
@@ -639,13 +638,13 @@ html[data-vistaire-theme="light"]
 :where([data-immersive-vistaire]) .pricing-aside-actions {
   padding: 20px;
   border-radius: 10px;
-  background: #111110b3;
+  background: var(--pricing-panel);
 }
 :where([data-immersive-vistaire]) .pricing .landing-faq {
   padding: 48px 28px;
   margin-bottom: 48px;
   border-radius: 12px;
-  background: #111110b3;
+  background: var(--pricing-panel);
 }
 html[data-vistaire-theme] :where([data-immersive-vistaire]) .chapter.footer > .stage,
 :where([data-immersive-vistaire]) .chapter.footer > .stage {
@@ -655,7 +654,7 @@ html[data-vistaire-theme] :where([data-immersive-vistaire]) .chapter.footer > .s
   align-content: center;
   gap: 28px;
   padding: 48px var(--pad) 28px;
-  background: #111110b3;
+  background: var(--pricing-panel);
 }
 :where([data-immersive-vistaire]) .chapter.footer [data-footer-navigation],
 :where([data-immersive-vistaire]) .chapter.footer .footer-grid,
@@ -677,4 +676,22 @@ html[data-vistaire-theme] :where([data-immersive-vistaire]) .chapter.footer > .s
   :where([data-immersive-vistaire]) .pricing-aside-actions {
     padding: 12px;
   }
+}
+
+/* Light on-photo surfaces follow the site theme. */
+html[data-vistaire-theme="light"] :where([data-immersive-vistaire]) :is(.pricing-aside-layer, .pricing .landing-faq, .chapter.footer) {
+  --pricing-panel: #fffcf5f2;
+  --public-text: #28251f;
+  --public-black: #fffaf0;
+  --public-focus: #6d5008;
+  --public-muted: #625b50;
+  --public-muted-soft: #706759;
+  --public-gold: #80600d;
+  --public-gold-light: #6d5008;
+  --public-on-accent: #fffaf0;
+}
+
+/* The transparent main wrapper must not intercept the phone portal's links. */
+:where([data-immersive-vistaire]):has(.world[data-pricing-active="true"]) > main {
+  pointer-events: none;
 }

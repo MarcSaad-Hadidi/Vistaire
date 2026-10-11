@@ -94,3 +94,12 @@ test("theme animation degrades to an immediate choice and cleans up failed trans
     assert.equal(context.exports.getPublicTheme(), "dark", `${scenario} releases the guard`);
   }
 });
+
+test("the existing public Menu disclosure is available above the mobile breakpoint", async () => {
+  const css = await readFile("components/vistaire-preview/VistairePreviewChrome.module.css", "utf8");
+  const base = css.split("@media (max-width: 1100px)")[0];
+  assert.match(base, /\.mobileMenu\s*\{[^}]*display: block/s);
+  assert.match(base, /\.mobilePanel\s*\{[^}]*max-height: 75svh/s);
+  const chrome = await readFile("components/vistaire-preview/VistairePreviewChrome.tsx", "utf8");
+  assert.match(chrome, /href: routes\.pdfVsDigital/);
+});

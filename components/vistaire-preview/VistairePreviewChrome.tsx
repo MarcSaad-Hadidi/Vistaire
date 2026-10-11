@@ -252,6 +252,7 @@ export function PreviewNav({
           label: locale === "en" ? "Table QR codes" : "Supports QR",
         },
         { href: routes.menu3dAr, label: "3D / AR" },
+        { href: routes.pdfVsDigital, label: locale === "en" ? "PDF vs digital menu" : "PDF ou menu digital" },
         {
           href: routes.restaurateurDashboard,
           label: locale === "en" ? "Restaurant preview" : "Aperçu restaurateur",

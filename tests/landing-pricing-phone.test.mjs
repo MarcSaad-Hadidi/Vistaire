@@ -128,7 +128,8 @@ test('compact footer and external copy retain an on-photo contrast surface in ei
   assert.doesNotMatch(scoped, /\.pricing-phone-screen/);
   assert.match(scoped, /grid-template-rows: auto auto auto/);
   assert.match(scoped, /min-height: calc\(100 \* var\(--journey-vh/);
-  assert.match(scoped, /background: #111110b3/);
+  assert.match(scoped, /--pricing-panel: #111110b3/);
+  assert.match(scoped, /background: var\(--pricing-panel\)/);
 });
 
 test('on-photo text meets normal-text contrast even over a white room pixel', () => {
@@ -141,4 +142,18 @@ test('on-photo text meets normal-text contrast even over a white room pixel', ()
     assert.ok(match, token);
     assert.ok((luminance(rgb(match[1])) + .05) / (luminance(backdrop) + .05) >= 4.5, token);
   }
+});
+
+test('Tarifs uses the measured reading start after the hand entrance in all layouts', async () => {
+  const { pricingScrollLayout, pricingPagePosition } = await import('../components/immersive/PricingPhoneLayout.js');
+  for (const height of [390, 844, 900, 932]) for (const reduced of [false, true]) {
+    const layout=pricingScrollLayout(height,2400,530,.7,reduced);
+    const target=pricingPagePosition(12000,0,layout);
+    assert.equal(target,12000+layout.readingStart);
+    assert.ok(target>=12000+layout.entry);
+  }
+  const pricing=readFileSync('components/immersive/Pricing.jsx','utf8');
+  assert.match(pricing,/pricingNavigationTarget/);
+  const app=readFileSync('components/immersive/App.jsx','utf8');
+  assert.ok((app.match(/pricingNavigationTarget/g)||[]).length>=2,'initial hashes and button navigation share the measured target');
 });

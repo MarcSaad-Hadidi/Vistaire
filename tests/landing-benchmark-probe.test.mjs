@@ -4,7 +4,7 @@ import test from 'node:test';
 import vm from 'node:vm';
 
 // Exercise the exact browser probe without launching a browser or GPU process.
-function probeFixture(canvas = null) {
+function probeFixture(canvas = null, hand = { dataset: { handReady: 'true' } }) {
   const source = readFileSync(process.env.VISTAIRE_BENCHMARK_SOURCE || 'scripts/benchmark-landing.mjs', 'utf8');
   const start = source.indexOf('function installProbe()');
   const end = source.indexOf('\n\nconst sleep', start);
@@ -19,7 +19,7 @@ function probeFixture(canvas = null) {
   const window = { requestAnimationFrame(callback) { rafs.push(callback); } };
   const scope = {
     window,
-    document: { querySelector: selector => selector === '.scene-canvas' ? canvas : null, querySelectorAll: () => [], createElement: name => ({ tagName: name.toUpperCase() }), documentElement: { dataset: {} }, hidden: false, visibilityState: 'visible' },
+    document: { querySelector: selector => selector === '.scene-canvas' ? canvas : selector === '.pricing-hand-visual' ? hand : null, querySelectorAll: () => [], createElement: name => ({ tagName: name.toUpperCase() }), documentElement: { dataset: {} }, hidden: false, visibilityState: 'visible' },
     performance: { now: () => now, setResourceTimingBufferSize() {}, getEntriesByType: () => [] },
     PerformanceObserver: Observer, navigator: {}, matchMedia: () => ({ matches: false }),
     innerWidth: 1440, innerHeight: 900, scrollY: 0, devicePixelRatio: 1,
@@ -234,4 +234,34 @@ test('visible lower backdrop reuse requires a current proven capture, not a blan
     {pricingBackdropTheme: 'light'}, {pricingBackdropPose: 'hero:old'}, {pricingBackdropPose: 'pricing-entry:NaN:050505'},
   ]) assert.equal(hasReadyPricingBackdrop({...data, ...patch}, [390, 844], 'dark'), false, JSON.stringify(patch));
   assert.equal(hasReadyPricingBackdrop(data, [390, 844], 'light'), false);
+});
+
+test('pricing idle requires the current ready cache and preserves legacy opaque-baseline comparison', () => {
+  const canvas={width:1440,height:900,dataset:{ready:'true',settled:'true',section:'open-weight',suspended:'false',pricingActive:'true',pricingBackdrop:'ready',pricingBackdropGeneration:'1',pricingBackdropWidth:'1440',pricingBackdropHeight:'900',pricingBackdropTheme:'dark',pricingHandProgress:'1',pricingHand:'fair-photo-shared-3d-phone'}};
+  const {probe}=probeFixture(canvas);assert.equal(typeof probe.pricingReady,'function');assert.equal(probe.pricingReady(),true);
+  for(const [key,bad] of [['settled','false'],['pricingBackdrop','unavailable'],['pricingBackdropGeneration','0'],['pricingBackdropWidth','1439'],['pricingBackdropTheme','light'],['pricingHandProgress','.5'],['pricingHand','fallback'],['pricingHand','loading']]){
+    const prior=canvas.dataset[key];canvas.dataset[key]=bad;assert.equal(probe.pricingReady(),false,key);canvas.dataset[key]=prior;
+  }
+  assert.equal(probeFixture(canvas,{dataset:{handReady:'false'}}).probe.pricingReady(),false,'the actual projected hand must be ready before an idle workload');
+  canvas.dataset={ready:'true',settled:'true',section:'open-weight',suspended:'true'};assert.equal(probe.pricingReady(),true);
+  const source=readFileSync('scripts/benchmark-landing.mjs','utf8');assert.match(source,/pricing idle submitted work/);
+});
+
+test('benchmark pricing and footer endpoints match the real held-phone and cached-room layout', () => {
+  const source=readFileSync('scripts/benchmark-landing.mjs','utf8');
+  const start=source.indexOf('      const at = async id =>');
+  const end=source.indexOf('      const scroll = async',start);
+  let destination;
+  const hero={offsetHeight:5000,firstElementChild:{clientHeight:900},getBoundingClientRect:()=>({top:10000}),querySelector:()=>({clientHeight:900})};
+  const chapter={offsetHeight:6000,firstElementChild:{clientHeight:6000},getBoundingClientRect:()=>({top:10000}),querySelector:()=>hero};
+  const scope={innerHeight:900,scrollY:0,scrollTo:options=>{destination=options.top;},page:{locator:()=>({evaluate:async fn=>fn(chapter)}),waitForFunction:async()=>{}}};
+  vm.runInNewContext(`${source.slice(start,end)}; this.at=at;`,scope);
+  return scope.at('open-weight').then(()=>{
+    assert.equal(destination,12050,'normal-motion idle must be inside the phone reading span, not its entry boundary');
+    const canvas={width:1440,height:900,dataset:{ready:'true',settled:'true',section:'footer',suspended:'true',pricingActive:'false',pricingBackdrop:'ready',pricingBackdropGeneration:'1',pricingBackdropWidth:'1440',pricingBackdropHeight:'900',pricingBackdropTheme:'dark'}};
+    const {probe}=probeFixture(canvas);
+    assert.equal(probe.pricingReady('footer'),true,'a visible current cached footer is a valid processed endpoint');
+    canvas.dataset.pricingBackdrop='released';assert.equal(probe.pricingReady('footer'),false);
+    assert.match(source,/to === 'footer'[^\n]+pricingReady\('footer'\)/);
+  });
 });

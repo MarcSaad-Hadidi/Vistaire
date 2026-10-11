@@ -18,8 +18,8 @@ const profiles = [
   { label: 'desktop-fr', width: 1440, height: 900, path: '/' },
 ] as const;
 
-async function openScene(page: Page, path = '/', anchor = '') {
-  await page.emulateMedia({ reducedMotion: 'reduce' });
+async function openScene(page: Page, path = '/', anchor = '', reducedMotion: 'reduce' | 'no-preference' = 'reduce') {
+  await page.emulateMedia({ reducedMotion });
   await page.goto(`${path}?sceneDiagnostics=1${anchor}`, { waitUntil: 'domcontentloaded' });
   await expect(page.locator('.scene-canvas')).toHaveAttribute('data-ready', 'true', { timeout: ASSET_READY_MS });
   await expect(page.locator('.preloader')).toHaveCount(0, { timeout: HAND_READY_MS });
@@ -39,7 +39,7 @@ async function geometry(page: Page) {
 
 async function scrollPage(page: Page, top: number) {
   await page.evaluate(y => scrollTo({ top: y, behavior: 'instant' }), top);
-  await expect.poll(() => page.evaluate(() => scrollY), { timeout: 15_000 }).toBeCloseTo(top, 0);
+  await expect.poll(() => page.evaluate(target => Math.abs(scrollY - target), top), { timeout: 15_000 }).toBeLessThanOrEqual(1);
 }
 
 async function handReady(page: Page) {
@@ -133,8 +133,9 @@ async function assertOnPhotoContrast(page: Page, selector: string) {
     const style = getComputedStyle(el);
     return { color: style.color, text: style.getPropertyValue('--public-text').trim() };
   });
-  expect(values.text.toLowerCase()).toBe('#f8f3e8');
-  expect(values.color).toBe('rgb(248, 243, 232)');
+  const light = await page.locator('html').getAttribute('data-vistaire-theme') === 'light';
+  expect(values.text.toLowerCase()).toBe(light ? '#28251f' : '#f8f3e8');
+  expect(values.color).toBe(light ? 'rgb(40, 37, 31)' : 'rgb(248, 243, 232)');
 }
 
 for (const profile of profiles) {
@@ -181,6 +182,7 @@ for (const profile of profiles) {
         const surface = await phone.evaluate(el => getComputedStyle(el).backgroundColor);
         expect(surface).toBe('rgb(255, 252, 245)');
       }
+      await expect(phone.locator('.pricing-pilotage-visual img')).toHaveAttribute('src', theme === 'light' ? '/immersive-assets/dashboard/dashboard-light.webp' : '/immersive-assets/dashboard/dashboard-black-gold.webp');
       await assertOnPhotoContrast(page, '.pricing-aside-layer');
       await assertNoOverflow(page);
       await screenshot(page, info, `${profile.label}-${theme}-offers`);
@@ -333,4 +335,44 @@ test('an unavailable hand keeps all offers and keyboard access in the semantic f
   await expect(page.locator('.landing-faq')).toBeInViewport();
   await expect(page.locator('.landing-faq [data-faq-ask-input]')).toBeVisible();
   await assertNoOverflow(page);
+});
+
+for (const profile of [{width:390,height:844,path:'/en',label:'Pricing'}, {width:1440,height:900,path:'/',label:'Tarifs'}]) {
+  test(`${profile.width}px normal-motion pricing links finish the hand entrance and preserve history`, async ({page},info)=>{
+    test.setTimeout(240_000);
+    await page.setViewportSize({ width: profile.width, height: profile.height });
+    await openScene(page,profile.path,'#open-weight','no-preference');
+    await handReady(page);
+    await expect.poll(()=>page.locator('.pricing-phone-viewport').evaluate(el=>el.scrollTop)).toBeLessThanOrEqual(1);
+    await page.evaluate(()=>{location.hash='hero';});
+    await expect(page.locator('.scene-canvas')).toHaveAttribute('data-pricing-backdrop','released');
+    await page.goBack();
+    await handReady(page);
+    await page.setViewportSize({width:profile.width===390?430:1337,height:profile.height});
+    await scrollPage(page,0);
+    await expect(page.locator('.scene-canvas')).toHaveAttribute('data-pricing-backdrop','released');
+    if(profile.width===390){
+      await page.locator('.site-header .menu-toggle').click();
+      await page.locator('#mobile-menu').getByRole('button',{name:profile.label,exact:true}).click();
+    }else await page.locator('.desktop-nav').getByRole('button',{name:profile.label,exact:true}).click();
+    await handReady(page);
+    await expect.poll(()=>page.locator('.pricing-phone-viewport').evaluate(el=>el.scrollTop)).toBeLessThanOrEqual(1);
+    await assertProjection(page);
+    await screenshot(page,info,`pricing-navigation-${profile.width}`);
+  });
+}
+
+test('the laptop uses the current dashboard capture in the selected site theme',async({page},info)=>{
+  test.setTimeout(210_000);
+  await page.addInitScript(()=>localStorage.setItem('vistaire-public-theme','light'));
+  await page.setViewportSize({width:1440,height:900});
+  await openScene(page);
+  await page.locator('#sustainability').evaluate(el=>scrollTo({top:el.getBoundingClientRect().top+scrollY+innerHeight*.5,behavior:'instant'}));
+  const canvas=page.locator('.scene-canvas');
+  await expect(canvas).toHaveAttribute('data-laptop-ready','true',{timeout:ASSET_READY_MS});
+  await expect(canvas).toHaveAttribute('data-laptop-dashboard-theme','light');
+  await screenshot(page,info,'current-dashboard-laptop-light');
+  await page.locator('.site-header [data-public-theme-toggle]').click();
+  await expect(canvas).toHaveAttribute('data-laptop-dashboard-theme','dark');
+  await screenshot(page,info,'current-dashboard-laptop-dark');
 });
