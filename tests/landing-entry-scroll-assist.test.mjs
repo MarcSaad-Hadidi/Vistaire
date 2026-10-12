@@ -824,3 +824,43 @@ test('sustained 83ms and 100ms cadence eventually arrives using bounded logical 
     f.assist.dispose();
   }
 });
+
+test('real touch orderings keep one native gesture: scroll before first touchmove, zero-delta packets and coalesced earlier scroll stamps', () => {
+  const sequences = {
+    'scroll-before-first-touchmove': (f, target) => {
+      f.input('touchstart', { touches: [{ clientY: 200 }] });
+      f.advance(8); f.move(target - 980);
+      f.advance(8); f.input('touchmove', { touches: [{ clientY: 170 }] });
+    },
+    'zero-delta-touch-packet': (f, target) => {
+      f.input('touchstart', { touches: [{ clientY: 200 }] });
+      f.advance(8); f.input('touchmove', { touches: [{ clientY: 180 }] }); f.move(target - 980);
+      f.advance(8); f.input('touchmove', { touches: [{ clientY: 180 }] });
+      f.advance(8); f.move(target - 960);
+    },
+    'coalesced-scroll-before-last-touchmove': (f, target) => {
+      f.input('touchstart', { touches: [{ clientY: 200 }] });
+      f.advance(8); f.input('touchmove', { touches: [{ clientY: 180 }] });
+      f.advance(16); f.input('touchmove', { touches: [{ clientY: 160 }] });
+      f.view.scrollY = target - 960; f.emit(f.view, 'scroll', { target: f.document, timeStamp: f.now() - 10 });
+    },
+  };
+  for (const [name, sequence] of Object.entries(sequences)) {
+    const f = fixture({ mode: 'early', diagnostics: true }), target = f.bounds.transitions[0].end;
+    f.view.scrollY = target - 1000;
+    sequence(f, target);
+    f.advance(8); f.input('touchend', { touches: [] }); f.end(); f.advance(30000);
+    assert.equal(f.view.scrollY, target, `${name}: the released touch completes its adjacent stop`);
+    assert.equal(f.reports.filter(row => row.type === 'handoff').length, 1, name);
+    f.assist.dispose();
+  }
+  // A scroll left over from earlier opposite inertia is not evidence for the new touch direction.
+  const f = fixture({ mode: 'early' }), target = f.bounds.transitions[0].end;
+  f.view.scrollY = target - 1000;
+  f.input('touchstart', { touches: [{ clientY: 200 }] });
+  f.move(target - 1010);
+  f.input('touchmove', { touches: [{ clientY: 170 }] });
+  f.input('touchend', { touches: [] }); f.end(); f.advance(30000);
+  assert.equal(f.calls.length, 0);
+  f.assist.dispose();
+});

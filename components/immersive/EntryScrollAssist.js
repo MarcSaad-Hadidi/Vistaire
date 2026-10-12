@@ -62,6 +62,7 @@ export function createEntryScrollAssist({ getGeometry, isBlocked }, view = windo
   let lastYAt = view.performance.now();
   let timer = null;
   let touchY = null;
+  let touchStart = null;
   let touching = false;
   let heldKey = null;
   let disposed = false;
@@ -316,8 +317,18 @@ export function createEntryScrollAssist({ getGeometry, isBlocked }, view = windo
     // A final subpixel packet must not erase actual document movement in this
     // unsettled gesture. Settlement/cancellation still consumes it entirely.
     gesture = !baseline && previous ? previous : { type: event.type, direction, scrolled: Boolean(continued) };
-    gesture.at = view.performance.now(); gesture.inputAt = event.timeStamp; gesture.pendingScroll = pendingScroll;
-    if (!baseline) gesture.nativeEnded = false;
+    // A continuing gesture keeps its first input time; a touch gesture starts at
+    // touchstart because coalesced native scroll can be stamped before a later
+    // touchmove, or arrive before the first touchmove at all.
+    gesture.at = view.performance.now(); gesture.pendingScroll = pendingScroll;
+    gesture.inputAt = !baseline && previous ? previous.inputAt
+      : !baseline && event.type === "touchmove" && touchStart ? touchStart.at : event.timeStamp;
+    if (!baseline) {
+      gesture.nativeEnded = false;
+      // Document movement already in this touch's direction is its native motion.
+      if (event.type === "touchmove" && touchStart && Math.sign(view.scrollY - touchStart.y) === direction)
+        gesture.scrolled = true;
+    }
     if (diagnostics) report("intent-accepted", event, { direction });
     quiet(); observe();
   };
@@ -345,6 +356,7 @@ export function createEntryScrollAssist({ getGeometry, isBlocked }, view = windo
     touching = event.touches.length > 0;
     touchY = event.isTrusted && event.touches.length === 1 && !blocked() && !controlled(event.target)
       ? event.touches[0].clientY : null;
+    touchStart = touchY != null ? { at: event.timeStamp, y: view.scrollY } : null;
     if (diagnostics) report("touch-start", event, { accepted: touchY != null, reason: touchY != null ? null : !event.isTrusted ? "untrusted" : event.touches.length !== 1 ? "touch-count" : blockedReason || "control-target" });
   };
   const touchmove = event => {
@@ -353,19 +365,25 @@ export function createEntryScrollAssist({ getGeometry, isBlocked }, view = windo
       cancel("invalid-touch-move", event); touchY = null; return;
     }
     const y = event.touches[0].clientY;
+    // A packet without vertical change carries no new intent; it must not
+    // erase the gesture (horizontal jitter, duplicate coalesced packets).
+    if (y === touchY && !baseline) {
+      if (diagnostics) report("touch-still", event);
+      return;
+    }
     intent(event, Math.sign(touchY - y));
     touchY = y;
   };
   const touchend = event => {
     touching = event.touches.length > 0;
     if (!touching) {
-      touchY = null;
+      touchY = null; touchStart = null;
       if (!baseline && gesture) gesture.at = view.performance.now();
       quiet(); observe();
     }
     if (diagnostics) report("touch-release", event);
   };
-  const reset = source => { cancel(source); touching = false; touchY = null; heldKey = null; pointerHeld = false; };
+  const reset = source => { cancel(source); touching = false; touchY = null; touchStart = null; heldKey = null; pointerHeld = false; };
   const pointerdown = event => { pointerHeld = true; cancel(event); };
   const pointerup = () => {
     pointerHeld = false;
