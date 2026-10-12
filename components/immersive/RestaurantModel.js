@@ -1,5 +1,6 @@
 import { publicModelBaseUrl, resolvePublicModelUrl } from "../../lib/publicModelAssets.ts";
 import * as THREE from "three";
+import { applyLinearRestaurantFog } from "./RestaurantFog.js";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { DRACOLoader } from "three/examples/jsm/loaders/DRACOLoader.js";
 import { createRestaurantJourney } from "./RestaurantWorld";
@@ -85,6 +86,7 @@ export function createRestaurantModel(
         for (const material of Array.isArray(object.material)
           ? object.material
           : [object.material]) {
+          applyLinearRestaurantFog(material);
           for (const texture of Object.values(material))
             if (texture?.isTexture)
               texture.anisotropy = Math.min(

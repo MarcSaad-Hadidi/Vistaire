@@ -8,6 +8,8 @@ function viewport({ width = 390, height = 844, touch = false } = {}) {
   const classes = new Set();
   const listeners = new Map();
   const probes = [];
+  let probeResize;
+  let disconnected = false;
   const root = {
     get clientWidth() { return state.width; },
     style: { setProperty: (name, value) => properties.set(name, value), removeProperty: name => properties.delete(name) },
@@ -15,6 +17,7 @@ function viewport({ width = 390, height = 844, touch = false } = {}) {
   };
   const view = {
     get innerHeight() { return state.height; },
+    ResizeObserver: class { constructor(callback) { probeResize = callback; } observe() {} disconnect() { disconnected = true; } },
     document: { documentElement: root, body: { append: probe => probes.push(probe) },
       createElement: () => ({ style: {}, getBoundingClientRect() { return { height: this.style.cssText.includes('100svh') ? state.small : state.large }; }, remove() { this.removed = true; } }),
     },
@@ -24,6 +27,7 @@ function viewport({ width = 390, height = 844, touch = false } = {}) {
   };
   return { view, properties, classes, listeners, probes,
     resize(next) { Object.assign(state, { ...next, small: next.small ?? next.height, large: next.large ?? next.height }); listeners.get('resize')?.(); },
+    updateProbes(small, large = small) { state.small = small; state.large = large; if (!disconnected) probeResize?.(); },
     dimensions() { return [properties.get('--vistaire-journey-vh'), properties.get('--vistaire-scene-vh')]; },
   };
 }
@@ -68,4 +72,22 @@ test('touch toolbar-only changes freeze geometry; true width/orientation changes
   assert.ok(page.probes.every(probe => probe.removed));
   page.resize({ width: 430, height: 932 });
   assert.equal(page.properties.size, 0, 'cleanup leaves no live resize writer');
+});
+
+
+test('touch orientation refreshes after delayed svh/lvh resolution without another window resize', () => {
+  const page = viewport({ touch: true });
+  const release = bindJourneyViewport(page.view);
+  page.resize({ width: 844, height: 390, small: 844, large: 844 });
+  page.updateProbes(390);
+  assert.deepEqual(page.dimensions(), ['3.9px', '3.9px']);
+  page.resize({ width: 390, height: 844, small: 390, large: 390 });
+  page.updateProbes(800, 390);
+  page.updateProbes(800, 844);
+  assert.deepEqual(page.dimensions(), ['8px', '8.44px']);
+  page.updateProbes(730, 800);
+  assert.deepEqual(page.dimensions(), ['8px', '8.44px'], 'toolbar probe changes remain frozen after the orientation has resolved');
+  release();
+  page.updateProbes(900);
+  assert.equal(page.properties.size, 0, 'disconnected observer cannot write after teardown');
 });

@@ -128,6 +128,7 @@ test("App publishes each complete scroll and control batch before one scene wake
   vm.runInNewContext(source.slice(controlStart, controlEnd), {
     stateRef, collection: "signature", phoneDemo: "trouvable", supportAngle: 90, flip: true,
     drag: 0.8, dishZoom: 2, dish: "sushi", reduce: true, modal: {}, menu: true, retryModel: 2,
+    arStatus: "idle", ready: true, gpuError: false,
   });
   assert.equal(wakes.length, 2);
   assert.equal(wakes[1].collection, "signature");
@@ -136,6 +137,8 @@ test("App publishes each complete scroll and control batch before one scene wake
   assert.equal(wakes[1].reducedMotion, true);
   assert.equal(wakes[1].modalOpen, true);
   assert.equal(wakes[1].retryModel, 2);
+  assert.equal(wakes[1].arActive, false);
+  assert.equal(wakes[1].sceneReady, true);
 });
 
 async function hrefFor(locale) {

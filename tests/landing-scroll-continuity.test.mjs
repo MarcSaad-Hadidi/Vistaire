@@ -190,6 +190,7 @@ test('opening measurements use untransformed layout height without rounding frac
     const opening = vm.runInNewContext(reader, {
       openingRef: { current: { firstElementChild: stage, getBoundingClientRect: () => ({ top: -42284, height: 8440 }) } },
       scrollY: 42284,
+      entryAssist: undefined,
       world: { clientHeight: 844 },
       getComputedStyle: element => {
         assert.equal(element, stage);

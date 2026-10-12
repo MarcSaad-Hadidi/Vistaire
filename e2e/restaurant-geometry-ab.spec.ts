@@ -127,8 +127,7 @@ async function samplePlan(page: Page) {
   }, { timing: CINEMATIC_TIMING, entryViewports: PRICING_ENTRY_VIEWPORTS });
 }
 
-async function at(page: Page, y: number) {
-  await page.evaluate(target => scrollTo({ top: target, behavior: 'instant' }), y);
+async function waitForRenderedReady(page: Page) {
   await page.waitForFunction(entryViewports => {
     const canvas = document.querySelector<HTMLCanvasElement>('.scene-canvas');
     const opening = document.querySelector<HTMLElement>('.opening-journey');
@@ -157,17 +156,44 @@ async function at(page: Page, y: number) {
       (d.suspended === 'true' || d.settled === 'true') &&
       (d.section !== 'sustainability' && !d.transition?.includes('sustainability') || d.laptopReady === 'true');
   }, PRICING_ENTRY_VIEWPORTS, { timeout: 60_000 });
+}
+
+async function at(page: Page, y: number) {
+  await page.evaluate(target => scrollTo({ top: target, behavior: 'instant' }), y);
+  await waitForRenderedReady(page);
   const rendered = await page.locator('.scene-canvas').evaluate(element => ({
     frames: Number((element as HTMLCanvasElement).dataset.frames),
+    distance: Number((element as HTMLCanvasElement).dataset.processedScrollDistance),
+    scroll: scrollY, maxScroll: document.documentElement.scrollHeight - innerHeight,
     cached: (element as HTMLCanvasElement).dataset.pricingBackdrop === 'ready',
   }));
   if (!rendered.cached) {
     // A seeked event can publish ready media just before its next texture upload.
-    // Request one actual production draw after decoded-media readiness.
-    await page.evaluate(() => dispatchEvent(new Event('scroll')));
-    await page.waitForFunction(frames => Number(document.querySelector<HTMLCanvasElement>('.scene-canvas')?.dataset.frames) > frames,
-      rendered.frames, { timeout: 30_000 });
+    // A same-position synthetic redraw uses damped quaternion interpolation,
+    // whose last bit depends on frame history. A real nudge and exact return
+    // instead use the production scroll pose (damping=1), with no tolerance.
+    const nudge = rendered.scroll > 0 ? rendered.scroll - 1 : Math.min(1, rendered.maxScroll);
+    expect(nudge, 'a distinct in-range production scroll position').not.toBe(rendered.scroll);
+    await page.evaluate(target => scrollTo({ top: target, behavior: 'instant' }), nudge);
+    await waitForRenderedReady(page);
+    await page.waitForFunction(previous => {
+      const d = document.querySelector<HTMLCanvasElement>('.scene-canvas')!.dataset;
+      return scrollY === previous.y && Number(d.frames) > previous.frames &&
+        Number(d.processedScrollDistance) !== previous.distance && d.pricingBackdrop !== 'ready';
+    }, { y: nudge, frames: rendered.frames, distance: rendered.distance }, { timeout: 30_000 });
+    const nudgedFrame = await page.locator('.scene-canvas').evaluate(element => Number((element as HTMLCanvasElement).dataset.frames));
+    await page.evaluate(target => scrollTo({ top: target, behavior: 'instant' }), rendered.scroll);
+    await waitForRenderedReady(page);
+    await page.waitForFunction(previous => {
+      const d = document.querySelector<HTMLCanvasElement>('.scene-canvas')!.dataset;
+      return scrollY === previous.y && Number(d.frames) > previous.frames &&
+        Number(d.processedScrollDistance) === previous.distance && d.pricingBackdrop !== 'ready';
+    }, { y: rendered.scroll, frames: nudgedFrame, distance: rendered.distance }, { timeout: 30_000 });
   }
+  return readRenderedState(page);
+}
+
+async function readRenderedState(page: Page) {
   return page.locator('.scene-canvas').evaluate(element => {
     const canvas = element as HTMLCanvasElement, d = canvas.dataset;
     const gl = canvas.getContext('webgl2')!;
@@ -183,14 +209,17 @@ async function at(page: Page, y: number) {
       pose: d.pricingBackdropPose, generation: Number(d.pricingBackdropGeneration),
       width: Number(d.pricingBackdropWidth), height: Number(d.pricingBackdropHeight), theme: d.pricingBackdropTheme,
     } : null;
+    const rect = canvas.getBoundingClientRect();
     return { pose, cache, documentTheme: document.documentElement.dataset.vistaireTheme === 'light' ? 'light' : 'dark',
+      layout: { viewport: [innerWidth, innerHeight], world: [world.clientWidth, world.clientHeight],
+        canvas: { x: rect.x, y: rect.y, width: rect.width, height: rect.height } },
       framing: Object.fromEntries(['focusBounds', 'cameraBaselineDistance', 'cameraDistance', 'fittedZoom',
         'zoomFitLimited', 'dishTableRatio', 'model', 'supportReady', 'phoneReady', 'laptopReady',
         'processedViewportWidth', 'processedViewportHeight', 'processedViewportRevision', 'viewportResizes']
         .map(key => [key, d[key] ?? ''])),
       timeline: { transition: world.dataset.transition ?? '', transitionProgress: Number(world.dataset.transitionProgress) },
       pricing: { active: d.pricingActive === 'true', handProgress: Number(d.pricingHandProgress) },
-      suspended: d.suspended === 'true', frames: Number(d.frames), scroll: scrollY,
+      suspended: d.suspended === 'true', frames: Number(d.frames), scroll: scrollY, scrollX,
       lastRenderCounters: { frame: Number(d.frames), mode: cache ? (d.suspended === 'true' ? 'cached-room-idle' : 'cached-room-hand') : 'cinematic',
         drawCalls: d.suspended === 'true' ? null : Number(d.drawCalls),
         triangles: d.suspended === 'true' ? null : Number(d.triangles),
@@ -200,6 +229,16 @@ async function at(page: Page, y: number) {
         drawingBuffer: [canvas.width, canvas.height], dpr: devicePixelRatio, normalMotion: !matchMedia('(prefers-reduced-motion: reduce)').matches },
       media: ((window as MediaWindow).restaurantABMedia ?? []).map(video => ({ src: new URL(video.src).pathname, currentTime: video.currentTime, readyState: video.readyState, paused: video.paused })) };
   });
+}
+
+function captureIdentity(state: Awaited<ReturnType<typeof readRenderedState>>) {
+  // Frame IDs are compared within each page, never between A/B contexts.
+  // A new draw during capture would make its exact pixel/pose pairing ambiguous.
+  return { pose: state.pose, cache: state.cache, documentTheme: state.documentTheme,
+    framing: state.framing, timeline: state.timeline, pricing: state.pricing,
+    suspended: state.suspended, frames: state.frames, scroll: state.scroll, scrollX: state.scrollX,
+    layout: state.layout, renderer: state.renderer,
+    media: state.media };
 }
 
 for (const profile of profiles.filter(profile => !selected || profile.id === selected)) {
@@ -265,6 +304,7 @@ for (const profile of profiles.filter(profile => !selected || profile.id === sel
         const sample = { label, y, expected, states };
         evidence.push(sample); // Retain both poses even when a guard fails before pixel capture.
         expect(states[1].renderer, `${label}: renderer/buffer`).toEqual(states[0].renderer);
+        expect(states[1].layout, `${label}: canvas and viewport geometry`).toEqual(states[0].layout);
         expect(states[0].renderer.normalMotion).toBe(true);
         expect(states[0].renderer.renderer).toContain('SwiftShader');
         expect(states[1].pose, `${label}: exact rendered camera/scene pose`).toEqual(states[0].pose);
@@ -310,9 +350,59 @@ for (const profile of profiles.filter(profile => !selected || profile.id === sel
         if (states[0].suspended) expect(states[0].cache, `${label}: suspension must retain a ready visible room`).not.toBeNull();
         // Offers, FAQ and footer remain visible even when the renderer is idle.
         // Every sample, including a cached/suspended one, must pass pixel parity.
-        const screenshots = await Promise.all(pages.map(page => page.locator('.scene-canvas').screenshot({ timeout: 30_000 })));
+        // Element screenshots auto-scroll and wait for utility-world RAF
+        // stability, which stalled on both wide profiles after actual-ready
+        // guards passed. Capture the verified fixed viewport rectangle without
+        // moving the page; independently guard geometry and pose on both sides.
+        const beforeCapture = await Promise.all(pages.map(readRenderedState));
+        const capture = { bounds: beforeCapture.map(state => state.layout.canvas),
+          beforeFrames: beforeCapture.map(state => state.frames), afterFrames: [] as number[] };
+        Object.assign(sample, { capture });
+        try {
+          for (const [index, state] of beforeCapture.entries()) {
+            expect(captureIdentity(state), `${label}: stable before capture ${index}`).toEqual(captureIdentity(states[index]));
+            expect(Object.values(state.layout.canvas).every(Number.isFinite), `${label}: finite capture rectangle`).toBe(true);
+            expect(state.layout.canvas.width).toBeGreaterThan(0);
+            expect(state.layout.canvas.height).toBeGreaterThan(0);
+            expect(state.renderer.dpr).toBe(1);
+            expect(state.layout.canvas, `${label}: complete fixed canvas in viewport`).toEqual({
+              x: 0, y: 0, width: state.layout.viewport[0], height: state.layout.viewport[1],
+            });
+          }
+        } catch (error) {
+          Object.assign(sample, { beforeCapture });
+          throw error;
+        }
+        const screenshots = await Promise.all(pages.map((page, index) => page.screenshot({
+          fullPage: false, clip: beforeCapture[index].layout.canvas, timeout: 30_000,
+        })));
+        const retainScreenshots = async () => {
+          Object.assign(sample, { screenshotHashes: screenshots.map(hash) });
+          for (const [index, screenshot] of screenshots.entries()) {
+            const name = `${label}-${index ? 'candidate' : 'baseline'}.png`;
+            const path = testInfo.outputPath(name);
+            // Reporter-only body attachments were absent from the first ZIPs.
+            await writeFile(path, screenshot);
+            await testInfo.attach(name, { path, contentType: 'image/png' });
+          }
+        };
+        const afterCapture = await Promise.all(pages.map(readRenderedState));
+        capture.afterFrames = afterCapture.map(state => state.frames);
+        try {
+          for (const [index, state] of afterCapture.entries()) {
+            expect(captureIdentity(state), `${label}: stable through capture ${index}`).toEqual(captureIdentity(beforeCapture[index]));
+            expect(state.media.every(video => video.readyState >= 2), `${label}: decoded media retained`).toBe(true);
+          }
+        } catch (error) {
+          Object.assign(sample, { beforeCapture, afterCapture }); // Full mismatch evidence only when needed.
+          await retainScreenshots();
+          throw error;
+        }
         const pixels = await Promise.all(screenshots.map(png => sharp(png).removeAlpha().raw().toBuffer({ resolveWithObject: true })));
         expect(pixels[1].info).toEqual(pixels[0].info);
+        expect([pixels[0].info.width, pixels[0].info.height], `${label}: complete CSS-pixel capture`).toEqual([
+          beforeCapture[0].layout.canvas.width, beforeCapture[0].layout.canvas.height,
+        ]);
         let changedPixels = 0, maxChannelDifference = 0;
         for (let i = 0; i < pixels[0].data.length; i += 3) {
           let changed = false;
@@ -324,8 +414,7 @@ for (const profile of profiles.filter(profile => !selected || profile.id === sel
         }
         Object.assign(sample, { changedPixels, maxChannelDifference, pixelHashes: pixels.map(pixel => hash(pixel.data)) });
         if (changedPixels || ['forward-hero-hold', 'forward-encryption-grip-0.5', 'forward-open-weight-hold', 'forward-faq-room', 'forward-footer-hold'].includes(label))
-          for (const [index, screenshot] of screenshots.entries())
-          await testInfo.attach(`${label}-${index ? 'candidate' : 'baseline'}`, { body: screenshot, contentType: 'image/png' });
+          await retainScreenshots();
         expect(changedPixels, `${label}: candidate must be pixel-identical at the matched pose`).toBe(0);
       };
       const plans = await Promise.all(pages.map(samplePlan));

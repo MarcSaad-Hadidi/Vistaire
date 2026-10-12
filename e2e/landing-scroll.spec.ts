@@ -134,8 +134,9 @@ test("light immersive controls keep readable nested actions, selection and AR he
     await expect(page.locator('.menu-demo-picker button[aria-pressed="true"]')).toHaveCSS("border-top-color", "rgb(128, 96, 13)");
     await expect(page.locator(".dish-zoom button").first()).toHaveCSS("border-top-color", "rgb(112, 103, 89)");
     expect(await page.locator(".rotation-range").evaluate((element) => getComputedStyle(element, "::before").borderTopColor)).toBe("rgb(112, 103, 89)");
-    await expect(page.locator(".pricing-heading em")).toHaveCSS("color", "rgb(128, 96, 13)");
-    await expect(page.locator(".pricing-faq [data-seo-faq-question]").first()).toHaveCSS("color", "rgb(40, 37, 31)");
+    // The new on-photo heading uses the published darker light-theme emphasis.
+    await expect(page.locator("#pricing-stage-title em")).toHaveCSS("color", "rgb(109, 80, 8)");
+    await expect(page.locator(".landing-faq [data-seo-faq-question]").first()).toHaveCSS("color", "rgb(40, 37, 31)");
     await expect(page.locator(".support-controls")).toHaveCSS("background-color", "rgb(255, 252, 245)");
     await expect(page.locator(".support-controls button")).toHaveCSS("color", "rgb(40, 37, 31)");
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 2)).toBe(true);
@@ -218,12 +219,15 @@ touchTest("contact maintenu : inversions et changements de hauteur du Mac au foo
     ["testimonies", ".experience-list a"],
     ["social-content", ".walkthrough-frame"],
     ["product", ".support-gesture"],
-    ["open-weight", ".pricing-collection-image"],
-    ["open-weight", '.pricing-faq [data-seo-faq-question][data-hydrated="true"]'],
-    ["footer", ".footer-main h2"],
-    ["footer", ".footer-scene"],
+    ["open-weight", ".pricing-phone-viewport"],
+    ["open-weight", '.landing-faq [data-seo-faq-question][data-hydrated="true"]'],
+    ["footer", "[data-footer-navigation] h3"],
+    ["footer", ".footer-bottom"],
   ];
   for (const [id, selector] of cases) {
+    const target = page.locator(selector).first();
+    const phoneReader = selector === ".pricing-phone-viewport";
+    const nativeClosing = id === "footer" || selector.startsWith(".landing-faq");
     await page.setViewportSize({ width: 390, height: 820 });
     await page.locator(`#${id}`).evaluate((el) => {
       const travel = (el as HTMLElement).offsetHeight - el.firstElementChild!.clientHeight;
@@ -232,20 +236,34 @@ touchTest("contact maintenu : inversions et changements de hauteur du Mac au foo
         behavior: "instant",
       });
     });
-    if (id === "open-weight")
-      await page
-        .locator(selector)
-        .first()
-        .evaluate((el) => {
-          scrollTo({
-            top: el.getBoundingClientRect().top + scrollY - 300,
-            behavior: "instant",
-          });
+    if (phoneReader) {
+      // The fixed phone portal mirrors document scroll. Use its keyboard
+      // endpoints to enter the middle of the real reading range.
+      await expect(target).toBeVisible();
+      await expect(target).toHaveCSS("overflow-y", "hidden");
+      await page.locator(".pricing-offer-card").last().focus();
+      await target.focus();
+      await page.keyboard.press("Home");
+      await expect.poll(() => target.evaluate(el => el.scrollTop)).toBeLessThan(1);
+      const start = await page.evaluate(() => scrollY);
+      await page.keyboard.press("End");
+      await expect.poll(() => target.evaluate(el => Math.abs(el.scrollHeight - el.clientHeight - el.scrollTop))).toBeLessThanOrEqual(1);
+      const end = await page.evaluate(() => scrollY);
+      expect(end).toBeGreaterThan(start);
+      await page.evaluate(y => scrollTo({ top: y, behavior: "instant" }), (start + end) / 2);
+    } else if (nativeClosing) {
+      await target.evaluate((el) => {
+        scrollTo({
+          top: el.getBoundingClientRect().top + scrollY - 300,
+          behavior: "instant",
         });
+      });
+    }
     await page.waitForTimeout(100);
-    const box = await page.locator(selector).first().boundingBox();
+    await expect(target).toBeInViewport();
+    const box = await target.boundingBox();
     const x = Math.min(360, Math.max(30, box!.x + box!.width / 2));
-    let y = Math.min(620, Math.max(190, box!.y + box!.height / 2));
+    let y = Math.min(790, Math.max(190, box!.y + box!.height / 2));
     await cdp.send("Input.dispatchTouchEvent", {
       type: "touchStart",
       touchPoints: [{ id: 1, x, y }],
@@ -265,14 +283,30 @@ touchTest("contact maintenu : inversions et changements de hauteur du Mac au foo
           touchPoints: [{ id: 1, x: x + (i % 2), y }],
         });
         await page.waitForTimeout(35);
-        samples.push(await page.evaluate(() => scrollY));
+        samples.push(await target.evaluate(el => ({
+          pageY: scrollY,
+          readerY: el.scrollTop,
+          top: el.getBoundingClientRect().top,
+        })));
       }
       if (stroke > 0) {
         const expected = stroke % 2 ? -1 : 1;
         expect(
-          (samples.at(-1)! - samples[0]) * expected,
+          (samples.at(-1)!.pageY - samples[0].pageY) * expected,
           `${id}/${selector}, inversion ${stroke}`,
         ).toBeGreaterThan(200);
+        if (phoneReader) {
+          expect(
+            (samples.at(-1)!.readerY - samples[0].readerY) * expected,
+            `phone reading follows document inversion ${stroke}`,
+          ).toBeGreaterThan(0);
+        }
+        if (nativeClosing) {
+          expect(Math.abs(
+            samples.at(-1)!.top - samples[0].top
+              + samples.at(-1)!.pageY - samples[0].pageY,
+          ), `${selector} stays in native document flow`).toBeLessThanOrEqual(1);
+        }
       }
       expect(await geometry(page)).toEqual(before);
     }
@@ -280,11 +314,22 @@ touchTest("contact maintenu : inversions et changements de hauteur du Mac au foo
       type: "touchEnd",
       touchPoints: [],
     });
+    if (phoneReader) {
+      await target.focus();
+      await page.keyboard.press("End");
+      await expect.poll(() => target.evaluate(el => Math.abs(el.scrollHeight - el.clientHeight - el.scrollTop))).toBeLessThanOrEqual(1);
+      const beforeExit = await page.evaluate(() => scrollY);
+      await page.keyboard.press("PageDown");
+      await expect.poll(() => page.evaluate(() => scrollY)).toBeGreaterThan(beforeExit + 1);
+      await expect(page.locator(".landing-faq")).toBeInViewport();
+      expect(await geometry(page)).toEqual(before);
+    }
     expect(
       await page
-        .locator("main *, footer.chapter *")
+        .locator("main *, footer.chapter *, #pricing-screen-host *")
         .evaluateAll((els) =>
-          els.filter((el) => el.scrollTop !== 0).map((el) => el.className),
+          // This one clipped viewport is deliberately driven by the page.
+          els.filter((el) => el.scrollTop !== 0 && !el.matches(".pricing-phone-viewport")).map((el) => el.className),
         ),
     ).toEqual([]);
     await expect(page.locator(".menu-toggle")).toHaveAttribute(
@@ -366,10 +411,12 @@ test("la scène contact est le seul footer et termine exactement la page FR/EN",
     await expect(footer).toHaveAttribute("id", "footer");
     await expect(page.locator("main footer, .public-footer-wrap")).toHaveCount(0);
     await expect(page.locator("html")).toHaveAttribute("data-chapter", "footer");
-    await footer.locator("#footer-title").scrollIntoViewIfNeeded();
-    await expect(footer.locator("#footer-title")).toBeInViewport();
-    await expect(footer.locator(`.footer-main a[href="${locale === "fr" ? "/prendre-rendez-vous" : "/en/book-a-call"}"]`)).toBeVisible();
-    for (const link of await footer.locator("[data-footer-navigation] a").all()) {
+    await expect(footer).toHaveAccessibleName("Contact");
+    await expect(footer.getByRole("heading", { level: 2, name: "Contact", exact: true })).toHaveCount(1);
+    const navigation = footer.locator("[data-footer-navigation]");
+    await expect(navigation).toBeVisible();
+    await expect(navigation.locator(`a[href="${locale === "fr" ? "/prendre-rendez-vous" : "/en/book-a-call"}"]`)).toBeVisible();
+    for (const link of await footer.locator("a").all()) {
       await link.scrollIntoViewIfNeeded();
       await expect(link).toBeInViewport();
       expect(await link.evaluate(el => el.getBoundingClientRect().height)).toBeGreaterThanOrEqual(44);
@@ -400,7 +447,7 @@ test("la scène contact est le seul footer et termine exactement la page FR/EN",
         const opaqueStops = (stageBackground.match(/rgba?\([^)]+\)/g) ?? []).filter(color =>
           !color.startsWith('rgba(') || Number(color.slice(5, -1).split(',')[3]) >= 1);
         expect(opaqueStops, `${locale}/${width}/${light ? 'light' : 'dark'}: scene remains visible through footer`).toEqual([]);
-        expect(await footer.locator('[data-footer-navigation] a').evaluateAll(elements =>
+        expect(await footer.locator('a').evaluateAll(elements =>
           elements.every(el => el.getBoundingClientRect().height >= 44))).toBe(true);
         const gap = await footer.evaluate(el => document.documentElement.scrollHeight - el.getBoundingClientRect().bottom - scrollY);
         expect(Math.abs(gap)).toBeLessThanOrEqual(1);
@@ -528,9 +575,9 @@ test("un seul guide accueille le visiteur puis laisse explorer sans se répéter
   }
 });
 
-for (const [path, discovery, pricing, booking, language] of [
-  ["/", "/demo", "/tarifs-menu-digital-restaurant", "/prendre-rendez-vous", "fr-CA"],
-  ["/en", "/en/vistaire-menu", "/en/pricing-digital-restaurant-menu", "/en/book-a-call", "en-CA"],
+for (const [path, discovery, pricing, booking, studio, language] of [
+  ["/", "/demo", "/tarifs-menu-digital-restaurant", "/prendre-rendez-vous", "/apercu-restaurateur", "fr-CA"],
+  ["/en", "/en/vistaire-menu", "/en/pricing-digital-restaurant-menu", "/en/book-a-call", "/en/restaurant-preview", "en-CA"],
 ] as const) {
   test(`${path} links marketing CTAs to real experiences instead of generic dialogs`, async ({ page }) => {
     await page.goto(path);
@@ -542,8 +589,10 @@ for (const [path, discovery, pricing, booking, language] of [
       await expect(page.locator("#social-content .social-bottom .action").nth(index)).toHaveAttribute("href", expectedMenu);
     }
     await expect(page.locator("#product .collection-details .action")).toHaveAttribute("href", pricing);
-    await expect(page.locator("#open-weight .pricing-summary-action .pricing-cta")).toHaveAttribute("href", booking);
-    await expect(page.locator("#open-weight .pricing-closing .pricing-cta")).toHaveAttribute("href", booking);
+    // Pricing actions are fixed portals beside the scene, outside #open-weight.
+    await expect(page.locator(".pricing-aside-links .pricing-cta:not(.pricing-details-link)")).toHaveAttribute("href", booking);
+    await expect(page.locator(".pricing-details-link")).toHaveAttribute("href", pricing);
+    await expect(page.locator(".pricing-studio-link")).toHaveAttribute("href", studio);
     await expect(page.getByRole("dialog")).toHaveCount(0);
   });
 }

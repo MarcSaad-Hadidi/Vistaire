@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { createEntryScrollAssist } from "./EntryScrollAssist.js";
 import {
   lazy,
   Suspense,
@@ -465,6 +466,7 @@ function LandingContent() {
     let stopped = false;
     let needsMeasure = false;
     let activeTouches = 0;
+    let entryAssist;
     const arrivalY = scrollY;
     guideDismissed.current = Boolean(location.hash) || arrivalY > 16;
     let lastGuideVisible = false;
@@ -481,6 +483,7 @@ function LandingContent() {
       element.style.setProperty(name, text);
     };
     const measure = () => {
+      entryAssist?.cancel();
       const journey = openingRef.current;
       const journeyBounds = journey.getBoundingClientRect();
       const top = journeyBounds.top + scrollY;
@@ -596,7 +599,7 @@ function LandingContent() {
       const y = scrollY;
       const openingPosition = openingProgressAtScroll(opening, y);
       // Once native scrolling or an interactive control is understood, leave
-      // the visitor alone. No chapter resets, idle timers or extra listeners.
+      // the visitor alone with respect to discovery hints.
       const discoveryDistance = Math.max(64, Math.min(120, opening.sceneHeight * 0.1));
       if (Math.abs(y - arrivalY) >= discoveryDistance) guideDismissed.current = true;
       const showGuide = !guideDismissed.current && openingPosition < 0.14;
@@ -759,6 +762,7 @@ function LandingContent() {
     };
     stateRef.current.beforeSceneFrame = beforeSceneFrame;
     const requestPace = (value) => {
+      entryAssist?.cancel();
       const currentPace = pendingPace ?? CINEMATIC_TIMING.sceneScreens / timing.sceneScreens;
       pendingPace = normalizeScrollPace(typeof value === "function" ? value(currentPace) : value);
       // The touch thumb and buttons respond immediately, even if rendering is
@@ -772,6 +776,7 @@ function LandingContent() {
     const paceState = stateRef.current;
     paceState.setScrollPace = requestPace;
     const layoutChanged = () => {
+      entryAssist?.cancel();
       needsMeasure = true;
       queue();
     };
@@ -787,6 +792,14 @@ function LandingContent() {
       if (!stopped) layoutChanged();
     });
     measure();
+    entryAssist = createEntryScrollAssist({
+      getGeometry: () => ({ opening, transitions }),
+      isBlocked: () => {
+        const state = stateRef.current;
+        return stopped || !state.sceneReady || state.menuOpen || state.modalOpen || state.arActive || state.reducedMotion;
+      },
+    });
+    paceState.cancelEntryAssist = entryAssist.cancel;
     const parameters = new URLSearchParams(location.search);
     if (parameters.get("performanceCapture") === "1") {
       queueMicrotask(() => { if (!stopped) setPerformanceCapture(true); });
@@ -811,7 +824,7 @@ function LandingContent() {
     };
     if (initialPace == null) update();
     else queue();
-    const navigateHash = () => { arrivalAnchor = location.hash.slice(1); queue(); };
+    const navigateHash = () => { entryAssist.cancel(); arrivalAnchor = location.hash.slice(1); queue(); };
     addEventListener("hashchange", navigateHash);
     addEventListener("scroll", queue, { passive: true });
     // ResizeObserver tracks real stage/focus sizes, without measuring the
@@ -824,6 +837,8 @@ function LandingContent() {
       removeEventListener("scroll", queue);
       removeEventListener("hashchange", navigateHash);
       stopped = true;
+      entryAssist.dispose();
+      if (paceState.cancelEntryAssist === entryAssist.cancel) delete paceState.cancelEntryAssist;
       delete paceState.setScrollPace;
       if (paceState.beforeSceneFrame === beforeSceneFrame) delete paceState.beforeSceneFrame;
       cancelAnimationFrame(queuedFrame);
@@ -846,8 +861,11 @@ function LandingContent() {
       reducedMotion: reduce,
       modalOpen: Boolean(modal),
       menuOpen: menu,
+      arActive: arStatus !== "idle",
+      sceneReady: ready && !gpuError,
       retryModel,
     });
+    if (menu || modal || reduce || arStatus !== "idle" || !ready || gpuError) stateRef.current.cancelEntryAssist?.();
     stateRef.current.invalidateScene?.();
   }, [
     collection,
@@ -860,6 +878,9 @@ function LandingContent() {
     reduce,
     modal,
     menu,
+    arStatus,
+    ready,
+    gpuError,
     retryModel,
   ]);
   useEffect(() => {
@@ -913,6 +934,7 @@ function LandingContent() {
   }, [chapter, beat, reduce, modal, menu, gpuError, cinematicFormat]);
   const goto = useCallback(
     (id) => {
+      stateRef.current.cancelEntryAssist?.();
       setMenu(false);
       scrollTo({
         top: id === "open-weight" && stateRef.current.pricingNavigationTarget
@@ -960,6 +982,7 @@ function LandingContent() {
   useEffect(() => {
     if (!ready || !new URLSearchParams(location.search).has("dish")) return;
     const el = sectionRefs.current.grip;
+    stateRef.current.cancelEntryAssist?.();
     if (el) scrollTo({ top: chapterNavigationTarget({ id: "grip", top: el.getBoundingClientRect().top + scrollY }, openingRef.current.firstElementChild.getBoundingClientRect().height, stateRef.current.cinematicTiming), behavior: "instant" });
   }, [ready]);
   const ref = useCallback(
@@ -1683,6 +1706,7 @@ function LandingContent() {
                   locale === "en" ? `View ${x.name}` : `Voir ${x.name}`
                 }
                 onClick={() => {
+                  stateRef.current.cancelEntryAssist?.();
                   const el = sectionRefs.current["social-content"];
                   window.scrollTo({
                     top:

@@ -61,7 +61,7 @@ function watchPrivatePage(page: Page) {
     };
 }
 for (const width of [390, 430, 1440]) {
-  test(`studio four destinations, theme, evidence and export cancellation at ${width}px`, async ({
+  test(`studio four destinations, overview theme and chart evidence at ${width}px`, async ({
     page,
   }, testInfo) => {
     await page.setViewportSize({ width, height: 900 });
@@ -121,6 +121,15 @@ for (const width of [390, 430, 1440]) {
       path: testInfo.outputPath(`vistaire-studio-overview-dark-${width}.png`),
       fullPage: true,
     });
+    expectHealthyPage();
+  });
+  test(`studio remaining destinations retain theme, exports and screenshots at ${width}px`, async ({ page }, testInfo) => {
+    await page.setViewportSize({ width, height: 900 });
+    const expectHealthyPage = watchPrivatePage(page);
+    await preview(page);
+    await page.getByRole("button", { name: "Passer au thème sombre" }).click();
+    await expect(page.locator("[data-admin-studio]")).toHaveAttribute("data-theme", "dark");
+    const nav = page.getByRole("navigation", { name: "Navigation principale" });
     for (const name of ["Analyses", "Les plats", "Planning"]) {
       await nav.getByRole("link", { name, exact: true }).click();
       await expect(page.getByRole("heading", { level: 1 })).toHaveText(name);

@@ -57,12 +57,14 @@ test('offers wake the shared renderer only near their measured stage and reverse
   assert.equal(f.adapter.needsFrame(f.state), true, 'native scroll must wake a previously occluded renderer');
   assert.equal(f.adapter.draw(f.state, f.size, true), true);
   assert.equal(f.state.presented[2], true);
+  assert.equal(f.state.pricingStage.dataset.handReady, 'true');
   assert.equal(f.adapter.needsPreparation(), false, 'reading reuses the prepared room');
   assert.ok(f.hand.last[1] > 0 && f.hand.last[1] < 1);
   f.state.pageScrollY = 14500;
   assert.equal(f.adapter.needsFrame(f.state), true, 'first exit must erase the hand');
   assert.equal(f.adapter.draw(f.state, f.size, true), false);
   assert.equal(f.state.presented[2], false);
+  assert.equal(f.state.pricingStage.dataset.handReady, undefined, 'a hidden or exited hand cannot satisfy the next entry readiness wait');
   assert.equal(f.adapter.needsFrame(f.state), false, 'unchanged FAQ does not poll');
   const draws = f.counts.room;
   f.adapter.draw(f.state, f.size, true);
@@ -77,6 +79,7 @@ test('offers wake the shared renderer only near their measured stage and reverse
   f.state.sceneOccluded = false; f.state.pageScrollY = 8500;
   f.adapter.draw(f.state, f.size, true);
   assert.equal(f.world.dataset.pricingActive, 'false');
+  assert.equal(f.state.pricingStage.dataset.handReady, undefined, 'hero navigation clears prior projected-hand readiness');
   assert.ok(f.counts.release > 0);
   f.adapter.dispose();
   assert.equal(f.counts.dispose, 2);

@@ -4,7 +4,8 @@ import {
   publicModelBaseUrl,
   resolvePublicModelUrl,
 } from "../../lib/publicModelAssets.ts";
-import { cinematicEase, chapterPhase, continuousComposition, interpolatePose, interpolatePoseTrack, DEFAULT_SCENE_FRAME } from "./SceneDirector.js";
+import { cinematicEase, chapterPhase, interpolatePose, interpolatePoseTrack, DEFAULT_SCENE_FRAME } from "./SceneDirector.js";
+import { sectionTransitionComposition } from "./SectionTransitionMotion.js";
 import { cameraDollyPose, minimumDollyDistance, dishCylinderCorners } from "./CameraDolly.js";
 import {
   projectHullBounds,
@@ -247,7 +248,7 @@ function baseComposition(state, mobile) {
 }
 
 function composition(state, mobile) {
-  return continuousComposition(state, mobile, baseComposition);
+  return sectionTransitionComposition(state, mobile, baseComposition);
 }
 
 function disposeTree(root) {

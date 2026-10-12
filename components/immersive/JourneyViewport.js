@@ -16,6 +16,8 @@ export function bindJourneyViewport(view = window) {
   let portrait;
   let stageHeight = 0;
   let sceneHeight = 0;
+  let layoutHeight = 0;
+  let pendingProbeResize = null;
   const measure = () => {
     const nextWidth = root.clientWidth;
     const nextPortrait = view.matchMedia("(orientation: portrait)").matches;
@@ -26,7 +28,8 @@ export function bindJourneyViewport(view = window) {
       mobile &&
       touch &&
       width === nextWidth &&
-      portrait === nextPortrait
+      portrait === nextPortrait &&
+      !pendingProbeResize
     )
       return;
     // Desktop viewport-unit probes can lag the only resize event. Its live
@@ -35,6 +38,18 @@ export function bindJourneyViewport(view = window) {
       (touch && probes[0].getBoundingClientRect().height) || view.innerHeight;
     const nextScene =
       (touch && probes[1].getBoundingClientRect().height) || view.innerHeight;
+    // WebKit may deliver the orientation resize before svh/lvh resolve.
+    // Keep that one geometry change open for the probe observer, then resume
+    // freezing touch toolbar-only changes. No polling or continuous RAF.
+    const geometryChanged = width !== nextWidth || portrait !== nextPortrait;
+    if (touch && geometryChanged && layoutHeight && layoutHeight !== view.innerHeight) {
+      pendingProbeResize = nextStage === stageHeight || nextScene === sceneHeight
+        ? { stage: stageHeight, scene: sceneHeight } : null;
+    }
+    if (pendingProbeResize && nextStage !== pendingProbeResize.stage && nextScene !== pendingProbeResize.scene) {
+      pendingProbeResize = null;
+    }
+    layoutHeight = view.innerHeight;
     width = nextWidth;
     portrait = nextPortrait;
     if (nextStage !== stageHeight) {
@@ -47,10 +62,13 @@ export function bindJourneyViewport(view = window) {
     }
     root.classList.toggle("journey-compact", mobile && stageHeight <= 740);
   };
+  const observer = view.ResizeObserver ? new view.ResizeObserver(measure) : null;
+  probes.forEach((probe) => observer?.observe(probe));
   measure();
   view.addEventListener("resize", measure, { passive: true });
   return () => {
     view.removeEventListener("resize", measure);
+    observer?.disconnect();
     probes.forEach((probe) => probe.remove());
     root.style.removeProperty("--vistaire-journey-vh");
     root.style.removeProperty("--vistaire-scene-vh");

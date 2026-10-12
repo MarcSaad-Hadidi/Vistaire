@@ -68,6 +68,10 @@ export function createPricingSceneAdapter({
     delete state.pricingStage.dataset.handReady;
     state.syncPricingScroll?.(state.pageScrollY, state.pricingSectionTop);
   }
+  function hideScreen(state) {
+    delete state.pricingStage.dataset.handReady;
+    state.presentPricingScreen?.(null, 0, false);
+  }
   const screenHit = (x, y) => !screenViewport || !hand?.ready ||
     hand.screenIsVisible(x, y - screenViewport.top, screenViewport.width, screenViewport.height);
   stateRef.current.pricingScreenHit = screenHit;
@@ -91,7 +95,7 @@ export function createPricingSceneAdapter({
         prepared = false;
         renderer.domElement.dataset.pricingActive = "false";
         if (handVisible || roomOnly) {
-          state.presentPricingScreen?.(null, 0, false);
+          hideScreen(state);
           world.dataset.pricingActive = "false";
           hand.reset();
           room.release();
@@ -134,7 +138,6 @@ export function createPricingSceneAdapter({
         if (rendered) {
           handVisible = true;
           roomOnly = false;
-          state.pricingStage.dataset.handReady = "true";
         } else if (!handVisible && !roomOnly) {
           paintRoom(size);
         }
@@ -145,11 +148,12 @@ export function createPricingSceneAdapter({
             const projection = hand.screenProjection(rect.width, rect.height);
             if (!projection || !projection.matrix.every(Number.isFinite)) throw new Error("Pricing screen unavailable");
             state.presentPricingScreen?.(projection, top, true, ratio);
+            state.pricingStage.dataset.handReady = "true";
           } catch {
             fallback(state, size);
           }
         } else {
-          state.presentPricingScreen?.(null, 0, false);
+          hideScreen(state);
         }
         renderer.domElement.dataset.pricingHandProgress = String(ratio);
         renderer.domElement.dataset.pricingHand = failed || hand.unavailable
@@ -157,7 +161,7 @@ export function createPricingSceneAdapter({
         return true;
       }
       screenViewport = null;
-      state.presentPricingScreen?.(null, 0, false);
+      hideScreen(state);
       if (handVisible || !roomOnly) {
         paintRoom(size);
       }

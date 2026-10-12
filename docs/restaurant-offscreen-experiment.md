@@ -54,6 +54,10 @@ The exclusive test `e2e/restaurant-geometry-ab.spec.ts`:
 - Intercepts only the restaurant request, with exact source/candidate SHA checks
 - Keeps geometry, lights, camera, exposure, resolution and runtime code identical
 - Decodes and pauses video at 0.25 s in both contexts to make texture pixels stable
+- After media readiness, non-cached poses make one awaited real 1px scroll nudge
+  and return to the exact target. Both legs require newer production draws and
+  the expected distinct/restored processed scroll distance. This replaces the
+  artificial same-position redraw; cached room samples remain untouched
 - Samples all 12 chapter holds, quarter/mid/three-quarter points of all 9 external
   joins and both opening legs, forward then reverse
 - Exercises all 7 dishes at actual 60% zoom and reset, plus maximum sushi close-up
@@ -67,6 +71,13 @@ The exclusive test `e2e/restaurant-geometry-ab.spec.ts`:
 - Requires identical rendered pose and renderer/buffer before exact pixel
   comparison; any pixel difference fails. The visible offers/FAQ/footer backdrop
   is compared even when the renderer is suspended; no cached sample is skipped
+- Captures the complete fixed canvas with a viewport-relative page screenshot,
+  without screenshot-induced scrolling. Equal finite positive canvas bounds must
+  exactly fill the viewport; decoded PNG dimensions must cover that whole clip.
+  Pure observations before and after capture require unchanged camera, scene,
+  cache, scroll, layout, buffer, media and each page's own frame ID. The two
+  contexts need not have equal lifetime frame counts. Capture still has a
+  30-second deadline; pixels and geometric matching have no relaxed tolerance
 - Checks canonical pricing-entry pose, ready state, generation, buffer dimensions
   and the current document theme; validates all 23 camera/projection numbers and
   requires the same canonical pose on forward/reverse/direct entry for the same
@@ -79,6 +90,8 @@ The exclusive test `e2e/restaurant-geometry-ab.spec.ts`:
   are recorded separately from equality guards, with the recorded frame ID. They
   can outlive a draw and must not be summed as per-sample work. Idle cached
   counters are null; these samples are not a timing benchmark
+- Writes retained compared PNGs directly into the uploaded test-results tree,
+  alongside their hashes; reporter-only attachments are not the sole evidence
 - Records the actual viewport/canvas sizes, measured per-chapter calibration
   frames and existing framing diagnostics for subsequent swept-envelope analysis;
   recorded waypoints alone do not establish continuous visibility
@@ -113,4 +126,28 @@ on workflow dispatch. No passing result automatically activates this candidate.
 
 Local checks completed: direct Node tests, scoped ESLint, TypeScript check and
 Playwright test discovery. The local browser restriction prevents local rendering;
-the expanded hosted A/B has not yet run. There is no claimed image-equivalence result.
+there is no claimed complete image-equivalence result.
+
+The [initial hosted run](https://github.com/MarcSaad-Hadidi/Vistaire/actions/runs/38184503498)
+at `ab14f9c` failed closed. Four desktop/wide profiles reached matching hero poses
+but timed out inside the element screenshot's stability wait before any pixels
+were captured. This motivated the bounded page-capture repair above; the exact
+reason the element RAF wait stalled was not established. The 390px profile
+recorded five differing foreground-dish pixels after 19 exact comparisons,
+while each context advanced one two-pass render between the recorded sample
+and failure observation. The old harness did not identify the exact instant of
+that draw. The pixel difference is unresolved, not attributed to the crop. The 430px profile stopped on an exact
+quaternion mismatch after 37 pixel comparisons. Neither mismatch is waived by
+the capture repair, and neither profile established full journey acceptance.
+The rotated 844×390 profile completed 102 exact pixel comparisons across the
+full forward/reverse waypoint path, then timed out in element capture at the
+first 60% dish-zoom sample. All seven profiles therefore finished failed; the
+repaired capture path still requires hosted validation.
+
+A bounded Node check against installed Three r183 reproduced both exact 430px
+quaternion strings: damped interpolation of the same nearly-unit target can
+alternate its final floating-point bit, while the runtime's scroll damping of 1
+maps either observed history to the same target. This establishes a mechanism,
+not the precise browser-event history of the failed run. The awaited nudge/return
+uses that existing production path without changing runtime or relaxing exact
+pose/pixel guards. Any later frame or pose drift still fails capture acceptance.

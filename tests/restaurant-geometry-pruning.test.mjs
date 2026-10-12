@@ -86,6 +86,7 @@ async function tableFactory() {
   const require = createRequire(import.meta.url);
   const inventory = JSON.parse(await readFile('components/immersive/restaurant-table-inventory.json', 'utf8'));
   const code = (await readFile('components/immersive/RestaurantTable.js', 'utf8'))
+    .replace('from "./RestaurantFog.js"', `from ${JSON.stringify(new URL('../components/immersive/RestaurantFog.js', import.meta.url).href)}`)
     .replace('from "three"', `from ${JSON.stringify(pathToFileURL(require.resolve('three')).href)}`)
     .replace('import inventory from "./restaurant-table-inventory.json";', `const inventory = ${JSON.stringify(inventory)};`);
   return (await import(`data:text/javascript;base64,${Buffer.from(code).toString('base64')}`)).createRestaurantTable;

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useSyncExternalStore } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
 import { ArrowUpRight } from "lucide-react";
 import "./pricing.css";
@@ -65,6 +65,7 @@ const COLLECTIONS = [
   },
 ];
 export function PricingPhoneContent({
+  dashboardReady = false,
   layerRef,
   screenRef,
   viewportRef,
@@ -183,9 +184,11 @@ export function PricingPhoneContent({
                 </h4>
                 <div className="pricing-pilotage-visual">
                   <img
-                    src={lightTheme ? "/immersive-assets/dashboard/dashboard-light.webp" : "/immersive-assets/dashboard/dashboard-black-gold.webp"}
+                    src={dashboardReady ? (lightTheme ? "/immersive-assets/dashboard/dashboard-light.webp" : "/immersive-assets/dashboard/dashboard-black-gold.webp") : undefined}
                     width="1184"
                     height="758"
+                    loading="lazy"
+                    fetchPriority="low"
                     decoding="async"
                     alt={
                       locale === "en"
@@ -286,6 +289,7 @@ const pricingScreenHost = () => document.getElementById("pricing-screen-host");
 const pricingActionsHost = () => document.getElementById("pricing-actions-host");
 
 export default function Pricing({ collection, stateRef }) {
+  const [dashboardReady, setDashboardReady] = useState(false);
   const { locale } = useLandingLocale();
   const pricing = getPricingPage(locale);
   const selected = pricing.collections.find((item) => item.id === collection) || pricing.collections[0];
@@ -309,6 +313,7 @@ export default function Pricing({ collection, stateRef }) {
       screen = screenRef.current;
     const viewport = viewportRef.current,
       body = bodyRef.current;
+    let dashboardRequested = false;
     let disposed = false,
       measureFrame = 0,
       lastReducedMotion = state.reducedMotion,
@@ -328,6 +333,12 @@ export default function Pricing({ collection, stateRef }) {
       force = false,
     ) => {
       if (!layoutRef.current) return;
+      // The fixed hidden portal is in the viewport even at the hero. Only the
+      // measured document approach may start this below-fold image request.
+      if (!dashboardRequested && pageY >= top - state.pricingViewport.height) {
+        dashboardRequested = true;
+        setDashboardReady(true);
+      }
       if (lastReducedMotion !== state.reducedMotion) queueMeasure();
       presenter.scroll(pageY, top, layoutRef.current, force);
       if (!state.renderSceneFrame || state.pricingHandUnavailable) {
@@ -489,11 +500,20 @@ export default function Pricing({ collection, stateRef }) {
     else if (event.key in changes)
       next = viewportRef.current.scrollTop + changes[event.key];
     else return;
-    // At either boundary, let the browser continue scrolling the page. The
-    // readable phone is not a nested keyboard-scroll trap before the FAQ.
+    // The phone lives under a fixed portal, so WebKit cannot reliably chain
+    // its boundary keys to the document. Continue the native page explicitly.
     const current = viewportRef.current.scrollTop;
     if ((current <= 0.5 && next <= 0) ||
-        (current >= layout.maxScroll - 0.5 && next >= layout.maxScroll)) return;
+        (current >= layout.maxScroll - 0.5 && next >= layout.maxScroll)) {
+      if (event.key in changes) {
+        event.preventDefault();
+        window.scrollBy({
+          top: event.key.startsWith("Page") ? Math.sign(changes[event.key]) * window.innerHeight * 0.8 : changes[event.key],
+          behavior: "instant",
+        });
+      }
+      return;
+    }
     event.preventDefault();
     window.scrollTo({
       top: pricingPagePosition(sectionTop, next, layout),
@@ -538,6 +558,7 @@ export default function Pricing({ collection, stateRef }) {
 
   const phone = (
     <PricingPhoneContent
+      dashboardReady={dashboardReady}
       layerRef={layerRef}
       screenRef={screenRef}
       viewportRef={viewportRef}

@@ -1,4 +1,6 @@
 import { expect, test as base, type Page, type TestInfo } from '@playwright/test';
+// @ts-expect-error -- use the authored camera-leg timing, not copied scroll constants.
+import { CINEMATIC_TIMING } from '../components/immersive/SceneDirector.js';
 
 // Hosted fixture correctness checks. Software rendering can need 120s for the
 // existing restaurant/phone assets and 60s for the first hand GPU submission.
@@ -353,7 +355,7 @@ for (const profile of [{width:390,height:844,path:'/en',label:'Pricing'}, {width
     await expect(page.locator('.scene-canvas')).toHaveAttribute('data-pricing-backdrop','released');
     if(profile.width===390){
       await page.locator('.site-header .menu-toggle').click();
-      await page.locator('#mobile-menu').getByRole('button',{name:profile.label,exact:true}).click();
+      await page.locator('#mobile-menu').getByRole('button',{name:`04 ${profile.label}`,exact:true}).click();
     }else await page.locator('.desktop-nav').getByRole('button',{name:profile.label,exact:true}).click();
     await handReady(page);
     await expect.poll(()=>page.locator('.pricing-phone-viewport').evaluate(el=>el.scrollTop)).toBeLessThanOrEqual(1);
@@ -375,4 +377,97 @@ test('the laptop uses the current dashboard capture in the selected site theme',
   await page.locator('.site-header [data-public-theme-toggle]').click();
   await expect(canvas).toHaveAttribute('data-laptop-dashboard-theme','dark');
   await screenshot(page,info,'current-dashboard-laptop-dark');
+});
+
+
+for (const width of [390,1440]) test(`native entry assistance is bounded, interruptible and reduced-motion safe at ${width}px`,async({page},info)=>{
+  test.setTimeout(240_000);
+  const errors:string[]=[];
+  page.on('pageerror',error=>errors.push(error.message));
+  page.on('console',message=>{if(message.type()==='error')errors.push(message.text());});
+  await page.setViewportSize({width,height:844});
+  await openScene(page,'/','','no-preference');
+  const end=await page.locator('.opening-journey').evaluate((el,leg)=>el.getBoundingClientRect().top+scrollY+parseFloat(getComputedStyle(el.firstElementChild!).height)*leg,CINEMATIC_TIMING.transitionScreens);
+  await page.mouse.move(width*.85,600);
+  await scrollPage(page,end-80);
+  await page.mouse.wheel(0,40);
+  await expect.poll(()=>page.evaluate(target=>Math.abs(scrollY-target),end),{timeout:15_000}).toBeLessThanOrEqual(1);
+  await page.waitForTimeout(350);
+  expect(await page.evaluate(target=>Math.abs(scrollY-target),end)).toBeLessThanOrEqual(1);
+  await scrollPage(page,80);
+  await page.mouse.wheel(0,-40);
+  await expect.poll(()=>page.evaluate(()=>scrollY),{timeout:15_000}).toBeLessThanOrEqual(1);
+  await scrollPage(page,end-80);
+  await page.mouse.wheel(0,40);
+  await page.keyboard.press('Escape');
+  await expect.poll(()=>page.evaluate(()=>scrollY)).toBeGreaterThan(end-75);
+  await page.waitForTimeout(350);
+  expect(await page.evaluate(()=>scrollY)).toBeLessThan(end-10);
+  await page.emulateMedia({reducedMotion:'reduce'});
+  await scrollPage(page,end-80);
+  await page.mouse.wheel(0,40);
+  await expect.poll(()=>page.evaluate(()=>scrollY)).toBeGreaterThan(end-75);
+  await page.waitForTimeout(350);
+  expect(await page.evaluate(()=>scrollY)).toBeLessThan(end-10);
+  // Retain real room/foreground pixels and reject shader errors. These views
+  // are review evidence, not a claim that different camera poses match pixels.
+  await page.locator('#product').evaluate(el=>{
+    const stage=el.firstElementChild!;
+    scrollTo({top:el.getBoundingClientRect().top+scrollY+(el.getBoundingClientRect().height-stage.getBoundingClientRect().height)*.5,behavior:'instant'});
+  });
+  await expect(page.locator('.scene-canvas')).toHaveAttribute('data-section','product');
+  await expect(page.locator('.scene-canvas')).toHaveAttribute('data-settled','true',{timeout:15_000});
+  await screenshot(page,info,`linear-fog-live-room-${width}`);
+  await enterOffers(page);
+  await screenshot(page,info,`preserved-offers-room-${width}`);
+  expect(errors).toEqual([]);
+});
+
+for (const width of [390, 1440]) test(`section reveals preserve the visible subject orientation at ${width}px`, async ({ page }, info) => {
+  test.setTimeout(240_000);
+  await page.setViewportSize({ width, height: 844 });
+  await openScene(page, '/', '', 'no-preference');
+  const canvas = page.locator('.scene-canvas');
+  const evidence: Array<{ join: string; progress: number; quaternion: number[]; scale: number; bounds: unknown }> = [];
+  try {
+  for (const [from, to, subject] of [['features', 'encryption', 'dish'], ['encryption', 'grip', 'support']] as const) {
+    const window = await page.locator(`#${from}`).evaluate(element => {
+      const d = (element as HTMLElement).dataset;
+      return { start: Number(d.exitStart), end: Number(d.exitEnd) };
+    });
+    expect(window.end).toBeGreaterThan(window.start);
+    if (subject === 'support') {
+      await scrollPage(page, window.start - 10);
+      await page.locator('#encryption').getByRole('button', { name: 'Retourner le support', exact: true }).click();
+      await expect(page.locator('#encryption').getByRole('button', { name: 'Voir le QR code', exact: true })).toHaveAttribute('aria-pressed', 'true');
+    }
+    let reference: number[] | undefined;
+    for (const progress of [.1, .35, .65, .9, .65, .35, .1]) {
+      await scrollPage(page, window.start + (window.end - window.start) * progress);
+      await page.waitForFunction(({ join, progress, subject }) => {
+        const d = document.querySelector<HTMLCanvasElement>('.scene-canvas')!.dataset;
+        return d.transition === join && Math.abs(Number(d.transitionProgress) - progress) < .002 &&
+          d.settled === 'true' && Boolean(d[`${subject}Bounds`]) &&
+          (subject !== 'dish' || Boolean(d.renderedModel));
+      }, { join: `${from}:${to}`, progress, subject }, { timeout: HAND_READY_MS });
+      const state = await canvas.evaluate((element, subject) => {
+        const d = (element as HTMLCanvasElement).dataset;
+        return { quaternion: d[`${subject}Quaternion`]!.split(',').map(Number),
+          scale: Number(d[`${subject}Scale`]!.split(',')[0]), bounds: JSON.parse(d[`${subject}Bounds`]!) };
+      }, subject);
+      expect(state.scale).toBeGreaterThan(.003);
+      expect(state.quaternion.every(Number.isFinite)).toBe(true);
+      reference ??= state.quaternion;
+      // q and -q represent the same orientation; no hidden-default spin is allowed.
+      const length = (q: number[]) => Math.sqrt(q.reduce((sum, value) => sum + value * value, 0));
+      const alignment = Math.abs(state.quaternion.reduce((sum, value, index) => sum + value * reference![index], 0)) /
+        (length(state.quaternion) * length(reference));
+      expect(alignment).toBeGreaterThan(1 - 1e-10);
+      evidence.push({ join: `${from}:${to}`, progress, ...state });
+    }
+    await screenshot(page, info, `steady-subject-${from}-${to}-${width}`);
+  }
+  } finally {
+    await info.attach('visible-subject-transition-poses', { body: JSON.stringify(evidence, null, 2), contentType: 'application/json' });
+  }
 });

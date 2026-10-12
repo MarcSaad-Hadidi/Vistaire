@@ -1,4 +1,5 @@
 import * as THREE from "three";
+import { applyLinearRestaurantFog } from "./RestaurantFog.js";
 import inventory from "./restaurant-table-inventory.json";
 
 /**
@@ -231,6 +232,7 @@ export function createRestaurantTable(
         if (!material && value === 1) return original;
         if (!material) {
           material = original.clone();
+          applyLinearRestaurantFog(material);
           materialClones.set(original, material);
         }
         const transparent = original.transparent || value < 0.999;

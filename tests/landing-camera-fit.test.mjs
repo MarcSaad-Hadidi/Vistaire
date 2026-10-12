@@ -3,6 +3,7 @@ import test from 'node:test';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 import * as director from '../components/immersive/SceneDirector.js';
+import { sectionTransitionComposition } from '../components/immersive/SectionTransitionMotion.js';
 import * as THREE from 'three';
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -176,7 +177,7 @@ test('close-up reset and chapter transitions preserve hull depth, then restore f
   const displayScale = 2 / 2.35;
   const focus = { x: 0.5, y: 0.52, width: 0.85, height: 0.28 };
   const scope = {
-    ...director, ...dolly, THREE, HALF_PI: Math.PI / 2, clamp: (v, a, b) => Math.min(b, Math.max(a, v)), smooth: director.cinematicEase,
+    ...director, ...dolly, sectionTransitionComposition, THREE, HALF_PI: Math.PI / 2, clamp: (v, a, b) => Math.min(b, Math.max(a, v)), smooth: director.cinematicEase,
     scene, camera, dishRoot: roots[0], supportRoot: roots[1], phoneRoot: roots[2], laptopRoot: roots[3],
     supportAssets: { active: null }, laptopAsset: {}, corner: new THREE.Vector3(), referenceCamera: camera.clone(), calibrations: new Map(), mobileViewport: () => false, fallbackFocus: director.DEFAULT_SCENE_FRAME,
     canvas: { clientWidth: 1440, clientHeight: 900 }, drawingSize: { width: 1440, height: 900 }, activeDish: true,

@@ -62,7 +62,7 @@ test('pricing uses the exact approved hand and projects the existing native phon
   hand.dispose(); phone.geometry.dispose(); screen.geometry.dispose();
 });
 
-test('keyboard reading yields back to the native page at both phone boundaries', () => {
+test('keyboard reading explicitly continues the page at both fixed-portal boundaries', () => {
   const source = readFileSync('components/immersive/Pricing.jsx', 'utf8');
   const start = source.indexOf('  const scrollWithKeyboard = (event) => {');
   const end = source.indexOf('  const guardHiddenControl', start);
@@ -73,21 +73,21 @@ test('keyboard reading yields back to the native page at both phone boundaries',
     viewportRef: { current: viewport },
     layoutRef: { current: layout },
     introRef: { current: { getBoundingClientRect: () => ({ top: -1000 }) } },
-    window: { scrollY: 16000, scrollTo: (options) => calls.push(options) },
+    window: { scrollY: 16000, innerHeight: 900, scrollTo: (options) => calls.push(options), scrollBy: (options) => calls.push(options) },
     pricingPagePosition: (_top, offset) => offset,
   });
   vm.runInContext(`${source.slice(start, end)}; this.onKey = scrollWithKeyboard;`, context);
   let prevented = false;
   const press = (key) => context.onKey({ key, target: viewport, preventDefault: () => { prevented = true; } });
   press('PageDown');
-  assert.equal(prevented, false, 'the last offer must not trap PageDown before the FAQ');
-  assert.equal(calls.length, 0);
+  assert.equal(prevented, true, 'fixed portal ancestors cannot reliably chain native PageDown to the document');
+  assert.equal(calls.at(-1).top, 720, 'continue the page far enough to reveal the FAQ');
   viewport.scrollTop = 0;
   press('ArrowUp');
-  assert.equal(prevented, false, 'the first offer must not trap ArrowUp on return to the collections');
+  assert.equal(calls.at(-1).top, -48, 'the first offer returns to the native page toward the collections');
   press('ArrowDown');
   assert.equal(prevented, true);
-  assert.equal(calls.length, 1, 'inside the phone, keyboard movement still resolves to a native page position');
+  assert.equal(calls.length, 3, 'inside the phone, keyboard movement still resolves to a native page position');
 });
 
 test('the first native phone projection cannot move the FAQ or footer', async () => {
@@ -156,4 +156,30 @@ test('Tarifs uses the measured reading start after the hand entrance in all layo
   assert.match(pricing,/pricingNavigationTarget/);
   const app=readFileSync('components/immersive/App.jsx','utf8');
   assert.ok((app.match(/pricingNavigationTarget/g)||[]).length>=2,'initial hashes and button navigation share the measured target');
+});
+
+test('the below-fold Studio preview does not eagerly download the shared laptop screen', () => {
+  const source = readFileSync('components/immersive/Pricing.jsx', 'utf8');
+  const preview = source.slice(source.indexOf('className="pricing-pilotage-visual"'), source.indexOf('className="pricing-pilotage-note"'));
+  assert.match(preview, /src=\{dashboardReady \?/);
+  const start = source.indexOf('    const syncScroll = (');
+  const end = source.indexOf('    const measure = () => {', start);
+  const requests = [];
+  const context = vm.createContext({
+    dashboardRequested: false, setDashboardReady: ready => requests.push(ready),
+    layoutRef: { current: {} }, lastReducedMotion: false,
+    state: { reducedMotion: false, renderSceneFrame() {}, pricingViewport: { height: 844 } },
+    presenter: { scroll() {} },
+  });
+  vm.runInContext(`${source.slice(start, end)}; this.sync = syncScroll;`, context);
+  context.sync(0, 20000);
+  context.sync(19000, 20000);
+  assert.deepEqual(requests, [], 'hidden fixed portals must not request dashboard pixels on initial chapters');
+  context.sync(19156, 20000);
+  context.sync(20000, 20000);
+  context.sync(0, 20000);
+  assert.deepEqual(requests, [true], 'load once on measured pricing approach, retaining the loaded image on reverse');
+  assert.match(preview, /loading="lazy"/);
+  assert.match(preview, /fetchPriority="low"/);
+  assert.match(preview, /width="1184"[\s\S]*height="758"/, 'fixed dimensions keep the reading geometry stable');
 });
