@@ -1,9 +1,11 @@
-import { CINEMATIC_TIMING } from "./SceneDirector.js";
+import { CINEMATIC_TIMING, readingTiming } from "./SceneDirector.js";
 
 const QUIET_MS = 280;
 // Sustainability's lid reaches its widest keyframe where chapterPhase reaches 1,
 // at the end of the chapter's active span (pace scales travel, not this ratio).
 const LAPTOP_OPEN = (CINEMATIC_TIMING.sceneScreens - CINEMATIC_TIMING.edgeScreens) / CINEMATIC_TIMING.sceneScreens;
+// Reading chapters settle each later option where its card/menu change ends.
+const READING_OPTIONS = readingTiming().transitions.map(([, end]) => end);
 const INPUT_MAX_AGE_MS = 600;
 const FOCUSED_CONTROLS = 'input, select, textarea, video, audio, iframe, dialog, [role="slider"], [role="textbox"], [role="combobox"], [role="listbox"], [role="menu"], [role="menuitem"], [role="dialog"], [aria-modal="true"], [contenteditable]:not([contenteditable="false"])';
 const CONTROLS = `a, button, summary, [role="button"], [role="tab"], ${FOCUSED_CONTROLS}`;
@@ -232,11 +234,14 @@ export function createEntryScrollAssist({ getGeometry, isBlocked }, view = windo
         { id: "ai", y: opening.top + opening.motionTravel / 2 },
         { id: "wearable", y: opening.top + opening.motionTravel },
         ...transitions.filter(join => !natural(join.from.id) && !natural(join.to.id))
-          .flatMap(join => join.from.id === "sustainability"
-            // The open laptop and readable dashboard are their own stop, so one
-            // gesture never skips from the closed lid to Three experiences.
-            ? [{ id: "sustainability-open", y: join.from.top + join.from.travel * LAPTOP_OPEN }, { id: join.to.id, y: join.end }]
-            : [{ id: join.to.id, y: join.end }]),
+          .flatMap(join => [
+            // Internal stable poses are their own stops, so one gesture never
+            // skips the open laptop or a detail/menu option to the next chapter.
+            ...(join.from.id === "sustainability" ? [LAPTOP_OPEN]
+              : join.from.id === "features" || join.from.id === "social-content" ? READING_OPTIONS : [])
+              .map((progress, index) => ({ id: `${join.from.id}-${index + 1}`, y: join.from.top + join.from.travel * progress })),
+            { id: join.to.id, y: join.end },
+          ]),
       ];
       const destination = direction > 0 ? stops.find(stop => stop.y > y)
         : stops.findLast(stop => stop.y < y);

@@ -3456,6 +3456,46 @@ html[data-vistaire-theme="light"] :where([data-immersive-vistaire]) .footer .act
   :where([data-immersive-vistaire]) .grip .grip-actions { grid-column: 1; grid-row: 4; justify-self: stretch; align-self: end; justify-content: space-between; padding: 6px; gap: 8px; }
   :where([data-immersive-vistaire]) .grip .grip-actions .ar-action { font-size: 11px; padding: 9px 10px; }
   :where([data-immersive-vistaire]) .grip .grip-actions .detail-link { font-size: 10px; }
+  /* Short landscape phones: the hero card stays below the wordmark. */
+  :where([data-immersive-vistaire]) .hero-word { top: 88px; font-size: calc(12 * var(--scene-vh)); }
+  :where([data-immersive-vistaire]) .hero-glass {
+    max-width: 300px;
+    padding: 12px 14px;
+    gap: 8px;
+  }
+  :where([data-immersive-vistaire]) .hero-glass h2 { font-size: 19px; }
+  :where([data-immersive-vistaire]) .hero-glass p { font-size: 12px; padding-top: 8px; }
+  /* Heading and description share one cell on tall screens; stack them here. */
+  :where([data-immersive-vistaire]) .social .stage { padding-top: 72px; padding-bottom: 40px; }
+  :where([data-immersive-vistaire]) .social-inner {
+    padding: 14px 18px;
+    grid-template-rows: auto auto minmax(0, 1fr) auto;
+    row-gap: 6px;
+  }
+  :where([data-immersive-vistaire]) .social-inner h3 { font-size: 30px; margin-top: 0; }
+  :where([data-immersive-vistaire]) .social-description {
+    grid-row: 3;
+    align-self: start;
+    font-size: 13px;
+    line-height: 1.35;
+    padding-bottom: 0;
+  }
+  :where([data-immersive-vistaire]) .social-bottom { grid-row: 4; gap: 8px; }
+  :where([data-immersive-vistaire]) .social-bottom > span { font-size: 19px; }
+  :where([data-immersive-vistaire]) .social-pager { bottom: 18px; }
+  /* The details card spans the left column so the support keeps a real frame. */
+  :where([data-immersive-vistaire]) .product .stage { padding-top: 72px; padding-bottom: 14px; row-gap: 8px; }
+  :where([data-immersive-vistaire]) .product h2 { font-size: 30px; padding-top: 18px; }
+  :where([data-immersive-vistaire]) .collection-tabs { grid-column: 2; }
+  :where([data-immersive-vistaire]) .collection-tabs button { padding: 8px 14px; font-size: 12px; }
+  :where([data-immersive-vistaire]) .collection-details {
+    grid-row: 2 / 5;
+    align-self: start;
+    padding: 12px 14px;
+    gap: 8px;
+  }
+  :where([data-immersive-vistaire]) .collection-details p { font-size: 12px; line-height: 1.35; margin: 4px 0; }
+  :where([data-immersive-vistaire]) .price { font-size: 24px; }
 }
 
 /* Only mounted by the explicit performanceCapture query flag. */

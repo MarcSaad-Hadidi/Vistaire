@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
-import { scaledCinematicTiming, measureChapterTransitions, chapterNavigationTarget } from '../components/immersive/SceneDirector.js';
+import { scaledCinematicTiming, measureChapterTransitions, chapterNavigationTarget, readingTiming } from '../components/immersive/SceneDirector.js';
 
 import * as assistance from '../components/immersive/EntryScrollAssist.js';
 const { createEntryScrollAssist } = assistance;
@@ -698,14 +698,20 @@ function authoredReadingStops(bounds, pace = 1) {
       const y = chapterNavigationTarget(join.to, opening.stageHeight, timing);
       assert.ok(Math.abs(y - join.end) < 1e-7, 'incoming end must match the existing navigation pose');
       return { id: join.to.id, y };
-    }).flatMap(stop => stop.id !== 'testimonies' ? [stop] : [{ id: 'sustainability-open', y: (join => join.from.top + join.from.travel * (timing.sceneScreens - timing.edgeScreens) / timing.sceneScreens)(transitions.find(join => join.from.id === 'sustainability')) }, stop]),
+    }).flatMap(stop => {
+      // Internal stable poses: the open laptop and options 2 and 3 of each reading chapter.
+      const join = transitions.find(candidate => candidate.to.id === stop.id), from = join.from;
+      const internal = from.id === 'sustainability' ? [['sustainability-open', (timing.sceneScreens - timing.edgeScreens) / timing.sceneScreens]]
+        : ['features', 'social-content'].includes(from.id) ? readingTiming().transitions.map(([, end], index) => [`${from.id}-option-${index + 2}`, end]) : [];
+      return [...internal.map(([id, progress]) => ({ id, y: from.top + from.travel * progress })), stop];
+    }),
   ];
 }
 
 test('every authored gap and handoff completes to its adjacent navigation reading stop with no proximity eligibility', () => {
   for (const pace of [.25, 1, 4]) {
     const bounds = geometry(844, pace), stops = authoredReadingStops(bounds, pace);
-    assert.deepEqual(stops.map(stop => stop.id), ['hero', 'ai', 'wearable', 'features', 'encryption', 'grip', 'sustainability', 'sustainability-open', 'testimonies', 'social-content', 'product']);
+    assert.deepEqual(stops.map(stop => stop.id), ['hero', 'ai', 'wearable', 'features', 'features-option-2', 'features-option-3', 'encryption', 'grip', 'sustainability', 'sustainability-open', 'testimonies', 'social-content', 'social-content-option-2', 'social-content-option-3', 'product']);
     for (let i = 1; i < stops.length; i++) {
       const before = stops[i - 1], after = stops[i];
       const points = new Set([before.y + .25, (before.y + after.y) / 2, after.y - .25]);
@@ -883,5 +889,30 @@ test('sustainability holds a reading stop on the fully opened laptop before Troi
     assert.equal(gesture(open + 1, 1), exit.end, `${pace}: the next gesture continues to testimonies`);
     assert.ok(Math.abs(gesture(exit.end - 1, -1) - open) < 1e-6, `${pace}: reverse stops on the open laptop`);
     assert.equal(gesture(open - 1, -1), arrival.end, `${pace}: reverse again returns to the sustainability arrival`);
+  }
+});
+
+test('features and video menus stop on each of their three stable options before the next chapter, in both directions', async () => {
+  const { readingPresentation } = await import('../components/immersive/SceneDirector.js');
+  for (const pace of [.25, 1, 4]) for (const id of ['features', 'social-content']) {
+    const bounds = geometry(844, pace);
+    const arrival = bounds.transitions.find(join => join.to.id === id);
+    const exit = bounds.transitions.find(join => join.from.id === id);
+    const chapter = exit.from, at = y => readingPresentation((y - chapter.top) / chapter.travel);
+    const gesture = (y, direction) => {
+      const f = fixture({ mode: 'early', pace }); f.wheel(y, direction); f.end(); f.advance(60000);
+      const result = f.view.scrollY; f.assist.dispose(); return result;
+    };
+    const second = gesture(arrival.end + 1, 1), third = gesture(second + 1, 1);
+    for (const [y, index] of [[second, 1], [third, 2]]) {
+      const shown = at(y);
+      assert.equal(shown.position, index, `${pace} ${id}: option ${index + 1} is fully in place`);
+      assert.equal(shown.opacity, 1, `${pace} ${id}: option ${index + 1} copy is fully visible`);
+      assert.ok(at(y - 1).position < index, `${pace} ${id}: the stop is the first stable pose of option ${index + 1}`);
+    }
+    assert.equal(gesture(third + 1, 1), exit.end, `${pace} ${id}: the next gesture continues to the next chapter`);
+    assert.ok(Math.abs(gesture(exit.end - 1, -1) - third) < 1e-6, `${pace} ${id}: reverse stops on option 3`);
+    assert.ok(Math.abs(gesture(third - 1, -1) - second) < 1e-6, `${pace} ${id}: reverse stops on option 2`);
+    assert.equal(gesture(second - 1, -1), arrival.end, `${pace} ${id}: reverse returns to option 1`);
   }
 });

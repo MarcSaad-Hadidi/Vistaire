@@ -521,6 +521,24 @@ for (const width of [390,1440]) test(`native entry assistance is bounded, interr
   await page.waitForTimeout(350);
   expect(await page.evaluate(target=>Math.abs(scrollY-target),wearable)).toBeLessThanOrEqual(1);
 
+  // Internal stable poses are their own stops: one gesture from the closed lid
+  // ends on the fully opened laptop, and one from detail 1 ends on detail 2.
+  const exitStart = (id: string) => page.locator(`#${id}`).evaluate(el => Number((el as HTMLElement).dataset.exitStart));
+  const laptopOpen = await exitStart('sustainability');
+  await position(laptopOpen - opening.stage * 2);
+  await gesture(1);
+  await expect.poll(()=>page.evaluate(target=>Math.abs(scrollY-target),laptopOpen),{timeout:20_000}).toBeLessThanOrEqual(1);
+  await expect(page.locator('.scene-canvas')).toHaveAttribute('data-settled', 'true', { timeout: 15_000 });
+  await expect(page.locator('.scene-canvas')).toHaveAttribute('data-laptop-angle', '120.00');
+  await expect(page.locator('html')).toHaveAttribute('data-chapter', 'sustainability');
+  const featuresTop = await page.locator('#features').evaluate(el => el.getBoundingClientRect().top + scrollY);
+  await position(featuresTop + opening.stage * (CINEMATIC_TIMING.edgeScreens + .3));
+  await gesture(1);
+  await expect.poll(()=>page.locator('.feature-number').textContent(),{timeout:20_000}).toContain('2');
+  await page.waitForTimeout(600);
+  await expect(page.locator('html')).toHaveAttribute('data-chapter', 'features');
+  expect(await page.locator('#features').evaluate(el => Number((el as HTMLElement).style.getPropertyValue('--detail-opacity')))).toBe(1);
+
   await position(end-inputRoom);
   await gesture(1);
   await page.keyboard.press('Escape');
