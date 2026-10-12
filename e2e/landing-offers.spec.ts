@@ -181,7 +181,7 @@ for (const profile of profiles) {
       await handReady(page);
       if (theme === 'light') {
         const before = await backdrop(page);
-        await page.locator('[data-public-navigation-toggle]').click();
+        await expect(page.locator("[data-public-navigation-open]")).toBeVisible();
         await page.locator('.site-header [data-public-theme-toggle]').click();
         await expect(page.locator('html')).toHaveAttribute('data-vistaire-theme', 'light');
         await expect(page.locator('.scene-canvas')).toHaveAttribute('data-pricing-backdrop-theme', 'light');
@@ -302,7 +302,7 @@ test('direct pricing anchor and normal native-scroll entry capture the same inte
   await screenshot(page, info, 'normal-scroll-offers');
   await scrollPage(page, 0);
   await expect(page.locator('.scene-canvas')).toHaveAttribute('data-pricing-backdrop', 'released');
-  await page.locator('[data-public-navigation-toggle]').click();
+  await expect(page.locator("[data-public-navigation-open]")).toBeVisible();
   await page.locator('.desktop-nav').getByRole('button', { name: 'Tarifs', exact: true }).click();
   await handReady(page);
   const navigation = await backdrop(page);
@@ -395,7 +395,7 @@ for (const profile of [{width:390,height:844,path:'/en',label:'Pricing'}, {width
     await page.setViewportSize({width:profile.width===390?430:1337,height:profile.height});
     await scrollPage(page,0);
     await expect(page.locator('.scene-canvas')).toHaveAttribute('data-pricing-backdrop','released');
-    await page.locator('[data-public-navigation-toggle]').click();
+    await expect(page.locator("[data-public-navigation-open]")).toBeVisible();
     if(profile.width===390){
       await page.locator('.site-header .menu-toggle').click();
       await page.locator('#mobile-menu').getByRole('button',{name:`04 ${profile.label}`,exact:true}).click();
@@ -417,7 +417,7 @@ test('the laptop uses the current dashboard capture in the selected site theme',
   await expect(canvas).toHaveAttribute('data-laptop-ready','true',{timeout:ASSET_READY_MS});
   await expect(canvas).toHaveAttribute('data-laptop-dashboard-theme','light');
   await screenshot(page,info,'current-dashboard-laptop-light');
-  await page.locator('[data-public-navigation-toggle]').click();
+  await expect(page.locator("[data-public-navigation-open]")).toBeVisible();
   await page.locator('.site-header [data-public-theme-toggle]').click();
   await expect(canvas).toHaveAttribute('data-laptop-dashboard-theme','dark');
   await screenshot(page,info,'current-dashboard-laptop-dark');

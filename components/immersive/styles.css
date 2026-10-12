@@ -246,9 +246,9 @@
 }
 :where([data-immersive-vistaire]) .site-header {
   position: fixed;
-  top: 16px;
-  left: var(--pad);
-  right: var(--pad);
+  top: max(16px, env(safe-area-inset-top, 0px));
+  left: max(var(--pad), env(safe-area-inset-left, 0px));
+  right: max(var(--pad), env(safe-area-inset-right, 0px));
   height: 64px;
   padding: 0 24px;
   z-index: 50;
@@ -1798,7 +1798,7 @@
     --body: 15px;
   }
   :where([data-immersive-vistaire]) .site-header {
-    top: 12px;
+    top: max(12px, env(safe-area-inset-top, 0px));
     height: 54px;
     padding: 0 16px;
     gap: 12px;
@@ -2576,7 +2576,7 @@
   }
   :where([data-immersive-vistaire]) .site-header {
     height: 54px;
-    top: 12px;
+    top: max(12px, env(safe-area-inset-top, 0px));
   }
   :where([data-immersive-vistaire]) .chapter-heading {
     gap: 10px;
@@ -3068,8 +3068,6 @@
   }
 }
 
-/* Shared launcher owns the navbar expansion; scene geometry is unchanged. */
-
 /* Public Vistaire routes share the same navigation and precious accents. */
 :where([data-immersive-vistaire]) .menu-toggle {
   display: flex;
@@ -3216,8 +3214,8 @@
 }
 @media (max-width: 767.98px) {
   :where([data-immersive-vistaire]) .site-header {
-    left: 12px;
-    right: 12px;
+    left: max(12px, env(safe-area-inset-left, 0px));
+    right: max(12px, env(safe-area-inset-right, 0px));
     padding: 0 10px;
     gap: 6px;
   }
@@ -3247,8 +3245,8 @@
 }
 @media (max-width: 359px) {
   :where([data-immersive-vistaire]) .site-header {
-    left: 8px;
-    right: 8px;
+    left: max(8px, env(safe-area-inset-left, 0px));
+    right: max(8px, env(safe-area-inset-right, 0px));
     padding: 0 6px;
     gap: 4px;
   }

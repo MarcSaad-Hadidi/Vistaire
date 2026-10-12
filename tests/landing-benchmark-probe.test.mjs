@@ -308,19 +308,17 @@ test('local pricing FAQ workload opens and closes the current hydrated accordion
   await run(null);
 });
 
-test('benchmark navigation opens the parked bar before its existing menu journey', async () => {
+test('benchmark navigation uses the always-visible bar for its existing menu journey', async () => {
   const source = readFileSync(process.env.VISTAIRE_BENCHMARK_SOURCE || 'scripts/benchmark-landing.mjs', 'utf8');
   const marker = "await phase('navigate-away-and-return', async () => {";
   const start = source.indexOf(marker) + marker.length;
   const end = source.indexOf('\n      });', start);
   assert.ok(start >= marker.length && end > start);
   const calls = [];
-  let expanded = false;
   const scope = { baseURL: 'http://fixture.local', URL,
     page: {
       locator(selector) {
-        if (selector === '[data-public-navigation-toggle]') return { click: async () => { calls.push('expand'); expanded = true; } };
-        if (selector === '.menu-toggle') return { click: async () => { assert.equal(expanded, true, 'a hidden bar cannot receive a real click'); calls.push('menu'); } };
+        if (selector === '.menu-toggle') return { click: async () => { calls.push('menu'); } };
         assert.equal(selector, '.menu-page-links a');
         return { nth(index) { assert.equal(index, 1); return {
           getAttribute: async name => { assert.equal(name, 'href'); return '/a-propos'; },
@@ -333,5 +331,5 @@ test('benchmark navigation opens the parked bar before its existing menu journey
     },
   };
   await vm.runInNewContext(`(async () => {${source.slice(start, end)}})()`, scope);
-  assert.deepEqual(calls, ['expand', 'menu', 'about', 'url', 'ready-check', 'back', 'ready-check', 'ready-check']);
+  assert.deepEqual(calls, ['menu', 'about', 'url', 'ready-check', 'back', 'ready-check', 'ready-check']);
 });

@@ -150,7 +150,7 @@ for (const scenario of DISCOVERY_ROUTES) {
         const response = await page.goto(`${scenario.path}?lang=${scenario.queryLang}&experience=trouvable&utm_source=qa`, { waitUntil: "domcontentloaded" });
         expect(response?.status()).toBe(200);
         await expect(page.locator("html")).toHaveAttribute("lang", scenario.lang);
-        await page.locator("[data-public-navigation-toggle]").click();
+        await expect(page.locator("[data-public-navigation-open]")).toBeVisible();
         await expect(page.getByRole("link", { name: scenario.activeLanguage }).first()).toHaveAttribute("aria-current", "true");
         await expect(page.getByRole("link", { name: scenario.otherLanguage }).first()).toHaveAttribute("href", scenario.alternatePath);
         for (const id of ["trouvable", "sauge-noire"]) {

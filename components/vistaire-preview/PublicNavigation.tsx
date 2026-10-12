@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import Link from "next/link";
 import { PublicControls } from "./PublicControls";
-import { PublicNavigationTab } from "./PublicNavigationTab";
 import type { Locale } from "@/lib/i18n";
 import { bindPublicMenuViewport } from "@/lib/publicMenuViewport";
 import styles from "./VistairePreviewChrome.module.css";
@@ -28,23 +27,12 @@ export function PublicNavigation({
   locale: Locale;
   languages: { href: string; label: string; active: boolean }[];
 }) {
-  const [navigationOpen, setNavigationOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
-  const navigationTab = useRef<HTMLButtonElement>(null);
   const header = useRef<HTMLElement>(null);
   const panel = useRef<HTMLElement>(null);
   const menuId = useId();
   const navigationId = useId();
   const close = useCallback(() => setMenuOpen(false), []);
-  const hideNavigation = useCallback(() => {
-    setMenuOpen(false);
-    setNavigationOpen(false);
-    navigationTab.current?.focus({ preventScroll: true });
-  }, []);
-  const toggleNavigation = () => {
-    if (navigationOpen) hideNavigation();
-    else setNavigationOpen(true);
-  };
   const english = locale === "en";
   const chapters = [
     ["hero", "Introduction"],
@@ -84,23 +72,6 @@ export function PublicNavigation({
   }, [close]);
 
   useEffect(() => {
-    if (!navigationOpen) return;
-    header.current?.querySelector<HTMLElement>("button,a[href]")?.focus({ preventScroll: true });
-  }, [navigationOpen]);
-
-  useEffect(() => {
-    if (!navigationOpen || menuOpen) return;
-    const dismiss = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        event.preventDefault();
-        hideNavigation();
-      }
-    };
-    document.addEventListener("keydown", dismiss);
-    return () => document.removeEventListener("keydown", dismiss);
-  }, [navigationOpen, menuOpen, hideNavigation]);
-
-  useEffect(() => {
     if (!menuOpen) return;
     const unbindViewport = bindPublicMenuViewport(header.current!, panel.current!);
     panel.current!.scrollTop = 0;
@@ -108,11 +79,14 @@ export function PublicNavigation({
     const overflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     const controls = () => [
-      navigationTab.current!,
       ...header.current!.querySelectorAll<HTMLElement>("button,a[href]"),
       ...panel.current!.querySelectorAll<HTMLElement>("button,a[href]"),
     ].filter((control) => control.getClientRects().length > 0);
-    panel.current?.querySelector<HTMLElement>("a[href]")?.focus({ preventScroll: true });
+    const focusFrame = requestAnimationFrame(() => {
+      const first = panel.current?.querySelector<HTMLElement>("a[href]");
+      if (first && !panel.current!.inert && document.activeElement === previous
+        && getComputedStyle(first).visibility === "visible") first.focus({ preventScroll: true });
+    });
     const dismiss = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         event.preventDefault();
@@ -135,6 +109,7 @@ export function PublicNavigation({
     document.addEventListener("keydown", dismiss);
     return () => {
       unbindViewport();
+      cancelAnimationFrame(focusFrame);
       document.body.style.overflow = overflow;
       document.removeEventListener("keydown", dismiss);
       if (previous instanceof HTMLElement && previous.isConnected) {
@@ -144,20 +119,11 @@ export function PublicNavigation({
   }, [menuOpen, close]);
   return (
     <>
-      <PublicNavigationTab
-        expanded={navigationOpen}
-        controls={navigationId}
-        locale={locale}
-        buttonRef={navigationTab}
-        onClick={toggleNavigation}
-      />
       <nav
         ref={header}
         id={navigationId}
         data-vistaire-chrome
-        data-public-navigation-open={navigationOpen}
-        inert={!navigationOpen ? true : undefined}
-        aria-hidden={!navigationOpen}
+        data-public-navigation-open="true"
         aria-label={locale === "en" ? "Main navigation" : "Navigation principale"}
         className={styles.previewNav}
       >

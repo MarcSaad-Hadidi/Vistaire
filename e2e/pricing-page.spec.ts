@@ -111,7 +111,7 @@ async function expectPrimaryNavigationFits(
   page: Page,
   labels: readonly string[]
 ) {
-  await page.locator("[data-public-navigation-toggle]").click();
+  await expect(page.locator("[data-public-navigation-open]")).toBeVisible();
   const navigation = page.getByRole("navigation").first();
   await expect(navigation).toBeVisible();
   const navigationBox = await navigation.boundingBox();
@@ -349,7 +349,7 @@ test.describe("Vistaire pricing collections", () => {
       const pilotage = page.locator("[data-pricing-pilotage]");
       await expect(pilotage.getByText(scenario.pilotage, { exact: true })).toBeVisible();
       await expect(pilotage.getByText(scenario.total, { exact: true })).toBeVisible();
-      await page.locator("[data-public-navigation-toggle]").click();
+      await expect(page.locator("[data-public-navigation-open]")).toBeVisible();
       const navigation = page.getByRole("navigation").first();
       for (const label of scenario.navLinks) {
         await expect(navigation.getByRole("link", { name: label, exact: true })).toBeVisible();

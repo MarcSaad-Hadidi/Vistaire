@@ -4,7 +4,7 @@ import { writeFile } from "node:fs/promises";
 const BASE_URL =
   process.env.PLAYWRIGHT_BASE_URL ?? "http://127.0.0.1:3000";
 
-const focusDiagnosticScenario = /landing-style public Menu|public Menu keeps every link|navigation stays parked|landing Menu shares/;
+const focusDiagnosticScenario = /landing-style public Menu|public Menu keeps every link|navbar stays visible|landing Menu shares/;
 
 test.beforeEach(async ({ page }, info) => {
   if (!focusDiagnosticScenario.test(info.title)) return;
@@ -206,13 +206,12 @@ const englishSecondaryHomeScenarios: HomeScenario[] = [
 ];
 
 async function showPublicNavigation(page: Page) {
-  const tab = page.locator('[data-public-navigation-toggle]');
   if (await page.locator('.preloader').count()) {
     await expect(page.locator('.preloader')).toHaveCount(0, { timeout: 120_000 });
   }
-  await expect(tab).toBeVisible();
-  if (await tab.getAttribute('aria-expanded') !== 'true') await tab.click();
-  await expect(tab).toHaveAttribute('aria-expanded', 'true');
+  await expect(page.locator('[data-public-navigation-toggle]')).toHaveCount(0);
+  await expect(page.locator('[data-public-navigation-open]')).toBeVisible();
+
 }
 
 function topNavigation(page: Page) {
@@ -1005,7 +1004,7 @@ for (const [width, height, path, target, label] of [
     }
     await expect(menu.locator('nav').nth(1).getByRole('link')).toHaveCount(10);
     await expect(chapters.first()).toBeFocused();
-    const firstControl = page.locator('[data-public-navigation-toggle]');
+    const firstControl = page.locator('[data-public-navigation-open]').locator('button, a[href]').first();
     const lastControl = menu.getByRole('link', { name: 'contact@vistaire.ca', exact: true });
     await firstControl.focus();
     await page.keyboard.press('Shift+Tab');
@@ -1059,7 +1058,7 @@ for (const [width, height, label] of [
     expect(await menu.evaluate((element) => element.scrollTop)).toBeGreaterThan(0);
     expect((await menu.boundingBox())!.y).toBeCloseTo(panel!.y, 0);
     await page.keyboard.press('Tab');
-    await expect(page.locator('[data-public-navigation-toggle]')).toBeFocused();
+    await expect(page.locator('[data-public-navigation-open]').locator('button, a[href]').first()).toBeFocused();
     await page.keyboard.press('Escape');
     await expect(trigger).toBeFocused();
     await expect(trigger).toHaveAttribute('aria-expanded', 'false');
@@ -1127,124 +1126,48 @@ test('landing Menu shares the measured compact viewport and accessible scroll fa
 });
 
 for (const path of ['/a-propos', '/en/about', '/']) {
-  test(`navigation stays parked until its circular launcher is opened on ${path}`, async ({ page }) => {
-    if (path === '/') test.setTimeout(150_000);
+  test(`navbar stays visible without a launcher and keeps its compact drawer on ${path}`, async ({ page }) => {
+    test.setTimeout(150_000);
     await page.emulateMedia({ reducedMotion: 'reduce' });
-    await page.setViewportSize({ width: 390, height: 844 });
     await page.goto(path, { waitUntil: 'domcontentloaded' });
-    if (path === '/') await expect(page.locator('.preloader')).toHaveCount(0, { timeout: 120_000 });
-    const tab = page.locator('[data-public-navigation-toggle]');
+    await showPublicNavigation(page);
     const header = page.locator('[data-public-navigation-open]');
-    const menuTrigger = header.locator('button[aria-controls]');
+    const trigger = header.locator('button[aria-controls]');
     const drawer = page.locator('[data-public-menu], .mobile-menu');
     for (const [width, height] of [[320, 667], [375, 667], [390, 844], [430, 932], [844, 390], [1440, 900]]) {
       await page.setViewportSize({ width, height });
-      await expect(tab).toBeVisible();
-      await expect(tab).toHaveAttribute('aria-expanded', 'false');
-      await expect(header).toHaveAttribute('inert', '');
-      await expect(header).toHaveAttribute('aria-hidden', 'true');
-      await expect(header).toHaveCSS('pointer-events', 'none');
-      const tabBox = await tab.boundingBox();
-      expect(tabBox!.width).toBeGreaterThanOrEqual(44);
-      expect(tabBox!.height).toBeGreaterThanOrEqual(44);
-      expect(tabBox!.x).toBeGreaterThanOrEqual(0);
-      expect(tabBox!.y + tabBox!.height).toBeLessThanOrEqual(height);
-      expect(tabBox!.width).toBe(tabBox!.height);
-      expect(tabBox!.x).toBeGreaterThanOrEqual(width - 72);
-      expect(tabBox!.x + tabBox!.width).toBeLessThanOrEqual(width - 8);
-      expect(tabBox!.y).toBeGreaterThanOrEqual(8);
-      expect(tabBox!.y).toBeLessThanOrEqual(32);
-      await expect(tab).toHaveCSS('background-color', 'rgb(0, 0, 0)');
-      await expect(tab).toHaveCSS('color', 'rgb(255, 255, 255)');
-      await expect(tab).toHaveCSS('border-radius', '50%');
-      await expect(tab.locator('svg')).toHaveAttribute('aria-hidden', 'true');
-      await expect(tab.locator('svg path')).toHaveAttribute('d', 'M5 6h14M5 12h14M5 18h14');
-      const before = await page.evaluate(() => ({ scrollY, mainTop: document.querySelector('main')!.getBoundingClientRect().top }));
-      expect(await page.evaluate(() => !document.elementFromPoint(innerWidth / 2, 40)?.closest('[data-public-navigation-open], [data-public-navigation-toggle]'))).toBe(true);
-      await tab.focus();
-      await page.keyboard.press('Enter');
-      await expect(tab).toHaveAttribute('aria-expanded', 'true');
-      await expect(header).toHaveAttribute('aria-hidden', 'false');
+      await expect(header).toBeVisible();
       await expect(header).not.toHaveAttribute('inert');
-      const barBox = (await header.boundingBox())!;
-      expect(barBox.y).toBe(tabBox!.y - 10);
-      expect(barBox.x + barBox.width).toBeCloseTo(tabBox!.x + tabBox!.width + 10, 0);
-      await expect(header).toHaveAttribute('data-public-navigation-ready', 'true');
-      const visibleChildren = await header.locator(':scope > *').evaluateAll(elements => elements
-        .filter(element => (element as HTMLElement).offsetWidth > 0)
-        .map(element => ({ left: element.getBoundingClientRect().left, right: element.getBoundingClientRect().right })));
-      for (const child of visibleChildren) {
-        expect(child.left).toBeGreaterThanOrEqual(barBox.x);
-        expect(child.right).toBeLessThanOrEqual(tabBox!.x - 2);
-      }
-      await expect(tab.locator('svg path')).toHaveAttribute('d', 'M6 6l12 12M6 18 18 6');
-      await expect(header.locator('button, a[href]').first()).toBeFocused();
-      await expect(page.locator('body')).not.toHaveCSS('overflow', 'hidden');
-      expect(await page.evaluate(() => ({ scrollY, mainTop: document.querySelector('main')!.getBoundingClientRect().top }))).toEqual(before);
-      await menuTrigger.click();
-      await expect(menuTrigger).toHaveAttribute('aria-expanded', 'true');
-      await expect(page.locator('body')).toHaveCSS('overflow', 'hidden');
+      await expect(header).toHaveAttribute('data-public-navigation-open', 'true');
+      await expect(header).toHaveCSS('clip-path', 'none');
+      const box = (await header.boundingBox())!;
+      expect(box.y).toBeGreaterThanOrEqual(0);
+      expect(box.y).toBeLessThanOrEqual(20);
+      expect(box.x).toBeGreaterThanOrEqual(0);
+      expect(box.x + box.width).toBeLessThanOrEqual(width);
+      const triggerBox = (await trigger.boundingBox())!;
+      expect(triggerBox.height).toBeGreaterThanOrEqual(44);
+      expect(triggerBox.width).toBeGreaterThanOrEqual(44);
+      const before = await page.evaluate(() => scrollY);
+      await trigger.click();
+      await expect(trigger).toHaveAttribute('aria-expanded', 'true');
+      await expect(drawer.locator('button, a[href]').first()).toBeFocused();
+      expect((await drawer.boundingBox())!.y).toBeGreaterThanOrEqual(box.y + box.height + 8);
       await page.keyboard.press('Escape');
-      await expect(menuTrigger).toHaveAttribute('aria-expanded', 'false');
-      await expect(tab).toHaveAttribute('aria-expanded', 'true');
-      await expect(menuTrigger).toBeFocused();
-      await page.keyboard.press('Escape');
-      await expect(tab).toHaveAttribute('aria-expanded', 'false');
-      await expect(tab).toBeFocused();
-      await expect(header).toHaveAttribute('inert', '');
-      await tab.click();
-      await menuTrigger.click();
-      await tab.click();
-      await expect(tab).toHaveAttribute('aria-expanded', 'false');
-      await expect(menuTrigger).toHaveAttribute('aria-expanded', 'false');
-      await expect(drawer).toHaveAttribute('inert', '');
-      await expect(tab).toBeFocused();
+      await expect(trigger).toHaveAttribute('aria-expanded', 'false');
+      await expect(trigger).toBeFocused();
       await expect(page.locator('body')).not.toHaveCSS('overflow', 'hidden');
-      expect(await page.evaluate(() => scrollY)).toBe(before.scrollY);
+      await page.keyboard.press('Escape');
+      await expect(header).toBeVisible();
+      await expect(header).not.toHaveAttribute('inert');
+      expect(await page.evaluate(() => scrollY)).toBe(before);
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     }
-  });
-}
-
-
-for (const path of ['/a-propos', '/']) {
-  test(`navbar extends left from its stationary circle and cancels interrupted focus on ${path}`, async ({ page }) => {
-    test.setTimeout(150_000);
-    await page.emulateMedia({ reducedMotion: 'no-preference' });
-    await page.setViewportSize({ width: 390, height: 844 });
-    await page.goto(path, { waitUntil: 'domcontentloaded' });
-    if (path === '/') await expect(page.locator('.preloader')).toHaveCount(0, { timeout: 120_000 });
-    const tab = page.locator('[data-public-navigation-toggle]');
-    const header = page.locator('[data-public-navigation-open]');
-    const initialCircle = await tab.boundingBox();
-    await tab.click();
-    const during = await header.evaluate(async (element) => {
-      await new Promise(resolve => requestAnimationFrame(resolve));
-      const motion = element.getAnimations().find(animation => (animation as CSSTransition).transitionProperty === 'clip-path');
-      if (!motion) throw new Error('Missing leftward navbar transition');
-      motion.pause();
-      motion.currentTime = 160;
-      const evidence = { clip: getComputedStyle(element).clipPath, inert: (element as HTMLElement).inert,
-        opacity: getComputedStyle(element.firstElementChild!).opacity };
-      motion.play();
-      return evidence;
-    });
-    expect(during.clip).not.toBe('none');
-    expect(during.clip).not.toBe('inset(0px round 32px)');
-    expect(during.inert).toBe(true);
-    expect(during.opacity).toBe('0');
-    await expect(header).toHaveAttribute('data-public-navigation-ready', 'true');
-    expect(await tab.boundingBox()).toEqual(initialCircle);
-    await expect(header.locator('button, a[href]').first()).toBeFocused();
-    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    // Repeated opening/closing leaves the bar visible and its drawer closed.
+    await trigger.click();
     await page.keyboard.press('Escape');
-    await expect(tab).toBeFocused();
-    await tab.click();
-    await tab.click();
-    await page.waitForTimeout(450); // Outlive the cancelled opening fallback.
-    await expect(tab).toHaveAttribute('aria-expanded', 'false');
-    await expect(header).toHaveAttribute('inert', '');
-    await expect(tab).toBeFocused();
-    expect(await tab.boundingBox()).toEqual(initialCircle);
+    await expect(trigger).toHaveAttribute('aria-expanded', 'false');
+    await expect(drawer).toHaveAttribute('inert', '');
+    await expect(header).toBeVisible();
   });
 }

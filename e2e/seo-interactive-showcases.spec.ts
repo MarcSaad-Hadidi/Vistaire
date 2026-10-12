@@ -22,7 +22,7 @@ test("public comparison labels and tabs stay readable in light mode without reco
     const title = comparison.locator('[class*="activeCopy"] h3');
     const label = comparison.locator('[class*="activeCopy"] p');
     const link = comparison.locator('[class*="activeLink"]');
-    await page.locator("[data-public-navigation-toggle]").click();
+    await expect(page.locator("[data-public-navigation-open]")).toBeVisible();
     const toggle = page.locator("[data-public-theme-toggle]").first();
     if (await toggle.getAttribute("aria-pressed") === "true") await toggle.click();
     await expect(title).toHaveCSS("color", "rgb(255, 250, 240)");
