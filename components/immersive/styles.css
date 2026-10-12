@@ -3068,8 +3068,9 @@
   }
 }
 
-/* The top bar stays parked until the shared side tab is opened. */
+/* The top bar stays parked below the shared upper-right launcher. */
 :where([data-immersive-vistaire]) .site-header[data-public-navigation-open] {
+  top: calc(env(safe-area-inset-top, 0px) + 68px);
   transition: opacity 180ms ease, transform 180ms ease, visibility 180ms;
 }
 :where([data-immersive-vistaire]) .site-header[data-public-navigation-open="true"] {

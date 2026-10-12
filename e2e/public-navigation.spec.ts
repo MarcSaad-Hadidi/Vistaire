@@ -1127,7 +1127,7 @@ test('landing Menu shares the measured compact viewport and accessible scroll fa
 });
 
 for (const path of ['/a-propos', '/en/about', '/']) {
-  test(`navigation stays parked until its side tab is opened on ${path}`, async ({ page }) => {
+  test(`navigation stays parked until its circular launcher is opened on ${path}`, async ({ page }) => {
     if (path === '/') test.setTimeout(150_000);
     await page.emulateMedia({ reducedMotion: 'reduce' });
     await page.setViewportSize({ width: 390, height: 844 });
@@ -1137,7 +1137,7 @@ for (const path of ['/a-propos', '/en/about', '/']) {
     const header = page.locator('[data-public-navigation-open]');
     const menuTrigger = header.locator('button[aria-controls]');
     const drawer = page.locator('[data-public-menu], .mobile-menu');
-    for (const [width, height] of [[390, 844], [844, 390], [1440, 900]]) {
+    for (const [width, height] of [[390, 844], [430, 932], [844, 390], [1440, 900]]) {
       await page.setViewportSize({ width, height });
       await expect(tab).toBeVisible();
       await expect(tab).toHaveAttribute('aria-expanded', 'false');
@@ -1149,6 +1149,16 @@ for (const path of ['/a-propos', '/en/about', '/']) {
       expect(tabBox!.height).toBeGreaterThanOrEqual(44);
       expect(tabBox!.x).toBeGreaterThanOrEqual(0);
       expect(tabBox!.y + tabBox!.height).toBeLessThanOrEqual(height);
+      expect(tabBox!.width).toBe(tabBox!.height);
+      expect(tabBox!.x).toBeGreaterThanOrEqual(width - 60);
+      expect(tabBox!.x + tabBox!.width).toBeLessThanOrEqual(width - 8);
+      expect(tabBox!.y).toBeGreaterThanOrEqual(8);
+      expect(tabBox!.y).toBeLessThanOrEqual(20);
+      await expect(tab).toHaveCSS('background-color', 'rgb(0, 0, 0)');
+      await expect(tab).toHaveCSS('color', 'rgb(255, 255, 255)');
+      await expect(tab).toHaveCSS('border-radius', '50%');
+      await expect(tab.locator('svg')).toHaveAttribute('aria-hidden', 'true');
+      await expect(tab.locator('svg path')).toHaveAttribute('d', 'M5 6h14M5 12h14M5 18h14');
       const before = await page.evaluate(() => ({ scrollY, mainTop: document.querySelector('main')!.getBoundingClientRect().top }));
       expect(await page.evaluate(() => !document.elementFromPoint(innerWidth / 2, 40)?.closest('[data-public-navigation-open], [data-public-navigation-toggle]'))).toBe(true);
       await tab.focus();
@@ -1156,6 +1166,8 @@ for (const path of ['/a-propos', '/en/about', '/']) {
       await expect(tab).toHaveAttribute('aria-expanded', 'true');
       await expect(header).toHaveAttribute('aria-hidden', 'false');
       await expect(header).not.toHaveAttribute('inert');
+      expect((await header.boundingBox())!.y).toBeGreaterThanOrEqual(tabBox!.y + tabBox!.height + 8);
+      await expect(tab.locator('svg path')).toHaveAttribute('d', 'M6 6l12 12M6 18 18 6');
       await expect(header.locator('button, a[href]').first()).toBeFocused();
       await expect(page.locator('body')).not.toHaveCSS('overflow', 'hidden');
       expect(await page.evaluate(() => ({ scrollY, mainTop: document.querySelector('main')!.getBoundingClientRect().top }))).toEqual(before);

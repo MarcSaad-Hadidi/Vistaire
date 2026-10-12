@@ -122,7 +122,23 @@ test("public subpages keep the landing Menu drawer on desktop and mobile", async
   const tab = await readFile("components/vistaire-preview/PublicNavigationTab.tsx", "utf8");
   assert.match(tab, /data-public-navigation-toggle/);
   assert.match(tab, /aria-expanded=\{expanded\}/);
+  assert.match(tab, /aria-label=\{label\}/);
+  assert.match(tab, /expanded \? "M6 6l12 12M6 18 18 6" : "M5 6h14M5 12h14M5 18h14"/);
+  assert.doesNotMatch(tab, /<span>Navigation<\/span>/);
+  const launcher = base.match(/\.navigationTab\s*\{([^}]+)\}/)?.[1];
+  assert.ok(launcher);
+  assert.match(launcher, /top: calc\(env\(safe-area-inset-top, 0px\) \+ 12px\)/);
+  assert.match(launcher, /right: calc\(env\(safe-area-inset-right, 0px\) \+ 12px\)/);
+  assert.match(launcher, /width: 44px/);
+  assert.match(launcher, /height: 44px/);
+  assert.match(launcher, /border-radius: 50%/);
+  assert.match(launcher, /background: #000/);
+  assert.match(launcher, /color: #fff/);
   const landingCss = await readFile("components/immersive/styles.css", "utf8");
+  for (const [css, selector] of [[base, /\.previewNav\[data-public-navigation-open\]/], [landingCss, /\.site-header\[data-public-navigation-open\]/]]) {
+    const headerRule = css.slice(css.search(selector)).match(/\{([^}]+)\}/)?.[1];
+    assert.match(headerRule, /top: calc\(env\(safe-area-inset-top, 0px\) \+ 68px\)/, "the fixed header reserves a clear row beneath the launcher");
+  }
   const sharedMenuRules = landingCss.split("/* Public Vistaire routes share")[1];
   assert.match(sharedMenuRules, /top: var\(--menu-top\)/);
   assert.match(sharedMenuRules, /height: calc\(100dvh - var\(--menu-top\) - var\(--menu-bottom\)\)/);
