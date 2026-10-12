@@ -1,9 +1,10 @@
+import Image from "next/image";
 import { LOCALE_LANGUAGE_TAG, type Locale } from "@/lib/i18n";
 import { getLandingExperiences } from "@/lib/landing/menuExperiences";
 import { hasPublicMenu3d } from "@/lib/menu/hasPublicMenu3d";
 import { getPublicMenuBySlug } from "@/lib/menu/publicMenu";
 import { buildPublicDishPath } from "@/lib/menu/publicMenuCore";
-import { DemoWalkthroughVideo } from "./DemoWalkthroughVideo";
+import { ExperienceFilms } from "./ExperienceFilms";
 import { PreviewFooter, PreviewNav } from "./VistairePreviewChrome";
 import styles from "./RestaurantExperiences.module.css";
 
@@ -15,6 +16,9 @@ const pageCopy = {
     explore: "Explorer",
     discover: "Découvrir",
     videoLabel: "Utilisation du menu",
+    filmCaption: "Le menu en mouvement",
+    chapters: "Choisir un restaurant",
+    dishCaption: "À la carte",
     immersiveDescription: "Les plats compatibles se découvrent aussi en 3D et en réalité augmentée, depuis leur fiche.",
     immersiveLink: "Voir un plat en 3D",
     experiences: {
@@ -39,6 +43,9 @@ const pageCopy = {
     explore: "Explore",
     discover: "Discover",
     videoLabel: "Using the menu of",
+    filmCaption: "The menu in motion",
+    chapters: "Choose a restaurant",
+    dishCaption: "On the menu",
     immersiveDescription: "Compatible dishes can also be explored in 3D and augmented reality from their detail page.",
     immersiveLink: "View a dish in 3D",
     experiences: {
@@ -102,8 +109,15 @@ export async function RestaurantExperiences({
             <em>{content.heading[1]}</em>
           </h1>
           <p className={styles.introduction}>{content.introduction}</p>
+          <nav aria-label={content.chapters} className={styles.chapters}>
+            {experiences.map((experience, index) => (
+              <a href={`#sequence-${experience.id}`} key={experience.id}>
+                <span aria-hidden="true">0{index + 1}</span>{experience.name}<Arrow />
+              </a>
+            ))}
+          </nav>
         </div>
-        <div className={styles.experiences}>
+        <ExperienceFilms className={styles.experiences}>
           {experiences.map((experience, index) => {
             const copy = content.experiences[experience.id];
             const dish = experience.featuredDish;
@@ -111,7 +125,8 @@ export async function RestaurantExperiences({
             return (
               <section
                 aria-labelledby={`experience-${experience.id}`}
-                className={`${styles.experience} ${experience.id === "trouvable" ? styles.trouvable : ""}`}
+                className={`${styles.experience} ${styles[experience.id]}`}
+                id={`sequence-${experience.id}`}
                 data-demo-experience={experience.id}
                 key={experience.id}
               >
@@ -130,15 +145,57 @@ export async function RestaurantExperiences({
                     {copy.features.map((feature) => <li key={feature}>{feature}</li>)}
                   </ul>
                 </div>
-                <figure className={styles.figure}>
-                  <div className={styles.phoneVideo}>
-                    <DemoWalkthroughVideo
-                      label={`${content.videoLabel} ${experience.name}`}
-                      poster={`/images/demo-walkthrough/${experience.id}.webp?v=hd2`}
-                      src={`/videos/demo/${experience.id}.mp4?v=hd2`}
+                <div className={styles.mediaStage}>
+                  <a className={styles.dishVisual} data-experience-dish href={dish.href}>
+                    <div className={styles.dishImage}>
+                      <Image
+                        alt={dish.imageAlt}
+                        fill
+                        sizes="(max-width: 700px) 90vw, (max-width: 1100px) 48vw, 600px"
+                        src={dish.image}
+                        style={{ objectPosition: dish.imagePosition }}
+                        unoptimized
+                      />
+                    </div>
+                    <div className={styles.dishCaption}>
+                      <span>{content.dishCaption}</span>
+                      <p>{dish.name}<Arrow /></p>
+                    </div>
+                  </a>
+                  <figure className={styles.roomVisual}>
+                    <Image
+                      alt={experience.imageAlt}
+                      fill
+                      sizes="(max-width: 700px) 38vw, 300px"
+                      src={experience.image}
+                      style={{ objectPosition: experience.imagePosition }}
                     />
-                  </div>
-                </figure>
+                  </figure>
+                  <figure className={styles.filmFigure}>
+                    <div className={styles.phoneVideo}>
+                      <Image
+                        alt=""
+                        aria-hidden="true"
+                        fill
+                        sizes="(max-width: 700px) 60vw, 264px"
+                        src={`/images/demo-walkthrough/${experience.id}.webp?v=hd2`}
+                        unoptimized
+                      />
+                      <video
+                        aria-label={`${content.videoLabel} ${experience.name}`}
+                        controls
+                        data-demo-video
+                        data-experience-src={`/videos/demo/${experience.id}.mp4?v=hd2`}
+                        loop
+                        muted
+                        playsInline
+                        poster={`/images/demo-walkthrough/${experience.id}.webp?v=hd2`}
+                        preload="none"
+                      />
+                    </div>
+                    <figcaption>{content.filmCaption}</figcaption>
+                  </figure>
+                </div>
                 <div className={styles.actions}>
                   <a className={styles.explore} href={experience.publicMenuHref}>
                     {content.explore} {experience.name}<Arrow />
@@ -162,7 +219,7 @@ export async function RestaurantExperiences({
               </section>
             );
           })}
-        </div>
+        </ExperienceFilms>
       </main>
       <PreviewFooter currentPath={currentPath} locale={locale} width="wide" />
     </div>

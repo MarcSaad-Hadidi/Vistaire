@@ -177,14 +177,17 @@ for (const scenario of DISCOVERY_ROUTES) {
             expect((await link.boundingBox())?.height).toBeGreaterThanOrEqual(44);
             const video = panel.locator("video[data-demo-video]");
             await video.scrollIntoViewIfNeeded();
-            await expect(video).toHaveJSProperty("autoplay", true);
+            await expect(video).toHaveJSProperty("autoplay", false);
             await expect(video).toHaveJSProperty("loop", true);
             await expect(video).toHaveJSProperty("muted", true);
             await expect(video).toHaveJSProperty("playsInline", true);
-            await expect(video).toHaveJSProperty("controls", false);
+            await expect(video).toHaveJSProperty("controls", true);
             await expect.poll(() => video.evaluate((element: HTMLVideoElement) =>
               element.readyState >= 2 && !element.paused && element.videoWidth > 0 && element.videoHeight > 0
             ), { timeout: 15_000 }).toBe(true);
+            await expect.poll(() => page.locator("video[data-demo-video]").evaluateAll((elements) =>
+              elements.filter((element) => !(element as HTMLVideoElement).paused).length
+            )).toBe(1);
             expect(await video.evaluate((element: HTMLVideoElement) =>
               element.videoWidth / element.videoHeight
             )).toBeCloseTo(780 / 1688, 2);
@@ -226,7 +229,7 @@ for (const scenario of DISCOVERY_ROUTES) {
           const video = page.locator(`[data-demo-experience="${experience.id}"] video`);
           await video.scrollIntoViewIfNeeded();
           await expect(video).toHaveJSProperty("paused", true);
-          await expect(video).not.toHaveAttribute("src", /.+/);
+          await expect(video).toHaveAttribute("preload", "none");
           expect(await video.evaluate(async (element: HTMLVideoElement) => {
             const poster = new Image();
             poster.src = element.poster;
@@ -280,6 +283,107 @@ for (const scenario of DISCOVERY_ROUTES) {
             console.warn("Could not write or attach demo video diagnostics; retaining the original failure.");
           }
         }
+      }
+    });
+
+    test("switches dark and light themes through the side tab and retains design screenshots", async ({ page }, testInfo) => {
+      // Stable design captures use posters; the preceding test verifies live playback.
+      await page.emulateMedia({ reducedMotion: "reduce" });
+      await page.goto(scenario.path, { waitUntil: "domcontentloaded" });
+      const root = page.locator("main#carte").locator("..");
+      const sideTab = page.locator("[data-public-navigation-toggle]");
+      const themeToggle = page.locator("[data-public-theme-toggle]");
+      for (const viewport of [
+        { width: 390, height: 844 },
+        { width: 430, height: 932 },
+        { width: 1440, height: 900 }
+      ]) {
+        await page.setViewportSize(viewport);
+        for (const theme of ["dark", "light"] as const) {
+          await sideTab.click();
+          await expect(sideTab).toHaveAttribute("aria-expanded", "true");
+          await expect(themeToggle).toBeVisible();
+          if (await page.locator("html").getAttribute("data-vistaire-theme") !== theme) {
+            await themeToggle.click();
+          }
+          await expect(page.locator("html")).toHaveAttribute("data-vistaire-theme", theme);
+          await expect(themeToggle).toHaveAttribute("aria-pressed", String(theme === "light"));
+          await expect(root).toHaveCSS("background-color", theme === "light" ? "rgb(247, 243, 233)" : "rgb(5, 5, 5)");
+          await expect(root).toHaveCSS("color", theme === "light" ? "rgb(40, 37, 31)" : "rgb(248, 243, 232)");
+          await expect(page.locator("html")).toHaveAttribute("lang", scenario.lang);
+          await expect(page.getByRole("heading", { level: 1 })).toHaveText(scenario.heading);
+          await expect(page.getByRole("link", { name: scenario.activeLanguage }).first()).toHaveAttribute("aria-current", "true");
+          await page.keyboard.press("Escape");
+          await expect(sideTab).toHaveAttribute("aria-expanded", "false");
+          for (const experience of experiences) {
+            const panel = page.locator(`[data-demo-experience="${experience.id}"]`);
+            await panel.scrollIntoViewIfNeeded();
+            const heading = panel.getByRole("heading", { level: 2, name: experience.name, exact: true });
+            await expect(heading).toBeVisible();
+            await expect(heading).toHaveCSS("color", theme === "light" ? "rgb(40, 37, 31)" : "rgb(248, 243, 232)");
+            const menuLink = panel.getByRole("link", { name: `${scenario.explore} ${experience.name}`, exact: true });
+            await expect(menuLink).toHaveAttribute("href", experience.href);
+            expect((await menuLink.boundingBox())?.height).toBeGreaterThanOrEqual(44);
+            await expect(panel.locator("[data-experience-dish]")).toHaveAttribute("href", new RegExp(`[?&]lang=${scenario.lang}(?:&|$)`));
+            await expect.poll(() => panel.locator("img").evaluateAll((images) =>
+              images.every((image) => image instanceof HTMLImageElement && image.complete && image.naturalWidth > 0)
+            ), { message: `${experience.id} design images must load before capture` }).toBe(true);
+          }
+          expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+          await expect(page.locator("[data-demo-3d-link]")).toHaveAttribute("href", new RegExp(`[?&]lang=${scenario.lang}(?:&|$)`));
+          await page.evaluate(async () => { await document.fonts.ready; window.scrollTo(0, 0); });
+          const name = `experiences-${scenario.language.toLowerCase()}-${theme}-${viewport.width}px.png`;
+          const path = testInfo.outputPath(name);
+          await page.screenshot({ path, fullPage: true, animations: "disabled" });
+          await testInfo.attach(name, { path, contentType: "image/png" });
+        }
+      }
+      // The selected theme survives a real document reload without losing locale.
+      await page.reload({ waitUntil: "domcontentloaded" });
+      await expect(page.locator("html")).toHaveAttribute("data-vistaire-theme", "light");
+      await expect(page.locator("html")).toHaveAttribute("lang", scenario.lang);
+      await expect(root).toHaveCSS("background-color", "rgb(247, 243, 233)");
+      await expect(page).toHaveTitle(scenario.title);
+    });
+
+    test("keeps a user-paused film paused when returning to its sequence", async ({ page }) => {
+      await page.setViewportSize({ width: 390, height: 844 });
+      await page.goto(scenario.path, { waitUntil: "domcontentloaded" });
+      const first = page.locator('[data-demo-experience="maison-elyse"] video');
+      const second = page.locator('[data-demo-experience="trouvable"] video');
+      await first.scrollIntoViewIfNeeded();
+      await expect(first).toHaveJSProperty("paused", false);
+      // Native controls invoke pause(); do not fake the resulting media event.
+      await first.evaluate((video: HTMLVideoElement) => video.pause());
+      await expect(first).toHaveJSProperty("paused", true);
+      await second.scrollIntoViewIfNeeded();
+      await expect(second).toHaveJSProperty("paused", false);
+      await first.scrollIntoViewIfNeeded();
+      await expect(second).toHaveJSProperty("paused", true);
+      await expect(first).toHaveJSProperty("paused", true);
+      await first.evaluate((video: HTMLVideoElement) => video.play());
+      await expect(first).toHaveJSProperty("paused", false);
+      await page.emulateMedia({ reducedMotion: "reduce" });
+      await expect(first).toHaveJSProperty("paused", true);
+      await first.evaluate((video: HTMLVideoElement) => video.play());
+      await expect(first).toHaveJSProperty("paused", false);
+    });
+
+    test("keeps restaurant content and links readable without JavaScript", async ({ browser, baseURL }) => {
+      const context = await browser.newContext({ javaScriptEnabled: false, viewport: { width: 390, height: 844 } });
+      const page = await context.newPage();
+      try {
+        await page.goto(`${baseURL}${scenario.path}`, { waitUntil: "domcontentloaded" });
+        for (const experience of experiences) {
+          const panel = page.locator(`[data-demo-experience="${experience.id}"]`);
+          await expect(panel.getByRole("heading", { level: 2, name: experience.name, exact: true })).toBeVisible();
+          await expect(panel.getByRole("link", { name: `${scenario.explore} ${experience.name}`, exact: true })).toHaveAttribute("href", experience.href);
+          await expect(panel.locator("[data-experience-dish]")).toHaveAttribute("href", new RegExp(`[?&]lang=${scenario.lang}(?:&|$)`));
+        }
+        await expect(page.locator("[data-demo-3d-link]")).toHaveAttribute("href", /\/menu\/sauge-noire\/dishes\//);
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+      } finally {
+        await context.close();
       }
     });
 
