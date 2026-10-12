@@ -114,14 +114,9 @@ test("public subpages keep the landing Menu drawer on desktop and mobile", async
   assert.match(navigation, /event\.key === "Tab"/);
   assert.match(navigation, /addEventListener\("popstate", close\)/);
   assert.match(navigation, /bindPublicMenuViewport\(header\.current!, panel\.current!\)/);
-  assert.match(navigation, /\[navigationOpen, setNavigationOpen\] = useState\(false\)/);
-  assert.match(navigation, /inert=\{!navigationOpen/);
-  assert.match(navigation, /data-public-navigation-open=\{navigationOpen\}/);
-  assert.match(navigation, /<PublicNavigationTab/);
-  assert.match(base, /\.previewNav\[data-public-navigation-open="false"\]\s*\{[^}]*visibility: hidden[^}]*pointer-events: none/s);
-  const tab = await readFile("components/vistaire-preview/PublicNavigationTab.tsx", "utf8");
-  assert.match(tab, /data-public-navigation-toggle/);
-  assert.match(tab, /aria-expanded=\{expanded\}/);
+  assert.doesNotMatch(navigation, /PublicNavigationTab|navigationOpen|navigationTab/);
+  assert.match(navigation, /data-public-navigation-open="true"/);
+  assert.doesNotMatch(base, /navigationTab|clip-path/);
   const landingCss = await readFile("components/immersive/styles.css", "utf8");
   const sharedMenuRules = landingCss.split("/* Public Vistaire routes share")[1];
   assert.match(sharedMenuRules, /top: var\(--menu-top\)/);

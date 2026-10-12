@@ -85,74 +85,65 @@ test("landing binds the shared drawer viewport only while open and cleans it up"
   assert.match(effect, /return \(\) => \{\s*unbindViewport\(\);/);
 });
 
-test("landing parks its navigation behind the shared accessible tab without locking the scene", async () => {
+test("navbar is always visible and has no launcher or collapse handler", async () => {
   const source = await readFile("components/immersive/App.jsx", "utf8");
-  assert.match(source, /\[navigationOpen, setNavigationOpen\] = useState\(false\)/);
-  assert.match(source, /<PublicNavigationTab[\s\S]*?expanded=\{navigationOpen\}[\s\S]*?buttonRef=\{navigationTabRef\}/);
-  assert.match(source, /data-public-navigation-open=\{navigationOpen\}/);
-  assert.match(source, /inert=\{!navigationOpen \? true : undefined\}/);
-  assert.match(source, /aria-hidden=\{!navigationOpen\}/);
-  assert.match(source, /setNavigationOpen\(false\);[\s\S]*?navigationTabRef\.current\?\.focus\(\{ preventScroll: true \}\)/);
-  const barEffect = source.match(/useEffect\(\(\) => \{\s*if \(!navigationOpen\) return;([\s\S]*?)\}, \[navigationOpen\]\);/)?.[1];
-  assert.ok(barEffect, "opening the bar must focus a header control without moving the page");
-  assert.match(barEffect, /headerRef\.current[\s\S]*?focus\(\{ preventScroll: true \}\)/);
-  assert.doesNotMatch(barEffect, /body\.style\.overflow/);
-  assert.match(source, /if \(!navigationOpen \|\| menu \|\| modal\) return;/);
-  const menuEffect = source.match(/useEffect\(\(\) => \{\s*if \(!menu\) return;([\s\S]*?)\}, \[menu\]\);/)?.[1];
-  assert.ok(menuEffect);
-  assert.match(menuEffect, /navigationTabRef\.current/);
-  assert.match(menuEffect, /document\.body\.style\.overflow = "hidden"/);
+  assert.doesNotMatch(source, /PublicNavigationTab|navigationOpen|navigationTabRef|closeBar/);
+  assert.match(source, /data-public-navigation-open="true"/);
+  assert.doesNotMatch(source, /aria-hidden=\{!navigationOpen\}/);
+  const css = readFileSync('components/vistaire-preview/VistairePreviewChrome.module.css', 'utf8');
+  assert.doesNotMatch(css, /navigationTab|clip-path|data-public-navigation-ready/);
 });
 
-
-test("Escape leaves an open navigation bar intact while a modal owns dismissal", async () => {
-  const source = await readFile("components/immersive/App.jsx", "utf8");
-  const marker = source.indexOf("    const closeBar = (event) => {");
-  const start = source.lastIndexOf("  useEffect(() => {", marker);
-  const end = source.indexOf("  useEffect(() => {", marker);
-  const effect = source.slice(start, end);
-  const listeners = new Map();
-  const updates = [];
-  let cleanup, dependencies, focus = 0;
-  const context = vm.createContext({
-    navigationOpen: true, menu: false, modal: { title: "AR" },
-    useEffect(run, deps) { dependencies = deps; cleanup = run(); },
-    setNavigationOpen(value) { updates.push(value); },
-    navigationTabRef: { current: { focus() { focus++; } } },
-    addEventListener(name, callback) { listeners.set(name, callback); },
-    removeEventListener(name, callback) { assert.equal(listeners.get(name), callback); listeners.delete(name); },
-  });
-  vm.runInContext(effect, context);
-  assert.equal(listeners.size, 0, "the modal's existing Escape handler must be the sole dismissal owner");
-  assert.ok(dependencies.includes(context.modal), "React must suspend bar dismissal whenever a modal opens");
-  assert.deepEqual(updates, []);
-  assert.equal(focus, 0);
-  context.modal = null;
-  vm.runInContext(effect, context);
-  let prevented = false;
-  listeners.get("keydown")({ key: "Escape", preventDefault() { prevented = true; } });
-  assert.equal(prevented, true);
-  assert.deepEqual(updates, [false], "bar dismissal resumes once the modal is closed");
-  assert.equal(focus, 1);
-  cleanup();
-  assert.equal(listeners.size, 0);
-});
-
-test('opening navigation exposes focus immediately while preserving visual motion', () => {
-  const publicCss = readFileSync('components/vistaire-preview/VistairePreviewChrome.module.css', 'utf8');
-  const landingCss = readFileSync('components/immersive/styles.css', 'utf8');
-  const rules = [
-    [publicCss, /\.previewNav\[data-public-navigation-open="true"\]\s*\{([^}]+)\}/],
-    [publicCss, /\.menuPanelOpen\s*\{([^}]+)\}/],
-    [landingCss, /\.site-header\[data-public-navigation-open="true"\]\s*\{([^}]+)\}/],
-  ];
-  for (const [css, selector] of rules) {
-    const rule = css.match(selector)?.[1];
-    assert.ok(rule, String(selector));
-    const properties = rule.match(/transition-property:\s*([^;]+);/)?.[1].split(',').map(value => value.trim());
-    assert.ok(properties?.includes('transform'), 'retain the requested reveal motion');
-    assert.ok(!properties.includes('visibility'), 'focus cannot target the hidden initial interpolation endpoint');
+test("drawer focuses after rendering, respects newer focus, and cancels pending callbacks", async () => {
+  for (const path of ['components/immersive/App.jsx']) {
+    const source = await readFile(path, 'utf8');
+    const focusBody = source.match(/const focusFrame = (?:window\.)?requestAnimationFrame\(\(\) => \{([\s\S]*?)\n    \}\);/)?.[1];
+    assert.ok(focusBody, `${path}: focus must wait for the opening render`);
+    assert.match(source, /cancelAnimationFrame\(focusFrame\)/);
+    for (const scenario of ['visible', 'hidden', 'moved', 'closed']) {
+      const previous = {};
+      let focused = 0;
+      const first = { focus: () => focused++ };
+      const drawer = { inert: scenario === 'closed', querySelector: () => first };
+      const context = { previous, menuRef: { current: drawer }, panel: { current: drawer },
+        document: { activeElement: scenario === 'moved' ? {} : previous },
+        getComputedStyle: () => ({ visibility: scenario === 'hidden' ? 'hidden' : 'visible' }) };
+      vm.runInNewContext(focusBody.replace(/<HTMLElement>/g, '').replace(/current!/g, 'current'), context);
+      assert.equal(focused, scenario === 'visible' ? 1 : 0, `${path}: ${scenario}`);
+    }
   }
-  assert.match(publicCss, /\.previewNav\[data-public-navigation-open="false"\][^{]*\{[^}]*visibility:\s*hidden/);
-  assert.match(publicCss, /\.menuPanel\s*\{[^}]*visibility:\s*hidden/);
+});
+
+
+test("public drawer waits across the render boundary and cancels stale focus", async () => {
+  const source = await readFile('components/vistaire-preview/PublicNavigation.tsx', 'utf8');
+  const start = source.search(/(?:const|let) focusFrame = requestAnimationFrame/);
+  const end = source.indexOf('    const dismiss =', start);
+  assert.ok(start > 0 && end > start);
+  const block = source.slice(start, end).replace(/<HTMLElement>/g, '').replace(/current!/g, 'current');
+  for (const scenario of ['delayed', 'close-before-first', 'close-between', 'new-focus', 'closed-drawer', 'disconnected', 'still-hidden', 'missing-target', 'reduced']) {
+    const frames = new Map();
+    let nextId = 0, focused = 0, visibility = scenario === 'reduced' ? 'visible' : 'hidden';
+    const previous = {};
+    const first = { isConnected: true, focus: () => focused++ };
+    const drawer = { inert: false, querySelector: () => first };
+    const context = vm.createContext({ panel: { current: drawer }, previous, document: { activeElement: previous },
+      requestAnimationFrame: (fn) => { const id = ++nextId; frames.set(id, fn); return id; },
+      cancelAnimationFrame: (id) => frames.delete(id), getComputedStyle: () => ({ visibility }) });
+    vm.runInContext(block, context);
+    const frame = () => { const pending = [...frames]; frames.clear(); for (const [, fn] of pending) fn(); };
+    const close = () => { drawer.inert = true; vm.runInContext('cancelAnimationFrame(focusFrame)', context); };
+    if (scenario === 'close-before-first') close();
+    frame(); // The original single-RAF code observes the still-hidden child here.
+    assert.equal(focused, 0, 'never transfer focus in the pre-paint frame');
+    if (scenario === 'close-between') close();
+    if (scenario === 'new-focus') context.document.activeElement = {};
+    if (scenario === 'closed-drawer') drawer.inert = true;
+    if (scenario === 'disconnected') first.isConnected = false;
+    if (scenario === 'missing-target') drawer.querySelector = () => null;
+    visibility = scenario === 'still-hidden' ? 'hidden' : 'visible';
+    frame(); // A rendered opportunity has elapsed; no animation-duration timeout.
+    assert.equal(focused, ['delayed', 'reduced'].includes(scenario) ? 1 : 0, scenario);
+    assert.equal(frames.size, 0, 'no idle focus polling');
+  }
 });

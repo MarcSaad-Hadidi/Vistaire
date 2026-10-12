@@ -481,7 +481,6 @@ try {
       recordProbeOverflow(result.preNavigationSession);
       if (result.probeOverflowObserved) throw new Error('Pre-navigation probe overflow; comparison invalid.');
       await phase('navigate-away-and-return', async () => {
-        await page.locator('[data-public-navigation-toggle]').click();
         await page.locator('.menu-toggle').click();
         const about = page.locator('.menu-page-links a').nth(1);
         const destination = await about.getAttribute('href');
