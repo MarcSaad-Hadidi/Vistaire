@@ -99,7 +99,13 @@ function observeRuntime(page: Page, baseURL: string) {
       /^(?:1|true|prefetch)$/i.test(headers["next-router-prefetch"] ?? "");
     const errorText = request.failure()?.errorText ?? "request failed";
     if (errorText === "net::ERR_ABORTED" && explicitPrefetch) return;
-    if (errorText === "net::ERR_ABORTED" && request.method() === "GET" && new URL(request.url()).pathname === "/demo/dashboard-studio-3x-67468b94997f.mp4") return;
+    // Seeking/looping cancels obsolete byte-range requests in both engines.
+    // Keep genuine transport errors and HTTP failures visible.
+    if (
+      (errorText === "net::ERR_ABORTED" || errorText === "Load request cancelled") &&
+      request.method() === "GET" &&
+      request.url() === "https://cdn.vistaire.ca/demo/dashboard-studio-3x-67468b94997f.mp4"
+    ) return;
     if (shouldIgnoreRestaurateurPreviewRequestFailure({
       baseOrigin: baseURL,
       url: request.url(),
@@ -276,6 +282,7 @@ for (const scenario of scenarios) {
     await expect.poll(() => video.evaluate(element => (element as HTMLVideoElement).paused)).toBe(false);
     await page.getByRole("contentinfo").scrollIntoViewIfNeeded();
     await expect.poll(() => video.evaluate(element => (element as HTMLVideoElement).paused)).toBe(true);
+    expect(await video.evaluate(element => (element as HTMLVideoElement).error)).toBeNull();
     await expectSafeDom(page, scenario);
     await expectSafeSeo(page, scenario);
     runtime.expectClean();
