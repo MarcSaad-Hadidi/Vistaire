@@ -888,6 +888,24 @@ test('a native touch scroll that starts on a link, button, pan-y model surface o
   }
 });
 
+test('focus left on a tapped 3D model surface does not disable later touch assistance; editing focus still does', () => {
+  // Real Chrome at 390px: tapping .dish-gesture (role="slider") focuses it, and
+  // every later swipe was rejected as protected-focus.
+  const element = tag => ({ closest: selector => selector.split(',').map(part => part.trim()).includes(tag) ? {} : null });
+  for (const [tag, assisted] of [['[role="slider"]', true], ['input', false]]) {
+    const f = fixture({ mode: 'early' }), target = f.bounds.transitions[0].end;
+    f.document.activeElement = element(tag);
+    f.view.scrollY = target - 1000;
+    f.input('touchstart', { touches: [{ clientY: 200 }] });
+    f.advance(8); f.input('touchmove', { touches: [{ clientY: 170 }] }); f.move(target - 980);
+    f.advance(8); f.input('touchend', { touches: [] }); f.end(); f.advance(30000);
+    assert.equal(f.view.scrollY, assisted ? target : target - 980, `${tag} focus`);
+    f.view.scrollY = target - 1000; f.wheel(target - 980); f.end(); f.advance(30000);
+    assert.equal(f.view.scrollY, target - 980, `${tag} focus still excludes wheel assistance`);
+    f.assist.dispose();
+  }
+});
+
 test('touch motion credit needs a trusted document scroll stamped inside the current touch intent', () => {
   const sequences = {
     'scroll stamped before touchstart, delivered before the first touchmove': (f, target) => {

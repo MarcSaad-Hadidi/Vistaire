@@ -77,6 +77,7 @@ export function createEntryScrollAssist({ getGeometry, isBlocked }, view = windo
   let touching = false;
   let heldKey = null;
   let disposed = false;
+  let inputKind = null; // Latest input family; touch defers only to editing focus.
   const report = (type, event, details = {}) => {
     if (!diagnostics || typeof view.__vistaireScrollAssistTrace !== "function") return;
     // The consumer owns bounded retention. Observability must never change the
@@ -101,7 +102,8 @@ export function createEntryScrollAssist({ getGeometry, isBlocked }, view = windo
     const result = disposed || document.hidden || reduced.matches || (callerBlocked = isBlocked())
       // A clicked header button may retain focus while the next gesture targets
       // the scene. Preserve editing/slider focus; event targets stay excluded.
-      || controlled(document.activeElement, FOCUSED_CONTROLS);
+      // A tap focuses the large 3D model sliders; touch only defers to editing focus.
+      || controlled(document.activeElement, inputKind === "touch" ? TOUCH_OWNERS : FOCUSED_CONTROLS);
     blockedReason = !result ? null : disposed ? "disposed" : document.hidden ? "hidden"
       : reduced.matches ? "reduced-motion" : callerBlocked ? "caller-blocked" : "protected-focus";
     return result;
@@ -327,6 +329,7 @@ export function createEntryScrollAssist({ getGeometry, isBlocked }, view = windo
       && Number.isFinite(event.timeStamp) && event.timeStamp >= lastYAt && event.timeStamp <= view.performance.now()
       && Math.sign(view.scrollY - lastY) === direction
       ? { delta: view.scrollY - lastY, inputAt: event.timeStamp } : null);
+    inputKind = event.type === "touchmove" ? "touch" : event.type;
     if (diagnostics) report("intent", event, { direction, continued: Boolean(continued), trusted: event.isTrusted, defaultPrevented: event.defaultPrevented });
     cancel("new-input", event);
     if (!event.isTrusted || event.defaultPrevented || !direction || blocked()
@@ -377,6 +380,7 @@ export function createEntryScrollAssist({ getGeometry, isBlocked }, view = windo
   };
   const touchstart = event => {
     cancel("touchstart", event);
+    inputKind = "touch";
     touching = event.touches.length > 0;
     // A pan that starts on a link or button is still a page scroll; a tap never
     // scrolls, so it cannot arm assistance. Fields, menus and dialogs own touch.
