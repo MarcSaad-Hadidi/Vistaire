@@ -28,11 +28,12 @@ At frozen stage H=844px and default pace:
 | Encryption | 20509.2 |
 | Grip | 26586 |
 | Sustainability | 32662.8 |
+| Sustainability, laptop fully open | 36038.8 |
 | Testimonies | 38739.6 |
 | Social content | 44816.4 |
 | Product | 54269.2 |
 
-These numbers illustrate measured geometry; they are not runtime constants. The candidate chooses the nearest authored stop strictly ahead in the native gesture's direction. There is no minimum progress, proximity zone, one-pixel eligibility cutoff or travel cap. At an exact stop, the next gesture selects the adjacent stop. A native overshoot selects the next stop in its direction and never pulls backward. A forward gesture inside an AI hold can therefore continue through its remaining hold and transition to Wearable.
+Sustainability also has an internal stop where `chapterPhase("sustainability")` reaches 1: the lid is at its widest opening keyframe and the dashboard is readable. It sits at the chapter's `(sceneScreens - edgeScreens) / sceneScreens` progress, which is exactly where the departure toward Three experiences starts, so one gesture never plays the whole opening and that departure without a pause. These numbers illustrate measured geometry; they are not runtime constants. The candidate chooses the nearest authored stop strictly ahead in the native gesture's direction. There is no minimum progress, proximity zone, one-pixel eligibility cutoff or travel cap. At an exact stop, the next gesture selects the adjacent stop. A native overshoot selects the next stop in its direction and never pulls backward. A forward gesture inside an AI hold can therefore continue through its remaining hold and transition to Wearable.
 
 One gesture owns one target. Completion consumes that ownership; the controller's scroll events cannot arm another chapter. At the final cinematic stop there is no forward automatic destination. Pricing/FAQ/footer are not stops, and the existing exclusion once pricing is visible (`scrollY + innerHeight >= pricing.top`) remains in force, including reverse reading gestures there.
 
@@ -50,6 +51,14 @@ The observer never writes while sampled native positions are advancing. It times
 Real `scrollend` respects the same 40ms contact/input gate, so intermediate end events in a 16ms wheel packet train cannot repeatedly start assistance. Browsers without the property retain the conservative 280ms input/scroll-silence fallback after release. The presence of the property is not proof of timely event delivery. Browser-native smooth-scroll easing/duration and compositor inertia remain browser-controlled: see [CSSOM View scrolling](https://drafts.csswg.org/cssom-view/#scrolling).
 
 The proven compositor-before-wheel bookkeeping remains intact: a matching position difference is credited once only when its ordered trusted document scroll arrives. Its unknown pre-handler timing never becomes a velocity estimate. A candidate first scroll must be trusted, timestamped no earlier than the current input and no later than delivery, and agree with gesture direction. New input, navigation/layout reset or hiding invalidates the old intent even if that old event arrives later.
+
+Touch gestures are anchored at `touchstart`, not at the latest `touchmove`:
+
+- Document movement that arrives before the first `touchmove`, in the touch's direction, counts as the gesture's native motion.
+- A `touchmove` packet with no vertical change carries no new intent and leaves the gesture intact.
+- A coalesced scroll event stamped before the latest `touchmove` but after `touchstart` is accepted.
+
+These orderings were reproduced in software sequences; they do not by themselves prove the cause on a specific physical device.
 
 ## Travel-scaled continuation
 
