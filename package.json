@@ -91,8 +91,8 @@
     "demo:validate-network": "node scripts/validate-demo-network-headers.mjs"
   },
   "dependencies": {
-    "@aws-sdk/client-s3": "^3.1141.0",
-    "@aws-sdk/s3-request-presigner": "^3.1141.0",
+    "@aws-sdk/client-s3": "^3.1146.0",
+    "@aws-sdk/s3-request-presigner": "^3.1146.0",
     "@babylonjs/core": "^9.29.0",
     "@babylonjs/loaders": "^9.29.0",
     "@babylonjs/serializers": "^9.29.0",
@@ -114,7 +114,7 @@
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
     "react-pageflip": "^2.0.3",
-    "resend": "6.17.2",
+    "resend": "6.32.0",
     "sharp": "^0.35.5"
   },
   "overrides": {
