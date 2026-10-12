@@ -52,13 +52,19 @@ Real `scrollend` respects the same 40ms contact/input gate, so intermediate end 
 
 The proven compositor-before-wheel bookkeeping remains intact: a matching position difference is credited once only when its ordered trusted document scroll arrives. Its unknown pre-handler timing never becomes a velocity estimate. A candidate first scroll must be trusted, timestamped no earlier than the current input and no later than delivery, and agree with gesture direction. New input, navigation/layout reset or hiding invalidates the old intent even if that old event arrives later.
 
-Touch gestures are anchored at `touchstart`, not at the latest `touchmove`:
+Touch gestures keep these concepts separate:
 
-- Document movement that arrives before the first `touchmove`, in the touch's direction, counts as the gesture's native motion.
-- A `touchmove` packet with no vertical change carries no new intent and leaves the gesture intact.
-- A coalesced scroll event stamped before the latest `touchmove` but after `touchstart` is accepted.
+- **Intent** is the direction of the latest `touchmove` with vertical change. A packet with no vertical change carries no new intent and leaves the gesture intact.
+- **Observed native motion** is a document `scroll` event. Before a gesture exists, only a trusted event stamped no earlier than the start of the current intent (`touchstart`, then each consumed `touchmove`) and no later than delivery is recorded. The next `touchmove` credits it only when its sign matches, then consumes it. Document position relative to `touchstart` is never evidence: an older scroll, an untrusted scroll, or motion from a direction the finger later reversed cannot arm a later direction.
+- **Inertia** is native motion after `touchend`; it ends with `scrollend` or measured deceleration.
+- **Controller writes** are recognised by `expectedY`; any other position change while assisting is a foreign scroll and cancels.
+- **Cancellation** is any new input, reversal, protected focus, layout change or `touchcancel`. A UA `pointercancel` during native panning only releases pointer ownership; the next `touchstart` always resets the touch evidence.
 
-These orderings were reproduced in software sequences; they do not by themselves prove the cause on a specific physical device.
+`isTrusted` only says the browser dispatched the event, not who moved the document; the provenance above relies on timestamps relative to the current intent and on `expectedY`.
+
+A pan that starts on a link, button or tab is still a page scroll and is assisted: a tap produces no document scroll, so it can never arm a stop, and `click` cancels. Sliders, fields, media, menus and dialogs keep native touch ownership. Wheel and keyboard keep the full control exclusion.
+
+A coalesced scroll event stamped before the latest same-direction `touchmove` but after the intent began is accepted. These orderings were reproduced in software sequences; they do not by themselves prove the cause on a specific physical device.
 
 ## Travel-scaled continuation
 
@@ -92,14 +98,14 @@ The first assisted write is on the next callback. In the deterministic immediate
 
 ## Delayed frames preserve the destination
 
-The 80ms actual-delivery boundary is retained as a **no-catch-up boundary**, not an abandonment condition. Every animation callback reads `performance.now()` once. After ownership checks:
+The 125ms actual-delivery boundary is a **no-catch-up boundary**, not an abandonment condition. Every animation callback reads `performance.now()` once. After ownership checks:
 
-- At the first gap greater than 80ms, write nothing, preserve the same target/curve/logical elapsed time, rebase the delivery clock and request the next frame.
-- On consecutive late callbacks, advance only one bounded 16ms logical step. Sustained 83–100ms delivery therefore still makes progress instead of remaining paused forever.
-- At a timely gap, advance logical elapsed only by that delivered interval and clear the stalled state.
+- At a gap up to 125ms, advance logical elapsed by that delivered interval. Heavy transitions measured 83–104ms per frame on an integrated GPU at 390px; the former 80ms boundary turned each of those frames into a 16ms step and made the trip about six times slower than authored.
+- At the first gap greater than 125ms, write nothing, preserve the same target/curve/logical elapsed time, rebase the delivery clock and request the next frame.
+- On consecutive stalls, advance only one bounded 16ms logical step, so the stop is never stranded.
 - Finish exactly at the target when logical duration is complete, then stop scheduling frames.
 
-This also applies to a delayed **first** callback and stale-looking RAF timestamps. Repeated stalls do not create repeated handoffs or wall-time catch-up jumps. At the ordinary 2.532px/ms peak, a slow-cadence 16ms logical step covers at most 40.512px; the capped 3.376px/ms seed raises that maximum to 54.016px. Such sparse physical frames cannot look like a smooth 60Hz animation. No rendering is possible if callbacks cease entirely. Eventual completion requires further callbacks and continuing ownership, and is deliberately slower in wall time under persistent stalls.
+This also applies to a delayed **first** callback and stale-looking RAF timestamps. Repeated stalls do not create repeated handoffs or wall-time catch-up jumps. At the ordinary 2.532px/ms peak, one 125ms frame covers at most 316.5px, the same distance native scrolling at that speed covers in that time; a post-stall 16ms logical step covers at most 40.512px. Such sparse physical frames cannot look like a smooth 60Hz animation. No rendering is possible if callbacks cease entirely. Eventual completion requires further callbacks and continuing ownership, and is deliberately slower in wall time under persistent stalls.
 
 ## Remaining cancellation and safety exceptions
 

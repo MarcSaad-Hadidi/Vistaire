@@ -813,18 +813,20 @@ test('long trips keep a fixed startup ramp and add cruise time rather than stret
   }
 });
 
-test('sustained 83ms and 100ms cadence eventually arrives using bounded logical steps after the first rebase', () => {
+test('sustained 83ms and 100ms cadence follows wall time instead of crawling one 16ms step per late frame', () => {
+  // Measured on an Intel UHD GPU at 390px: heavy transitions render at 83-104ms
+  // per frame. A 16ms logical step there made the trip about six times slower.
   for (const cadence of [83, 100]) {
     const f = fixture({ mode: 'early', diagnostics: true }), target = f.bounds.transitions[0].end;
     f.wheel(target - 1000); f.end(); f.advance(48);
     const curve = assistance.createScrollContinuation(target - 1000, target, 0, 844);
-    f.stall(cadence); f.advance(0);
-    assert.equal(f.calls.length, 0, 'the first stale callback must not catch up or write');
-    let callbacks = 1;
+    let callbacks = 0, y = f.view.scrollY;
     while (f.frames() && callbacks < 100) {
       f.stall(cadence); f.advance(0); callbacks++;
-      assert.ok(Math.abs(f.view.scrollY - curve.at((callbacks - 1) * 16)) < 1e-7, 'one bounded logical frame, independent of late wall-time delivery');
+      assert.ok(f.view.scrollY > y, 'every late frame writes forward progress; none is a stall');
+      y = f.view.scrollY;
     }
+    assert.ok(callbacks <= Math.ceil(curve.duration / cadence) + 2, `arrival takes the authored ${curve.duration.toFixed(0)}ms, not callbacks × 16ms (${callbacks} callbacks)`);
     assert.equal(f.view.scrollY, target); assert.equal(f.frames(), 0);
     assert.equal(f.reports.filter(row => row.type === 'handoff').length, 1);
     f.assist.dispose();
@@ -868,6 +870,67 @@ test('real touch orderings keep one native gesture: scroll before first touchmov
   f.input('touchmove', { touches: [{ clientY: 170 }] });
   f.input('touchend', { touches: [] }); f.end(); f.advance(30000);
   assert.equal(f.calls.length, 0);
+  f.assist.dispose();
+});
+
+test('a native touch scroll that starts on a link, button, pan-y model surface or video is assisted; fields and dialogs stay excluded', () => {
+  // The 3D dish and stand surfaces are role="slider" with touch-action: pan-y:
+  // horizontal drags rotate, vertical drags scroll the page natively.
+  const element = tag => ({ closest: selector => selector.split(',').map(part => part.trim()).includes(tag) ? {} : null });
+  for (const [tag, assisted] of [['a', true], ['button', true], ['[role="button"]', true], ['[role="slider"]', true], ['video', true], ['input', false], ['textarea', false], ['[role="dialog"]', false]]) {
+    const f = fixture({ mode: 'early' }), target = f.bounds.transitions[0].end;
+    f.view.scrollY = target - 1000;
+    f.input('touchstart', { touches: [{ clientY: 200 }], target: element(tag) });
+    f.advance(8); f.input('touchmove', { touches: [{ clientY: 170 }], target: element(tag) }); f.move(target - 980);
+    f.advance(8); f.input('touchend', { touches: [] }); f.end(); f.advance(30000);
+    assert.equal(f.view.scrollY, assisted ? target : target - 980, `${tag}: ${assisted ? 'completes its stop' : 'stays native'}`);
+    f.assist.dispose();
+  }
+});
+
+test('touch motion credit needs a trusted document scroll stamped inside the current touch intent', () => {
+  const sequences = {
+    'scroll stamped before touchstart, delivered before the first touchmove': (f, target) => {
+      f.advance(8); f.input('touchstart', { touches: [{ clientY: 200 }] });
+      f.view.scrollY = target - 980; f.emit(f.view, 'scroll', { target: f.document, timeStamp: f.now() - 5 });
+      f.advance(8); f.input('touchmove', { touches: [{ clientY: 170 }] });
+    },
+    'untrusted scroll before the first touchmove': (f, target) => {
+      f.input('touchstart', { touches: [{ clientY: 200 }] });
+      f.advance(8); f.view.scrollY = target - 980; f.emit(f.view, 'scroll', { target: f.document, isTrusted: false });
+      f.advance(8); f.input('touchmove', { touches: [{ clientY: 170 }] });
+    },
+    'forward, reverse, forward again without new document movement': (f, target) => {
+      f.input('touchstart', { touches: [{ clientY: 200 }] });
+      f.advance(8); f.input('touchmove', { touches: [{ clientY: 170 }] }); f.move(target - 970);
+      f.advance(8); f.input('touchmove', { touches: [{ clientY: 190 }] });
+      f.advance(8); f.input('touchmove', { touches: [{ clientY: 160 }] });
+    },
+  };
+  for (const [name, sequence] of Object.entries(sequences)) {
+    const f = fixture({ mode: 'early' }), target = f.bounds.transitions[0].end;
+    f.view.scrollY = target - 1000;
+    sequence(f, target);
+    f.advance(8); f.input('touchend', { touches: [] }); f.end(); f.advance(30000);
+    assert.equal(f.calls.length, 0, `${name}: no assisted write without fresh native motion`);
+    f.assist.dispose();
+  }
+  // A browser pointercancel while the page pans neither blocks the gesture nor
+  // keeps its intent once a new touch starts.
+  const f = fixture({ mode: 'early' }), target = f.bounds.transitions[0].end;
+  f.view.scrollY = target - 1000;
+  f.input('pointerdown', { pointerType: 'touch' });
+  f.input('touchstart', { touches: [{ clientY: 200 }] });
+  f.advance(8); f.input('touchmove', { touches: [{ clientY: 170 }] }); f.move(target - 980);
+  f.input('pointercancel', { pointerType: 'touch' });
+  f.advance(8); f.input('touchend', { touches: [] }); f.end(); f.advance(30000);
+  assert.equal(f.view.scrollY, target, 'pointercancel during native panning keeps the released gesture');
+  const writes = f.calls.length;
+  f.view.scrollY = f.bounds.transitions[1].end - 1000;
+  f.input('pointerdown', { pointerType: 'touch' }); f.input('touchstart', { touches: [{ clientY: 200 }] });
+  f.input('pointercancel', { pointerType: 'touch' });
+  f.advance(8); f.input('touchend', { touches: [] }); f.end(); f.advance(30000);
+  assert.equal(f.calls.length, writes, 'a cancelled pointer never replays the previous intent');
   f.assist.dispose();
 });
 

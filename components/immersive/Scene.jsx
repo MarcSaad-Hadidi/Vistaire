@@ -727,10 +727,11 @@ export default function Scene({
       disposeTree,
       onError: fail,
       onInvalidate: invalidateScene,
-      // The laptop loads one chapter early. Link its programs off the critical
-      // path; its first visible frame otherwise blocked on shader linking.
-      onReady: () => Promise.resolve(renderer.compileAsync?.(laptopRoot, camera, scene))
-        .then(() => { if (!disposed) invalidateScene(); }).catch(() => {}),
+      // The laptop loads one chapter early. Start linking its programs off the
+      // critical path; its first visible frame otherwise blocked on shader linking.
+      // Synchronous compile leaves no polling timer to outlive disposal, unlike
+      // compileAsync, whose timer reads programs of disposed materials.
+      onReady: () => renderer.compile(laptopRoot, camera, scene),
     });
     const laptopRoot = laptopAsset.root;
     scene.add(laptopRoot);

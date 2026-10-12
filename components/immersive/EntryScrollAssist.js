@@ -7,8 +7,12 @@ const LAPTOP_OPEN = (CINEMATIC_TIMING.sceneScreens - CINEMATIC_TIMING.edgeScreen
 // Reading chapters settle each later option where its card/menu change ends.
 const READING_OPTIONS = readingTiming().transitions.map(([, end]) => end);
 const INPUT_MAX_AGE_MS = 600;
+const STALL_MS = 125;
 const FOCUSED_CONTROLS = 'input, select, textarea, video, audio, iframe, dialog, [role="slider"], [role="textbox"], [role="combobox"], [role="listbox"], [role="menu"], [role="menuitem"], [role="dialog"], [aria-modal="true"], [contenteditable]:not([contenteditable="false"])';
 const CONTROLS = `a, button, summary, [role="button"], [role="tab"], ${FOCUSED_CONTROLS}`;
+// Touch owners keep their own vertical touch handling. Other targets (links,
+// buttons, pan-y model surfaces, videos) only arm after native document scroll.
+const TOUCH_OWNERS = 'input, select, textarea, iframe, dialog, [role="textbox"], [role="combobox"], [role="listbox"], [role="menu"], [role="menuitem"], [role="dialog"], [aria-modal="true"], [contenteditable]:not([contenteditable="false"])';
 const controlled = (target, selector = CONTROLS) => Boolean(target?.closest?.(selector));
 const natural = id => id === "open-weight" || id === "footer";
 
@@ -126,11 +130,12 @@ export function createEntryScrollAssist({ getGeometry, isBlocked }, view = windo
     if (Math.abs(view.scrollY - active.expectedY) > 1) { cancel("foreign-scroll"); return; }
     const gap = deliveredAt - active.lastFrameAt;
     active.lastFrameAt = deliveredAt;
-    // First late callback rebases without a write. Persistent slow delivery
-    // advances one bounded logical frame instead of stranding the destination.
-    // Never catch up by the wall time that passed without rendered frames.
-    const step = gap > 80 ? (active.paused ? 16 : 0) : Math.max(0, gap);
-    active.paused = gap > 80;
+    // Slow but steady frames (heavy transitions measured at 83-104ms on an
+    // integrated GPU) follow wall time, so the trip keeps its authored duration.
+    // A real stall rebases without a write; persistent stalls advance one
+    // bounded logical frame. Never catch up by time that rendered no frames.
+    const step = gap > STALL_MS ? (active.paused ? 16 : 0) : Math.max(0, gap);
+    active.paused = gap > STALL_MS;
     if (active.paused && diagnostics) report("continuation-paused", null,
       { gap, elapsed: active.elapsed, logicalStep: step, target: active.target });
     if (!step) { frame = view.requestAnimationFrame(animate); return; }
@@ -324,7 +329,8 @@ export function createEntryScrollAssist({ getGeometry, isBlocked }, view = windo
       ? { delta: view.scrollY - lastY, inputAt: event.timeStamp } : null);
     if (diagnostics) report("intent", event, { direction, continued: Boolean(continued), trusted: event.isTrusted, defaultPrevented: event.defaultPrevented });
     cancel("new-input", event);
-    if (!event.isTrusted || event.defaultPrevented || !direction || blocked() || controlled(event.target)) {
+    if (!event.isTrusted || event.defaultPrevented || !direction || blocked()
+      || controlled(event.target, event.type === "touchmove" ? TOUCH_OWNERS : CONTROLS)) {
       if (diagnostics) report("intent-rejected", event, { direction, reason: !event.isTrusted ? "untrusted" : event.defaultPrevented ? "default-prevented" : !direction ? "no-scroll-direction" : blockedReason || "control-target" });
       return;
     }
@@ -336,12 +342,16 @@ export function createEntryScrollAssist({ getGeometry, isBlocked }, view = windo
     // touchmove, or arrive before the first touchmove at all.
     gesture.at = view.performance.now(); gesture.pendingScroll = pendingScroll;
     gesture.inputAt = !baseline && previous ? previous.inputAt
-      : !baseline && event.type === "touchmove" && touchStart ? touchStart.at : event.timeStamp;
+      : !baseline && event.type === "touchmove" && touchStart ? touchStart.since : event.timeStamp;
     if (!baseline) {
       gesture.nativeEnded = false;
-      // Document movement already in this touch's direction is its native motion.
-      if (event.type === "touchmove" && touchStart && Math.sign(view.scrollY - touchStart.y) === direction)
-        gesture.scrolled = true;
+      if (event.type === "touchmove" && touchStart) {
+        // Only trusted document scroll observed since this intent began counts as
+        // its native motion. Each touchmove consumes that evidence, so a reversal
+        // or an older scroll can never be reused by a later direction.
+        if (!previous && Math.sign(touchStart.motion) === direction) gesture.scrolled = true;
+        touchStart.motion = 0; touchStart.since = event.timeStamp;
+      }
     }
     if (diagnostics) report("intent-accepted", event, { direction });
     quiet(); observe();
@@ -368,9 +378,13 @@ export function createEntryScrollAssist({ getGeometry, isBlocked }, view = windo
   const touchstart = event => {
     cancel("touchstart", event);
     touching = event.touches.length > 0;
-    touchY = event.isTrusted && event.touches.length === 1 && !blocked() && !controlled(event.target)
+    // A pan that starts on a link or button is still a page scroll; a tap never
+    // scrolls, so it cannot arm assistance. Fields, menus and dialogs own touch.
+    touchY = event.isTrusted && event.touches.length === 1 && !blocked() && !controlled(event.target, TOUCH_OWNERS)
       ? event.touches[0].clientY : null;
-    touchStart = touchY != null ? { at: event.timeStamp, y: view.scrollY } : null;
+    // Native scroll may arrive before the first touchmove; `scroll` records it
+    // only when trusted and stamped after the intent it would support.
+    touchStart = touchY != null ? { since: event.timeStamp, motion: 0 } : null;
     if (diagnostics) report("touch-start", event, { accepted: touchY != null, reason: touchY != null ? null : !event.isTrusted ? "untrusted" : event.touches.length !== 1 ? "touch-count" : blockedReason || "control-target" });
   };
   const touchmove = event => {
@@ -446,6 +460,8 @@ export function createEntryScrollAssist({ getGeometry, isBlocked }, view = windo
       if (confirmed) delta = pending.delta;
       if (diagnostics) report("pending-scroll", event, { confirmed, pending, delta });
     }
+    if (!gesture && delta && touching && touchStart && event.isTrusted && Number.isFinite(event.timeStamp)
+      && event.timeStamp >= touchStart.since && event.timeStamp <= view.performance.now()) touchStart.motion += delta;
     if (!gesture || !delta) {
       if (diagnostics) report("scroll-return", event, { reason: !gesture ? "no-gesture" : "zero-delta", delta });
       return;

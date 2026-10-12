@@ -44,12 +44,13 @@ export function createPricingRoomBackdrop({ renderer, scene, camera }) {
       // Capture-target programs differ from the canvas ones (linear output), so
       // the first cached capture blocked on relinking the whole restaurant.
       // Link them while pricing is still approaching; compile reads the bound target.
-      if (warmed || !renderer.compileAsync) return;
+      // Synchronous compile only starts linking and leaves no timer behind dispose.
+      if (warmed) return;
       warmed = true;
       const previousTarget = renderer.getRenderTarget();
       try {
         renderer.setRenderTarget(target);
-        renderer.compileAsync(scene, camera).catch(() => {});
+        renderer.compile(scene, camera);
       } finally {
         renderer.setRenderTarget(previousTarget);
       }

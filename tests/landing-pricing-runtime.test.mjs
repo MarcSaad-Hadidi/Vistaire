@@ -182,3 +182,10 @@ test('room cache checks target support, reuses allocation, and restores borrowed
     room.dispose(); assert.ok(releases >= 3);
   }
 });
+
+test('shader warm-up never leaves a compileAsync polling timer that can outlive disposal', () => {
+  // three 0.183 compileAsync polls properties.get(material).currentProgram.isReady()
+  // from setTimeout; after material/renderer disposal that throws uncaught.
+  for (const path of ['components/immersive/Scene.jsx', 'components/immersive/PricingRoomBackdrop.js', 'components/immersive/PricingHandScene.js'])
+    assert.doesNotMatch(readFileSync(path, 'utf8'), /\.compileAsync\b/, path);
+});

@@ -129,12 +129,8 @@ export function createPricingHandScene({
         lastSignature = "";
         addPhone();
         // Warm only this hand scene without moving/resizing the shared canvas.
-        Promise.resolve(renderer.compileAsync?.(scene, camera)).then(() => {
-          if (!disposed) invalidate();
-        }).catch(() => {
-          unavailable = true;
-          if (!disposed) invalidate();
-        });
+        // Synchronous compile leaves no polling timer to outlive disposal.
+        try { renderer.compile(scene, camera); } catch { unavailable = true; }
         invalidate();
       },
       undefined,
