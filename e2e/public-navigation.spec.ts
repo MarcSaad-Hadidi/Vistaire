@@ -47,6 +47,35 @@ test.beforeEach(async ({ page }, info) => {
     const record = (entry: object) => {
       if (events.length < 160) events.push({ at: performance.now(), ...entry });
     };
+    // Observe only existing readiness reads, never force an early style flush.
+    const nativeStyle = window.getComputedStyle;
+    let readinessReads = 0;
+    window.getComputedStyle = function (element, pseudoElement) {
+      const style = nativeStyle.call(window, element, pseudoElement);
+      if (readinessReads < 8 && element.matches('[data-public-menu] a[href]')) {
+        const drawer = element.closest<HTMLElement>('[data-public-menu]');
+        readinessReads++;
+        record({ kind: 'drawer-readiness-read', target: describe(element), active: describe(document.activeElement),
+          visibility: style.visibility, connected: element.isConnected, drawerInert: drawer?.inert,
+          drawerHidden: drawer?.getAttribute('aria-hidden') });
+      }
+      return style;
+    };
+    const nativeFrame = window.requestAnimationFrame;
+    let readinessFrames = 0;
+    window.requestAnimationFrame = function (callback) {
+      const scheduledActive = describe(document.activeElement);
+      return nativeFrame.call(window, time => {
+        const drawer = document.querySelector<HTMLElement>('[data-public-menu][aria-hidden="false"]');
+        if (drawer && readinessFrames < 4) {
+          readinessFrames++;
+          const target = drawer.querySelector('a[href]');
+          record({ kind: 'drawer-frame-before', scheduledActive, active: describe(document.activeElement),
+            target: describe(target), targetConnected: target?.isConnected, drawerInert: drawer.inert });
+        }
+        callback(time);
+      });
+    };
     const nativeFocus = HTMLElement.prototype.focus;
     HTMLElement.prototype.focus = function (this: HTMLElement, ...args: Parameters<HTMLElement['focus']>) {
       if (!(this instanceof HTMLElement) || !this.closest(scope)) return Reflect.apply(nativeFocus, this, args);

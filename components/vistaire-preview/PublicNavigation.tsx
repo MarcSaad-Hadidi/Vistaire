@@ -82,10 +82,14 @@ export function PublicNavigation({
       ...header.current!.querySelectorAll<HTMLElement>("button,a[href]"),
       ...panel.current!.querySelectorAll<HTMLElement>("button,a[href]"),
     ].filter((control) => control.getClientRects().length > 0);
-    const focusFrame = requestAnimationFrame(() => {
-      const first = panel.current?.querySelector<HTMLElement>("a[href]");
-      if (first && !panel.current!.inert && document.activeElement === previous
-        && getComputedStyle(first).visibility === "visible") first.focus({ preventScroll: true });
+    // RAF callbacks precede paint. Cross a rendered frame before checking a
+    // descendant whose inherited visibility is changing with the drawer.
+    let focusFrame = requestAnimationFrame(() => {
+      focusFrame = requestAnimationFrame(() => {
+        const first = panel.current?.querySelector<HTMLElement>("a[href]");
+        if (first?.isConnected && !panel.current!.inert && document.activeElement === previous
+          && getComputedStyle(first).visibility === "visible") first.focus({ preventScroll: true });
+      });
     });
     const dismiss = (event: KeyboardEvent) => {
       if (event.key === "Escape") {

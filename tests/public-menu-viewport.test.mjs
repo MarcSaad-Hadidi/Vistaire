@@ -95,7 +95,7 @@ test("navbar is always visible and has no launcher or collapse handler", async (
 });
 
 test("drawer focuses after rendering, respects newer focus, and cancels pending callbacks", async () => {
-  for (const path of ['components/immersive/App.jsx', 'components/vistaire-preview/PublicNavigation.tsx']) {
+  for (const path of ['components/immersive/App.jsx']) {
     const source = await readFile(path, 'utf8');
     const focusBody = source.match(/const focusFrame = (?:window\.)?requestAnimationFrame\(\(\) => \{([\s\S]*?)\n    \}\);/)?.[1];
     assert.ok(focusBody, `${path}: focus must wait for the opening render`);
@@ -111,5 +111,39 @@ test("drawer focuses after rendering, respects newer focus, and cancels pending 
       vm.runInNewContext(focusBody.replace(/<HTMLElement>/g, '').replace(/current!/g, 'current'), context);
       assert.equal(focused, scenario === 'visible' ? 1 : 0, `${path}: ${scenario}`);
     }
+  }
+});
+
+
+test("public drawer waits across the render boundary and cancels stale focus", async () => {
+  const source = await readFile('components/vistaire-preview/PublicNavigation.tsx', 'utf8');
+  const start = source.search(/(?:const|let) focusFrame = requestAnimationFrame/);
+  const end = source.indexOf('    const dismiss =', start);
+  assert.ok(start > 0 && end > start);
+  const block = source.slice(start, end).replace(/<HTMLElement>/g, '').replace(/current!/g, 'current');
+  for (const scenario of ['delayed', 'close-before-first', 'close-between', 'new-focus', 'closed-drawer', 'disconnected', 'still-hidden', 'missing-target', 'reduced']) {
+    const frames = new Map();
+    let nextId = 0, focused = 0, visibility = scenario === 'reduced' ? 'visible' : 'hidden';
+    const previous = {};
+    const first = { isConnected: true, focus: () => focused++ };
+    const drawer = { inert: false, querySelector: () => first };
+    const context = vm.createContext({ panel: { current: drawer }, previous, document: { activeElement: previous },
+      requestAnimationFrame: (fn) => { const id = ++nextId; frames.set(id, fn); return id; },
+      cancelAnimationFrame: (id) => frames.delete(id), getComputedStyle: () => ({ visibility }) });
+    vm.runInContext(block, context);
+    const frame = () => { const pending = [...frames]; frames.clear(); for (const [, fn] of pending) fn(); };
+    const close = () => { drawer.inert = true; vm.runInContext('cancelAnimationFrame(focusFrame)', context); };
+    if (scenario === 'close-before-first') close();
+    frame(); // The original single-RAF code observes the still-hidden child here.
+    assert.equal(focused, 0, 'never transfer focus in the pre-paint frame');
+    if (scenario === 'close-between') close();
+    if (scenario === 'new-focus') context.document.activeElement = {};
+    if (scenario === 'closed-drawer') drawer.inert = true;
+    if (scenario === 'disconnected') first.isConnected = false;
+    if (scenario === 'missing-target') drawer.querySelector = () => null;
+    visibility = scenario === 'still-hidden' ? 'hidden' : 'visible';
+    frame(); // A rendered opportunity has elapsed; no animation-duration timeout.
+    assert.equal(focused, ['delayed', 'reduced'].includes(scenario) ? 1 : 0, scenario);
+    assert.equal(frames.size, 0, 'no idle focus polling');
   }
 });
