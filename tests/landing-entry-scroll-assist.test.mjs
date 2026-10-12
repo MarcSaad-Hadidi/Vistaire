@@ -698,14 +698,14 @@ function authoredReadingStops(bounds, pace = 1) {
       const y = chapterNavigationTarget(join.to, opening.stageHeight, timing);
       assert.ok(Math.abs(y - join.end) < 1e-7, 'incoming end must match the existing navigation pose');
       return { id: join.to.id, y };
-    }),
+    }).flatMap(stop => stop.id !== 'testimonies' ? [stop] : [{ id: 'sustainability-open', y: (join => join.from.top + join.from.travel * (timing.sceneScreens - timing.edgeScreens) / timing.sceneScreens)(transitions.find(join => join.from.id === 'sustainability')) }, stop]),
   ];
 }
 
 test('every authored gap and handoff completes to its adjacent navigation reading stop with no proximity eligibility', () => {
   for (const pace of [.25, 1, 4]) {
     const bounds = geometry(844, pace), stops = authoredReadingStops(bounds, pace);
-    assert.deepEqual(stops.map(stop => stop.id), ['hero', 'ai', 'wearable', 'features', 'encryption', 'grip', 'sustainability', 'testimonies', 'social-content', 'product']);
+    assert.deepEqual(stops.map(stop => stop.id), ['hero', 'ai', 'wearable', 'features', 'encryption', 'grip', 'sustainability', 'sustainability-open', 'testimonies', 'social-content', 'product']);
     for (let i = 1; i < stops.length; i++) {
       const before = stops[i - 1], after = stops[i];
       const points = new Set([before.y + .25, (before.y + after.y) / 2, after.y - .25]);
@@ -863,4 +863,25 @@ test('real touch orderings keep one native gesture: scroll before first touchmov
   f.input('touchend', { touches: [] }); f.end(); f.advance(30000);
   assert.equal(f.calls.length, 0);
   f.assist.dispose();
+});
+
+test('sustainability holds a reading stop on the fully opened laptop before Trois expériences, in both directions', async () => {
+  const { chapterPhase, cinematicEase } = await import('../components/immersive/SceneDirector.js');
+  for (const pace of [.25, 1, 4]) {
+    const bounds = geometry(844, pace);
+    const arrival = bounds.transitions.find(join => join.to.id === 'sustainability');
+    const exit = bounds.transitions.find(join => join.from.id === 'sustainability');
+    const chapter = exit.from, at = y => cinematicEase(chapterPhase('sustainability', (y - chapter.top) / chapter.travel));
+    const gesture = (y, direction) => {
+      const f = fixture({ mode: 'early', pace }); f.wheel(y, direction); f.end(); f.advance(30000);
+      const result = f.view.scrollY; f.assist.dispose(); return result;
+    };
+    const open = gesture(arrival.end + 1, 1);
+    assert.equal(at(open), 1, `${pace}: the stop shows the lid at its widest opening keyframe`);
+    assert.ok(at(open - 1) < 1, `${pace}: the stop is the first fully open pose, not a later hold`);
+    assert.ok(open <= exit.start + 1e-7, `${pace}: the Three experiences handoff has not started`);
+    assert.equal(gesture(open + 1, 1), exit.end, `${pace}: the next gesture continues to testimonies`);
+    assert.ok(Math.abs(gesture(exit.end - 1, -1) - open) < 1e-6, `${pace}: reverse stops on the open laptop`);
+    assert.equal(gesture(open - 1, -1), arrival.end, `${pace}: reverse again returns to the sustainability arrival`);
+  }
 });
