@@ -5,15 +5,43 @@ const CONTROLS = `a, button, summary, [role="button"], [role="tab"], ${FOCUSED_C
 const controlled = (target, selector = CONTROLS) => Boolean(target?.closest?.(selector));
 const natural = id => id === "open-weight" || id === "footer";
 
+/** A quintic with the measured initial velocity and zero final velocity and
+ * endpoint acceleration. Choose duration so m = v*T/d is in [0, 2]. Its
+ * derivative is (1-t)^2 * (m + 2*m*t + (30-15*m)*t^2), hence nonnegative;
+ * no position clamp is needed to hide reversal or overshoot. */
+export function createScrollContinuation(from, to, velocity, stageHeight) {
+  const distance = Math.abs(to - from), direction = Math.sign(to - from);
+  const speed = Math.max(0, direction * velocity);
+  const cruise = Math.max(speed, stageHeight * 5 / 1000);
+  let duration = Math.max(160, Math.min(850, 1.5 * distance / cruise));
+  if (speed > 0) duration = Math.min(duration, 2 * distance / speed);
+  const m = speed * duration / distance;
+  return {
+    duration,
+    at(elapsed) {
+      if (elapsed <= 0) return from;
+      if (elapsed >= duration) return to;
+      const t = elapsed / duration;
+      return from + direction * distance * (m * t + (10 - 6 * m) * t ** 3
+        + (8 * m - 15) * t ** 4 + (6 - 3 * m) * t ** 5);
+    },
+  };
+}
+
 /** Complete the committed end of one authored section or handoff. The caller
  * cancels before any programmatic navigation/layout remap and when UI blocks
- * scrolling. Geometry stays owned by App; this helper has no animation loop.
+ * scrolling. Geometry stays owned by App; one gesture-scoped RAF observes native motion
+ * and transfers to one bounded continuation. No idle RAF remains.
  */
 export function createEntryScrollAssist({ getGeometry, isBlocked }, view = window) {
   const document = view.document;
   const reduced = view.matchMedia("(prefers-reduced-motion: reduce)");
   const hasScrollEnd = "onscrollend" in document;
-  const diagnostics = new URLSearchParams(view.location?.search || "").get("sceneDiagnostics") === "1";
+  const parameters = new URLSearchParams(view.location?.search || "");
+  const diagnostics = parameters.get("sceneDiagnostics") === "1";
+  const baseline = diagnostics && parameters.get("scrollAssistMode") === "baseline";
+  let frame = null;
+  let pointerHeld = false;
   let blockedReason = null;
   let gesture = null;
   let assisting = null;
@@ -31,8 +59,13 @@ export function createEntryScrollAssist({ getGeometry, isBlocked }, view = windo
     try {
       view.__vistaireScrollAssistTrace({
         type, handledAt: view.performance.now(), eventTimeStamp: event?.timeStamp ?? null,
-        eventType: event?.type ?? null, hasScrollEnd, touching, heldKey, touchY,
-        gesture: gesture ? { ...gesture } : null, assisting, lastY, currentY: view.scrollY,
+        eventType: event?.type ?? null, hasScrollEnd, touching, heldKey, touchY, pointerHeld, mode: baseline ? "baseline" : "early",
+        gesture: gesture ? { ...gesture } : null,
+        assisting: !baseline && assisting != null ? {
+          target: assisting.target, started: assisting.started, lastFrameAt: assisting.lastFrameAt,
+          expectedY: assisting.expectedY, duration: assisting.curve.duration,
+        } : assisting,
+        lastY, currentY: view.scrollY,
         age: gesture ? view.performance.now() - gesture.at : null,
         blockedReason, ...details,
       });
@@ -53,29 +86,102 @@ export function createEntryScrollAssist({ getGeometry, isBlocked }, view = windo
     if (diagnostics) report("cancel", event || (typeof source === "object" ? source : null),
       { reason: typeof source === "string" ? source : source?.type || "caller-cancel" });
     clearTimer();
+    view.cancelAnimationFrame(frame); frame = null;
     gesture = null;
     if (assisting != null) {
       assisting = null;
       // Abort only our own smooth scroll. Never stop native wheel/touch inertia.
-      view.scrollTo({ top: view.scrollY, behavior: "instant" });
+      if (baseline) view.scrollTo({ top: view.scrollY, behavior: "instant" });
     }
     lastY = view.scrollY;
     lastYAt = view.performance.now();
   };
-  const settle = event => {
-    if (diagnostics) report("settle", event, { source: event ? "scrollend" : "quiet-timer" });
+  const animate = now => {
+    const deliveredAt = view.performance.now();
+    frame = null;
+    const active = assisting;
+    if (!active) return;
+    if (blocked() || touching || heldKey || pointerHeld) { cancel("blocked-continuation"); return; }
+    if (deliveredAt - active.lastFrameAt > 80) { cancel("continuation-frame-gap"); return; }
+    active.lastFrameAt = deliveredAt;
+    if (Math.abs(view.scrollY - active.expectedY) > 1) { cancel("foreign-scroll"); return; }
+    const elapsed = now - active.started;
+    view.scrollTo({ top: active.curve.at(elapsed), behavior: "instant" });
+    active.expectedY = lastY = view.scrollY;
+    lastYAt = deliveredAt;
+    if (elapsed >= active.curve.duration) {
+      assisting = null;
+      if (diagnostics) report("completed", null, { target: active.target, duration: elapsed });
+    } else frame = view.requestAnimationFrame(animate);
+  };
+  const watch = () => {
+    // Position is read at callback delivery, which may lag the rAF timestamp.
+    const now = view.performance.now();
+    frame = null;
+    const current = gesture;
+    if (!current?.scrolled || assisting != null) return;
+    if (blocked()) { cancel("blocked-observer"); return; }
+    const y = view.scrollY, dt = now - current.sampleAt, delta = y - current.sampleY;
+    if (dt < 8 || dt > 50) {
+      // A long main-thread pause is not stationary/decelerating native evidence.
+      current.velocity = 0; current.decelerationSamples = 0; current.stationaryFrames = 0;
+      current.lastMotionAt = now;
+    } else if (delta) {
+      if (Math.sign(delta) !== current.direction) { cancel("reverse-observed-motion"); return; }
+      const velocity = delta / dt;
+      current.decelerationSamples = Math.abs(velocity) < Math.abs(current.velocity)
+        ? current.decelerationSamples + 1 : 0;
+      current.velocity = velocity;
+      current.stationaryFrames = 0; current.lastMotionAt = now;
+      if (y !== lastY) current.nativeEnded = false;
+    } else current.stationaryFrames++;
+    current.sampleY = y; current.sampleAt = now;
+    const released = !touching && !heldKey && !pointerHeld && now - current.at >= 60;
+    if (released && current.nativeEnded) { settle(null, "scrollend"); return; }
+    if (released && current.decelerationSamples >= 2 && Math.abs(current.velocity) <= 0.15
+      && current.stationaryFrames >= 2 && now - current.lastMotionAt >= 32
+      && now - current.lastMotionAt <= 80 && y === lastY) {
+      settle(null, "deceleration"); return;
+    }
+    // Bounded observation only. Long native inertia can still finish via the
+    // actual scrollend or the conservative unsupported-browser fallback.
+    if (now - current.at < 2000) frame = view.requestAnimationFrame(watch);
+  };
+  const observe = () => {
+    if (baseline || frame != null || assisting != null || !gesture?.scrolled) return;
+    const pricing = getGeometry().transitions.find(join => join.to.id === "open-weight");
+    if (pricing && view.scrollY + view.innerHeight >= pricing.to.top) return;
+    if (gesture.sampleAt == null) {
+      gesture.sampleAt = view.performance.now(); gesture.sampleY = view.scrollY;
+      gesture.velocity = 0; gesture.decelerationSamples = 0;
+      gesture.stationaryFrames = 0; gesture.lastMotionAt = gesture.sampleAt;
+    }
+    frame = view.requestAnimationFrame(watch);
+  };
+  const settle = (event, source = event ? "scrollend" : "quiet-timer") => {
+    if (diagnostics) report("settle", event, { source });
     clearTimer();
     if (assisting != null) {
-      if (diagnostics) report("settle-return", event, { reason: "assist-settled" });
-      assisting = null; return;
+      if (diagnostics) report("settle-return", event, { reason: baseline ? "assist-settled" : "own-scrollend" });
+      if (baseline) assisting = null;
+      return;
+    }
+    if (!baseline && gesture?.scrolled && source === "scrollend") {
+      gesture.nativeEnded = true;
+      if (touching || heldKey || pointerHeld || view.performance.now() - gesture.at < 60) {
+        if (diagnostics) report("settle-return", event, { reason: "await-input-release" });
+        observe(); return;
+      }
     }
     if (!gesture?.scrolled || touching || heldKey) {
       if (diagnostics) report("settle-return", event, { reason: !gesture ? "no-gesture" : !gesture.scrolled ? "no-native-motion" : touching ? "touch-held" : "key-held" });
       return;
     }
+    const motion = gesture;
     const direction = gesture.direction;
-    gesture = null; // One gesture can complete at most one entry.
-    if (blocked() || view.scrollY !== lastY) {
+    gesture = null;
+    view.cancelAnimationFrame(frame); frame = null; // One gesture can complete at most one entry.
+    if (blocked() || (!baseline && pointerHeld) || view.scrollY !== lastY) {
       if (diagnostics) report("settle-return", event, { reason: blockedReason || "position-changed-without-scroll", direction });
       return;
     }
@@ -105,9 +211,10 @@ export function createEntryScrollAssist({ getGeometry, isBlocked }, view = windo
         return;
       }
       target = direction > 0 ? entry.end : entry.start;
-      // Half of the actual handoff must already be traversed. Long preview
-      // paces cannot turn this into several screens of automatic movement.
-      limit = Math.min(opening.stageHeight * 2, (entry.end - entry.start) * 0.5);
+      // Comparison mode keeps its published cap. The candidate requires 15%
+      // native progress and caps even slow-preview completion at three stages.
+      limit = baseline ? Math.min(opening.stageHeight * 2, (entry.end - entry.start) * 0.5)
+        : Math.min(opening.stageHeight * 3, (entry.end - entry.start) * 0.85);
     } else {
       const next = windows.findIndex(window => window.start > y);
       const before = windows[next - 1], after = windows[next];
@@ -119,7 +226,8 @@ export function createEntryScrollAssist({ getGeometry, isBlocked }, view = windo
       target = direction > 0 ? after.start : before.end;
       // End the current section's presentation at its existing stable pose.
       // Never chain through the following handoff or consume an entire hold.
-      limit = Math.min(360, opening.stageHeight * 0.45, (after.start - before.end) * 0.2);
+      limit = baseline ? Math.min(360, opening.stageHeight * 0.45, (after.start - before.end) * 0.2)
+        : Math.min(opening.stageHeight * 1.5, (after.start - before.end) * 0.5);
     }
     const distance = (target - y) * direction;
     if (distance <= 1 || distance > limit) {
@@ -127,8 +235,19 @@ export function createEntryScrollAssist({ getGeometry, isBlocked }, view = windo
       return;
     }
     if (diagnostics) report("assist-start", event, { direction, target, distance, limit, phase, geometry: { ...opening } });
-    assisting = target;
-    view.scrollTo({ top: target, behavior: "smooth" });
+    if (baseline) {
+      assisting = target;
+      view.scrollTo({ top: target, behavior: "smooth" });
+    } else {
+      const now = view.performance.now(), sampleAge = now - (motion.lastMotionAt ?? now);
+      const velocity = (motion.velocity || 0) * Math.max(0, 1 - sampleAge / 80);
+      const curve = createScrollContinuation(y, target, velocity, opening.stageHeight);
+      assisting = { target, curve, started: now, lastFrameAt: now, expectedY: y };
+      if (diagnostics) report("handoff", event, { source, target, velocity, sampleAge, duration: curve.duration,
+        stationaryMs: sampleAge, stationaryFrames: motion.stationaryFrames || 0,
+        inputQuietMs: now - motion.at, decelerationSamples: motion.decelerationSamples || 0 });
+      frame = view.requestAnimationFrame(animate);
+    }
   };
   const quiet = () => {
     clearTimer();
@@ -141,6 +260,7 @@ export function createEntryScrollAssist({ getGeometry, isBlocked }, view = windo
   };
   const intent = (event, direction) => {
     const sameInput = gesture?.type === event.type && gesture.direction === direction;
+    const previous = sameInput ? gesture : null;
     const continued = sameInput && gesture.scrolled;
     // Passive wheel delivery can follow compositor movement. Preserve only a
     // matching, post-observation difference; do not call it native motion until
@@ -158,9 +278,11 @@ export function createEntryScrollAssist({ getGeometry, isBlocked }, view = windo
     }
     // A final subpixel packet must not erase actual document movement in this
     // unsettled gesture. Settlement/cancellation still consumes it entirely.
-    gesture = { type: event.type, direction, scrolled: Boolean(continued), at: view.performance.now(), pendingScroll };
+    gesture = !baseline && previous ? previous : { type: event.type, direction, scrolled: Boolean(continued) };
+    gesture.at = view.performance.now(); gesture.pendingScroll = pendingScroll;
+    if (!baseline) gesture.nativeEnded = false;
     if (diagnostics) report("intent-accepted", event, { direction });
-    quiet();
+    quiet(); observe();
   };
   const wheel = event => {
     intent(event, !event.ctrlKey && Math.abs(event.deltaY) > Math.abs(event.deltaX || 0)
@@ -174,7 +296,11 @@ export function createEntryScrollAssist({ getGeometry, isBlocked }, view = windo
     heldKey = gesture ? event.key : null;
   };
   const keyup = event => {
-    if (event.key === heldKey) { heldKey = null; quiet(); }
+    if (event.key === heldKey) {
+      heldKey = null;
+      if (!baseline && gesture) gesture.at = view.performance.now();
+      quiet(); observe();
+    }
     if (diagnostics) report("key-release", event);
   };
   const touchstart = event => {
@@ -195,10 +321,30 @@ export function createEntryScrollAssist({ getGeometry, isBlocked }, view = windo
   };
   const touchend = event => {
     touching = event.touches.length > 0;
-    if (!touching) { touchY = null; quiet(); }
+    if (!touching) {
+      touchY = null;
+      if (!baseline && gesture) gesture.at = view.performance.now();
+      quiet(); observe();
+    }
     if (diagnostics) report("touch-release", event);
   };
-  const reset = source => { cancel(source); touching = false; touchY = null; heldKey = null; };
+  const reset = source => { cancel(source); touching = false; touchY = null; heldKey = null; pointerHeld = false; };
+  const pointerdown = event => { pointerHeld = true; cancel(event); };
+  const pointerup = () => {
+    pointerHeld = false;
+    if (!baseline && gesture) gesture.at = view.performance.now();
+    observe();
+  };
+  const pointercancel = event => {
+    pointerHeld = false;
+    // UA panning may suppress Pointer Events while an independently observed
+    // Touch Events gesture continues. Only touchcancel terminates that stream.
+    if (baseline || (event.pointerType === "touch" && touching && touchY != null && assisting == null)) {
+      if (diagnostics) report("pointer-release", event, { reason: "pointer-stream-cancelled" });
+      return;
+    }
+    reset(event);
+  };
   const scroll = event => {
     if (event.target !== document) {
       if (diagnostics) report("scroll-return", event, { reason: "nested-scroller" });
@@ -214,6 +360,10 @@ export function createEntryScrollAssist({ getGeometry, isBlocked }, view = windo
       cancel("scroll-blocked", event); return;
     }
     if (assisting != null) {
+      if (!baseline) {
+        if (Math.abs(y - assisting.expectedY) > 1) cancel("foreign-scroll");
+        return;
+      }
       if (diagnostics) report("scroll-return", event, { reason: "assisting", delta, reachedTarget: Math.abs(y - assisting) <= 1 });
       if (Math.abs(y - assisting) <= 1) assisting = null;
       quiet();
@@ -238,8 +388,9 @@ export function createEntryScrollAssist({ getGeometry, isBlocked }, view = windo
       return;
     }
     gesture.scrolled = true;
+    if (!baseline) gesture.nativeEnded = false;
     if (diagnostics) report("scroll-accepted", event, { delta });
-    quiet();
+    quiet(); observe();
   };
   const scrollend = event => {
     if (diagnostics) report("scrollend", event, { documentScroll: event.target === document });
@@ -250,7 +401,8 @@ export function createEntryScrollAssist({ getGeometry, isBlocked }, view = windo
     [document, "wheel", wheel], [document, "keydown", keydown], [document, "keyup", keyup],
     [document, "touchstart", touchstart], [document, "touchmove", touchmove],
     [document, "touchend", touchend], [document, "touchcancel", reset],
-    [document, "pointerdown", cancel], [document, "click", cancel], [document, "focusin", cancel],
+    [document, "pointerdown", pointerdown], [document, "pointerup", pointerup], [document, "pointercancel", pointercancel],
+    [document, "click", cancel], [document, "focusin", cancel],
     [document, "visibilitychange", reset], [view, "hashchange", reset],
     [view, "blur", reset], [reduced, "change", reset],
   ];

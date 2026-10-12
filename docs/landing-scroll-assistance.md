@@ -1,88 +1,109 @@
-# Bounded native scroll assistance candidate
+# Earlier bounded scroll handoff experiment
 
-## Scope and provenance
+## Source, scope and current status
 
-This candidate starts from the supplied published `8db3be1` runtime snapshot, copied from `vistaire-transition-validation`. That snapshot contains no `.git`, so the source identity below is verified by SHA-256 rather than a locally verifiable Git commit.
+This candidate is based on published `7c67bf2f0afdb7280c5571345b595a1060544a84`, supplied as the `vistaire-activation-validation` snapshot. It preserves the proven Chromium compositor-before-wheel activation repair and its diagnostic event ordering. The snapshot has no `.git`; file comparisons and hashes establish local scope.
 
-Only `EntryScrollAssist.js`, its existing node test file, and this document change. App, Scene, SceneDirector, authored camera/hand choreography, assets, native distance, and browser input deltas remain unchanged. No dependency or animation loop was added.
+Only the helper, its existing tests, this document and the existing offers E2E harness change. App, Scene, SceneDirector, measured camera choreography, assets and dependencies are unchanged. The helper owns one RAF at a time: native-motion observation **or** its continuation, never concurrent helper controllers. Ordinary settled pages have no assistance loop.
 
-## Why the original could feel weak
+The candidate can transfer before `scrollend` when a released native gesture has demonstrably decelerated and its observed position has stopped advancing briefly. Deterministic lifecycle/trajectory tests pass. Hosted motion traces and physical-device acceptance remain pending; this is not a gapless-scroll or performance claim.
 
-The published assistance limit was `min(160px, 0.22 × frozen stage, 0.12 × measured transition)`. At the default pace every eligible handoff spans 3.2 stages. A stage of 844px therefore permits assistance only in the last 160px of a 2700.8px handoff, or the last 5.92%.
+## Audit of the published behavior
 
-Two additional activation defects were reproduced deterministically before fixing them:
+The published helper uses document `scrollend` exclusively when the property exists. Unsupported browsers use 280ms of input/scroll silence after physical release. It then starts browser-native smooth scrolling, whose timing/easing it cannot control. Native smooth-scroll timing is browser-defined; `scrollend` denotes completed scrolling/gesture, not an exposed compositor-velocity handoff API. See the [CSSOM View scrolling specification](https://drafts.csswg.org/cssom-view/#scrolling).
 
-- A previously clicked button/link remaining focused blocked a subsequent wheel or touch gesture aimed at the scene. Persistent focus protection now covers editors, sliders, media, dialogs and menus. The broader gesture-target exclusions remain unchanged, including keyboard events aimed at a focused button/link.
-- A same-direction input tail with no additional pixel movement erased the real native movement already observed. That movement now survives until the same input type and direction settle. Switching input types requires fresh matching native movement. Reversal, controls, navigation and completion still consume/cancel it; residual packets without fresh native motion cannot rearm a completed assist.
+Published spatial limits are half the handoff, capped at two frozen stages, and a section tail capped at 360px/0.45 stage/20% of its measured gap. At an 844px stage/default pace, a handoff spans 2700.8px and assistance accepts its final 1350.4px.
 
-These are real source-level defects, but neither is established as the cause of a particular user's session.
+The retained c9 Chromium rings prove lost pre-handler movement, fixed by 7c. They do **not** prove late `scrollend`: its callback immediately followed the scroll callback. The desktop wheel had approximately 3.93 seconds of pre-handler delivery delay; the mobile-width case had approximately 22.5ms. WebKit's prior 8.25px error was native keyboard overshoot, not the same activation bug. These remain separate from the user's perceived stop/restart complaint.
 
-## Movement contract
+## Earlier ownership transfer
 
-After trusted native scrolling settles, exactly one existing phase may complete:
+After accepted, observed native movement, the candidate observes actual `scrollY` on one gesture-scoped RAF. It never writes while observed native positions are advancing. Early eligibility requires all of:
 
-1. **Section ending:** within the final `min(360px, 0.45 × frozen stage, 20% of the interval between measured handoffs)`, finish to that section's existing exit-start pose. Reverse movement mirrors this to its first reading pose. This does not automatically continue through the next handoff.
-2. **Cinematic handoff:** once at least half the measured handoff has already been traversed in the requested direction, complete to its adjacent stable reading pose. The remaining automatic travel is capped at `min(50% of the handoff, 2 × frozen stage)`.
+1. No held touch, key or pointer, and at least 60ms without new input. Physical key/touch/pointer release restarts this window.
+2. Two decreasing, same-direction velocity samples from fresh frames, each 8–50ms apart, with the last moving speed at most 0.15px/ms.
+3. At least two stationary frames spanning at least 32ms since the last moving frame, with that sample no older than 80ms.
+4. Current position agreeing with the last processed scroll event, existing UI/control/reduced-motion gates clear, and an eligible bounded authored endpoint.
 
-The short end-of-section finish deliberately stops before the next handoff. A subsequent native gesture must commit to that transition before its own assistance can complete it. This preserves one authored phase per completion instead of automatically joining two phases.
+The observer hands off without waiting for a missing/late `scrollend`. The first assisted write occurs on the next display frame. In the deterministic 16ms fixture, this is 32ms to decide plus another 16ms to write, or **48ms after the last observed movement**. Actual browser scheduling can differ. A stationary-frame requirement necessarily introduces a short gap; it does not establish physically seamless or zero-gap continuation.
 
-Pricing/FAQ/footer reading and both pricing-related transitions are excluded. The opening AI/phone holds remain separate intervals; assistance never consumes an entire hold or chains through it. Fresh wheel, touch, key, pointer or control input stops the helper's own smooth scroll immediately. Native scrolling outside the helper is never forcibly stopped.
+Any new native movement resets stationary/deceleration evidence. Observation timestamps use `performance.now()` at the position read, not a potentially older rAF timestamp. A long observation frame invalidates velocity evidence. A 2-second observation ceiling, measured from the latest input/release, prevents an indefinite missing-event loop; later real `scrollend` can still settle the gesture. Offers/FAQ/footer reading does not start this observer.
 
-## Quantitative boundaries
+A real `scrollend` also transfers to the candidate controller, but respects the same 60ms input-silence/contact-release gate. This prevents a decreasing wheel packet train from starting and canceling assistance after every packet. It may add up to 60ms for a lone packet whose end event is immediate. The paired trace must expose that tradeoff rather than imply all input becomes faster. The existing 280ms unsupported-browser fallback remains the conservative last option when no early evidence qualifies.
 
-These are source-derived geometry calculations using the published SceneDirector and existing deterministic stage fixtures, not new browser or physical-device captures. All values below use default pace and an 844px frozen stage.
+## Interruption and native-inertia limits
 
-| Eligible handoff | Start | Stable end | Published maximum remainder | Candidate maximum remainder |
-| --- | ---: | ---: | ---: | ---: |
-| hero → ai | 0 | 2700.8 | 160 | 1350.4 |
-| ai → wearable | 4388.8 | 7089.6 | 160 | 1350.4 |
-| wearable → features | 8355.6 | 11056.4 | 160 | 1350.4 |
-| features → encryption | 17808.4 | 20509.2 | 160 | 1350.4 |
-| encryption → grip | 23885.2 | 26586 | 160 | 1350.4 |
-| grip → sustainability | 29962 | 32662.8 | 160 | 1350.4 |
-| sustainability → testimonies | 36038.8 | 38739.6 | 160 | 1350.4 |
-| testimonies → social-content | 42115.6 | 44816.4 | 160 | 1350.4 |
-| social-content → product | 51568.4 | 54269.2 | 160 | 1350.4 |
+Fresh wheel/touch/key/pointer/control input, protected focus, navigation/layout cancellation, reverse movement, hidden/reduced-motion state, disposal and unexpected position changes yield immediately. Before every assisted write the controller rechecks ownership. If native inertia resumes after the quiet observation, the next observed displacement cancels assistance; the platform does not provide proof that future compositor movement cannot resume. Physical Safari/trackpad behavior therefore remains a required acceptance check.
 
-The same default handoffs at a 900px stage permit 1440px instead of 160px; at a 932px stage they permit 1491.2px instead of 160px. At 844px with the slowest 0.25× preview pace, a handoff is 8271.2px long but automatic travel remains capped at 1688px, requiring approximately 79.59% native progress. At 4× preview pace the handoff is 1308.2px and the cap is 654.1px.
+A continuation frame delayed more than 80ms, measured at actual callback delivery rather than its potentially older rAF timestamp, cancels instead of jumping forward along a stale trajectory. This prioritizes avoiding a large discontinuity over forcibly completing a phase during a main-thread stall. It can leave the user short of the target; hosted traces must distinguish this safety cancellation from activation failure.
 
-Tests exercise both directions, all nine handoffs, the section-ending boundary, and slow/fast preview geometries. Requested path samples remain wholly inside the same authored phase. These spatial checks do not measure browser frame timing or projected on-screen velocity.
+`pointercancel` is not treated as physical touch release when an independently valid Touch Events stream is still active. UA panning suppresses Pointer Events; the standard does not prescribe combined Touch Events ordering. Both start orderings are covered by a regression, along with true `touchcancel`. An already active continuation still cancels. See [Pointer Events stream suppression](https://www.w3.org/TR/pointerevents3/#suppressing-a-pointer-event-stream).
 
-## Activation and timing limits
+## Bounded range and trajectory
 
-The caller still disables assistance while the scene is unready or in GPU fallback, a menu/modal/AR session is open, or reduced motion is requested. Hidden documents, protected focus, excluded input targets, synthetic inputs, direct anchors and programmatic positioning remain excluded. Input without first matching document movement expires after 600ms.
+The candidate can finish one current section ending or one committed adjacent handoff, never both automatically:
 
-Native `scrollend` owns settlement where supported. Older browsers without it use the existing conservative 280ms quiet interval, restarted by native input/scroll and only after physical touch/key release. That fallback cannot prove physical Safari inertia has ended.
+| Phase | Published 7c | Candidate |
+| --- | --- | --- |
+| Handoff remainder | min(50% span, 2 stages) | min(85% span, 3 stages) |
+| Section-ending remainder | min(360px, 0.45 stage, 20% gap) | min(1.5 stages, 50% gap) |
 
-The implementation uses one platform-native smooth scroll. It does not control duration/easing, scale input, classify input devices, or run a spring/RAF smoother. The two-stage spatial ceiling prevents a full multi-stage handoff being launched from its beginning, but does not certify film-like velocity: browser timing may make a longer completion faster. Smoothness, elapsed duration and projected movement speed still need browser/physical-input verification. No device-performance acceptance is claimed here.
+At H=844px/default pace, handoff remainder grows from 1350.4px to 2295.68px and section-ending maximum from 360px to 1266px. At 0.25× pace the 8271.2px handoff still permits at most 2532px, requiring 69.39% native progress. At 4× pace its 1308.2px span permits 1111.97px. Pricing-related handoffs and natural reading remain excluded. Direction is preserved, including after keyboard overshoot; the helper does not pull backward to an endpoint already crossed.
 
-## Existing published Chromium failures remain separate
+The active controller uses instant per-frame position writes along a finite quintic, not a second browser-native smoother. Let remaining distance be d, same-direction sampled speed v in px/ms and frozen stage H:
 
-The retained published offers-test artifacts report a 39.8px remainder at 390px forward and a 40px remainder at 1440px reverse after 15 seconds. Both were already inside the original 160px limit. Their snapshots show document-level active focus and their fixture sends one wheel event, so neither widening the zone nor the two reproduced activation fixes can honestly be claimed to resolve these cases without a new observed run.
+`T = clamp(1.5d / max(v, 5H/1000), 160ms, 850ms)`
 
-The artifacts contain no per-event helper lifecycle. Input target, scene-ready publication, native/compositor position before JS input delivery, first-scroll delay, programmatic scrollend ordering, and ResizeObserver cancellation remain possible explanations. Future diagnostics should capture those actual values rather than assign a cause from the threshold alone.
+For nonzero v, shorten T if needed so `T <= 2d/v`. Thus `m=vT/d` lies in [0,2]. Normalized position is:
 
-## Verification
+`p(t)=mt+(10−6m)t³+(8m−15)t⁴+(6−3m)t⁵`.
 
-- Published baseline: helper/integration tests 8/8 passed.
-- New stale-focus and no-pixel-tail regressions each failed before their production fix.
-- Expanded section/transition tests failed before the movement change.
-- `node --test tests/landing-entry-scroll-assist.test.mjs tests/landing-scroll-continuity.test.mjs tests/landing-model-gesture.test.mjs`: 40/40 passed, including 12 helper/integration cases.
-- `./node_modules/.bin/eslint components/immersive/EntryScrollAssist.js tests/landing-entry-scroll-assist.test.mjs --max-warnings=0`: passed.
-- `npm run test:node`: 2061 total; 2053 passed, 2 failed, 6 skipped. Failures: `console: IPv6 startup URL serves authenticated requests` (local fetch/socket failure), and `3D pipeline branch does not add public media binaries or wildcard LFS rules` (the source snapshot has no `.git`). No socket retry or bypass was attempted.
-- The full node run preceded the final same-input-type safety refinement; the final 40 targeted tests and targeted lint were rerun afterward. The failed local socket check was not retried.
-- No browser launch, browser/socket workaround, build, publish, or production operation was performed. Full lint/typecheck/build, assets/LFS and browser acceptance remain integration checks; the isolated source snapshot is not the final integrated application.
+Its derivative is `(1−t)²[m+2mt+(30−15m)t²]`, nonnegative over the interval. Position is monotone without overshoot clamping, begins at the estimated velocity, ends at zero velocity, and has zero controller acceleration at its endpoints. These mathematical conditions do not prove continuity with unknown compositor acceleration.
 
-## File identities
+Seed speed decays to zero over 80ms since its measured motion. The proven pre-handler displacement repair establishes that native movement occurred but **never** supplies speed: its timing is unknown. No wheel-delta scaling or inferred input-device classification is used.
 
-Published helper SHA-256: `46c40b7ee86ed8865d0242cbb6b2b9f11554abd9dc7a7103335aff2cda62f870`.
+Examples at H=844px are analytic projections, not measured browser results:
 
-Candidate helper SHA-256: `321883a1367abc35d418888ab5e62c4c2cf52aa1ceab6d148f01dfc472274f8f`.
+| Remainder / seed | Duration | Peak speed |
+| --- | ---: | ---: |
+| 40px / 0px/ms | 160ms | 0.469px/ms |
+| 1000px / 0px/ms | 355.45ms | 5.275px/ms |
+| 1000px / 2.5px/ms | 355.45ms | 4.331px/ms |
+| 2295.68px / 0px/ms | 816ms | 5.275px/ms |
+| 2532px / 0px/ms | 850ms | 5.585px/ms |
 
-Candidate helper tests SHA-256: `e993ae70ddd471b4f47b9922d8809776ab823395e77b18cef9ac074e6b16b571`.
+Long-transition pace remains subject to visual review. Completing within this duration is not guaranteed if interrupted or a frame stalls.
 
-Unchanged App SHA-256: `e944053ea56973294975ee0d48237ce2a78a699935d41813f5329f2f41547e90`.
+## Same-build diagnostic comparison
 
-Unchanged Scene SHA-256: `48962fe3a122213e34a0045d3ee902895904b81669ac5e05ff0aecb2e383ea9e`.
+The mode is chosen when the helper initializes; no App change is required:
+
+- `?sceneDiagnostics=1&scrollAssistMode=baseline`: published 7c thresholds, native `scrollend`/280ms timing and browser-native smooth completion.
+- `?sceneDiagnostics=1&scrollAssistMode=early`: candidate with diagnostic events.
+- Ordinary runtime, `sceneDiagnostics=1` alone, or `scrollAssistMode=baseline` without `sceneDiagnostics=1`: candidate behavior. A diagnostic flag alone cannot disable the candidate.
+
+`window.__vistaireScrollAssistTrace(row)` remains optional and exception-isolated. The consumer owns bounded retention. The `handoff` row adds `source` (`deceleration`, `scrollend` or `quiet-timer`), `target`, `velocity`, `sampleAge`, `duration`, `stationaryMs`, `stationaryFrames`, `inputQuietMs` and `decelerationSamples`. Existing position, event/handler timestamp, gesture, contact, mode and cancellation fields remain available. Active-controller diagnostics copy scalar state at capture time, so later frames cannot rewrite a retained row. No per-frame trace recorder is installed in ordinary runtime.
+
+The existing `e2e/landing-offers.spec.ts` now contains the same-build paired capture, avoiding protected external URLs. It alternates baseline/early order at 390px/1440px, uses trusted decreasing Chromium wheel packets or separately labeled released WebKit keyboard input, and retains actual RAF positions/velocities, native events and assisted writes. The recorder is bounded to 7 seconds/3000 rows, writes JSON before assertions, and preserves failures from either mode while attempting both. Existing acceptance cases are retained.
+
+Run in the repository's normal hosted offers job, or its equivalent configured build environment:
+
+```sh
+./node_modules/.bin/playwright test e2e/landing-offers.spec.ts --project=chromium --project=webkit
+```
+
+Only test discovery has been run in this execution environment, not a browser. No alternative denied browser/socket route was used. A successful capture requires trusted input, multiple actual positions, reported mode, a retained handoff and the common endpoint; it does not automatically certify the `deceleration` path or perceived smoothness. Review the retained source: if only `scrollend` qualified, earlier handoff remains unverified on that run. Physical touch/trackpad acceptance cannot be inferred from keyboard or generated wheel packets.
+
+## Verification checkpoint
+
+- Exact 7c baseline helper tests: 17/17 passed before changes.
+- Five initial candidate tests failed before implementation. Further fail-before regressions covered native-end acknowledgment, release timing, stalled continuation frames and mixed touch/pointer cancellation.
+- Final targeted command: `node --test tests/landing-entry-scroll-assist.test.mjs tests/landing-scroll-continuity.test.mjs tests/landing-model-gesture.test.mjs`: 59/59 passed, no skips.
+- Final aggregate `npm run typecheck` and full `npm run lint` passed after the pointer-stream refinement and final harness corrections.
+- Existing offers harness discovery lists 32 cases across Chromium/WebKit; no browser was launched locally.
+- Final full Node suite: 2,087 passed, two environment failures and six skips. Failures are the IPv6 owner-console startup request (`UND_ERR_SOCKET`) and the Git-dependent production asset validator in this snapshot without `.git`; neither is reported as passing.
+- Production build and hosted asset/LFS/browser checks remain exact-SHA integration gates. The local snapshot's external dependency symlink is unsuitable for the known Turbopack root restriction; no alternate browser route or heavy dependency-copy workaround was attempted. Physical-device acceptance remains pending.
+
+Unchanged App SHA-256: `8bfe2ec3dc5014be874bcd8f9b7271f679c9af87b8f8399a512763cb31be3e0a`.
 
 Unchanged SceneDirector SHA-256: `c48b3454a2e6e9b47b8ab0a3ff93df56bdb3d9c89dcae112d0a8e41d9158b224`.

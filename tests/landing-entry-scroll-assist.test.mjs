@@ -4,7 +4,8 @@ import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 import { scaledCinematicTiming, measureChapterTransitions } from '../components/immersive/SceneDirector.js';
 
-import { createEntryScrollAssist } from '../components/immersive/EntryScrollAssist.js';
+import * as assistance from '../components/immersive/EntryScrollAssist.js';
+const { createEntryScrollAssist } = assistance;
 
 function geometry(stageHeight = 844, pace = 1) {
   const timing = scaledCinematicTiming(1 / pace);
@@ -21,7 +22,7 @@ function geometry(stageHeight = 844, pace = 1) {
   return { opening, transitions: measureChapterTransitions(measurements, opening, timing) };
 }
 
-function fixture({ scrollend = true, stageHeight = 844, pace = 1, diagnostics = false, reporterThrows = false } = {}) {
+function fixture({ scrollend = true, stageHeight = 844, pace = 1, diagnostics = false, reporterThrows = false, mode = "baseline" } = {}) {
   assert.equal(typeof createEntryScrollAssist, 'function', 'the entry assist helper must exist');
   const listeners = new Map(), timers = new Map(), calls = [], reports = [];
   let clock = 0, timerId = 0, blocked = false;
@@ -35,12 +36,20 @@ function fixture({ scrollend = true, stageHeight = 844, pace = 1, diagnostics = 
   if (scrollend) document.onscrollend = null;
   const view = {
     ...emitter(), document, innerHeight: stageHeight, scrollY: 0,
-    location: { search: diagnostics ? "?sceneDiagnostics=1" : "" },
-    __vistaireScrollAssistTrace: row => { if (reporterThrows) throw new Error("diagnostic consumer failed"); reports.push(row); },
+    location: { search: mode === "baseline" ? "?sceneDiagnostics=1&scrollAssistMode=baseline" : diagnostics ? "?sceneDiagnostics=1&scrollAssistMode=early" : "?scrollAssistMode=baseline" },
+    __vistaireScrollAssistTrace: diagnostics ? row => { if (reporterThrows) throw new Error("diagnostic consumer failed"); reports.push(row); } : undefined,
     performance: { now: () => clock }, matchMedia: () => media,
     setTimeout(callback, delay) { timers.set(++timerId, { callback, at: clock + delay }); return timerId; },
     clearTimeout(id) { timers.delete(id); },
-    scrollTo(options) { calls.push(options); },
+    requestAnimationFrame(callback) { timers.set(++timerId, { callback, at: clock + 16, frame: true }); return timerId; },
+    cancelAnimationFrame(id) { timers.delete(id); },
+    scrollTo(options) {
+      calls.push(options);
+      if (options.behavior === 'instant' && mode !== 'baseline') {
+        view.scrollY = options.top;
+        view.setTimeout(() => { emit(view, 'scroll', { target: document }); emit(document, 'scrollend', { target: document }); }, 0);
+      }
+    },
   };
   const bounds = geometry(stageHeight, pace);
   const assist = createEntryScrollAssist({ getGeometry: () => bounds, isBlocked: () => blocked }, view);
@@ -61,11 +70,11 @@ function fixture({ scrollend = true, stageHeight = 844, pace = 1, diagnostics = 
     while (true) {
       const next = [...timers.entries()].filter(([, timer]) => timer.at <= until).sort((a, b) => a[1].at - b[1].at)[0];
       if (!next) break;
-      const [id, timer] = next; timers.delete(id); clock = timer.at; timer.callback();
+      const [id, timer] = next; timers.delete(id); clock = timer.at; timer.callback(clock);
     }
     clock = until;
   };
-  return { assist, bounds, view, document, media, target, calls, reports, input, move, wheel, end, advance, timers, listeners, emit, block: value => { blocked = value; } };
+  return { assist, bounds, view, document, media, target, calls, reports, now: () => clock, stall: ms => { clock += ms; for (const timer of timers.values()) if (timer.at < clock) timer.at = clock; }, frames: () => [...timers.values()].filter(timer => timer.frame).length, input, move, wheel, end, advance, timers, listeners, emit, block: value => { blocked = value; } };
 }
 
 const smoothCalls = f => f.calls.filter(call => call.behavior === 'smooth');
@@ -450,5 +459,210 @@ test('native keyboard overshoot is never pulled back while an in-range keyboard 
   f.input('keyup', { key: 'ArrowDown' });
   f.end();
   assert.deepEqual(smoothCalls(f), [{ top: end, behavior: 'smooth' }]);
+  f.assist.dispose();
+});
+
+
+function decelerate(f, target, { held = false } = {}) {
+  f.view.scrollY = target - 1200;
+  if (held) { f.input('touchstart', { touches: [{ clientY: 200 }] }); f.input('touchmove', { touches: [{ clientY: 180 }] }); }
+  else f.input('wheel', { deltaY: 20 });
+  f.advance(16); f.move(target - 1180);
+  for (const delta of [12, 6, 2]) {
+    f.view.scrollY += delta; f.advance(16); f.move(f.view.scrollY);
+  }
+}
+
+test('early handoff uses released, freshly decelerating native motion before a missing scrollend, with no idle loop', () => {
+  const f = fixture({ mode: 'early', diagnostics: true }), target = f.bounds.transitions[0].end;
+  decelerate(f, target);
+  assert.equal(f.calls.length, 0, 'native motion owns every advancing frame');
+  f.advance(16); assert.equal(f.calls.length, 0, 'one stationary frame is insufficient');
+  f.advance(16);
+  const handoff = f.reports.find(row => row.type === 'handoff');
+  assert.equal(handoff?.source, 'deceleration');
+  assert.equal(handoff?.stationaryMs, 32); assert.equal(handoff?.stationaryFrames, 2);
+  assert.ok(handoff.velocity >= 0 && handoff.velocity <= 0.125);
+  assert.equal(f.calls.length, 0, 'handoff is followed by the next animation frame');
+  f.advance(16); assert.equal(f.calls[0]?.behavior, 'instant');
+  f.advance(1000); assert.equal(f.view.scrollY, target); assert.equal(f.frames(), 0);
+  const calls = f.calls.length; f.advance(5000); f.end(); assert.equal(f.calls.length, calls);
+  f.assist.dispose();
+});
+
+test('resumed inertia, held contact and long delivery pauses invalidate the early handoff evidence', () => {
+  for (const scenario of ['resumed-before-handoff', 'resumed-before-write', 'held-touch', 'held-pointer', 'long-frame']) {
+    const f = fixture({ mode: 'early', diagnostics: true }), target = f.bounds.transitions[0].end;
+    if (scenario === 'held-pointer') f.input('pointerdown', { pointerId: 1 });
+    decelerate(f, target, { held: scenario === 'held-touch' });
+    if (scenario === 'resumed-before-handoff') { f.advance(16); f.view.scrollY += 3; f.advance(16); }
+    else if (scenario === 'resumed-before-write') { f.advance(32); f.view.scrollY += 3; f.advance(16); }
+    else if (scenario === 'long-frame') { f.stall(250); f.advance(0); }
+    else f.advance(100);
+    assert.equal(f.calls.length, 0, scenario);
+    f.assist.dispose(); assert.equal(f.frames(), 0);
+  }
+});
+
+test('early continuation yields to fresh input, foreign movement, reduced motion and disposal at every phase', () => {
+  for (const phase of [0, 32, 96]) for (const action of ['wheel', 'touchstart', 'keydown', 'pointerdown', 'foreign', 'reduced', 'dispose']) {
+    const f = fixture({ mode: 'early' }), target = f.bounds.transitions[0].end;
+    decelerate(f, target); f.advance(phase);
+    if (action === 'foreign') f.view.scrollY -= 5;
+    else if (action === 'reduced') { f.media.matches = true; f.emit(f.media, 'change'); }
+    else if (action === 'dispose') f.assist.dispose();
+    else f.input(action, { deltaY: -20, key: 'Escape', touches: [{ clientY: 200 }] });
+    const calls = f.calls.length; f.advance(1000);
+    assert.equal(f.calls.length, calls, `${action} at ${phase}`);
+    f.assist.dispose(); assert.equal(f.frames(), 0);
+  }
+});
+
+test('the candidate expands only one eligible phase and keeps baseline comparison diagnostic-only', () => {
+  for (const mode of ['baseline', 'early']) {
+    const f = fixture({ mode }), target = f.bounds.transitions[0].end;
+    f.wheel(target - 2000); f.end(); f.advance(1000);
+    if (mode === 'baseline') assert.equal(f.calls.length, 0, 'same-build baseline keeps the published range');
+    else { assert.equal(f.view.scrollY, target, 'scrollAssistMode=baseline without sceneDiagnostics cannot disable the candidate'); assert.ok(f.calls.every(call => call.behavior === 'instant')); }
+    f.assist.dispose();
+  }
+  const f = fixture({ mode: 'early', diagnostics: true }), target = f.bounds.transitions[1].start;
+  f.wheel(target - 1000); f.end(); f.advance(1000);
+  assert.equal(f.view.scrollY, target); const calls = f.calls.length;
+  f.end(); f.advance(1000); assert.equal(f.calls.length, calls); f.assist.dispose();
+});
+
+test('corroborated pre-handler displacement never becomes inferred velocity or early deceleration', () => {
+  const f = fixture({ mode: 'early', diagnostics: true });
+  f.advance(100); f.move(2621); f.end(); f.advance(4000);
+  f.view.scrollY = 2661; f.input('wheel', { deltaY: 40, timeStamp: 120 });
+  f.emit(f.view, 'scroll', { target: f.document, timeStamp: 4099 });
+  f.advance(96); assert.equal(f.calls.length, 0, 'unknown-timing displacement has no deceleration evidence');
+  f.end();
+  assert.equal(f.reports.find(row => row.type === 'handoff')?.velocity, 0);
+  f.advance(1000); assert.equal(f.view.scrollY, 2700.8); f.assist.dispose();
+});
+
+test('the seeded curve is monotone by feasible duration, with zero endpoint acceleration and no stale velocity replay', () => {
+  assert.equal(typeof assistance.createScrollContinuation, 'function');
+  for (const direction of [-1, 1]) for (const distance of [40, 1000, 2295.68, 2532]) for (const velocity of [0, 0.5, 2.5, 6]) {
+    const curve = assistance.createScrollContinuation(5000, 5000 + direction * distance, direction * velocity, 844);
+    assert.ok(curve.duration > 0 && curve.duration <= 850);
+    assert.ok(velocity * curve.duration / distance <= 2 + 1e-10);
+    const h = .001;
+    assert.ok(Math.abs((curve.at(h) - curve.at(0)) / h - direction * velocity) < .002);
+    assert.ok(Math.abs((curve.at(2 * h) - 2 * curve.at(h) + curve.at(0)) / h ** 2) < .02);
+    let previous = 5000;
+    for (let i = 1; i <= 200; i++) { const y = curve.at(i * curve.duration / 200); assert.ok((y - previous) * direction >= -1e-8); assert.ok((5000 + direction * distance - y) * direction >= -1e-8); previous = y; }
+    assert.equal(curve.at(curve.duration), 5000 + direction * distance);
+  }
+});
+
+
+test('intermediate scrollend in a 16ms native packet train cannot start repeated assistance', () => {
+  const f = fixture({ mode: 'early', diagnostics: true }), target = f.bounds.transitions[0].end;
+  f.move(target - 1000);
+  for (const delta of [80, 40, 20, 10, 5, 2]) {
+    f.input('wheel', { deltaY: delta }); f.move(f.view.scrollY + delta); f.end(); f.advance(16);
+    assert.equal(f.calls.length, 0, 'native packets retain ownership throughout the burst');
+  }
+  f.advance(1000); assert.equal(f.view.scrollY, target);
+  assert.equal(f.reports.filter(row => row.type === 'handoff').length, 1);
+  f.assist.dispose();
+});
+
+test('a native scrollend acknowledging the last moving frame remains valid without low-speed deceleration', () => {
+  const f = fixture({ mode: 'early', diagnostics: true }), target = f.bounds.transitions[0].end;
+  f.move(target - 1000);
+  for (const delta of [80, 80, 80]) {
+    f.input('wheel', { deltaY: delta }); f.move(f.view.scrollY + delta); f.end(); f.advance(16);
+  }
+  f.advance(1000);
+  assert.equal(f.reports.find(row => row.type === 'handoff')?.source, 'scrollend');
+  assert.equal(f.view.scrollY, target); f.assist.dispose();
+});
+
+test('physical release restarts the quiet window and natural offers reading never starts an observer', () => {
+  const held = fixture({ mode: 'early', diagnostics: true }), target = held.bounds.transitions[0].end;
+  decelerate(held, target, { held: true }); held.advance(32);
+  held.input('touchend', { touches: [] }); held.end(); held.advance(48);
+  assert.equal(held.calls.length, 0, 'physical release requires its own input-silence window');
+  held.advance(1000); assert.equal(held.view.scrollY, target); held.assist.dispose();
+  const reading = fixture({ mode: 'early' }), pricing = reading.bounds.transitions.find(join => join.to.id === 'open-weight');
+  reading.wheel(pricing.to.top + 100);
+  assert.equal(reading.frames(), 0, 'offers/FAQ native reading has no assistance observer');
+  reading.end(); reading.advance(1000); assert.equal(reading.calls.length, 0); reading.assist.dispose();
+});
+
+test('a stalled continuation frame cancels instead of replaying a large delayed jump', () => {
+  const f = fixture({ mode: 'early', diagnostics: true }), target = f.bounds.transitions[0].end;
+  decelerate(f, target); f.advance(48);
+  assert.ok(f.calls.length > 0);
+  const calls = f.calls.length, y = f.view.scrollY;
+  f.stall(250); f.advance(0);
+  assert.equal(f.calls.length, calls); assert.equal(f.view.scrollY, y);
+  assert.ok(f.reports.some(row => row.type === 'cancel' && row.reason === 'continuation-frame-gap'));
+  assert.equal(f.frames(), 0); f.assist.dispose();
+});
+
+test('native touch pan pointercancel releases pointer ownership without discarding the independent touch gesture', () => {
+  for (const pointerFirst of [false, true]) {
+    const f = fixture({ mode: 'early', diagnostics: true }), target = f.bounds.transitions[0].end;
+    f.view.scrollY = target - 1000;
+    const pointer = () => f.input('pointerdown', { pointerType: 'touch', pointerId: 1 });
+    if (pointerFirst) pointer();
+    f.input('touchstart', { touches: [{ clientY: 200 }] });
+    if (!pointerFirst) pointer();
+    f.input('touchmove', { touches: [{ clientY: 180 }] }); f.move(target - 980);
+    f.input('pointercancel', { pointerType: 'touch', pointerId: 1 });
+    f.input('touchmove', { touches: [{ clientY: 160 }] }); f.move(target - 960);
+    f.input('touchend', { touches: [] }); f.end(); f.advance(1000);
+    assert.equal(f.view.scrollY, target, 'Touch Events may continue after UA panning cancels Pointer Events');
+    assert.ok(!f.reports.some(row => row.type === 'intent-rejected' && row.reason === 'no-eligible-touch-start'));
+    f.assist.dispose();
+  }
+  const cancelled = fixture({ mode: 'early' }), target = cancelled.bounds.transitions[0].end;
+  decelerate(cancelled, target, { held: true }); cancelled.input('touchcancel', { touches: [] });
+  cancelled.end(); cancelled.advance(1000); assert.equal(cancelled.calls.length, 0); cancelled.assist.dispose();
+});
+
+test('native observation uses actual delivery time when rAF timestamps lag the observed position', () => {
+  const f = fixture({ mode: 'early', diagnostics: true }), target = f.bounds.transitions[0].end;
+  decelerate(f, target); // Last native sample at 64ms; two decreasing velocities.
+  const deliver = rafAt => {
+    const [id, timer] = [...f.timers].find(([, entry]) => entry.frame);
+    f.timers.delete(id); timer.callback(rafAt);
+  };
+  f.stall(250); deliver(80); // Callback reads current position at 314ms, not 80ms.
+  f.stall(16); deliver(96); // Another stale stamp must not manufacture 32ms quiet.
+  assert.equal(f.reports.filter(row => row.type === 'handoff').length, 0,
+    'a 250ms delivery pause invalidates deceleration rather than qualifying early takeover');
+  assert.equal(f.calls.length, 0);
+  f.assist.dispose(); assert.equal(f.frames(), 0);
+});
+
+test('continuation stall protection uses actual callback delivery despite a fresh-looking rAF timestamp', () => {
+  const f = fixture({ mode: 'early', diagnostics: true }), target = f.bounds.transitions[0].end;
+  decelerate(f, target); f.advance(48); // First assisted frame at 112ms.
+  const calls = f.calls.length, y = f.view.scrollY;
+  f.stall(250); // Actual next callback delivery is 362ms.
+  const [id, timer] = [...f.timers].find(([, entry]) => entry.frame);
+  f.timers.delete(id); timer.callback(128); // Its stamp misleadingly implies only 16ms.
+  assert.equal(f.calls.length, calls, 'cancel before any write across the actual 250ms gap');
+  assert.equal(f.view.scrollY, y);
+  assert.ok(f.reports.some(row => row.type === 'cancel' && row.reason === 'continuation-frame-gap'));
+  assert.equal(f.frames(), 0); f.assist.dispose();
+});
+
+test('retained assistance diagnostics snapshot immutable scalar state rather than the live controller', () => {
+  const f = fixture({ mode: 'early', diagnostics: true }), target = f.bounds.transitions[0].end;
+  decelerate(f, target); f.advance(48);
+  const row = f.reports.find(entry => entry.assisting && typeof entry.assisting === 'object');
+  assert.ok(row, 'the first assisted frame retains its diagnostic state');
+  const snapshot = JSON.parse(JSON.stringify(row.assisting));
+  f.advance(64);
+  assert.deepEqual(row.assisting, snapshot, 'later frames must not rewrite an earlier retained row');
+  assert.deepEqual(Object.keys(row.assisting).sort(), ['duration', 'expectedY', 'lastFrameAt', 'started', 'target']);
+  assert.equal(typeof row.assisting.duration, 'number');
   f.assist.dispose();
 });
