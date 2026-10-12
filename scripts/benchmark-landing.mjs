@@ -467,20 +467,21 @@ try {
       result.workloads.soak = { status: 'completed', comparable: unexpectedErrors().length === 0, durationMs: result.sessionDurationMs };
       await phase('local-pricing-faq', async () => {
         await at('open-weight');
-        const question = page.locator('.pricing-faq [data-seo-faq-question]').first();
+        const question = page.locator('.landing-faq [data-seo-faq-question]').first();
         await question.scrollIntoViewIfNeeded();
         const initial = await question.getAttribute('aria-expanded');
         if (initial !== 'true' && initial !== 'false') throw new Error('Local FAQ is not hydrated');
         await question.click();
-        await page.waitForFunction(expected => document.querySelector('.pricing-faq [data-seo-faq-question]')?.getAttribute('aria-expanded') === expected, initial === 'true' ? 'false' : 'true');
+        await page.waitForFunction(expected => document.querySelector('.landing-faq [data-seo-faq-question]')?.getAttribute('aria-expanded') === expected, initial === 'true' ? 'false' : 'true');
         await question.click();
-        await page.waitForFunction(expected => document.querySelector('.pricing-faq [data-seo-faq-question]')?.getAttribute('aria-expanded') === expected, initial);
+        await page.waitForFunction(expected => document.querySelector('.landing-faq [data-seo-faq-question]')?.getAttribute('aria-expanded') === expected, initial);
       });
       result.warnings.push('Only local FAQ accordion tested; no Mistral/RAG service request is made or measured.');
       result.preNavigationSession = await page.evaluate(() => window.__vistaireBenchmark.report());
       recordProbeOverflow(result.preNavigationSession);
       if (result.probeOverflowObserved) throw new Error('Pre-navigation probe overflow; comparison invalid.');
       await phase('navigate-away-and-return', async () => {
+        await page.locator('[data-public-navigation-toggle]').click();
         await page.locator('.menu-toggle').click();
         const about = page.locator('.menu-page-links a').nth(1);
         const destination = await about.getAttribute('href');

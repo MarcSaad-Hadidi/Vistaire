@@ -1,3 +1,4 @@
+import { writeFile } from "node:fs/promises";
 import { expect, test as base, type Page, type TestInfo } from '@playwright/test';
 // @ts-expect-error -- use the authored camera-leg timing, not copied scroll constants.
 import { CINEMATIC_TIMING } from '../components/immersive/SceneDirector.js';
@@ -19,6 +20,12 @@ const profiles = [
   { label: '430-en', width: 430, height: 932, path: '/en' },
   { label: 'desktop-fr', width: 1440, height: 900, path: '/' },
 ] as const;
+
+async function retainJson(info: TestInfo, name: string, value: unknown) {
+  const path = info.outputPath(`${name}.json`);
+  await writeFile(path, JSON.stringify(value, null, 2));
+  await info.attach(name, { path, contentType: 'application/json' });
+}
 
 async function openScene(page: Page, path = '/', anchor = '', reducedMotion: 'reduce' | 'no-preference' = 'reduce') {
   await page.emulateMedia({ reducedMotion });
@@ -168,7 +175,6 @@ for (const profile of profiles) {
     await expect(phone.locator('.pricing-offer-card').last()).toHaveAttribute('href', `${target}#collection-signature`);
     await expect(page.locator('.pricing-aside-terms')).toContainText('CAD');
     await expect(page.locator('.pricing-aside-terms')).toContainText('12');
-    await expect.poll(() => phone.locator('img').evaluateAll(images => images.every(img => (img as HTMLImageElement).complete && (img as HTMLImageElement).naturalWidth > 0))).toBe(true);
 
     for (const theme of ['dark', 'light'] as const) {
       await scrollPage(page, layout.top + 1);
@@ -186,6 +192,17 @@ for (const profile of profiles) {
         expect(surface).toBe('rgb(255, 252, 245)');
       }
       await expect(phone.locator('.pricing-pilotage-visual img')).toHaveAttribute('src', theme === 'light' ? '/immersive-assets/dashboard/dashboard-light.webp' : '/immersive-assets/dashboard/dashboard-black-gold.webp');
+      // The below-fold Studio image is intentionally lazy inside the reader.
+      // Reveal it in each theme before requiring every image to decode, then
+      // return to the first collection for unchanged layout/hit-test evidence.
+      const reader = page.locator('.pricing-phone-viewport');
+      await reader.focus();
+      await reader.press('End');
+      await expect(phone.locator('.pricing-pilotage-visual img')).toBeInViewport();
+      await expect.poll(() => phone.locator('img').evaluateAll(images => images.every(img => (img as HTMLImageElement).complete && (img as HTMLImageElement).naturalWidth > 0))).toBe(true);
+      await reader.press('Home');
+      await handReady(page);
+      await assertProjection(page);
       await assertOnPhotoContrast(page, '.pricing-aside-layer');
       await assertNoOverflow(page);
       await screenshot(page, info, `${profile.label}-${theme}-offers`);
@@ -206,7 +223,7 @@ for (const profile of profiles) {
       await screenshot(page, info, `${profile.label}-${theme}-footer`);
       await assertNoOverflow(page);
     }
-    await info.attach('cache-evidence', { body: JSON.stringify({ initial, final: await backdrop(page), errors }, null, 2), contentType: 'application/json' });
+    await retainJson(info, 'cache-evidence', { initial, final: await backdrop(page), errors });
     expect(errors).toEqual([]);
   });
 }
@@ -291,7 +308,7 @@ test('direct pricing anchor and normal native-scroll entry capture the same inte
   const navigation = await backdrop(page);
   expect(navigation.pose).toBe(normal.pose);
   expect(navigation.generation).toBeGreaterThan(normal.generation);
-  await info.attach('entry-path-cache-comparison', { body: JSON.stringify({ direct, normal, navigation }, null, 2), contentType: 'application/json' });
+  await retainJson(info, 'entry-path-cache-comparison', { direct, normal, navigation });
 });
 
 test('portrait to landscape remeasures the actual hand and returns to a usable portrait', async ({ page }, info) => {
@@ -299,11 +316,31 @@ test('portrait to landscape remeasures the actual hand and returns to a usable p
   await page.setViewportSize({ width: 390, height: 844 });
   await openScene(page);
   await enterOffers(page);
+  const orientationEvidence: unknown[] = [];
+  const observeOrientation = async (phase: string) => {
+    orientationEvidence.push(await page.evaluate(label => {
+      const canvas = document.querySelector<HTMLCanvasElement>('.scene-canvas');
+      const measured = (selector: string) => {
+        const element = document.querySelector<HTMLElement>(selector);
+        if (!element) return null;
+        const bounds = element.getBoundingClientRect(), style = getComputedStyle(element);
+        return { bounds: bounds.toJSON(), client: [element.clientWidth, element.clientHeight],
+          transform: style.transform, handReady: element.dataset.handReady, ariaHidden: element.getAttribute('aria-hidden') };
+      };
+      return { phase: label, at: performance.now(), viewport: [innerWidth, innerHeight], dpr: devicePixelRatio,
+        visualViewport: window.visualViewport ? [visualViewport!.width, visualViewport!.height] : null,
+        scroll: scrollY, canvas: canvas ? { width: canvas.width, height: canvas.height, data: { ...canvas.dataset } } : null,
+        stage: measured('.pricing-hand-visual'), layer: measured('.pricing-phone-layer'), screen: measured('.pricing-phone-screen') };
+    }, phase));
+  };
+  try {
+  await observeOrientation('portrait-ready');
   for (const viewport of [{ width: 844, height: 390 }, { width: 430, height: 932 }]) {
     await page.setViewportSize(viewport);
     await expect.poll(() => page.evaluate(() => ({ width: innerWidth, height: innerHeight }))).toEqual(viewport);
     await expect.poll(() => page.locator('.pricing-hand-visual').evaluate(el => ({ width: el.clientWidth, height: el.clientHeight })), { timeout: 15_000 }).toEqual(viewport);
     await enterOffers(page);
+    await observeOrientation(`before-projection-${viewport.width}x${viewport.height}`);
     await assertProjection(page);
     const cache = await backdrop(page);
     expect(cache.width).toBe(cache.bufferWidth);
@@ -311,6 +348,9 @@ test('portrait to landscape remeasures the actual hand and returns to a usable p
     for (const link of await page.locator('.pricing-aside-links a').all()) await expect(link).toBeInViewport();
     await assertNoOverflow(page);
     await screenshot(page, info, `orientation-${viewport.width}x${viewport.height}`);
+  }
+  } finally {
+    await retainJson(info, 'orientation-current-projection', orientationEvidence);
   }
 });
 
@@ -396,7 +436,9 @@ for (const width of [390,1440]) test(`native entry assistance is bounded, interr
     const record = (type: string, event?: Event, call?: unknown) => {
       const target = event?.target instanceof Element ? event.target : null;
       records.push({ type, at: performance.now(), y: scrollY, call,
-        trusted: event?.isTrusted, target: target?.tagName, active: document.activeElement?.tagName,
+        eventTimeStamp: event?.timeStamp, trusted: event?.isTrusted, defaultPrevented: event?.defaultPrevented,
+        target: target?.tagName ?? (event?.target === document ? '#document' : undefined),
+        active: document.activeElement?.tagName, hasScrollEnd: 'onscrollend' in document,
         key: event instanceof KeyboardEvent ? event.key : undefined,
         deltaY: event instanceof WheelEvent ? event.deltaY : undefined,
         hidden: document.hidden, reduced: matchMedia('(prefers-reduced-motion: reduce)').matches,
@@ -405,8 +447,10 @@ for (const width of [390,1440]) test(`native entry assistance is bounded, interr
       });
       if (records.length > 250) records.shift();
     };
-    (window as typeof window & { __entryAssistEvidence?: unknown[] }).__entryAssistEvidence = records;
-    for (const type of ['wheel', 'keydown', 'keyup', 'scroll', 'scrollend', 'focusin'])
+    const host = window as typeof window & { __entryAssistEvidence?: unknown[]; __vistaireScrollAssistTrace?: (row: Record<string, unknown>) => void };
+    host.__entryAssistEvidence = records;
+    host.__vistaireScrollAssistTrace = row => record('helper', undefined, row);
+    for (const type of ['wheel', 'keydown', 'keyup', 'scroll', 'scrollend', 'focusin', 'touchstart', 'touchmove', 'touchend', 'touchcancel', 'pointerdown', 'visibilitychange'])
       document.addEventListener(type, event => record(type, event), { capture: true, passive: true });
     const original = window.scrollTo.bind(window);
     window.scrollTo = ((...args: [ScrollToOptions] | [number, number]) => {
@@ -491,9 +535,7 @@ for (const width of [390,1440]) test(`native entry assistance is bounded, interr
       }).__entryAssistEvidence ?? []).catch(() => []),
       new Promise<unknown[]>(resolve => { diagnosticTimer = setTimeout(() => resolve([]), 1000); }),
     ]).finally(() => clearTimeout(diagnosticTimer));
-    await info.attach(`entry-assist-${browserName === 'webkit' ? 'keyboard' : 'wheel'}-${width}`, {
-      body: JSON.stringify(evidence, null, 2), contentType: 'application/json',
-    });
+    await retainJson(info, `entry-assist-${browserName === 'webkit' ? 'keyboard' : 'wheel'}-${width}`, evidence);
   }
 });
 
@@ -542,6 +584,6 @@ for (const width of [390, 1440]) test(`section reveals preserve the visible subj
     await screenshot(page, info, `steady-subject-${from}-${to}-${width}`);
   }
   } finally {
-    await info.attach('visible-subject-transition-poses', { body: JSON.stringify(evidence, null, 2), contentType: 'application/json' });
+    await retainJson(info, 'visible-subject-transition-poses', evidence);
   }
 });

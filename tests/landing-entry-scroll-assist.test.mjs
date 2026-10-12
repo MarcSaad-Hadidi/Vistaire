@@ -21,9 +21,9 @@ function geometry(stageHeight = 844, pace = 1) {
   return { opening, transitions: measureChapterTransitions(measurements, opening, timing) };
 }
 
-function fixture({ scrollend = true, stageHeight = 844, pace = 1 } = {}) {
+function fixture({ scrollend = true, stageHeight = 844, pace = 1, diagnostics = false, reporterThrows = false } = {}) {
   assert.equal(typeof createEntryScrollAssist, 'function', 'the entry assist helper must exist');
-  const listeners = new Map(), timers = new Map(), calls = [];
+  const listeners = new Map(), timers = new Map(), calls = [], reports = [];
   let clock = 0, timerId = 0, blocked = false;
   const target = { closest: () => null };
   const emitter = () => ({
@@ -35,6 +35,8 @@ function fixture({ scrollend = true, stageHeight = 844, pace = 1 } = {}) {
   if (scrollend) document.onscrollend = null;
   const view = {
     ...emitter(), document, innerHeight: stageHeight, scrollY: 0,
+    location: { search: diagnostics ? "?sceneDiagnostics=1" : "" },
+    __vistaireScrollAssistTrace: row => { if (reporterThrows) throw new Error("diagnostic consumer failed"); reports.push(row); },
     performance: { now: () => clock }, matchMedia: () => media,
     setTimeout(callback, delay) { timers.set(++timerId, { callback, at: clock + delay }); return timerId; },
     clearTimeout(id) { timers.delete(id); },
@@ -43,7 +45,7 @@ function fixture({ scrollend = true, stageHeight = 844, pace = 1 } = {}) {
   const bounds = geometry(stageHeight, pace);
   const assist = createEntryScrollAssist({ getGeometry: () => bounds, isBlocked: () => blocked }, view);
   const emit = (object, type, extra = {}) => {
-    const event = { type, target, isTrusted: true, defaultPrevented: false, ...extra };
+    const event = { type, target, timeStamp: clock, isTrusted: true, defaultPrevented: false, ...extra };
     for (const handler of listeners.get(object)?.get(type) || []) handler(event);
   };
   const input = (type, extra) => emit(document, type, extra);
@@ -63,7 +65,7 @@ function fixture({ scrollend = true, stageHeight = 844, pace = 1 } = {}) {
     }
     clock = until;
   };
-  return { assist, bounds, view, document, media, target, calls, input, move, wheel, end, advance, timers, listeners, emit, block: value => { blocked = value; } };
+  return { assist, bounds, view, document, media, target, calls, reports, input, move, wheel, end, advance, timers, listeners, emit, block: value => { blocked = value; } };
 }
 
 const smoothCalls = f => f.calls.filter(call => call.behavior === 'smooth');
@@ -330,4 +332,54 @@ test('App cancels entry assistance before measured navigation and disposes its s
   assert.match(source, /entryAssist\.dispose\(\)/);
   assert.match(source, /getGeometry: \(\) => \(\{ opening, transitions \}\)/);
   assert.match(source, /arActive: arStatus !== "idle"/);
+});
+
+
+test('diagnostics are opt-in and cannot change scroll outputs, timer lifecycle, cancellation or disposal', () => {
+  const run = options => {
+    const f = fixture(options), states = [], target = f.bounds.transitions[0].end;
+    const snapshot = () => states.push({ y: f.view.scrollY, calls: structuredClone(f.calls), timers: [...f.timers.values()].map(timer => timer.at), listeners: [...f.listeners.values()].flatMap(types => [...types.values()].map(handlers => handlers.size)) });
+    f.wheel(target - 50); snapshot(); f.end(); snapshot();
+    f.input('pointerdown', {}); snapshot();
+    f.wheel(target - 20, -1); f.move(target - 40); f.end(); snapshot();
+    f.assist.cancel('layout-changed'); snapshot();
+    f.input('wheel', { deltaY: 20 }); f.advance(750); f.move(target - 10); f.end(); snapshot();
+    f.input('keydown', { key: 'PageDown' }); f.move(target - 5); f.end(); snapshot();
+    f.input('keyup', { key: 'PageDown' }); f.end(); snapshot();
+    f.move(target); f.end(); f.advance(1000); snapshot();
+    f.assist.dispose(); snapshot();
+    return { states, reports: f.reports };
+  };
+  for (const scrollend of [true, false]) {
+    const ordinary = run({ scrollend }), traced = run({ scrollend, diagnostics: true }), throwing = run({ scrollend, diagnostics: true, reporterThrows: true });
+    assert.deepEqual(traced.states, ordinary.states);
+    assert.deepEqual(throwing.states, ordinary.states, 'a diagnostic callback must not break the native lifecycle');
+    assert.equal(ordinary.reports.length, 0);
+    assert.ok(traced.reports.length > 0, 'enabled diagnostics must actually report');
+    assert.ok(traced.reports.some(row => row.type === 'cancel' && row.reason === 'layout-changed'));
+    assert.ok(traced.reports.some(row => row.type === 'settle-return' && row.reason === 'key-held'));
+  }
+});
+
+test('diagnostics distinguish passive zero-delta delivery, age rejection, blocked intent, settlement and measured eligibility', () => {
+  const f = fixture({ diagnostics: true }), target = f.bounds.transitions[0].end;
+  f.view.scrollY = target - 40;
+  f.input('wheel', { deltaY: 40, timeStamp: 3 }); f.move(target - 40); f.end();
+  assert.ok(f.reports.some(row => row.type === 'scroll-return' && row.reason === 'zero-delta' && row.lastY === target - 40));
+  assert.ok(f.reports.some(row => row.type === 'settle-return' && row.reason === 'no-native-motion' && row.gesture?.scrolled === false));
+  f.input('wheel', { deltaY: 20, timeStamp: 5 }); f.advance(750); f.move(target - 20);
+  const expired = f.reports.find(row => row.type === 'scroll-cancel' && row.reason === 'first-scroll-expired');
+  assert.equal(expired.age, 750); assert.equal(expired.handledAt, 750); assert.equal(expired.eventTimeStamp, 750);
+  assert.equal(expired.hasScrollEnd, true); assert.equal(expired.currentY, target - 20);
+  f.block(true); f.input('wheel', { deltaY: 20 });
+  assert.ok(f.reports.some(row => row.type === 'intent-rejected' && row.reason === 'caller-blocked'));
+  f.block(false); f.input('wheel', { deltaY: 20, target: { closest: () => ({}) } });
+  assert.ok(f.reports.some(row => row.type === 'intent-rejected' && row.reason === 'control-target'));
+  f.wheel(target - 50); f.end();
+  const eligible = f.reports.find(row => row.type === 'assist-start');
+  assert.equal(eligible.target, target); assert.equal(eligible.distance, 50); assert.ok(Math.abs(eligible.limit - 1350.4) < 1e-8);
+  assert.equal(eligible.phase.start, f.bounds.transitions[0].start); assert.equal(eligible.phase.end, target);
+  assert.equal(eligible.geometry.stageHeight, 844);
+  assert.ok(f.reports.some(row => row.type === 'scrollend' && row.gesture?.scrolled));
+  f.assist.dispose();
 });

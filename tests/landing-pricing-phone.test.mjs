@@ -183,3 +183,33 @@ test('the below-fold Studio preview does not eagerly download the shared laptop 
   assert.match(preview, /fetchPriority="low"/);
   assert.match(preview, /width="1184"[\s\S]*height="758"/, 'fixed dimensions keep the reading geometry stable');
 });
+
+
+test('fixed-phone PageDown hands off when native document rounding leaves a fractional reader remainder', async () => {
+  const source = readFileSync('components/immersive/Pricing.jsx', 'utf8');
+  const start = source.indexOf('  const scrollWithKeyboard = (event) => {');
+  const end = source.indexOf('  const guardHiddenControl', start);
+  const { pricingPagePosition, pricingScreenScroll } = await import('../components/immersive/PricingPhoneLayout.js');
+  const layout = { maxScroll: 1000, scale: .867, readingStart: 928.4 };
+  const sectionTop = 61000.2;
+  const initial = Math.floor(pricingPagePosition(sectionTop, layout.maxScroll, layout));
+  const view = {
+    scrollY: initial, innerHeight: 844,
+    scrollTo({ top }) { this.scrollY = Math.floor(top); },
+    scrollBy({ top }) { this.scrollY += Math.floor(top); },
+  };
+  const viewport = { scrollTop: pricingScreenScroll(sectionTop - view.scrollY, layout), clientHeight: 530 };
+  assert.ok(layout.maxScroll - viewport.scrollTop > .5, 'valid integer document rounding reproduces the former boundary trap');
+  const context = vm.createContext({
+    viewportRef: { current: viewport }, layoutRef: { current: layout },
+    introRef: { current: { getBoundingClientRect: () => ({ top: sectionTop - view.scrollY }) } },
+    window: view, pricingPagePosition,
+  });
+  vm.runInContext(`${source.slice(start, end)}; this.onKey = scrollWithKeyboard;`, context);
+  context.onKey({ key: 'PageDown', target: viewport, preventDefault() {} });
+  assert.ok(view.scrollY > initial + 600, 'continue into the FAQ instead of repeatedly resolving to the same integer scroll position');
+  view.scrollY = initial - 2;
+  viewport.scrollTop = pricingScreenScroll(sectionTop - view.scrollY, layout);
+  context.onKey({ key: 'PageDown', target: viewport, preventDefault() {} });
+  assert.equal(view.scrollY, initial, 'outside the one-pixel endpoint budget, finish the reader before handing off');
+});

@@ -16,6 +16,10 @@
   font-family: "Vistaire Text", serif;
   transition: opacity 180ms ease, transform 180ms ease, visibility 180ms;
 }
+/* Focus enters on the opening commit, before the first animation tick. */
+.previewNav[data-public-navigation-open="true"] {
+  transition-property: opacity, transform;
+}
 .previewNav[data-public-navigation-open="false"] {
   opacity: 0;
   visibility: hidden;
@@ -199,6 +203,7 @@
 .menuPanelOpen {
   transform: translateX(0);
   visibility: visible;
+  transition-property: transform;
 }
 .menuChapters {
   display: grid;

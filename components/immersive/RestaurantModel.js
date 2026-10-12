@@ -19,6 +19,8 @@ export function createRestaurantModel(
     .setWorkerLimit(1);
   const loader = new GLTFLoader().setDRACOLoader(draco);
   let disposed = false;
+  let indexCrop;
+  const cropExperiment = new URLSearchParams(window.location.search).get("restaurantCrop") === "guarded";
   canvas.dataset.restaurantReady = "false";
   const roomLight = new THREE.PointLight("#eee8da", 45, 28, 2);
   roomLight.position.set(0, 5, -5);
@@ -133,6 +135,30 @@ export function createRestaurantModel(
           .join(",");
       } else if (floor && Number.isFinite(foreground?.floorY))
         anchor.position.y += foreground.floorY + 1.96;
+      if (cropExperiment) {
+        canvas.dataset.restaurantCrop = "preparing";
+        try {
+          // Test-only opt-in: reuse the one already fetched source buffer. The
+          // default path loads neither this code nor its spatial certificate.
+          const [{ installRestaurantIndexCrop }, { default: certificate }, digest] = await Promise.all([
+            import("./RestaurantIndexCrop.js"),
+            import("./restaurant-index-crop.json"),
+            globalThis.crypto.subtle.digest("SHA-256", buffer),
+          ]);
+          if (disposed) return;
+          const sourceSHA256 = Array.from(new Uint8Array(digest), value => value.toString(16).padStart(2, "0")).join("");
+          if (sourceSHA256 !== certificate.sourceSHA256) throw new Error("Restaurant crop source hash mismatch.");
+          indexCrop = installRestaurantIndexCrop({ scene, model, certificate, sourceSHA256,
+            ready: () => canvas.dataset.ready === "true" });
+          // Plain numeric evidence, avoiding per-draw DOM/string updates.
+          canvas.restaurantIndexCrop = indexCrop.stats;
+          canvas.dataset.restaurantCrop = "installed";
+        } catch (error) {
+          if (disposed) return;
+          canvas.dataset.restaurantCrop = "full";
+          canvas.dataset.restaurantCropReason = String(error.message || error);
+        }
+      }
       canvas.dataset.restaurant = "uploaded-evening";
       canvas.dataset.restaurantReady = "true";
     });
@@ -144,6 +170,7 @@ export function createRestaurantModel(
     loading,
     dispose() {
       disposed = true;
+      indexCrop?.dispose();
       request.abort();
       loading.catch(() => {}).finally(() => draco.dispose());
     },

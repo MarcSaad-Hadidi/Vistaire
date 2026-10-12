@@ -29,7 +29,7 @@ const output = path.resolve(process.env.VISTAIRE_COMPOSITION_OUTPUT || 'composit
 const baseURL = 'http://127.0.0.1:3000';
 const hash = bytes => createHash('sha256').update(bytes).digest('hex');
 const source = readFileSync(new URL('./benchmark-landing.mjs', import.meta.url), 'utf8');
-const frozenProbeSHA = 'edf99cc64ccd016d7456320d03a8d8022daf8dc126ec629390a54f71d05768b5';
+const frozenProbeSHA = '851c38976114c0ea2701247d04be8d818bb77bb99a95cae6d66dd1dbc7f5629e';
 assert.equal(hash(source), frozenProbeSHA, 'Frozen schema2 probe changed; comparisons require explicit protocol review.');
 const probeStart = source.indexOf('function installProbe()');
 const probeEnd = source.indexOf('\n\nconst sleep', probeStart);

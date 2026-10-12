@@ -265,3 +265,73 @@ test('benchmark pricing and footer endpoints match the real held-phone and cache
     assert.match(source,/to === 'footer'[^\n]+pricingReady\('footer'\)/);
   });
 });
+
+
+test('local pricing FAQ workload opens and closes the current hydrated accordion', async () => {
+  const source = readFileSync(process.env.VISTAIRE_BENCHMARK_SOURCE || 'scripts/benchmark-landing.mjs', 'utf8');
+  const marker = "await phase('local-pricing-faq', async () => {";
+  const start = source.indexOf(marker) + marker.length;
+  const end = source.indexOf("\n      });", start);
+  assert.ok(start >= marker.length && end > start);
+  const selector = '.landing-faq [data-seo-faq-question]';
+  const run = async initial => {
+    let expanded = initial, clicks = 0, scrolls = 0;
+    const checks = [], destinations = [];
+    const question = {
+      async scrollIntoViewIfNeeded() { scrolls++; },
+      getAttribute: name => name === 'aria-expanded' ? expanded : null,
+      async click() { clicks++; expanded = expanded === 'true' ? 'false' : 'true'; },
+    };
+    const scope = {
+      at: async id => { destinations.push(id); },
+      document: { querySelector(value) { assert.equal(value, selector); return question; } },
+      page: {
+        locator(value) { assert.equal(value, selector); return { first: () => question }; },
+        async waitForFunction(predicate, expected) { checks.push(expected); assert.equal(predicate(expected), true); },
+      },
+    };
+    const execution = vm.runInNewContext(`(async () => {${source.slice(start, end)}})()`, scope);
+    if (initial !== 'true' && initial !== 'false') {
+      await assert.rejects(execution, /Local FAQ is not hydrated/);
+      assert.equal(clicks, 0);
+      return;
+    }
+    await execution;
+    assert.deepEqual(destinations, ['open-weight']);
+    assert.equal(scrolls, 1);
+    assert.equal(clicks, 2);
+    assert.deepEqual(checks, [initial === 'true' ? 'false' : 'true', initial]);
+    assert.equal(expanded, initial);
+  };
+  await run('false');
+  await run('true');
+  await run(null);
+});
+
+test('benchmark navigation opens the parked bar before its existing menu journey', async () => {
+  const source = readFileSync(process.env.VISTAIRE_BENCHMARK_SOURCE || 'scripts/benchmark-landing.mjs', 'utf8');
+  const marker = "await phase('navigate-away-and-return', async () => {";
+  const start = source.indexOf(marker) + marker.length;
+  const end = source.indexOf('\n      });', start);
+  assert.ok(start >= marker.length && end > start);
+  const calls = [];
+  let expanded = false;
+  const scope = { baseURL: 'http://fixture.local', URL,
+    page: {
+      locator(selector) {
+        if (selector === '[data-public-navigation-toggle]') return { click: async () => { calls.push('expand'); expanded = true; } };
+        if (selector === '.menu-toggle') return { click: async () => { assert.equal(expanded, true, 'a hidden bar cannot receive a real click'); calls.push('menu'); } };
+        assert.equal(selector, '.menu-page-links a');
+        return { nth(index) { assert.equal(index, 1); return {
+          getAttribute: async name => { assert.equal(name, 'href'); return '/a-propos'; },
+          click: async () => { calls.push('about'); },
+        }; } };
+      },
+      waitForURL: async predicate => { assert.equal(predicate(new URL('http://fixture.local/a-propos')), true); calls.push('url'); },
+      waitForFunction: async () => { calls.push('ready-check'); },
+      goBack: async options => { assert.equal(options.waitUntil, 'domcontentloaded'); calls.push('back'); },
+    },
+  };
+  await vm.runInNewContext(`(async () => {${source.slice(start, end)}})()`, scope);
+  assert.deepEqual(calls, ['expand', 'menu', 'about', 'url', 'ready-check', 'back', 'ready-check', 'ready-check']);
+});

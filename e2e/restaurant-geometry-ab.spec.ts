@@ -4,6 +4,7 @@ import { writeFile } from 'node:fs/promises';
 import { readFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import sharp from 'sharp';
+import { zeroScaleEquivalentPoses } from './support/restaurant-capture-invariants.mjs';
 // @ts-expect-error -- use the same authored timing as the runtime, not copied scroll constants.
 import { CINEMATIC_TIMING } from '../components/immersive/SceneDirector.js';
 // @ts-expect-error -- use the runtime's authored normal-motion hand-entry distance.
@@ -22,14 +23,18 @@ const profiles: { id: string; width: number; height: number; touch: boolean; res
 ];
 const selected = process.env.VISTAIRE_RESTAURANT_AB_PROFILE;
 if (selected && !profiles.some(profile => profile.id === selected)) throw new Error('Unknown restaurant A/B profile');
+const comparisonMode = process.env.VISTAIRE_RESTAURANT_AB_MODE ?? 'asset';
+if (!['asset', 'guarded-index'].includes(comparisonMode)) throw new Error('Unknown restaurant A/B mode');
+const guardedIndex = comparisonMode === 'guarded-index';
 const hash = (bytes: Buffer) => createHash('sha256').update(bytes).digest('hex');
 const assetPath = '/immersive-assets/restaurant/restaurant-visible-59412334.glb';
 const source = readFileSync(`public${assetPath}`);
 // Run the native ESM generator, outside Playwright's CommonJS source transform.
-const candidate = { bytes: execFileSync(process.execPath,
+const candidate = { bytes: guardedIndex ? source : execFileSync(process.execPath,
   ['scripts/3d/prune-restaurant-offscreen-experiment.mjs', '--stdout'], { maxBuffer: 4 * 1024 * 1024 }) };
 expect(hash(source)).toBe('594123340aa71cf74cb0e83c69b966c399230fc03e2188ed5cb80931d05f4f66');
-expect(hash(candidate.bytes)).toBe('e92a37f1eafc320091ef6ed3764f3552e82e3c443a1cf25f5965a4b400cbaf6f');
+expect(hash(candidate.bytes)).toBe(guardedIndex ? hash(source) : 'e92a37f1eafc320091ef6ed3764f3552e82e3c443a1cf25f5965a4b400cbaf6f');
+const requestedLaptop = new WeakSet<Page>();
 const rendered = test.extend({
   launchOptions: async ({}, provideOptions) => { await provideOptions({ args: ['--use-angle=swiftshader', '--use-gl=angle'] }); },
 });
@@ -127,7 +132,7 @@ async function samplePlan(page: Page) {
   }, { timing: CINEMATIC_TIMING, entryViewports: PRICING_ENTRY_VIEWPORTS });
 }
 
-async function waitForRenderedReady(page: Page) {
+async function waitForRenderedReady(page: Page, timeout = 60_000) {
   await page.waitForFunction(entryViewports => {
     const canvas = document.querySelector<HTMLCanvasElement>('.scene-canvas');
     const opening = document.querySelector<HTMLElement>('.opening-journey');
@@ -155,12 +160,24 @@ async function waitForRenderedReady(page: Page) {
       Number(d.processedViewportWidth) === canvas.clientWidth && Number(d.processedViewportHeight) === canvas.clientHeight &&
       (d.suspended === 'true' || d.settled === 'true') &&
       (d.section !== 'sustainability' && !d.transition?.includes('sustainability') || d.laptopReady === 'true');
-  }, PRICING_ENTRY_VIEWPORTS, { timeout: 60_000 });
+  }, PRICING_ENTRY_VIEWPORTS, { timeout });
 }
 
 async function at(page: Page, y: number) {
+  const readyDeadline = Date.now() + 60_000;
   await page.evaluate(target => scrollTo({ top: target, behavior: 'instant' }), y);
   await waitForRenderedReady(page);
+  // Do not force a hero/catalogue preload. If the normal nearby laptop request
+  // already began, let it finish before preparing the exact capture pose.
+  if (requestedLaptop.has(page)) {
+    const remaining = () => {
+      const budget = readyDeadline - Date.now();
+      expect(budget, 'original resource-readiness deadline').toBeGreaterThan(0);
+      return budget;
+    };
+    await expect(page.locator('.scene-canvas')).toHaveAttribute('data-laptop-ready', 'true', { timeout: remaining() });
+    await waitForRenderedReady(page, remaining());
+  }
   const rendered = await page.locator('.scene-canvas').evaluate(element => ({
     frames: Number((element as HTMLCanvasElement).dataset.frames),
     distance: Number((element as HTMLCanvasElement).dataset.processedScrollDistance),
@@ -195,7 +212,10 @@ async function at(page: Page, y: number) {
 
 async function readRenderedState(page: Page) {
   return page.locator('.scene-canvas').evaluate(element => {
-    const canvas = element as HTMLCanvasElement, d = canvas.dataset;
+    const canvas = element as HTMLCanvasElement & { restaurantIndexCrop?: {
+      state: string; reason: string; removedTriangles: number; backupBytes: number;
+      roomDraws: number; croppedRoomDraws: number; restoreUploadBytes: number;
+    } }, d = canvas.dataset;
     const gl = canvas.getContext('webgl2')!;
     const debug = gl.getExtension('WEBGL_debug_renderer_info');
     const pose = Object.fromEntries(['section', 'progress', 'transition', 'transitionProgress', 'openingProgress',
@@ -210,7 +230,9 @@ async function readRenderedState(page: Page) {
       width: Number(d.pricingBackdropWidth), height: Number(d.pricingBackdropHeight), theme: d.pricingBackdropTheme,
     } : null;
     const rect = canvas.getBoundingClientRect();
-    return { pose, cache, documentTheme: document.documentElement.dataset.vistaireTheme === 'light' ? 'light' : 'dark',
+    return { pose, cache, crop: canvas.restaurantIndexCrop ? { ...canvas.restaurantIndexCrop,
+      installed: d.restaurantCrop, setupReason: d.restaurantCropReason ?? '' } : null,
+      documentTheme: document.documentElement.dataset.vistaireTheme === 'light' ? 'light' : 'dark',
       layout: { viewport: [innerWidth, innerHeight], world: [world.clientWidth, world.clientHeight],
         canvas: { x: rect.x, y: rect.y, width: rect.width, height: rect.height } },
       framing: Object.fromEntries(['focusBounds', 'cameraBaselineDistance', 'cameraDistance', 'fittedZoom',
@@ -234,7 +256,7 @@ async function readRenderedState(page: Page) {
 function captureIdentity(state: Awaited<ReturnType<typeof readRenderedState>>) {
   // Frame IDs are compared within each page, never between A/B contexts.
   // A new draw during capture would make its exact pixel/pose pairing ambiguous.
-  return { pose: state.pose, cache: state.cache, documentTheme: state.documentTheme,
+  return { pose: state.pose, cache: state.cache, crop: state.crop, documentTheme: state.documentTheme,
     framing: state.framing, timeline: state.timeline, pricing: state.pricing,
     suspended: state.suspended, frames: state.frames, scroll: state.scroll, scrollX: state.scrollX,
     layout: state.layout, renderer: state.renderer,
@@ -259,6 +281,9 @@ for (const profile of profiles.filter(profile => !selected || profile.id === sel
       for (const [index, page] of pages.entries()) {
         await freezeDecodedVideo(page);
         page.on('pageerror', error => errors.push(`${index}: ${error.message}`));
+        page.on('request', request => {
+          if (new URL(request.url()).pathname.endsWith('/macbook.glb')) requestedLaptop.add(page);
+        });
         page.on('response', response => {
           const path = new URL(response.url()).pathname;
           if (/^\/(immersive-assets|videos)\//.test(path) && response.status() >= 400)
@@ -268,9 +293,11 @@ for (const profile of profiles.filter(profile => !selected || profile.id === sel
           requests[index]++;
           await route.fulfill({ status: 200, contentType: 'model/gltf-binary', body: index ? candidate.bytes : source });
         });
-        await page.goto('/?sceneDiagnostics=1', { waitUntil: 'domcontentloaded' });
+        await page.goto(`/?sceneDiagnostics=1${guardedIndex && index === 1 ? '&restaurantCrop=guarded' : ''}`, { waitUntil: 'domcontentloaded' });
         await expect(page.locator('.scene-canvas')).toHaveAttribute('data-ready', 'true', { timeout: 120_000 });
         await expect(page.locator('.scene-canvas')).toHaveAttribute('data-framing-ready', 'true', { timeout: 60_000 });
+        if (guardedIndex && index === 1)
+          await expect(page.locator('.scene-canvas')).toHaveAttribute('data-restaurant-crop', 'installed', { timeout: 60_000 });
         await page.evaluate(() => document.fonts.ready);
         // Preserve layout, remove DOM occlusion from canvas-only comparison.
         await page.addStyleTag({ content: 'body * { visibility: hidden !important } .scene-canvas { visibility: visible !important }' });
@@ -307,7 +334,16 @@ for (const profile of profiles.filter(profile => !selected || profile.id === sel
         expect(states[1].layout, `${label}: canvas and viewport geometry`).toEqual(states[0].layout);
         expect(states[0].renderer.normalMotion).toBe(true);
         expect(states[0].renderer.renderer).toContain('SwiftShader');
-        expect(states[1].pose, `${label}: exact rendered camera/scene pose`).toEqual(states[0].pose);
+        const renderedPoses = zeroScaleEquivalentPoses(states[0].pose, states[1].pose);
+        Object.assign(sample, { zeroScaleMatrices: renderedPoses.map(value => value.zeroScaleMatrices) });
+        expect(renderedPoses[1], `${label}: exact rendered camera/scene transform`).toEqual(renderedPoses[0]);
+        if (guardedIndex) {
+          expect(states[0].crop, `${label}: query-off remains untouched`).toBeNull();
+          expect(states[1].crop?.installed).toBe('installed');
+          expect(['cropped', 'full']).toContain(states[1].crop?.state);
+          expect(states[1].crop?.removedTriangles).toBe(19_150);
+          expect(states[1].crop?.backupBytes).toBe(261_678);
+        }
         expect(states[1].cache, `${label}: canonical cache pose/generation/buffer/theme`).toEqual(states[0].cache);
         expect(states[1].timeline, `${label}: actual document timeline`).toEqual(states[0].timeline);
         if (states[0].cache) {
@@ -356,7 +392,8 @@ for (const profile of profiles.filter(profile => !selected || profile.id === sel
         // moving the page; independently guard geometry and pose on both sides.
         const beforeCapture = await Promise.all(pages.map(readRenderedState));
         const capture = { bounds: beforeCapture.map(state => state.layout.canvas),
-          beforeFrames: beforeCapture.map(state => state.frames), afterFrames: [] as number[] };
+          beforeFrames: beforeCapture.map(state => state.frames), afterFrames: [] as number[],
+          stages: [] as { page: number; stage: string; elapsedMs: number; hidden?: boolean }[] };
         Object.assign(sample, { capture });
         try {
           for (const [index, state] of beforeCapture.entries()) {
@@ -373,9 +410,11 @@ for (const profile of profiles.filter(profile => !selected || profile.id === sel
           Object.assign(sample, { beforeCapture });
           throw error;
         }
-        const screenshots = await Promise.all(pages.map((page, index) => page.screenshot({
-          fullPage: false, clip: beforeCapture[index].layout.canvas, timeout: 30_000,
-        })));
+        const screenshots: Buffer[] = [];
+        const afterCapture: Awaited<ReturnType<typeof readRenderedState>>[] = [];
+        const captureStarted = Date.now();
+        const recordCapture = (page: number, stage: string, hidden?: boolean) =>
+          capture.stages.push({ page, stage, elapsedMs: Date.now() - captureStarted, hidden });
         const retainScreenshots = async () => {
           Object.assign(sample, { screenshotHashes: screenshots.map(hash) });
           for (const [index, screenshot] of screenshots.entries()) {
@@ -386,8 +425,38 @@ for (const profile of profiles.filter(profile => !selected || profile.id === sel
             await testInfo.attach(name, { path, contentType: 'image/png' });
           }
         };
-        const afterCapture = await Promise.all(pages.map(readRenderedState));
-        capture.afterFrames = afterCapture.map(state => state.frames);
+        // Both contexts share a software-rendering browser. Do not issue two
+        // compositor captures concurrently. Foregrounding is preparation, not
+        // permission to accept a changed pose or frame. A single pair deadline
+        // retains the former concurrent captures' maximum wall-time budget.
+        try {
+          await rendered.step(`${label}: serial foreground capture`, async () => {
+            for (const [index, page] of pages.entries()) {
+              recordCapture(index, 'foreground-start');
+              await page.bringToFront();
+              recordCapture(index, 'foreground-ready', await page.evaluate(() => document.hidden));
+              const foreground = await readRenderedState(page);
+              expect(captureIdentity(foreground), `${label}: foreground preserves capture state ${index}`)
+                .toEqual(captureIdentity(beforeCapture[index]));
+              const remaining = 30_000 - (Date.now() - captureStarted);
+              expect(remaining, `${label}: shared capture budget`).toBeGreaterThan(0);
+              recordCapture(index, 'screenshot-start');
+              screenshots.push(await page.screenshot({
+                fullPage: false, clip: beforeCapture[index].layout.canvas, timeout: remaining,
+              }));
+              recordCapture(index, 'screenshot-complete');
+              afterCapture.push(await readRenderedState(page));
+              capture.afterFrames.push(afterCapture[index].frames);
+            }
+          }, { timeout: 30_000 });
+        } catch (error) {
+          Object.assign(sample, { beforeCapture, afterCapture });
+          // Preserve any completed first image if the second capture fails.
+          // Evidence I/O has its own bound; never retry or extend capture time.
+          await rendered.step(`${label}: retain partial capture`, retainScreenshots, { timeout: 5_000 })
+            .catch(retentionError => Object.assign(sample, { captureRetentionError: String(retentionError) }));
+          throw error;
+        }
         try {
           for (const [index, state] of afterCapture.entries()) {
             expect(captureIdentity(state), `${label}: stable through capture ${index}`).toEqual(captureIdentity(beforeCapture[index]));
@@ -470,6 +539,12 @@ for (const profile of profiles.filter(profile => !selected || profile.id === sel
       await compare('direct-footer-cache', footer.y, footer);
       expect(requests).toEqual([1, 1]);
       expect(errors).toEqual([]);
+      if (guardedIndex) {
+        const observed = evidence as { states: Awaited<ReturnType<typeof readRenderedState>>[] }[];
+        expect(observed.some(sample => sample.states[1].crop?.state === 'cropped' &&
+          Number(sample.states[1].crop.croppedRoomDraws) > 0),
+        'guarded mode must submit at least one actual cropped room draw').toBe(true);
+      }
       complete = true;
     } finally {
       const lastObserved = await Promise.allSettled(pages.map(page => page.evaluate(() => ({
@@ -481,7 +556,9 @@ for (const profile of profiles.filter(profile => !selected || profile.id === sel
         })),
       }))));
       await writeFile(testInfo.outputPath('restaurant-geometry-ab.json'), JSON.stringify({
-        complete, phase, profile, browser: browser.version(), sourceSHA256: hash(source), candidateSHA256: hash(candidate.bytes),
+        complete, phase, profile, comparisonMode, browser: browser.version(), sourceSHA256: hash(source), candidateSHA256: hash(candidate.bytes),
+        query: guardedIndex ? ['off', 'restaurantCrop=guarded'] : null,
+        normalLaptopRequested: pages.map(page => requestedLaptop.has(page)),
         methodology: 'Same production build, separate contexts, DPR1 SwiftShader, normal-motion rendered poses, fixed decoded video at 0.25s; exact camera and canonical cached-room pose guards then zero-pixel-difference canvas screenshots, including idle offers/FAQ/footer. Not physical GPU/FPS or universal aspect proof.',
         requests, errors, layoutEvidence, lastObserved, samples: evidence,
       }, null, 2));

@@ -3072,6 +3072,9 @@
 :where([data-immersive-vistaire]) .site-header[data-public-navigation-open] {
   transition: opacity 180ms ease, transform 180ms ease, visibility 180ms;
 }
+:where([data-immersive-vistaire]) .site-header[data-public-navigation-open="true"] {
+  transition-property: opacity, transform;
+}
 :where([data-immersive-vistaire]) .site-header[data-public-navigation-open="false"] {
   opacity: 0;
   visibility: hidden;

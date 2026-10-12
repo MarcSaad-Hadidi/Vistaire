@@ -70,3 +70,9 @@ Unmeasured: complete twelve-chapter coverage, physical input/display FPS, GPU el
 The checksum is now `edf99cc64ccd016d7456320d03a8d8022daf8dc126ec629390a54f71d05768b5`, replacing historical `9a32220c78852be511772a33eb2523d21add67f1a6f2032baee8d68c5d460759`. Independent review confirmed unchanged callback wrapping, interval attribution, statistics, sampling definitions and phase budgets. The bounded changes are the real held-phone reading endpoint, readiness of the actual hand plus current room cache, the intentional cached-footer endpoint, additional snapshot fields, and stricter zero-draw/zero-scene-callback pricing idle acceptance. Cold pricing setup remains its own measured phase.
 
 Retain each report's harness hash and workload identity. Do not pool old opaque-pricing and new held-phone setup timings or call them an identical rendering workload. Historical results retain their original protocol meaning; this update establishes no performance gain.
+
+## 2026-10-12 FAQ selector correction
+
+The later local FAQ workload now targets the actual `.landing-faq` accordion instead of the removed `.pricing-faq` wrapper. The same first question is opened and closed, its hydrated state is required, and all sampling definitions, timing budgets and assertions remain unchanged. The benchmark checksum becomes `851c38976114c0ea2701247d04be8d818bb77bb99a95cae6d66dd1dbc7f5629e`; prior `edf99cc64ccd016d7456320d03a8d8022daf8dc126ec629390a54f71d05768b5` evidence keeps its historical identity. This repairs the stale selector reached after54 mobile cycles onfed9, not a runtime or performance improvement.
+
+The same repair opens the now-parked navigation bar using its real side-tab control before the existing menu/About/Back journey. This adds the necessary current-design interaction to that local workload; it does not change callback wrappers, interval definitions or budgets. Keep this harness identity separate from historical navigation workload results.

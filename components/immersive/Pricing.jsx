@@ -503,8 +503,11 @@ export default function Pricing({ collection, stateRef }) {
     // The phone lives under a fixed portal, so WebKit cannot reliably chain
     // its boundary keys to the document. Continue the native page explicitly.
     const current = viewportRef.current.scrollTop;
-    if ((current <= 0.5 && next <= 0) ||
-        (current >= layout.maxScroll - 0.5 && next >= layout.maxScroll)) {
+    // WebKit can quantize document scroll to whole CSS pixels. Compare the
+    // mapped page endpoint too, or a subpixel reader remainder traps End/PageDown.
+    const atStart = current <= 0.5 || Math.abs(window.scrollY - pricingPagePosition(sectionTop, 0, layout)) <= 1;
+    const atEnd = current >= layout.maxScroll - 0.5 || Math.abs(window.scrollY - pricingPagePosition(sectionTop, layout.maxScroll, layout)) <= 1;
+    if ((atStart && next <= 0) || (atEnd && next >= layout.maxScroll)) {
       if (event.key in changes) {
         event.preventDefault();
         window.scrollBy({

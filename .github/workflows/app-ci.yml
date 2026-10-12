@@ -659,6 +659,7 @@ jobs:
         profile: [phone, phone430, phoneLandscape, desktop, desktop1337, wide, wide3440]
     env:
       VISTAIRE_RESTAURANT_AB_PROFILE: ${{ matrix.profile }}
+      VISTAIRE_RESTAURANT_AB_MODE: guarded-index
       CI_TEST_REPORT_PATH: ${{ github.workspace }}/.ci-test-report-restaurant-ab.json
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0

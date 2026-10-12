@@ -540,6 +540,7 @@ test("restaurant crop experiment uses isolated profiles and fails closed without
   assert.match(job, /timeout-minutes: 30/);
   assert.match(job, /name: next-build-\$\{\{ github\.run_id \}\}/);
   assert.match(job, /VISTAIRE_RESTAURANT_AB_PROFILE: \$\{\{ matrix\.profile \}\}/);
+  assert.match(job, /VISTAIRE_RESTAURANT_AB_MODE: guarded-index/);
   assert.match(job, /node scripts\/run-playwright-e2e\.mjs e2e\/restaurant-geometry-ab\.spec\.ts/);
   assert.match(job, /--workers=1 --retries=0 --forbid-only/);
   assert.match(job, /forbid-skipped-tests-reporter/);

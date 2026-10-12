@@ -151,3 +151,14 @@ maps either observed history to the same target. This establishes a mechanism,
 not the precise browser-event history of the failed run. The awaited nudge/return
 uses that existing production path without changing runtime or relaxing exact
 pose/pixel guards. Any later frame or pose drift still fails capture acceptance.
+
+
+## 2026-10-12: same-source guarded-index candidate
+
+The current seven existing CI profiles explicitly select `VISTAIRE_RESTAURANT_AB_MODE=guarded-index`. Each pair loads the same pinned phase-one restaurant bytes. Only the candidate context receives `restaurantCrop=guarded`; ordinary navigation remains unmodified. No second profile matrix or benchmark is added.
+
+The inactive candidate compacts ordered indices for 19,150 of 81,821 room faces. It retains source attributes, bounds, original index storage, donor/floor geometry, and 261,678 bytes of CPU backup. Before each actual room draw, expanded-frustum and renderer/material/geometry guards either permit the compact indices or permanently restore the original indices before submission. Unsupported shadow modes also restore. This does not reduce downloaded bytes or GPU allocation.
+
+The harness retains seven complete paths, exact visible transforms/camera/cache/media guards, zero-pixel tolerance, and the existing deadlines. Captures are serialized in foreground pages; strictly zero-scale direct-root objects retain raw diagnostics while comparison uses their exactly collapsed transform. An already-requested laptop preload must settle; the harness never initiates catalogue loading to pass.
+
+At least one real cropped room draw is required to prove engagement. That alone is not useful performance coverage: inspect per-region active/restored state, actual submitted triangles/calls, and guard/restore costs. All pixel and browser outcomes remain pending. Historical failed asset-comparison runs do not certify this query-only candidate, and no default crop activation is authorized by this checkpoint.

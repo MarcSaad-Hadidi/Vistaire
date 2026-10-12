@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
@@ -135,4 +136,23 @@ test("Escape leaves an open navigation bar intact while a modal owns dismissal",
   assert.equal(focus, 1);
   cleanup();
   assert.equal(listeners.size, 0);
+});
+
+test('opening navigation exposes focus immediately while preserving visual motion', () => {
+  const publicCss = readFileSync('components/vistaire-preview/VistairePreviewChrome.module.css', 'utf8');
+  const landingCss = readFileSync('components/immersive/styles.css', 'utf8');
+  const rules = [
+    [publicCss, /\.previewNav\[data-public-navigation-open="true"\]\s*\{([^}]+)\}/],
+    [publicCss, /\.menuPanelOpen\s*\{([^}]+)\}/],
+    [landingCss, /\.site-header\[data-public-navigation-open="true"\]\s*\{([^}]+)\}/],
+  ];
+  for (const [css, selector] of rules) {
+    const rule = css.match(selector)?.[1];
+    assert.ok(rule, String(selector));
+    const properties = rule.match(/transition-property:\s*([^;]+);/)?.[1].split(',').map(value => value.trim());
+    assert.ok(properties?.includes('transform'), 'retain the requested reveal motion');
+    assert.ok(!properties.includes('visibility'), 'focus cannot target the hidden initial interpolation endpoint');
+  }
+  assert.match(publicCss, /\.previewNav\[data-public-navigation-open="false"\][^{]*\{[^}]*visibility:\s*hidden/);
+  assert.match(publicCss, /\.menuPanel\s*\{[^}]*visibility:\s*hidden/);
 });

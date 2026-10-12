@@ -729,8 +729,15 @@ test("public theme and mobile controls persist across locale navigation and relo
   for (const control of await controls.locator("a, button").all()) {
     await expect(control).toBeVisible();
     const box = await control.boundingBox();
-    expect(box!.width).toBeGreaterThanOrEqual(44);
-    expect(box!.height).toBeGreaterThanOrEqual(44);
+    const layout = await control.evaluate(element => ({
+      width: (element as HTMLElement).offsetWidth, height: (element as HTMLElement).offsetHeight,
+    }));
+    expect(layout.width).toBeGreaterThanOrEqual(44);
+    expect(layout.height).toBeGreaterThanOrEqual(44);
+    // A translated 44px target can report 43.999999px while the bar animates.
+    // Retain the actual 44px layout requirement and normalize only subpixel noise.
+    expect(Math.round(box!.width * 1000) / 1000).toBeGreaterThanOrEqual(44);
+    expect(Math.round(box!.height * 1000) / 1000).toBeGreaterThanOrEqual(44);
   }
   await controls.getByRole("button", { name: "Thème clair", exact: true }).click();
   await expect(page.locator("html")).toHaveAttribute("data-vistaire-theme", "light");
