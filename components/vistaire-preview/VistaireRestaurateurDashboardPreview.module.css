@@ -1146,11 +1146,11 @@
 }
 
 .dashboardFilm {
-  width: min(100%, 1168px, calc((100svh - 260px) * 1.5615));
+  width: min(100%, 1166px, calc((100svh - 260px) * 1166 / 756));
   margin: 0 auto;
 }
 .dashboardScreen {
-  aspect-ratio: 1168 / 748;
+  aspect-ratio: 1166 / 756;
   overflow: hidden;
   border: 3px solid #171716;
   border-radius: 14px;
@@ -1198,3 +1198,4 @@
   .filmSummary .heroActions { flex-direction: row; gap: 8px; }
   .filmSummary .heroActions a { width: auto; flex: 1; min-height: 44px; padding: 10px 8px; gap: 6px; font-size: 13px; }
 }
+

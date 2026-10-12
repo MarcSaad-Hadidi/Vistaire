@@ -167,3 +167,31 @@ private Studio are preserved. The exception is limited to this exact reviewed
 clip; replacement requires an updated checksum. Source interactions, a contact
 sheet and full decoding were checked. Deployed layout and playback verification
 remain covered by the public preview E2E suite and must run on the final revision.
+
+
+### Current dashboard walkthrough (2026-10-12)
+
+MarcSaad-Hadidi approved the new complete walkthrough at baked-in 3× speed and
+its upload to the existing `vistaire-media` Cloudflare R2 bucket. The old
+Git-served video and its poster remain unchanged; the shared French/English
+`DashboardWalkthrough` now references the immutable CDN object below. No MP4,
+raw capture, new LFS rule, or asset-policy exception is added to Git.
+
+- Runtime: `https://cdn.vistaire.ca/demo/dashboard-studio-3x-67468b94997f.mp4`
+- Source: approved `Vistaire-dashboard-demo-3x.mp4`
+- Format: silent H264, 1166 × 756, 30 fps, yuv420p, MP4 faststart
+- Duration: 137.900 seconds; reviewed bytes: 6,064,059
+- SHA-256: `67468b94997f8c5c205ab71568a44052388484e2350935156913b9bf5d2c6d34`
+- Runtime playback rate: native 1×; the source is already accelerated 3×
+- Poster: `public/images/demo-walkthrough/dashboard-studio-3x.webp`
+  (51,276 bytes; SHA-256 `ffcb1fa4d1d2c33a0dfc1fda344f22cbc28326a6296e4a2ebd231027c9ae957b`)
+
+The genuine recording covers overview/search/theme, periods and calendar,
+export format choices, metrics and chart controls, all ten analysis groups,
+dish filters/batch controls/details, planning/service preview and scheduling
+options. Scheduling is cancelled; no successful save or backend persistence is
+claimed. All data is synthetic. Localized chapter times follow this accelerated
+recording, rather than the previous 128-second edit. Muted visible autoplay,
+inline playback, controls, manual-pause preservation, hidden/offscreen pause,
+reduced-motion handling and the existing blocked-autoplay fallback are retained.
+The dashboard frame follows the new source aspect ratio without cropping.

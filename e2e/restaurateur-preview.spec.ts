@@ -100,7 +100,7 @@ function observeRuntime(page: Page, baseURL: string) {
       /^(?:1|true|prefetch)$/i.test(headers["next-router-prefetch"] ?? "");
     const errorText = request.failure()?.errorText ?? "request failed";
     if (errorText === "net::ERR_ABORTED" && explicitPrefetch) return;
-    if (errorText === "net::ERR_ABORTED" && request.method() === "GET" && new URL(request.url()).pathname === "/videos/demo/dashboard-studio.mp4") return;
+    if (errorText === "net::ERR_ABORTED" && request.method() === "GET" && new URL(request.url()).pathname === "/demo/dashboard-studio-3x-67468b94997f.mp4") return;
     if (shouldIgnoreRestaurateurPreviewRequestFailure({
       baseOrigin: baseURL,
       url: request.url(),
@@ -130,7 +130,7 @@ function observeRuntime(page: Page, baseURL: string) {
       expect(productMutations, "private product or analytics mutations").toEqual([]);
       expect(unexpectedWrites, `unexpected writes; Next internals: ${frameworkPosts.join(", ")}`).toEqual([]);
       expect(modelRequests, "GLB or USDZ requests").toEqual([]);
-      expect(videoRequests.filter(path => path !== "/videos/demo/dashboard-studio.mp4"), "only the requested walkthrough video may load").toEqual([]);
+      expect(videoRequests.filter(path => path !== "/demo/dashboard-studio-3x-67468b94997f.mp4"), "only the requested walkthrough video may load").toEqual([]);
     }
   };
 }
@@ -235,16 +235,18 @@ for (const scenario of scenarios) {
     await expect(video).toHaveAttribute("playsinline", "");
     await expect(video).toHaveAttribute("preload", "none");
     await expect(video).not.toHaveAttribute("autoplay", "");
-    await expect(video).toHaveAttribute("poster", "/images/demo-walkthrough/dashboard-studio.webp");
+    await expect(video).toHaveAttribute("poster", "/images/demo-walkthrough/dashboard-studio-3x.webp");
     const box = await video.boundingBox();
     expect(box).not.toBeNull();
     expect(box!.y).toBeGreaterThan(88);
     expect(box!.y + box!.height).toBeLessThanOrEqual(720);
     expect(Math.abs(box!.x + box!.width / 2 - 640)).toBeLessThan(2);
-    await expect(video).toHaveAttribute("src", "/videos/demo/dashboard-studio.mp4");
+    await expect(video).toHaveAttribute("src", "https://cdn.vistaire.ca/demo/dashboard-studio-3x-67468b94997f.mp4");
     expect(await video.evaluate(element => (element as HTMLVideoElement).muted)).toBe(true);
     await expect.poll(() => video.evaluate(element => (element as HTMLVideoElement).currentTime)).toBeGreaterThan(.2);
-    expect(await video.evaluate(element => (element as HTMLVideoElement).duration)).toBeGreaterThan(60);
+    expect(await video.evaluate(element => (element as HTMLVideoElement).duration)).toBeCloseTo(137.9, 1);
+    expect(await video.evaluate(element => (element as HTMLVideoElement).playbackRate)).toBe(1);
+    expect(await video.evaluate(element => [(element as HTMLVideoElement).videoWidth, (element as HTMLVideoElement).videoHeight])).toEqual([1166, 756]);
     await video.evaluate(element => (element as HTMLVideoElement).pause());
     await expect.poll(() => video.evaluate(element => (element as HTMLVideoElement).paused)).toBe(true);
     await page.getByRole("contentinfo").scrollIntoViewIfNeeded();
@@ -312,3 +314,4 @@ for (const scenario of scenarios) {
     await expect(fallback).toBeHidden();
   });
 }
+
