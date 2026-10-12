@@ -203,14 +203,14 @@ const EN = {
   "ouvrez dans Chrome sur un appareil compatible avec la réalité augmentée.":
     "open in Chrome on an AR-compatible device.",
   "Ouvrir ce plat": "Open this dish",
-  "Une présence légère et lumineuse. Le support laisse toute la place à votre identité.":
-    "A light, luminous presence. The stand gives your identity room to shine.",
-  "Une forme expressive, pensée pour prolonger le caractère du lieu.":
-    "An expressive shape, designed to complement the character of your space.",
-  "Des lignes nettes et une silhouette discrète, naturellement à sa place à table.":
-    "Clean lines and a subtle silhouette, naturally at home on your table.",
-  "Une pièce de caractère, pour une expérience qui porte votre signature.":
-    "A distinctive piece for an experience that carries your signature.",
+  "Transparent et posé sur une base en bois, il laisse respirer la table et s’accorde aux décors épurés.":
+    "Clear acrylic on a wooden base keeps the table visually open and complements pared-back interiors.",
+  "Son coin arrondi adoucit la silhouette du bois. Une touche sculpturale à table, en écho aux matières naturelles.":
+    "A rounded corner softens its wooden silhouette. A sculptural table detail that echoes natural materials.",
+  "Un petit format aux lignes franches, à glisser près d’un couvert. Le bois apporte une touche chaleureuse aux tables de bistrot.":
+    "A compact shape with clean lines, set beside a place setting. Wood brings a warm touch to bistro tables.",
+  "Le contraste du bois et du noir dessine une présence affirmée. Sa ligne horizontale accompagne les tables aux tons profonds.":
+    "Wood and black create a bold contrast. Its horizontal silhouette complements tables in rich, deep tones.",
   "La chair délicate du homard rencontre une bisque profonde et les notes anisées du fenouil.":
     "Delicate lobster meets a rich bisque and the anise notes of fennel.",
   "Crustacés, lait": "Crustaceans, milk",

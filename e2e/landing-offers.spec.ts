@@ -175,6 +175,7 @@ for (const profile of profiles) {
       await handReady(page);
       if (theme === 'light') {
         const before = await backdrop(page);
+        await page.locator('[data-public-navigation-toggle]').click();
         await page.locator('.site-header [data-public-theme-toggle]').click();
         await expect(page.locator('html')).toHaveAttribute('data-vistaire-theme', 'light');
         await expect(page.locator('.scene-canvas')).toHaveAttribute('data-pricing-backdrop-theme', 'light');
@@ -284,6 +285,7 @@ test('direct pricing anchor and normal native-scroll entry capture the same inte
   await screenshot(page, info, 'normal-scroll-offers');
   await scrollPage(page, 0);
   await expect(page.locator('.scene-canvas')).toHaveAttribute('data-pricing-backdrop', 'released');
+  await page.locator('[data-public-navigation-toggle]').click();
   await page.locator('.desktop-nav').getByRole('button', { name: 'Tarifs', exact: true }).click();
   await handReady(page);
   const navigation = await backdrop(page);
@@ -353,6 +355,7 @@ for (const profile of [{width:390,height:844,path:'/en',label:'Pricing'}, {width
     await page.setViewportSize({width:profile.width===390?430:1337,height:profile.height});
     await scrollPage(page,0);
     await expect(page.locator('.scene-canvas')).toHaveAttribute('data-pricing-backdrop','released');
+    await page.locator('[data-public-navigation-toggle]').click();
     if(profile.width===390){
       await page.locator('.site-header .menu-toggle').click();
       await page.locator('#mobile-menu').getByRole('button',{name:`04 ${profile.label}`,exact:true}).click();
@@ -374,38 +377,97 @@ test('the laptop uses the current dashboard capture in the selected site theme',
   await expect(canvas).toHaveAttribute('data-laptop-ready','true',{timeout:ASSET_READY_MS});
   await expect(canvas).toHaveAttribute('data-laptop-dashboard-theme','light');
   await screenshot(page,info,'current-dashboard-laptop-light');
+  await page.locator('[data-public-navigation-toggle]').click();
   await page.locator('.site-header [data-public-theme-toggle]').click();
   await expect(canvas).toHaveAttribute('data-laptop-dashboard-theme','dark');
   await screenshot(page,info,'current-dashboard-laptop-dark');
 });
 
 
-for (const width of [390,1440]) test(`native entry assistance is bounded, interruptible and reduced-motion safe at ${width}px`,async({page},info)=>{
+for (const width of [390,1440]) test(`native entry assistance is bounded, interruptible and reduced-motion safe at ${width}px`,async({page,browserName},info)=>{
   test.setTimeout(240_000);
   const errors:string[]=[];
   page.on('pageerror',error=>errors.push(error.message));
   page.on('console',message=>{if(message.type()==='error')errors.push(message.text());});
+  // Passive, bounded evidence for actual native-input delivery. This never
+  // marks synthetic input trusted or changes the application's scroll calls.
+  await page.addInitScript(() => {
+    const records: Record<string, unknown>[] = [];
+    const record = (type: string, event?: Event, call?: unknown) => {
+      const target = event?.target instanceof Element ? event.target : null;
+      records.push({ type, at: performance.now(), y: scrollY, call,
+        trusted: event?.isTrusted, target: target?.tagName, active: document.activeElement?.tagName,
+        key: event instanceof KeyboardEvent ? event.key : undefined,
+        deltaY: event instanceof WheelEvent ? event.deltaY : undefined,
+        hidden: document.hidden, reduced: matchMedia('(prefers-reduced-motion: reduce)').matches,
+        ready: document.querySelector('.scene-canvas')?.getAttribute('data-ready'),
+        settled: document.querySelector('.scene-canvas')?.getAttribute('data-settled'),
+      });
+      if (records.length > 250) records.shift();
+    };
+    (window as typeof window & { __entryAssistEvidence?: unknown[] }).__entryAssistEvidence = records;
+    for (const type of ['wheel', 'keydown', 'keyup', 'scroll', 'scrollend', 'focusin'])
+      document.addEventListener(type, event => record(type, event), { capture: true, passive: true });
+    const original = window.scrollTo.bind(window);
+    window.scrollTo = ((...args: [ScrollToOptions] | [number, number]) => {
+      record('scrollTo', undefined, args);
+      if (typeof args[0] === 'number') original(args[0], args[1]!);
+      else original(args[0]);
+    }) as typeof window.scrollTo;
+  });
+  try {
   await page.setViewportSize({width,height:844});
   await openScene(page,'/','','no-preference');
-  const end=await page.locator('.opening-journey').evaluate((el,leg)=>el.getBoundingClientRect().top+scrollY+parseFloat(getComputedStyle(el.firstElementChild!).height)*leg,CINEMATIC_TIMING.transitionScreens);
+  const opening = await page.locator('.opening-journey').evaluate(el => ({
+    top: el.getBoundingClientRect().top + scrollY,
+    stage: parseFloat(getComputedStyle(el.firstElementChild!).height),
+  }));
+  const end = opening.top + opening.stage * CINEMATIC_TIMING.transitionScreens;
+  const position = async (y: number) => {
+    await scrollPage(page, y);
+    // A setup teleport is not the gesture under test. Wait for its actual
+    // processed pose before sending fresh trusted input into that position.
+    await expect.poll(() => page.locator('.scene-canvas').evaluate(el =>
+      Number(el.getAttribute('data-processed-scroll-distance'))), { timeout: 15_000 })
+      .toBeCloseTo((Math.round(y) - opening.top) / opening.stage, 2);
+    await expect(page.locator('.scene-canvas')).toHaveAttribute('data-settled', 'true', { timeout: 15_000 });
+  };
+  const gesture = async (direction: number) => {
+    if (browserName === 'webkit') {
+      // This mobile WebKit project has no mouse.wheel support. Use its real
+      // keyboard input; it is not evidence of native iPhone touch inertia.
+      await page.keyboard.press(direction > 0 ? 'ArrowDown' : 'ArrowUp');
+    } else await page.mouse.wheel(0, direction * 40);
+  };
   await page.mouse.move(width*.85,600);
-  await scrollPage(page,end-80);
-  await page.mouse.wheel(0,40);
+  await position(end-80);
+  await gesture(1);
   await expect.poll(()=>page.evaluate(target=>Math.abs(scrollY-target),end),{timeout:15_000}).toBeLessThanOrEqual(1);
   await page.waitForTimeout(350);
   expect(await page.evaluate(target=>Math.abs(scrollY-target),end)).toBeLessThanOrEqual(1);
-  await scrollPage(page,80);
-  await page.mouse.wheel(0,-40);
+  await position(80);
+  await gesture(-1);
   await expect.poll(()=>page.evaluate(()=>scrollY),{timeout:15_000}).toBeLessThanOrEqual(1);
-  await scrollPage(page,end-80);
-  await page.mouse.wheel(0,40);
+  // A materially larger committed handoff now completes too, then stops.
+  await position(end - Math.min(opening.stage, end * 0.4));
+  await gesture(1);
+  await expect.poll(()=>page.evaluate(target=>Math.abs(scrollY-target),end),{timeout:15_000}).toBeLessThanOrEqual(1);
+  const exit = end + opening.stage * CINEMATIC_TIMING.aiHoldScreens;
+  await position(exit - 120);
+  await gesture(1);
+  await expect.poll(()=>page.evaluate(target=>Math.abs(scrollY-target),exit),{timeout:15_000}).toBeLessThanOrEqual(1);
+  await page.waitForTimeout(350);
+  expect(await page.evaluate(target=>Math.abs(scrollY-target),exit)).toBeLessThanOrEqual(1);
+
+  await position(end-80);
+  await gesture(1);
   await page.keyboard.press('Escape');
   await expect.poll(()=>page.evaluate(()=>scrollY)).toBeGreaterThan(end-75);
   await page.waitForTimeout(350);
   expect(await page.evaluate(()=>scrollY)).toBeLessThan(end-10);
   await page.emulateMedia({reducedMotion:'reduce'});
-  await scrollPage(page,end-80);
-  await page.mouse.wheel(0,40);
+  await position(end-80);
+  await gesture(1);
   await expect.poll(()=>page.evaluate(()=>scrollY)).toBeGreaterThan(end-75);
   await page.waitForTimeout(350);
   expect(await page.evaluate(()=>scrollY)).toBeLessThan(end-10);
@@ -421,6 +483,18 @@ for (const width of [390,1440]) test(`native entry assistance is bounded, interr
   await enterOffers(page);
   await screenshot(page,info,`preserved-offers-room-${width}`);
   expect(errors).toEqual([]);
+  } finally {
+    let diagnosticTimer: ReturnType<typeof setTimeout> | undefined;
+    const evidence = await Promise.race([
+      page.evaluate(() => (window as typeof window & {
+        __entryAssistEvidence?: unknown[];
+      }).__entryAssistEvidence ?? []).catch(() => []),
+      new Promise<unknown[]>(resolve => { diagnosticTimer = setTimeout(() => resolve([]), 1000); }),
+    ]).finally(() => clearTimeout(diagnosticTimer));
+    await info.attach(`entry-assist-${browserName === 'webkit' ? 'keyboard' : 'wheel'}-${width}`, {
+      body: JSON.stringify(evidence, null, 2), contentType: 'application/json',
+    });
+  }
 });
 
 for (const width of [390, 1440]) test(`section reveals preserve the visible subject orientation at ${width}px`, async ({ page }, info) => {

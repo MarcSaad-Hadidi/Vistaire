@@ -268,6 +268,7 @@ async function expectSeoGeoRoute(
   await expectLanguageAlternates(page, route.fr, route.en);
   await expect(page.locator("h1")).toHaveCount(1);
   await expect(page.locator('script[type="application/ld+json"]')).not.toHaveCount(0);
+  await page.locator("[data-public-navigation-toggle]").click();
   await expect(page.locator('[aria-label="Langue"], [aria-label="Language"]').first()).toBeVisible();
   await expect(page.locator(`#accueil a[href="${route.ctaHref}"]`).first()).toBeVisible();
 
@@ -462,6 +463,7 @@ test.describe("Vistaire SEO smoke", () => {
       await expect(page.locator(".preloader")).toHaveCount(0);
       await expectNoEarlyModelAssets(page);
 
+      await page.locator("[data-public-navigation-toggle]").click();
       await page.locator(".menu-toggle").click();
       await expect(page.locator('.menu-page-links a[href="/prendre-rendez-vous"]')).toBeVisible();
       await expect(page.locator('.menu-page-links a[href="/demo"]')).toBeVisible();

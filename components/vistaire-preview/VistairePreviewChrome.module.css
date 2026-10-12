@@ -14,6 +14,49 @@
   background: var(--public-nav);
   color: var(--public-text);
   font-family: "Vistaire Text", serif;
+  transition: opacity 180ms ease, transform 180ms ease, visibility 180ms;
+}
+.previewNav[data-public-navigation-open="false"] {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transform: translateY(-8px);
+}
+.navigationTab {
+  position: fixed;
+  top: max(calc(env(safe-area-inset-top) + 100px), 18svh);
+  left: env(safe-area-inset-left, 0px);
+  z-index: 91;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 44px;
+  min-height: 120px;
+  padding: 10px 8px;
+  border: 1px solid var(--public-blue);
+  border-left: 0;
+  border-radius: 0 8px 8px 0;
+  background: var(--public-nav);
+  color: var(--public-text);
+  font: 13px "Vistaire Text", sans-serif;
+  cursor: pointer;
+}
+.navigationTab span {
+  writing-mode: vertical-rl;
+}
+.navigationTab svg {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+.navigationTab[aria-expanded="true"] svg {
+  transform: rotate(180deg);
+}
+.navigationTab:focus-visible {
+  outline: 2px solid var(--public-focus);
+  outline-offset: 2px;
 }
 .navBrand {
   color: var(--public-gold);
@@ -99,75 +142,138 @@
 .navCtaShort {
   display: none;
 }
-.mobileMenu {
-  display: block;
-  margin-left: 0;
-}
-.mobileMenu summary {
+.menuToggle {
   display: flex;
   align-items: center;
-  gap: 5px;
+  flex-shrink: 0;
+  gap: 8px;
   min-width: 44px;
   min-height: 44px;
-  padding-inline: 4px;
+  padding: 10px 13px;
+  border: 1px solid color-mix(in srgb, var(--public-gold) 33%, transparent);
+  border-radius: 4px;
+  background: transparent;
   color: var(--public-text);
-  font-size: 16px;
-  list-style: none;
+  font: 12px "Vistaire Text", sans-serif;
   cursor: pointer;
 }
-.mobileMenu summary::-webkit-details-marker {
-  display: none;
+.menuDot {
+  flex-shrink: 0;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: currentColor;
 }
-.mobileMenu summary svg {
-  width: 18px;
-  height: 18px;
+.menuToggle:focus-visible,
+.menuPanel a:focus-visible {
+  outline: 2px solid var(--public-focus);
+  outline-offset: 4px;
 }
-.mobilePanel {
-  position: absolute;
-  top: calc(100% + 8px);
-  left: 0;
+.menuPanel {
+  --menu-top: max(var(--vistaire-menu-top, 96px), env(safe-area-inset-top));
+  --menu-bottom: max(12px, env(safe-area-inset-bottom));
+  display: flex;
+  position: fixed;
   right: 0;
-  display: grid;
-  padding: 20px 24px;
-  gap: 4px;
-  background: var(--public-surface);
-  border: 1px solid var(--public-blue);
-  border-radius: 10px;
-  max-height: 75svh;
-  overflow: auto;
+  top: var(--menu-top);
+  width: min(90vw, 440px);
+  height: calc(100svh - var(--menu-top) - var(--menu-bottom));
+  height: calc(100dvh - var(--menu-top) - var(--menu-bottom));
+  overflow-y: auto;
+  scroll-padding-block: 12px;
   overscroll-behavior: contain;
+  background: var(--public-black);
+  color: var(--public-text);
+  border-left: 1px solid var(--public-blue);
+  border-block: 1px solid var(--public-blue);
+  z-index: 89;
+  padding: 12px 20px;
+  box-sizing: border-box;
+  flex-direction: column;
+  justify-content: flex-start;
+  font-family: "Vistaire Text", sans-serif;
+  transform: translateX(101%);
+  visibility: hidden;
+  transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1), visibility 0.3s;
 }
-.mobilePanel > a {
-  padding-block: 12px;
+.menuPanelOpen {
+  transform: translateX(0);
+  visibility: visible;
+}
+.menuChapters {
+  display: grid;
+  flex-shrink: 0;
+  gap: 0;
+}
+.menuChapters a {
+  display: flex;
+  align-items: center;
+  gap: 10px;
   min-height: 44px;
+  padding: 4px 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--public-text) 13%, transparent);
   text-decoration: none;
   font-family: "Vistaire Editorial", serif;
-  font-size: 28px;
+  font-size: 25px;
+  line-height: 1.15;
   color: var(--public-text);
 }
-.mobilePanel > a[aria-current] {
-  color: var(--public-gold-light);
+.menuChapters small {
+  font: 11px "Vistaire Text", sans-serif;
+  color: var(--public-gold);
 }
-.mobileExtras {
+:global(html[data-vistaire-theme="light"]) .menuChapters a {
+  border-color: var(--public-blue);
+}
+.menuChapters svg {
+  margin-left: auto;
+  width: 18px;
+  height: 24px;
+  flex-shrink: 0;
+}
+.menuPageLinks {
   display: grid;
+  flex-shrink: 0;
   grid-template-columns: 1fr 1fr;
-  gap: 4px 20px;
-  border-block: 1px solid var(--public-blue);
-  padding-block: 12px;
-  margin-block: 8px;
+  gap: 0 14px;
+  margin: 12px 0;
 }
-.mobileExtras a {
+.menuPageLinks a {
   display: flex;
   align-items: center;
   min-height: 44px;
   text-decoration: none;
-  color: var(--public-muted);
-  font-size: 16px;
+  color: var(--public-text);
+  font-size: 15px;
+  line-height: 1.3;
 }
-.mobilePanel .mobileBooking {
-  font-family: "Vistaire Text", serif;
-  font-size: 18px;
-  color: var(--public-gold);
+.menuPanel a:hover,
+.menuPageLinks a[aria-current] {
+  color: var(--public-gold-light);
+}
+.menuContact {
+  display: grid;
+  flex-shrink: 0;
+  gap: 0;
+  color: var(--public-muted);
+  font-size: 14px;
+  line-height: 1.3;
+  margin-top: auto;
+}
+.menuContact a {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  color: inherit;
+  text-decoration: none;
+}
+.menuShade {
+  position: fixed;
+  inset: 0;
+  border: 0;
+  background: #05050599;
+  z-index: 88;
+  cursor: pointer;
 }
 .previewFooter {
   position: relative;
@@ -368,6 +474,12 @@
     font-size: 23px;
     margin-right: auto;
   }
+  .menuToggle {
+    padding: 8px;
+  }
+  .menuDot {
+    display: none;
+  }
   .navLinks,
   .navCta {
     display: none;
@@ -429,7 +541,9 @@
   }
 }
 @media (prefers-reduced-motion: reduce) {
-  .navCta {
+  .previewNav,
+  .navCta,
+  .menuPanel {
     transition: none;
   }
 }
@@ -437,8 +551,7 @@
 @media (max-width: 360px) {
   .previewNav { left: 6px; right: 6px; padding-inline: 6px; gap: 0; }
   .navBrand { font-size: 19px; letter-spacing: 0.035em; }
-  .mobileMenu summary { font-size: 13px; gap: 3px; }
-  .mobileMenu summary svg { width: 14px; height: 14px; }
+  .menuToggle { padding: 8px 5px; }
 }
 
 @media (max-width: 1250px) {

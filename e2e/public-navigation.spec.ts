@@ -108,6 +108,16 @@ const englishSecondaryHomeScenarios: HomeScenario[] = [
   }
 ];
 
+async function showPublicNavigation(page: Page) {
+  const tab = page.locator('[data-public-navigation-toggle]');
+  if (await page.locator('.preloader').count()) {
+    await expect(page.locator('.preloader')).toHaveCount(0, { timeout: 120_000 });
+  }
+  await expect(tab).toBeVisible();
+  if (await tab.getAttribute('aria-expanded') !== 'true') await tab.click();
+  await expect(tab).toHaveAttribute('aria-expanded', 'true');
+}
+
 function topNavigation(page: Page) {
   return page.locator(
     'nav[aria-label="Navigation principale"], nav[aria-label="Main navigation"]'
@@ -153,6 +163,7 @@ async function expectHomeNavigation(
   scenario: HomeScenario
 ) {
   await page.goto(scenario.path, { waitUntil: "domcontentloaded" });
+  await showPublicNavigation(page);
   const nav = topNavigation(page);
   const home = nav.getByRole("link", { name: scenario.label, exact: true });
 
@@ -193,6 +204,7 @@ async function expectFullDocumentLocaleSwitch(
   const sourceResponse = await page.goto(scenario.sourcePath, {
     waitUntil: "domcontentloaded"
   });
+  await showPublicNavigation(page);
   expect(sourceResponse, `${scenario.sourcePath}: source response`).not.toBeNull();
   expect(sourceResponse?.status()).toBeLessThan(400);
   expect(rawDocumentLanguage(await sourceResponse!.text())).toBe(
@@ -279,6 +291,7 @@ async function expectFullDocumentLocaleSwitch(
     scenario.destinationPath
   );
 
+  await showPublicNavigation(page);
   const destinationLanguageControl = page
     .locator(`[data-public-controls] div[aria-label="${scenario.destinationControl}"]`)
     .first();
@@ -345,6 +358,7 @@ test.describe("Vistaire public navigation", () => {
       }
     ] as const) {
       await page.goto(scenario.path, { waitUntil: "domcontentloaded" });
+      await showPublicNavigation(page);
       const nav = topNavigation(page);
 
       await expect(
@@ -376,6 +390,7 @@ test.describe("Vistaire public navigation", () => {
     page.on("pageerror", (error) => runtimeErrors.push(error.message));
     for (const locale of ["fr", "en"] as const) {
       await page.goto(locale === "en" ? "/en" : "/", { waitUntil: "domcontentloaded" });
+      await showPublicNavigation(page);
       // SSR-visible controls precede scene initialization and final font metrics.
       // Exercise a ready journey, while retaining the actual smooth-scroll check.
       await expect(page.locator(".preloader")).toHaveCount(0, { timeout: 120_000 });
@@ -467,6 +482,7 @@ test.describe("Vistaire public navigation", () => {
       { path: "/en/vistaire-menu", label: "Menu", expectedPath: "/en" }
     ] as const) {
       await page.goto(scenario.path, { waitUntil: "domcontentloaded" });
+      await showPublicNavigation(page);
       const nav = topNavigation(page);
       const menu = nav.getByRole("link", { name: scenario.label, exact: true });
       const homeLabel = scenario.path === "/demo" ? "Accueil" : "Home";
@@ -518,6 +534,7 @@ test.describe("Vistaire public navigation", () => {
       }
     ] as const) {
       await page.goto(scenario.path, { waitUntil: "domcontentloaded" });
+      await showPublicNavigation(page);
       const nav = topNavigation(page);
       const link = nav.getByRole("link", { name: scenario.label, exact: true });
 
@@ -555,6 +572,7 @@ test.describe("Vistaire public navigation", () => {
       }
     ] as const) {
       await page.goto(scenario.path, { waitUntil: "domcontentloaded" });
+      await showPublicNavigation(page);
       const nav = topNavigation(page);
 
       await expect(
@@ -590,6 +608,7 @@ test.describe("Vistaire public navigation", () => {
       }
     ] as const) {
       await page.goto(scenario.path, { waitUntil: "domcontentloaded" });
+      await showPublicNavigation(page);
       const nav = topNavigation(page);
       const contact = nav.getByRole("link", { name: "Contact", exact: true });
       const home = nav.getByRole("link", {
@@ -626,6 +645,7 @@ test.describe("Vistaire public navigation", () => {
       await page.goto("/menu-qr-code-restaurant", {
         waitUntil: "domcontentloaded"
       });
+      await showPublicNavigation(page);
       const nav = topNavigation(page);
 
       await expect(nav.getByRole("link", { name: "Accueil", exact: true })).toBeVisible();
@@ -702,6 +722,7 @@ test("public theme and mobile controls persist across locale navigation and relo
   page.on("pageerror", (error) => errors.push(error.message));
   await page.setViewportSize({ width: 320, height: 740 });
   await page.goto("/a-propos?utm_source=theme-test");
+  await showPublicNavigation(page);
   const nav = topNavigation(page);
   const controls = nav.locator("[data-public-controls]");
   await expect(page.locator("html")).toHaveAttribute("data-vistaire-theme", "dark");
@@ -714,23 +735,28 @@ test("public theme and mobile controls persist across locale navigation and relo
   await controls.getByRole("button", { name: "Thème clair", exact: true }).click();
   await expect(page.locator("html")).toHaveAttribute("data-vistaire-theme", "light");
   await expect(page.locator("main[data-public-vistaire]")).toHaveCSS("background-color", "rgb(247, 243, 233)");
-  const menu = nav.locator("details");
-  await menu.locator("summary").click();
-  await expect(menu).toHaveAttribute("open", "");
+  const menu = page.locator("[data-public-menu]");
+  const trigger = nav.locator("button[aria-controls]");
+  await trigger.click();
+  await expect(trigger).toHaveAttribute("aria-expanded", "true");
+  await expect(menu).toHaveAttribute("aria-hidden", "false");
   await controls.getByRole("button").focus();
   await page.keyboard.press("Escape");
-  await expect(menu).not.toHaveAttribute("open");
-  await menu.locator("summary").click();
+  await expect(trigger).toHaveAttribute("aria-expanded", "false");
+  await expect(trigger).toBeFocused();
+  await trigger.click();
   await controls.getByRole("link", { name: "View this page in English" }).click();
   await expect(page).toHaveURL(/\/en\/about\?utm_source=theme-test$/);
   await expect(page.locator("html")).toHaveAttribute("data-vistaire-theme", "light");
-  await expect(topNavigation(page).locator("details")).not.toHaveAttribute("open");
+  await expect(topNavigation(page).locator("button[aria-controls]")).toHaveAttribute("aria-expanded", "false");
   await page.reload();
+  await showPublicNavigation(page);
   await expect(page.locator("html")).toHaveAttribute("data-vistaire-theme", "light");
   await expect(topNavigation(page).getByRole("button", { name: "Light theme", exact: true })).toHaveAttribute("aria-pressed", "true");
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   const other = await context.newPage();
   await other.goto("/contact");
+  await showPublicNavigation(other);
   await other.locator("[data-public-theme-toggle]").click();
   await expect(page.locator("html")).toHaveAttribute("data-vistaire-theme", "dark");
   await expect(topNavigation(page).getByRole("button", { name: "Light theme", exact: true })).toHaveAttribute("aria-pressed", "false");
@@ -743,6 +769,7 @@ test("public theme remains usable when local storage is blocked", async ({ page 
     Object.defineProperty(window, "localStorage", { get() { throw new DOMException("Blocked", "SecurityError"); } });
   });
   await page.goto("/contact");
+  await showPublicNavigation(page);
   await expect(page.locator("html")).toHaveAttribute("data-vistaire-theme", "dark");
   await page.locator("[data-public-theme-toggle]").click();
   await expect(page.locator("html")).toHaveAttribute("data-vistaire-theme", "light");
@@ -777,6 +804,7 @@ test("public theme uses BeUI blinds with keyboard and rapid-click safety on mobi
   ]) {
     await page.setViewportSize({ width: scenario.width, height: 900 });
     await page.goto(scenario.path);
+    await showPublicNavigation(page);
     const toggle = page.getByRole("button", { name: scenario.label, exact: true });
     await toggle.focus();
     await page.keyboard.press("Enter");
@@ -815,6 +843,7 @@ test("public theme skips animation for reduced motion and unsupported browsers",
   page.on("pageerror", (error) => errors.push(error.message));
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.goto("/contact");
+  await showPublicNavigation(page);
   const toggle = page.locator("[data-public-theme-toggle]");
   await toggle.click();
   await expect(toggle).toHaveAttribute("aria-pressed", "true");
@@ -830,27 +859,223 @@ test("public theme skips animation for reduced motion and unsupported browsers",
   expect(errors).toEqual([]);
 });
 
-for (const [width, path, target, label] of [
-  [1440, '/a-propos', '/apercu-restaurateur', 'Aperçu restaurateur'],
-  [390, '/en/about', '/en/restaurant-preview', 'Restaurant preview'],
+for (const [width, height, path, target, label] of [
+  [1440, 720, '/a-propos', '/apercu-restaurateur', 'Le Dashboard'],
+  [390, 844, '/en/about', '/en/restaurant-preview', 'The dashboard'],
+  [430, 932, '/a-propos', '/apercu-restaurateur', 'Le Dashboard'],
 ] as const) {
-  test(`public Menu remains reachable through routes, themes and history at ${width}px`, async ({ page }) => {
-    await page.setViewportSize({width,height:900});
-    await page.emulateMedia({reducedMotion:'reduce'});
+  test(`landing-style public Menu remains reachable through routes, themes and history at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height });
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    const errors: string[] = [];
+    page.on('pageerror', (error) => errors.push(error.message));
     await page.goto(path);
-    const nav=topNavigation(page), menu=nav.locator('details'), trigger=menu.locator('summary');
+    await showPublicNavigation(page);
+    const nav = topNavigation(page);
+    const menu = page.locator('[data-public-menu]');
+    const trigger = nav.locator('button[aria-controls]');
     await expect(trigger).toBeVisible();
-    await trigger.focus();await page.keyboard.press('Enter');await expect(menu).toHaveAttribute('open','');
-    await page.keyboard.press('Escape');await expect(menu).not.toHaveAttribute('open');await expect(trigger).toBeFocused();
+    await trigger.focus();
+    await page.keyboard.press('Enter');
+    await expect(trigger).toHaveAttribute('aria-expanded', 'true');
+    await expect(page.locator('body')).toHaveCSS('overflow', 'hidden');
+    await expect(menu).toHaveAttribute('aria-hidden', 'false');
+    await expect(menu).toHaveCSS('background-color', 'rgb(5, 5, 5)');
+    const panel = await menu.boundingBox();
+    const header = await nav.boundingBox();
+    expect(panel!.x + panel!.width).toBeCloseTo(width, 0);
+    expect(panel!.width).toBeCloseTo(Math.min(width * 0.9, 440), 0);
+    expect(panel!.y).toBeGreaterThanOrEqual(header!.y + header!.height + 8);
+    expect(panel!.y + panel!.height).toBeCloseTo(height - 12, 0);
+    expect(await menu.evaluate((element) => element.scrollHeight <= element.clientHeight + 1)).toBe(true);
+    for (const link of await menu.getByRole('link').all()) {
+      const box = await link.boundingBox();
+      expect(box!.height).toBeGreaterThanOrEqual(44);
+      expect(box!.y).toBeGreaterThanOrEqual(panel!.y);
+      expect(box!.y + box!.height).toBeLessThanOrEqual(panel!.y + panel!.height);
+    }
+    const chapters = menu.locator('nav').first().getByRole('link');
+    await expect(chapters).toHaveCount(5);
+    for (const [index, id] of ['hero', 'features', 'product', 'open-weight', 'footer'].entries()) {
+      await expect(chapters.nth(index)).toHaveAttribute('href', `${path.startsWith('/en/') ? '/en' : '/'}#${id}`);
+    }
+    await expect(menu.locator('nav').nth(1).getByRole('link')).toHaveCount(10);
+    await expect(chapters.first()).toBeFocused();
+    const firstControl = page.locator('[data-public-navigation-toggle]');
+    const lastControl = menu.getByRole('link', { name: 'contact@vistaire.ca', exact: true });
+    await firstControl.focus();
+    await page.keyboard.press('Shift+Tab');
+    await expect(lastControl).toBeFocused();
+    await page.keyboard.press('Tab');
+    await expect(firstControl).toBeFocused();
+    await page.keyboard.press('Escape');
+    await expect(trigger).toHaveAttribute('aria-expanded', 'false');
+    await expect(trigger).toBeFocused();
+    expect(await menu.evaluate((element) => (element as HTMLElement).style.getPropertyValue('--vistaire-menu-top'))).toBe('');
+    await expect(page.locator('body')).not.toHaveCSS('overflow', 'hidden');
     await nav.locator('[data-public-theme-toggle]').click();
     await trigger.click();
-    await menu.getByRole('link',{name:label,exact:true}).click();
+    await expect(menu).toHaveCSS('background-color', 'rgb(247, 243, 233)');
+    await menu.getByRole('link', { name: label, exact: true }).click();
     await expect(page).toHaveURL(new RegExp(`${target}$`));
-    await expect(topNavigation(page).locator('summary')).toBeVisible();
-    await expect(topNavigation(page).locator('details')).not.toHaveAttribute('open');
-    await expect(page.locator('html')).toHaveAttribute('data-vistaire-theme','light');
-    await page.goBack();await expect(page).toHaveURL(new RegExp(`${path}$`));
-    await expect(topNavigation(page).locator('summary')).toBeVisible();
-    expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+    await expect(topNavigation(page).locator('button[aria-controls]')).toHaveAttribute('aria-expanded', 'false');
+    await expect(page.locator('html')).toHaveAttribute('data-vistaire-theme', 'light');
+    await page.goBack();
+    await expect(page).toHaveURL(new RegExp(`${path}$`));
+    await expect(topNavigation(page).locator('button[aria-controls]')).toHaveAttribute('aria-expanded', 'false');
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    expect(errors).toEqual([]);
+  });
+}
+
+for (const [width, height, label] of [
+  [390, 420, 'short mobile viewport'],
+  [720, 450, 'effective viewport at 200% desktop zoom'],
+] as const) {
+  test(`public Menu keeps every link accessible with ${label}`, async ({ page }) => {
+    await page.setViewportSize({ width, height });
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await page.goto('/a-propos');
+    await showPublicNavigation(page);
+    const nav = topNavigation(page);
+    const trigger = nav.locator('button[aria-controls]');
+    const menu = page.locator('[data-public-menu]');
+    await trigger.click();
+    await expect(trigger).toHaveAttribute('aria-expanded', 'true');
+    await expect(page.locator('body')).toHaveCSS('overflow', 'hidden');
+    await expect(menu).toHaveCSS('overflow-y', 'auto');
+    expect(await menu.evaluate((element) => element.scrollHeight > element.clientHeight)).toBe(true);
+    const header = await nav.boundingBox();
+    const panel = await menu.boundingBox();
+    expect(panel!.y).toBeGreaterThanOrEqual(header!.y + header!.height + 8);
+    await expect(menu.getByRole('link')).toHaveCount(16);
+    const lastLink = menu.getByRole('link', { name: 'contact@vistaire.ca', exact: true });
+    await lastLink.focus();
+    await expect(lastLink).toBeInViewport();
+    expect(await menu.evaluate((element) => element.scrollTop)).toBeGreaterThan(0);
+    expect((await menu.boundingBox())!.y).toBeCloseTo(panel!.y, 0);
+    await page.keyboard.press('Tab');
+    await expect(page.locator('[data-public-navigation-toggle]')).toBeFocused();
+    await page.keyboard.press('Escape');
+    await expect(trigger).toBeFocused();
+    await expect(trigger).toHaveAttribute('aria-expanded', 'false');
+    await trigger.click();
+    await expect(menu.getByRole('link').first()).toBeFocused();
+    await expect(menu.getByRole('link').first()).toBeInViewport();
+    expect(await menu.evaluate((element) => element.scrollTop)).toBe(0);
+    await page.keyboard.press('Escape');
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  });
+}
+
+test('landing Menu shares the measured compact viewport and accessible scroll fallback', async ({ page }) => {
+  test.setTimeout(150_000);
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/', { waitUntil: 'domcontentloaded' });
+  await showPublicNavigation(page);
+  await expect(page.locator('.preloader')).toHaveCount(0, { timeout: 120_000 });
+  const header = page.locator('.site-header');
+  const trigger = header.locator('.menu-toggle');
+  const menu = page.locator('.mobile-menu');
+  const controls = menu.locator('button, a[href]');
+  for (const [width, height] of [[390, 844], [430, 932], [1440, 720]]) {
+    await page.setViewportSize({ width, height });
+    await trigger.click();
+    await expect(trigger).toHaveAttribute('aria-expanded', 'true');
+    await expect(page.locator('body')).toHaveCSS('overflow', 'hidden');
+    const topbar = await header.boundingBox();
+    const panel = await menu.boundingBox();
+    expect(panel!.y).toBeGreaterThanOrEqual(topbar!.y + topbar!.height + 8);
+    expect(panel!.y + panel!.height).toBeCloseTo(height - 12, 0);
+    expect(await menu.evaluate((element) => element.scrollHeight <= element.clientHeight + 1)).toBe(true);
+    await expect(controls).toHaveCount(16);
+    for (const control of await controls.all()) {
+      const box = await control.boundingBox();
+      expect(box!.height).toBeGreaterThanOrEqual(44);
+      expect(box!.y).toBeGreaterThanOrEqual(panel!.y);
+      expect(box!.y + box!.height).toBeLessThanOrEqual(panel!.y + panel!.height);
+    }
+    await page.keyboard.press('Escape');
+    await expect(trigger).toHaveAttribute('aria-expanded', 'false');
+    await expect(trigger).toBeFocused();
+  }
+  for (const [width, height] of [[390, 420], [720, 450]]) {
+    await page.setViewportSize({ width, height });
+    await trigger.click();
+    await expect(trigger).toHaveAttribute('aria-expanded', 'true');
+    await expect(page.locator('body')).toHaveCSS('overflow', 'hidden');
+    await expect(menu).toHaveCSS('overflow-y', 'auto');
+    expect(await menu.evaluate((element) => element.scrollHeight > element.clientHeight)).toBe(true);
+    const topbar = await header.boundingBox();
+    const panel = await menu.boundingBox();
+    expect(panel!.y).toBeGreaterThanOrEqual(topbar!.y + topbar!.height + 8);
+    await expect(controls).toHaveCount(16);
+    await menu.getByRole('link', { name: 'contact@vistaire.ca', exact: true }).focus();
+    await expect(menu.getByRole('link', { name: 'contact@vistaire.ca', exact: true })).toBeInViewport();
+    expect(await menu.evaluate((element) => element.scrollTop)).toBeGreaterThan(0);
+    expect((await menu.boundingBox())!.y).toBeCloseTo(panel!.y, 0);
+    await page.keyboard.press('Escape');
+    await expect(trigger).toHaveAttribute('aria-expanded', 'false');
+    await expect(trigger).toBeFocused();
+    await expect(page.locator('body')).not.toHaveCSS('overflow', 'hidden');
+  }
+});
+
+for (const path of ['/a-propos', '/en/about', '/']) {
+  test(`navigation stays parked until its side tab is opened on ${path}`, async ({ page }) => {
+    if (path === '/') test.setTimeout(150_000);
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto(path, { waitUntil: 'domcontentloaded' });
+    if (path === '/') await expect(page.locator('.preloader')).toHaveCount(0, { timeout: 120_000 });
+    const tab = page.locator('[data-public-navigation-toggle]');
+    const header = page.locator('[data-public-navigation-open]');
+    const menuTrigger = header.locator('button[aria-controls]');
+    const drawer = page.locator('[data-public-menu], .mobile-menu');
+    for (const [width, height] of [[390, 844], [844, 390], [1440, 900]]) {
+      await page.setViewportSize({ width, height });
+      await expect(tab).toBeVisible();
+      await expect(tab).toHaveAttribute('aria-expanded', 'false');
+      await expect(header).toHaveAttribute('inert', '');
+      await expect(header).toHaveAttribute('aria-hidden', 'true');
+      await expect(header).toHaveCSS('pointer-events', 'none');
+      const tabBox = await tab.boundingBox();
+      expect(tabBox!.width).toBeGreaterThanOrEqual(44);
+      expect(tabBox!.height).toBeGreaterThanOrEqual(44);
+      expect(tabBox!.x).toBeGreaterThanOrEqual(0);
+      expect(tabBox!.y + tabBox!.height).toBeLessThanOrEqual(height);
+      const before = await page.evaluate(() => ({ scrollY, mainTop: document.querySelector('main')!.getBoundingClientRect().top }));
+      expect(await page.evaluate(() => !document.elementFromPoint(innerWidth / 2, 40)?.closest('[data-public-navigation-open], [data-public-navigation-toggle]'))).toBe(true);
+      await tab.focus();
+      await page.keyboard.press('Enter');
+      await expect(tab).toHaveAttribute('aria-expanded', 'true');
+      await expect(header).toHaveAttribute('aria-hidden', 'false');
+      await expect(header).not.toHaveAttribute('inert');
+      await expect(header.locator('button, a[href]').first()).toBeFocused();
+      await expect(page.locator('body')).not.toHaveCSS('overflow', 'hidden');
+      expect(await page.evaluate(() => ({ scrollY, mainTop: document.querySelector('main')!.getBoundingClientRect().top }))).toEqual(before);
+      await menuTrigger.click();
+      await expect(menuTrigger).toHaveAttribute('aria-expanded', 'true');
+      await expect(page.locator('body')).toHaveCSS('overflow', 'hidden');
+      await page.keyboard.press('Escape');
+      await expect(menuTrigger).toHaveAttribute('aria-expanded', 'false');
+      await expect(tab).toHaveAttribute('aria-expanded', 'true');
+      await expect(menuTrigger).toBeFocused();
+      await page.keyboard.press('Escape');
+      await expect(tab).toHaveAttribute('aria-expanded', 'false');
+      await expect(tab).toBeFocused();
+      await expect(header).toHaveAttribute('inert', '');
+      await tab.click();
+      await menuTrigger.click();
+      await tab.click();
+      await expect(tab).toHaveAttribute('aria-expanded', 'false');
+      await expect(menuTrigger).toHaveAttribute('aria-expanded', 'false');
+      await expect(drawer).toHaveAttribute('inert', '');
+      await expect(tab).toBeFocused();
+      await expect(page.locator('body')).not.toHaveCSS('overflow', 'hidden');
+      expect(await page.evaluate(() => scrollY)).toBe(before.scrollY);
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    }
   });
 }

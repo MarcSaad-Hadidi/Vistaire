@@ -41,6 +41,7 @@ for (const [path, links] of [
     const endGap = await footer.evaluate(el => document.documentElement.scrollHeight - el.getBoundingClientRect().bottom - scrollY);
     expect(Math.abs(endGap)).toBeLessThanOrEqual(1);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
+    await page.locator("[data-public-navigation-toggle]").click();
     await page.locator(".menu-toggle").click();
     for (const href of links.slice(0, -1)) {
       await expect(page.locator(`.menu-page-links a[href="${href}"]`)).toBeVisible();
@@ -120,6 +121,7 @@ test("a Next navigation releases the immersive viewport and queued scroll work",
   page.on("pageerror", (error) => errors.push(error.message));
   await page.setViewportSize({ width: 390, height: 844 });
   await openFallback(page);
+  await page.locator("[data-public-navigation-toggle]").click();
   await page.locator(".menu-toggle").click();
   await expect(page.locator(".menu-toggle")).toHaveAttribute("aria-expanded", "true");
   await page.locator('.menu-page-links a[href="/a-propos"]').click();

@@ -95,11 +95,38 @@ test("theme animation degrades to an immediate choice and cleans up failed trans
   }
 });
 
-test("the existing public Menu disclosure is available above the mobile breakpoint", async () => {
+test("public subpages keep the landing Menu drawer on desktop and mobile", async () => {
   const css = await readFile("components/vistaire-preview/VistairePreviewChrome.module.css", "utf8");
   const base = css.split("@media (max-width: 1100px)")[0];
-  assert.match(base, /\.mobileMenu\s*\{[^}]*display: block/s);
-  assert.match(base, /\.mobilePanel\s*\{[^}]*max-height: 75svh/s);
+  assert.match(base, /\.menuToggle\s*\{[^}]*display: flex/s);
+  assert.match(base, /\.menuPanel\s*\{[^}]*position: fixed[^}]*width: min\(90vw, 440px\)/s);
+  assert.match(base, /top: var\(--menu-top\)/);
+  assert.match(base, /height: calc\(100dvh - var\(--menu-top\) - var\(--menu-bottom\)\)/);
+  assert.match(base, /overflow-y: auto/);
+  assert.match(base, /\.menuPanel\s*\{[^}]*transform: translateX\(101%\)/s);
+  assert.match(base, /\.menuPanelOpen\s*\{[^}]*transform: translateX\(0\)/s);
+  assert.match(base, /\.menuPageLinks\s*\{[^}]*grid-template-columns: 1fr 1fr/s);
+  const navigation = await readFile("components/vistaire-preview/PublicNavigation.tsx", "utf8");
+  assert.doesNotMatch(navigation, /<details|<summary/);
+  assert.match(navigation, /aria-expanded=\{menuOpen\}/);
+  assert.match(navigation, /inert=\{!menuOpen/);
+  assert.match(navigation, /event\.key === "Escape"/);
+  assert.match(navigation, /event\.key === "Tab"/);
+  assert.match(navigation, /addEventListener\("popstate", close\)/);
+  assert.match(navigation, /bindPublicMenuViewport\(header\.current!, panel\.current!\)/);
+  assert.match(navigation, /\[navigationOpen, setNavigationOpen\] = useState\(false\)/);
+  assert.match(navigation, /inert=\{!navigationOpen/);
+  assert.match(navigation, /data-public-navigation-open=\{navigationOpen\}/);
+  assert.match(navigation, /<PublicNavigationTab/);
+  assert.match(base, /\.previewNav\[data-public-navigation-open="false"\]\s*\{[^}]*visibility: hidden[^}]*pointer-events: none/s);
+  const tab = await readFile("components/vistaire-preview/PublicNavigationTab.tsx", "utf8");
+  assert.match(tab, /data-public-navigation-toggle/);
+  assert.match(tab, /aria-expanded=\{expanded\}/);
+  const landingCss = await readFile("components/immersive/styles.css", "utf8");
+  const sharedMenuRules = landingCss.split("/* Public Vistaire routes share")[1];
+  assert.match(sharedMenuRules, /top: var\(--menu-top\)/);
+  assert.match(sharedMenuRules, /height: calc\(100dvh - var\(--menu-top\) - var\(--menu-bottom\)\)/);
+  assert.match(sharedMenuRules, /overflow-y: auto/);
   const chrome = await readFile("components/vistaire-preview/VistairePreviewChrome.tsx", "utf8");
   assert.match(chrome, /href: routes\.pdfVsDigital/);
 });

@@ -111,6 +111,7 @@ test("light immersive controls keep readable nested actions, selection and AR he
     await page.setViewportSize({ width: scenario.width, height: 900 });
     await page.goto(scenario.path);
     await expect(page.locator(".world-fallback")).toBeVisible();
+    await page.locator("[data-public-navigation-toggle]").click();
     const toggle = page.locator("[data-public-theme-toggle]").first();
     if (await toggle.getAttribute("aria-pressed") !== "true") await toggle.click();
     await expect(page.locator(".site-header")).toHaveCSS("color", "rgb(40, 37, 31)");
@@ -131,6 +132,8 @@ test("light immersive controls keep readable nested actions, selection and AR he
     await expect(page.locator(".close-modal")).toHaveCSS("background-color", "rgb(255, 252, 245)");
     await page.keyboard.press("Escape");
     await expect(page.getByRole("dialog")).toHaveCount(0);
+    await expect(page.locator("[data-public-navigation-toggle]")).toHaveAttribute("aria-expanded", "true");
+    await expect(toggle).toBeVisible();
     await expect(page.locator('.menu-demo-picker button[aria-pressed="true"]')).toHaveCSS("border-top-color", "rgb(128, 96, 13)");
     await expect(page.locator(".dish-zoom button").first()).toHaveCSS("border-top-color", "rgb(112, 103, 89)");
     expect(await page.locator(".rotation-range").evaluate((element) => getComputedStyle(element, "::before").borderTopColor)).toBe("rgb(112, 103, 89)");
@@ -433,6 +436,7 @@ test("la scène contact est le seul footer et termine exactement la page FR/EN",
     expect(end.overflow).toBeLessThanOrEqual(1);
     // The complete directory stays over the same scene in both theme rules,
     // including the narrow layouts that previously became an opaque panel.
+    await page.locator("[data-public-navigation-toggle]").click();
     for (const width of [390, 430]) {
       await page.setViewportSize({ width, height: 844 });
       for (const light of [false, true]) {
@@ -461,6 +465,7 @@ test("le premier chargement mobile utilise le film portrait et garde les command
   await page.setViewportSize({ width: 320, height: 740 });
   await page.goto("/");
   await expect(page.locator(".fallback-film")).toHaveAttribute("src", /cinematic-portrait/);
+  await page.locator("[data-public-navigation-toggle]").click();
   const header = page.locator(".site-header");
   for (const language of ["FR", "EN"]) {
     await expect(header.locator("[data-public-controls] a").filter({ hasText: new RegExp(`^${language}$`) })).toBeVisible();
@@ -544,6 +549,7 @@ test("un seul guide accueille le visiteur puis laisse explorer sans se répéter
     // schedules a reminder or resets the guide when the visitor returns.
     await page.waitForTimeout(1200);
     await expect(guide).toHaveAttribute("aria-hidden", "true");
+    await page.locator("[data-public-navigation-toggle]").click();
     await page.locator("[data-public-theme-toggle]").click();
     await expect(guide).toHaveAttribute("aria-hidden", "true");
     await page.evaluate(() => scrollTo({ top: document.documentElement.scrollHeight, behavior: "instant" }));
@@ -551,6 +557,7 @@ test("un seul guide accueille le visiteur puis laisse explorer sans se répéter
     await expect(guide).toHaveAttribute("aria-hidden", "true");
     await page.goto(path);
     await expect(guide).toHaveAttribute("aria-hidden", "false");
+    await page.locator("[data-public-navigation-toggle]").click();
     await page.locator(".menu-toggle").click();
     await expect(guide).toHaveAttribute("aria-hidden", "true");
     await page.keyboard.press("Escape");
@@ -558,7 +565,8 @@ test("un seul guide accueille le visiteur puis laisse explorer sans se répéter
     await page.goto(path);
     await expect(guide).toHaveAttribute("aria-hidden", "false");
     await page.locator('.skip-link[href="#ai"]').focus();
-    await page.keyboard.press("Tab"); // First header control, independent of document autofocus
+    await page.keyboard.press("Tab"); // Side tab, independent of document autofocus
+    await page.keyboard.press("Enter"); // Open the header and focus its first control
     await expect(page.locator(".brand")).toBeFocused();
     await expect(guide).toHaveAttribute("aria-hidden", "true");
     await page.goto(path);

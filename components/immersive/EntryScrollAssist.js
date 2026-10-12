@@ -1,10 +1,11 @@
 const QUIET_MS = 280;
 const INPUT_MAX_AGE_MS = 600;
-const CONTROLS = 'a, button, input, select, textarea, summary, video, audio, iframe, dialog, [role="button"], [role="slider"], [role="tab"], [role="textbox"], [role="combobox"], [role="listbox"], [role="menu"], [role="menuitem"], [role="dialog"], [aria-modal="true"], [contenteditable]:not([contenteditable="false"])';
-const controlled = target => Boolean(target?.closest?.(CONTROLS));
+const FOCUSED_CONTROLS = 'input, select, textarea, video, audio, iframe, dialog, [role="slider"], [role="textbox"], [role="combobox"], [role="listbox"], [role="menu"], [role="menuitem"], [role="dialog"], [aria-modal="true"], [contenteditable]:not([contenteditable="false"])';
+const CONTROLS = `a, button, summary, [role="button"], [role="tab"], ${FOCUSED_CONTROLS}`;
+const controlled = (target, selector = CONTROLS) => Boolean(target?.closest?.(selector));
 const natural = id => id === "open-weight" || id === "footer";
 
-/** Finish only the last few native pixels of an existing entry. The caller
+/** Complete the committed end of one authored section or handoff. The caller
  * cancels before any programmatic navigation/layout remap and when UI blocks
  * scrolling. Geometry stays owned by App; this helper has no animation loop.
  */
@@ -21,7 +22,9 @@ export function createEntryScrollAssist({ getGeometry, isBlocked }, view = windo
   let heldKey = null;
   let disposed = false;
   const blocked = () => disposed || document.hidden || reduced.matches || isBlocked()
-    || controlled(document.activeElement);
+    // A clicked header button may retain focus while the next gesture targets
+    // the scene. Preserve editing/slider focus; event targets stay excluded.
+    || controlled(document.activeElement, FOCUSED_CONTROLS);
   const clearTimer = () => { view.clearTimeout(timer); timer = null; };
   const cancel = () => {
     clearTimer();
@@ -47,15 +50,28 @@ export function createEntryScrollAssist({ getGeometry, isBlocked }, view = windo
     if (pricing && y + view.innerHeight >= pricing.to.top) return;
     const leg = (opening.motionTravel - opening.aiHoldTravel) / 2;
     const windows = [
-      { start: opening.top, end: opening.top + leg },
-      { start: opening.top + leg + opening.aiHoldTravel, end: opening.top + opening.motionTravel },
-      ...transitions.filter(join => !natural(join.from.id) && !natural(join.to.id)),
+      { from: { id: "hero" }, to: { id: "ai" }, start: opening.top, end: opening.top + leg },
+      { from: { id: "ai" }, to: { id: "wearable" }, start: opening.top + leg + opening.aiHoldTravel, end: opening.top + opening.motionTravel },
+      ...transitions,
     ];
     const entry = windows.find(({ start, end }) => y >= start && y <= end);
-    if (!entry) return;
-    const target = direction > 0 ? entry.end : entry.start;
+    let target, limit;
+    if (entry) {
+      if (natural(entry.from.id) || natural(entry.to.id)) return;
+      target = direction > 0 ? entry.end : entry.start;
+      // Half of the actual handoff must already be traversed. Long preview
+      // paces cannot turn this into several screens of automatic movement.
+      limit = Math.min(opening.stageHeight * 2, (entry.end - entry.start) * 0.5);
+    } else {
+      const next = windows.findIndex(window => window.start > y);
+      const before = windows[next - 1], after = windows[next];
+      if (!before || !after || natural(before.to.id)) return;
+      target = direction > 0 ? after.start : before.end;
+      // End the current section's presentation at its existing stable pose.
+      // Never chain through the following handoff or consume an entire hold.
+      limit = Math.min(360, opening.stageHeight * 0.45, (after.start - before.end) * 0.2);
+    }
     const distance = (target - y) * direction;
-    const limit = Math.min(160, opening.stageHeight * 0.22, (entry.end - entry.start) * 0.12);
     if (distance <= 1 || distance > limit) return;
     assisting = target;
     view.scrollTo({ top: target, behavior: "smooth" });
@@ -68,9 +84,13 @@ export function createEntryScrollAssist({ getGeometry, isBlocked }, view = windo
       timer = view.setTimeout(settle, QUIET_MS);
   };
   const intent = (event, direction) => {
+    const continued = gesture?.type === event.type && gesture.direction === direction && gesture.scrolled;
     cancel();
     if (!event.isTrusted || event.defaultPrevented || !direction || blocked() || controlled(event.target)) return;
-    gesture = { direction, scrolled: false, at: view.performance.now() };
+    // A final subpixel packet must not erase actual document movement in this
+    // unsettled gesture. Settlement/cancellation still consumes it entirely.
+    gesture = { type: event.type, direction, scrolled: Boolean(continued), at: view.performance.now() };
+    quiet();
   };
   const wheel = event => {
     intent(event, !event.ctrlKey && Math.abs(event.deltaY) > Math.abs(event.deltaX || 0)

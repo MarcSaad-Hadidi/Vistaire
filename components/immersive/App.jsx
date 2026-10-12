@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import { createEntryScrollAssist } from "./EntryScrollAssist.js";
+import { bindPublicMenuViewport } from "@/lib/publicMenuViewport";
+import { PublicNavigationTab } from "@/components/vistaire-preview/PublicNavigationTab";
 import {
   lazy,
   Suspense,
@@ -348,6 +350,8 @@ function LandingContent() {
   });
   const beat = chapterBeats[chapter] || 0;
   const [menu, setMenu] = useState(false);
+  const [navigationOpen, setNavigationOpen] = useState(false);
+  const navigationTabRef = useRef(null);
   const [guideVisible, setGuideVisible] = useState(false);
   const guideDismissed = useRef(false);
   const dismissGuideOnInteraction = (event) => {
@@ -883,12 +887,37 @@ function LandingContent() {
     gpuError,
     retryModel,
   ]);
+  const toggleNavigation = () => {
+    stateRef.current.cancelEntryAssist?.();
+    if (navigationOpen) {
+      setMenu(false);
+      setNavigationOpen(false);
+      navigationTabRef.current?.focus({ preventScroll: true });
+    } else setNavigationOpen(true);
+  };
+  useEffect(() => {
+    if (!navigationOpen) return;
+    headerRef.current?.querySelector("button,a[href]")?.focus({ preventScroll: true });
+  }, [navigationOpen]);
+  useEffect(() => {
+    if (!navigationOpen || menu || modal) return;
+    const closeBar = (event) => {
+      if (event.key !== "Escape") return;
+      event.preventDefault();
+      setNavigationOpen(false);
+      navigationTabRef.current?.focus({ preventScroll: true });
+    };
+    addEventListener("keydown", closeBar);
+    return () => removeEventListener("keydown", closeBar);
+  }, [navigationOpen, menu, modal]);
   useEffect(() => {
     if (!menu) return;
+    const unbindViewport = bindPublicMenuViewport(headerRef.current, menuRef.current);
     const previous = document.activeElement;
     const overflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     const buttons = () => [
+      navigationTabRef.current,
       ...headerRef.current.querySelectorAll("button,a[href]"),
       ...menuRef.current.querySelectorAll("button,a[href]"),
     ].filter((control) => control.getClientRects().length > 0);
@@ -910,6 +939,7 @@ function LandingContent() {
     };
     addEventListener("keydown", key);
     return () => {
+      unbindViewport();
       document.body.style.overflow = overflow;
       removeEventListener("keydown", key);
       previous?.focus({ preventScroll: true });
@@ -1091,7 +1121,10 @@ function LandingContent() {
           <span>{t("Préparons votre table.")}</span>
         </div>
       )}
-      <header ref={headerRef} className={`site-header ${chapter === "hero" ? "at-hero" : ""}`}
+      <PublicNavigationTab expanded={navigationOpen} controls="landing-navigation" locale={locale}
+        buttonRef={navigationTabRef} onClick={toggleNavigation} />
+      <header ref={headerRef} id="landing-navigation" data-public-navigation-open={navigationOpen}
+        inert={!navigationOpen ? true : undefined} aria-hidden={!navigationOpen} className={`site-header ${chapter === "hero" ? "at-hero" : ""}`}
         onPointerDownCapture={dismissGuideOnInteraction} onFocusCapture={dismissGuideOnInteraction}>
         <button
           className="brand"

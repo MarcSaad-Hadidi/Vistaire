@@ -2,12 +2,12 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
-import { CINEMATIC_TIMING, measureChapterTransitions } from '../components/immersive/SceneDirector.js';
+import { scaledCinematicTiming, measureChapterTransitions } from '../components/immersive/SceneDirector.js';
 
 import { createEntryScrollAssist } from '../components/immersive/EntryScrollAssist.js';
 
-function geometry(stageHeight = 844) {
-  const timing = CINEMATIC_TIMING;
+function geometry(stageHeight = 844, pace = 1) {
+  const timing = scaledCinematicTiming(1 / pace);
   const opening = { top: 0, stageHeight, motionTravel: timing.openingMotionScreens * stageHeight, aiHoldTravel: timing.aiHoldScreens * stageHeight };
   let top = (1 + timing.openingMotionScreens + timing.phoneHoldScreens + timing.openingReleaseScreens) * stageHeight;
   const ids = ['hero', 'ai', 'wearable', 'features', 'encryption', 'grip', 'sustainability', 'testimonies', 'social-content', 'product', 'open-weight', 'footer'];
@@ -18,10 +18,10 @@ function geometry(stageHeight = 844) {
     top += travel + stageHeight;
     return result;
   });
-  return { opening, transitions: measureChapterTransitions(measurements, opening) };
+  return { opening, transitions: measureChapterTransitions(measurements, opening, timing) };
 }
 
-function fixture({ scrollend = true, stageHeight = 844 } = {}) {
+function fixture({ scrollend = true, stageHeight = 844, pace = 1 } = {}) {
   assert.equal(typeof createEntryScrollAssist, 'function', 'the entry assist helper must exist');
   const listeners = new Map(), timers = new Map(), calls = [];
   let clock = 0, timerId = 0, blocked = false;
@@ -40,7 +40,7 @@ function fixture({ scrollend = true, stageHeight = 844 } = {}) {
     clearTimeout(id) { timers.delete(id); },
     scrollTo(options) { calls.push(options); },
   };
-  const bounds = geometry(stageHeight);
+  const bounds = geometry(stageHeight, pace);
   const assist = createEntryScrollAssist({ getGeometry: () => bounds, isBlocked: () => blocked }, view);
   const emit = (object, type, extra = {}) => {
     const event = { type, target, isTrusted: true, defaultPrevented: false, ...extra };
@@ -68,7 +68,7 @@ function fixture({ scrollend = true, stageHeight = 844 } = {}) {
 
 const smoothCalls = f => f.calls.filter(call => call.behavior === 'smooth');
 
-test('native scrollend completes only a bounded near-finished entry and never chains chapters', () => {
+test('native scrollend completes only a committed handoff and never chains chapters', () => {
   const f = fixture(), join = f.bounds.transitions[0];
   f.wheel(join.end - 50);
   f.advance(1000);
@@ -80,24 +80,70 @@ test('native scrollend completes only a bounded near-finished entry and never ch
   f.move(join.end); f.end();
   f.move(f.bounds.transitions[1].end - 50); f.end();
   assert.equal(f.calls.length, 1, 'the assist and later programmatic scroll cannot rearm themselves');
-  f.wheel(join.end - 161); f.end();
-  assert.equal(f.calls.length, 1, 'the 160px cap forbids finishing a larger section');
+  f.wheel(join.start + 20); f.end();
+  assert.equal(f.calls.length, 1, 'an uncommitted start must not jump the entire handoff');
   f.assist.dispose();
 
   const small = fixture({ stageHeight: 300 }), smallJoin = small.bounds.transitions[0];
-  small.wheel(smallJoin.end - 67); small.end();
+  small.wheel(smallJoin.end - 481); small.end();
   assert.equal(small.calls.length, 0, 'the stage-relative cap also applies');
-  small.wheel(smallJoin.end - 60); small.end();
-  assert.equal(smoothCalls(small)[0].top, smallJoin.end);
+  small.wheel(smallJoin.end - 479); small.end();
+  assert.equal(smoothCalls(small)[0]?.top, smallJoin.end);
   small.assist.dispose();
 
   const short = fixture(), shortJoin = short.bounds.transitions[0];
   shortJoin.start = shortJoin.end - 100;
-  short.wheel(shortJoin.end - 13); short.end();
+  short.wheel(shortJoin.end - 51); short.end();
   assert.equal(short.calls.length, 0, 'the measured transition fraction is also capped');
-  short.wheel(shortJoin.end - 10); short.end();
-  assert.equal(smoothCalls(short)[0].top, shortJoin.end);
+  short.wheel(shortJoin.end - 49); short.end();
+  assert.equal(smoothCalls(short)[0]?.top, shortJoin.end);
   short.assist.dispose();
+});
+
+test('mid-transition completion follows one measured trajectory in either direction and caps slow-preview travel', () => {
+  for (const calibration of [
+    { stageHeight: 844, limit: 1350.4 }, { stageHeight: 900, limit: 1440 },
+    { stageHeight: 844, pace: 0.25, limit: 1688 }, { stageHeight: 844, pace: 4, limit: 654.1 },
+  ]) {
+    const f = fixture(calibration), { opening, transitions } = f.bounds;
+    const leg = (opening.motionTravel - opening.aiHoldTravel) / 2;
+    const entries = [
+      { start: opening.top, end: opening.top + leg },
+      { start: opening.top + leg + opening.aiHoldTravel, end: opening.top + opening.motionTravel },
+      ...transitions.filter(join => !['open-weight', 'footer'].includes(join.to.id)),
+    ];
+    assert.equal(entries.length, 9);
+    for (const entry of entries) for (const direction of [-1, 1]) {
+      const target = direction > 0 ? entry.end : entry.start;
+      const before = smoothCalls(f).length;
+      f.wheel(target - direction * (calibration.limit + 1), direction); f.end();
+      assert.equal(smoothCalls(f).length, before, 'long or uncommitted remainder stays native');
+      const start = target - direction * (calibration.limit - 1);
+      f.wheel(start, direction); f.end();
+      assert.equal(smoothCalls(f).length, before + 1, 'a meaningful transition remainder completes');
+      assert.equal(smoothCalls(f).at(-1).top, target);
+      assert.ok(Math.abs(target - start) <= 2 * opening.stageHeight, 'no assist exceeds two frozen stages');
+      for (let sample = 0; sample <= 10; sample++) {
+        const y = start + (target - start) * sample / 10;
+        assert.ok(y >= entry.start - 1e-7 && y <= entry.end + 1e-7, 'the entire requested path remains in this one measured handoff');
+      }
+      f.move(target); f.end();
+    }
+    f.assist.dispose();
+  }
+});
+
+test('the committed end of a section completes to its authored boundary without auto-chaining through the next handoff', () => {
+  const f = fixture(), previous = f.bounds.transitions[0], next = f.bounds.transitions[1];
+  f.wheel(next.start - 361); f.end();
+  assert.equal(f.calls.length, 0, 'the body of an unread section remains native');
+  f.wheel(next.start - 300); f.end();
+  assert.deepEqual(smoothCalls(f), [{ top: next.start, behavior: 'smooth' }]);
+  f.move(next.start); f.end(); f.advance(1000);
+  assert.equal(smoothCalls(f).length, 1, 'finishing a section does not chain a second transition');
+  f.wheel(previous.end + 300, -1); f.end();
+  assert.equal(smoothCalls(f).at(-1).top, previous.end, 'reverse section completion returns to the same first reading pose');
+  f.assist.dispose();
 });
 
 test('opening entries stop at the measured AI or phone pose without consuming a reading hold', () => {
@@ -165,6 +211,66 @@ test('direct anchors, synthetic input, controls, editing and stale intent cannot
   touch.input('touchend', { touches: [] }); touch.end();
   assert.equal(touch.calls.length, 0, 'navigation cancellation discards the rest of the old touch gesture');
   touch.assist.dispose();
+});
+
+test('a no-pixel same-direction tail retains genuine native motion until settlement without rearming completion', () => {
+  for (const scrollend of [true, false]) {
+    const f = fixture({ scrollend }), join = f.bounds.transitions[0];
+    f.wheel(join.end - 40);
+    f.advance(100);
+    f.input('wheel', { deltaY: 0.1, deltaX: 0 });
+    if (scrollend) f.end();
+    else {
+      f.advance(279); assert.equal(f.calls.length, 0, 'tail input restarts the quiet wait'); f.advance(1);
+    }
+    assert.deepEqual(smoothCalls(f), [{ top: join.end, behavior: 'smooth' }], 'subpixel tail cannot discard the native movement already observed');
+    f.move(join.end); f.end();
+    f.input('wheel', { deltaY: 0.1, deltaX: 0 }); f.end(); f.advance(1000);
+    assert.equal(smoothCalls(f).length, 1, 'the consumed gesture cannot rearm on residual packets without fresh native motion');
+    f.assist.dispose();
+  }
+  const reverse = fixture(), join = reverse.bounds.transitions[0];
+  reverse.wheel(join.end - 40);
+  reverse.input('wheel', { deltaY: -0.1, deltaX: 0 }); reverse.end();
+  assert.equal(reverse.calls.length, 0, 'a reverse tail cancels previous forward intent');
+  reverse.assist.dispose();
+  const keyboard = fixture();
+  keyboard.wheel(keyboard.bounds.transitions[0].end - 40);
+  keyboard.input('keydown', { key: 'PageDown' });
+  keyboard.input('keyup', { key: 'PageDown' }); keyboard.end();
+  assert.equal(keyboard.calls.length, 0, 'switching input types starts fresh intent and cannot inherit old wheel movement');
+  keyboard.assist.dispose();
+});
+
+test('stale button or link focus permits background wheel and touch while control targets and editing focus stay excluded', () => {
+  const element = tag => ({ closest: selector => selector.split(',').map(part => part.trim()).includes(tag) ? {} : null });
+  for (const tag of ['button', 'a', '[role="button"]', '[role="tab"]']) for (const input of ['wheel', 'touch']) {
+    const f = fixture(), join = f.bounds.transitions[0], y = join.end - 40;
+    const control = element(tag);
+    f.document.activeElement = control;
+    if (input === 'wheel') f.wheel(y);
+    else {
+      f.view.scrollY = y - 20;
+      f.input('touchstart', { touches: [{ clientY: 200 }] });
+      f.input('touchmove', { touches: [{ clientY: 180 }] }); f.move(y);
+      f.input('touchend', { touches: [] });
+    }
+    f.end();
+    assert.deepEqual(smoothCalls(f), [{ top: join.end, behavior: 'smooth' }], `${tag} stale focus, ${input} on background`);
+    f.move(join.end); f.end();
+    f.wheel(y, 1, { target: control }); f.end();
+    f.input('keydown', { key: 'PageDown', target: control }); f.move(y + 10);
+    f.input('keyup', { key: 'PageDown', target: control }); f.end();
+    assert.equal(smoothCalls(f).length, 1, 'events targeting the focused control still cannot arm assistance');
+    f.assist.dispose();
+  }
+  for (const tag of ['input', 'textarea', '[role="slider"]', '[contenteditable]:not([contenteditable="false"])', '[role="dialog"]', '[role="menu"]', 'video']) {
+    const f = fixture();
+    f.document.activeElement = element(tag);
+    f.wheel(f.bounds.transitions[0].end - 40); f.end();
+    assert.equal(f.calls.length, 0, `${tag} focus keeps its existing protection`);
+    f.assist.dispose();
+  }
 });
 
 test('fallback waits for input and scroll silence after physical touch or key release', () => {

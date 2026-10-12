@@ -2,6 +2,8 @@
 
 ## Entry assistance
 
+The original8db behavior below is historical. The current stronger phase-completion behavior and its validation limits are documented in [landing-scroll-assistance.md](landing-scroll-assistance.md).
+
 The native document scroll still owns position and the existing cinematic timeline. After a trusted wheel, keyboard or touch gesture has stopped near the end of a section entrance, a single browser smooth-scroll can finish that entrance. The proximity is bounded by 160 CSS pixels, 22% of the stage height and 12% of the transition distance. Direction is respected, and a gesture cannot complete multiple sections.
 
 New input, focus, navigation, layout changes, opening a menu/dialog, AR, document hiding and reduced-motion preference cancel the assistance. Interactive controls and the offers/FAQ/footer reading area are excluded. No input-device classification, wheel delta scaling, extra RAF loop or scene interpolation was added.
