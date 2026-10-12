@@ -4,6 +4,103 @@ import { writeFile } from "node:fs/promises";
 const BASE_URL =
   process.env.PLAYWRIGHT_BASE_URL ?? "http://127.0.0.1:3000";
 
+const focusDiagnosticScenario = /landing-style public Menu|public Menu keeps every link|navigation stays parked|landing Menu shares/;
+
+test.beforeEach(async ({ page }, info) => {
+  if (!focusDiagnosticScenario.test(info.title)) return;
+  await page.addInitScript(() => {
+    const scope = '[data-public-navigation-toggle], [data-public-navigation-open], [data-public-menu], .mobile-menu';
+    const events: unknown[] = [];
+    const describe = (node: EventTarget | null) => {
+      if (!(node instanceof Element)) return null;
+      return {
+        tag: node.tagName,
+        id: node.id,
+        role: node.getAttribute('role'),
+        label: node.getAttribute('aria-label'),
+        href: node.getAttribute('href')?.split(/[?#]/)[0],
+        tabIndex: node instanceof HTMLElement ? node.tabIndex : null,
+      };
+    };
+    const ancestors = (node: Element, withStyles: boolean) => {
+      const result = [];
+      for (let current: Element | null = node; current && result.length < 8; current = current.parentElement) {
+        const style = withStyles ? getComputedStyle(current) : null;
+        result.push({
+          ...describe(current),
+          inert: current.hasAttribute('inert'),
+          inertProperty: current instanceof HTMLElement ? current.inert : null,
+          hidden: current.hasAttribute('hidden'),
+          ariaHidden: current.getAttribute('aria-hidden'),
+          expanded: current.getAttribute('aria-expanded'),
+          navigationOpen: current.getAttribute('data-public-navigation-open'),
+          className: current.getAttribute('class'),
+          style: style && {
+            display: style.display, visibility: style.visibility, opacity: style.opacity,
+            pointerEvents: style.pointerEvents, contentVisibility: style.contentVisibility,
+            transform: style.transform, transitionProperty: style.transitionProperty,
+          },
+        });
+      }
+      return result;
+    };
+    const record = (entry: object) => {
+      if (events.length < 160) events.push({ at: performance.now(), ...entry });
+    };
+    const nativeFocus = HTMLElement.prototype.focus;
+    HTMLElement.prototype.focus = function (this: HTMLElement, ...args: Parameters<HTMLElement['focus']>) {
+      if (!(this instanceof HTMLElement) || !this.closest(scope)) return Reflect.apply(nativeFocus, this, args);
+      // No style/layout read before the original call: do not repair the failure while observing it.
+      try {
+        record({ kind: 'focus-call-before', target: describe(this), active: describe(document.activeElement),
+          hasFocus: document.hasFocus(), argumentCount: args.length, ancestors: ancestors(this, false),
+          stack: new Error().stack?.split('\n').slice(1, 7) });
+      } catch { /* Telemetry must not prevent the original call. */ }
+      try {
+        return Reflect.apply(nativeFocus, this, args);
+      } finally {
+        try {
+          const active = describe(document.activeElement);
+          const hasFocus = document.hasFocus();
+          record({ kind: 'focus-call-after', target: describe(this), active, hasFocus,
+            ancestors: ancestors(this, true) });
+        } catch { /* Preserve the native return value or exception. */ }
+      }
+    };
+    for (const type of ['focusin', 'focusout']) {
+      document.addEventListener(type, (event) => {
+        record({ kind: type, target: describe(event.target), active: describe(document.activeElement), hasFocus: document.hasFocus() });
+      }, true);
+    }
+    for (const type of ['focus', 'blur']) {
+      window.addEventListener(type, () => record({ kind: `window-${type}`, active: describe(document.activeElement), hasFocus: document.hasFocus() }));
+    }
+    Object.assign(window, { __vistaireNavigationFocus: {
+      events,
+      snapshot: () => ({
+        hasFocus: document.hasFocus(), visibilityState: document.visibilityState,
+        active: describe(document.activeElement), bodyOverflow: getComputedStyle(document.body).overflow,
+        candidates: [...document.querySelectorAll(`${scope}, [data-public-navigation-open] a[href], [data-public-menu] nav:first-child a[href], .mobile-menu nav:first-child button`)]
+          .slice(0, 28).map((node) => ({ element: describe(node), ancestors: ancestors(node, true) })),
+      }),
+    } });
+  });
+});
+
+test.afterEach(async ({ page }, info) => {
+  if (!focusDiagnosticScenario.test(info.title)) return;
+  const evidence = await page.evaluate(() => {
+    const diagnostics = (window as Window & {
+      __vistaireNavigationFocus?: { events: unknown[]; snapshot: () => unknown };
+    }).__vistaireNavigationFocus;
+    return diagnostics ? { events: diagnostics.events, final: diagnostics.snapshot() } : { unavailable: 'diagnostics missing from document' };
+  }).catch((error: Error) => ({ unavailable: error.message.slice(0, 300) }));
+  // This filename matches the existing core artifact's *native-scroll*.json retention glob.
+  const path = info.outputPath('navigation-focus-native-scroll.json');
+  await writeFile(path, JSON.stringify({ title: info.title, status: info.status, evidence }, null, 2));
+  await info.attach('navigation-focus-native-scroll.json', { path, contentType: 'application/json' });
+});
+
 type HomeScenario = {
   label: "Accueil" | "Home";
   path: string;

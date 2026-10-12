@@ -22,7 +22,9 @@ function fixture() {
     for (const [semantic, name] of [['POSITION','position'],['NORMAL','normal'],['TEXCOORD_0','uv']]) {
       const a = p.getAttribute(semantic); geometry.setAttribute(name, new THREE.BufferAttribute(a.getArray().slice(), a.getElementSize()));
     }
-    geometry.setIndex(new THREE.BufferAttribute(p.getIndices().getArray().slice(), 1));
+    // Three DRACOLoader.decodeIndex always emits Uint32Array, even when the
+    // GLB accessor/NodeIO can represent the same values in 16 bits.
+    geometry.setIndex(new THREE.BufferAttribute(new Uint32Array(p.getIndices().getArray()), 1));
     geometry.computeBoundingBox(); geometry.computeBoundingSphere();
     const material = new THREE.MeshStandardMaterial({ transparent: p.getMaterial().getAlphaMode() === 'BLEND' });
     const object = new THREE.Mesh(geometry, material); object.name = mesh.getName(); object.matrixAutoUpdate = false;
@@ -54,11 +56,14 @@ test('actual source crop preserves oriented faces, attributes, bounds and buffer
   const crop=installRestaurantIndexCrop({ ...f, certificate, sourceSHA256, ready:()=>ready });
   f.draw(); assert.equal(crop.stats.state,'pending'); assert.equal(previousCalls,1);
   ready=true; f.draw(); assert.equal(crop.stats.state,'cropped'); assert.equal(crop.stats.removedTriangles,19150);
-  assert.equal(crop.stats.backupBytes,261678);
+  const expectedBackupBytes = [...removed.keys()].reduce((sum, i) =>
+    sum + doc.getRoot().listMeshes()[i].listPrimitives()[0].getIndices().getCount() * Uint32Array.BYTES_PER_ELEMENT, 0);
+  assert.equal(crop.stats.backupBytes,expectedBackupBytes,'account for actual Three Draco index width');
   const gl={FLOAT:5126,UNSIGNED_SHORT:5123,UNSIGNED_INT:5125,createBuffer(){return {};},bindBuffer(){},bufferData(){},bufferSubData(){uploads++;},deleteBuffer(){}};
   const gpu=WebGLAttributes(gl); let uploads=0;
   for(let i=0;i<f.meshes.length;i++) {
     const g=f.meshes[i].geometry, original=originals[i];
+    assert.equal(g.index.array.BYTES_PER_ELEMENT,Uint32Array.BYTES_PER_ELEMENT);
     assert.equal(g.index,original.index); assert.equal(f.meshes[i].material,original.material);
     assert.deepEqual(g.boundingBox,original.box); assert.deepEqual(g.boundingSphere,original.sphere);
     for(const [name,a] of Object.entries(original.attributes)) assert.equal(g.attributes[name],a);

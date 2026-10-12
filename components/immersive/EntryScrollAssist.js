@@ -18,6 +18,7 @@ export function createEntryScrollAssist({ getGeometry, isBlocked }, view = windo
   let gesture = null;
   let assisting = null;
   let lastY = view.scrollY;
+  let lastYAt = view.performance.now();
   let timer = null;
   let touchY = null;
   let touching = false;
@@ -59,6 +60,7 @@ export function createEntryScrollAssist({ getGeometry, isBlocked }, view = windo
       view.scrollTo({ top: view.scrollY, behavior: "instant" });
     }
     lastY = view.scrollY;
+    lastYAt = view.performance.now();
   };
   const settle = event => {
     if (diagnostics) report("settle", event, { source: event ? "scrollend" : "quiet-timer" });
@@ -138,7 +140,16 @@ export function createEntryScrollAssist({ getGeometry, isBlocked }, view = windo
       reason: hasScrollEnd ? "native-scrollend-owner" : touching ? "touch-held" : heldKey ? "key-held" : timer != null ? "fallback-armed" : "no-observed-motion" });
   };
   const intent = (event, direction) => {
-    const continued = gesture?.type === event.type && gesture.direction === direction && gesture.scrolled;
+    const sameInput = gesture?.type === event.type && gesture.direction === direction;
+    const continued = sameInput && gesture.scrolled;
+    // Passive wheel delivery can follow compositor movement. Preserve only a
+    // matching, post-observation difference; do not call it native motion until
+    // its ordered document scroll arrives. Never borrow our own active scroll.
+    const pendingScroll = (sameInput && gesture.pendingScroll) || (!continued && event.type === "wheel" && assisting == null
+      && (!gesture || sameInput)
+      && Number.isFinite(event.timeStamp) && event.timeStamp >= lastYAt && event.timeStamp <= view.performance.now()
+      && Math.sign(view.scrollY - lastY) === direction
+      ? { delta: view.scrollY - lastY, inputAt: event.timeStamp } : null);
     if (diagnostics) report("intent", event, { direction, continued: Boolean(continued), trusted: event.isTrusted, defaultPrevented: event.defaultPrevented });
     cancel("new-input", event);
     if (!event.isTrusted || event.defaultPrevented || !direction || blocked() || controlled(event.target)) {
@@ -147,7 +158,7 @@ export function createEntryScrollAssist({ getGeometry, isBlocked }, view = windo
     }
     // A final subpixel packet must not erase actual document movement in this
     // unsettled gesture. Settlement/cancellation still consumes it entirely.
-    gesture = { type: event.type, direction, scrolled: Boolean(continued), at: view.performance.now() };
+    gesture = { type: event.type, direction, scrolled: Boolean(continued), at: view.performance.now(), pendingScroll };
     if (diagnostics) report("intent-accepted", event, { direction });
     quiet();
   };
@@ -193,9 +204,11 @@ export function createEntryScrollAssist({ getGeometry, isBlocked }, view = windo
       if (diagnostics) report("scroll-return", event, { reason: "nested-scroller" });
       return;
     }
-    const y = view.scrollY, delta = y - lastY;
+    const y = view.scrollY;
+    let delta = y - lastY;
     if (diagnostics) report("scroll", event, { delta });
     lastY = y;
+    lastYAt = view.performance.now();
     if (blocked()) {
       if (diagnostics) report("scroll-cancel", event, { reason: blockedReason, delta });
       cancel("scroll-blocked", event); return;
@@ -205,6 +218,14 @@ export function createEntryScrollAssist({ getGeometry, isBlocked }, view = windo
       if (Math.abs(y - assisting) <= 1) assisting = null;
       quiet();
       return;
+    }
+    if (gesture?.pendingScroll) {
+      const pending = gesture.pendingScroll;
+      gesture.pendingScroll = null; // One event can corroborate it; never replay it.
+      const confirmed = !delta && event.isTrusted && Number.isFinite(event.timeStamp)
+        && event.timeStamp >= pending.inputAt && event.timeStamp <= view.performance.now();
+      if (confirmed) delta = pending.delta;
+      if (diagnostics) report("pending-scroll", event, { confirmed, pending, delta });
     }
     if (!gesture || !delta) {
       if (diagnostics) report("scroll-return", event, { reason: !gesture ? "no-gesture" : "zero-delta", delta });

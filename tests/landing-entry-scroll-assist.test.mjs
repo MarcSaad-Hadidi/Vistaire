@@ -383,3 +383,72 @@ test('diagnostics distinguish passive zero-delta delivery, age rejection, blocke
   assert.ok(f.reports.some(row => row.type === 'scrollend' && row.gesture?.scrolled));
   f.assist.dispose();
 });
+
+test('the two retained c9 Chromium compositor-before-wheel orderings still complete after their matching scroll event', () => {
+  for (const trace of [
+    { baselineAt: 5190.5, inputAt: 5248.8, handledAt: 5271.6, scrollAt: 5271 },
+    { baselineAt: 5708.9, inputAt: 5820.9, handledAt: 9752.1, scrollAt: 9751.3 },
+  ]) for (const direction of [1, -1]) for (const noPixelTail of [false, true]) {
+    const f = fixture({ diagnostics: true });
+    const target = direction > 0 ? f.bounds.opening.motionTravel / 2 - f.bounds.opening.aiHoldTravel / 2 : 0;
+    const baseline = direction > 0 ? 2621 : 80, advanced = baseline + direction * 40;
+    f.advance(trace.baselineAt); f.move(baseline); f.end();
+    f.advance(trace.handledAt - trace.baselineAt);
+    f.view.scrollY = advanced; // Compositor already moved; its scroll event is queued.
+    f.input('wheel', { deltaY: direction * 40, timeStamp: trace.inputAt });
+    if (noPixelTail) f.input('wheel', { deltaY: direction * 0.01, timeStamp: trace.inputAt + 0.1 });
+    assert.equal(smoothCalls(f).length, 0, 'a pre-input position difference alone cannot start assistance');
+    f.emit(f.view, 'scroll', { target: f.document, timeStamp: trace.scrollAt });
+    f.end();
+    assert.equal(smoothCalls(f).length, 1, `matching ${direction} movement survives delivery at ${trace.handledAt}`);
+    assert.equal(smoothCalls(f)[0].top, target);
+    f.move(target); f.end();
+    const calls = f.calls.length;
+    f.input('wheel', { deltaY: direction * 0.01 }); f.move(target); f.end();
+    assert.equal(f.calls.length, calls, 'a consumed completion and no-pixel tail cannot start another phase');
+    f.assist.dispose();
+  }
+});
+
+test('pending compositor evidence excludes stale programmatic scroll, reverse motion, rejected controls and active assistance', () => {
+  for (const scenario of ['missing-scroll', 'old-scroll', 'untrusted-scroll', 'input-before-baseline', 'reverse', 'control', 'untrusted-input', 'cancelled', 'assisting']) {
+    const f = fixture();
+    f.advance(100); f.move(2621); f.end(); f.advance(20);
+    if (scenario === 'assisting') { f.wheel(2621); f.end(); }
+    const prior = smoothCalls(f).length;
+    f.view.scrollY = scenario === 'reverse' ? 2581 : 2661;
+    f.input('wheel', {
+      deltaY: 40, timeStamp: scenario === 'input-before-baseline' ? 99 : 110,
+      ...(scenario === 'control' ? { target: { closest: () => ({}) } } : {}),
+      ...(scenario === 'untrusted-input' ? { isTrusted: false } : {}),
+    });
+    if (scenario === 'cancelled') f.assist.cancel('navigation');
+    if (scenario !== 'missing-scroll') f.emit(f.view, 'scroll', {
+      target: f.document, timeStamp: scenario === 'old-scroll' ? 109 : 119,
+      isTrusted: scenario !== 'untrusted-scroll',
+    });
+    f.end();
+    assert.equal(smoothCalls(f).length, prior, scenario);
+    f.assist.dispose();
+  }
+});
+
+test('native keyboard overshoot is never pulled back while an in-range keyboard entry can complete', () => {
+  const f = fixture({ stageHeight: 843.984375 });
+  const end = (f.bounds.opening.motionTravel - f.bounds.opening.aiHoldTravel) / 2;
+  assert.equal(end, 2700.75);
+  f.move(2620);
+  f.input('keydown', { key: 'ArrowDown' });
+  f.move(2709); // Actual pinned WebKit movement: 89px, beyond the small-gap target.
+  f.input('keyup', { key: 'ArrowDown' });
+  f.end();
+  assert.equal(smoothCalls(f).length, 0, 'native overshoot must not trigger backward completion');
+  assert.equal(f.view.scrollY, 2709);
+  f.move(2520);
+  f.input('keydown', { key: 'ArrowDown' });
+  f.move(2609); // The same real input now has room before the intended endpoint.
+  f.input('keyup', { key: 'ArrowDown' });
+  f.end();
+  assert.deepEqual(smoothCalls(f), [{ top: end, behavior: 'smooth' }]);
+  f.assist.dispose();
+});

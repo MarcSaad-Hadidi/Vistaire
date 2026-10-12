@@ -483,13 +483,16 @@ for (const width of [390,1440]) test(`native entry assistance is bounded, interr
       await page.keyboard.press(direction > 0 ? 'ArrowDown' : 'ArrowUp');
     } else await page.mouse.wheel(0, direction * 40);
   };
+  // The pinned mobile WebKit ArrowDown traverses 89px; leave enough real
+  // keyboard travel before the endpoint instead of demanding a backward pull.
+  const inputRoom = browserName === 'webkit' ? 180 : 80;
   await page.mouse.move(width*.85,600);
-  await position(end-80);
+  await position(end-inputRoom);
   await gesture(1);
   await expect.poll(()=>page.evaluate(target=>Math.abs(scrollY-target),end),{timeout:15_000}).toBeLessThanOrEqual(1);
   await page.waitForTimeout(350);
   expect(await page.evaluate(target=>Math.abs(scrollY-target),end)).toBeLessThanOrEqual(1);
-  await position(80);
+  await position(inputRoom);
   await gesture(-1);
   await expect.poll(()=>page.evaluate(()=>scrollY),{timeout:15_000}).toBeLessThanOrEqual(1);
   // A materially larger committed handoff now completes too, then stops.
@@ -503,16 +506,16 @@ for (const width of [390,1440]) test(`native entry assistance is bounded, interr
   await page.waitForTimeout(350);
   expect(await page.evaluate(target=>Math.abs(scrollY-target),exit)).toBeLessThanOrEqual(1);
 
-  await position(end-80);
+  await position(end-inputRoom);
   await gesture(1);
   await page.keyboard.press('Escape');
-  await expect.poll(()=>page.evaluate(()=>scrollY)).toBeGreaterThan(end-75);
+  await expect.poll(()=>page.evaluate(()=>scrollY)).toBeGreaterThan(end-inputRoom+5);
   await page.waitForTimeout(350);
   expect(await page.evaluate(()=>scrollY)).toBeLessThan(end-10);
   await page.emulateMedia({reducedMotion:'reduce'});
-  await position(end-80);
+  await position(end-inputRoom);
   await gesture(1);
-  await expect.poll(()=>page.evaluate(()=>scrollY)).toBeGreaterThan(end-75);
+  await expect.poll(()=>page.evaluate(()=>scrollY)).toBeGreaterThan(end-inputRoom+5);
   await page.waitForTimeout(350);
   expect(await page.evaluate(()=>scrollY)).toBeLessThan(end-10);
   // Retain real room/foreground pixels and reject shader errors. These views

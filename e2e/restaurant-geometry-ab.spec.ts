@@ -34,6 +34,26 @@ const candidate = { bytes: guardedIndex ? source : execFileSync(process.execPath
   ['scripts/3d/prune-restaurant-offscreen-experiment.mjs', '--stdout'], { maxBuffer: 4 * 1024 * 1024 }) };
 expect(hash(source)).toBe('594123340aa71cf74cb0e83c69b966c399230fc03e2188ed5cb80931d05f4f66');
 expect(hash(candidate.bytes)).toBe(guardedIndex ? hash(source) : 'e92a37f1eafc320091ef6ed3764f3552e82e3c443a1cf25f5965a4b400cbaf6f');
+const expectedBrowserBackupBytes = (() => {
+  if (!guardedIndex) return 0;
+  const certificate = JSON.parse(readFileSync('components/immersive/restaurant-index-crop.json', 'utf8')) as {
+    sourceSHA256: string; boxes: { selections: [number, number[]][] }[];
+  };
+  expect(certificate.sourceSHA256).toBe(hash(source));
+  expect(source.readUInt32LE(16)).toBe(0x4e4f534a); // GLB JSON chunk
+  const gltf = JSON.parse(source.subarray(20, 20 + source.readUInt32LE(12)).toString('utf8')) as {
+    meshes: { primitives: { indices: number }[] }[]; accessors: { count: number }[];
+  };
+  const meshes = new Set(certificate.boxes.flatMap(box => box.selections.map(([mesh]) => mesh)));
+  // Installed Three r183 DRACOLoader.decodeIndex uses GetTrianglesUInt32Array
+  // and returns Uint32Array, even when NodeIO compacts the same values to 16-bit.
+  const bytes = [...meshes].reduce((total, mesh) => {
+    expect(gltf.meshes[mesh].primitives).toHaveLength(1);
+    return total + gltf.accessors[gltf.meshes[mesh].primitives[0].indices].count * Uint32Array.BYTES_PER_ELEMENT;
+  }, 0);
+  expect(bytes).toBe(523_356);
+  return bytes;
+})();
 const requestedLaptop = new WeakSet<Page>();
 const rendered = test.extend({
   launchOptions: async ({}, provideOptions) => { await provideOptions({ args: ['--use-angle=swiftshader', '--use-gl=angle'] }); },
@@ -342,7 +362,7 @@ for (const profile of profiles.filter(profile => !selected || profile.id === sel
           expect(states[1].crop?.installed).toBe('installed');
           expect(['cropped', 'full']).toContain(states[1].crop?.state);
           expect(states[1].crop?.removedTriangles).toBe(19_150);
-          expect(states[1].crop?.backupBytes).toBe(261_678);
+          expect(states[1].crop?.backupBytes).toBe(expectedBrowserBackupBytes);
         }
         expect(states[1].cache, `${label}: canonical cache pose/generation/buffer/theme`).toEqual(states[0].cache);
         expect(states[1].timeline, `${label}: actual document timeline`).toEqual(states[0].timeline);
