@@ -16,24 +16,10 @@
   font-family: "Vistaire Text", serif;
   transition: opacity 180ms ease, transform 180ms ease, visibility 180ms;
 }
-/* Keep the revealed bar clear of the fixed upper-right launcher. */
-.previewNav[data-public-navigation-open] {
-  top: calc(env(safe-area-inset-top, 0px) + 68px);
-}
-/* Focus enters on the opening commit, before the first animation tick. */
-.previewNav[data-public-navigation-open="true"] {
-  transition-property: opacity, transform;
-}
-.previewNav[data-public-navigation-open="false"] {
-  opacity: 0;
-  visibility: hidden;
-  pointer-events: none;
-  transform: translateY(-8px);
-}
 .navigationTab {
   position: fixed;
-  top: calc(env(safe-area-inset-top, 0px) + 12px);
-  right: calc(env(safe-area-inset-right, 0px) + 12px);
+  top: calc(env(safe-area-inset-top, 0px) + 22px);
+  right: calc(env(safe-area-inset-right, 0px) + 22px);
   z-index: 91;
   display: flex;
   align-items: center;
@@ -55,6 +41,81 @@
 .navigationTab:focus-visible {
   outline: 2px solid var(--public-focus);
   outline-offset: 2px;
+}
+/* A single right-anchored surface: clip it into the launcher's circle,
+   then reveal it leftward without resizing the page or scaling the text. */
+.navigationTab + :global([data-public-navigation-open][id]) {
+  top: calc(env(safe-area-inset-top, 0px) + 12px);
+  left: calc(env(safe-area-inset-left, 0px) + 12px);
+  right: calc(env(safe-area-inset-right, 0px) + 12px);
+  z-index: 90;
+  height: 64px;
+  min-height: 64px;
+  box-sizing: border-box;
+  padding: 0 64px 0 14px;
+  border-radius: 32px;
+  clip-path: inset(10px 10px 10px calc(100% - 54px) round 22px);
+  transform: none;
+  opacity: 1;
+  transition: clip-path 320ms cubic-bezier(0.22, 1, 0.36, 1), visibility 0s 320ms;
+}
+.navigationTab + :global([data-public-navigation-open="false"][id]) {
+  visibility: hidden;
+  pointer-events: none;
+}
+.navigationTab + :global([data-public-navigation-open="true"][id]) {
+  visibility: visible;
+  clip-path: inset(0 round 32px);
+  transition: clip-path 320ms cubic-bezier(0.22, 1, 0.36, 1), visibility 0s;
+}
+.navigationTab + :global([data-public-navigation-open][id]) > * {
+  opacity: 0;
+}
+.navigationTab + :global([data-public-navigation-open="true"][data-public-navigation-ready="true"][id]) > * {
+  opacity: 1;
+}
+.navigationTab[aria-expanded="true"] {
+  background: transparent;
+  border-color: transparent;
+  color: var(--public-text);
+}
+@media (max-width: 767.98px) {
+  .navigationTab + :global([data-public-navigation-open][id]) {
+    padding: 0 58px 0 8px;
+    gap: 4px;
+  }
+  .navigationTab + :global([data-public-navigation-open][id]) :is(.navBrand, :global(.brand)) {
+    font-size: 20px;
+    letter-spacing: 0.035em;
+  }
+}
+@media (max-width: 400px) {
+  .navigationTab + :global([data-public-navigation-open][id]) {
+    padding-left: 6px;
+    gap: 2px;
+  }
+  .navigationTab + :global([data-public-navigation-open][id]) :is(.navBrand, :global(.brand)) {
+    font-size: 18px;
+    letter-spacing: 0.02em;
+  }
+}
+@media (max-width: 359px) {
+  .navigationTab + :global([data-public-navigation-open][id]) {
+    height: 108px;
+    flex-wrap: wrap;
+    align-content: center;
+    column-gap: 4px;
+    row-gap: 0;
+    clip-path: inset(10px 10px 54px calc(100% - 54px) round 22px);
+  }
+  .navigationTab + :global([data-public-navigation-open="true"][id]) {
+    clip-path: inset(0 round 24px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .navigationTab + :global([data-public-navigation-open][id]) {
+    transition: none;
+  }
 }
 .navBrand {
   color: var(--public-gold);

@@ -1137,7 +1137,7 @@ for (const path of ['/a-propos', '/en/about', '/']) {
     const header = page.locator('[data-public-navigation-open]');
     const menuTrigger = header.locator('button[aria-controls]');
     const drawer = page.locator('[data-public-menu], .mobile-menu');
-    for (const [width, height] of [[390, 844], [430, 932], [844, 390], [1440, 900]]) {
+    for (const [width, height] of [[320, 667], [375, 667], [390, 844], [430, 932], [844, 390], [1440, 900]]) {
       await page.setViewportSize({ width, height });
       await expect(tab).toBeVisible();
       await expect(tab).toHaveAttribute('aria-expanded', 'false');
@@ -1150,10 +1150,10 @@ for (const path of ['/a-propos', '/en/about', '/']) {
       expect(tabBox!.x).toBeGreaterThanOrEqual(0);
       expect(tabBox!.y + tabBox!.height).toBeLessThanOrEqual(height);
       expect(tabBox!.width).toBe(tabBox!.height);
-      expect(tabBox!.x).toBeGreaterThanOrEqual(width - 60);
+      expect(tabBox!.x).toBeGreaterThanOrEqual(width - 72);
       expect(tabBox!.x + tabBox!.width).toBeLessThanOrEqual(width - 8);
       expect(tabBox!.y).toBeGreaterThanOrEqual(8);
-      expect(tabBox!.y).toBeLessThanOrEqual(20);
+      expect(tabBox!.y).toBeLessThanOrEqual(32);
       await expect(tab).toHaveCSS('background-color', 'rgb(0, 0, 0)');
       await expect(tab).toHaveCSS('color', 'rgb(255, 255, 255)');
       await expect(tab).toHaveCSS('border-radius', '50%');
@@ -1166,7 +1166,17 @@ for (const path of ['/a-propos', '/en/about', '/']) {
       await expect(tab).toHaveAttribute('aria-expanded', 'true');
       await expect(header).toHaveAttribute('aria-hidden', 'false');
       await expect(header).not.toHaveAttribute('inert');
-      expect((await header.boundingBox())!.y).toBeGreaterThanOrEqual(tabBox!.y + tabBox!.height + 8);
+      const barBox = (await header.boundingBox())!;
+      expect(barBox.y).toBe(tabBox!.y - 10);
+      expect(barBox.x + barBox.width).toBeCloseTo(tabBox!.x + tabBox!.width + 10, 0);
+      await expect(header).toHaveAttribute('data-public-navigation-ready', 'true');
+      const visibleChildren = await header.locator(':scope > *').evaluateAll(elements => elements
+        .filter(element => (element as HTMLElement).offsetWidth > 0)
+        .map(element => ({ left: element.getBoundingClientRect().left, right: element.getBoundingClientRect().right })));
+      for (const child of visibleChildren) {
+        expect(child.left).toBeGreaterThanOrEqual(barBox.x);
+        expect(child.right).toBeLessThanOrEqual(tabBox!.x - 2);
+      }
       await expect(tab.locator('svg path')).toHaveAttribute('d', 'M6 6l12 12M6 18 18 6');
       await expect(header.locator('button, a[href]').first()).toBeFocused();
       await expect(page.locator('body')).not.toHaveCSS('overflow', 'hidden');
@@ -1193,5 +1203,48 @@ for (const path of ['/a-propos', '/en/about', '/']) {
       expect(await page.evaluate(() => scrollY)).toBe(before.scrollY);
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     }
+  });
+}
+
+
+for (const path of ['/a-propos', '/']) {
+  test(`navbar extends left from its stationary circle and cancels interrupted focus on ${path}`, async ({ page }) => {
+    test.setTimeout(150_000);
+    await page.emulateMedia({ reducedMotion: 'no-preference' });
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto(path, { waitUntil: 'domcontentloaded' });
+    if (path === '/') await expect(page.locator('.preloader')).toHaveCount(0, { timeout: 120_000 });
+    const tab = page.locator('[data-public-navigation-toggle]');
+    const header = page.locator('[data-public-navigation-open]');
+    const initialCircle = await tab.boundingBox();
+    await tab.click();
+    const during = await header.evaluate(async (element) => {
+      await new Promise(resolve => requestAnimationFrame(resolve));
+      const motion = element.getAnimations().find(animation => (animation as CSSTransition).transitionProperty === 'clip-path');
+      if (!motion) throw new Error('Missing leftward navbar transition');
+      motion.pause();
+      motion.currentTime = 160;
+      const evidence = { clip: getComputedStyle(element).clipPath, inert: (element as HTMLElement).inert,
+        opacity: getComputedStyle(element.firstElementChild!).opacity };
+      motion.play();
+      return evidence;
+    });
+    expect(during.clip).not.toBe('none');
+    expect(during.clip).not.toBe('inset(0px round 32px)');
+    expect(during.inert).toBe(true);
+    expect(during.opacity).toBe('0');
+    await expect(header).toHaveAttribute('data-public-navigation-ready', 'true');
+    expect(await tab.boundingBox()).toEqual(initialCircle);
+    await expect(header.locator('button, a[href]').first()).toBeFocused();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    await page.keyboard.press('Escape');
+    await expect(tab).toBeFocused();
+    await tab.click();
+    await tab.click();
+    await page.waitForTimeout(450); // Outlive the cancelled opening fallback.
+    await expect(tab).toHaveAttribute('aria-expanded', 'false');
+    await expect(header).toHaveAttribute('inert', '');
+    await expect(tab).toBeFocused();
+    expect(await tab.boundingBox()).toEqual(initialCircle);
   });
 }

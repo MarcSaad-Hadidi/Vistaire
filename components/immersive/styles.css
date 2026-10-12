@@ -3068,25 +3068,7 @@
   }
 }
 
-/* The top bar stays parked below the shared upper-right launcher. */
-:where([data-immersive-vistaire]) .site-header[data-public-navigation-open] {
-  top: calc(env(safe-area-inset-top, 0px) + 68px);
-  transition: opacity 180ms ease, transform 180ms ease, visibility 180ms;
-}
-:where([data-immersive-vistaire]) .site-header[data-public-navigation-open="true"] {
-  transition-property: opacity, transform;
-}
-:where([data-immersive-vistaire]) .site-header[data-public-navigation-open="false"] {
-  opacity: 0;
-  visibility: hidden;
-  pointer-events: none;
-  transform: translateY(-8px);
-}
-@media (prefers-reduced-motion: reduce) {
-  :where([data-immersive-vistaire]) .site-header[data-public-navigation-open] {
-    transition: none;
-  }
-}
+/* Shared launcher owns the navbar expansion; scene geometry is unchanged. */
 
 /* Public Vistaire routes share the same navigation and precious accents. */
 :where([data-immersive-vistaire]) .menu-toggle {
