@@ -7,7 +7,7 @@ import { pricingStageAtScroll, pricingExitOffset } from '../components/immersive
 function fixture() {
   const path = 'components/immersive/PricingSceneAdapter.js';
   assert.ok(existsSync(path), 'the shared renderer needs a scoped offers adapter');
-  const counts = { load: 0, hand: 0, room: 0, reset: 0, release: 0, dispose: 0, invalidate: 0 };
+  const counts = { load: 0, hand: 0, room: 0, warm: 0, reset: 0, release: 0, dispose: 0, invalidate: 0 };
   const hand = { ready: true, unavailable: false, preload() { counts.load++; },
     render(...args) { counts.hand++; hand.last = args; return true; },
     screenProjection: () => ({ matrix: [1, 0, 0, 1, 10, 20] }),
@@ -20,7 +20,7 @@ function fixture() {
   const world = { dataset: {} };
   const canvas = { dataset: {}, width: 780, height: 1688 };
   const renderer = { domElement: canvas, info: { reset() {} } };
-  const room = { draw() { counts.room++; }, release() { counts.release++; }, dispose() { counts.dispose++; } };
+  const room = { draw() { counts.room++; }, warm() { counts.warm++; }, release() { counts.release++; }, dispose() { counts.dispose++; } };
   const scope = vm.createContext({
     createPricingHandScene: () => hand,
     createPricingRoomBackdrop: () => room,
@@ -50,9 +50,11 @@ test('offers wake the shared renderer only near their measured stage and reverse
   assert.equal(f.adapter.needsPreparation(), true, 'first entry must apply its canonical room pose');
   assert.equal(f.adapter.draw(f.state, f.size, true), false);
   assert.equal(f.counts.load, 0, 'hero must not request hand resources');
+  assert.equal(f.counts.warm, 0, 'hero must not link offscreen room programs');
   f.state.pageScrollY = 9000;
   f.adapter.draw(f.state, f.size, true);
   assert.equal(f.counts.load, 1, 'preload only within two viewports');
+  assert.ok(f.counts.warm > 0, 'capture-target room programs link before the first cached capture');
   f.state.pageScrollY = 10400; f.state.sceneOccluded = true;
   assert.equal(f.adapter.needsFrame(f.state), true, 'native scroll must wake a previously occluded renderer');
   assert.equal(f.adapter.draw(f.state, f.size, true), true);

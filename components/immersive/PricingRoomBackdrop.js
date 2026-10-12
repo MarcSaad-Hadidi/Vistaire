@@ -36,10 +36,24 @@ export function createPricingRoomBackdrop({ renderer, scene, camera }) {
   };
   quad.material.customProgramCacheKey = () => "vistaire-pricing-existing-room-shade-v1";
   screenScene.add(quad);
-  let valid = false, generation = 0, pose = "";
+  let valid = false, generation = 0, pose = "", warmed = false;
   const previousViewport = new THREE.Vector4();
   const previousScissor = new THREE.Vector4();
   return {
+    warm() {
+      // Capture-target programs differ from the canvas ones (linear output), so
+      // the first cached capture blocked on relinking the whole restaurant.
+      // Link them while pricing is still approaching; compile reads the bound target.
+      if (warmed || !renderer.compileAsync) return;
+      warmed = true;
+      const previousTarget = renderer.getRenderTarget();
+      try {
+        renderer.setRenderTarget(target);
+        renderer.compileAsync(scene, camera).catch(() => {});
+      } finally {
+        renderer.setRenderTarget(previousTarget);
+      }
+    },
     draw(width, height, lightTheme = false) {
       // Linear HDR capture must not silently clip bright restaurant lighting.
       if (!renderer.extensions.has("EXT_color_buffer_float"))

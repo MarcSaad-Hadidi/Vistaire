@@ -90,6 +90,7 @@ export function createPricingSceneAdapter({
       if (rect.bottom > 0 && rect.top < size.height * 2) {
         prepare();
         hand.preload();
+        room.warm();
       }
       if (!state.sceneOccluded) {
         prepared = false;
