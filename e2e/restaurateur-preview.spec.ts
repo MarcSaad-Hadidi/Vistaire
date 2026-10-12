@@ -73,6 +73,7 @@ function observeRuntime(page: Page, baseURL: string) {
   const frameworkPosts: string[] = [];
   const modelRequests: string[] = [];
   const videoRequests: string[] = [];
+  const videoNetworkEvents: {event: string; at: number; detail: string}[] = [];
 
   page.on("console", (message) => {
     if (message.type() === "error") consoleErrors.push(message.text());
@@ -90,7 +91,10 @@ function observeRuntime(page: Page, baseURL: string) {
     if (result.unexpectedWrite) unexpectedWrites.push(result.pathname);
     if (result.frameworkInternal) frameworkPosts.push(result.pathname);
     if (result.modelAsset) modelRequests.push(result.pathname);
-    if (result.videoAsset) videoRequests.push(result.pathname);
+    if (result.videoAsset) {
+      videoRequests.push(result.pathname);
+      videoNetworkEvents.push({event: "request", at: Date.now(), detail: request.headers().range ?? "full"});
+    }
   });
   page.on("requestfailed", (request) => {
     const headers = request.headers();
@@ -98,6 +102,9 @@ function observeRuntime(page: Page, baseURL: string) {
       /prefetch/i.test(headers.purpose ?? "") ||
       /^(?:1|true|prefetch)$/i.test(headers["next-router-prefetch"] ?? "");
     const errorText = request.failure()?.errorText ?? "request failed";
+    if (new URL(request.url()).pathname === "/demo/dashboard-studio-3x-67468b94997f.mp4") {
+      videoNetworkEvents.push({event: "requestfailed", at: Date.now(), detail: errorText});
+    }
     if (errorText === "net::ERR_ABORTED" && explicitPrefetch) return;
     // Seeking/looping cancels obsolete byte-range requests in both engines.
     // Keep genuine transport errors and HTTP failures visible.
@@ -114,6 +121,9 @@ function observeRuntime(page: Page, baseURL: string) {
     networkErrors.push(`${errorText} ${new URL(request.url()).pathname}`);
   });
   page.on("response", (response) => {
+    if (new URL(response.url()).pathname === "/demo/dashboard-studio-3x-67468b94997f.mp4") {
+      videoNetworkEvents.push({event: "response", at: Date.now(), detail: `${response.status()}`});
+    }
     if (response.status() === 404 || response.status() >= 500) {
       networkErrors.push(`${response.status()} ${new URL(response.url()).pathname}`);
     }
@@ -128,6 +138,7 @@ function observeRuntime(page: Page, baseURL: string) {
     frameworkPosts,
     modelRequests,
     videoRequests,
+    videoNetworkEvents,
     expectClean() {
       expect(consoleErrors, "console and hydration errors").toEqual([]);
       expect(networkErrors, "failed requests and 404/5xx responses").toEqual([]);
@@ -226,7 +237,7 @@ async function expectSafeSeo(page: Page, scenario: Scenario) {
 
 
 for (const scenario of scenarios) {
-  test(`${scenario.path} presents a non-interactive looping video with private data isolation and arrival autoplay`, async ({baseURL, page}) => {
+  test(`${scenario.path} presents a non-interactive looping video with private data isolation and arrival autoplay`, async ({baseURL, page}, testInfo) => {
     const runtime = observeRuntime(page, baseURL ?? "http://127.0.0.1:3000");
     await page.setViewportSize({width: 1280, height: 720});
     const response = await page.goto(scenario.path, {waitUntil: "domcontentloaded"});
@@ -265,11 +276,33 @@ for (const scenario of scenarios) {
       return document.activeElement === element;
     })).toBe(false);
     expect(await film.locator("[inert]").evaluate(element => getComputedStyle(element).pointerEvents)).toBe("none");
+    // A programmatic jump fetches new byte ranges; don't count that network seek
+    // against the native loop deadline. Keep a bounded event trace for failures.
     await video.evaluate(element => {
       const media = element as HTMLVideoElement;
+      const events: {event: string; at: number; time: number; seeking: boolean; paused: boolean; readyState: number}[] = [];
+      Reflect.set(media, "__dashboardSeekTrace", events);
+      for (const event of ["seeking", "seeked", "waiting", "playing", "pause", "ended", "error", "stalled"]) {
+        media.addEventListener(event, () => {
+          if (events.length < 100) events.push({event, at: Date.now(), time: media.currentTime, seeking: media.seeking, paused: media.paused, readyState: media.readyState});
+        });
+      }
       media.currentTime = media.duration - .2;
     });
-    await expect.poll(() => video.evaluate(element => (element as HTMLVideoElement).currentTime)).toBeLessThan(2);
+    try {
+      await expect.poll(() => video.evaluate(element => {
+        const events = Reflect.get(element, "__dashboardSeekTrace") as {event: string}[];
+        return events.some(event => event.event === "seeked");
+      }), {timeout: 10_000, intervals: [100]}).toBe(true);
+      await expect.poll(() => video.evaluate(element => (element as HTMLVideoElement).currentTime), {timeout: 5_000, intervals: [100]}).toBeLessThan(2);
+    } finally {
+      const mediaState = await video.evaluate(element => {
+        const media = element as HTMLVideoElement;
+        const ranges = (value: TimeRanges) => Array.from({length: value.length}, (_, index) => [value.start(index), value.end(index)]);
+        return {currentTime: media.currentTime, duration: media.duration, seeking: media.seeking, paused: media.paused, ended: media.ended, readyState: media.readyState, networkState: media.networkState, error: media.error ? {code: media.error.code, message: media.error.message} : null, buffered: ranges(media.buffered), seekable: ranges(media.seekable), events: Reflect.get(media, "__dashboardSeekTrace")};
+      });
+      await testInfo.attach("dashboard-loop-media-state", {body: JSON.stringify({mediaState, network: runtime.videoNetworkEvents}, null, 2), contentType: "application/json"});
+    }
     await page.evaluate(() => {
       Object.defineProperty(document, "hidden", {configurable: true, value: true});
       document.dispatchEvent(new Event("visibilitychange"));
