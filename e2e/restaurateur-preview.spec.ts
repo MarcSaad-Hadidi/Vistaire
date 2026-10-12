@@ -254,7 +254,10 @@ for (const scenario of scenarios) {
     await page.mouse.click(box!.x + box!.width / 2, box!.y + box!.height / 2);
     expect(await video.evaluate(element => (element as HTMLVideoElement).paused)).toBe(false);
     await expect.poll(() => video.evaluate(element => (element as HTMLVideoElement).currentTime)).toBeGreaterThan(beforeClick);
-    expect(await video.evaluate(element => element.tabIndex)).toBe(-1);
+    expect(await video.evaluate(element => {
+      element.focus();
+      return document.activeElement === element;
+    })).toBe(false);
     expect(await film.locator("[inert]").evaluate(element => getComputedStyle(element).pointerEvents)).toBe("none");
     await video.evaluate(element => {
       const media = element as HTMLVideoElement;
