@@ -5,30 +5,43 @@ const CONTROLS = `a, button, summary, [role="button"], [role="tab"], ${FOCUSED_C
 const controlled = (target, selector = CONTROLS) => Boolean(target?.closest?.(selector));
 const natural = id => id === "open-weight" || id === "footer";
 
-/** A quintic with the measured initial velocity and zero final velocity and
- * endpoint acceleration. Choose duration so m = v*T/d is in [0, 2]. Its
- * derivative is (1-t)^2 * (m + 2*m*t + (30-15*m)*t^2), hence nonnegative;
- * no position clamp is needed to hide reversal or overshoot. */
+/** Integrate smooth velocity ramps around a constant-speed cruise. Distance
+ * adds cruise time, not a slower startup. Ramp time is shortened when needed
+ * so its area fits the trip with a nonnegative peak at least the seed speed.
+ * Velocity and acceleration are continuous at both cruise joins. */
 export function createScrollContinuation(from, to, velocity, stageHeight) {
   const distance = Math.abs(to - from), direction = Math.sign(to - from);
-  const speed = Math.max(0, direction * velocity);
-  const cruise = Math.max(speed, stageHeight * 5 / 1000);
-  let duration = Math.max(160, Math.min(850, 1.5 * distance / cruise));
-  if (speed > 0) duration = Math.min(duration, 2 * distance / speed);
-  const m = speed * duration / distance;
+  const seed = Math.min(Math.max(0, direction * velocity), stageHeight * 4 / 1000);
+  let peak = Math.max(seed, stageHeight * 3 / 1000);
+  let ramp = Math.min(120, Math.max(60, distance / peak));
+  if (seed > 0) ramp = Math.min(ramp, 2 * distance / (3 * seed));
+  // Both ramps cover ramp * (seed/2 + peak). Short trips lower the peak;
+  // the seed-derived bound above ensures this never asks for negative speed.
+  peak = Math.min(peak, distance / ramp - seed / 2);
+  const entryDistance = ramp * (seed + peak) / 2;
+  const cruise = Math.max(0, (distance - ramp * (seed / 2 + peak)) / peak);
+  const duration = 2 * ramp + cruise;
+  const integrated = t => t ** 3 - t ** 4 / 2; // Integral of 3t² - 2t³.
   return {
     duration,
     at(elapsed) {
       if (elapsed <= 0) return from;
       if (elapsed >= duration) return to;
-      const t = elapsed / duration;
-      return from + direction * distance * (m * t + (10 - 6 * m) * t ** 3
-        + (8 * m - 15) * t ** 4 + (6 - 3 * m) * t ** 5);
+      let position;
+      if (elapsed < ramp) {
+        position = seed * elapsed + (peak - seed) * ramp * integrated(elapsed / ramp);
+      } else if (elapsed < ramp + cruise) {
+        position = entryDistance + peak * (elapsed - ramp);
+      } else {
+        const t = (elapsed - ramp - cruise) / ramp;
+        position = entryDistance + peak * cruise + peak * ramp * (t - integrated(t));
+      }
+      return from + direction * position;
     },
   };
 }
 
-/** Complete the committed end of one authored section or handoff. The caller
+/** Complete one adjacent authored navigation reading stop in gesture direction. The caller
  * cancels before any programmatic navigation/layout remap and when UI blocks
  * scrolling. Geometry stays owned by App; one gesture-scoped RAF observes native motion
  * and transfers to one bounded continuation. No idle RAF remains.
@@ -96,16 +109,24 @@ export function createEntryScrollAssist({ getGeometry, isBlocked }, view = windo
     lastY = view.scrollY;
     lastYAt = view.performance.now();
   };
-  const animate = now => {
+  const animate = () => {
     const deliveredAt = view.performance.now();
     frame = null;
     const active = assisting;
     if (!active) return;
     if (blocked() || touching || heldKey || pointerHeld) { cancel("blocked-continuation"); return; }
-    if (deliveredAt - active.lastFrameAt > 80) { cancel("continuation-frame-gap"); return; }
-    active.lastFrameAt = deliveredAt;
     if (Math.abs(view.scrollY - active.expectedY) > 1) { cancel("foreign-scroll"); return; }
-    const elapsed = now - active.started;
+    const gap = deliveredAt - active.lastFrameAt;
+    active.lastFrameAt = deliveredAt;
+    // First late callback rebases without a write. Persistent slow delivery
+    // advances one bounded logical frame instead of stranding the destination.
+    // Never catch up by the wall time that passed without rendered frames.
+    const step = gap > 80 ? (active.paused ? 16 : 0) : Math.max(0, gap);
+    active.paused = gap > 80;
+    if (active.paused && diagnostics) report("continuation-paused", null,
+      { gap, elapsed: active.elapsed, logicalStep: step, target: active.target });
+    if (!step) { frame = view.requestAnimationFrame(animate); return; }
+    const elapsed = active.elapsed += step;
     view.scrollTo({ top: active.curve.at(elapsed), behavior: "instant" });
     active.expectedY = lastY = view.scrollY;
     lastYAt = deliveredAt;
@@ -136,7 +157,7 @@ export function createEntryScrollAssist({ getGeometry, isBlocked }, view = windo
       if (y !== lastY) current.nativeEnded = false;
     } else current.stationaryFrames++;
     current.sampleY = y; current.sampleAt = now;
-    const released = !touching && !heldKey && !pointerHeld && now - current.at >= 60;
+    const released = !touching && !heldKey && !pointerHeld && now - current.at >= 40;
     if (released && current.nativeEnded) { settle(null, "scrollend"); return; }
     if (released && current.decelerationSamples >= 2 && Math.abs(current.velocity) <= 0.15
       && current.stationaryFrames >= 2 && now - current.lastMotionAt >= 32
@@ -168,7 +189,7 @@ export function createEntryScrollAssist({ getGeometry, isBlocked }, view = windo
     }
     if (!baseline && gesture?.scrolled && source === "scrollend") {
       gesture.nativeEnded = true;
-      if (touching || heldKey || pointerHeld || view.performance.now() - gesture.at < 60) {
+      if (touching || heldKey || pointerHeld || view.performance.now() - gesture.at < 40) {
         if (diagnostics) report("settle-return", event, { reason: "await-input-release" });
         observe(); return;
       }
@@ -196,41 +217,57 @@ export function createEntryScrollAssist({ getGeometry, isBlocked }, view = windo
       if (diagnostics) report("settle-return", event, { reason: "pricing-visible", direction, pricingTop: pricing.to.top, viewportHeight: view.innerHeight });
       return;
     }
-    const leg = (opening.motionTravel - opening.aiHoldTravel) / 2;
-    const windows = [
-      { from: { id: "hero" }, to: { id: "ai" }, start: opening.top, end: opening.top + leg },
-      { from: { id: "ai" }, to: { id: "wearable" }, start: opening.top + leg + opening.aiHoldTravel, end: opening.top + opening.motionTravel },
-      ...transitions,
-    ];
-    const entry = windows.find(({ start, end }) => y >= start && y <= end);
-    let target, limit, phase;
-    if (entry) {
-      if (diagnostics) phase = { kind: "handoff", from: entry.from.id, to: entry.to.id, start: entry.start, end: entry.end };
-      if (natural(entry.from.id) || natural(entry.to.id)) {
-        if (diagnostics) report("settle-return", event, { reason: "natural-handoff", phase, direction });
+    let target, limit = null, phase;
+    if (!baseline) {
+      // Match App's authored navigation anchors, including AI's hold midpoint.
+      // External navigation poses are the measured incoming handoff ends.
+      const stops = [
+        { id: "hero", y: opening.top },
+        { id: "ai", y: opening.top + opening.motionTravel / 2 },
+        { id: "wearable", y: opening.top + opening.motionTravel },
+        ...transitions.filter(join => !natural(join.from.id) && !natural(join.to.id))
+          .map(join => ({ id: join.to.id, y: join.end })),
+      ];
+      const destination = direction > 0 ? stops.find(stop => stop.y > y)
+        : stops.findLast(stop => stop.y < y);
+      if (!destination) {
+        if (diagnostics) report("settle-return", event, { reason: "no-adjacent-reading-stop", direction });
         return;
       }
-      target = direction > 0 ? entry.end : entry.start;
-      // Comparison mode keeps its published cap. The candidate requires 15%
-      // native progress and caps even slow-preview completion at three stages.
-      limit = baseline ? Math.min(opening.stageHeight * 2, (entry.end - entry.start) * 0.5)
-        : Math.min(opening.stageHeight * 3, (entry.end - entry.start) * 0.85);
+      target = destination.y;
+      if (diagnostics) phase = { kind: "reading-stop", id: destination.id, target };
     } else {
-      const next = windows.findIndex(window => window.start > y);
-      const before = windows[next - 1], after = windows[next];
-      if (!before || !after || natural(before.to.id)) {
-        if (diagnostics) report("settle-return", event, { reason: !before ? "missing-previous-handoff" : !after ? "missing-next-handoff" : "natural-section", direction, before: before ? { id: before.to.id, end: before.end } : null, after: after ? { id: after.from.id, start: after.start } : null });
-        return;
+      const leg = (opening.motionTravel - opening.aiHoldTravel) / 2;
+      const windows = [
+        { from: { id: "hero" }, to: { id: "ai" }, start: opening.top, end: opening.top + leg },
+        { from: { id: "ai" }, to: { id: "wearable" }, start: opening.top + leg + opening.aiHoldTravel, end: opening.top + opening.motionTravel },
+        ...transitions,
+      ];
+      const entry = windows.find(({ start, end }) => y >= start && y <= end);
+      if (entry) {
+        if (diagnostics) phase = { kind: "handoff", from: entry.from.id, to: entry.to.id, start: entry.start, end: entry.end };
+        if (natural(entry.from.id) || natural(entry.to.id)) {
+          if (diagnostics) report("settle-return", event, { reason: "natural-handoff", phase, direction });
+          return;
+        }
+        target = direction > 0 ? entry.end : entry.start;
+        limit = Math.min(opening.stageHeight * 2, (entry.end - entry.start) * 0.5);
+      } else {
+        const next = windows.findIndex(window => window.start > y);
+        const before = windows[next - 1], after = windows[next];
+        if (!before || !after || natural(before.to.id)) {
+          if (diagnostics) report("settle-return", event, { reason: !before ? "missing-previous-handoff" : !after ? "missing-next-handoff" : "natural-section", direction, before: before ? { id: before.to.id, end: before.end } : null, after: after ? { id: after.from.id, start: after.start } : null });
+          return;
+        }
+        if (diagnostics) phase = { kind: "section-ending", id: before.to.id, start: before.end, end: after.start };
+        target = direction > 0 ? after.start : before.end;
+        // End the current section's presentation at its existing stable pose.
+        // Never chain through the following handoff or consume an entire hold.
+        limit = Math.min(360, opening.stageHeight * 0.45, (after.start - before.end) * 0.2);
       }
-      if (diagnostics) phase = { kind: "section-ending", id: before.to.id, start: before.end, end: after.start };
-      target = direction > 0 ? after.start : before.end;
-      // End the current section's presentation at its existing stable pose.
-      // Never chain through the following handoff or consume an entire hold.
-      limit = baseline ? Math.min(360, opening.stageHeight * 0.45, (after.start - before.end) * 0.2)
-        : Math.min(opening.stageHeight * 1.5, (after.start - before.end) * 0.5);
     }
     const distance = (target - y) * direction;
-    if (distance <= 1 || distance > limit) {
+    if (baseline && (distance <= 1 || distance > limit)) {
       if (diagnostics) report("settle-return", event, { reason: distance <= 1 ? "at-or-past-target" : "outside-completion-range", direction, target, distance, limit, phase, geometry: { ...opening } });
       return;
     }
@@ -242,7 +279,7 @@ export function createEntryScrollAssist({ getGeometry, isBlocked }, view = windo
       const now = view.performance.now(), sampleAge = now - (motion.lastMotionAt ?? now);
       const velocity = (motion.velocity || 0) * Math.max(0, 1 - sampleAge / 80);
       const curve = createScrollContinuation(y, target, velocity, opening.stageHeight);
-      assisting = { target, curve, started: now, lastFrameAt: now, expectedY: y };
+      assisting = { target, curve, started: now, lastFrameAt: now, elapsed: 0, expectedY: y };
       if (diagnostics) report("handoff", event, { source, target, velocity, sampleAge, duration: curve.duration,
         stationaryMs: sampleAge, stationaryFrames: motion.stationaryFrames || 0,
         inputQuietMs: now - motion.at, decelerationSamples: motion.decelerationSamples || 0 });
@@ -279,7 +316,7 @@ export function createEntryScrollAssist({ getGeometry, isBlocked }, view = windo
     // A final subpixel packet must not erase actual document movement in this
     // unsettled gesture. Settlement/cancellation still consumes it entirely.
     gesture = !baseline && previous ? previous : { type: event.type, direction, scrolled: Boolean(continued) };
-    gesture.at = view.performance.now(); gesture.pendingScroll = pendingScroll;
+    gesture.at = view.performance.now(); gesture.inputAt = event.timeStamp; gesture.pendingScroll = pendingScroll;
     if (!baseline) gesture.nativeEnded = false;
     if (diagnostics) report("intent-accepted", event, { direction });
     quiet(); observe();
@@ -381,9 +418,12 @@ export function createEntryScrollAssist({ getGeometry, isBlocked }, view = windo
       if (diagnostics) report("scroll-return", event, { reason: !gesture ? "no-gesture" : "zero-delta", delta });
       return;
     }
-    if (Math.sign(delta) !== gesture.direction
-      || (!gesture.scrolled && view.performance.now() - gesture.at > INPUT_MAX_AGE_MS)) {
-      if (diagnostics) report("scroll-cancel", event, { reason: Math.sign(delta) !== gesture.direction ? "reverse-scroll" : "first-scroll-expired", delta, maxAge: INPUT_MAX_AGE_MS });
+    const invalidFirst = !baseline && !gesture.scrolled && (!event.isTrusted
+      || !Number.isFinite(event.timeStamp) || event.timeStamp < gesture.inputAt || event.timeStamp > view.performance.now());
+    if (Math.sign(delta) !== gesture.direction || invalidFirst
+      || (baseline && !gesture.scrolled && view.performance.now() - gesture.at > INPUT_MAX_AGE_MS)) {
+      if (diagnostics) report("scroll-cancel", event, { reason: Math.sign(delta) !== gesture.direction ? "reverse-scroll"
+        : invalidFirst ? "first-scroll-unconfirmed" : "first-scroll-expired", delta, maxAge: baseline ? INPUT_MAX_AGE_MS : null });
       cancel("native-scroll-rejected", event);
       return;
     }

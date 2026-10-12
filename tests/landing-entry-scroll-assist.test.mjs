@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
-import { scaledCinematicTiming, measureChapterTransitions } from '../components/immersive/SceneDirector.js';
+import { scaledCinematicTiming, measureChapterTransitions, chapterNavigationTarget } from '../components/immersive/SceneDirector.js';
 
 import * as assistance from '../components/immersive/EntryScrollAssist.js';
 const { createEntryScrollAssist } = assistance;
@@ -518,16 +518,16 @@ test('early continuation yields to fresh input, foreign movement, reduced motion
   }
 });
 
-test('the candidate expands only one eligible phase and keeps baseline comparison diagnostic-only', () => {
+test('the candidate completes one adjacent reading stop and keeps baseline comparison diagnostic-only', () => {
   for (const mode of ['baseline', 'early']) {
     const f = fixture({ mode }), target = f.bounds.transitions[0].end;
-    f.wheel(target - 2000); f.end(); f.advance(1000);
+    f.wheel(target - 2000); f.end(); f.advance(5000);
     if (mode === 'baseline') assert.equal(f.calls.length, 0, 'same-build baseline keeps the published range');
     else { assert.equal(f.view.scrollY, target, 'scrollAssistMode=baseline without sceneDiagnostics cannot disable the candidate'); assert.ok(f.calls.every(call => call.behavior === 'instant')); }
     f.assist.dispose();
   }
-  const f = fixture({ mode: 'early', diagnostics: true }), target = f.bounds.transitions[1].start;
-  f.wheel(target - 1000); f.end(); f.advance(1000);
+  const f = fixture({ mode: 'early', diagnostics: true }), target = f.bounds.transitions[1].end;
+  f.wheel(f.bounds.transitions[1].start - 1000); f.end(); f.advance(10000);
   assert.equal(f.view.scrollY, target); const calls = f.calls.length;
   f.end(); f.advance(1000); assert.equal(f.calls.length, calls); f.assist.dispose();
 });
@@ -540,17 +540,18 @@ test('corroborated pre-handler displacement never becomes inferred velocity or e
   f.advance(96); assert.equal(f.calls.length, 0, 'unknown-timing displacement has no deceleration evidence');
   f.end();
   assert.equal(f.reports.find(row => row.type === 'handoff')?.velocity, 0);
-  f.advance(1000); assert.equal(f.view.scrollY, 2700.8); f.assist.dispose();
+  f.advance(1000); assert.equal(f.view.scrollY, f.bounds.opening.motionTravel / 2); f.assist.dispose();
 });
 
-test('the seeded curve is monotone by feasible duration, with zero endpoint acceleration and no stale velocity replay', () => {
+test('the seeded curve is monotone by feasible ramps, with zero endpoint acceleration and no stale velocity replay', () => {
   assert.equal(typeof assistance.createScrollContinuation, 'function');
   for (const direction of [-1, 1]) for (const distance of [40, 1000, 2295.68, 2532]) for (const velocity of [0, 0.5, 2.5, 6]) {
     const curve = assistance.createScrollContinuation(5000, 5000 + direction * distance, direction * velocity, 844);
-    assert.ok(curve.duration > 0 && curve.duration <= 850);
-    assert.ok(velocity * curve.duration / distance <= 2 + 1e-10);
+    const seed = Math.min(velocity, 844 * 4 / 1000);
+    assert.ok(Number.isFinite(curve.duration) && curve.duration > 0);
+    assert.ok(seed * curve.duration / distance <= 2 + 1e-10);
     const h = .001;
-    assert.ok(Math.abs((curve.at(h) - curve.at(0)) / h - direction * velocity) < .002);
+    assert.ok(Math.abs((curve.at(h) - curve.at(0)) / h - direction * seed) < .002);
     assert.ok(Math.abs((curve.at(2 * h) - 2 * curve.at(h) + curve.at(0)) / h ** 2) < .02);
     let previous = 5000;
     for (let i = 1; i <= 200; i++) { const y = curve.at(i * curve.duration / 200); assert.ok((y - previous) * direction >= -1e-8); assert.ok((5000 + direction * distance - y) * direction >= -1e-8); previous = y; }
@@ -594,15 +595,16 @@ test('physical release restarts the quiet window and natural offers reading neve
   reading.end(); reading.advance(1000); assert.equal(reading.calls.length, 0); reading.assist.dispose();
 });
 
-test('a stalled continuation frame cancels instead of replaying a large delayed jump', () => {
+test('a stalled continuation frame pauses then completes instead of jumping or abandoning its target', () => {
   const f = fixture({ mode: 'early', diagnostics: true }), target = f.bounds.transitions[0].end;
   decelerate(f, target); f.advance(48);
   assert.ok(f.calls.length > 0);
   const calls = f.calls.length, y = f.view.scrollY;
   f.stall(250); f.advance(0);
   assert.equal(f.calls.length, calls); assert.equal(f.view.scrollY, y);
-  assert.ok(f.reports.some(row => row.type === 'cancel' && row.reason === 'continuation-frame-gap'));
-  assert.equal(f.frames(), 0); f.assist.dispose();
+  assert.ok(f.reports.some(row => row.type === 'continuation-paused'));
+  assert.equal(f.frames(), 1);
+  f.advance(2000); assert.equal(f.view.scrollY, target); assert.equal(f.frames(), 0); f.assist.dispose();
 });
 
 test('native touch pan pointercancel releases pointer ownership without discarding the independent touch gesture', () => {
@@ -641,17 +643,18 @@ test('native observation uses actual delivery time when rAF timestamps lag the o
   f.assist.dispose(); assert.equal(f.frames(), 0);
 });
 
-test('continuation stall protection uses actual callback delivery despite a fresh-looking rAF timestamp', () => {
+test('continuation pause uses actual callback delivery despite a fresh-looking rAF timestamp', () => {
   const f = fixture({ mode: 'early', diagnostics: true }), target = f.bounds.transitions[0].end;
   decelerate(f, target); f.advance(48); // First assisted frame at 112ms.
   const calls = f.calls.length, y = f.view.scrollY;
   f.stall(250); // Actual next callback delivery is 362ms.
   const [id, timer] = [...f.timers].find(([, entry]) => entry.frame);
   f.timers.delete(id); timer.callback(128); // Its stamp misleadingly implies only 16ms.
-  assert.equal(f.calls.length, calls, 'cancel before any write across the actual 250ms gap');
+  assert.equal(f.calls.length, calls, 'pause before any write across the actual 250ms gap');
   assert.equal(f.view.scrollY, y);
-  assert.ok(f.reports.some(row => row.type === 'cancel' && row.reason === 'continuation-frame-gap'));
-  assert.equal(f.frames(), 0); f.assist.dispose();
+  assert.ok(f.reports.some(row => row.type === 'continuation-paused'));
+  assert.equal(f.frames(), 1);
+  f.advance(2000); assert.equal(f.view.scrollY, target); f.assist.dispose();
 });
 
 test('retained assistance diagnostics snapshot immutable scalar state rather than the live controller', () => {
@@ -665,4 +668,159 @@ test('retained assistance diagnostics snapshot immutable scalar state rather tha
   assert.deepEqual(Object.keys(row.assisting).sort(), ['duration', 'expectedY', 'lastFrameAt', 'started', 'target']);
   assert.equal(typeof row.assisting.duration, 'number');
   f.assist.dispose();
+});
+
+test('short stop completion keeps the tuned release handoff and stationary proof', () => {
+  const f = fixture({ mode: 'early', diagnostics: true }), target = f.bounds.transitions[0].end;
+  f.wheel(target - 40); f.end();
+  f.advance(32);
+  assert.equal(f.reports.filter(row => row.type === 'handoff').length, 0, '32ms is still inside the 40ms input-silence gate');
+  f.advance(16);
+  const handoff = f.reports.find(row => row.type === 'handoff');
+  assert.equal(handoff?.inputQuietMs, 48, 'a 16ms frame cadence can now transfer before the old 60ms gate');
+  assert.equal(handoff?.duration, 120);
+  f.advance(16);
+  assert.equal(f.calls.length, 1); assert.equal(f.now(), 64);
+  assert.ok(f.view.scrollY > target - 39.5, 'the first write requests more than half a CSS pixel');
+  f.advance(16);
+  assert.ok(f.view.scrollY >= target - 39, 'the request exceeds one CSS pixel by 80ms in this deterministic fixture');
+  f.advance(1000); assert.equal(f.view.scrollY, target); f.assist.dispose();
+  const curve = assistance.createScrollContinuation(0, 1000, 0, 844);
+  assert.ok(Math.abs(curve.duration - 514.9447077409163) < 1e-8);
+});
+
+
+function authoredReadingStops(bounds, pace = 1) {
+  const { opening, transitions } = bounds, timing = scaledCinematicTiming(1 / pace);
+  return [
+    ...[['hero', 0], ['ai', .5], ['wearable', 1]].map(([id, anchor]) => ({ id, y: opening.top + opening.motionTravel * anchor })),
+    ...transitions.filter(join => !['open-weight', 'footer'].includes(join.to.id)).map(join => {
+      const y = chapterNavigationTarget(join.to, opening.stageHeight, timing);
+      assert.ok(Math.abs(y - join.end) < 1e-7, 'incoming end must match the existing navigation pose');
+      return { id: join.to.id, y };
+    }),
+  ];
+}
+
+test('every authored gap and handoff completes to its adjacent navigation reading stop with no proximity eligibility', () => {
+  for (const pace of [.25, 1, 4]) {
+    const bounds = geometry(844, pace), stops = authoredReadingStops(bounds, pace);
+    assert.deepEqual(stops.map(stop => stop.id), ['hero', 'ai', 'wearable', 'features', 'encryption', 'grip', 'sustainability', 'testimonies', 'social-content', 'product']);
+    for (let i = 1; i < stops.length; i++) {
+      const before = stops[i - 1], after = stops[i];
+      const points = new Set([before.y + .25, (before.y + after.y) / 2, after.y - .25]);
+      for (const join of bounds.transitions) for (const y of [join.start + .25, (join.start + join.end) / 2, join.end - .25])
+        if (y > before.y && y < after.y) points.add(y);
+      for (const y of points) for (const direction of [-1, 1]) {
+        const f = fixture({ mode: 'early', pace, diagnostics: true });
+        const target = direction > 0 ? after.y : before.y;
+        f.wheel(y, direction); f.end(); f.advance(30000);
+        assert.equal(f.view.scrollY, target, `${pace}: ${before.id}/${after.id} at ${y}, direction ${direction}`);
+        assert.equal(f.reports.filter(row => row.type === 'handoff').length, 1);
+        assert.ok(f.calls.every(call => (call.top - y) * direction >= -1e-7 && (target - call.top) * direction >= -1e-7));
+        const calls = f.calls.length; f.end(); f.advance(1000); assert.equal(f.calls.length, calls);
+        f.assist.dispose();
+      }
+    }
+  }
+});
+
+test('exact reading stops and small native overshoots select the next stop in direction without a backward pull', () => {
+  const stops = authoredReadingStops(geometry());
+  for (let i = 1; i < stops.length - 1; i++) for (const offset of [-.25, 0, .25]) for (const direction of [-1, 1]) {
+    const f = fixture({ mode: 'early' }), y = stops[i].y + offset;
+    const next = direction > 0 ? stops.find(stop => stop.y > y) : [...stops].reverse().find(stop => stop.y < y);
+    f.wheel(y, direction); f.end(); f.advance(30000); assert.equal(f.view.scrollY, next.y); f.assist.dispose();
+  }
+  for (const y of [stops.at(-1).y, stops.at(-1).y + 100]) {
+    const f = fixture({ mode: 'early' }); f.wheel(y); f.end(); f.advance(30000);
+    assert.equal(f.calls.length, 0, 'pricing/footer are not automatic destinations'); f.assist.dispose();
+  }
+});
+
+test('long travel scales duration instead of compressing into 850ms or crawling at a near-zero seed', () => {
+  for (const distance of [.25, 40, 1000, 9452.8, 35279.2]) for (const velocity of [0, .001, .15, 2.5, 1000]) {
+    const curve = assistance.createScrollContinuation(0, distance, velocity, 844);
+    const seed = Math.min(velocity, 844 * 4 / 1000);
+    assert.ok(curve.duration > 0 && curve.duration <= 20900 + 1e-6);
+    if (distance >= 9452) assert.ok(curve.duration >= 2800, 'a whole long chapter is not compressed into a fast jump');
+    assert.ok(seed * curve.duration / distance <= 2 + 1e-8);
+    let y = 0;
+    for (let i = 1; i <= 100; i++) { const next = curve.at(i * curve.duration / 100); assert.ok(next >= y - 1e-6 && next <= distance + 1e-6); y = next; }
+    assert.equal(curve.at(curve.duration), distance);
+  }
+});
+
+test('repeated late frames preserve the same target but fresh user input cancels permanently while paused', () => {
+  for (const interrupt of [false, true]) for (const beforeFirstWrite of [false, true]) {
+    const f = fixture({ mode: 'early', diagnostics: true }), target = f.bounds.transitions[0].end;
+    decelerate(f, target); f.advance(beforeFirstWrite ? 32 : 48);
+    const before = f.view.scrollY, beforeCalls = f.calls.length;
+    f.stall(791); f.advance(0); assert.equal(f.view.scrollY, before); assert.equal(f.calls.length, beforeCalls);
+    for (const delay of [1084, 1163]) { f.stall(delay); f.advance(0); }
+    const y = f.view.scrollY, calls = f.calls.length;
+    assert.ok(y > before, 'consecutive stalls make bounded logical progress rather than stranding the stop');
+    assert.equal(f.reports.filter(row => row.type === 'handoff').length, 1);
+    if (interrupt) f.input('pointerdown', {});
+    f.advance(30000);
+    assert.equal(f.view.scrollY, interrupt ? y : target);
+    if (interrupt) assert.equal(f.calls.length, calls);
+    assert.equal(f.frames(), 0); f.assist.dispose();
+  }
+});
+
+test('a still-current trusted first scroll survives 1624ms delivery without borrowing cancelled or older motion', () => {
+  for (const invalidation of [null, 'new-input', 'hidden', 'layout', 'older-event', 'untrusted-event']) {
+    const f = fixture({ mode: 'early', diagnostics: true });
+    const start = 100, target = f.bounds.opening.motionTravel / 2;
+    f.move(start);
+    f.input('wheel', { deltaY: 20 });
+    f.advance(1624);
+    if (invalidation === 'new-input') f.input('wheel', { deltaY: -20 });
+    if (invalidation === 'hidden') { f.document.hidden = true; f.input('visibilitychange'); f.document.hidden = false; }
+    if (invalidation === 'layout') f.assist.cancel('layout');
+    f.view.scrollY = start + 20;
+    f.emit(f.view, 'scroll', { target: f.document, timeStamp: invalidation === 'older-event' ? -1 : 1624, isTrusted: invalidation !== 'untrusted-event' });
+    f.end(); f.advance(5000);
+    assert.equal(f.view.scrollY, invalidation ? start + 20 : target, invalidation || 'late current input completes');
+    assert.equal(f.reports.filter(row => row.type === 'handoff').length, invalidation ? 0 : 1);
+    f.assist.dispose();
+  }
+});
+
+
+test('long trips keep a fixed startup ramp and add cruise time rather than stretching the dead gap', () => {
+  for (const velocity of [0, .001, .15, 2.5, 1000]) {
+    const short = assistance.createScrollContinuation(0, 1000, velocity, 844);
+    const long = assistance.createScrollContinuation(0, 35279.2, velocity, 844);
+    assert.ok(long.at(16) >= .5, 'first request clears half a pixel at the next timely frame');
+    assert.ok(long.at(32) >= 1, 'second timely frame clears one requested CSS pixel');
+    assert.ok(Math.abs(short.at(16) - long.at(16)) < 1e-8, 'distance adds cruise, not slower startup');
+    const seed = Math.min(velocity, 844 * 4 / 1000), peak = Math.max(seed, 844 * 3 / 1000);
+    const cruise = (35279.2 - 120 * (seed / 2 + peak)) / peak;
+    assert.ok(Math.abs(long.duration - (240 + cruise)) < 1e-8);
+    for (const join of [120, 120 + cruise]) {
+      const dt = .01, left = (long.at(join) - long.at(join - dt)) / dt, right = (long.at(join + dt) - long.at(join)) / dt;
+      assert.ok(Math.abs(left - right) < 1e-5, 'velocity is continuous at each ramp/cruise join');
+      assert.ok(Math.abs(left - peak) < 1e-5);
+    }
+  }
+});
+
+test('sustained 83ms and 100ms cadence eventually arrives using bounded logical steps after the first rebase', () => {
+  for (const cadence of [83, 100]) {
+    const f = fixture({ mode: 'early', diagnostics: true }), target = f.bounds.transitions[0].end;
+    f.wheel(target - 1000); f.end(); f.advance(48);
+    const curve = assistance.createScrollContinuation(target - 1000, target, 0, 844);
+    f.stall(cadence); f.advance(0);
+    assert.equal(f.calls.length, 0, 'the first stale callback must not catch up or write');
+    let callbacks = 1;
+    while (f.frames() && callbacks < 100) {
+      f.stall(cadence); f.advance(0); callbacks++;
+      assert.ok(Math.abs(f.view.scrollY - curve.at((callbacks - 1) * 16)) < 1e-7, 'one bounded logical frame, independent of late wall-time delivery');
+    }
+    assert.equal(f.view.scrollY, target); assert.equal(f.frames(), 0);
+    assert.equal(f.reports.filter(row => row.type === 'handoff').length, 1);
+    f.assist.dispose();
+  }
 });

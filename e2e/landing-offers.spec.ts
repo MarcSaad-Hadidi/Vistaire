@@ -466,7 +466,10 @@ for (const width of [390,1440]) test(`native entry assistance is bounded, interr
     top: el.getBoundingClientRect().top + scrollY,
     stage: parseFloat(getComputedStyle(el.firstElementChild!).height),
   }));
-  const end = opening.top + opening.stage * CINEMATIC_TIMING.transitionScreens;
+  // Match App's authored navigation anchors: AI is the middle of its
+  // reading hold, not the end of the incoming camera leg.
+  const end = opening.top + opening.stage * CINEMATIC_TIMING.openingMotionScreens / 2;
+  const wearable = opening.top + opening.stage * CINEMATIC_TIMING.openingMotionScreens;
   const position = async (y: number) => {
     await scrollPage(page, y);
     // A setup teleport is not the gesture under test. Wait for its actual
@@ -499,12 +502,24 @@ for (const width of [390,1440]) test(`native entry assistance is bounded, interr
   await position(end - Math.min(opening.stage, end * 0.4));
   await gesture(1);
   await expect.poll(()=>page.evaluate(target=>Math.abs(scrollY-target),end),{timeout:15_000}).toBeLessThanOrEqual(1);
-  const exit = end + opening.stage * CINEMATIC_TIMING.aiHoldScreens;
-  await position(exit - 120);
+  // No proximity gate: a small genuine gesture near the beginning completes
+  // to the adjacent AI reading stop, without chaining on to Wearable.
+  await position(opening.top + opening.stage * .15);
   await gesture(1);
-  await expect.poll(()=>page.evaluate(target=>Math.abs(scrollY-target),exit),{timeout:15_000}).toBeLessThanOrEqual(1);
+  await expect.poll(()=>page.evaluate(target=>Math.abs(scrollY-target),end),{timeout:15_000}).toBeLessThanOrEqual(1);
   await page.waitForTimeout(350);
-  expect(await page.evaluate(target=>Math.abs(scrollY-target),exit)).toBeLessThanOrEqual(1);
+  expect(await page.evaluate(target=>Math.abs(scrollY-target),end)).toBeLessThanOrEqual(1);
+  // A far reverse gesture uses the previous reading stop, not an exit boundary.
+  await position(end - opening.stage * .15);
+  await gesture(-1);
+  await expect.poll(()=>page.evaluate(target=>Math.abs(scrollY-target),opening.top),{timeout:15_000}).toBeLessThanOrEqual(1);
+  // Leaving the AI reading point completes its remaining hold AND the following
+  // transition as one journey to the existing Wearable reading anchor.
+  await position(end + opening.stage * .15);
+  await gesture(1);
+  await expect.poll(()=>page.evaluate(target=>Math.abs(scrollY-target),wearable),{timeout:15_000}).toBeLessThanOrEqual(1);
+  await page.waitForTimeout(350);
+  expect(await page.evaluate(target=>Math.abs(scrollY-target),wearable)).toBeLessThanOrEqual(1);
 
   await position(end-inputRoom);
   await gesture(1);
@@ -679,8 +694,17 @@ for (const width of [390, 1440]) test(`continuous assistance retains the actual 
         top: el.getBoundingClientRect().top + scrollY,
         stage: parseFloat(getComputedStyle(el.firstElementChild!).height),
       }));
-      const end = opening.top + opening.stage * CINEMATIC_TIMING.transitionScreens;
+      // This external join has the same reading endpoint in the historical
+      // proximity-based mode and the current next-stop mode. The opening AI
+      // target intentionally changed, so it would not be a paired comparison.
+      const join = await page.locator('#wearable').evaluate(element => ({
+        start: Number((element as HTMLElement).dataset.exitStart),
+        end: Number((element as HTMLElement).dataset.exitEnd),
+      }));
+      expect(join.end).toBeGreaterThan(join.start);
+      const end = join.end;
       const from = end - opening.stage * .7;
+      expect(from).toBeGreaterThan(join.start);
       geometry = { ...opening, end, from };
       if (referenceGeometry) expect(geometry, 'paired modes require exactly the same measured starting geometry').toEqual(referenceGeometry);
       else referenceGeometry = geometry;
