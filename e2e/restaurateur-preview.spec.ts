@@ -6,11 +6,10 @@ type Scenario = {
   path: "/apercu-restaurateur" | "/en/restaurant-preview";
   sampleMenu: {label: string; href: string};
   videoLabel: string;
-  transcript: string;
 };
 const scenarios: Scenario[] = [
-  {path: "/apercu-restaurateur", sampleMenu: {label: "Voir la carte exemple", href: "/demo"}, videoLabel: "Vidéo de démonstration du Studio Vistaire", transcript: "Ce que montre la vidéo"},
-  {path: "/en/restaurant-preview", sampleMenu: {label: "View sample menu", href: "/en/vistaire-menu"}, videoLabel: "Vistaire Studio demonstration video", transcript: "What the video shows"}
+  {path: "/apercu-restaurateur", sampleMenu: {label: "Voir la carte exemple", href: "/demo"}, videoLabel: "Vidéo de démonstration du Studio Vistaire"},
+  {path: "/en/restaurant-preview", sampleMenu: {label: "View sample menu", href: "/en/vistaire-menu"}, videoLabel: "Vistaire Studio demonstration video"}
 ];
 const canonicalOrigin = "https://www.vistaire.ca";
 
@@ -74,6 +73,7 @@ function observeRuntime(page: Page, baseURL: string) {
   const frameworkPosts: string[] = [];
   const modelRequests: string[] = [];
   const videoRequests: string[] = [];
+  const videoNetworkEvents: {event: string; at: number; detail: string}[] = [];
 
   page.on("console", (message) => {
     if (message.type() === "error") consoleErrors.push(message.text());
@@ -91,7 +91,10 @@ function observeRuntime(page: Page, baseURL: string) {
     if (result.unexpectedWrite) unexpectedWrites.push(result.pathname);
     if (result.frameworkInternal) frameworkPosts.push(result.pathname);
     if (result.modelAsset) modelRequests.push(result.pathname);
-    if (result.videoAsset) videoRequests.push(result.pathname);
+    if (result.videoAsset) {
+      videoRequests.push(result.pathname);
+      videoNetworkEvents.push({event: "request", at: Date.now(), detail: request.headers().range ?? "full"});
+    }
   });
   page.on("requestfailed", (request) => {
     const headers = request.headers();
@@ -99,8 +102,17 @@ function observeRuntime(page: Page, baseURL: string) {
       /prefetch/i.test(headers.purpose ?? "") ||
       /^(?:1|true|prefetch)$/i.test(headers["next-router-prefetch"] ?? "");
     const errorText = request.failure()?.errorText ?? "request failed";
+    if (new URL(request.url()).pathname === "/demo/dashboard-studio-3x-67468b94997f.mp4") {
+      videoNetworkEvents.push({event: "requestfailed", at: Date.now(), detail: errorText});
+    }
     if (errorText === "net::ERR_ABORTED" && explicitPrefetch) return;
-    if (errorText === "net::ERR_ABORTED" && request.method() === "GET" && new URL(request.url()).pathname === "/videos/demo/dashboard-studio.mp4") return;
+    // Seeking/looping cancels obsolete byte-range requests in both engines.
+    // Keep genuine transport errors and HTTP failures visible.
+    if (
+      (errorText === "net::ERR_ABORTED" || errorText === "Load request cancelled") &&
+      request.method() === "GET" &&
+      request.url() === "https://cdn.vistaire.ca/demo/dashboard-studio-3x-67468b94997f.mp4"
+    ) return;
     if (shouldIgnoreRestaurateurPreviewRequestFailure({
       baseOrigin: baseURL,
       url: request.url(),
@@ -109,6 +121,9 @@ function observeRuntime(page: Page, baseURL: string) {
     networkErrors.push(`${errorText} ${new URL(request.url()).pathname}`);
   });
   page.on("response", (response) => {
+    if (new URL(response.url()).pathname === "/demo/dashboard-studio-3x-67468b94997f.mp4") {
+      videoNetworkEvents.push({event: "response", at: Date.now(), detail: `${response.status()}`});
+    }
     if (response.status() === 404 || response.status() >= 500) {
       networkErrors.push(`${response.status()} ${new URL(response.url()).pathname}`);
     }
@@ -123,6 +138,7 @@ function observeRuntime(page: Page, baseURL: string) {
     frameworkPosts,
     modelRequests,
     videoRequests,
+    videoNetworkEvents,
     expectClean() {
       expect(consoleErrors, "console and hydration errors").toEqual([]);
       expect(networkErrors, "failed requests and 404/5xx responses").toEqual([]);
@@ -130,7 +146,7 @@ function observeRuntime(page: Page, baseURL: string) {
       expect(productMutations, "private product or analytics mutations").toEqual([]);
       expect(unexpectedWrites, `unexpected writes; Next internals: ${frameworkPosts.join(", ")}`).toEqual([]);
       expect(modelRequests, "GLB or USDZ requests").toEqual([]);
-      expect(videoRequests.filter(path => path !== "/videos/demo/dashboard-studio.mp4"), "only the requested walkthrough video may load").toEqual([]);
+      expect(videoRequests.filter(path => path !== "/demo/dashboard-studio-3x-67468b94997f.mp4"), "only the requested walkthrough video may load").toEqual([]);
     }
   };
 }
@@ -221,7 +237,7 @@ async function expectSafeSeo(page: Page, scenario: Scenario) {
 
 
 for (const scenario of scenarios) {
-  test(`${scenario.path} presents a genuine video with private data isolation and arrival autoplay and user-controlled playback`, async ({baseURL, page}) => {
+  test(`${scenario.path} presents a non-interactive looping video with private data isolation and arrival autoplay`, async ({baseURL, page}, testInfo) => {
     const runtime = observeRuntime(page, baseURL ?? "http://127.0.0.1:3000");
     await page.setViewportSize({width: 1280, height: 720});
     const response = await page.goto(scenario.path, {waitUntil: "domcontentloaded"});
@@ -231,26 +247,62 @@ for (const scenario of scenarios) {
     const film = page.locator("[data-dashboard-walkthrough]");
     const video = film.locator("video");
     await expect(video).toHaveAttribute("aria-label", scenario.videoLabel);
-    await expect(video).toHaveAttribute("controls", "");
+    await expect(video).not.toHaveAttribute("controls", "");
+    await expect(video).toHaveAttribute("loop", "");
+    await expect(video).toHaveAttribute("disablepictureinpicture", "");
+    await expect(film.locator("figcaption, details, summary, button")).toHaveCount(0);
+    await expect(film.locator("[inert]")).toHaveCount(1);
     await expect(video).toHaveAttribute("playsinline", "");
-    await expect(video).toHaveAttribute("preload", "none");
-    await expect(video).not.toHaveAttribute("autoplay", "");
-    await expect(video).toHaveAttribute("poster", "/images/demo-walkthrough/dashboard-studio.webp");
+    await expect(video).toHaveAttribute("preload", "metadata");
+    await expect(video).toHaveAttribute("autoplay", "");
+    await expect(video).toHaveAttribute("poster", "/images/demo-walkthrough/dashboard-studio-3x.webp");
     const box = await video.boundingBox();
     expect(box).not.toBeNull();
     expect(box!.y).toBeGreaterThan(88);
     expect(box!.y + box!.height).toBeLessThanOrEqual(720);
     expect(Math.abs(box!.x + box!.width / 2 - 640)).toBeLessThan(2);
-    await expect(video).toHaveAttribute("src", "/videos/demo/dashboard-studio.mp4");
+    await expect(video).toHaveAttribute("src", "https://cdn.vistaire.ca/demo/dashboard-studio-3x-67468b94997f.mp4");
     expect(await video.evaluate(element => (element as HTMLVideoElement).muted)).toBe(true);
     await expect.poll(() => video.evaluate(element => (element as HTMLVideoElement).currentTime)).toBeGreaterThan(.2);
-    expect(await video.evaluate(element => (element as HTMLVideoElement).duration)).toBeGreaterThan(60);
-    await video.evaluate(element => (element as HTMLVideoElement).pause());
-    await expect.poll(() => video.evaluate(element => (element as HTMLVideoElement).paused)).toBe(true);
-    await page.getByRole("contentinfo").scrollIntoViewIfNeeded();
-    await video.scrollIntoViewIfNeeded();
-    expect(await video.evaluate(element => (element as HTMLVideoElement).paused)).toBe(true);
-    await video.evaluate(element => (element as HTMLVideoElement).play());
+    expect(await video.evaluate(element => (element as HTMLVideoElement).duration)).toBeCloseTo(137.9, 1);
+    expect(await video.evaluate(element => (element as HTMLVideoElement).playbackRate)).toBe(1);
+    expect(await video.evaluate(element => [(element as HTMLVideoElement).videoWidth, (element as HTMLVideoElement).videoHeight])).toEqual([1166, 756]);
+    const beforeClick = await video.evaluate(element => (element as HTMLVideoElement).currentTime);
+    await page.mouse.click(box!.x + box!.width / 2, box!.y + box!.height / 2);
+    expect(await video.evaluate(element => (element as HTMLVideoElement).paused)).toBe(false);
+    await expect.poll(() => video.evaluate(element => (element as HTMLVideoElement).currentTime)).toBeGreaterThan(beforeClick);
+    expect(await video.evaluate(element => {
+      element.focus();
+      return document.activeElement === element;
+    })).toBe(false);
+    expect(await film.locator("[inert]").evaluate(element => getComputedStyle(element).pointerEvents)).toBe("none");
+    // A programmatic jump fetches new byte ranges; don't count that network seek
+    // against the native loop deadline. Keep a bounded event trace for failures.
+    await video.evaluate(element => {
+      const media = element as HTMLVideoElement;
+      const events: {event: string; at: number; time: number; seeking: boolean; paused: boolean; readyState: number}[] = [];
+      Reflect.set(media, "__dashboardSeekTrace", events);
+      for (const event of ["seeking", "seeked", "waiting", "playing", "pause", "ended", "error", "stalled"]) {
+        media.addEventListener(event, () => {
+          if (events.length < 100) events.push({event, at: Date.now(), time: media.currentTime, seeking: media.seeking, paused: media.paused, readyState: media.readyState});
+        });
+      }
+      media.currentTime = media.duration - .2;
+    });
+    try {
+      await expect.poll(() => video.evaluate(element => {
+        const events = Reflect.get(element, "__dashboardSeekTrace") as {event: string}[];
+        return events.some(event => event.event === "seeked");
+      }), {timeout: 10_000, intervals: [100]}).toBe(true);
+      await expect.poll(() => video.evaluate(element => (element as HTMLVideoElement).currentTime), {timeout: 5_000, intervals: [100]}).toBeLessThan(2);
+    } finally {
+      const mediaState = await video.evaluate(element => {
+        const media = element as HTMLVideoElement;
+        const ranges = (value: TimeRanges) => Array.from({length: value.length}, (_, index) => [value.start(index), value.end(index)]);
+        return {currentTime: media.currentTime, duration: media.duration, seeking: media.seeking, paused: media.paused, ended: media.ended, readyState: media.readyState, networkState: media.networkState, error: media.error ? {code: media.error.code, message: media.error.message} : null, buffered: ranges(media.buffered), seekable: ranges(media.seekable), events: Reflect.get(media, "__dashboardSeekTrace")};
+      });
+      await testInfo.attach("dashboard-loop-media-state", {body: JSON.stringify({mediaState, network: runtime.videoNetworkEvents}, null, 2), contentType: "application/json"});
+    }
     await page.evaluate(() => {
       Object.defineProperty(document, "hidden", {configurable: true, value: true});
       document.dispatchEvent(new Event("visibilitychange"));
@@ -263,8 +315,7 @@ for (const scenario of scenarios) {
     await expect.poll(() => video.evaluate(element => (element as HTMLVideoElement).paused)).toBe(false);
     await page.getByRole("contentinfo").scrollIntoViewIfNeeded();
     await expect.poll(() => video.evaluate(element => (element as HTMLVideoElement).paused)).toBe(true);
-    await film.getByText(scenario.transcript, {exact: true}).click();
-    expect(await film.locator("ol li").count()).toBeGreaterThanOrEqual(6);
+    expect(await video.evaluate(element => (element as HTMLVideoElement).error)).toBeNull();
     await expectSafeDom(page, scenario);
     await expectSafeSeo(page, scenario);
     runtime.expectClean();
@@ -283,32 +334,31 @@ for (const scenario of scenarios) {
       expect(Math.abs(box!.x + box!.width / 2 - width / 2)).toBeLessThan(2);
       await expect(video).not.toHaveAttribute("autoplay", "");
       expect(await video.evaluate(element => (element as HTMLVideoElement).paused)).toBe(true);
-      expect(await video.evaluate(element => (element as HTMLVideoElement).controls)).toBe(true);
+      expect(await video.evaluate(element => (element as HTMLVideoElement).controls)).toBe(false);
+      await expect(video).not.toHaveAttribute("src", /.+/);
+      await expect(page.locator("[data-dashboard-walkthrough] figcaption, [data-dashboard-walkthrough] details")).toHaveCount(0);
       await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(2);
     }
-    await page.locator("[data-dashboard-walkthrough] video").evaluate(element => (element as HTMLVideoElement).play());
-    await expect.poll(() => page.locator("[data-dashboard-walkthrough] video").evaluate(element => (element as HTMLVideoElement).currentTime)).toBeGreaterThan(.2);
   });
 
-  test(`${scenario.path} offers a working play button when autoplay is blocked`, async ({page}) => {
+  test(`${scenario.path} retains its poster without interactive fallback when autoplay is blocked`, async ({page}) => {
     await page.addInitScript(() => {
-      const originalPlay = HTMLMediaElement.prototype.play;
-      let firstAttempt = true;
+      const autoplay = Object.getOwnPropertyDescriptor(HTMLMediaElement.prototype, "autoplay");
+      Object.defineProperty(HTMLMediaElement.prototype, "autoplay", {
+        get() { return false; },
+        set() { autoplay?.set?.call(this, false); }
+      });
       HTMLMediaElement.prototype.play = function () {
-        if (firstAttempt) {
-          firstAttempt = false;
-          return Promise.reject(new DOMException("Autoplay blocked", "NotAllowedError"));
-        }
-        return originalPlay.call(this);
+        return Promise.reject(new DOMException("Autoplay blocked", "NotAllowedError"));
       };
     });
     await page.goto(scenario.path, {waitUntil: "domcontentloaded"});
-    const video = page.locator("[data-dashboard-walkthrough] video");
-    const fallback = page.locator("[data-video-play-fallback]");
-    await expect(fallback).toBeVisible();
+    const film = page.locator("[data-dashboard-walkthrough]");
+    const video = film.locator("video");
+    await expect(video).toHaveAttribute("src", "https://cdn.vistaire.ca/demo/dashboard-studio-3x-67468b94997f.mp4");
+    await expect(film.locator(".public-film-poster")).toBeVisible();
+    await expect(film.locator("[data-video-play-fallback]")).toHaveCount(0);
+    expect(await video.evaluate(element => (element as HTMLVideoElement).controls)).toBe(false);
     expect(await video.evaluate(element => (element as HTMLVideoElement).paused)).toBe(true);
-    await fallback.click();
-    await expect.poll(() => video.evaluate(element => (element as HTMLVideoElement).currentTime)).toBeGreaterThan(.2);
-    await expect(fallback).toBeHidden();
   });
 }

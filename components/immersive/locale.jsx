@@ -203,6 +203,14 @@ const EN = {
   "ouvrez dans Chrome sur un appareil compatible avec la réalité augmentée.":
     "open in Chrome on an AR-compatible device.",
   "Ouvrir ce plat": "Open this dish",
+  "À placer au centre de la table pour partager l’accès au menu.":
+    "Place it at the centre of the table so guests can share access to the menu.",
+  "À intégrer au dressage pour faire du menu un élément de la table.":
+    "Make the menu part of your table setting.",
+  "À poser sur un petit comptoir ou une table pour deux.":
+    "Set it on a small counter or a table for two.",
+  "À disposer au bord de la table pour laisser le centre dégagé.":
+    "Place it at the edge of the table to keep the centre clear.",
   "Transparent et posé sur une base en bois, il laisse respirer la table et s’accorde aux décors épurés.":
     "Clear acrylic on a wooden base keeps the table visually open and complements pared-back interiors.",
   "Son coin arrondi adoucit la silhouette du bois. Une touche sculpturale à table, en écho aux matières naturelles.":

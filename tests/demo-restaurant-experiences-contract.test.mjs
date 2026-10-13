@@ -143,7 +143,8 @@ test("dashboard presentation uses an accessible recorded walkthrough without cha
   assert.match(presentation, /DashboardWalkthrough/);
   assert.match(walkthrough, /\sautoPlay\s/);
   assert.doesNotMatch(walkthrough, /autoPlay=\{false\}/);
-  assert.match(walkthrough, /playLabel=\{text\.playLabel\}/);
+  assert.doesNotMatch(walkthrough, /playLabel|figcaption|<details|\scontrols(?:\s|=)/);
+  assert.match(walkthrough, /className=\{styles\.dashboardScreen\} inert/);
   assert.match(player, /controls = false/);
   assert.match(player, /autoPlay = true/);
   assert.match(player, /controls=\{controls\}/);
@@ -161,3 +162,4 @@ test("dashboard presentation uses an accessible recorded walkthrough without cha
   assert.match(player, /video\.pause\(\)/);
   assert.match(pricing, /RestaurateurDashboardDemo/);
 });
+

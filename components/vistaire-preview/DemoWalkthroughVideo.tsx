@@ -8,6 +8,7 @@ export function DemoWalkthroughVideo({
   poster,
   src,
   controls = false,
+  disablePictureInPicture = false,
   autoPlay = true,
   playLabel = "Play video",
   sizes = "(max-width: 760px) 80vw, 340px"
@@ -16,6 +17,7 @@ export function DemoWalkthroughVideo({
   poster: string;
   src: string;
   controls?: boolean;
+  disablePictureInPicture?: boolean;
   autoPlay?: boolean;
   playLabel?: string;
   sizes?: string;
@@ -122,6 +124,7 @@ export function DemoWalkthroughVideo({
       <video
         aria-label={label}
         controls={controls}
+        disablePictureInPicture={disablePictureInPicture}
         data-demo-video
         loop
         muted
@@ -149,3 +152,4 @@ export function DemoWalkthroughVideo({
     </div>
   );
 }
+

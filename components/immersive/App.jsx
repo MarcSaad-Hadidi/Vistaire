@@ -25,7 +25,6 @@ import {
   collections as sourceCollections,
   dishes as sourceDishes,
   experiences as sourceExperiences,
-  money as formatMoney,
   site,
 } from "./content.js";
 import Pricing from "./Pricing.jsx";
@@ -311,11 +310,11 @@ export function App({ locale = "fr" }) {
 }
 
 function LandingContent() {
-  const { locale, languageTag, t, href: link } = useLandingLocale();
-  const money = (amount) => formatMoney(amount, languageTag);
+  const { locale, t, href: link } = useLandingLocale();
   const collections = sourceCollections.map((item) => ({
     ...item,
     description: t(item.description),
+    usage: t(item.usage),
   }));
   const dishes = sourceDishes.map((item) => ({
     ...item,
@@ -1818,10 +1817,7 @@ function LandingContent() {
             <div>
               <span className="eyebrow">Collection {selected.name}</span>
               <p>{selected.description}</p>
-              <span className="price">
-                {t("Dès")} {money(selected.price)} <small>CAD</small>
-              </span>
-              <span className="monthly">{t("Puis 200 CAD / mois")}</span>
+              <p className="collection-usage">{selected.usage}</p>
             </div>
             <Action dark href={link("/tarifs-menu-digital-restaurant")}>
               {t("Composer votre expérience")}
