@@ -205,6 +205,155 @@ function baseComposition(state, mobile) {
         look: [0, 0.95, 0],
       });
       break;
+    // 3D/AR page: the dish, huge and alive, turning in front of the guest.
+    case "ar-hero":
+      Object.assign(pose, {
+        dish: [0, 0.3, 1.2],
+        dishScale: mobile ? 1.5 : 1.9,
+        dishRotation: [0.15, p * Math.PI * 1.2, 0],
+        camera: mobile ? [0, 3.2, 6.0] : [0, 2.6, 5.4],
+        look: [0, 0.3, 1.2],
+      });
+      break;
+    // 3D/AR page: a low camera walks around the plate.
+    case "ar-orbit": {
+      const angle = -0.8 + p * 1.6, radius = mobile ? 4.6 : 4.2;
+      Object.assign(pose, {
+        dish: [0, 0.15, 0.8],
+        dishScale: 1.1,
+        dishRotation: [0.08, 0, 0],
+        camera: [Math.sin(angle) * radius, 1.6, 0.8 + Math.cos(angle) * radius],
+        look: [0, 0.25, 0.8],
+      });
+      break;
+    }
+    // 3D/AR page: the dish shrinks and lands on the table, as in AR placement.
+    case "ar-place": {
+      const land = cinematicEase(p);
+      Object.assign(pose, {
+        dish: [0, 1.2 - land * 1.18, 0.4],
+        dishScale: (mobile ? 1.4 : 1.6) - land * (mobile ? 0.7 : 0.85),
+        dishRotation: [0.1 - land * 0.1, 0.6 - land * 0.6, 0],
+        camera: mobile ? [0, 4.6, 7.8] : [0, 4.2, 7.4],
+        look: [0, 0.2, 0.4],
+      });
+      break;
+    }
+    // 3D/AR page: selective 3D, one signature dish next to its table stand.
+    case "ar-selective":
+      Object.assign(pose, {
+        dish: [mobile ? -0.5 : -0.9, 0.02, 0.6],
+        dishScale: mobile ? 0.8 : 0.9,
+        dishRotation: [0.08, -0.3 + p * 0.6, 0],
+        support: [mobile ? 0.7 : 1.1, 0.08, 0.7],
+        supportScale: mobile ? 0.8 : 0.9,
+        supportRotation: [-0.06, -0.3, 0],
+        camera: mobile ? [0, 3.8, 7.4] : [0, 3.4, 7.0],
+      });
+      break;
+    // PDF page: the phone lies flat like a printed sheet, seen from above.
+    case "pdf-flat":
+      Object.assign(pose, {
+        phone: [0, 0.16, 0.4],
+        phoneRotation: [-HALF_PI, 0, 0.35 - p * 0.35],
+        phoneScale: mobile ? 1 : 1.1,
+        camera: [0, 7.2, 1.4],
+        look: [0, 0, 0.35],
+      });
+      break;
+    // PDF page: the "sheet" rises into a living menu while the camera comes down.
+    case "pdf-rise": {
+      const t = cinematicEase(p);
+      Object.assign(pose, {
+        phone: [0, 0.16 + t, 0.4 + t * 0.8],
+        phoneRotation: [-HALF_PI * (1 - t) - 0.05 * t, 0, 0.35 * (1 - t)],
+        phoneScale: mobile ? 1 : 1.1,
+        camera: [0, 7.2 - t * 4.6, 1.4 + t * 4.6],
+        look: [0, t * 1.1, 0.4 + t * 0.8],
+      });
+      break;
+    }
+    // PDF page: the living menu beside the table stand, for the comparison.
+    case "pdf-compare":
+      Object.assign(pose, {
+        phone: [mobile ? -0.5 : -1.0, 1.0, 1.2],
+        phoneScale: mobile ? 0.8 : 0.9,
+        phoneRotation: [-0.05, 0.3, 0],
+        support: [mobile ? 0.6 : 1.0, 0.08, 1.0],
+        supportScale: mobile ? 0.75 : 0.85,
+        supportRotation: [-0.06, -0.35, 0],
+      });
+      break;
+    // PDF page: what a sheet cannot show, the dish itself.
+    case "pdf-dish":
+      Object.assign(pose, {
+        dish: [0, 0.1, 0.9],
+        dishScale: mobile ? 1 : 1.15,
+        dishRotation: [0.1, -0.5 + p * 1.0, 0],
+        camera: mobile ? [0.4, 3.6, 6.4] : [0.6, 3.0, 6.0],
+        look: [0, 0.2, 0.9],
+      });
+      break;
+    // Digital menu page: the phone at eye level, turning to face the guest.
+    case "digital-hero":
+      Object.assign(pose, {
+        phone: [0, 1.2, 1.6],
+        phoneScale: mobile ? 1.05 : 1.25,
+        phoneRotation: [0, -0.35 + p * 0.7, 0],
+        camera: mobile ? [0, 1.6, 6.2] : [0, 1.5, 5.6],
+        look: [0, 1.2, 1.6],
+      });
+      break;
+    // Digital menu page: the camera circles the phone while categories scroll.
+    case "digital-orbit": {
+      const angle = -0.6 + p * 1.2, radius = mobile ? 5.6 : 5.2;
+      Object.assign(pose, {
+        phone: [0, 1.1, 1.4],
+        phoneScale: 1,
+        phoneRotation: [-0.05, 0, 0],
+        camera: [Math.sin(angle) * radius, 2.6, 1.4 + Math.cos(angle) * radius],
+        look: [0, 1.1, 1.4],
+      });
+      break;
+    }
+    // Digital menu page: the dish rises from the table beside its phone page.
+    case "digital-dish": {
+      const rise = cinematicEase(p);
+      Object.assign(pose, {
+        phone: [mobile ? -0.55 : -0.9, 1.0, 1.2],
+        phoneScale: 0.85,
+        phoneRotation: [-0.05, 0.35, 0],
+        dish: [mobile ? 0.55 : 0.95, 0.02, 1.0],
+        dishScale: (mobile ? 0.8 : 1) * (0.55 + 0.45 * rise),
+        dishRotation: [0.08, -0.4 + p * 0.8, 0],
+      });
+      break;
+    }
+    // Digital menu page: straight down onto the phone lying on the cloth.
+    case "digital-topdown":
+      Object.assign(pose, {
+        phone: [0, 0.16, 0.6],
+        phoneRotation: [-HALF_PI, 0, 0.1 - p * 0.2],
+        phoneScale: mobile ? 0.9 : 1,
+        camera: [0, 6.5, 2.2 - p * 0.6],
+        look: [0, 0, 0.55],
+      });
+      break;
+    // Digital menu page: the whole table in service, seen from the room.
+    case "digital-room":
+      Object.assign(pose, {
+        camera: mobile ? [0.6 - p * 1.2, 4.6, 10.5] : [0.8 - p * 1.6, 3.8, 9.6],
+        look: [0, 0.4, 0],
+        dish: [0, 0.02, 0.45],
+        dishScale: mobile ? 1 : 1.2,
+        phone: [1.2, 0.16, 0.9],
+        phoneRotation: [-HALF_PI, 0, 0.2],
+        phoneScale: mobile ? 0.6 : 0.66,
+        support: [-1.6, 0.13, 0.6],
+        supportRotation: [-HALF_PI + 0.2, 0, -0.15],
+        supportScale: mobile ? 0.6 : 0.75,
+      });
+      break;
     // QR page: the stand alone, slowly turning to show its code.
     case "qr-hero":
       Object.assign(pose, {

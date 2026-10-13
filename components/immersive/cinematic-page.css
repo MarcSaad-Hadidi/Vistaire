@@ -124,3 +124,44 @@
     background: linear-gradient(180deg, #050505b8 0%, #05050580 38%, #05050500 60%);
   }
 }
+
+/* Before/after comparison read as short labelled pairs (digital menu page). */
+:where(.cinematic-page[data-immersive-vistaire]) .cinematic-compare {
+  display: grid;
+  gap: 14px;
+  margin: 0;
+}
+:where(.cinematic-page[data-immersive-vistaire]) .cinematic-compare > div {
+  display: grid;
+  gap: 4px;
+  padding-top: 12px;
+  border-top: 1px solid #f8f3e82b;
+}
+:where(.cinematic-page[data-immersive-vistaire]) .cinematic-compare dt {
+  font-family: "Vistaire Editorial", serif;
+  font-size: 20px;
+  color: var(--cream);
+}
+:where(.cinematic-page[data-immersive-vistaire]) .cinematic-compare dd {
+  margin: 0;
+  font-size: 14px;
+  color: var(--muted);
+}
+:where(.cinematic-page[data-immersive-vistaire]) .cinematic-compare dd span {
+  display: inline-block;
+  min-width: 92px;
+  margin-right: 8px;
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--amber);
+}
+@media (max-width: 767.98px) {
+  /* Phones keep the Vistaire side of each row; the full table is in the guide below. */
+  :where(.cinematic-page[data-immersive-vistaire]) .cinematic-compare dd:first-of-type {
+    display: none;
+  }
+  :where(.cinematic-page[data-immersive-vistaire]) .cinematic-compare dt {
+    font-size: 17px;
+  }
+}
