@@ -21,20 +21,21 @@ function fixture() {
   const canvas = { dataset: {}, width: 780, height: 1688 };
   const renderer = { domElement: canvas, info: { reset() {} } };
   const room = { draw() { counts.room++; }, warm() { counts.warm++; }, release() { counts.release++; }, dispose() { counts.dispose++; } };
+  const timers = [];
   const scope = vm.createContext({
     createPricingHandScene: () => hand,
     createPricingRoomBackdrop: () => room,
     pricingStageAtScroll, pricingExitOffset,
     pricingHandProgress: (top, height, reduce) => reduce ? 1 : Math.max(0, Math.min(1, -top / (height * .9))),
     pricingLightTheme: () => false, subscribePricingTheme: callback => { theme = callback; return () => {}; },
-    console,
+    console, setTimeout: callback => timers.push(callback), clearTimeout: id => { timers[id - 1] = null; },
   });
   const source = readFileSync(path, 'utf8').replace(/import[^;]+;\n/g, '').replace('export function', 'function');
   vm.runInContext(source, scope);
   const adapter = scope.createPricingSceneAdapter({ renderer, phoneRoot: {}, scene: {}, camera: {}, environment: {},
     world, stateRef: { current: state }, invalidate: () => counts.invalidate++ });
   const size = { width: 390, height: 844 };
-  return { adapter, state, counts, hand, room, world, canvas, size, theme: value => theme(value) };
+  return { adapter, state, counts, hand, room, world, canvas, size, theme: value => theme(value), flush: () => timers.splice(0).forEach(callback => callback?.()) };
 }
 
 test('offers wake the shared renderer only near their measured stage and reverse from an idle FAQ', () => {
@@ -53,7 +54,9 @@ test('offers wake the shared renderer only near their measured stage and reverse
   assert.equal(f.counts.warm, 0, 'hero must not link offscreen room programs');
   f.state.pageScrollY = 9000;
   f.adapter.draw(f.state, f.size, true);
-  assert.equal(f.counts.load, 1, 'preload only within two viewports');
+  assert.equal(f.counts.load, 0, 'approaching pricing never warms up inside a moving frame');
+  f.flush();
+  assert.equal(f.counts.load, 1, 'warm-up runs once frames rest near the offers');
   assert.ok(f.counts.warm > 0, 'capture-target room programs link before the first cached capture');
   f.state.pageScrollY = 10400; f.state.sceneOccluded = true;
   assert.equal(f.adapter.needsFrame(f.state), true, 'native scroll must wake a previously occluded renderer');

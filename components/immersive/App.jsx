@@ -926,6 +926,14 @@ function LandingContent() {
         video.defaultPlaybackRate = 1;
         video.playbackRate = 1;
       }
+      // Buffer the three menu videos from the chapter before them: starting a
+      // preload="none" MP4 inside an option change dropped frames mid-trip.
+      if (when.startsWith("social-content") && (chapter === "testimonies" || chapter === "social-content")
+        && video.dataset.primed !== "true" && !reduce) {
+        video.dataset.primed = "true";
+        video.preload = "auto";
+        video.load();
+      }
       const play =
         when === chapter ||
         (when === `social-content-${beat}` && chapter === "social-content");

@@ -95,7 +95,7 @@ test('keyboard reading explicitly continues the page at both fixed-portal bounda
 });
 
 test('the first native phone projection cannot move the FAQ or footer', async () => {
-  const { pricingScrollLayout, PRICING_SCREEN_WIDTH, PRICING_SCREEN_HEIGHT } = await import('../components/immersive/PricingPhoneLayout.js');
+  const { pricingScrollLayout, pricingCopyReserve, PRICING_SCREEN_WIDTH, PRICING_SCREEN_HEIGHT } = await import('../components/immersive/PricingPhoneLayout.js');
   const source = readFileSync('components/immersive/Pricing.jsx', 'utf8');
   const start = source.indexOf('    const measure = () => {');
   const end = source.indexOf('    const queueMeasure = () => {', start);
@@ -107,7 +107,7 @@ test('the first native phone projection cannot move the FAQ or footer', async ()
     visual: { clientHeight: 844, clientWidth: 390 }, body: { scrollHeight: 2400 },
     viewport: { clientHeight: 530 }, intro, screen: { style: { setProperty() {} } },
     state: { reducedMotion: false }, window: { scrollY: 0 }, layoutRef, projectionRef,
-    pricingScrollLayout, PRICING_SCREEN_WIDTH, PRICING_SCREEN_HEIGHT, syncScroll() {},
+    pricingScrollLayout, pricingCopyReserve, PRICING_SCREEN_WIDTH, PRICING_SCREEN_HEIGHT, syncScroll() {},
   });
   vm.runInContext(`${source.slice(start, end)}; this.measure = measure;`, context);
   context.measure();

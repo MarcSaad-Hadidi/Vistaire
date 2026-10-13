@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import {
   projectPricingScreen,
+  pricingCopyReserve,
   PRICING_ENTRY_VIEWPORTS,
 } from "./PricingPhoneLayout.js";
 import {
@@ -48,7 +49,7 @@ export function configurePricingHandCamera(
     width < 1024 && !(width >= 700 && height <= 500);
   const halfHeight = Math.max(
     0.1,
-    (0.14 * height) / (2 * Math.max(180, height - (stackedCopy ? 300 : 170))),
+    (0.14 * height) / (2 * Math.max(180, height - pricingCopyReserve(height, stackedCopy))),
     0.043 / aspect,
   );
   camera.position.x = -0.011576;

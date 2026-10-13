@@ -6,6 +6,14 @@ export const PRICING_SCREEN_HEIGHT =
 export const PRICING_SCREEN_HEADER = 74;
 export const PRICING_SCROLL_SPEED = 0.9;
 export const PRICING_ENTRY_VIEWPORTS = 0.9;
+
+// Vertical space kept free of the phone for the heading and the actions.
+// Stacked copy needs ~300px on a tall phone; a short screen needs more, so
+// the phone never overlaps the title or the links (up to 460px).
+export function pricingCopyReserve(height, stackedCopy) {
+  if (!stackedCopy) return 170;
+  return Math.min(460, Math.max(300, 300 + (860 - height) * 0.7));
+}
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 
 export function pricingScrollLayout(

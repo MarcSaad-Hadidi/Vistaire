@@ -11,7 +11,7 @@ export function createPricingSceneAdapter({
   let hand, room, screenViewport;
   let handVisible = false, roomOnly = false, dirty = false, failed = false;
   let roomFailed = false, prepared = false;
-  let bufferWidth = 0, bufferHeight = 0;
+  let bufferWidth = 0, bufferHeight = 0, warmTimer = 0;
   let light = pricingLightTheme();
   const unsubscribe = subscribePricingTheme(next => {
     if (next === light) return;
@@ -87,12 +87,14 @@ export function createPricingSceneAdapter({
     draw(state, size, ready) {
       const rect = rectangle(state);
       if (!ready || !size || !rect) return false;
-      // Start from the collection stop (about six screens above), so the hand
-      // download and shader warm-up never land inside the 1.4s assisted trip.
-      if (rect.bottom > 0 && rect.top < size.height * 8) {
-        prepare();
-        hand.preload();
-        room.warm();
+      const warm = () => { prepare(); hand.preload(); room.warm(); };
+      if (rect.bottom > 0 && rect.top < size.height) warm();
+      else if (rect.bottom > 0 && rect.top < size.height * 8) {
+        // From the collection stop (about six screens above), warm up only once
+        // frames stop: the hand download and shader linking never land inside
+        // an assisted trip (the video menu to collection trip dropped frames).
+        clearTimeout(warmTimer);
+        warmTimer = setTimeout(() => { if (!hand?.ready) { warm(); invalidate(); } }, 300);
       }
       if (!state.sceneOccluded) {
         prepared = false;
@@ -172,6 +174,7 @@ export function createPricingSceneAdapter({
       return false;
     },
     dispose() {
+      clearTimeout(warmTimer);
       unsubscribe();
       hand?.dispose();
       room?.dispose();

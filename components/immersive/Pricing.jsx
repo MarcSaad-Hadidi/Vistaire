@@ -18,6 +18,7 @@ import {
   pricingScrollLayout,
   pricingScreenScroll,
   pricingPagePosition,
+  pricingCopyReserve,
 } from "./PricingPhoneLayout.js";
 
 // Verified against Vistaire's pricingPage.ts. Physical supports beyond the
@@ -337,7 +338,8 @@ export default function Pricing({ collection, stateRef }) {
       const top = intro.getBoundingClientRect().top + window.scrollY;
       // The FAQ arrives below the fixed navigation bar, with breathing room.
       const header = document.querySelector(".site-header")?.getBoundingClientRect().bottom ?? 0;
-      return { start: pricingPagePosition(top, 0, layout), end: pricingPagePosition(top, layout.maxScroll, layout), faq: top + layout.sectionHeight - header - 24 };
+      // Stop when the hand and phone are in place, before the offers start moving.
+      return { start: top + layout.entry, end: pricingPagePosition(top, layout.maxScroll, layout), faq: top + layout.sectionHeight - header - 24 };
     };
     Object.assign(state, { pricingIntro: intro, pricingStage: visual, pricingNavigationTarget: navigationTarget, pricingReadingStops: readingStops });
     const syncScroll = (
@@ -393,7 +395,7 @@ export default function Pricing({ collection, stateRef }) {
       const stackedCopy = width < 1024 && !(width >= 700 && height <= 500);
       const fallbackScale = Math.min(
         (width * 0.74) / PRICING_SCREEN_WIDTH,
-        Math.max(180, height - (stackedCopy ? 320 : 170)) /
+        Math.max(180, height - pricingCopyReserve(height, stackedCopy) - (stackedCopy ? 20 : 0)) /
           PRICING_SCREEN_HEIGHT,
       );
       screen.style.setProperty("--pricing-fallback-scale", fallbackScale);
