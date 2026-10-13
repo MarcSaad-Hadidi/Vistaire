@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { CinematicPage, type CinematicChapter } from "../CinematicPage.jsx";
 import { PreviewNav } from "@/components/vistaire-preview/VistairePreviewChrome";
+import { CinematicFooter } from "./CinematicFooter";
 import { CinematicGuide } from "./CinematicGuide";
 import type { SeoPageData } from "@/lib/seoPages";
 
@@ -71,7 +72,7 @@ export function ArMenuCinematic({ page }: { page: SeoPageData }) {
   return (
     <>
       <PreviewNav currentPath={page.path} locale={locale} routeMode="production" />
-      <CinematicPage chapters={chapters} scene={{ dish: "chocolat-fume", phoneDemo: "sauge-noire", collection: "sculpte" }}>
+      <CinematicPage chapters={chapters} scene={{ dish: "chocolat-fume", phoneDemo: "sauge-noire", collection: "sculpte" }} footer={<CinematicFooter locale={locale} id={page.slug} />}>
         <CinematicGuide page={page} />
       </CinematicPage>
     </>

@@ -1,7 +1,5 @@
 import Link from "next/link";
 import { SeoFaq } from "@/components/seo/SeoFaq";
-import { PublicFooterNavigation } from "@/components/vistaire-preview/PublicFooterNavigation";
-import { getVistaireSocialProfiles } from "@/lib/seo";
 import { getRelatedSeoPages, type SeoPageData } from "@/lib/seoPages";
 
 // Free reading after a cinematic page's chapters, in the landing's language:
@@ -59,27 +57,6 @@ export function CinematicGuide({ page }: { page: SeoPageData }) {
           ))}
         </nav>
       </section>
-      <footer className="cinematic-footer" aria-labelledby={`${page.slug}-footer-title`}>
-        <h2 id={`${page.slug}-footer-title`} className="sr-only">Contact</h2>
-        <PublicFooterNavigation locale={locale} />
-        <div className="footer-grid">
-          <div>
-            <span className="eyebrow">{en ? "A project?" : "Un projet ?"}</span>
-            <p className="footer-place">{en ? "Montreal, Quebec, Canada" : "Montréal, Québec, Canada"}</p>
-            <a href="mailto:contact@vistaire.ca">contact@vistaire.ca</a>
-            <a href="tel:+15147152421">514-715-2421</a>
-          </div>
-          <div>
-            <span className="eyebrow">{en ? "Follow Vistaire" : "Suivre Vistaire"}</span>
-            {getVistaireSocialProfiles().map((profile) => (
-              <a href={profile.url} key={profile.url} target="_blank" rel="me noopener noreferrer">{profile.label}</a>
-            ))}
-          </div>
-        </div>
-        <div className="footer-bottom">
-          <span>{en ? "© 2026 Vistaire. All rights reserved." : "© 2026 Vistaire. Tous droits réservés."}</span>
-        </div>
-      </footer>
     </>
   );
 }

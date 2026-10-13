@@ -156,7 +156,8 @@ test("dashboard presentation uses an accessible recorded walkthrough without cha
   assert.match(player, /data-video-play-fallback/);
   assert.match(player, /playLabel/);
   assert.match(player, /addEventListener\("pause",/);
-  assert.ok(presentation.indexOf("<DashboardWalkthrough") < presentation.indexOf("copy.lead"));
+  // The film plays in free reading, after the page's cinematic chapters.
+  assert.ok(presentation.indexOf("<DashboardWalkthrough") > presentation.indexOf("<CinematicPage"));
   assert.match(layout, /\.dashboardFilm\s*\{[^}]*100svh[^}]*margin:\s*0 auto/s);
   assert.match(player, /rootMargin: controls \? "0px" : "200px 0px"/);
   assert.match(player, /video\.pause\(\)/);

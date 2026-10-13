@@ -547,12 +547,7 @@ export function buildArticleJsonLd(
     mainEntityOfPage: {
       "@id": `${absoluteUrl(article.path, env)}#webpage`
     },
-    // Rich-result and answer-engine trust signals: source, freshness, image.
-    author: {
-      "@id": `${absoluteUrl("/", env)}#organization`
-    },
-    datePublished: PUBLIC_SITEMAP_UPDATED_AT,
-    dateModified: PUBLIC_SITEMAP_UPDATED_AT,
+    // No author or dates: the guides record none, and none is invented here.
     ...(article.image ? { image: absoluteUrl(article.image, env) } : {}),
     publisher: {
       "@id": `${absoluteUrl("/", env)}#organization`

@@ -121,6 +121,12 @@ export function createSupportModels({
   return {
     root,
     select,
+    // Load stands a page will show later, hidden until selected.
+    preload(names) {
+      for (const id of names)
+        if (!disposed && Object.hasOwn(supportModels, id) && !loading.has(id))
+          loading.set(id, load(id));
+    },
     get active() {
       return groups[visibleCollection];
     },

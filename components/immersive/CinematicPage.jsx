@@ -20,10 +20,13 @@ import "./cinematic-page.css";
 const Scene = lazy(() => import("./Scene.jsx"));
 const clamp = (value) => Math.max(0, Math.min(1, value));
 
-export function CinematicPage({ chapters, scene = {}, children }) {
+export function CinematicPage({ chapters, scene = {}, children, footer }) {
   // Each page shows its own dish, stand and one restaurant's menu on every
   // phone shot (pagePhoneDemo, unlike the landing's demo picker).
   const { phoneDemo = "maison-elyse", ...objects } = scene;
+  // Chapters may own the stand's collection, the phone's restaurant or the
+  // laptop's lid (pricing, demo and restaurant preview pages).
+  const needsLaptop = chapters.some((chapter) => chapter.laptopLid);
   const stateRef = useRef({
     section: chapters[0].shot,
     progress: 0,
@@ -36,6 +39,8 @@ export function CinematicPage({ chapters, scene = {}, children }) {
     ...objects,
     phoneDemo,
     pagePhoneDemo: phoneDemo,
+    needsLaptop,
+    preloadCollections: [...new Set(chapters.map((chapter) => chapter.scene?.collection).filter(Boolean))],
   });
   const sectionRefs = useRef([]);
   const naturalRef = useRef(null);
@@ -57,6 +62,7 @@ export function CinematicPage({ chapters, scene = {}, children }) {
 
   useEffect(() => {
     const state = stateRef.current;
+    const base = { collection: state.collection, phoneDemo: state.pagePhoneDemo, laptop: state.needsLaptop };
     let measurements = [];
     let transitions = [];
     let frames = {};
@@ -115,6 +121,12 @@ export function CinematicPage({ chapters, scene = {}, children }) {
         else break;
       }
       const transition = transitionAtScroll(transitions, y);
+      // Chapter-owned objects change halfway through a join, while hidden.
+      const ownerId = transition ? (transition.progress < 0.5 ? transition.from : transition.to) : current.id;
+      const ownerIndex = Math.max(0, measurements.findIndex((m) => m.id === ownerId));
+      const owner = chapters[ownerIndex];
+      const ownerProgress = clamp((y - measurements[ownerIndex].top) / measurements[ownerIndex].travel);
+      const lid = owner.laptopLid ?? [1, 1];
       measurements.forEach((m, index) => {
         const weights = (window) => window
           ? cinematicCopyWeights((y - window.start) / (window.end - window.start))
@@ -139,6 +151,9 @@ export function CinematicPage({ chapters, scene = {}, children }) {
         // Free reading covers the room: freeze the last pose behind it.
         sceneOccluded: y >= naturalTop,
         chapterProgress: {},
+        collection: owner.scene?.collection ?? base.collection,
+        pagePhoneDemo: owner.scene?.phoneDemo ?? base.phoneDemo,
+        laptopLid: base.laptop ? lid[0] + (lid[1] - lid[0]) * ownerProgress : undefined,
       });
       if (state.renderSceneFrame && Number.isFinite(now)) state.renderSceneFrame(now);
       else state.invalidateScene?.();
@@ -205,6 +220,7 @@ export function CinematicPage({ chapters, scene = {}, children }) {
         ))}
         <div ref={naturalRef} className="cinematic-natural">{children}</div>
       </main>
+      {footer}
     </div>
   );
 }

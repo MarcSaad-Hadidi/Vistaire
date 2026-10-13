@@ -303,3 +303,119 @@
   -webkit-backdrop-filter: blur(10px);
   text-shadow: none;
 }
+
+/* The footer sits outside <main> (its contentinfo landmark), above the room. */
+.cinematic-page[data-immersive-vistaire] > .cinematic-footer {
+  position: relative;
+  z-index: 1;
+}
+/* Short facts inside chapter copy: values, contact details, prices. */
+:where(.cinematic-page[data-immersive-vistaire]) .cinematic-values {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
+  margin: 0;
+  text-align: left;
+}
+:where(.cinematic-page[data-immersive-vistaire]) .cinematic-values > div,
+:where(.cinematic-page[data-immersive-vistaire]) .cinematic-contact > div {
+  display: grid;
+  gap: 6px;
+  padding-top: 12px;
+  border-top: 1px solid #f8f3e82b;
+}
+:where(.cinematic-page[data-immersive-vistaire]) .cinematic-values dt {
+  display: flex;
+  gap: 10px;
+  font-family: "Vistaire Editorial", serif;
+  font-size: 22px;
+  color: var(--cream);
+}
+:where(.cinematic-page[data-immersive-vistaire]) .cinematic-values dt span,
+:where(.cinematic-page[data-immersive-vistaire]) .cinematic-contact dt {
+  font-family: inherit;
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--amber);
+}
+:where(.cinematic-page[data-immersive-vistaire]) .cinematic-values dd,
+:where(.cinematic-page[data-immersive-vistaire]) .cinematic-contact dd {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+:where(.cinematic-page[data-immersive-vistaire]) .cinematic-contact {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px 22px;
+  margin: 0;
+  text-align: left;
+}
+:where(.cinematic-page[data-immersive-vistaire]) .cinematic-contact a,
+:where(.cinematic-page[data-immersive-vistaire]) .cinematic-contact-line a {
+  color: var(--cream);
+  text-underline-offset: 4px;
+}
+:where(.cinematic-page[data-immersive-vistaire]) .cinematic-contact-line {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 18px;
+}
+:where(.cinematic-page[data-immersive-vistaire]) .cinematic-contact-line span,
+:where(.cinematic-page[data-immersive-vistaire]) .cinematic-note {
+  font-size: 12px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--amber);
+}
+:where(.cinematic-page[data-immersive-vistaire]) .cinematic-copy .cinematic-price strong {
+  font-family: "Vistaire Editorial", serif;
+  font-size: 30px;
+  font-weight: 400;
+  color: var(--cream);
+}
+:where(.cinematic-page[data-immersive-vistaire]) .cinematic-breadcrumb {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--muted);
+}
+:where(.cinematic-page[data-immersive-vistaire]) .cinematic-breadcrumb a { color: var(--cream); }
+/* Booking form: free reading, never pinned or faded. */
+:where(.cinematic-page[data-immersive-vistaire]) .cinematic-form {
+  width: min(760px, 100%);
+  justify-self: center;
+  scroll-margin-top: 104px;
+}
+:where(.cinematic-page[data-immersive-vistaire]) .cinematic-back {
+  color: var(--muted);
+  font-size: 14px;
+}
+/* Long free reading (pricing details, guide articles): one dark glass sheet
+   keeps the existing layouts legible over the room. */
+.cinematic-page .cinematic-pricing-sheet,
+.cinematic-page .cinematic-article-sheet {
+  width: min(1360px, calc(100% - 2 * var(--pad)));
+  min-height: 0;
+  margin: 0 auto 80px;
+  border: 1px solid #f8f3e82b;
+  border-radius: 8px;
+  background: #0b0b0ae6;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+.cinematic-page .cinematic-pricing-sheet { padding-top: 56px; }
+.cinematic-page .cinematic-article-sheet > article { padding-top: 56px; }
+@media (max-width: 767.98px) {
+  :where(.cinematic-page[data-immersive-vistaire]) .cinematic-values {
+    grid-template-columns: 1fr;
+  }
+  .cinematic-page .cinematic-pricing-sheet,
+  .cinematic-page .cinematic-article-sheet {
+    width: calc(100% - 2 * var(--pad));
+  }
+  .cinematic-page .cinematic-article-sheet > article { padding: 32px 18px 48px; }
+}

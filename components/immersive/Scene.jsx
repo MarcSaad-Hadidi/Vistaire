@@ -22,6 +22,7 @@ import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment
 import { createSupportModels } from "./SupportModels";
 import { createPhoneModel } from "./PhoneModel";
 import { createPdfMenuTexture } from "./PdfMenuTexture.js";
+import { pageShot } from "./PageShots.js";
 import { createLaptopModel } from "./LaptopModel.js";
 import { dishes } from "./content";
 import { createRestaurantModel } from "./RestaurantModel";
@@ -415,6 +416,7 @@ function baseComposition(state, mobile) {
       });
       break;
     default:
+      Object.assign(pose, pageShot(state.section, p, mobile, state.calibrating));
       break;
   }
   return pose;
@@ -505,6 +507,7 @@ export default function Scene({
     let lastRetryModel = stateRef.current?.retryModel ?? 0;
     let activeDish;
     let lastCollection = "";
+    let collectionsPreloaded = false;
     const ownedTextures = new Set();
     const mobileViewport = () => window.innerWidth < 768;
     const scene = new THREE.Scene();
@@ -731,7 +734,7 @@ export default function Scene({
     function ensureLaptop(state) {
       // Preload from either neighboring chapter; direct links and skipped
       // chapters still request the original model as soon as it is needed.
-      if (state.section === "grip" || state.section === "sustainability" ||
+      if (state.needsLaptop || state.section === "grip" || state.section === "sustainability" ||
         state.section === "testimonies" || state.transition?.from === "sustainability" ||
         state.transition?.to === "sustainability") laptopAsset.load();
     }
@@ -1318,6 +1321,7 @@ export default function Scene({
           drag: 0.5,
           flip: false,
           supportAngle: 0,
+          calibrating: true,
         },
         mobileViewport(),
       );
@@ -1876,7 +1880,8 @@ export default function Scene({
         damping,
       );
       laptopAsset.update(
-        chapterPhase("sustainability", state.chapterProgress?.sustainability ??
+        // A cinematic page drives the lid directly (restaurant preview page).
+        state.laptopLid ?? chapterPhase("sustainability", state.chapterProgress?.sustainability ??
           (state.section === "sustainability"
             ? state.progress
             : state.transition?.to === "sustainability"
@@ -1919,6 +1924,11 @@ export default function Scene({
       if (particles.visible)
         particles.rotation.y = state.reducedMotion ? 0 : now * 0.000025;
       const collection = state.collection || "acrylique";
+      // A page that changes stands between chapters loads them once ready.
+      if (ready && state.preloadCollections && !collectionsPreloaded) {
+        collectionsPreloaded = true;
+        supportAssets.preload(state.preloadCollections);
+      }
       if (collection !== lastCollection) {
         supportAssets.select(collection);
         lastCollection = collection;
@@ -2139,6 +2149,7 @@ export default function Scene({
           canvas.dataset.supportReady === "true" &&
           canvas.dataset.phoneReady === "true" &&
           canvas.dataset.restaurantReady === "true" &&
+          (!state.needsLaptop || canvas.dataset.laptopReady === "true") &&
           (!phoneRoot.visible || posterReady || videoReady)
         ) {
           ready = true;

@@ -174,6 +174,13 @@ function importsFrom(source, file) {
   return { imports, nonliteralDynamicImports };
 }
 
+// These pages play in the shared 3D restaurant room (components/immersive):
+// Three.js and fetches of its public models only. Every other rule (private
+// modules, Supabase, Clerk, server-only, persistence) still applies to it.
+function isImmersiveRoom(modulePath) {
+  return modulePath.startsWith("components/immersive/");
+}
+
 function publicPreviewGraph() {
   const pending = entrypoints.map((entry) => path.resolve(root, entry));
   const visited = new Map();
@@ -186,7 +193,8 @@ function publicPreviewGraph() {
     const parsed = importsFrom(source, file);
     violations.push(...parsed.nonliteralDynamicImports.map((location) => `${location} nonliteral dynamic import`));
     for (const specifier of parsed.imports) {
-      if (forbiddenPackages.some((pattern) => pattern.test(specifier))) {
+      if (forbiddenPackages.some((pattern) => pattern.test(specifier)) &&
+        !(isImmersiveRoom(normalized(file)) && /^three(?:\/|$)/.test(specifier))) {
         violations.push(`${normalized(file)} imports forbidden package ${specifier}`);
       }
       const resolved = resolveLocal(specifier, file);
@@ -307,7 +315,8 @@ test("the public preview import graph cannot reach private capabilities or persi
       const modulePath = normalized(file);
       const guardedStudioCapability =
         (modulePath === "components/admin/studio/AdminStudio.tsx" && ["router navigation", "private rendered destination"].includes(label)) ||
-        (modulePath === "components/admin/studio/StudioDishes.tsx" && ["network fetch", "router navigation"].includes(label));
+        (modulePath === "components/admin/studio/StudioDishes.tsx" && ["network fetch", "router navigation"].includes(label)) ||
+        (isImmersiveRoom(modulePath) && label === "network fetch");
       if (forbidden && !guardedStudioCapability) graph.violations.push(`${normalized(file)} contains ${label}`);
     }
   }

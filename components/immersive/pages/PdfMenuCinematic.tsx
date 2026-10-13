@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { CinematicPage, type CinematicChapter } from "../CinematicPage.jsx";
 import { PreviewNav } from "@/components/vistaire-preview/VistairePreviewChrome";
+import { CinematicFooter } from "./CinematicFooter";
 import { CinematicGuide } from "./CinematicGuide";
 import type { SeoPageData } from "@/lib/seoPages";
 
@@ -77,7 +78,7 @@ export function PdfMenuCinematic({ page }: { page: SeoPageData }) {
   return (
     <>
       <PreviewNav currentPath={page.path} locale={locale} routeMode="production" />
-      <CinematicPage chapters={chapters} scene={{ dish: "homard", phoneDemo: "maison-elyse" }}>
+      <CinematicPage chapters={chapters} scene={{ dish: "homard", phoneDemo: "maison-elyse" }} footer={<CinematicFooter locale={locale} id={page.slug} />}>
         <CinematicGuide page={page} />
       </CinematicPage>
     </>

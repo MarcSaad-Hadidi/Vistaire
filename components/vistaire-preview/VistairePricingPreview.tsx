@@ -3,10 +3,11 @@ import type { Locale } from "@/lib/i18n";
 import { getPricingPage } from "@/lib/pricingPage";
 import { PricingLaunchWorkflow } from "./PricingLaunchWorkflow";
 import { PricingTableEstimator } from "./PricingTableEstimator";
+import { CinematicPage, type CinematicChapter } from "@/components/immersive/CinematicPage.jsx";
+import { CinematicFooter } from "@/components/immersive/pages/CinematicFooter";
 import { RestaurateurDashboardDemo } from "./RestaurateurDashboardDemo";
 import {
   getVistaireChromeRoutes,
-  PreviewFooter,
   PreviewNav,
   type VistaireRouteMode,
 } from "./VistairePreviewChrome";
@@ -76,6 +77,16 @@ function CheckIcon() {
   );
 }
 
+// Pricing page, "choose your collection": one chapter per stand, each on its
+// own side of the table; the stand changes unseen between chapters. The
+// estimator, inclusions and terms follow in free reading, on one glass sheet.
+const COLLECTION_SHOTS = {
+  acrylique: "pricing-acrylique",
+  sculpte: "pricing-sculpte",
+  carre: "pricing-carre",
+  signature: "pricing-signature",
+} as const;
+
 export function VistairePricingPreview({
   locale = "fr",
   routeMode = "production",
@@ -86,30 +97,46 @@ export function VistairePricingPreview({
   const page = getPricingPage(locale);
   const routes = getVistaireChromeRoutes(routeMode, locale);
   const copy = UI_COPY[locale];
+  const chapters: CinematicChapter[] = page.collections.map((collection, index) => ({
+    id: `pricing-${collection.id}`,
+    shot: COLLECTION_SHOTS[collection.id],
+    align: index % 2 ? "right" : "left",
+    titleId: index === 0 ? "pricing-title" : `pricing-${collection.id}-title`,
+    scene: { collection: collection.id },
+    content: (
+      <>
+        {index === 0 ? (
+          <>
+            <span className="eyebrow">{page.eyebrow}</span>
+            <h1 id="pricing-title">{page.h1}</h1>
+            <p>{page.subtitle}</p>
+          </>
+        ) : null}
+        <span className="eyebrow">0{index + 1} · {collection.positioning}</span>
+        {index === 0
+          ? <p><strong>{collection.name}</strong></p>
+          : <h2 id={`pricing-${collection.id}-title`}>{collection.name}</h2>}
+        <p>{collection.description}</p>
+        <p className="cinematic-price"><strong>{collection.setupPrice}</strong> <span>{collection.monthlyPrice}</span></p>
+        {index === page.collections.length - 1 ? (
+          <nav className="cinematic-actions" aria-label={locale === "en" ? "Explore pricing" : "Explorer les tarifs"}>
+            <a className="action" href="#pricing-collections">{copy.collectionsLabel}</a>
+            <a className="action action-dark" href="#pricing-terms-title">{copy.commercialTermsLabel}</a>
+          </nav>
+        ) : null}
+      </>
+    ),
+  }));
 
   return (
-    <main className={styles.page} data-public-vistaire data-seo-experience="pricing-support-showroom">
-      <div className={styles.topNav}>
-        <PreviewNav
-          activeSection="pricing"
-          currentPath={page.path}
-          locale={locale}
-          routeMode={routeMode}
-        />
-      </div>
-
-      <section aria-labelledby="pricing-title" className={styles.hero}>
-        <p className={styles.eyebrow}>{page.eyebrow}</p>
-        <h1 id="pricing-title">{page.h1}</h1>
-        <div className={styles.showroomIntroduction}>
-          <p className={styles.heroLead}>{page.subtitle}</p>
-          <nav className={styles.showroomIndex} aria-label={locale === "en" ? "Explore pricing" : "Explorer les tarifs"}>
-            <a href="#pricing-collections">01 <span>{copy.collectionsLabel}</span></a>
-            <a href="#pricing-3d-title">02 <span>{copy.threeDPacksLabel}</span></a>
-            <a href="#pricing-terms-title">03 <span>{copy.commercialTermsLabel}</span></a>
-          </nav>
-        </div>
-      </section>
+    <>
+      <PreviewNav activeSection="pricing" currentPath={page.path} locale={locale} routeMode={routeMode} />
+      <CinematicPage
+        chapters={chapters}
+        scene={{ dish: "huitres", phoneDemo: "sauge-noire", collection: "acrylique" }}
+        footer={<CinematicFooter locale={locale} id="pricing" />}
+      >
+    <div className={`${styles.page} cinematic-pricing-sheet`} data-public-vistaire data-seo-experience="pricing-support-showroom">
 
       <section
         aria-label={copy.collectionsLabel}
@@ -331,12 +358,8 @@ export function VistairePricingPreview({
         </div>
       </section>
 
-      <PreviewFooter
-        currentPath={page.path}
-        locale={locale}
-        routeMode={routeMode}
-        width="wide"
-      />
-    </main>
+    </div>
+      </CinematicPage>
+    </>
   );
 }
