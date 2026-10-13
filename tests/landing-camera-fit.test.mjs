@@ -42,7 +42,7 @@ test('yaw preserves the camera at cropped maximum zoom and reset restores the co
     const camera = new THREE.PerspectiveCamera(40, width / height, 0.05, 200);
     const scope = {
       ...director, ...dolly, THREE, HALF_PI: Math.PI / 2, clamp: (v, a, b) => Math.min(b, Math.max(a, v)), smooth: director.cinematicEase,
-      scene, camera, dishRoot: roots[0], supportRoot: roots[1], phoneRoot: roots[2], laptopRoot: roots[3],
+      scene, camera, dishRoot: roots[0], supportRoot: roots[1], phoneRoot: roots[2], pdfPhoneRoot: new THREE.Group(), laptopRoot: roots[3], separateSolids() {},
       supportAssets: { active: null }, laptopAsset: {}, corner: new THREE.Vector3(), referenceCamera: camera.clone(), calibrations: new Map(), mobileViewport: () => mobile, fallbackFocus: director.DEFAULT_SCENE_FRAME,
       canvas: { clientWidth: width, clientHeight: height }, drawingSize: { width, height }, activeDish: true,
       dishLocalBounds: new THREE.Box3(new THREE.Vector3(...hull.bounds.min).multiplyScalar(displayScale), new THREE.Vector3(...hull.bounds.max).multiplyScalar(displayScale)),
@@ -178,7 +178,7 @@ test('close-up reset and chapter transitions preserve hull depth, then restore f
   const focus = { x: 0.5, y: 0.52, width: 0.85, height: 0.28 };
   const scope = {
     ...director, ...dolly, sectionTransitionComposition, THREE, HALF_PI: Math.PI / 2, clamp: (v, a, b) => Math.min(b, Math.max(a, v)), smooth: director.cinematicEase,
-    scene, camera, dishRoot: roots[0], supportRoot: roots[1], phoneRoot: roots[2], laptopRoot: roots[3],
+    scene, camera, dishRoot: roots[0], supportRoot: roots[1], phoneRoot: roots[2], pdfPhoneRoot: new THREE.Group(), laptopRoot: roots[3], separateSolids() {},
     supportAssets: { active: null }, laptopAsset: {}, corner: new THREE.Vector3(), referenceCamera: camera.clone(), calibrations: new Map(), mobileViewport: () => false, fallbackFocus: director.DEFAULT_SCENE_FRAME,
     canvas: { clientWidth: 1440, clientHeight: 900 }, drawingSize: { width: 1440, height: 900 }, activeDish: true,
     dishLocalBounds: new THREE.Box3(new THREE.Vector3(...hull.bounds.min).multiplyScalar(displayScale), new THREE.Vector3(...hull.bounds.max).multiplyScalar(displayScale)),
@@ -320,7 +320,7 @@ test('rotating and resetting food keeps every transformed hull point above the t
   const source = readFileSync(process.env.VISTAIRE_SCENE_SOURCE || 'components/immersive/Scene.jsx', 'utf8');
   const helper = source.match(/function minimumDishY\([^]*?\n}/)?.[0];
   assert.ok(helper, 'the actual and target dish poses need a tabletop-clearance constraint');
-  const scope = { THREE, activeDish: new THREE.Group(), nativeTable: { metadata: { surfaceY: -0.02 } }, objectTarget: new THREE.Vector3(), targetEuler: new THREE.Euler(), targetQuaternion: new THREE.Quaternion() };
+  const scope = { THREE, separateSolids() {}, activeDish: new THREE.Group(), nativeTable: { metadata: { surfaceY: -0.02 } }, objectTarget: new THREE.Vector3(), targetEuler: new THREE.Euler(), targetQuaternion: new THREE.Quaternion() };
   vm.createContext(scope);
   vm.runInContext(helper, scope);
   const applyTransform = source.match(/    function applyTransform\([^]*?\n    }/)?.[0];
@@ -408,7 +408,7 @@ test('the default-zoom camera fits a lifted high-pitch mobile homard', () => {
   const focus = { x: 0.5, y: 0.465, width: 0.897, height: 0.41 };
   const scope = {
     ...director, ...dolly, THREE, HALF_PI: Math.PI / 2, clamp: (v, a, b) => Math.min(b, Math.max(a, v)), smooth: director.cinematicEase,
-    scene, camera, dishRoot: roots[0], supportRoot: roots[1], phoneRoot: roots[2], laptopRoot: roots[3],
+    scene, camera, dishRoot: roots[0], supportRoot: roots[1], phoneRoot: roots[2], pdfPhoneRoot: new THREE.Group(), laptopRoot: roots[3], separateSolids() {},
     supportAssets: { active: null }, laptopAsset: {}, corner: new THREE.Vector3(), referenceCamera: camera.clone(), calibrations: new Map(), mobileViewport: () => true, fallbackFocus: director.DEFAULT_SCENE_FRAME,
     canvas: { clientWidth: 390, clientHeight: 844 }, drawingSize: { width: 390, height: 844 }, activeDish: true,
     dishLocalBounds: new THREE.Box3(new THREE.Vector3(...hull.bounds.min), new THREE.Vector3(...hull.bounds.max)),
@@ -446,7 +446,7 @@ function referenceFixture(diagnosticsEnabled = false) {
   const scope = {
     ...director, ...dolly, THREE, HALF_PI: Math.PI / 2,
     clamp: (v, a, b) => Math.min(b, Math.max(a, v)), scene, camera,
-    dishRoot: roots[0], supportRoot: roots[1], phoneRoot: roots[2], laptopRoot: roots[3],
+    dishRoot: roots[0], supportRoot: roots[1], phoneRoot: roots[2], pdfPhoneRoot: new THREE.Group(), laptopRoot: roots[3], separateSolids() {},
     supportAssets: { active: null }, laptopAsset: { framingBounds: new THREE.Box3() },
     corner: new THREE.Vector3(), referenceCamera: camera.clone(), mobileViewport: () => false,
     canvas: { clientWidth: 1440, clientHeight: 900, width: 1440, height: 900, dataset: { model: 'homard', laptopReady: 'false' } },

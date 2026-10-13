@@ -6,11 +6,14 @@ import { MeshoptDecoder } from "three/examples/jsm/libs/meshopt_decoder.module.j
 export function createPhoneModel({
   canvas,
   screenMaterial,
+  twinMaterial,
   disposeTree,
   onInvalidate,
   onError,
 }) {
   const root = new THREE.Group();
+  // Optional second phone sharing the same geometry, with its own screen.
+  const twin = new THREE.Group();
   const request = new AbortController();
   let disposed = false;
   canvas.dataset.phoneReady = "false";
@@ -63,6 +66,11 @@ export function createPhoneModel({
         object.receiveShadow = true;
       });
       root.add(model);
+      if (twinMaterial) {
+        const copy = model.clone();
+        copy.getObjectByName("Object_18").material = twinMaterial;
+        twin.add(copy);
+      }
       canvas.dataset.phoneReady = "true";
       canvas.dataset.phone = "iphone-16";
       onInvalidate?.();
@@ -72,6 +80,7 @@ export function createPhoneModel({
     });
   return {
     root,
+    twin,
     dispose() {
       disposed = true;
       request.abort();

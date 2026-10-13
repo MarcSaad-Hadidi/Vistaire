@@ -21,7 +21,9 @@ const Scene = lazy(() => import("./Scene.jsx"));
 const clamp = (value) => Math.max(0, Math.min(1, value));
 
 export function CinematicPage({ chapters, scene = {}, children }) {
-  // Each page shows its own demo menu, dish and stand (scene overrides).
+  // Each page shows its own dish, stand and one restaurant's menu on every
+  // phone shot (pagePhoneDemo, unlike the landing's demo picker).
+  const { phoneDemo = "maison-elyse", ...objects } = scene;
   const stateRef = useRef({
     section: chapters[0].shot,
     progress: 0,
@@ -29,10 +31,11 @@ export function CinematicPage({ chapters, scene = {}, children }) {
     collection: "acrylique",
     drag: 0.5,
     dish: "homard",
-    phoneDemo: "maison-elyse",
     pointer: { x: 0, y: 0 },
     sceneReady: false,
-    ...scene,
+    ...objects,
+    phoneDemo,
+    pagePhoneDemo: phoneDemo,
   });
   const sectionRefs = useRef([]);
   const naturalRef = useRef(null);
@@ -59,6 +62,7 @@ export function CinematicPage({ chapters, scene = {}, children }) {
     let frames = {};
     let stageHeight = innerHeight;
     let naturalTop = Infinity;
+    let guideStop = null;
     let frame = 0;
     let stopped = false;
     const written = new WeakMap();
@@ -97,6 +101,9 @@ export function CinematicPage({ chapters, scene = {}, children }) {
       frames = Object.fromEntries(measurements.map((m) => [m.id, m.sceneFrame]));
       transitions = measurePageTransitions(measurements, stageHeight);
       naturalTop = naturalRef.current ? naturalRef.current.getBoundingClientRect().top + scrollY : Infinity;
+      // The guide's head arrives just below the fixed navigation bar.
+      const guide = naturalRef.current?.firstElementChild?.getBoundingClientRect();
+      guideStop = guide ? guide.top + scrollY - 104 : null;
     };
     const update = (now) => {
       frame = 0;
@@ -142,11 +149,10 @@ export function CinematicPage({ chapters, scene = {}, children }) {
     update();
     const assist = createEntryScrollAssist({
       getGeometry: () => {
-        const last = transitions.at(-1);
         return {
           opening: measurements.length ? { top: measurements[0].top, motionTravel: 0, stageHeight } : null,
           transitions,
-          naturalFrom: last ? last.end : null,
+          naturalFrom: guideStop,
         };
       },
       isBlocked: () => stopped || !state.sceneReady || state.reducedMotion,
@@ -184,7 +190,11 @@ export function CinematicPage({ chapters, scene = {}, children }) {
             id={chapter.id}
             ref={(el) => { sectionRefs.current[index] = el; }}
             className={`chapter cinematic-chapter align-${chapter.align ?? "left"}`}
-            style={{ "--chapter-height": CINEMATIC_TIMING.chapterHeightVh }}
+            // The last chapter ends half a screen after its stop: no empty run
+            // before the guide (one gesture reaches it).
+            style={{ "--chapter-height": index === chapters.length - 1
+              ? (1 + CINEMATIC_TIMING.edgeScreens + 0.5) * 100
+              : CINEMATIC_TIMING.chapterHeightVh }}
             aria-labelledby={chapter.titleId}
           >
             <div className="stage">

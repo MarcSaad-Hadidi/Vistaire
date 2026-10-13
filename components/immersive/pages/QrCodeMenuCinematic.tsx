@@ -87,7 +87,7 @@ export function QrCodeMenuCinematic({ page }: { page: SeoPageData }) {
   return (
     <>
       <PreviewNav currentPath={page.path} locale={locale} routeMode="production" />
-      <CinematicPage chapters={chapters} scene={{ dish: "sushi", phoneDemo: "sauge-noire", collection: "signature" }}>
+      <CinematicPage chapters={chapters} scene={{ dish: "huitres", phoneDemo: "sauge-noire", collection: "signature" }}>
         <CinematicGuide page={page} />
       </CinematicPage>
     </>

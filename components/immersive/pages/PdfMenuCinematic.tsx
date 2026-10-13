@@ -4,9 +4,10 @@ import { PreviewNav } from "@/components/vistaire-preview/VistairePreviewChrome"
 import { CinematicGuide } from "./CinematicGuide";
 import type { SeoPageData } from "@/lib/seoPages";
 
-// PDF vs digital page, "from a still sheet to a living menu": the phone lies
-// flat like paper, rises while the camera comes down, stands beside the stand
-// for the comparison, then gives way to the dish a sheet cannot show.
+// PDF vs digital page, "from a still sheet to a living menu": a phone showing
+// Maison Élyse's PDF lies flat like paper, rises while the camera comes down,
+// stands beside a phone playing the same restaurant's real menu, then gives
+// way to the dish (the lobster listed in the PDF) a sheet cannot show.
 export function PdfMenuCinematic({ page }: { page: SeoPageData }) {
   const locale = page.locale ?? "fr";
   const [first, second] = page.sections;
@@ -76,7 +77,7 @@ export function PdfMenuCinematic({ page }: { page: SeoPageData }) {
   return (
     <>
       <PreviewNav currentPath={page.path} locale={locale} routeMode="production" />
-      <CinematicPage chapters={chapters} scene={{ dish: "huitres", phoneDemo: "maison-elyse", collection: "acrylique" }}>
+      <CinematicPage chapters={chapters} scene={{ dish: "homard", phoneDemo: "maison-elyse" }}>
         <CinematicGuide page={page} />
       </CinematicPage>
     </>

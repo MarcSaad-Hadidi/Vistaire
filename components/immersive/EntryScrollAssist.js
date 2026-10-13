@@ -207,6 +207,8 @@ export function createEntryScrollAssist({ getGeometry, isBlocked }, view = windo
           { id: join.to.id, y: join.end },
         ]),
       ...(pricing != null ? [{ id: "open-weight", y: pricing }] : []),
+      // A page's free reading starts with one more stop: the guide's head.
+      ...(naturalFrom != null ? [{ id: "natural", y: naturalFrom }] : []),
     ];
     const nearest = !direction && stops.reduce((best, stop) => Math.abs(stop.y - y) < Math.abs(best.y - y) ? stop : best);
     // Within 1px a stop is reached: 1x displays round scrollY below fractional stops.

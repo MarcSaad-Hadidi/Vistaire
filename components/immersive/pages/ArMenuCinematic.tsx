@@ -71,7 +71,7 @@ export function ArMenuCinematic({ page }: { page: SeoPageData }) {
   return (
     <>
       <PreviewNav currentPath={page.path} locale={locale} routeMode="production" />
-      <CinematicPage chapters={chapters} scene={{ dish: "chocolat-fume", phoneDemo: "maison-elyse", collection: "sculpte" }}>
+      <CinematicPage chapters={chapters} scene={{ dish: "chocolat-fume", phoneDemo: "sauge-noire", collection: "sculpte" }}>
         <CinematicGuide page={page} />
       </CinematicPage>
     </>

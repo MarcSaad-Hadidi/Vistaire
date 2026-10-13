@@ -93,7 +93,7 @@ export function DigitalMenuCinematic({ page }: { page: SeoPageData }) {
   return (
     <>
       <PreviewNav currentPath={page.path} locale={locale} routeMode="production" />
-      <CinematicPage chapters={chapters} scene={{ dish: "poutine", phoneDemo: "trouvable", collection: "carre" }}>
+      <CinematicPage chapters={chapters} scene={{ dish: "poutine", phoneDemo: "trouvable" }}>
         <CinematicGuide page={page} />
       </CinematicPage>
     </>

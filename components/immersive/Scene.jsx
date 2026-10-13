@@ -21,6 +21,7 @@ import { MeshoptDecoder } from "three/examples/jsm/libs/meshopt_decoder.module.j
 import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
 import { createSupportModels } from "./SupportModels";
 import { createPhoneModel } from "./PhoneModel";
+import { createPdfMenuTexture } from "./PdfMenuTexture.js";
 import { createLaptopModel } from "./LaptopModel.js";
 import { dishes } from "./content";
 import { createRestaurantModel } from "./RestaurantModel";
@@ -116,6 +117,10 @@ function baseComposition(state, mobile) {
     phone: [0, 0.8, 0],
     phoneRotation: [-0.1, -0.1, 0],
     phoneScale: 0,
+    // PDF page only: a second phone showing the restaurant's PDF menu.
+    pdfPhone: [0, 0.8, 0],
+    pdfPhoneRotation: [-0.1, -0.1, 0],
+    pdfPhoneScale: 0,
     dish: [0, 0.15, 0],
     dishRotation: [0, -0.25, 0],
     dishScale: 0,
@@ -251,37 +256,39 @@ function baseComposition(state, mobile) {
         camera: mobile ? [0, 3.8, 7.4] : [0, 3.4, 7.0],
       });
       break;
-    // PDF page: the phone lies flat like a printed sheet, seen from above.
+    // PDF page: the phone showing the PDF lies flat like a printed sheet.
     case "pdf-flat":
       Object.assign(pose, {
-        phone: [0, 0.16, 0.4],
-        phoneRotation: [-HALF_PI, 0, 0.35 - p * 0.35],
-        phoneScale: mobile ? 1 : 1.1,
+        pdfPhone: [0, 0.16, 0.4],
+        pdfPhoneRotation: [-HALF_PI, 0, 0.35 - p * 0.35],
+        pdfPhoneScale: mobile ? 1 : 1.1,
         camera: [0, 7.2, 1.4],
         look: [0, 0, 0.35],
       });
       break;
-    // PDF page: the "sheet" rises into a living menu while the camera comes down.
+    // PDF page: the PDF rises to the guest's eyes while the camera comes down.
     case "pdf-rise": {
       const t = cinematicEase(p);
       Object.assign(pose, {
-        phone: [0, 0.16 + t, 0.4 + t * 0.8],
-        phoneRotation: [-HALF_PI * (1 - t) - 0.05 * t, 0, 0.35 * (1 - t)],
-        phoneScale: mobile ? 1 : 1.1,
+        pdfPhone: [0, 0.16 + t, 0.4 + t * 0.8],
+        pdfPhoneRotation: [-HALF_PI * (1 - t) - 0.05 * t, 0, 0.35 * (1 - t)],
+        pdfPhoneScale: mobile ? 1 : 1.1,
         camera: [0, 7.2 - t * 4.6, 1.4 + t * 4.6],
         look: [0, t * 1.1, 0.4 + t * 0.8],
       });
       break;
     }
-    // PDF page: the living menu beside the table stand, for the comparison.
+    // PDF page: the same restaurant twice, its PDF beside its living menu.
     case "pdf-compare":
       Object.assign(pose, {
-        phone: [mobile ? -0.5 : -1.0, 1.0, 1.2],
-        phoneScale: mobile ? 0.8 : 0.9,
-        phoneRotation: [-0.05, 0.3, 0],
-        support: [mobile ? 0.6 : 1.0, 0.08, 1.0],
-        supportScale: mobile ? 0.75 : 0.85,
-        supportRotation: [-0.06, -0.35, 0],
+        pdfPhone: [mobile ? -0.62 : -0.75, 1.1, 1.2],
+        pdfPhoneScale: mobile ? 0.78 : 0.9,
+        pdfPhoneRotation: [-0.04, 0.22, 0],
+        phone: [mobile ? 0.62 : 0.75, 1.1, 1.2],
+        phoneScale: mobile ? 0.78 : 0.9,
+        phoneRotation: [-0.04, -0.22, 0],
+        camera: mobile ? [0, 2.4, 7.2] : [0, 2.2, 6.6],
+        look: [0, 1.05, 1.2],
       });
       break;
     // PDF page: what a sheet cannot show, the dish itself.
@@ -349,9 +356,6 @@ function baseComposition(state, mobile) {
         phone: [1.2, 0.16, 0.9],
         phoneRotation: [-HALF_PI, 0, 0.2],
         phoneScale: mobile ? 0.6 : 0.66,
-        support: [-1.6, 0.13, 0.6],
-        supportRotation: [-HALF_PI + 0.2, 0, -0.15],
-        supportScale: mobile ? 0.6 : 0.75,
       });
       break;
     // QR page: the stand alone, slowly turning to show its code.
@@ -696,15 +700,20 @@ export default function Scene({
       polygonOffsetFactor: 1,
       polygonOffsetUnits: 1,
     });
+    // Its map, the drawn PDF menu, is created on the PDF page only.
+    const pdfScreenMaterial = phoneScreenMaterial.clone();
     const phoneAsset = createPhoneModel({
       canvas,
       screenMaterial: phoneScreenMaterial,
+      twinMaterial: pdfScreenMaterial,
       disposeTree,
       onError: fail,
       onInvalidate: invalidateScene,
     });
     const phoneRoot = phoneAsset.root;
     scene.add(phoneRoot);
+    const pdfPhoneRoot = phoneAsset.twin;
+    scene.add(pdfPhoneRoot);
     const laptopAsset = createLaptopModel({
       canvas,
       renderer,
@@ -1144,6 +1153,75 @@ export default function Scene({
       object.scale.setScalar(nextScale);
       object.visible = nextScale > 0.003;
     }
+    // Objects never pass through each other. Target poses are checked in
+    // priority order (dish, stand, phone, PDF phone, laptop): a lower one
+    // slides sideways on the table out of the higher ones' bounding boxes.
+    const solidBoxes = new WeakMap();
+    const solidBox = new THREE.Box3();
+    const solidMatrix = new THREE.Matrix4();
+    const solidPosition = new THREE.Vector3();
+    const solidQuaternion = new THREE.Quaternion();
+    const solidEuler = new THREE.Euler();
+    const solidScale = new THREE.Vector3();
+    function modelBounds(root, model) {
+      if (!model) return null;
+      if (solidBoxes.has(model)) return solidBoxes.get(model);
+      const bounds = new THREE.Box3();
+      model.traverse((object) => {
+        if (!object.isMesh || !object.visible) return;
+        if (!object.geometry.boundingBox) object.geometry.computeBoundingBox();
+        solidMatrix.identity();
+        for (let node = object; node && node !== root; node = node.parent) {
+          if (node.matrixAutoUpdate) node.updateMatrix();
+          solidMatrix.premultiply(node.matrix);
+        }
+        bounds.union(solidBox.copy(object.geometry.boundingBox).applyMatrix4(solidMatrix));
+      });
+      solidBoxes.set(model, bounds);
+      return bounds;
+    }
+    function separateSolids(pose) {
+      const solids = [
+        ["dish", activeDish ? dishLocalBounds : null],
+        ["support", modelBounds(supportRoot, supportAssets.active)],
+        ["phone", modelBounds(phoneRoot, phoneRoot.children[0])],
+        ["pdfPhone", modelBounds(pdfPhoneRoot, pdfPhoneRoot.children[0])],
+        ["laptop", laptopAsset.framingBounds],
+      ];
+      const placed = [];
+      const moved = [];
+      for (const [name, local] of solids) {
+        const scale = pose[`${name}Scale`];
+        if (!local || local.isEmpty() || !(scale > 0.003)) continue;
+        solidEuler.set(...pose[`${name}Rotation`]);
+        solidQuaternion.setFromEuler(solidEuler);
+        solidMatrix.compose(solidPosition.fromArray(pose[name]), solidQuaternion, solidScale.setScalar(scale));
+        const box = local.clone().applyMatrix4(solidMatrix);
+        const startX = box.min.x, startZ = box.min.z;
+        for (let pass = 0; pass < 3; pass++) {
+          let clear = true;
+          for (const other of placed) {
+            const gap = 0.04;
+            const overlapX = Math.min(box.max.x, other.max.x) - Math.max(box.min.x, other.min.x) + gap;
+            const overlapY = Math.min(box.max.y, other.max.y) - Math.max(box.min.y, other.min.y);
+            const overlapZ = Math.min(box.max.z, other.max.z) - Math.max(box.min.z, other.min.z) + gap;
+            if (overlapX <= 0 || overlapY <= 0 || overlapZ <= 0) continue;
+            clear = false;
+            const side = (axis) => (box.min[axis] + box.max[axis] >= other.min[axis] + other.max[axis] ? 1 : -1);
+            if (overlapX <= overlapZ) box.translate(solidPosition.set(side("x") * overlapX, 0, 0));
+            else box.translate(solidPosition.set(0, 0, side("z") * overlapZ));
+          }
+          if (clear) break;
+        }
+        const dx = box.min.x - startX, dz = box.min.z - startZ;
+        if (dx || dz) {
+          pose[name] = [pose[name][0] + dx, pose[name][1], pose[name][2] + dz];
+          moved.push(name);
+        }
+        placed.push(box);
+      }
+      if (diagnosticsEnabled) canvas.dataset.separated = moved.join(",");
+    }
     const initialState = stateRef.current || { section: "hero", progress: 0 };
     ensureLaptop(initialState);
     const initial = composition(initialState, mobileViewport());
@@ -1162,6 +1240,13 @@ export default function Scene({
       initial.phone,
       initial.phoneRotation,
       initial.phoneScale,
+      1,
+    );
+    applyTransform(
+      pdfPhoneRoot,
+      initial.pdfPhone,
+      initial.pdfPhoneRotation,
+      initial.pdfPhoneScale,
       1,
     );
     applyTransform(
@@ -1236,6 +1321,7 @@ export default function Scene({
         },
         mobileViewport(),
       );
+      separateSolids(pose);
       let focus = state.sceneFrames?.[section] || fallbackFocus;
       if (openingP != null) {
         const a =
@@ -1256,6 +1342,7 @@ export default function Scene({
         [dishRoot, "dish"],
         [supportRoot, "support"],
         [phoneRoot, "phone"],
+        [pdfPhoneRoot, "pdfPhone"],
         [laptopRoot, "laptop"],
       ];
       const snapshots = roots.map(([root]) => ({
@@ -1712,6 +1799,7 @@ export default function Scene({
           dishLocalBounds, targetQuaternion, pose.dishScale, tableSurfaceY,
         ));
       }
+      separateSolids(pose);
       const pointer = state.pointer || { x: 0, y: 0 };
       const cameraInteractive = false;
       cameraTarget.fromArray(pose.camera);
@@ -1748,9 +1836,25 @@ export default function Scene({
           !state.reducedMotion &&
           !state.modalOpen &&
           !state.menuOpen,
-        state.section === "wearable" || state.transition?.from === "wearable"
-          ? state.phoneDemo || "maison-elyse"
-          : "maison-elyse",
+        // A page other than the landing shows one restaurant's menu throughout.
+        state.pagePhoneDemo ||
+          (state.section === "wearable" || state.transition?.from === "wearable"
+            ? state.phoneDemo || "maison-elyse"
+            : "maison-elyse"),
+      );
+      if (pose.pdfPhoneScale > 0 && !pdfScreenMaterial.map) {
+        const texture = createPdfMenuTexture();
+        ownedTextures.add(texture);
+        pdfScreenMaterial.map = texture;
+        pdfScreenMaterial.color.set("#ffffff");
+        pdfScreenMaterial.needsUpdate = true;
+      }
+      applyTransform(
+        pdfPhoneRoot,
+        pose.pdfPhone,
+        pose.pdfPhoneRotation,
+        pose.pdfPhoneScale,
+        damping,
       );
       applyTransform(
         dishRoot,
@@ -1869,7 +1973,7 @@ export default function Scene({
       // A moving view does not move the key light or cast geometry. Rebuilding
       // the shadow map on every page pixel needlessly stalls mobile scrolling.
       const shadowSignature = [
-        ...[supportRoot, phoneRoot, laptopRoot].flatMap((root) =>
+        ...[supportRoot, phoneRoot, pdfPhoneRoot, laptopRoot].flatMap((root) =>
           root.visible
             ? [
                 true,
@@ -1915,6 +2019,7 @@ export default function Scene({
           pose.supportScale,
         ) ||
         !settled(phoneRoot, pose.phone, pose.phoneRotation, pose.phoneScale) ||
+        !settled(pdfPhoneRoot, pose.pdfPhone, pose.pdfPhoneRotation, pose.pdfPhoneScale) ||
         !settled(dishRoot, pose.dish, pose.dishRotation, pose.dishScale) ||
         !settled(
           laptopRoot,
@@ -1956,7 +2061,7 @@ export default function Scene({
           ].join("|");
           if (layerKey !== foregroundLayerKey) {
             foregroundLayerKey = layerKey;
-            [dishRoot, supportRoot, phoneRoot, laptopRoot].forEach((root) =>
+            [dishRoot, supportRoot, phoneRoot, pdfPhoneRoot, laptopRoot].forEach((root) =>
               root.traverse((o) => o.layers.set(1)),
             );
             scene.traverse((o) => {

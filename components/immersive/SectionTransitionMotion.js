@@ -15,7 +15,7 @@ export function sectionTransitionComposition(state, mobile, baseComposition) {
     else to = endpoint;
     return endpoint;
   });
-  for (const name of ["dish", "support", "phone", "laptop"]) {
+  for (const name of ["dish", "support", "phone", "pdfPhone", "laptop"]) {
     const scale = `${name}Scale`;
     if (pose[scale] <= 0 || (from[scale] === 0) === (to[scale] === 0)) continue;
     const section = from[scale] === 0 ? state.transition.to : state.transition.from;

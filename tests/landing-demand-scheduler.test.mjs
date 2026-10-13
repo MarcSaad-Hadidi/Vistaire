@@ -30,7 +30,7 @@ function fixture({ section = 'hero', laptopFactory, laptopSignals = false } = {}
   const state = { section, progress: 0, scrollDistance: 0 };
   const pose = { look: [0, 0, 0], table: 1 };
   const roots = {};
-  for (const name of ['support', 'phone', 'dish', 'laptop']) {
+  for (const name of ['support', 'phone', 'pdfPhone', 'dish', 'laptop']) {
     roots[`${name}Root`] = new THREE.Group();
     pose[name] = [0, 0, 0];
     pose[`${name}Rotation`] = [0, 0, 0];
@@ -55,7 +55,7 @@ function fixture({ section = 'hero', laptopFactory, laptopSignals = false } = {}
     viewportRevision: 0, cameraInteractive: false, pointer: { x: 0, y: 0 }, phoneFrame: 0,
     nativeTable: null, foregroundLayerKey: '',
     frameSubjects: (_state, damping) => onFit?.(damping), submit: () => renders++,
-    recordProcessedPose() {}, retryPhoneVideo() {},
+    recordProcessedPose() {}, retryPhoneVideo() {}, separateSolids() {}, pdfScreenMaterial: { map: {} },
   };
   vm.createContext(scope);
   const run = code => vm.runInContext(code, scope);
@@ -213,7 +213,7 @@ test('Scene clears stale XR handles and guards hidden, opaque, failed, and dispo
 
 test('active draw retains lifecycle and render counters without serializing default pose diagnostics', () => {
   for (const diagnosticsEnabled of [false, true]) {
-    const roots = Object.fromEntries(['dish', 'support', 'phone', 'laptop'].map(name => [`${name}Root`, new THREE.Group()]));
+    const roots = Object.fromEntries(['dish', 'support', 'phone', 'pdfPhone', 'laptop'].map(name => [`${name}Root`, new THREE.Group()]));
     const scope = {
       ...roots, THREE, diagnosticsEnabled, canvas: { dataset: { model: 'homard' } },
       camera: new THREE.PerspectiveCamera(), lookAt: new THREE.Vector3(), authoredCamera: new THREE.Vector3(),
