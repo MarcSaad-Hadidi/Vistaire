@@ -3,8 +3,11 @@ import { fairHandEase } from "./PricingFairHand.js";
 
 // Scroll samples use measured geometry and write only changed values. Reading
 // CSSOM/scrollTop after cinematic style writes can force page layout each frame.
+// The reader moves by compositor transform: scrollTop on this clipped, scaled
+// screen repainted every offer image each frame on iPhone (about 2fps).
 export function createPricingPhonePresenter(screen, viewport, layer, aside) {
   let lastScroll = 0;
+  const body = viewport.firstElementChild;
   let lastTransform = "";
   let lastVisible, lastReady;
   let lastCopyAlpha, lastCopyActive, lastCopyVisible;
@@ -34,7 +37,7 @@ export function createPricingPhonePresenter(screen, viewport, layer, aside) {
     scroll(pageY, sectionTop, layout, force = false) {
       const next = pricingScreenScroll(sectionTop - pageY, layout);
       if (!force && Math.abs(lastScroll - next) <= 0.25) return false;
-      viewport.scrollTop = next;
+      body.style.transform = `translate3d(0, ${-next}px, 0)`;
       lastScroll = next;
       return true;
     },

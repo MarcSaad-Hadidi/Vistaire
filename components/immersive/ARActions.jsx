@@ -114,7 +114,7 @@ export function ARHelp({ item, error }) {
       </span>
       <h2>
         {t("Invitez ce plat")}
-        <br />
+        {" "}<br />
         <em>{t("à votre table.")}</em>
       </h2>
       {error && (

@@ -249,8 +249,11 @@ export function createModelGestureController(getOptions) {
 }
 
 export function useModelGesture(options) {
-  return useNativeModelGesture({ ...options, zoomEnabled: true });
+  return useNativeModelGesture(withZoom(options, true));
 }
+// Descriptors keep live getters: a drag's touchstart reads the current pose.
+const withZoom = (options, zoomEnabled) =>
+  Object.assign(Object.defineProperties({}, Object.getOwnPropertyDescriptors(options)), { zoomEnabled });
 
 // One-finger motion never cancels native scrolling or captures a touch pointer.
 // Only a two-finger dish pinch is custom; QR listeners are entirely passive.
@@ -440,5 +443,5 @@ function useNativeModelGesture(options) {
 }
 
 export function useSupportGesture(options) {
-  return useNativeModelGesture({ ...options, zoomEnabled: false });
+  return useNativeModelGesture(withZoom(options, false));
 }

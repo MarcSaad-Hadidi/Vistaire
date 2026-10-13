@@ -1,5 +1,13 @@
 import { expect, test, type Page } from "@playwright/test";
 
+const renderedTest = test.extend({
+  launchOptions: async ({ browserName }, provideOptions) => {
+    await provideOptions(browserName === 'chromium'
+      ? { args: ['--use-angle=swiftshader', '--use-gl=angle'] }
+      : {});
+  },
+});
+
 const routes = [
   {
     path: "/guides/anatomie-menu-digital-premium",
@@ -149,19 +157,15 @@ test("six bilingual guides render complete, crawlable editorial pages", async ({
   expect(badResponses).toEqual([]);
 });
 
-test("localized landing guide links lead to all three editorial guides", async ({ page }) => {
-  await page.addInitScript(() => {
-    const original = HTMLCanvasElement.prototype.getContext;
-    HTMLCanvasElement.prototype.getContext = function (this: HTMLCanvasElement, type: string, ...args: unknown[]) {
-      return type.startsWith("webgl") ? null : Reflect.apply(original, this, [type, ...args]);
-    } as typeof original;
-  });
+renderedTest("localized landing guide links lead to all three editorial guides", async ({ page }) => {
+  renderedTest.setTimeout(180_000);
   for (const [path, localeRoutes] of [
     ["/", routes.filter((route) => route.lang === "fr-CA")],
     ["/en", routes.filter((route) => route.lang === "en-CA")]
   ] as const) {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto(path, { waitUntil: "domcontentloaded" });
+    await expect(page.locator('.scene-canvas')).toHaveAttribute('data-ready', 'true', { timeout: 120_000 });
     await expect(page.locator(".preloader")).toHaveCount(0);
     const landingFooter = page.getByRole("contentinfo");
     await landingFooter.scrollIntoViewIfNeeded();

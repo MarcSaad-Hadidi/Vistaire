@@ -141,8 +141,8 @@ const EN = {
   "Copier le lien Vistaire": "Copy the Vistaire link",
   "Voir les cartes Vistaire": "See the Vistaire menus",
   "Montréal, Québec": "Montréal, Québec",
-  "Version vidéo · 3D disponible sur navigateur compatible":
-    "Video version · 3D available in a compatible browser",
+  "L’expérience 3D est indisponible.": "The 3D experience is unavailable.",
+  "La démonstration vidéo est indisponible.": "The video demonstration is unavailable.",
   "Votre plat est à table.": "Your dish is on the table.",
   "Ouverture de la caméra…": "Opening the camera…",
   "Bougez doucement pour repérer la table, puis touchez le cercle.":

@@ -1,27 +1,27 @@
 @font-face {
   font-family: "Vistaire Editorial";
-  src: url("/immersive-assets/fonts/libertine-display.woff") format("woff");
+  src: url("/immersive-assets/fonts/libertine-display.woff2") format("woff2");
   font-style: normal;
   font-weight: 400 700;
   font-display: swap;
 }
 @font-face {
   font-family: "Vistaire Editorial";
-  src: url("/immersive-assets/fonts/libertine-italic.woff") format("woff");
+  src: url("/immersive-assets/fonts/libertine-italic.woff2") format("woff2");
   font-style: italic;
   font-weight: 400 700;
   font-display: swap;
 }
 @font-face {
   font-family: "Vistaire Text";
-  src: url("/immersive-assets/fonts/biolinum.woff") format("woff");
+  src: url("/immersive-assets/fonts/biolinum.woff2") format("woff2");
   font-style: normal;
   font-weight: 400 500;
   font-display: swap;
 }
 @font-face {
   font-family: "Vistaire Text";
-  src: url("/immersive-assets/fonts/biolinum-bold.woff") format("woff");
+  src: url("/immersive-assets/fonts/biolinum-bold.woff2") format("woff2");
   font-style: normal;
   font-weight: 600 900;
   font-display: swap;

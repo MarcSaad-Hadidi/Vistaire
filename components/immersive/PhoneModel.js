@@ -1,6 +1,7 @@
 import { publicModelBaseUrl, resolvePublicModelUrl } from "../../lib/publicModelAssets.ts";
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
+import { MeshoptDecoder } from "three/examples/jsm/libs/meshopt_decoder.module.js";
 
 export function createPhoneModel({
   canvas,
@@ -24,7 +25,7 @@ export function createPhoneModel({
     })
     .then(async (buffer) => {
       if (disposed) return;
-      const gltf = await new GLTFLoader().parseAsync(buffer, publicModelBaseUrl(url));
+      const gltf = await new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).parseAsync(buffer, publicModelBaseUrl(url));
       const model = gltf.scene;
       if (disposed) {
         disposeTree(model);

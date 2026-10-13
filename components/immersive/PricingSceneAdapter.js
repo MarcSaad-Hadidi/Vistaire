@@ -87,7 +87,9 @@ export function createPricingSceneAdapter({
     draw(state, size, ready) {
       const rect = rectangle(state);
       if (!ready || !size || !rect) return false;
-      if (rect.bottom > 0 && rect.top < size.height * 2) {
+      // Start from the collection stop (about six screens above), so the hand
+      // download and shader warm-up never land inside the 1.4s assisted trip.
+      if (rect.bottom > 0 && rect.top < size.height * 8) {
         prepare();
         hand.preload();
         room.warm();

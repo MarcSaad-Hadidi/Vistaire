@@ -26,7 +26,7 @@ Inspection started at `f836193f6058f8e581e64e9d573cfd700e6e6c07`. Its rendered t
 - Desktop CSS 1440×900 and mobile CSS 390×844, DPR 1, normal motion; both use the same desktop software-rendering machine
 - Three fresh-context HTTP-cold starts, each followed by same-context warm reload; OS/process/GPU caches are not cold
 - Three serial hero-idle, decoded phone-video and opaque-pricing-idle workloads run first, before stress can prevent their repetition
-- Then three full forward/reverse scroll, dish pointer/zoom, actual dish/support selection, all three social-menu video and support keyboard stress cycles; scrolling must reach both the actual document endpoint and the renderer’s corresponding section
+- Then three full forward/reverse scroll, dish pointer/zoom, actual dish/support selection, all three social-menu video and support keyboard stress cycles; scrolling must reach the actual document endpoint. Hero and uncached footer require the rendered section/progress. The cached footer requires App’s current footer chapter, a non-inert footer and a ready, settled room cache at the current drawing-buffer dimensions and theme; its canvas section/progress may retain the last necessary pricing draw
 - The warm session is at least three minutes only if required workloads finish; a failed stress phase leaves full-profile comparability and the complete soak explicitly unmet
 - Setup/settling phases kept separate from true idle intervals; setup can make elapsed session exceed three minutes
 - One local pricing FAQ open/close and a public About navigation/back per profile; no RAG/Mistral query is sent

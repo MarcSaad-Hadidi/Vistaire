@@ -5,7 +5,7 @@ import vm from 'node:vm';
 
 // Exercise the exact browser probe without launching a browser or GPU process.
 function probeFixture(canvas = null, hand = { dataset: { handReady: 'true' } }) {
-  const source = readFileSync(process.env.VISTAIRE_BENCHMARK_SOURCE || 'scripts/benchmark-landing.mjs', 'utf8');
+  const source = readFileSync(process.env.VISTAIRE_BENCHMARK_SOURCE || 'scripts/benchmark-landing.mjs', 'utf8').replace(/\r\n/g, '\n');
   const start = source.indexOf('function installProbe()');
   const end = source.indexOf('\n\nconst sleep', start);
   assert.ok(start >= 0 && end > start);
@@ -26,6 +26,7 @@ function probeFixture(canvas = null, hand = { dataset: { handReady: 'true' } }) 
   };
   vm.runInNewContext(`(${source.slice(start, end)})();`, scope);
   return {
+    scope,
     probe: window.__vistaireBenchmark,
     time(value) { now = value; },
     frame(value, wallTime = value) { now = wallTime; for (const callback of rafs.splice(0)) callback(value); },
@@ -247,23 +248,59 @@ test('pricing idle requires the current ready cache and preserves legacy opaque-
   const source=readFileSync('scripts/benchmark-landing.mjs','utf8');assert.match(source,/pricing idle submitted work/);
 });
 
-test('benchmark pricing and footer endpoints match the real held-phone and cached-room layout', () => {
-  const source=readFileSync('scripts/benchmark-landing.mjs','utf8');
+test('benchmark pricing and footer endpoints match the real held-phone and cached-room layout', async () => {
+  const source=readFileSync('scripts/benchmark-landing.mjs','utf8').replace(/\r\n/g, '\n');
   const start=source.indexOf('      const at = async id =>');
   const end=source.indexOf('      const scroll = async',start);
   let destination;
   const hero={offsetHeight:5000,firstElementChild:{clientHeight:900},getBoundingClientRect:()=>({top:10000}),querySelector:()=>({clientHeight:900})};
   const chapter={offsetHeight:6000,firstElementChild:{clientHeight:6000},getBoundingClientRect:()=>({top:10000}),querySelector:()=>hero};
   const scope={innerHeight:900,scrollY:0,scrollTo:options=>{destination=options.top;},page:{locator:()=>({evaluate:async fn=>fn(chapter)}),waitForFunction:async()=>{}}};
-  vm.runInNewContext(`${source.slice(start,end)}; this.at=at;`,scope);
-  return scope.at('open-weight').then(()=>{
-    assert.equal(destination,12050,'normal-motion idle must be inside the phone reading span, not its entry boundary');
-    const canvas={width:1440,height:900,dataset:{ready:'true',settled:'true',section:'footer',suspended:'true',pricingActive:'false',pricingBackdrop:'ready',pricingBackdropGeneration:'1',pricingBackdropWidth:'1440',pricingBackdropHeight:'900',pricingBackdropTheme:'dark'}};
-    const {probe}=probeFixture(canvas);
-    assert.equal(probe.pricingReady('footer'),true,'a visible current cached footer is a valid processed endpoint');
-    canvas.dataset.pricingBackdrop='released';assert.equal(probe.pricingReady('footer'),false);
-    assert.match(source,/to === 'footer'[^\n]+pricingReady\('footer'\)/);
-  });
+  vm.runInNewContext(source.slice(start,end)+'; this.at=at;',scope);
+  await scope.at('open-weight');
+  assert.equal(destination,12050,'normal-motion idle must be inside the phone reading span, not its entry boundary');
+
+  // The cached room has no reason to draw while native scrolling crosses the FAQ.
+  const canvas={width:1440,height:900,dataset:{ready:'true',settled:'true',section:'open-weight',progress:'.75',suspended:'true',pricingActive:'false',pricingBackdrop:'ready',pricingBackdropGeneration:'1',pricingBackdropWidth:'1440',pricingBackdropHeight:'900',pricingBackdropTheme:'dark'}};
+  const {probe, scope: browser}=probeFixture(canvas);
+  browser.document.documentElement.dataset.chapter='footer';
+  browser.document.documentElement.scrollHeight=11000;
+  browser.scrollY=10100;
+  const footer={inert:false,getBoundingClientRect:()=>({top:10000-browser.scrollY,height:1000}),firstElementChild:{getBoundingClientRect:()=>({height:900})}};
+  browser.document.getElementById=()=>footer;
+  browser.step=async (_name, action)=>action();
+  let endpoint;
+  browser.page={evaluate:async()=>{},waitForFunction:async predicate=>{endpoint=predicate;}};
+  const scrollEnd=source.indexOf('      const sessionStarted =',end);
+  assert.ok(end>start && scrollEnd>end);
+  vm.runInNewContext(source.slice(end,scrollEnd)+'; this.scroll=scroll;',browser);
+  await browser.scroll('footer',10000);
+  assert.equal(probe.pricingReady('footer'),true,'App acknowledges the native footer while the valid cached canvas retains its last section');
+  assert.equal(endpoint('footer'),true,'a cached footer does not require stale canvas progress to advance');
+  browser.scrollY-=2;
+  assert.equal(endpoint('footer'),false,'the actual document endpoint is still required');
+  browser.scrollY+=2;
+  browser.document.documentElement.dataset.chapter='open-weight';
+  assert.equal(endpoint('footer'),false,'App must have processed the footer');
+  browser.document.documentElement.dataset.chapter='footer';
+  footer.inert=true; assert.equal(endpoint('footer'),false); footer.inert=false;
+  for(const [key,bad] of [['ready','error'],['settled','false'],['section','hero'],['suspended','false'],['pricingActive','true'],['pricingBackdrop','released'],['pricingBackdropGeneration','0'],['pricingBackdropWidth','1439'],['pricingBackdropHeight','899'],['pricingBackdropTheme','light']]){
+    const prior=canvas.dataset[key];canvas.dataset[key]=bad;
+    assert.equal(endpoint('footer'),false,key);
+    canvas.dataset[key]=prior;
+  }
+
+  canvas.dataset={ready:'true',settled:'true',section:'footer',progress:'1',suspended:'false'};
+  assert.equal(endpoint('footer'),true,'the legacy uncached footer retains its rendered endpoint contract');
+  canvas.dataset.progress='.75';assert.equal(endpoint('footer'),false);
+  canvas.dataset.progress='1';canvas.dataset.section='open-weight';assert.equal(endpoint('footer'),false);
+  canvas.dataset.section='footer';canvas.dataset.suspended='true';assert.equal(endpoint('footer'),false);
+  browser.scrollY=0;
+  canvas.dataset={ready:'true',settled:'true',section:'hero',progress:'0',suspended:'false'};
+  assert.equal(endpoint('hero'),true,'the reverse journey still acknowledges the rendered hero');
+  canvas.dataset.progress='.75';assert.equal(endpoint('hero'),false);
+  canvas.dataset.progress='0';canvas.dataset.section='footer';assert.equal(endpoint('hero'),false);
+  canvas.dataset.section='hero';canvas.dataset.suspended='true';assert.equal(endpoint('hero'),false);
 });
 
 

@@ -96,7 +96,7 @@ export function cinematicEase(value) {
     : (t - ramp / 2) / (1 - ramp);
 }
 // One shared text handoff: fade out, then fade in. Never superimpose
-// different headings at 50% alpha in the same compensated viewport frame.
+// different headings at 50% alpha in the same viewport frame.
 export function cinematicCopyWeights(progress) {
   return {
     outgoing: 1 - cinematicEase(progress * 2),
@@ -180,14 +180,6 @@ export function measureChapterTransitions(measurements, opening, timing = CINEMA
     previousEnd = end;
     return { from, to, fromOpening, start, end };
   });
-}
-
-/** Cancel only the native stage's approach/release inside its visible blend.
- * The section's document geometry and native scroll distance never change. */
-export function cinematicStageOffset(chapter, y, start, end) {
-  const position = Math.max(start, Math.min(end, y));
-  return position < chapter.top ? position - chapter.top
-    : Math.max(0, position - chapter.top - chapter.travel);
 }
 
 /** Stateless sampling is identical for native wheel, touch, reverse and jumps. */

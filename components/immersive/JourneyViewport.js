@@ -1,7 +1,7 @@
 /**
  * A mobile browser can resize even svh/lvh while revealing its toolbars. The
  * accumulated heights of a long sticky journey must not move under a contact.
- * Freeze touch-mobile reference sizes per width/orientation. Narrow desktop
+ * Freeze touch reference sizes per width/orientation, including landscape. Narrow desktop
  * windows must still respond to height-only resizing.
  */
 export function bindJourneyViewport(view = window) {
@@ -25,7 +25,6 @@ export function bindJourneyViewport(view = window) {
     const touch = view.matchMedia("(hover: none) and (pointer: coarse)").matches;
     if (
       stageHeight &&
-      mobile &&
       touch &&
       width === nextWidth &&
       portrait === nextPortrait &&

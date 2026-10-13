@@ -28,8 +28,10 @@ const runtimes = JSON.parse(process.env.VISTAIRE_COMPOSITION_RUNTIMES_JSON || '{
 const output = path.resolve(process.env.VISTAIRE_COMPOSITION_OUTPUT || 'composition-results');
 const baseURL = 'http://127.0.0.1:3000';
 const hash = bytes => createHash('sha256').update(bytes).digest('hex');
-const source = readFileSync(new URL('./benchmark-landing.mjs', import.meta.url), 'utf8');
-const frozenProbeSHA = '851c38976114c0ea2701247d04be8d818bb77bb99a95cae6d66dd1dbc7f5629e';
+const source = readFileSync(new URL('./benchmark-landing.mjs', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
+// Reviewed 85905e6f navigation change and cached-footer endpoint correction.
+// installProbe changes only the readiness gate; measurement instrumentation is unchanged.
+const frozenProbeSHA = '19a7d6c1ed265a540e59da1d07252d700436dd21bd668c40c48c061a8299209b';
 assert.equal(hash(source), frozenProbeSHA, 'Frozen schema2 probe changed; comparisons require explicit protocol review.');
 const probeStart = source.indexOf('function installProbe()');
 const probeEnd = source.indexOf('\n\nconst sleep', probeStart);

@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import vm from 'node:vm';
@@ -103,4 +104,20 @@ test('passive lower-cache evidence records current buffer and theme without clai
   assert.equal(sample.theme, 'dark');
   assert.equal(sample.pose.pricingBackdropGeneration, '1');
   assert.equal(sample.pose.pricingBackdropPose, 'pricing-entry:fixture');
+});
+
+
+test('the reviewed composition runner accepts checkout line endings and rejects changed probe code', () => {
+  const helper = readFileSync('scripts/diagnose-landing-composition.mjs', 'utf8');
+  const start = helper.indexOf('const hash =');
+  const end = helper.indexOf('const git =', start);
+  assert.ok(start >= 0 && end > start);
+  const validation = helper.slice(start, end).replaceAll('import.meta.url', '"file:///probe.mjs"');
+  const runner = readFileSync('scripts/benchmark-landing.mjs', 'utf8').replace(/\r\n/g, '\n');
+  const verify = bytes => vm.runInNewContext(validation + '\nprobeScript;', {
+    assert, createHash, URL, readFileSync: () => bytes,
+  });
+  for (const bytes of [runner, runner.replaceAll('\n', '\r\n')])
+    assert.match(verify(bytes), /__vistaireBenchmark/);
+  assert.throws(() => verify(runner + '\n// unreviewed change\n'), /Frozen schema2 probe changed/);
 });

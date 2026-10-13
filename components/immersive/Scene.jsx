@@ -18,7 +18,6 @@ import * as THREE from "three";
 import { DRACOLoader } from "three/examples/jsm/loaders/DRACOLoader.js";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { MeshoptDecoder } from "three/examples/jsm/libs/meshopt_decoder.module.js";
-import { RoundedBoxGeometry } from "three/examples/jsm/geometries/RoundedBoxGeometry.js";
 import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
 import { createSupportModels } from "./SupportModels";
 import { createPhoneModel } from "./PhoneModel";
@@ -282,6 +281,7 @@ export default function Scene({
   onError,
   onAssetError,
   onAssetLoading,
+  onPhoneVideoError,
   onARStatus,
   onZoomFit,
 }) {
@@ -291,12 +291,13 @@ export default function Scene({
     onError,
     onAssetError,
     onAssetLoading,
+    onPhoneVideoError,
     onARStatus,
     onZoomFit,
   });
   useEffect(() => {
-    callbacks.current = { onReady, onError, onAssetError, onAssetLoading, onARStatus, onZoomFit };
-  }, [onReady, onError, onAssetError, onAssetLoading, onARStatus, onZoomFit]);
+    callbacks.current = { onReady, onError, onAssetError, onAssetLoading, onPhoneVideoError, onARStatus, onZoomFit };
+  }, [onReady, onError, onAssetError, onAssetLoading, onPhoneVideoError, onARStatus, onZoomFit]);
 
   useEffect(() => {
     const sceneState = stateRef.current;
@@ -324,7 +325,6 @@ export default function Scene({
     let pricingPresentation;
     let assetRequest;
     let ready = false;
-    let stoneReady = false;
     let decodeQueue = Promise.resolve();
     let currentDish = "";
     let currentModelUrl = "";
@@ -440,24 +440,6 @@ export default function Scene({
     scene.add(frontLight);
 
     const textureLoader = new THREE.TextureLoader();
-    const stone = textureLoader.load(
-      "/immersive-assets/restaurant-stone.webp",
-      (texture) => {
-        if (disposed) texture.dispose();
-        else {
-          stoneReady = true;
-          invalidateScene();
-        }
-      },
-      undefined,
-      () =>
-        fail(new Error("La matière du restaurant ne peut pas être chargée.")),
-    );
-    stone.colorSpace = THREE.SRGBColorSpace;
-    stone.wrapS = stone.wrapT = THREE.RepeatWrapping;
-    stone.repeat.set(3, 3);
-    stone.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy());
-    ownedTextures.add(stone);
     let nativeTable;
     const restaurantWorld = createRestaurantModel(scene, {
       renderer,
@@ -485,43 +467,12 @@ export default function Scene({
         );
         nativeTable.group.traverse((object) => object.layers.set(2));
         scene.add(nativeTable.group);
-        for (const object of [table, tablePedestal, decor]) {
-          scene.remove(object);
-          disposeTree(object);
-        }
         canvas.dataset.table = "original-white-table-chair-accessories";
         canvas.dataset.tableMetadata = JSON.stringify(nativeTable.metadata);
         return nativeTable.metadata;
       },
     });
     restaurantWorld.loading.then(invalidateScene, () => {});
-    const woodMaterial = new THREE.MeshStandardMaterial({
-      color: "#2c4148",
-      map: stone,
-      bumpMap: stone,
-      bumpScale: 0.01,
-      roughness: 0.64,
-      metalness: 0.02,
-      transparent: false,
-    });
-    const table = new THREE.Mesh(
-      new THREE.CylinderGeometry(3.2, 3.2, 0.16, 96),
-      woodMaterial,
-    );
-    table.position.y = -0.12;
-    table.scale.x = 1.24;
-    table.receiveShadow = true;
-    scene.add(table);
-    const tablePedestal = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.16, 0.23, 1.72, 20),
-      new THREE.MeshStandardMaterial({
-        color: "#ad996f",
-        metalness: 0.8,
-        roughness: 0.35,
-      }),
-    );
-    tablePedestal.position.y = -1.04;
-    scene.add(tablePedestal);
     const shadowCanvas = document.createElement("canvas");
     shadowCanvas.width = shadowCanvas.height = 256;
     const shadowContext = shadowCanvas.getContext("2d");
@@ -554,143 +505,6 @@ export default function Scene({
     contactShadow.layers.set(2);
     scene.add(contactShadow);
 
-    function mesh(geometry, material, parent, x = 0, y = 0, z = 0) {
-      const object = new THREE.Mesh(geometry, material);
-      object.position.set(x, y, z);
-      object.castShadow = true;
-      object.receiveShadow = true;
-      parent.add(object);
-      return object;
-    }
-
-    const gold = new THREE.MeshStandardMaterial({
-      color: "#b99a66",
-      metalness: 0.88,
-      roughness: 0.27,
-    });
-    const glass = new THREE.MeshPhysicalMaterial({
-      color: "#fff4dc",
-      roughness: 0.12,
-      metalness: 0,
-      transmission: 0,
-      thickness: 0.05,
-      transparent: true,
-      opacity: 0.24,
-      ior: 1.45,
-    });
-    const decor = new THREE.Group();
-    scene.add(decor);
-    const napkin = mesh(
-      new RoundedBoxGeometry(1.12, 0.06, 1.6, 3, 0.025),
-      new THREE.MeshStandardMaterial({ color: "#4a4136", roughness: 0.95 }),
-      decor,
-      -2.6,
-      0.025,
-      1.25,
-    );
-    napkin.rotation.y = 0.2;
-    const cutlery = new THREE.Group();
-    cutlery.position.set(-2.6, 0.07, 1.25);
-    cutlery.rotation.y = 0.2;
-    decor.add(cutlery);
-    for (const x of [-0.23, 0.23]) {
-      mesh(
-        new RoundedBoxGeometry(0.055, 0.025, 0.85, 2, 0.018),
-        gold,
-        cutlery,
-        x,
-        0,
-        0.15,
-      );
-    }
-    mesh(
-      new RoundedBoxGeometry(0.14, 0.025, 0.5, 2, 0.018),
-      gold,
-      cutlery,
-      0.265,
-      0,
-      -0.46,
-    );
-    mesh(
-      new THREE.BoxGeometry(0.18, 0.025, 0.11),
-      gold,
-      cutlery,
-      -0.23,
-      0,
-      -0.32,
-    );
-    for (let i = 0; i < 4; i++)
-      mesh(
-        new THREE.BoxGeometry(0.023, 0.025, 0.23),
-        gold,
-        cutlery,
-        -0.3 + i * 0.047,
-        0,
-        -0.45,
-      );
-    const wine = new THREE.Group();
-    wine.position.set(2.4, 0.02, -1.5);
-    decor.add(wine);
-    mesh(
-      new THREE.CylinderGeometry(0.31, 0.32, 0.025, 32),
-      glass,
-      wine,
-      0,
-      0.013,
-      0,
-    );
-    mesh(
-      new THREE.CylinderGeometry(0.022, 0.024, 0.64, 16),
-      glass,
-      wine,
-      0,
-      0.34,
-      0,
-    );
-    const bowlProfile = [
-      [0.045, 0.61],
-      [0.14, 0.66],
-      [0.28, 0.8],
-      [0.34, 1.03],
-      [0.31, 1.3],
-      [0.28, 1.4],
-    ];
-    mesh(
-      new THREE.LatheGeometry(
-        bowlProfile.map(([x, y]) => new THREE.Vector2(x, y)),
-        40,
-      ),
-      glass,
-      wine,
-    );
-    const candle = new THREE.Group();
-    candle.position.set(-2.4, 0.02, -1.45);
-    decor.add(candle);
-    mesh(
-      new THREE.CylinderGeometry(0.25, 0.25, 0.37, 32, 1, true),
-      glass,
-      candle,
-      0,
-      0.19,
-      0,
-    );
-    mesh(
-      new THREE.CylinderGeometry(0.21, 0.21, 0.13, 32),
-      new THREE.MeshStandardMaterial({ color: "#dccaaa", roughness: 0.9 }),
-      candle,
-      0,
-      0.08,
-      0,
-    );
-    const flame = mesh(
-      new THREE.SphereGeometry(0.028, 12, 12),
-      new THREE.MeshBasicMaterial({ color: "#ffe3a2", toneMapped: false }),
-      candle,
-      0,
-      0.2,
-      0,
-    );
-    flame.scale.y = 2.4;
     const candleLight = new THREE.PointLight("#f2ac55", 0.7, 4, 2);
     candleLight.position.set(-2.4, 0.5, -1.45);
     scene.add(candleLight);
@@ -746,6 +560,7 @@ export default function Scene({
     let videoReady = false;
     let videoStarted = false;
     let currentPhoneDemo = "";
+    let failedPhoneDemo = "";
     const posters = new Map();
     let currentPosterDemo = "";
     function selectPoster(demo) {
@@ -790,10 +605,13 @@ export default function Scene({
     phoneVideo.preload = "none";
     phoneVideo.setAttribute("playsinline", "");
     const phonePlayback = createVideoPlaybackController(phoneVideo);
-    phoneVideo.onerror = () =>
-      fail(
-        new Error("La démonstration du menu mobile ne peut pas être chargée."),
-      );
+    phoneVideo.onerror = () => {
+      if (disposed || failed) return;
+      failedPhoneDemo = currentPhoneDemo;
+      updatePhoneVideo(false, currentPhoneDemo);
+      callbacks.current.onPhoneVideoError?.(currentPhoneDemo);
+      invalidateScene();
+    };
     let phoneFrame = 0;
     let videoFrameCallback;
     let phonePlaybackWanted = false;
@@ -850,10 +668,21 @@ export default function Scene({
     const videoTexture = new THREE.VideoTexture(phoneVideo);
     videoTexture.colorSpace = THREE.SRGBColorSpace;
     ownedTextures.add(videoTexture);
+    function retryPhoneVideo() {
+      if (disposed || failed || !failedPhoneDemo) return;
+      failedPhoneDemo = "";
+      videoStarted = false;
+      callbacks.current.onPhoneVideoError?.(null);
+      invalidateScene();
+    }
     function updatePhoneVideo(shouldPlay, demo) {
-      if (!shouldPlay || currentPhoneDemo !== demo) videoReady = false;
+      if (shouldPlay && failedPhoneDemo && failedPhoneDemo !== demo) {
+        failedPhoneDemo = "";
+        callbacks.current.onPhoneVideoError?.(null);
+      }
+      if (!shouldPlay || currentPhoneDemo !== demo || failedPhoneDemo === demo) videoReady = false;
       selectPoster(demo);
-      if (!shouldPlay) {
+      if (!shouldPlay || failedPhoneDemo === demo) {
         pausePhoneVideo();
         const still = posters.get(demo);
         if (still && posterReady && phoneScreenMaterial.map !== still) {
@@ -947,7 +776,9 @@ export default function Scene({
     function modelUrl(name) {
       if (name === "homard")
         return resolvePublicModelUrl(mobileViewport()
-          ? "demo.homard-bisque.mobile"
+          // Visible at the opening: a simplified, meshopt scene copy (1.3MB
+          // transferred) of the 4.9MB AR file, which stays unchanged for AR.
+          ? "immersive.dish.homard.mobile"
           : "demo.homard-bisque.web");
       if (
         ["huitres", "sushi", "chocolat-fume", "poutine", "burger"].includes(
@@ -1103,15 +934,16 @@ export default function Scene({
     function resize() {
       if (arExperience?.active) return;
       if (disposed) return;
-      // Preserve native Retina detail on phones. Bound large displays by
-      // total pixels rather than halving every high-density mobile canvas.
+      // Phones draw at 2.25x (user-approved: the 3x iPhone canvas, ~3.8M px
+      // over two passes, held transitions near 20fps). Large displays stay
+      // bounded by total pixels.
       const pixelBudget = 4_000_000;
       const width = canvas.clientWidth;
       const height = canvas.clientHeight;
       if (!width || !height) return;
       const pixelRatio = Math.min(
         window.devicePixelRatio || 1,
-        3,
+        2.25,
         Math.sqrt(pixelBudget / (width * height)),
       );
       // Browser bars emit resize while 100lvh stays unchanged. Rewriting the
@@ -1809,15 +1641,6 @@ export default function Scene({
           canvas.dataset[`${name}Position`] = root.position.toArray().join(",");
         }
       }
-      woodMaterial.opacity = THREE.MathUtils.lerp(
-        woodMaterial.opacity,
-        pose.table,
-        damping,
-      );
-      table.visible = woodMaterial.opacity > 0.003;
-      decor.visible = woodMaterial.opacity > 0.08;
-      decor.scale.setScalar(clamp(woodMaterial.opacity, 0.001, 1));
-      candleLight.intensity = 0.7 * woodMaterial.opacity;
       particles.visible = pose.particles;
       if (particles.visible)
         particles.rotation.y = state.reducedMotion ? 0 : now * 0.000025;
@@ -1870,7 +1693,6 @@ export default function Scene({
         laptopAsset.framingBounds?.isEmpty(),
         posterReady,
         videoReady,
-        stoneReady,
         canvas.dataset.restaurantReady,
         nativeTable?.accessories.placeSetting.visible,
       ].join("|");
@@ -1931,7 +1753,6 @@ export default function Scene({
           pose.laptopScale,
         ) ||
         (laptopRoot.visible && !laptopAsset.settled) ||
-        Math.abs(woodMaterial.opacity - pose.table) > 0.0002 ||
         roomSettling;
       const invalidated = now === lastSceneChange;
       canvas.dataset.section = state.section;
@@ -2042,7 +1863,6 @@ export default function Scene({
           activeDish &&
           canvas.dataset.supportReady === "true" &&
           canvas.dataset.phoneReady === "true" &&
-          stoneReady &&
           canvas.dataset.restaurantReady === "true" &&
           (!phoneRoot.visible || posterReady || videoReady)
         ) {
@@ -2078,7 +1898,6 @@ export default function Scene({
           (!settled(dishRoot, pose.dish, pose.dishRotation, pose.dishScale) ? 16 : 0) |
           (!settled(laptopRoot, pose.laptop, pose.laptopRotation, pose.laptopScale) ? 32 : 0) |
           (laptopRoot.visible && !laptopAsset.settled ? 64 : 0) |
-          (Math.abs(woodMaterial.opacity - pose.table) > 0.0002 ? 128 : 0) |
           (roomSettling ? 256 : 0) |
           (projectionSettling ? 512 : 0);
         canvas.dataset.settlingReasons = String(reasons);
@@ -2137,6 +1956,7 @@ export default function Scene({
     Object.assign(stateRef.current, {
       invalidateScene,
       renderSceneFrame,
+      retryPhoneVideo,
       startAR: arExperience.start,
       endAR: arExperience.end,
       scaleAR: arExperience.setScale,
@@ -2156,6 +1976,7 @@ export default function Scene({
       frame = 0;
       if (sceneState.invalidateScene === invalidateScene) delete sceneState.invalidateScene;
       if (sceneState.renderSceneFrame === renderSceneFrame) delete sceneState.renderSceneFrame;
+      if (sceneState.retryPhoneVideo === retryPhoneVideo) delete sceneState.retryPhoneVideo;
       phoneVideoEvents.forEach((event) => phoneVideo.removeEventListener(event, phoneVideoChanged));
       pausePhoneVideo();
       pricingPresentation?.dispose();

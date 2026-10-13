@@ -191,10 +191,10 @@
   {
     "path": "public/immersive-assets/phone/iphone_16_-_free.glb",
     "owner": "MarcSaad-Hadidi",
-    "reason": "Original user-reviewed Vistaire immersive runtime; exact source bytes, no texture or mesh degradation.",
-    "maxBytes": 2456120,
+    "reason": "User-reviewed Vistaire immersive runtime phone; meshopt-compressed (gltf-transform meshopt, quantized) from the original 2456120-byte source for opening load time.",
+    "maxBytes": 683776,
     "sha256": [
-      "ec6002b3c4daa325643da029d192d0f3a493e66bb71fb9dbc7cef8ef887fea64"
+      "0e8bccab5fc5501a7e6fe15a54dfe2fdc03a65ff49ecca8f0a545d793a82d6ee"
     ]
   },
   {
@@ -209,10 +209,10 @@
   {
     "path": "public/immersive-assets/supports/Meshy_AI_Sauge_Noire_QR_Displa_1008220727_texture.glb",
     "owner": "MarcSaad-Hadidi",
-    "reason": "Original user-reviewed Vistaire immersive runtime; exact source bytes, no texture or mesh degradation.",
-    "maxBytes": 948164,
+    "reason": "User-reviewed Vistaire immersive runtime support; embedded 2048px textures resized to 1024px (webp q82) at the user's request for opening load; geometry bytes unchanged.",
+    "maxBytes": 235144,
     "sha256": [
-      "fb09fd8e1a793db196d52ab27eb5f71ec1f971dd7a9a26b56f4f7af7951619bb"
+      "888c7d5ffea0b75828f4f2279392dc565167191299f458faa77b01cfc3733f30"
     ]
   },
   {
@@ -276,6 +276,24 @@
     "maxBytes": 3091452,
     "sha256": [
       "594123340aa71cf74cb0e83c69b966c399230fc03e2188ed5cb80931d05f4f66"
+    ]
+  },
+  {
+    "path": "public/immersive-assets/restaurant/restaurant-visible-textures-512.glb",
+    "owner": "MarcSaad-Hadidi",
+    "reason": "User-requested opening load reduction: restaurant-visible-59412334.glb with only embedded textures above 512px resized to 512px (webp q82); geometry and Draco bytes unchanged. The original stays for the pinned crop experiments.",
+    "maxBytes": 1472060,
+    "sha256": [
+      "0c055697524472dd1b0fcbbe44a8fd6b481cfaf390d9b355a1c26df6c1d5a765"
+    ]
+  },
+  {
+    "path": "public/immersive-assets/dishes/lod/homard-mobile.glb",
+    "owner": "MarcSaad-Hadidi",
+    "reason": "User-requested opening load reduction for the mobile scene only: derived from models/demo/ar-lite/homard-bisque-ar-lite-meshy.glb (unchanged for AR) by gltf-transform simplify (ratio 0.3, error 0.003), textures capped at 1024px and meshopt compression.",
+    "maxBytes": 1441268,
+    "sha256": [
+      "87fe9dffc63b75e77e283a585ac97ecb1198118d323ca99bbf2916e88b13ef8e"
     ]
   }
 ]

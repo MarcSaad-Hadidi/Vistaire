@@ -91,3 +91,13 @@ test('touch orientation refreshes after delayed svh/lvh resolution without anoth
   page.updateProbes(900);
   assert.equal(page.properties.size, 0, 'disconnected observer cannot write after teardown');
 });
+
+test('wide touch landscape freezes toolbar-only stage and scene changes', () => {
+  const page = viewport({ width: 844, height: 390, touch: true });
+  const release = bindJourneyViewport(page.view);
+  page.resize({ width: 844, height: 340, small: 340, large: 390 });
+  assert.deepEqual(page.dimensions(), ['3.9px', '3.9px']);
+  page.updateProbes(340, 360);
+  assert.deepEqual(page.dimensions(), ['3.9px', '3.9px']);
+  release();
+});

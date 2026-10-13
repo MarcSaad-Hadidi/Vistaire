@@ -246,18 +246,18 @@ test('keyboard reads every offer, yields to the FAQ and wakes the original scene
   }
   await viewport.focus();
   await page.keyboard.press('Home');
-  await expect.poll(() => viewport.evaluate(el => el.scrollTop)).toBeLessThan(1);
+  await expect.poll(() => viewport.evaluate(el => (-new DOMMatrixReadOnly(getComputedStyle(el.firstElementChild!).transform).m42 || 0))).toBeLessThan(1);
   await page.keyboard.press('PageDown');
-  await expect.poll(() => viewport.evaluate(el => el.scrollTop)).toBeGreaterThan(100);
+  await expect.poll(() => viewport.evaluate(el => (-new DOMMatrixReadOnly(getComputedStyle(el.firstElementChild!).transform).m42 || 0))).toBeGreaterThan(100);
   const before = await backdrop(page);
-  const offset = await viewport.evaluate(el => el.scrollTop);
+  const offset = await viewport.evaluate(el => (-new DOMMatrixReadOnly(getComputedStyle(el.firstElementChild!).transform).m42 || 0));
   await page.keyboard.press('ArrowDown');
-  await expect.poll(() => viewport.evaluate(el => el.scrollTop)).toBeGreaterThan(offset);
+  await expect.poll(() => viewport.evaluate(el => (-new DOMMatrixReadOnly(getComputedStyle(el.firstElementChild!).transform).m42 || 0))).toBeGreaterThan(offset);
   // Explicit 250ms settled observation, not a hardware FPS benchmark.
   await page.waitForTimeout(250);
   expect((await backdrop(page)).frames).toBe(before.frames);
   await page.keyboard.press('End');
-  await expect.poll(() => viewport.evaluate(el => Math.abs(el.scrollHeight - el.clientHeight - el.scrollTop))).toBeLessThanOrEqual(1);
+  await expect.poll(() => viewport.evaluate(el => Math.abs((el.firstElementChild as HTMLElement).offsetHeight - el.clientHeight - (-new DOMMatrixReadOnly(getComputedStyle(el.firstElementChild!).transform).m42 || 0)))).toBeLessThanOrEqual(1);
   await expect(page.locator('.pricing-pilotage')).toBeInViewport();
   const pageBeforeExit = await page.evaluate(() => scrollY);
   await page.keyboard.press('PageDown');
@@ -387,7 +387,7 @@ for (const profile of [{width:390,height:844,path:'/en',label:'Pricing'}, {width
     await page.setViewportSize({ width: profile.width, height: profile.height });
     await openScene(page,profile.path,'#open-weight','no-preference');
     await handReady(page);
-    await expect.poll(()=>page.locator('.pricing-phone-viewport').evaluate(el=>el.scrollTop)).toBeLessThanOrEqual(1);
+    await expect.poll(()=>page.locator('.pricing-phone-viewport').evaluate(el=>(-new DOMMatrixReadOnly(getComputedStyle(el.firstElementChild!).transform).m42 || 0))).toBeLessThanOrEqual(1);
     await page.evaluate(()=>{location.hash='hero';});
     await expect(page.locator('.scene-canvas')).toHaveAttribute('data-pricing-backdrop','released');
     await page.goBack();
@@ -401,7 +401,7 @@ for (const profile of [{width:390,height:844,path:'/en',label:'Pricing'}, {width
       await page.locator('#mobile-menu').getByRole('button',{name:`04 ${profile.label}`,exact:true}).click();
     }else await page.locator('.desktop-nav').getByRole('button',{name:profile.label,exact:true}).click();
     await handReady(page);
-    await expect.poll(()=>page.locator('.pricing-phone-viewport').evaluate(el=>el.scrollTop)).toBeLessThanOrEqual(1);
+    await expect.poll(()=>page.locator('.pricing-phone-viewport').evaluate(el=>(-new DOMMatrixReadOnly(getComputedStyle(el.firstElementChild!).transform).m42 || 0))).toBeLessThanOrEqual(1);
     await assertProjection(page);
     await screenshot(page,info,`pricing-navigation-${profile.width}`);
   });
@@ -627,22 +627,30 @@ for (const width of [390, 1440]) test(`section reveals preserve the visible subj
 // Same-build native-input evidence: these traces measure the actual position
 // join rather than inferring smoothness from the controller's polynomial.
 // WebKit uses genuine keyboard input; it does not emulate iPhone inertia.
+const HANDOFF_COMPLETION_MS = 15_000;
+const HANDOFF_STABILITY_MS = 150;
 type HandoffRow = Record<string, unknown>;
 type HandoffTraceHost = Window & {
   __vistaireScrollAssistTrace?: (row: HandoffRow) => void;
-  __handoffCapture?: { start(): void; finish(): { rows: HandoffRow[]; meta: HandoffRow } };
+  __handoffCapture?: {
+    start(): void;
+    read(target: number): { acknowledged: boolean; remainingMs: number };
+    finish(): { rows: HandoffRow[]; meta: HandoffRow };
+  };
 };
-function installHandoffCapture() {
+function installHandoffCapture({ budgetMs, stabilityMs }: { budgetMs: number; stabilityMs: number }) {
   const host = window as HandoffTraceHost;
   const rows: HandoffRow[] = [];
   const original = window.scrollTo;
+  // Capture covers the same completion budget and the existing stability tail.
+  const frameWindowMs = budgetMs + stabilityMs;
   let running = false, frame = 0, stopTimer = 0, started = 0, previousAt = 0, previousY = 0;
   let exhausted: string | null = null;
   const stopAtLimit = (reason: string) => { exhausted = reason; running = false; cancelAnimationFrame(frame); };
   const append = (type: string, detail: HandoffRow = {}) => {
     if (!running) return;
     if (rows.length >= 3000) { stopAtLimit('row-limit'); return; }
-    if (performance.now() - started > 7000) { stopAtLimit('time-limit'); return; }
+    if (performance.now() - started > frameWindowMs) { stopAtLimit('time-limit'); return; }
     rows.push({ type, at: performance.now(), y: scrollY, ...detail });
   };
   const sample = (rafAt: number) => {
@@ -675,7 +683,16 @@ function installHandoffCapture() {
       append('start', { hasScrollEnd: 'onscrollend' in document, hidden: document.hidden,
         reduced: matchMedia('(prefers-reduced-motion: reduce)').matches });
       frame = requestAnimationFrame(sample);
-      stopTimer = window.setTimeout(() => stopAtLimit('time-limit'), 7000);
+      stopTimer = window.setTimeout(() => stopAtLimit('time-limit'), frameWindowMs);
+    },
+    read(target) {
+      const completed = rows.findIndex(row => row.type === 'helper' && (row.helper as HandoffRow).type === 'completed');
+      return {
+        // Row order matters when WebKit timestamps share the same millisecond.
+        acknowledged: completed >= 0 && rows.slice(completed + 1).some(row => row.type === 'position'
+          && Number(row.at) - started <= budgetMs && Math.abs(Number(row.y) - target) <= 1),
+        remainingMs: Math.max(0, budgetMs - (performance.now() - started)),
+      };
     },
     finish() {
       append('finish'); running = false; cancelAnimationFrame(frame); clearTimeout(stopTimer);
@@ -683,101 +700,116 @@ function installHandoffCapture() {
       if (window.scrollTo === scrollWrapper) window.scrollTo = original;
       delete host.__vistaireScrollAssistTrace;
       return { rows, meta: { timeOrigin: performance.timeOrigin, width: innerWidth, height: innerHeight,
-        elapsed: performance.now() - started, maxRows: 3000, frameWindowMs: 7000, exhausted,
+        startedAt: started, elapsed: performance.now() - started, maxRows: 3000,
+        completionBudgetMs: budgetMs, stabilityMs, frameWindowMs, exhausted,
         visibility: document.visibilityState, scene: { ...document.querySelector<HTMLElement>('.scene-canvas')?.dataset } } };
     },
   };
 }
 
 for (const width of [390, 1440]) test(`continuous assistance retains the actual native-to-assisted position trace at ${width}px`, async ({ page, browserName }, info) => {
-  test.setTimeout(240_000);
+  test.setTimeout(180_000);
   await page.setViewportSize({ width, height: 844 });
   await page.emulateMedia({ reducedMotion: 'no-preference' });
-  await page.addInitScript(installHandoffCapture);
-  // Alternate order across widths. This is a gesture comparison, not a GPU/FPS
-  // benchmark: the second navigation may reuse the first navigation's assets.
-  const modes = width === 390 ? ['baseline', 'early'] as const : ['early', 'baseline'] as const;
-  const failures: Array<{ mode: string; error: string }> = [];
-  let referenceGeometry: { top: number; stage: number; end: number; from: number } | undefined;
-  for (const mode of modes) {
-    let geometry: { top: number; stage: number; end: number; from: number } | undefined;
-    let captureStarted = false;
+  await page.addInitScript(installHandoffCapture, { budgetMs: HANDOFF_COMPLETION_MS, stabilityMs: HANDOFF_STABILITY_MS });
+  const failures: string[] = [];
+  let geometry: { top: number; stage: number; end: number; from: number } | undefined;
+  let captureStarted = false;
+  try {
+    // The helper consumer is installed before startup; heavy 3D diagnostics are
+    // unnecessary for native position ownership and completion evidence.
+    await page.goto('/', { waitUntil: 'domcontentloaded' });
+    const canvas = page.locator('.scene-canvas');
+    await expect(canvas).toHaveAttribute('data-ready', 'true', { timeout: ASSET_READY_MS });
+    await expect(page.locator('.preloader')).toHaveCount(0, { timeout: HAND_READY_MS });
+    await page.evaluate(() => document.fonts.ready);
+    const opening = await page.locator('.opening-journey').evaluate(el => ({
+      top: el.getBoundingClientRect().top + scrollY,
+      stage: parseFloat(getComputedStyle(el.firstElementChild!).height),
+    }));
+    const join = await page.locator('#wearable').evaluate(element => ({
+      start: Number((element as HTMLElement).dataset.exitStart),
+      end: Number((element as HTMLElement).dataset.exitEnd),
+    }));
+    expect(join.end).toBeGreaterThan(join.start);
+    const end = join.end;
+    const from = end - opening.stage * .7;
+    expect(from).toBeGreaterThan(join.start);
+    geometry = { ...opening, end, from };
+    const beforeFrames = await canvas.evaluate(el => Number((el as HTMLElement).dataset.frames));
+    await scrollPage(page, from);
+    await page.waitForFunction(({ from, beforeFrames }) => {
+      const canvas = document.querySelector<HTMLElement>('.scene-canvas');
+      if (!canvas || Math.abs(scrollY - from) > 1 || canvas.dataset.ready !== 'true') return false;
+      const current = [...document.querySelectorAll<HTMLElement>('.chapter')]
+        .filter(el => scrollY >= el.getBoundingClientRect().top + scrollY - 1).at(-1);
+      if (!current) return false;
+      const rect = current.getBoundingClientRect(), stage = current.firstElementChild!.getBoundingClientRect();
+      const progress = Math.min(1, Math.max(0, -rect.top / Math.max(1, rect.height - stage.height)));
+      return Number(canvas.dataset.frames) > beforeFrames && canvas.dataset.section === current.id
+        && Math.abs(Number(canvas.dataset.progress) - progress) < .00011;
+    }, { from, beforeFrames }, { timeout: 15_000 });
+    await expect(canvas).toHaveAttribute('data-settled', 'true', { timeout: 15_000 });
+    await page.mouse.move(width * .85, 600);
+    await page.evaluate(() => (window as HandoffTraceHost).__handoffCapture!.start());
+    captureStarted = true;
+    if (browserName === 'chromium') {
+      // One trusted impulse avoids mistaking delayed automation packets for
+      // separate gestures. This does not reproduce physical trackpad inertia.
+      await page.mouse.wheel(0, 160);
+    } else {
+      await page.keyboard.down('ArrowDown');
+      await page.waitForTimeout(60);
+      await page.keyboard.up('ArrowDown');
+    }
+    // Reaching a rounded pixel can precede the helper's trusted completion.
+    // The deadline includes input dispatch; do not restart another 15 s wait.
+    const remainingMs = await page.evaluate(target => (window as HandoffTraceHost).__handoffCapture!.read(target).remainingMs, end);
+    await expect.poll(() => page.evaluate(target => (window as HandoffTraceHost).__handoffCapture!.read(target).acknowledged, end),
+      { timeout: Math.max(1, remainingMs) }).toBe(true);
+    await page.waitForTimeout(HANDOFF_STABILITY_MS);
+    expect(await page.evaluate(target => Math.abs(scrollY - target), end), 'one gesture must stop at its intended reading pose').toBeLessThanOrEqual(1);
+  } catch (error) {
+    failures.push(String(error));
+  } finally {
+    let diagnosticTimer: ReturnType<typeof setTimeout> | undefined;
+    const captured = captureStarted ? await Promise.race([
+      page.evaluate(() => (window as HandoffTraceHost).__handoffCapture!.finish()).catch(error => ({ error: String(error) })),
+      new Promise<{ error: string }>(resolve => { diagnosticTimer = setTimeout(() => resolve({ error: 'capture retrieval exceeded 1000ms' }), 1000); }),
+    ]).finally(() => clearTimeout(diagnosticTimer)) : { error: 'capture did not reach the genuine gesture' };
     try {
-      await page.goto(`/?sceneDiagnostics=1&scrollAssistMode=${mode}`, { waitUntil: 'domcontentloaded' });
-      const canvas = page.locator('.scene-canvas');
-      await expect(canvas).toHaveAttribute('data-ready', 'true', { timeout: ASSET_READY_MS });
-      await expect(page.locator('.preloader')).toHaveCount(0, { timeout: HAND_READY_MS });
-      await page.evaluate(() => document.fonts.ready);
-      const opening = await page.locator('.opening-journey').evaluate(el => ({
-        top: el.getBoundingClientRect().top + scrollY,
-        stage: parseFloat(getComputedStyle(el.firstElementChild!).height),
-      }));
-      // This external join has the same reading endpoint in the historical
-      // proximity-based mode and the current next-stop mode. The opening AI
-      // target intentionally changed, so it would not be a paired comparison.
-      const join = await page.locator('#wearable').evaluate(element => ({
-        start: Number((element as HTMLElement).dataset.exitStart),
-        end: Number((element as HTMLElement).dataset.exitEnd),
-      }));
-      expect(join.end).toBeGreaterThan(join.start);
-      const end = join.end;
-      const from = end - opening.stage * .7;
-      expect(from).toBeGreaterThan(join.start);
-      geometry = { ...opening, end, from };
-      if (referenceGeometry) expect(geometry, 'paired modes require exactly the same measured starting geometry').toEqual(referenceGeometry);
-      else referenceGeometry = geometry;
-      await scrollPage(page, from);
-      await expect.poll(() => canvas.evaluate(el => Number(el.getAttribute('data-processed-scroll-distance'))), { timeout: 15_000 })
-        .toBeCloseTo((Math.round(from) - opening.top) / opening.stage, 2);
-      await expect(canvas).toHaveAttribute('data-settled', 'true', { timeout: 15_000 });
-      await page.mouse.move(width * .85, 600);
-      await page.evaluate(() => (window as HandoffTraceHost).__handoffCapture!.start());
-      captureStarted = true;
-      if (browserName === 'chromium') {
-        // A trusted, decreasing packet train exercises input ownership. This
-        // is not described as a physical trackpad or OS-inertia reproduction.
-        for (const delta of [80, 40, 20, 10, 5, 2]) {
-          await page.mouse.wheel(0, delta);
-          await page.waitForTimeout(16);
-        }
-      } else {
-        await page.keyboard.down('ArrowDown');
-        await page.waitForTimeout(60);
-        await page.keyboard.up('ArrowDown');
-      }
-      await expect.poll(() => page.evaluate(target => Math.abs(scrollY - target), end), { timeout: 15_000 }).toBeLessThanOrEqual(1);
-      await page.waitForTimeout(150);
-      expect(await page.evaluate(target => Math.abs(scrollY - target), end), 'one gesture must stop at its intended reading pose').toBeLessThanOrEqual(1);
-    } catch (error) {
-      failures.push({ mode, error: String(error) });
-    } finally {
-      let diagnosticTimer: ReturnType<typeof setTimeout> | undefined;
-      const captured = captureStarted ? await Promise.race([
-        page.evaluate(() => (window as HandoffTraceHost).__handoffCapture!.finish()).catch(error => ({ error: String(error) })),
-        new Promise<{ error: string }>(resolve => { diagnosticTimer = setTimeout(() => resolve({ error: 'capture retrieval exceeded 1000ms' }), 1000); }),
-      ]).finally(() => clearTimeout(diagnosticTimer)) : { error: 'capture did not reach the genuine gesture' };
-      try {
-        await retainJson(info, `scroll-handoff-${mode}-${browserName}-${width}`, {
-          mode, browserName, input: browserName === 'chromium' ? 'trusted decreasing wheel packets' : 'released ArrowDown',
-          geometry, order: modes, source: 'same-build diagnostic comparison; no physical-device or FPS claim', capture: captured,
-        });
-      } catch (error) { failures.push({ mode, error: `trace retention failed: ${String(error)}` }); }
-      if ('error' in captured) failures.push({ mode, error: captured.error });
-      else {
-        const trusted = captured.rows.some(row => row.type === 'input-event' && row.trusted && ['wheel', 'keydown'].includes(String(row.eventType)));
-        const positions = captured.rows.filter(row => row.type === 'position');
-        const moved = new Set(positions.map(row => row.y)).size >= 3;
-        const helpers = captured.rows.filter(row => row.type === 'helper').map(row => row.helper as HandoffRow);
-        const start = helpers.find(row => row.type === 'assist-start' && row.mode === mode);
-        const modeMatches = helpers.length > 0 && helpers.every(row => row.mode === mode);
-        const targetCaptured = Boolean(start && positions.some(row => Number(row.at) >= Number(start.handledAt)
-          && Math.abs(Number(row.y) - Number(geometry?.end)) <= 1));
-        const handoffCaptured = mode === 'baseline' || helpers.some(row => row.type === 'handoff' && row.mode === 'early');
-        if (!trusted || !moved) failures.push({ mode, error: 'actual trusted input and at least three distinct frame positions were not captured' });
-        if (!modeMatches || !start || !handoffCaptured) failures.push({ mode, error: 'reported mode and actual assist/handoff were not retained' });
-        if (captured.meta.exhausted || !targetCaptured) failures.push({ mode, error: 'trace was exhausted or did not retain the post-handoff target' });
-      }
+      await retainJson(info, `scroll-handoff-native-${browserName}-${width}`, {
+        browserName, input: browserName === 'chromium' ? 'single trusted wheel impulse' : 'released ArrowDown',
+        geometry, source: 'native browser position trace; no physical-device or FPS claim', capture: captured,
+      });
+    } catch (error) { failures.push(`trace retention failed: ${String(error)}`); }
+    if ('error' in captured) failures.push(captured.error);
+    else {
+      const trusted = captured.rows.some(row => row.type === 'input-event' && row.trusted && ['wheel', 'keydown'].includes(String(row.eventType)));
+      const positions = captured.rows.filter(row => row.type === 'position');
+      const moved = new Set(positions.map(row => row.y)).size >= 3;
+      const helpers = captured.rows.filter(row => row.type === 'helper').map(row => row.helper as HandoffRow);
+      const start = helpers.find(row => row.type === 'assist-start');
+      const completed = helpers.find(row => row.type === 'completed');
+      const completedIndex = captured.rows.findIndex(row => row.type === 'helper' && (row.helper as HandoffRow).type === 'completed');
+      const targetCaptured = Boolean(start && completed && captured.rows.slice(completedIndex + 1).some(row => row.type === 'position'
+        && Number(row.at) >= Number(start.handledAt) && Number(row.at) - Number(captured.meta.startedAt) <= HANDOFF_COMPLETION_MS
+        && Math.abs(Number(row.y) - Number(geometry?.end)) <= 1));
+      const writes = captured.rows.filter(row => row.type === 'scroll-write');
+      const options = writes.map(row => (row.args as Array<{ top?: number; behavior?: string }>)[0]);
+      const controlledWrites = options.length >= 3 && options.every(option => option.behavior === 'instant');
+      const nativeEnd = captured.rows.find(row => row.type === 'input-event' && row.eventType === 'scrollend'
+        && row.trusted && row.documentScroll && Number(row.at) <= Number(start?.handledAt));
+      const observed = positions.filter(row => Number(row.at) >= Number(start?.handledAt));
+      const monotone = observed.every((row, index) => index === 0 || Number(row.y) >= Number(observed[index - 1].y) - 1);
+      const gradual = completed && Number(completed.duration) >= 950;
+      if (!trusted || !moved) failures.push('actual trusted input and at least three distinct frame positions were not captured');
+      if (!start || !helpers.some(row => row.type === 'handoff')) failures.push('actual assist/handoff was not retained');
+      if (!nativeEnd) failures.push('assistance must wait for the native gesture to finish');
+      if (!controlledWrites || !gradual) failures.push('the continuation must take at least one second through controlled frame positions');
+      if (!monotone) failures.push('the visible continuation must not jump backwards');
+      if (captured.meta.exhausted || !targetCaptured) failures.push('trace was exhausted or did not retain the acknowledged post-handoff target');
     }
   }
-  expect(failures, 'both modes must retain genuine movement and reach the exact same reading pose').toEqual([]);
+  expect(failures, 'native assistance must retain genuine movement and reach its authored reading pose').toEqual([]);
 });

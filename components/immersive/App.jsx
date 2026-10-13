@@ -29,7 +29,7 @@ import {
   site,
 } from "./content.js";
 import Pricing from "./Pricing.jsx";
-import { CINEMATIC_TIMING, SCROLL_PACE, normalizeScrollPace, scaledCinematicTiming, openingProgressAtScroll, remapJourneyScroll, chapterNavigationTarget, cinematicEase, cinematicCopyWeights, readingTiming, readingPresentation, cinematicStageOffset, measureChapterTransitions, transitionAtScroll, transitionSceneFrame } from "./SceneDirector.js";
+import { CINEMATIC_TIMING, SCROLL_PACE, normalizeScrollPace, scaledCinematicTiming, openingProgressAtScroll, remapJourneyScroll, chapterNavigationTarget, cinematicEase, cinematicCopyWeights, readingTiming, readingPresentation, measureChapterTransitions, transitionAtScroll, transitionSceneFrame } from "./SceneDirector.js";
 import { useModelGesture, useSupportGesture } from "./useModelGesture.js";
 import { ARAction, ARHelp, DishDetailLink, isIOSDevice } from "./ARActions.jsx";
 import { LandingLocaleProvider, useLandingLocale } from "./locale.jsx";
@@ -206,12 +206,13 @@ function DemoVideo({ id, index }) {
         className="walkthrough-poster"
         src={`/immersive-assets/phone-poster-${id}.webp`}
         alt={t("Aperçu du menu")}
+        loading="lazy"
+        decoding="async"
       />
       <video
         ref={videoRef}
         className={decoded ? "has-decoded-frame" : ""}
         src={`/videos/demo/${id}.mp4`}
-        poster={`/immersive-assets/phone-poster-${id}.webp`}
         data-demo="true"
         data-play-when={`social-content-${index}`}
         muted
@@ -364,6 +365,7 @@ function LandingContent() {
   const [modal, setModal] = useState(null);
   const [collection, setCollection] = useState("acrylique");
   const [phoneDemo, setPhoneDemo] = useState("maison-elyse");
+  const [phoneVideoError, setPhoneVideoError] = useState(null);
   const [supportAngles, setSupportAngles] = useState({
     acrylique: 0,
     sculpte: 0,
@@ -374,25 +376,29 @@ function LandingContent() {
   const [drag, setDrag] = useState(0.5);
   const [dishZoom, setDishZoom] = useState(1);
   const [fittedDishZoom, setFittedDishZoom] = useState({ requested: 1, zoom: 1, max: 4 });
-  const maxDishZoom = gpuError ? 4 : fittedDishZoom.max;
+  const maxDishZoom = fittedDishZoom.max;
+  const gestureCommits = useRef({});
+  useEffect(() => () => Object.values(gestureCommits.current).forEach(clearTimeout), []);
+  // A drag moves the scene directly; React re-renders the page once it settles.
+  // Re-rendering on every touchmove stalled each frame of the model rotation.
+  const liveScene = (key, value, commit) => {
+    stateRef.current[key] = value;
+    stateRef.current.invalidateScene?.();
+    clearTimeout(gestureCommits.current[key]);
+    gestureCommits.current[key] = setTimeout(() => commit(value), 150);
+  };
   const dishGestures = useModelGesture({
-    angle: drag,
-    zoom: dishZoom,
+    get angle() { return stateRef.current.drag ?? drag; },
+    get zoom() { return stateRef.current.dishZoom ?? dishZoom; },
     maxZoom: maxDishZoom,
-    onAngle: setDrag,
-    onZoom: value => setDishZoom(Math.max(0.6, Math.min(maxDishZoom, value))),
+    onAngle: value => liveScene("drag", value, setDrag),
+    onZoom: value => liveScene("dishZoom", Math.max(0.6, Math.min(maxDishZoom, value)), setDishZoom),
   });
   const [dish, setDish] = useState(initialDish);
   const [arStatus, setARStatus] = useState("idle");
   const [arScale, setARScale] = useState(1);
   const [copied, setCopied] = useState(false);
   const [reduce, setReduce] = useState(false);
-  const [smallScreen, setSmallScreen] = useState(
-    false,
-  );
-  const cinematicFormat = smallScreen ? "portrait" : "landscape";
-  const cinematicSrc = `/immersive-media/cinematic-${cinematicFormat}.mp4?v=window-table-proportions-20261009-v12`;
-  const cinematicPoster = `/immersive-assets/cinematic-${cinematicFormat}.webp?v=window-table-proportions-20261009-v12`;
   const [isAndroid, setIsAndroid] = useState(false);
   const [arSupported, setARSupported] = useState(false);
   useEffect(() => {
@@ -413,11 +419,14 @@ function LandingContent() {
   const turnSupport = (angle) =>
     setSupportAngles((angles) => ({ ...angles, [collection]: angle }));
   const supportGestures = useSupportGesture({
-    angle: (((supportAngle % 360) + 360) % 360) / 360,
+    get angle() {
+      const angle = stateRef.current.supportAngle ?? supportAngle;
+      return (((angle % 360) + 360) % 360) / 360;
+    },
     pitch: 0,
     zoom: 1,
     zoomEnabled: false,
-    onAngle: (angle) => turnSupport(angle * 360),
+    onAngle: (angle) => liveScene("supportAngle", angle * 360, turnSupport),
   });
   const dishSwitchRef = useRef(null);
   useEffect(() => {
@@ -433,16 +442,6 @@ function LandingContent() {
   const socialBeat = chapterBeats["social-content"];
   const selected = collections.find((x) => x.id === collection);
   const close = useCallback(() => setModal(null), []);
-  useEffect(() => {
-    const query = matchMedia("(max-width:767.98px)");
-    const update = () => setSmallScreen(query.matches);
-    const frame = requestAnimationFrame(update);
-    query.addEventListener("change", update);
-    return () => {
-      cancelAnimationFrame(frame);
-      query.removeEventListener("change", update);
-    };
-  }, []);
   useEffect(() => {
     const query = matchMedia("(prefers-reduced-motion: reduce)");
     const update = () => setReduce(query.matches);
@@ -488,7 +487,7 @@ function LandingContent() {
       const journey = openingRef.current;
       const journeyBounds = journey.getBoundingClientRect();
       const top = journeyBounds.top + scrollY;
-      // Distant stage translations can lose precision in the projected rect.
+      // Read the CSS height without fractional document-rect rounding.
       const stageHeight = Number.parseFloat(getComputedStyle(journey.firstElementChild).height);
       const travel = journeyBounds.height - stageHeight;
       const motionTravel = Math.max(
@@ -536,8 +535,7 @@ function LandingContent() {
             top: sectionTop,
             travel: Math.max(
               1,
-              // Sticky release uses fractional CSS geometry. offsetHeight
-              // rounds it and leaves a visible step in the compensation.
+              // Keep fractional CSS geometry in the chapter scroll budget.
               id === "open-weight"
                 ? el.offsetHeight - sceneHeight
                 : bounds.height - stageBounds.height,
@@ -651,14 +649,14 @@ function LandingContent() {
         writeVisualProperty(panel, "--opening-opacity", openingOpacities[i]);
         writeVisualProperty(panel, "--opening-shift", `${(1 - openingOpacities[i]) * (i === 0 ? -28 : 28)}px`);
       });
-      writeVisualProperty(openingRef.current.firstElementChild, "translate",
-        `0 ${cinematicStageOffset(opening, y, opening.top, transitions[0].end)}px`);
+      writeVisualProperty(openingRef.current.firstElementChild, "position",
+        openingOpacities.some(alpha => alpha > 0) ? "fixed" : "sticky");
       // Objects, fitted camera, focus, room and copy share the same measured
       // window, including the incoming chapter's head after its DOM boundary.
       if (transition)
         sceneFrame = transitionSceneFrame(transition, sceneFrames);
-      // Native sticky positioning is unchanged. Copy fades over that same
-      // choreography instead of disappearing in a separate one-screen exit.
+      // Pin visible copy natively: a JS translation cannot keep up with
+      // asynchronous scrolling. Hidden stages retain their offscreen layout.
       for (const m of measurements.slice(3)) {
         if (m.id === "open-weight") continue;
         const incoming = transitions.find(t => t.to.id === m.id);
@@ -674,9 +672,8 @@ function LandingContent() {
         if (m.id === "testimonies")
           writeVisualProperty(world, "--identities-opacity", alpha);
         if (m.id !== "footer") {
-          writeVisualProperty(el.firstElementChild, "translate",
-            `0 ${cinematicStageOffset(m, y, incoming.start, outgoing.end)}px`);
-          // Compensated transparent stages overlap visually, so only the
+          writeVisualProperty(el.firstElementChild, "position", alpha > 0 ? "fixed" : "sticky");
+          // Transparent stages overlap visually, so only the
           // dominant chapter may receive pointer or keyboard interactions.
           if (!activeTouches && el.inert !== (alpha < 0.5)) el.inert = alpha < 0.5;
         }
@@ -794,7 +791,7 @@ function LandingContent() {
     });
     measure();
     entryAssist = createEntryScrollAssist({
-      getGeometry: () => ({ opening, transitions }),
+      getGeometry: () => ({ opening, transitions, pricing: stateRef.current.pricingReadingStops?.() }),
       isBlocked: () => {
         const state = stateRef.current;
         return stopped || !state.sceneReady || state.menuOpen || state.modalOpen || state.arActive || state.reducedMotion;
@@ -933,13 +930,13 @@ function LandingContent() {
       const play =
         when === chapter ||
         (when === `social-content-${beat}` && chapter === "social-content");
-      if ((play || when === "fallback") && !reduce && !modal && !menu) {
+      if (play && !gpuError && !reduce && !modal && !menu) {
         video.play().catch(() => {});
       } else {
         video.pause();
       }
     }
-  }, [chapter, beat, reduce, modal, menu, gpuError, cinematicFormat]);
+  }, [chapter, beat, reduce, modal, menu, gpuError]);
   const goto = useCallback(
     (id) => {
       stateRef.current.cancelEntryAssist?.("chapter-navigation");
@@ -984,9 +981,15 @@ function LandingContent() {
     setGpuError(true);
     setModelLoading(null);
     setModelError(null);
-    setReady(true);
+    setPhoneVideoError(null);
+    setMenu(false);
+    setModal(null);
+    setReady(false);
   }, []);
   const onSceneReady = useCallback(() => setReady(true), []);
+  const showSceneError = useCallback(dialog => {
+    if (dialog && !dialog.open) dialog.showModal();
+  }, []);
   useEffect(() => {
     if (!ready || !new URLSearchParams(location.search).has("dish")) return;
     const el = sectionRefs.current.grip;
@@ -1020,9 +1023,7 @@ function LandingContent() {
       >
         {t("Aller au contenu")}
       </a>
-      <div
-        className={`world ${gpuError ? "world-fallback" : ""}`}
-      >
+      <div className="world">
         <div id="pricing-screen-host" />
         <Suspense fallback={null}>
           {!gpuError && (
@@ -1032,6 +1033,7 @@ function LandingContent() {
               onError={onSceneError}
               onAssetError={setModelError}
               onAssetLoading={setModelLoading}
+              onPhoneVideoError={setPhoneVideoError}
               onARStatus={setARStatus}
               onZoomFit={fit => {
                 setFittedDishZoom(fit);
@@ -1040,22 +1042,6 @@ function LandingContent() {
             />
           )}
         </Suspense>
-        {gpuError && (
-          <>
-            <video
-              className="fallback-film"
-              aria-hidden="true"
-              src={cinematicSrc}
-              poster={cinematicPoster}
-              data-play-when="fallback"
-              autoPlay
-              muted
-              loop
-              playsInline
-            />
-            <div className="fallback-shade" />
-          </>
-        )}
       </div>
       <div id="pricing-actions-host" />
       {performanceCapture && (
@@ -1092,7 +1078,18 @@ function LandingContent() {
           <p id="scroll-pace-help">{locale === "en" ? "Higher pace shortens the journey’s scroll distance." : "Un rythme plus élevé raccourcit la distance à faire défiler."}</p>
         </details>
       )}
-      {!ready && (
+      {gpuError && (
+        <dialog className="scene-error" role="alertdialog" aria-labelledby="scene-error-title"
+          ref={showSceneError} onCancel={event => event.preventDefault()}>
+          <div className="loading-word">Vistaire</div>
+          <p id="scene-error-title">{t("L’expérience 3D est indisponible.")}</p>
+          <Action onClick={() => location.reload()}>{t("Réessayer")}</Action>
+          <Link prefetch={false} className="text-link" href={link("/demo")}>
+            {t("Explorer la carte")} <ArrowUpRight size={17} />
+          </Link>
+        </dialog>
+      )}
+      {!ready && !gpuError && (
         <div className="preloader" role="status">
           <div className="loading-word">Vistaire</div>
           <div className="loading-line" />
@@ -1269,9 +1266,9 @@ function LandingContent() {
             >
               <h2 id="ai-title" className="side-heading">
                 {t("Ce n’est pas")}
-                <br />
+                {" "}<br />
                 {t("juste un")}
-                <br />
+                {" "}<br />
                 <em>QR code.</em>
               </h2>
               <div className="side-copy">
@@ -1305,7 +1302,7 @@ function LandingContent() {
                 <span className="eyebrow">{t("02 · Au creux de la main")}</span>
                 <h2 id="wearable-title">
                   {t("Votre carte.")}
-                  <br />
+                  {" "}<br />
                   <em>{t("À portée de main.")}</em>
                 </h2>
                 <p>
@@ -1331,6 +1328,12 @@ function LandingContent() {
                   </button>
                 ))}
               </div>
+              {phoneVideoError === phoneDemo && (
+                <div className="model-error phone-video-error" role="status">
+                  <span>{t("La démonstration vidéo est indisponible.")}</span>
+                  <button onClick={() => stateRef.current.retryPhoneVideo?.()}>{t("Réessayer")}</button>
+                </div>
+              )}
 
             </Chapter>
           </div>
@@ -1414,7 +1417,7 @@ function LandingContent() {
             </span>
             <h2 id="encryption-title">
               {t("La signature")}
-              <br />
+              {" "}<br />
               <em>{t("de votre table.")}</em>
             </h2>
             <p>{t("Des matières et des lignes choisies pour votre lieu.")}</p>
@@ -1435,7 +1438,7 @@ function LandingContent() {
           <Heading>
             <span className="eyebrow">{t("Voir avant de savourer")}</span>
             <h2 id="grip-title">
-              {t("Chaque angle.")}
+              {t("Chaque angle.")}{" "}
               <em>{t("Chaque détail.")}</em>
             </h2>
             <p>{t("Un plat en volume, à explorer du bout des doigts.")}</p>
@@ -1525,7 +1528,7 @@ function LandingContent() {
               >
                 −
               </button>
-              <output aria-live="polite">{Math.round((gpuError || fittedDishZoom.requested !== dishZoom ? dishZoom : fittedDishZoom.zoom) * 100)} %</output>
+              <output aria-live="polite">{Math.round((fittedDishZoom.requested !== dishZoom ? dishZoom : fittedDishZoom.zoom) * 100)} %</output>
               <button
                 aria-label={t("Zoomer le plat")}
                 disabled={dishZoom >= maxDishZoom}
@@ -1577,13 +1580,13 @@ function LandingContent() {
             </span>
             <h2 id="sustainability-title" className="living-title">
               {t("Toujours")}
-              <br />
+              {" "}<br />
               <em>{t("vivante.")}</em>
             </h2>
             <div className="living-description">
               <p>
                 {t("Changez un prix. Ajoutez un plat.")}
-                <br />
+                {" "}<br />
                 {t("Votre QR code reste le même.")}
               </p>
               <small className="dashboard-caption">
@@ -1611,12 +1614,12 @@ function LandingContent() {
         >
           <h2 id="testimonies-title">
             {t("Trois expériences.")}
-            <br />
+            {" "}<br />
             {t("Trois identités.")}
           </h2>
           <p className="identity-intro">
             {t("Votre restaurant a son propre univers.")}
-            <br />
+            {" "}<br />
             {t("Votre carte doit le prolonger.")}
           </p>
           <div className="experience-list">
@@ -1880,11 +1883,6 @@ function LandingContent() {
           }}
         />
       </div>
-      {gpuError && (
-        <span className="gpu-status">
-          {t("Version vidéo · 3D disponible sur navigateur compatible")}
-        </span>
-      )}
       <div
         id="ar-overlay"
         className={`ar-overlay ${arStatus !== "idle" ? "is-active" : ""}`}

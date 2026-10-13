@@ -100,7 +100,7 @@ test("phone attachment wakes after final datasets and disposed late parses do no
 });
 
 test("App publishes each complete scroll and control batch before one scene wake", async () => {
-  const source = await readFile(sourcePath("App.jsx"), "utf8");
+  const source = (await readFile(sourcePath("App.jsx"), "utf8")).replaceAll("\r\n", "\n");
   const wakes = [];
   const stateRef = { current: { invalidateScene: () => wakes.push({ ...stateRef.current }) } };
   const measurements = ["open-weight", "features", "social-content", "sustainability"].map((id, index) => ({ id, top: 100 + index * 20, travel: 20, sceneFrame: { x: index } }));

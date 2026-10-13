@@ -26,7 +26,9 @@ test('pricing phone reading starts after entry and reverses through native page 
     assert.equal(reduced.readingStart, 0, 'reduced motion removes the animated entry');
   }
   const writes = [];
-  const viewport = { set scrollTop(value) { writes.push(value); }, get scrollTop() { throw new Error('continuous scrolling must not force an inner DOM read'); } };
+  // The reader moves by compositor transform, never by a repainting scrollTop.
+  const viewport = { set scrollTop(value) { throw new Error('scrollTop repaints the clipped screen'); }, get scrollTop() { throw new Error('continuous scrolling must not force an inner DOM read'); },
+    firstElementChild: { style: { set transform(value) { writes.push(-Number(/translate3d\(0, (-?[\d.e-]+)px/.exec(value)[1])); } } } };
   const presenter = createPricingPhonePresenter({}, viewport);
   const layout = pricingScrollLayout(844, 2400, 530, 0.7);
   const page = pricingPagePosition(15000, 480, layout);
@@ -35,7 +37,7 @@ test('pricing phone reading starts after entry and reverses through native page 
   presenter.scroll(15000, 15000, layout);
   assert.equal(writes.length, 2, 'unchanged native samples remain idle');
   assert.ok(Math.abs(writes[0] - 480) < 1e-8);
-  assert.equal(writes[1], 0);
+  assert.equal(Math.abs(writes[1]), 0);
 });
 
 test('pricing uses the exact approved hand and projects the existing native phone screen', async () => {
@@ -66,15 +68,17 @@ test('keyboard reading explicitly continues the page at both fixed-portal bounda
   const source = readFileSync('components/immersive/Pricing.jsx', 'utf8');
   const start = source.indexOf('  const scrollWithKeyboard = (event) => {');
   const end = source.indexOf('  const guardHiddenControl', start);
-  const viewport = { scrollTop: 1000, clientHeight: 530 };
+  const viewport = { clientHeight: 530 };
   const layout = { maxScroll: 1000 };
+  let introTop = -1000;
   const calls = [];
   const context = vm.createContext({
     viewportRef: { current: viewport },
     layoutRef: { current: layout },
-    introRef: { current: { getBoundingClientRect: () => ({ top: -1000 }) } },
+    introRef: { current: { getBoundingClientRect: () => ({ top: introTop }) } },
     window: { scrollY: 16000, innerHeight: 900, scrollTo: (options) => calls.push(options), scrollBy: (options) => calls.push(options) },
     pricingPagePosition: (_top, offset) => offset,
+    pricingScreenScroll: (top) => -top,
   });
   vm.runInContext(`${source.slice(start, end)}; this.onKey = scrollWithKeyboard;`, context);
   let prevented = false;
@@ -82,7 +86,7 @@ test('keyboard reading explicitly continues the page at both fixed-portal bounda
   press('PageDown');
   assert.equal(prevented, true, 'fixed portal ancestors cannot reliably chain native PageDown to the document');
   assert.equal(calls.at(-1).top, 720, 'continue the page far enough to reveal the FAQ');
-  viewport.scrollTop = 0;
+  introTop = 0;
   press('ArrowUp');
   assert.equal(calls.at(-1).top, -48, 'the first offer returns to the native page toward the collections');
   press('ArrowDown');
@@ -158,10 +162,13 @@ test('Tarifs uses the measured reading start after the hand entrance in all layo
   assert.ok((app.match(/pricingNavigationTarget/g)||[]).length>=2,'initial hashes and button navigation share the measured target');
 });
 
-test('the below-fold Studio preview does not eagerly download the shared laptop screen', () => {
+test('the below-fold Studio preview and collections wait for the measured pricing approach', () => {
   const source = readFileSync('components/immersive/Pricing.jsx', 'utf8');
   const preview = source.slice(source.indexOf('className="pricing-pilotage-visual"'), source.indexOf('className="pricing-pilotage-note"'));
   assert.match(preview, /src=\{dashboardReady \?/);
+  const collectionPhoto = source.slice(source.indexOf('className="pricing-offer-photo"'), source.indexOf('className="pricing-offer-number"'));
+  assert.match(collectionPhoto, /src=\{dashboardReady \? `\/_next\/image\?url=\$\{encodeURIComponent\(item\.image\)\}&w=640&q=75` : undefined\}/, 'the same measured approach gates all reduced collection images');
+  assert.match(collectionPhoto, /width=\{1280\}[\s\S]*height=\{960\}/, 'collection dimensions remain fixed before their sources are attached');
   const start = source.indexOf('    const syncScroll = (');
   const end = source.indexOf('    const measure = () => {', start);
   const requests = [];
@@ -203,7 +210,7 @@ test('fixed-phone PageDown hands off when native document rounding leaves a frac
   const context = vm.createContext({
     viewportRef: { current: viewport }, layoutRef: { current: layout },
     introRef: { current: { getBoundingClientRect: () => ({ top: sectionTop - view.scrollY }) } },
-    window: view, pricingPagePosition,
+    window: view, pricingPagePosition, pricingScreenScroll,
   });
   vm.runInContext(`${source.slice(start, end)}; this.onKey = scrollWithKeyboard;`, context);
   context.onKey({ key: 'PageDown', target: viewport, preventDefault() {} });

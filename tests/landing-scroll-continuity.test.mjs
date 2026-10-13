@@ -159,7 +159,7 @@ test('missing-focus chapters blend to the real camera fallback without view-offs
 });
 
 test('the outgoing phone keeps its selected restaurant after the features label boundary', () => {
-  const start = source.indexOf('      updatePhoneVideo(');
+  const start = source.indexOf('      updatePhoneVideo(\n');
   const call = source.slice(start, source.indexOf('\n      applyTransform(', start));
   for (const phoneDemo of ['trouvable', 'sauge-noire']) {
     const scope = {
@@ -292,14 +292,38 @@ test('reading text swaps only at zero opacity and reverses without a flash', () 
   }
 });
 
-test('copy remains in its measured frame through native sticky pin and release', () => {
-  assert.equal(typeof director.cinematicStageOffset, 'function');
-  const chapter = { top: 9000, travel: 3150 };
-  const start = chapter.top - 1350, end = chapter.top + chapter.travel + 1350;
-  const nativeTop = y => y < chapter.top ? chapter.top - y : y <= chapter.top + chapter.travel ? 0 : chapter.top + chapter.travel - y;
-  const sample = y => ({ top: nativeTop(y) + director.cinematicStageOffset(chapter, y, start, end) });
-  for (const y of [chapter.top, chapter.top + chapter.travel]) assertC1(sample, y, 'text stage');
-  for (const y of [start, chapter.top, chapter.top + chapter.travel, end]) assert.equal(sample(y).top, 0);
+test('visible copy stays pinned when native scroll advances before the next App update', () => {
+  const f = appScrollFixture();
+  const chapter = f.measurements.find(m => m.id === 'features');
+  const stages = [
+    [f.opening, f.scope.openingRef.current.firstElementChild, f.opening.top + f.opening.travel + 24],
+    ...[chapter.top - 24, chapter.top + chapter.travel / 2, chapter.top + chapter.travel + 24]
+      .map(y => [chapter, f.scope.sectionRefs.current.features.firstElementChild, y]),
+  ];
+  for (const [geometry, stage, y] of stages) {
+    for (const delta of [-12, 12]) {
+      f.scope.scrollY = y;
+      f.scope.update();
+      const nativeTop = nextY => nextY < geometry.top ? geometry.top - nextY
+        : Math.min(0, geometry.top + geometry.travel - nextY);
+      const top = nextY => (stage.style.position === 'fixed' ? 0 : nativeTop(nextY))
+        + Number.parseFloat(stage.style.translate?.split(' ')[1] || '0');
+      near(top(y), 0, 'the last published copy frame starts pinned');
+      // Safari can composite a newer native scroll position while JS still
+      // holds the previous frame. Do not call update between these samples.
+      f.scope.scrollY += delta;
+      near(top(f.scope.scrollY), 0, 'copy must not drift then snap back at the next JS frame');
+      f.scope.update();
+      near(top(f.scope.scrollY), 0, 'the next publication must retain the same frame');
+    }
+  }
+  f.scope.scrollY = 0;
+  f.scope.update();
+  for (const { id } of f.measurements.slice(3, 10))
+    assert.equal(f.scope.sectionRefs.current[id].firstElementChild.style.position, 'sticky', 'unseen chapters retain their native offscreen layout for lazy media');
+  f.scope.scrollY = f.measurements.at(-1).top;
+  f.scope.update();
+  assert.equal(f.scope.openingRef.current.firstElementChild.style.position, 'sticky', 'the hidden opening returns to its native document position');
 });
 
 test('the common text envelope never overlays two headings and has smooth opacity handoffs', () => {
@@ -355,7 +379,7 @@ test('App reuses sceneFrames between measurement batches and replaces them after
   assert.equal(first.features.x, originalX, 'the previous measurement batch is not mutated');
 });
 
-test('identities surface follows copy visibility over the full world without changing its sticky stage', () => {
+test('identities surface follows copy visibility over the full world without changing its stage dimensions', () => {
   const f = appScrollFixture();
   const chapter = f.measurements.find(m => m.id === 'testimonies');
   const windows = director.measureChapterTransitions(f.measurements, f.opening);
@@ -370,7 +394,8 @@ test('identities surface follows copy visibility over the full world without cha
       * director.cinematicCopyWeights((y - outgoing.start) / (outgoing.end - outgoing.start)).outgoing;
     assert.equal(el.style['--copy-opacity'], String(alpha), 'retain the existing chapter copy envelope');
     assert.equal(f.world.style['--identities-opacity'], el.style['--copy-opacity'], 'world surface must receive the actual copy alpha, including zero');
-    assert.equal(el.firstElementChild.style.translate, `0 ${director.cinematicStageOffset(chapter, y, incoming.start, outgoing.end)}px`);
+    assert.equal(el.firstElementChild.style.position, alpha > 0 ? 'fixed' : 'sticky');
+    assert.equal(el.firstElementChild.style.translate, undefined, 'native viewport anchoring needs no scroll compensation');
   }
   const css = postcss.parse(readFileSync('components/immersive/styles.css', 'utf8'));
   const declarations = selector => {
@@ -393,10 +418,14 @@ test('identities surface follows copy visibility over the full world without cha
   assert.equal(declarations('main')['z-index'], '2');
   assert.equal(declarations('footer.chapter')['z-index'], '2');
   assert.equal(declarations('.site-header')['z-index'], '50');
-  assert.ok([undefined, 'none', 'transparent'].includes(declarations('.identities .stage').background), 'the translated stage must not retain a second surface');
+  assert.ok([undefined, 'none', 'transparent'].includes(declarations('.identities .stage').background), 'the cinematic stage must not retain a second surface');
   const stage = declarations('.stage');
   assert.equal(stage.position, 'sticky');
   assert.equal(stage.height, 'calc(100 * var(--journey-vh))');
+  assert.equal(declarations('.opening-stage').position, 'sticky', 'initial HTML keeps native section placement');
+  assert.equal(declarations('.opening-stage').width, '100%', 'fixed opening keeps full viewport width');
+  assert.equal(declarations('.opening-stage').left, '0');
+  assert.equal(declarations('main > .chapter:not(.pricing):not(.footer) > .stage').left, '0');
 });
 
 // The physical stage and natural pricing/footer stay fixed while paced chapter

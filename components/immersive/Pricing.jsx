@@ -135,7 +135,8 @@ export function PricingPhoneContent({
                   >
                     <span className="pricing-offer-photo">
                       <img
-                        src={item.image}
+                        // 640px suffices inside the scaled phone; full size slowed its reader.
+                        src={dashboardReady ? `/_next/image?url=${encodeURIComponent(item.image)}&w=640&q=75` : undefined}
                         alt={item.imageAlt[locale === "en" ? 1 : 0]}
                         width={1280}
                         height={960}
@@ -239,7 +240,7 @@ export function PricingStageContent({ layerRef } = {}) {
         </span>
         <h2 id="pricing-stage-title">
           {en ? "Your collection." : "Votre collection."}
-          <br />
+          {" "}<br />
           <em>{en ? "Your signature." : "Votre signature."}</em>
         </h2>
         <p>
@@ -314,6 +315,9 @@ export default function Pricing({ collection, stateRef }) {
     const viewport = viewportRef.current,
       body = bodyRef.current;
     let dashboardRequested = false;
+    // Focus can natively scroll the clipped reader; the transform owns its offset.
+    const keepNativeOffset = () => { if (viewport.scrollTop) viewport.scrollTop = 0; };
+    viewport.addEventListener("scroll", keepNativeOffset, { passive: true });
     let disposed = false,
       measureFrame = 0,
       lastReducedMotion = state.reducedMotion,
@@ -326,7 +330,16 @@ export default function Pricing({ collection, stateRef }) {
     );
     presenterRef.current = presenter;
     const navigationTarget = () => pricingPagePosition(intro.getBoundingClientRect().top + window.scrollY, 0, layoutRef.current);
-    Object.assign(state, { pricingIntro: intro, pricingStage: visual, pricingNavigationTarget: navigationTarget });
+    // Assisted scroll stops: phone in place with the first offer, last offer, FAQ.
+    const readingStops = () => {
+      const layout = layoutRef.current;
+      if (!layout) return null;
+      const top = intro.getBoundingClientRect().top + window.scrollY;
+      // The FAQ arrives below the fixed navigation bar, with breathing room.
+      const header = document.querySelector(".site-header")?.getBoundingClientRect().bottom ?? 0;
+      return { start: pricingPagePosition(top, 0, layout), end: pricingPagePosition(top, layout.maxScroll, layout), faq: top + layout.sectionHeight - header - 24 };
+    };
+    Object.assign(state, { pricingIntro: intro, pricingStage: visual, pricingNavigationTarget: navigationTarget, pricingReadingStops: readingStops });
     const syncScroll = (
       pageY = window.scrollY,
       top = state.pricingSectionTop ?? sectionTop,
@@ -437,9 +450,11 @@ export default function Pricing({ collection, stateRef }) {
     measure();
     return () => {
       disposed = true;
+      viewport.removeEventListener("scroll", keepNativeOffset);
       cancelAnimationFrame(measureFrame);
       observer.disconnect();
       if (state.pricingNavigationTarget === navigationTarget) delete state.pricingNavigationTarget;
+      if (state.pricingReadingStops === readingStops) delete state.pricingReadingStops;
       if (state.pricingIntro === intro) delete state.pricingIntro;
       if (state.pricingStage === visual) delete state.pricingStage;
       if (presenterRef.current === presenter) {
@@ -497,12 +512,12 @@ export default function Pricing({ collection, stateRef }) {
     let next;
     if (event.key === "Home") next = 0;
     else if (event.key === "End") next = layout.maxScroll;
-    else if (event.key in changes)
-      next = viewportRef.current.scrollTop + changes[event.key];
-    else return;
+    // The reader offset is mapped from the page (the presenter's transform).
+    const current = pricingScreenScroll(introRef.current.getBoundingClientRect().top, layout);
+    if (event.key in changes) next = current + changes[event.key];
+    else if (next === undefined) return;
     // The phone lives under a fixed portal, so WebKit cannot reliably chain
     // its boundary keys to the document. Continue the native page explicitly.
-    const current = viewportRef.current.scrollTop;
     // WebKit can quantize document scroll to whole CSS pixels. Compare the
     // mapped page endpoint too, or a subpixel reader remainder traps End/PageDown.
     const atStart = current <= 0.5 || Math.abs(window.scrollY - pricingPagePosition(sectionTop, 0, layout)) <= 1;

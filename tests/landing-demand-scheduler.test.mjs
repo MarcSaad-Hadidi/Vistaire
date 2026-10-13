@@ -46,7 +46,7 @@ function fixture({ section = 'hero', laptopFactory, laptopSignals = false } = {}
     callbacks: { current: { onError: error => { throw error; } } },
     camera: new THREE.PerspectiveCamera(), cameraTarget: new THREE.Vector3(), lookAt: new THREE.Vector3(),
     objectTarget: new THREE.Vector3(), targetEuler: new THREE.Euler(), targetQuaternion: new THREE.Quaternion(),
-    woodMaterial: { opacity: 1 }, laptopAsset: { settled: true }, roomSettling: false, projectionSettling: false,
+    laptopAsset: { settled: true }, roomSettling: false, projectionSettling: false,
     phoneVideo: { paused: true, requestVideoFrameCallback() {}, pause() { this.paused = true; } },
     videoPlaying: false, phonePlaybackWanted: false, canPlayPhoneVideo: () => false,
     pausePhoneVideo: () => scope.phoneVideo.pause(), resize() {}, phoneVideoEvents: [],
@@ -55,7 +55,7 @@ function fixture({ section = 'hero', laptopFactory, laptopSignals = false } = {}
     viewportRevision: 0, cameraInteractive: false, pointer: { x: 0, y: 0 }, phoneFrame: 0,
     nativeTable: null, foregroundLayerKey: '',
     frameSubjects: (_state, damping) => onFit?.(damping), submit: () => renders++,
-    recordProcessedPose() {},
+    recordProcessedPose() {}, retryPhoneVideo() {},
   };
   vm.createContext(scope);
   const run = code => vm.runInContext(code, scope);
@@ -119,9 +119,9 @@ test('Scene coalesces real wakes, finishes fresh fitting, and sleeps while waiti
   f.scope.canvas.dataset.phoneReady = 'true';
   f.scope.canvas.dataset.restaurantReady = 'true';
   f.scope.posterReady = true;
-  f.run('activeDish = {}; stoneReady = true');
+  f.run('activeDish = {}');
   f.wake(); f.step();
-  assert.equal(f.scope.canvas.dataset.ready, 'true', 'an asset completion wake finishes readiness');
+  assert.equal(f.scope.canvas.dataset.ready, 'true', 'real assets finish readiness without the obsolete stone texture');
   if (f.pending.size) f.step();
   assert.equal(f.scope.canvas.dataset.suspended, 'true', 'direct pricing entry suspends after its final essential asset');
   assert.equal(f.pending.size, 0);
@@ -223,7 +223,7 @@ test('active draw retains lifecycle and render counters without serializing defa
     };
     vm.createContext(scope);
     vm.runInContext(between('      camera.lookAt(lookAt);', '      const roomSettling ='), scope);
-    vm.runInContext(between('      contactShadow.scale.setScalar(', '      woodMaterial.opacity ='), scope);
+    vm.runInContext(between('      contactShadow.scale.setScalar(', '      particles.visible ='), scope);
     vm.runInContext(between('          renderer.info.reset();', '\n        }\n        if (\n          !ready'), scope);
     for (const key of ['cameraPosition', 'supportPosition', 'phoneQuaternion', 'dishScale', 'laptopPosition', 'dishOpacity', 'openingProgress', 'tableCameraPosition', 'roomCameraPosition'])
       assert.equal(key in scope.canvas.dataset, diagnosticsEnabled, `${key}: pose serialization requires diagnostics`);
@@ -236,17 +236,18 @@ test('active draw retains lifecycle and render counters without serializing defa
     assert.ok(key in f.scope.canvas.dataset, `${key}: lifecycle marker is retained`);
 });
 
-test('detached phone video loads and switches demos at normal playback speed', () => {
-  let loads = 0, pauses = 0, resets = 0;
-  const phoneVideo = { defaultPlaybackRate: 1, playbackRate: 1, readyState: 0, currentTime: 0,
-    pause() { pauses++; }, load() { loads++; } };
+test('detached phone video loads at normal speed and retains failures across inactive demo changes', () => {
+  let loads = 0, pauses = 0, resets = 0, plays = 0, reportedError = null;
+  const phoneVideo = { defaultPlaybackRate: 1, playbackRate: 1, readyState: 0, currentTime: 0, paused: true,
+    pause() { pauses++; this.paused = true; }, load() { loads++; } };
   const scope = {
     phoneVideo, canvas: { dataset: {} }, videoReady: false, videoStarted: false,
-    currentPhoneDemo: '', phonePlayIntent: 0, phonePlaybackWanted: false, videoPlaying: false,
-    selectPoster() {}, cancelPhoneFrame() {}, requestPhoneFrame() {},
-    phonePlayback: { reset() { resets++; }, play() {} },
+    currentPhoneDemo: '', failedPhoneDemo: '', callbacks: { current: { onPhoneVideoError(error) { reportedError = error; } } }, phonePlayIntent: 0, phonePlaybackWanted: false, videoPlaying: false,
+    posters: new Map(), selectPoster() {}, cancelPhoneFrame() {}, requestPhoneFrame() {},
+    phonePlayback: { reset() { resets++; }, play() { plays++; phoneVideo.paused = false; } },
   };
   vm.createContext(scope);
+  vm.runInContext(productionFunction('pausePhoneVideo'), scope);
   vm.runInContext(productionFunction('updatePhoneVideo'), scope);
   scope.updatePhoneVideo(true, 'maison-elyse');
   assert.equal(phoneVideo.defaultPlaybackRate, 1, 'detached video has no DOM effect that can correct its default rate');
@@ -260,6 +261,23 @@ test('detached phone video loads and switches demos at normal playback speed', (
   assert.equal(loads, 2);
   assert.equal(pauses, 2);
   assert.equal(resets, 2);
+
+  reportedError = scope.failedPhoneDemo = 'sauge-noire';
+  scope.updatePhoneVideo(false, 'sauge-noire');
+  scope.updatePhoneVideo(false, 'maison-elyse');
+  assert.equal(scope.failedPhoneDemo, 'sauge-noire', 'inactive or reduced-motion panels do not replace the failed source');
+  assert.equal(reportedError, 'sauge-noire', 'the inline retry remains available for that source');
+  assert.equal(phoneVideo.src, '/videos/demo/sauge-noire.mp4');
+  scope.updatePhoneVideo(true, 'sauge-noire');
+  assert.equal(plays, 3, 'returning directly to the failed demo cannot silently play without a reload');
+  assert.equal(loads, 2, 'the failed demo still requires explicit retry');
+  assert.equal(phoneVideo.paused, true);
+  scope.updatePhoneVideo(true, 'trouvable');
+  assert.equal(scope.failedPhoneDemo, '', 'a real replacement clears the prior media failure');
+  assert.equal(reportedError, null);
+  assert.equal(phoneVideo.src, '/videos/demo/trouvable.mp4');
+  assert.equal(loads, 3);
+  assert.equal(plays, 4);
 });
 
 
@@ -472,7 +490,7 @@ test('scroll publishes and renders in one frame without losing idle, gestures or
   assert.equal(f.state.renderSceneFrame, undefined, 'owned same-frame handle is removed');
 });
 
-test('drawing resolution preserves Retina quality and its four-million-pixel bound without repeated buffer clears', () => {
+test('drawing resolution caps phones at 2.25x, keeps the four-million-pixel bound and never repeats buffer clears', () => {
   for (const [width, height, dpr] of [[390, 844, 3], [430, 932, 3], [1440, 900, 1], [3840, 2160, 2]]) {
     let resizes = 0, wakes = 0;
     const canvas = { clientWidth: width, clientHeight: height, width: 0, height: 0, dataset: {} };
@@ -485,12 +503,12 @@ test('drawing resolution preserves Retina quality and its four-million-pixel bou
     vm.createContext(scope);
     vm.runInContext(productionFunction('resize'), scope);
     scope.resize();
-    assert.ok(scope.drawingSize.pixelRatio <= 3, 'drawing density must not exceed the restored native Retina cap');
+    assert.ok(scope.drawingSize.pixelRatio <= 2.25, 'drawing density stays at or under the phone performance cap');
     assert.ok(canvas.width * canvas.height <= 4_000_000, 'large screens respect the original pixel budget');
     if (width === 390 || width === 430) {
-      assert.equal(scope.drawingSize.pixelRatio, 3, '390/430 Retina phones preserve native density when within the pixel budget');
-      assert.equal(canvas.width, width * 3);
-      assert.equal(canvas.height, height * 3);
+      assert.equal(scope.drawingSize.pixelRatio, 2.25, '390/430 3x phones draw at the 2.25x performance cap');
+      assert.equal(canvas.width, Math.floor(width * 2.25));
+      assert.equal(canvas.height, Math.floor(height * 2.25));
     }
     if (width === 3840) {
       assert.ok(Math.abs(scope.drawingSize.pixelRatio - 25 / 36) < 1e-12, '4K uses the restored four-million-pixel budget');
@@ -506,8 +524,8 @@ test('drawing resolution preserves Retina quality and its four-million-pixel bou
     assert.equal(resizes, 2, 'orientation changes the buffer exactly once');
     assert.ok(canvas.width * canvas.height <= 4_000_000);
     if (width === 390 || width === 430) {
-      assert.equal(canvas.width, height * 3);
-      assert.equal(canvas.height, width * 3);
+      assert.equal(canvas.width, Math.floor(height * 2.25));
+      assert.equal(canvas.height, Math.floor(width * 2.25));
     }
     scope.resize();
     assert.equal(resizes, 2, 'repeated orientation notification does not clear the buffer');

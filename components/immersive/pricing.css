@@ -132,6 +132,7 @@
 }
 :where([data-immersive-vistaire]) .pricing .pricing-phone-body {
   position: relative;
+  will-change: transform;
   padding: 20px 18px 48px;
 }
 :where([data-immersive-vistaire]) .pricing .pricing-offer h3 {

@@ -429,14 +429,14 @@ test.describe("Vistaire SEO smoke", () => {
     expect(sitemapText).not.toContain("/owner");
   });
 
-  test("homepage loads with canonical metadata on required mobile viewports", async ({
+  test("homepage retains canonical metadata and honest recovery when WebGL is unavailable", async ({
     page
   }) => {
     const assertNoUnexpectedBrowserIssues = attachPageGuards(page, [
       "THREE.WebGLRenderer: Error creating WebGL context."
     ]);
-    // Exercise the supported video fallback deterministically; WebGL/3D behavior
-    // is covered by the immersive landing suite rather than this SEO smoke.
+    // Verify truthful failure and unchanged SSR metadata without loading models.
+    // Healthy menu/guide navigation uses the real renderer in landing-redesign.
     await page.addInitScript(() => {
       const original = HTMLCanvasElement.prototype.getContext;
       HTMLCanvasElement.prototype.getContext = function (this: HTMLCanvasElement, type: string, ...args: unknown[]) {
@@ -458,17 +458,16 @@ test.describe("Vistaire SEO smoke", () => {
       );
       await expectNoHorizontalOverflow(page);
       await expect(page.locator("[data-immersive-vistaire]")).toBeVisible();
-      await expect(page.getByRole("heading", { level: 1 })).toHaveText("VISTAIRE");
-      await expect(page.locator(".fallback-film")).toHaveAttribute("src", /\/immersive-media\/cinematic-(portrait|landscape)\.mp4/);
+      await expect(page.locator("h1")).toHaveText("VISTAIRE");
+      await expect(page.getByRole('alertdialog')).toContainText('L’expérience 3D est indisponible.');
+      await expect(page.locator('.fallback-film, .world-fallback')).toHaveCount(0);
       await expect(page.locator(".preloader")).toHaveCount(0);
       await expectNoEarlyModelAssets(page);
 
-      await expect(page.locator("[data-public-navigation-open]")).toBeVisible();
-      await page.locator(".menu-toggle").click();
-      await expect(page.locator('.menu-page-links a[href="/prendre-rendez-vous"]')).toBeVisible();
-      await expect(page.locator('.menu-page-links a[href="/demo"]')).toBeVisible();
-      await page.keyboard.press("Escape");
-      await expect(page.locator(".menu-toggle")).toHaveAttribute("aria-expanded", "false");
+      const menu = page.getByRole('alertdialog').getByRole('link', { name: 'Explorer la carte' });
+      await expect(menu).toHaveAttribute('href', '/demo');
+      await menu.click();
+      await expect(page).toHaveURL(/\/demo$/);
     }
 
     assertNoUnexpectedBrowserIssues();

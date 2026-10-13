@@ -1,22 +1,22 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test as base, type Page } from "@playwright/test";
 import { writeFile } from "node:fs/promises";
 import { readFileSync } from "node:fs";
 
 const laptopAssetPaths = new Set(['/immersive-assets/dashboard/macbook.glb', '/immersive-assets/dashboard/dashboard-black-gold.webp']);
 
-async function disableWebGL(page: Page) {
-  await page.addInitScript(() => {
-    const original = HTMLCanvasElement.prototype.getContext;
-    HTMLCanvasElement.prototype.getContext = function (this: HTMLCanvasElement, type: string, ...args: unknown[]) {
-      return type.startsWith("webgl") ? null : Reflect.apply(original, this, [type, ...args]);
-    } as typeof original;
-  });
-}
-
-async function openFallback(page: Page, path = "/") {
-  await disableWebGL(page);
+// Healthy navigation and guide flows use the real full scene. SwiftShader
+// provides deterministic browser coverage, not physical-device performance.
+const test = base.extend({
+  launchOptions: async ({ browserName }, provideOptions) => {
+    await provideOptions(browserName === 'chromium'
+      ? { args: ['--use-angle=swiftshader', '--use-gl=angle'] }
+      : {});
+  },
+});
+async function openScene(page: Page, path = "/") {
+  test.setTimeout(180_000);
   await page.goto(path, { waitUntil: "domcontentloaded" });
-  await expect(page.locator(".world-fallback")).toBeVisible();
+  await expect(page.locator('.scene-canvas')).toHaveAttribute('data-ready', 'true', { timeout: 120_000 });
   await expect(page.locator(".preloader")).toHaveCount(0);
 }
 
@@ -26,7 +26,7 @@ for (const [path, links] of [
 ] as const) {
   test(`${path} ends at one immersive footer and retains localized public destinations`, async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
-    await openFallback(page, path);
+    await openScene(page, path);
     await page.evaluate(() => scrollTo({ top: document.documentElement.scrollHeight, behavior: "instant" }));
     const footer = page.getByRole("contentinfo");
     await expect(footer).toHaveCount(1);
@@ -55,24 +55,20 @@ for (const viewport of [
   { width: 430, height: 932 }, { width: 768, height: 1024 },
   { width: 1440, height: 900 },
 ]) {
-  test(`immersive landing stays usable without WebGL at ${viewport.width}px`, async ({ page }) => {
+  test(`full 3D landing keeps its guide and controls accessible at ${viewport.width}px`, async ({ page }) => {
     await page.setViewportSize(viewport);
     const errors: string[] = [];
     page.on("pageerror", (error) => errors.push(error.message));
-    await openFallback(page);
+    await openScene(page);
     await expect(page.getByRole("heading", { level: 1 })).toHaveText("VISTAIRE");
-    const film = page.locator(".fallback-film");
-    await expect(film).toHaveAttribute("src", /\/immersive-media\/cinematic-(portrait|landscape)\.mp4/);
-    await expect.poll(() => film.evaluate((el) => (el as HTMLVideoElement).readyState)).toBeGreaterThanOrEqual(2);
-    await expect(film).toHaveJSProperty("muted", true);
-    await expect(film).toHaveJSProperty("loop", true);
+    await expect(page.locator('.fallback-film, .world-fallback, [role="alertdialog"]')).toHaveCount(0);
     for (const theme of ["dark", "light"]) {
       if (theme === "light") {
         // A stored preference tests the visible guide; clicking the theme
         // control intentionally teaches/dismisses the initial guide.
         await page.evaluate(() => localStorage.setItem("vistaire-public-theme", "light"));
         await page.reload({ waitUntil: "domcontentloaded" });
-        await expect(page.locator(".world-fallback")).toBeVisible();
+        await expect(page.locator('.scene-canvas')).toHaveAttribute('data-ready', 'true', { timeout: 120_000 });
       }
       await expect(page.locator("html")).toHaveAttribute("data-vistaire-theme", theme);
       const guide = page.locator("[data-scroll-guide]");
@@ -99,6 +95,10 @@ for (const viewport of [
       expect(geometry.bottom).toBeLessThanOrEqual(geometry.viewportHeight);
       expect(geometry.overlaps, `${theme} guide at ${viewport.width}px`).toEqual([]);
     }
+    await page.locator('.menu-toggle').click();
+    for (const href of ['/prendre-rendez-vous', '/demo']) await expect(page.locator('.menu-page-links a[href="' + href + '"]')).toBeVisible();
+    await page.keyboard.press('Escape');
+    await expect(page.locator('.menu-toggle')).toHaveAttribute('aria-expanded', 'false');
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
     expect(overflow).toBeLessThanOrEqual(2);
     expect(errors).toEqual([]);
@@ -120,7 +120,7 @@ test("a Next navigation releases the immersive viewport and queued scroll work",
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(error.message));
   await page.setViewportSize({ width: 390, height: 844 });
-  await openFallback(page);
+  await openScene(page);
   await expect(page.locator("[data-public-navigation-open]")).toBeVisible();
   await page.locator(".menu-toggle").click();
   await expect(page.locator(".menu-toggle")).toHaveAttribute("aria-expanded", "true");
@@ -140,7 +140,7 @@ test("a Next navigation releases the immersive viewport and queued scroll work",
 
 test("collections support keyboard selection and accessible stand rotation", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
-  await openFallback(page, "/#product");
+  await openScene(page, "/#product");
   const tabs = page.getByRole("tablist", { name: "Collections de supports" });
   await tabs.getByRole("tab", { selected: true }).focus();
   await page.keyboard.press("ArrowRight");
@@ -152,15 +152,146 @@ test("collections support keyboard selection and accessible stand rotation", asy
   await expect(stand).toHaveAttribute("aria-valuenow", "15");
 });
 
-// Launch options are worker-scoped and cannot be set inside a describe group.
-// Keep actual SwiftShader rendering local to these two regressions; this does
-// not represent physical GPU or trackpad validation.
-const renderedTest = test.extend({
-  launchOptions: async ({ browserName }, provideOptions) => {
-    await provideOptions(browserName === 'chromium'
-      ? { args: ['--use-angle=swiftshader', '--use-gl=angle'] }
-      : {});
-  },
+const renderedTest = test;
+
+renderedTest('a failed full scene offers an honest retry without a cinematic replacement', async ({ page }, testInfo) => {
+  renderedTest.setTimeout(180_000);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  const cinematicRequests: string[] = [];
+  const errors: string[] = [];
+  const consoleErrors: Array<{ text: string; url: string }> = [];
+  const httpErrors: Array<{ status: number; url: string }> = [];
+  page.on('console', message => {
+    if (message.type() === 'error') consoleErrors.push({ text: message.text(), url: message.location().url });
+  });
+  page.on('response', response => {
+    if (response.status() >= 400) httpErrors.push({ status: response.status(), url: response.url() });
+  });
+  page.on('request', request => {
+    if (new URL(request.url()).pathname.startsWith('/immersive-media/cinematic-')) cinematicRequests.push(request.url());
+  });
+  page.on('pageerror', error => errors.push(error.message));
+  await page.addInitScript(() => {
+    if (sessionStorage.getItem('full-scene-retry')) return;
+    sessionStorage.setItem('full-scene-retry', '1');
+    const original = HTMLCanvasElement.prototype.getContext;
+    HTMLCanvasElement.prototype.getContext = function (this: HTMLCanvasElement, type: string, ...args: unknown[]) {
+      return type.startsWith('webgl') ? null : Reflect.apply(original, this, [type, ...args]);
+    } as typeof original;
+  });
+  await page.goto('/', { waitUntil: 'domcontentloaded' });
+  const failure = page.getByRole('alertdialog');
+  await expect(failure).toBeVisible();
+  await expect(failure).toContainText('L’expérience 3D est indisponible.');
+  await expect(failure.locator('.loading-line')).toHaveCount(0);
+  await expect(page.locator('.fallback-film, .world-fallback, .gpu-status')).toHaveCount(0);
+  await expect(page.locator('.scene-canvas')).toHaveCount(0);
+  const retry = failure.getByRole('button', { name: 'Réessayer' });
+  await expect(retry).toBeFocused();
+  await page.keyboard.press('Tab');
+  await expect(failure.getByRole('link', { name: 'Explorer la carte' })).toBeFocused();
+  await expect(failure.getByRole('link')).toHaveAttribute('href', '/demo');
+  await page.keyboard.press('Escape');
+  await expect(failure).toBeVisible();
+  await Promise.all([page.waitForEvent('domcontentloaded'), retry.click()]);
+  const canvas = page.locator('.scene-canvas');
+  await expect(canvas).toHaveAttribute('data-ready', 'true', { timeout: 120_000 });
+  for (const asset of ['restaurant', 'support', 'phone']) await expect(canvas).toHaveAttribute('data-' + asset + '-ready', 'true');
+  await expect(canvas).toHaveAttribute('data-rendered-model', 'homard');
+  await expect(failure).toHaveCount(0);
+  await page.locator('.menu-toggle').click();
+  await expect(page.locator('.menu-page-links a[href="/demo"]')).toBeVisible();
+  const evidence = testInfo.outputPath('browser-evidence.json');
+  await writeFile(evidence, JSON.stringify({ pageErrors: errors, consoleErrors, httpErrors, cinematicRequests }, null, 2));
+  await testInfo.attach('browser-evidence', { path: evidence, contentType: 'application/json' });
+  expect(consoleErrors.filter(entry => entry.text !== 'THREE.WebGLRenderer: Error creating WebGL context.')).toEqual([]);
+  expect(httpErrors).toEqual([]);
+  expect(cinematicRequests).toEqual([]);
+  expect(errors).toEqual([]);
+});
+
+renderedTest('a phone video failure preserves the full scene and retries only that media', async ({ page }, testInfo) => {
+  renderedTest.setTimeout(180_000);
+  await page.setViewportSize({ width: 390, height: 844 });
+  const cinematicRequests: string[] = [];
+  const errors: string[] = [];
+  const consoleErrors: Array<{ text: string; url: string }> = [];
+  const httpErrors: Array<{ status: number; url: string }> = [];
+  page.on('console', message => {
+    if (message.type() === 'error') consoleErrors.push({ text: message.text(), url: message.location().url });
+  });
+  page.on('response', response => {
+    if (response.status() >= 400) httpErrors.push({ status: response.status(), url: response.url() });
+  });
+  page.on('request', request => {
+    if (new URL(request.url()).pathname.startsWith('/immersive-media/cinematic-')) cinematicRequests.push(request.url());
+  });
+  page.on('pageerror', error => errors.push(error.message));
+  await page.addInitScript(() => {
+    const probe = { video: null as HTMLMediaElement | null, plays: 0, loads: 0 };
+    (window as typeof window & { phoneVideoProbe: typeof probe }).phoneVideoProbe = probe;
+    const play = HTMLMediaElement.prototype.play;
+    HTMLMediaElement.prototype.play = function () {
+      if (this.src.includes('/videos/demo/')) { probe.video = this; probe.plays++; }
+      return Reflect.apply(play, this, []);
+    };
+    const load = HTMLMediaElement.prototype.load;
+    HTMLMediaElement.prototype.load = function () {
+      if (this.src.includes('/videos/demo/')) { probe.video = this; probe.loads++; }
+      return Reflect.apply(load, this, []);
+    };
+  });
+  let releaseFailure!: () => void;
+  const heldFailure = new Promise<void>(resolve => { releaseFailure = resolve; });
+  let rejectVideo = true;
+  await page.route('**/videos/demo/maison-elyse.mp4', async route => {
+    if (!rejectVideo) { await route.continue(); return; }
+    await heldFailure;
+    await route.fulfill({ status: 503, contentType: 'text/plain', body: 'Temporarily unavailable' });
+  });
+  try {
+    await page.goto('/#wearable', { waitUntil: 'domcontentloaded' });
+    const canvas = page.locator('.scene-canvas');
+    await expect(canvas).toHaveAttribute('data-ready', 'true', { timeout: 120_000 });
+    const originalCanvas = await canvas.elementHandle();
+    releaseFailure();
+    const failure = page.locator('.phone-video-error');
+    await expect(failure).toBeVisible();
+    await expect(failure).toContainText('La démonstration vidéo est indisponible.');
+    await expect(canvas).toHaveAttribute('data-ready', 'true');
+    expect(await originalCanvas!.evaluate(el => el === document.querySelector('.scene-canvas'))).toBe(true);
+    for (const asset of ['restaurant', 'support', 'phone']) await expect(canvas).toHaveAttribute('data-' + asset + '-ready', 'true');
+    await expect(page.locator('.fallback-film, .world-fallback, [role="alertdialog"]')).toHaveCount(0);
+    const attempts = await page.evaluate(() => {
+      const { plays, loads } = (window as typeof window & { phoneVideoProbe: { plays: number; loads: number } }).phoneVideoProbe;
+      scrollBy(0, 2);
+      return { plays, loads };
+    });
+    await expect.poll(() => page.evaluate(async () => {
+      await new Promise(resolve => setTimeout(resolve, 500));
+      const { plays, loads } = (window as typeof window & { phoneVideoProbe: { plays: number; loads: number } }).phoneVideoProbe;
+      return { plays, loads };
+    })).toEqual(attempts);
+    rejectVideo = false;
+    await failure.getByRole('button', { name: 'Réessayer' }).click();
+    await expect(failure).toHaveCount(0);
+    await expect.poll(() => page.evaluate(() => {
+      const { video } = (window as typeof window & { phoneVideoProbe: { video: HTMLVideoElement | null } }).phoneVideoProbe;
+      return !!video && !video.paused && video.readyState >= 2 && video.currentTime > 0.05;
+    }), { timeout: 30_000 }).toBe(true);
+    expect(await originalCanvas!.evaluate(el => el === document.querySelector('.scene-canvas'))).toBe(true);
+    await expect(canvas).toHaveAttribute('data-ready', 'true');
+    const evidence = testInfo.outputPath('browser-evidence.json');
+    await writeFile(evidence, JSON.stringify({ pageErrors: errors, consoleErrors, httpErrors, cinematicRequests }, null, 2));
+    await testInfo.attach('browser-evidence', { path: evidence, contentType: 'application/json' });
+    expect(consoleErrors.filter(entry => !(entry.url.includes('/videos/demo/maison-elyse.mp4') && entry.text.includes('503')))).toEqual([]);
+    expect(httpErrors.filter(entry => !(new URL(entry.url).pathname === '/videos/demo/maison-elyse.mp4' && entry.status === 503))).toEqual([]);
+    expect(cinematicRequests).toEqual([]);
+    expect(errors).toEqual([]);
+  } finally {
+    releaseFailure();
+  }
 });
 
 // A processed-pose acknowledgement replaces the former four blind RAF waits.
@@ -354,9 +485,11 @@ renderedTest.describe('optional scene framing diagnostics (Chromium software Web
     await page.emulateMedia({ reducedMotion: 'reduce' });
     const requests: string[] = [];
     const laptopRequests: string[] = [];
+    const obsoleteTextureRequests: string[] = [];
     page.on('request', request => {
       if (new URL(request.url()).pathname === '/immersive-assets/dishes/framing-hulls.json') requests.push(request.url());
       if (laptopAssetPaths.has(new URL(request.url()).pathname)) laptopRequests.push(request.url());
+      if (new URL(request.url()).pathname === '/immersive-assets/restaurant-stone.webp') obsoleteTextureRequests.push(request.url());
     });
     // Identify the real Scene callback by its rendered frame publication, and
     // track owned RAF handles. Pending ownership distinguishes sleep from a
@@ -369,7 +502,7 @@ renderedTest.describe('optional scene framing diagnostics (Chromium software Web
       // Three loads these textures through detached ImageLoader elements.
       // Observe their real completion so a late texture wake cannot conceal a
       // missing phone-completion wake after the scene has gone to sleep.
-      const texturePaths = new Set(['/immersive-assets/restaurant-stone.webp', '/immersive-assets/phone-poster-maison-elyse.webp']);
+      const texturePaths = new Set(['/immersive-assets/phone-poster-maison-elyse.webp']);
       const images: WeakRef<HTMLImageElement>[] = [];
       const observed = new WeakSet<HTMLImageElement>();
       const loaded = new Set<string>();
@@ -454,6 +587,7 @@ renderedTest.describe('optional scene framing diagnostics (Chromium software Web
       expect(awake.callbacks).toBeGreaterThan(asleep.callbacks);
       expect(awake.scrollY).toBe(asleep.scrollY);
       expect(awake.triangles).toBeGreaterThan(asleep.triangles);
+      expect(obsoleteTextureRequests).toEqual([]);
       expect(laptopRequests).toEqual([]);
       await expect(canvas).not.toHaveAttribute('data-phone-scale', /.+/);
       await expect(canvas).toHaveAttribute('data-framing-ready', 'disabled');
@@ -644,7 +778,7 @@ renderedTest.describe('rendered scroll choreography (Chromium software WebGL)', 
               if (!screen || !viewport) return null;
               const rect = screen.getBoundingClientRect();
               return { left: rect.left, top: rect.top, width: rect.width, height: rect.height,
-                scroll: viewport.scrollTop, transform: getComputedStyle(screen).transform };
+                scroll: -new DOMMatrixReadOnly(getComputedStyle(viewport.firstElementChild!).transform).m42 || 0, transform: getComputedStyle(screen).transform };
             })(),
             camera: data.fittedCameraPosition,
             look: data.fittedLook,

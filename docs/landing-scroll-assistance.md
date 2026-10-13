@@ -1,17 +1,42 @@
 # Continue to the next authored reading stop
 
-## Scope and evidence
+## Physical evidence and root cause — PR #300, 2026-10-13
 
-This candidate follows the user's request to remove distance eligibility and continue a released native gesture toward the next reading stop, without automatically chaining chapters. It starts from the preserved speed-tuning candidate based on published `38a45a7`. That speed-only snapshot remains unpublished and unchanged. The local snapshots have no `.git`; file comparisons and hashes establish scope.
+The production baseline was `29019017aa14a7793968691abb17594c5d41032d`. The user's iPhone Safari trace (recorded `Version/26.6.1`, session `1d8fdc86aei`) showed the full scene ready, reduced motion off and no scene fallback. Its last trusted document scroll reported y=1594 at 14506ms; scrollend reported y=1595 at 14599ms, before the final document scroll at 14615ms. The controller consumed the gesture when the final position lacked that acknowledgement, so no assistance followed.
 
-Runtime edits are confined to `EntryScrollAssist.js`. Its existing tests and this document change; the integrating lead separately updates the existing offers acceptance cases. App, Scene, SceneDirector, authored geometry, assets and dependencies remain unchanged. One gesture-scoped RAF observes native motion **or** advances one continuation; an idle page has no assistance RAF.
+The first physical candidate preserved that gesture but exposed per-frame instant-write echoes: a write immediately read back 1397, then a trusted scroll reported the preceding position 1395 before acknowledging 1397. Candidate 2 waited for those acknowledgements. The phone then completed stops, but the user reported vibration, slow travel and intermittent starts.
 
-The retained 38 browser traces establish two specific failures, independent of proximity:
+Three complete, retained candidate-2 trips in Safari session `9vur7qehd1o` quantify the delay:
 
-- Chromium and WebKit continuations abandoned their destination after actual callback gaps of 133–1163ms. Some first callbacks were delayed; some first writes repeated the starting position. This candidate preserves logical progress across those stalls instead.
-- One Chromium first native scroll was delivered 1624ms after accepted input and rejected by the old 600ms gate. Candidate first-motion acceptance now depends on trusted event ordering, direction and still-current intent, not elapsed wall time alone.
+| Destination | Release → handoff | Handoff → completion | Planned logical duration |
+| --- | ---: | ---: | ---: |
+| Features | 3566ms | 1240ms | 629ms |
+| Encryption | 7313ms | 782ms | 393ms |
+| Grip | 4414ms | 934ms | 493ms |
 
-Those hosted traces all handed off through `scrollend`, with zero sampled velocity and no deceleration samples. They do **not** demonstrate early-deceleration activation, physical-device fluidity or gapless motion. New hosted and physical-device acceptance is still required.
+The first write followed handoff by 19–34ms in these trips. Differences between immediate JavaScript write readback and the following native event reached 41px; acknowledgement pauses stretched the complete trips to 1.90–1.99 times their logical duration. These differences were not actual reversals in the observed document-scroll sequence: the three complete trips and the retained interrupted reverse trip had monotonic native observations, including repeated positions. Their corroborated native ends already preceded handoff. Waiting for each write acknowledgement therefore introduced pauses even after native momentum had ended. These are instrumented event/position measurements, not displayed-frame or FPS measurements. The two earlier trips have no retained matching completion before the next handoff and are censored; no duration ratio is assigned to them. Dense diagnostic batches omitted some intervals, so absence of a row alone is not proof that an event never happened.
+
+Among 13 retained touch releases in that session, three had corroborated native movement but no handoff before the next touch. Their explicit cancellations were `reverse-observed-motion` at 126108ms and `native-scroll-rejected` at 244257ms and 259226ms. Three other handoffs were cancelled after 17, 90 and 63ms when position advanced beyond the custom engine's expected write. The first advanced from 24212 to 24232 before any assisted write. These failures concern native motion ownership and event ordering; they do not establish proximity as the cause.
+
+Candidate 3.1 used native smooth scrolling before inertia ended. Safari session `uqqwyywk96` retained 14 handoffs, nine completions, four foreign-scroll cancellations and one new-pointer cancellation, with zero reported dropped rows. Its complete trips took 318–350ms. The user rejected that speed and interruption of their motion. Three interrupted forward trips showed actual observed reversals: 6633→5163, 10423→8638 and 24956→21510, without new input or nearby viewport changes. The earlier user report of a backward jump on a new press was not independently reproduced by the one retained pointer cancellation in this session.
+
+WebKit's [March 2026 momentum-scrolling change](https://github.com/WebKit/WebKit/pull/61534), merged as `310169@main`, makes iOS main-frame programmatic scroll requests preserve native momentum using `InterruptScrollAnimation::No`; its tests explicitly cover scrollTo during momentum. We have not identified the installed Safari binary's commit, so this is engine evidence supporting the ownership explanation, not a claim about every Safari version. Safari's official [26.2 release notes](https://webkit.org/blog/17640/webkit-features-for-safari-26-2/) announce scrollend support. The controller detects that capability instead of parsing the user agent.
+
+## One controlled continuation after the native end
+
+When scrollend is supported, the controller remembers a trusted document scrollend belonging to the current gesture and waits for touch/key/pointer release plus a matching observed document position before starting. A native end can precede keyup or touchend; retaining that evidence never starts assistance while input remains held. New input or a later different native position invalidates it. The existing 40ms input-release guard only prevents an intermediate end inside a wheel-packet train from starting assistance. A native end received before the first or final corroborating document scroll is retained until that trusted, current, matching-direction event arrives. The continuation can then start on the next animation frame; there is no extra deceleration window or stationary-frame test.
+
+Only when the scrollend API is absent does the existing timer use a 280ms quiet period without input or document movement. A browser advertising scrollend but omitting the event does **not** use that fallback; the gesture remains unassisted until a valid end or cancellation. This deliberate limitation avoids interrupting momentum merely because event delivery pauses. Neither path runs an idle RAF while waiting for native evidence.
+
+Compositor movement can precede wheel/touchmove delivery or arrive before the first touchmove. Pending displacement still needs a trusted document event stamped inside the current input. A continuing same-direction packet retains that pending evidence. The first scroll of a new gesture otherwise measures movement from its input position, so a stale packet or movement inherited from the previous assistance cannot manufacture fresh motion. Synthetic, stale or cancelled motion cannot authorize a handoff. An opposite-direction first movement cannot prove the input. Once matching native movement has been confirmed, a later trusted position correction does not change or erase the input direction. A real touchmove reversal starts a new intent and requires fresh matching native movement, even while the same finger remains down. New input and explicit caller cancellation still discard the preceding gesture.
+
+Safari session `yqktpcj5z6q` reproduced the missed Mac exit: after a confirmed forward release at 66689ms, native position advanced to 32543, reversed to 31870 while the toolbar viewport changed, then reached 35779. The first 74px reversal cancelled the gesture at 73329ms, so its native end at 80317ms found no gesture. No new input or assisted write occurred during that coast. The sustainability test replays these observations and was red before narrowing the direction check to the first unconfirmed movement. It also verifies that an actual touchmove reversal updates the direction and needs its own movement proof. This preserves the eventual Mac handoff; it does not shorten native inertia or claim to fix the cause of the viewport reversal.
+
+One RAF then writes progressive instant positions through the existing `cinematicEase` curve: smooth acceleration and deceleration with a steady middle. Duration is `clamp(1000, 500 × remainingDistance / stageHeight, 2500)` milliseconds. Ordinary frame intervals, including 80–100ms intervals, advance by their actual elapsed time. A single interval above 125ms contributes at most 125ms, avoiding a large jump after a main-thread stall; repeated stalls can therefore extend wall-clock travel beyond the planned duration. There is no native-smooth alternative, acknowledgement queue, per-write wait or second curve framework.
+
+Only trusted, current document scroll events update the continuation's observed position. Immediate scrollTo readback never becomes its ownership reference. Repeated native positions are accepted; real reverse movement or travel beyond the destination cancels. Completion requires the duration to finish and the current position to match a trusted observation within the existing one-CSS-pixel target rounding tolerance. A final write that rounds to an already observed pose needs no new scroll event. Completion consumes the gesture and cannot chain to another stop.
+
+New wheel, touch, key, pointer, click, focus, navigation/layout cancellation, visibility changes, blur, reduced motion or disposal cancels the RAF without writing a reset position. Native input owns the visible pose immediately. Application navigation and layout remaps still call the existing cancel hook. That is also required before any programmatic document movement during a confirmed native gesture: trusted scroll events cannot distinguish an external script from a native position correction. During the controlled continuation, real observed reverse motion still cancels immediately. Actual Safari/Android testing remains necessary to judge visual fluidity; deterministic tests do not measure compositor output.
 
 ## Destinations: authored navigation poses
 
@@ -37,106 +62,26 @@ Sustainability also has an internal stop where `chapterPhase("sustainability")` 
 
 One gesture owns one target. Completion consumes that ownership; the controller's scroll events cannot arm another chapter. At the final cinematic stop there is no forward automatic destination. Pricing/FAQ/footer are not stops, and the existing exclusion once pricing is visible (`scrollY + innerHeight >= pricing.top`) remains in force, including reverse reading gestures there.
 
-## Native ownership and release
+## Input, accessibility and viewport safeguards
 
-The earlier handoff retains the speed candidate's 40ms input/release silence and 32ms stationary evidence. After genuine document movement, a single observer can transfer before a missing or late `scrollend` only when:
+All listeners remain passive. Assistance never starts during held touch, key or pointer input, or from a tap without native document movement. A pan that begins on a link, button, video or pan-y model surface can assist; editing fields, menus and dialogs retain touch ownership. Wheel and keyboard retain their broader control/focus exclusions. Focus left by a prior tap on a model slider does not block a later document touch pan.
 
-1. No touch, key or pointer is held, with at least 40ms since input or physical release.
-2. Two decreasing same-direction native velocity samples were observed on fresh 8–50ms intervals, ending at no more than 0.15px/ms.
-3. At least two stationary frames span at least 32ms, and the last moving sample is no older than 80ms.
-4. The observed position agrees with the processed document scroll, UI/control gates are clear and a directional reading stop exists.
+Pointercancel from browser panning releases Pointer Events ownership while preserving an independently valid Touch Events pan. True touchcancel resets the gesture. Hidden pages, reduced motion, blocked UI and natural pricing/FAQ/footer reading remain excluded. The last cinematic stop has no automatic forward destination.
 
-The observer never writes while sampled native positions are advancing. It timestamps actual position reads with `performance.now()`, not a potentially stale RAF timestamp. Long observer delivery invalidates velocity/deceleration evidence. A 2-second observation ceiling stops that observer but does not clear the gesture; a later real `scrollend` can still hand off. If a browser advertises `scrollend` but never delivers it and no earlier evidence qualifies, assistance can remain pending. This is not a universal completion guarantee.
+JourneyViewport also freezes toolbar-only reference-height changes on touch landscape widths at and above 768px. Real width/orientation changes and desktop resizing still update geometry. This is independent of the scroll engine; App continues to own measured stops and 3D focus geometry.
 
-Real `scrollend` respects the same 40ms contact/input gate, so intermediate end events in a 16ms wheel packet train cannot repeatedly start assistance. Browsers without the property retain the conservative 280ms input/scroll-silence fallback after release. The presence of the property is not proof of timely event delivery. Browser-native smooth-scroll easing/duration and compositor inertia remain browser-controlled: see [CSSOM View scrolling](https://drafts.csswg.org/cssom-view/#scrolling).
+## Diagnostics and verification
 
-The proven compositor-before-wheel bookkeeping remains intact: a matching position difference is credited once only when its ordered trusted document scroll arrives. Its unknown pre-handler timing never becomes a velocity estimate. A candidate first scroll must be trusted, timestamped no earlier than the current input and no later than delivery, and agree with gesture direction. New input, navigation/layout reset or hiding invalidates the old intent even if that old event arrives later.
+`?sceneDiagnostics=1` or an explicitly preinstalled `window.__vistaireScrollAssistTrace` consumer enables the existing helper trace. The latter permits lightweight input/scroll diagnostics without enabling Scene's per-frame bounds and serialization work. Reports identify one `mode: "controlled"`, input/release evidence, source/target, planned duration, frame writes and observed completion. The consumer is exception-isolated and owns retention. There is no separate diagnostic scroll engine.
 
-Touch gestures keep these concepts separate:
+The two existing new regression cases were revised test-first after the physical rejection: preserve native momentum through a corroborated end and a gradual controlled trip; cancel an in-flight continuation without a reset write or replay. They also cover forward/reverse movement, repeated observations, ordinary 80ms frame intervals, missing API fallback and trusted final completion. No third new test was added for this revision.
 
-- **Intent** is the direction of the latest `touchmove` with vertical change. A packet with no vertical change carries no new intent and leaves the gesture intact.
-- **Observed native motion** is a document `scroll` event. Before a gesture exists, only a trusted event stamped no earlier than the start of the current intent (`touchstart`, then each consumed `touchmove`) and no later than delivery is recorded. The next `touchmove` credits it only when its sign matches, then consumes it. Document position relative to `touchstart` is never evidence: an older scroll, an untrusted scroll, or motion from a direction the finger later reversed cannot arm a later direction.
-- **Inertia** is native motion after `touchend`; it ends with `scrollend` or measured deceleration.
-- **Controller writes** are recognised by `expectedY`; any other position change while assisting is a foreign scroll and cancels.
-- **Cancellation** is any new input, reversal, protected focus, layout change or `touchcancel`. A UA `pointercancel` during native panning only releases pointer ownership; the next `touchstart` always resets the touch evidence.
+Existing tests retain authored stops, direction, contact/input guards, controls, pricing, reduced motion, viewport behavior and cleanup. WebKit browser QA at 390px also reproduced one native end at 115ms while ArrowDown remained held, followed by keyup at 199–200ms and no continuation. The existing held-input test was observed red after removing its artificial second end; storing the first end while still deferring departure until release makes it pass. This fixes the end-before-release ordering, not the long native coast measured on the iPhone. Three existing cases were observed red before their fixes: `diagnostics distinguish unconfirmed motion, blocked input and the authored destination`, `pending compositor evidence excludes stale programmatic scroll, reverse motion, rejected controls and active assistance`, and `trusted compositor movement delivered before touchmove is credited only by its queued document scroll` (extended to end-before-first-scroll). The diagnostic test also verifies identical behavior with no consumer, an explicit consumer without the Scene flag, an enabled flag and a throwing consumer. Tests tied to the removed acknowledgement/deceleration engines and historical proximity baseline are not retained.
 
-`isTrusted` only says the browser dispatched the event, not who moved the document; the provenance above relies on timestamps relative to the current intent and on `expectedY`.
+Executed on the frozen candidate:
 
-A pan that starts on a link, button or tab is still a page scroll and is assisted: a tap produces no document scroll, so it can never arm a stop, and `click` cancels. Sliders, fields, media, menus and dialogs keep native touch ownership. Wheel and keyboard keep the full control exclusion.
+- `node --test tests/landing-entry-scroll-assist.test.mjs tests/landing-scroll-continuity.test.mjs tests/landing-model-gesture.test.mjs tests/landing-journey-viewport.test.mjs` — **63/63 pass, no skips**.
+- `.\node_modules\.bin\eslint.cmd components/immersive/EntryScrollAssist.js components/immersive/JourneyViewport.js tests/landing-entry-scroll-assist.test.mjs tests/landing-journey-viewport.test.mjs --max-warnings=0` — pass.
+- `git diff --check` — pass; Git reported only working-copy LF/CRLF normalization warnings.
 
-A coalesced scroll event stamped before the latest same-direction `touchmove` but after the intent began is accepted. These orderings were reproduced in software sequences; they do not by themselves prove the cause on a specific physical device.
-
-## Travel-scaled continuation
-
-The controller makes instant per-frame document-position writes along smooth velocity ramps and a constant-speed cruise. It does not stack a native smooth scroller with another smoother. A globally stretched quintic was rejected because a long zero-seed trip needed 128–304ms after handoff merely to request one CSS pixel. The fixed-ramp curve makes startup independent of long travel.
-
-For remaining distance d, frozen stage H and fresh same-direction sampled speed v in px/ms:
-
-- Decay measured speed linearly to zero by 80ms after the last moving sample.
-- Bound seed speed to `s = min(max(0, v), 4H/1000)` and initially choose `p = max(s, 3H/1000)`.
-- Choose ramp time `R = min(120ms, max(60ms, d/p))`; for positive s also require `R <= 2d/(3s)`.
-- For short trips reduce peak speed to `p = min(p, d/R − s/2)`.
-- Set cruise time `C = max(0, (d − R(s/2 + p))/p)` and logical duration `T = 2R + C`.
-
-The seed bound on R ensures the adjusted peak remains at least s and nonnegative. Both ramp areas plus the cruise exactly cover d; no position clamp hides reversal or overshoot. The 60ms short-trip ramps preserve a 120ms nominal duration floor, except when a positive seed mathematically requires a shorter stop. Long trips retain 120ms ramps and add cruise time. There is no 850ms ceiling and no near-zero-seed crawl. Unusually high measured seed speed is bounded; no device classification or wheel-delta scaling is used.
-
-Let `F(u) = u³ − u⁴/2`, the integral of velocity smoothstep `3u² − 2u³`. During the entry ramp, traveled position is `s*t + (p−s)*R*F(t/R)`. The cruise starts at `R(s+p)/2` and runs at p. During the final ramp, its incremental distance is `p*R*(u−F(u))`. Velocity is continuous and nonnegative, and acceleration is zero at the controller endpoints and both cruise joins. These controller conditions do not prove acceleration continuity with unknown native compositor motion.
-
-Analytic zero-seed examples at H=844px, without interrupted or stalled frames:
-
-| Travel | Logical duration | Peak px/ms | First ≥0.5px / ≥1px request after handoff, 16ms cadence |
-| --- | ---: | ---: | ---: |
-| 40px | 120ms | 0.667 | 16 / 32ms |
-| 1000px | 514.94ms | 2.532 | 16 / 32ms |
-| Hero → AI, 3544.8px | 1520ms | 2.532 | 16 / 32ms |
-| Wearable → Features, 3966.8px | 1686.67ms | 2.532 | 16 / 32ms |
-| Ordinary 6076.8px gap | 2520ms | 2.532 | 16 / 32ms |
-| Long default 9452.8px gap | 3853.33ms | 2.532 | 16 / 32ms |
-| Long 0.25× preview gap, 35279.2px | 14053.33ms | 2.532 | 16 / 32ms |
-
-The first assisted write is on the next callback. In the deterministic immediate-end fixture it occurs 64ms after last native movement: a 48ms frame-quantized release gate plus 16ms. Its first ≥1px request occurs at 80ms. The deceleration fixture writes 48ms after last movement: 32ms stationary proof plus 16ms. The first long-trip frame requests 0.6722px regardless of distance, versus 0.0022px/0.00016px for the rejected stretched longest default/slow-preview curves. A changed requested position is not necessarily a visible pixel. The remaining stationary/input-release window and browser scheduling prohibit a zero-gap or perceived-smoothness promise.
-
-## Delayed frames preserve the destination
-
-The 125ms actual-delivery boundary is a **no-catch-up boundary**, not an abandonment condition. Every animation callback reads `performance.now()` once. After ownership checks:
-
-- At a gap up to 125ms, advance logical elapsed by that delivered interval. Heavy transitions measured 83–104ms per frame on an integrated GPU at 390px; the former 80ms boundary turned each of those frames into a 16ms step and made the trip about six times slower than authored.
-- At the first gap greater than 125ms, write nothing, preserve the same target/curve/logical elapsed time, rebase the delivery clock and request the next frame.
-- On consecutive stalls, advance only one bounded 16ms logical step, so the stop is never stranded.
-- Finish exactly at the target when logical duration is complete, then stop scheduling frames.
-
-This also applies to a delayed **first** callback and stale-looking RAF timestamps. Repeated stalls do not create repeated handoffs or wall-time catch-up jumps. At the ordinary 2.532px/ms peak, one 125ms frame covers at most 316.5px, the same distance native scrolling at that speed covers in that time; a post-stall 16ms logical step covers at most 40.512px. Such sparse physical frames cannot look like a smooth 60Hz animation. No rendering is possible if callbacks cease entirely. Eventual completion requires further callbacks and continuing ownership, and is deliberately slower in wall time under persistent stalls.
-
-## Remaining cancellation and safety exceptions
-
-User interaction immediately wins: new wheel/touch/key/pointer, click/focus/control input or reversal consumes the old continuation. There is no revival after interruption, including while paused. Persistent editing/slider/dialog focus remains protected; stale ordinary button/link focus does not block a genuine scene-targeted gesture.
-
-Non-user safety cancellation still exists: document hiding, blur/page departure, reduced-motion changes, unmount/disposal, caller UI blocks, App measure/ResizeObserver/pace/navigation remaps, or foreign document movement more than one CSS pixel from the controller's expected position. Resumed native inertia is foreign movement and cancels assistance rather than fighting the browser. The helper also refuses a handoff if its observed and processed position disagree. This contract does not promise that every non-interrupted scroll always finishes under all browser/layout conditions.
-
-A touch `pointercancel` caused by UA panning relinquishes pointer ownership while preserving an independently valid active Touch Events gesture. True `touchcancel` still resets it. Both event-start orderings remain tested. See [Pointer Events stream suppression](https://www.w3.org/TR/pointerevents3/#suppressing-a-pointer-event-stream).
-
-## Diagnostic comparison and hosted contract
-
-Mode is chosen when the helper initializes:
-
-- `?sceneDiagnostics=1&scrollAssistMode=baseline`: published 7c spatial limits, 600ms first-scroll expiry, native `scrollend`/280ms fallback and browser-native smooth completion.
-- `?sceneDiagnostics=1&scrollAssistMode=early`: this next-stop candidate with diagnostics.
-- Ordinary runtime, `sceneDiagnostics=1` alone, or `scrollAssistMode=baseline` without diagnostics: candidate behavior.
-
-The baseline is a deliberately retained diagnostic comparison, not normal production gating. It remains 7c, not 38. The optional, exception-isolated `window.__vistaireScrollAssistTrace(row)` has consumer-owned bounded retention. Existing input/event/handler timestamps, gesture/contact state, position, reasons and immutable active-controller scalar snapshots remain. New `continuation-paused` rows retain `gap`, logical `elapsed`, `logicalStep` (0 for the first rebase, 16 for continued late delivery) and `target`; `handoff.duration` is logical duration, which excludes later pauses. Completed duration is logical elapsed, not wall time.
-
-The existing offers harness pairs baseline/early at 390px/1440px, uses genuine Chromium wheel bursts and separately labeled released WebKit keyboard input, and explicitly writes retained JSON before assertions. Its common endpoint is now the wearable → features join, since candidate AI uses the real midpoint navigation anchor while baseline keeps its old first-leg endpoint. Independent candidate cases cover early Hero → AI, long reverse, AI → Wearable and no chaining, alongside interruption/reduced-motion checks. The integrating lead owns that E2E file.
-
-The paired trace retains actual positions, timing, velocity and first assisted writes. Review the recorded handoff source: a `scrollend`-only run does not certify the early-deceleration path. Keyboard and generated wheel evidence cannot substitute for physical touch/trackpad acceptance. No local browser was launched or alternate denied route used.
-
-## Focused validation
-
-- Preserved speed baseline: 60/60 targeted tests passed before this change.
-- Eleven behavioral cases failed before the initial next-stop implementation, including the separately reproduced 1624ms first-delivery rejection. Four additional expected failures then proved the stretched startup and sustained-slow-cadence issues before the ramp/cruise and bounded-progress fixes.
-- Current targeted command: `node --test tests/landing-entry-scroll-assist.test.mjs tests/landing-scroll-continuity.test.mjs tests/landing-model-gesture.test.mjs`: **67/67 passed**, no skips.
-- Helper suite includes every authored gap/handoff in both directions at 0.25×/1×/4×, exact stops/overshoot, zero/slow/fast seeds, short/long travel, one-stop ownership, repeated stalls before/after the first write, persistent 83/100ms cadence, fixed startup across long distances, velocity continuity at ramp/cruise joins, paused interruption, actual delivery clocks, ordered late first motion, controls/contact and disposal.
-- Scoped helper/test ESLint passed. The integrating lead owns aggregate Node/typecheck/lint and hosted acceptance. No build, browser or publication was performed by this helper task.
-
-Unchanged App SHA-256: `8bfe2ec3dc5014be874bcd8f9b7271f679c9af87b8f8399a512763cb31be3e0a`.
-
-Unchanged SceneDirector SHA-256: `c48b3454a2e6e9b47b8ab0a3ff93df56bdb3d9c89dcae112d0a8e41d9158b224`.
+The integrating lead records the production build, browser console/network QA and physical candidate retests separately. No displayed-FPS or real-device smoothness claim follows from these unit tests.

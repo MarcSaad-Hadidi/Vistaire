@@ -45,7 +45,8 @@ export function createRestaurantModel(
       ) > 0.0001
     );
   });
-  const url = resolvePublicModelUrl("immersive.restaurant.visible");
+  // Same geometry; textures capped at 512px halve the opening download.
+  const url = resolvePublicModelUrl("immersive.restaurant.visible.textures-512");
   const loading = fetch(url, {
     signal: request.signal,
   })

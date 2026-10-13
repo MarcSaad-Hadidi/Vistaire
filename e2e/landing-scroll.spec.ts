@@ -1,29 +1,50 @@
-import { test, expect, type Page } from "@playwright/test";
+import { test as base, expect, type Page } from "@playwright/test";
 import { writeFile } from "node:fs/promises";
 
-// Isolate native document scrolling from GPU speed. The original GLB scene
-// also receives separate real WebGL browser verification.
-test.beforeEach(async ({ page }) => {
-  await page.addInitScript(() => {
-    const getContext = HTMLCanvasElement.prototype.getContext;
-    HTMLCanvasElement.prototype.getContext = function (this: HTMLCanvasElement, type: string, ...args: unknown[]) {
-      return type.startsWith("webgl")
-        ? null
-        : Reflect.apply(getContext, this, [type, ...args]);
-    } as typeof getContext;
-  });
+// User navigation and guide flows exercise the healthy real renderer.
+const test = base.extend({
+  launchOptions: async ({ browserName }, provideOptions) => {
+    await provideOptions(browserName === 'chromium'
+      ? { args: ['--use-angle=swiftshader', '--use-gl=angle'] }
+      : {});
+  },
 });
+
+// Isolate DOM geometry/ARIA/native scrolling from GPU speed. Only these tests
+// dismiss the verified failure dialog through the test-only DOM API; they make
+// no claim that the failed renderer is a usable production experience.
+const domTest = base.extend({
+  page: async ({ page }, providePage) => {
+    await page.addInitScript(() => {
+      const getContext = HTMLCanvasElement.prototype.getContext;
+      HTMLCanvasElement.prototype.getContext = function (this: HTMLCanvasElement, type: string, ...args: unknown[]) {
+        return type.startsWith("webgl") ? null : Reflect.apply(getContext, this, [type, ...args]);
+      } as typeof getContext;
+    });
+    await providePage(page);
+  },
+});
+async function exposeDomLayout(page: Page) {
+  const failure = page.getByRole('alertdialog');
+  await expect(failure).toBeVisible();
+  await failure.evaluate((dialog: HTMLDialogElement) => dialog.close());
+  await expect(failure).toBeHidden();
+}
+async function waitForScene(page: Page) {
+  await expect(page.locator('.scene-canvas')).toHaveAttribute('data-ready', 'true', { timeout: 120_000 });
+  await expect(page.locator('.preloader, [role="alertdialog"]')).toHaveCount(0);
+}
 
 // Toolbar-height freezing is a touch/coarse-pointer contract, not a narrow
 // desktop-window contract. Keep these inputs explicit in the relevant cases.
-const touchTest = test.extend({ hasTouch: true });
-const desktopTest = test.extend({ hasTouch: false, isMobile: false });
+const touchTest = domTest.extend({ hasTouch: true });
+const desktopTest = domTest.extend({ hasTouch: false, isMobile: false });
 
 for (const route of ['/', '/en']) for (const width of [390, 430]) {
-  touchTest(`Features keeps a stable natural reading frame across three cards at ${width}px ${route}`, async ({ page }, testInfo) => {
+  touchTest(`isolated DOM: Features keeps a stable natural reading frame across three cards at ${width}px ${route}`, async ({ page }, testInfo) => {
     await page.setViewportSize({ width, height: width === 390 ? 844 : 932 });
     await page.goto(route, { waitUntil: 'domcontentloaded' });
-    await expect(page.locator('.world-fallback')).toBeVisible();
+    await exposeDomLayout(page);
     await page.evaluate(() => document.fonts.ready);
     const samples: Array<{ index: number; title: string; focus: number[]; cardHeight: number; contentFits: boolean; cardFitsStage: boolean }> = [];
     try {
@@ -81,7 +102,7 @@ for (const route of ['/', '/en']) for (const width of [390, 430]) {
 async function openJourney(page: Page, height = 820) {
   await page.setViewportSize({ width: 390, height });
   await page.goto("/#sustainability");
-  await expect(page.locator(".world-fallback")).toBeVisible();
+  await exposeDomLayout(page);
   await page.evaluate(() => document.fonts.ready);
 }
 
@@ -110,7 +131,7 @@ test("light immersive controls keep readable nested actions, selection and AR he
   ]) {
     await page.setViewportSize({ width: scenario.width, height: 900 });
     await page.goto(scenario.path);
-    await expect(page.locator(".world-fallback")).toBeVisible();
+    await waitForScene(page);
     await expect(page.locator("[data-public-navigation-open]")).toBeVisible();
     const toggle = page.locator("[data-public-theme-toggle]").first();
     if (await toggle.getAttribute("aria-pressed") !== "true") await toggle.click();
@@ -153,7 +174,7 @@ test("light immersive controls keep readable nested actions, selection and AR he
 });
 
 for (const initialHeight of [820, 730]) {
-  touchTest(`les barres mobiles ne déplacent aucun chapitre (${initialHeight}px)`, async ({
+  touchTest(`isolated DOM: les barres mobiles ne déplacent aucun chapitre (${initialHeight}px)`, async ({
     page,
   }) => {
     await openJourney(page, initialHeight);
@@ -183,7 +204,7 @@ for (const initialHeight of [820, 730]) {
   });
 }
 
-desktopTest("rotation réelle et redimensionnement desktop restent responsive", async ({
+desktopTest("isolated DOM: rotation réelle et redimensionnement desktop restent responsive", async ({
   page,
 }) => {
   await openJourney(page);
@@ -210,7 +231,7 @@ desktopTest("rotation réelle et redimensionnement desktop restent responsive", 
   }
 });
 
-touchTest("contact maintenu : inversions et changements de hauteur du Mac au footer", async ({
+touchTest("isolated DOM: contact maintenu : inversions et changements de hauteur du Mac au footer", async ({
   page,
 }) => {
   await openJourney(page);
@@ -344,7 +365,7 @@ touchTest("contact maintenu : inversions et changements de hauteur du Mac au foo
 });
 
 
-test("les pauses de lecture gardent AI, téléphone et trois cartes pleinement lisibles", async ({ page }) => {
+domTest("isolated DOM: les pauses de lecture gardent AI, téléphone et trois cartes pleinement lisibles", async ({ page }) => {
   await openJourney(page);
   const opening = await page.locator(".opening-journey").evaluate((el) => {
     const stage = el.firstElementChild!.clientHeight;
@@ -402,11 +423,11 @@ test("les pauses de lecture gardent AI, téléphone et trois cartes pleinement l
 });
 
 
-test("la scène contact est le seul footer et termine exactement la page FR/EN", async ({ page }) => {
+domTest("isolated DOM: la scène contact est le seul footer et termine exactement la page FR/EN", async ({ page }) => {
   for (const locale of ["fr", "en"]) {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto(locale === "fr" ? "/" : "/en");
-    await expect(page.locator(".world-fallback")).toBeVisible();
+    await exposeDomLayout(page);
     await page.evaluate(() => document.fonts.ready);
     await page.evaluate(() => scrollTo({ top: document.documentElement.scrollHeight, behavior: "instant" }));
     const footer = page.getByRole("contentinfo");
@@ -461,10 +482,12 @@ test("la scène contact est le seul footer et termine exactement la page FR/EN",
   }
 });
 
-test("le premier chargement mobile utilise le film portrait et garde les commandes accessibles", async ({ page }) => {
+test("le premier chargement mobile garde la scène complète et les commandes accessibles", async ({ page }) => {
+  test.setTimeout(180_000);
   await page.setViewportSize({ width: 320, height: 740 });
   await page.goto("/");
-  await expect(page.locator(".fallback-film")).toHaveAttribute("src", /cinematic-portrait/);
+  await waitForScene(page);
+  await expect(page.locator(".fallback-film, .world-fallback")).toHaveCount(0);
   await expect(page.locator("[data-public-navigation-open]")).toBeVisible();
   const header = page.locator(".site-header");
   for (const language of ["FR", "EN"]) {
@@ -487,7 +510,7 @@ test("le premier chargement mobile utilise le film portrait et garde les command
 });
 
 
-test("les séquences allongées gardent des pauses lisibles et un rail réversible", async ({ page }) => {
+domTest("isolated DOM: les séquences allongées gardent des pauses lisibles et un rail réversible", async ({ page }) => {
   await openJourney(page);
   for (const [id, expectedTravel] of [["features", 10.2], ["encryption", 6.2], ["grip", 6.2], ["sustainability", 6.2], ["testimonies", 6.2], ["social-content", 10.2], ["product", 6.2]] as const) {
     const ratio = await page.locator(`#${id}`).evaluate(el => {
@@ -528,11 +551,11 @@ test("les séquences allongées gardent des pauses lisibles et un rail réversib
 });
 
 test("un seul guide accueille le visiteur puis laisse explorer sans se répéter", async ({ page }) => {
-  test.setTimeout(60_000);
+  test.setTimeout(300_000);
   await page.setViewportSize({ width: 390, height: 844 });
   for (const [path, message] of [["/", "Faites défiler pour découvrir"], ["/en", "Scroll to discover"]]) {
     await page.goto(path);
-    await expect(page.locator(".world-fallback")).toBeVisible();
+    await waitForScene(page);
     const guide = page.locator("[data-scroll-guide]");
     await expect(guide).toHaveCount(1);
     await expect(page.locator(".chapter .scroll-hint")).toHaveCount(0);
@@ -556,6 +579,7 @@ test("un seul guide accueille le visiteur puis laisse explorer sans se répéter
     await expect(page.locator("html")).toHaveAttribute("data-chapter", "footer");
     await expect(guide).toHaveAttribute("aria-hidden", "true");
     await page.goto(path);
+    await waitForScene(page);
     await expect(guide).toHaveAttribute("aria-hidden", "false");
     await expect(page.locator("[data-public-navigation-open]")).toBeVisible();
     await page.locator(".menu-toggle").click();
@@ -563,6 +587,7 @@ test("un seul guide accueille le visiteur puis laisse explorer sans se répéter
     await page.keyboard.press("Escape");
     await expect(guide).toHaveAttribute("aria-hidden", "true");
     await page.goto(path);
+    await waitForScene(page);
     await expect(guide).toHaveAttribute("aria-hidden", "false");
     await page.locator('.skip-link[href="#ai"]').focus();
     await page.keyboard.press("Tab"); // Side tab, independent of document autofocus
@@ -570,11 +595,13 @@ test("un seul guide accueille le visiteur puis laisse explorer sans se répéter
     await expect(page.locator(".brand")).toBeFocused();
     await expect(guide).toHaveAttribute("aria-hidden", "true");
     await page.goto(path);
+    await waitForScene(page);
     await expect(guide).toHaveAttribute("aria-hidden", "false");
     await page.locator("#hero .text-link").click();
     await expect(page).toHaveURL(path === "/" ? /\/demo$/ : /\/en\/vistaire-menu$/);
     await expect(page.getByRole("dialog")).toHaveCount(0);
     await page.goto(`${path}#product`);
+    await waitForScene(page);
     await expect(page.locator("html")).toHaveAttribute("data-chapter", "product");
     await expect(guide).toHaveCount(1);
     await expect(guide).toHaveAttribute("aria-hidden", "true");
@@ -588,7 +615,9 @@ for (const [path, discovery, pricing, booking, studio, language] of [
   ["/en", "/en/vistaire-menu", "/en/pricing-digital-restaurant-menu", "/en/book-a-call", "/en/restaurant-preview", "en-CA"],
 ] as const) {
   test(`${path} links marketing CTAs to real experiences instead of generic dialogs`, async ({ page }) => {
+    test.setTimeout(180_000);
     await page.goto(path);
+    await waitForScene(page);
     await expect(page.locator("#hero .text-link")).toHaveAttribute("href", discovery);
     await expect(page.locator("#ai .side-copy .action")).toHaveAttribute("href", discovery);
     for (const [index, restaurant] of ["maison-elyse", "trouvable", "sauge-noire"].entries()) {
@@ -605,19 +634,19 @@ for (const [path, discovery, pricing, booking, studio, language] of [
   });
 }
 
-// The fallback uses the same measured director as WebGL. These assertions
-// cover page geometry, copy and native input, not rendered 3D smoothness.
+// This isolated DOM fixture uses the production measured director. These
+// assertions cover geometry/copy/native input, not a healthy 3D experience.
 for (const viewport of [
   { width: 1280, height: 800 }, { width: 1440, height: 900 },
   { width: 1920, height: 1080 }, { width: 2560, height: 1440 },
   { width: 375, height: 812 }, { width: 390, height: 844 }, { width: 430, height: 932 },
 ]) {
-  (viewport.width === 390 ? touchTest : test)(`all chapter boundaries use measured continuous windows at ${viewport.width}×${viewport.height}`, async ({ page, browserName }) => {
+  (viewport.width === 390 ? touchTest : domTest)(`isolated DOM: all chapter boundaries use measured continuous windows at ${viewport.width}×${viewport.height}`, async ({ page, browserName }) => {
     test.setTimeout(90_000);
     await page.setViewportSize(viewport);
     for (const path of ['/', '/en']) {
       await page.goto(path);
-      await expect(page.locator('.world-fallback')).toBeVisible();
+      await exposeDomLayout(page);
       await page.evaluate(() => document.fonts.ready);
       await expect(page.locator('.pace-preview')).toHaveCount(0);
       const chapters = page.locator('.chapter');
@@ -699,7 +728,7 @@ for (const viewport of [
       await expect(page.locator('html')).toHaveAttribute('data-chapter', 'footer');
       expect(await footer.evaluate(el => Math.abs(el.getBoundingClientRect().bottom + scrollY - document.documentElement.scrollHeight))).toBeLessThanOrEqual(1);
       await page.goto(`${path}#product`);
-      await expect(page.locator('.world-fallback')).toBeVisible();
+      await exposeDomLayout(page);
       await expect(page.locator('#product')).toHaveJSProperty('inert', false);
       await expect.poll(() => page.locator('#product').evaluate(el => Number(getComputedStyle(el).getPropertyValue('--copy-opacity')))).toBeCloseTo(1, 3);
 
@@ -711,7 +740,7 @@ for (const viewport of [
         const anchor = english ? 'wearable' : 'social-content';
         await page.emulateMedia({ reducedMotion: english ? 'reduce' : 'no-preference' });
         await page.goto(`${path}?keep=preview&scrollPace=${english ? '1.25' : '1'}#${anchor}`);
-        await expect(page.locator('.world-fallback')).toBeVisible();
+        await exposeDomLayout(page);
         await page.evaluate(() => document.fonts.ready);
         const range = page.getByRole('slider', { name: english ? 'Pace' : 'Rythme', exact: true });
         await expect(range).toBeVisible();
@@ -821,7 +850,7 @@ for (const viewport of [
   });
 }
 
-test('short landscape and zoom-sized viewports reserve a real food frame and reachable controls', async ({ page }, testInfo) => {
+domTest('isolated DOM: short landscape and zoom-sized viewports reserve a real food frame and reachable controls', async ({ page }, testInfo) => {
   for (const viewport of [{ width: 844, height: 390 }, { width: 1337, height: 591 }]) {
     // These are independent deep-link layouts; avoid same-URL fragment reuse.
     // Live viewport resizing is covered by the real-WebGL zoom regression.
@@ -829,7 +858,7 @@ test('short landscape and zoom-sized viewports reserve a real food frame and rea
     await page.setViewportSize(viewport);
     const response = await page.goto('/#grip');
     try {
-      await expect(page.locator('.world-fallback')).toBeVisible();
+      await exposeDomLayout(page);
       await page.evaluate(() => document.fonts.ready);
       // Wait for App's semantic arrival after font/layout updates before
       // reading geometry; a native hash jump alone does not establish it.

@@ -131,7 +131,12 @@ function installProbe() {
     },
     pricingReady(section = 'open-weight') {
       const c = getCanvas(), d = c?.dataset;
-      if (!d || d.ready !== 'true' || d.settled !== 'true' || d.section !== section || !['open-weight', 'footer'].includes(section)) return false;
+      if (!d || d.ready !== 'true' || d.settled !== 'true' || !['open-weight', 'footer'].includes(section)) return false;
+      // Native FAQ/footer scrolling can reuse the last pricing draw unchanged.
+      const sectionReady = section === 'footer' && d.pricingBackdrop != null
+        ? document.documentElement.dataset.chapter === 'footer' && ['open-weight', 'footer'].includes(d.section)
+        : d.section === section;
+      if (!sectionReady) return false;
       // Baseline-only opaque pricing has no cached-room diagnostic at all.
       if (d.pricingBackdrop == null) return section === 'open-weight' ? d.suspended === 'true' : d.suspended !== 'true';
       const presentationReady = section === 'footer'
@@ -364,12 +369,16 @@ try {
           const target = to === 'footer' ? document.documentElement.scrollHeight - innerHeight : 0;
           const chapter = document.getElementById(to);
           if (!canvas || !chapter) return false;
+          const atEndpoint = Math.abs(scrollY - target) <= 1 && canvas.dataset.ready === 'true' && !chapter.inert;
+          if (!atEndpoint) return false;
+          if (to === 'footer' && canvas.dataset.pricingBackdrop != null)
+            return window.__vistaireBenchmark.pricingReady('footer');
           const bounds = chapter.getBoundingClientRect();
           const travel = Math.max(1, bounds.height - chapter.firstElementChild.getBoundingClientRect().height);
           const expectedProgress = to === 'hero' ? 0 : Math.min(1, Math.max(0, -bounds.top / travel));
           const processedProgress = Number(canvas.dataset.progress);
           const presentationReady = to === 'footer' ? window.__vistaireBenchmark.pricingReady('footer') : canvas.dataset.suspended !== 'true';
-          return Math.abs(scrollY - target) <= 1 && canvas.dataset.ready === 'true' && canvas.dataset.section === to && presentationReady && !chapter.inert
+          return canvas.dataset.section === to && presentationReady
             && Number.isFinite(processedProgress) && Math.abs(processedProgress - expectedProgress) <= 0.00011;
         }, to));
       };
