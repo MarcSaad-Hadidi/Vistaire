@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { CinematicPage, type CinematicChapter } from "../CinematicPage.jsx";
-import { PreviewFooter, PreviewNav } from "@/components/vistaire-preview/VistairePreviewChrome";
-import { VistaireSeoProductionSections } from "@/components/vistaire-preview/VistaireSeoProductionSections";
+import { PreviewNav } from "@/components/vistaire-preview/VistairePreviewChrome";
+import { CinematicGuide } from "./CinematicGuide";
 import type { SeoPageData } from "@/lib/seoPages";
 
 // QR code menu page: the stand, the scan, the menu that opens, the dish it
@@ -87,9 +87,8 @@ export function QrCodeMenuCinematic({ page }: { page: SeoPageData }) {
   return (
     <>
       <PreviewNav currentPath={page.path} locale={locale} routeMode="production" />
-      <CinematicPage chapters={chapters}>
-        <VistaireSeoProductionSections page={page} />
-        <PreviewFooter currentPath={page.path} locale={locale} routeMode="production" width="wide" />
+      <CinematicPage chapters={chapters} scene={{ dish: "sushi", phoneDemo: "sauge-noire", collection: "signature" }}>
+        <CinematicGuide page={page} />
       </CinematicPage>
     </>
   );

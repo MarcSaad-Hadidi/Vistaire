@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { CinematicPage, type CinematicChapter } from "../CinematicPage.jsx";
-import { PreviewFooter, PreviewNav } from "@/components/vistaire-preview/VistairePreviewChrome";
-import { VistaireSeoProductionSections } from "@/components/vistaire-preview/VistaireSeoProductionSections";
+import { PreviewNav } from "@/components/vistaire-preview/VistairePreviewChrome";
+import { CinematicGuide } from "./CinematicGuide";
 import type { SeoPageData } from "@/lib/seoPages";
 
 // PDF vs digital page, "from a still sheet to a living menu": the phone lies
@@ -76,9 +76,8 @@ export function PdfMenuCinematic({ page }: { page: SeoPageData }) {
   return (
     <>
       <PreviewNav currentPath={page.path} locale={locale} routeMode="production" />
-      <CinematicPage chapters={chapters}>
-        <VistaireSeoProductionSections page={page} />
-        <PreviewFooter currentPath={page.path} locale={locale} routeMode="production" width="wide" />
+      <CinematicPage chapters={chapters} scene={{ dish: "huitres", phoneDemo: "maison-elyse", collection: "acrylique" }}>
+        <CinematicGuide page={page} />
       </CinematicPage>
     </>
   );

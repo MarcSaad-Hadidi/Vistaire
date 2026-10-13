@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { CinematicPage, type CinematicChapter } from "../CinematicPage.jsx";
-import { PreviewFooter, PreviewNav } from "@/components/vistaire-preview/VistairePreviewChrome";
-import { VistaireSeoProductionSections } from "@/components/vistaire-preview/VistaireSeoProductionSections";
+import { PreviewNav } from "@/components/vistaire-preview/VistairePreviewChrome";
+import { CinematicGuide } from "./CinematicGuide";
 import type { SeoPageData } from "@/lib/seoPages";
 
 // 3D/AR page, "the dish comes alive": a huge turning dish, a walk around the
@@ -71,9 +71,8 @@ export function ArMenuCinematic({ page }: { page: SeoPageData }) {
   return (
     <>
       <PreviewNav currentPath={page.path} locale={locale} routeMode="production" />
-      <CinematicPage chapters={chapters}>
-        <VistaireSeoProductionSections page={page} />
-        <PreviewFooter currentPath={page.path} locale={locale} routeMode="production" width="wide" />
+      <CinematicPage chapters={chapters} scene={{ dish: "chocolat-fume", phoneDemo: "maison-elyse", collection: "sculpte" }}>
+        <CinematicGuide page={page} />
       </CinematicPage>
     </>
   );

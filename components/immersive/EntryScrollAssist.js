@@ -312,8 +312,11 @@ export function createEntryScrollAssist({ getGeometry, isBlocked }, view = windo
       }
       return;
     }
+    // Nothing ahead (end of a page's chapters): the wheel stays native so the
+    // guide, FAQ and footer below remain reachable.
+    if (!plan.destination) { wheelOwned = false; return; }
     event.preventDefault(); wheelOwned = true;
-    if (!plan.destination || (assisting && Math.abs(assisting.target - plan.destination.y) <= 1)) return;
+    if (assisting && Math.abs(assisting.target - plan.destination.y) <= 1) return;
     cancel("wheel-gesture", event);
     travel(event, "wheel", plan.destination, plan.opening, y, direction, false, now);
   };

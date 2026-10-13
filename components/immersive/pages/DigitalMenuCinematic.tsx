@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { CinematicPage, type CinematicChapter } from "../CinematicPage.jsx";
-import { PreviewFooter, PreviewNav } from "@/components/vistaire-preview/VistairePreviewChrome";
-import { VistaireSeoProductionSections } from "@/components/vistaire-preview/VistaireSeoProductionSections";
+import { PreviewNav } from "@/components/vistaire-preview/VistairePreviewChrome";
+import { CinematicGuide } from "./CinematicGuide";
 import type { SeoPageData } from "@/lib/seoPages";
 
 // Digital menu page, "from appetite to decision": the phone at eye level, the
@@ -93,9 +93,8 @@ export function DigitalMenuCinematic({ page }: { page: SeoPageData }) {
   return (
     <>
       <PreviewNav currentPath={page.path} locale={locale} routeMode="production" />
-      <CinematicPage chapters={chapters}>
-        <VistaireSeoProductionSections page={page} />
-        <PreviewFooter currentPath={page.path} locale={locale} routeMode="production" width="wide" />
+      <CinematicPage chapters={chapters} scene={{ dish: "poutine", phoneDemo: "trouvable", collection: "carre" }}>
+        <CinematicGuide page={page} />
       </CinematicPage>
     </>
   );

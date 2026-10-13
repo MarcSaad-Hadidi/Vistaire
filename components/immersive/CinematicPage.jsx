@@ -20,7 +20,8 @@ import "./cinematic-page.css";
 const Scene = lazy(() => import("./Scene.jsx"));
 const clamp = (value) => Math.max(0, Math.min(1, value));
 
-export function CinematicPage({ chapters, children }) {
+export function CinematicPage({ chapters, scene = {}, children }) {
+  // Each page shows its own demo menu, dish and stand (scene overrides).
   const stateRef = useRef({
     section: chapters[0].shot,
     progress: 0,
@@ -31,6 +32,7 @@ export function CinematicPage({ chapters, children }) {
     phoneDemo: "maison-elyse",
     pointer: { x: 0, y: 0 },
     sceneReady: false,
+    ...scene,
   });
   const sectionRefs = useRef([]);
   const naturalRef = useRef(null);

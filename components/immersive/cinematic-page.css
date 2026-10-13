@@ -66,8 +66,7 @@
 }
 :where(.cinematic-page[data-immersive-vistaire]) .cinematic-natural {
   position: relative;
-  background: linear-gradient(180deg, #05050500, #050505 220px);
-  padding-top: 160px;
+  padding-top: 120px;
 }
 /* Tablets and phones: copy on top, the object below, always centered. */
 @media (max-width: 1050px) {
@@ -164,4 +163,143 @@
   :where(.cinematic-page[data-immersive-vistaire]) .cinematic-compare dt {
     font-size: 17px;
   }
+}
+
+/* Free reading in the landing's language: the room stays visible behind glass. */
+:where(.cinematic-page[data-immersive-vistaire]) .cinematic-guide {
+  display: grid;
+  gap: 28px;
+  width: min(1100px, calc(100% - 2 * var(--pad)));
+  margin: 0 auto;
+  padding-bottom: 80px;
+}
+:where(.cinematic-page[data-immersive-vistaire]) .cinematic-panel {
+  display: grid;
+  gap: 14px;
+  padding: clamp(22px, 3vw, 36px);
+  border: 1px solid #f8f3e82b;
+  border-radius: 8px;
+  background: #111110c5;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  color: var(--cream);
+}
+:where(.cinematic-page[data-immersive-vistaire]) .cinematic-panel h2,
+:where(.cinematic-page[data-immersive-vistaire]) .cinematic-panel h3,
+:where(.cinematic-page[data-immersive-vistaire]) .cinematic-faq h2 {
+  font-family: "Vistaire Editorial", serif;
+  font-weight: 400;
+  line-height: 1.08;
+}
+:where(.cinematic-page[data-immersive-vistaire]) .cinematic-panel h2 { font-size: clamp(32px, 3.4vw, 52px); }
+:where(.cinematic-page[data-immersive-vistaire]) .cinematic-panel h3 { font-size: clamp(24px, 2.4vw, 34px); }
+:where(.cinematic-page[data-immersive-vistaire]) .cinematic-panel p,
+:where(.cinematic-page[data-immersive-vistaire]) .cinematic-panel li {
+  font-size: var(--body);
+  line-height: 1.6;
+  color: var(--muted);
+}
+:where(.cinematic-page[data-immersive-vistaire]) .cinematic-panel ul { display: grid; gap: 8px; padding-left: 1.1em; }
+:where(.cinematic-page[data-immersive-vistaire]) .cinematic-guide-sections {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr));
+  gap: 20px;
+}
+:where(.cinematic-page[data-immersive-vistaire]) .cinematic-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 15px;
+}
+:where(.cinematic-page[data-immersive-vistaire]) .cinematic-table th,
+:where(.cinematic-page[data-immersive-vistaire]) .cinematic-table td {
+  padding: 14px 12px;
+  border-top: 1px solid #f8f3e81f;
+  text-align: left;
+  vertical-align: top;
+  color: var(--muted);
+}
+:where(.cinematic-page[data-immersive-vistaire]) .cinematic-table thead th {
+  border-top: 0;
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--amber);
+}
+:where(.cinematic-page[data-immersive-vistaire]) .cinematic-table tbody th {
+  font-family: "Vistaire Editorial", serif;
+  font-size: 19px;
+  font-weight: 400;
+  color: var(--cream);
+}
+/* Same FAQ as the landing: transparent over the room, readable by shadow. */
+:where(.cinematic-page[data-immersive-vistaire]) .cinematic-faq {
+  display: grid;
+  grid-template-columns: minmax(200px, 0.7fr) minmax(0, 1.3fr);
+  gap: 60px;
+  padding: 60px 0;
+  --public-surface: transparent;
+  --public-blue: color-mix(in srgb, var(--cream) 25%, transparent);
+  text-shadow: 0 2px 12px #0009;
+}
+:where(.cinematic-page[data-immersive-vistaire]) .cinematic-faq h2 {
+  margin: 16px 0 0;
+  font-size: clamp(40px, 4vw, 60px);
+  letter-spacing: -0.035em;
+}
+:where(.cinematic-page[data-immersive-vistaire]) .cinematic-faq [data-seo-faq] { background: transparent; }
+:where(.cinematic-page[data-immersive-vistaire]) .cinematic-faq [data-seo-faq-question] { font-family: "Vistaire Editorial", Georgia, serif; }
+:where(.cinematic-page[data-immersive-vistaire]) .cinematic-related {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr));
+  gap: 16px;
+}
+:where(.cinematic-page[data-immersive-vistaire]) .cinematic-related a { text-decoration: none; transition: border-color 200ms ease; }
+:where(.cinematic-page[data-immersive-vistaire]) .cinematic-related a:hover { border-color: var(--amber); }
+:where(.cinematic-page[data-immersive-vistaire]) .cinematic-related strong {
+  font-family: "Vistaire Editorial", serif;
+  font-size: 24px;
+  font-weight: 400;
+}
+:where(.cinematic-page[data-immersive-vistaire]) .cinematic-related span:last-child { font-size: 14px; color: var(--muted); }
+/* The landing footer, over the dimmed room. */
+:where(.cinematic-page[data-immersive-vistaire]) .cinematic-footer {
+  display: grid;
+  gap: 30px;
+  padding: 40px 0 28px;
+  background: linear-gradient(180deg, #11111026, #111110b8 400px);
+}
+:where(.cinematic-page[data-immersive-vistaire]) .cinematic-footer [data-footer-navigation],
+:where(.cinematic-page[data-immersive-vistaire]) .cinematic-footer .footer-grid,
+:where(.cinematic-page[data-immersive-vistaire]) .cinematic-footer .footer-bottom {
+  padding-inline: var(--pad);
+}
+@media (max-width: 767.98px) {
+  :where(.cinematic-page[data-immersive-vistaire]) .cinematic-faq { grid-template-columns: 1fr; gap: 24px; }
+  :where(.cinematic-page[data-immersive-vistaire]) .cinematic-table { font-size: 13px; }
+  :where(.cinematic-page[data-immersive-vistaire]) .cinematic-table th,
+  :where(.cinematic-page[data-immersive-vistaire]) .cinematic-table td { padding: 10px 6px; }
+}
+@media (max-width: 1050px) {
+  /* Stacked copy can run over the bright tablecloth: a glass card keeps it
+     legible whatever lies behind (as the landing's feature card does). */
+  :where(.cinematic-page[data-immersive-vistaire]) .cinematic-chapter .cinematic-copy {
+    padding: 18px 18px 20px;
+    border: 1px solid #f8f3e82b;
+    border-radius: 8px;
+    background: #111110c9;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    text-shadow: none;
+  }
+}
+/* Unlike the landing's darker closing room, page FAQs can sit over the bright
+   table: the same glass as the guide panels keeps every question legible. */
+:where(.cinematic-page[data-immersive-vistaire]) .cinematic-faq {
+  padding: clamp(24px, 4vw, 56px);
+  border: 1px solid #f8f3e82b;
+  border-radius: 8px;
+  background: #111110d6;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  text-shadow: none;
 }

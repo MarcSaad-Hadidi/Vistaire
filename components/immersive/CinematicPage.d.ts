@@ -10,4 +10,10 @@ export type CinematicChapter = {
   content: ReactNode;
 };
 
-export function CinematicPage(props: { chapters: CinematicChapter[]; children?: ReactNode }): ReactNode;
+export type CinematicScene = {
+  dish?: "homard" | "huitres" | "sushi" | "chocolat-fume" | "poutine" | "burger";
+  phoneDemo?: "maison-elyse" | "trouvable" | "sauge-noire";
+  collection?: "acrylique" | "sculpte" | "carre" | "signature";
+};
+
+export function CinematicPage(props: { chapters: CinematicChapter[]; scene?: CinematicScene; children?: ReactNode }): ReactNode;

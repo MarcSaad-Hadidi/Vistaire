@@ -1027,3 +1027,12 @@ test('a continuous desktop wheel stops on the last offer; only a second swipe af
   assert.equal(f.view.scrollY, reading.faq, 'a second swipe opens the FAQ');
   f.assist.dispose();
 });
+
+test('a desktop wheel past the last stop stays native so the content below remains reachable', () => {
+  // A cinematic page's last chapter (here the pricing arrival, the last stop).
+  const f = fixture({ fine: true }), last = f.bounds.transitions.find(join => join.to.id === 'open-weight').end;
+  f.move(last); f.advance(500);
+  const event = f.input('wheel', { deltaY: 100, deltaX: 0 });
+  assert.equal(event.defaultPrevented, false, 'no stop ahead: the browser scrolls');
+  f.assist.dispose();
+});
