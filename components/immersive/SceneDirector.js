@@ -182,6 +182,17 @@ export function measureChapterTransitions(measurements, opening, timing = CINEMA
   });
 }
 
+/** Same joins as the landing for any page: each chapter's head arrives at its
+ * authored edge, after one shared transition window. No opening or pricing. */
+export function measurePageTransitions(measurements, stageHeight, timing = CINEMATIC_TIMING) {
+  const distance = stageHeight * timing.transitionScreens;
+  return measurements.slice(0, -1).map((from, index) => {
+    const to = measurements[index + 1];
+    const end = to.top + timing.edgeScreens * stageHeight;
+    return { from, to, fromOpening: false, start: end - distance, end };
+  });
+}
+
 /** Stateless sampling is identical for native wheel, touch, reverse and jumps. */
 export function transitionAtScroll(windows, y) {
   const window = windows.find(({ start, end }) => y >= start && y <= end);

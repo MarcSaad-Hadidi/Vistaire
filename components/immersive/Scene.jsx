@@ -205,6 +205,27 @@ function baseComposition(state, mobile) {
         look: [0, 0.95, 0],
       });
       break;
+    // QR page: the stand alone, slowly turning to show its code.
+    case "qr-hero":
+      Object.assign(pose, {
+        support: [mobile ? 0 : 0.95, 0.08, mobile ? 1.9 : 1.5],
+        supportScale: mobile ? 1.05 : 1.15,
+        supportRotation: [-0.06, -0.55 + p * 0.75, -0.02],
+        look: [mobile ? 0 : 0.5, 1.05, 0.4],
+      });
+      break;
+    // QR page: a phone leans over the stand as if scanning its code.
+    case "qr-scan":
+      Object.assign(pose, {
+        support: [mobile ? -0.35 : -0.6, 0.08, mobile ? 1.5 : 1.2],
+        supportScale: mobile ? 0.9 : 1,
+        supportRotation: [-0.06, 0.32, 0],
+        phone: [mobile ? 0.45 : 0.55, 1.05 + p * 0.15, mobile ? 2.1 : 1.9],
+        phoneScale: mobile ? 0.82 : 0.9,
+        phoneRotation: [-0.55 + p * 0.45, -0.5, 0.06],
+        look: [0, 1.0, 1.1],
+      });
+      break;
     case "testimonies":
     case "social-content":
       break;

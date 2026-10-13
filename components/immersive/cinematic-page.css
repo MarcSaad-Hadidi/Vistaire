@@ -1,0 +1,126 @@
+/* Cinematic pages outside the landing (CinematicPage.jsx). Base tokens, .chapter,
+   .stage, .action and the copy fade come from styles.css. Copy renders at once;
+   the room fades in when its scene is ready. */
+.cinematic-page[data-immersive-vistaire] .world {
+  opacity: 0;
+  transition: opacity 700ms ease;
+}
+.cinematic-page[data-immersive-vistaire].is-ready .world {
+  opacity: 1;
+}
+.cinematic-page[data-immersive-vistaire] .cinematic-main {
+  position: relative;
+  z-index: 1;
+}
+:where(.cinematic-page[data-immersive-vistaire]) .cinematic-chapter .stage {
+  display: grid;
+  grid-template-columns: 44fr 56fr;
+  column-gap: 24px;
+  align-items: center;
+}
+:where(.cinematic-page[data-immersive-vistaire]) .cinematic-copy {
+  display: grid;
+  gap: 18px;
+  max-width: 540px;
+  text-shadow: 0 2px 24px #050505cc;
+}
+:where(.cinematic-page[data-immersive-vistaire]) .align-left .cinematic-copy { grid-column: 1; grid-row: 1; }
+:where(.cinematic-page[data-immersive-vistaire]) .align-left .scene-focus { grid-column: 2; grid-row: 1; }
+:where(.cinematic-page[data-immersive-vistaire]) .align-right .cinematic-copy { grid-column: 2; grid-row: 1; justify-self: end; }
+:where(.cinematic-page[data-immersive-vistaire]) .align-right .scene-focus { grid-column: 1; grid-row: 1; }
+:where(.cinematic-page[data-immersive-vistaire]) .align-center .stage { grid-template-columns: 1fr; grid-template-rows: auto 1fr; }
+:where(.cinematic-page[data-immersive-vistaire]) .align-center .cinematic-copy { justify-self: center; text-align: center; max-width: 720px; }
+:where(.cinematic-page[data-immersive-vistaire]) .scene-focus {
+  height: 72%;
+  align-self: center;
+}
+:where(.cinematic-page[data-immersive-vistaire]) .cinematic-copy h1,
+:where(.cinematic-page[data-immersive-vistaire]) .cinematic-copy h2 {
+  font-family: "Vistaire Editorial", serif;
+  font-weight: 400;
+  line-height: 1.04;
+  font-size: clamp(36px, min(4.6vw, calc(7 * var(--scene-vh))), 76px);
+}
+:where(.cinematic-page[data-immersive-vistaire]) .cinematic-copy h1 em,
+:where(.cinematic-page[data-immersive-vistaire]) .cinematic-copy h2 em {
+  color: var(--amber);
+}
+:where(.cinematic-page[data-immersive-vistaire]) .cinematic-copy p,
+:where(.cinematic-page[data-immersive-vistaire]) .cinematic-copy li {
+  font-size: var(--body);
+  line-height: 1.55;
+  color: var(--muted);
+}
+:where(.cinematic-page[data-immersive-vistaire]) .cinematic-copy ul {
+  display: grid;
+  gap: 8px;
+  padding-left: 1.1em;
+}
+:where(.cinematic-page[data-immersive-vistaire]) .cinematic-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+:where(.cinematic-page[data-immersive-vistaire]) .align-center .cinematic-actions {
+  justify-content: center;
+}
+:where(.cinematic-page[data-immersive-vistaire]) .cinematic-natural {
+  position: relative;
+  background: linear-gradient(180deg, #05050500, #050505 220px);
+  padding-top: 160px;
+}
+/* Tablets and phones: copy on top, the object below, always centered. */
+@media (max-width: 1050px) {
+  :where(.cinematic-page[data-immersive-vistaire]) .cinematic-chapter .stage {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto 1fr;
+    align-items: start;
+  }
+  :where(.cinematic-page[data-immersive-vistaire]) .cinematic-chapter .cinematic-copy {
+    grid-column: 1;
+    grid-row: 1;
+    justify-self: center;
+    text-align: center;
+  }
+  :where(.cinematic-page[data-immersive-vistaire]) .cinematic-chapter .scene-focus {
+    grid-column: 1;
+    grid-row: 2;
+    height: 100%;
+  }
+  :where(.cinematic-page[data-immersive-vistaire]) .cinematic-actions {
+    justify-content: center;
+  }
+}
+@media (max-width: 767.98px) {
+  :where(.cinematic-page[data-immersive-vistaire]) .cinematic-copy h1,
+  :where(.cinematic-page[data-immersive-vistaire]) .cinematic-copy h2 {
+    font-size: clamp(30px, 8.6vw, 40px);
+  }
+  :where(.cinematic-page[data-immersive-vistaire]) .cinematic-copy p,
+  :where(.cinematic-page[data-immersive-vistaire]) .cinematic-copy li {
+    font-size: 15px;
+  }
+}
+
+/* Copy legibility over a bright room: a soft shade on the copy side, fading
+   with the copy itself. Behind the copy, never over the object. */
+:where(.cinematic-page[data-immersive-vistaire]) .cinematic-chapter .stage::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  opacity: var(--copy-opacity, 1);
+  background: linear-gradient(90deg, #050505c4 0%, #05050594 34%, #05050500 62%);
+}
+:where(.cinematic-page[data-immersive-vistaire]) .align-right .stage::before {
+  background: linear-gradient(270deg, #050505c4 0%, #05050594 34%, #05050500 62%);
+}
+:where(.cinematic-page[data-immersive-vistaire]) .align-center .stage::before {
+  background: linear-gradient(180deg, #050505c4 0%, #05050580 30%, #05050500 55%);
+}
+@media (max-width: 1050px) {
+  :where(.cinematic-page[data-immersive-vistaire]) .cinematic-chapter .stage::before {
+    background: linear-gradient(180deg, #050505b8 0%, #05050580 38%, #05050500 60%);
+  }
+}

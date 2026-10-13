@@ -167,7 +167,7 @@ export function createEntryScrollAssist({ getGeometry, isBlocked }, view = windo
   };
   // One destination rule for touch, wheel/trackpad, keys and idle returns.
   const route = (y, origin, direction) => {
-    const { opening, transitions, pricing: reading } = getGeometry();
+    const { opening, transitions, pricing: reading, naturalFrom } = getGeometry();
     if (!opening) return {};
     // The collection stops on the pricing phone with its first offer. Offers
     // scroll natively but stop at the first and last offer; only a gesture
@@ -188,6 +188,8 @@ export function createEntryScrollAssist({ getGeometry, isBlocked }, view = windo
         else native = true;
       }
     } else native = pricing != null && y > pricing + 1;
+    // Pages end with free reading (guide, FAQ, footer): no stop below it.
+    if (naturalFrom != null && y > naturalFrom + 1) native = true;
     if (native) return { native: true, reading };
     // Match App's authored navigation anchors, including AI's hold midpoint.
     // External navigation poses are the measured incoming handoff ends.
