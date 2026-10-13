@@ -4,6 +4,7 @@ import {
   LOCALE_LANGUAGE_TAG,
   type Locale
 } from "./i18n.ts";
+import { getSeoMarketingImage } from "./seoMarketingImages.ts";
 
 export const SITE_NAME = "Vistaire";
 export const SITE_URL_FALLBACK = "https://www.vistaire.ca";
@@ -13,7 +14,7 @@ export const CONTACT_PHONE_TEL = "+15147152421";
 export const CONTACT_LOCATION_LABEL = "Montréal, Québec, Canada";
 export const CONTACT_REGION_LABEL = "Montréal, Québec";
 export const DEFAULT_SITE_DESCRIPTION =
-  "Vistaire transforme le QR code restaurant en carte digitale immersive pour restaurants haut de gamme : fiches plats, visuels, allergènes, 3D/AR sélective et aperçu restaurateur.";
+  "Vistaire transforme le QR code de votre restaurant en carte digitale premium : fiches plats, photos, allergènes et plats en 3D. Conçu à Montréal.";
 
 export const PUBLIC_SITEMAP_UPDATED_AT = "2026-06-22T21:26:34.000Z";
 
@@ -531,6 +532,7 @@ export function buildArticleJsonLd(
     headline: string;
     description: string;
     locale?: Locale;
+    image?: string;
   },
   env?: SiteUrlEnv
 ): JsonLdObject {
@@ -545,6 +547,13 @@ export function buildArticleJsonLd(
     mainEntityOfPage: {
       "@id": `${absoluteUrl(article.path, env)}#webpage`
     },
+    // Rich-result and answer-engine trust signals: source, freshness, image.
+    author: {
+      "@id": `${absoluteUrl("/", env)}#organization`
+    },
+    datePublished: PUBLIC_SITEMAP_UPDATED_AT,
+    dateModified: PUBLIC_SITEMAP_UPDATED_AT,
+    ...(article.image ? { image: absoluteUrl(article.image, env) } : {}),
     publisher: {
       "@id": `${absoluteUrl("/", env)}#organization`
     }
@@ -660,4 +669,11 @@ export function buildFaqPageJsonLd(
       }
     }))
   };
+}
+
+/** Large social and AI-answer preview from the page's own marketing photograph. */
+export function socialImages(slot: string, locale: Locale = "fr") {
+  const image = getSeoMarketingImage(slot, locale);
+  const url = absoluteUrl(image.src);
+  return { openGraph: [{ url, alt: image.alt }], twitter: [url] };
 }

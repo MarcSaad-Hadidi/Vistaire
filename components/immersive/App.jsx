@@ -413,6 +413,7 @@ function LandingContent() {
   const [modelLoading, setModelLoading] = useState(null);
   const [retryModel, setRetryModel] = useState(0);
   const menuRef = useRef(null);
+  const veilRef = useRef(null);
   const headerRef = useRef(null);
   const supportAngle = supportAngles[collection];
   const turnSupport = (angle) =>
@@ -948,15 +949,27 @@ function LandingContent() {
     (id) => {
       stateRef.current.cancelEntryAssist?.("chapter-navigation");
       setMenu(false);
-      scrollTo({
-        top: id === "open-weight" && stateRef.current.pricingNavigationTarget
+      const top = id === "open-weight" && stateRef.current.pricingNavigationTarget
           ? stateRef.current.pricingNavigationTarget()
           : ["hero", "ai", "wearable"].includes(id)
           ? scrollTargets.current[id] ?? 0
-          : chapterNavigationTarget({ id, top: (sectionRefs.current[id]?.getBoundingClientRect().top ?? 0) + scrollY }, openingRef.current?.firstElementChild.getBoundingClientRect().height ?? innerHeight, stateRef.current.cinematicTiming),
-        behavior: reduce ? "instant" : "smooth",
-      });
-      history.replaceState(null, "", `#${id}`);
+          : chapterNavigationTarget({ id, top: (sectionRefs.current[id]?.getBoundingClientRect().top ?? 0) + scrollY }, openingRef.current?.firstElementChild.getBoundingClientRect().height ?? innerHeight, stateRef.current.cinematicTiming);
+      const jump = () => {
+        scrollTo({ top, behavior: "instant" });
+        history.replaceState(null, "", `#${id}`);
+      };
+      // A smooth scroll replayed every chapter's 3D transition on the way.
+      // Fade out, jump, and fade in on the destination instead.
+      const veil = veilRef.current;
+      if (reduce || !veil?.animate) return jump();
+      veil.getAnimations().forEach((animation) => animation.cancel());
+      veil.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 180, easing: "ease-in", fill: "forwards" })
+        .finished.then(() => {
+          jump();
+          // Two frames let the scene draw the destination before it is revealed.
+          requestAnimationFrame(() => requestAnimationFrame(() =>
+            veil.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 320, easing: "ease-out", fill: "forwards" })));
+        }, () => {});
     },
     [reduce],
   );
@@ -1103,6 +1116,7 @@ function LandingContent() {
           <span>{t("Préparons votre table.")}</span>
         </div>
       )}
+      <div ref={veilRef} className="navigation-veil" aria-hidden="true" />
       <header ref={headerRef} id="landing-navigation" data-public-navigation-open="true" className={`site-header ${chapter === "hero" ? "at-hero" : ""}`}
         onPointerDownCapture={dismissGuideOnInteraction} onFocusCapture={dismissGuideOnInteraction}>
         <button

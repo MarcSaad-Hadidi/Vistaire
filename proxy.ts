@@ -18,6 +18,7 @@ import {
   markdownTokenEstimate,
   shouldServeMarkdownForAcceptHeader
 } from "@/lib/agent-discovery";
+import { buildPageMarkdown } from "@/lib/agent-discovery/pageMarkdown";
 import { updateSession } from "@/utils/supabase/middleware";
 
 const isProtectedRoute = createRouteMatcher([
@@ -85,8 +86,7 @@ function acceptsMarkdown(request: NextRequest): boolean {
   return shouldServeMarkdownForAcceptHeader(request.headers.get("accept"));
 }
 
-function homepageMarkdownResponse(method: string): Response {
-  const markdown = buildHomepageMarkdown();
+function markdownResponse(method: string, markdown: string): Response {
 
   return new Response(method === "HEAD" ? null : markdown, {
     headers: {
@@ -117,10 +117,11 @@ const handleProtectedRoute = clerkMiddleware(async (auth, request) => {
 }, { signInUrl: "/sign-in" });
 
 export default function proxy(request: NextRequest, event: NextFetchEvent) {
-  if (request.nextUrl.pathname === "/" && acceptsMarkdown(request)) {
-    if (request.method === "GET" || request.method === "HEAD") {
-      return homepageMarkdownResponse(request.method);
-    }
+  if (acceptsMarkdown(request) && (request.method === "GET" || request.method === "HEAD")) {
+    // Agents asking for text/markdown get each public page's markdown twin.
+    const { pathname } = request.nextUrl;
+    const markdown = pathname === "/" ? buildHomepageMarkdown() : buildPageMarkdown(pathname);
+    if (markdown) return markdownResponse(request.method, markdown);
   }
 
   if (needsClerkAuthContext(request)) {
@@ -140,7 +141,7 @@ export default function proxy(request: NextRequest, event: NextFetchEvent) {
 export const config = {
   matcher: [
     {
-      source: "/",
+      source: "/:path*",
       has: [
         {
           type: "header",

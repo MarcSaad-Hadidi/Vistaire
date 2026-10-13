@@ -17,6 +17,7 @@ import {
   buildArticleJsonLd,
   buildBreadcrumbJsonLd,
   buildWebPageJsonLd,
+  socialImages,
 } from "@/lib/seo";
 import {
   PreviewFooter,
@@ -67,12 +68,16 @@ const RELATED_LABELS: Record<string, { fr: string; en: string }> = {
   },
 };
 
+const guideSocial = (guide: EditorialGuide) =>
+  socialImages(getEditorialGuidePresentation(guide.key, guide.locale).heroImageSlot, guide.locale);
+
 export function buildEditorialGuideMetadata(guide: EditorialGuide): Metadata {
   return {
     title: { absolute: guide.metadataTitle },
     description: guide.metadataDescription,
     alternates: buildPageAlternates(guide.path),
     openGraph: {
+      images: guideSocial(guide).openGraph,
       type: "article",
       url: absoluteUrl(guide.path),
       title: guide.metadataTitle,
@@ -80,7 +85,8 @@ export function buildEditorialGuideMetadata(guide: EditorialGuide): Metadata {
       locale: LOCALE_OPEN_GRAPH[guide.locale],
     },
     twitter: {
-      card: "summary",
+      card: "summary_large_image",
+      images: guideSocial(guide).twitter,
       title: guide.metadataTitle,
       description: guide.metadataDescription,
     },
@@ -166,7 +172,7 @@ export function VistaireEditorialGuide({ guide }: { guide: EditorialGuide }) {
       <div className={styles.navShell}><PreviewNav currentPath={guide.path} locale={guide.locale} routeMode="production" /></div>
       <JsonLd data={[
         buildWebPageJsonLd({ path: guide.path, name: guide.h1, description: guide.metadataDescription, locale: guide.locale }),
-        buildArticleJsonLd({ path: guide.path, headline: guide.h1, description: guide.metadataDescription, locale: guide.locale }),
+        buildArticleJsonLd({ path: guide.path, headline: guide.h1, description: guide.metadataDescription, locale: guide.locale, image: guideSocial(guide).twitter[0] }),
         buildBreadcrumbJsonLd([{ name: breadcrumbHome, path: homePath }, { name: guide.h1, path: guide.path }]),
       ]} />
       <article className={styles.article}><div className={styles.previewFrame}>

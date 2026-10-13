@@ -245,6 +245,15 @@
     transform: translateX(140px);
   }
 }
+/* Chapter navigation fades through black instead of replaying every scene. */
+:where([data-immersive-vistaire]) .navigation-veil {
+  position: fixed;
+  inset: 0;
+  z-index: 49;
+  background: var(--black);
+  opacity: 0;
+  pointer-events: none;
+}
 :where([data-immersive-vistaire]) .site-header {
   position: fixed;
   top: max(16px, env(safe-area-inset-top, 0px));

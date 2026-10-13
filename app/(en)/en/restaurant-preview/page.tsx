@@ -3,7 +3,7 @@ import QRCode from "qrcode";
 import { JsonLd } from "@/components/JsonLd";
 import { VistaireRestaurateurDashboardPreview } from "@/components/vistaire-preview/VistaireRestaurateurDashboardPreview";
 import { buildPageAlternates, LOCALE_OPEN_GRAPH } from "@/lib/i18n";
-import {
+import { socialImages,
   absoluteUrl,
   buildBreadcrumbJsonLd,
   buildPageServiceJsonLd,
@@ -20,6 +20,7 @@ export const metadata: Metadata = {
   description,
   alternates: buildPageAlternates(canonicalPath),
   openGraph: {
+    images: socialImages("DIGITAL:premium", "en").openGraph,
     url: absoluteUrl(canonicalPath),
     title: `${title} | Vistaire`,
     description,
@@ -27,6 +28,7 @@ export const metadata: Metadata = {
     type: "website"
   },
   twitter: {
+    images: socialImages("DIGITAL:premium", "en").twitter,
     card: "summary_large_image",
     title: `${title} | Vistaire`,
     description

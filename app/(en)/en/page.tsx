@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { JsonLd } from "@/components/JsonLd";
 import { ImmersiveLanding } from "@/components/immersive/ImmersiveLanding";
-import { absoluteUrl, buildVistaireServiceJsonLd, buildWebPageJsonLd } from "@/lib/seo";
+import { socialImages, absoluteUrl, buildVistaireServiceJsonLd, buildWebPageJsonLd } from "@/lib/seo";
 import { buildPageAlternates, LOCALE_OPEN_GRAPH } from "@/lib/i18n";
 
 export const revalidate = 60;
@@ -16,13 +16,15 @@ export const metadata: Metadata = {
   description,
   alternates: buildPageAlternates(canonicalPath),
   openGraph: {
+    images: socialImages("DIGITAL:hero", "en").openGraph,
     url: absoluteUrl(canonicalPath),
     title: "Vistaire | Premium QR digital menu for high-end restaurants",
     description,
     locale: LOCALE_OPEN_GRAPH.en
   },
   twitter: {
-    card: "summary",
+    images: socialImages("DIGITAL:hero", "en").twitter,
+    card: "summary_large_image",
     title: "Vistaire | Premium QR digital menu for high-end restaurants",
     description
   }

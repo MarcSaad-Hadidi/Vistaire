@@ -227,18 +227,22 @@ test('blocked, hidden, reduced-motion, pricing reading and footer spans remain n
   assert.equal([...f.listeners.values()].reduce((sum, types) => sum + [...types.values()].reduce((n, handlers) => n + handlers.size, 0), 0), 0);
 });
 
-test('App cancels entry assistance before measured navigation and disposes its single listener owner', () => {
+test('App cancels entry assistance before measured navigation and disposes its single listener owner', async () => {
   const source = readFileSync('components/immersive/App.jsx', 'utf8');
   const start = source.indexOf('  const goto = useCallback(');
   const end = source.indexOf('  const currentDish =', start);
   const sequence = [];
   const scope = { useCallback: fn => fn, reduce: false, setMenu: () => sequence.push('menu'),
     stateRef: { current: { cancelEntryAssist: () => sequence.push('cancel'), pricingNavigationTarget: () => 12000 } },
-    scrollTo: value => sequence.push(['scroll', value.top]), history: { replaceState: () => sequence.push('history') } };
+    scrollTo: value => sequence.push(['scroll', value.top, value.behavior]), history: { replaceState: () => sequence.push('history') },
+    requestAnimationFrame: callback => callback(),
+    // Chapter navigation fades out, jumps instantly, then fades in: no replay of every scene.
+    veilRef: { current: { getAnimations: () => [], animate: (frames) => { sequence.push(`veil-${frames[1].opacity}`); return { finished: Promise.resolve() }; } } } };
   vm.runInNewContext(`${source.slice(start, end)}; this.navigate = goto;`, scope);
   scope.navigate('open-weight');
+  await new Promise(resolve => setImmediate(resolve));
   assert.equal(sequence[0], 'cancel');
-  assert.deepEqual(sequence.find(value => Array.isArray(value)), ['scroll',12000]);
+  assert.deepEqual(sequence.filter(value => Array.isArray(value) || String(value).startsWith('veil')), ['veil-1', ['scroll', 12000, 'instant'], 'veil-0']);
   assert.match(source, /entryAssist\.dispose\(\)/);
   assert.match(source, /getGeometry: \(\) => \(\{ opening, transitions, pricing: stateRef\.current\.pricingReadingStops\?\.\(\) \}\)/);
   assert.match(source, /arActive: arStatus !== "idle"/);
