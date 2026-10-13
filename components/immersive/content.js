@@ -11,6 +11,7 @@ export const collections = [
     image: "/images/marketing/sauge-noire-acrylique.webp",
     description:
       "Transparent et posé sur une base en bois, il laisse respirer la table et s’accorde aux décors épurés.",
+    usage: "À placer au centre de la table pour partager l’accès au menu.",
   },
   {
     id: "sculpte",
@@ -20,6 +21,7 @@ export const collections = [
     image: "/images/marketing/sauge-noire-sculpte.webp",
     description:
       "Son coin arrondi adoucit la silhouette du bois. Une touche sculpturale à table, en écho aux matières naturelles.",
+    usage: "À intégrer au dressage pour faire du menu un élément de la table.",
   },
   {
     id: "carre",
@@ -29,6 +31,7 @@ export const collections = [
     image: "/images/marketing/sauge-noire-carre.webp",
     description:
       "Un petit format aux lignes franches, à glisser près d’un couvert. Le bois apporte une touche chaleureuse aux tables de bistrot.",
+    usage: "À poser sur un petit comptoir ou une table pour deux.",
   },
   {
     id: "signature",
@@ -38,6 +41,7 @@ export const collections = [
     image: "/images/marketing/sauge-noire-signature.webp",
     description:
       "Le contraste du bois et du noir dessine une présence affirmée. Sa ligne horizontale accompagne les tables aux tons profonds.",
+    usage: "À disposer au bord de la table pour laisser le centre dégagé.",
   },
 ];
 export const dishes = [

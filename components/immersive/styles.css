@@ -1284,6 +1284,13 @@
   color: var(--muted);
   margin: 16px 0;
 }
+:where([data-immersive-vistaire]) .collection-details p:where(.collection-usage) {
+  font-family: "Vistaire Text", sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--cream);
+  margin-bottom: 0;
+}
 :where([data-immersive-vistaire]) .price {
   font-family: "Vistaire Editorial", serif;
   font-size: 34px;
@@ -2299,10 +2306,9 @@
   :where([data-immersive-vistaire]) .collection-details {
     grid-column: 1;
     grid-row: 5;
-    padding: 15px;
-    display: flex;
-    align-items: center;
-    gap: 12px;
+    padding: 14px;
+    display: grid;
+    gap: 10px;
   }
   :where([data-immersive-vistaire]) .collection-details > div {
     flex: 1;
@@ -2312,7 +2318,12 @@
     font-size: 8px;
   }
   :where([data-immersive-vistaire]) .collection-details p {
-    display: none;
+    font-size: 13px;
+    line-height: 1.45;
+    margin: 8px 0 0;
+  }
+  :where([data-immersive-vistaire]) .collection-details p:where(.collection-usage) {
+    font-size: 12px;
   }
   :where([data-immersive-vistaire]) .price {
     font-size: 26px;
@@ -2326,7 +2337,6 @@
     margin-top: 4px;
   }
   :where([data-immersive-vistaire]) .collection-details > .action {
-    flex: 0 0 43%;
     padding: 11px;
     font-size: 11px;
   }
