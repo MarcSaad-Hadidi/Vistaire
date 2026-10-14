@@ -129,9 +129,8 @@ export function createSupportModels({
     dispose() {
       disposed = true;
       requests.forEach((request) => request.abort());
-      // Three may create a worker after its asynchronous decoder initializer
-      // resolves. Finish/discard pending parses before terminating that worker.
-      Promise.allSettled(loading.values()).finally(() => draco.dispose());
+      // The Draco decoder is shared with the next scene (sharedDraco.js): never
+      // dispose it here, or the next page's decodes never resolve.
     },
   };
 }

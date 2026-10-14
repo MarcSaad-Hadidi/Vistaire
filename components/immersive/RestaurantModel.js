@@ -171,7 +171,8 @@ export function createRestaurantModel(
       disposed = true;
       indexCrop?.dispose();
       request.abort();
-      loading.catch(() => {}).finally(() => draco.dispose());
+      // The Draco decoder is shared with the next scene (sharedDraco.js): never
+      // dispose it here, or the next page's room decode never resolves.
     },
   };
 }

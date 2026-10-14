@@ -16,6 +16,18 @@
   background: #0b0b0a url("/immersive-assets/restaurant-table-blur.webp") center / cover no-repeat;
   filter: blur(8px) brightness(0.5);
 }
+/* The landing's loading screen, above the navigation, in the page's own language. */
+.cinematic-page[data-immersive-vistaire] .cinematic-preloader {
+  z-index: 1000;
+  background: var(--black);
+}
+html:not([lang^="en"]) .cinematic-preloader span[lang="en"],
+html[lang^="en"] .cinematic-preloader span[lang="fr"] {
+  display: none;
+}
+@media (max-width: 767.98px) {
+  .cinematic-page[data-immersive-vistaire] .cinematic-preloader .loading-word { font-size: 56px; }
+}
 .cinematic-page[data-immersive-vistaire].is-ready::before {
   visibility: hidden;
   transition: visibility 0s linear 800ms;

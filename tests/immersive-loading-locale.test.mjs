@@ -199,3 +199,19 @@ test("a deselected failed stand can be retried on the next selection", async (t)
   assert.equal(canvas.dataset.supportReady, "true");
   assert.notEqual(assets.active, initial);
 });
+
+test("unmounting a scene never disposes the Draco decoder the next scene shares", async (t) => {
+  // A disposed DRACOLoader keeps its resolved decoder but revokes its worker
+  // source: the next page's room decode would wait forever (client navigation).
+  const { sharedDraco } = await import(sourcePath("sharedDraco.js"));
+  const disposeShared = t.mock.method(sharedDraco(), "dispose");
+  t.mock.method(globalThis, "fetch", async () => ({ ok: true, arrayBuffer: async () => new ArrayBuffer(0) }));
+  t.mock.method(GLTFLoader.prototype, "parseAsync", async () => ({ scene: new THREE.Group() }));
+  const assets = createSupportModels({ canvas: { dataset: {} }, renderer: { capabilities: { getMaxAnisotropy: () => 1 } }, disposeTree() {}, onError: assert.fail });
+  assets.select("acrylique");
+  await settle();
+  assets.dispose();
+  await settle();
+  await settle();
+  assert.equal(disposeShared.mock.callCount(), 0);
+});

@@ -69,6 +69,7 @@ export function CinematicPage({ chapters, scene = {}, children, footer, mainProp
   });
   const sectionRefs = useRef([]);
   const naturalRef = useRef(null);
+  const mainRef = useRef(null);
   const [ready, setReady] = useState(false);
   const [failed, setFailed] = useState(false);
   const onReady = useCallback(() => {
@@ -76,6 +77,29 @@ export function CinematicPage({ chapters, scene = {}, children, footer, mainProp
     setReady(true);
   }, []);
   const onError = useCallback(() => setFailed(true), []);
+  // Until the room is revealed, a loading screen holds the page (no scroll, no
+  // clicks behind it). It never traps anyone: a failed scene or a 20 s wait
+  // releases it, and the page works on the dimmed room still.
+  const [held, setHeld] = useState(true);
+  const loading = held && !ready && !failed;
+  useEffect(() => {
+    const release = setTimeout(() => setHeld(false), 20000);
+    return () => clearTimeout(release);
+  }, []);
+  useEffect(() => {
+    if (!loading) return;
+    const root = document.documentElement;
+    const overflow = root.style.overflow;
+    root.style.overflow = "hidden";
+    // Keyboard focus stays out of the held page too (set here, not in the
+    // server HTML, so crawlers and no-JS readers get a live page).
+    const main = mainRef.current;
+    if (main) main.inert = true;
+    return () => {
+      root.style.overflow = overflow;
+      if (main) main.inert = false;
+    };
+  }, [loading]);
 
   // The opening dish's file depends on the viewport, known at hydration (as
   // the landing does for its lobster).
@@ -231,7 +255,16 @@ export function CinematicPage({ chapters, scene = {}, children, footer, mainProp
           {!failed && <Scene stateRef={stateRef} onReady={onReady} onError={onError} />}
         </Suspense>
       </div>
-      <main className="cinematic-main" {...mainProps}>
+      <noscript><style>{".cinematic-preloader{display:none}"}</style></noscript>
+      {loading && (
+        <div className="preloader cinematic-preloader" role="status">
+          <div className="loading-word">Vistaire</div>
+          <div className="loading-line" />
+          <span lang="fr">Préparons votre table.</span>
+          <span lang="en">Preparing your table.</span>
+        </div>
+      )}
+      <main ref={mainRef} className="cinematic-main" {...mainProps}>
         {chapters.map((chapter, index) => (
           <section
             key={chapter.shot}
