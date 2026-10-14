@@ -77,10 +77,10 @@ export function DigitalMenuCinematic({ page }: { page: SeoPageData }) {
       id: "digital-service",
       shot: "digital-room",
       align: "center",
-      titleId: "digital-service-title",
+      titleId: "final-cta-title",
       content: (
         <>
-          <h2 id="digital-service-title">{page.takeaway.heading}</h2>
+          <h2 id="final-cta-title">{page.takeaway.heading}</h2>
           <p>{page.takeaway.text}</p>
           <p>{page.answer[1]}</p>
           <div className="cinematic-actions">

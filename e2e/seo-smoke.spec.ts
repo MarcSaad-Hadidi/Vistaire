@@ -188,12 +188,15 @@ async function expectNoHorizontalOverflow(page: Page) {
   expect(overflow).toBeLessThanOrEqual(2);
 }
 
-async function expectNoEarlyModelAssets(page: Page) {
-  const modelResources = await page.evaluate(() =>
+// Pages that play in the shared 3D room load its GLBs; their AR models (USDZ)
+// still wait for explicit intent. Without WebGL, no model loads at all.
+async function expectNoEarlyModelAssets(page: Page, { room = false } = {}) {
+  const modelResources = await page.evaluate((pattern) =>
     performance
       .getEntriesByType("resource")
       .map((entry) => entry.name)
-      .filter((name) => /\.(glb|usdz)(\?|$)/i.test(name))
+      .filter((name) => new RegExp(pattern, "i").test(name)),
+    room ? "\\.usdz(\\?|$)" : "\\.(glb|usdz)(\\?|$)"
   );
   expect(modelResources).toEqual([]);
 }
@@ -288,7 +291,7 @@ async function expectSeoGeoRoute(
   }
 
   await expectNoHorizontalOverflow(page);
-  await expectNoEarlyModelAssets(page);
+  await expectNoEarlyModelAssets(page, { room: true });
 }
 
 test.describe("Vistaire SEO smoke", () => {
@@ -311,7 +314,7 @@ test.describe("Vistaire SEO smoke", () => {
       expect(slots).toHaveLength(3);
       expect(new Set(slots).size).toBe(3);
       await expectNoHorizontalOverflow(page);
-      await expectNoEarlyModelAssets(page);
+      await expectNoEarlyModelAssets(page, { room: true });
     }
     expect(compositions.size).toBe(seoGeoPages.length);
     assertNoUnexpectedBrowserIssues();

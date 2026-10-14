@@ -221,8 +221,8 @@ export function VistaireEditorialGuide({ guide }: { guide: EditorialGuide }) {
         buildArticleJsonLd({ path: guide.path, headline: guide.h1, description: guide.metadataDescription, locale: guide.locale, image: guideSocial(guide).twitter[0] }),
         buildBreadcrumbJsonLd([{ name: breadcrumbHome, path: homePath }, { name: guide.h1, path: guide.path }]),
       ]} />
-      <CinematicPage chapters={chapters} scene={scene} footer={<CinematicFooter locale={guide.locale} id={`guide-${variant}`} />}>
-        <div className={`${styles.page} ${guideVariantClass} cinematic-article-sheet`} data-public-vistaire data-guide-variant={variant} data-seo-experience={`guide-${variant}`}>
+      <CinematicPage chapters={chapters} scene={scene} footer={<CinematicFooter locale={guide.locale} id={`guide-${variant}`} />} mainProps={{ "data-seo-experience": `guide-${variant}`, "data-guide-variant": variant }}>
+        <div className={`${styles.page} ${guideVariantClass} cinematic-article-sheet`} data-public-vistaire>
           <article className={styles.article} aria-labelledby="guide-title"><div className={styles.previewFrame}>
             {variant === "anatomy" ? (
               <div className={styles.editorialGrid}><GuideContents guide={guide} /><div className={styles.body}>{guide.sections.map((_, index) => chapter(index))}</div></div>

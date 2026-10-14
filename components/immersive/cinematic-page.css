@@ -181,7 +181,6 @@
   border-radius: 8px;
   background: #111110c5;
   backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
   color: var(--cream);
 }
 :where(.cinematic-page[data-immersive-vistaire]) .cinematic-panel h2,
@@ -274,7 +273,7 @@
   padding-inline: var(--pad);
 }
 @media (max-width: 767.98px) {
-  :where(.cinematic-page[data-immersive-vistaire]) .cinematic-faq { grid-template-columns: 1fr; gap: 24px; }
+  :where(.cinematic-page[data-immersive-vistaire]) .cinematic-faq { grid-template-columns: minmax(0, 1fr); gap: 24px; }
   :where(.cinematic-page[data-immersive-vistaire]) .cinematic-table { font-size: 13px; }
   :where(.cinematic-page[data-immersive-vistaire]) .cinematic-table th,
   :where(.cinematic-page[data-immersive-vistaire]) .cinematic-table td { padding: 10px 6px; }
@@ -288,7 +287,6 @@
     border-radius: 8px;
     background: #111110c9;
     backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
     text-shadow: none;
   }
 }
@@ -300,7 +298,6 @@
   border-radius: 8px;
   background: #111110d6;
   backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
   text-shadow: none;
 }
 
@@ -405,7 +402,6 @@
   border-radius: 8px;
   background: #0b0b0ae6;
   backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
 }
 .cinematic-page .cinematic-pricing-sheet { padding-top: 56px; }
 .cinematic-page .cinematic-article-sheet > article { padding-top: 56px; }
@@ -418,4 +414,114 @@
     width: calc(100% - 2 * var(--pad));
   }
   .cinematic-page .cinematic-article-sheet > article { padding: 32px 18px 48px; }
+}
+/* Pricing inclusions keep their own glass panel inside the sheet. */
+.cinematic-page .cinematic-pricing-sheet [data-pricing-included-panel] {
+  padding: clamp(22px, 3vw, 40px);
+  border: 1px solid #f8f3e82b;
+  border-radius: 8px;
+  background: #1a1a18a8;
+  backdrop-filter: blur(8px);
+}
+
+/* Light theme, as on the landing: ivory UI surfaces over the unchanged
+   cinematic room. Every text area sits on a surface; no dark shade. */
+html[data-vistaire-theme="light"] .cinematic-page[data-immersive-vistaire] {
+  --cream: var(--public-text);
+  --muted: var(--public-muted);
+  --amber: var(--public-gold);
+}
+html[data-vistaire-theme="light"] .cinematic-page .cinematic-chapter .stage::before {
+  display: none;
+}
+html[data-vistaire-theme="light"] .cinematic-page :is(.cinematic-copy, .cinematic-panel, .cinematic-faq, .cinematic-pricing-sheet, .cinematic-article-sheet) {
+  border: 1px solid var(--public-blue);
+  border-radius: 8px;
+  background: #fffcf5;
+  color: var(--public-text);
+  text-shadow: none;
+}
+html[data-vistaire-theme="light"] .cinematic-page .cinematic-copy {
+  padding: 22px 24px 24px;
+}
+html[data-vistaire-theme="light"] .cinematic-page .cinematic-footer {
+  background: #fffcf5;
+  color: var(--public-text);
+}
+html[data-vistaire-theme="light"] .cinematic-page .cinematic-pricing-sheet [data-pricing-included-panel] {
+  background: #eee7d9;
+}
+
+/* Need pages: their own restaurant photographs and tools in free reading. */
+:where(.cinematic-page[data-immersive-vistaire]) .cinematic-gallery {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+:where(.cinematic-page[data-immersive-vistaire]) .cinematic-photo {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+}
+:where(.cinematic-page[data-immersive-vistaire]) .cinematic-photo a {
+  display: grid;
+  gap: 8px;
+  color: var(--cream);
+  font-size: 14px;
+}
+:where(.cinematic-page[data-immersive-vistaire]) .cinematic-photo-frame {
+  position: relative;
+  aspect-ratio: 4 / 5;
+  overflow: hidden;
+  border: 1px solid #f8f3e82b;
+  border-radius: 8px;
+}
+:where(.cinematic-page[data-immersive-vistaire]) .cinematic-photo-frame img { object-fit: cover; }
+:where(.cinematic-page[data-immersive-vistaire]) .cinematic-photo figcaption {
+  font-size: 14px;
+  color: var(--muted);
+}
+:where(.cinematic-page[data-immersive-vistaire]) .cinematic-checklist fieldset {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+:where(.cinematic-page[data-immersive-vistaire]) .cinematic-checklist legend {
+  margin-bottom: 8px;
+  font-family: "Vistaire Editorial", serif;
+  font-size: clamp(24px, 2.4vw, 34px);
+  color: var(--cream);
+}
+:where(.cinematic-page[data-immersive-vistaire]) .cinematic-checklist label {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  min-height: 44px;
+  color: var(--muted);
+}
+:where(.cinematic-page[data-immersive-vistaire]) .cinematic-checklist input { width: 20px; height: 20px; margin-top: 3px; accent-color: var(--amber); }
+:where(.cinematic-page[data-immersive-vistaire]) .cinematic-checklist button,
+:where(.cinematic-page[data-immersive-vistaire]) .cinematic-panel summary {
+  min-height: 44px;
+  color: var(--cream);
+  cursor: pointer;
+}
+:where(.cinematic-page[data-immersive-vistaire]) .cinematic-checklist button {
+  justify-self: start;
+  padding: 10px 18px;
+  border: 1px solid #f8f3e855;
+  border-radius: 4px;
+  background: transparent;
+  font: inherit;
+}
+:where(.cinematic-page[data-immersive-vistaire]) .cinematic-panel summary { display: flex; align-items: center; }
+@media (max-width: 767.98px) {
+  :where(.cinematic-page[data-immersive-vistaire]) .cinematic-gallery { grid-template-columns: 1fr; }
+  :where(.cinematic-page[data-immersive-vistaire]) .cinematic-photo-frame { aspect-ratio: 4 / 3; }
+}
+/* Grid children never grow past the reading column on narrow phones. */
+:where(.cinematic-page[data-immersive-vistaire]) :is(.cinematic-guide, .cinematic-faq) > * {
+  min-width: 0;
 }

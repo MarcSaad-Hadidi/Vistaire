@@ -135,8 +135,9 @@ export function VistairePricingPreview({
         chapters={chapters}
         scene={{ dish: "huitres", phoneDemo: "sauge-noire", collection: "acrylique" }}
         footer={<CinematicFooter locale={locale} id="pricing" />}
+        mainProps={{ "data-seo-experience": "pricing-support-showroom" }}
       >
-    <div className={`${styles.page} cinematic-pricing-sheet`} data-public-vistaire data-seo-experience="pricing-support-showroom">
+    <div className={`${styles.page} cinematic-pricing-sheet`} data-public-vistaire>
 
       <section
         aria-label={copy.collectionsLabel}

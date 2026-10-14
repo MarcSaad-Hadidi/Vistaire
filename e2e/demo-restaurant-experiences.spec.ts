@@ -124,7 +124,9 @@ for (const scenario of DISCOVERY_ROUTES) {
         recordVideoNetwork("request", request);
         const pathname = new URL(request.url()).pathname;
         if (pathname.startsWith("/videos/demo/")) requestedVideos.add(pathname);
-        if (MODEL_REQUEST.test(request.url()) || /\/api\/public\/landing-menu-preview\//.test(request.url())) {
+        // The page plays in the shared 3D room: its own GLBs are expected.
+        const roomModel = /^\/(?:immersive-assets|models\/demo)\/.+\.glb$/i.test(pathname);
+        if ((MODEL_REQUEST.test(request.url()) && !roomModel) || /\/api\/public\/landing-menu-preview\//.test(request.url())) {
           unexpectedRequests.push(request.url());
         }
       });
@@ -330,6 +332,8 @@ for (const scenario of DISCOVERY_ROUTES) {
       await expect(dishLink).toBeFocused();
       await dishLink.press("Enter");
       await expect(page).toHaveURL(/\/menu\/sauge-noire\/dishes\/truite-des-laurentides\?/, { timeout: 15_000 });
+      // The demo page itself plays in the 3D room; only the dish page counts.
+      modelRequests.length = 0;
       expect(new URL(page.url()).searchParams.get("lang")).toBe(scenario.lang);
       await expect(page.getByTestId("sauge-noire-dish-detail")).toBeVisible();
       await page.waitForLoadState("load");

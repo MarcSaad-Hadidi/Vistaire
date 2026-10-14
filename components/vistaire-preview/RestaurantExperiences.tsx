@@ -123,7 +123,9 @@ export async function RestaurantExperiences({
             </>
           )}
           <div className="cinematic-actions">
-            <a className="action" href={experience.publicMenuHref}>{content.explore} {experience.name}</a>
+            <a className="action" href={experience.publicMenuHref}>
+              {locale === "en" ? `Open the ${experience.name} menu` : `Ouvrir la carte ${experience.name}`}
+            </a>
           </div>
         </>
       ),

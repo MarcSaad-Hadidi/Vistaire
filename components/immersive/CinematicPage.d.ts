@@ -23,4 +23,4 @@ export type CinematicScene = {
   collection?: Collection;
 };
 
-export function CinematicPage(props: { chapters: CinematicChapter[]; scene?: CinematicScene; children?: ReactNode; footer?: ReactNode }): ReactNode;
+export function CinematicPage(props: { chapters: CinematicChapter[]; scene?: CinematicScene; children?: ReactNode; footer?: ReactNode; mainProps?: Record<`data-${string}`, string> }): ReactNode;

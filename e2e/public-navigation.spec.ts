@@ -866,7 +866,8 @@ test("public theme and mobile controls persist across locale navigation and relo
   }
   await controls.getByRole("button", { name: "Thème clair", exact: true }).click();
   await expect(page.locator("html")).toHaveAttribute("data-vistaire-theme", "light");
-  await expect(page.locator("main[data-public-vistaire]")).toHaveCSS("background-color", "rgb(247, 243, 233)");
+  // About plays in the 3D room: light theme puts its copy on ivory surfaces.
+  await expect(page.locator("[data-immersive-vistaire] .cinematic-copy").first()).toHaveCSS("background-color", "rgb(255, 252, 245)");
   const menu = page.locator("[data-public-menu]");
   const trigger = nav.locator("button[aria-controls]");
   await trigger.click();

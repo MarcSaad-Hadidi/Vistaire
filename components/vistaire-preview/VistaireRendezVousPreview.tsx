@@ -65,8 +65,8 @@ export function VistaireRendezVousPreview({
       content: (
         <>
           <span className="eyebrow">{copy.kicker}</span>
-          <h1 id="rendez-vous-preview-title">{copy.h1} <em>{copy.titleAccent}</em></h1>
-          <p><strong>{copy.proposition}</strong></p>
+          <h1 id="rendez-vous-preview-title">{copy.proposition}</h1>
+          <p><strong>{copy.h1} {copy.titleAccent}</strong></p>
           <p>{copy.intro}</p>
           <p className="cinematic-note">{copy.serviceLine}</p>
           <div className="cinematic-actions">

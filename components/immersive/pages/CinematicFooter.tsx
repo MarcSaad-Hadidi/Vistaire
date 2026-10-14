@@ -5,7 +5,7 @@ import { CONTACT_PHONE_DISPLAY, CONTACT_PHONE_TEL, getVistaireSocialProfiles } f
 export function CinematicFooter({ locale, id }: { locale: "fr" | "en"; id: string }) {
   const en = locale === "en";
   return (
-    <footer className="cinematic-footer" aria-labelledby={`${id}-footer-title`}>
+    <footer className="cinematic-footer" id="contact" aria-labelledby={`${id}-footer-title`}>
       <h2 id={`${id}-footer-title`} className="sr-only">Contact</h2>
       <PublicFooterNavigation locale={locale} />
       <div className="footer-grid">

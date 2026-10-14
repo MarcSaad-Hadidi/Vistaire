@@ -20,7 +20,7 @@ import "./cinematic-page.css";
 const Scene = lazy(() => import("./Scene.jsx"));
 const clamp = (value) => Math.max(0, Math.min(1, value));
 
-export function CinematicPage({ chapters, scene = {}, children, footer }) {
+export function CinematicPage({ chapters, scene = {}, children, footer, mainProps }) {
   // Each page shows its own dish, stand and one restaurant's menu on every
   // phone shot (pagePhoneDemo, unlike the landing's demo picker).
   const { phoneDemo = "maison-elyse", ...objects } = scene;
@@ -198,7 +198,7 @@ export function CinematicPage({ chapters, scene = {}, children, footer }) {
           {!failed && <Scene stateRef={stateRef} onReady={onReady} onError={onError} />}
         </Suspense>
       </div>
-      <main className="cinematic-main">
+      <main className="cinematic-main" {...mainProps}>
         {chapters.map((chapter, index) => (
           <section
             key={chapter.shot}

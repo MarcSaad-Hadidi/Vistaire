@@ -145,7 +145,8 @@ function observeRuntime(page: Page, baseURL: string) {
       expect(privateRequests, "private/admin/owner/Supabase requests").toEqual([]);
       expect(productMutations, "private product or analytics mutations").toEqual([]);
       expect(unexpectedWrites, `unexpected writes; Next internals: ${frameworkPosts.join(", ")}`).toEqual([]);
-      expect(modelRequests, "GLB or USDZ requests").toEqual([]);
+      // The page plays in the shared 3D room (its GLBs); AR models still wait for intent.
+      expect(modelRequests.filter(path => /\.usdz(?:$|[?#])/i.test(path)), "USDZ requests").toEqual([]);
       expect(videoRequests.filter(path => path !== "/demo/dashboard-studio-3x-67468b94997f.mp4"), "only the requested walkthrough video may load").toEqual([]);
     }
   };
@@ -235,6 +236,12 @@ async function expectSafeSeo(page: Page, scenario: Scenario) {
   expect(new Set(documentTypes)).toEqual(new Set(["WebPage", "Service", "BreadcrumbList"]));
 }
 
+// The film plays in free reading, after the page's 3D chapters: bring it to
+// the middle of the screen, as a visitor scrolling to it would.
+async function revealFilm(page: Page) {
+  await page.locator("[data-dashboard-walkthrough]").evaluate(element => element.scrollIntoView({block: "center"}));
+  await page.waitForTimeout(1000);
+}
 
 for (const scenario of scenarios) {
   test(`${scenario.path} presents a non-interactive looping video with private data isolation and arrival autoplay`, async ({baseURL, page}, testInfo) => {
@@ -244,6 +251,7 @@ for (const scenario of scenarios) {
     expect(response?.status()).toBe(200);
     await expect(page.getByRole("heading", {level: 1})).toHaveCount(1);
     await expect(page.locator("[data-admin-studio]")).toHaveCount(0);
+    await revealFilm(page);
     const film = page.locator("[data-dashboard-walkthrough]");
     const video = film.locator("video");
     await expect(video).toHaveAttribute("aria-label", scenario.videoLabel);
@@ -326,6 +334,7 @@ for (const scenario of scenarios) {
     for (const width of [390, 430, 1440]) {
       await page.setViewportSize({width, height: 900});
       await page.goto(scenario.path, {waitUntil: "domcontentloaded"});
+      await revealFilm(page);
       const video = page.locator("[data-dashboard-walkthrough] video");
       await expect(video).toBeVisible();
       const box = await video.boundingBox();
@@ -353,6 +362,7 @@ for (const scenario of scenarios) {
       };
     });
     await page.goto(scenario.path, {waitUntil: "domcontentloaded"});
+    await revealFilm(page);
     const film = page.locator("[data-dashboard-walkthrough]");
     const video = film.locator("video");
     await expect(video).toHaveAttribute("src", "https://cdn.vistaire.ca/demo/dashboard-studio-3x-67468b94997f.mp4");

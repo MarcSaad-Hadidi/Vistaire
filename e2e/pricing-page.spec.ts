@@ -44,11 +44,13 @@ function installPageHealth(page: Page): PageHealth {
 }
 
 async function expectHealthyPricingPage(page: Page, health: PageHealth) {
-  await page.locator("footer").scrollIntoViewIfNeeded();
-  await expect(page.locator("footer")).toBeVisible();
+  // The Studio preview has its own <footer>; the page footer is #contact.
+  await page.locator("footer#contact").scrollIntoViewIfNeeded();
+  await expect(page.locator("footer#contact")).toBeVisible();
   await expect.poll(() => health.consoleErrors).toEqual([]);
   expect(health.networkIssues, health.networkIssues.join("\n")).toEqual([]);
-  expect(health.modelRequests, "3D assets must wait for explicit menu intent").toEqual([]);
+  // The page plays in the shared 3D room (its GLBs); AR models still wait for intent.
+  expect(health.modelRequests.filter((url) => /\.usdz(?:$|[?#])/i.test(url)), "AR assets must wait for explicit menu intent").toEqual([]);
 }
 
 async function expectNoHorizontalOverflow(page: Page) {
