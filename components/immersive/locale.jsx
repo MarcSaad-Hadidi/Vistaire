@@ -18,7 +18,7 @@ const EN = {
   Fermer: "Close",
   "Aller au contenu": "Skip to content",
   "Préparons votre table.": "Preparing your table.",
-  "Vistaire — retour à l’introduction": "Vistaire — return to the introduction",
+  "Vistaire, retour à l’introduction": "Vistaire, return to the introduction",
   "Navigation principale": "Main navigation",
   "L’expérience": "The experience",
   Tarifs: "Pricing",

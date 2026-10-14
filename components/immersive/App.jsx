@@ -1148,7 +1148,7 @@ function LandingContent() {
         <button
           className="brand"
           onClick={() => goto("hero")}
-          aria-label={t("Vistaire — retour à l’introduction")}
+          aria-label={t("Vistaire, retour à l’introduction")}
         >
           VISTAIRE
         </button>

@@ -1223,6 +1223,7 @@ export default function Scene({
         ["laptop", laptopAsset.framingBounds],
       ];
       const placed = [];
+      const names = [];
       const moved = [];
       for (const [name, local] of solids) {
         const scale = pose[`${name}Scale`];
@@ -1247,25 +1248,47 @@ export default function Scene({
           }
           if (clear) break;
         }
-        for (let pass = 0; inView && pass < 3; pass++) {
-          let clear = true;
-          for (const other of placed) {
-            const [aMin, aMax] = axisSpan(box, viewRight), [bMin, bMax] = axisSpan(other, viewRight);
-            const [cMin, cMax] = axisSpan(box, viewUp), [dMin, dMax] = axisSpan(other, viewUp);
-            const overlapRight = Math.min(aMax, bMax) - Math.max(aMin, bMin) + 0.1;
-            if (overlapRight <= 0 || Math.min(cMax, dMax) - Math.max(cMin, dMin) <= 0) continue;
-            clear = false;
-            const side = aMin + aMax >= bMin + bMax ? 1 : -1;
-            box.translate(solidPosition.copy(viewRight).multiplyScalar(side * overlapRight));
-          }
-          if (clear) break;
-        }
         const dx = box.min.x - startX, dz = box.min.z - startZ;
         if (dx || dz) {
           pose[name] = [pose[name][0] + dx, pose[name][1], pose[name][2] + dz];
           moved.push(name);
         }
         placed.push(box);
+        names.push(name);
+      }
+      // As the camera sees them: two objects that hide each other part
+      // symmetrically along the view's horizontal, then every object is
+      // brought back onto the round tabletop (centred on the origin).
+      const shift = (index, offset) => {
+        placed[index].translate(offset);
+        const name = names[index];
+        pose[name] = [pose[name][0] + offset.x, pose[name][1], pose[name][2] + offset.z];
+        if (!moved.includes(name)) moved.push(name);
+      };
+      // The usable top is polygonal and draped: 80% of its half width keeps a visible margin.
+      const tableRadius = ((nativeTable?.metadata.topWidth ?? 5.16) / 2) * 0.8;
+      for (let pass = 0; inView && pass < 4; pass++) {
+        let clear = true;
+        for (let a = 0; a < placed.length; a++)
+          for (let b = a + 1; b < placed.length; b++) {
+            const [aMin, aMax] = axisSpan(placed[a], viewRight), [bMin, bMax] = axisSpan(placed[b], viewRight);
+            const [cMin, cMax] = axisSpan(placed[a], viewUp), [dMin, dMax] = axisSpan(placed[b], viewUp);
+            const overlap = Math.min(aMax, bMax) - Math.max(aMin, bMin) + 0.1;
+            if (overlap <= 0 || Math.min(cMax, dMax) - Math.max(cMin, dMin) <= 0) continue;
+            clear = false;
+            const side = aMin + aMax >= bMin + bMax ? 1 : -1;
+            shift(a, solidPosition.copy(viewRight).multiplyScalar(side * overlap / 2));
+            shift(b, solidPosition.copy(viewRight).multiplyScalar(-side * overlap / 2));
+          }
+        for (let index = 0; index < placed.length; index++) {
+          const box = placed[index];
+          const cx = (box.min.x + box.max.x) / 2, cz = (box.min.z + box.max.z) / 2;
+          const reach = Math.max(box.max.x - box.min.x, box.max.z - box.min.z) / 2;
+          const distance = Math.hypot(cx, cz), limit = Math.max(0, tableRadius - reach);
+          if (distance > limit + 1e-3)
+            shift(index, solidPosition.set(cx, 0, cz).multiplyScalar(limit / distance - 1));
+        }
+        if (clear) break;
       }
       if (diagnosticsEnabled) canvas.dataset.separated = moved.join(",");
     }

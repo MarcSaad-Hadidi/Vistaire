@@ -36,7 +36,8 @@ export function VistaireRestaurateurDashboardPreview({
       id: "apercu-studio",
       shot: "apercu-laptop",
       titleId: "restaurateur-dashboard-title",
-      laptopLid: [0.35, 1],
+      // Closed at arrival; the lid opens with the scroll, as on the landing.
+      laptopLid: [0, 1],
       content: (
         <>
           <span className="eyebrow">{copy.introBadge}</span>
@@ -54,7 +55,7 @@ export function VistaireRestaurateurDashboardPreview({
       content: (
         <>
           <h2 id="apercu-demo-title">{copy.demoLabel}</h2>
-          <p>{copy.demoStatement}</p>
+          <p>{copy.screenStatement}</p>
         </>
       ),
     },

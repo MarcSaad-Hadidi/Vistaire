@@ -316,7 +316,10 @@ test("the public preview import graph cannot reach private capabilities or persi
       const guardedStudioCapability =
         (modulePath === "components/admin/studio/AdminStudio.tsx" && ["router navigation", "private rendered destination"].includes(label)) ||
         (modulePath === "components/admin/studio/StudioDishes.tsx" && ["network fetch", "router navigation"].includes(label)) ||
-        (isImmersiveRoom(modulePath) && label === "network fetch");
+        (isImmersiveRoom(modulePath) && label === "network fetch") ||
+        // Hover prefetch of links already on the page; it never navigates itself.
+        (modulePath === "components/immersive/useLinkIntent.js" && label === "router navigation" &&
+          !/\brouter\.(?:push|replace|refresh|back|forward)\s*\(/.test(source));
       if (forbidden && !guardedStudioCapability) graph.violations.push(`${normalized(file)} contains ${label}`);
     }
   }

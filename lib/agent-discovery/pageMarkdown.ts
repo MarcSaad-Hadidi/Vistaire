@@ -110,7 +110,7 @@ function pricingMarkdown(page: PricingPageContent) {
     "",
     page.subtitle,
     "",
-    ...page.collections.map((c) => `- **${c.name}** (${c.label}) : ${c.setupPrice} · ${c.monthlyPrice} — ${c.description}`),
+    ...page.collections.map((c) => `- **${c.name}** (${c.label}) : ${c.setupPrice} · ${c.monthlyPrice}. ${c.description}`),
     "",
     `## ${page.included.title}`,
     "",
@@ -126,7 +126,7 @@ function pricingMarkdown(page: PricingPageContent) {
     "",
     `## ${page.pilotage.title}`,
     "",
-    `${page.pilotage.price} — ${page.pilotage.body}`,
+    `${page.pilotage.price}. ${page.pilotage.body}`,
     "",
     ...list(page.pilotage.features),
     "",
@@ -163,7 +163,7 @@ export function buildPageMarkdown(pathname: string): string | null {
 /** Every structured page, once, for agents that read the whole site in one request. */
 export function buildLlmsFullText(): string {
   return [
-    `# ${SITE_NAME} — contenu complet`,
+    `# ${SITE_NAME} : contenu complet`,
     "",
     `> Version texte intégrale des pages publiques de ${SITE_NAME}, menu digital premium pour restaurants (${CONTACT_LOCATION_LABEL}).`,
     "",

@@ -245,7 +245,7 @@ export function VistaireEditorialGuide({ guide }: { guide: EditorialGuide }) {
               </form> : variant === "anatomy" ? <details className={styles.checklistDisclosure} open><summary>{isEnglish ? "Review the reference points" : "Revoir les points de référence"}</summary>{checklistItems}</details> : checklistItems}
             </section>
             <section className={styles.related} aria-labelledby="related-guides-title">
-              <div className={styles.sectionHeading}><p className={styles.sectionNumber}>{"↗︎"}</p><h2 id="related-guides-title">{guide.relatedTitle}</h2></div>
+              <div className={styles.sectionHeading}><h2 id="related-guides-title">{guide.relatedTitle}</h2></div>
               <div className={styles.relatedGrid}>{guide.relatedPaths.map((path, index) => <Link href={path} key={path} prefetch={false}><span className={styles.relatedCardMeta}>{String(index + 1).padStart(2, "0")} · {relatedCardMeta(path, guide)}</span><span className={styles.relatedCardTitle}>{relatedLabel(path, guide)}</span><span className={styles.relatedCardAction}>{relatedCardAction(path, guide)}<span aria-hidden="true" className={styles.relatedArrow}>{"↗︎"}</span></span></Link>)}</div>
             </section>
             <section className={styles.cta} aria-label={guide.cta.eyebrow}><div><p className={styles.eyebrow}>{guide.cta.eyebrow}</p><h2>{guide.cta.title}</h2><p>{guide.cta.text}</p></div><Link className={styles.ctaButton} href={guide.cta.href} prefetch={false}>{guide.cta.label}<span aria-hidden="true">{"↗︎"}</span></Link></section>

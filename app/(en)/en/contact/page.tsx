@@ -9,7 +9,7 @@ import { socialImages,
 } from "@/lib/seo";
 
 const canonicalPath = "/en/contact";
-const title = "Contact Vistaire";
+const title = "Contact us";
 const description =
   "Contact Vistaire to create a premium digital menu for a high-end restaurant.";
 

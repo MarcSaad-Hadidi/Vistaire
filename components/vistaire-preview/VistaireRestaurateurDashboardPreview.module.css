@@ -779,8 +779,8 @@
   grid-template-columns: minmax(0, 1fr) minmax(320px, 0.7fr);
   gap: 64px;
 }
-.finalCopy,
-.qrCard {
+/* The QR card is a glass panel (cinematic-panel owns its padding). */
+.finalCopy {
   border-top: 1px solid var(--public-blue);
   padding-top: 40px;
 }
@@ -1055,8 +1055,7 @@
     width: 100%;
     gap: 32px;
   }
-  .finalCopy,
-  .qrCard {
+  .finalCopy {
     padding: 24px 0 0;
   }
   .qrCard {

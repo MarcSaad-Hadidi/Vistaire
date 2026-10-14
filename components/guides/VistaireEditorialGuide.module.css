@@ -63,7 +63,7 @@
 .pageAnatomy .layoutSplit .sectionContent p + p { margin: 0; }
 .pageAnatomy .layoutSplit .criteria { grid-column: 1 / -1; margin-top: 0; }
 .tableScroll { max-width: 100%; margin-top: 30px; overflow-x: auto; border: 1px solid var(--preview-border); background: var(--public-surface); scrollbar-color: var(--public-gold) var(--public-surface); }
-.tableScroll table { width: 100%; min-width: 520px; border-collapse: collapse; color: var(--preview-muted); font-size: 15px; line-height: 1.6; }
+.tableScroll table { width: 100%; min-width: min(520px, 100%); border-collapse: collapse; color: var(--preview-muted); font-size: 15px; line-height: 1.6; }
 .tableScroll caption { padding: 18px 20px; text-align: left; color: var(--preview-champagne); font-size: 14px; }
 .tableScroll th, .tableScroll td { border-top: 1px solid var(--preview-border); padding: 20px; text-align: left; vertical-align: top; }
 .tableScroll thead th, .tableScroll tbody th { color: var(--preview-cream); font-weight: 500; }

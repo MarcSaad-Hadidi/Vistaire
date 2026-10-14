@@ -31,7 +31,7 @@ const GEO_SCRIPTS: Record<string, { n: number; composition: string; scene: Cinem
 
 // Where a page's own slots show the same dish twice, borrow a distinct photograph.
 const PHOTO_OVERRIDES: Record<string, Partial<Record<"hero" | "proof" | "premium", string>>> = {
-  G4: { premium: "PDF:hero" },
+  G4: { hero: "DIGITAL:hero", premium: "PDF:hero" },
   G5: { premium: "DIGITAL:premium" },
   G7: { hero: "DIGITAL:proof" },
   G12: { proof: "PDF:detail" },

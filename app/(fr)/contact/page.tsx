@@ -9,7 +9,7 @@ import { socialImages,
 } from "@/lib/seo";
 
 const canonicalPath = "/contact";
-const title = "Contact Vistaire";
+const title = "Nous contacter";
 const description =
   "Contactez Vistaire pour créer une carte digitale premium pour restaurant haut de gamme.";
 
@@ -29,7 +29,7 @@ export const metadata: Metadata = {
   twitter: {
     images: socialImages("CONTACT:hero", "fr").twitter,
     card: "summary_large_image",
-    title: "Contact Vistaire",
+    title,
     description:
       "Parlez à Vistaire de votre carte, de vos fiches plats et de votre expérience mobile."
   }

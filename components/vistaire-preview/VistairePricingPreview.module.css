@@ -434,16 +434,34 @@
   font-size: 18px;
   line-height: 1.6;
 }
+/* Quote variables read as a list (marker, capital letter), never loose words. */
 .startingAtCopy ul {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px 22px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px 28px;
   margin-top: 24px;
+  padding-top: 18px;
+  border-top: 1px solid color-mix(in srgb, var(--pricing-champagne) 24%, transparent);
 }
 .startingAtCopy li {
-  color: var(--pricing-champagne);
-  font-size: 14px;
+  position: relative;
+  padding-left: 20px;
+  color: var(--pricing-muted);
+  font-size: 15px;
   line-height: 1.5;
+}
+.startingAtCopy li::first-letter {
+  text-transform: uppercase;
+}
+.startingAtCopy li::before {
+  content: "";
+  position: absolute;
+  left: 2px;
+  top: 0.6em;
+  width: 6px;
+  height: 6px;
+  background: var(--pricing-champagne);
+  transform: rotate(45deg);
 }
 .finalCta {
   display: grid;
