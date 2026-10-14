@@ -9,6 +9,7 @@ import { preload } from "react-dom";
 import { resolvePublicModelUrl } from "../../lib/publicModelAssets.ts";
 import { dishSceneModelUrl, supportModelUrls } from "./content.js";
 import { createEntryScrollAssist } from "./EntryScrollAssist.js";
+import { useLinkIntent } from "./useLinkIntent.js";
 import { pageShot } from "./PageShots.js";
 import { bindJourneyViewport } from "./JourneyViewport.js";
 import {
@@ -81,11 +82,21 @@ export function CinematicPage({ chapters, scene = {}, children, footer, mainProp
   // clicks behind it). It never traps anyone: a failed scene or a 20 s wait
   // releases it, and the page works on the dimmed room still.
   const [held, setHeld] = useState(true);
-  const loading = held && !ready && !failed;
+  // A click to another page shows the same screen at once (the next page keeps
+  // it up until its own room is ready); 8 s releases a navigation that never came.
+  const [leaving, setLeaving] = useState(false);
+  const leave = useCallback(() => setLeaving(true), []);
+  useLinkIntent(leave, ready);
+  const loading = (held && !ready && !failed) || leaving;
   useEffect(() => {
     const release = setTimeout(() => setHeld(false), 20000);
     return () => clearTimeout(release);
   }, []);
+  useEffect(() => {
+    if (!leaving) return;
+    const release = setTimeout(() => setLeaving(false), 8000);
+    return () => clearTimeout(release);
+  }, [leaving]);
   useEffect(() => {
     if (!loading) return;
     const root = document.documentElement;

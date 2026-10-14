@@ -4,6 +4,7 @@ import Link from "next/link";
 import { preload } from "react-dom";
 import { resolvePublicModelUrl } from "../../lib/publicModelAssets.ts";
 import { createEntryScrollAssist } from "./EntryScrollAssist.js";
+import { useLinkIntent } from "./useLinkIntent.js";
 import { bindPublicMenuViewport } from "@/lib/publicMenuViewport";
 import {
   lazy,
@@ -376,6 +377,16 @@ function LandingContent() {
   };
   const [ready, setReady] = useState(false);
   const [gpuError, setGpuError] = useState(false);
+  // Another page fetches as a link is reached and shows the loading screen the
+  // moment it is clicked (useLinkIntent); 8 s releases a navigation that never came.
+  const [leaving, setLeaving] = useState(false);
+  const leave = useCallback(() => setLeaving(true), []);
+  useLinkIntent(leave, ready);
+  useEffect(() => {
+    if (!leaving) return;
+    const release = setTimeout(() => setLeaving(false), 8000);
+    return () => clearTimeout(release);
+  }, [leaving]);
   const [modal, setModal] = useState(null);
   const [collection, setCollection] = useState("acrylique");
   const [phoneDemo, setPhoneDemo] = useState("maison-elyse");
@@ -1124,7 +1135,7 @@ function LandingContent() {
           </Link>
         </dialog>
       )}
-      {!ready && !gpuError && (
+      {(!ready || leaving) && !gpuError && (
         <div className="preloader" role="status">
           <div className="loading-word">Vistaire</div>
           <div className="loading-line" />
