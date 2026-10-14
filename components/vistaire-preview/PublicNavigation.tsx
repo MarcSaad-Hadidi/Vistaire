@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { PublicControls } from "./PublicControls";
 import type { Locale } from "@/lib/i18n";
 import { bindPublicMenuViewport } from "@/lib/publicMenuViewport";
@@ -34,6 +35,10 @@ export function PublicNavigation({
   const navigationId = useId();
   const close = useCallback(() => setMenuOpen(false), []);
   const english = locale === "en";
+  // The menu marks the page being viewed, whatever section the page declares.
+  const pathname = usePathname();
+  const current = (href: string) =>
+    href.startsWith("/") && href.split(/[?#]/)[0].replace(/\/$/, "") === pathname?.replace(/\/$/, "");
   const chapters = [
     ["hero", "Introduction"],
     ["features", english ? "The experience" : "L’expérience"],
@@ -216,7 +221,7 @@ export function PublicNavigation({
         </nav>
         <nav className={styles.menuPageLinks} aria-label={english ? "Vistaire pages" : "Les pages Vistaire"}>
           {pageItems.map((item) => (
-            <Link key={item.href} href={item.href} prefetch={false} onClick={close} aria-current={item.active ? "page" : undefined}>
+            <Link key={item.href} href={item.href} prefetch={false} onClick={close} aria-current={item.active || current(item.href) ? "page" : undefined}>
               {item.label}
             </Link>
           ))}

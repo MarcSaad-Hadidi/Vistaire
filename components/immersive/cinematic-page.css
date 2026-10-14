@@ -516,7 +516,31 @@ html[data-vistaire-theme="light"] .cinematic-page .cinematic-pricing-sheet [data
   background: transparent;
   font: inherit;
 }
-:where(.cinematic-page[data-immersive-vistaire]) .cinematic-panel summary { display: flex; align-items: center; }
+/* Disclosures read as rows that open: number, title, then a + that turns to ×. */
+:where(.cinematic-page[data-immersive-vistaire]) .cinematic-panel details { border-top: 1px solid color-mix(in srgb, var(--cream) 16%, transparent); }
+:where(.cinematic-page[data-immersive-vistaire]) .cinematic-panel details:last-of-type { border-bottom: 1px solid color-mix(in srgb, var(--cream) 16%, transparent); }
+:where(.cinematic-page[data-immersive-vistaire]) .cinematic-panel summary {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 0;
+  list-style: none;
+}
+:where(.cinematic-page[data-immersive-vistaire]) .cinematic-panel summary::-webkit-details-marker { display: none; }
+:where(.cinematic-page[data-immersive-vistaire]) .cinematic-panel summary > span { color: var(--amber); font-size: 12px; letter-spacing: 0.08em; }
+:where(.cinematic-page[data-immersive-vistaire]) .cinematic-panel summary::after {
+  content: "+";
+  margin-left: auto;
+  color: var(--amber);
+  font-size: 22px;
+  line-height: 1;
+  transition: transform 0.2s ease;
+}
+:where(.cinematic-page[data-immersive-vistaire]) .cinematic-panel details[open] > summary::after { transform: rotate(45deg); }
+:where(.cinematic-page[data-immersive-vistaire]) .cinematic-panel details > p { margin: 0 0 14px; }
+@media (prefers-reduced-motion: reduce) {
+  :where(.cinematic-page[data-immersive-vistaire]) .cinematic-panel summary::after { transition: none; }
+}
 @media (max-width: 767.98px) {
   :where(.cinematic-page[data-immersive-vistaire]) .cinematic-gallery { grid-template-columns: 1fr; }
   :where(.cinematic-page[data-immersive-vistaire]) .cinematic-photo-frame { aspect-ratio: 4 / 3; }

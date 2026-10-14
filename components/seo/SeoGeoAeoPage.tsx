@@ -29,6 +29,14 @@ const GEO_SCRIPTS: Record<string, { n: number; composition: string; scene: Cinem
   "/menu-digital-restaurant-gastronomique": { n: 12, composition: "gastronomy-paced-narrative", scene: { dish: "souffle", phoneDemo: "maison-elyse" } },
 };
 
+// Where a page's own slots show the same dish twice, borrow a distinct photograph.
+const PHOTO_OVERRIDES: Record<string, Partial<Record<"hero" | "proof" | "premium", string>>> = {
+  G4: { premium: "PDF:hero" },
+  G5: { premium: "DIGITAL:premium" },
+  G7: { hero: "DIGITAL:proof" },
+  G12: { proof: "PDF:detail" },
+};
+
 // The page's three restaurant photographs (G<n>:hero|proof|premium slots).
 function GeoGallery({ page, group }: { page: SeoGeoPageData; group: string }) {
   const en = page.locale === "en";
@@ -36,7 +44,7 @@ function GeoGallery({ page, group }: { page: SeoGeoPageData; group: string }) {
     <div className="cinematic-gallery">
       {(["hero", "proof", "premium"] as const).map((placement) => {
         const slot = `${group}:${placement}`;
-        const photo = getSeoMarketingImage(slot, page.locale ?? "fr");
+        const photo = getSeoMarketingImage(PHOTO_OVERRIDES[group]?.[placement] ?? slot, page.locale ?? "fr");
         const frame = (
           <div className="cinematic-photo-frame">
             <Image alt={photo.alt} src={photo.src} fill quality={84} sizes="(max-width: 767px) calc(100vw - 32px), 360px" />
@@ -44,7 +52,7 @@ function GeoGallery({ page, group }: { page: SeoGeoPageData; group: string }) {
         );
         return (
           <figure className="cinematic-photo" data-seo-photo-slot={slot} key={slot}>
-            {group === "G7" && placement !== "premium" ? (
+            {group === "G7" && placement === "proof" ? (
               <a href={photo.src} target="_blank" rel="noopener noreferrer">
                 {frame}
                 <span>{en ? "View the allergen panel at full size (new tab)" : "Voir le panneau des allergènes en grand (nouvel onglet)"}</span>
