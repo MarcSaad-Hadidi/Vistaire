@@ -2,7 +2,6 @@ import {
   getPublicModelAsset,
   indexPublicModelFramingHulls,
   publicModelBaseUrl,
-  resolvePublicModelUrl,
 } from "../../lib/publicModelAssets.ts";
 import { cinematicEase, chapterPhase, interpolatePose, interpolatePoseTrack, DEFAULT_SCENE_FRAME } from "./SceneDirector.js";
 import { sectionTransitionComposition } from "./SectionTransitionMotion.js";
@@ -24,7 +23,7 @@ import { createPhoneModel } from "./PhoneModel";
 import { createPdfMenuTexture } from "./PdfMenuTexture.js";
 import { pageShot } from "./PageShots.js";
 import { createLaptopModel } from "./LaptopModel.js";
-import { dishes } from "./content";
+import { dishes, dishSceneModelUrl } from "./content";
 import { createRestaurantModel } from "./RestaurantModel";
 import { createRestaurantTable } from "./RestaurantTable.js";
 import { arrangePresentationTable } from "./TablePresentationLayout.js";
@@ -977,23 +976,7 @@ export default function Scene({
     const loader = new GLTFLoader()
       .setMeshoptDecoder(MeshoptDecoder)
       .setDRACOLoader(foodDraco);
-    function modelUrl(name) {
-      if (name === "homard")
-        return resolvePublicModelUrl(mobileViewport()
-          // Scene-only quantized meshopt copies; the AR files stay unchanged.
-          ? "immersive.dish.homard.scene-mobile"
-          : "immersive.dish.homard.scene");
-      if (
-        ["huitres", "sushi", "chocolat-fume", "poutine", "burger"].includes(
-          name,
-        )
-      )
-        return resolvePublicModelUrl(`immersive.dish.${name}.scene-mobile`);
-      const dish = dishes.find((dish) => dish.id === name && dish.model);
-      return typeof dish?.model === "string"
-        ? dish.model
-        : resolvePublicModelUrl("immersive.dish.souffle.scene");
-    }
+    const modelUrl = (name) => dishSceneModelUrl(name, mobileViewport());
     function loadDish(name) {
       currentDish = name;
       canvas.dataset.loadingModel = name;
@@ -1998,7 +1981,10 @@ export default function Scene({
         collectionsPreloaded = true;
         supportAssets.preload(state.preloadCollections);
       }
-      if (collection !== lastCollection) {
+      // A stand or phone downloads once a shot shows one (or after the reveal),
+      // never competing with an opening that has none.
+      if (ready || pose.phoneScale > 0.003 || pose.pdfPhoneScale > 0.003) phoneAsset.load();
+      if (collection !== lastCollection && (ready || pose.supportScale > 0.003)) {
         supportAssets.select(collection);
         lastCollection = collection;
       }

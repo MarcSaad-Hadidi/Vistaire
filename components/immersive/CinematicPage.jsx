@@ -7,7 +7,9 @@
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { preload } from "react-dom";
 import { resolvePublicModelUrl } from "../../lib/publicModelAssets.ts";
+import { dishSceneModelUrl, supportModelUrls } from "./content.js";
 import { createEntryScrollAssist } from "./EntryScrollAssist.js";
+import { pageShot } from "./PageShots.js";
 import { bindJourneyViewport } from "./JourneyViewport.js";
 import {
   CINEMATIC_TIMING,
@@ -19,20 +21,34 @@ import {
 import "./styles.css";
 import "./cinematic-page.css";
 
-const Scene = lazy(() => import("./Scene.jsx"));
+// The scene chunk (three.js) starts with this module, not when hydration first
+// renders it: on a cold visit it was the longest wait before any room showed.
+const loadScene = () => import("./Scene.jsx");
+const sceneChunk = typeof window === "undefined" ? null : loadScene();
+const Scene = lazy(() => sceneChunk ?? loadScene());
 const clamp = (value) => Math.max(0, Math.min(1, value));
+const fetchHint = { as: "fetch", crossOrigin: "anonymous" };
+
+// The object each pillar page opens on (their shots live in Scene.jsx, not PageShots).
+const PILLAR_OPENINGS = { "qr-hero": "supportScale", "digital-hero": "phoneScale", "ar-hero": "dishScale", "pdf-flat": "pdfPhoneScale" };
 
 export function CinematicPage({ chapters, scene = {}, children, footer, mainProps }) {
-  // The room and phone download with the HTML, not after the lazy scene chunk;
-  // the scene's own fetches reuse them (same URL and CORS mode).
-  for (const id of ["immersive.restaurant.visible.textures-512", "immersive.phone"])
-    preload(resolvePublicModelUrl(id), { as: "fetch", crossOrigin: "anonymous" });
-  // The Draco decoder the room needs, fetched by three's FileLoader.
-  for (const file of ["draco_wasm_wrapper.js", "draco_decoder.wasm"])
-    preload(`/immersive-assets/draco/${file}`, { as: "fetch", crossOrigin: "anonymous" });
   // Each page shows its own dish, stand and one restaurant's menu on every
   // phone shot (pagePhoneDemo, unlike the landing's demo picker).
   const { phoneDemo = "maison-elyse", ...objects } = scene;
+  // What the opening shot shows downloads with the HTML (these hints render
+  // into the server page), not after the lazy scene chunk: the reveal waits for
+  // it. The scene's own fetches reuse them (same URL and CORS mode); objects of
+  // later shots load after the reveal.
+  const opening = pageShot(chapters[0].shot, 0, false, true)
+    ?? { [PILLAR_OPENINGS[chapters[0].shot]]: 1 };
+  preload(resolvePublicModelUrl("immersive.restaurant.visible.textures-512"), fetchHint);
+  if (opening.phoneScale > 0 || opening.pdfPhoneScale > 0) preload(resolvePublicModelUrl("immersive.phone"), fetchHint);
+  if (opening.supportScale > 0)
+    preload(supportModelUrls[chapters[0].scene?.collection ?? objects.collection ?? "acrylique"], fetchHint);
+  // The Draco decoder the room needs, fetched by three's FileLoader.
+  for (const file of ["draco_wasm_wrapper.js", "draco_decoder.wasm"])
+    preload(`/immersive-assets/draco/${file}`, fetchHint);
   // Chapters may own the stand's collection, the phone's restaurant or the
   // laptop's lid (pricing, demo and restaurant preview pages).
   const needsLaptop = chapters.some((chapter) => chapter.laptopLid);
@@ -60,6 +76,13 @@ export function CinematicPage({ chapters, scene = {}, children, footer, mainProp
     setReady(true);
   }, []);
   const onError = useCallback(() => setFailed(true), []);
+
+  // The opening dish's file depends on the viewport, known at hydration (as
+  // the landing does for its lobster).
+  useEffect(() => {
+    if (opening.dishScale > 0) preload(dishSceneModelUrl(objects.dish ?? "homard", innerWidth < 768), fetchHint);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- the opening shot is fixed per page.
+  }, []);
 
   useEffect(() => {
     const root = document.documentElement;

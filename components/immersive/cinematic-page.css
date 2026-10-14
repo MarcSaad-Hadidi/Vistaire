@@ -5,6 +5,21 @@
   opacity: 0;
   transition: opacity 700ms ease;
 }
+/* Never a black page: a dim, softened dining room holds the frame until the
+   3D room fades in over it (or stays if WebGL is unavailable). */
+.cinematic-page[data-immersive-vistaire]::before {
+  content: "";
+  position: fixed;
+  inset: -24px;
+  z-index: 0;
+  pointer-events: none;
+  background: #0b0b0a url("/immersive-assets/restaurant-table-blur.webp") center / cover no-repeat;
+  filter: blur(8px) brightness(0.5);
+}
+.cinematic-page[data-immersive-vistaire].is-ready::before {
+  visibility: hidden;
+  transition: visibility 0s linear 800ms;
+}
 .cinematic-page[data-immersive-vistaire].is-ready .world {
   opacity: 1;
 }

@@ -155,6 +155,24 @@ export const dishes = [
     allergens: null,
   },
 ];
+/** The model a dish shows in the restaurant scene (Scene and page preloads share it). */
+export function dishSceneModelUrl(name, mobile) {
+  if (name === "homard")
+    // Scene-only quantized meshopt copies; the AR files stay unchanged.
+    return resolvePublicModelUrl(mobile ? "immersive.dish.homard.scene-mobile" : "immersive.dish.homard.scene");
+  if (["huitres", "sushi", "chocolat-fume", "poutine", "burger"].includes(name))
+    return resolvePublicModelUrl(`immersive.dish.${name}.scene-mobile`);
+  const dish = dishes.find((item) => item.id === name && item.model);
+  return typeof dish?.model === "string" ? dish.model : resolvePublicModelUrl("immersive.dish.souffle.scene");
+}
+// Scene copies (meshopt, 1024px webp) of the larger stands; acrylic's own file
+// is already smaller than its optimized copy.
+export const supportModelUrls = {
+  acrylique: resolvePublicModelUrl("immersive.support.acrylique"),
+  sculpte: resolvePublicModelUrl("immersive.support.sculpte.scene"),
+  carre: resolvePublicModelUrl("immersive.support.carre.scene"),
+  signature: resolvePublicModelUrl("immersive.support.signature.scene"),
+};
 export const experiences = [
   {
     id: "maison-elyse",

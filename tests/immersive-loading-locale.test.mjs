@@ -23,6 +23,8 @@ test("stands load only on selection and retain a visible model until a switch is
   const assets = createSupportModels({ canvas, renderer: { capabilities: { getMaxAnisotropy: () => 1 } }, disposeTree() {}, onError: assert.fail,
     onInvalidate: () => wakes.push({ ready: canvas.dataset.supportReady, support: canvas.dataset.support, visible: assets.active?.visible }) });
   t.after(() => assets.dispose());
+  assert.equal(pending.length, 0, "creation downloads no stand before a shot selects one");
+  assets.select("acrylique");
   assert.equal(pending.length, 1, "opening must not download unselected collections");
   assert.ok(pending[0].url.endsWith(supportModels.acrylique));
   pending[0].resolve({ ok: true, arrayBuffer: async () => new ArrayBuffer(0) });
@@ -64,6 +66,7 @@ test("disposing stands aborts pending requests and disposes late decoded models"
   t.mock.method(globalThis, "fetch", async (_url, options) => { signal = options.signal; return { ok: true, arrayBuffer: async () => new ArrayBuffer(0) }; });
   t.mock.method(GLTFLoader.prototype, "parseAsync", () => new Promise((resolve) => { finishParse = resolve; }));
   const assets = createSupportModels({ canvas: { dataset: {} }, renderer: {}, disposeTree: (tree) => disposed.push(tree), onError: assert.fail, onInvalidate: () => wakes++ });
+  assets.select("acrylique");
   await settle();
   assets.dispose();
   assert.equal(signal.aborted, true);
@@ -82,6 +85,9 @@ test("phone attachment wakes after final datasets and disposed late parses do no
   const phone = createPhoneModel({ canvas, screenMaterial: new THREE.MeshBasicMaterial(), disposeTree: (tree) => discarded.push(tree), onError: assert.fail,
     onInvalidate: () => wakes.push({ ready: canvas.dataset.phoneReady, phone: canvas.dataset.phone, attached: phone.root.children.length }) });
   t.after(() => phone.dispose());
+  assert.equal(phone.root.children.length, 0, "the phone downloads only once the scene asks for it");
+  phone.load();
+  phone.load();
   await settle();
   const model = new THREE.Mesh(new THREE.BoxGeometry(), new THREE.MeshBasicMaterial());
   model.name = "Object_18";
@@ -90,6 +96,7 @@ test("phone attachment wakes after final datasets and disposed late parses do no
   assert.deepEqual(wakes, [{ ready: "true", phone: "iphone-16", attached: 1 }]);
   const late = createPhoneModel({ canvas: { dataset: {} }, screenMaterial: new THREE.MeshBasicMaterial(), disposeTree: (tree) => discarded.push(tree), onError: assert.fail,
     onInvalidate: () => wakes.push("late") });
+  late.load();
   await settle();
   late.dispose();
   const lateModel = new THREE.Group();
@@ -172,6 +179,7 @@ test("a deselected failed stand can be retried on the next selection", async (t)
   const canvas = { dataset: {} };
   const assets = createSupportModels({ canvas, renderer: { capabilities: { getMaxAnisotropy: () => 1 } }, disposeTree() {}, onError: (error) => errors.push(error) });
   t.after(() => assets.dispose());
+  assets.select("acrylique");
   pending[0].resolve({ ok: true, arrayBuffer: async () => new ArrayBuffer(0) });
   await settle();
   const initial = assets.active;

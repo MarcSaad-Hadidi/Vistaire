@@ -1,17 +1,15 @@
-import { publicModelBaseUrl, resolvePublicModelUrl } from "../../lib/publicModelAssets.ts";
+import { publicModelBaseUrl } from "../../lib/publicModelAssets.ts";
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
+import { MeshoptDecoder } from "three/examples/jsm/libs/meshopt_decoder.module.js";
 import { sharedDraco } from "./sharedDraco.js";
 
-export const supportModels = {
-  acrylique: resolvePublicModelUrl("immersive.support.acrylique"),
-  sculpte: resolvePublicModelUrl("immersive.support.sculpte"),
-  carre: resolvePublicModelUrl("immersive.support.carre"),
-  signature: resolvePublicModelUrl("immersive.support.signature"),
-};
+import { supportModelUrls as supportModels } from "./content.js";
 
-// These are the user's original optimized files. Only their scene transforms
-// change; geometry, embedded QR artwork and PBR materials stay intact.
+export { supportModels };
+
+// The user's stands (see content.js for the scene copies). Only their scene
+// transforms change; embedded QR artwork and PBR materials stay intact.
 export function createSupportModels({
   canvas,
   renderer,
@@ -25,7 +23,7 @@ export function createSupportModels({
   const requests = [];
   const loading = new Map();
   const draco = sharedDraco();
-  const loader = new GLTFLoader().setDRACOLoader(draco);
+  const loader = new GLTFLoader().setDRACOLoader(draco).setMeshoptDecoder(MeshoptDecoder);
   let disposed = false;
   let collection = "acrylique";
   let visibleCollection;
@@ -113,9 +111,8 @@ export function createSupportModels({
         onError(error);
     }
   }
-  // Acrylic is visible on the opening table. Other collections load only
-  // when selected; retain the displayed stand until its replacement is ready.
-  select(collection);
+  // Every collection loads only when selected (the scene selects one when a
+  // shot shows a stand); the displayed stand stays until its replacement is ready.
 
   return {
     root,

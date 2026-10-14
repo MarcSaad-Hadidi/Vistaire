@@ -367,5 +367,32 @@
     "sha256": [
       "277c0266479402d22156fe4bb8fd91c633143eb49e88433e5266bb6ca66b6fb6"
     ]
+  },
+  {
+    "path": "public/immersive-assets/supports/Meshy_AI_Wooden_QR_Menu_Stand_1008220658_texture-q.glb",
+    "owner": "MarcSaad-Hadidi",
+    "reason": "User-requested site-wide load optimization: scene copy of the stand by gltf-transform optimize (vertex quantization, meshopt, webp textures capped at 1024px, no simplification). The original stays as the source and rollback.",
+    "maxBytes": 367084,
+    "sha256": [
+      "c31d2287ff71065d9fa952094efd9be0e915590f6efb38a8a507302d3c703cd4"
+    ]
+  },
+  {
+    "path": "public/immersive-assets/supports/sauge-noire-carre-vistaire-corrige-q.glb",
+    "owner": "MarcSaad-Hadidi",
+    "reason": "User-requested site-wide load optimization: scene copy of the stand by gltf-transform optimize (vertex quantization, meshopt, webp textures capped at 1024px, no simplification). The original stays as the source and rollback.",
+    "maxBytes": 318312,
+    "sha256": [
+      "db2f5abaf655271a28212f5f13d1688717d644c38a1557d765e122e52f10900e"
+    ]
+  },
+  {
+    "path": "public/immersive-assets/supports/sauge-noire-vistaire-corrige-q.glb",
+    "owner": "MarcSaad-Hadidi",
+    "reason": "User-requested site-wide load optimization: scene copy of the stand by gltf-transform optimize (vertex quantization, meshopt, webp textures capped at 1024px, no simplification). The original stays as the source and rollback.",
+    "maxBytes": 135776,
+    "sha256": [
+      "143165b2951a9d6894bdd8f4f9ee64acc93fbe63d63a6015a0b1f573b1a3265b"
+    ]
   }
 ]

@@ -386,6 +386,17 @@
       "publicUrl": null
     },
     {
+      "id": "immersive.support.sculpte.scene",
+      "kind": "supports",
+      "visibility": "public",
+      "format": "glb",
+      "bytes": 367084,
+      "sha256": "c31d2287ff71065d9fa952094efd9be0e915590f6efb38a8a507302d3c703cd4",
+      "version": "sha256-c31d2287ff71065d9fa952094efd9be0e915590f6efb38a8a507302d3c703cd4",
+      "legacyUrl": "/immersive-assets/supports/Meshy_AI_Wooden_QR_Menu_Stand_1008220658_texture-q.glb",
+      "publicUrl": null
+    },
+    {
       "id": "immersive.support.carre",
       "kind": "supports",
       "visibility": "public",
@@ -397,6 +408,17 @@
       "publicUrl": null
     },
     {
+      "id": "immersive.support.carre.scene",
+      "kind": "supports",
+      "visibility": "public",
+      "format": "glb",
+      "bytes": 318312,
+      "sha256": "db2f5abaf655271a28212f5f13d1688717d644c38a1557d765e122e52f10900e",
+      "version": "sha256-db2f5abaf655271a28212f5f13d1688717d644c38a1557d765e122e52f10900e",
+      "legacyUrl": "/immersive-assets/supports/sauge-noire-carre-vistaire-corrige-q.glb",
+      "publicUrl": null
+    },
+    {
       "id": "immersive.support.signature",
       "kind": "supports",
       "visibility": "public",
@@ -405,6 +427,17 @@
       "sha256": "b3bf09c3073d9070923c0dd6c8ec01787602374d032e2d21e9ed7fe683e2a8cc",
       "version": "sha256-b3bf09c3073d9070923c0dd6c8ec01787602374d032e2d21e9ed7fe683e2a8cc",
       "legacyUrl": "/immersive-assets/supports/sauge-noire-vistaire-corrige.glb",
+      "publicUrl": null
+    },
+    {
+      "id": "immersive.support.signature.scene",
+      "kind": "supports",
+      "visibility": "public",
+      "format": "glb",
+      "bytes": 135776,
+      "sha256": "143165b2951a9d6894bdd8f4f9ee64acc93fbe63d63a6015a0b1f573b1a3265b",
+      "version": "sha256-143165b2951a9d6894bdd8f4f9ee64acc93fbe63d63a6015a0b1f573b1a3265b",
+      "legacyUrl": "/immersive-assets/supports/sauge-noire-vistaire-corrige-q.glb",
       "publicUrl": null
     },
     {
