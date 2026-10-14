@@ -178,7 +178,8 @@ test('Scene clears stale XR handles and guards hidden, opaque, failed, and dispo
   f.scope.visibilityChanged();
   assert.equal(f.pending.size, 0, 'hide cancels the pending RAF');
   f.wake();
-  assert.equal(f.pending.size, 0, 'completion callbacks stay asleep while hidden');
+  assert.equal(f.pending.size, 1, 'a wake while hidden only queues one RAF; the browser holds it until the page shows');
+  f.run('cancelAnimationFrame(frame); frame = 0;');
   assert.equal(f.run('lastTime'), 0);
   f.scope.document.hidden = false;
   let resumedDamping;
@@ -476,10 +477,6 @@ test('scroll publishes and renders in one frame without losing idle, gestures or
   assert.deepEqual(seen.at(-1), { progress: 0.6, damping: 1 }, 'an asset/video RAF also flushes newer queued copy before drawing');
 
   const beforeHidden = f.renders;
-  f.scope.document.hidden = true;
-  f.state.renderSceneFrame(80);
-  assert.equal(f.renders, beforeHidden);
-  f.scope.document.hidden = false;
   f.state.sceneOccluded = true;
   f.state.renderSceneFrame(96);
   assert.equal(f.renders, beforeHidden, 'natural opaque pricing remains suspended');

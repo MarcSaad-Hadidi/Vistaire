@@ -528,7 +528,10 @@ export default function Scene({
     function invalidateScene() {
       if (disposed || failed) return;
       renderRequested = true;
-      if (frame || document.hidden || arExperience?.active) return;
+      // No document.hidden gate: a truly hidden tab never runs this RAF, while
+      // an embed that reports hidden but paints (app panes, in-app browsers)
+      // would otherwise stay black until a reload.
+      if (frame || arExperience?.active) return;
       // The FAQ stays idle; the measured offers stage may still need a frame.
       if (ready && wasOccluded && stateRef.current?.sceneOccluded &&
         !pricingPresentation?.needsFrame(stateRef.current) && !diagnosticsEnabled)
@@ -539,7 +542,7 @@ export default function Scene({
     // App can publish copy and submit the matching scene in one browser frame.
     // Cancel an older asset/video RAF rather than drawing the same pose twice.
     function renderSceneFrame(now) {
-      if (disposed || failed || document.hidden || arExperience?.active) return;
+      if (disposed || failed || arExperience?.active) return;
       if (ready && wasOccluded && stateRef.current?.sceneOccluded &&
         !pricingPresentation?.needsFrame(stateRef.current) && !diagnosticsEnabled)
         return;
@@ -1766,7 +1769,7 @@ export default function Scene({
     }
     function draw(now) {
       frame = 0;
-      if (disposed || failed || document.hidden || arExperience?.active) {
+      if (disposed || failed || arExperience?.active) {
         lastTime = 0;
         return;
       }

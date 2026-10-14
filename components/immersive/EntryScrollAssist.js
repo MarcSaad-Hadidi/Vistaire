@@ -75,13 +75,15 @@ export function createEntryScrollAssist({ getGeometry, isBlocked }, view = windo
   };
   const blocked = () => {
     let callerBlocked = false;
-    const result = disposed || document.hidden || reduced.matches || (callerBlocked = isBlocked())
+    // Visibility changes reset ownership (listener below); a page reporting
+    // hidden while it is shown (app panes, in-app browsers) keeps its assist.
+    const result = disposed || reduced.matches || (callerBlocked = isBlocked())
       // A clicked header button may retain focus while the next gesture targets
       // the scene. Preserve editing/slider focus; event targets stay excluded.
       // Tapping or mouse-turning a 3D model focuses its slider; that focus only
       // owns arrow keys. Touch and wheel defer to editing focus alone.
       || controlled(document.activeElement, inputKind === "touch" || inputKind === "wheel" ? TOUCH_OWNERS : FOCUSED_CONTROLS);
-    blockedReason = !result ? null : disposed ? "disposed" : document.hidden ? "hidden"
+    blockedReason = !result ? null : disposed ? "disposed"
       : reduced.matches ? "reduced-motion" : callerBlocked ? "caller-blocked" : "protected-focus";
     return result;
   };

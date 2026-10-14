@@ -209,11 +209,10 @@ test('touch and keyboard retain ownership while held with or without scrollend s
   }
 });
 
-test('blocked, hidden, reduced-motion, pricing reading and footer spans remain native; disposal removes all work', () => {
-  for (const kind of ['blocked', 'hidden', 'reduced', 'pricing', 'footer']) {
+test('blocked, reduced-motion, pricing reading and footer spans remain native; disposal removes all work', () => {
+  for (const kind of ['blocked', 'reduced', 'pricing', 'footer']) {
     const f = fixture(), pricing = f.bounds.transitions.find(join => join.to.id === 'open-weight');
     if (kind === 'blocked') f.block(true);
-    if (kind === 'hidden') f.document.hidden = true;
     if (kind === 'reduced') f.media.matches = true;
     const y = kind === 'pricing' ? pricing.end + 40 : kind === 'footer' ? f.bounds.transitions.at(-1).end - 40
       : f.bounds.transitions[0].end - 40;
