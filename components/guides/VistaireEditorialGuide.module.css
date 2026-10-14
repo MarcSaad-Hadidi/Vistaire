@@ -196,3 +196,15 @@
   .ctaButton { width: 100%; }
 }
 @media (prefers-reduced-motion: reduce) { .heroCta, .ctaButton, .contents a { transition: none; } }
+/* Phones read each row as a stacked card: the whole table, no sideways scroll. */
+@media (max-width: 767.98px) {
+  .tableScroll { overflow-x: visible; }
+  .tableScroll table { min-width: 0; }
+  .tableScroll thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .tableScroll tr, .tableScroll tbody th, .tableScroll td { display: block; }
+  .tableScroll tbody tr { padding: 16px 18px; border-top: 1px solid var(--preview-border); }
+  .tableScroll tbody th, .tableScroll td { border-top: 0; padding: 0; }
+  .tableScroll tbody th { margin-bottom: 10px; font-family: var(--vistaire-font-display); font-size: 20px; font-weight: 400; }
+  .tableScroll td + td { margin-top: 10px; }
+  .tableScroll td::before { content: attr(data-label); display: block; color: var(--preview-champagne); font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; }
+}

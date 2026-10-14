@@ -422,8 +422,12 @@ function baseComposition(state, mobile) {
   return pose;
 }
 
-function composition(state, mobile) {
-  return sectionTransitionComposition(state, mobile, baseComposition);
+// The landing's own sections keep their authored layering; every other shot
+// shows its objects side by side.
+const LANDING_SECTIONS = new Set(["hero", "ai", "wearable", "features", "encryption", "grip", "sustainability", "testimonies", "social-content", "product", "open-weight", "footer"]);
+
+function composition(state, mobile, base = baseComposition) {
+  return sectionTransitionComposition(state, mobile, base);
 }
 
 function disposeTree(root) {
@@ -1201,7 +1205,30 @@ export default function Scene({
       solidBoxes.set(model, bounds);
       return bounds;
     }
-    function separateSolids(pose) {
+    // Box corners projected on one view axis: [min, max].
+    function axisSpan(box, axis) {
+      let min = Infinity, max = -Infinity;
+      for (const x of [box.min.x, box.max.x])
+        for (const y of [box.min.y, box.max.y])
+          for (const z of [box.min.z, box.max.z]) {
+            const d = x * axis.x + y * axis.y + z * axis.z;
+            min = Math.min(min, d);
+            max = Math.max(max, d);
+          }
+      return [min, max];
+    }
+    const viewForward = new THREE.Vector3();
+    const viewRight = new THREE.Vector3();
+    const viewUp = new THREE.Vector3();
+    const worldUp = new THREE.Vector3(0, 1, 0);
+    // inView: objects must also stand side by side as the camera sees them,
+    // never one hiding another (page shots; the landing keeps its layering).
+    function separateSolids(pose, inView = false) {
+      if (inView) {
+        viewForward.fromArray(pose.look).sub(solidPosition.fromArray(pose.camera)).normalize();
+        viewRight.crossVectors(viewForward, worldUp).normalize();
+        viewUp.crossVectors(viewRight, viewForward);
+      }
       const solids = [
         ["dish", activeDish ? dishLocalBounds : null],
         ["support", modelBounds(supportRoot, supportAssets.active)],
@@ -1234,6 +1261,19 @@ export default function Scene({
           }
           if (clear) break;
         }
+        for (let pass = 0; inView && pass < 3; pass++) {
+          let clear = true;
+          for (const other of placed) {
+            const [aMin, aMax] = axisSpan(box, viewRight), [bMin, bMax] = axisSpan(other, viewRight);
+            const [cMin, cMax] = axisSpan(box, viewUp), [dMin, dMax] = axisSpan(other, viewUp);
+            const overlapRight = Math.min(aMax, bMax) - Math.max(aMin, bMin) + 0.1;
+            if (overlapRight <= 0 || Math.min(cMax, dMax) - Math.max(cMin, dMin) <= 0) continue;
+            clear = false;
+            const side = aMin + aMax >= bMin + bMax ? 1 : -1;
+            box.translate(solidPosition.copy(viewRight).multiplyScalar(side * overlapRight));
+          }
+          if (clear) break;
+        }
         const dx = box.min.x - startX, dz = box.min.z - startZ;
         if (dx || dz) {
           pose[name] = [pose[name][0] + dx, pose[name][1], pose[name][2] + dz];
@@ -1243,9 +1283,16 @@ export default function Scene({
       }
       if (diagnosticsEnabled) canvas.dataset.separated = moved.join(",");
     }
+    // Each shot's own pose is separated before any blend, so a transition
+    // between a layered landing shot and a page shot never jumps.
+    const separatedBase = (sample, viewport) => {
+      const pose = baseComposition(sample, viewport);
+      separateSolids(pose, !LANDING_SECTIONS.has(sample.section));
+      return pose;
+    };
     const initialState = stateRef.current || { section: "hero", progress: 0 };
     ensureLaptop(initialState);
-    const initial = composition(initialState, mobileViewport());
+    const initial = composition(initialState, mobileViewport(), separatedBase);
     camera.position.fromArray(initial.camera);
     camera.up.set(0, 1, 0);
     lookAt.fromArray(initial.look);
@@ -1346,7 +1393,7 @@ export default function Scene({
         },
         mobileViewport(),
       );
-      separateSolids(pose);
+      separateSolids(pose, !LANDING_SECTIONS.has(section));
       let focus = state.sceneFrames?.[section] || fallbackFocus;
       if (openingP != null) {
         const a =
@@ -1815,7 +1862,7 @@ export default function Scene({
           activeDish.updateMatrixWorld(true);
         }
       }
-      const pose = composition(state, mobileViewport());
+      const pose = composition(state, mobileViewport(), separatedBase);
       const tableSurfaceY = nativeTable?.metadata.surfaceY ?? -0.02;
       if (activeDish) {
         targetEuler.set(...pose.dishRotation);
@@ -1824,7 +1871,8 @@ export default function Scene({
           dishLocalBounds, targetQuaternion, pose.dishScale, tableSurfaceY,
         ));
       }
-      separateSolids(pose);
+      // No separation of the blend itself: an object fading out (the grip dish)
+      // would shove the one fading in (the laptop) sideways and back.
       const pointer = state.pointer || { x: 0, y: 0 };
       const cameraInteractive = false;
       cameraTarget.fromArray(pose.camera);

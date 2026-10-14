@@ -1036,3 +1036,22 @@ test('a desktop wheel past the last stop stays native so the content below remai
   assert.equal(event.defaultPrevented, false, 'no stop ahead: the browser scrolls');
   f.assist.dispose();
 });
+
+test('a touch fling up out of a page guide stops at the guide head; the next swipe returns one chapter', () => {
+  const f = fixture(), product = f.bounds.transitions.find(join => join.to.id === 'product').end;
+  const natural = product + 1200;
+  f.bounds.naturalFrom = natural;
+  f.move(natural + 1500); f.advance(500);
+  f.input('touchstart', { touches: [{ clientY: 400 }] });
+  f.advance(16); f.input('touchmove', { touches: [{ clientY: 430 }] }); f.move(natural + 1470);
+  f.input('touchend', { touches: [] });
+  // Native momentum would otherwise race through several chapters.
+  for (let y = natural + 1470; y > natural - 3000; y -= 60) { f.advance(16); f.move(y - 60); }
+  f.advance(16); f.end(); f.advance(6000);
+  assert.equal(f.view.scrollY, natural, 'upward momentum stops at the guide head');
+  f.input('touchstart', { touches: [{ clientY: 400 }] });
+  f.advance(16); f.input('touchmove', { touches: [{ clientY: 430 }] }); f.move(natural - 30);
+  f.input('touchend', { touches: [] }); f.advance(6000);
+  assert.equal(f.view.scrollY, product, 'from the guide head, one swipe returns to the last chapter stop');
+  f.assist.dispose();
+});

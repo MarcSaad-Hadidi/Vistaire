@@ -106,7 +106,8 @@ test("six bilingual guides render complete, crawlable editorial pages", async ({
         await checklist.getByRole("button", { name: /réinitialiser la liste|reset the checklist/i }).click();
         await expect(firstCheck).not.toBeChecked();
       }
-      await expect(page.getByRole("navigation", { name: /fil d’ariane|breadcrumb/i })).toBeVisible();
+      // Breadcrumbs live in BreadcrumbList JSON-LD only, never as visible page chrome.
+      await expect(page.getByRole("navigation", { name: /fil d’ariane|breadcrumb/i })).toHaveCount(0);
       await expect(page.locator("article")).toBeVisible();
       expect(await page.locator("article h2").count()).toBeGreaterThanOrEqual(7);
       await expect(page.locator("article li")).not.toHaveCount(0);

@@ -154,8 +154,11 @@ export function createEntryScrollAssist({ getGeometry, isBlocked }, view = windo
     const y = view.scrollY;
     const plan = route(y, inputY ?? y, direction);
     if (plan.native) {
-      const { reading } = plan;
+      const { reading, naturalFrom } = plan;
       if (reading && y > reading.start - 1 && y < reading.end + 1) readingGuard = { start: reading.start, end: reading.end };
+      // A fling up out of a page's guide/FAQ stops at the guide's head instead
+      // of racing through several chapters; the next gesture returns one chapter.
+      else if (naturalFrom != null && direction < 0 && y > naturalFrom + 1) readingGuard = { start: naturalFrom, end: Infinity };
       if (diagnostics) report("settle-return", event, { reason: "pricing-reading", direction });
       return;
     }
@@ -190,7 +193,7 @@ export function createEntryScrollAssist({ getGeometry, isBlocked }, view = windo
     } else native = pricing != null && y > pricing + 1;
     // Pages end with free reading (guide, FAQ, footer): no stop below it.
     if (naturalFrom != null && y > naturalFrom + 1) native = true;
-    if (native) return { native: true, reading };
+    if (native) return { native: true, reading, naturalFrom };
     // Match App's authored navigation anchors, including AI's hold midpoint.
     // External navigation poses are the measured incoming handoff ends.
     const stops = [
@@ -387,7 +390,8 @@ export function createEntryScrollAssist({ getGeometry, isBlocked }, view = windo
     if (diagnostics) report("touch-release", event);
   };
   const reset = source => { cancel(source); readingGuard = null; touching = false; touchY = null; touchStart = null; heldKey = null; pointerHeld = false; };
-  const pointerdown = event => { pointerHeld = true; cancel(event); };
+  // A press may follow a link that scrolls the page: no edge guard survives it.
+  const pointerdown = event => { pointerHeld = true; readingGuard = null; cancel(event); };
   const pointerup = () => {
     pointerHeld = false;
     if (gesture) gesture.at = view.performance.now();

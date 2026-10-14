@@ -142,7 +142,7 @@ function GuideChapter({ section, index, layout = "quiet" }: { section: Editorial
     <div className={styles.sectionHeading}><p className={styles.sectionNumber}>{String(index + 1).padStart(2, "0")}</p><h2>{section.title}</h2></div>
     <div className={styles.sectionContent}>{section.paragraphs.map((paragraph) => <p key={paragraph}>{paragraph}</p>)}{section.bullets ? <ul className={styles.criteria}>{section.bullets.map((item) => <li key={item}>{item}</li>)}</ul> : null}</div>
     {section.table ? <div aria-label={section.table.caption} className={styles.tableScroll} data-guide-table-scroll role="region" tabIndex={0}>
-      <table><caption>{section.table.caption}</caption><thead><tr>{section.table.headers.map((header) => <th key={header} scope="col">{header}</th>)}</tr></thead><tbody>{section.table.rows.map((row) => <tr key={row[0]}><th scope="row">{row[0]}</th><td>{row[1]}</td><td>{row[2]}</td></tr>)}</tbody></table>
+      <table><caption>{section.table.caption}</caption><thead><tr>{section.table.headers.map((header) => <th key={header} scope="col">{header}</th>)}</tr></thead><tbody>{section.table.rows.map((row) => <tr key={row[0]}><th scope="row">{row[0]}</th><td data-label={section.table?.headers[1]}>{row[1]}</td><td data-label={section.table?.headers[2]}>{row[2]}</td></tr>)}</tbody></table>
     </div> : null}
   </section>;
 }
@@ -159,7 +159,6 @@ const GUIDE_SCENES = {
 export function VistaireEditorialGuide({ guide }: { guide: EditorialGuide }) {
   const isEnglish = guide.locale === "en";
   const homePath = isEnglish ? "/en" : "/";
-  const breadcrumbHome = isEnglish ? "Home" : "Accueil";
   const presentation = getEditorialGuidePresentation(guide.key, guide.locale);
   const variant = presentation.guideVariant;
   const guideVariantClass = variant === "journey" ? styles.pageJourney : variant === "decision" ? styles.pageDecision : styles.pageAnatomy;
@@ -173,7 +172,6 @@ export function VistaireEditorialGuide({ guide }: { guide: EditorialGuide }) {
       titleId: "guide-title",
       content: (
         <>
-          <nav aria-label={isEnglish ? "Breadcrumb" : "Fil d’Ariane"} className="cinematic-breadcrumb"><Link href={homePath}>{breadcrumbHome}</Link><span aria-hidden="true">/</span><span aria-current="page">{guide.h1}</span></nav>
           <span className="eyebrow">{guide.eyebrow}</span>
           <h1 id="guide-title">{guide.h1}</h1>
           <p>{guide.dek}</p>
@@ -219,7 +217,7 @@ export function VistaireEditorialGuide({ guide }: { guide: EditorialGuide }) {
       <JsonLd data={[
         buildWebPageJsonLd({ path: guide.path, name: guide.h1, description: guide.metadataDescription, locale: guide.locale }),
         buildArticleJsonLd({ path: guide.path, headline: guide.h1, description: guide.metadataDescription, locale: guide.locale, image: guideSocial(guide).twitter[0] }),
-        buildBreadcrumbJsonLd([{ name: breadcrumbHome, path: homePath }, { name: guide.h1, path: guide.path }]),
+        buildBreadcrumbJsonLd([{ name: isEnglish ? "Home" : "Accueil", path: homePath }, { name: guide.h1, path: guide.path }]),
       ]} />
       <CinematicPage chapters={chapters} scene={scene} footer={<CinematicFooter locale={guide.locale} id={`guide-${variant}`} />} mainProps={{ "data-seo-experience": `guide-${variant}`, "data-guide-variant": variant }}>
         <div className={`${styles.page} ${guideVariantClass} cinematic-article-sheet`} data-public-vistaire>
@@ -247,10 +245,10 @@ export function VistaireEditorialGuide({ guide }: { guide: EditorialGuide }) {
               </form> : variant === "anatomy" ? <details className={styles.checklistDisclosure} open><summary>{isEnglish ? "Review the reference points" : "Revoir les points de référence"}</summary>{checklistItems}</details> : checklistItems}
             </section>
             <section className={styles.related} aria-labelledby="related-guides-title">
-              <div className={styles.sectionHeading}><p className={styles.sectionNumber}>↗</p><h2 id="related-guides-title">{guide.relatedTitle}</h2></div>
-              <div className={styles.relatedGrid}>{guide.relatedPaths.map((path, index) => <Link href={path} key={path} prefetch={false}><span className={styles.relatedCardMeta}>{String(index + 1).padStart(2, "0")} · {relatedCardMeta(path, guide)}</span><span className={styles.relatedCardTitle}>{relatedLabel(path, guide)}</span><span className={styles.relatedCardAction}>{relatedCardAction(path, guide)}<span aria-hidden="true" className={styles.relatedArrow}>↗</span></span></Link>)}</div>
+              <div className={styles.sectionHeading}><p className={styles.sectionNumber}>{"↗︎"}</p><h2 id="related-guides-title">{guide.relatedTitle}</h2></div>
+              <div className={styles.relatedGrid}>{guide.relatedPaths.map((path, index) => <Link href={path} key={path} prefetch={false}><span className={styles.relatedCardMeta}>{String(index + 1).padStart(2, "0")} · {relatedCardMeta(path, guide)}</span><span className={styles.relatedCardTitle}>{relatedLabel(path, guide)}</span><span className={styles.relatedCardAction}>{relatedCardAction(path, guide)}<span aria-hidden="true" className={styles.relatedArrow}>{"↗︎"}</span></span></Link>)}</div>
             </section>
-            <section className={styles.cta} aria-label={guide.cta.eyebrow}><div><p className={styles.eyebrow}>{guide.cta.eyebrow}</p><h2>{guide.cta.title}</h2><p>{guide.cta.text}</p></div><Link className={styles.ctaButton} href={guide.cta.href} prefetch={false}>{guide.cta.label}<span aria-hidden="true">↗</span></Link></section>
+            <section className={styles.cta} aria-label={guide.cta.eyebrow}><div><p className={styles.eyebrow}>{guide.cta.eyebrow}</p><h2>{guide.cta.title}</h2><p>{guide.cta.text}</p></div><Link className={styles.ctaButton} href={guide.cta.href} prefetch={false}>{guide.cta.label}<span aria-hidden="true">{"↗︎"}</span></Link></section>
           </div></article>
         </div>
       </CinematicPage>

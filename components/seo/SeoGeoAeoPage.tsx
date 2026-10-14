@@ -214,7 +214,7 @@ export function SeoGeoAeoPage({ page }: { page: SeoGeoPageData }) {
               </thead>
               <tbody>
                 {page.comparison.rows.map((row) => (
-                  <tr key={row.label}><th scope="row">{text(row.label)}</th><td>{text(row.basic)}</td><td>{text(row.vistaire)}</td></tr>
+                  <tr key={row.label}><th scope="row">{text(row.label)}</th><td data-label={text(page.comparison.basicLabel)}>{text(row.basic)}</td><td data-label={text(page.comparison.vistaireLabel)}>{text(row.vistaire)}</td></tr>
                 ))}
               </tbody>
             </table>

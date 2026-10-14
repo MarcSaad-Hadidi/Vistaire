@@ -35,7 +35,7 @@ export function CinematicGuide({ page }: { page: SeoPageData }) {
             </thead>
             <tbody>
               {page.comparison.rows.map((row) => (
-                <tr key={row.label}><th scope="row">{row.label}</th><td>{row.before}</td><td>{row.after}</td></tr>
+                <tr key={row.label}><th scope="row">{row.label}</th><td data-label={page.comparison.beforeLabel}>{row.before}</td><td data-label={page.comparison.afterLabel}>{row.after}</td></tr>
               ))}
             </tbody>
           </table>

@@ -51,10 +51,42 @@
   line-height: 1.55;
   color: var(--muted);
 }
-:where(.cinematic-page[data-immersive-vistaire]) .cinematic-copy ul {
+/* Short point lists (copy cards and guide panels) read as a list, never as
+   loose lines: left-aligned, an amber marker, a capital first letter. */
+:where(.cinematic-page[data-immersive-vistaire]) :is(.cinematic-copy, .cinematic-panel) :is(ul, ol) {
   display: grid;
-  gap: 8px;
-  padding-left: 1.1em;
+  gap: 10px;
+  margin: 0;
+  padding: 14px 0 0;
+  border-top: 1px solid color-mix(in srgb, var(--cream) 16%, transparent);
+  text-align: left;
+  counter-reset: cinematic-point;
+}
+:where(.cinematic-page[data-immersive-vistaire]) :is(.cinematic-copy, .cinematic-panel) :is(ul, ol) > li {
+  position: relative;
+  padding-left: 22px;
+  counter-increment: cinematic-point;
+}
+:where(.cinematic-page[data-immersive-vistaire]) :is(.cinematic-copy, .cinematic-panel) :is(ul, ol) > li::first-letter { text-transform: uppercase; }
+:where(.cinematic-page[data-immersive-vistaire]) :is(.cinematic-copy, .cinematic-panel) ul > li::before {
+  content: "";
+  position: absolute;
+  left: 2px;
+  top: 0.62em;
+  width: 6px;
+  height: 6px;
+  background: var(--amber);
+  transform: rotate(45deg);
+}
+:where(.cinematic-page[data-immersive-vistaire]) :is(.cinematic-copy, .cinematic-panel) ol > li { padding-left: 30px; }
+:where(.cinematic-page[data-immersive-vistaire]) :is(.cinematic-copy, .cinematic-panel) ol > li::before {
+  content: counter(cinematic-point, decimal-leading-zero);
+  position: absolute;
+  left: 0;
+  top: 0.35em;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  color: var(--amber);
 }
 :where(.cinematic-page[data-immersive-vistaire]) .cinematic-actions {
   display: flex;
@@ -129,6 +161,7 @@
   display: grid;
   gap: 14px;
   margin: 0;
+  text-align: left;
 }
 :where(.cinematic-page[data-immersive-vistaire]) .cinematic-compare > div {
   display: grid;
@@ -146,10 +179,10 @@
   font-size: 14px;
   color: var(--muted);
 }
+/* The side label sits on its own line above its text: every row aligns. */
 :where(.cinematic-page[data-immersive-vistaire]) .cinematic-compare dd span {
-  display: inline-block;
-  min-width: 92px;
-  margin-right: 8px;
+  display: block;
+  margin-bottom: 2px;
   font-size: 10px;
   letter-spacing: 0.12em;
   text-transform: uppercase;
@@ -198,7 +231,6 @@
   line-height: 1.6;
   color: var(--muted);
 }
-:where(.cinematic-page[data-immersive-vistaire]) .cinematic-panel ul { display: grid; gap: 8px; padding-left: 1.1em; }
 :where(.cinematic-page[data-immersive-vistaire]) .cinematic-guide-sections {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr));
@@ -274,9 +306,21 @@
 }
 @media (max-width: 767.98px) {
   :where(.cinematic-page[data-immersive-vistaire]) .cinematic-faq { grid-template-columns: minmax(0, 1fr); gap: 24px; }
-  :where(.cinematic-page[data-immersive-vistaire]) .cinematic-table { font-size: 13px; }
-  :where(.cinematic-page[data-immersive-vistaire]) .cinematic-table th,
-  :where(.cinematic-page[data-immersive-vistaire]) .cinematic-table td { padding: 10px 6px; }
+  /* Phones read each row as a stacked card: the whole table, no sideways scroll. */
+  :where(.cinematic-page[data-immersive-vistaire]) .cinematic-table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  :where(.cinematic-page[data-immersive-vistaire]) .cinematic-table :is(tr, tbody th, td) { display: block; }
+  :where(.cinematic-page[data-immersive-vistaire]) .cinematic-table tbody tr { padding: 14px 0; border-top: 1px solid #f8f3e81f; }
+  :where(.cinematic-page[data-immersive-vistaire]) .cinematic-table :is(tbody th, td) { padding: 0; border-top: 0; }
+  :where(.cinematic-page[data-immersive-vistaire]) .cinematic-table tbody th { margin-bottom: 8px; }
+  :where(.cinematic-page[data-immersive-vistaire]) .cinematic-table td + td { margin-top: 8px; }
+  :where(.cinematic-page[data-immersive-vistaire]) .cinematic-table td::before {
+    content: attr(data-label);
+    display: block;
+    font-size: 11px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--amber);
+  }
 }
 @media (max-width: 1050px) {
   /* Stacked copy can run over the bright tablecloth: a glass card keeps it
@@ -373,14 +417,6 @@
   font-weight: 400;
   color: var(--cream);
 }
-:where(.cinematic-page[data-immersive-vistaire]) .cinematic-breadcrumb {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  font-size: 12px;
-  color: var(--muted);
-}
-:where(.cinematic-page[data-immersive-vistaire]) .cinematic-breadcrumb a { color: var(--cream); }
 /* Booking form: free reading, never pinned or faded. */
 :where(.cinematic-page[data-immersive-vistaire]) .cinematic-form {
   width: min(760px, 100%);

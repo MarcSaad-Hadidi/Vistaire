@@ -151,7 +151,7 @@ export function DemoWalkthroughVideo({
             if (video) void video.play().catch(() => setPlaybackBlocked(true));
           }}
         >
-          <span aria-hidden="true">▶</span> {playLabel}
+          <span aria-hidden="true">{"▶︎"}</span> {playLabel}
         </button>
       )}
     </div>
