@@ -295,5 +295,77 @@
     "sha256": [
       "87fe9dffc63b75e77e283a585ac97ecb1198118d323ca99bbf2916e88b13ef8e"
     ]
+  },
+  {
+    "path": "public/immersive-assets/dishes/lod/huitres-mobile-q.glb",
+    "owner": "MarcSaad-Hadidi",
+    "reason": "User-requested scene load optimization: scene-only copy of the previous runtime by gltf-transform optimize (weld, simplify ratio 0.5 error 0.0008, vertex quantization, meshopt, webp textures capped at 1024px). The previous file stays for AR, framing hulls and rollback.",
+    "maxBytes": 1306604,
+    "sha256": [
+      "629ffe291a928526ac7db26a6d9abcc893b34f3f6feb4da4a34ee906a1855ffd"
+    ]
+  },
+  {
+    "path": "public/immersive-assets/dishes/lod/burger-mobile-q.glb",
+    "owner": "MarcSaad-Hadidi",
+    "reason": "User-requested scene load optimization: scene-only copy of the previous runtime by gltf-transform optimize (weld, simplify ratio 0.5 error 0.0008, vertex quantization, meshopt, webp textures capped at 1024px). The previous file stays for AR, framing hulls and rollback.",
+    "maxBytes": 1378256,
+    "sha256": [
+      "08b2fbaae5dd9bbbb2ff3586670367457664417e18a9a71327d1029285eac2ee"
+    ]
+  },
+  {
+    "path": "public/immersive-assets/dishes/lod/chocolat-fume-mobile-q.glb",
+    "owner": "MarcSaad-Hadidi",
+    "reason": "User-requested scene load optimization: scene-only copy of the previous runtime by gltf-transform optimize (weld, simplify ratio 0.5 error 0.0008, vertex quantization, meshopt, webp textures capped at 1024px). The previous file stays for AR, framing hulls and rollback.",
+    "maxBytes": 726020,
+    "sha256": [
+      "1d9e362d2a8403fb349214ecf0442f34937b5c908a977cb7f8cf7acd09695a0b"
+    ]
+  },
+  {
+    "path": "public/immersive-assets/dishes/lod/homard-mobile-q.glb",
+    "owner": "MarcSaad-Hadidi",
+    "reason": "User-requested scene load optimization: scene-only copy of the previous runtime by gltf-transform optimize (weld, simplify ratio 0.5 error 0.0008, vertex quantization, meshopt, webp textures capped at 1024px). The previous file stays for AR, framing hulls and rollback.",
+    "maxBytes": 1145892,
+    "sha256": [
+      "f7911757778f9a4630e718e2eb346f7ba57d33cd46c1c97364581ca2b1079d7c"
+    ]
+  },
+  {
+    "path": "public/immersive-assets/dishes/lod/poutine-mobile-q.glb",
+    "owner": "MarcSaad-Hadidi",
+    "reason": "User-requested scene load optimization: scene-only copy of the previous runtime by gltf-transform optimize (weld, simplify ratio 0.5 error 0.0008, vertex quantization, meshopt, webp textures capped at 1024px). The previous file stays for AR, framing hulls and rollback.",
+    "maxBytes": 694172,
+    "sha256": [
+      "5a30d7a2b42b7cb453303d0038766ea113264b9ff0ff64042332b4ac1f7a76fd"
+    ]
+  },
+  {
+    "path": "public/immersive-assets/dishes/lod/sushi-mobile-q.glb",
+    "owner": "MarcSaad-Hadidi",
+    "reason": "User-requested scene load optimization: scene-only copy of the previous runtime by gltf-transform optimize (weld, simplify ratio 0.5 error 0.0008, vertex quantization, meshopt, webp textures capped at 1024px). The previous file stays for AR, framing hulls and rollback.",
+    "maxBytes": 930124,
+    "sha256": [
+      "34416f541614d4ac502e8eb7fdb0f38e09a466f24814e4273f38824a963869c9"
+    ]
+  },
+  {
+    "path": "public/immersive-assets/dishes/homard-scene-q.glb",
+    "owner": "MarcSaad-Hadidi",
+    "reason": "User-requested scene load optimization: scene-only copy of the previous runtime by gltf-transform optimize (weld, simplify ratio 0.5 error 0.0008, vertex quantization, meshopt, webp textures capped at 1024px). The previous file stays for AR, framing hulls and rollback.",
+    "maxBytes": 2478220,
+    "sha256": [
+      "a7af0058752095a403c0caf856ab4aa2024e62733de0bee24f6669fe255118dc"
+    ]
+  },
+  {
+    "path": "public/immersive-assets/dishes/souffle-scene-q.glb",
+    "owner": "MarcSaad-Hadidi",
+    "reason": "User-requested scene load optimization: scene-only copy of the previous runtime by gltf-transform optimize (weld, simplify ratio 0.5 error 0.0008, vertex quantization, meshopt, webp textures capped at 1024px). The previous file stays for AR, framing hulls and rollback.",
+    "maxBytes": 1103392,
+    "sha256": [
+      "277c0266479402d22156fe4bb8fd91c633143eb49e88433e5266bb6ca66b6fb6"
+    ]
   }
 ]

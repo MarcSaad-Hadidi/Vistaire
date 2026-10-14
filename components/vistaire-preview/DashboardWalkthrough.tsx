@@ -15,6 +15,7 @@ export function DashboardWalkthrough({ locale }: { locale: Locale }) {
           poster="/images/demo-walkthrough/dashboard-studio-3x.webp"
           autoPlay
           disablePictureInPicture
+          playbackRate={2}
           sizes="(max-width: 700px) 94vw, (max-width: 1280px) 80vw, 1166px"
         />
       </div>

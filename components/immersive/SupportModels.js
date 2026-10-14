@@ -1,7 +1,7 @@
 import { publicModelBaseUrl, resolvePublicModelUrl } from "../../lib/publicModelAssets.ts";
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
-import { DRACOLoader } from "three/examples/jsm/loaders/DRACOLoader.js";
+import { sharedDraco } from "./sharedDraco.js";
 
 export const supportModels = {
   acrylique: resolvePublicModelUrl("immersive.support.acrylique"),
@@ -18,15 +18,13 @@ export function createSupportModels({
   disposeTree,
   onInvalidate,
   onError,
+  onModel,
 }) {
   const root = new THREE.Group();
   const groups = {};
   const requests = [];
   const loading = new Map();
-  const draco = new DRACOLoader()
-    .setDecoderPath("/immersive-assets/draco/")
-    .setDecoderConfig({ type: "wasm" })
-    .setWorkerLimit(1);
+  const draco = sharedDraco();
   const loader = new GLTFLoader().setDRACOLoader(draco);
   let disposed = false;
   let collection = "acrylique";
@@ -103,6 +101,7 @@ export function createSupportModels({
       groups[id] = group;
       root.add(group);
       attached = true;
+      onModel?.(group);
       if (id === collection) {
         select(collection);
         onInvalidate?.();

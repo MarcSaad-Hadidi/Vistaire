@@ -11,7 +11,8 @@ export function DemoWalkthroughVideo({
   disablePictureInPicture = false,
   autoPlay = true,
   playLabel = "Play video",
-  sizes = "(max-width: 760px) 80vw, 340px"
+  sizes = "(max-width: 760px) 80vw, 340px",
+  playbackRate = 1
 }: {
   label: string;
   poster: string;
@@ -21,6 +22,7 @@ export function DemoWalkthroughVideo({
   autoPlay?: boolean;
   playLabel?: string;
   sizes?: string;
+  playbackRate?: number;
 }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [decoded, setDecoded] = useState(false);
@@ -30,6 +32,9 @@ export function DemoWalkthroughVideo({
     const video = videoRef.current;
     if (!video) return;
 
+    // A new source restarts at defaultPlaybackRate: set both.
+    video.defaultPlaybackRate = playbackRate;
+    video.playbackRate = playbackRate;
     const motion = window.matchMedia("(prefers-reduced-motion: reduce)");
     let isIntersecting = false;
     let userPaused = false;
@@ -108,7 +113,7 @@ export function DemoWalkthroughVideo({
       observer.disconnect();
       releaseVideo();
     };
-  }, [src, controls, autoPlay]);
+  }, [src, controls, autoPlay, playbackRate]);
 
   return (
     <div className="public-film-frame">

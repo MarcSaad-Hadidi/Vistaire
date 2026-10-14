@@ -20,12 +20,15 @@ function presence(p, mode) {
 
 const KEYS = { dish: "dish", phone: "phone", pdf: "pdfPhone", stand: "support", laptop: "laptop" };
 
-function place(pose, name, spec, p, mobile, calibrating) {
+function place(pose, name, spec, p, mobile, calibrating, azimuth) {
   const key = KEYS[name];
   const { at, scale = 1, flat = false, yaw = 0, turn = 0, swap, lift = 0, tilt = -0.04 } = spec;
   const x = at[0] * (mobile ? 0.62 : 1), z = at[1];
   const s = scale * (mobile ? 0.9 : 1) * (swap && !calibrating ? presence(p, swap) : 1);
-  const angle = yaw + turn * p;
+  // An upright phone or stand always shows its face to the camera: its yaw
+  // stays within 0.4 rad of the view azimuth, turning included.
+  const facing = !flat && (name === "phone" || name === "pdf" || name === "stand");
+  const angle = facing ? azimuth + Math.max(-0.4, Math.min(0.4, yaw + turn * p - azimuth)) : yaw + turn * p;
   let position, rotation;
   if (name === "dish") {
     position = [x, 0.02 + lift, z];
@@ -149,6 +152,6 @@ export function pageShot(section, p, mobile, calibrating = false) {
     ],
   };
   for (const name of Object.keys(KEYS))
-    if (shot[name]) place(pose, name, shot[name], p, mobile, calibrating);
+    if (shot[name]) place(pose, name, shot[name], p, mobile, calibrating, azimuth);
   return pose;
 }

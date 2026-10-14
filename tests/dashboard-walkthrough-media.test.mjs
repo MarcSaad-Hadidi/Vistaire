@@ -18,6 +18,8 @@ test("the shared dashboard walkthrough uses the approved baked-3x media at nativ
   assert.match(player, /\splaysInline\s/);
   assert.match(source, /\sdisablePictureInPicture\s/);
   assert.match(styles, /\.dashboardScreen\s*\{[^}]*pointer-events:\s*none/s);
-  assert.doesNotMatch(source + player, /(?:defaultPlaybackRate|playbackRate)\s*[:=]\s*(?!1\b)\d/);
+  // The Studio walkthrough plays at twice its recorded speed (user request).
+  assert.match(source, /playbackRate=\{2\}/);
+  assert.match(player, /playbackRate = 1\r?\n/);
   assert.match(styles, /aspect-ratio:\s*1166\s*\/\s*756/);
 });

@@ -273,7 +273,8 @@ for (const scenario of scenarios) {
     expect(await video.evaluate(element => (element as HTMLVideoElement).muted)).toBe(true);
     await expect.poll(() => video.evaluate(element => (element as HTMLVideoElement).currentTime)).toBeGreaterThan(.2);
     expect(await video.evaluate(element => (element as HTMLVideoElement).duration)).toBeCloseTo(137.9, 1);
-    expect(await video.evaluate(element => (element as HTMLVideoElement).playbackRate)).toBe(1);
+    // The Studio walkthrough plays at twice its recorded speed.
+    expect(await video.evaluate(element => (element as HTMLVideoElement).playbackRate)).toBe(2);
     expect(await video.evaluate(element => [(element as HTMLVideoElement).videoWidth, (element as HTMLVideoElement).videoHeight])).toEqual([1166, 756]);
     const beforeClick = await video.evaluate(element => (element as HTMLVideoElement).currentTime);
     await page.mouse.click(box!.x + box!.width / 2, box!.y + box!.height / 2);

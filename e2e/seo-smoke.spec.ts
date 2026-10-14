@@ -465,7 +465,9 @@ test.describe("Vistaire SEO smoke", () => {
       await expect(page.getByRole('alertdialog')).toContainText('L’expérience 3D est indisponible.');
       await expect(page.locator('.fallback-film, .world-fallback')).toHaveCount(0);
       await expect(page.locator(".preloader")).toHaveCount(0);
-      await expectNoEarlyModelAssets(page);
+      // The HTML preloads the room and phone for WebGL visitors; AR models
+      // (USDZ) still never load without intent.
+      await expectNoEarlyModelAssets(page, { room: true });
 
       const menu = page.getByRole('alertdialog').getByRole('link', { name: 'Explorer la carte' });
       await expect(menu).toHaveAttribute('href', '/demo');

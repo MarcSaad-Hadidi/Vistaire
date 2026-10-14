@@ -1124,16 +1124,23 @@
 .studioDemo[data-presentation="pilotage"] {
   height: 600px;
   pointer-events: none;
+  container-type: inline-size;
 }
+/* The scaled Studio always fills its frame, whatever the frame's width. */
 .studioDemo[data-presentation="pilotage"] > :global([data-admin-studio]) {
-  width: 1120px;
-  transform: scale(.55);
+  width: calc(100cqw / .78);
+  transform: scale(.78);
   transform-origin: top left;
+}
+@container (max-width: 800px) {
+  .studioDemo[data-presentation="pilotage"] > :global([data-admin-studio]) {
+    width: calc(100cqw / .55);
+    transform: scale(.55);
+  }
 }
 @media (max-width: 650px) {
   .studioDemo > :global([data-admin-studio]) { min-height: 0; }
   .studioDemo[data-presentation="pilotage"] { height: 470px; }
-  .studioDemo[data-presentation="pilotage"] > :global([data-admin-studio]) { width: 900px; transform: scale(.4); }
 }
 .studioDemo :global(aside) {
   position: static;

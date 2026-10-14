@@ -138,7 +138,7 @@ test('Model hook reuses its sole download, rejects wrong bytes and ignores dispo
       .replace('from "three"',`from ${JSON.stringify(new URL('../node_modules/three/build/three.module.js',import.meta.url).href)}`)
       .replace(/^import .*RestaurantFog.*;$/m,'const applyLinearRestaurantFog=()=>{};')
       .replace(/^import .*GLTFLoader.*;$/m,'class GLTFLoader { setDRACOLoader(){return this;} async parseAsync(){return {scene:globalThis.__restaurantCropLifecycle.model};} }')
-      .replace(/^import .*DRACOLoader.*;$/m,'class DRACOLoader { setDecoderPath(){return this;} setDecoderConfig(){return this;} setWorkerLimit(){return this;} dispose(){} }')
+      .replace(/^import .*sharedDraco.*;$/m,'const sharedDraco=()=>({ dispose(){} });')
       .replace(/^import .*RestaurantWorld.*;$/m,'const createRestaurantJourney=()=>({});')
       .replace('import("./RestaurantIndexCrop.js")','Promise.resolve(globalThis.__restaurantCropLifecycle.helper)')
       .replace('import("./restaurant-index-crop.json")','Promise.resolve({default:globalThis.__restaurantCropLifecycle.certificate})')

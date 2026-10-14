@@ -5,6 +5,8 @@
 // a Scene shot (see Scene.jsx baseComposition) and carries server-rendered copy;
 // the page's free-reading content (guide, FAQ, footer) follows as children.
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
+import { preload } from "react-dom";
+import { resolvePublicModelUrl } from "../../lib/publicModelAssets.ts";
 import { createEntryScrollAssist } from "./EntryScrollAssist.js";
 import { bindJourneyViewport } from "./JourneyViewport.js";
 import {
@@ -21,6 +23,13 @@ const Scene = lazy(() => import("./Scene.jsx"));
 const clamp = (value) => Math.max(0, Math.min(1, value));
 
 export function CinematicPage({ chapters, scene = {}, children, footer, mainProps }) {
+  // The room and phone download with the HTML, not after the lazy scene chunk;
+  // the scene's own fetches reuse them (same URL and CORS mode).
+  for (const id of ["immersive.restaurant.visible.textures-512", "immersive.phone"])
+    preload(resolvePublicModelUrl(id), { as: "fetch", crossOrigin: "anonymous" });
+  // The Draco decoder the room needs, fetched by three's FileLoader.
+  for (const file of ["draco_wasm_wrapper.js", "draco_decoder.wasm"])
+    preload(`/immersive-assets/draco/${file}`, { as: "fetch", crossOrigin: "anonymous" });
   // Each page shows its own dish, stand and one restaurant's menu on every
   // phone shot (pagePhoneDemo, unlike the landing's demo picker).
   const { phoneDemo = "maison-elyse", ...objects } = scene;
@@ -108,7 +117,8 @@ export function CinematicPage({ chapters, scene = {}, children, footer, mainProp
       transitions = measurePageTransitions(measurements, stageHeight);
       naturalTop = naturalRef.current ? naturalRef.current.getBoundingClientRect().top + scrollY : Infinity;
       // The guide's head arrives just below the fixed navigation bar.
-      const guide = naturalRef.current?.firstElementChild?.getBoundingClientRect();
+      // The first rendered block (a page's JSON-LD script has no box).
+      const guide = naturalRef.current?.querySelector(":scope > :not(script)")?.getBoundingClientRect();
       guideStop = guide ? guide.top + scrollY - 104 : null;
     };
     const update = (now) => {

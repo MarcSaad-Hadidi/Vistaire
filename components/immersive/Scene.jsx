@@ -686,12 +686,30 @@ export default function Scene({
     candleLight.position.set(-2.4, 0.5, -1.45);
     scene.add(candleLight);
 
+    // A model loaded while hidden (a later chapter's dish or stand) compiles
+    // its shaders and uploads its textures now, so its first visible frame,
+    // often mid-transition, does not hitch.
+    function warmModel(object) {
+      const visible = object.visible;
+      object.visible = true;
+      try {
+        renderer.compile(object, camera, scene);
+        object.traverse((child) => {
+          for (const material of [].concat(child.material || []))
+            for (const value of Object.values(material))
+              if (value?.isTexture) renderer.initTexture(value);
+        });
+      } finally {
+        object.visible = visible;
+      }
+    }
     const supportAssets = createSupportModels({
       canvas,
       renderer,
       disposeTree,
       onError: fail,
       onInvalidate: invalidateScene,
+      onModel: warmModel,
     });
     const supportRoot = supportAssets.root;
     scene.add(supportRoot);
@@ -958,20 +976,19 @@ export default function Scene({
     function modelUrl(name) {
       if (name === "homard")
         return resolvePublicModelUrl(mobileViewport()
-          // Visible at the opening: a simplified, meshopt scene copy (1.3MB
-          // transferred) of the 4.9MB AR file, which stays unchanged for AR.
-          ? "immersive.dish.homard.mobile"
-          : "demo.homard-bisque.web");
+          // Scene-only quantized meshopt copies; the AR files stay unchanged.
+          ? "immersive.dish.homard.scene-mobile"
+          : "immersive.dish.homard.scene");
       if (
         ["huitres", "sushi", "chocolat-fume", "poutine", "burger"].includes(
           name,
         )
       )
-        return resolvePublicModelUrl(`immersive.dish.${name}.mobile`);
+        return resolvePublicModelUrl(`immersive.dish.${name}.scene-mobile`);
       const dish = dishes.find((dish) => dish.id === name && dish.model);
       return typeof dish?.model === "string"
         ? dish.model
-        : resolvePublicModelUrl("demo.souffle-chocolat.web");
+        : resolvePublicModelUrl("immersive.dish.souffle.scene");
     }
     function loadDish(name) {
       currentDish = name;
@@ -1067,6 +1084,7 @@ export default function Scene({
             }
           });
           dishRoot.add(activeDish);
+          warmModel(activeDish);
           canvas.dataset.model = name;
           delete canvas.dataset.loadingModel;
           delete canvas.dataset.modelError;
@@ -1266,11 +1284,14 @@ export default function Scene({
       initial.laptopScale,
       1,
     );
-    loadDish(
-      dishes.some((d) => d.id === initialState.dish && d.model)
-        ? initialState.dish
-        : "homard",
-    );
+    // A dish hidden by the opening shot loads once the scene is ready, so it
+    // never delays the first frame (cinematic pages that open on a phone).
+    if (initial.dishScale > 0.003)
+      loadDish(
+        dishes.some((d) => d.id === initialState.dish && d.model)
+          ? initialState.dish
+          : "homard",
+      );
     restaurantWorld.update(initialState, 1, canvas);
     resize();
 
@@ -1938,9 +1959,10 @@ export default function Scene({
         : "homard";
       const retryModel = state.retryModel ?? 0;
       if (
-        dish !== currentDish ||
-        currentModelUrl !== modelUrl(dish) ||
-        retryModel !== lastRetryModel
+        (ready || pose.dishScale > 0.003) && (
+          dish !== currentDish ||
+          currentModelUrl !== modelUrl(dish) ||
+          retryModel !== lastRetryModel)
       ) {
         lastRetryModel = retryModel;
         loadDish(dish);
@@ -2145,9 +2167,10 @@ export default function Scene({
         }
         if (
           !ready &&
-          activeDish &&
-          canvas.dataset.supportReady === "true" &&
-          canvas.dataset.phoneReady === "true" &&
+          // Only what the opening shot shows gates the reveal; the rest loads behind.
+          (activeDish || !(pose.dishScale > 0.003)) &&
+          (canvas.dataset.supportReady === "true" || !(pose.supportScale > 0.003)) &&
+          (canvas.dataset.phoneReady === "true" || !(pose.phoneScale > 0.003 || pose.pdfPhoneScale > 0.003)) &&
           canvas.dataset.restaurantReady === "true" &&
           (!state.needsLaptop || canvas.dataset.laptopReady === "true") &&
           (!phoneRoot.visible || posterReady || videoReady)

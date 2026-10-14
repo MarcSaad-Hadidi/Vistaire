@@ -2,7 +2,7 @@ import { publicModelBaseUrl, resolvePublicModelUrl } from "../../lib/publicModel
 import * as THREE from "three";
 import { applyLinearRestaurantFog } from "./RestaurantFog.js";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
-import { DRACOLoader } from "three/examples/jsm/loaders/DRACOLoader.js";
+import { sharedDraco } from "./sharedDraco.js";
 import { createRestaurantJourney } from "./RestaurantWorld";
 
 export function createRestaurantModel(
@@ -13,10 +13,8 @@ export function createRestaurantModel(
   root.name = "Restaurant in the evening — katydid";
   scene.add(root);
   const request = new AbortController();
-  const draco = new DRACOLoader()
-    .setDecoderPath("/immersive-assets/draco/")
-    .setDecoderConfig({ type: "wasm" })
-    .setWorkerLimit(1);
+  // Shared with the stands: one decoder wasm and worker at the opening.
+  const draco = sharedDraco();
   const loader = new GLTFLoader().setDRACOLoader(draco);
   let disposed = false;
   let indexCrop;

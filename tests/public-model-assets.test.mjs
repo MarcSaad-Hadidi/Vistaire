@@ -15,9 +15,9 @@ import {
 import { isSafe3dAssetUrl } from "../lib/dish3dManifest.ts";
 
 test("public model manifest pins all authorized candidates to their exact source bytes", async () => {
-  assert.equal(PUBLIC_MODEL_ASSETS.length, 61);
-  assert.equal(new Set(PUBLIC_MODEL_ASSETS.map((asset) => asset.id)).size, 61);
-  assert.equal(new Set(PUBLIC_MODEL_ASSETS.map((asset) => asset.legacyUrl)).size, 61);
+  assert.equal(PUBLIC_MODEL_ASSETS.length, 69);
+  assert.equal(new Set(PUBLIC_MODEL_ASSETS.map((asset) => asset.id)).size, 69);
+  assert.equal(new Set(PUBLIC_MODEL_ASSETS.map((asset) => asset.legacyUrl)).size, 69);
   for (const asset of PUBLIC_MODEL_ASSETS) {
     assert.equal(asset.visibility, "public");
     assert.equal(asset.version, `sha256-${asset.sha256}`);

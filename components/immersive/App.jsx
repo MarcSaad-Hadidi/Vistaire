@@ -1,6 +1,8 @@
 "use client";
 
 import Link from "next/link";
+import { preload } from "react-dom";
+import { resolvePublicModelUrl } from "../../lib/publicModelAssets.ts";
 import { createEntryScrollAssist } from "./EntryScrollAssist.js";
 import { bindPublicMenuViewport } from "@/lib/publicMenuViewport";
 import {
@@ -302,6 +304,19 @@ function Modal({ label, children, close }) {
   );
 }
 export function App({ locale = "fr" }) {
+  // The room and phone download with the HTML, not after the lazy scene chunk;
+  // the scene's own fetches reuse them (same URL and CORS mode).
+  for (const id of ["immersive.restaurant.visible.textures-512", "immersive.phone", "immersive.support.acrylique"])
+    preload(resolvePublicModelUrl(id), { as: "fetch", crossOrigin: "anonymous" });
+  // The Draco decoder the room needs, fetched by three's FileLoader.
+  for (const file of ["draco_wasm_wrapper.js", "draco_decoder.wasm"])
+    preload(`/immersive-assets/draco/${file}`, { as: "fetch", crossOrigin: "anonymous" });
+  // The opening lobster depends on the viewport (Scene.jsx modelUrl): start it
+  // at hydration rather than after the scene chunk.
+  useEffect(() => {
+    preload(resolvePublicModelUrl(innerWidth < 768 ? "immersive.dish.homard.scene-mobile" : "immersive.dish.homard.scene"),
+      { as: "fetch", crossOrigin: "anonymous" });
+  }, []);
   return (
     <LandingLocaleProvider locale={locale}>
       <LandingContent />
