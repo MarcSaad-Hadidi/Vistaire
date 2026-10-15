@@ -15,7 +15,7 @@ const TOUCH_OWNERS = 'input, select, textarea, iframe, dialog, [role="textbox"],
 const controlled = (target, selector = CONTROLS) => Boolean(target?.closest?.(selector));
 // A released touch leaves at its native speed: f(0)=0, f(1)=1, f'(0)=slope.
 // Up to slope 4 the added term keeps cinematicEase monotonic (no overshoot).
-const launchEase = (progress, slope) => cinematicEase(progress) + Math.min(4, slope) * progress * (1 - progress) ** 3;
+const launchEase = (progress, slope) => cinematicEase(progress, 0.14) + Math.min(4, slope) * progress * (1 - progress) ** 3;
 // Programmatic scroll normally stops iOS momentum; positions still ahead of the
 // written pose after this window mean it survived, so native inertia keeps it.
 const MOMENTUM_PROOF_MS = 100;
@@ -27,6 +27,12 @@ const APPLY_LEAD_MS = 48;
 // A drag this far and mostly sideways rotates a 3D model, not the page.
 const HORIZONTAL_PX = 12;
 const natural = id => id === "open-weight" || id === "footer";
+
+// Monotonic, continuous timing: shorter trips must never take longer than
+// longer trips (the former >6-screen special case made pacing jump by 600ms).
+export function assistedScrollDuration(stages) {
+  return Math.min(1300, Math.max(650, 580 + 90 * Math.max(0, stages)));
+}
 
 /** Complete one adjacent reading stop: at touch release, else after native momentum ends.
  * One RAF owns the continuation; the caller cancels before programmatic
@@ -230,10 +236,9 @@ export function createEntryScrollAssist({ getGeometry, isBlocked }, view = windo
     const phase = diagnostics ? { kind: "reading-stop", id: destination.id, target } : undefined;
 
     const now = view.performance.now();
-    // A full-scene join (over 6 stages, e.g. signature to angles or collection
-    // to pricing) is one continuous move, so it travels faster than the cap.
+    // A shorter physical trip never takes longer than a longer one.
     const stages = Math.abs(target - y) / opening.stageHeight;
-    const duration = stages > 6 ? 1400 : Math.min(2000, Math.max(1000, 500 * stages));
+    const duration = assistedScrollDuration(stages);
     const speed = now - lastYAt < MOMENTUM_PROOF_MS ? Math.max(0, velocity * direction) : 0;
     readingGuard = null;
     assisting = { target, started: now, direction, lastY: y, from: y, duration, elapsed: 0, frameAt: now,

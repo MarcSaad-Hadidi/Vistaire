@@ -149,7 +149,9 @@ export function CinematicPage({ chapters, scene = {}, children, footer, mainProp
     const measure = () => {
       const first = sectionRefs.current[0];
       if (!first) return;
-      stageHeight = first.firstElementChild.getBoundingClientRect().height || innerHeight;
+      const frozenVh = Number.parseFloat(document.documentElement.style.getPropertyValue("--vistaire-journey-vh"));
+      stageHeight = frozenVh > 0 ? frozenVh * 100
+        : Number.parseFloat(getComputedStyle(first.firstElementChild).height) || innerHeight;
       measurements = chapters.map((chapter, index) => {
         const el = sectionRefs.current[index];
         const stage = el.firstElementChild;
@@ -160,7 +162,7 @@ export function CinematicPage({ chapters, scene = {}, children, footer, mainProp
           id: chapter.shot,
           el,
           top: bounds.top + scrollY,
-          travel: Math.max(1, bounds.height - stageBounds.height),
+          travel: Math.max(1, bounds.height - stageHeight),
           sceneFrame: focus
             ? {
                 x: (focus.left + focus.width / 2) / innerWidth,
@@ -227,7 +229,18 @@ export function CinematicPage({ chapters, scene = {}, children, footer, mainProp
       else state.invalidateScene?.();
     };
     const queue = () => { if (!frame) frame = requestAnimationFrame(update); };
-    const relayout = () => { measure(); queue(); };
+    const relayout = () => {
+      const prior = measurements.map(({ top, travel }) => ({ top, travel }));
+      const priorStage = stageHeight;
+      const priorGuide = guideStop;
+      measure();
+      const moved = Math.abs(stageHeight - priorStage) > 0.5 ||
+        measurements.length !== prior.length ||
+        measurements.some((m, i) => !prior[i] || Math.abs(m.top - prior[i].top) > 0.5 || Math.abs(m.travel - prior[i].travel) > 0.5) ||
+        Math.abs(guideStop - priorGuide) > 0.5;
+      if (moved) assist.cancel("layout-geometry-changed");
+      queue();
+    };
     measure();
     update();
     const assist = createEntryScrollAssist({

@@ -117,7 +117,7 @@ async function geometry(page: Page) {
       id: el.id,
       top: Math.round(el.getBoundingClientRect().top + scrollY),
       height: el.offsetHeight,
-      stage: el.firstElementChild!.clientHeight,
+      stage: Number.parseFloat(document.documentElement.style.getPropertyValue('--vistaire-journey-vh')) * 100,
     })),
   }));
 }
@@ -193,6 +193,13 @@ for (const initialHeight of [820, 730]) {
       }));
       expect(coverage.top).toBeLessThanOrEqual(0);
       expect(coverage.bottom).toBeGreaterThanOrEqual(coverage.viewport);
+      const stages = await page.evaluate(() => ({
+        visible: innerHeight,
+        opening: document.querySelector('.opening-stage')!.getBoundingClientRect().height,
+        chapter: document.querySelector('#sustainability > .stage')!.getBoundingClientRect().height,
+      }));
+      expect(stages.opening).toBeGreaterThanOrEqual(stages.visible - 1);
+      expect(stages.chapter).toBeGreaterThanOrEqual(stages.visible - 1);
     }
     if (initialHeight === 820) {
       for (const viewport of [{ width: 844, height: 390 }, { width: 390, height: 844 }]) {

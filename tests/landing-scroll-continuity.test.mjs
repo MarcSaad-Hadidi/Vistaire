@@ -185,21 +185,23 @@ test('opening measurements use untransformed layout height without rounding frac
   const end = app.indexOf('      measurements = chapters', start);
   assert.ok(start >= 0 && end > start, 'execute the actual opening measurement before chapter traversal');
   const reader = app.slice(start, end) + '\n      return opening;\n    }; measure();';
-  for (const height of [844, 844.25]) {
-    const stage = { getBoundingClientRect: () => ({ height: height + 0.001953125 }) };
+  for (const [height, visualHeight] of [[844, 844], [844.25, 844.25], [730, 820]]) {
+    const stage = { getBoundingClientRect: () => ({ height: visualHeight + 0.001953125 }) };
     const opening = vm.runInNewContext(reader, {
       openingRef: { current: { firstElementChild: stage, getBoundingClientRect: () => ({ top: -42284, height: 8440 }) } },
       scrollY: 42284,
       entryAssist: undefined,
-      world: { clientHeight: 844 },
+      opening: null, measurements: [], measuredWidth: 0,
+      document: { documentElement: { style: { getPropertyValue: () => `${height / 100}px` } } },
+      world: { clientHeight: visualHeight },
       getComputedStyle: element => {
         assert.equal(element, stage);
-        return { height: `${height}px` };
+        return { height: `${visualHeight}px` };
       },
       CINEMATIC_TIMING: director.CINEMATIC_TIMING,
       timing: director.CINEMATIC_TIMING,
     });
-    assert.equal(opening.stageHeight, height, 'translated rect precision must not enter the cached stage height');
+    assert.equal(opening.stageHeight, height, 'dvh growth and translated rect rounding must not change the frozen scroll budget');
     assert.equal(opening.motionTravel, height * director.CINEMATIC_TIMING.openingMotionScreens);
     assert.equal(42284 / opening.stageHeight, 42284 / height, 'late remeasure preserves normalized distance');
   }

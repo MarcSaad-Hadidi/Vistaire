@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 import { scaledCinematicTiming, measureChapterTransitions, chapterNavigationTarget, readingTiming } from '../components/immersive/SceneDirector.js';
 
-import { createEntryScrollAssist } from '../components/immersive/EntryScrollAssist.js';
+import { createEntryScrollAssist, assistedScrollDuration } from '../components/immersive/EntryScrollAssist.js';
 
 function geometry(stageHeight = 844, pace = 1) {
   const timing = scaledCinematicTiming(1 / pace);
@@ -763,6 +763,7 @@ test('released touch leaves at its native speed without waiting for inertia, the
     assert.equal(handoff.target, target);
     assert.equal(handoff.source, 'release', 'neither scrollend nor quiet inertia delays departure');
     const started = f.now();
+    const planned = f.reports.find(row => row.type === 'assist-start').duration;
     let observed = f.view.scrollY;
     for (let step = 0; step < 200 && !f.reports.some(row => row.type === 'completed'); step++) {
       f.stall(step % 4 === 3 ? 80 : 16); f.advance(0);
@@ -779,11 +780,11 @@ test('released touch leaves at its native speed without waiting for inertia, the
       // event position. Such an observed duplicate is not backward movement.
       f.view.scrollY = write.top; f.move(observed); f.move(write.top);
       observed = write.top;
-      if (f.now() - started < 1000) assert.notEqual(observed, target, 'travel is progressive for at least one second');
+      if (f.now() - started < planned - 32) assert.notEqual(observed, target, 'travel remains progressive until the arrival ramp');
     }
     const completed = f.reports.find(row => row.type === 'completed');
     assert.ok(completed, 'duplicates and ordinary 80ms frame gaps never pause or cancel the trip');
-    assert.ok(completed.duration >= 1000 && completed.duration <= 2580);
+    assert.ok(completed.duration >= planned - 48 && completed.duration <= planned + 600, 'normal slow frames respect the new bounded duration');
     assert.equal(f.view.scrollY, target);
     assert.equal(f.frames(), 0);
     const calls = f.calls.length; f.end(); f.advance(5000);
@@ -908,18 +909,27 @@ test('pricing stops on the phone, reads natively, then opens the FAQ after the l
   assert.equal(gesture(reading.faq + 400, 1, reading), reading.faq + 400, 'FAQ and footer stay native');
 });
 
-test('full-scene joins (signature to angles, angles to dashboard, experiences to video, collection to pricing) travel faster', () => {
+test('assisted duration is fast, continuous and nondecreasing across the old 6-screen boundary', () => {
+  const distances = [0, 0.5, 1, 3, 4.2, 5.2, 5.99, 6, 6.01, 6.2, 7.2, 10];
+  const durations = distances.map(assistedScrollDuration);
+  assert.ok(durations.every((value, i) => i === 0 || value >= durations[i - 1]), 'shorter journeys cannot be slower');
+  assert.ok(durations[8] - durations[7] < 2, 'no abrupt 600ms discontinuity around 6 screens');
+  assert.ok(assistedScrollDuration(3) < 1000 && assistedScrollDuration(7.2) <= 1250);
+
   const bounds = geometry(796), at = id => bounds.transitions.find(join => join.to.id === id);
   const stops = authoredReadingStops(bounds), y = id => stops.find(stop => stop.id === id).y;
   for (const [from, to] of [[y('encryption'), at('grip').end], [at('grip').end, at('sustainability').end],
     [y('testimonies'), at('social-content').end], [stops.at(-1).y, at('open-weight').end], [at('grip').end, y('encryption')]]) {
-    const f = fixture({ stageHeight: 796 }); f.wheel(from + Math.sign(to - from), Math.sign(to - from)); f.end(); f.advance(30000);
+    const direction = Math.sign(to - from);
+    const start = from + direction;
+    const f = fixture({ stageHeight: 796 }); f.wheel(start, direction); f.end(); f.advance(30000);
     assert.equal(f.view.scrollY, to);
-    assert.ok(f.reports.find(row => row.type === 'assist-start').duration <= 1400, `${from}->${to}`);
+    const actual = f.reports.find(row => row.type === 'assist-start').duration;
+    assert.ok(Math.abs(actual - assistedScrollDuration(Math.abs(to - start) / 796)) < 0.01, `${from}->${to}`);
     f.assist.dispose();
   }
   const opening = fixture({ stageHeight: 796 }); opening.wheel(1); opening.end(); opening.advance(30000);
-  assert.ok(opening.reports.find(row => row.type === 'assist-start').duration > 1400, 'shorter trips keep their pace');
+  assert.ok(opening.reports.find(row => row.type === 'assist-start').duration < assistedScrollDuration(7.2), 'shorter opening leg is faster');
   opening.assist.dispose();
 });
 

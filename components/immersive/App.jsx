@@ -482,6 +482,7 @@ function LandingContent() {
     let lastSection = "";
     let lastChapterBeats = {};
     let measurements = [];
+    let measuredWidth = 0;
     let transitions = [];
     let sceneFrames = {};
     let timing = stateRef.current.cinematicTiming || CINEMATIC_TIMING;
@@ -509,12 +510,18 @@ function LandingContent() {
       element.style.setProperty(name, text);
     };
     const measure = () => {
-      entryAssist?.cancel("measure");
+      const previousOpening = opening;
+      const previousMeasurements = measurements;
+      const previousWidth = measuredWidth;
       const journey = openingRef.current;
       const journeyBounds = journey.getBoundingClientRect();
       const top = journeyBounds.top + scrollY;
-      // Read the CSS height without fractional document-rect rounding.
-      const stageHeight = Number.parseFloat(getComputedStyle(journey.firstElementChild).height);
+      // The stage may grow to 100dvh to cover collapsing browser chrome.
+      // Scroll budgets use the frozen svh reference, never its visual height.
+      const frozenVh = Number.parseFloat(document.documentElement.style?.getPropertyValue?.("--vistaire-journey-vh"));
+      const stageHeight = frozenVh > 0
+        ? frozenVh * 100
+        : Number.parseFloat(getComputedStyle(journey.firstElementChild).height);
       const travel = journeyBounds.height - stageHeight;
       const motionTravel = Math.max(
         1,
@@ -564,7 +571,7 @@ function LandingContent() {
               // Keep fractional CSS geometry in the chapter scroll budget.
               id === "open-weight"
                 ? el.offsetHeight - sceneHeight
-                : bounds.height - stageBounds.height,
+                : bounds.height - stageHeight,
             ),
             sceneFrame,
           };
@@ -573,6 +580,21 @@ function LandingContent() {
       // Framing changes only with measured geometry, not on every scroll tick.
       sceneFrames = Object.fromEntries(measurements.map(m => [m.id, m.sceneFrame]));
       transitions = measureChapterTransitions(measurements, opening, timing);
+      // A toolbar-only change can resize the 3D room and visual stages without
+      // moving any authored stop. Reframe it, but do not cancel a running trip.
+      const moved = previousOpening && (
+        Math.abs(previousOpening.top - opening.top) > 0.5 ||
+        Math.abs(previousOpening.stageHeight - opening.stageHeight) > 0.5 ||
+        (previousWidth > 0 && Math.abs(previousWidth - innerWidth) > 0.5) ||
+        previousMeasurements.length !== measurements.length ||
+        measurements.some((m, i) => m.id !== "open-weight" && (
+          !previousMeasurements[i] ||
+          Math.abs(m.top - previousMeasurements[i].top) > 0.5 ||
+          Math.abs(m.travel - previousMeasurements[i].travel) > 0.5
+        ))
+      );
+      measuredWidth = innerWidth;
+      if (moved) entryAssist?.cancel("layout-geometry-changed");
       const pricingEntry = measurements.find(m => m.id === "open-weight");
       const pricingTransition = transitionAtScroll(transitions, pricingEntry.top);
       stateRef.current.pricingSceneEntry = {
@@ -800,7 +822,7 @@ function LandingContent() {
     const paceState = stateRef.current;
     paceState.setScrollPace = requestPace;
     const layoutChanged = () => {
-      entryAssist?.cancel("layout-changed");
+      // Defer to measure(): only a real change to authored stops cancels assist.
       needsMeasure = true;
       queue();
     };

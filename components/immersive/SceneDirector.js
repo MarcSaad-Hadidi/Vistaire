@@ -84,10 +84,10 @@ export function openingProgressAtScroll(opening, y) {
 }
 
 // C2 acceleration ramps, constant-speed middle half, zero endpoint velocity.
-// Peak normalized speed is 4/3, rather than cubic smoothstep's 3/2. Apply once
-// to a motion phase; do not smooth an already eased progress a second time.
-export function cinematicEase(value) {
-  const t = unit(value), ramp = 0.25;
+// Peak normalized speed defaults to 4/3; scroll assistance may use a shorter
+// ramp without changing the authored 3D, text or camera easing.
+export function cinematicEase(value, ramp = 0.25) {
+  const t = unit(value);
   const enter = q => {
     const u = q / ramp;
     return ramp * (u ** 3 - 0.5 * u ** 4) / (1 - ramp);
