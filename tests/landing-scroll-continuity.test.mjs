@@ -201,9 +201,10 @@ test('opening measurements use untransformed layout height without rounding frac
       CINEMATIC_TIMING: director.CINEMATIC_TIMING,
       timing: director.CINEMATIC_TIMING,
     });
-    assert.equal(opening.stageHeight, height, 'dvh growth and translated rect rounding must not change the frozen scroll budget');
-    assert.equal(opening.motionTravel, height * director.CINEMATIC_TIMING.openingMotionScreens);
-    assert.equal(42284 / opening.stageHeight, 42284 / height, 'late remeasure preserves normalized distance');
+    assert.ok(Math.abs(opening.stageHeight - height) < 1e-8, 'dvh growth and rect rounding must not change frozen travel');
+    assert.ok(Math.abs(opening.motionTravel - height * director.CINEMATIC_TIMING.openingMotionScreens) < 1e-8);
+    assert.ok(Math.abs(42284 / opening.stageHeight - 42284 / height) < 1e-9,
+      'late remeasure preserves normalized distance');
   }
 });
 

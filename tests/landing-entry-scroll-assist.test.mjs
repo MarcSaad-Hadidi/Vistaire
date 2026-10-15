@@ -203,7 +203,7 @@ test('touch and keyboard retain ownership while held with or without scrollend s
     else f.input('keyup', { key: 'PageDown' });
     // WebKit can emit the only scrollend before keyup; release must reuse it.
     // A released touch never waits for quiet or inertia.
-    f.advance(scrollend || type === 'touch' ? 39 : 279); assert.equal(f.calls.length, 0);
+    f.advance(scrollend ? 39 : 279); assert.equal(f.calls.length, 0);
     f.advance(1); assert.deepEqual(assistedTargets(f), [target]);
     f.assist.dispose();
   }
@@ -744,7 +744,7 @@ test('an unprocessed final position requires a trusted current document scroll a
   }
 });
 
-test('released touch leaves at its native speed without waiting for inertia, then one gradual controlled trip', () => {
+test('touch continuation waits for native end or quiet, then finishes a gradual controlled trip', () => {
   for (const direction of [1, -1]) for (const scrollend of [true, false]) {
     const f = fixture({ nativeMotion: false, diagnostics: true, scrollend });
     const ai = f.bounds.opening.motionTravel / 2, from = direction > 0 ? 0 : ai;
@@ -757,11 +757,14 @@ test('released touch leaves at its native speed without waiting for inertia, the
     f.advance(16); f.move(from + direction * 60);
     f.advance(16); f.move(from + direction * 90); // Finger leaves at 30px per 16ms.
     f.input('touchend', { touches: [] });
-    f.advance(39); assert.equal(f.calls.length, 0);
-    f.advance(1);
+    f.advance(40); assert.equal(f.calls.length, 0, 'touch release must not race WebKit momentum');
+    f.advance(40); f.move(from + direction * 110);
+    assert.equal(f.calls.length, 0, 'native momentum owns the document while moving');
+    if (scrollend) f.end();
+    else f.advance(280);
     const handoff = f.reports.find(row => row.type === 'handoff');
     assert.equal(handoff.target, target);
-    assert.equal(handoff.source, 'release', 'neither scrollend nor quiet inertia delays departure');
+    assert.equal(handoff.source, scrollend ? 'scrollend' : 'quiet-fallback');
     const started = f.now();
     const planned = f.reports.find(row => row.type === 'assist-start').duration;
     let observed = f.view.scrollY;
@@ -770,8 +773,7 @@ test('released touch leaves at its native speed without waiting for inertia, the
       const write = f.calls.at(-1);
       if (step === 0) {
         const first = (write.top - observed) * direction;
-        // Release pace 30px/16ms, written one frame plus Safari's apply delay ahead.
-        assert.ok(first >= 75 && first <= 160, `the first write continues the release speed (${first}px)`);
+        assert.ok(first >= 0 && first <= 160, `the initial write is smooth (${first}px)`);
       }
       assert.equal(write.behavior, 'instant');
       assert.ok((write.top - observed) * direction >= 0, 'requested positions progress monotonically');
@@ -793,7 +795,7 @@ test('released touch leaves at its native speed without waiting for inertia, the
   }
 });
 
-test('native momentum that survives the first writes keeps the page until its end; an unexplained reversal stays native', () => {
+test('native momentum stays in control until end; unexplained reverse motion cannot snap backwards', () => {
   for (const reversal of [false, true]) {
     const f = fixture({ nativeMotion: false, diagnostics: true });
     const target = f.bounds.opening.motionTravel / 2;
@@ -802,17 +804,25 @@ test('native momentum that survives the first writes keeps the page until its en
     f.input('touchmove', { touches: [{ clientY: 170 }] }); f.move(30);
     f.advance(16); f.move(60); f.input('touchend', { touches: [] }); f.advance(40);
     let native = 60;
-    for (let step = 0; step < 8; step++) { // Momentum runs ahead of every write.
-      f.advance(16); native += 40; f.view.scrollY = native; f.move(native);
-      assert.ok(f.calls.every((write, i) => !i || write.top >= f.calls[i - 1].top), 'writes never move backward');
+    for (let step = 0; step < 8; step++) {
+      f.advance(16); native += 40; f.move(native);
+      assert.equal(f.calls.length, 0, 'assistance never writes during native momentum');
+      assert.equal(f.frames(), 0, 'native momentum owns the screen');
     }
-    assert.ok(f.reports.some(row => row.type === 'momentum-yield'));
-    assert.equal(f.frames(), 0, 'inertia owns the page without a competing frame');
-    f.advance(16); f.move(reversal ? native - 74 : native + 20); f.end(); f.advance(5000);
-    if (reversal) assert.equal(gestureTrips(f).length, 1, 'an input-less reversal after release is not assisted');
+    f.advance(16); f.move(reversal ? native - 74 : native + 20);
+    f.end();
+    if (!reversal) {
+      for (let i = 0; i < 220 && !f.reports.some(row => row.type === 'completed'); i++) {
+        f.advance(16);
+        if (f.calls.length) f.move(f.calls.at(-1).top);
+      }
+    }
+    f.advance(5000);
+    if (reversal) assert.equal(gestureTrips(f).length, 0, 'a native reverse after release never starts an assisted snap');
     else {
-      assert.deepEqual(assistedTargets(f), [target, target], 'the end resumes the same adjacent stop');
-      assert.equal(f.reports.at(-1 - f.reports.slice().reverse().findIndex(row => row.type === 'handoff')).source, 'scrollend');
+      assert.deepEqual(assistedTargets(f), [target], 'one settled gesture continues to its next stop');
+      assert.equal(f.reports.find(row => row.type === 'handoff').source, 'scrollend');
+      assert.equal(f.view.scrollY, target);
     }
     f.assist.dispose();
   }
@@ -857,9 +867,9 @@ test('controlled continuation waits for final scroll and fresh input cancels wit
   finishing.assist.dispose();
 });
 
-test('Safari applies a write after momentum moved on: writes lead the release pace and its stale echo never stops the trip', () => {
-  // Safari otktd984axs: write 458 landed after momentum reached 503 (47ms), so
-  // the page jumped back and the trip was cancelled at the opening.
+test('delayed Safari scroll events never race native coast or reverse an assisted write', () => {
+  // Physical trace: a pending instant write used to land 47ms after newer
+  // native momentum, pulling Brave/WebKit backwards mid-transition.
   const f = fixture({ nativeMotion: false, diagnostics: true });
   const target = f.bounds.opening.motionTravel / 2;
   f.move(0); f.advance(100);
@@ -867,14 +877,21 @@ test('Safari applies a write after momentum moved on: writes lead the release pa
   f.input('touchmove', { touches: [{ clientY: 170 }] }); f.move(30);
   f.advance(16); f.move(60); f.advance(16); f.move(90);
   f.input('touchend', { touches: [] }); f.advance(40);
+  f.advance(16); f.move(130); f.advance(16); f.move(170);
+  assert.equal(f.calls.length, 0, 'there must be no pending scrollTo while momentum can advance');
+  f.end(); f.advance(16);
+  const first = f.calls.at(-1).top;
+  f.move(first);
   f.advance(16);
-  const first = f.calls[0].top;
-  assert.ok(first - 90 >= 2.5 * 30, `the first write leads momentum by its apply delay (${first - 90}px)`);
-  f.move(first + 40); // Momentum still ahead before the write lands.
-  f.advance(16); f.move(first); // The stale write lands behind that position.
-  assert.equal(f.reports.filter(row => row.type === 'cancel' && row.reason === 'foreign-scroll').length, 0, 'an echo of an own write is not foreign');
-  for (let i = 0; i < 300 && !f.reports.some(row => row.type === 'completed'); i++) { f.advance(16); f.view.scrollY = f.calls.at(-1).top; f.move(f.view.scrollY); }
-  assert.equal(f.view.scrollY, target, 'the trip still reaches its stop');
+  const next = f.calls.at(-1).top;
+  f.move(first); // Safari reports an earlier owned pose after the newer write.
+  f.move(next);
+  assert.equal(f.reports.filter(row => row.type === 'cancel' && row.reason === 'foreign-scroll').length, 0);
+  for (let i = 0; i < 220 && !f.reports.some(row => row.type === 'completed'); i++) {
+    f.advance(16);
+    f.move(f.calls.at(-1).top);
+  }
+  assert.equal(f.view.scrollY, target, 'the settled trip reaches one stop without reverse motion');
   f.assist.dispose();
 });
 
@@ -933,21 +950,21 @@ test('assisted duration is fast, continuous and nondecreasing across the old 6-s
   opening.assist.dispose();
 });
 
-test('a page left at rest between two stops returns to the nearest one; stops, offers and the FAQ stay put', () => {
-  // Also recovers flings whose touches Safari suppressed during deceleration (WebKit 191218/310540).
+test('a scrollend without an owned gesture never snaps the page or pricing content', () => {
+  // Browser toolbar resizing can emit a document scrollend with no new user input.
   const bounds = geometry(), join = bounds.transitions[0], previous = bounds.opening.motionTravel;
   const rest = (y, extra) => {
     const f = fixture(); if (extra) f.bounds.pricing = extra;
     f.move(y - 30); f.advance(16); f.move(y); f.advance(16); f.end(); f.advance(5000);
     const result = f.view.scrollY; f.assist.dispose(); return result;
   };
-  assert.equal(rest(join.end - 600), join.end, 'closer to the next stop');
-  assert.equal(rest(previous + 600), previous, 'closer to the previous stop, even after forward motion');
+  assert.equal(rest(join.end - 600), join.end - 600, 'no anonymous snap to the next stop');
+  assert.equal(rest(previous + 600), previous + 600, 'no anonymous reverse snap to the prior stop');
   assert.equal(rest(join.end), join.end, 'an exact stop stays');
   const pricing = bounds.transitions.find(item => item.to.id === 'open-weight').end;
   const reading = { start: pricing, end: pricing + 2000, faq: pricing + 3000 };
   assert.equal(rest(pricing + 900, reading), pricing + 900, 'offers stay where the reader left them');
-  assert.equal(rest(reading.end + 300, reading), reading.end, 'between the last offer and the FAQ, nearest');
+  assert.equal(rest(reading.end + 300, reading), reading.end + 300, 'no anonymous pricing-to-FAQ snap');
   assert.equal(rest(reading.faq + 500, reading), reading.faq + 500, 'FAQ and footer stay native');
 });
 

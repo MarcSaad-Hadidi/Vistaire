@@ -13,17 +13,11 @@ const CONTROLS = `a, button, summary, [role="button"], [role="tab"], ${FOCUSED_C
 // buttons, pan-y model surfaces, videos) only arm after native document scroll.
 const TOUCH_OWNERS = 'input, select, textarea, iframe, dialog, [role="textbox"], [role="combobox"], [role="listbox"], [role="menu"], [role="menuitem"], [role="dialog"], [aria-modal="true"], [contenteditable]:not([contenteditable="false"])';
 const controlled = (target, selector = CONTROLS) => Boolean(target?.closest?.(selector));
-// A released touch leaves at its native speed: f(0)=0, f(1)=1, f'(0)=slope.
-// Up to slope 4 the added term keeps cinematicEase monotonic (no overshoot).
-const launchEase = (progress, slope) => cinematicEase(progress, 0.14) + Math.min(4, slope) * progress * (1 - progress) ** 3;
-// Programmatic scroll normally stops iOS momentum; positions still ahead of the
-// written pose after this window mean it survived, so native inertia keeps it.
-const MOMENTUM_PROOF_MS = 100;
+// Scroll continuation starts only after native momentum has settled. A short
+// C2 entrance ramp reacts promptly without racing WebKit's own inertia.
+const launchEase = progress => cinematicEase(progress, 0.14);
 // Wheel packets closer than this belong to one swipe or its trackpad inertia.
 const WHEEL_GAP_MS = 180;
-// Safari applies a write 25-47ms later; momentum keeps moving until then.
-// Released trips write that far ahead so the landing pose is never behind it.
-const APPLY_LEAD_MS = 48;
 // A drag this far and mostly sideways rotates a 3D model, not the page.
 const HORIZONTAL_PX = 12;
 const natural = id => id === "open-weight" || id === "footer";
@@ -51,7 +45,6 @@ export function createEntryScrollAssist({ getGeometry, isBlocked }, view = windo
   let assisting = null;
   let lastY = view.scrollY;
   let lastYAt = view.performance.now();
-  let velocity = 0;
   let timer = null;
   let frame = null;
   let nativeEnd = null;
@@ -104,7 +97,7 @@ export function createEntryScrollAssist({ getGeometry, isBlocked }, view = windo
     // writing it back can reset a compositor position that has advanced ahead.
   };
   const complete = event => {
-    if (!assisting || assisting.elapsed + assisting.lead < assisting.duration || view.scrollY !== assisting.lastY
+    if (!assisting || assisting.elapsed < assisting.duration || view.scrollY !== assisting.lastY
       || Math.abs(assisting.lastY - assisting.target) > 1) return;
     const { target, started } = assisting;
     view.cancelAnimationFrame(frame); frame = null; assisting = null;
@@ -119,9 +112,9 @@ export function createEntryScrollAssist({ getGeometry, isBlocked }, view = windo
     // cannot jump through the whole remaining scene on the next delivered frame.
     active.elapsed += Math.min(125, Math.max(0, now - active.frameAt));
     active.frameAt = now;
-    const progress = Math.min(1, (active.elapsed + active.lead) / active.duration);
-    // Never write behind a native position observed ahead of the curve.
-    const curve = active.from + (active.target - active.from) * launchEase(progress, active.slope);
+    const progress = Math.min(1, active.elapsed / active.duration);
+    // Never write behind the latest observed native/document position.
+    const curve = active.from + (active.target - active.from) * launchEase(progress);
     const y = active.direction > 0 ? Math.max(curve, active.lastY) : Math.min(curve, active.lastY);
     active.written = y;
     writes = [...writes.slice(-3), y];
@@ -133,9 +126,9 @@ export function createEntryScrollAssist({ getGeometry, isBlocked }, view = windo
     if (progress < 1) frame = view.requestAnimationFrame(animate);
     else complete(null); // A rounded final no-op may have no further scroll event.
   };
-  // A released touch hands off at once instead of waiting for native inertia.
-  const released = () => gesture?.type === "touchmove";
-  const settle = (event, source = released() ? "release" : hasScrollEnd ? "scrollend" : "quiet-fallback") => {
+  // Never write scrollTo into WebKit's live touch inertia. scrollend is the
+  // preferred proof; a quiet native position is a guarded missing-event fallback.
+  const settle = (event, source = hasScrollEnd ? "scrollend" : "quiet-fallback") => {
     clearTimer();
     if (diagnostics) report("settle", event, { source });
     if (assisting) return;
@@ -151,13 +144,16 @@ export function createEntryScrollAssist({ getGeometry, isBlocked }, view = windo
       if (diagnostics) report("settle-return", event, { reason: "await-native-scroll" });
       return;
     }
-    if (hasScrollEnd && !released() && (!nativeEnd || nativeEnd.y !== lastY)) {
-      if (diagnostics) report("settle-return", event, { reason: "await-native-end" });
+    const validEnd = hasScrollEnd && nativeEnd?.y === lastY;
+    const waitingEnd = hasScrollEnd && gesture.type !== "touchmove" && !validEnd;
+    if (!validEnd && (waitingEnd ||
+      view.performance.now() - Math.max(gesture.at, lastYAt) < QUIET_MS)) {
+      if (diagnostics) report("settle-return", event, { reason: "await-native-end-or-quiet" });
+      if (!waitingEnd) schedule();
       return;
     }
     const { at, inputY } = gesture;
     let { direction } = gesture;
-    const early = released();
     gesture = null; nativeEnd = null; // One gesture owns one destination and cannot chain.
     const y = view.scrollY;
     const plan = route(y, inputY ?? y, direction);
@@ -174,7 +170,7 @@ export function createEntryScrollAssist({ getGeometry, isBlocked }, view = windo
       if (diagnostics) report("settle-return", event, { reason: "no-adjacent-reading-stop", direction });
       return;
     }
-    travel(event, source, plan.destination, plan.opening, y, direction, early, at);
+    travel(event, source, plan.destination, plan.opening, y, direction, at);
   };
   // One destination rule for touch, wheel/trackpad, keys and idle returns.
   const route = (y, origin, direction) => {
@@ -228,7 +224,7 @@ export function createEntryScrollAssist({ getGeometry, isBlocked }, view = windo
         : Math.abs(nearest.y - y) > 1 ? nearest : null);
     return { destination, opening };
   };
-  const travel = (event, source, destination, opening, y, direction, early, at) => {
+  const travel = (event, source, destination, opening, y, direction, at) => {
     const target = destination.y;
     // The trip travels toward its stop (an idle return or an offer-edge return
     // can run against the gesture's own direction).
@@ -239,10 +235,8 @@ export function createEntryScrollAssist({ getGeometry, isBlocked }, view = windo
     // A shorter physical trip never takes longer than a longer one.
     const stages = Math.abs(target - y) / opening.stageHeight;
     const duration = assistedScrollDuration(stages);
-    const speed = now - lastYAt < MOMENTUM_PROOF_MS ? Math.max(0, velocity * direction) : 0;
     readingGuard = null;
-    assisting = { target, started: now, direction, lastY: y, from: y, duration, elapsed: 0, frameAt: now,
-      written: y, slope: early ? speed * duration / Math.abs(target - y) : 0, early, lead: early ? APPLY_LEAD_MS : 0 };
+    assisting = { target, started: now, direction, lastY: y, from: y, duration, elapsed: 0, frameAt: now, written: y };
     writes = [];
     if (diagnostics) {
       report("assist-start", event, { direction, target, duration, distance: (target - y) * direction, phase, geometry: { ...opening } });
@@ -252,11 +246,12 @@ export function createEntryScrollAssist({ getGeometry, isBlocked }, view = windo
   };
   const schedule = () => {
     clearTimer();
-    if (!gesture?.scrolled || assisting || touching || heldKey || pointerHeld || (hasScrollEnd && !nativeEnd && !released())) return;
-    const quick = hasScrollEnd || released();
-    const quietSince = quick ? gesture.at : Math.max(gesture.at, lastYAt);
-    const remaining = Math.max(0, (quick ? RELEASE_MS : QUIET_MS) - (view.performance.now() - quietSince));
-    timer = view.setTimeout(() => settle(), remaining);
+    if (!gesture?.scrolled || assisting || touching || heldKey || pointerHeld) return;
+    const nativeStopped = hasScrollEnd && nativeEnd?.y === lastY;
+    if (hasScrollEnd && !nativeStopped && gesture.type !== "touchmove") return;
+    const quietSince = nativeStopped ? gesture.at : Math.max(gesture.at, lastYAt);
+    const remaining = Math.max(0, (nativeStopped ? RELEASE_MS : QUIET_MS) - (view.performance.now() - quietSince));
+    timer = view.setTimeout(() => settle(null, nativeStopped ? "scrollend" : "quiet-fallback"), remaining);
   };
   const intent = (event, direction) => {
     const sameInput = gesture?.type === event.type && gesture.direction === direction;
@@ -330,7 +325,7 @@ export function createEntryScrollAssist({ getGeometry, isBlocked }, view = windo
     event.preventDefault(); wheelOwned = true;
     if (assisting && Math.abs(assisting.target - plan.destination.y) <= 1) return;
     cancel("wheel-gesture", event);
-    travel(event, "wheel", plan.destination, plan.opening, y, direction, false, now);
+    travel(event, "wheel", plan.destination, plan.opening, y, direction, now);
   };
   const wheel = event => {
     if (event.defaultPrevented) return; // Owned above; native wheel keeps the gesture path.
@@ -391,8 +386,17 @@ export function createEntryScrollAssist({ getGeometry, isBlocked }, view = windo
     touching = event.touches.length > 0;
     if (!touching) {
       touchY = null; touchStart = null;
-      if (gesture) gesture.at = view.performance.now();
-      schedule();
+      // Free-reading guides have a native upper edge. Arm its existing
+      // momentum guard before coasting can cross it, without starting an RAF.
+      const reading = gesture?.scrolled && gesture.direction < 0
+        ? route(view.scrollY, gesture.inputY ?? view.scrollY, gesture.direction) : null;
+      if (reading?.native && reading.naturalFrom != null && view.scrollY > reading.naturalFrom + 1) {
+        readingGuard = { start: reading.naturalFrom, end: Infinity };
+        gesture = null; nativeEnd = null; clearTimer();
+      } else {
+        if (gesture) gesture.at = view.performance.now();
+        schedule();
+      }
     }
     if (diagnostics) report("touch-release", event);
   };
@@ -427,7 +431,6 @@ export function createEntryScrollAssist({ getGeometry, isBlocked }, view = windo
       view.scrollTo({ top: y > readingGuard.end ? readingGuard.end : readingGuard.start, behavior: "instant" });
       return;
     }
-    velocity = (y - lastY) / Math.max(1, view.performance.now() - lastYAt);
     lastY = y;
     lastYAt = view.performance.now();
     if (blocked()) { cancel("scroll-blocked", event); return; }
@@ -442,22 +445,8 @@ export function createEntryScrollAssist({ getGeometry, isBlocked }, view = windo
       if ((y - active.lastY) * active.direction < 0 && writes.some(write => Math.abs(write - y) <= 1)) {
         active.lastY = y; return;
       }
-      // Momentum frames rendered before Safari applied the first lead write
-      // still arrive for up to ~50ms; behind that write they are not foreign.
-      if (active.early && view.performance.now() - active.started < MOMENTUM_PROOF_MS
-        && (y - active.from) * active.direction >= 0 && (y - active.written) * active.direction <= 0) return;
       if ((y - active.lastY) * active.direction < 0 || (y - active.target) * active.direction > 1) {
         cancel("foreign-scroll", event); return;
-      }
-      if (active.early && (y - active.written) * active.direction > 1
-        && view.performance.now() - active.started >= MOMENTUM_PROOF_MS) {
-        // Native momentum survived the writes: never fight it. Inertia keeps the
-        // page and the same destination rule applies after its corroborated end.
-        view.cancelAnimationFrame(frame); frame = null; assisting = null;
-        gesture = { type: "momentum", direction: active.direction, scrolled: true, inputY: y,
-          at: view.performance.now() - RELEASE_MS, inputAt: active.started, pendingScroll: null };
-        if (diagnostics) report("momentum-yield", event, { written: active.written });
-        return;
       }
       active.lastY = y;
       complete(event);
@@ -495,8 +484,7 @@ export function createEntryScrollAssist({ getGeometry, isBlocked }, view = windo
     if (diagnostics) report("scroll-accepted", event, { delta });
     // Safari can dispatch its final document scroll after scrollend. That exact
     // position corroborates the stored end without waiting another timer turn.
-    if (hasScrollEnd && nativeEnd) settle(event, released() ? "release" : "scrollend");
-    else if (released()) settle(event);
+    if (hasScrollEnd && nativeEnd) settle(event, "scrollend");
     else schedule();
   };
   const scrollend = event => {
@@ -504,14 +492,10 @@ export function createEntryScrollAssist({ getGeometry, isBlocked }, view = windo
     if (!hasScrollEnd || event.target !== document || !event.isTrusted || !Number.isFinite(event.timeStamp)
       || event.timeStamp < (assisting?.started ?? gesture?.inputAt ?? 0) || event.timeStamp > view.performance.now()) return;
     if (assisting) complete(event);
-    else if (!gesture && !touching && !heldKey && !pointerHeld) {
-      // General rule: a page left at rest between two stops returns to the
-      // nearest one. It also recovers gestures whose touches Safari never
-      // dispatched during deceleration (WebKit 191218/310540).
-      gesture = { type: "idle", direction: 0, scrolled: true, inputY: view.scrollY,
-        at: view.performance.now() - RELEASE_MS, inputAt: event.timeStamp, pendingScroll: null };
-      nativeEnd = { y: view.scrollY };
-      settle(event, "idle-nearest");
+    else if (!gesture) {
+      // A toolbar resize, browser navigation or compositor correction can emit
+      // scrollend with no user intent. Never create a phantom snap gesture.
+      return;
     } else {
       // A discrete native key scroll can end before keyup. Remember its pose;
       // settle still waits for release, and later input/movement invalidates it.

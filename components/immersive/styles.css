@@ -451,8 +451,8 @@
   position: sticky;
   top: 0;
   height: calc(100 * var(--journey-vh));
-  /* Visual coverage follows collapsing browser toolbars, not scroll travel. */
-  min-height: 100dvh;
+  /* Keep the sticky box fixed when browser toolbars move. The room behind it
+     independently fills 100dvh; growing this box would alter sticky travel. */
   width: 100%;
   padding: 108px var(--pad) 60px;
   overflow: clip;
@@ -494,7 +494,6 @@
   left: 0;
   width: 100%;
   height: calc(100 * var(--journey-vh));
-  min-height: 100dvh;
 }
 :where([data-immersive-vistaire]) main > .chapter:not(.pricing):not(.footer) > .stage {
   left: 0;

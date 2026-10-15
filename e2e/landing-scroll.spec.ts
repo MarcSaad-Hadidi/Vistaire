@@ -198,14 +198,19 @@ for (const initialHeight of [820, 730]) {
         opening: document.querySelector('.opening-stage')!.getBoundingClientRect().height,
         chapter: document.querySelector('#sustainability > .stage')!.getBoundingClientRect().height,
       }));
-      expect(stages.opening).toBeGreaterThanOrEqual(stages.visible - 1);
-      expect(stages.chapter).toBeGreaterThanOrEqual(stages.visible - 1);
+      const frozen = Number.parseFloat(before.journeyVH) * 100;
+      expect(stages.opening).toBeCloseTo(frozen, 0);
+      expect(stages.chapter).toBeCloseTo(frozen, 0);
+      // Growing sticky DOM boxes to 100dvh would change the real scroll
+      // distances while browser bars collapse, even if the backing room fills.
     }
     if (initialHeight === 820) {
       for (const viewport of [{ width: 844, height: 390 }, { width: 390, height: 844 }]) {
         await page.setViewportSize(viewport);
-        await expect(page.locator(".opening-stage")).toHaveCSS("height", `${viewport.height}px`);
-        await expect(page.locator(".world")).toHaveCSS("height", `${viewport.height}px`);
+        await expect.poll(async () => page.evaluate(() => {
+          const size = (selector: string) => document.querySelector(selector)!.getBoundingClientRect().height;
+          return Math.max(Math.abs(size(".opening-stage") - innerHeight), Math.abs(size(".world") - innerHeight));
+        })).toBeLessThanOrEqual(1);
       }
     }
   });
