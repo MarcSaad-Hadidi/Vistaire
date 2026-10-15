@@ -64,7 +64,7 @@ One gesture owns one target. Completion consumes that ownership; an anonymous sc
 
 ## Input, accessibility and viewport safeguards
 
-The current coarse-pointer cinematic journey uses **controlled touch ownership** rather than competing with native vertical page scrolling. While authored scenes are active, the page's main element receives `cinematic-touch-lock` (`touch-action: pinch-zoom` retains zoom). Only the touchmove/touchend capture listeners are non-passive, to cancel eligible vertical swipes. A vertical gesture of at least 12px selects one authored stop and begins one RAF trip at release **without waiting for native document movement or scrollend**. Taps, horizontal 3D drags, multitouch, editing fields, dialogs and blocked scenes never arm this controller. Native forward panning is restored for pricing, guides, the FAQ and footer. At the measured first-offer boundary, `cinematic-pricing-return` uses `touch-action: pan-up pinch-zoom` (including portalled phone/actions hosts): finger-up reads offers natively, while finger-down returns directly to Product without native viewport coasting. The lock clears as reading moves inside pricing, and the normal cinematic lock resumes upon returning to Product. Wheel, keyboard and other inputs preserve their existing protection rules.
+The current coarse-pointer cinematic journey uses **controlled touch ownership** rather than competing with native vertical page scrolling. While authored scenes are active, the page's main element receives `cinematic-touch-lock` (`touch-action: pinch-zoom` retains zoom). Only the touchmove/touchend capture listeners are non-passive, to cancel eligible vertical swipes. A vertical gesture of at least 12px selects one authored stop and begins one RAF trip at release **without waiting for native document movement or scrollend**. Taps, horizontal 3D drags, multitouch, editing fields, dialogs and blocked scenes never arm this controller. Native forward panning is restored for pricing, guides, the FAQ and footer. At the measured first-offer reading anchor, `cinematic-pricing-return` uses `touch-action: pan-y pinch-zoom` (including portalled phone/actions hosts). The first forward movement yields the entire contact to native reading on Chromium and WebKit. The first reverse movement may reserve JavaScript ownership only while cancelable and only when `preventDefault()` succeeds; a 12px vertical intent is still required to navigate. There is no WebKit-specific finger-following `scrollTo()` path. Touch classes and geometry stay fixed until the contact ends, including native `pointercancel` and layout invalidation. The normal cinematic lock resumes upon returning to Product. Wheel, keyboard and other inputs preserve their existing protection rules.
 
 The earlier native touch continuation remains a compatibility path outside the coarse-pointer cinematic lock; its success does not prove that the locked gesture path works.
 
@@ -76,7 +76,7 @@ A scripted trip advances by **RAF wall-clock time**, not by accumulating capped 
 
 ## Diagnostics and verification
 
-`?sceneDiagnostics=1` or an explicitly preinstalled `window.__vistaireScrollAssistTrace` consumer enables the existing helper trace. The latter permits lightweight input/scroll diagnostics without enabling Scene's per-frame bounds and serialization work. Reports identify one `mode: "controlled"`, input/release evidence, source/target, planned duration, frame writes and observed completion. The consumer is exception-isolated and owns retention. There is no separate diagnostic scroll engine.
+`?sceneDiagnostics=1` or an explicitly preinstalled `window.__vistaireScrollAssistTrace` consumer enables the existing helper trace. The latter permits lightweight input/scroll diagnostics without enabling Scene's per-frame bounds and serialization work. Reports identify `cinematic`, `pending-touch`, or `native` mode, a touch sequence ID, owner, cancellation flags, viewport dimensions, input/release evidence, source/target, planned duration, frame writes and observed completion. The consumer is exception-isolated and owns retention. There is no separate diagnostic scroll engine.
 
 The historical physical-candidate regression cases were revised test-first after the earlier rejection: preserve native momentum through a corroborated end and a gradual controlled trip; cancel an in-flight continuation without a reset write or replay. They also cover forward/reverse movement, repeated observations, ordinary 80ms frame intervals, missing API fallback and trusted final completion. The current correction adds independent regressions for owned vertical swipes without native document scroll, reverse travel, horizontal 3D dragging, tiny taps, restoration of native pricing and long-frame catch-up.
 
@@ -89,3 +89,64 @@ Executed on the frozen candidate:
 - `git diff --check` — pass; Git reported only working-copy LF/CRLF normalization warnings.
 
 The integrating lead records the production build, browser console/network QA and physical candidate retests separately. No displayed-FPS or real-device smoothness claim follows from these unit tests.
+
+
+## Mobile ownership correction — baseline f67abc6
+
+The first Pricing stop previously used `top + layout.entry`, while links and
+keyboard navigation used `top + layout.readingStart`. These differ by the
+0.2-viewport first-offer lead (168.8px at 844px). The gesture stop now uses the
+same `pricingPagePosition(top, 0, layout)` anchor as navigation. The preceding
+lead is still cinematic. Beyond the browser-rounded reading anchor by more than one CSS pixel,
+the offer has actually begun scrolling: native reverse reading first returns
+to that anchor after momentum finishes, then a new reverse gesture returns to
+Collection. There is no arbitrary 300px return zone.
+
+A contact that interrupts a cinematic trip pauses it while held. An eligible
+background tap resumes the same adjacent stop; a new vertical swipe selects
+its adjacent stop in the requested direction. Controls, horizontal model
+rotation, multitouch, cancellation and external navigation do not resume the
+old trip. A native-owned contact never becomes a JavaScript-owned contact on
+direction reversal. The existing authored destinations and accelerated timing
+are unchanged.
+
+New deterministic regressions were observed failing before their respective
+fixes: WebKit forward finger-following writes, uncancelable reverse ownership,
+midcontact class changes, layout-cancel class changes, native pointercancel
+class changes, delayed reservation of reverse ownership, and interruption
+stranding, partial-touch cancellation, and stale direction after returning to
+the gesture origin. Additional passing contracts cover 5/20px already-reading offsets,
+momentum before handoff, multitouch, touchcancel and pre-threshold reversal.
+These are event-model tests, not proof of physical Brave iPhone behavior.
+
+Once a reverse contact has reserved JavaScript ownership, moving forward again
+within that same contact cannot safely return ownership to the browser. A
+sub-threshold reversal is therefore consumed without navigation; the next
+contact works normally. This bounded interaction tradeoff avoids simultaneous
+native momentum and programmatic movement.
+
+Validation of this correction against f67abc6:
+
+- Baseline production Chromium trusted touch stopped 169px before the first-offer
+  navigation anchor; baseline WebKit measured the same 168px mismatch and the
+  `pinch-zoom` reading surface. Both failures were observed with the renderer ready.
+- Candidate production Chromium and WebKit pass the shared healthy-renderer
+  FR 390×844 / EN 430×932 anchor and native-pan contract with normal motion.
+- Chromium CDP trusted touches pass root/phone returns at the browser-rounded
+  anchor and ±1px, native forward reading, direction changes, cancellation,
+  viewport changes and multitouch cleanup. Background contact during an active
+  trip resumes the same stop; a new reverse gesture returns to Collection.
+  Those interruption cases also pass with real Chromium event ordering. CDP
+  is emulated input.
+- Six additional existing DOM-isolated safeguards pass; their WebGL-disabled
+  geometry checks are not renderer-performance evidence.
+- The Node suite passes 2136 tests with six existing optional skips. In this cloud
+  environment, its authenticated IPv6 loopback test needs `[::1]` added to the
+  existing `NO_PROXY`/`no_proxy` subprocess lists. Without it, both baseline and
+  candidate hit the same proxy socket failure; no test or application change is
+  needed for that environment issue.
+
+No physical Brave iPhone or Safari toolbar/compositor behavior was certified.
+WebKit keyboard/layout validation does not establish real tactile behavior or
+hardware frame cadence. The user's unprovided video cannot establish gesture
+direction; the observed oscillation itself remains a physical-device retest.

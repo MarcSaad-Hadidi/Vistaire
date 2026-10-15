@@ -162,6 +162,40 @@ test('Tarifs uses the measured reading start after the hand entrance in all layo
   assert.ok((app.match(/pricingNavigationTarget/g)||[]).length>=2,'initial hashes and button navigation share the measured target');
 });
 
+test('assisted pricing stops share the exact first-offer navigation anchor', async () => {
+  const { pricingScrollLayout, pricingPagePosition, pricingScreenScroll } = await import('../components/immersive/PricingPhoneLayout.js');
+  const source = readFileSync('components/immersive/Pricing.jsx', 'utf8');
+  const start = source.indexOf('    const navigationTarget = () =>');
+  const end = source.indexOf('    Object.assign(state, { pricingIntro:', start);
+  const sectionTop = 61000.2;
+  const header = 74;
+  for (const height of [390, 844, 932]) for (const reducedMotion of [false, true]) {
+    const layout = pricingScrollLayout(height, 2400, 530, .7, reducedMotion);
+    const context = vm.createContext({
+      intro: { getBoundingClientRect: () => ({ top: sectionTop - 200 }) },
+      window: { scrollY: 200 }, layoutRef: { current: layout }, pricingPagePosition,
+      document: { querySelector: () => ({ getBoundingClientRect: () => ({ bottom: header }) }) },
+    });
+    vm.runInContext(`${source.slice(start, end)}; this.target = navigationTarget; this.stops = readingStops;`, context);
+    const stops = context.stops();
+    assert.equal(stops.start, context.target(), 'a Tarifs arrival must be the same first-offer edge as a reverse gesture');
+    assert.ok(pricingScreenScroll(sectionTop - stops.start, layout) < 1e-8);
+    assert.equal(stops.end, pricingPagePosition(sectionTop, layout.maxScroll, layout));
+    assert.equal(stops.faq, sectionTop + layout.sectionHeight - header - 24);
+  }
+});
+
+test('pricing return surfaces allow native vertical reading in both browser families', () => {
+  const source = readFileSync('components/immersive/styles.css', 'utf8');
+  const start = source.indexOf('  :where([data-immersive-vistaire]).cinematic-pricing-return,');
+  const rule = source.slice(start, source.indexOf('}', start));
+  assert.ok(start >= 0);
+  assert.match(rule, /#pricing-screen-host\.cinematic-pricing-return/);
+  assert.match(rule, /#pricing-actions-host\.cinematic-pricing-return/);
+  assert.match(rule, /touch-action: pan-y pinch-zoom;/, 'the first offer must keep forward scrolling native even without directional-pan support');
+  assert.doesNotMatch(rule, /touch-action: (?:pinch-zoom|pan-up pinch-zoom);/);
+});
+
 test('the below-fold Studio preview and collections wait for the measured pricing approach', () => {
   const source = readFileSync('components/immersive/Pricing.jsx', 'utf8');
   const preview = source.slice(source.indexOf('className="pricing-pilotage-visual"'), source.indexOf('className="pricing-pilotage-note"'));

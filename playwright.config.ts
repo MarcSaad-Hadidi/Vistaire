@@ -112,6 +112,8 @@ export default defineConfig({
     ...(includeWebkit
       ? [{
           name: "webkit",
+          // Trusted touch dispatch uses CDP; the shared healthy-mobile case still runs here.
+          grepInvert: /Chromium trusted touch:/,
           use: {
             ...devices["iPhone 13"]
           }

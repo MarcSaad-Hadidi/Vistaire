@@ -352,10 +352,9 @@
   :where([data-immersive-vistaire]) main.cinematic-pricing-return,
   :where([data-immersive-vistaire]) #pricing-screen-host.cinematic-pricing-return,
   :where([data-immersive-vistaire]) #pricing-actions-host.cinematic-pricing-return {
-    /* WebKit does not implement pan-up: lock it and let touchmove follow
-       forward reading. Chromium understands pan-up and keeps it native. */
-    touch-action: pinch-zoom;
-    touch-action: pan-up pinch-zoom;
+    /* Reading stays native. Only a cancelable reverse gesture at the first
+       offer can be claimed by the entry controller. */
+    touch-action: pan-y pinch-zoom;
     overscroll-behavior-y: contain;
   }
 }

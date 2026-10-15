@@ -414,7 +414,7 @@ test('retained diagnostics preserve a single stop while wall-clock stalls catch 
   const snapshot = structuredClone(row.assisting); f.advance(16); f.move(200);
   assert.deepEqual(row.assisting, snapshot);
   assert.ok(Object.values(row.assisting).every(value => ['number', 'boolean'].includes(typeof value)));
-  assert.equal(row.mode, 'controlled');
+  assert.equal(row.mode, 'cinematic');
   f.stall(1000); f.advance(0);
   const target = f.bounds.opening.motionTravel / 2;
   assert.ok(Math.abs(f.calls.at(-1).top - target) < 1,
@@ -1197,8 +1197,9 @@ test('WebKit pricing boundary keeps forward offers scrollable without directiona
   assert.equal(f.main.classList.contains('cinematic-pricing-return'), true);
   f.input('touchstart', { touches: [{ clientX: 190, clientY: 470 }] });
   const forward = f.input('touchmove', { touches: [{ clientX: 190, clientY: 340 }], cancelable: true });
-  assert.equal(forward.defaultPrevented, true, 'WebKit uses non-passive touch capture instead of unsupported pan-up');
-  assert.equal(f.view.scrollY, pricing + 130, 'page tracks the finger while the first offer begins');
+  assert.equal(forward.defaultPrevented, false, 'WebKit keeps native pricing pan-y instead of emulating scrolling');
+  assert.equal(f.calls.length, 0, 'the controller does not write into the native touch');
+  f.move(pricing + 130);
   f.input('touchend', { touches: [], cancelable: true });
   f.advance(2200);
   assert.equal(f.reports.filter(row => row.type === 'handoff').length, 0, 'normal offer reading never triggers a section snap');
@@ -1242,8 +1243,9 @@ test('pricing deep links within the first offer return to Product rather than st
     const f = fixture({ coarse: true, directionalPan });
     const pricing = f.bounds.transitions.find(join => join.to.id === 'open-weight').end;
     const product = authoredReadingStops(f.bounds).find(stop => stop.id === 'product').y;
-    f.bounds.pricing = { start: pricing, end: pricing + 1800, faq: pricing + 2700 };
-    f.move(pricing + 170); // Reproduces the measured first-offer deep-link offset.
+    f.bounds.pricing = { start: pricing + 170, end: pricing + 1800, faq: pricing + 2700 };
+    f.assist.syncTouchLock();
+    f.move(pricing + 170); // Actual first-offer reading anchor, shared with the deep link.
     assert.equal(f.root.classList.contains('cinematic-pricing-return'), true);
     const background = { closest: () => null, outsideMain: true };
     f.input('touchstart', { touches: [{ clientX: 40, clientY: 350 }], target: background });
@@ -1300,4 +1302,214 @@ test('a touch fling up out of a page guide stops at the guide head; the next swi
   f.input('touchend', { touches: [] }); f.advance(6000);
   assert.equal(f.view.scrollY, product, 'from the guide head, one swipe returns to the last chapter stop');
   f.assist.dispose();
+});
+
+test('pricing forward reading has one native owner on WebKit and never writes from touchmove', () => {
+  const f = fixture({ coarse: true, directionalPan: false });
+  const pricing = f.bounds.transitions.find(join => join.to.id === 'open-weight').end;
+  f.bounds.pricing = { start: pricing, end: pricing + 1800, faq: pricing + 2700 };
+  f.move(pricing);
+  f.input('touchstart', { touches: [{ clientX: 190, clientY: 470 }] });
+  const forward = f.input('touchmove', { touches: [{ clientX: 190, clientY: 340 }], cancelable: true });
+  assert.equal(forward.defaultPrevented, false, 'offer reading stays browser-owned');
+  assert.equal(f.calls.length, 0, 'no JavaScript scroll can race native reading');
+  f.move(pricing + 130);
+  // A reversal belongs to the same native gesture, not a new cinematic owner.
+  f.input('touchmove', { touches: [{ clientX: 190, clientY: 510 }], cancelable: false });
+  f.input('touchend', { touches: [], cancelable: false });
+  f.end(); f.advance(3000);
+  assert.equal(assistedTargets(f).length, 0);
+  f.assist.dispose();
+});
+
+test('uncancelable pricing touch cannot claim vertical ownership or launch a second trip', () => {
+  const f = fixture({ coarse: true, directionalPan: false });
+  const pricing = f.bounds.transitions.find(join => join.to.id === 'open-weight').end;
+  f.bounds.pricing = { start: pricing, end: pricing + 1800, faq: pricing + 2700 };
+  f.move(pricing);
+  f.input('touchstart', { touches: [{ clientX: 190, clientY: 340 }] });
+  f.input('touchmove', { touches: [{ clientX: 190, clientY: 460 }], cancelable: false });
+  f.move(pricing - 120);
+  f.input('touchend', { touches: [], cancelable: false });
+  f.advance(2000);
+  assert.equal(assistedTargets(f).length, 0, 'native panning cannot be stolen after cancellation becomes impossible');
+  f.assist.dispose();
+});
+
+test('touch ownership classes and geometry stay fixed until the current contact releases', () => {
+  const f = fixture({ coarse: true });
+  const pricing = f.bounds.transitions.find(join => join.to.id === 'open-weight').end;
+  f.bounds.pricing = { start: pricing, end: pricing + 1800, faq: pricing + 2700 };
+  f.move(pricing + 500);
+  f.input('touchstart', { touches: [{ clientX: 190, clientY: 340 }] });
+  assert.equal(f.main.classList.contains('cinematic-touch-lock'), false);
+  f.bounds.pricing.start = pricing + 900;
+  f.assist.syncTouchLock();
+  f.move(pricing + 400);
+  assert.equal(f.main.classList.contains('cinematic-touch-lock'), false, 'a resize or native scroll cannot change touch-action mid-gesture');
+  f.input('touchend', { touches: [] });
+  f.assist.dispose();
+});
+
+test('layout cancellation during a held touch does not renegotiate its touch-action', () => {
+  const f = fixture({ coarse: true });
+  const pricing = f.bounds.transitions.find(join => join.to.id === 'open-weight').end;
+  f.bounds.pricing = { start: pricing, end: pricing + 1800, faq: pricing + 2700 };
+  f.move(pricing + 500);
+  f.input('touchstart', { touches: [{ clientX: 190, clientY: 340 }] });
+  f.bounds.pricing.start = pricing + 900;
+  f.assist.cancel('layout-geometry-changed');
+  f.assist.syncTouchLock();
+  assert.equal(f.main.classList.contains('cinematic-touch-lock'), false);
+  f.input('touchend', { touches: [] });
+  assert.equal(f.main.classList.contains('cinematic-touch-lock'), true, 'new geometry applies after release');
+  f.assist.dispose();
+});
+
+test('pointercancel during yielded native pricing preserves contact ownership through reversal', () => {
+  const f = fixture({ coarse: true, directionalPan: false });
+  const pricing = f.bounds.transitions.find(join => join.to.id === 'open-weight').end;
+  f.bounds.pricing = { start: pricing, end: pricing + 1800, faq: pricing + 2700 };
+  f.move(pricing);
+  f.input('pointerdown', { pointerType: 'touch' });
+  f.input('touchstart', { touches: [{ clientX: 190, clientY: 470 }] });
+  f.input('touchmove', { touches: [{ clientX: 190, clientY: 340 }], cancelable: true });
+  f.input('pointercancel', { pointerType: 'touch' });
+  f.move(pricing - 30); // native reversal still belongs to the same contact
+  assert.equal(f.main.classList.contains('cinematic-touch-lock'), false);
+  f.input('touchend', { touches: [] });
+  f.end(); f.advance(3000);
+  assert.equal(assistedTargets(f).length, 0, 'pointer and touch release do not create a second owner');
+  f.assist.dispose();
+});
+
+test('a small first reverse pricing move reserves ownership before browser panning can begin', () => {
+  const f = fixture({ coarse: true, directionalPan: false });
+  const pricing = f.bounds.transitions.find(join => join.to.id === 'open-weight').end;
+  f.bounds.pricing = { start: pricing, end: pricing + 1800, faq: pricing + 2700 };
+  f.move(pricing);
+  f.input('touchstart', { touches: [{ clientX: 190, clientY: 340 }] });
+  const first = f.input('touchmove', { touches: [{ clientX: 190, clientY: 345 }], cancelable: true });
+  assert.equal(first.defaultPrevented, true, 'do not wait past the browser pan threshold to reserve reverse movement');
+  f.input('touchend', { touches: [], cancelable: true });
+  f.advance(2000);
+  assert.equal(assistedTargets(f).length, 0, 'a tiny movement still cannot launch navigation');
+  f.assist.dispose();
+});
+
+test('a background contact during a cinematic trip resumes its same stop unless a new swipe redirects it', () => {
+  for (const redirect of [false, true]) {
+    const f = fixture({ coarse: true });
+    const ai = f.bounds.opening.motionTravel / 2;
+    f.input('touchstart', { touches: [{ clientX: 190, clientY: 460 }] });
+    f.input('touchmove', { touches: [{ clientX: 190, clientY: 360 }], cancelable: true });
+    f.input('touchend', { touches: [], cancelable: true });
+    f.advance(250);
+    assert.ok(f.view.scrollY > 0 && f.view.scrollY < ai);
+    f.input('pointerdown', { pointerType: 'touch' });
+    f.input('touchstart', { touches: [{ clientX: 190, clientY: 360 }] });
+    if (redirect) f.input('touchmove', { touches: [{ clientX: 190, clientY: 460 }], cancelable: true });
+    f.input('pointerup', { pointerType: 'touch' });
+    f.input('touchend', { touches: [], cancelable: true });
+    f.advance(2500);
+    assert.ok(Math.abs(f.view.scrollY - (redirect ? 0 : ai)) <= 1, 'contact never strands the scene between stops');
+    assert.equal(f.frames(), 0);
+    f.assist.dispose();
+  }
+});
+
+test('already-reading pricing offsets finish native momentum before returning to its anchor', () => {
+  for (const offset of [5, 20]) {
+    const f = fixture({ coarse: true, directionalPan: false });
+    const pricing = f.bounds.transitions.find(join => join.to.id === 'open-weight').end;
+    const product = authoredReadingStops(f.bounds).find(stop => stop.id === 'product').y;
+    f.bounds.pricing = { start: pricing, end: pricing + 1800, faq: pricing + 2700 };
+    f.move(pricing + offset);
+    f.input('touchstart', { touches: [{ clientX: 190, clientY: 340 }] });
+    const move = f.input('touchmove', { touches: [{ clientX: 190, clientY: 400 }], cancelable: true });
+    assert.equal(move.defaultPrevented, false, 'actual reader movement remains native');
+    f.move(pricing + offset - 10);
+    f.input('touchend', { touches: [] });
+    f.advance(16); f.move(pricing - 40);
+    f.advance(16); f.move(pricing - 80);
+    assert.equal(f.calls.length, 0, 'the controller does not write during native coast');
+    f.end(); f.advance(2500);
+    assert.ok(Math.abs(f.view.scrollY - pricing) <= 1, 'reading returns to its first stable anchor');
+    f.input('touchstart', { touches: [{ clientX: 190, clientY: 340 }] });
+    f.input('touchmove', { touches: [{ clientX: 190, clientY: 460 }], cancelable: true });
+    f.input('touchend', { touches: [], cancelable: true });
+    f.advance(2500);
+    assert.ok(Math.abs(f.view.scrollY - product) <= 1, 'next reverse gesture returns Collection');
+    f.assist.dispose();
+  }
+});
+
+test('multitouch, touchcancel and a pre-threshold reversal cannot leave a latent cinematic trip', () => {
+  for (const ending of ['multitouch', 'touchcancel', 'reversal']) {
+    const f = fixture({ coarse: true, directionalPan: false });
+    const pricing = f.bounds.transitions.find(join => join.to.id === 'open-weight').end;
+    f.bounds.pricing = { start: pricing, end: pricing + 1800, faq: pricing + 2700 };
+    f.move(pricing);
+    f.input('touchstart', { touches: [{ clientX: 190, clientY: 340 }] });
+    f.input('touchmove', { touches: [{ clientX: 190, clientY: 345 }], cancelable: true });
+    if (ending === 'multitouch') f.input('touchmove', { touches: [{ clientX: 190, clientY: 345 }, { clientX: 240, clientY: 300 }], cancelable: true });
+    if (ending === 'touchcancel') f.input('touchcancel', { touches: [] });
+    if (ending === 'reversal') f.input('touchmove', { touches: [{ clientX: 190, clientY: 300 }], cancelable: true });
+    f.input('touchend', { touches: [], cancelable: true });
+    f.end(); f.advance(2500);
+    assert.equal(assistedTargets(f).length, 0, ending);
+    assert.equal(f.frames(), 0);
+    f.assist.dispose();
+    assert.equal(f.main.classList.contains('cinematic-touch-lock'), false);
+  }
+});
+
+test('partial touchcancel keeps touch-action fixed while another finger remains in contact', () => {
+  const f = fixture({ coarse: true });
+  const pricing = f.bounds.transitions.find(join => join.to.id === 'open-weight').end;
+  f.bounds.pricing = { start: pricing, end: pricing + 1800, faq: pricing + 2700 };
+  f.move(pricing + 500);
+  f.input('touchstart', { touches: [{ clientX: 190, clientY: 340 }, { clientX: 240, clientY: 340 }] });
+  f.move(pricing - 30);
+  f.input('touchcancel', { touches: [{ clientX: 240, clientY: 340 }] });
+  assert.equal(f.main.classList.contains('cinematic-touch-lock'), false);
+  f.input('touchend', { touches: [] });
+  assert.equal(f.main.classList.contains('cinematic-touch-lock'), true);
+  f.advance(3000);
+  assert.equal(assistedTargets(f).length, 0);
+  f.assist.dispose();
+});
+
+test('a claimed reverse gesture returned to its origin does not retain stale direction', () => {
+  const f = fixture({ coarse: true });
+  const pricing = f.bounds.transitions.find(join => join.to.id === 'open-weight').end;
+  f.bounds.pricing = { start: pricing, end: pricing + 1800, faq: pricing + 2700 };
+  f.move(pricing);
+  f.input('touchstart', { touches: [{ clientX: 190, clientY: 340 }] });
+  f.input('touchmove', { touches: [{ clientX: 190, clientY: 460 }], cancelable: true });
+  f.input('touchmove', { touches: [{ clientX: 190, clientY: 340 }], cancelable: true });
+  f.input('touchend', { touches: [], cancelable: true });
+  f.advance(2500);
+  assert.equal(assistedTargets(f).length, 0);
+  f.assist.dispose();
+});
+
+test('fractional first-offer geometry preserves reverse ownership within one pixel of the browser-rounded anchor', () => {
+  for (const fraction of [0.021875, 0.978125]) for (const offset of [-1, 0, 1]) {
+    const f = fixture({ coarse: true });
+    const pricing = Math.floor(f.bounds.transitions.find(join => join.to.id === 'open-weight').end) + 170 + fraction;
+    const product = authoredReadingStops(f.bounds).find(stop => stop.id === 'product').y;
+    f.bounds.pricing = { start: pricing, end: pricing + 1800, faq: pricing + 2700 };
+    f.assist.syncTouchLock();
+    f.move(Math.round(pricing) + offset);
+    assert.equal(f.root.classList.contains('cinematic-pricing-return'), true, `rounded edge remains eligible at fraction ${fraction}`);
+    f.input('touchstart', { touches: [{ clientX: 40, clientY: 350 }] });
+    const reverse = f.input('touchmove', { touches: [{ clientX: 40, clientY: 490 }], cancelable: true });
+    assert.equal(reverse.defaultPrevented, true);
+    f.input('touchend', { touches: [], cancelable: true });
+    f.advance(2500);
+    assert.ok(Math.abs(f.view.scrollY - product) <= 1);
+    assert.equal(f.reports.filter(row => row.type === 'handoff').length, 1);
+    f.assist.dispose();
+  }
 });

@@ -216,8 +216,7 @@ touchTest("isolated DOM: pricing return preserves the reverse cinematic edge wit
   await page.evaluate(y => scrollTo({ top: y, behavior: "instant" }), upper);
   await expect(main).toHaveClass(/cinematic-pricing-return/);
   await expect(root).toHaveClass(/cinematic-pricing-return/);
-  const directional = await page.evaluate(() => CSS.supports("touch-action", "pan-up pinch-zoom"));
-  const expectedAction = directional ? "pan-up pinch-zoom" : "pinch-zoom";
+  const expectedAction = "pan-y pinch-zoom";
   await expect(main).toHaveCSS("touch-action", expectedAction);
   await expect(root).toHaveCSS("touch-action", expectedAction);
   // The fixed interactive phone is portalled outside main; its touch owner
@@ -984,5 +983,251 @@ domTest('isolated DOM: short landscape and zoom-sized viewports reserve a real f
       finally { clearTimeout(timer); }
       throw error;
     }
+  }
+});
+
+// These regressions require the healthy renderer and normal motion. Unlike
+// domTest, they never close the failure dialog or replace a browser API.
+const renderedTouchTest = test.extend({ hasTouch: true, isMobile: true });
+
+renderedTouchTest('healthy mobile: pricing keeps native vertical panning at the same first-offer anchor as navigation', async ({ page }) => {
+  test.setTimeout(240_000);
+  await page.emulateMedia({ reducedMotion: 'no-preference' });
+  for (const [path, width, height] of [['/', 390, 844], ['/en', 430, 932]] as const) {
+    await page.setViewportSize({ width, height });
+    await page.goto(`${path}#open-weight`);
+    await waitForScene(page);
+    await page.evaluate(() => document.fonts.ready);
+    await expect(page.locator('html')).toHaveAttribute('data-chapter', 'open-weight');
+    const firstOffer = await page.evaluate(() => scrollY);
+    for (const selector of ['[data-immersive-vistaire]', 'main#content', '#pricing-screen-host', '#pricing-actions-host']) {
+      await expect(page.locator(selector)).toHaveClass(/cinematic-pricing-return/);
+      await expect(page.locator(selector)).toHaveCSS('touch-action', 'pan-y pinch-zoom');
+    }
+    await page.goto(`${path}#product`);
+    await expect(page.locator('html')).toHaveAttribute('data-chapter', 'product');
+    // Keyboard completion exercises the same measured destination in both
+    // Chromium and WebKit; it does not claim to emulate an iPhone touch pan.
+    await page.keyboard.press('PageDown');
+    await expect.poll(() => page.evaluate(y => Math.abs(scrollY - y), firstOffer), { timeout: 10_000 }).toBeLessThanOrEqual(1);
+    await expect(page.locator('.pricing-phone-viewport')).toBeInViewport();
+    await expect(page.locator('[role="alertdialog"]')).toHaveCount(0);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(1);
+  }
+});
+
+renderedTouchTest('Chromium trusted touch: pricing return owns one trip and forward offer reading stays native', async ({ page, browserName }, testInfo) => {
+  // Run with --project=chromium --grep 'Chromium trusted touch:'. WebKit's
+  // project filter excludes only this CDP case; --project=webkit --grep
+  // 'healthy mobile:' verifies its real renderer, geometry and native CSS.
+  // Neither browser-emulation case claims physical iPhone gesture validation.
+  expect(browserName, 'trusted touch dispatch in this case requires Chromium CDP').toBe('chromium');
+  test.setTimeout(180_000);
+  await page.emulateMedia({ reducedMotion: 'no-preference' });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.addInitScript(() => {
+    const diagnostics = window as unknown as {
+      __vistaireScrollAssistTrace: (entry: Record<string, unknown>) => void;
+      __landingTouchEvidence: Record<string, unknown>[];
+    };
+    const entries: Record<string, unknown>[] = [];
+    diagnostics.__landingTouchEvidence = entries;
+    diagnostics.__vistaireScrollAssistTrace = entry => entries.push({ kind: 'assist', ...entry });
+    for (const type of ['touchstart', 'touchmove', 'touchend', 'touchcancel', 'pointercancel']) {
+      window.addEventListener(type, event => {
+        entries.push({ kind: 'input', type, trusted: event.isTrusted, cancelable: event.cancelable,
+          prevented: event.defaultPrevented, y: scrollY, at: performance.now(),
+          target: (event.target as Element)?.id || (event.target as Element)?.className,
+          lock: document.querySelector('main')?.className,
+          touchAction: getComputedStyle(document.querySelector('[data-immersive-vistaire]')!).touchAction });
+      }, { passive: true });
+    }
+  });
+  const evidence = () => page.evaluate(() => (window as unknown as {
+    __landingTouchEvidence: Array<Record<string, unknown>>;
+  }).__landingTouchEvidence);
+  const cdp = await page.context().newCDPSession(page);
+  const touch = (type: 'touchStart' | 'touchMove' | 'touchEnd' | 'touchCancel', x: number, y: number) => cdp.send('Input.dispatchTouchEvent', {
+    type, touchPoints: type === 'touchEnd' || type === 'touchCancel' ? [] : [{ id: 1, x, y }],
+  });
+  const swipe = async (x: number, from: number, to: number) => {
+    await touch('touchStart', x, from);
+    for (let step = 1; step <= 6; step++) {
+      await touch('touchMove', x, from + (to - from) * step / 6);
+      await page.waitForTimeout(35);
+    }
+    await touch('touchEnd', x, to);
+  };
+  const traceStarts = async () => (await evidence()).filter(entry => entry.type === 'assist-start');
+  try {
+    await page.goto('/#product');
+    await waitForScene(page);
+    await page.evaluate(() => document.fonts.ready);
+    await page.goto('/#open-weight');
+    await waitForScene(page);
+    await expect(page.locator('html')).toHaveAttribute('data-chapter', 'open-weight');
+    const firstOffer = await page.evaluate(() => scrollY);
+    const atFirstOffer = async () => {
+      // A native fling can outlive touchend; settle it before positioning the
+      // next independent case, rather than racing compositor momentum.
+      await expect.poll(async () => {
+        const before = await page.evaluate(() => scrollY);
+        await page.waitForTimeout(200);
+        return Math.abs(await page.evaluate(() => scrollY) - before);
+      }, { timeout: 10_000 }).toBe(0);
+      await page.evaluate(y => scrollTo({ top: y, behavior: 'instant' }), firstOffer);
+      await expect.poll(() => page.evaluate(y => Math.abs(scrollY - y), firstOffer)).toBeLessThanOrEqual(1);
+      await expect(page.locator('main')).toHaveClass(/cinematic-pricing-return/);
+    };
+    // A hash arrival and a released Collection gesture must agree exactly.
+    await page.goto('/#product');
+    await expect(page.locator('html')).toHaveAttribute('data-chapter', 'product');
+    const collection = await page.evaluate(() => scrollY);
+    await swipe(20, 650, 400);
+    await expect.poll(() => page.evaluate(y => Math.abs(scrollY - y), firstOffer), { timeout: 10_000 }).toBeLessThanOrEqual(1);
+    for (const offset of [0, 1, -1]) {
+      await page.evaluate(y => scrollTo({ top: y, behavior: 'instant' }), firstOffer + offset);
+      await expect(page.locator('main')).toHaveClass(/cinematic-pricing-return/);
+      const reader = (await page.locator('.pricing-phone-viewport').boundingBox())!;
+      const x = offset === 0 ? 20 : reader.x + reader.width / 2;
+      const before = (await traceStarts()).length;
+      await swipe(x, 300, 530);
+      await expect.poll(() => page.evaluate(y => Math.abs(scrollY - y), collection), { timeout: 10_000 }).toBeLessThanOrEqual(1);
+      expect((await traceStarts()).length - before, `reverse at first-offer offset ${offset}: exactly one destination`).toBe(1);
+    }
+    // A fresh contact during the visible trip pauses it. A background tap
+    // resumes the same destination; a new reverse swipe returns one stop.
+    for (const reverse of [false, true]) {
+      await page.evaluate(y => scrollTo({ top: y, behavior: 'instant' }), collection);
+      await expect.poll(() => page.evaluate(y => Math.abs(scrollY - y), collection)).toBeLessThanOrEqual(1);
+      const beforeInterrupt = (await evidence()).length;
+      await swipe(20, 650, 400);
+      await page.waitForFunction(({ index, origin, target }) => {
+        const entries = (window as unknown as { __landingTouchEvidence: Array<Record<string, unknown>> }).__landingTouchEvidence;
+        return entries.slice(index).some(entry => entry.type === 'assist-write' && Number(entry.progress) > 0)
+          && scrollY > origin + 20 && scrollY < target - 20;
+      }, { index: beforeInterrupt, origin: collection, target: firstOffer }, { polling: 'raf', timeout: 5_000 });
+      const background = await page.evaluate(() => {
+        const root = document.querySelector('[data-immersive-vistaire]')!;
+        for (const y of [600, 500, 400, 300, 200]) for (const x of [20, 370, 195]) {
+          const target = document.elementFromPoint(x, y);
+          if (root.contains(target) && !target?.closest('a, button, summary, [role="button"], [role="tab"], [role="slider"], [role="textbox"], [role="combobox"], [role="listbox"], [role="menu"], [role="menuitem"], [role="dialog"], [aria-modal="true"], input, select, textarea, video, audio, iframe, dialog, [contenteditable]:not([contenteditable="false"])')) return { x, y };
+        }
+        return null;
+      });
+      expect(background, 'mid-trip contact must target background, not a model slider or control').not.toBeNull();
+      const contact = background!;
+      await touch('touchStart', contact.x, contact.y);
+      if (reverse) {
+        for (const displacement of [40, 80, 120, 160, 200, 230]) {
+          await touch('touchMove', contact.x, contact.y + displacement);
+          await page.waitForTimeout(35);
+        }
+      }
+      await touch('touchEnd', contact.x, contact.y + (reverse ? 230 : 0));
+      const destination = reverse ? collection : firstOffer;
+      await expect.poll(() => page.evaluate(y => Math.abs(scrollY - y), destination), { timeout: 10_000 }).toBeLessThanOrEqual(1);
+      const trips = (await evidence()).slice(beforeInterrupt).filter(entry => entry.type === 'assist-start');
+      expect(trips, reverse ? 'new reverse replaces the interrupted trip once' : 'background tap resumes the same trip once').toHaveLength(2);
+      expect(trips.map(entry => (entry.phase as { id: string }).id)).toEqual(['open-weight', reverse ? 'product' : 'open-weight']);
+      if (!reverse) expect((await evidence()).slice(beforeInterrupt).some(entry => entry.type === 'handoff' && entry.source === 'touch-resume')).toBe(true);
+    }
+
+    // Start native reading on the actual portalled phone, including its links.
+    await atFirstOffer();
+    const reader = (await page.locator('.pricing-phone-viewport').boundingBox())!;
+    const x = reader.x + reader.width / 2;
+    const inputStart = (await evidence()).length;
+    const starts = (await traceStarts()).length;
+    await swipe(x, 600, 390);
+    await expect.poll(() => page.evaluate(() => scrollY)).toBeGreaterThan(firstOffer + 20);
+    const forward = (await evidence()).slice(inputStart);
+    expect(forward.filter(entry => entry.kind === 'input' && entry.type === 'touchmove' && entry.prevented), 'native forward reading is never preventDefault-owned').toEqual([]);
+    expect(forward.some(entry => entry.kind === 'input' && entry.type === 'pointercancel'), 'UA owns the forward pan').toBe(true);
+    expect((await traceStarts()).length).toBe(starts);
+    expect(forward.filter(entry => entry.type === 'assist-write'), 'native reading has no animation writes').toEqual([]);
+    expect(forward.some(entry => entry.type === 'touch-native-reading' && entry.owner === 'native' && entry.defaultPrevented === false)).toBe(true);
+    // Cancel a captured reverse gesture, then prove a fresh forward gesture
+    // works. No timeout-based or synthetic touchend can manufacture a trip.
+    await atFirstOffer();
+    const beforeCancel = (await traceStarts()).length;
+    await touch('touchStart', 20, 300);
+    await touch('touchMove', 20, 420);
+    await touch('touchCancel', 20, 420);
+    await page.waitForTimeout(400);
+    expect((await traceStarts()).length).toBe(beforeCancel);
+    await swipe(20, 600, 390);
+    await expect.poll(() => page.evaluate(() => scrollY)).toBeGreaterThan(firstOffer + 20);
+    // A native pan stays native after an immediate reversal within the same
+    // contact. Re-entry must never add a second scripted animation owner.
+    await atFirstOffer();
+    const beforeNativeReversal = (await traceStarts()).length;
+    const reversalStart = (await evidence()).length;
+    await touch('touchStart', 20, 600);
+    for (const y of [560, 500, 440, 500, 560, 620]) {
+      await touch('touchMove', 20, y);
+      await page.waitForTimeout(35);
+    }
+    await touch('touchEnd', 20, 620);
+    await page.waitForTimeout(400);
+    expect((await traceStarts()).length).toBe(beforeNativeReversal);
+    expect((await evidence()).slice(reversalStart).filter(entry =>
+      entry.kind === 'input' && entry.type === 'touchmove' && entry.prevented)).toEqual([]);
+
+    // A reverse intent that returns to its origin is cancelled, not released
+    // as the older direction. This also checks end-of-contact cleanup.
+    await atFirstOffer();
+    const beforeReturn = (await traceStarts()).length;
+    await touch('touchStart', 20, 300);
+    await touch('touchMove', 20, 420);
+    await touch('touchMove', 20, 300);
+    await touch('touchEnd', 20, 300);
+    await page.waitForTimeout(400);
+    expect((await traceStarts()).length).toBe(beforeReturn);
+    expect(await page.evaluate(y => Math.abs(scrollY - y), firstOffer)).toBeLessThanOrEqual(1);
+
+    // Chromium may coalesce a 5px packet below its pan slop. Whether native
+    // or already reserved, the following reversal cannot create a second trip.
+    await atFirstOffer();
+    const beforeTinyReverse = (await traceStarts()).length;
+    await touch('touchStart', 20, 400);
+    await touch('touchMove', 20, 405);
+    await touch('touchMove', 20, 340);
+    await touch('touchEnd', 20, 340);
+    await page.waitForTimeout(400);
+    expect((await traceStarts()).length).toBe(beforeTinyReverse);
+
+    // Browser-toolbar height changes during contact preserve its CSS owner.
+    // A real portrait/landscape layout change is tested after cancellation.
+    await atFirstOffer();
+    await touch('touchStart', 20, 300);
+    await touch('touchMove', 20, 360);
+    const heldAction = await page.locator('[data-immersive-vistaire]').evaluate(el => getComputedStyle(el).touchAction);
+    await page.setViewportSize({ width: 390, height: 730 });
+    await expect(page.locator('[data-immersive-vistaire]')).toHaveCSS('touch-action', heldAction);
+    await touch('touchCancel', 20, 360);
+    await page.setViewportSize({ width: 844, height: 390 });
+    await expect(page.locator('.opening-stage')).toHaveCSS('height', '390px');
+    await page.setViewportSize({ width: 390, height: 844 });
+    await expect(page.locator('.opening-stage')).toHaveCSS('height', '844px');
+
+    // Adding a second finger relinquishes the cinematic gesture. Pinch is
+    // enabled by CSS; this emulation does not claim physical zoom validation.
+    await atFirstOffer();
+    const beforeMultiTouch = (await traceStarts()).length;
+    await touch('touchStart', 20, 300);
+    await touch('touchMove', 20, 350);
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [
+      { id: 1, x: 20, y: 350 }, { id: 2, x: 100, y: 350 },
+    ] });
+    await touch('touchEnd', 20, 350);
+    await page.waitForTimeout(400);
+    expect((await traceStarts()).length).toBe(beforeMultiTouch);
+    await expect(page.locator('[role="alertdialog"]')).toHaveCount(0);
+  } finally {
+    await cdp.detach();
+    const artifact = testInfo.outputPath('trusted-touch-ownership.json');
+    await writeFile(artifact, JSON.stringify(await evidence(), null, 2));
+    await testInfo.attach('trusted-touch-ownership', { path: artifact, contentType: 'application/json' });
   }
 });

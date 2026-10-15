@@ -338,8 +338,9 @@ export default function Pricing({ collection, stateRef }) {
       const top = intro.getBoundingClientRect().top + window.scrollY;
       // The FAQ arrives below the fixed navigation bar, with breathing room.
       const header = document.querySelector(".site-header")?.getBoundingClientRect().bottom ?? 0;
-      // Stop when the hand and phone are in place, before the offers start moving.
-      return { start: top + layout.entry, end: pricingPagePosition(top, layout.maxScroll, layout), faq: top + layout.sectionHeight - header - 24 };
+      // Navigation and gesture boundaries share the first readable phone pose.
+      // The entry finishes earlier, leaving a lead before native reading starts.
+      return { start: pricingPagePosition(top, 0, layout), end: pricingPagePosition(top, layout.maxScroll, layout), faq: top + layout.sectionHeight - header - 24 };
     };
     Object.assign(state, { pricingIntro: intro, pricingStage: visual, pricingNavigationTarget: navigationTarget, pricingReadingStops: readingStops });
     const syncScroll = (

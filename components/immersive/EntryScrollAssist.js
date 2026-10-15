@@ -49,9 +49,6 @@ export function createEntryScrollAssist({ getGeometry, isBlocked }, view = windo
   const reduced = view.matchMedia("(prefers-reduced-motion: reduce)");
   const finePointer = view.matchMedia("(hover: hover) and (pointer: fine)");
   const coarsePointer = view.matchMedia("(hover: none) and (pointer: coarse)");
-  // WebKit/iOS does not implement directional pan-up touch-action. Chromium
-  // can retain native forward reading; WebKit needs a single-finger fallback.
-  const directionalPan = view.CSS?.supports?.("touch-action", "pan-up pinch-zoom") ?? true;
   const cinematicMain = document.querySelector?.("main");
   const presentationRoot = document.querySelector?.("[data-immersive-vistaire]");
   // The pricing phone is a portal outside main; its first-offer boundary
@@ -65,6 +62,7 @@ export function createEntryScrollAssist({ getGeometry, isBlocked }, view = windo
   let blockedReason = null;
   let gesture = null;
   let assisting = null;
+  let interruptedTrip = null;
   let lastY = view.scrollY;
   let lastYAt = view.performance.now();
   let timer = null;
@@ -76,6 +74,8 @@ export function createEntryScrollAssist({ getGeometry, isBlocked }, view = windo
   let ownedTouch = null;
   let touchRange = null;
   let touchSuppressed = false;
+  let touchGeometry = null;
+  let touchSequence = 0;
   let writes = [];
   // Native momentum of an offer-reading gesture stops at the first/last offer.
   let readingGuard = null;
@@ -88,10 +88,14 @@ export function createEntryScrollAssist({ getGeometry, isBlocked }, view = windo
     try {
       view.__vistaireScrollAssistTrace({
         type, handledAt: view.performance.now(), eventTimeStamp: event?.timeStamp ?? null,
-        eventType: event?.type ?? null, hasScrollEnd, touching, heldKey, touchY, pointerHeld, mode: "controlled",
+        eventType: event?.type ?? null, hasScrollEnd, touching, heldKey, touchY, pointerHeld, mode: assisting ? "cinematic" : ownedTouch ? "pending-touch" : "native",
         gesture: gesture ? { ...gesture } : null,
         assisting: assisting ? { ...assisting } : null,
-        lastY, currentY: view.scrollY,
+        lastY, currentY: view.scrollY, gestureId: touchSequence,
+        owner: assisting || ownedTouch?.reserved || ownedTouch?.claimed ? "javascript" : ownedTouch ? "pending" : "native",
+        cancelable: event?.cancelable ?? null, defaultPrevented: event?.defaultPrevented ?? null,
+        viewport: { height: view.innerHeight, visibleHeight: view.visualViewport?.height, offsetTop: view.visualViewport?.offsetTop },
+        touchLocked: cinematicMain?.classList?.contains("cinematic-touch-lock"),
         age: gesture ? view.performance.now() - gesture.at : null,
         blockedReason, ...details,
       });
@@ -117,7 +121,7 @@ export function createEntryScrollAssist({ getGeometry, isBlocked }, view = windo
       { reason: typeof source === "string" ? source : source?.type || "caller-cancel" });
     clearTimer();
     view.cancelAnimationFrame(frame); frame = null;
-    gesture = null; nativeEnd = null; assisting = null; ownedTouch = null;
+    gesture = null; nativeEnd = null; assisting = null; ownedTouch = null; interruptedTrip = null;
     // A new contact keeps the visible native pose. Reading scrollY here and
     // writing it back can reset a compositor position that has advanced ahead.
   };
@@ -206,7 +210,7 @@ export function createEntryScrollAssist({ getGeometry, isBlocked }, view = windo
   };
   // One destination rule for touch, wheel/trackpad, keys and idle returns.
   const route = (y, origin, direction) => {
-    const { opening, transitions, pricing: reading, naturalFrom } = getGeometry();
+    const { opening, transitions, pricing: reading, naturalFrom } = touchGeometry ?? getGeometry();
     if (!opening) return {};
     // The collection stops on the pricing phone with its first offer. Offers
     // scroll natively but stop at the first and last offer; only a gesture
@@ -261,23 +265,26 @@ export function createEntryScrollAssist({ getGeometry, isBlocked }, view = windo
   // regain native page scrolling. Layout-reading boundaries are cached.
   const syncTouchLock = (refresh = false) => {
     if (!cinematicMain?.classList) return false;
+    // touch-action is negotiated at contact start, never renegotiated by a
+    // resize or a scroll callback in the middle of that same gesture.
+    if (touching) return cinematicMain.classList.contains("cinematic-touch-lock");
     if (refresh || !touchRange) {
       const geometry = coarsePointer.matches && !reduced.matches ? getGeometry() : null;
       const pricingStart = geometry?.pricing?.start ??
         geometry?.transitions?.find(join => join.to.id === "open-weight")?.end ?? null;
       touchRange = geometry?.opening ? {
         top: geometry.opening.top,
-        pricingStart,
-        returnTolerance: Math.min(300, geometry.opening.stageHeight * 0.35),
-        end: Math.min(pricingStart ?? Infinity, geometry.naturalFrom ?? Infinity),
+        // Match the integral position published by browser scroll navigation.
+        pricingStart: pricingStart == null ? null : Math.round(pricingStart),
+        returnTolerance: 1,
+        end: Math.min(pricingStart == null ? Infinity : Math.round(pricingStart), geometry.naturalFrom ?? Infinity),
       } : null;
     }
     const enabled = coarsePointer.matches && !reduced.matches && !touchSuppressed;
     const locked = Boolean(enabled && touchRange
       && view.scrollY >= touchRange.top - 1 && view.scrollY < touchRange.end - 1);
-    // At the first pricing offer, allow finger-up native reading (pan-up),
-    // but reserve finger-down for the previous authored collection stop.
-    // This prevents native momentum from exposing a strip below the scene.
+    // The first offer keeps native pan-y. Only a cancelable first reverse
+    // movement may claim a cinematic return before native panning begins.
     const pricingReturn = Boolean(!locked && enabled
       && touchRange?.pricingStart != null
       && view.scrollY >= touchRange.pricingStart - 2
@@ -415,10 +422,15 @@ export function createEntryScrollAssist({ getGeometry, isBlocked }, view = windo
     if (diagnostics) report("key-release", event);
   };
   const touchstart = event => {
+    const interrupted = assisting ?? interruptedTrip;
     cancel("touchstart", event);
     readingGuard = null;
     inputKind = "touch";
+    const locked = syncTouchLock(true);
     touching = event.touches.length > 0;
+    touchSequence += 1;
+    const geometry = getGeometry();
+    touchGeometry = { ...geometry, pricing: geometry.pricing ? { ...geometry.pricing } : undefined };
     // A pan that starts on a link or button is still a page scroll; a tap never
     // scrolls, so it cannot arm assistance. Fields, menus and dialogs own touch.
     touchY = event.isTrusted && event.touches.length === 1 && !blocked() && !controlled(event.target, TOUCH_OWNERS)
@@ -427,7 +439,6 @@ export function createEntryScrollAssist({ getGeometry, isBlocked }, view = windo
     // only when trusted and stamped after the intent it would support.
     touchStart = touchY != null ? { since: event.timeStamp, motion: 0 } : null;
     touchOrigin = touchY != null ? { x: event.touches[0].clientX, y: touchY } : null;
-    const locked = syncTouchLock(true);
     const pricingReturn = !locked && cinematicMain?.classList?.contains("cinematic-pricing-return");
     // On pricing and pinned 3D scenes, much of the visible background and
     // the phone portals live outside main. They must still own mobile swipes.
@@ -437,7 +448,8 @@ export function createEntryScrollAssist({ getGeometry, isBlocked }, view = windo
         || pricingActionsHost?.contains?.(event.target)));
     if (touchY != null && (locked || pricingReturn) && onScene) {
       ownedTouch = { x: event.touches[0].clientX ?? 0, y: touchY, direction: 0, claimed: false,
-        pricingReturn, at: view.performance.now(), origin: view.scrollY };
+        pricingReturn, at: view.performance.now(), origin: view.scrollY,
+        interrupted: !controlled(event.target) ? interrupted : null };
       touchStart = null; // No native scroll evidence is needed for this gesture.
     }
     if (diagnostics) report("touch-start", event, { accepted: touchY != null, locked: Boolean(ownedTouch),
@@ -455,28 +467,30 @@ export function createEntryScrollAssist({ getGeometry, isBlocked }, view = windo
         if (diagnostics) report("intent-rejected", event, { reason: "horizontal-drag" });
         return;
       }
-      // Chromium permits forward pan-up at this boundary. Safari/WebKit does
-      // not support that CSS value, so a forward finger move follows the finger
-      // under pinch-zoom instead of becoming a dead, unscrollable pricing screen.
-      if (ownedTouch.pricingReturn && dy >= 0 && !ownedTouch.claimed && directionalPan) {
-        ownedTouch = null; touchY = null; touchStart = null;
-        return;
-      }
-      if (ownedTouch.pricingReturn && dy >= 0 && !directionalPan) {
-        if (!ownedTouch.claimed && dy >= 12 && dy > dx) ownedTouch.claimed = true;
-        if (ownedTouch.claimed && event.cancelable) {
-          event.preventDefault();
-          ownedTouch.readingForward = true;
-          const next = ownedTouch.origin + dy;
-          if (Math.abs(view.scrollY - next) >= 1)
-            view.scrollTo({ top: next, behavior: "instant" });
+      // Pricing remains native on both WebKit and Chromium. Decide ownership
+      // on the first vertical move, before the browser starts a pan. A gesture
+      // yielded to native reading cannot switch back to JavaScript on reversal.
+      if (!ownedTouch.claimed && Math.abs(dy) > dx && Math.abs(dy) >= (ownedTouch.pricingReturn ? 1 : 12)) {
+        if (ownedTouch.pricingReturn && dy > 0 && !ownedTouch.reserved) {
+          ownedTouch = null; touchY = null; touchStart = null;
+          if (diagnostics) report("touch-native-reading", event);
+          return;
         }
-        touchY = y;
-        return;
+        if (!event.cancelable || event.defaultPrevented) {
+          ownedTouch = null; touchY = null; touchStart = null;
+          if (diagnostics) report("touch-native-owner", event);
+          return;
+        }
+        event.preventDefault();
+        if (!event.defaultPrevented) {
+          ownedTouch = null; touchY = null; touchStart = null;
+          return;
+        }
+        ownedTouch.reserved = true;
+        ownedTouch.claimed = Math.abs(dy) >= 12;
       }
-      if (!ownedTouch.claimed && Math.abs(dy) >= 12 && Math.abs(dy) > dx) ownedTouch.claimed = true;
       if (ownedTouch.claimed) {
-        ownedTouch.direction = Math.sign(dy) || ownedTouch.direction;
+        ownedTouch.direction = Math.abs(dy) >= 12 ? Math.sign(dy) : 0;
         if (event.cancelable) event.preventDefault();
         if (diagnostics) report("touch-locked-move", event, { direction: ownedTouch.direction, displacement: dy });
       }
@@ -508,21 +522,15 @@ export function createEntryScrollAssist({ getGeometry, isBlocked }, view = windo
     ownedTouch = null;
     if (!touching) {
       touchY = null; touchStart = null;
-      if (owned?.readingForward) {
-        if (diagnostics) report("touch-release", event, { locked: true, pricingReading: true });
-        return; // The first offer now scrolls normally; the next pan is native.
-      }
+      syncTouchLock(true);
       if (owned?.claimed && owned.direction && !blocked()) {
         if (event.cancelable) event.preventDefault();
         const y = view.scrollY;
         let plan = route(y, owned.origin, owned.direction);
         if (owned.pricingReturn && owned.direction < 0) {
-          // The first offer may be 100–250px past its anchor (deep links,
-          // mobile viewport rounding). Native pricing routing treats that as
-          // offer reading and silently refuses to return to the collection.
-          // A specifically captured reverse entry instead owns Product's
-          // exact authored stop, never an intermediate pricing position.
-          const geometry = getGeometry();
+          // Return from the actual first-offer reading anchor to Product,
+          // never to the incoming Pricing animation's intermediate position.
+          const geometry = touchGeometry ?? getGeometry();
           const product = geometry.transitions?.find(join => join.to.id === "product");
           if (product && product.end < y - 1)
             plan = { opening: geometry.opening, destination: { id: "product", y: product.end } };
@@ -531,6 +539,19 @@ export function createEntryScrollAssist({ getGeometry, isBlocked }, view = windo
           travel(event, "touch-locked", plan.destination, plan.opening, y, owned.direction, owned.at);
         else if (diagnostics) report("touch-locked-native", event, { direction: owned.direction });
         if (diagnostics) report("touch-release", event, { locked: true });
+        touchGeometry = null;
+        return;
+      }
+      // A background contact pauses the trip while held. With no new swipe,
+      // finish that same adjacent stop; controls and model drags never resume it.
+      if (owned?.interrupted && !blocked()) {
+        const y = view.scrollY;
+        const plan = route(y, y, owned.interrupted.direction);
+        if (!plan.native && plan.destination && Math.abs(plan.destination.y - owned.interrupted.target) <= 1) {
+          if (event.cancelable) event.preventDefault(); // suppress the compatibility click
+          travel(event, "touch-resume", plan.destination, plan.opening, y, owned.interrupted.direction, owned.at);
+        }
+        touchGeometry = null;
         return;
       }
       // Free-reading guides have a native upper edge. Arm its existing
@@ -545,11 +566,16 @@ export function createEntryScrollAssist({ getGeometry, isBlocked }, view = windo
         schedule();
       }
     }
+    if (!touching) touchGeometry = null;
     if (diagnostics) report("touch-release", event);
   };
-  const reset = source => { cancel(source); readingGuard = null; touching = false; touchY = null; touchStart = null; heldKey = null; pointerHeld = false; syncTouchLock(true); };
+  const reset = source => { cancel(source); readingGuard = null; touching = source?.type === "touchcancel" && source.touches.length > 0; touchGeometry = null; touchY = null; touchStart = null; heldKey = null; pointerHeld = false; syncTouchLock(true); };
   // A press may follow a link that scrolls the page: no edge guard survives it.
-  const pointerdown = event => { pointerHeld = true; readingGuard = null; cancel(event); };
+  const pointerdown = event => {
+    const interrupted = event.pointerType === "touch" ? assisting : null;
+    pointerHeld = true; readingGuard = null; cancel(event);
+    interruptedTrip = interrupted;
+  };
   const pointerup = () => {
     pointerHeld = false;
     if (gesture) gesture.at = view.performance.now();
@@ -559,7 +585,7 @@ export function createEntryScrollAssist({ getGeometry, isBlocked }, view = windo
     pointerHeld = false;
     // UA panning may suppress Pointer Events while an independently observed
     // Touch Events gesture continues. Only touchcancel terminates that stream.
-    if (event.pointerType === "touch" && touching && touchY != null && assisting == null) {
+    if (event.pointerType === "touch" && touching && assisting == null) {
       if (diagnostics) report("pointer-release", event, { reason: "pointer-stream-cancelled" });
       return;
     }
@@ -671,7 +697,13 @@ export function createEntryScrollAssist({ getGeometry, isBlocked }, view = windo
   syncTouchLock();
   if (diagnostics) report("installed", null);
   return {
-    cancel: reset,
+    cancel(source) {
+      // A layout/navigation invalidation cancels the old destination, but it
+      // cannot end a physical contact or renegotiate the browser's pan policy.
+      if (touching) {
+        cancel(source); readingGuard = null; touchY = null; touchStart = null;
+      } else reset(source);
+    },
     syncTouchLock: () => syncTouchLock(true),
     setTouchSuppressed(suppressed) {
       touchSuppressed = Boolean(suppressed);
