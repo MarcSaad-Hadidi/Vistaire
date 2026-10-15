@@ -1419,9 +1419,9 @@ test('a background contact during a cinematic trip resumes its same stop unless 
 });
 
 test('already-reading pricing offsets finish native momentum before returning to its anchor', () => {
-  for (const offset of [5, 20]) {
+  for (const fraction of [0, 0.9]) for (const offset of [5, 20]) {
     const f = fixture({ coarse: true, directionalPan: false });
-    const pricing = f.bounds.transitions.find(join => join.to.id === 'open-weight').end;
+    const pricing = f.bounds.transitions.find(join => join.to.id === 'open-weight').end + fraction;
     const product = authoredReadingStops(f.bounds).find(stop => stop.id === 'product').y;
     f.bounds.pricing = { start: pricing, end: pricing + 1800, faq: pricing + 2700 };
     f.move(pricing + offset);
@@ -1495,13 +1495,13 @@ test('a claimed reverse gesture returned to its origin does not retain stale dir
 });
 
 test('fractional first-offer geometry preserves reverse ownership within one pixel of the browser-rounded anchor', () => {
-  for (const fraction of [0.021875, 0.978125]) for (const offset of [-1, 0, 1]) {
+  for (const fraction of [0.021875, 0.9, 0.978125]) for (const rounding of [Math.floor, Math.round, Math.ceil]) for (const offset of [-1, 0, 1]) {
     const f = fixture({ coarse: true });
     const pricing = Math.floor(f.bounds.transitions.find(join => join.to.id === 'open-weight').end) + 170 + fraction;
     const product = authoredReadingStops(f.bounds).find(stop => stop.id === 'product').y;
     f.bounds.pricing = { start: pricing, end: pricing + 1800, faq: pricing + 2700 };
     f.assist.syncTouchLock();
-    f.move(Math.round(pricing) + offset);
+    f.move(rounding(pricing) + offset);
     assert.equal(f.root.classList.contains('cinematic-pricing-return'), true, `rounded edge remains eligible at fraction ${fraction}`);
     f.input('touchstart', { touches: [{ clientX: 40, clientY: 350 }] });
     const reverse = f.input('touchmove', { touches: [{ clientX: 40, clientY: 490 }], cancelable: true });
@@ -1510,6 +1510,84 @@ test('fractional first-offer geometry preserves reverse ownership within one pix
     f.advance(2500);
     assert.ok(Math.abs(f.view.scrollY - product) <= 1);
     assert.equal(f.reports.filter(row => row.type === 'handoff').length, 1);
+    f.assist.dispose();
+  }
+});
+
+test('an older queued hashchange cannot cancel newer trusted keyboard navigation', () => {
+  const f = fixture(), join = f.bounds.transitions[0];
+  f.move(join.end - 100); f.advance(100);
+  const oldHashAt = f.now();
+  f.advance(5);
+  f.input('keydown', { key: 'PageDown' });
+  f.move(join.end - 80);
+  f.input('keyup', { key: 'PageDown' });
+  f.emit(f.view, 'hashchange', { timeStamp: oldHashAt });
+  f.end(); f.advance(2500);
+  assert.equal(gestureTrips(f).length, 1, 'the newer input survives delayed old navigation delivery');
+  assert.ok(Math.abs(f.view.scrollY - join.end) <= 1);
+  assert.equal(f.assist.isNavigationCurrent({ timeStamp: oldHashAt }), false, 'provenance survives completed trips');
+  assert.equal(f.assist.isNavigationCurrent({ timeStamp: f.now() }), true);
+  f.assist.dispose();
+});
+
+test('same-time and newer hashes still cancel older gestures while rejected inputs cannot supersede navigation', () => {
+  for (const delay of [0, 1]) {
+    const f = fixture(), join = f.bounds.transitions[0];
+    f.move(join.end - 100); f.advance(100);
+    f.input('keydown', { key: 'PageDown' }); f.move(join.end - 80);
+    f.input('keyup', { key: 'PageDown' }); f.advance(delay);
+    f.emit(f.view, 'hashchange'); f.end(); f.advance(2500);
+    assert.equal(gestureTrips(f).length, 0, 'a genuinely current anchor cancels the old keyboard trip');
+    assert.equal(f.assist.isNavigationCurrent({ timeStamp: f.now() }), true);
+    f.assist.dispose();
+  }
+  const rejected = fixture();
+  rejected.advance(100);
+  rejected.input('keydown', { key: 'PageDown', isTrusted: false });
+  assert.equal(rejected.assist.isNavigationCurrent({ timeStamp: 50 }), true);
+  rejected.assist.dispose();
+});
+
+test('stale hash delivery cannot release a newer physical cinematic contact', () => {
+  const f = fixture({ coarse: true }), join = f.bounds.transitions[0];
+  f.move(join.end - 100); f.advance(100);
+  const oldHashAt = f.now(); f.advance(1);
+  f.input('touchstart', { touches: [{ clientX: 20, clientY: 500 }] });
+  f.emit(f.view, 'hashchange', { timeStamp: oldHashAt });
+  f.input('touchmove', { touches: [{ clientX: 20, clientY: 350 }], cancelable: true });
+  f.input('touchend', { touches: [], cancelable: true }); f.advance(2500);
+  assert.equal(gestureTrips(f).length, 1);
+  assert.ok(Math.abs(f.view.scrollY - join.end) <= 1);
+  f.assist.dispose();
+});
+
+test('a claimed touch movement supersedes a hash created after contact began', () => {
+  const f = fixture({ coarse: true }), join = f.bounds.transitions[0];
+  f.move(join.end - 100); f.advance(100);
+  f.input('touchstart', { touches: [{ clientX: 20, clientY: 500 }] });
+  f.advance(10); const oldHashAt = f.now(); f.advance(10);
+  f.input('touchmove', { touches: [{ clientX: 20, clientY: 350 }], cancelable: true });
+  f.emit(f.view, 'hashchange', { timeStamp: oldHashAt });
+  f.input('touchend', { touches: [], cancelable: true }); f.advance(2500);
+  assert.equal(gestureTrips(f).length, 1);
+  assert.ok(Math.abs(f.view.scrollY - join.end) <= 1);
+  f.assist.dispose();
+});
+
+test('inertial wheel packets do not supersede a newer hash request but a fresh wheel gesture does', () => {
+  for (const fine of [true, false]) {
+    const f = fixture({ fine }), join = f.bounds.transitions[0];
+    f.move(join.end - 100); f.advance(100);
+    f.input('wheel', { deltaY: 20, deltaX: 0, cancelable: true });
+    f.advance(10); const hashAt = f.now(); f.advance(10);
+    f.input('wheel', { deltaY: 10, deltaX: 0, cancelable: true });
+    assert.equal(f.assist.isNavigationCurrent({ timeStamp: hashAt }), true, `wheel tail cannot reject a newer anchor (fine=${fine})`);
+    f.emit(f.view, 'hashchange', { timeStamp: hashAt });
+    assert.equal(f.frames(), 0);
+    f.advance(400);
+    f.input('wheel', { deltaY: -20, deltaX: 0, cancelable: true });
+    assert.equal(f.assist.isNavigationCurrent({ timeStamp: hashAt }), false, 'new direction/new gesture is newer user intent');
     f.assist.dispose();
   }
 });

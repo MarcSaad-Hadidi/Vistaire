@@ -76,6 +76,14 @@ export function createEntryScrollAssist({ getGeometry, isBlocked }, view = windo
   let touchSuppressed = false;
   let touchGeometry = null;
   let touchSequence = 0;
+  let latestInputAt = -Infinity;
+  const rememberInput = event => {
+    if (event.isTrusted && Number.isFinite(event.timeStamp) && event.timeStamp <= view.performance.now())
+      latestInputAt = Math.max(latestInputAt, event.timeStamp);
+  };
+  // Browser navigation events can be delivered after newer input under load.
+  // Keep provenance after reset/completion so both engine and App agree.
+  const isNavigationCurrent = event => !Number.isFinite(event?.timeStamp) || event.timeStamp >= latestInputAt;
   let writes = [];
   // Native momentum of an offer-reading gesture stops at the first/last offer.
   let readingGuard = null;
@@ -274,10 +282,11 @@ export function createEntryScrollAssist({ getGeometry, isBlocked }, view = windo
         geometry?.transitions?.find(join => join.to.id === "open-weight")?.end ?? null;
       touchRange = geometry?.opening ? {
         top: geometry.opening.top,
-        // Match the integral position published by browser scroll navigation.
-        pricingStart: pricingStart == null ? null : Math.round(pricingStart),
-        returnTolerance: 1,
-        end: Math.min(pricingStart == null ? Infinity : Math.round(pricingStart), geometry.naturalFrom ?? Infinity),
+        // WebKit floors fractional destinations; Chromium can round them.
+        // Cover either representable pixel and one pixel of arrival drift.
+        pricingStart: pricingStart == null ? null : Math.floor(pricingStart),
+        pricingEnd: pricingStart == null ? null : Math.ceil(pricingStart),
+        end: Math.min(pricingStart == null ? Infinity : Math.floor(pricingStart), geometry.naturalFrom ?? Infinity),
       } : null;
     }
     const enabled = coarsePointer.matches && !reduced.matches && !touchSuppressed;
@@ -287,8 +296,8 @@ export function createEntryScrollAssist({ getGeometry, isBlocked }, view = windo
     // movement may claim a cinematic return before native panning begins.
     const pricingReturn = Boolean(!locked && enabled
       && touchRange?.pricingStart != null
-      && view.scrollY >= touchRange.pricingStart - 2
-      && view.scrollY <= touchRange.pricingStart + touchRange.returnTolerance);
+      && view.scrollY >= touchRange.pricingStart - 1
+      && view.scrollY <= touchRange.pricingEnd + 1);
     cinematicMain.classList.toggle("cinematic-touch-lock", locked);
     cinematicMain.classList.toggle("cinematic-pricing-return", pricingReturn);
     presentationRoot?.classList?.toggle("cinematic-touch-lock", locked);
@@ -349,6 +358,7 @@ export function createEntryScrollAssist({ getGeometry, isBlocked }, view = windo
       if (diagnostics) report("intent-rejected", event, { direction, reason: !event.isTrusted ? "untrusted" : event.defaultPrevented ? "default-prevented" : !direction ? "no-scroll-direction" : blockedReason || "control-target" });
       return;
     }
+    if (event.type !== "wheel" || (!finePointer.matches && !sameInput)) rememberInput(event);
     // A final subpixel packet must not erase actual document movement in this
     // unsettled gesture. Settlement/cancellation still consumes it entirely.
     gesture = previous || { type: event.type, direction, scrolled: Boolean(continued), inputY: view.scrollY };
@@ -379,6 +389,7 @@ export function createEntryScrollAssist({ getGeometry, isBlocked }, view = windo
     inputKind = "wheel";
     if (!direction || touching || blocked() || controlled(event.target, TOUCH_OWNERS)) { wheelOwned = false; return; }
     const now = view.performance.now(), fresh = now - wheelAt > WHEEL_GAP_MS || direction !== wheelDirection;
+    if (fresh) rememberInput(event); // Absorbed inertia is not a new navigation intent.
     wheelAt = now; wheelDirection = direction;
     if (!fresh && wheelOwned) { event.preventDefault(); return; }
     const y = view.scrollY, plan = route(y, y, direction);
@@ -437,6 +448,7 @@ export function createEntryScrollAssist({ getGeometry, isBlocked }, view = windo
       ? event.touches[0].clientY : null;
     // Native scroll may arrive before the first touchmove; `scroll` records it
     // only when trusted and stamped after the intent it would support.
+    if (touchY != null) rememberInput(event);
     touchStart = touchY != null ? { since: event.timeStamp, motion: 0 } : null;
     touchOrigin = touchY != null ? { x: event.touches[0].clientX, y: touchY } : null;
     const pricingReturn = !locked && cinematicMain?.classList?.contains("cinematic-pricing-return");
@@ -486,10 +498,12 @@ export function createEntryScrollAssist({ getGeometry, isBlocked }, view = windo
           ownedTouch = null; touchY = null; touchStart = null;
           return;
         }
+        rememberInput(event);
         ownedTouch.reserved = true;
         ownedTouch.claimed = Math.abs(dy) >= 12;
       }
       if (ownedTouch.claimed) {
+        rememberInput(event);
         ownedTouch.direction = Math.abs(dy) >= 12 ? Math.sign(dy) : 0;
         if (event.cancelable) event.preventDefault();
         if (diagnostics) report("touch-locked-move", event, { direction: ownedTouch.direction, displacement: dy });
@@ -677,6 +691,13 @@ export function createEntryScrollAssist({ getGeometry, isBlocked }, view = windo
       settle(event);
     }
   };
+  const navigateHash = event => {
+    if (!isNavigationCurrent(event)) {
+      if (diagnostics) report("navigation-rejected", event, { reason: "older-than-input", latestInputAt });
+      return;
+    }
+    reset(event);
+  };
   const listeners = [
     [view, "scroll", scroll], [document, "scrollend", scrollend],
     [document, "wheel", wheel], [document, "keydown", keydown], [document, "keyup", keyup],
@@ -684,7 +705,7 @@ export function createEntryScrollAssist({ getGeometry, isBlocked }, view = windo
     [document, "touchend", touchend], [document, "touchcancel", reset],
     [document, "pointerdown", pointerdown], [document, "pointerup", pointerup], [document, "pointercancel", pointercancel],
     [document, "click", cancel], [document, "focusin", event => { if (!ownedTouch) cancel(event); }],
-    [document, "visibilitychange", reset], [view, "hashchange", reset],
+    [document, "visibilitychange", reset], [view, "hashchange", navigateHash],
     // Capture also receives element blurs (an inert pricing layer drops focus
     // mid-trip); only the window losing focus releases ownership.
     [view, "blur", event => { if (event.target === view) reset(event); }], [reduced, "change", reset],
@@ -697,6 +718,7 @@ export function createEntryScrollAssist({ getGeometry, isBlocked }, view = windo
   syncTouchLock();
   if (diagnostics) report("installed", null);
   return {
+    isNavigationCurrent,
     cancel(source) {
       // A layout/navigation invalidation cancels the old destination, but it
       // cannot end a physical contact or renegotiate the browser's pan policy.

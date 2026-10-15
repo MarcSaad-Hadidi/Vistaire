@@ -990,9 +990,14 @@ domTest('isolated DOM: short landscape and zoom-sized viewports reserve a real f
 // domTest, they never close the failure dialog or replace a browser API.
 const renderedTouchTest = test.extend({ hasTouch: true, isMobile: true });
 
-renderedTouchTest('healthy mobile: pricing keeps native vertical panning at the same first-offer anchor as navigation', async ({ page }) => {
+renderedTouchTest('healthy mobile: pricing keeps native vertical panning at the same first-offer anchor as navigation', async ({ page }, testInfo) => {
   test.setTimeout(240_000);
   await page.emulateMedia({ reducedMotion: 'no-preference' });
+  await page.addInitScript(() => {
+    const state = window as unknown as { __landingHashTrace: Record<string, unknown>[]; __vistaireScrollAssistTrace: (entry: Record<string, unknown>) => void };
+    state.__landingHashTrace = [];
+    state.__vistaireScrollAssistTrace = entry => state.__landingHashTrace.push(entry);
+  });
   for (const [path, width, height] of [['/', 390, 844], ['/en', 430, 932]] as const) {
     await page.setViewportSize({ width, height });
     await page.goto(`${path}#open-weight`);
@@ -1000,11 +1005,28 @@ renderedTouchTest('healthy mobile: pricing keeps native vertical panning at the 
     await page.evaluate(() => document.fonts.ready);
     await expect(page.locator('html')).toHaveAttribute('data-chapter', 'open-weight');
     const firstOffer = await page.evaluate(() => scrollY);
-    for (const selector of ['[data-immersive-vistaire]', 'main#content', '#pricing-screen-host', '#pricing-actions-host']) {
-      await expect(page.locator(selector)).toHaveClass(/cinematic-pricing-return/);
-      await expect(page.locator(selector)).toHaveCSS('touch-action', 'pan-y pinch-zoom');
+    // Browsers may floor or round the fractional authored anchor. Its actual
+    // published position and either adjacent pixel retain native forward pan.
+    for (const offset of [0, -1, 1]) {
+      await page.evaluate(y => scrollTo({ top: y, behavior: 'instant' }), firstOffer + offset);
+      await expect.poll(() => page.evaluate(() => scrollY)).toBe(firstOffer + offset);
+      for (const selector of ['[data-immersive-vistaire]', 'main#content', '#pricing-screen-host', '#pricing-actions-host']) {
+        await expect(page.locator(selector)).toHaveClass(/cinematic-pricing-return/);
+        await expect(page.locator(selector)).toHaveCSS('touch-action', 'pan-y pinch-zoom');
+      }
     }
-    await page.goto(`${path}#product`);
+    await page.evaluate(y => scrollTo({ top: y, behavior: 'instant' }), firstOffer + 3);
+    await expect(page.locator('[data-immersive-vistaire]')).not.toHaveClass(/cinematic-pricing-return/);
+    await expect(page.locator('[data-immersive-vistaire]')).toHaveCSS('touch-action', 'auto');
+    // A native hash jump can expose the chapter before its queued hashchange
+    // handlers finish. Wait for that navigation before sending fresh input.
+    const navigateChapter = (chapter: string) => Promise.all([
+      page.evaluate(() => new Promise<void>(resolve => {
+        addEventListener('hashchange', () => requestAnimationFrame(() => resolve()), { once: true });
+      })),
+      page.goto(`${path}#${chapter}`),
+    ]);
+    await navigateChapter('product');
     await expect(page.locator('html')).toHaveAttribute('data-chapter', 'product');
     // Keyboard completion exercises the same measured destination in both
     // Chromium and WebKit; it does not claim to emulate an iPhone touch pan.
@@ -1013,6 +1035,47 @@ renderedTouchTest('healthy mobile: pricing keeps native vertical panning at the 
     await expect(page.locator('.pricing-phone-viewport')).toBeInViewport();
     await expect(page.locator('[role="alertdialog"]')).toHaveCount(0);
     expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(1);
+
+    // Explicit adversarial delivery: the keyboard input is browser-trusted;
+    // only this older hash notification is synthetic. Its native read-only
+    // timestamp is captured before the key, then delivered after that key.
+    // This independent delivery-order case starts a fresh document at the
+    // current Collection URL, without carrying over the first keyboard trip.
+    await page.reload();
+    await waitForScene(page);
+    await page.evaluate(() => document.fonts.ready);
+    await expect(page.locator('html')).toHaveAttribute('data-chapter', 'product');
+    const olderHash = await page.evaluate(() => {
+      const state = window as unknown as { __landingDelayedHash: HashChangeEvent; __landingHashTrace: Record<string, unknown>[] };
+      state.__landingHashTrace = [];
+      state.__landingDelayedHash = new HashChangeEvent('hashchange', { oldURL: location.href.replace('#product', '#open-weight'), newURL: location.href });
+      return state.__landingDelayedHash.timeStamp;
+    });
+    const collectionY = await page.evaluate(() => scrollY);
+    const hadFocus = await page.evaluate(() => document.hasFocus());
+    if (!hadFocus) await page.bringToFront();
+    expect(await page.evaluate(() => document.hasFocus())).toBe(true);
+    let trustedKey: Record<string, unknown> | undefined;
+    try {
+      await page.keyboard.down('PageDown');
+      try {
+        // Prove the trusted key has started native scrolling before delivering
+        // the stale notification; a zero-motion input cannot exercise the race.
+        await expect.poll(() => page.evaluate(() => scrollY)).toBeGreaterThan(collectionY + 1);
+      } finally {
+        await page.keyboard.up('PageDown');
+      }
+      trustedKey = await page.evaluate(() => (window as unknown as { __landingHashTrace: Record<string, unknown>[] }).__landingHashTrace.find(entry => entry.type === 'intent' && entry.eventType === 'keydown'));
+      expect(trustedKey?.trusted).toBe(true);
+      expect(Number(trustedKey?.eventTimeStamp)).toBeGreaterThan(olderHash);
+      await page.evaluate(() => dispatchEvent((window as unknown as { __landingDelayedHash: HashChangeEvent }).__landingDelayedHash));
+      await expect.poll(() => page.evaluate(y => Math.abs(scrollY - y), firstOffer), { timeout: 10_000 }).toBeLessThanOrEqual(1);
+    } finally {
+      const data = await page.evaluate(() => ({ y: scrollY, hash: location.hash, focused: document.hasFocus(), trace: (window as unknown as { __landingHashTrace: Record<string, unknown>[] }).__landingHashTrace }));
+      const artifact = testInfo.outputPath(`delayed-hash-${width}.json`);
+      await writeFile(artifact, JSON.stringify({ olderHash, trustedKey, firstOffer, collectionY, hadFocus, ...data }, null, 2));
+      await testInfo.attach(`delayed-hash-${width}`, { path: artifact, contentType: 'application/json' });
+    }
   }
 });
 

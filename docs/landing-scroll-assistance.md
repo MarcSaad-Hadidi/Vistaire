@@ -97,8 +97,8 @@ The first Pricing stop previously used `top + layout.entry`, while links and
 keyboard navigation used `top + layout.readingStart`. These differ by the
 0.2-viewport first-offer lead (168.8px at 844px). The gesture stop now uses the
 same `pricingPagePosition(top, 0, layout)` anchor as navigation. The preceding
-lead is still cinematic. Beyond the browser-rounded reading anchor by more than one CSS pixel,
-the offer has actually begun scrolling: native reverse reading first returns
+lead is still cinematic. Beyond the fractional anchor’s representable arrival
+pixels plus one CSS pixel of drift, the offer has actually begun scrolling: native reverse reading first returns
 to that anchor after momentum finishes, then a new reverse gesture returns to
 Collection. There is no arbitrary 300px return zone.
 
@@ -150,3 +150,55 @@ No physical Brave iPhone or Safari toolbar/compositor behavior was certified.
 WebKit keyboard/layout validation does not establish real tactile behavior or
 hardware frame cadence. The user's unprovided video cannot establish gesture
 direction; the observed oscillation itself remains a physical-device retest.
+
+### Delayed hash notification discovered on the deployed preview
+
+The exact b54ee951 preview exposed another ordering defect in WebKit: an older
+hashchange (timestamp 9383ms) was delivered after a trusted PageDown (9533ms).
+Both the engine reset and App's hash-arrival handler cancelled the newer input,
+leaving Collection visible. A retained HashChangeEvent created before a real
+keyboard gesture reproduces this deterministically without overriding its
+read-only timestamp. That notification is synthetic in the regression; the
+keyboard input and renderer are real.
+
+The engine now retains the timestamp of accepted navigation intent and exposes
+one side-effect-free `isNavigationCurrent(event)` predicate. Its hash listener
+and App use the same predicate. App also rechecks before a deferred anchor RAF
+writes scroll, so a hash queued first cannot override input that arrives before
+the frame. Equal-time and newer hashes still win. Initial deep links keep their
+existing measured positioning. Accepted touch movements count as fresh intent;
+absorbed wheel inertia does not.
+
+The follow-up's deterministic tests failed before correction and pass after:
+87 focused checks, plus 2143 full-suite passes and six existing optional skips.
+Both duplicate hash handlers and the queued-frame ordering are covered. The
+nominal browser fixture separately waits for hash navigation completion; the
+adversarial delayed-notification assertion remains and cannot be replaced by
+that readiness wait.
+
+The final same-state browser regression fails on b54ee951 WebKit after real
+native keyboard motion (6076px short of the first offer) and passes on the
+candidate in Chromium and WebKit, FR 390×844 and EN 430×932. The candidate trace
+contains one stale-notification rejection and one completed handoff. Actual
+same-document Back/Forward also restores the exact Pricing/Collection anchors
+in those four browser/language combinations. An earlier chained Chromium EN
+fixture produced no native keyboard movement before the stale notification was
+delivered; that observation is retained separately and is not attributed to the
+hash fix without a matched control.
+
+WebKit's measured fractional first-offer target (60344.9) lands at scrollY60344,
+whereas Chromium rounds its destination. A nearest-integer-only lock boundary
+incorrectly re-enabled the cinematic lock at WebKit's first offer minus one
+pixel. The return interval now spans floor(target)-1 through ceil(target)+1,
+covering the browsers' representable arrival pixels without a wide reading
+zone. Floor/nearest/ceil regression cases failed before this change and pass
+after it; reading five or twenty pixels beyond the offer stays native.
+
+A matched Chromium follow-up at Collection scrollY59928 compared no extra
+write with an immediate redundant instant scrollTo at the same position.
+Both b54ee951 and candidate moved natively to60743 and completed at66638,
+with unprevented keys, focused body, matching overflow/inert state, and
+0.6–2.2ms frame-to-key gaps. This did not establish a causal redundant-write
+regression. No speculative runtime workaround was added; the earlier chained
+EN zero-motion trace remains an unresolved observation, not a certified fix
+or a proven pre-existing defect.

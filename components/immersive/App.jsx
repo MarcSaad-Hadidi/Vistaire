@@ -488,6 +488,7 @@ function LandingContent() {
     let timing = stateRef.current.cinematicTiming || CINEMATIC_TIMING;
     let pendingPace = null;
     let arrivalAnchor = null;
+    let arrivalEvent = null;
     const world = document.querySelector(".world");
     let opening = null;
     let stopped = false;
@@ -639,10 +640,17 @@ function LandingContent() {
         }
         stateRef.current.cinematicTiming = timing;
       }
-      if (arrivalAnchor != null && (arrivalAnchor !== "open-weight" || stateRef.current.pricingNavigationTarget)) {
-        if (Object.hasOwn(scrollTargets.current, arrivalAnchor))
-          scrollTo({ top: arrivalAnchor === "open-weight" ? stateRef.current.pricingNavigationTarget() : scrollTargets.current[arrivalAnchor], behavior: "instant" });
-        arrivalAnchor = null;
+      if (arrivalAnchor != null) {
+        // A newer input can arrive after hashchange but before this frame.
+        if (arrivalEvent && !entryAssist.isNavigationCurrent(arrivalEvent)) {
+          arrivalAnchor = null;
+          arrivalEvent = null;
+        } else if (arrivalAnchor !== "open-weight" || stateRef.current.pricingNavigationTarget) {
+          if (Object.hasOwn(scrollTargets.current, arrivalAnchor))
+            scrollTo({ top: arrivalAnchor === "open-weight" ? stateRef.current.pricingNavigationTarget() : scrollTargets.current[arrivalAnchor], behavior: "instant" });
+          arrivalAnchor = null;
+          arrivalEvent = null;
+        }
       }
       const y = scrollY;
       const openingPosition = openingProgressAtScroll(opening, y);
@@ -873,7 +881,13 @@ function LandingContent() {
     };
     if (initialPace == null) update();
     else queue();
-    const navigateHash = () => { entryAssist.cancel("hash-navigation"); arrivalAnchor = location.hash.slice(1); queue(); };
+    const navigateHash = (event) => {
+      if (!entryAssist.isNavigationCurrent(event)) return;
+      entryAssist.cancel("hash-navigation");
+      arrivalAnchor = location.hash.slice(1);
+      arrivalEvent = event;
+      queue();
+    };
     addEventListener("hashchange", navigateHash);
     addEventListener("scroll", queue, { passive: true });
     // ResizeObserver tracks real stage/focus sizes, without measuring the
