@@ -847,6 +847,8 @@ function LandingContent() {
       },
     });
     paceState.cancelEntryAssist = entryAssist.cancel;
+    paceState.syncEntryTouchLock = entryAssist.syncTouchLock;
+    paceState.setEntryTouchSuppressed = entryAssist.setTouchSuppressed;
     const parameters = new URLSearchParams(location.search);
     if (parameters.get("performanceCapture") === "1") {
       queueMicrotask(() => { if (!stopped) setPerformanceCapture(true); });
@@ -886,6 +888,8 @@ function LandingContent() {
       stopped = true;
       entryAssist.dispose();
       if (paceState.cancelEntryAssist === entryAssist.cancel) delete paceState.cancelEntryAssist;
+      if (paceState.syncEntryTouchLock === entryAssist.syncTouchLock) delete paceState.syncEntryTouchLock;
+      if (paceState.setEntryTouchSuppressed === entryAssist.setTouchSuppressed) delete paceState.setEntryTouchSuppressed;
       delete paceState.setScrollPace;
       if (paceState.beforeSceneFrame === beforeSceneFrame) delete paceState.beforeSceneFrame;
       cancelAnimationFrame(queuedFrame);
@@ -913,6 +917,8 @@ function LandingContent() {
       retryModel,
     });
     if (menu || modal || reduce || arStatus !== "idle" || !ready || gpuError) stateRef.current.cancelEntryAssist?.("blocked-ui-state");
+    stateRef.current.setEntryTouchSuppressed?.(Boolean(menu || modal || arStatus !== "idle"));
+    stateRef.current.syncEntryTouchLock?.();
     stateRef.current.invalidateScene?.();
   }, [
     collection,

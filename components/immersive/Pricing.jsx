@@ -418,6 +418,9 @@ export default function Pricing({ collection, stateRef }) {
       } });
       if (intro.style.height !== sectionHeight)
         intro.style.height = sectionHeight;
+      // The reverse-gesture boundary is derived from this first-offer pose.
+      // Refresh after its actual layout changes, before the next touch begins.
+      state.syncEntryTouchLock?.();
       syncScroll(window.scrollY, sectionTop, true);
       state.invalidateScene?.();
     };

@@ -21,7 +21,7 @@ function geometry(stageHeight = 844, pace = 1) {
   return { opening, transitions: measureChapterTransitions(measurements, opening, timing) };
 }
 
-function fixture({ fine = false, scrollend = true, stageHeight = 844, pace = 1, diagnostics = true, consumer = diagnostics, reporterThrows = false, nativeMotion = true, coarse = false } = {}) {
+function fixture({ fine = false, scrollend = true, stageHeight = 844, pace = 1, diagnostics = true, consumer = diagnostics, reporterThrows = false, nativeMotion = true, coarse = false, directionalPan = true } = {}) {
   assert.equal(typeof createEntryScrollAssist, 'function', 'the entry assist helper must exist');
   const listeners = new Map(), timers = new Map(), calls = [], reports = [];
   let clock = 0, timerId = 0, nativeTimer = null, blocked = false;
@@ -31,16 +31,23 @@ function fixture({ fine = false, scrollend = true, stageHeight = 844, pace = 1, 
     removeEventListener(type, handler) { listeners.get(this)?.get(type)?.delete(handler); },
   });
   const media = { ...emitter(), matches: false };
-  const mainClasses = new Set();
-  const main = { contains: () => true, classList: {
+  const mainClasses = new Set(), rootClasses = new Set();
+  const main = { contains: target => !target?.outsideMain, classList: {
     toggle(value, on) { if (on) mainClasses.add(value); else mainClasses.delete(value); },
     remove(value) { mainClasses.delete(value); },
     contains: value => mainClasses.has(value),
   }};
-  const document = { ...emitter(), hidden: false, activeElement: target, querySelector: selector => selector === 'main' ? main : null };
+  const root = { contains: () => true, classList: {
+    toggle(value, on) { if (on) rootClasses.add(value); else rootClasses.delete(value); },
+    remove(value) { rootClasses.delete(value); },
+    contains: value => rootClasses.has(value),
+  }};
+  const document = { ...emitter(), hidden: false, activeElement: target,
+    querySelector: selector => selector === 'main' ? main : selector === '[data-immersive-vistaire]' ? root : null };
   if (scrollend) document.onscrollend = null;
   const view = {
     ...emitter(), document, innerHeight: stageHeight, scrollY: 0,
+    CSS: { supports: () => directionalPan },
     location: { search: diagnostics ? "?sceneDiagnostics=1" : "" },
     __vistaireScrollAssistTrace: consumer ? row => { if (reporterThrows) throw new Error("diagnostic consumer failed"); reports.push(row); } : undefined,
     performance: { now: () => clock }, matchMedia: query => query.includes('pointer: fine') ? { ...emitter(), matches: fine }
@@ -82,7 +89,7 @@ function fixture({ fine = false, scrollend = true, stageHeight = 844, pace = 1, 
     }
     clock = until;
   };
-  return { assist, bounds, view, document, media, target, main, calls, reports, now: () => clock, stall: ms => { clock += ms; for (const timer of timers.values()) if (timer.at < clock) timer.at = clock; }, frames: () => [...timers.values()].filter(timer => timer.frame).length, input, move, wheel, end, advance, timers, listeners, emit, block: value => { blocked = value; } };
+  return { assist, bounds, view, document, media, target, main, root, calls, reports, now: () => clock, stall: ms => { clock += ms; for (const timer of timers.values()) if (timer.at < clock) timer.at = clock; }, frames: () => [...timers.values()].filter(timer => timer.frame).length, input, move, wheel, end, advance, timers, listeners, emit, block: value => { blocked = value; } };
 }
 
 // Gesture trips; a page left at rest may also return to its nearest stop.
@@ -954,8 +961,8 @@ test('assisted duration is fast, continuous and nondecreasing across the old 6-s
     const start = from + direction;
     const f = fixture({ stageHeight: 796 }); f.wheel(start, direction); f.end(); f.advance(30000);
     assert.equal(f.view.scrollY, to);
-    const actual = f.reports.find(row => row.type === 'assist-start').duration;
-    assert.ok(Math.abs(actual - assistedScrollDuration(Math.abs(to - start) / 796)) < 0.01, `${from}->${to}`);
+    const started = f.reports.find(row => row.type === 'assist-start');
+    assert.ok(Math.abs(started.duration - assistedScrollDuration(Math.abs(to - start) / 796, started.phase.id)) < 0.01, `${from}->${to}`);
     f.assist.dispose();
   }
   const opening = fixture({ stageHeight: 796 }); opening.wheel(1); opening.end(); opening.advance(30000);
@@ -1151,6 +1158,129 @@ test('coarse reverse swipes move to previous stop without physics handoff', () =
   assert.equal(f.view.scrollY, ai);
   assert.deepEqual(assistedTargets(f), [ai]);
   f.assist.dispose();
+});
+
+test('pricing entry uses directional native scrolling: forward reads offers; reverse returns to collection', () => {
+  const f = fixture({ coarse: true }), stops = authoredReadingStops(f.bounds);
+  const pricing = f.bounds.transitions.find(join => join.to.id === 'open-weight').end;
+  const product = stops.find(stop => stop.id === 'product').y;
+  f.bounds.pricing = { start: pricing, end: pricing + 1800, faq: pricing + 2700 };
+  f.move(pricing);
+  assert.equal(f.main.classList.contains('cinematic-touch-lock'), false);
+  assert.equal(f.main.classList.contains('cinematic-pricing-return'), true,
+    'pricing boundary must own reverse swipe without locking downward offer reading');
+  f.input('touchstart', { touches: [{ clientX: 190, clientY: 460 }] });
+  const forward = f.input('touchmove', { touches: [{ clientX: 190, clientY: 380 }], cancelable: true });
+  f.input('touchend', { touches: [], cancelable: true });
+  assert.equal(forward.defaultPrevented, false, 'first offer continues natively with forward finger swipe');
+  assert.equal(f.calls.length, 0);
+  f.move(pricing + 420);
+  assert.equal(f.main.classList.contains('cinematic-pricing-return'), false, 'deeper pricing stays native');
+  f.move(pricing);
+  f.input('touchstart', { touches: [{ clientX: 190, clientY: 360 }] });
+  const reverse = f.input('touchmove', { touches: [{ clientX: 190, clientY: 470 }], cancelable: true });
+  assert.equal(reverse.defaultPrevented, true, 'reverse swipe cannot reveal underlying viewport strip');
+  f.input('touchend', { touches: [], cancelable: true });
+  f.advance(3200);
+  assert.ok(Math.abs(f.view.scrollY - product) < 1, 'one reverse swipe lands on collection, not mid-transition');
+  assert.equal(f.main.classList.contains('cinematic-touch-lock'), true, 'cinematic lock resumes above pricing');
+  assert.equal(f.reports.filter(row => row.type === 'handoff').length, 1);
+  f.assist.dispose();
+  assert.equal(f.main.classList.contains('cinematic-pricing-return'), false);
+});
+
+test('WebKit pricing boundary keeps forward offers scrollable without directional touch-action support', () => {
+  const f = fixture({ coarse: true, directionalPan: false });
+  const pricing = f.bounds.transitions.find(join => join.to.id === 'open-weight').end;
+  f.bounds.pricing = { start: pricing, end: pricing + 1800, faq: pricing + 2700 };
+  f.move(pricing);
+  assert.equal(f.main.classList.contains('cinematic-pricing-return'), true);
+  f.input('touchstart', { touches: [{ clientX: 190, clientY: 470 }] });
+  const forward = f.input('touchmove', { touches: [{ clientX: 190, clientY: 340 }], cancelable: true });
+  assert.equal(forward.defaultPrevented, true, 'WebKit uses non-passive touch capture instead of unsupported pan-up');
+  assert.equal(f.view.scrollY, pricing + 130, 'page tracks the finger while the first offer begins');
+  f.input('touchend', { touches: [], cancelable: true });
+  f.advance(2200);
+  assert.equal(f.reports.filter(row => row.type === 'handoff').length, 0, 'normal offer reading never triggers a section snap');
+  const product = authoredReadingStops(f.bounds).find(s => s.id === 'product').y;
+  f.move(pricing);
+  f.input('touchstart', { touches: [{ clientX: 190, clientY: 340 }] });
+  const reverse = f.input('touchmove', { touches: [{ clientX: 190, clientY: 460 }], cancelable: true });
+  assert.equal(reverse.defaultPrevented, true, 'reverse WebKit movement is owned before native coast');
+  f.input('touchend', { touches: [], cancelable: true });
+  f.advance(2200);
+  assert.ok(Math.abs(f.view.scrollY - product) < 1);
+  f.assist.dispose();
+});
+
+test('pricing return also owns gestures on portal/background outside main', () => {
+  const f = fixture({ coarse: true, directionalPan: false });
+  const pricing = f.bounds.transitions.find(join => join.to.id === 'open-weight').end;
+  const product = authoredReadingStops(f.bounds).find(s => s.id === 'product').y;
+  f.bounds.pricing = { start: pricing, end: pricing + 1800, faq: pricing + 2700 };
+  f.move(pricing);
+  assert.equal(f.root.classList.contains('cinematic-pricing-return'), true);
+  const background = { closest: () => null, outsideMain: true };
+  f.input('touchstart', { touches: [{ clientX: 40, clientY: 350 }], target: background });
+  const reverse = f.input('touchmove', { touches: [{ clientX: 40, clientY: 490 }], target: background, cancelable: true });
+  assert.equal(reverse.defaultPrevented, true, 'background gesture is protected by root-level touch ownership');
+  f.input('touchend', { touches: [], cancelable: true, target: background });
+  f.advance(2300);
+  assert.ok(Math.abs(f.view.scrollY - product) < 1);
+  assert.equal(f.root.classList.contains('cinematic-touch-lock'), true);
+  f.assist.setTouchSuppressed(true);
+  assert.equal(f.root.classList.contains('cinematic-touch-lock'), false, 'modal/menu UI must scroll normally');
+  f.assist.setTouchSuppressed(false);
+  assert.equal(f.root.classList.contains('cinematic-touch-lock'), true);
+  f.assist.dispose();
+  assert.equal(f.root.classList.contains('cinematic-touch-lock'), false);
+  assert.equal(f.root.classList.contains('cinematic-pricing-return'), false);
+});
+
+test('pricing deep links within the first offer return to Product rather than staying native', () => {
+  for (const directionalPan of [true, false]) {
+    const f = fixture({ coarse: true, directionalPan });
+    const pricing = f.bounds.transitions.find(join => join.to.id === 'open-weight').end;
+    const product = authoredReadingStops(f.bounds).find(stop => stop.id === 'product').y;
+    f.bounds.pricing = { start: pricing, end: pricing + 1800, faq: pricing + 2700 };
+    f.move(pricing + 170); // Reproduces the measured first-offer deep-link offset.
+    assert.equal(f.root.classList.contains('cinematic-pricing-return'), true);
+    const background = { closest: () => null, outsideMain: true };
+    f.input('touchstart', { touches: [{ clientX: 40, clientY: 350 }], target: background });
+    const reverse = f.input('touchmove', { touches: [{ clientX: 40, clientY: 490 }], target: background, cancelable: true });
+    assert.equal(reverse.defaultPrevented, true);
+    f.input('touchend', { touches: [], target: background, cancelable: true });
+    f.advance(2500);
+    assert.ok(Math.abs(f.view.scrollY - product) <= 1, 'the collection stop is reached in one gesture');
+    assert.equal(f.reports.find(row => row.type === 'handoff').source, 'touch-locked');
+    assert.equal(f.root.classList.contains('cinematic-touch-lock'), true);
+    f.assist.dispose();
+  }
+});
+
+test('long cinematic handoffs accelerate without changing smaller stops or authored endpoints', () => {
+  assert.ok(assistedScrollDuration(7.2, 'grip') <= 960);
+  assert.ok(assistedScrollDuration(7.2, 'sustainability') <= 960);
+  assert.ok(assistedScrollDuration(6.1, 'open-weight') <= 960);
+  assert.ok(assistedScrollDuration(7.2, 'features') > 1100,
+    'short-read and unrelated authoring keep their original policy');
+  const stops = authoredReadingStops(geometry());
+  for (const [fromId, toId] of [['encryption','grip'],['grip','sustainability'],['testimonies','social-content'],['product','open-weight']]) {
+    const f = fixture(), from = stops.find(s => s.id === fromId)?.y;
+    const to = toId === 'open-weight' ? f.bounds.transitions.find(t => t.to.id === 'open-weight').end
+      : stops.find(s => s.id === toId)?.y;
+    assert.ok(Number.isFinite(from) && Number.isFinite(to), 'named route exists');
+    f.wheel(from + 1); f.end(); f.advance(40);
+    const start = f.reports.find(row => row.type === 'assist-start');
+    assert.ok(start, fromId + ' -> ' + toId);
+    assert.equal(start.target, to);
+    assert.ok(start.duration <= 960, 'long full-scene join must have no dead lead-in');
+    f.advance(start.duration * 0.42);
+    assert.ok(f.view.scrollY > from + (to - from) * 0.52, 'physical join reaches visible blend before midpoint');
+    f.advance(3000);
+    assert.ok(Math.abs(f.view.scrollY - to) <= 1, 'never skips or stops halfway through section');
+    f.assist.dispose();
+  }
 });
 
 test('a touch fling up out of a page guide stops at the guide head; the next swipe returns one chapter', () => {

@@ -15,7 +15,10 @@ const TOUCH_OWNERS = 'input, select, textarea, iframe, dialog, [role="textbox"],
 const controlled = (target, selector = CONTROLS) => Boolean(target?.closest?.(selector));
 // Scroll continuation starts only after native momentum has settled. A short
 // C2 entrance ramp reacts promptly without racing WebKit's own inertia.
-const launchEase = progress => cinematicEase(progress, 0.14);
+// Front-load visible motion on the long 3D scene joins. Preserve zero
+// endpoint velocity and the same authored camera/text poses.
+const launchEase = (progress, fast = false) =>
+  cinematicEase(fast ? 1 - (1 - progress) ** 1.6 : progress, 0.14);
 // Wheel packets closer than this belong to one swipe or its trackpad inertia.
 const WHEEL_GAP_MS = 180;
 // A drag this far and mostly sideways rotates a 3D model, not the page.
@@ -24,8 +27,17 @@ const natural = id => id === "open-weight" || id === "footer";
 
 // Monotonic, continuous timing: shorter trips must never take longer than
 // longer trips (the former >6-screen special case made pacing jump by 600ms).
-export function assistedScrollDuration(stages) {
-  return Math.min(1300, Math.max(650, 580 + 90 * Math.max(0, stages)));
+const FAST_SCENE_DESTINATIONS = new Set([
+  "encryption", "grip", "sustainability", "testimonies",
+  "social-content", "product", "open-weight",
+]);
+export function assistedScrollDuration(stages, destinationId) {
+  const screens = Math.max(0, stages);
+  // Only these destination scenes get faster pacing; all other stops keep
+  // their current timing. This duration remains continuous as distance varies.
+  return FAST_SCENE_DESTINATIONS.has(destinationId)
+    ? Math.min(950, Math.max(650, 550 + 55 * screens))
+    : Math.min(1300, Math.max(650, 580 + 90 * screens));
 }
 
 /** Complete one adjacent reading stop: at touch release, else after native momentum ends.
@@ -37,7 +49,15 @@ export function createEntryScrollAssist({ getGeometry, isBlocked }, view = windo
   const reduced = view.matchMedia("(prefers-reduced-motion: reduce)");
   const finePointer = view.matchMedia("(hover: hover) and (pointer: fine)");
   const coarsePointer = view.matchMedia("(hover: none) and (pointer: coarse)");
+  // WebKit/iOS does not implement directional pan-up touch-action. Chromium
+  // can retain native forward reading; WebKit needs a single-finger fallback.
+  const directionalPan = view.CSS?.supports?.("touch-action", "pan-up pinch-zoom") ?? true;
   const cinematicMain = document.querySelector?.("main");
+  const presentationRoot = document.querySelector?.("[data-immersive-vistaire]");
+  // The pricing phone is a portal outside main; its first-offer boundary
+  // must honor the same directional touch ownership as the main document.
+  const pricingScreenHost = document.getElementById?.("pricing-screen-host");
+  const pricingActionsHost = document.getElementById?.("pricing-actions-host");
   const hasScrollEnd = "onscrollend" in document;
   const diagnostics = new URLSearchParams(view.location?.search || "").get("sceneDiagnostics") === "1"
     || typeof view.__vistaireScrollAssistTrace === "function";
@@ -55,6 +75,7 @@ export function createEntryScrollAssist({ getGeometry, isBlocked }, view = windo
   let touchOrigin = null;
   let ownedTouch = null;
   let touchRange = null;
+  let touchSuppressed = false;
   let writes = [];
   // Native momentum of an offer-reading gesture stops at the first/last offer.
   let readingGuard = null;
@@ -117,7 +138,7 @@ export function createEntryScrollAssist({ getGeometry, isBlocked }, view = windo
     active.elapsed = Math.max(0, now - active.started);
     const progress = Math.min(1, active.elapsed / active.duration);
     // Never write behind the latest observed native/document position.
-    const curve = active.from + (active.target - active.from) * launchEase(progress);
+    const curve = active.from + (active.target - active.from) * launchEase(progress, active.fast);
     const y = active.direction > 0 ? Math.max(curve, active.lastY) : Math.min(curve, active.lastY);
     active.written = y;
     writes = [...writes.slice(-3), y];
@@ -242,16 +263,31 @@ export function createEntryScrollAssist({ getGeometry, isBlocked }, view = windo
     if (!cinematicMain?.classList) return false;
     if (refresh || !touchRange) {
       const geometry = coarsePointer.matches && !reduced.matches ? getGeometry() : null;
+      const pricingStart = geometry?.pricing?.start ??
+        geometry?.transitions?.find(join => join.to.id === "open-weight")?.end ?? null;
       touchRange = geometry?.opening ? {
         top: geometry.opening.top,
-        end: Math.min(geometry.pricing?.start ??
-          geometry.transitions?.find(join => join.to.id === "open-weight")?.end ?? Infinity,
-          geometry.naturalFrom ?? Infinity),
+        pricingStart,
+        returnTolerance: Math.min(300, geometry.opening.stageHeight * 0.35),
+        end: Math.min(pricingStart ?? Infinity, geometry.naturalFrom ?? Infinity),
       } : null;
     }
-    const locked = Boolean(coarsePointer.matches && !reduced.matches && touchRange
+    const enabled = coarsePointer.matches && !reduced.matches && !touchSuppressed;
+    const locked = Boolean(enabled && touchRange
       && view.scrollY >= touchRange.top - 1 && view.scrollY < touchRange.end - 1);
+    // At the first pricing offer, allow finger-up native reading (pan-up),
+    // but reserve finger-down for the previous authored collection stop.
+    // This prevents native momentum from exposing a strip below the scene.
+    const pricingReturn = Boolean(!locked && enabled
+      && touchRange?.pricingStart != null
+      && view.scrollY >= touchRange.pricingStart - 2
+      && view.scrollY <= touchRange.pricingStart + touchRange.returnTolerance);
     cinematicMain.classList.toggle("cinematic-touch-lock", locked);
+    cinematicMain.classList.toggle("cinematic-pricing-return", pricingReturn);
+    presentationRoot?.classList?.toggle("cinematic-touch-lock", locked);
+    presentationRoot?.classList?.toggle("cinematic-pricing-return", pricingReturn);
+    pricingScreenHost?.classList?.toggle("cinematic-pricing-return", pricingReturn);
+    pricingActionsHost?.classList?.toggle("cinematic-pricing-return", pricingReturn);
     return locked;
   };
   const travel = (event, source, destination, opening, y, direction, at) => {
@@ -264,9 +300,10 @@ export function createEntryScrollAssist({ getGeometry, isBlocked }, view = windo
     const now = view.performance.now();
     // A shorter physical trip never takes longer than a longer one.
     const stages = Math.abs(target - y) / opening.stageHeight;
-    const duration = assistedScrollDuration(stages);
+    const duration = assistedScrollDuration(stages, destination.id);
     readingGuard = null;
-    assisting = { target, started: now, direction, lastY: y, from: y, duration, elapsed: 0, written: y };
+    assisting = { target, started: now, direction, lastY: y, from: y, duration,
+      fast: FAST_SCENE_DESTINATIONS.has(destination.id), elapsed: 0, written: y };
     writes = [];
     if (diagnostics) {
       report("assist-start", event, { direction, target, duration, distance: (target - y) * direction, phase, geometry: { ...opening } });
@@ -390,9 +427,17 @@ export function createEntryScrollAssist({ getGeometry, isBlocked }, view = windo
     // only when trusted and stamped after the intent it would support.
     touchStart = touchY != null ? { since: event.timeStamp, motion: 0 } : null;
     touchOrigin = touchY != null ? { x: event.touches[0].clientX, y: touchY } : null;
-    if (touchY != null && syncTouchLock(true) && cinematicMain?.contains?.(event.target)) {
+    const locked = syncTouchLock(true);
+    const pricingReturn = !locked && cinematicMain?.classList?.contains("cinematic-pricing-return");
+    // On pricing and pinned 3D scenes, much of the visible background and
+    // the phone portals live outside main. They must still own mobile swipes.
+    const onScene = presentationRoot?.contains?.(event.target)
+      || cinematicMain?.contains?.(event.target)
+      || (pricingReturn && (pricingScreenHost?.contains?.(event.target)
+        || pricingActionsHost?.contains?.(event.target)));
+    if (touchY != null && (locked || pricingReturn) && onScene) {
       ownedTouch = { x: event.touches[0].clientX ?? 0, y: touchY, direction: 0, claimed: false,
-        at: view.performance.now(), origin: view.scrollY };
+        pricingReturn, at: view.performance.now(), origin: view.scrollY };
       touchStart = null; // No native scroll evidence is needed for this gesture.
     }
     if (diagnostics) report("touch-start", event, { accepted: touchY != null, locked: Boolean(ownedTouch),
@@ -408,6 +453,25 @@ export function createEntryScrollAssist({ getGeometry, isBlocked }, view = windo
       if (!ownedTouch.claimed && dx > HORIZONTAL_PX && dx > Math.abs(dy)) {
         ownedTouch = null; touchY = null; touchOrigin = null;
         if (diagnostics) report("intent-rejected", event, { reason: "horizontal-drag" });
+        return;
+      }
+      // Chromium permits forward pan-up at this boundary. Safari/WebKit does
+      // not support that CSS value, so a forward finger move follows the finger
+      // under pinch-zoom instead of becoming a dead, unscrollable pricing screen.
+      if (ownedTouch.pricingReturn && dy >= 0 && !ownedTouch.claimed && directionalPan) {
+        ownedTouch = null; touchY = null; touchStart = null;
+        return;
+      }
+      if (ownedTouch.pricingReturn && dy >= 0 && !directionalPan) {
+        if (!ownedTouch.claimed && dy >= 12 && dy > dx) ownedTouch.claimed = true;
+        if (ownedTouch.claimed && event.cancelable) {
+          event.preventDefault();
+          ownedTouch.readingForward = true;
+          const next = ownedTouch.origin + dy;
+          if (Math.abs(view.scrollY - next) >= 1)
+            view.scrollTo({ top: next, behavior: "instant" });
+        }
+        touchY = y;
         return;
       }
       if (!ownedTouch.claimed && Math.abs(dy) >= 12 && Math.abs(dy) > dx) ownedTouch.claimed = true;
@@ -444,9 +508,25 @@ export function createEntryScrollAssist({ getGeometry, isBlocked }, view = windo
     ownedTouch = null;
     if (!touching) {
       touchY = null; touchStart = null;
+      if (owned?.readingForward) {
+        if (diagnostics) report("touch-release", event, { locked: true, pricingReading: true });
+        return; // The first offer now scrolls normally; the next pan is native.
+      }
       if (owned?.claimed && owned.direction && !blocked()) {
         if (event.cancelable) event.preventDefault();
-        const y = view.scrollY, plan = route(y, owned.origin, owned.direction);
+        const y = view.scrollY;
+        let plan = route(y, owned.origin, owned.direction);
+        if (owned.pricingReturn && owned.direction < 0) {
+          // The first offer may be 100–250px past its anchor (deep links,
+          // mobile viewport rounding). Native pricing routing treats that as
+          // offer reading and silently refuses to return to the collection.
+          // A specifically captured reverse entry instead owns Product's
+          // exact authored stop, never an intermediate pricing position.
+          const geometry = getGeometry();
+          const product = geometry.transitions?.find(join => join.to.id === "product");
+          if (product && product.end < y - 1)
+            plan = { opening: geometry.opening, destination: { id: "product", y: product.end } };
+        }
         if (!plan.native && plan.destination)
           travel(event, "touch-locked", plan.destination, plan.opening, y, owned.direction, owned.at);
         else if (diagnostics) report("touch-locked-native", event, { direction: owned.direction });
@@ -593,6 +673,10 @@ export function createEntryScrollAssist({ getGeometry, isBlocked }, view = windo
   return {
     cancel: reset,
     syncTouchLock: () => syncTouchLock(true),
+    setTouchSuppressed(suppressed) {
+      touchSuppressed = Boolean(suppressed);
+      syncTouchLock(true);
+    },
     dispose() {
       reset("dispose");
       disposed = true;
@@ -600,6 +684,11 @@ export function createEntryScrollAssist({ getGeometry, isBlocked }, view = windo
       for (const [target, type, handler] of listeners)
         target.removeEventListener(type, handler, type === "touchmove" || type === "touchend" ? ownership : options);
       cinematicMain?.classList?.remove("cinematic-touch-lock");
+      cinematicMain?.classList?.remove("cinematic-pricing-return");
+      presentationRoot?.classList?.remove("cinematic-touch-lock");
+      presentationRoot?.classList?.remove("cinematic-pricing-return");
+      pricingScreenHost?.classList?.remove("cinematic-pricing-return");
+      pricingActionsHost?.classList?.remove("cinematic-pricing-return");
     },
   };
 }

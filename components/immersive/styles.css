@@ -343,8 +343,19 @@
 /* Coarse pointers use scripted cinematic stops instead of native vertical
    panning. Pinch zoom remains available; free reading stays native. */
 @media (hover: none) and (pointer: coarse) {
+  :where([data-immersive-vistaire]).cinematic-touch-lock,
   :where([data-immersive-vistaire]) main.cinematic-touch-lock {
     touch-action: pinch-zoom;
+    overscroll-behavior-y: contain;
+  }
+  :where([data-immersive-vistaire]).cinematic-pricing-return,
+  :where([data-immersive-vistaire]) main.cinematic-pricing-return,
+  :where([data-immersive-vistaire]) #pricing-screen-host.cinematic-pricing-return,
+  :where([data-immersive-vistaire]) #pricing-actions-host.cinematic-pricing-return {
+    /* WebKit does not implement pan-up: lock it and let touchmove follow
+       forward reading. Chromium understands pan-up and keeps it native. */
+    touch-action: pinch-zoom;
+    touch-action: pan-up pinch-zoom;
     overscroll-behavior-y: contain;
   }
 }

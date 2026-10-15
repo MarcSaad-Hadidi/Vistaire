@@ -176,6 +176,9 @@ test("light immersive controls keep readable nested actions, selection and AR he
 touchTest("isolated DOM: native vertical panning is locked in scenes but restored for pricing", async ({ page }) => {
   await openJourney(page);
   const main = page.locator("main#content");
+  const root = page.locator("[data-immersive-vistaire]");
+  await expect(root).toHaveClass(/cinematic-touch-lock/);
+  await expect(root).toHaveCSS("touch-action", "pinch-zoom");
   await expect(main).toHaveClass(/cinematic-touch-lock/);
   await expect(main).toHaveCSS("touch-action", "pinch-zoom");
   const heightBefore = await page.evaluate(() => document.documentElement.scrollHeight);
@@ -189,6 +192,50 @@ touchTest("isolated DOM: native vertical panning is locked in scenes but restore
   await page.evaluate(() => scrollTo({ top: 0, behavior: "instant" }));
   await expect(main).toHaveClass(/cinematic-touch-lock/);
   expect(await page.evaluate(() => document.documentElement.scrollHeight)).toBe(heightBefore);
+});
+
+touchTest("isolated DOM: pricing return preserves the reverse cinematic edge without blocking offer reading", async ({ page }) => {
+  await openJourney(page);
+  const main = page.locator("main#content");
+  const root = page.locator("[data-immersive-vistaire]");
+  const [pricingTop, stageHeight] = await page.evaluate(() => {
+    const pricing = document.querySelector("#open-weight")!;
+    const height = Number.parseFloat(document.documentElement.style.getPropertyValue("--vistaire-journey-vh")) * 100;
+    return [pricing.getBoundingClientRect().top + scrollY, height];
+  });
+  let lower = pricingTop - 2 * stageHeight, upper = pricingTop + 2 * stageHeight;
+  // Find the *measured* first-offer handoff instead of hardcoding a CSS pixel
+  // offset that differs between Chromium and WebKit.
+  for (let i = 0; i < 14; i++) {
+    const middle = (lower + upper) / 2;
+    await page.evaluate(y => scrollTo({ top: y, behavior: "instant" }), middle);
+    await page.waitForTimeout(45);
+    if (await main.evaluate(el => el.classList.contains("cinematic-touch-lock"))) lower = middle;
+    else upper = middle;
+  }
+  await page.evaluate(y => scrollTo({ top: y, behavior: "instant" }), upper);
+  await expect(main).toHaveClass(/cinematic-pricing-return/);
+  await expect(root).toHaveClass(/cinematic-pricing-return/);
+  const directional = await page.evaluate(() => CSS.supports("touch-action", "pan-up pinch-zoom"));
+  const expectedAction = directional ? "pan-up pinch-zoom" : "pinch-zoom";
+  await expect(main).toHaveCSS("touch-action", expectedAction);
+  await expect(root).toHaveCSS("touch-action", expectedAction);
+  // The fixed interactive phone is portalled outside main; its touch owner
+  // must share the boundary contract, or the reverse swipe bypasses the engine.
+  const portal = page.locator("#pricing-screen-host");
+  await expect(portal).toHaveClass(/cinematic-pricing-return/);
+  await expect(portal).toHaveCSS("touch-action", expectedAction);
+  await page.evaluate(y => scrollTo({ top: y, behavior: "instant" }), upper + 360);
+  await expect(main).not.toHaveClass(/cinematic-pricing-return/);
+  await expect(root).not.toHaveClass(/cinematic-pricing-return/);
+  await expect(root).toHaveCSS("touch-action", "auto");
+  await expect(main).toHaveCSS("touch-action", "auto");
+  await page.locator("#product").evaluate(el => {
+    const height = Number.parseFloat(document.documentElement.style.getPropertyValue("--vistaire-journey-vh")) * 100;
+    scrollTo({ top: el.getBoundingClientRect().top + scrollY + 1.1 * height, behavior: "instant" });
+  });
+  await expect(main).toHaveClass(/cinematic-touch-lock/);
+  await expect(main).toHaveCSS("touch-action", "pinch-zoom");
 });
 
 for (const initialHeight of [820, 730]) {
