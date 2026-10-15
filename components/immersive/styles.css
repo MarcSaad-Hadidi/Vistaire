@@ -340,6 +340,14 @@
 :where([data-immersive-vistaire]) .menu-shade {
   display: none;
 }
+/* Coarse pointers use scripted cinematic stops instead of native vertical
+   panning. Pinch zoom remains available; free reading stays native. */
+@media (hover: none) and (pointer: coarse) {
+  :where([data-immersive-vistaire]) main.cinematic-touch-lock {
+    touch-action: pinch-zoom;
+    overscroll-behavior-y: contain;
+  }
+}
 :where([data-immersive-vistaire]) main,
 :where([data-immersive-vistaire]) footer.chapter {
   position: relative;

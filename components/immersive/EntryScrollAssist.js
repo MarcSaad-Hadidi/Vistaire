@@ -36,6 +36,8 @@ export function createEntryScrollAssist({ getGeometry, isBlocked }, view = windo
   const document = view.document;
   const reduced = view.matchMedia("(prefers-reduced-motion: reduce)");
   const finePointer = view.matchMedia("(hover: hover) and (pointer: fine)");
+  const coarsePointer = view.matchMedia("(hover: none) and (pointer: coarse)");
+  const cinematicMain = document.querySelector?.("main");
   const hasScrollEnd = "onscrollend" in document;
   const diagnostics = new URLSearchParams(view.location?.search || "").get("sceneDiagnostics") === "1"
     || typeof view.__vistaireScrollAssistTrace === "function";
@@ -51,6 +53,8 @@ export function createEntryScrollAssist({ getGeometry, isBlocked }, view = windo
   let touchY = null;
   let touchStart = null;
   let touchOrigin = null;
+  let ownedTouch = null;
+  let touchRange = null;
   let writes = [];
   // Native momentum of an offer-reading gesture stops at the first/last offer.
   let readingGuard = null;
@@ -92,7 +96,7 @@ export function createEntryScrollAssist({ getGeometry, isBlocked }, view = windo
       { reason: typeof source === "string" ? source : source?.type || "caller-cancel" });
     clearTimer();
     view.cancelAnimationFrame(frame); frame = null;
-    gesture = null; nativeEnd = null; assisting = null;
+    gesture = null; nativeEnd = null; assisting = null; ownedTouch = null;
     // A new contact keeps the visible native pose. Reading scrollY here and
     // writing it back can reset a compositor position that has advanced ahead.
   };
@@ -108,10 +112,9 @@ export function createEntryScrollAssist({ getGeometry, isBlocked }, view = windo
     const active = assisting;
     if (!active) return;
     if (blocked()) { cancel("blocked-animation"); return; }
-    // Ordinary slow frames retain their elapsed time. A long main-thread stall
-    // cannot jump through the whole remaining scene on the next delivered frame.
-    active.elapsed += Math.min(125, Math.max(0, now - active.frameAt));
-    active.frameAt = now;
+    // Use wall-clock time instead of capped frame increments: busy 3D frames
+    // must not leave the user stranded between authored section stops.
+    active.elapsed = Math.max(0, now - active.started);
     const progress = Math.min(1, active.elapsed / active.duration);
     // Never write behind the latest observed native/document position.
     const curve = active.from + (active.target - active.from) * launchEase(progress);
@@ -124,7 +127,15 @@ export function createEntryScrollAssist({ getGeometry, isBlocked }, view = windo
     // document scroll events update lastY, including harmless repeated poses.
     if (assisting !== active) return;
     if (progress < 1) frame = view.requestAnimationFrame(animate);
-    else complete(null); // A rounded final no-op may have no further scroll event.
+    else {
+      // The last browser scroll event may arrive after the final instant write.
+      // Verify for 400ms without leaving a dead controlled trip behind.
+      complete(null);
+      if (assisting === active) {
+        if (now - active.started < active.duration + 400) frame = view.requestAnimationFrame(animate);
+        else cancel("arrival-unconfirmed");
+      }
+    }
   };
   // Never write scrollTo into WebKit's live touch inertia. scrollend is the
   // preferred proof; a quiet native position is a guarded missing-event fallback.
@@ -224,6 +235,25 @@ export function createEntryScrollAssist({ getGeometry, isBlocked }, view = windo
         : Math.abs(nearest.y - y) > 1 ? nearest : null);
     return { destination, opening };
   };
+  // Mobile browser chrome and native inertial scrolling must not compete with
+  // the authored timeline. Only cinematic stops are locked; pricing and guides
+  // regain native page scrolling. Layout-reading boundaries are cached.
+  const syncTouchLock = (refresh = false) => {
+    if (!cinematicMain?.classList) return false;
+    if (refresh || !touchRange) {
+      const geometry = coarsePointer.matches && !reduced.matches ? getGeometry() : null;
+      touchRange = geometry?.opening ? {
+        top: geometry.opening.top,
+        end: Math.min(geometry.pricing?.start ??
+          geometry.transitions?.find(join => join.to.id === "open-weight")?.end ?? Infinity,
+          geometry.naturalFrom ?? Infinity),
+      } : null;
+    }
+    const locked = Boolean(coarsePointer.matches && !reduced.matches && touchRange
+      && view.scrollY >= touchRange.top - 1 && view.scrollY < touchRange.end - 1);
+    cinematicMain.classList.toggle("cinematic-touch-lock", locked);
+    return locked;
+  };
   const travel = (event, source, destination, opening, y, direction, at) => {
     const target = destination.y;
     // The trip travels toward its stop (an idle return or an offer-edge return
@@ -236,7 +266,7 @@ export function createEntryScrollAssist({ getGeometry, isBlocked }, view = windo
     const stages = Math.abs(target - y) / opening.stageHeight;
     const duration = assistedScrollDuration(stages);
     readingGuard = null;
-    assisting = { target, started: now, direction, lastY: y, from: y, duration, elapsed: 0, frameAt: now, written: y };
+    assisting = { target, started: now, direction, lastY: y, from: y, duration, elapsed: 0, written: y };
     writes = [];
     if (diagnostics) {
       report("assist-start", event, { direction, target, duration, distance: (target - y) * direction, phase, geometry: { ...opening } });
@@ -360,9 +390,35 @@ export function createEntryScrollAssist({ getGeometry, isBlocked }, view = windo
     // only when trusted and stamped after the intent it would support.
     touchStart = touchY != null ? { since: event.timeStamp, motion: 0 } : null;
     touchOrigin = touchY != null ? { x: event.touches[0].clientX, y: touchY } : null;
-    if (diagnostics) report("touch-start", event, { accepted: touchY != null, reason: touchY != null ? null : !event.isTrusted ? "untrusted" : event.touches.length !== 1 ? "touch-count" : blockedReason || "control-target" });
+    if (touchY != null && syncTouchLock(true) && cinematicMain?.contains?.(event.target)) {
+      ownedTouch = { x: event.touches[0].clientX ?? 0, y: touchY, direction: 0, claimed: false,
+        at: view.performance.now(), origin: view.scrollY };
+      touchStart = null; // No native scroll evidence is needed for this gesture.
+    }
+    if (diagnostics) report("touch-start", event, { accepted: touchY != null, locked: Boolean(ownedTouch),
+      reason: touchY != null ? null : !event.isTrusted ? "untrusted" : event.touches.length !== 1 ? "touch-count" : blockedReason || "control-target" });
   };
   const touchmove = event => {
+    if (ownedTouch) {
+      if (event.touches.length !== 1) { ownedTouch = null; touchY = null; return; }
+      const x = event.touches[0].clientX ?? ownedTouch.x;
+      const y = event.touches[0].clientY;
+      const dx = Math.abs(x - ownedTouch.x), dy = ownedTouch.y - y;
+      // Horizontal 3D rotation and small taps are not vertical navigation.
+      if (!ownedTouch.claimed && dx > HORIZONTAL_PX && dx > Math.abs(dy)) {
+        ownedTouch = null; touchY = null; touchOrigin = null;
+        if (diagnostics) report("intent-rejected", event, { reason: "horizontal-drag" });
+        return;
+      }
+      if (!ownedTouch.claimed && Math.abs(dy) >= 12 && Math.abs(dy) > dx) ownedTouch.claimed = true;
+      if (ownedTouch.claimed) {
+        ownedTouch.direction = Math.sign(dy) || ownedTouch.direction;
+        if (event.cancelable) event.preventDefault();
+        if (diagnostics) report("touch-locked-move", event, { direction: ownedTouch.direction, displacement: dy });
+      }
+      touchY = y;
+      return;
+    }
     if (touchY == null || event.touches.length !== 1) {
       if (diagnostics) report("intent-rejected", event, { reason: touchY == null ? "no-eligible-touch-start" : "touch-count" });
       cancel("invalid-touch-move", event); touchY = null; return;
@@ -384,8 +440,19 @@ export function createEntryScrollAssist({ getGeometry, isBlocked }, view = windo
   };
   const touchend = event => {
     touching = event.touches.length > 0;
+    const owned = ownedTouch;
+    ownedTouch = null;
     if (!touching) {
       touchY = null; touchStart = null;
+      if (owned?.claimed && owned.direction && !blocked()) {
+        if (event.cancelable) event.preventDefault();
+        const y = view.scrollY, plan = route(y, owned.origin, owned.direction);
+        if (!plan.native && plan.destination)
+          travel(event, "touch-locked", plan.destination, plan.opening, y, owned.direction, owned.at);
+        else if (diagnostics) report("touch-locked-native", event, { direction: owned.direction });
+        if (diagnostics) report("touch-release", event, { locked: true });
+        return;
+      }
       // Free-reading guides have a native upper edge. Arm its existing
       // momentum guard before coasting can cross it, without starting an RAF.
       const reading = gesture?.scrolled && gesture.direction < 0
@@ -400,7 +467,7 @@ export function createEntryScrollAssist({ getGeometry, isBlocked }, view = windo
     }
     if (diagnostics) report("touch-release", event);
   };
-  const reset = source => { cancel(source); readingGuard = null; touching = false; touchY = null; touchStart = null; heldKey = null; pointerHeld = false; };
+  const reset = source => { cancel(source); readingGuard = null; touching = false; touchY = null; touchStart = null; heldKey = null; pointerHeld = false; syncTouchLock(true); };
   // A press may follow a link that scrolls the page: no edge guard survives it.
   const pointerdown = event => { pointerHeld = true; readingGuard = null; cancel(event); };
   const pointerup = () => {
@@ -421,6 +488,7 @@ export function createEntryScrollAssist({ getGeometry, isBlocked }, view = windo
   const scroll = event => {
     if (event.target !== document) return;
     const y = view.scrollY;
+    syncTouchLock();
     // The first scroll must move beyond this input’s starting position unless
     // a pending compositor displacement has its own matching event evidence.
     let delta = y - (gesture && !gesture.scrolled && !gesture.pendingScroll ? gesture.inputY : lastY);
@@ -509,7 +577,7 @@ export function createEntryScrollAssist({ getGeometry, isBlocked }, view = windo
     [document, "touchstart", touchstart], [document, "touchmove", touchmove],
     [document, "touchend", touchend], [document, "touchcancel", reset],
     [document, "pointerdown", pointerdown], [document, "pointerup", pointerup], [document, "pointercancel", pointercancel],
-    [document, "click", cancel], [document, "focusin", cancel],
+    [document, "click", cancel], [document, "focusin", event => { if (!ownedTouch) cancel(event); }],
     [document, "visibilitychange", reset], [view, "hashchange", reset],
     // Capture also receives element blurs (an inert pricing layer drops focus
     // mid-trip); only the window losing focus releases ownership.
@@ -518,15 +586,20 @@ export function createEntryScrollAssist({ getGeometry, isBlocked }, view = windo
   const options = { passive: true, capture: true };
   const ownership = { passive: false, capture: true }; // preventDefault needs an active listener.
   document.addEventListener("wheel", ownWheel, ownership); // Registered first: runs before `wheel`.
-  for (const [target, type, handler] of listeners) target.addEventListener(type, handler, options);
+  for (const [target, type, handler] of listeners)
+    target.addEventListener(type, handler, type === "touchmove" || type === "touchend" ? ownership : options);
+  syncTouchLock();
   if (diagnostics) report("installed", null);
   return {
     cancel: reset,
+    syncTouchLock: () => syncTouchLock(true),
     dispose() {
       reset("dispose");
       disposed = true;
       document.removeEventListener("wheel", ownWheel, ownership);
-      for (const [target, type, handler] of listeners) target.removeEventListener(type, handler, options);
+      for (const [target, type, handler] of listeners)
+        target.removeEventListener(type, handler, type === "touchmove" || type === "touchend" ? ownership : options);
+      cinematicMain?.classList?.remove("cinematic-touch-lock");
     },
   };
 }

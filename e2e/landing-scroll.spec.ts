@@ -173,6 +173,24 @@ test("light immersive controls keep readable nested actions, selection and AR he
   }
 });
 
+touchTest("isolated DOM: native vertical panning is locked in scenes but restored for pricing", async ({ page }) => {
+  await openJourney(page);
+  const main = page.locator("main#content");
+  await expect(main).toHaveClass(/cinematic-touch-lock/);
+  await expect(main).toHaveCSS("touch-action", "pinch-zoom");
+  const heightBefore = await page.evaluate(() => document.documentElement.scrollHeight);
+  await page.locator("#open-weight").evaluate(el => {
+    // The opening part of pricing is still a cinematic phone handoff.
+    // Its middle is the native offer reading area.
+    scrollTo({ top: el.getBoundingClientRect().top + scrollY + el.getBoundingClientRect().height * 0.5, behavior: "instant" });
+  });
+  await expect(main).not.toHaveClass(/cinematic-touch-lock/);
+  await expect(main).toHaveCSS("touch-action", "auto");
+  await page.evaluate(() => scrollTo({ top: 0, behavior: "instant" }));
+  await expect(main).toHaveClass(/cinematic-touch-lock/);
+  expect(await page.evaluate(() => document.documentElement.scrollHeight)).toBe(heightBefore);
+});
+
 for (const initialHeight of [820, 730]) {
   touchTest(`isolated DOM: les barres mobiles ne déplacent aucun chapitre (${initialHeight}px)`, async ({
     page,

@@ -609,6 +609,7 @@ function LandingContent() {
         el.dataset.exitStart = String(start);
         el.dataset.exitEnd = String(end);
       }
+      entryAssist?.syncTouchLock();
     };
     const update = (now, insideSceneFrame = false) => {
       ticking = false;

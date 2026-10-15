@@ -239,6 +239,7 @@ export function CinematicPage({ chapters, scene = {}, children, footer, mainProp
         measurements.some((m, i) => !prior[i] || Math.abs(m.top - prior[i].top) > 0.5 || Math.abs(m.travel - prior[i].travel) > 0.5) ||
         Math.abs(guideStop - priorGuide) > 0.5;
       if (moved) assist.cancel("layout-geometry-changed");
+      assist.syncTouchLock();
       queue();
     };
     measure();

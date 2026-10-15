@@ -21,7 +21,7 @@ function geometry(stageHeight = 844, pace = 1) {
   return { opening, transitions: measureChapterTransitions(measurements, opening, timing) };
 }
 
-function fixture({ fine = false, scrollend = true, stageHeight = 844, pace = 1, diagnostics = true, consumer = diagnostics, reporterThrows = false, nativeMotion = true } = {}) {
+function fixture({ fine = false, scrollend = true, stageHeight = 844, pace = 1, diagnostics = true, consumer = diagnostics, reporterThrows = false, nativeMotion = true, coarse = false } = {}) {
   assert.equal(typeof createEntryScrollAssist, 'function', 'the entry assist helper must exist');
   const listeners = new Map(), timers = new Map(), calls = [], reports = [];
   let clock = 0, timerId = 0, nativeTimer = null, blocked = false;
@@ -31,13 +31,20 @@ function fixture({ fine = false, scrollend = true, stageHeight = 844, pace = 1, 
     removeEventListener(type, handler) { listeners.get(this)?.get(type)?.delete(handler); },
   });
   const media = { ...emitter(), matches: false };
-  const document = { ...emitter(), hidden: false, activeElement: target };
+  const mainClasses = new Set();
+  const main = { contains: () => true, classList: {
+    toggle(value, on) { if (on) mainClasses.add(value); else mainClasses.delete(value); },
+    remove(value) { mainClasses.delete(value); },
+    contains: value => mainClasses.has(value),
+  }};
+  const document = { ...emitter(), hidden: false, activeElement: target, querySelector: selector => selector === 'main' ? main : null };
   if (scrollend) document.onscrollend = null;
   const view = {
     ...emitter(), document, innerHeight: stageHeight, scrollY: 0,
     location: { search: diagnostics ? "?sceneDiagnostics=1" : "" },
     __vistaireScrollAssistTrace: consumer ? row => { if (reporterThrows) throw new Error("diagnostic consumer failed"); reports.push(row); } : undefined,
-    performance: { now: () => clock }, matchMedia: query => query.includes('pointer: fine') ? { ...emitter(), matches: fine } : media,
+    performance: { now: () => clock }, matchMedia: query => query.includes('pointer: fine') ? { ...emitter(), matches: fine }
+      : query.includes('pointer: coarse') ? { ...emitter(), matches: coarse } : media,
     setTimeout(callback, delay) { timers.set(++timerId, { callback, at: clock + delay }); return timerId; },
     clearTimeout(id) { timers.delete(id); },
     requestAnimationFrame(callback) { timers.set(++timerId, { callback, at: clock + 16, frame: true }); return timerId; },
@@ -75,7 +82,7 @@ function fixture({ fine = false, scrollend = true, stageHeight = 844, pace = 1, 
     }
     clock = until;
   };
-  return { assist, bounds, view, document, media, target, calls, reports, now: () => clock, stall: ms => { clock += ms; for (const timer of timers.values()) if (timer.at < clock) timer.at = clock; }, frames: () => [...timers.values()].filter(timer => timer.frame).length, input, move, wheel, end, advance, timers, listeners, emit, block: value => { blocked = value; } };
+  return { assist, bounds, view, document, media, target, main, calls, reports, now: () => clock, stall: ms => { clock += ms; for (const timer of timers.values()) if (timer.at < clock) timer.at = clock; }, frames: () => [...timers.values()].filter(timer => timer.frame).length, input, move, wheel, end, advance, timers, listeners, emit, block: value => { blocked = value; } };
 }
 
 // Gesture trips; a page left at rest may also return to its nearest stop.
@@ -394,7 +401,7 @@ test('native touch pan pointercancel releases pointer ownership without discardi
   cancelled.end(); cancelled.advance(1000); assert.equal(gestureTrips(cancelled).length, 0); cancelled.assist.dispose();
 });
 
-test('retained diagnostics snapshot scalar controlled ownership and long stalls cannot skip the trip', () => {
+test('retained diagnostics preserve a single stop while wall-clock stalls catch up', () => {
   const f = fixture({ diagnostics: true, nativeMotion: false }); f.wheel(100); f.end(); f.advance(40);
   const row = f.reports.find(entry => entry.assisting);
   const snapshot = structuredClone(row.assisting); f.advance(16); f.move(200);
@@ -402,7 +409,11 @@ test('retained diagnostics snapshot scalar controlled ownership and long stalls 
   assert.ok(Object.values(row.assisting).every(value => ['number', 'boolean'].includes(typeof value)));
   assert.equal(row.mode, 'controlled');
   f.stall(1000); f.advance(0);
-  assert.ok(f.calls.at(-1).top < 500, 'a delayed callback only advances a bounded piece of the trip');
+  const target = f.bounds.opening.motionTravel / 2;
+  assert.ok(Math.abs(f.calls.at(-1).top - target) < 1,
+    'a delayed mobile frame catches up to the authored stop, never stalls midway');
+  assert.ok(f.calls.every(call => call.top >= 0 && call.top <= target),
+    'catch-up still cannot overshoot another section');
   f.assist.dispose();
 });
 
@@ -855,7 +866,9 @@ test('controlled continuation waits for final scroll and fresh input cancels wit
     f.assist.dispose();
   }
   const finishing = fixture({ nativeMotion: false, diagnostics: true });
-  finishing.wheel(100); finishing.end(); finishing.advance(3000);
+  finishing.wheel(100); finishing.end(); finishing.advance(40);
+  const duration = finishing.reports.find(row => row.type === 'assist-start').duration;
+  finishing.advance(duration + 40);
   const target = finishing.calls.at(-1).top;
   finishing.view.scrollY = target;
   finishing.emit(finishing.view, 'scroll', { target: finishing.document, isTrusted: false });
@@ -1060,6 +1073,83 @@ test('a desktop wheel past the last stop stays native so the content below remai
   f.move(last); f.advance(500);
   const event = f.input('wheel', { deltaY: 100, deltaX: 0 });
   assert.equal(event.defaultPrevented, false, 'no stop ahead: the browser scrolls');
+  f.assist.dispose();
+});
+
+test('coarse cinematic vertical swipe advances without any native scroll event', () => {
+  const f = fixture({ coarse: true });
+  const ai = f.bounds.opening.motionTravel / 2;
+  assert.equal(f.main.classList.contains('cinematic-touch-lock'), true);
+  f.input('touchstart', { touches: [{ clientX: 180, clientY: 480 }] });
+  const move = f.input('touchmove', { touches: [{ clientX: 181, clientY: 425 }], cancelable: true });
+  assert.equal(move.defaultPrevented, true, 'cinematic swipe has no browser-native scroll owner');
+  assert.equal(f.view.scrollY, 0, 'finger does not advance the entire native page');
+  f.input('touchend', { touches: [], cancelable: true });
+  assert.deepEqual(assistedTargets(f), [ai], 'one swipe has exactly one authored reading stop');
+  f.advance(3000);
+  assert.ok(Math.abs(f.view.scrollY - ai) < 1, 'scripted trip reaches the authored stop');
+  f.input('touchstart', { touches: [{ clientX: 180, clientY: 490 }] });
+  f.input('touchmove', { touches: [{ clientX: 181, clientY: 410 }], cancelable: true });
+  f.input('touchend', { touches: [], cancelable: true });
+  f.advance(3000);
+  assert.ok(Math.abs(f.view.scrollY - f.bounds.opening.motionTravel) < 1, 'next swipe reaches the following stop');
+  assert.equal(assistedTargets(f).length, 2);
+  f.assist.dispose();
+  assert.equal(f.main.classList.contains('cinematic-touch-lock'), false, 'dispose restores normal page panning');
+});
+
+test('small moves, horizontal 3D drags and natural reading never claim a vertical swipe', () => {
+  for (const gesture of ['tap', 'horizontal', 'natural']) {
+    const f = fixture({ coarse: true }), pricing = f.bounds.transitions.find(join => join.to.id === 'open-weight').end;
+    if (gesture === 'natural') {
+      f.move(pricing + 200);
+      assert.equal(f.main.classList.contains('cinematic-touch-lock'), false, 'natural pricing regains native panning');
+    }
+    f.input('touchstart', { touches: [{ clientX: 170, clientY: 420 }] });
+    const y = gesture === 'tap' ? 416 : gesture === 'horizontal' ? 411 : 330;
+    const x = gesture === 'horizontal' ? 250 : 170;
+    const move = f.input('touchmove', { touches: [{ clientX: x, clientY: y }], cancelable: true });
+    f.input('touchend', { touches: [], cancelable: true });
+    f.advance(3000);
+    assert.equal(move.defaultPrevented, false, gesture + ' remains non-owned');
+    assert.equal(assistedTargets(f).length, 0, gesture + ' cannot advance the scripted scene');
+    f.assist.dispose();
+  }
+});
+
+test('a scripted collection-to-pricing swipe restores browser-native reading at its destination', () => {
+  const f = fixture({ coarse: true });
+  const product = f.bounds.transitions.find(join => join.to.id === 'product').end;
+  const pricing = f.bounds.transitions.find(join => join.to.id === 'open-weight').end;
+  f.move(product);
+  assert.equal(f.main.classList.contains('cinematic-touch-lock'), true);
+  f.input('touchstart', { touches: [{ clientX: 190, clientY: 530 }] });
+  const locked = f.input('touchmove', { touches: [{ clientX: 190, clientY: 430 }], cancelable: true });
+  assert.equal(locked.defaultPrevented, true);
+  f.input('touchend', { touches: [], cancelable: true });
+  f.advance(3000);
+  assert.equal(f.view.scrollY, pricing);
+  assert.equal(f.main.classList.contains('cinematic-touch-lock'), false,
+    'pricing regains native scroll without a browser-dependent viewport height');
+  const count = f.calls.length;
+  f.input('touchstart', { touches: [{ clientX: 190, clientY: 530 }] });
+  const native = f.input('touchmove', { touches: [{ clientX: 190, clientY: 430 }], cancelable: true });
+  f.input('touchend', { touches: [], cancelable: true });
+  f.advance(1500);
+  assert.equal(native.defaultPrevented, false, 'pricing touch movement is not intercepted');
+  assert.equal(f.calls.length, count, 'one pricing swipe cannot chain another cinematic move');
+  f.assist.dispose();
+});
+
+test('coarse reverse swipes move to previous stop without physics handoff', () => {
+  const f = fixture({ coarse: true }), ai = f.bounds.opening.motionTravel / 2;
+  f.move(f.bounds.opening.motionTravel);
+  f.input('touchstart', { touches: [{ clientX: 180, clientY: 240 }] });
+  f.input('touchmove', { touches: [{ clientX: 179, clientY: 340 }], cancelable: true });
+  f.input('touchend', { touches: [], cancelable: true });
+  f.advance(3000);
+  assert.equal(f.view.scrollY, ai);
+  assert.deepEqual(assistedTargets(f), [ai]);
   f.assist.dispose();
 });
 
