@@ -51,7 +51,7 @@ function place(pose, name, spec, p, mobile, calibrating, azimuth) {
 // view: [azimuth, elevation] in radians, 0/0 = straight from the guest's side.
 const SHOTS = {
   // About: from the room to the house's three values, then the table from above.
-  "about-room": { view: [0.95, 0.42], dish: { at: [0, 0.4] }, stand: { at: [-1.9, 0.7], scale: 0.75, flat: true, yaw: -0.2 }, phone: { at: [1.9, 0.8], scale: 0.62, flat: true, yaw: 0.25 } },
+  "about-room": { view: [0.95, 0.42], dish: { at: [0, 0.4] }, stand: { at: [1.9, 0.7], scale: 0.75, flat: true, yaw: 0.2 }, phone: { at: [-1.9, 0.8], scale: 0.62, flat: true, yaw: -0.25 } },
   "about-vision": { view: [-0.35, 0.16], dish: { at: [0.3, 0.5], scale: 1.05, turn: 0.8 }, phone: { at: [-1.25, 0.1], scale: 0.85, yaw: 0.35 } },
   "about-values": { view: [0, 0.28], phone: { at: [-1.75, 0.5], scale: 0.8, yaw: 0.3 }, dish: { at: [0, 0.6], scale: 0.85, turn: 0.6 }, stand: { at: [1.8, 0.5], scale: 0.85, yaw: -0.35 } },
   "about-closing": { view: [0.2, 1.3], phone: { at: [-1.6, 0.6], scale: 0.7, flat: true, yaw: 0.3 }, dish: { at: [0.1, 0.5], scale: 0.9 }, stand: { at: [1.7, 0.4], scale: 0.7, flat: true, yaw: -0.25 } },
@@ -60,7 +60,7 @@ const SHOTS = {
   "contact-table": { view: [-0.7, 0.62], dish: { at: [-0.4, 0.5] }, phone: { at: [1.25, 0.7], scale: 0.75, flat: true, yaw: -0.35 } },
   // Booking: the Carré stand and its menu, then the table reviewed together.
   "book-hero": { view: [-0.45, 0.24], stand: { at: [0.65, 0.4], yaw: -0.4, turn: 0.3 }, phone: { at: [-0.8, 0.9], scale: 0.85, yaw: 0.4 } },
-  "book-exchange": { view: [0.1, 1.2], stand: { at: [-1.6, 0.4], scale: 0.75, flat: true }, dish: { at: [0.2, 0.5], scale: 0.95 }, phone: { at: [1.7, 0.6], scale: 0.68, flat: true, yaw: 0.3 } },
+  "book-exchange": { view: [0.1, 1.2], stand: { at: [1.6, 0.4], scale: 0.75, flat: true }, dish: { at: [-0.2, 0.5], scale: 0.95 }, phone: { at: [-1.7, 0.6], scale: 0.68, flat: true, yaw: -0.3 } },
   // Demo: three restaurants, one phone; its menu changes between chapters.
   "demo-elyse": { view: [0.3, 0.12], phone: { at: [0, 1.2], scale: 1.2, yaw: -0.25, turn: 0.5, swap: "out" } },
   "demo-trouvable": { view: [0, 1.35], phone: { at: [0, 0.7], scale: 1.15, flat: true, yaw: -0.4, turn: 0.6, swap: "both" } },
@@ -85,7 +85,7 @@ const SHOTS = {
   // Guide, useful 3D or gimmick: the dish alone, against a flat menu, at the table.
   "guide-decision-dish": { view: [0.15, 0.32], dish: { at: [0, 0.9], scale: 1.3, turn: 1.2 } },
   "guide-decision-versus": { view: [-0.5, 0.5], dish: { at: [0.75, 0.6], scale: 0.9 }, phone: { at: [-1.15, 0.9], scale: 0.75, flat: true, yaw: 0.3 } },
-  "guide-decision-table": { view: [0.8, 0.3], dish: { at: [0, 0.5], scale: 0.85 }, phone: { at: [1.45, 0.5], scale: 0.8, yaw: -0.6 } },
+  "guide-decision-table": { view: [0.8, 0.3], dish: { at: [0, 0.5], scale: 0.85 }, phone: { at: [-1.45, 0.5], scale: 0.8, yaw: 0.6 } },
   // Need and audience pages: four shots each, see GEO_SCRIPTS in pages/GeoCinematic.
   "geo-1-1": { view: [0.4, 0.25], stand: { at: [0.3, 0.5], scale: 1.05, yaw: -0.5, turn: 0.5 } },
   "geo-1-2": { view: [0, 1.3], pdf: { at: [-1.05, 0.6], scale: 0.85, flat: true, yaw: 0.2 }, stand: { at: [1.05, 0.6], scale: 0.8, flat: true, yaw: -0.2 } },
@@ -136,6 +136,8 @@ const SHOTS = {
   "geo-12-3": { view: [0.35, 1.25], phone: { at: [0, 0.7], flat: true, yaw: -0.2 } },
   "geo-12-4": { view: [0.9, 0.3], phone: { at: [1.05, 0.7], scale: 0.85, yaw: -0.6 }, dish: { at: [-0.65, 0.5], scale: 0.9 } },
 };
+
+export const isPageShot = (section) => Object.hasOwn(SHOTS, section);
 
 /** Partial pose for a page shot, or null for the landing's own sections. */
 export function pageShot(section, p, mobile, calibrating = false) {

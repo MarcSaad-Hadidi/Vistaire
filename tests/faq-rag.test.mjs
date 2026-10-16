@@ -292,4 +292,12 @@ test("public FAQ route consumes the shared quota, then returns a sourced Mistral
   assert.equal(limited.status, 429);
   assert.equal((await limited.json()).status, "rate_limited");
   assert.equal(mistralBodies.length, 1);
+
+  // IPv6 clients share one quota key per /64, whatever the address notation.
+  for (const ip of ["2001:db8::1", "2001:DB8:0:0:ffff::2", "2001:0db8:0000:0000::3", "2001:db8:0:1::1"]) {
+    await POST(faqRequest({ question: "Faut-il télécharger une application ?", locale: "fr" }, { "x-vercel-forwarded-for": ip }));
+  }
+  const ipv6Keys = rpcBodies.slice(2).map((body) => body.p_client_key);
+  assert.equal(new Set(ipv6Keys.slice(0, 3)).size, 1);
+  assert.notEqual(ipv6Keys[3], ipv6Keys[0]);
 });

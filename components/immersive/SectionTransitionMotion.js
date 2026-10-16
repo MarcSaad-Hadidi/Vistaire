@@ -1,4 +1,5 @@
 import { continuousComposition } from "./SceneDirector.js";
+import { isPageShot } from "./PageShots.js";
 
 /** A zero-scale chapter has no visible orientation to travel toward. Keep the
  * subject's presented rotation during its reveal/hide, including user yaw and
@@ -18,6 +19,12 @@ export function sectionTransitionComposition(state, mobile, baseComposition) {
   for (const name of ["dish", "support", "phone", "pdfPhone", "laptop"]) {
     const scale = `${name}Scale`;
     if (pose[scale] <= 0 || (from[scale] === 0) === (to[scale] === 0)) continue;
+    // Page shots: an object entering or leaving grows or shrinks where it
+    // stands instead of crossing the table from its centre through the others.
+    if (isPageShot(state.transition.from) && isPageShot(state.transition.to)) {
+      const shown = from[scale] === 0 ? to : from;
+      pose[name] = [shown[name][0], pose[name][1], shown[name][2]];
+    }
     const section = from[scale] === 0 ? state.transition.to : state.transition.from;
     const { x, y, width, height } = state.sceneFrames?.[section] || {};
     // A cropped/unknown frame cannot guarantee room for a different silhouette.

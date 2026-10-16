@@ -41,7 +41,18 @@ function isSameOrigin(request: NextRequest): boolean {
 function clientNetwork(request: NextRequest): string {
   const header = process.env.VERCEL ? "x-vercel-forwarded-for" : "x-forwarded-for";
   const ip = request.headers.get(header)?.split(",")[0]?.trim().slice(0, 80) || "unknown";
-  return ip.includes(":") ? ip.split(":").slice(0, 4).join(":") : ip;
+  return ip.includes(":") ? ipv6Prefix64(ip) : ip;
+}
+
+// Expand "::" first so every notation of one /64 yields the same four hextets.
+function ipv6Prefix64(ip: string): string {
+  const mappedV4 = ip.match(/^::ffff:(\d+\.\d+\.\d+\.\d+)$/i);
+  if (mappedV4) return mappedV4[1];
+  const [head, tail] = ip.split("%")[0].split("::");
+  const left = head ? head.split(":") : [];
+  const right = tail ? tail.split(":") : [];
+  const hextets = [...left, ...Array(Math.max(0, 8 - left.length - right.length)).fill("0"), ...right];
+  return hextets.slice(0, 4).map((part) => (parseInt(part, 16) || 0).toString(16)).join(":");
 }
 
 function parseFaqRequest(value: unknown): { question: string; locale: Locale } | null {

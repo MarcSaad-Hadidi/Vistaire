@@ -1257,8 +1257,8 @@ export default function Scene({
         names.push(name);
       }
       // As the camera sees them: two objects that hide each other part
-      // symmetrically along the view's horizontal, then every object is
-      // brought back onto the round tabletop (centred on the origin).
+      // symmetrically along the view's horizontal, then an arrangement wider
+      // than the round tabletop (centred on the origin) shrinks as a whole.
       const shift = (index, offset) => {
         placed[index].translate(offset);
         const name = names[index];
@@ -1267,7 +1267,7 @@ export default function Scene({
       };
       // The usable top is polygonal and draped: 80% of its half width keeps a visible margin.
       const tableRadius = ((nativeTable?.metadata.topWidth ?? 5.16) / 2) * 0.8;
-      for (let pass = 0; inView && pass < 4; pass++) {
+      for (let pass = 0; inView && pass < 6; pass++) {
         let clear = true;
         for (let a = 0; a < placed.length; a++)
           for (let b = a + 1; b < placed.length; b++) {
@@ -1280,16 +1280,25 @@ export default function Scene({
             shift(a, solidPosition.copy(viewRight).multiplyScalar(side * overlap / 2));
             shift(b, solidPosition.copy(viewRight).multiplyScalar(-side * overlap / 2));
           }
-        for (let index = 0; index < placed.length; index++) {
-          const box = placed[index];
-          const cx = (box.min.x + box.max.x) / 2, cz = (box.min.z + box.max.z) / 2;
-          const reach = Math.max(box.max.x - box.min.x, box.max.z - box.min.z) / 2;
-          const distance = Math.hypot(cx, cz), limit = Math.max(0, tableRadius - reach);
-          if (distance > limit + 1e-3)
-            shift(index, solidPosition.set(cx, 0, cz).multiplyScalar(limit / distance - 1));
-        }
         if (clear) break;
       }
+      // Pulling single objects back onto the top made them touch again; scaling
+      // positions and sizes together keeps every gap, and the camera's fit keeps
+      // the objects' size on screen.
+      let fit = 1;
+      for (const box of inView ? placed : []) {
+        const cx = (box.min.x + box.max.x) / 2, cz = (box.min.z + box.max.z) / 2;
+        const reach = Math.hypot(cx, cz) + Math.max(box.max.x - box.min.x, box.max.z - box.min.z) / 2;
+        if (reach > tableRadius) fit = Math.min(fit, tableRadius / reach);
+      }
+      if (fit < 1)
+        names.forEach((name, index) => {
+          // Each object keeps its base on the table while it shrinks.
+          const [x, y, z] = pose[name], base = placed[index].min.y;
+          pose[name] = [x * fit, base - (base - y) * fit, z * fit];
+          pose[`${name}Scale`] *= fit;
+          if (!moved.includes(name)) moved.push(name);
+        });
       if (diagnosticsEnabled) canvas.dataset.separated = moved.join(",");
     }
     // Each shot's own pose is separated before any blend, so a transition
