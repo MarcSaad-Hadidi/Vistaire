@@ -33,7 +33,8 @@ import {
 import Pricing from "./Pricing.jsx";
 import { CINEMATIC_TIMING, SCROLL_PACE, normalizeScrollPace, scaledCinematicTiming, openingProgressAtScroll, remapJourneyScroll, chapterNavigationTarget, cinematicEase, cinematicCopyWeights, readingTiming, readingPresentation, measureChapterTransitions, transitionAtScroll, transitionSceneFrame } from "./SceneDirector.js";
 import { useModelGesture, useSupportGesture } from "./useModelGesture.js";
-import { ARAction, ARHelp, DishDetailLink, isIOSDevice } from "./ARActions.jsx";
+import { ARAction, ARHelp, DishDetailLink } from "./ARActions.jsx";
+import { classifyArBrowser, readLiveArClientSnapshot } from "../../lib/ar/arExperience.ts";
 import { LandingLocaleProvider, useLandingLocale } from "./locale.jsx";
 import { PublicControls } from "../vistaire-preview/PublicControls";
 import { PublicFooterNavigation } from "../vistaire-preview/PublicFooterNavigation";
@@ -426,10 +427,14 @@ function LandingContent() {
   const [reduce, setReduce] = useState(false);
   const [isAndroid, setIsAndroid] = useState(false);
   const [arSupported, setARSupported] = useState(false);
+  const [iosArUnsupported, setIosArUnsupported] = useState(false);
   useEffect(() => {
     const frame = requestAnimationFrame(() => {
       setIsAndroid(/Android/i.test(navigator.userAgent));
-      setARSupported(isIOSDevice() || document.createElement("a").relList.supports?.("ar") || false);
+      // Only Safari opens Quick Look; other iOS browsers (Brave…) download the USDZ.
+      const browser = classifyArBrowser(readLiveArClientSnapshot());
+      setARSupported(browser === "ios-safari");
+      setIosArUnsupported(browser === "ios-other");
       const requested = new URLSearchParams(location.search).get("dish");
       if (sourceDishes.some(item => item.id === requested)) setDish(requested);
     });
@@ -1062,7 +1067,13 @@ function LandingContent() {
                 ),
         });
       });
-    } else setModal({ type: "ar", id: item.id });
+    } else setModal({
+      type: "ar",
+      id: item.id,
+      error: iosArUnsupported
+        ? t("La réalité augmentée n’est pas disponible dans ce navigateur. Sur iPhone, ouvrez cette page dans Safari.")
+        : undefined,
+    });
   };
   const onSceneError = useCallback(() => {
     stateRef.current.pricingHandUnavailable = true;
