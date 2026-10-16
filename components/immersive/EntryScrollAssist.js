@@ -31,11 +31,11 @@ const FAST_SCENE_DESTINATIONS = new Set([
   "encryption", "grip", "sustainability", "testimonies",
   "social-content", "product", "open-weight",
 ]);
-export function assistedScrollDuration(stages, destinationId) {
+export function assistedScrollDuration(stages, destinationId, fast = FAST_SCENE_DESTINATIONS.has(destinationId)) {
   const screens = Math.max(0, stages);
-  // Only these destination scenes get faster pacing; all other stops keep
-  // their current timing. This duration remains continuous as distance varies.
-  return FAST_SCENE_DESTINATIONS.has(destinationId)
+  // Only these destination scenes (and content pages) get faster pacing; other
+  // stops keep their timing. This duration remains continuous as distance varies.
+  return fast
     ? Math.min(950, Math.max(650, 550 + 55 * screens))
     : Math.min(1300, Math.max(650, 580 + 90 * screens));
 }
@@ -44,7 +44,7 @@ export function assistedScrollDuration(stages, destinationId) {
  * One RAF owns the continuation; the caller cancels before programmatic
  * navigation/layout remaps and while UI blocks scrolling. No idle RAF remains.
  */
-export function createEntryScrollAssist({ getGeometry, isBlocked }, view = window) {
+export function createEntryScrollAssist({ getGeometry, isBlocked, fastTrips = false, sectionEndStops = false }, view = window) {
   const document = view.document;
   const reduced = view.matchMedia("(prefers-reduced-motion: reduce)");
   const finePointer = view.matchMedia("(hover: hover) and (pointer: fine)");
@@ -255,12 +255,14 @@ export function createEntryScrollAssist({ getGeometry, isBlocked }, view = windo
           ...(join.from.id === "sustainability" ? [LAPTOP_OPEN]
             : join.from.id === "features" || join.from.id === "social-content" ? READING_OPTIONS : [])
             .map((progress, index) => ({ id: `${join.from.id}-${index + 1}`, y: join.from.top + join.from.travel * progress })),
+          // Content pages also stop where a section ends, before its transition.
+          ...(sectionEndStops ? [{ id: `${join.from.id}-end`, y: join.start }] : []),
           { id: join.to.id, y: join.end },
         ]),
       ...(pricing != null ? [{ id: "open-weight", y: pricing }] : []),
       // A page's free reading starts with one more stop: the guide's head.
       ...(naturalFrom != null ? [{ id: "natural", y: naturalFrom }] : []),
-    ];
+    ].sort((a, b) => a.y - b.y);
     const nearest = !direction && stops.reduce((best, stop) => Math.abs(stop.y - y) < Math.abs(best.y - y) ? stop : best);
     // Within 1px a stop is reached: 1x displays round scrollY below fractional stops.
     const destination = exit || (direction > 0 ? stops.find(stop => stop.y > y + 1)
@@ -284,12 +286,14 @@ export function createEntryScrollAssist({ getGeometry, isBlocked }, view = windo
       // Offers are read by JavaScript-owned touch too: a native pan there lets
       // Brave/Chrome iOS move their toolbars and resize the layout viewport.
       const readingEnd = geometry?.pricing?.end;
+      // A content page's guide head is the same native-forward, owned-reverse edge.
+      const returnAt = pricingStart ?? geometry?.naturalFrom ?? null;
       touchRange = geometry?.opening ? {
         top: geometry.opening.top,
         // WebKit floors fractional destinations; Chromium can round them.
         // Cover either representable pixel and one pixel of arrival drift.
-        pricingStart: pricingStart == null ? null : Math.floor(pricingStart),
-        pricingEnd: pricingStart == null ? null : Math.ceil(pricingStart),
+        pricingStart: returnAt == null ? null : Math.floor(returnAt),
+        pricingEnd: returnAt == null ? null : Math.ceil(returnAt),
         readingEnd,
         end: Math.min(readingEnd != null ? Math.ceil(readingEnd) + 2
           : pricingStart == null ? Infinity : Math.floor(pricingStart), geometry.naturalFrom ?? Infinity),
@@ -322,10 +326,11 @@ export function createEntryScrollAssist({ getGeometry, isBlocked }, view = windo
     const now = view.performance.now();
     // A shorter physical trip never takes longer than a longer one.
     const stages = Math.abs(target - y) / opening.stageHeight;
-    const duration = fixed ?? assistedScrollDuration(stages, destination.id);
+    const fast = fastTrips || FAST_SCENE_DESTINATIONS.has(destination.id);
+    const duration = fixed ?? assistedScrollDuration(stages, destination.id, fast);
     readingGuard = null;
     assisting = { target, started: now, direction, lastY: y, from: y, duration, coast,
-      fast: FAST_SCENE_DESTINATIONS.has(destination.id), elapsed: 0, written: y };
+      fast, elapsed: 0, written: y };
     writes = [];
     if (diagnostics) {
       report("assist-start", event, { direction, target, duration, distance: (target - y) * direction, phase, geometry: { ...opening } });
@@ -592,7 +597,8 @@ export function createEntryScrollAssist({ getGeometry, isBlocked }, view = windo
           // Return from the actual first-offer reading anchor to Product,
           // never to the incoming Pricing animation's intermediate position.
           const geometry = touchGeometry ?? getGeometry();
-          const product = geometry.transitions?.find(join => join.to.id === "product");
+          // A content page's guide head returns to its own previous stop (route).
+          const product = geometry.naturalFrom == null && geometry.transitions?.find(join => join.to.id === "product");
           if (product && product.end < y - 1)
             plan = { opening: geometry.opening, destination: { id: "product", y: product.end } };
         }
@@ -661,12 +667,15 @@ export function createEntryScrollAssist({ getGeometry, isBlocked }, view = windo
     let delta = y - (gesture && !gesture.scrolled && !gesture.pendingScroll ? gesture.inputY : lastY);
     if (diagnostics) report("scroll", event, { delta });
     // Brave/Chrome iOS (and WebKit flings during inertia) can withhold touch
-    // events, so native movement from inside the offers always arms their edges.
+    // events, so native movement from inside the offers always arms their edges,
+    // and native reading below them (FAQ, guide) never coasts back above its head.
     // A navigation jump is larger than one viewport and is never pulled back.
     if (!readingGuard && !touching && !assisting && touchRange && Math.abs(y - lastY) < view.innerHeight) {
-      const reading = getGeometry().pricing, inside = at => at > reading.start - 1 && at < reading.end + 1;
+      const { pricing: reading, naturalFrom } = getGeometry(), inside = at => at > reading.start - 1 && at < reading.end + 1;
+      const floor = reading?.end ?? naturalFrom;
       if (reading && (inside(y) || inside(lastY) || (gesture && inside(gesture.inputY))))
         readingGuard = { start: reading.start, end: reading.end };
+      else if (floor != null && lastY > floor + 1) readingGuard = { start: floor, end: Infinity };
     }
     // Momentum past an offer edge stops there; on iOS a write ends deceleration.
     if (readingGuard && !touching && !assisting && (y > readingGuard.end || y < readingGuard.start)) {

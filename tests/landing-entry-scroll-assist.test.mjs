@@ -21,7 +21,7 @@ function geometry(stageHeight = 844, pace = 1) {
   return { opening, transitions: measureChapterTransitions(measurements, opening, timing) };
 }
 
-function fixture({ fine = false, scrollend = true, stageHeight = 844, pace = 1, diagnostics = true, consumer = diagnostics, reporterThrows = false, nativeMotion = true, coarse = false, directionalPan = true } = {}) {
+function fixture({ fastTrips = false, sectionEndStops = false, fine = false, scrollend = true, stageHeight = 844, pace = 1, diagnostics = true, consumer = diagnostics, reporterThrows = false, nativeMotion = true, coarse = false, directionalPan = true } = {}) {
   assert.equal(typeof createEntryScrollAssist, 'function', 'the entry assist helper must exist');
   const listeners = new Map(), timers = new Map(), calls = [], reports = [];
   let clock = 0, timerId = 0, nativeTimer = null, blocked = false;
@@ -66,7 +66,7 @@ function fixture({ fine = false, scrollend = true, stageHeight = 844, pace = 1, 
     },
   };
   const bounds = geometry(stageHeight, pace);
-  const assist = createEntryScrollAssist({ getGeometry: () => bounds, isBlocked: () => blocked }, view);
+  const assist = createEntryScrollAssist({ getGeometry: () => bounds, isBlocked: () => blocked, fastTrips, sectionEndStops }, view);
   const emit = (object, type, extra = {}) => {
     const event = { type, target, timeStamp: clock, isTrusted: true, defaultPrevented: false, preventDefault() { this.defaultPrevented = true; }, ...extra };
     for (const handler of listeners.get(object)?.get(type) || []) handler(event);
@@ -1289,6 +1289,76 @@ test('long cinematic handoffs accelerate without changing smaller stops or autho
     assert.ok(Math.abs(f.view.scrollY - to) <= 1, 'never skips or stops halfway through section');
     f.assist.dispose();
   }
+});
+
+// Content pages (CinematicPage): cinematic chapters, then native guide/FAQ reading.
+const pageFixture = () => {
+  const f = fixture({ coarse: true, fastTrips: true, sectionEndStops: true });
+  f.bounds.transitions = f.bounds.transitions.filter(join => join.to.id !== 'open-weight' && join.from.id !== 'open-weight');
+  const product = f.bounds.transitions.find(join => join.to.id === 'product').end;
+  f.bounds.naturalFrom = product + 1200;
+  f.assist.syncTouchLock(true);
+  return { f, natural: product + 1200, previous: authoredReadingStops(f.bounds).filter(stop => stop.y < product + 1199).at(-1).y };
+};
+
+test('content pages stop at the start and at the end of every section, in both directions', () => {
+  const { f } = pageFixture();
+  const into = f.bounds.transitions.find(join => join.to.id === 'encryption'), out = f.bounds.transitions.find(join => join.from.id === 'encryption');
+  const swipe = direction => {
+    f.input('touchstart', { touches: [{ clientX: 180, clientY: 480 }] });
+    f.input('touchmove', { touches: [{ clientX: 181, clientY: 480 - direction * 60 }], cancelable: true });
+    f.input('touchend', { touches: [], cancelable: true });
+    f.advance(3000);
+    return f.view.scrollY;
+  };
+  f.move(into.end); f.advance(500);
+  assert.ok(Math.abs(swipe(1) - out.start) <= 1, 'the section end, before its transition, is a stop');
+  assert.ok(Math.abs(swipe(1) - out.end) <= 1, 'the next swipe plays the transition to the next section start');
+  assert.ok(Math.abs(swipe(-1) - out.start) <= 1, 'reverse stops at the previous section end');
+  assert.ok(Math.abs(swipe(-1) - into.end) <= 1, 'then at that section start');
+  f.assist.dispose();
+});
+
+test('page guide momentum stops at the guide head even when iOS withholds touch events', () => {
+  const { f, natural } = pageFixture();
+  f.move(natural + 1500); f.advance(500);
+  for (let y = natural + 1500; y > natural - 3000; y -= 60) { f.advance(16); f.move(y - 60); }
+  f.advance(16); f.end(); f.advance(4000);
+  assert.ok(Math.abs(f.view.scrollY - natural) <= 1, 'native momentum never runs back into the previous chapter');
+  f.assist.dispose();
+});
+
+test('at the page guide head a reverse swipe is owned and returns one chapter; forward reading stays native', () => {
+  const { f, natural, previous } = pageFixture();
+  f.move(natural); f.advance(500);
+  assert.equal(f.root.classList.contains('cinematic-pricing-return'), true, 'the guide head keeps native forward pan and owns reverse');
+  f.input('touchstart', { touches: [{ clientX: 190, clientY: 460 }] });
+  const forward = f.input('touchmove', { touches: [{ clientX: 190, clientY: 380 }], cancelable: true });
+  f.input('touchend', { touches: [], cancelable: true });
+  assert.equal(forward.defaultPrevented, false, 'forward reading of the guide is native');
+  f.move(natural); f.advance(500);
+  f.input('touchstart', { touches: [{ clientX: 190, clientY: 360 }] });
+  const reverse = f.input('touchmove', { touches: [{ clientX: 190, clientY: 470 }], cancelable: true });
+  f.input('touchend', { touches: [], cancelable: true });
+  f.advance(3000);
+  assert.equal(reverse.defaultPrevented, true, 'the reverse swipe never pans natively into the chapter');
+  assert.ok(Math.abs(f.view.scrollY - previous) <= 1, 'one reverse swipe lands on the previous chapter stop');
+  f.assist.dispose();
+});
+
+test('content pages use the fast trip timing', () => {
+  const duration = fastTrips => {
+    const f = fixture({ coarse: true, fastTrips }), ai = f.bounds.opening.motionTravel / 2;
+    f.input('touchstart', { touches: [{ clientX: 180, clientY: 480 }] });
+    f.input('touchmove', { touches: [{ clientX: 181, clientY: 425 }], cancelable: true });
+    f.input('touchend', { touches: [], cancelable: true });
+    const start = f.reports.find(row => row.type === 'assist-start');
+    f.assist.dispose();
+    assert.equal(start.target, ai);
+    return start.duration;
+  };
+  assert.ok(duration(true) < duration(false), 'page trips are faster than the default stop timing');
+  assert.ok(duration(true) <= 950);
 });
 
 test('a touch fling up out of a page guide stops at the guide head; the next swipe returns one chapter', () => {
