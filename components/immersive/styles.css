@@ -1135,6 +1135,10 @@
   overflow: clip;
   border: 1px solid #f8f3e826;
   border-radius: 8px;
+  /* Own layer: iOS WebKit skipped repainting the lower part of this card while
+     a scripted scroll moved its sticky stage (Sauge Noire to collection). */
+  will-change: transform;
+  transform: translateZ(0);
 }
 :where([data-immersive-vistaire]) .social-bg {
   position: absolute;
