@@ -253,10 +253,8 @@ export function CinematicPage({ chapters, scene = {}, children, footer, mainProp
         };
       },
       isBlocked: () => stopped || !state.sceneReady || state.reducedMotion,
-      // Content pages join short scenes: every trip uses the fast landing pace,
-      // and each section stops at its start and at its end.
+      // Content pages join short scenes: every trip uses the fast landing pace.
       fastTrips: true,
-      sectionEndStops: true,
     });
     const reduced = matchMedia("(prefers-reduced-motion: reduce)");
     const motion = () => { state.reducedMotion = reduced.matches; };

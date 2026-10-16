@@ -21,7 +21,7 @@ function geometry(stageHeight = 844, pace = 1) {
   return { opening, transitions: measureChapterTransitions(measurements, opening, timing) };
 }
 
-function fixture({ fastTrips = false, sectionEndStops = false, fine = false, scrollend = true, stageHeight = 844, pace = 1, diagnostics = true, consumer = diagnostics, reporterThrows = false, nativeMotion = true, coarse = false, directionalPan = true } = {}) {
+function fixture({ fastTrips = false, fine = false, scrollend = true, stageHeight = 844, pace = 1, diagnostics = true, consumer = diagnostics, reporterThrows = false, nativeMotion = true, coarse = false, directionalPan = true } = {}) {
   assert.equal(typeof createEntryScrollAssist, 'function', 'the entry assist helper must exist');
   const listeners = new Map(), timers = new Map(), calls = [], reports = [];
   let clock = 0, timerId = 0, nativeTimer = null, blocked = false;
@@ -66,7 +66,7 @@ function fixture({ fastTrips = false, sectionEndStops = false, fine = false, scr
     },
   };
   const bounds = geometry(stageHeight, pace);
-  const assist = createEntryScrollAssist({ getGeometry: () => bounds, isBlocked: () => blocked, fastTrips, sectionEndStops }, view);
+  const assist = createEntryScrollAssist({ getGeometry: () => bounds, isBlocked: () => blocked, fastTrips }, view);
   const emit = (object, type, extra = {}) => {
     const event = { type, target, timeStamp: clock, isTrusted: true, defaultPrevented: false, preventDefault() { this.defaultPrevented = true; }, ...extra };
     for (const handler of listeners.get(object)?.get(type) || []) handler(event);
@@ -1293,7 +1293,7 @@ test('long cinematic handoffs accelerate without changing smaller stops or autho
 
 // Content pages (CinematicPage): cinematic chapters, then native guide/FAQ reading.
 const pageFixture = () => {
-  const f = fixture({ coarse: true, fastTrips: true, sectionEndStops: true });
+  const f = fixture({ coarse: true, fastTrips: true });
   f.bounds.transitions = f.bounds.transitions.filter(join => join.to.id !== 'open-weight' && join.from.id !== 'open-weight');
   const product = f.bounds.transitions.find(join => join.to.id === 'product').end;
   f.bounds.naturalFrom = product + 1200;
@@ -1301,7 +1301,7 @@ const pageFixture = () => {
   return { f, natural: product + 1200, previous: authoredReadingStops(f.bounds).filter(stop => stop.y < product + 1199).at(-1).y };
 };
 
-test('content pages stop at the start and at the end of every section, in both directions', () => {
+test('content pages, like the landing, play a whole section exit and transition in one swipe', () => {
   const { f } = pageFixture();
   const into = f.bounds.transitions.find(join => join.to.id === 'encryption'), out = f.bounds.transitions.find(join => join.from.id === 'encryption');
   const swipe = direction => {
@@ -1312,10 +1312,8 @@ test('content pages stop at the start and at the end of every section, in both d
     return f.view.scrollY;
   };
   f.move(into.end); f.advance(500);
-  assert.ok(Math.abs(swipe(1) - out.start) <= 1, 'the section end, before its transition, is a stop');
-  assert.ok(Math.abs(swipe(1) - out.end) <= 1, 'the next swipe plays the transition to the next section start');
-  assert.ok(Math.abs(swipe(-1) - out.start) <= 1, 'reverse stops at the previous section end');
-  assert.ok(Math.abs(swipe(-1) - into.end) <= 1, 'then at that section start');
+  assert.ok(Math.abs(swipe(1) - out.end) <= 1, 'one swipe reaches the next section start, never a half-exited pose');
+  assert.ok(Math.abs(swipe(-1) - into.end) <= 1, 'one reverse swipe returns to the previous section start');
   f.assist.dispose();
 });
 

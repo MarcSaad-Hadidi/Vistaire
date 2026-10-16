@@ -44,7 +44,7 @@ export function assistedScrollDuration(stages, destinationId, fast = FAST_SCENE_
  * One RAF owns the continuation; the caller cancels before programmatic
  * navigation/layout remaps and while UI blocks scrolling. No idle RAF remains.
  */
-export function createEntryScrollAssist({ getGeometry, isBlocked, fastTrips = false, sectionEndStops = false }, view = window) {
+export function createEntryScrollAssist({ getGeometry, isBlocked, fastTrips = false }, view = window) {
   const document = view.document;
   const reduced = view.matchMedia("(prefers-reduced-motion: reduce)");
   const finePointer = view.matchMedia("(hover: hover) and (pointer: fine)");
@@ -255,14 +255,12 @@ export function createEntryScrollAssist({ getGeometry, isBlocked, fastTrips = fa
           ...(join.from.id === "sustainability" ? [LAPTOP_OPEN]
             : join.from.id === "features" || join.from.id === "social-content" ? READING_OPTIONS : [])
             .map((progress, index) => ({ id: `${join.from.id}-${index + 1}`, y: join.from.top + join.from.travel * progress })),
-          // Content pages also stop where a section ends, before its transition.
-          ...(sectionEndStops ? [{ id: `${join.from.id}-end`, y: join.start }] : []),
           { id: join.to.id, y: join.end },
         ]),
       ...(pricing != null ? [{ id: "open-weight", y: pricing }] : []),
       // A page's free reading starts with one more stop: the guide's head.
       ...(naturalFrom != null ? [{ id: "natural", y: naturalFrom }] : []),
-    ].sort((a, b) => a.y - b.y);
+    ];
     const nearest = !direction && stops.reduce((best, stop) => Math.abs(stop.y - y) < Math.abs(best.y - y) ? stop : best);
     // Within 1px a stop is reached: 1x displays round scrollY below fractional stops.
     const destination = exit || (direction > 0 ? stops.find(stop => stop.y > y + 1)
