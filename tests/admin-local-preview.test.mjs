@@ -203,6 +203,7 @@ test("preview access rejects forged, expired, and wrong-secret grants", async ()
 test("admin preview route derives origin from Host and uses a server-only secret", async () => {
   const route = await readFile("app/(fr)/admin/preview/route.ts", "utf8");
   const page = await readFile("app/(fr)/admin/page.tsx", "utf8");
+  const state = await readFile("components/admin/studio/StudioState.tsx", "utf8");
   const access = await readFile("lib/admin/access.ts", "utf8");
   const secret = await readFile("lib/admin/localPreviewSecret.ts", "utf8");
 
@@ -215,10 +216,11 @@ test("admin preview route derives origin from Host and uses a server-only secret
   assert.match(route, /status:\s*404/);
   assert.match(route, /response\.cookies\.set/);
   assert.match(route, /status:\s*303/);
-  assert.match(page, /process\.env\.NODE_ENV !== "production"/);
-  assert.match(page, /action="\/admin\/preview"/);
-  assert.match(page, /method="post"/);
-  assert.match(page, /Ouvrir la prévisualisation locale/);
+  assert.match(page, /localPreview=\{process\.env\.NODE_ENV !== "production"\}/);
+  assert.match(state, /localPreview &&/);
+  assert.match(state, /action="\/admin\/preview"/);
+  assert.match(state, /method="post"/);
+  assert.match(state, /Ouvrir la prévisualisation locale/);
   assert.match(access, /createLocalAdminPreviewAccess/);
   assert.match(access, /getLocalAdminPreviewSecret/);
   assert.match(access, /getDemoRestaurantId\(\)/);

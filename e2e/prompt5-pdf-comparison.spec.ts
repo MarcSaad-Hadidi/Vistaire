@@ -4,38 +4,11 @@ const MODEL_REQUEST_RE =
   /\.(?:glb|usdz)(?:$|[?#])|\/model\/(?:glb|usdz)(?:$|[/?#])|model-viewer|babylon|three(?:\.module)?(?:\.min)?\.js|raw\.githubusercontent\.com|\/api\/.*(?:convert|conversion)/i;
 
 const VIEWPORTS = [
-  {
-    viewport: { width: 390, height: 844 },
-    baselinePhoneWidth: 231.61,
-    minGrowth: 1.3,
-    phoneCardRatio: [0.84, 0.96]
-  },
-  {
-    viewport: { width: 430, height: 932 },
-    baselinePhoneWidth: 231.61,
-    minGrowth: 1.3,
-    phoneCardRatio: [0.78, 0.94]
-  },
-  {
-    viewport: { width: 768, height: 1024 },
-    baselinePhoneWidth: 312,
-    minGrowth: 1.25,
-    phoneCardRatio: [0.74, 0.92]
-  },
-  {
-    viewport: { width: 1280, height: 800 },
-    baselinePhoneWidth: 329.3,
-    minGrowth: 1.25,
-    maxGrowth: 1.36,
-    phoneCardRatio: [0.72, 0.86]
-  },
-  {
-    viewport: { width: 1440, height: 900 },
-    baselinePhoneWidth: 404.5,
-    minGrowth: 1.25,
-    maxGrowth: 1.36,
-    phoneCardRatio: [0.78, 0.9]
-  }
+  { width: 390, height: 844 },
+  { width: 430, height: 932 },
+  { width: 768, height: 1024 },
+  { width: 1280, height: 800 },
+  { width: 1440, height: 900 }
 ] as const;
 
 function collectRuntimeFailures(page: Page) {
@@ -115,7 +88,7 @@ async function comparisonBoxes(comparison: Locator) {
   return {
     cardBox: cardBox!,
     figureBox: figureBox!,
-    phoneBox: figureBox!,
+    phoneBox: phoneBox!,
     screenBox: screenBox!,
     transforms
   };
@@ -209,8 +182,7 @@ async function performTouchGesture(
   }
 }
 
-for (const scenario of VIEWPORTS) {
-  const { viewport } = scenario;
+for (const viewport of VIEWPORTS) {
   test(`emphasizes the PDF phone with real 9:16 geometry at ${viewport.width}x${viewport.height}`, async ({
     page
   }) => {
@@ -219,15 +191,17 @@ for (const scenario of VIEWPORTS) {
     const comparison = await openPdfComparison(page);
     const boxes = await comparisonBoxes(comparison);
 
-    const growth = boxes.phoneBox.width / scenario.baselinePhoneWidth;
-    const phoneCardRatio = boxes.phoneBox.width / boxes.cardBox.width;
-    expect(growth).toBeGreaterThanOrEqual(scenario.minGrowth);
-    if ("maxGrowth" in scenario) {
-      expect(growth).toBeLessThanOrEqual(scenario.maxGrowth);
-    }
+    // The responsive article now contains editorial copy beside the comparison.
+    // Size the device against its own available column, not the whole article or
+    // historical page widths. This guards the actual 440/530px emphasis contract.
+    const deviceMaxWidth = viewport.width >= 1360 ? 530 : 440;
+    const expectedWidth = Math.min(boxes.phoneBox.width, deviceMaxWidth);
+    expect(boxes.figureBox.width).toBeCloseTo(expectedWidth, 0);
+    expect(boxes.figureBox.width).toBeGreaterThanOrEqual(300);
+    const slotCenter = boxes.phoneBox.x + boxes.phoneBox.width / 2;
+    const deviceCenter = boxes.figureBox.x + boxes.figureBox.width / 2;
+    expect(Math.abs(deviceCenter - slotCenter)).toBeLessThanOrEqual(1);
     await expect(comparison).toHaveAttribute("data-device-emphasis", "true");
-    expect(phoneCardRatio).toBeGreaterThanOrEqual(scenario.phoneCardRatio[0]);
-    expect(phoneCardRatio).toBeLessThanOrEqual(scenario.phoneCardRatio[1]);
     expect(boxes.screenBox.width / boxes.screenBox.height).toBeCloseTo(9 / 16, 2);
     expect(boxes.transforms).toEqual({ figure: "none", phone: "none" });
     expect(boxes.figureBox.x).toBeGreaterThanOrEqual(boxes.cardBox.x);
@@ -317,7 +291,7 @@ test("keeps the emphasis localized to both PDF routes", async ({ page }) => {
   await page.setViewportSize({ width: 430, height: 932 });
   await openPdfComparison(page, "/en/pdf-vs-digital-menu");
 
-  for (const path of ["/", "/menu-digital-restaurant"]) {
+  for (const path of ["/menu-digital-restaurant", "/en/digital-restaurant-menu"]) {
     await page.goto(path, { waitUntil: "domcontentloaded" });
     const comparison = page.getByTestId("landing-comparison");
     await expect(comparison).toHaveAttribute("data-device-emphasis", "false");

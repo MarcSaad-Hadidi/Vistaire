@@ -47,7 +47,7 @@ const cliIncludesSaugeNoireBrowserFlow = process.argv
       /(?:^|\/)sauge-noire-[^/]+\.spec\.ts$/.test(normalized) ||
       /(?:^|\/)ar-renderer-handoff\.spec\.ts$/.test(normalized) ||
       /(?:^|\/)demo-restaurant-experiences\.spec\.ts$/.test(normalized) ||
-      /(?:^|\/)landing-(?:redesign|production-photo)\.spec\.ts$/.test(normalized)
+      /(?:^|\/)landing-(?:redesign|production-photo|offers)\.spec\.ts$/.test(normalized)
     );
   });
 const cliIncludesLandingProductionPhoto = process.argv
@@ -75,8 +75,7 @@ process.env.VISTAIRE_OWNER_E2E_AUTH_BYPASS_TOKEN = ownerE2eToken;
 const fixtureOnlyTestIgnore = [
   ...(adminVisualFixture ? [] : [
       "**/admin-chart-interactions.spec.ts",
-      "**/admin-insights-fidelity.spec.ts",
-      "**/admin-visual.spec.ts",
+      "**/admin-studio.spec.ts",
       ...(process.env.VISTAIRE_ADMIN_PERFORMANCE_SESSION_SECRET
         ? []
         : ["**/admin-performance.spec.ts"])
@@ -113,6 +112,8 @@ export default defineConfig({
     ...(includeWebkit
       ? [{
           name: "webkit",
+          // Trusted touch dispatch uses CDP; the shared healthy-mobile case still runs here.
+          grepInvert: /Chromium trusted touch:/,
           use: {
             ...devices["iPhone 13"]
           }

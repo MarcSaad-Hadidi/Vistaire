@@ -248,6 +248,58 @@ test("the public restaurateur fixture is deterministic, synthetic, and mathemati
     );
   }
 
-  assert.equal(fixture.restaurant.name.fr, "Maison Élyse — Démo");
-  assert.equal(fixture.restaurant.name.en, "Maison Élyse — Demo");
+  assert.equal(fixture.restaurant.name.fr, "Maison Élyse · Démo");
+  assert.equal(fixture.restaurant.name.en, "Maison Élyse · Demo");
+});
+
+
+test("public Studio data stays synthetic, localized and coherent across its sample ranges", async () => {
+  const { createPublicStudioDemo, PUBLIC_STUDIO_DEMO_RANGES } = await import("../lib/restaurateurPreview/studioFixture.ts");
+  assert.deepEqual(PUBLIC_STUDIO_DEMO_RANGES, ["today-utc", "7d", "30d"]);
+  for (const range of PUBLIC_STUDIO_DEMO_RANGES) {
+    const data = createPublicStudioDemo(range, "en");
+    assert.equal(data.synthetic, true);
+    assert.match(data.restaurant.id, /^public-demo-/);
+    assert.match(data.restaurant.name, /Demo/);
+    assert.equal(data.restaurant.publicMenuPath, "/en/vistaire-menu");
+    const analytics = data.analytics;
+    assert.equal(analytics.kind, "real");
+    assert.equal(analytics.observationWindow.range, range);
+    assert.equal(data.menu.dishes.length, 12);
+    assert.equal(data.menu.readiness.counts.available, 10);
+    const metrics = Object.fromEntries(analytics.metrics.map(item => [item.id, item.value]));
+    assert.equal(metrics.three + metrics.ar, metrics.immersive);
+    assert.equal(sum(Object.values(data.dishStatistics).map(item => item.views)), metrics["dish-opens"]);
+    assert.equal(sum(Object.values(data.dishStatistics).map(item => item.three)), metrics.three);
+    assert.equal(sum(Object.values(data.dishStatistics).map(item => item.ar)), metrics.ar);
+    for (const [seriesId, metricId] of [["menuOpened", "menu-opens"], ["dishOpened", "dish-opens"], ["three", "three"], ["ar", "ar"], ["searches", "searches"]]) {
+      assert.equal(sum(analytics.metricSeries[seriesId].current.map(item => item.value)), metrics[metricId]);
+      for (const point of [...analytics.metricSeries[seriesId].current, ...analytics.metricSeries[seriesId].previous]) assert.match(point.bucket, /^\d{4}-\d{2}-\d{2}$/);
+      assert.equal(analytics.metricSeries[seriesId].current.length, range === "today-utc" ? 1 : Number(range.slice(0, -1)));
+    }
+    for (let weekday = 0; weekday < 7; weekday++) {
+      const dailyTotal = sum(analytics.panels.currentDaily.data.filter(row => new Date(row.day).getUTCDay() === weekday).map(row => row.count));
+      const heatTotal = sum(analytics.panels.hourWeekday.data.filter(row => row.weekdayUtc === weekday).map(row => row.count));
+      assert.equal(heatTotal, dailyTotal);
+    }
+    assert.equal(createPublicStudioDemo(range, "fr").restaurant.publicMenuPath, "/demo");
+    assert.throws(() => createPublicStudioDemo("365d", "fr"), /Unsupported public demo range/);
+  }
+});
+
+test("public Studio restaurant labels retain the pricing copy separator contract", async () => {
+  const { createPublicStudioDemo } = await import("../lib/restaurateurPreview/studioFixture.ts");
+  for (const locale of ["fr", "en"]) {
+    const data = createPublicStudioDemo("7d", locale);
+    assert.doesNotMatch(data.restaurant.name, /[-–—]/);
+    assert.match(data.restaurant.name, /Maison Élyse/);
+  }
+});
+
+test("English dishes and visible demo notes obey the pricing no-dash copy contract", async () => {
+  const { createPublicStudioDemo } = await import("../lib/restaurateurPreview/studioFixture.ts");
+  const data = createPublicStudioDemo("7d", "en");
+  for (const dish of data.menu.dishes) assert.doesNotMatch(dish.name, /[-–—]/);
+  const locale = readFileSync("components/admin/studio/studioLocale.tsx", "utf8");
+  assert.doesNotMatch(locale, /per-dish comparisons/);
 });

@@ -389,7 +389,8 @@ test("full-menu admin image coverage has a dedicated non-skipping cross-browser 
   assert.match(packageJson, /"test:admin:full-menu":\s*"node scripts\/run-admin-full-menu-e2e\.mjs"/);
   assert.match(runner, /VISTAIRE_ADMIN_FIXTURE_SCENARIO:\s*"full-menu"/);
   const grep = runner.match(/--grep", "([^"]+)"/)?.[1];
-  assert.equal(grep, "full-menu admin (?:parity|thumbnails)");
+  assert.equal(grep, "full-menu admin (?:parity|thumbnails)|studio ");
+  assert.match(runner, /e2e\/admin-studio\.spec\.ts/);
   for (const title of [
     "full-menu admin parity",
     "full-menu admin thumbnails",
@@ -412,8 +413,7 @@ test("default E2E isolates fixture-only admin specs", async () => {
 
   for (const spec of [
     "admin-chart-interactions.spec.ts",
-    "admin-insights-fidelity.spec.ts",
-    "admin-visual.spec.ts"
+    "admin-studio.spec.ts"
   ]) {
     assert.match(config, new RegExp(spec.replaceAll(".", "\\.")));
   }
@@ -423,11 +423,11 @@ test("default E2E isolates fixture-only admin specs", async () => {
   assert.match(config, /admin-performance\.spec\.ts/);
 });
 
-test("official visual audit covers all four external references", async () => {
+test("archived visual audit covers all four external references", async () => {
   const [audit, visualSpec, insightsSpec] = await Promise.all([
     readFile("scripts/admin-visual-audit.mjs", "utf8"),
-    readFile("e2e/admin-visual.spec.ts", "utf8"),
-    readFile("e2e/admin-insights-fidelity.spec.ts", "utf8"),
+    readFile("docs/archives/admin-before-studio-2026-10-11/source/e2e/admin-visual.spec.ts.txt", "utf8"),
+    readFile("docs/archives/admin-before-studio-2026-10-11/source/e2e/admin-insights-fidelity.spec.ts.txt", "utf8"),
   ]);
   for (const file of ["01-overview-desktop.png", "02-availability-desktop.png", "03-overview-mobile.png", "04-insights-desktop.png"]) assert.match(audit, new RegExp(file.replaceAll(".", "\\.")));
   assert.match(audit, /changedRatio/);
@@ -444,4 +444,12 @@ test("admin E2E specification contains no mojibake", async () => {
   assert.doesNotMatch(spec, /(?:Ãƒ.|Ã¢â‚¬â„¢|Ã¢â‚¬Å“|Ã¢â‚¬|DÃ©connexion|AccÃ¨s)/);
   assert.match(spec, /Déconnexion/);
   assert.match(spec, /Accès dashboard restaurant requis/);
+});
+
+test("WebKit validates Studio before independent public video journeys without suppressing either suite", async () => {
+  const workflow = await readFile(".github/workflows/app-ci.yml", "utf8");
+  const webkit = workflow.slice(workflow.indexOf("  webkit-critical:"), workflow.indexOf("  ci-gate:"));
+  assert.ok(webkit.indexOf("npm run test:admin:full-menu") < webkit.indexOf("npm run test:ci:e2e:webkit"));
+  assert.match(webkit, /name: Public critical browser suite \(WebKit\)\n\s+if: \$\{\{ !cancelled\(\) \}\}\n\s+run: npm run test:ci:e2e:webkit/);
+  assert.doesNotMatch(webkit, /continue-on-error/);
 });

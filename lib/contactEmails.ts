@@ -93,10 +93,10 @@ export function renderContactEmails(data: ContactEmailData, submittedAt: string)
   const submittedLabel = Number.isNaN(date.getTime())
     ? submittedAt
     : `${date.toISOString().replace("T", " ").replace(/\.\d{3}Z$/, "")} UTC`;
-  const internalSubject = subject(`Nouvelle demande Vistaire — ${data.restaurant}`);
+  const internalSubject = subject(`Nouvelle demande Vistaire : ${data.restaurant}`);
   const confirmationSubject = english
-    ? "Vistaire — We received your request"
-    : "Vistaire — Votre demande a bien été reçue";
+    ? "Vistaire: we received your request"
+    : "Vistaire : votre demande a bien été reçue";
 
   const internalBody = `${eyebrow("NOUVELLE DEMANDE")}
 <h1 class="email-cream" style="margin:0 0 24px;color:${CREAM};font-family:${DISPLAY_FONT};font-size:34px;line-height:41px;font-weight:normal;${WRAP}">${content(data.restaurant)}</h1>
@@ -144,7 +144,7 @@ ${paragraph("Thank you for writing to us.")}
 ${paragraph("We have received your message. Our team will reply directly in this conversation.", "0 0 24px")}</div>
 ${button("Écrire à Vistaire / Contact Vistaire", CONTACT_EMAIL)}`;
   return {
-    html: shell("fr", "Nous avons bien reçu votre message. / We have received your message.", "Vistaire — Message reçu / Message received", body),
+    html: shell("fr", "Nous avons bien reçu votre message. / We have received your message.", "Vistaire : message reçu / message received", body),
     text: ["VISTAIRE", "", "Merci de nous avoir écrit. Nous avons bien reçu votre message. Notre équipe vous répondra directement dans cette conversation.", "", "Thank you for writing to us. We have received your message. Our team will reply directly in this conversation.", "", CONTACT_EMAIL].join("\n")
   };
 }

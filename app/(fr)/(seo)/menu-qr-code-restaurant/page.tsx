@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { JsonLd } from "@/components/JsonLd";
-import { VistaireMenuQrCodeRestaurantPreview } from "@/components/vistaire-preview/VistaireMenuQrCodeRestaurantPreview";
-import { VistaireSeoProductionSections } from "@/components/vistaire-preview/VistaireSeoProductionSections";
+import { QrCodeMenuCinematic } from "@/components/immersive/pages/QrCodeMenuCinematic";
 import { buildPageAlternates, LOCALE_OPEN_GRAPH } from "@/lib/i18n";
 import { absoluteUrl } from "@/lib/seo";
 import { buildSeoPillarJsonLd } from "@/lib/seoPillarJsonLd";
@@ -40,11 +39,7 @@ export default function MenuQrCodeRestaurantRoute() {
   return (
     <>
       <JsonLd data={buildSeoPillarJsonLd(page)} />
-      <VistaireMenuQrCodeRestaurantPreview
-        h1={page.h1}
-        routeMode="production"
-        seoAppendix={<VistaireSeoProductionSections page={page} />}
-      />
+      <QrCodeMenuCinematic page={page} />
     </>
   );
 }

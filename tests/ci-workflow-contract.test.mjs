@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
+import vm from "node:vm";
+import { spawnSync } from "node:child_process";
 
 const workflow = await readFile(new URL("../.github/workflows/app-ci.yml", import.meta.url), "utf8");
 const nightly = await readFile(new URL("../.github/workflows/nightly.yml", import.meta.url), "utf8");
@@ -23,6 +25,113 @@ const menuExperiences = await readFile(new URL("../lib/landing/menuExperiences.t
 const e2eRunner = await readFile(new URL("../scripts/run-playwright-e2e.mjs", import.meta.url), "utf8");
 const fetchGraph = await readFile(new URL("../scripts/ci/fetch-pr-graph.mjs", import.meta.url), "utf8");
 const packageJson = JSON.parse(await readFile(new URL("../package.json", import.meta.url), "utf8"));
+
+test("CPU diagnostic is opt-in, preserves the full journey gate, and passes its flag through an environment variable", () => {
+  const dispatch = workflow.slice(workflow.indexOf('  workflow_dispatch:'), workflow.indexOf('\npermissions:'));
+  assert.equal([...dispatch.matchAll(/diagnostic_profile:/g)].length, 2, 'dispatch and reusable workflow expose the option');
+  assert.equal([...dispatch.matchAll(/diagnostic_profile:\n(?:.*\n)*?\s+default: false/g)].length, 2);
+  const job = workflow.slice(workflow.indexOf('  landing-performance:'), workflow.indexOf('  webkit-critical:'));
+  assert.match(job, /inputs\.diagnostic_profile == true/);
+  assert.match(job, /DIAGNOSTIC_PROFILE:.*inputs\.diagnostic_profile/);
+  assert.match(job, /--diagnostic-profile/);
+  assert.match(job, /timeout-minutes: 30/);
+  assert.match(job, /node scripts\/diagnose-landing-composition\.mjs --journey-qa/);
+  assert.doesNotMatch(job, /run:.*\$\{\{.*diagnostic_profile/);
+  const gate = workflow.slice(workflow.indexOf('  ci-gate:'));
+  assert.match(gate, /RUN_PERFORMANCE:.*inputs\.diagnostic_profile == true/);
+});
+
+test("landing-diagnostic label selects one profiled journey and keeps the performance gate required", () => {
+  const job = workflow.slice(workflow.indexOf('  landing-performance:'), workflow.indexOf('  webkit-critical:'));
+  const label = /contains\(github\.event\.pull_request\.labels\.\*\.name, 'landing-diagnostic'\)/;
+  assert.match(job.slice(0, job.indexOf('    runs-on:')), label, 'label activates job');
+  const normal = job.slice(job.indexOf('      - name: Measure normal-motion'), job.indexOf('      - name: Validate all landing chapters'));
+  const normalCondition = normal.match(/if: (.*)/)?.[1] || '';
+  assert.match(normalCondition, /!\(/, 'normal benchmark is excluded for diagnostic workload');
+  assert.match(normalCondition, label);
+  const journey = job.slice(job.indexOf('      - name: Validate all landing chapters'));
+  assert.match(journey.match(/if: (.*)/)?.[1] || '', label, 'label selects full journey');
+  assert.match(journey.match(/DIAGNOSTIC_PROFILE: (.*)/)?.[1] || '', label, 'label enables profiler boolean');
+  const gate = workflow.slice(workflow.indexOf('  ci-gate:'));
+  assert.match(gate.match(/RUN_PERFORMANCE: (.*)/)?.[1] || '', label, 'requested diagnostic remains required by gate');
+});
+
+test("diagnostic matrix separates native QA tracing from the unchanged active workload", () => {
+  const job = workflow.slice(workflow.indexOf('  landing-performance:'), workflow.indexOf('  webkit-critical:'));
+  assert.match(job, /fail-fast: false/);
+  assert.match(job, /workload:.*fromJSON.*composition.*active.*selected/);
+  assert.match(job, /workload:.*inputs\.diagnostic_profile.*landing-diagnostic/);
+  assert.match(job, /timeout-minutes: 30/);
+  const normal = job.slice(job.indexOf('      - name: Measure normal-motion'), job.indexOf('      - name: Validate all landing chapters'));
+  assert.match(normal.match(/if: (.*)/)?.[1] || '', /matrix\.workload == 'active'/);
+  assert.match(normal.match(/if: (.*)/)?.[1] || '', /matrix\.workload == 'selected'/);
+  assert.match(normal, /node scripts\/benchmark-landing\.mjs/);
+  assert.doesNotMatch(normal, /--diagnostic-profile|diagnose-landing-composition|Profiler\.|Tracing\./);
+  const journey = job.slice(job.indexOf('      - name: Validate all landing chapters'), job.indexOf('      - name: Preserve performance'));
+  assert.match(journey.match(/if: (.*)/)?.[1] || '', /matrix\.workload == 'composition'/);
+  assert.match(journey.match(/if: (.*)/)?.[1] || '', /matrix\.workload == 'selected'/);
+  assert.doesNotMatch(journey.match(/if: (.*)/)?.[1] || '', /matrix\.workload == 'active'/);
+  assert.match(job, /name: landing-performance-\$\{\{ github\.run_id \}\}-\$\{\{ matrix\.workload \}\}/);
+  const gate = workflow.slice(workflow.indexOf('  ci-gate:'), workflow.indexOf('  ci-metrics:'));
+  assert.match(gate, /needs\.landing-performance\.result/);
+  assert.match(gate, /\[landing-performance\]="\$RUN_PERFORMANCE"/);
+});
+
+test("diagnostic concurrency preserves existing runs while ordinary PR concurrency remains unchanged", () => {
+  const block = workflow.slice(workflow.indexOf('\nconcurrency:'), workflow.indexOf('\nenv:'));
+  const group = block.match(/group: (.*)/)?.[1];
+  assert.ok(group);
+  const evaluate = ({ diagnostic = false, labeled = false, run = 1, event = 'pull_request' } = {}) =>
+    group.replace(/\$\{\{ (.*?) \}\}/g, (_, expression) => String(vm.runInNewContext(
+      expression.replaceAll('github.event.pull_request.labels.*.name', 'labels'), {
+        inputs: { diagnostic_profile: diagnostic }, labels: labeled ? ['landing-diagnostic'] : [],
+        github: { workflow: 'App CI', run_id: run, event_name: event, ref: 'refs/heads/main', event: { pull_request: { number: 296 } } },
+        contains: (values, value) => values.includes(value),
+        format: (template, ...values) => template.replace(/\{(\d+)\}/g, (_, index) => String(values[Number(index)])),
+      })));
+  assert.equal(evaluate(), 'vistaire-ci-App CI-296');
+  assert.equal(evaluate({ run: 2 }), evaluate(), 'ordinary PR pushes keep cancellation group');
+  assert.equal(evaluate({ event: 'push' }), 'vistaire-ci-App CI-refs/heads/main');
+  assert.notEqual(evaluate({ diagnostic: true, run: 1 }), evaluate({ diagnostic: true, run: 2 }));
+  assert.notEqual(evaluate({ labeled: true, run: 1 }), evaluate({ labeled: true, run: 2 }));
+  assert.notEqual(evaluate({ labeled: true }), evaluate(), 'diagnostic must not cancel ordinary PR run');
+  assert.match(block, /cancel-in-progress: \$\{\{ github\.event_name == 'pull_request' \}\}/);
+});
+
+test("early Features geometry evidence is uploaded before full browser coverage and never masks failure", () => {
+  const job = workflow.slice(workflow.indexOf('  e2e-public-chromium:'), workflow.indexOf('  e2e-sauge-chromium:'));
+  const earlyAt = job.indexOf('      - name: Features reading frame regression');
+  const uploadAt = job.indexOf('      - name: Upload Features reading frame evidence');
+  const coreAt = job.indexOf('      - name: Core browser smoke');
+  assert.ok(earlyAt >= 0 && uploadAt > earlyAt && coreAt > uploadAt, 'fast geometry evidence precedes longer suites');
+  const early = job.slice(earlyAt, uploadAt);
+  assert.match(early, /!cancelled\(\).*run_landing/);
+  assert.match(early, /npm run test:ci:e2e:landing -- --grep 'Features keeps a stable natural reading frame'/);
+  assert.match(early, /--output=test-results\/features-frame-baseline/);
+  assert.match(early, /CI_TEST_REPORT_PATH:.*\.ci-test-report-features-frame\.json/);
+  assert.doesNotMatch(early, /continue-on-error|\|\| true/);
+  const upload = job.slice(uploadAt, coreAt);
+  assert.match(upload, /always\(\)/);
+  assert.match(upload, /name: features-frame-\$\{\{ github\.run_id \}\}/);
+  assert.match(upload, /test-results\/features-frame-baseline/);
+  assert.match(upload, /\.ci-test-report-features-frame\.json/);
+  for (const name of ['Core browser smoke', 'Landing browser smoke', 'Shared menu browser smoke', 'SEO browser smoke']) {
+    const step = job.slice(job.indexOf(`      - name: ${name}`)).split('\n      - name:')[0];
+    assert.match(step, /if:.*!cancelled\(\)/, `${name} must still run after early geometry failure`);
+  }
+});
+
+test("legacy screenshot experiment is confined to the opt-in composition command", () => {
+  const job = workflow.slice(workflow.indexOf('  landing-performance:'), workflow.indexOf('  webkit-critical:'));
+  const start = job.indexOf('      - name: Validate all landing chapters');
+  const end = job.indexOf('      - name: Preserve performance');
+  const composition = job.slice(start, end);
+  assert.match(composition, /LEGACY_SCREENSHOT_DIAGNOSTIC:.*landing-legacy-screenshot/);
+  assert.match(composition, /if \[\[ "\$LEGACY_SCREENSHOT_DIAGNOSTIC" == true \]\]/);
+  assert.match(composition, /--legacy-screenshot-diagnostic/);
+  assert.doesNotMatch(job.slice(0, start) + job.slice(end), /PLAYWRIGHT_LEGACY_SCREENSHOT|LEGACY_SCREENSHOT_DIAGNOSTIC|--legacy-screenshot-diagnostic/);
+  assert.doesNotMatch(workflow, /PLAYWRIGHT_LEGACY_SCREENSHOT:/, 'do not leak screenshot switch into other browser processes');
+});
 
 test("App CI exposes the production job topology and all event modes", () => {
   for (const job of [
@@ -336,4 +445,129 @@ test("Asset Policy owns the repository asset checks", async () => {
   assert.match(assetWorkflow, /npm run assets:check/);
   assert.match(assetWorkflow, /npm run lfs:check/);
   assert.doesNotMatch(staticJob, /assets:check|lfs:check/);
+});
+
+test("landing performance is opt-in, hermetic, serial and fail-closed when requested", () => {
+  const job = workflow.slice(workflow.indexOf("  landing-performance:"), workflow.indexOf("  webkit-critical:"));
+  assert.match(job, /inputs\.benchmark == true/);
+  assert.match(job, /contains\(github\.event\.pull_request\.labels\.\*\.name, 'landing-performance'\)/);
+  assert.match(job, /outputs\.run_landing == 'true'/);
+  assert.match(job, /needs\.build-app\.result == 'success'/);
+  assert.match(job, /name: next-build-\$\{\{ github\.run_id \}\}/);
+  assert.match(job, /NEXT_PUBLIC_SUPABASE_URL: http:\/\/127\.0\.0\.1:55434/);
+  assert.match(job, /node scripts\/benchmark-landing\.mjs/);
+  assert.doesNotMatch(job, /npm run build|--disable-frame-rate-limit/);
+  assert.match(job, /if-no-files-found: error/);
+  const gate = workflow.slice(workflow.indexOf("  ci-gate:"), workflow.indexOf("  ci-metrics:"));
+  assert.match(gate, /needs\.landing-performance\.result/);
+  assert.match(gate, /\[landing-performance\]="\$RUN_PERFORMANCE"/);
+  assert.match(gate, /ordered_jobs=\([^\n]*landing-performance\)/);
+});
+
+test("full-journey composition QA uses the current build and one exclusive workload", () => {
+  const job = workflow.slice(workflow.indexOf("  landing-performance:"), workflow.indexOf("  webkit-critical:"));
+  assert.match(job, /inputs\.composition == true/);
+  assert.match(job, /'landing-composition'/);
+  assert.doesNotMatch(job, /\.composition-baseline|actions\/artifacts\/11677657188|dc88019ce8448c8c56390a2b6cc2c9544fe28c25/);
+  assert.match(job, /candidate: \{root, headSHA: process\.env\.VISTAIRE_BENCHMARK_HEAD_SHA/);
+  assert.match(job, /artifactName: `next-build-\$\{process\.env\.GITHUB_RUN_ID\}`/);
+  assert.match(job, /node scripts\/diagnose-landing-composition\.mjs --journey-qa/);
+  assert.doesNotMatch(job, /export VISTAIRE_COMPOSITION_RUNTIMES_JSON=/);
+  assert.match(job, /export VISTAIRE_COMPOSITION_RUNTIMES_JSON\n/);
+  const normalStep = job.slice(job.indexOf('      - name: Measure normal-motion'), job.indexOf('      - name: Validate all landing chapters'));
+  const journeyStep = job.slice(job.indexOf('      - name: Validate all landing chapters'));
+  const evaluate = (step, workload, composition, diagnostic, compositionLabel, diagnosticLabel) => {
+    const expression = step.match(/if: \$\{\{ (.*?) \}\}/)?.[1];
+    assert.ok(expression, 'workload condition must be explicit');
+    const labels = [compositionLabel && 'landing-composition', diagnosticLabel && 'landing-diagnostic'].filter(Boolean);
+    return vm.runInNewContext(expression.replaceAll('github.event.pull_request.labels.*.name', 'labels'), {
+      matrix: { workload }, inputs: { composition, diagnostic_profile: diagnostic }, labels,
+      contains: (values, value) => values.includes(value),
+    });
+  };
+  for (const workload of ['selected', 'active', 'composition']) {
+    for (const composition of [false, true]) for (const diagnostic of [false, true]) {
+      for (const compositionLabel of [false, true]) for (const diagnosticLabel of [false, true]) {
+        const qa = composition || diagnostic || compositionLabel || diagnosticLabel;
+        const args = [workload, composition, diagnostic, compositionLabel, diagnosticLabel];
+        const normal = evaluate(normalStep, ...args), journey = evaluate(journeyStep, ...args);
+        assert.equal(normal, workload === 'active' || (workload === 'selected' && !qa), `normal workload ${JSON.stringify(args)}`);
+        assert.equal(journey, workload === 'composition' || (workload === 'selected' && qa), `journey workload ${JSON.stringify(args)}`);
+        assert.notEqual(normal, journey, 'exactly one workload per runner');
+      }
+    }
+  }
+  assert.match(job, /timeout-minutes: 30/);
+  assert.doesNotMatch(job, /continue-on-error: true|--disable-frame-rate-limit/);
+  const gate = workflow.slice(workflow.indexOf("  ci-gate:"), workflow.indexOf("  ci-metrics:"));
+  assert.match(gate, /RUN_PERFORMANCE:.*inputs\.composition == true/);
+});
+
+test("new offers acceptance runs before heavy suites in both existing browser jobs and retains evidence", () => {
+  for (const [name, end, project, later] of [
+    ['e2e-public-chromium', 'e2e-sauge-chromium', 'chromium', 'Features reading frame regression'],
+    ['webkit-critical', 'ci-gate', 'webkit', 'Admin dish image browser suite (WebKit)'],
+  ]) {
+    const job = workflow.slice(workflow.indexOf(`  ${name}:`), workflow.indexOf(`  ${end}:`));
+    const acceptance = job.indexOf(`Offers presentation acceptance (${project})`);
+    assert.ok(acceptance > 0 && acceptance < job.indexOf(later));
+    assert.match(job, new RegExp(`e2e/landing-offers\\.spec\\.ts --project=${project} --workers=1 --retries=0 --forbid-only`));
+    assert.match(job, /CI_TEST_REPORT_PATH:.*\.ci-test-report-offers\.json/);
+    assert.match(job, /Retain offers projection and input evidence/);
+    assert.match(job, /test-results\/offers-acceptance/);
+    assert.match(job, /if-no-files-found: error/);
+    assert.match(job, /CI_TEST_REPORT_PATHS=.*\.ci-test-report-offers\.json|paths\+=\([^\n]*\.ci-test-report-offers\.json/);
+    assert.doesNotMatch(job, /continue-on-error/);
+  }
+});
+
+
+test("offers browser acceptance selects the existing hermetic fixture in both runners", async () => {
+  for (const path of ["scripts/run-playwright-e2e.mjs", "playwright.config.ts"]) {
+    const text = await readFile(new URL(`../${path}`, import.meta.url), "utf8");
+    assert.ok(text.includes("landing-(?:redesign|production-photo|offers)"), path);
+  }
+});
+
+
+test("restaurant crop experiment uses isolated profiles and fails closed without activating the candidate", () => {
+  const job = workflow.slice(workflow.indexOf('  restaurant-geometry-ab:'), workflow.indexOf('  landing-performance:'));
+  assert.match(job, /needs: \[classify-changes, fast-gate, static-quality, build-app\]/);
+  assert.match(job, /github\.event\.pull_request\.number == 296/);
+  assert.match(job, /inputs\.restaurant_ab == true/);
+  assert.match(job, /fail-fast: false/);
+  assert.match(job, /profile: \[phone, phone430, phoneLandscape, desktop, desktop1337, wide, wide3440\]/);
+  assert.match(job, /timeout-minutes: 30/);
+  assert.match(job, /name: next-build-\$\{\{ github\.run_id \}\}/);
+  assert.match(job, /VISTAIRE_RESTAURANT_AB_PROFILE: \$\{\{ matrix\.profile \}\}/);
+  assert.match(job, /VISTAIRE_RESTAURANT_AB_MODE: guarded-index/);
+  assert.match(job, /node scripts\/run-playwright-e2e\.mjs e2e\/restaurant-geometry-ab\.spec\.ts/);
+  assert.match(job, /--workers=1 --retries=0 --forbid-only/);
+  assert.match(job, /forbid-skipped-tests-reporter/);
+  assert.match(job, /report\.total !== 1 \|\| report\.passed !== 1/);
+  assert.match(job, /if: \$\{\{ always\(\) \}\}/);
+  assert.match(job, /name: restaurant-geometry-ab-\$\{\{ matrix\.profile \}\}-\$\{\{ github\.run_id \}\}/);
+  assert.doesNotMatch(job, /continue-on-error|GITHUB_TOKEN|ALLOW_PRODUCTION|npm run build/);
+  const gate = workflow.slice(workflow.indexOf('  ci-gate:'), workflow.indexOf('  ci-metrics:'));
+  assert.match(gate, /needs\.restaurant-geometry-ab\.result/);
+  assert.match(gate, /\[restaurant-geometry-ab\]="\$RESTAURANT_AB"/);
+  assert.match(gate, /\[restaurant-geometry-ab\]="\$RUN_RESTAURANT_AB"/);
+  assert.match(gate, /ordered_jobs=\([^\n]*restaurant-geometry-ab/);
+});
+
+
+test("the actual CI gate rejects every incomplete selected restaurant profile", () => {
+  const block = workflow.slice(workflow.indexOf("      - name: Fail closed on missing or failed applicable jobs"), workflow.indexOf("      - name: Diagnose root failure"));
+  const match = block.match(/        run: \|\n([\s\S]*?)(?=\n      -|$)/);
+  assert.ok(match, "the real fail-closed shell must be found");
+  const script = match[1].replace(/^          /gm, "");
+  const env = { ...process.env, CLASSIFY: "success", CLASSIFY_FULL: "false", CLASSIFICATION_VALID: "true", EVENT: "pull_request", GITHUB_STEP_SUMMARY: "/dev/null" };
+  for (const key of ["FAST_GATE", "STATIC", "DATABASE", "BUILD", "PUBLIC_CHROMIUM", "SAUGE_CHROMIUM", "ADMIN_QR_CHROMIUM", "WEBKIT", "PERFORMANCE"]) env[key] = "success";
+  for (const key of ["STATIC", "DATABASE", "BUILD", "CORE", "LANDING", "MENU", "SAUGE", "ADMIN_QR", "SEO", "WEBKIT", "PERFORMANCE", "RESTAURANT_AB"]) env[`RUN_${key}`] = "true";
+  for (const result of ["success", "failure", "cancelled", "skipped", ""]) {
+    const run = spawnSync("bash", ["-c", script], { env: { ...env, RESTAURANT_AB: result }, encoding: "utf8" });
+    assert.equal(run.status, result === "success" ? 0 : 1, `${result || "missing"}: ${run.stdout} ${run.stderr}`);
+  }
+  const unselected = spawnSync("bash", ["-c", script], { env: { ...env, RUN_RESTAURANT_AB: "false", RESTAURANT_AB: "skipped" }, encoding: "utf8" });
+  assert.equal(unselected.status, 0, "an explicitly unselected crop experiment remains optional");
 });

@@ -1,8 +1,9 @@
 import { expect, test } from "@playwright/test";
 
-test("production landing renders a versioned public dish photo through its signed redirect", async ({
+test("production comparison renders each restaurant’s versioned dish photo through its signed redirect", async ({
   page
 }) => {
+  test.setTimeout(90_000);
   const imageResponses: Array<{
     cacheControl: string | null;
     contentType: string | null;
@@ -33,30 +34,39 @@ test("production landing renders a versioned public dish photo through its signe
   });
 
   await page.setViewportSize({ width: 390, height: 844 });
-  const landingResponse = await page.goto("/", {
+  const response = await page.goto("/menu-pdf-vs-menu-digital", {
     waitUntil: "domcontentloaded"
   });
-  expect(landingResponse?.status()).toBe(200);
-  const dishes = page.getByTestId("landing-dishes");
-  await dishes.scrollIntoViewIfNeeded();
-  const versionedPhotos = dishes.locator(
-    'img[data-public-dish-image][src*="/api/public/menu-dishes/"][src*="?v="]'
-  );
-  await expect(versionedPhotos).toHaveCount(3);
-  const photoPaths = await versionedPhotos.evaluateAll((images) =>
-    images.map((image) => {
-      const src = image.getAttribute("src");
-      if (!src) throw new Error("Versioned landing photo is missing its src.");
-      const resolved = new URL(src, window.location.href);
-      return `${resolved.pathname}${resolved.search}`;
-    })
-  );
-  expect(new Set(photoPaths).size).toBe(3);
-  for (const photoPath of photoPaths) {
+  expect(response?.status()).toBe(200);
+  const comparison = page.getByTestId("landing-comparison");
+  await comparison.scrollIntoViewIfNeeded();
+  await expect(comparison).toHaveAttribute("data-tabs-interactive", "true");
+  const photoPaths: string[] = [];
+  for (const [slug, name] of [
+    ["maison-elyse", "Maison Élyse"],
+    ["trouvable", "Trouvable"],
+    ["sauge-noire", "Sauge Noire"]
+  ]) {
+    await comparison.getByRole("tab", { name, exact: true }).click();
+    const renderer = comparison.locator(`[data-landing-menu-renderer="${slug}"]`);
+    await expect(renderer).toHaveAttribute("data-preview-status", "ready");
+    const photo = renderer.locator(
+      'img[src*="/api/public/menu-dishes/"][src*="?v="]'
+    ).first();
+    await expect(photo).toBeAttached();
+    await expect.poll(() => photo.evaluate((element: HTMLImageElement) =>
+      element.complete && element.naturalWidth > 0 && element.naturalHeight > 0
+    )).toBe(true);
+    const src = await photo.getAttribute("src");
+    expect(src).not.toBeNull();
+    const resolved = new URL(src!, page.url());
+    const photoPath = `${resolved.pathname}${resolved.search}`;
     expect(photoPath).toMatch(
-      /^\/api\/public\/menu-dishes\/[0-9a-f-]+\/photo\?v=[0-9a-f]{64}&variant=display$/i
+      /^\/api\/public\/menu-dishes\/[0-9a-f-]+\/photo\?v=[0-9a-f]{64}&variant=(?:display|thumbnail|card)$/i
     );
+    photoPaths.push(photoPath);
   }
+  expect(new Set(photoPaths).size).toBe(3);
 
   const redirectResponse = await page.request.get(photoPaths[0], {
     maxRedirects: 0
@@ -66,21 +76,6 @@ test("production landing renders a versioned public dish photo through its signe
   expect(redirectResponse.headers().location).toMatch(
     /^http:\/\/127\.0\.0\.1:55434\/storage\/v1\/object\/sign\/vistaire-media\/.+\?token=[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/
   );
-
-  await expect
-    .poll(() =>
-      versionedPhotos.evaluateAll((images) =>
-        images.every((image) => {
-          const element = image as HTMLImageElement;
-          return (
-            element.complete &&
-            element.naturalWidth > 0 &&
-            element.naturalHeight > 0
-          );
-        })
-      )
-    )
-    .toBe(true);
 
   expect(photoPaths.every((path) => !path.includes("/_next/image"))).toBe(true);
   expect(failedResponses).toEqual([]);

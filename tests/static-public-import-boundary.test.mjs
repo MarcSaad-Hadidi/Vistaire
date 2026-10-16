@@ -527,6 +527,37 @@ test("only four exact public-safe owner helpers are traversed instead of blanket
   );
 });
 
+test("exact shared Studio helpers stay traversed and cannot hide private capabilities", async (t) => {
+  const root = await makeGraph(t);
+  const helpers = [
+    "lib/admin/dishPhotoUrl.ts", "lib/admin/studioExport.ts", "lib/admin/studioExportFiles.ts",
+    "lib/admin/analyticsPresentation.ts", "lib/admin/analyticsThresholds.ts", "lib/admin/export-fonts/DejaVuSans.ts"
+  ];
+  await moduleFile(root, "entry.ts", [...helpers, "lib/admin/studioExportPrivate.ts"].map(file => `import "@/${file}";`).join("\n"));
+  for (const file of helpers) await moduleFile(root, file, "export const safe = true;");
+  await moduleFile(root, "lib/admin/studioExportPrivate.ts", "export const secret = true;");
+  const initial = await inspectStaticPublicImportBoundary(["entry.ts"], {root});
+  assert.deepEqual(initial.map(finding => [finding.file, finding.rule]), [["lib/admin/studioExportPrivate.ts", "forbidden-path"]]);
+  await moduleFile(root, "lib/admin/studioExport.ts", [
+    'import "@/utils/supabase/admin";',
+    'import "next/headers";',
+    'import "server-only";',
+    'import "@supabase/supabase-js";',
+    'export const leaked = process.env.PRIVATE_STUDIO_SECRET;',
+    'export const signed = storage => storage.createSignedUrl("private");'
+  ].join("\n"));
+  await moduleFile(root, "utils/supabase/admin.ts", "export const admin = true;");
+  const findings = await inspectStaticPublicImportBoundary(["entry.ts"], {root});
+  for (const [rule, detail] of [
+    ["forbidden-path", "utils/supabase/admin"],
+    ["forbidden-package", "next/headers"],
+    ["forbidden-package", "server-only"],
+    ["forbidden-package", "@supabase/supabase-js"],
+    ["non-public-environment", "PRIVATE_STUDIO_SECRET"],
+    ["signed-url-capability", "createSignedUrl"]
+  ]) assert.ok(findings.some(finding => finding.rule === rule && finding.detail === detail), `${rule}: ${detail}`);
+});
+
 test("NODE_TEST_CONTEXT is allowed only in the exact Sauge renderer binding", async (t) => {
   const root = await makeGraph(t);
   const binding =

@@ -96,7 +96,7 @@ const includesSaugeNoireBrowserFlow = playwrightInputArgs
       /(?:^|\/)ar-renderer-handoff\.spec\.ts$/.test(normalized) ||
       /(?:^|\/)demo-restaurant-experiences\.spec\.ts$/.test(normalized) ||
       /(?:^|\/)seo-interactive-showcases\.spec\.ts$/.test(normalized) ||
-      /(?:^|\/)landing-(?:redesign|production-photo)\.spec\.ts$/.test(normalized)
+      /(?:^|\/)landing-(?:redesign|production-photo|offers)\.spec\.ts$/.test(normalized)
     );
   }) || includesPrompt5BrowserFlow;
 const requestsWebkit = playwrightInputArgs.some((argument) => argument === "--project=webkit");

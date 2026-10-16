@@ -145,14 +145,14 @@ function pathnameFromHref(href: string | null | undefined) {
   return new URL(href as string, "https://www.vistaire.ca").pathname || "/";
 }
 
-function attachPageGuards(page: Page) {
+function attachPageGuards(page: Page, expectedConsoleErrors: readonly string[] = []) {
   const consoleErrors: string[] = [];
   const pageErrors: string[] = [];
   const badResponses: string[] = [];
   const requestFailures: string[] = [];
 
   page.on("console", (message) => {
-    if (message.type() === "error") {
+    if (message.type() === "error" && !expectedConsoleErrors.includes(message.text())) {
       consoleErrors.push(message.text());
     }
   });
@@ -188,12 +188,15 @@ async function expectNoHorizontalOverflow(page: Page) {
   expect(overflow).toBeLessThanOrEqual(2);
 }
 
-async function expectNoEarlyModelAssets(page: Page) {
-  const modelResources = await page.evaluate(() =>
+// Pages that play in the shared 3D room load its GLBs; their AR models (USDZ)
+// still wait for explicit intent. Without WebGL, no model loads at all.
+async function expectNoEarlyModelAssets(page: Page, { room = false } = {}) {
+  const modelResources = await page.evaluate((pattern) =>
     performance
       .getEntriesByType("resource")
       .map((entry) => entry.name)
-      .filter((name) => /\.(glb|usdz)(\?|$)/i.test(name))
+      .filter((name) => new RegExp(pattern, "i").test(name)),
+    room ? "\\.usdz(\\?|$)" : "\\.(glb|usdz)(\\?|$)"
   );
   expect(modelResources).toEqual([]);
 }
@@ -268,13 +271,14 @@ async function expectSeoGeoRoute(
   await expectLanguageAlternates(page, route.fr, route.en);
   await expect(page.locator("h1")).toHaveCount(1);
   await expect(page.locator('script[type="application/ld+json"]')).not.toHaveCount(0);
+  await expect(page.locator("[data-public-navigation-open]")).toBeVisible();
   await expect(page.locator('[aria-label="Langue"], [aria-label="Language"]').first()).toBeVisible();
-  await expect(page.locator(`a[href="${route.ctaHref}"]`).first()).toBeVisible();
+  await expect(page.locator(`#accueil a[href="${route.ctaHref}"]`).first()).toBeVisible();
 
   const slug = route.path.split("/").filter(Boolean).at(-1);
   await expect(page.locator(`#${slug}-faq-title`)).toBeVisible();
   const visibleFaqCount = await page
-    .locator(`section[aria-labelledby="${slug}-faq-title"] article h3`)
+    .locator(`section[aria-labelledby="${slug}-faq-title"] [data-seo-faq-question]`)
     .count();
   expect(visibleFaqCount, route.path).toBeGreaterThanOrEqual(5);
 
@@ -287,10 +291,54 @@ async function expectSeoGeoRoute(
   }
 
   await expectNoHorizontalOverflow(page);
-  await expectNoEarlyModelAssets(page);
+  await expectNoEarlyModelAssets(page, { room: true });
 }
 
 test.describe("Vistaire SEO smoke", () => {
+  test("each restaurant need has its own composition and three unique visual placements", async ({ page }) => {
+    test.setTimeout(120_000);
+    const assertNoUnexpectedBrowserIssues = attachPageGuards(page);
+    await page.setViewportSize({ width: 390, height: 844 });
+    const compositions = new Set<string>();
+    for (const path of seoGeoPages) {
+      await page.goto(path, { waitUntil: "domcontentloaded" });
+      const experience = page.locator("[data-seo-composition]");
+      await expect(experience).toHaveCount(1);
+      const composition = await experience.getAttribute("data-seo-composition");
+      expect(composition).toBeTruthy();
+      compositions.add(composition!);
+      await expect(page.locator("h1")).toHaveCount(1);
+      const slots = await experience.locator("[data-seo-photo-slot]").evaluateAll((nodes) =>
+        nodes.map((node) => node.getAttribute("data-seo-photo-slot"))
+      );
+      expect(slots).toHaveLength(3);
+      expect(new Set(slots).size).toBe(3);
+      await expectNoHorizontalOverflow(page);
+      await expectNoEarlyModelAssets(page, { room: true });
+    }
+    expect(compositions.size).toBe(seoGeoPages.length);
+    assertNoUnexpectedBrowserIssues();
+  });
+
+  test("migration preparation and allergen explanations work with native keyboard controls", async ({ page }) => {
+    await page.setViewportSize({ width: 430, height: 932 });
+    await page.goto("/remplacer-menu-pdf-restaurant");
+    const checklist = page.getByRole("group", { name: "Préparer votre carte" });
+    const first = checklist.getByRole("checkbox").first();
+    await first.focus();
+    await first.press("Space");
+    await expect(first).toBeChecked();
+    await checklist.getByRole("button", { name: "Recommencer" }).click();
+    await expect(first).not.toBeChecked();
+    await page.goto("/menu-restaurant-allergenes");
+    const detail = page.locator("[data-allergen-service-note]");
+    await detail.locator("summary").focus();
+    await detail.locator("summary").press("Enter");
+    await expect(detail).toHaveAttribute("open", "");
+    await expect(page.locator('[data-seo-photo-slot="G7:proof"]')).toBeVisible();
+    await expectNoHorizontalOverflow(page);
+  });
+
   test("robots, llms, sitemap and legacy redirect expose only public SEO surfaces", async ({
     request
   }) => {
@@ -384,10 +432,20 @@ test.describe("Vistaire SEO smoke", () => {
     expect(sitemapText).not.toContain("/owner");
   });
 
-  test("homepage loads with canonical metadata on required mobile viewports", async ({
+  test("homepage retains canonical metadata and honest recovery when WebGL is unavailable", async ({
     page
   }) => {
-    const assertNoUnexpectedBrowserIssues = attachPageGuards(page);
+    const assertNoUnexpectedBrowserIssues = attachPageGuards(page, [
+      "THREE.WebGLRenderer: Error creating WebGL context."
+    ]);
+    // Verify truthful failure and unchanged SSR metadata without loading models.
+    // Healthy menu/guide navigation uses the real renderer in landing-redesign.
+    await page.addInitScript(() => {
+      const original = HTMLCanvasElement.prototype.getContext;
+      HTMLCanvasElement.prototype.getContext = function (this: HTMLCanvasElement, type: string, ...args: unknown[]) {
+        return type.startsWith("webgl") ? null : Reflect.apply(original, this, [type, ...args]);
+      } as typeof original;
+    });
 
     for (const viewport of mobileViewports) {
       await page.setViewportSize(viewport);
@@ -402,13 +460,19 @@ test.describe("Vistaire SEO smoke", () => {
         expect.arrayContaining(["Organization", "WebSite", "WebPage", "Service"])
       );
       await expectNoHorizontalOverflow(page);
-      await expectNoEarlyModelAssets(page);
+      await expect(page.locator("[data-immersive-vistaire]")).toBeVisible();
+      await expect(page.locator("h1")).toHaveText("VISTAIRE");
+      await expect(page.getByRole('alertdialog')).toContainText('L’expérience 3D est indisponible.');
+      await expect(page.locator('.fallback-film, .world-fallback')).toHaveCount(0);
+      await expect(page.locator(".preloader")).toHaveCount(0);
+      // The HTML preloads the room and phone for WebGL visitors; AR models
+      // (USDZ) still never load without intent.
+      await expectNoEarlyModelAssets(page, { room: true });
 
-      await expect(page.locator('a[href="/prendre-rendez-vous"]').first()).toBeVisible();
-      await expect(page.getByRole("link", { name: "Carte" }).first()).toBeVisible();
-
-      const videoSource = await page.locator("video source").first().getAttribute("src");
-      expect(videoSource).toBe("/videos/Vistaire2.mp4");
+      const menu = page.getByRole('alertdialog').getByRole('link', { name: 'Explorer la carte' });
+      await expect(menu).toHaveAttribute('href', '/demo');
+      await menu.click();
+      await expect(page).toHaveURL(/\/demo$/);
     }
 
     assertNoUnexpectedBrowserIssues();

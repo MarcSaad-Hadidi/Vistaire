@@ -1,16 +1,14 @@
 import Image from "next/image";
 import Link from "next/link";
 import type { ReactNode } from "react";
-import restaurantBackground from "@/Framer/PhotoRestoComplet5.png";
-import pageDigitalPhoto from "@/Framer/PageDigital.png";
-import photoDigital2 from "@/Framer/PhotoDigital2.png";
-import photoDigital3 from "@/Framer/PhotoDigital3.png";
+import { getSeoMarketingImage } from "@/lib/seoMarketingImages";
+import design from "./VistairePillarExperiences.module.css";
 import type { Locale } from "@/lib/i18n";
 import {
   getVistaireChromeRoutes,
   PreviewFooter,
   PreviewNav,
-  type VistaireRouteMode
+  type VistaireRouteMode,
 } from "./VistairePreviewChrome";
 import styles from "./VistaireMenuDigitalRestaurantPreview.module.css";
 
@@ -37,7 +35,7 @@ export function VistaireMenu3dArRestaurantPreview({
   h1,
   locale = "fr",
   routeMode = "production",
-  seoAppendix
+  seoAppendix,
 }: {
   h1?: string;
   locale?: Locale;
@@ -51,8 +49,7 @@ export function VistaireMenu3dArRestaurantPreview({
           defaultTitle:
             "3D AR restaurant menu: show the dish when it truly helps",
           badge: "Selective 3D / AR",
-          lead:
-            "Vistaire integrates 3D and augmented reality with restraint: only on dishes where volume, texture or service presentation makes the decision clearer.",
+          lead: "Vistaire integrates 3D and augmented reality with restraint: only on dishes where volume, texture or service presentation makes the decision clearer.",
           viewMenu: "View the menu",
           appointment: "Book a call",
           usageBadge: "Premium use",
@@ -81,36 +78,33 @@ export function VistaireMenu3dArRestaurantPreview({
           selectivePrinciples: [
             {
               title: "Selective",
-              text:
-                "3D / AR is not applied to the whole menu. It serves signature dishes that benefit from being seen in volume."
+              text: "3D / AR is not applied to the whole menu. It serves signature dishes that benefit from being seen in volume.",
             },
             {
               title: "Mobile-first",
-              text:
-                "The guest understands the dish from the phone before requesting an immersive view."
+              text: "The guest understands the dish from the phone before requesting an immersive view.",
             },
             {
               title: "No gimmick",
-              text:
-                "Vistaire keeps the room, service and kitchen at the center. Immersion supports choice; it does not replace the experience."
-            }
+              text: "Vistaire keeps the room, service and kitchen at the center. Immersion supports choice; it does not replace the experience.",
+            },
           ],
           arUseCases: [
             "Signature dessert with important volume, texture or plating.",
             "Iconic dish where presentation influences the decision.",
-            "Creation that needs explanation without overloading the main menu."
-          ]
+            "Creation that needs explanation without overloading the main menu.",
+          ],
         }
       : {
           defaultTitle:
             "Menu 3D AR restaurant : montrer le plat quand cela aide vraiment",
           badge: "3D / AR sélective",
-          lead:
-            "Vistaire intègre la 3D et la réalité augmentée avec retenue : uniquement sur les plats où le volume, la texture ou le geste de service rendent la décision plus claire.",
+          lead: "Vistaire intègre la 3D et la réalité augmentée avec retenue : uniquement sur les plats où le volume, la texture ou le geste de service rendent la décision plus claire.",
           viewMenu: "Voir la carte",
           appointment: "Prendre rendez-vous",
           usageBadge: "Usage premium",
-          usageTitle: "La 3D / AR doit rester utile, pas spectaculaire pour rien",
+          usageTitle:
+            "La 3D / AR doit rester utile, pas spectaculaire pour rien",
           usageBody:
             "Dans un restaurant haut de gamme, une vue immersive doit prolonger la carte et rassurer le client. Elle n'a de valeur que si elle clarifie un plat, une texture ou une présentation.",
           beforeBadge: "Avant la vue immersive",
@@ -135,174 +129,59 @@ export function VistaireMenu3dArRestaurantPreview({
           selectivePrinciples: [
             {
               title: "Sélective",
-              text:
-                "La 3D / AR n'est pas appliquée à toute la carte. Elle sert les plats signatures qui gagnent à être vus en volume."
+              text: "La 3D / AR n'est pas appliquée à toute la carte. Elle sert les plats signatures qui gagnent à être vus en volume.",
             },
             {
               title: "Mobile-first",
-              text:
-                "Le client comprend le plat depuis son téléphone avant de demander une vue immersive."
+              text: "Le client comprend le plat depuis son téléphone avant de demander une vue immersive.",
             },
             {
               title: "Sans gadget",
-              text:
-                "Vistaire garde la salle, le service et la cuisine au centre. L'immersion aide le choix, elle ne remplace pas l'expérience."
-            }
+              text: "Vistaire garde la salle, le service et la cuisine au centre. L'immersion aide le choix, elle ne remplace pas l'expérience.",
+            },
           ],
           arUseCases: [
             "Dessert signature avec volume, texture ou dressage important.",
             "Plat iconique dont la présentation influence la décision.",
-            "Création à expliquer sans alourdir la carte principale."
-          ]
+            "Création à expliquer sans alourdir la carte principale.",
+          ],
         };
+  const heroPhoto = getSeoMarketingImage("AR:hero", locale);
+  const proofPhoto = getSeoMarketingImage("AR:proof", locale);
+  const premiumPhoto = getSeoMarketingImage("AR:premium", locale);
   const pageTitle = h1 ?? copy.defaultTitle;
   const internalLinks = [
     { label: copy.viewMenu, href: routes.menu },
     { label: copy.digitalMenu, href: routes.menuDigital },
-    { label: copy.talk, href: routes.contact }
+    { label: copy.talk, href: routes.contact },
   ] as const;
 
+  const questions = locale === "en" ? ["What volume?", "What presentation?", "Which detail?"] : ["Quel volume ?", "Quelle présentation ?", "Quel détail ?"];
   return (
-    <main className={styles.page}>
-      <Image
-        alt=""
-        aria-hidden="true"
-        className={styles.backgroundImage}
-        fill
-        priority
-        quality={100}
-        sizes="100vw"
-        src={restaurantBackground}
-        unoptimized
-      />
-
-      <div className={styles.topNav}>
-        <PreviewNav
-          currentPath={routes.menu3dAr}
-          locale={locale}
-          routeMode={routeMode}
-        />
-      </div>
-
-      <section
-        aria-labelledby="menu-3d-ar-restaurant-title"
-        className={styles.hero}
-        id="accueil"
-      >
-        <div className={styles.previewFrame}>
-          <article className={`${styles.card} ${styles.heroCopy}`}>
-            <p className={styles.badge}>{copy.badge}</p>
-            <h1 id="menu-3d-ar-restaurant-title">{pageTitle}</h1>
-            <p className={styles.heroLead}>{copy.lead}</p>
-            <div className={styles.heroActions} aria-label="Actions principales">
-              <Link className={styles.primaryButton} href={routes.menu} prefetch={false}>
-                {copy.viewMenu}
-                <ArrowIcon />
-              </Link>
-              <Link
-                className={styles.secondaryButton}
-                href={routes.appointment}
-                prefetch={false}
-              >
-                {copy.appointment}
-              </Link>
-            </div>
-            <figure className={`${styles.visualFigure} ${styles.heroVisual}`}>
-              <Image
-                alt="Vue 3D et réalité augmentée Vistaire présentées sur téléphone"
-                className={styles.visualImage}
-                fill
-                priority
-                quality={100}
-                sizes="(max-width: 920px) calc(100vw - 56px), 20vw"
-                src={photoDigital2}
-                unoptimized
-              />
-            </figure>
-          </article>
-
-          <section
-            className={`${styles.card} ${styles.problemCard}`}
-            aria-labelledby="selective-title"
-          >
-            <p className={styles.badge}>{copy.usageBadge}</p>
-            <h2 id="selective-title">{copy.usageTitle}</h2>
-            <p>{copy.usageBody}</p>
-            <div className={styles.problemList}>
-              {copy.selectivePrinciples.map((principle) => (
-                <section key={principle.title}>
-                  <h3>{principle.title}</h3>
-                  <p>{principle.text}</p>
-                </section>
-              ))}
-            </div>
-          </section>
-
-          <section
-            className={`${styles.card} ${styles.mobileProofCard}`}
-            aria-labelledby="ar-mobile-title"
-          >
-            <figure className={styles.visualFigure}>
-              <Image
-                alt="Cliente consultant une carte digitale Vistaire dans un restaurant sombre"
-                className={styles.visualImage}
-                fill
-                priority
-                quality={100}
-                sizes="(max-width: 920px) calc(100vw - 56px), 58vw"
-                src={photoDigital3}
-                unoptimized
-              />
-            </figure>
-            <div className={styles.visualCopy}>
-              <p className={styles.badge}>{copy.beforeBadge}</p>
-              <h2 id="ar-mobile-title">{copy.beforeTitle}</h2>
-              <p>{copy.beforeBody}</p>
-            </div>
-          </section>
-
-          <section
-            className={`${styles.card} ${styles.comparisonCard}`}
-            aria-labelledby="use-cases-title"
-          >
-            <div className={styles.sectionIntro}>
-              <p className={styles.badge}>{copy.casesBadge}</p>
-              <h2 id="use-cases-title">{copy.casesTitle}</h2>
-              <p>{copy.casesBody}</p>
-            </div>
-            <div className={styles.benefitGrid}>
-              {copy.arUseCases.map((useCase) => (
-                <article className={styles.benefitItem} key={useCase}>
-                  <h3>{useCase}</h3>
-                </article>
-              ))}
-            </div>
-          </section>
-
-          <section
-            className={`${styles.card} ${styles.premiumPanel}`}
-            aria-labelledby="premium-ar-title"
-          >
-            <div className={styles.premiumContent}>
-              <div className={styles.sectionIntro}>
-                <p className={styles.badge}>{copy.premiumBadge}</p>
-                <h2 id="premium-ar-title">{copy.premiumTitle}</h2>
-                <p>{copy.premiumBody}</p>
-              </div>
-            </div>
-            <figure className={`${styles.visualFigure} ${styles.premiumVisual}`}>
-              <Image
-                alt="Fiche plat Vistaire sur téléphone à côté d'un dessert signature"
-                className={styles.visualImage}
-                fill
-                quality={100}
-                sizes="(max-width: 920px) calc(100vw - 56px), 24vw"
-                src={pageDigitalPhoto}
-                unoptimized
-              />
-            </figure>
-          </section>
-
+    <main className={`${styles.page} ${design.arPage}`} data-public-vistaire data-seo-experience="ar-dish-exhibition">
+      <div className={styles.topNav}><PreviewNav currentPath={routes.menu3dAr} locale={locale} routeMode={routeMode} /></div>
+      <div className={styles.hero} id="accueil"><div className={styles.previewFrame}>
+        <header className={design.arExhibition} aria-labelledby="menu-3d-ar-restaurant-title">
+          <p className={styles.badge}>{copy.badge}</p><h1 id="menu-3d-ar-restaurant-title">{pageTitle}</h1>
+          <figure className={design.exhibitionPlate}><Image alt={heroPhoto.alt} className={styles.visualImage} fill priority quality={90} sizes="(max-width: 700px) calc(100vw - 40px), 880px" src={heroPhoto.src} /></figure>
+          <p className={design.exhibitionCaption}>{copy.casesBody}</p>
+        </header>
+        <section className={design.arQuestions} aria-labelledby="use-cases-title">
+          <div className={styles.sectionIntro}><p className={styles.badge}>{copy.casesBadge}</p><h2 id="use-cases-title">{copy.casesTitle}</h2></div>
+          <div className={design.questionRail}>{questions.map((question, index) => <details key={question} open={index === 0}><summary><span>0{index + 1}</span>{question}</summary><p>{copy.arUseCases[index]}</p></details>)}</div>
+        </section>
+        <section className={design.arReadingSpread} aria-labelledby="ar-mobile-title">
+          <figure className={styles.visualFigure}><Image alt={proofPhoto.alt} className={styles.visualImage} fill  quality={90} sizes="(max-width: 700px) calc(100vw - 40px), 50vw" src={proofPhoto.src} /></figure>
+          <div className={styles.visualCopy}><p className={styles.badge}>{copy.beforeBadge}</p><h2 id="ar-mobile-title">{copy.beforeTitle}</h2><p>{copy.lead}</p><p>{copy.beforeBody}</p><div className={styles.heroActions}><Link className={styles.primaryButton} href={routes.menu} prefetch={false}>{copy.viewMenu}<ArrowIcon /></Link><Link className={styles.secondaryButton} href={routes.appointment} prefetch={false}>{copy.appointment}</Link></div></div>
+        </section>
+        <section className={design.arSelection} aria-labelledby="selective-title">
+          <div className={styles.sectionIntro}><p className={styles.badge}>{copy.usageBadge}</p><h2 id="selective-title">{copy.usageTitle}</h2><p>{copy.usageBody}</p></div>
+          <ol className={design.selectionList}>{copy.selectivePrinciples.map((principle, index) => <li key={principle.title}><span>0{index + 1}</span><div><h3>{principle.title}</h3><p>{principle.text}</p></div></li>)}</ol>
+        </section>
+        <section className={design.arService} aria-labelledby="premium-ar-title">
+          <div className={styles.sectionIntro}><p className={styles.badge}>{copy.premiumBadge}</p><h2 id="premium-ar-title">{copy.premiumTitle}</h2><p>{copy.premiumBody}</p></div>
+          <figure className={design.arDessert}><Image alt={premiumPhoto.alt} className={styles.visualImage} fill  quality={90} sizes="(max-width: 700px) calc(100vw - 40px), 34vw" src={premiumPhoto.src} /></figure>
+        </section>
           <section
             className={`${styles.card} ${styles.finalCta}`}
             aria-labelledby="final-3d-cta-title"
@@ -321,11 +200,18 @@ export function VistaireMenu3dArRestaurantPreview({
                 {copy.appointment}
                 <ArrowIcon />
               </Link>
-              <Link className={styles.secondaryButton} href={routes.menu} prefetch={false}>
+              <Link
+                className={styles.secondaryButton}
+                href={routes.menu}
+                prefetch={false}
+              >
                 {copy.viewMenu}
               </Link>
             </div>
-            <nav className={styles.internalLinks} aria-label={copy.internalLabel}>
+            <nav
+              className={styles.internalLinks}
+              aria-label={copy.internalLabel}
+            >
               {internalLinks.map((item) => (
                 <Link href={item.href} key={item.href} prefetch={false}>
                   {item.label}
@@ -334,16 +220,9 @@ export function VistaireMenu3dArRestaurantPreview({
             </nav>
           </section>
 
-          {seoAppendix}
-        </div>
-      </section>
-
-      <PreviewFooter
-        currentPath={routes.menu3dAr}
-        locale={locale}
-        routeMode={routeMode}
-        width="wide"
-      />
+        <div className={styles.seoAppendix}>{seoAppendix}</div>
+      </div></div>
+      <PreviewFooter currentPath={routes.menu3dAr} locale={locale} routeMode={routeMode} width="wide" />
     </main>
   );
 }

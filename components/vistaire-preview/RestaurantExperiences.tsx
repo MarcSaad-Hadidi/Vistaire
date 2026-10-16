@@ -1,12 +1,12 @@
-import Image from "next/image";
-import restaurantBackground from "@/Framer/PhotoRestoComplet5.png";
+import { CinematicPage, type CinematicChapter } from "@/components/immersive/CinematicPage.jsx";
+import { CinematicFooter } from "@/components/immersive/pages/CinematicFooter";
 import { LOCALE_LANGUAGE_TAG, type Locale } from "@/lib/i18n";
 import { getLandingExperiences } from "@/lib/landing/menuExperiences";
 import { hasPublicMenu3d } from "@/lib/menu/hasPublicMenu3d";
 import { getPublicMenuBySlug } from "@/lib/menu/publicMenu";
 import { buildPublicDishPath } from "@/lib/menu/publicMenuCore";
 import { DemoWalkthroughVideo } from "./DemoWalkthroughVideo";
-import { PreviewFooter, PreviewNav } from "./VistairePreviewChrome";
+import { PreviewNav } from "./VistairePreviewChrome";
 import styles from "./RestaurantExperiences.module.css";
 
 const pageCopy = {
@@ -60,6 +60,11 @@ const pageCopy = {
   }
 } as const;
 
+// Demo page, "three restaurants, three identities": one phone in the room
+// changes restaurant between chapters (upright, then flat on the cloth, then
+// beside Sauge Noire's stand); the menus and their videos follow in free reading.
+const SHOTS = { "maison-elyse": "demo-elyse", trouvable: "demo-trouvable", "sauge-noire": "demo-sauge" } as const;
+
 function Arrow() {
   return (
     <svg aria-hidden="true" viewBox="0 0 24 24" width="20" height="20" fill="none">
@@ -91,43 +96,68 @@ export async function RestaurantExperiences({
       })
     : null;
 
+  const chapters: CinematicChapter[] = experiences.map((experience, index) => {
+    const copy = content.experiences[experience.id];
+    const titleId = index === 0 ? "demo-title" : `demo-${experience.id}-title`;
+    return {
+      id: `demo-${experience.id}`,
+      shot: SHOTS[experience.id],
+      align: index === 1 ? "right" : "left",
+      titleId,
+      scene: { phoneDemo: experience.id },
+      content: (
+        <>
+          {index === 0 ? (
+            <>
+              <span className="eyebrow">{content.eyebrow}</span>
+              <h1 id={titleId}>{content.heading[0]} <br /><em>{content.heading[1]}</em></h1>
+              <p>{content.introduction}</p>
+              <p><strong>0{index + 1} · {experience.name}.</strong> {copy.description}</p>
+            </>
+          ) : (
+            <>
+              <span className="eyebrow">0{index + 1} · {experience.label}</span>
+              <h2 id={titleId}>{experience.name}</h2>
+              <p>{copy.description}</p>
+              <ul>{copy.features.map((feature) => <li key={feature}>{feature}</li>)}</ul>
+            </>
+          )}
+          <div className="cinematic-actions">
+            <a className="action" href={experience.publicMenuHref}>
+              {locale === "en" ? `Open the ${experience.name} menu` : `Ouvrir la carte ${experience.name}`}
+            </a>
+          </div>
+        </>
+      ),
+    };
+  });
+
   return (
-    <div className={styles.page}>
-      <Image
-        alt=""
-        aria-hidden="true"
-        className={styles.backgroundImage}
-        fill
-        priority
-        quality={75}
-        sizes="100vw"
-        src={restaurantBackground}
-      />
-      <div aria-hidden="true" className={styles.backgroundWash} />
-      <header className={styles.navShell}>
-        <PreviewNav activeSection="menu" currentPath={currentPath} locale={locale} />
-      </header>
-      <main id="carte" className={styles.main}>
-        <div className={styles.hero}>
-          <p className={styles.eyebrow}>{content.eyebrow}</p>
-          <h1>{content.heading[0]} <br />{content.heading[1]}</h1>
-          <p className={styles.introduction}>{content.introduction}</p>
-        </div>
-        <div className={styles.experiences}>
-          {experiences.map((experience) => {
+    <>
+      <PreviewNav activeSection="menu" currentPath={currentPath} locale={locale} />
+      <CinematicPage chapters={chapters} scene={{ dish: "souffle", phoneDemo: "maison-elyse", collection: "signature" }} footer={<CinematicFooter locale={locale} id="demo" />}>
+        <section id="carte" className="cinematic-guide" aria-label={content.eyebrow}>
+          {experiences.map((experience, index) => {
             const copy = content.experiences[experience.id];
             const dish = experience.featuredDish;
 
             return (
               <section
                 aria-labelledby={`experience-${experience.id}`}
-                className={`${styles.experience} ${styles[experience.id]}`}
+                className={`cinematic-panel ${styles.experience} ${experience.id === "trouvable" ? styles.trouvable : ""}`}
                 data-demo-experience={experience.id}
                 key={experience.id}
               >
                 <div className={styles.copy}>
-                  <p className={styles.label}>{experience.label}</p>
-                  <h2 id={`experience-${experience.id}`}>{experience.name}</h2>
+                  <p className={styles.label}>
+                    <span aria-hidden="true">0{index + 1}</span>
+                    {experience.label}
+                  </p>
+                  <h2 id={`experience-${experience.id}`}>
+                    <a href={experience.publicMenuHref}>
+                      {experience.name}<Arrow />
+                    </a>
+                  </h2>
                   <p className={styles.description}>{copy.description}</p>
                   <ul className={styles.features}>
                     {copy.features.map((feature) => <li key={feature}>{feature}</li>)}
@@ -165,9 +195,8 @@ export async function RestaurantExperiences({
               </section>
             );
           })}
-        </div>
-      </main>
-      <PreviewFooter currentPath={currentPath} locale={locale} width="wide" />
-    </div>
+        </section>
+      </CinematicPage>
+    </>
   );
 }

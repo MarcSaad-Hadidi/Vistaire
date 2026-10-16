@@ -580,6 +580,15 @@ const ALLOWLIST = new Map(
       }
     ],
     [
+      "public/videos/demo/dashboard-studio.mp4",
+      {
+        maxBytes: 3145728,
+        sha256: ["e23fee4660945b73a16e6cd6ebabb1ad8de91053a414a0fbb7763232d4d7fcb2"],
+        reason: "User-requested genuine 128-second Studio feature walkthrough from the approved public demo; 1168x748 H264, 24 fps, no audio, raw frames outside Git. See docs/repo-asset-policy.md.",
+        owner: DEMO_RUNTIME_ASSET_OWNER
+      }
+    ],
+    [
       "public/videos/demo/maison-elyse.mp4",
       {
         maxBytes: 8388608,
@@ -684,6 +693,11 @@ const ALLOWLIST = new Map(
     ]
   ]
 );
+
+// Reviewed original assets for the requested immersive public integration.
+for (const entry of JSON.parse(readFileSync(new URL("../docs/immersive-asset-exceptions.json", import.meta.url), "utf8"))) {
+  ALLOWLIST.set(entry.path, entry);
+}
 
 const GRANDFATHERED_DEMO_RUNTIME_ALLOWLIST = new Set([
   "public/models/demo/homard-bisque-meshopt-ee44bc60.glb",

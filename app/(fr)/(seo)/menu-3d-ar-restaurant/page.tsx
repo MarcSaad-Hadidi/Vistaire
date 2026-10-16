@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { JsonLd } from "@/components/JsonLd";
-import { VistaireMenu3dArRestaurantPreview } from "@/components/vistaire-preview/VistaireMenu3dArRestaurantPreview";
-import { VistaireSeoProductionSections } from "@/components/vistaire-preview/VistaireSeoProductionSections";
+import { ArMenuCinematic } from "@/components/immersive/pages/ArMenuCinematic";
 import { buildPageAlternates, LOCALE_OPEN_GRAPH } from "@/lib/i18n";
 import { absoluteUrl } from "@/lib/seo";
 import { buildSeoPillarJsonLd } from "@/lib/seoPillarJsonLd";
@@ -40,11 +39,7 @@ export default function Menu3dArRestaurantRoute() {
   return (
     <>
       <JsonLd data={buildSeoPillarJsonLd(page)} />
-      <VistaireMenu3dArRestaurantPreview
-        h1={page.h1}
-        routeMode="production"
-        seoAppendix={<VistaireSeoProductionSections page={page} />}
-      />
+      <ArMenuCinematic page={page} />
     </>
   );
 }

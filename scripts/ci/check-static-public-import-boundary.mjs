@@ -93,6 +93,16 @@ const REVIEWED_PUBLIC_OWNER_HELPERS = new Set([
   "lib/owner/menuUrlCore.ts",
   "lib/owner/storageSafeIdentifier.ts"
 ]);
+// Exact browser-safe Studio projections/serializers are shared with public demos.
+// They are still traversed and checked; this does not allow private admin loaders.
+const REVIEWED_PUBLIC_STUDIO_HELPERS = new Set([
+  "lib/admin/dishPhotoUrl.ts",
+  "lib/admin/studioExport.ts",
+  "lib/admin/studioExportFiles.ts",
+  "lib/admin/analyticsPresentation.ts",
+  "lib/admin/analyticsThresholds.ts",
+  "lib/admin/export-fonts/DejaVuSans.ts"
+]);
 const SAUGE_RENDERER_BINDINGS =
   "components/menu/unique/sauge-noire/SaugeNoireRendererBindings.ts";
 
@@ -387,6 +397,7 @@ export async function inspectStaticPublicImportBoundary(
 
       if (
         !REVIEWED_PUBLIC_OWNER_HELPERS.has(filePath) &&
+        !REVIEWED_PUBLIC_STUDIO_HELPERS.has(filePath) &&
         FORBIDDEN_PATH_PATTERNS.some((pattern) => pattern.test(filePath))
       ) {
         addFinding({
@@ -455,7 +466,9 @@ export async function inspectStaticPublicImportBoundary(
       }
 
       for (const specifier of moduleSpecifiers) {
-        if (packageIsForbidden(specifier)) {
+        if (packageIsForbidden(specifier) ||
+            (REVIEWED_PUBLIC_STUDIO_HELPERS.has(filePath) &&
+             /^(?:server-only$|@supabase\/|@clerk\/)/.test(specifier))) {
           addFinding({
             entry,
             file: filePath,

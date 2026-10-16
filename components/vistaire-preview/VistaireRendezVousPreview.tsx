@@ -1,136 +1,119 @@
-import Image from "next/image";
 import Link from "next/link";
-import appointmentBackground from "@/Framer/PhotoRestoComplet.png";
-import tableImage from "@/Framer/Photo table.png";
+import { CinematicPage, type CinematicChapter } from "@/components/immersive/CinematicPage.jsx";
+import { CinematicFooter } from "@/components/immersive/pages/CinematicFooter";
 import type { Locale } from "@/lib/i18n";
 import { CONTACT_PHONE_DISPLAY, CONTACT_PHONE_TEL } from "@/lib/seo";
 import {
   getVistaireChromeRoutes,
-  PreviewFooter,
   PreviewNav,
-  type VistaireRouteMode
+  type VistaireRouteMode,
 } from "./VistairePreviewChrome";
 import { VistaireContactForm } from "./VistaireContactForm";
-import styles from "./VistaireRendezVousPreview.module.css";
 
+const COPY = {
+  en: {
+    formLabel: "Book a call",
+    kicker: "Let’s talk about Vistaire",
+    h1: "Let’s talk about your",
+    titleAccent: "restaurant.",
+    proposition: "Book a call for a Vistaire digital menu.",
+    intro: "Tell us about your restaurant, your menu and the experience you want to offer.",
+    serviceLine: "High-end restaurants · Montreal, Quebec",
+    exchangeTitle: "During the call, we review your current menu.",
+    exchangeBody:
+      "Signature dishes, allergens, visuals, readable prices, PDF replacement and cases where 3D/AR brings real value.",
+    directContact: "Direct contact",
+    toForm: "Go to the form",
+    back: "Back to contact",
+    closing: "A menu designed for your tables.",
+  },
+  fr: {
+    formLabel: "Prendre rendez-vous",
+    kicker: "Parlons de Vistaire",
+    h1: "Parlons de votre",
+    titleAccent: "restaurant.",
+    proposition: "Prendre rendez-vous pour une carte digitale Vistaire.",
+    intro: "Parlez-nous de votre restaurant, de votre carte et de l'expérience que vous souhaitez offrir.",
+    serviceLine: "Restaurants haut de gamme · Montréal, Québec",
+    exchangeTitle: "Pendant l'échange, nous regardons votre carte actuelle.",
+    exchangeBody:
+      "Plats signatures, allergènes, visuels, prix lisibles, remplacement PDF et cas où la 3D/AR apporte une vraie valeur.",
+    directContact: "Contact direct",
+    toForm: "Aller au formulaire",
+    back: "Retour au contact",
+    closing: "Une carte pensée pour vos tables.",
+  },
+} as const;
+
+// Booking page, "around your table": Sauge Noire's Carré stand and its menu,
+// then the whole table seen from above, as reviewed during the call. The
+// form follows in free reading so it is never pinned or animated.
 export function VistaireRendezVousPreview({
   locale = "fr",
-  routeMode = "production"
+  routeMode = "production",
 }: {
   locale?: Locale;
   routeMode?: VistaireRouteMode;
 }) {
   const routes = getVistaireChromeRoutes(routeMode, locale);
-  const copy =
-    locale === "en"
-      ? {
-          formLabel: "Book a call",
-          kicker: "Let's talk about Vistaire",
-          h1: "Book a call for a Vistaire digital menu",
-          intro:
-            "Tell us about your restaurant, your menu and the experience you want to offer.",
-          serviceLine: "High-end restaurants · Montreal, Quebec",
-          exchangeTitle: "During the call, we review your current menu.",
-          exchangeBody:
-            "Signature dishes, allergens, visuals, readable prices, PDF replacement and cases where 3D/AR brings real value.",
-          directContact: "Direct contact",
-          back: "Back to contact"
-        }
-      : {
-          formLabel: "Prendre rendez-vous",
-          kicker: "Parlons de Vistaire",
-          h1: "Prendre rendez-vous pour une carte digitale Vistaire",
-          intro:
-            "Parlez-nous de votre restaurant, de votre carte et de l'expérience que vous souhaitez offrir.",
-          serviceLine: "Restaurants haut de gamme · Montréal, Québec",
-          exchangeTitle:
-            "Pendant l'échange, nous regardons votre carte actuelle.",
-          exchangeBody:
-            "Plats signatures, allergènes, visuels, prix lisibles, remplacement PDF et cas où la 3D/AR apporte une vraie valeur.",
-          directContact: "Contact direct",
-          back: "Retour au contact"
-        };
-
+  const copy = COPY[locale];
+  const chapters: CinematicChapter[] = [
+    {
+      id: "rendez-vous-preview",
+      shot: "book-hero",
+      titleId: "rendez-vous-preview-title",
+      content: (
+        <>
+          <span className="eyebrow">{copy.kicker}</span>
+          <h1 id="rendez-vous-preview-title">{copy.proposition}</h1>
+          <p><strong>{copy.h1} {copy.titleAccent}</strong></p>
+          <p>{copy.intro}</p>
+          <p className="cinematic-note">{copy.serviceLine}</p>
+          <div className="cinematic-actions">
+            <a className="action" href="#rendez-vous-form">{copy.toForm}</a>
+          </div>
+        </>
+      ),
+    },
+    {
+      id: "rendez-vous-echange",
+      shot: "book-exchange",
+      align: "right",
+      titleId: "rendez-vous-exchange-title",
+      content: (
+        <>
+          <h2 id="rendez-vous-exchange-title">{copy.exchangeTitle}</h2>
+          <p>{copy.exchangeBody}</p>
+          <p><strong>{copy.closing}</strong></p>
+          <p className="cinematic-contact-line" aria-label={copy.directContact}>
+            <span>{copy.directContact}</span>
+            <a href="mailto:contact@vistaire.ca">contact@vistaire.ca</a>
+            <a href={`tel:${CONTACT_PHONE_TEL}`}>{CONTACT_PHONE_DISPLAY}</a>
+          </p>
+        </>
+      ),
+    },
+  ];
   return (
-    <main className={styles.page}>
-      <Image
-        alt=""
-        aria-hidden="true"
-        className={styles.backgroundImage}
-        fill
-        priority
-        quality={100}
-        sizes="100vw"
-        src={appointmentBackground}
-        unoptimized
-      />
-
-      <section
-        aria-labelledby="rendez-vous-preview-title"
-        className={styles.hero}
-        id="rendez-vous-preview"
-      >
-        <div className={styles.previewFrame}>
-          <article className={styles.imagePanel}>
-            <Image
-              alt="Table de restaurant haut de gamme avec verres, chandelle et QR code Vistaire"
-              className={styles.imagePanelPhoto}
-              fill
-              priority
-              quality={100}
-              sizes="(max-width: 920px) calc(100vw - 36px), 490px"
-              src={tableImage}
-              unoptimized
-            />
-            <div aria-hidden="true" className={styles.imagePanelShade} />
-          </article>
-          <section className={styles.formPanel} aria-label={copy.formLabel}>
-            <div aria-hidden="true" className={styles.formPanelShade} />
-            <div className={styles.formContent}>
-              <p className={styles.kicker}>{copy.kicker}</p>
-              <h1 id="rendez-vous-preview-title">{copy.h1}</h1>
-              <p className={styles.introText}>{copy.intro}</p>
-              <p className={styles.serviceLine}>{copy.serviceLine}</p>
-              <section
-                aria-labelledby="rendez-vous-exchange-title"
-                className={styles.exchangeBlock}
-              >
-                <h2 id="rendez-vous-exchange-title">{copy.exchangeTitle}</h2>
-                <p>{copy.exchangeBody}</p>
-              </section>
-
-              <VistaireContactForm locale={locale} />
-
-              <div className={styles.directContact} aria-label="Contact direct">
-                <span>{copy.directContact}</span>
-                <a href="mailto:contact@vistaire.ca">contact@vistaire.ca</a>
-                <a href={`tel:${CONTACT_PHONE_TEL}`}>{CONTACT_PHONE_DISPLAY}</a>
-              </div>
-              <Link
-                className={styles.backLink}
-                href={routes.contact}
-                prefetch={false}
-              >
-                {copy.back}
-              </Link>
-            </div>
-          </section>
-        </div>
-
-        <PreviewNav
-          activeSection="contact"
-          contactHref={routes.contact}
-          currentPath={routes.appointment}
-          locale={locale}
-          routeMode={routeMode}
-        />
-      </section>
-
-      <PreviewFooter
+    <>
+      <PreviewNav
+        activeSection="contact"
+        contactHref={routes.contact}
         currentPath={routes.appointment}
         locale={locale}
         routeMode={routeMode}
       />
-    </main>
+      <CinematicPage chapters={chapters} scene={{ dish: "chocolat-fume", phoneDemo: "sauge-noire", collection: "carre" }} footer={<CinematicFooter locale={locale} id="rendez-vous" />}>
+        <section className="cinematic-guide">
+          <section id="rendez-vous-form" className="cinematic-panel cinematic-form" aria-labelledby="rendez-vous-form-title">
+            <h2 id="rendez-vous-form-title">{copy.formLabel}</h2>
+            <VistaireContactForm locale={locale} />
+            <Link className="cinematic-back" href={routes.contact} prefetch={false}>
+              <span aria-hidden="true">←</span> {copy.back}
+            </Link>
+          </section>
+        </section>
+      </CinematicPage>
+    </>
   );
 }

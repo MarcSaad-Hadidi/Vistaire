@@ -166,7 +166,8 @@ test.describe("rendez-vous contact form", () => {
     ).toBeVisible();
     await expect(page.getByText(/Aucun message n'est envoy/i)).toHaveCount(0);
     await expectNoHorizontalOverflow(page);
-    expect(modelRequests).toEqual([]);
+    // The page plays in the shared 3D room (its GLBs); AR models still wait for intent.
+    expect(modelRequests.filter((url) => /\.usdz(?:$|[?#])/i.test(url))).toEqual([]);
     health.expectClean();
   });
 

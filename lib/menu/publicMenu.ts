@@ -1,3 +1,4 @@
+import { resolvePublicModelUrl } from "../publicModelAssets.ts";
 import "server-only";
 
 import { cache } from "react";
@@ -466,10 +467,10 @@ function trouvableDemoMenu(
       const e2eImmersiveAssets =
         e2eImmersiveFixture && dish.slug === "ravioles-chevre-miel-monteregie"
           ? {
-              model3dUrl: "/models/demo/ravioles-chevre-miel-meshy.glb",
-              webModel3dUrl: "/models/demo/ravioles-chevre-miel-meshopt-8a28933e.glb",
-              arModel3dUrl: "/models/demo/ar-lite/ravioles-chevre-miel-ar-lite-meshy.glb",
-              arUsdzUrl: "/models/demo/ar-lite/ravioles-chevre-miel-ios-quicklook-meshy.usdz"
+              model3dUrl: resolvePublicModelUrl("/models/demo/ravioles-chevre-miel-meshy.glb"),
+              webModel3dUrl: resolvePublicModelUrl("/models/demo/ravioles-chevre-miel-meshopt-8a28933e.glb"),
+              arModel3dUrl: resolvePublicModelUrl("/models/demo/ar-lite/ravioles-chevre-miel-ar-lite-meshy.glb"),
+              arUsdzUrl: resolvePublicModelUrl("/models/demo/ar-lite/ravioles-chevre-miel-ios-quicklook-meshy.usdz")
             }
           : null;
 
