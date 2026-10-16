@@ -1074,6 +1074,22 @@ test('a continuous desktop wheel stops on the last offer; only a second swipe af
   f.assist.dispose();
 });
 
+test('a desktop wheel fling up out of a page guide stops at its head; only a second swipe after a pause returns one chapter', () => {
+  const f = fixture({ fine: true });
+  f.bounds.transitions = f.bounds.transitions.filter(join => join.to.id !== 'open-weight' && join.from.id !== 'open-weight');
+  const product = f.bounds.transitions.find(join => join.to.id === 'product').end;
+  const natural = product + 1200;
+  f.bounds.naturalFrom = natural;
+  f.move(natural + 900); f.advance(500);
+  // Native wheel reading of the guide; trackpad inertia keeps moving after each event.
+  for (let i = 0; i < 14; i++) { f.input('wheel', { deltaY: -100, deltaX: 0 }); for (let k = 0; k < 3; k++) { f.advance(16); f.move(f.view.scrollY - 34); } }
+  f.end(); f.advance(3000);
+  assert.equal(f.view.scrollY, natural, 'a big upward fling rests on the guide head, never inside the chapters');
+  f.advance(400); f.input('wheel', { deltaY: -100, deltaX: 0 }); f.advance(3000);
+  assert.equal(f.view.scrollY, product, 'a second swipe returns to the last chapter stop');
+  f.assist.dispose();
+});
+
 test('a desktop wheel past the last stop stays native so the content below remains reachable', () => {
   // A cinematic page's last chapter (here the pricing arrival, the last stop).
   const f = fixture({ fine: true }), last = f.bounds.transitions.find(join => join.to.id === 'open-weight').end;

@@ -403,10 +403,15 @@ export function createEntryScrollAssist({ getGeometry, isBlocked, fastTrips = fa
     if (!fresh && wheelOwned) { event.preventDefault(); return; }
     const y = view.scrollY, plan = route(y, y, direction);
     if (plan.native) {
-      const { reading } = plan, edge = reading && (direction > 0 ? reading.end : reading.start);
+      // Offers have two hard edges; a page's free reading (guide/FAQ) has one:
+      // its head, so an upward fling never coasts into the chapters above.
+      const { reading, naturalFrom } = plan;
+      const start = reading ? reading.start : naturalFrom, end = reading ? reading.end : Infinity;
+      const edge = reading ? (direction > 0 ? reading.end : reading.start) : direction < 0 ? naturalFrom : null;
+      const inside = start != null && y > start - 1 && y < end + 1;
       // Chrome animates each notch after this event: guard the edge against it.
-      if (reading && y > reading.start - 1 && y < reading.end + 1) readingGuard = { start: reading.start, end: reading.end };
-      wheelOwned = edge != null && y > reading.start - 1 && y < reading.end + 1 && (y + delta - edge) * direction > 0;
+      if (inside) readingGuard = { start, end };
+      wheelOwned = edge != null && inside && (y + delta - edge) * direction > 0;
       if (wheelOwned) {
         event.preventDefault(); cancel("wheel-edge", event);
         if (Math.abs(y - edge) > 0.5) view.scrollTo({ top: edge, behavior: "instant" });
@@ -430,6 +435,7 @@ export function createEntryScrollAssist({ getGeometry, isBlocked, fastTrips = fa
     const direction = event.key === "ArrowDown" || event.key === "PageDown" ? 1
       : event.key === "ArrowUp" || event.key === "PageUp" ? -1
         : event.key === " " ? (event.shiftKey ? -1 : 1) : 0;
+    if (direction) readingGuard = null; // A new key press is new intent, not momentum.
     intent(event, !event.ctrlKey && !event.metaKey && !event.altKey ? direction : 0);
     heldKey = gesture ? event.key : null;
   };
