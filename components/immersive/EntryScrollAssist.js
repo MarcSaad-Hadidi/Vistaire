@@ -150,7 +150,7 @@ export function createEntryScrollAssist({ getGeometry, isBlocked, fastTrips = fa
     active.elapsed = Math.max(0, now - active.started);
     const progress = Math.min(1, active.elapsed / active.duration);
     // Never write behind the latest observed native/document position.
-    const curve = active.from + (active.target - active.from) * launchEase(progress, active.fast);
+    const curve = active.from + (active.target - active.from) * (active.coast ? 1 - (1 - progress) ** 3 : launchEase(progress, active.fast));
     const y = active.direction > 0 ? Math.max(curve, active.lastY) : Math.min(curve, active.lastY);
     active.written = y;
     writes = [...writes.slice(-3), y];
@@ -276,10 +276,14 @@ export function createEntryScrollAssist({ getGeometry, isBlocked, fastTrips = fa
     // touch-action is negotiated at contact start, never renegotiated by a
     // resize or a scroll callback in the middle of that same gesture.
     if (touching) return cinematicMain.classList.contains("cinematic-touch-lock");
-    if (refresh || !touchRange) {
+    // Pricing measures after App; keep refreshing until its offers exist.
+    if (refresh || !touchRange || touchRange.readingEnd == null) {
       const geometry = coarsePointer.matches && !reduced.matches ? getGeometry() : null;
       const pricingStart = geometry?.pricing?.start ??
         geometry?.transitions?.find(join => join.to.id === "open-weight")?.end ?? null;
+      // Offers are read by JavaScript-owned touch too: a native pan there lets
+      // Brave/Chrome iOS move their toolbars and resize the layout viewport.
+      const readingEnd = geometry?.pricing?.end;
       // A content page's guide head is the same native-forward, owned-reverse edge.
       const returnAt = pricingStart ?? geometry?.naturalFrom ?? null;
       touchRange = geometry?.opening ? {
@@ -288,7 +292,9 @@ export function createEntryScrollAssist({ getGeometry, isBlocked, fastTrips = fa
         // Cover either representable pixel and one pixel of arrival drift.
         pricingStart: returnAt == null ? null : Math.floor(returnAt),
         pricingEnd: returnAt == null ? null : Math.ceil(returnAt),
-        end: Math.min(pricingStart == null ? Infinity : Math.floor(pricingStart), geometry.naturalFrom ?? Infinity),
+        readingEnd,
+        end: Math.min(readingEnd != null ? Math.ceil(readingEnd) + 2
+          : pricingStart == null ? Infinity : Math.floor(pricingStart), geometry.naturalFrom ?? Infinity),
       } : null;
     }
     const enabled = coarsePointer.matches && !reduced.matches && !touchSuppressed;
@@ -308,7 +314,7 @@ export function createEntryScrollAssist({ getGeometry, isBlocked, fastTrips = fa
     pricingActionsHost?.classList?.toggle("cinematic-pricing-return", pricingReturn);
     return locked;
   };
-  const travel = (event, source, destination, opening, y, direction, at) => {
+  const travel = (event, source, destination, opening, y, direction, at, { duration: fixed, coast = false } = {}) => {
     const target = destination.y;
     // The trip travels toward its stop (an idle return or an offer-edge return
     // can run against the gesture's own direction).
@@ -319,9 +325,9 @@ export function createEntryScrollAssist({ getGeometry, isBlocked, fastTrips = fa
     // A shorter physical trip never takes longer than a longer one.
     const stages = Math.abs(target - y) / opening.stageHeight;
     const fast = fastTrips || FAST_SCENE_DESTINATIONS.has(destination.id);
-    const duration = assistedScrollDuration(stages, destination.id, fast);
+    const duration = fixed ?? assistedScrollDuration(stages, destination.id, fast);
     readingGuard = null;
-    assisting = { target, started: now, direction, lastY: y, from: y, duration,
+    assisting = { target, started: now, direction, lastY: y, from: y, duration, coast,
       fast, elapsed: 0, written: y };
     writes = [];
     if (diagnostics) {
@@ -462,8 +468,11 @@ export function createEntryScrollAssist({ getGeometry, isBlocked, fastTrips = fa
       || (pricingReturn && (pricingScreenHost?.contains?.(event.target)
         || pricingActionsHost?.contains?.(event.target)));
     if (touchY != null && (locked || pricingReturn) && onScene) {
+      const reading = touchGeometry.pricing, origin = view.scrollY;
       ownedTouch = { x: event.touches[0].clientX ?? 0, y: touchY, direction: 0, claimed: false,
-        pricingReturn, at: view.performance.now(), origin: view.scrollY,
+        pricingReturn, at: view.performance.now(), origin,
+        // Inside the offers the finger drives the phone reader directly.
+        reading: locked && reading && origin > reading.start - 1 && origin < reading.end + 1 ? reading : null,
         interrupted: !controlled(event.target) ? interrupted : null };
       touchStart = null; // No native scroll evidence is needed for this gesture.
     }
@@ -482,10 +491,29 @@ export function createEntryScrollAssist({ getGeometry, isBlocked, fastTrips = fa
         if (diagnostics) report("intent-rejected", event, { reason: "horizontal-drag" });
         return;
       }
+      // Offers follow the finger inside their edges. An outward swipe that
+      // starts on an edge keeps the authored transition at release.
+      const reading = ownedTouch.reading;
+      if (reading && ownedTouch.follow == null && Math.abs(dy) > dx && Math.abs(dy) >= 2)
+        // Two pixels cover WebKit/Chromium rounding of fractional edges.
+        ownedTouch.follow = !((dy > 0 && ownedTouch.origin >= reading.end - 2) || (dy < 0 && ownedTouch.origin <= reading.start + 2));
+      if (reading && ownedTouch.follow === false && !ownedTouch.outward) ownedTouch.outward = Math.sign(dy);
+      if (ownedTouch.follow) {
+        if (event.cancelable) event.preventDefault();
+        rememberInput(event);
+        const top = Math.min(reading.end, Math.max(reading.start, ownedTouch.origin + dy)), now = view.performance.now();
+        ownedTouch.samples = [...(ownedTouch.samples ?? []).filter(sample => now - sample.at <= 100), { at: now, y: top }];
+        ownedTouch.claimed = true;
+        ownedTouch.direction = Math.sign(dy) || ownedTouch.direction;
+        if (diagnostics) report("touch-follow", event, { top });
+        view.scrollTo({ top, behavior: "instant" });
+        touchY = y;
+        return;
+      }
       // Pricing remains native on both WebKit and Chromium. Decide ownership
       // on the first vertical move, before the browser starts a pan. A gesture
       // yielded to native reading cannot switch back to JavaScript on reversal.
-      if (!ownedTouch.claimed && Math.abs(dy) > dx && Math.abs(dy) >= (ownedTouch.pricingReturn ? 1 : 12)) {
+      if (!ownedTouch.claimed && Math.abs(dy) > dx && Math.abs(dy) >= (ownedTouch.pricingReturn || reading ? 1 : 12)) {
         if (ownedTouch.pricingReturn && dy > 0 && !ownedTouch.reserved) {
           ownedTouch = null; touchY = null; touchStart = null;
           if (diagnostics) report("touch-native-reading", event);
@@ -540,11 +568,30 @@ export function createEntryScrollAssist({ getGeometry, isBlocked, fastTrips = fa
     if (!touching) {
       touchY = null; touchStart = null;
       syncTouchLock(true);
+      if (owned?.follow && !blocked()) {
+        if (event.cancelable) event.preventDefault();
+        const { start, end } = owned.reading, y = view.scrollY, now = view.performance.now();
+        const recent = (owned.samples ?? []).filter(sample => now - sample.at <= 100);
+        const velocity = recent.length > 1 ? (recent.at(-1).y - recent[0].y) / Math.max(1, recent.at(-1).at - recent[0].at) : 0;
+        // A flick coasts like native inertia but never crosses an offer edge.
+        const top = Math.min(end, Math.max(start, y + velocity * 325));
+        if (Math.abs(velocity) > 0.05 && Math.abs(top - y) > 1)
+          travel(event, "touch-coast", { id: "pricing-reading", y: top }, (touchGeometry ?? getGeometry()).opening, y,
+            Math.sign(velocity), owned.at, { duration: Math.min(1200, Math.max(180, (3 * Math.abs(top - y)) / Math.abs(velocity))),
+              coast: true });
+        if (diagnostics) report("touch-release", event, { locked: true, velocity });
+        touchGeometry = null;
+        return;
+      }
       if (owned?.claimed && owned.direction && !blocked()) {
         if (event.cancelable) event.preventDefault();
         const y = view.scrollY;
         let plan = route(y, owned.origin, owned.direction);
-        if (owned.pricingReturn && owned.direction < 0) {
+        // An outward swipe from an offer edge opens the FAQ or returns below;
+        // a reversal back over the offers within that contact navigates nowhere.
+        if (owned.reading) plan = owned.direction !== owned.outward ? {}
+          : owned.direction > 0 ? { opening: (touchGeometry ?? getGeometry()).opening, destination: { id: "faq", y: owned.reading.faq } } : plan;
+        if ((owned.pricingReturn || owned.reading?.start != null && owned.outward < 0) && owned.direction < 0) {
           // Return from the actual first-offer reading anchor to Product,
           // never to the incoming Pricing animation's intermediate position.
           const geometry = touchGeometry ?? getGeometry();
@@ -617,12 +664,16 @@ export function createEntryScrollAssist({ getGeometry, isBlocked, fastTrips = fa
     // a pending compositor displacement has its own matching event evidence.
     let delta = y - (gesture && !gesture.scrolled && !gesture.pendingScroll ? gesture.inputY : lastY);
     if (diagnostics) report("scroll", event, { delta });
-    // iOS can withhold the touch events of flings chained during momentum, so a
-    // content page's native guide/FAQ reading never coasts back above its head.
+    // Brave/Chrome iOS (and WebKit flings during inertia) can withhold touch
+    // events, so native movement from inside the offers always arms their edges,
+    // and native reading below them (FAQ, guide) never coasts back above its head.
     // A navigation jump is larger than one viewport and is never pulled back.
     if (!readingGuard && !touching && !assisting && touchRange && Math.abs(y - lastY) < view.innerHeight) {
-      const { naturalFrom } = getGeometry();
-      if (naturalFrom != null && lastY > naturalFrom + 1) readingGuard = { start: naturalFrom, end: Infinity };
+      const { pricing: reading, naturalFrom } = getGeometry(), inside = at => at > reading.start - 1 && at < reading.end + 1;
+      const floor = reading?.end ?? naturalFrom;
+      if (reading && (inside(y) || inside(lastY) || (gesture && inside(gesture.inputY))))
+        readingGuard = { start: reading.start, end: reading.end };
+      else if (floor != null && lastY > floor + 1) readingGuard = { start: floor, end: Infinity };
     }
     // Momentum past an offer edge stops there; on iOS a write ends deceleration.
     if (readingGuard && !touching && !assisting && (y > readingGuard.end || y < readingGuard.start)) {

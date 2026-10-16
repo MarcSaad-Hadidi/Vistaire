@@ -15,6 +15,11 @@
   padding: 0;
   background: transparent;
 }
+/* The compact phone stage padding must not offset the pricing intro: its top is
+   both the measured section top and the phone reader's first-offer anchor. */
+html.journey-compact :where([data-immersive-vistaire]) .pricing > .stage {
+  padding: 0;
+}
 :where([data-immersive-vistaire]) .pricing .pricing-content {
   width: 100%;
   max-width: none;
@@ -322,6 +327,9 @@ html[data-vistaire-theme]
   position: fixed;
   inset: 0;
   height: calc(100 * var(--journey-vh, 1vh));
+  /* Brave/Chrome iOS grow the layout viewport when their toolbars hide; the
+     fixed copy and actions follow it so the buttons stay at the real bottom. */
+  height: max(calc(100 * var(--journey-vh, 1vh)), 100dvh);
   z-index: 20;
   pointer-events: none;
 }
@@ -331,6 +339,7 @@ html[data-vistaire-theme]
   left: 0;
   width: 100%;
   height: calc(100 * var(--journey-vh, 1vh));
+  height: max(calc(100 * var(--journey-vh, 1vh)), 100dvh);
   z-index: 4;
   display: grid;
   grid-template-columns: minmax(0, 1fr) clamp(300px, 42vh, 430px) minmax(0, 1fr);

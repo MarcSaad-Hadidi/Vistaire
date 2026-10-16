@@ -158,8 +158,6 @@ const EN = {
     "Camera access was denied. Allow it to try augmented reality.",
   "La réalité augmentée n’est pas disponible dans ce navigateur. Essayez Chrome sur un Android compatible.":
     "Augmented reality is not available in this browser. Try Chrome on a compatible Android device.",
-  "La réalité augmentée n’est pas disponible dans ce navigateur. Sur iPhone, ouvrez cette page dans Safari.":
-    "Augmented reality is not available in this browser. On iPhone, open this page in Safari.",
   "Carte de démonstration Vistaire": "Vistaire demo menu",
   "Fiche du plat": "Dish details",
   "Composer votre expérience Vistaire": "Create your Vistaire experience",
