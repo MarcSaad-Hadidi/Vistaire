@@ -116,12 +116,12 @@ test("CI Gate is fail-closed and receives every job result", () => {
   assert.match(workflow, /blocked by root failure/);
 });
 
-test("WebKit is isolated to the critical browser job", () => {
+test("WebKit is isolated to public and admin browser jobs", () => {
   const install = workflow.indexOf("playwright install --with-deps webkit");
-  const webkitJob = workflow.indexOf("  webkit-critical:");
+  const webkitJob = workflow.indexOf("  e2e-admin-browser:");
   assert.ok(install > webkitJob, "WebKit installation must not happen in static or database jobs");
-  assert.equal((workflow.match(/playwright install --with-deps webkit/g) ?? []).length, 1);
-  assert.ok((workflow.match(/playwright install --with-deps chromium/g) ?? []).length >= 1);
+  assert.equal((workflow.match(/playwright install --with-deps webkit/g) ?? []).length, 2);
+  assert.ok((workflow.match(/playwright install chromium --only-shell/g) ?? []).length >= 1);
   const staticJob = workflow.slice(workflow.indexOf("  static-quality:"), workflow.indexOf("  database-contracts:"));
   const databaseJob = workflow.slice(workflow.indexOf("  database-contracts:"), workflow.indexOf("  build-app:"));
   assert.doesNotMatch(staticJob, /playwright install/);

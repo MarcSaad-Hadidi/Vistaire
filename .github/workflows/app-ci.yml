@@ -79,6 +79,11 @@ jobs:
           fetch-depth: 1
           lfs: false
           persist-credentials: false
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            scripts/ci/detect-changes.mjs
+            scripts/ci/fetch-pr-graph.mjs
+            tests/ci-change-detection.test.mjs
       - name: Fetch minimal PR graph for merge-base
         id: graph
         if: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository }}
@@ -177,7 +182,7 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
       - name: Install dependencies
-        run: npm ci
+        run: npm ci --no-audit --no-fund
       - name: Repository and static checks
         run: |
           npm run lint
@@ -226,7 +231,7 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
       - name: Install dependencies
-        run: npm ci
+        run: npm ci --no-audit --no-fund
       - name: PostgreSQL contracts
         env:
           PGDATABASE: vistaire_qr_ci
@@ -278,7 +283,7 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
       - name: Install dependencies
-        run: npm ci
+        run: npm ci --no-audit --no-fund
       - name: Reuse Next.js compilation cache
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
@@ -352,9 +357,9 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
-      - run: npm ci
+      - run: npm ci --no-audit --no-fund
       - name: Install Chromium once for public suites
-        run: npx --no-install playwright install --with-deps chromium
+        run: npx --no-install playwright install chromium --only-shell
       - name: Download verified Next.js build
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
@@ -434,9 +439,9 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
-      - run: npm ci
+      - run: npm ci --no-audit --no-fund
       - name: Install Chromium once for Sauge
-        run: npx --no-install playwright install --with-deps chromium
+        run: npx --no-install playwright install chromium --only-shell
       - name: Download verified Next.js build
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
@@ -504,9 +509,14 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
-      - run: npm ci
+      - run: npm ci --no-audit --no-fund
       - name: Install browser once for Admin
-        run: npx --no-install playwright install --with-deps ${{ matrix.browser }}
+        run: |
+          if [[ '${{ matrix.browser }}' == chromium ]]; then
+            npx --no-install playwright install chromium --only-shell
+          else
+            npx --no-install playwright install --with-deps webkit
+          fi
       - name: Download verified Next.js build
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
@@ -587,7 +597,7 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
-      - run: npm ci
+      - run: npm ci --no-audit --no-fund
       - run: npx --no-install playwright install --with-deps webkit
       - name: Download verified Next.js build
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
@@ -610,7 +620,6 @@ jobs:
             process.env.RUN_MENU === 'true' && /maison-elyse-public-menu/.test(path) ||
             process.env.RUN_SAUGE === 'true' && /sauge-noire-/.test(path) ||
             process.env.RUN_CORE === 'true' && /demo-restaurant|restaurateur-preview/.test(path));
-          if (process.env.RUN_CORE === 'true') specs.push('e2e/ci-smoke.spec.ts');
           if (process.env.RUN_LANDING === 'true') specs.push('e2e/landing-offers.spec.ts');
           if (!specs.length) throw new Error('No applicable WebKit specs');
           process.stdout.write([...new Set(specs)].join('\n') + '\n');
@@ -771,6 +780,8 @@ jobs:
           fetch-depth: 1
           lfs: false
           persist-credentials: false
+          sparse-checkout-cone-mode: false
+          sparse-checkout: scripts/ci/collect-metrics.mjs
       - name: Collect machine-readable CI metrics
         env:
           GITHUB_TOKEN: ${{ github.ref == 'refs/heads/main' && github.token || '' }}

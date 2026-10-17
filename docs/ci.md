@@ -4,13 +4,12 @@ Le workflow requis pour les pull requests est **CI Gate**
 (`.github/workflows/app-ci.yml`). Il démarre toujours et refuse une
 classification invalide, un job attendu en échec, annulé, absent ou sauté.
 
-## Fast gate and dependency barrier
+## Contrôles indépendants
 
 `fast-gate` validates the classifier, workflow contracts, and CI scripts without
-running `npm ci` or installing a browser. Browser jobs explicitly require
-successful `classify-changes`, `fast-gate`, `static-quality`, and `build-app`
-results; a failed root job therefore produces downstream skips instead of
-secondary browser failures. `Asset Policy` remains independent and owns the
+running `npm ci` or installing a browser. Browser jobs require only successful
+`classify-changes` and `build-app` results. Static checks remain blocking in
+`CI Gate` and run independently. `Asset Policy` remains independent and owns the
 only `assets:check` and `lfs:check` invocations. `fast-gate` runs the CI and
 Preview workflow contracts without `npm ci`; `static-quality` then runs every
 `tests/*.test.mjs` file once through `npm run test:node`.
@@ -48,8 +47,9 @@ Pour une pull request, le diff est calculé entre le merge-base réel de la base
 et de la tête et la tête. Le checkout est borné et
 `scripts/ci/fetch-pr-graph.mjs` récupère seulement le graphe nécessaire. Si le
 merge-base ne peut pas être obtenu, le classificateur passe en `full_ci=true`.
-Les chemins inconnus, l'infrastructure CI, les dépendances, `main`,
-`merge_group` et le nightly sont exhaustifs.
+Les chemins inconnus, l'infrastructure CI, les dépendances, `main` et
+`merge_group` sélectionnent toutes les familles critiques. Le nightly et le
+dispatch `full` exécutent tous leurs scénarios.
 
 `docs_only` est une allowlist explicite : `README.md`, `CONTRIBUTING.md`,
 `SECURITY.md`, `docs/**` et `documentation/**`. Une extension Markdown/TXT dans
