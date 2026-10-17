@@ -39,7 +39,8 @@ test("public browser jobs shard all selected suites without sharing a GPU or los
     if (name === "e2e-public-chromium") {
       assert.match(job, /heavy_filter='rendered scroll choreography\|food zoom safety'/);
       assert.match(job, /--grep "\$heavy_filter"/);
-      assert.match(job, /--grep-invert "\$heavy_filter"/);
+      assert.match(job, /--grep-invert "\$heavy_filter\|Features keeps a stable natural reading frame"/,
+        'the separately verified Features baseline must not run twice');
       assert.match(job, /heavy_status != 0 \|\| general_status != 0/);
     }
     for (const shard of [1, 2, 3, 4]) assert.match(job, new RegExp(`test_report_${shard}:`));
