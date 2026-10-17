@@ -370,7 +370,7 @@ touchTest("isolated DOM: contact maintenu : inversions et changements de hauteur
           top: el.getBoundingClientRect().top,
         })));
       }
-      if (stroke > 0) {
+      if (stroke > 0 && (phoneReader || nativeClosing)) {
         const expected = stroke % 2 ? -1 : 1;
         expect(
           (samples.at(-1)!.pageY - samples[0].pageY) * expected,
@@ -388,6 +388,10 @@ touchTest("isolated DOM: contact maintenu : inversions et changements de hauteur
               + samples.at(-1)!.pageY - samples[0].pageY,
           ), `${selector} stays in native document flow`).toBeLessThanOrEqual(1);
         }
+      } else if (stroke > 0) {
+        // Cinematic touch owns the journey and waits for release; offers and
+        // the closing document flow above still follow the held finger.
+        expect(Math.abs(samples.at(-1)!.pageY - samples[0].pageY)).toBeLessThanOrEqual(1);
       }
       expect(await geometry(page)).toEqual(before);
     }
@@ -522,8 +526,9 @@ domTest("isolated DOM: la scène contact est le seul footer et termine exactemen
         if (await toggle.getAttribute('aria-pressed') !== String(light)) await toggle.click();
         await page.evaluate(() => scrollTo({ top: document.documentElement.scrollHeight, behavior: 'instant' }));
         await expect(footer.locator('.footer-bottom')).toBeInViewport();
-        for (const selector of ['.stage', '[data-footer-navigation]'])
-          await expect(footer.locator(selector)).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
+        await expect(footer.locator('.stage')).toHaveCSS('background-color', light
+          ? 'rgba(255, 252, 245, 0.95)' : 'rgba(17, 17, 16, 0.7)');
+        await expect(footer.locator('[data-footer-navigation]')).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
         await expect(footer.locator('[data-footer-navigation]')).toHaveCSS('background-image', 'none');
         const stageBackground = await footer.locator('.stage').evaluate(el => getComputedStyle(el).backgroundImage);
         const opaqueStops = (stageBackground.match(/rgba?\([^)]+\)/g) ?? []).filter(color =>
@@ -655,7 +660,7 @@ test("un seul guide accueille le visiteur puis laisse explorer sans se répéter
     await waitForScene(page);
     await expect(guide).toHaveAttribute("aria-hidden", "false");
     await page.locator("#hero .text-link").click();
-    await expect(page).toHaveURL(path === "/" ? /\/demo$/ : /\/en\/vistaire-menu$/);
+    await expect(page).toHaveURL(path === "/" ? /\/demo$/ : /\/en\/vistaire-menu$/, { timeout: 30_000 });
     await expect(page.getByRole("dialog")).toHaveCount(0);
     await page.goto(`${path}#product`);
     await waitForScene(page);
@@ -702,6 +707,9 @@ for (const viewport of [
     test.setTimeout(90_000);
     await page.setViewportSize(viewport);
     for (const path of ['/', '/en']) {
+      // Geometry samples are teleports, not gestures through the offer edge
+      // guard. Healthy normal-motion input is covered separately below.
+      await page.emulateMedia({ reducedMotion: 'reduce' });
       await page.goto(path);
       await exposeDomLayout(page);
       await page.evaluate(() => document.fonts.ready);
@@ -785,7 +793,6 @@ for (const viewport of [
       await expect(page.locator('html')).toHaveAttribute('data-chapter', 'footer');
       expect(await footer.evaluate(el => Math.abs(el.getBoundingClientRect().bottom + scrollY - document.documentElement.scrollHeight))).toBeLessThanOrEqual(1);
       await page.goto(`${path}#product`);
-      await exposeDomLayout(page);
       await expect(page.locator('#product')).toHaveJSProperty('inert', false);
       await expect.poll(() => page.locator('#product').evaluate(el => Number(getComputedStyle(el).getPropertyValue('--copy-opacity')))).toBeCloseTo(1, 3);
 

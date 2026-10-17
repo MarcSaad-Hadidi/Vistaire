@@ -260,5 +260,11 @@ test('fixed-phone PageDown hands off when native document rounding leaves a frac
   view.scrollY = initial - 2;
   viewport.scrollTop = pricingScreenScroll(sectionTop - view.scrollY, layout);
   context.onKey({ key: 'PageDown', target: viewport, preventDefault() {} });
-  assert.equal(view.scrollY, initial, 'outside the one-pixel endpoint budget, finish the reader before handing off');
+  assert.equal(view.scrollY, Math.ceil(pricingPagePosition(sectionTop, layout.maxScroll, layout)),
+    'outside the one-pixel endpoint budget, finish the reader before handing off');
+  layout.readingStart = 0; // Reduced motion starts the reader at the section head.
+  view.scrollY = sectionTop + 20;
+  context.onKey({ key: 'Home', target: viewport, preventDefault() {} });
+  assert.ok(view.scrollY >= sectionTop && view.scrollY < sectionTop + 1,
+    'Home must stay inside the section when WebKit floors document scroll, keeping the focused portal visible');
 });

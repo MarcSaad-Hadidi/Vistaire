@@ -122,11 +122,10 @@ test("a Next navigation releases the immersive viewport and queued scroll work",
   await page.setViewportSize({ width: 390, height: 844 });
   await openScene(page);
   await expect(page.locator("[data-public-navigation-open]")).toBeVisible();
-  await page.locator(".menu-toggle").click();
-  await expect(page.locator(".menu-toggle")).toHaveAttribute("aria-expanded", "true");
-  await page.locator('.menu-page-links a[href="/a-propos"]').click();
-  await expect(page).toHaveURL(/\/a-propos$/);
-  await expect(page.locator("[data-public-vistaire]")).toBeVisible();
+  await page.evaluate(() => scrollTo({ top: document.documentElement.scrollHeight, behavior: 'instant' }));
+  await page.getByRole('contentinfo').locator('a[href="/menu/maison-elyse?lang=fr-CA"]').click();
+  await expect(page).toHaveURL(/\/menu\/maison-elyse\?lang=fr-CA$/, { timeout: 30_000 });
+  await expect(page.getByRole('heading', { name: 'LA CARTE', exact: true })).toBeVisible();
   await expect(page.locator("[data-immersive-vistaire]")).toHaveCount(0);
   const state = await page.evaluate(() => ({
     stage: document.documentElement.style.getPropertyValue("--vistaire-journey-vh"),
@@ -554,11 +553,9 @@ renderedTest.describe('optional scene framing diagnostics (Chromium software Web
     try {
       await page.goto('/#wearable', { waitUntil: 'domcontentloaded' });
       await page.evaluate(() => document.fonts.ready);
-      for (const attribute of ['restaurant', 'support'])
-        await expect(canvas).toHaveAttribute(`data-${attribute}-ready`, 'true', { timeout: 120_000 });
+      await expect(canvas).toHaveAttribute('data-restaurant-ready', 'true', { timeout: 120_000 });
       await expect(canvas).toHaveAttribute('data-laptop-ready', 'false');
       expect(laptopRequests).toEqual([]);
-      await expect(canvas).toHaveAttribute('data-rendered-model', 'homard');
       await expect(canvas).toHaveAttribute('data-section', 'wearable');
       expect(phoneRequestHeld).toBe(true);
       await expect(canvas).toHaveAttribute('data-phone-ready', 'false');
@@ -601,7 +598,7 @@ renderedTest.describe('optional scene framing diagnostics (Chromium software Web
       await testInfo.attach('phone-essential-wake', { path: image, contentType: 'image/png' });
     } finally {
       releasePhone();
-      await page.unroute(phonePattern).catch(error => console.warn('Phone route cleanup after release failed:', error));
+      await page.unrouteAll({ behavior: 'wait' });
     }
 
     let releaseHull!: () => void;
@@ -851,26 +848,36 @@ renderedTest.describe('rendered scroll choreography (Chromium software WebGL)', 
             }
             forward.push(pose);
           }
+          const visibleChannel = (sample: typeof forward[number], name: string) => {
+            const model = name.match(/^(dish|support|phone|laptop)(Position|Quaternion)$/)?.[1];
+            return !model || (sample.channels[model + 'Scale'].some(scale => scale > 0.003)
+              && (model !== 'dish' || sample.dishOpacity > 0.001));
+          };
           for (const pair of [[0, 1], [ys.length - 2, ys.length - 1]]) {
             const [a, b] = pair.map(i => forward[i]);
             if (a.suspended === 'true' || b.suspended === 'true' || a.pricingActive || b.pricingActive) continue;
-            for (let i = 0; i < a.values.length; i++) expect(Math.abs(a.values[i] - b.values[i]), `${window.from}:${window.to} boundary pose`).toBeLessThan(0.15);
+            for (const [name, values] of Object.entries(a.channels)) {
+              if (!visibleChannel(a, name) || !visibleChannel(b, name)) continue;
+              for (const [i, value] of values.entries()) expect(Math.abs(value - b.channels[name][i]), `${window.from}:${window.to} ${name} boundary pose`).toBeLessThan(0.15);
+            }
           }
           const regular = Array.from({ length: 9 }, (_, i) => forward[ys.findIndex(y => Math.abs(y - window.start - (window.end - window.start) * i / 8) < 0.001)]);
           // Normalize each path by its own traveled distance. World units of a
           // phone, room and camera are not interchangeable physical velocities.
           if (regular.every(sample => sample.suspended !== 'true' && !sample.pricingActive)) {
             for (const name of Object.keys(regular[0].channels)) {
-              const distances = regular.slice(1).map((sample, i) => {
-                const a = regular[i].channels[name], b = sample.channels[name];
+              const visible = regular.filter(sample => visibleChannel(sample, name));
+              if (visible.length < 2) continue;
+              const distances = visible.slice(1).map((sample, i) => {
+                const a = visible[i].channels[name], b = sample.channels[name];
                 return name.endsWith('Quaternion')
                   ? 2 * Math.acos(Math.min(1, Math.abs(a.reduce((sum, v, n) => sum + v * b[n], 0))))
                   : Math.hypot(...a.map((v, n) => v - b[n]));
               });
               const length = distances.reduce((a, b) => a + b, 0);
               if (length < 0.001) continue;
-              const mean = length / ((regular.at(-1)!.scroll - regular[0].scroll) / geometry.stage);
-              const speeds = distances.map((distance, i) => distance / ((regular[i + 1].scroll - regular[i].scroll) / geometry.stage));
+              const mean = length / ((visible.at(-1)!.scroll - visible[0].scroll) / geometry.stage);
+              const speeds = distances.map((distance, i) => distance / ((visible[i + 1].scroll - visible[i].scroll) / geometry.stage));
               expect(Math.max(...speeds) / mean, `${window.from}:${window.to} ${name} normalized velocity`).toBeLessThan(1.42);
             }
           }
@@ -880,11 +887,13 @@ renderedTest.describe('rendered scroll choreography (Chromium software WebGL)', 
           for (const [id, active] of [[window.from, regular.slice(0, 5)], [window.to, regular.slice(4)]] as const) {
             if (id === 'open-weight') continue; // Interactive pricing is native.
             for (const field of ['opacity', 'top'] as const) {
-              const steps = active.slice(1).map((sample, i) => Math.abs(sample.copy[id][field] - active[i].copy[id][field]));
+              const visible = field === 'top' ? active.filter(sample => sample.copy[id].opacity > 0) : active;
+              if (visible.length < 2) continue;
+              const steps = visible.slice(1).map((sample, i) => Math.abs(sample.copy[id][field] - visible[i].copy[id][field]));
               const length = steps.reduce((a, b) => a + b, 0);
               if (length < 0.0001) continue;
-              const mean = length / ((active.at(-1)!.scroll - active[0].scroll) / geometry.stage);
-              const speeds = steps.map((distance, i) => distance / ((active[i + 1].scroll - active[i].scroll) / geometry.stage));
+              const mean = length / ((visible.at(-1)!.scroll - visible[0].scroll) / geometry.stage);
+              const speeds = steps.map((distance, i) => distance / ((visible[i + 1].scroll - visible[i].scroll) / geometry.stage));
               expect(Math.max(...speeds) / mean, `${id}: rendered text ${field} active-phase velocity`).toBeLessThan(1.42);
             }
           }

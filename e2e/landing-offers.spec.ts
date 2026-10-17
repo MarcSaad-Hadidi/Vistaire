@@ -40,6 +40,9 @@ async function openScene(page: Page, path = '/', anchor = '', reducedMotion: 're
 }
 
 async function geometry(page: Page) {
+  // ResizeObserver queues Pricing's measure on the next frame. Read after
+  // that measure, not between the new stage size and its document travel.
+  await page.evaluate(() => new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
   return page.locator('.pricing-hero').evaluate(el => ({
     top: el.getBoundingClientRect().top + scrollY,
     height: el.getBoundingClientRect().height,
@@ -88,7 +91,7 @@ async function backdrop(page: Page) {
 
 async function screenshot(page: Page, info: TestInfo, name: string) {
   const path = info.outputPath(`${name}.png`);
-  await page.screenshot({ path });
+  await page.screenshot({ path, timeout: 60_000 });
   await info.attach(name, { path, contentType: 'image/png' });
 }
 
@@ -211,7 +214,8 @@ for (const profile of profiles) {
       await assertOnPhotoContrast(page, '.pricing-aside-layer');
       await assertNoOverflow(page);
       await screenshot(page, info, `${profile.label}-${theme}-offers`);
-      await scrollPage(page, layout.top + layout.height + 2);
+      const currentLayout = await geometry(page);
+      await scrollPage(page, currentLayout.top + currentLayout.height + 2);
       await expect(page.locator('.pricing-phone-layer')).toHaveAttribute('aria-hidden', 'true');
       await expect(page.locator('.landing-faq [data-seo-faq-question]')).toHaveCount(5);
       await expect(page.locator('.landing-faq [data-faq-ask-input]')).toBeVisible();
@@ -547,8 +551,10 @@ for (const width of [390,1440]) test(`native entry assistance is bounded, interr
   await position(end-inputRoom);
   await gesture(1);
   await page.keyboard.press('Escape');
-  await expect.poll(()=>page.evaluate(()=>scrollY)).toBeGreaterThan(end-inputRoom+5);
+  // An owned wheel can be cancelled before its first frame moves the page.
+  const interruptedAt = await page.evaluate(() => scrollY);
   await page.waitForTimeout(350);
+  expect(Math.abs(await page.evaluate(() => scrollY) - interruptedAt)).toBeLessThanOrEqual(1);
   expect(await page.evaluate(()=>scrollY)).toBeLessThan(end-10);
   await page.emulateMedia({reducedMotion:'reduce'});
   await position(end-inputRoom);
@@ -792,9 +798,9 @@ for (const width of [390, 1440]) test(`continuous assistance retains the actual 
     else {
       const trusted = captured.rows.some(row => row.type === 'input-event' && row.trusted && ['wheel', 'keydown'].includes(String(row.eventType)));
       const positions = captured.rows.filter(row => row.type === 'position');
-      const moved = new Set(positions.map(row => row.y)).size >= 3;
       const helpers = captured.rows.filter(row => row.type === 'helper').map(row => row.helper as HandoffRow);
       const start = helpers.find(row => row.type === 'assist-start');
+      const handoff = helpers.find(row => row.type === 'handoff');
       const completed = helpers.find(row => row.type === 'completed');
       const completedIndex = captured.rows.findIndex(row => row.type === 'helper' && (row.helper as HandoffRow).type === 'completed');
       const targetCaptured = Boolean(start && completed && captured.rows.slice(completedIndex + 1).some(row => row.type === 'position'
@@ -802,15 +808,30 @@ for (const width of [390, 1440]) test(`continuous assistance retains the actual 
         && Math.abs(Number(row.y) - Number(geometry?.end)) <= 1));
       const writes = captured.rows.filter(row => row.type === 'scroll-write');
       const options = writes.map(row => (row.args as Array<{ top?: number; behavior?: string }>)[0]);
-      const controlledWrites = options.length >= 3 && options.every(option => option.behavior === 'instant');
+      const assistWrites = helpers.filter(row => row.type === 'assist-write');
+      const writeFrames = assistWrites.map(write => positions.filter(row => Number(row.at) <= Number(write.handledAt)).at(-1));
+      const timedWrites = Boolean(start) && assistWrites.length >= 2 && assistWrites.every((write, i) => {
+        const rafAt = Number(writeFrames[i]?.rafAt);
+        const expected = Math.min(1, Math.max(0, (rafAt - Number((start!.assisting as HandoffRow)?.started)) / Number(start!.duration)));
+        return Number.isFinite(rafAt) && Math.abs(Number(write.progress) - expected) < 0.001;
+      });
+      // SwiftShader can block the main thread longer than the whole trip.
+      // In that case verify wall-clock catch-up from the actual RAF stamps;
+      // normal frame delivery must still retain intermediate visible poses.
+      const frameStarved = writeFrames.some((row, i) => i > 0 &&
+        Number(row?.rafAt) - Number(writeFrames[i - 1]?.rafAt) > Number(start?.duration) / 2);
+      const observed = positions.filter(row => Number(row.at) >= Number(start?.handledAt));
+      const moved = new Set(observed.map(row => row.y)).size >= (frameStarved ? 2 : 3);
+      const controlledWrites = timedWrites && options.length >= (frameStarved ? 2 : 3) && options.every(option => option.behavior === 'instant');
       const nativeEnd = captured.rows.find(row => row.type === 'input-event' && row.eventType === 'scrollend'
         && row.trusted && row.documentScroll && Number(row.at) <= Number(start?.handledAt));
-      const observed = positions.filter(row => Number(row.at) >= Number(start?.handledAt));
       const monotone = observed.every((row, index) => index === 0 || Number(row.y) >= Number(observed[index - 1].y) - 1);
       const gradual = completed && start && Number(completed.duration) >= Number(start.duration);
-      if (!trusted || !moved) failures.push('actual trusted input and at least three distinct frame positions were not captured');
+      if (!trusted || !moved) failures.push('actual trusted input and the available assisted frame positions were not captured');
       if (!start || !helpers.some(row => row.type === 'handoff')) failures.push('actual assist/handoff was not retained');
-      if (!nativeEnd) failures.push('assistance must wait for the native gesture to finish');
+      const ownedWheel = handoff?.source === 'wheel' && start?.eventType === 'wheel' &&
+        start?.owner === 'javascript' && start?.defaultPrevented === true;
+      if (!ownedWheel && !nativeEnd) failures.push('native assistance must wait for the native gesture to finish');
       if (!controlledWrites || !gradual) failures.push('the continuation must honor its authored duration through controlled frame positions');
       if (!monotone) failures.push('the visible continuation must not jump backwards');
       if (captured.meta.exhausted || !targetCaptured) failures.push('trace was exhausted or did not retain the acknowledged post-handoff target');

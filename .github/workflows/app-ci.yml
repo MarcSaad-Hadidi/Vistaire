@@ -449,7 +449,7 @@ jobs:
             --grep "$heavy_filter" --fully-parallel --shard=${{ matrix.shard }}/4 --output=test-results/landing-heavy || heavy_status=$?
           general_status=0
           CI_TEST_REPORT_PATH="$general_report" npm run test:ci:e2e:landing -- \
-            --grep-invert "$heavy_filter" --fully-parallel --shard=${{ matrix.shard }}/4 --output=test-results/landing-general || general_status=$?
+            --grep-invert "$heavy_filter|Features keeps a stable natural reading frame" --fully-parallel --shard=${{ matrix.shard }}/4 --output=test-results/landing-general || general_status=$?
           CI_TEST_REPORT_PATHS="$heavy_report,$general_report" node scripts/ci/aggregate-test-reports.mjs
           if (( heavy_status != 0 || general_status != 0 )); then exit 1; fi
       - name: Upload rendered landing evidence

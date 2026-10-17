@@ -540,7 +540,9 @@ export default function Pricing({ collection, stateRef }) {
     }
     event.preventDefault();
     window.scrollTo({
-      top: pricingPagePosition(sectionTop, next, layout),
+      // WebKit floors fractional scroll targets. Home must remain inside the
+      // section, or hiding the fixed portal drops focus before the next key.
+      top: Math.ceil(pricingPagePosition(sectionTop, next, layout)),
       behavior: "instant",
     });
   };
