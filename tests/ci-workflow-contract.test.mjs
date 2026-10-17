@@ -25,58 +25,51 @@ const e2eRunner = await readFile(new URL("../scripts/run-playwright-e2e.mjs", im
 const fetchGraph = await readFile(new URL("../scripts/ci/fetch-pr-graph.mjs", import.meta.url), "utf8");
 const packageJson = JSON.parse(await readFile(new URL("../package.json", import.meta.url), "utf8"));
 
-test("public browser jobs shard all selected suites without sharing a GPU or losing reports", () => {
-  for (const [name, end] of [["e2e-public-chromium", "e2e-sauge-chromium"], ["webkit-critical", "ci-gate"]]) {
+test("public browser jobs distribute one selected test pool and retain every shard report", () => {
+  for (const [name, end, count] of [["e2e-public-chromium", "e2e-sauge-chromium", 12], ["webkit-critical", "ci-gate", 8]]) {
     const job = workflow.slice(workflow.indexOf(`  ${name}:`), workflow.indexOf(`  ${end}:`));
     assert.match(job, /fail-fast: false/);
-    assert.match(job, /shard: \[1, 2, 3, 4\]/);
-    for (const line of job.split("\n").filter(line => /run:.*(?:run-playwright-e2e|test:ci:e2e|test:seo:e2e)/.test(line))) {
-      assert.match(line, /--fully-parallel --shard=\$\{\{ matrix\.shard \}\}\/4/, line);
-      if (line.includes("npm run")) assert.match(line, / -- /, "npm must forward shard flags to Playwright");
-    }
-    assert.doesNotMatch(job, /mobile_filter|complement_status/);
-    if (name === "e2e-public-chromium") {
-      assert.match(job, /heavy_filter='rendered scroll choreography\|food zoom safety'/);
-      assert.match(job, /--grep "\$heavy_filter"/);
-      assert.match(job, /--grep-invert "\$heavy_filter\|Features keeps a stable natural reading frame"/,
-        'the separately verified Features baseline must not run twice');
-      assert.match(job, /heavy_status != 0 \|\| general_status != 0/);
-    }
-    for (const shard of [1, 2, 3, 4]) assert.match(job, new RegExp(`test_report_${shard}:`));
-    for (const line of job.split("\n").filter(line => /name:.*\$\{\{ github\.run_id \}\}/.test(line) && !line.includes("next-build-"))) {
-      assert.match(line, /matrix\.shard/, "shards must upload distinct artifacts");
-    }
+    assert.match(job, new RegExp(`test_shards: '${count}'`));
+    assert.doesNotMatch(job, /needs\.static-quality\.result|needs:.*static-quality/);
+    for (let shard = 1; shard <= count; shard++) assert.match(job, new RegExp(`test_report_${shard}:`));
+    assert.match(job, new RegExp(`--shard=\\$\\{\\{ matrix\\.shard \\}\\}/${count}`));
   }
+  const job = workflow.slice(workflow.indexOf('  e2e-public-chromium:'), workflow.indexOf('  e2e-sauge-chromium:'));
+  assert.doesNotMatch(job, /heavy_filter|Features reading frame regression|Landing browser smoke/);
+  assert.match(job, /node scripts\/run-playwright-e2e\.mjs "\$\{specs\[@\]\}"/);
+  assert.match(workflow, /ci-gate:[\s\S]*needs:.*static-quality/);
 });
 
-test("early Features geometry evidence is uploaded before full browser coverage and never masks failure", () => {
+test("the shared browser pool selects every applicable spec exactly once and rejects an empty pool", () => {
   const job = workflow.slice(workflow.indexOf('  e2e-public-chromium:'), workflow.indexOf('  e2e-sauge-chromium:'));
-  const earlyAt = job.indexOf('      - name: Features reading frame regression');
-  const uploadAt = job.indexOf('      - name: Upload Features reading frame evidence');
-  const coreAt = job.indexOf('      - name: Core browser smoke');
-  assert.ok(earlyAt >= 0 && uploadAt > earlyAt && coreAt > uploadAt, 'fast geometry evidence precedes longer suites');
-  const early = job.slice(earlyAt, uploadAt);
-  assert.match(early, /!cancelled\(\).*run_landing/);
-  assert.match(early, /npm run test:ci:e2e:landing -- --grep 'Features keeps a stable natural reading frame'/);
-  assert.match(early, /--output=test-results\/features-frame-baseline/);
-  assert.match(early, /CI_TEST_REPORT_PATH:.*\.ci-test-report-features-frame\.json/);
-  assert.doesNotMatch(early, /continue-on-error|\|\| true/);
-  const upload = job.slice(uploadAt, coreAt);
-  assert.match(upload, /always\(\)/);
-  assert.match(upload, /name: features-frame-\$\{\{ github\.run_id \}\}/);
-  assert.match(upload, /test-results\/features-frame-baseline/);
-  assert.match(upload, /\.ci-test-report-features-frame\.json/);
-  for (const name of ['Core browser smoke', 'Landing browser smoke', 'Shared menu browser smoke', 'SEO browser smoke']) {
-    const step = job.slice(job.indexOf(`      - name: ${name}`)).split('\n      - name:')[0];
-    assert.match(step, /if:.*!cancelled\(\)/, `${name} must still run after early geometry failure`);
-  }
+  const selector = job.match(/<<'NODE'\n([\s\S]+?)\n          NODE/)[1].replace(/^          /gm, '');
+  const flags = ["RUN_CORE", "RUN_LANDING", "RUN_MENU", "RUN_SEO"];
+  const execute = (active) => spawnSync(process.execPath, ["--input-type=module"], {
+    input: selector, encoding: "utf8",
+    env: { ...process.env, ...Object.fromEntries(flags.map(flag => [flag, String(active.includes(flag))])) },
+  });
+  const all = execute(flags);
+  assert.equal(all.status, 0, all.stderr);
+  const actual = all.stdout.trim().split("\n");
+  const expected = [...new Set([
+    ...["test:ci:e2e:core", "test:ci:e2e:landing", "test:ci:e2e:menu", "test:seo:e2e"]
+      .flatMap(name => packageJson.scripts[name].match(/\be2e\/[^\s]+\.spec\.ts\b/g)),
+    "e2e/landing-offers.spec.ts",
+  ])];
+  assert.deepEqual(actual.sort(), expected.sort());
+  assert.equal(actual.length, new Set(actual).size);
+  const landing = execute(["RUN_LANDING"]);
+  assert.equal(landing.status, 0, landing.stderr);
+  assert.deepEqual(landing.stdout.trim().split("\n").sort(),
+    ["e2e/landing-redesign.spec.ts", "e2e/landing-scroll.spec.ts", "e2e/landing-offers.spec.ts"].sort());
+  assert.notEqual(execute([]).status, 0, "empty selection must fail closed");
 });
 
 test("App CI exposes the production job topology and all event modes", () => {
   assert.doesNotMatch(workflow, /restaurant-geometry-ab|landing-performance|inputs\.(?:composition|diagnostic_profile|restaurant_ab|benchmark)/, "manual experiments must not appear as skipped PR checks");
   for (const job of [
     "classify-changes", "fast-gate", "static-quality", "database-contracts", "build-app",
-    "e2e-public-chromium", "e2e-sauge-chromium", "e2e-admin-qr-chromium", "webkit-critical"
+    "e2e-public-chromium", "e2e-sauge-chromium", "e2e-admin-browser", "webkit-critical"
   ]) assert.match(workflow, new RegExp(`^  ${job}:`, "m"));
   assert.match(workflow, /pull_request:/);
   assert.match(workflow, /push:/);
@@ -92,7 +85,7 @@ test("App CI exposes the production job topology and all event modes", () => {
 test("CI Gate is fail-closed and receives every job result", () => {
   assert.match(workflow, /name: CI Gate/);
   assert.match(workflow, /if: \$\{\{ always\(\) \}\}/);
-  for (const job of ["classify-changes", "fast-gate", "static-quality", "database-contracts", "build-app", "e2e-public-chromium", "e2e-sauge-chromium", "e2e-admin-qr-chromium", "webkit-critical"]) {
+  for (const job of ["classify-changes", "fast-gate", "static-quality", "database-contracts", "build-app", "e2e-public-chromium", "e2e-sauge-chromium", "e2e-admin-browser", "webkit-critical"]) {
     const jobResultPattern = new RegExp(`needs\\.${job}\\.result`);
     assert.match(workflow, jobResultPattern);
     assert.doesNotMatch(`needsX${job}Yresult`, jobResultPattern);
@@ -146,7 +139,7 @@ test("each App CI job has exactly one classifier-owned run output", () => {
     "build-app": "run_build",
     "e2e-public-chromium": "run_core",
     "e2e-sauge-chromium": "run_sauge",
-    "e2e-admin-qr-chromium": "run_admin_qr",
+    "e2e-admin-browser": "run_admin_qr",
     "webkit-critical": "run_webkit"
   };
   for (const [job, output] of Object.entries(jobOutputs)) {
@@ -169,14 +162,14 @@ test("each App CI job has exactly one classifier-owned run output", () => {
   assert.doesNotMatch(gate, /needs\.classify-changes\.outputs\.(?:docs_only|database|translations|landing|menu_shared|sauge_renderer|pageflip_gestures|admin|qr)/);
   assert.match(workflow, /name: fast-gate/);
   assert.match(workflow, /node --test tests\/ci-change-detection\.test\.mjs tests\/ci-workflow-contract\.test\.mjs tests\/preview-workflow-contract\.test\.mjs tests\/workflow-security-contract\.test\.mjs/);
-  for (const job of ["e2e-public-chromium", "e2e-sauge-chromium", "e2e-admin-qr-chromium", "webkit-critical"]) {
+  for (const job of ["e2e-public-chromium", "e2e-sauge-chromium", "e2e-admin-browser", "webkit-critical"]) {
     const start = workflow.indexOf(`  ${job}:`);
     const nextJobOffset = workflow.slice(start + 3).search(/^\n  [A-Za-z0-9_-]+:/m);
     const end = nextJobOffset < 0 ? workflow.length : start + 3 + nextJobOffset;
     const block = workflow.slice(start, end < 0 ? workflow.length : end);
-    assert.match(block, /needs: \[classify-changes, fast-gate, static-quality, build-app\]/, job);
-    assert.match(block, /needs\.fast-gate\.result == 'success'/, job);
-    assert.match(block, /needs\.static-quality\.result == 'success'/, job);
+    assert.match(block, /needs: \[classify-changes, build-app\]/, job);
+    assert.doesNotMatch(block, /needs\.fast-gate\.result/, job);
+    assert.doesNotMatch(block, /needs\.static-quality\.result/, job);
     assert.match(block, /needs\.build-app\.result == 'success'/, job);
   }
   assert.match(workflow, /actions: read/);
@@ -185,13 +178,13 @@ test("each App CI job has exactly one classifier-owned run output", () => {
 });
 
 test("browser jobs publish structured reports to the metrics collector", () => {
-  const browserJobs = ["e2e-public-chromium", "e2e-sauge-chromium", "e2e-admin-qr-chromium", "webkit-critical"];
+  const browserJobs = ["e2e-public-chromium", "e2e-sauge-chromium", "e2e-admin-browser", "webkit-critical"];
   for (const job of browserJobs) {
     const start = workflow.indexOf(`  ${job}:`);
     const nextJobOffset = workflow.slice(start + 3).search(/^\n  [A-Za-z0-9_-]+:/m);
     const end = nextJobOffset < 0 ? workflow.length : start + 3 + nextJobOffset;
     const block = workflow.slice(start, end);
-    assert.match(block, /outputs:\s+test_report(?:_[1-4])?:/s, `${job} must expose a report output`);
+    assert.match(block, /outputs:[\s\S]*test_report_\d+:/, `${job} must expose a report output`);
     assert.match(block, /CI_TEST_REPORT_PATH:/, `${job} must configure the report path`);
     assert.match(block, /id: publish-test-report/, `${job} must publish its report`);
     assert.match(block, /did not publish|no selected browser family/, `${job} must fail when the report is absent`);
@@ -281,7 +274,7 @@ test("App CI validates and executes the public navigation family", () => {
   const end = workflow.indexOf("  e2e-sauge-chromium:", start);
   const publicJob = workflow.slice(start, end);
   assert.match(publicJob, /outputs\.run_core == 'true'/);
-  assert.match(publicJob, /run: npm run test:ci:e2e:core/);
+  assert.match(publicJob, /RUN_CORE: 'test:ci:e2e:core'/);
 
   const gate = workflow.slice(workflow.indexOf("  ci-gate:"));
   assert.match(gate, /RUN_CORE/);
@@ -387,20 +380,16 @@ test("Asset Policy owns the repository asset checks", async () => {
   assert.doesNotMatch(staticJob, /assets:check|lfs:check/);
 });
 
-test("new offers acceptance runs before heavy suites in both existing browser jobs and retains evidence", () => {
-  for (const [name, end, project, later] of [
-    ['e2e-public-chromium', 'e2e-sauge-chromium', 'chromium', 'Features reading frame regression'],
-    ['webkit-critical', 'ci-gate', 'webkit', 'Admin dish image browser suite (WebKit)'],
+test("offers acceptance runs once in each browser pool and retains evidence", () => {
+  for (const [name, end] of [
+    ['e2e-public-chromium', 'e2e-sauge-chromium'],
+    ['webkit-critical', 'ci-gate'],
   ]) {
     const job = workflow.slice(workflow.indexOf(`  ${name}:`), workflow.indexOf(`  ${end}:`));
-    const acceptance = job.indexOf(`Offers presentation acceptance (${project})`);
-    assert.ok(acceptance > 0 && acceptance < job.indexOf(later));
-    assert.match(job, new RegExp(`e2e/landing-offers\\.spec\\.ts --project=${project} --workers=1 --retries=0 --forbid-only`));
-    assert.match(job, /CI_TEST_REPORT_PATH:.*\.ci-test-report-offers\.json/);
-    assert.match(job, /Retain offers projection and input evidence/);
-    assert.match(job, /test-results\/offers-acceptance/);
+    assert.equal(job.match(/specs\.(?:add|push)\('e2e\/landing-offers\.spec\.ts'\)/g)?.length, 1);
+    assert.match(job, /test-results\//);
     assert.match(job, /if-no-files-found: error/);
-    assert.match(job, /CI_TEST_REPORT_PATHS=.*\.ci-test-report-offers\.json|paths\+=\([^\n]*\.ci-test-report-offers\.json/);
+    assert.match(job, /report_\$\{CI_SHARD\}=\$report/);
     assert.doesNotMatch(job, /continue-on-error/);
   }
 });

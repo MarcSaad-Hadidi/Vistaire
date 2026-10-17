@@ -83,10 +83,10 @@ test("App CI supplies pinned PostgreSQL 17 and keeps asset policy separate", asy
     "npm run test:node",
     "npm run test:qr:postgres",
     "npm run test:qr:functional",
-    "npm run build",
-    "npm run test:ci:e2e:core"
+    "npm run build"
   ]) {
     assert.match(workflow, new RegExp(command.replace(/[.*+?^${}()|[\\]\\\\]/g, "\\\\$&")));
   }
   assert.doesNotMatch(workflow, /^\s*run:\s*npm run test:smoke\s*$/m);
+  assert.match(workflow, /RUN_CORE: 'test:ci:e2e:core'/);
 });

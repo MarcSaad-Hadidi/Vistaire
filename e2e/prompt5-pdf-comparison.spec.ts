@@ -1,317 +1,41 @@
-import { expect, test, type Locator, type Page } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 
-const MODEL_REQUEST_RE =
-  /\.(?:glb|usdz)(?:$|[?#])|\/model\/(?:glb|usdz)(?:$|[/?#])|model-viewer|babylon|three(?:\.module)?(?:\.min)?\.js|raw\.githubusercontent\.com|\/api\/.*(?:convert|conversion)/i;
-
-const VIEWPORTS = [
-  { width: 390, height: 844 },
-  { width: 430, height: 932 },
-  { width: 768, height: 1024 },
-  { width: 1280, height: 800 },
-  { width: 1440, height: 900 }
-] as const;
-
-function collectRuntimeFailures(page: Page) {
-  const consoleErrors: string[] = [];
-  const failedRequests: string[] = [];
-  const failedResponses: string[] = [];
-  const modelRequests: string[] = [];
-  const pageErrors: string[] = [];
-
-  page.on("request", (request) => {
-    if (MODEL_REQUEST_RE.test(request.url())) modelRequests.push(request.url());
-  });
-  page.on("requestfailed", (request) => {
-    failedRequests.push(
-      `${request.failure()?.errorText ?? "request failed"} ${request.url()}`
-    );
-  });
-  page.on("response", (response) => {
-    if (response.status() >= 400) {
-      failedResponses.push(`${response.status()} ${response.url()}`);
-    }
-  });
-  page.on("console", (message) => {
-    if (message.type() === "error") consoleErrors.push(message.text());
-  });
-  page.on("pageerror", (error) => pageErrors.push(error.message));
-
-  return {
-    consoleErrors,
-    failedRequests,
-    failedResponses,
-    modelRequests,
-    pageErrors
-  };
-}
-
-async function openPdfComparison(page: Page, path = "/menu-pdf-vs-menu-digital") {
-  const response = await page.goto(path, { waitUntil: "domcontentloaded" });
-  expect(response?.status()).toBeLessThan(400);
-
-  const comparison = page.getByTestId("landing-comparison");
-  await expect(comparison).toHaveAttribute("data-preview-status", "ready");
-  await expect(comparison).toHaveAttribute("data-tabs-interactive", "true", {
-    timeout: 15_000
-  });
-  await expect(
-    comparison.locator('[data-public-menu-renderer="maison-elyse"]')
-  ).toBeVisible({ timeout: 15_000 });
-  await comparison.scrollIntoViewIfNeeded();
-  await page.evaluate(() => document.fonts.ready);
-  return comparison;
-}
-
-async function comparisonBoxes(comparison: Locator) {
-  const phone = comparison.getByTestId("landing-comparison-phone");
-  const figure = comparison.locator('[data-preview-comparison="pdf-vs-digital"]');
-  const screen = comparison.getByRole("slider").locator("..");
-  const card = comparison.locator("xpath=ancestor::article[1]");
-  const [phoneBox, figureBox, screenBox, cardBox, transforms] =
-    await Promise.all([
-      phone.boundingBox(),
-      figure.boundingBox(),
-      screen.boundingBox(),
-      card.boundingBox(),
-      phone.evaluate((element) => ({
-        figure: getComputedStyle(
-          element.querySelector('[data-preview-comparison="pdf-vs-digital"]')!
-        ).transform,
-        phone: getComputedStyle(element).transform
-      }))
-    ]);
-
-  expect(phoneBox).not.toBeNull();
-  expect(figureBox).not.toBeNull();
-  expect(screenBox).not.toBeNull();
-  expect(cardBox).not.toBeNull();
-  return {
-    cardBox: cardBox!,
-    figureBox: figureBox!,
-    phoneBox: phoneBox!,
-    screenBox: screenBox!,
-    transforms
-  };
-}
-
-async function expectNoRuntimeFailures(
-  page: Page,
-  runtime: ReturnType<typeof collectRuntimeFailures>
-) {
-  await expect
-    .poll(() =>
-      page.evaluate(
-        () => document.documentElement.scrollWidth - document.documentElement.clientWidth
-      )
-    )
-    .toBeLessThanOrEqual(2);
-  expect(runtime.consoleErrors).toEqual([]);
-  expect(runtime.failedRequests).toEqual([]);
-  expect(runtime.failedResponses).toEqual([]);
-  expect(runtime.modelRequests).toEqual([]);
-  expect(runtime.pageErrors).toEqual([]);
-}
-
-async function expectSplitGeometry(comparison: Locator, expectedSplit: number) {
-  const slider = comparison.getByRole("slider");
-  const screen = slider.locator("..");
-  const [sliderBox, screenBox, layerGeometry] = await Promise.all([
-    slider.boundingBox(),
-    screen.boundingBox(),
-    slider.evaluate((handle) => {
-      const [pdfId, vistaireId] = handle.getAttribute("aria-controls")!.split(" ");
-      const pdf = document.getElementById(pdfId)!;
-      const vistaire = document.getElementById(vistaireId)!;
-      const rect = (element: Element) => {
-        const box = element.getBoundingClientRect();
-        return { height: box.height, width: box.width, x: box.x, y: box.y };
-      };
-      return {
-        pdfClip: getComputedStyle(pdf).clipPath,
-        pdfRect: rect(pdf),
-        vistaireClip: getComputedStyle(vistaire).clipPath,
-        vistaireRect: rect(vistaire)
-      };
-    })
-  ]);
-  expect(sliderBox).not.toBeNull();
-  expect(screenBox).not.toBeNull();
-
-  const expectedHandleX = screenBox!.x + screenBox!.width * (expectedSplit / 100);
-  expect(Math.abs(sliderBox!.x + sliderBox!.width / 2 - expectedHandleX)).toBeLessThanOrEqual(1.5);
-  for (const layerRect of [layerGeometry.pdfRect, layerGeometry.vistaireRect]) {
-    expect(Math.abs(layerRect.x - screenBox!.x)).toBeLessThanOrEqual(0.5);
-    expect(Math.abs(layerRect.y - screenBox!.y)).toBeLessThanOrEqual(0.5);
-    expect(Math.abs(layerRect.width - screenBox!.width)).toBeLessThanOrEqual(0.5);
-    expect(Math.abs(layerRect.height - screenBox!.height)).toBeLessThanOrEqual(0.5);
-  }
-  expect(layerGeometry.pdfClip).toContain(`${100 - expectedSplit}%`);
-  expect(layerGeometry.vistaireClip).toContain(`${expectedSplit}%`);
-}
-
-async function performTouchGesture(
-  page: Page,
-  start: { x: number; y: number },
-  end: { x: number; y: number }
-) {
-  const session = await page.context().newCDPSession(page);
-  try {
-    await session.send("Input.dispatchTouchEvent", {
-      type: "touchStart",
-      touchPoints: [{ ...start, id: 1 }]
+// The public PDF routes now use PdfMenuCinematic; the retired slider is absent.
+for (const profile of [
+  { path: "/menu-pdf-vs-menu-digital", width: 390, height: 844, menu: "/demo" },
+  { path: "/en/pdf-vs-digital-menu", width: 430, height: 932, menu: "/en/vistaire-menu" },
+  { path: "/menu-pdf-vs-menu-digital", width: 1440, height: 900, menu: "/demo" },
+]) {
+  test(`${profile.path} presents the PDF-to-digital journey at ${profile.width}px`, async ({ page }) => {
+    const errors: string[] = [];
+    page.on("pageerror", error => errors.push(error.message));
+    page.on("console", message => {
+      if (message.type() === "error") errors.push(message.text());
     });
-    for (let step = 1; step <= 4; step += 1) {
-      const progress = step / 4;
-      await session.send("Input.dispatchTouchEvent", {
-        type: "touchMove",
-        touchPoints: [
-          {
-            id: 1,
-            x: start.x + (end.x - start.x) * progress,
-            y: start.y + (end.y - start.y) * progress
-          }
-        ]
+    page.on("response", response => {
+      if (response.status() >= 400) errors.push(`${response.status()} ${new URL(response.url()).pathname}`);
+    });
+    await page.setViewportSize({ width: profile.width, height: profile.height });
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    const response = await page.goto(profile.path, { waitUntil: "domcontentloaded" });
+    expect(response?.status()).toBe(200);
+    const canvas = page.locator(".scene-canvas");
+    await expect(canvas).toHaveAttribute("data-ready", "true", { timeout: 60_000 });
+    await expect(page.locator(".preloader")).toHaveCount(0);
+    await expect(page.getByRole("heading", { level: 1 })).toHaveCount(1);
+    for (const [id, shot] of [["pdf-versus", "pdf-compare"], ["pdf-dish", "pdf-dish"]]) {
+      const chapter = page.locator(`#${id}`);
+      await chapter.evaluate(element => {
+        const travel = element.getBoundingClientRect().height - element.firstElementChild!.clientHeight;
+        scrollTo({ top: element.getBoundingClientRect().top + scrollY + travel / 2, behavior: "instant" });
       });
+      await expect(canvas).toHaveAttribute("data-section", shot);
+      await expect(chapter).not.toHaveAttribute("inert");
+      await expect(chapter.getByRole("heading").first()).toBeInViewport();
     }
-    await session.send("Input.dispatchTouchEvent", {
-      type: "touchEnd",
-      touchPoints: []
-    });
-  } finally {
-    await session.detach();
-  }
-}
-
-for (const viewport of VIEWPORTS) {
-  test(`emphasizes the PDF phone with real 9:16 geometry at ${viewport.width}x${viewport.height}`, async ({
-    page
-  }) => {
-    const runtime = collectRuntimeFailures(page);
-    await page.setViewportSize(viewport);
-    const comparison = await openPdfComparison(page);
-    const boxes = await comparisonBoxes(comparison);
-
-    // The responsive article now contains editorial copy beside the comparison.
-    // Size the device against its own available column, not the whole article or
-    // historical page widths. This guards the actual 440/530px emphasis contract.
-    const deviceMaxWidth = viewport.width >= 1360 ? 530 : 440;
-    const expectedWidth = Math.min(boxes.phoneBox.width, deviceMaxWidth);
-    expect(boxes.figureBox.width).toBeCloseTo(expectedWidth, 0);
-    expect(boxes.figureBox.width).toBeGreaterThanOrEqual(300);
-    const slotCenter = boxes.phoneBox.x + boxes.phoneBox.width / 2;
-    const deviceCenter = boxes.figureBox.x + boxes.figureBox.width / 2;
-    expect(Math.abs(deviceCenter - slotCenter)).toBeLessThanOrEqual(1);
-    await expect(comparison).toHaveAttribute("data-device-emphasis", "true");
-    expect(boxes.screenBox.width / boxes.screenBox.height).toBeCloseTo(9 / 16, 2);
-    expect(boxes.transforms).toEqual({ figure: "none", phone: "none" });
-    expect(boxes.figureBox.x).toBeGreaterThanOrEqual(boxes.cardBox.x);
-    expect(boxes.figureBox.x + boxes.figureBox.width).toBeLessThanOrEqual(
-      boxes.cardBox.x + boxes.cardBox.width
-    );
-
-    await expectNoRuntimeFailures(page, runtime);
+    expect(await page.locator("#pdf-versus .cinematic-compare dt").count()).toBeGreaterThan(0);
+    await expect(page.locator("#pdf-dish .cinematic-actions a")).toHaveAttribute("href", profile.menu);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
+    expect(errors).toEqual([]);
   });
 }
-
-test("keeps keyboard, clip, handle, and pointer geometry exact", async ({ page }) => {
-  const runtime = collectRuntimeFailures(page);
-  await page.setViewportSize({ width: 1280, height: 800 });
-  const comparison = await openPdfComparison(page);
-  const slider = comparison.getByRole("slider");
-  await slider.focus();
-  await slider.press("Home");
-  await slider.press("Shift+ArrowRight");
-  await slider.press("Shift+ArrowRight");
-  await slider.press("Shift+ArrowRight");
-  await expect(slider).toHaveAttribute("aria-valuenow", "30");
-  await expectSplitGeometry(comparison, 30);
-
-  const [handleBox, screenBox] = await Promise.all([
-    slider.boundingBox(),
-    slider.locator("..").boundingBox()
-  ]);
-  expect(handleBox).not.toBeNull();
-  expect(screenBox).not.toBeNull();
-  await page.mouse.move(
-    handleBox!.x + handleBox!.width / 2,
-    handleBox!.y + handleBox!.height / 2
-  );
-  await page.mouse.down();
-  await page.mouse.move(
-    screenBox!.x + screenBox!.width * 0.72,
-    screenBox!.y + screenBox!.height / 2
-  );
-  await page.mouse.up();
-  await expect(slider).toHaveAttribute("aria-valuenow", "72");
-  await expectSplitGeometry(comparison, 72);
-  await expectNoRuntimeFailures(page, runtime);
-});
-
-test("keeps touch drag geometry exact on the emphasized mobile phone", async ({
-  browser
-}) => {
-  const context = await browser.newContext({
-    hasTouch: true,
-    isMobile: true,
-    locale: "fr-CA",
-    viewport: { width: 390, height: 844 }
-  });
-  const page = await context.newPage();
-  try {
-    const runtime = collectRuntimeFailures(page);
-    const comparison = await openPdfComparison(page);
-    const slider = comparison.getByRole("slider");
-    const [handleBox, screenBox] = await Promise.all([
-      slider.boundingBox(),
-      slider.locator("..").boundingBox()
-    ]);
-    expect(handleBox).not.toBeNull();
-    expect(screenBox).not.toBeNull();
-    await performTouchGesture(
-      page,
-      {
-        x: handleBox!.x + handleBox!.width / 2,
-        y: handleBox!.y + handleBox!.height / 2
-      },
-      {
-        x: screenBox!.x + screenBox!.width * 0.22,
-        y: screenBox!.y + screenBox!.height / 2
-      }
-    );
-    await expect(slider).toHaveAttribute("aria-valuenow", "22");
-    await expectSplitGeometry(comparison, 22);
-    await expectNoRuntimeFailures(page, runtime);
-  } finally {
-    await context.close();
-  }
-});
-
-test("keeps the emphasis localized to both PDF routes", async ({ page }) => {
-  test.setTimeout(90_000);
-  await page.setViewportSize({ width: 430, height: 932 });
-  await openPdfComparison(page, "/en/pdf-vs-digital-menu");
-
-  for (const path of ["/menu-digital-restaurant", "/en/digital-restaurant-menu"]) {
-    await page.goto(path, { waitUntil: "domcontentloaded" });
-    const comparison = page.getByTestId("landing-comparison");
-    await expect(comparison).toHaveAttribute("data-device-emphasis", "false");
-  }
-});
-
-test("keeps one sample-menu destination in each final conversion block", async ({
-  page
-}) => {
-  for (const scenario of [
-    { path: "/menu-pdf-vs-menu-digital", menuHref: "/demo" },
-    { path: "/en/pdf-vs-digital-menu", menuHref: "/en/vistaire-menu" }
-  ]) {
-    await page.goto(scenario.path, { waitUntil: "domcontentloaded" });
-    const finalConversion = page.locator(
-      'section[aria-labelledby="final-cta-title"]'
-    );
-    await expect(finalConversion).toHaveCount(1);
-    await expect(
-      finalConversion.locator(`a[href="${scenario.menuHref}"]`)
-    ).toHaveCount(1);
-  }
-});

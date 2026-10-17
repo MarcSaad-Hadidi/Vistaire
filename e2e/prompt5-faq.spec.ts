@@ -111,6 +111,8 @@ for (const route of ROUTES) {
     const panel = page.locator('[data-slot="accordion-item"]').nth(1).locator('[data-seo-faq-answer]');
     await expect(panel).toHaveCount(1);
     await expect(panel).toBeHidden();
+    await expect(page.locator(".preloader")).toHaveCount(0, { timeout: 60_000 });
+    await second.scrollIntoViewIfNeeded();
     await second.focus();
     await expect(second).toBeFocused();
     expect(await second.evaluate((element) => element.matches(":focus-visible"))).toBe(true);

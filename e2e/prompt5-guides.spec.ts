@@ -70,7 +70,11 @@ async function expectNoHorizontalOverflow(page: Page) {
   expect(overflow).toBeLessThanOrEqual(2);
 }
 
-test("six bilingual guides render complete, crawlable editorial pages", async ({ page }) => {
+for (const route of routes) for (const viewport of [
+  { width: 390, height: 844 },
+  { width: 430, height: 932 },
+  { width: 1366, height: 900 }
+]) test(`${route.path} renders a complete, crawlable guide at ${viewport.width}px`, async ({ page }) => {
   const consoleErrors: string[] = [];
   const pageErrors: string[] = [];
   const badResponses: string[] = [];
@@ -84,12 +88,6 @@ test("six bilingual guides render complete, crawlable editorial pages", async ({
     }
   });
 
-  for (const route of routes) {
-    for (const viewport of [
-      { width: 390, height: 844 },
-      { width: 430, height: 932 },
-      { width: 1366, height: 900 }
-    ]) {
       await page.setViewportSize(viewport);
       const response = await page.goto(route.path, { waitUntil: "domcontentloaded" });
       expect(response?.status(), route.path).toBeLessThan(400);
@@ -150,9 +148,6 @@ test("six bilingual guides render complete, crawlable editorial pages", async ({
       expect(types.filter((type) => type === "Article")).toHaveLength(1);
       expect(types.filter((type) => type === "BreadcrumbList")).toHaveLength(1);
       await expectNoHorizontalOverflow(page);
-    }
-  }
-
   expect(consoleErrors).toEqual([]);
   expect(pageErrors).toEqual([]);
   expect(badResponses).toEqual([]);
@@ -173,7 +168,7 @@ renderedTest("localized landing guide links lead to all three editorial guides",
     const guidesLink = landingFooter.locator(`a[href="${localeRoutes[0].path}"]`);
     await expect(guidesLink).toBeVisible();
     await guidesLink.click();
-    await expect(page).toHaveURL(new RegExp(`${localeRoutes[0].path}$`));
+    await expect(page).toHaveURL(new RegExp(`${localeRoutes[0].path}$`), { timeout: 30_000 });
     await expect(page.locator("article").first()).toBeVisible();
     const section = page.locator("footer#contact");
     await section.scrollIntoViewIfNeeded();

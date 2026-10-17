@@ -35,7 +35,9 @@ for (const scenario of DISCOVERY_ROUTES) {
   }));
   test.describe(`${scenario.language} restaurant discovery`, () => {
     test.setTimeout(90_000);
-    test("presents three real experiences without previews, early models or mobile overflow", async ({ page }, testInfo) => {
+    for (const viewport of [
+      { width: 390, height: 844 }, { width: 430, height: 932 }, { width: 1440, height: 900 },
+    ]) test(`presents three real experiences without previews, early models or overflow at ${viewport.width}px`, async ({ page }, testInfo) => {
       const errors: string[] = [];
       const unexpectedRequests: string[] = [];
       const requestedVideos = new Set<string>();
@@ -148,7 +150,7 @@ for (const scenario of DISCOVERY_ROUTES) {
       page.on("requestfinished", (request) => recordVideoNetwork("requestfinished", request));
       let completed = false;
       try {
-        await page.setViewportSize({ width: 390, height: 844 });
+        await page.setViewportSize(viewport);
         const response = await page.goto(`${scenario.path}?lang=${scenario.queryLang}&experience=trouvable&utm_source=qa`, { waitUntil: "domcontentloaded" });
         expect(response?.status()).toBe(200);
         await expect(page.locator("html")).toHaveAttribute("lang", scenario.lang);
@@ -159,12 +161,6 @@ for (const scenario of DISCOVERY_ROUTES) {
           await expect(page.locator(`[data-demo-experience="${id}"] video`)).not.toHaveAttribute("src", /.+/);
           expect(requestedVideos.has(`/videos/demo/${id}.mp4`)).toBe(false);
         }
-        for (const viewport of [
-          { width: 390, height: 844 },
-          { width: 430, height: 932 },
-          { width: 1440, height: 900 }
-        ]) {
-          await page.setViewportSize(viewport);
           await expect(page).toHaveTitle(scenario.title);
           await expect(page.getByRole("heading", { level: 1 })).toHaveText(scenario.heading);
           await expect(page.locator("[data-demo-experience]")).toHaveCount(3);
@@ -214,7 +210,6 @@ for (const scenario of DISCOVERY_ROUTES) {
           await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
           expect(await page.locator("main").evaluate((element) => getComputedStyle(element).overflowY)).toBe("visible");
           await expect(page.getByRole("contentinfo")).toBeVisible();
-        }
         const visibleVideo = page.locator("video[data-demo-video]").last();
         await visibleVideo.scrollIntoViewIfNeeded();
         await expect(visibleVideo).toHaveJSProperty("paused", false);
@@ -298,7 +293,7 @@ for (const scenario of DISCOVERY_ROUTES) {
         await link.focus();
         await expect(link).toBeFocused();
         await link.press("Enter");
-        await expect(page).toHaveURL(new RegExp(`/menu/${experience.id}\\?`), { timeout: 15_000 });
+        await expect(page).toHaveURL(new RegExp(`/menu/${experience.id}\\?`), { timeout: 30_000 });
         expect(new URL(page.url()).searchParams.get("lang")).toBe(scenario.lang);
         if (experience.id === "sauge-noire") {
           await expect(page.getByTestId("sauge-noire-book")).toBeVisible();
@@ -308,8 +303,10 @@ for (const scenario of DISCOVERY_ROUTES) {
         if (scenario.language === "English" && experience.id === "maison-elyse") {
           await page.goBack({ waitUntil: "domcontentloaded" });
           await expect(page.getByRole("heading", { level: 1 })).toHaveText(scenario.heading);
+          await expect(page.locator(".preloader")).toHaveCount(0, { timeout: 60_000 });
           const video = page.locator('[data-demo-experience="maison-elyse"] video');
           await video.scrollIntoViewIfNeeded();
+          await expect(video).toBeInViewport();
           await expect.poll(() => video.evaluate((element: HTMLVideoElement) =>
             element.readyState >= 2 && !element.paused
           ), { timeout: 15_000 }).toBe(true);

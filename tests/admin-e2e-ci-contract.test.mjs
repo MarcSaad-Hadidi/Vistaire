@@ -89,13 +89,13 @@ test("App CI uses targeted jobs and keeps the data-dependent smoke available loc
     "npm run test:node",
     "npm run test:qr:postgres",
     "npm run build",
-    "npm run test:qr:functional",
-    "npm run test:ci:e2e:core",
-    "npm run test:seo:e2e"
+    "npm run test:qr:functional"
   ]) {
     assert.match(workflow, new RegExp(command.replace(/[.*+?^${}()|[\\]\\\\]/g, "\\\\$&")));
   }
-  for (const job of ["classify-changes", "fast-gate", "static-quality", "database-contracts", "build-app", "e2e-public-chromium", "e2e-sauge-chromium", "e2e-admin-qr-chromium", "webkit-critical"]) {
+  assert.match(workflow, /RUN_CORE: 'test:ci:e2e:core'/);
+  assert.match(workflow, /RUN_SEO: 'test:seo:e2e'/);
+  for (const job of ["classify-changes", "fast-gate", "static-quality", "database-contracts", "build-app", "e2e-public-chromium", "e2e-sauge-chromium", "e2e-admin-browser", "webkit-critical"]) {
     assert.match(workflow, new RegExp(`^  ${job}:`, "m"));
   }
   assert.match(workflow, /merge_group:/);
@@ -105,7 +105,7 @@ test("App CI uses targeted jobs and keeps the data-dependent smoke available loc
   assert.match(assetWorkflow, /npm run assets:check/);
   assert.match(assetWorkflow, /npm run lfs:check/);
   assert.doesNotMatch(workflow.slice(workflow.indexOf("  static-quality:"), workflow.indexOf("  database-contracts:")), /assets:check|lfs:check/);
-  assert.ok(workflow.indexOf("npm run build") < workflow.indexOf("npm run test:ci:e2e:core"), "build is declared before browser jobs");
+  assert.ok(workflow.indexOf("npm run build") < workflow.indexOf("  e2e-public-chromium:"), "build is declared before browser jobs");
   assert.doesNotMatch(workflow, /^\s*run:\s*npm run test:smoke\s*$/m);
   assert.doesNotMatch(fullSmoke, /test\.skip/);
   assert.match(workflow, /image:\s*postgres:17/);
@@ -147,7 +147,7 @@ test("App CI keeps deterministic checks blocking with the Sauge Noire browser pr
   assert.match(workflow, /webkit-critical:/);
   assert.match(workflow, /playwright install --with-deps webkit/);
   assert.match(workflow, /npm run test:ci:e2e:sauge/);
-  assert.match(workflow, /npm run test:ci:e2e:webkit/);
+  assert.match(workflow, /scripts\['test:ci:e2e:webkit'\]/);
   assert.ok(
     workflow.indexOf("npm run build") <
       workflow.indexOf("npm run test:ci:e2e:sauge"),
@@ -402,8 +402,11 @@ test("full-menu admin image coverage has a dedicated non-skipping cross-browser 
   assert.match(sharedRunner, /useAdminVisualFixture/);
   assert.match(sharedRunner, /taskkill\.exe/);
   assert.match(sharedRunner, /Admin E2E teardown left a fixture or app listener running/);
-  assert.match(workflow, /Admin dish image browser suite \(Chromium\)[\s\S]*VISTAIRE_ADMIN_FULL_MENU_PROJECT: chromium[\s\S]*npm run test:admin:full-menu/);
-  assert.match(workflow, /Admin dish image browser suite \(WebKit\)[\s\S]*VISTAIRE_ADMIN_FULL_MENU_PROJECT: webkit[\s\S]*npm run test:admin:full-menu/);
+  assert.match(workflow, /VISTAIRE_ADMIN_FULL_MENU_PROJECT: \$\{\{ matrix\.browser \}\}/);
+  assert.match(workflow, /browser: chromium/);
+  assert.match(workflow, /browser: webkit/);
+  assert.match(workflow, /npm run test:admin:full-menu -- --fully-parallel --shard=\$\{\{ matrix\.part \}\}\/2/);
+  assert.match(runner, /\.\.\.process\.argv\.slice\(2\)/);
   assert.match(spec, /toHaveCount\(12\)/);
   assert.match(spec, /data-available="false"/);
 });
@@ -446,10 +449,14 @@ test("admin E2E specification contains no mojibake", async () => {
   assert.match(spec, /Accès dashboard restaurant requis/);
 });
 
-test("WebKit validates Studio before independent public video journeys without suppressing either suite", async () => {
+test("Studio and public WebKit run independently and both remain required", async () => {
   const workflow = await readFile(".github/workflows/app-ci.yml", "utf8");
+  const studio = workflow.slice(workflow.indexOf("  e2e-admin-browser:"), workflow.indexOf("  webkit-critical:"));
   const webkit = workflow.slice(workflow.indexOf("  webkit-critical:"), workflow.indexOf("  ci-gate:"));
-  assert.ok(webkit.indexOf("npm run test:admin:full-menu") < webkit.indexOf("npm run test:ci:e2e:webkit"));
-  assert.match(webkit, /name: Public critical browser suite \(WebKit\)\n\s+if: \$\{\{ !cancelled\(\) \}\}\n\s+run: npm run test:ci:e2e:webkit/);
-  assert.doesNotMatch(webkit, /continue-on-error/);
+  assert.match(studio, /npm run test:admin:full-menu/);
+  assert.match(studio, /browser: webkit/);
+  assert.doesNotMatch(webkit, /test:admin:full-menu/);
+  assert.match(webkit, /Public critical browser suite \(WebKit\)/);
+  assert.match(workflow.slice(workflow.indexOf("  ci-gate:")), /e2e-admin-browser.*webkit-critical/);
+  assert.doesNotMatch(studio + webkit, /continue-on-error/);
 });

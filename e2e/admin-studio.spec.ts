@@ -131,7 +131,9 @@ for (const width of [390, 430, 1440]) {
     await expect(page.locator("[data-admin-studio]")).toHaveAttribute("data-theme", "dark");
     const nav = page.getByRole("navigation", { name: "Navigation principale" });
     for (const name of ["Analyses", "Les plats", "Planning"]) {
-      await nav.getByRole("link", { name, exact: true }).click();
+      const destination = nav.getByRole("link", { name, exact: true });
+      await destination.click();
+      await expect(destination).toHaveAttribute("aria-current", "page", { timeout: 15_000 });
       await expect(page.getByRole("heading", { level: 1 })).toHaveText(name);
       const exporter = page.getByRole("button", {
         name: "Exporter",

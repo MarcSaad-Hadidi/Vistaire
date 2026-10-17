@@ -488,6 +488,7 @@ html[data-vistaire-theme]
   display: block;
   width: 100%;
   height: auto;
+  aspect-ratio: 1184 / 758;
 }
 :where([data-immersive-vistaire]) .pricing-pilotage-price {
   display: block;

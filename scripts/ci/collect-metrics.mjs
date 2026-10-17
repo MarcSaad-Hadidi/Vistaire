@@ -30,7 +30,7 @@ const RUN_OUTPUTS = [
 const ORDERED_JOBS = [
   "classify-changes", "fast-gate", "static-quality", "database-contracts",
   "build-app", "e2e-public-chromium", "e2e-sauge-chromium",
-  "e2e-admin-qr-chromium", "webkit-critical", "CI Gate"
+  "e2e-admin-browser", "webkit-critical", "CI Gate"
 ];
 
 const expectedFromEnv = (env) => ({
@@ -40,7 +40,7 @@ const expectedFromEnv = (env) => ({
   "build-app": env.RUN_BUILD === "true",
   "e2e-public-chromium": [env.RUN_CORE, env.RUN_LANDING, env.RUN_MENU, env.RUN_SEO].some((value) => value === "true"),
   "e2e-sauge-chromium": env.RUN_SAUGE === "true",
-  "e2e-admin-qr-chromium": env.RUN_ADMIN_QR === "true",
+  "e2e-admin-browser": env.RUN_ADMIN_QR === "true",
   "webkit-critical": env.RUN_WEBKIT === "true"
 });
 
@@ -111,7 +111,7 @@ function normalizeJob(job, expected) {
     id: job?.id,
     result,
     status,
-    expected: expected[String(job?.name ?? "").replace(/ \(\d+\/4\)$/, "")],
+    expected: expected[String(job?.name ?? "").replace(/ \(\d+\/\d+\)$/, "")],
     steps: stepMetrics(job)
   };
   for (const [key, value] of Object.entries({
@@ -253,10 +253,11 @@ function parseStructuredReports(value) {
     for (const [name, payload] of Object.entries(parsed ?? {})) {
       const outputs = payload?.outputs ?? payload;
       for (const [key, raw] of Object.entries(outputs ?? {})) {
-        const match = /^test_report(?:_([1-4]))?$/.exec(key);
+        const match = /^test_report(?:_(\d+))?$/.exec(key);
         if (!match || !raw) continue;
         try {
-          reports[match[1] ? `${name} (${match[1]}/4)` : name] = typeof raw === "string" ? JSON.parse(raw) : raw;
+          if (match[1] && (!Number.isInteger(Number(outputs.test_shards)) || Number(outputs.test_shards) < Number(match[1]))) continue;
+          reports[match[1] ? `${name} (${match[1]}/${outputs.test_shards})` : name] = typeof raw === "string" ? JSON.parse(raw) : raw;
         } catch {
           // Malformed reports stay unavailable rather than inventing totals.
         }
@@ -402,8 +403,8 @@ export async function collectMetrics({ env = process.env, fetchImpl = globalThis
     if (fileTotals) analysis.reports = { totals: fileTotals, sources: fileTotals ? 1 : 0 };
   }
   if (analysis && !analysis.reports.totals) {
-    const browserJobs = new Set(["e2e-public-chromium", "e2e-sauge-chromium", "e2e-admin-qr-chromium", "webkit-critical"]);
-    const expectedBrowserJobs = analysis.summary.jobs_expected.filter((name) => browserJobs.has(name));
+    const browserJobs = new Set(["e2e-public-chromium", "e2e-sauge-chromium", "e2e-admin-browser", "webkit-critical"]);
+    const expectedBrowserJobs = analysis.summary.jobs_expected.filter((name) => browserJobs.has(name.replace(/ \(\d+\/\d+\)$/, "")));
     if (expectedBrowserJobs.length === 0) {
       analysis.reports = {
         totals: { total: 0, passed: 0, failed: 0, skipped: 0, flaky: 0, interrupted: 0 },

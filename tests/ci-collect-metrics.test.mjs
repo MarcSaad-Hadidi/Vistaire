@@ -12,14 +12,14 @@ test("matrix outputs retain every shard's test counts when the PR has no API tok
   const report = { total: 2, passed: 1, failed: 1, skipped: 0, flaky: 0, interrupted: 0 };
   const metrics = await collectMetrics({
     env: { CI_TEST_REPORTS_JSON: JSON.stringify({ "e2e-public-chromium": { outputs: {
-      test_report_1: JSON.stringify(report), test_report_2: JSON.stringify(report),
-      test_report_3: JSON.stringify(report), test_report_4: JSON.stringify(report)
+      test_shards: "12",
+      ...Object.fromEntries(Array.from({ length: 12 }, (_, index) => [`test_report_${index + 1}`, JSON.stringify(report)]))
     } } }) },
     write: async () => {}
   });
-  assert.equal(metrics.tests.total, 8);
-  assert.equal(metrics.tests.failed, 4);
-  assert.equal(metrics.tests.report_sources, 4);
+  assert.equal(metrics.tests.total, 24);
+  assert.equal(metrics.tests.failed, 12);
+  assert.equal(metrics.tests.report_sources, 12);
 });
 
 test("green run excludes the collector and reports zero job failures", () => {
@@ -112,7 +112,7 @@ test("structured PR reports remain measurable when the API token is withheld", a
     CI_TEST_REPORTS_JSON: JSON.stringify({
       "e2e-public-chromium": { outputs: { test_report: report(28) } },
       "e2e-sauge-chromium": { outputs: { test_report: report(66) } },
-      "e2e-admin-qr-chromium": { outputs: { test_report: report(7) } },
+      "e2e-admin-browser": { outputs: { test_report: report(7) } },
       "webkit-critical": { outputs: { test_report: report(10) } }
     })
   };

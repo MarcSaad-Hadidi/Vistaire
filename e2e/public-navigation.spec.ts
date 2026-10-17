@@ -10,6 +10,15 @@ test.describe.configure({ timeout: 240_000 });
 const focusDiagnosticScenario = /landing-style public Menu|public Menu keeps every link|navbar stays visible|landing Menu shares/;
 
 test.beforeEach(async ({ page }, info) => {
+  // Secondary-page navigation owns links/focus/theme, not software 3D speed.
+  // Landing journeys and the rendered suites keep the healthy full renderer.
+  await page.addInitScript(() => {
+    const original = HTMLCanvasElement.prototype.getContext;
+    HTMLCanvasElement.prototype.getContext = function (this: HTMLCanvasElement, type: string, ...args: unknown[]) {
+      return type.startsWith('webgl') && location.pathname !== '/' && location.pathname !== '/en'
+        ? null : Reflect.apply(original, this, [type, ...args]);
+    } as typeof original;
+  });
   if (!focusDiagnosticScenario.test(info.title)) return;
   await page.addInitScript(() => {
     const scope = '[data-public-navigation-toggle], [data-public-navigation-open], [data-public-menu], .mobile-menu';
@@ -460,8 +469,7 @@ test.describe("Vistaire public navigation", () => {
     });
   }
 
-  test("uses the same public top bar on pricing in both languages", async ({ page }) => {
-    for (const scenario of [
+  for (const scenario of [
       {
         path: "/tarifs-menu-digital-restaurant",
         brand: "Vistaire - accueil",
@@ -479,6 +487,7 @@ test.describe("Vistaire public navigation", () => {
         compactCta: "Book"
       }
     ] as const) {
+  test(`uses the same public top bar on pricing in both languages: ${scenario.path}`, async ({ page }) => {
       await page.goto(scenario.path, { waitUntil: "domcontentloaded" });
       await showPublicNavigation(page);
       const nav = topNavigation(page);
@@ -503,8 +512,8 @@ test.describe("Vistaire public navigation", () => {
           exact: true
         })
       ).toBeVisible();
-    }
   });
+  }
 
   test("keeps immersive chapter navigation valid in both locales", async ({ page }, testInfo) => {
     test.setTimeout(240_000);
@@ -598,11 +607,11 @@ test.describe("Vistaire public navigation", () => {
     }
   });
 
-  test("keeps the canonical menu route and local Carte anchor", async ({ page }) => {
-    for (const scenario of [
+  for (const scenario of [
       { path: "/demo", label: "Carte", expectedPath: "/" },
       { path: "/en/vistaire-menu", label: "Menu", expectedPath: "/en" }
     ] as const) {
+  test(`keeps the canonical menu route and local Carte anchor: ${scenario.path}`, async ({ page }) => {
       await page.goto(scenario.path, { waitUntil: "domcontentloaded" });
       await showPublicNavigation(page);
       const nav = topNavigation(page);
@@ -623,13 +632,10 @@ test.describe("Vistaire public navigation", () => {
         nav,
         scenario.path.startsWith("/en/") ? "en" : "fr"
       );
-    }
   });
+  }
 
-  test("keeps About and Contact local anchors only on their canonical routes", async ({
-    page
-  }) => {
-    for (const scenario of [
+  for (const scenario of [
       {
         path: "/a-propos",
         label: "À propos",
@@ -655,6 +661,7 @@ test.describe("Vistaire public navigation", () => {
         anchor: "#contact-preview"
       }
     ] as const) {
+  test(`keeps About and Contact local anchors only on their canonical routes: ${scenario.path}`, async ({ page }) => {
       await page.goto(scenario.path, { waitUntil: "domcontentloaded" });
       await showPublicNavigation(page);
       const nav = topNavigation(page);
@@ -671,13 +678,10 @@ test.describe("Vistaire public navigation", () => {
         nav,
         scenario.path.startsWith("/en/") ? "en" : "fr"
       );
-    }
   });
+  }
 
-  test("uses canonical Carte and About destinations from secondary pages", async ({
-    page
-  }) => {
-    for (const scenario of [
+  for (const scenario of [
       {
         path: "/menu-digital-restaurant",
         menuLabel: "Carte",
@@ -693,6 +697,7 @@ test.describe("Vistaire public navigation", () => {
         aboutPath: "/en/about"
       }
     ] as const) {
+  test(`uses canonical Carte and About destinations from secondary pages: ${scenario.path}`, async ({ page }) => {
       await page.goto(scenario.path, { waitUntil: "domcontentloaded" });
       await showPublicNavigation(page);
       const nav = topNavigation(page);
@@ -713,13 +718,10 @@ test.describe("Vistaire public navigation", () => {
         nav,
         scenario.path.startsWith("/en/") ? "en" : "fr"
       );
-    }
   });
+  }
 
-  test("uses canonical Contact from appointment pages and from a GEO page", async ({
-    page
-  }) => {
-    for (const scenario of [
+  for (const scenario of [
       { path: "/prendre-rendez-vous", expectedContact: "/contact", home: "/" },
       { path: "/en/book-a-call", expectedContact: "/en/contact", home: "/en" },
       { path: "/menu-qr-sans-pdf", expectedContact: "/contact", home: "/" },
@@ -729,6 +731,7 @@ test.describe("Vistaire public navigation", () => {
         home: "/en"
       }
     ] as const) {
+  test(`uses canonical Contact from appointment pages and from a GEO page: ${scenario.path}`, async ({ page }) => {
       await page.goto(scenario.path, { waitUntil: "domcontentloaded" });
       await showPublicNavigation(page);
       const nav = topNavigation(page);
@@ -750,8 +753,8 @@ test.describe("Vistaire public navigation", () => {
         nav,
         scenario.home === "/" ? "fr" : "en"
       );
-    }
   });
+  }
 
   test("preserves accessible navigation names and keyboard focus", async ({
     browser,

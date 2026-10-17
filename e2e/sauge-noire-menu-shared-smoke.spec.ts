@@ -73,7 +73,10 @@ test.describe("shared public menu smoke · one Chromium fixture", () => {
     const expectHealthy = installHealthChecks(page);
     const modelRequests: string[] = [];
     page.on("request", (request) => {
-      if (/\.(?:glb|usdz)(?:$|[?#])/i.test(request.url())) modelRequests.push(request.url());
+      const url = new URL(request.url());
+      // The discovery page owns a 3D room; dish/AR assets still require intent.
+      if (/\.(?:glb|usdz)(?:$|[?#])/i.test(url.pathname)
+        && !url.pathname.startsWith('/immersive-assets/')) modelRequests.push(request.url());
     });
 
     await expectHealthyNavigation(page, "/demo");

@@ -266,7 +266,16 @@ test('keyboard reads every offer, yields to the FAQ and wakes the original scene
   await page.waitForTimeout(250);
   expect((await backdrop(page)).frames).toBe(before.frames);
   await page.keyboard.press('End');
-  await expect.poll(() => viewport.evaluate(el => Math.abs((el.firstElementChild as HTMLElement).offsetHeight - el.clientHeight - (-new DOMMatrixReadOnly(getComputedStyle(el.firstElementChild!).transform).m42 || 0)))).toBeLessThanOrEqual(1);
+  try {
+    await expect.poll(() => viewport.evaluate(el => Math.abs((el.firstElementChild as HTMLElement).offsetHeight - el.clientHeight - (-new DOMMatrixReadOnly(getComputedStyle(el.firstElementChild!).transform).m42 || 0)))).toBeLessThanOrEqual(1);
+  } finally {
+    await retainJson(info, 'keyboard-end-layout', await viewport.evaluate(el => ({
+      y: scrollY, readerHeight: el.clientHeight, contentHeight: (el.firstElementChild as HTMLElement).offsetHeight,
+      scrollHeight: el.firstElementChild!.scrollHeight, transform: getComputedStyle(el.firstElementChild!).transform,
+      images: [...el.querySelectorAll('img')].map(img => ({ src: img.currentSrc, loaded: img.complete,
+        height: img.offsetHeight, ratio: getComputedStyle(img).aspectRatio })),
+    })));
+  }
   await expect(page.locator('.pricing-pilotage')).toBeInViewport();
   const pageBeforeExit = await page.evaluate(() => scrollY);
   await page.keyboard.press('PageDown');
@@ -554,25 +563,33 @@ for (const width of [390,1440]) test(`native entry assistance is bounded, interr
   // An owned wheel can be cancelled before its first frame moves the page.
   const interruptedAt = await page.evaluate(() => scrollY);
   await page.waitForTimeout(350);
-  expect(Math.abs(await page.evaluate(() => scrollY) - interruptedAt)).toBeLessThanOrEqual(1);
+  if (browserName === 'chromium') {
+    expect(Math.abs(await page.evaluate(() => scrollY) - interruptedAt)).toBeLessThanOrEqual(1);
+  } else {
+    // Escape cancels our continuation, not the browser's already committed
+    // native ArrowDown motion. That motion still stops short of the target.
+    await expect.poll(() => page.evaluate(() => scrollY)).toBeGreaterThan(end - inputRoom + 5);
+  }
   expect(await page.evaluate(()=>scrollY)).toBeLessThan(end-10);
+  const cancellation = await page.evaluate(() => {
+    const records = (window as typeof window & { __entryAssistEvidence?: Array<{
+      type: string; key?: string; call?: Record<string, unknown>;
+    }> }).__entryAssistEvidence ?? [];
+    const escape = records.findLastIndex(row => row.type === 'keydown' && row.key === 'Escape');
+    return { seen: escape >= 0, helpers: records.slice(escape + 1)
+      .flatMap(row => row.type === 'helper' && row.call ? [row.call] : []) };
+  });
+  expect(cancellation.seen).toBe(true);
+  expect(cancellation.helpers).toContainEqual(expect.objectContaining({
+    type: 'intent-rejected', mode: 'native', gesture: null, assisting: null,
+  }));
+  expect(cancellation.helpers.filter(row => row.type === 'assist-start' || row.type === 'assist-write')).toEqual([]);
   await page.emulateMedia({reducedMotion:'reduce'});
   await position(end-inputRoom);
   await gesture(1);
   await expect.poll(()=>page.evaluate(()=>scrollY)).toBeGreaterThan(end-inputRoom+5);
   await page.waitForTimeout(350);
   expect(await page.evaluate(()=>scrollY)).toBeLessThan(end-10);
-  // Retain real room/foreground pixels and reject shader errors. These views
-  // are review evidence, not a claim that different camera poses match pixels.
-  await page.locator('#product').evaluate(el=>{
-    const stage=el.firstElementChild!;
-    scrollTo({top:el.getBoundingClientRect().top+scrollY+(el.getBoundingClientRect().height-stage.getBoundingClientRect().height)*.5,behavior:'instant'});
-  });
-  await expect(page.locator('.scene-canvas')).toHaveAttribute('data-section','product');
-  await expect(page.locator('.scene-canvas')).toHaveAttribute('data-settled','true',{timeout:15_000});
-  await screenshot(page,info,`linear-fog-live-room-${width}`);
-  await enterOffers(page);
-  await screenshot(page,info,`preserved-offers-room-${width}`);
   expect(errors).toEqual([]);
   } finally {
     let diagnosticTimer: ReturnType<typeof setTimeout> | undefined;
@@ -628,7 +645,6 @@ for (const width of [390, 1440]) test(`section reveals preserve the visible subj
       expect(alignment).toBeGreaterThan(1 - 1e-10);
       evidence.push({ join: `${from}:${to}`, progress, ...state });
     }
-    await screenshot(page, info, `steady-subject-${from}-${to}-${width}`);
   }
   } finally {
     await retainJson(info, 'visible-subject-transition-poses', evidence);

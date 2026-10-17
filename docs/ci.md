@@ -57,30 +57,25 @@ Les chemins inconnus, l'infrastructure CI, les dépendances, `main`,
 
 ## Familles et navigateurs
 
-Les jobs applicatifs sont indépendants et s'exécutent en parallèle. `build-app`
-compile une fois avec la fixture Supabase hermétique puis publie `.next`.
-Static et PostgreSQL n'installent aucun navigateur. Chromium est installé
-uniquement par les familles Chromium ; WebKit uniquement par `webkit-critical`.
+Après classification, les contrôles statiques, PostgreSQL et le build démarrent
+indépendamment. `build-app` compile une fois avec la fixture Supabase hermétique
+puis publie `.next` sans son cache de compilation. Les navigateurs attendent
+uniquement ce build ; les contrôles statiques restent obligatoires dans `CI Gate`.
 
-Le groupe `e2e-public-chromium` regroupe conditionnellement core, landing, SEO
-et `e2e/sauge-noire-menu-shared-smoke.spec.ts` avec une seule installation
-Chromium, une seule fixture Supabase et un seul download `.next`. Le smoke menu
-couvre le parcours menu → plat → retour de la démo générique, le menu Trouvable
-(catégories, changement de langue, photo/fallback, ouverture et retour) et un
-parcours Sauge Noire critique court; les rapports restent distincts par famille
-avant agrégation. `e2e-sauge-chromium` conserve les suites Sauge profondes,
-`e2e-admin-qr-chromium` garde les contrats QR sensibles et `webkit-critical`
-reste isolé. Le full CI cible ainsi sept `npm ci`, trois installations
-Chromium, une installation WebKit et quatre downloads `.next`; cette topologie
-a été confirmée par le run GitHub `30853839277`.
+Les tests sélectionnés core, landing, menu et SEO forment un seul pool Chromium
+réparti entre 12 jobs. Chaque test est exécuté une seule fois. Le pool WebKit est
+réparti entre 8 jobs, Sauge Noire entre 2 jobs Chromium et Studio entre 4 jobs
+(2 Chromium, 2 WebKit). Les contrats QR navigateur sont exécutés dans un seul
+job Studio. Chaque job installe uniquement son navigateur et récupère le même
+build. Les scénarios avec plusieurs routes ou formats sont des tests séparés,
+afin que Playwright puisse les répartir entre runners.
 
-Sur ce run réel, les rapports structurés ont compté 28 tests public Chromium,
-66 tests Sauge Chromium, 7 tests QR et 10 tests WebKit: 111 passés, 0 échoué,
-0 ignoré, 0 flaky et 0 interrompu. L’artefact `ci-metrics-30853839277`
-(`8871794612`) contient le JSON machine-readable et le résumé humain provient
-du même fichier. Les runner-minutes et la fenêtre murale doivent être lus dans
-cet artefact pour chaque run; ils ne sont jamais déduits du seul nombre de
-jobs.
+Chaque shard publie son rapport structuré et ses éléments de diagnostic. Les
+rapports sont agrégés sans masquer les échecs, interruptions ou tests ignorés.
+`CI Gate` attend tous les contrôles applicables. Le temps mural et les
+runner-minutes proviennent des métriques du run GitHub ; la parallélisation ne
+garantit pas à elle seule la cible de cinq minutes, notamment en cas de file
+d'attente des runners.
 
 ## Événements et dispatch manuel
 

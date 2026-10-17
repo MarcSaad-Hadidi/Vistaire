@@ -17,6 +17,7 @@ const result = spawnSync(process.execPath, [
   "--grep", "full-menu admin (?:parity|thumbnails)|studio ",
   "--workers=1", "--retries=0", "--forbid-only",
   "--reporter=list,./e2e/support/forbid-skipped-tests-reporter.ts",
+  ...process.argv.slice(2),
 ], {
   cwd: process.cwd(),
   env: {

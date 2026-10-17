@@ -122,13 +122,12 @@ async function geometry(page: Page) {
   }));
 }
 
-test("light immersive controls keep readable nested actions, selection and AR help", async ({ page }) => {
-  test.setTimeout(120_000);
-  for (const scenario of [
+for (const scenario of [
     { path: "/", width: 390 },
     { path: "/en", width: 430 },
     { path: "/", width: 1440 },
-  ]) {
+  ]) test(`light immersive controls keep readable actions and AR help at ${scenario.width}px`, async ({ page }) => {
+    test.setTimeout(120_000);
     await page.setViewportSize({ width: scenario.width, height: 900 });
     await page.goto(scenario.path);
     await waitForScene(page);
@@ -170,7 +169,6 @@ test("light immersive controls keep readable nested actions, selection and AR he
     await expect(ar).toHaveCSS("background-color", "rgba(17, 17, 16, 0.91)");
     await expect(page.locator(".support-controls")).toHaveCSS("background-color", "rgb(17, 17, 16)");
     await expect(page.locator(".support-controls button")).toHaveCSS("color", "rgb(248, 243, 232)");
-  }
 });
 
 touchTest("isolated DOM: native vertical panning is locked in scenes and offers but restored for the FAQ", async ({ page }) => {
@@ -298,7 +296,7 @@ touchTest("isolated DOM: contact maintenu : inversions et changements de hauteur
   const cases = [
     ["sustainability", ".living .scene-focus"],
     ["testimonies", ".experience-list a"],
-    ["social-content", ".walkthrough-frame"],
+    ["social-content", ".social-rail article.is-current .walkthrough-frame"],
     ["product", ".support-gesture"],
     ["open-weight", ".pricing-phone-viewport"],
     ["open-weight", '.landing-faq [data-seo-faq-question][data-hydrated="true"]'],
@@ -325,10 +323,10 @@ touchTest("isolated DOM: contact maintenu : inversions et changements de hauteur
       await page.locator(".pricing-offer-card").last().focus();
       await target.focus();
       await page.keyboard.press("Home");
-      await expect.poll(() => target.evaluate(el => el.scrollTop)).toBeLessThan(1);
+      await expect.poll(() => target.evaluate(el => Math.abs(new DOMMatrixReadOnly(getComputedStyle(el.firstElementChild!).transform).m42))).toBeLessThanOrEqual(1);
       const start = await page.evaluate(() => scrollY);
       await page.keyboard.press("End");
-      await expect.poll(() => target.evaluate(el => Math.abs(el.scrollHeight - el.clientHeight - el.scrollTop))).toBeLessThanOrEqual(1);
+      await expect.poll(() => target.evaluate(el => Math.abs(el.firstElementChild!.scrollHeight - el.clientHeight + new DOMMatrixReadOnly(getComputedStyle(el.firstElementChild!).transform).m42))).toBeLessThanOrEqual(1);
       const end = await page.evaluate(() => scrollY);
       expect(end).toBeGreaterThan(start);
       await page.evaluate(y => scrollTo({ top: y, behavior: "instant" }), (start + end) / 2);
@@ -366,7 +364,7 @@ touchTest("isolated DOM: contact maintenu : inversions et changements de hauteur
         await page.waitForTimeout(35);
         samples.push(await target.evaluate(el => ({
           pageY: scrollY,
-          readerY: el.scrollTop,
+          readerY: -new DOMMatrixReadOnly(getComputedStyle(el.firstElementChild!).transform).m42,
           top: el.getBoundingClientRect().top,
         })));
       }
@@ -402,7 +400,7 @@ touchTest("isolated DOM: contact maintenu : inversions et changements de hauteur
     if (phoneReader) {
       await target.focus();
       await page.keyboard.press("End");
-      await expect.poll(() => target.evaluate(el => Math.abs(el.scrollHeight - el.clientHeight - el.scrollTop))).toBeLessThanOrEqual(1);
+      await expect.poll(() => target.evaluate(el => Math.abs(el.firstElementChild!.scrollHeight - el.clientHeight + new DOMMatrixReadOnly(getComputedStyle(el.firstElementChild!).transform).m42))).toBeLessThanOrEqual(1);
       const beforeExit = await page.evaluate(() => scrollY);
       await page.keyboard.press("PageDown");
       await expect.poll(() => page.evaluate(() => scrollY)).toBeGreaterThan(beforeExit + 1);
@@ -612,10 +610,10 @@ domTest("isolated DOM: les séquences allongées gardent des pauses lisibles et 
   await expect.poll(railProgress).toBe(1);
 });
 
-test("un seul guide accueille le visiteur puis laisse explorer sans se répéter", async ({ page }) => {
-  test.setTimeout(300_000);
+for (const [path, message] of [["/", "Faites défiler pour découvrir"], ["/en", "Scroll to discover"]]) {
+test(`${path} : un seul guide accueille le visiteur puis laisse explorer sans se répéter`, async ({ page }) => {
+  test.setTimeout(150_000);
   await page.setViewportSize({ width: 390, height: 844 });
-  for (const [path, message] of [["/", "Faites défiler pour découvrir"], ["/en", "Scroll to discover"]]) {
     await page.goto(path);
     await waitForScene(page);
     const guide = page.locator("[data-scroll-guide]");
@@ -669,8 +667,8 @@ test("un seul guide accueille le visiteur puis laisse explorer sans se répéter
     await expect(guide).toHaveAttribute("aria-hidden", "true");
     await page.emulateMedia({ reducedMotion: "reduce" });
     await expect(guide).toHaveCSS("transition-duration", "0s");
-  }
 });
+}
 
 for (const [path, discovery, pricing, booking, studio, language] of [
   ["/", "/demo", "/tarifs-menu-digital-restaurant", "/prendre-rendez-vous", "/apercu-restaurateur", "fr-CA"],

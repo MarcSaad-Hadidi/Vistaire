@@ -323,15 +323,19 @@ test.describe("Vistaire SEO smoke", () => {
   test("migration preparation and allergen explanations work with native keyboard controls", async ({ page }) => {
     await page.setViewportSize({ width: 430, height: 932 });
     await page.goto("/remplacer-menu-pdf-restaurant");
+    await expect(page.locator(".preloader")).toHaveCount(0, { timeout: 60_000 });
     const checklist = page.getByRole("group", { name: "Préparer votre carte" });
     const first = checklist.getByRole("checkbox").first();
+    await first.scrollIntoViewIfNeeded();
     await first.focus();
     await first.press("Space");
     await expect(first).toBeChecked();
     await checklist.getByRole("button", { name: "Recommencer" }).click();
     await expect(first).not.toBeChecked();
     await page.goto("/menu-restaurant-allergenes");
+    await expect(page.locator(".preloader")).toHaveCount(0, { timeout: 60_000 });
     const detail = page.locator("[data-allergen-service-note]");
+    await detail.scrollIntoViewIfNeeded();
     await detail.locator("summary").focus();
     await detail.locator("summary").press("Enter");
     await expect(detail).toHaveAttribute("open", "");
@@ -478,18 +482,16 @@ test.describe("Vistaire SEO smoke", () => {
     assertNoUnexpectedBrowserIssues();
   });
 
-  test("key FR/EN SEO GEO pages have metadata, hreflang, FAQ and safe network behavior", async ({
+  for (const route of seoGeoSmokeRoutes) for (const viewport of [...mobileViewports, desktopViewport]) {
+  test(`${route.path} has metadata, hreflang, FAQ and safe network behavior at ${viewport.width}px`, async ({
     page
   }) => {
     const assertNoUnexpectedBrowserIssues = attachPageGuards(page);
 
-    for (const route of seoGeoSmokeRoutes) {
-      for (const viewport of [...mobileViewports, desktopViewport]) {
         await page.setViewportSize(viewport);
         await expectSeoGeoRoute(page, route);
-      }
-    }
 
     assertNoUnexpectedBrowserIssues();
   });
+  }
 });
