@@ -102,7 +102,7 @@ the old opaque-pricing skip is deliberately removed. Even a passing run requires
 Physical PC/phone preview review remains separate. A timeout or unmatched pose
 is an incomplete/failed gate and must not be called a visual pass.
 
-Run seven independent hosted jobs with profile `phone`, `phone430`,
+Run independent manual comparisons with profile `phone`, `phone430`,
 `phoneLandscape`, `desktop`, `desktop1337`, `wide`, or `wide3440`:
 
 ```
@@ -115,14 +115,11 @@ node scripts/run-playwright-e2e.mjs e2e/restaurant-geometry-ab.spec.ts \
 
 Use the existing local Supabase fixture and hermetic production server workflow;
 do not target production data or bypass external-environment safeguards. The test
-has a 20-minute correctness budget per profile, at most 140 test runner-minutes
-across seven jobs, plus the existing setup/build overhead;
-these are resource caps, not latency/performance targets. App CI runs the seven
-isolated profiles for landing changes in PR #296. Each
-profile reuses the verified build and retains its JSON/image evidence for seven
-days; CI Gate fails on any failed, cancelled, skipped or incomplete selected
-profile. Other branches can opt in with `restaurant_ab=true` and `target=landing`
-on workflow dispatch. No passing result automatically activates this candidate.
+has a 20-minute correctness budget per profile, plus setup/build overhead;
+these are resource caps, not latency/performance targets. Reuse the verified
+build for each requested comparison and retain its JSON/image evidence. These
+experiments are no longer App CI jobs or workflow-dispatch options. No passing
+result automatically activates this candidate.
 
 Local checks completed: direct Node tests, scoped ESLint, TypeScript check and
 Playwright test discovery. The local browser restriction prevents local rendering;

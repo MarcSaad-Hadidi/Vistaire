@@ -1,6 +1,6 @@
 # Bounded landing journey QA and paired investigation
 
-The App CI `composition` input (with landing/full target), or `landing-composition` label before a new push, now selects **candidate-only full-journey QA**. It consumes the current verified build without downloading a pinned baseline. Ordinary correctness suites remain selected normally. The performance runner stays 30 minutes, with the original 25-minute helper deadline, 40-second action bounds and owned-process cleanup.
+**Candidate-only full-journey QA** is a manual diagnostic, separate from App CI's production checks. It consumes a verified build without downloading a pinned baseline. Run the command below when this investigation is needed; the existing 25-minute helper deadline, 40-second action bounds and owned-process cleanup still apply.
 
 The no-flag CLI remains the historical three-seam paired investigation. Its order, active workload, query-free measurement and separate visual passes are unchanged. The benchmark probe remains checksum-guarded; the reviewed 2026-10-11 readiness update is recorded below. Full-journey QA is not a new paired benchmark and establishes no CPU gain or physical-iPhone smoothness claim.
 
@@ -11,7 +11,7 @@ Run `node scripts/diagnose-landing-composition.mjs --journey-qa` with:
 - `VISTAIRE_COMPOSITION_OUTPUT`: absolute evidence directory
 - `VISTAIRE_COMPOSITION_RUNTIMES_JSON`: exactly one `candidate` object with `root`, `headSHA`, `buildSHA`, `runURL`, `artifactName`, and nullable `artifactID`/`artifactSHA256`
 
-The caller must already have the matching production build and healthy hermetic fixture on 127.0.0.1:55434, with port 3000 free. The helper does not build, install dependencies, change server configuration or start another benchmark. It checks the actual checkout against `buildSHA`, unchanged runtime sources, `.next/BUILD_ID`, and hashes the three local build manifests. A missing archive digest stays explicitly unknown. The current workflow supplies current-run provenance; there is no baseline contract or artifact dependency in this mode.
+The caller must already have the matching production build and healthy hermetic fixture on 127.0.0.1:55434, with port 3000 free. The helper does not build, install dependencies, change server configuration or start another benchmark. It checks the actual checkout against `buildSHA`, unchanged runtime sources, `.next/BUILD_ID`, and hashes the three local build manifests. A missing archive digest stays explicitly unknown. The caller supplies provenance for the verified build; there is no baseline contract or artifact dependency in this mode.
 
 One fresh normal-motion page at `/en?sceneDiagnostics=1` uses CSS 390×844, DPR 1, touch-capable pinned Chromium and the existing SwiftShader launch flags. Actual WebGL renderer identity must contain SwiftShader; canvas coverage and drawing-buffer identity are checked throughout. This instrumented QA has substantial additional callback, DOM/media observation, screenshot and serialization cost. Its durations must not be compared with visitor active costs or interpreted as display FPS.
 
