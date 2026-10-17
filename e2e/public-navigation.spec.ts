@@ -4,6 +4,9 @@ import { writeFile } from "node:fs/promises";
 const BASE_URL =
   process.env.PLAYWRIGHT_BASE_URL ?? "http://127.0.0.1:3000";
 
+// Most cases visit several public pages, each behind its 3D loading screen.
+test.describe.configure({ timeout: 240_000 });
+
 const focusDiagnosticScenario = /landing-style public Menu|public Menu keeps every link|navbar stays visible|landing Menu shares/;
 
 test.beforeEach(async ({ page }, info) => {
@@ -235,9 +238,7 @@ const englishSecondaryHomeScenarios: HomeScenario[] = [
 ];
 
 async function showPublicNavigation(page: Page) {
-  if (await page.locator('.preloader').count()) {
-    await expect(page.locator('.preloader')).toHaveCount(0, { timeout: 120_000 });
-  }
+  await expect(page.locator('.preloader')).toHaveCount(0, { timeout: 120_000 });
   await expect(page.locator('[data-public-navigation-toggle]')).toHaveCount(0);
   await expect(page.locator('[data-public-navigation-open]')).toBeVisible();
 
@@ -307,8 +308,9 @@ async function expectHomeNavigation(
   );
 
   await home.click();
+  // The landing is a heavier client navigation than a content page.
   await expect
-    .poll(() => new URL(page.url()).pathname)
+    .poll(() => new URL(page.url()).pathname, { timeout: 30_000 })
     .toBe(scenario.expectedPath);
   expect(new URL(page.url()).hash).toBe("");
 }
@@ -336,11 +338,10 @@ async function expectFullDocumentLocaleSwitch(
     scenario.sourceLocale
   );
   await expect(page.locator("html")).toHaveAttribute("lang", scenario.sourceLocale);
-  if (scenario.sourcePath === "/" || scenario.sourcePath === "/en") {
-    // Cold software-rendered scene startup is separate from navigation
-    // correctness. Keep this bounded; it is not a site performance allowance.
-    await expect(page.locator(".preloader")).toHaveCount(0, { timeout: 120_000 });
-  }
+  // Every public page opens behind its 3D loading screen. Cold software-rendered
+  // scene startup is separate from navigation correctness; it is not a site
+  // performance allowance.
+  await expect(page.locator(".preloader")).toHaveCount(0, { timeout: 120_000 });
 
   const sourceLanguageControl = page
     .locator(`[data-public-controls] div[aria-label="${scenario.sourceControl}"]`)
@@ -377,9 +378,7 @@ async function expectFullDocumentLocaleSwitch(
   await destinationLink.click();
   const navigationResponse = await navigationResponsePromise;
   await page.waitForLoadState("domcontentloaded");
-  if (scenario.destinationPath === "/" || scenario.destinationPath === "/en") {
-    await expect(page.locator(".preloader")).toHaveCount(0, { timeout: 120_000 });
-  }
+  await expect(page.locator(".preloader")).toHaveCount(0, { timeout: 120_000 });
   expect(
     navigationResponse,
     `${scenario.sourcePath} -> ${scenario.destinationPath}: main-document response`
@@ -444,9 +443,7 @@ test.describe("Vistaire public navigation", () => {
     test(`uses a full document navigation from ${scenario.sourcePath} to ${scenario.destinationPath}`, async ({
       page
     }) => {
-      if (scenario.sourcePath === "/" || scenario.sourcePath === "/en") {
-        test.setTimeout(240_000);
-      }
+      test.setTimeout(240_000);
       await expectFullDocumentLocaleSwitch(page, scenario);
     });
   }
@@ -909,7 +906,7 @@ test("public theme remains usable when local storage is blocked", async ({ page 
 });
 
 test("public theme uses BeUI blinds with keyboard and rapid-click safety on mobile and desktop", async ({ page }) => {
-  test.setTimeout(60_000);
+  test.setTimeout(240_000);
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(error.message));
   await page.addInitScript(() => {

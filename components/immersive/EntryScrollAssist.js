@@ -65,6 +65,8 @@ export function createEntryScrollAssist({ getGeometry, isBlocked, fastTrips = fa
   let interruptedTrip = null;
   let lastY = view.scrollY;
   let lastYAt = view.performance.now();
+  let eventY = view.scrollY; // Previous input-driven scroll position, even when pulled back.
+  let echoY = null; // Where this assist's own edge write will land.
   let timer = null;
   let frame = null;
   let nativeEnd = null;
@@ -435,7 +437,7 @@ export function createEntryScrollAssist({ getGeometry, isBlocked, fastTrips = fa
     const direction = event.key === "ArrowDown" || event.key === "PageDown" ? 1
       : event.key === "ArrowUp" || event.key === "PageUp" ? -1
         : event.key === " " ? (event.shiftKey ? -1 : 1) : 0;
-    if (direction) readingGuard = null; // A new key press is new intent, not momentum.
+    readingGuard = null; // A key press (Tab, End, a link's Enter) is new intent, not momentum.
     intent(event, !event.ctrlKey && !event.metaKey && !event.altKey ? direction : 0);
     heldKey = gesture ? event.key : null;
   };
@@ -665,6 +667,10 @@ export function createEntryScrollAssist({ getGeometry, isBlocked, fastTrips = fa
   const scroll = event => {
     if (event.target !== document) return;
     const y = view.scrollY;
+    const echo = echoY != null && Math.abs(y - echoY) < 1;
+    if (echo) echoY = null;
+    const jump = !echo && Math.abs(y - eventY) >= view.innerHeight;
+    if (!echo) eventY = y;
     syncTouchLock();
     // The first scroll must move beyond this input’s starting position unless
     // a pending compositor displacement has its own matching event evidence.
@@ -682,9 +688,10 @@ export function createEntryScrollAssist({ getGeometry, isBlocked, fastTrips = fa
       else if (floor != null && lastY > floor + 1) readingGuard = { start: floor, end: Infinity };
     }
     // Momentum past an offer edge stops there; on iOS a write ends deceleration.
-    if (readingGuard && !touching && !assisting && (y > readingGuard.end || y < readingGuard.start)) {
+    if (readingGuard && !touching && !assisting && !jump && (y > readingGuard.end || y < readingGuard.start)) {
       if (inputKind === "wheel") wheelOwned = true; // Absorb the rest of this swipe at the edge.
-      view.scrollTo({ top: y > readingGuard.end ? readingGuard.end : readingGuard.start, behavior: "instant" });
+      echoY = y > readingGuard.end ? readingGuard.end : readingGuard.start;
+      view.scrollTo({ top: echoY, behavior: "instant" });
       return;
     }
     lastY = y;
@@ -772,7 +779,8 @@ export function createEntryScrollAssist({ getGeometry, isBlocked, fastTrips = fa
     [document, "touchstart", touchstart], [document, "touchmove", touchmove],
     [document, "touchend", touchend], [document, "touchcancel", reset],
     [document, "pointerdown", pointerdown], [document, "pointerup", pointerup], [document, "pointercancel", pointercancel],
-    [document, "click", cancel], [document, "focusin", event => { if (!ownedTouch) cancel(event); }],
+    // Focus moves (keyboard, screen readers) scroll on purpose: no edge guard holds them.
+    [document, "click", cancel], [document, "focusin", event => { if (!ownedTouch) { readingGuard = null; cancel(event); } }],
     [document, "visibilitychange", reset], [view, "hashchange", navigateHash],
     // Capture also receives element blurs (an inert pricing layer drops focus
     // mid-trip); only the window losing focus releases ownership.

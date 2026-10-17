@@ -289,6 +289,8 @@ for (const scenario of DISCOVERY_ROUTES) {
       test(`opens the real ${experience.name} menu through its accessible link`, async ({ page }) => {
         await page.setViewportSize({ width: 390, height: 844 });
         await page.goto(scenario.path, { waitUntil: "domcontentloaded" });
+        // The page stays inert behind the 3D room's loading screen.
+        await expect(page.locator(".preloader")).toHaveCount(0, { timeout: 60_000 });
         const link = page.getByRole("link", { name: `${scenario.explore} ${experience.name}`, exact: true });
         await expect(link).toHaveAttribute("href", experience.href);
         await link.scrollIntoViewIfNeeded();
@@ -324,6 +326,7 @@ for (const scenario of DISCOVERY_ROUTES) {
         if (MODEL_REQUEST.test(request.url())) modelRequests.push(request.url());
       });
       await page.goto(scenario.path, { waitUntil: "domcontentloaded" });
+      await expect(page.locator(".preloader")).toHaveCount(0, { timeout: 60_000 });
       const dishLink = page.locator("[data-demo-3d-link]");
       await expect(dishLink).toHaveAttribute("href", `/menu/sauge-noire/dishes/truite-des-laurentides?lang=${scenario.lang}&view=sauge-2`);
       await dishLink.scrollIntoViewIfNeeded();

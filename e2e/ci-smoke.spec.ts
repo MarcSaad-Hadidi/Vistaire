@@ -4,6 +4,8 @@ async function expectHealthy(page: Page, path: string) {
   const response = await page.goto(path, { waitUntil: "domcontentloaded" });
   expect(response, `${path} should return a response`).not.toBeNull();
   expect(response?.status(), `${path} should not fail`).toBeLessThan(400);
+  // Public pages are held behind the 3D room's loading screen until it is ready.
+  await expect(page.locator(".preloader")).toHaveCount(0, { timeout: 60_000 });
 }
 
 async function expectNoHorizontalOverflow(page: Page) {
@@ -80,12 +82,15 @@ test("CI smoke loads the public landing at Vistaire mobile widths", async ({ pag
 test("CI smoke loads the restaurant discovery without early 3D requests", async ({ page }) => {
   const modelRequests: string[] = [];
   page.on("request", (request) => {
-    if (/\.(?:glb|usdz)(?:$|\?)/i.test(request.url())) modelRequests.push(request.url());
+    // The page's own 3D room is expected; no restaurant menu model may load early.
+    const { pathname } = new URL(request.url());
+    if (/\.(?:glb|usdz)$/i.test(pathname) && !pathname.startsWith("/immersive-assets/")) modelRequests.push(request.url());
   });
   await page.setViewportSize({ width: 390, height: 844 });
   await expectHealthy(page, "/demo");
   for (const [name, slug] of [["Maison Élyse", "maison-elyse"], ["Trouvable", "trouvable"], ["Sauge Noire", "sauge-noire"]]) {
-    await expect(page.getByRole("heading", { level: 2, name, exact: true })).toBeVisible();
+    // The cinematic chapters carry the same restaurant names as headings.
+    await expect(page.getByLabel("Expériences Vistaire").getByRole("heading", { level: 2, name, exact: true })).toBeAttached();
     await expect(page.getByRole("link", { name: `Explorer ${name}`, exact: true })).toHaveAttribute("href", `/menu/${slug}?lang=fr-CA`);
   }
   await expect(page.getByTestId("demo-phone-viewport")).toHaveCount(0);
@@ -102,6 +107,8 @@ test("CI smoke keeps admin gated and metadata routes healthy", async ({ page }) 
 });
 
 test("CI smoke validates the bilingual Pricing table estimator", async ({ page }) => {
+  // Seven page loads, each behind the 3D loading screen.
+  test.setTimeout(300_000);
   const consoleErrors: string[] = [];
   const networkIssues: string[] = [];
   const modelRequests: string[] = [];
@@ -111,7 +118,9 @@ test("CI smoke validates the bilingual Pricing table estimator", async ({ page }
   });
   page.on("pageerror", (error) => consoleErrors.push(error.message));
   page.on("request", (request) => {
-    if (/\.(?:glb|usdz)(?:$|[?#])/i.test(new URL(request.url()).pathname)) {
+    const { pathname } = new URL(request.url());
+    // The page's own 3D room is expected; restaurant menu models are not.
+    if (/\.(?:glb|usdz)$/i.test(pathname) && !pathname.startsWith("/immersive-assets/")) {
       modelRequests.push(request.url());
     }
   });

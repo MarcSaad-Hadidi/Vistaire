@@ -320,7 +320,7 @@ test("CI browser families use one grouped runner invocation", () => {
     packageJson.scripts["test:ci:e2e:core"],
     /--forbid-only[\s\S]*forbid-skipped-tests-reporter\.ts/
   );
-  assert.match(packageJson.scripts["test:ci:e2e:landing"], /landing-production-photo\.spec\.ts[\s\S]*landing-redesign\.spec\.ts/);
+  assert.match(packageJson.scripts["test:ci:e2e:landing"], /landing-redesign\.spec\.ts[\s\S]*landing-scroll\.spec\.ts/);
   assert.match(packageJson.scripts["test:ci:e2e:sauge"], /sauge-noire-first-gesture-scroll\.spec\.ts[\s\S]*sauge-noire-swipe-intent\.spec\.ts/);
   assert.match(packageJson.scripts["test:ci:e2e:sauge"], /e2e\/ar-renderer-handoff\.spec\.ts/);
   assert.match(packageJson.scripts["test:ci:e2e:menu"], /sauge-noire-menu-shared-smoke\.spec\.ts/);

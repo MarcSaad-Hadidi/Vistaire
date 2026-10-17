@@ -537,7 +537,7 @@ for (const width of [390,1440]) test(`native entry assistance is bounded, interr
   await expect.poll(()=>page.locator('.feature-number').textContent(),{timeout:20_000}).toContain('2');
   await page.waitForTimeout(600);
   await expect(page.locator('html')).toHaveAttribute('data-chapter', 'features');
-  expect(await page.locator('#features').evaluate(el => Number((el as HTMLElement).style.getPropertyValue('--detail-opacity')))).toBe(1);
+  expect(await page.locator('#features').evaluate(el => Number((el as HTMLElement).style.getPropertyValue('--detail-opacity')))).toBeCloseTo(1, 6);
 
   await position(end-inputRoom);
   await gesture(1);

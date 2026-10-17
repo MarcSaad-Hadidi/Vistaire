@@ -87,6 +87,9 @@ const fixtureOnlyTestIgnore = [
 export default defineConfig({
   testDir: "./e2e",
   testIgnore: fixtureOnlyTestIgnore,
+  // Every public page now opens behind the 3D room's loading screen, which
+  // software WebGL in CI holds up to its 20 s release on each visit.
+  timeout: 90_000,
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: sensitiveE2E ? 0 : process.env.CI ? 1 : 0,
