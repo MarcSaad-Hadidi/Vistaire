@@ -467,6 +467,7 @@ test("Asset Policy owns the repository asset checks", async () => {
   const staticJob = workflow.slice(workflow.indexOf("  static-quality:"), workflow.indexOf("  database-contracts:"));
   assert.match(assetWorkflow, /npm run assets:check/);
   assert.match(assetWorkflow, /npm run lfs:check/);
+  assert.doesNotMatch(assetWorkflow, /run: npm ci/);
   assert.doesNotMatch(staticJob, /assets:check|lfs:check/);
 });
 

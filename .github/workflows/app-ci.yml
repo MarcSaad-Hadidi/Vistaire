@@ -334,7 +334,9 @@ jobs:
         uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
         with:
           name: next-build-${{ github.run_id }}
-          path: .next
+          path: |
+            .next
+            !.next/cache/**
           if-no-files-found: error
           retention-days: 1
           include-hidden-files: true
@@ -488,7 +490,7 @@ jobs:
         run: |
           paths=()
           [[ "$RUN_CORE" == true ]] && paths+=("$GITHUB_WORKSPACE/.ci-test-report-core.json")
-          [[ "$RUN_LANDING" == true ]] && paths+=("$GITHUB_WORKSPACE/.ci-test-report-landing.json" "$GITHUB_WORKSPACE/.ci-test-report-offers.json")
+          [[ "$RUN_LANDING" == true ]] && paths+=("$GITHUB_WORKSPACE/.ci-test-report-landing.json" "$GITHUB_WORKSPACE/.ci-test-report-offers.json" "$GITHUB_WORKSPACE/.ci-test-report-features-frame.json")
           [[ "$RUN_MENU" == true ]] && paths+=("$GITHUB_WORKSPACE/.ci-test-report-menu.json")
           [[ "$RUN_SEO" == true ]] && paths+=("$GITHUB_WORKSPACE/.ci-test-report-seo.json")
           if [[ "${#paths[@]}" -eq 0 ]]; then

@@ -19,7 +19,8 @@ test("workflow security gates are immutable, read-only, and explicit", () => {
   assert.match(workflow, /version: 1\.21\.0/);
   assert.match(workflow, /online-audits: false/);
   assert.match(workflow, /advanced-security: false/);
-  assert.match(workflow, /npm audit --json/);
+  assert.match(workflow, /npm audit --package-lock-only --json/);
+  assert.doesNotMatch(workflow, /run: npm ci/);
   assert.match(workflow, /check-npm-audit-baseline\.mjs/);
   assert.doesNotMatch(workflow, /npm audit fix/);
   for (const match of workflow.matchAll(/uses:\s*([^\s]+)@([^\s#]+)/g)) {
