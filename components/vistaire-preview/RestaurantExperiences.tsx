@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { CinematicPage, type CinematicChapter } from "@/components/immersive/CinematicPage.jsx";
 import { CinematicFooter } from "@/components/immersive/pages/CinematicFooter";
 import { LOCALE_LANGUAGE_TAG, type Locale } from "@/lib/i18n";
@@ -123,9 +124,9 @@ export async function RestaurantExperiences({
             </>
           )}
           <div className="cinematic-actions">
-            <a className="action" href={experience.publicMenuHref}>
+            <Link className="action" href={experience.publicMenuHref} prefetch={false}>
               {locale === "en" ? `Open the ${experience.name} menu` : `Ouvrir la carte ${experience.name}`}
-            </a>
+            </Link>
           </div>
         </>
       ),
@@ -154,9 +155,9 @@ export async function RestaurantExperiences({
                     {experience.label}
                   </p>
                   <h2 id={`experience-${experience.id}`}>
-                    <a href={experience.publicMenuHref}>
+                    <Link href={experience.publicMenuHref} prefetch={false}>
                       {experience.name}<Arrow />
-                    </a>
+                    </Link>
                   </h2>
                   <p className={styles.description}>{copy.description}</p>
                   <ul className={styles.features}>
@@ -173,21 +174,22 @@ export async function RestaurantExperiences({
                   </div>
                 </figure>
                 <div className={styles.actions}>
-                  <a className={styles.explore} href={experience.publicMenuHref}>
+                  <Link className={styles.explore} href={experience.publicMenuHref} prefetch={false}>
                     {content.explore} {experience.name}<Arrow />
-                  </a>
-                  <a className={styles.dishLink} href={dish.href}>{content.discover} {dish.name}</a>
+                  </Link>
+                  <Link className={styles.dishLink} href={dish.href} prefetch={false}>{content.discover} {dish.name}</Link>
                   {experience.id === "sauge-noire" ? (
                     <div className={styles.immersive}>
                       <p>{content.immersiveDescription}</p>
                       {immersiveHref && immersiveDish ? (
-                        <a
+                        <Link
                           aria-label={locale === "en" ? `View ${immersiveDish.name} in 3D` : `Voir ${immersiveDish.name} en 3D`}
                           data-demo-3d-link
                           href={immersiveHref}
+                          prefetch={false}
                         >
                           {content.immersiveLink}<Arrow />
-                        </a>
+                        </Link>
                       ) : null}
                     </div>
                   ) : null}
