@@ -67,7 +67,7 @@ async function visiblePricingDashText(page: Page) {
   });
 }
 
-test("CI smoke loads the public landing at Vistaire mobile widths", async ({ page }) => {
+test("CI smoke loads the public landing at Vistaire mobile widths", { tag: '@critical' }, async ({ page }) => {
   for (const viewport of [
     { width: 390, height: 844 },
     { width: 430, height: 932 }
@@ -79,7 +79,7 @@ test("CI smoke loads the public landing at Vistaire mobile widths", async ({ pag
   }
 });
 
-test("CI smoke loads the restaurant discovery without early 3D requests", async ({ page }) => {
+test("CI smoke loads the restaurant discovery without early 3D requests", { tag: '@critical' }, async ({ page }) => {
   const modelRequests: string[] = [];
   page.on("request", (request) => {
     // The page's own 3D room is expected; no restaurant menu model may load early.
@@ -98,7 +98,7 @@ test("CI smoke loads the restaurant discovery without early 3D requests", async 
   expect(modelRequests).toEqual([]);
 });
 
-test("CI smoke keeps admin gated and metadata routes healthy", async ({ page }) => {
+test("CI smoke keeps admin gated and metadata routes healthy", { tag: '@critical' }, async ({ page }) => {
   await expectHealthy(page, "/admin");
   await expect(page.getByText(/Accès dashboard restaurant requis/i)).toBeVisible();
   for (const path of ["/robots.txt", "/sitemap.xml"]) {
@@ -106,9 +106,9 @@ test("CI smoke keeps admin gated and metadata routes healthy", async ({ page }) 
   }
 });
 
-test("CI smoke validates the bilingual Pricing table estimator", async ({ page }) => {
-  // Seven page loads, each behind the 3D loading screen.
-  test.setTimeout(300_000);
+test("CI smoke validates the bilingual Pricing table estimator", { tag: '@critical' }, async ({ page }) => {
+  // Reuse each localized page when checking the responsive estimator.
+  test.setTimeout(120_000);
   const consoleErrors: string[] = [];
   const networkIssues: string[] = [];
   const modelRequests: string[] = [];
@@ -258,7 +258,6 @@ test("CI smoke validates the bilingual Pricing table estimator", async ({ page }
     await expect(input).toHaveValue("20");
 
     await expectNoHorizontalOverflow(page);
-  }
 
   for (const viewport of [
     { width: 390, height: 844 },
@@ -268,15 +267,14 @@ test("CI smoke validates the bilingual Pricing table estimator", async ({ page }
     { width: 1440, height: 900 }
   ]) {
     await page.setViewportSize(viewport);
-    await expectHealthy(page, "/tarifs-menu-digital-restaurant");
     const estimator = page.locator("[data-pricing-table-estimator]");
     await expect(estimator).toBeVisible();
     await expectNoHorizontalOverflow(page);
 
     if (viewport.width <= 430) {
       for (const button of [
-        estimator.getByRole("button", { name: "Réduire le nombre de tables" }),
-        estimator.getByRole("button", { name: "Augmenter le nombre de tables" })
+        estimator.getByRole("button", { name: scenario.decrement }),
+        estimator.getByRole("button", { name: scenario.increment })
       ]) {
         const box = await button.boundingBox();
         expect(box).not.toBeNull();
@@ -286,6 +284,7 @@ test("CI smoke validates the bilingual Pricing table estimator", async ({ page }
     }
   }
 
+  }
   await expect.poll(() => consoleErrors).toEqual([]);
   expect(networkIssues, networkIssues.join("\n")).toEqual([]);
   expect(modelRequests, "Pricing must not trigger heavy 3D assets").toEqual([]);

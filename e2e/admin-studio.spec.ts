@@ -7,8 +7,9 @@ if (process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE)
     },
   });
 async function preview(page: Page) {
-  await page.goto("/admin");
-  const origin = new URL(page.url()).origin;
+  const baseURL = test.info().project.use.baseURL;
+  expect(baseURL, 'The local Studio preview needs a configured baseURL').toBeTruthy();
+  const origin = new URL(baseURL!).origin;
   const response = await page
     .context()
     .request.post(`${origin}/admin/preview`, {
@@ -61,7 +62,7 @@ function watchPrivatePage(page: Page) {
     };
 }
 for (const width of [390, 430, 1440]) {
-  test(`studio four destinations, overview theme and chart evidence at ${width}px`, async ({
+  test(`studio four destinations, overview theme and chart evidence at ${width}px`, { tag: width === 390 ? '@critical' : [] }, async ({
     page,
   }, testInfo) => {
     await page.setViewportSize({ width, height: 900 });
@@ -158,7 +159,7 @@ for (const width of [390, 430, 1440]) {
     }
     expectHealthyPage();
   });
-  test(`studio dish filters, semantic states and read-only controls at ${width}px`, async ({ page }, testInfo) => {
+  test(`studio dish filters, semantic states and read-only controls at ${width}px`, { tag: width === 430 ? '@critical' : [] }, async ({ page }, testInfo) => {
     await page.setViewportSize({ width, height: 900 });
     const expectHealthyPage = watchPrivatePage(page);
     await preview(page);

@@ -214,8 +214,10 @@ for (const scenario of DISCOVERY_ROUTES) {
         await visibleVideo.scrollIntoViewIfNeeded();
         await expect(visibleVideo).toHaveJSProperty("paused", false);
         await page.emulateMedia({ reducedMotion: "reduce" });
+        await page.evaluate(() => new Promise<void>(resolve => requestAnimationFrame(() => resolve())));
         await expect(visibleVideo).toHaveJSProperty("paused", true);
         await page.emulateMedia({ reducedMotion: "no-preference" });
+        await page.evaluate(() => new Promise<void>(resolve => requestAnimationFrame(() => resolve())));
         await expect(visibleVideo).toHaveJSProperty("paused", false);
         await page.emulateMedia({ reducedMotion: "reduce" });
         await page.reload({ waitUntil: "domcontentloaded" });

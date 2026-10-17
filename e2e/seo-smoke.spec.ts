@@ -343,7 +343,7 @@ test.describe("Vistaire SEO smoke", () => {
     await expectNoHorizontalOverflow(page);
   });
 
-  test("robots, llms, sitemap and legacy redirect expose only public SEO surfaces", async ({
+  test("robots, llms, sitemap and legacy redirect expose only public SEO surfaces", { tag: '@critical' }, async ({
     request
   }) => {
     const robots = await request.get("/robots.txt");
@@ -483,7 +483,9 @@ test.describe("Vistaire SEO smoke", () => {
   });
 
   for (const route of seoGeoSmokeRoutes) for (const viewport of [...mobileViewports, desktopViewport]) {
-  test(`${route.path} has metadata, hreflang, FAQ and safe network behavior at ${viewport.width}px`, async ({
+  test(`${route.path} has metadata, hreflang, FAQ and safe network behavior at ${viewport.width}px`, {
+    tag: [seoGeoSmokeRoutes[0].path, seoGeoSmokeRoutes[4].path].includes(route.path) && viewport.width < 500 ? '@critical' : [],
+  }, async ({
     page
   }) => {
     const assertNoUnexpectedBrowserIssues = attachPageGuards(page);

@@ -364,7 +364,8 @@ touchTest("isolated DOM: contact maintenu : inversions et changements de hauteur
         await page.waitForTimeout(35);
         samples.push(await target.evaluate(el => ({
           pageY: scrollY,
-          readerY: -new DOMMatrixReadOnly(getComputedStyle(el.firstElementChild!).transform).m42,
+          readerY: el.matches('.pricing-phone-viewport')
+            ? -new DOMMatrixReadOnly(getComputedStyle(el.firstElementChild!).transform).m42 : 0,
           top: el.getBoundingClientRect().top,
         })));
       }

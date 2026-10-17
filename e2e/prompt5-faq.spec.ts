@@ -282,7 +282,7 @@ for (const width of [390, 430]) {
 }
 
 
-test("free FAQ handles service errors and allows another question in English", async ({ page }) => {
+test("free FAQ handles service errors and allows another question in English", { tag: '@critical' }, async ({ page }) => {
   let requests = 0;
   await page.route("**/api/public/faq", async (route) => {
     requests += 1;
@@ -292,6 +292,10 @@ test("free FAQ handles service errors and allows another question in English", a
   await page.goto("/en/digital-restaurant-menu", { waitUntil: "domcontentloaded" });
   await expect(page.locator('[data-reui="c-accordion-10"]')).toHaveCount(1);
   const input = page.locator("[data-faq-ask-input]");
+  await expect(page.locator('.preloader')).toHaveCount(0, { timeout: 60_000 });
+  await input.scrollIntoViewIfNeeded();
+  await input.focus();
+  await expect(input).toBeFocused();
   await input.fill("Can I update my menu?");
   await input.press("Enter");
   await expect(page.locator('[data-faq-ask-status="unavailable"]')).toContainText("temporarily unavailable");

@@ -83,7 +83,7 @@ test("studio all required viewports stay within the document width", async ({
   }
 });
 
-test("full-menu admin parity keeps unavailable dishes private while matching available public dishes", async ({
+test("full-menu admin parity keeps unavailable dishes private while matching available public dishes", { tag: '@critical' }, async ({
   page,
 }, testInfo) => {
   test.skip(
@@ -150,7 +150,7 @@ test("full-menu admin parity keeps unavailable dishes private while matching ava
   expect(publicDishes).toEqual(availableAdminDishes);
 });
 
-test("full-menu admin thumbnails fall back without broken-image icons", async ({
+test("full-menu admin thumbnails fall back without broken-image icons", { tag: '@critical' }, async ({
   page,
 }, testInfo) => {
   test.skip(

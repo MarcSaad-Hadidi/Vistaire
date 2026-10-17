@@ -142,6 +142,10 @@ export function DemoWalkthroughVideo({
         ref={videoRef}
         onLoadedData={() => setDecoded(true)}
         onPlaying={() => setDecoded(true)}
+        onVolumeChange={(event) => {
+          // WebKit can reset mute when applying a decorative film's playback rate.
+          if (!controls && !event.currentTarget.muted) event.currentTarget.muted = true;
+        }}
         onError={() => setDecoded(false)}
         style={{ opacity: decoded || controls ? 1 : 0 }}
       />

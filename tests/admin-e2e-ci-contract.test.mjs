@@ -388,8 +388,7 @@ test("full-menu admin image coverage has a dedicated non-skipping cross-browser 
   ]);
   assert.match(packageJson, /"test:admin:full-menu":\s*"node scripts\/run-admin-full-menu-e2e\.mjs"/);
   assert.match(runner, /VISTAIRE_ADMIN_FIXTURE_SCENARIO:\s*"full-menu"/);
-  const grep = runner.match(/--grep", "([^"]+)"/)?.[1];
-  assert.equal(grep, "full-menu admin (?:parity|thumbnails)|studio ");
+  assert.match(runner, /VISTAIRE_CI_CRITICAL_ONLY === 'true' \? '@critical' : "full-menu admin \(\?:parity\|thumbnails\)\|studio "/);
   assert.match(runner, /e2e\/admin-studio\.spec\.ts/);
   for (const title of [
     "full-menu admin parity",
@@ -405,7 +404,7 @@ test("full-menu admin image coverage has a dedicated non-skipping cross-browser 
   assert.match(workflow, /VISTAIRE_ADMIN_FULL_MENU_PROJECT: \$\{\{ matrix\.browser \}\}/);
   assert.match(workflow, /browser: chromium/);
   assert.match(workflow, /browser: webkit/);
-  assert.match(workflow, /npm run test:admin:full-menu -- --fully-parallel --shard=\$\{\{ matrix\.part \}\}\/2/);
+  assert.match(workflow, /run: npm run test:admin:full-menu/);
   assert.match(runner, /\.\.\.process\.argv\.slice\(2\)/);
   assert.match(spec, /toHaveCount\(12\)/);
   assert.match(spec, /data-available="false"/);

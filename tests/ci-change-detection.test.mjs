@@ -46,6 +46,23 @@ test("landing CSS", () => assert.equal(classify(["styles/landing.css"]).landing,
 test("landing public media", () => assert.equal(classify(["public/videos/Vistaire2.mp4"]).landing, true));
 test("SEO route", () => assert.equal(classify(["app/robots.ts"]).seo, true));
 test("SEO route segment", () => assert.equal(classify(["app/seo/page.tsx"]).seo, true));
+
+test("SEO pages and guides never select menu, Sauge or private QR checks", () => {
+  for (const file of [
+    'app/(fr)/(seo)/menu-qr-code-restaurant/page.tsx',
+    'app/(en)/en/(geo)/[slug]/page.tsx',
+    'app/(en)/en/qr-code-restaurant-menu/page.tsx',
+    'app/(fr)/guides/menu-qr-mobile-sans-application/page.tsx',
+    'components/seo/SeoGeoAeoPage.tsx',
+    'components/immersive/pages/PdfMenuCinematic.tsx',
+    'tests/seo-pillar-json-ld-contract.test.mjs',
+  ]) {
+    const result = classify([file]);
+    assert.equal(result.run_seo, true, file);
+    assert.equal(result.full_ci, false, file);
+    for (const output of ['run_menu', 'run_sauge', 'run_admin_qr', 'run_database']) assert.equal(result[output], false, `${file}: ${output}`);
+  }
+});
 test("SQL migration", () => assert.equal(classify(["supabase/migrations/20260101_menu.sql"]).database, true));
 test("translation", () => assert.equal(classify(["lib/translation/catalog.ts"]).translations, true));
 test("QR", () => assert.equal(classify(["app/api/owner/qr-codes/route.ts"]).qr, true));
@@ -102,8 +119,7 @@ test("public navigation callsites stay in the core browser family", () => {
     "app/(fr)/demo/page.tsx",
     "app/(en)/en/pricing-digital-restaurant-menu/page.tsx",
     "app/(en)/en/vistaire-menu/page.tsx",
-    "components/landing/VistaireLanding.tsx",
-    "components/seo/SeoGeoAeoPage.tsx"
+    "components/landing/VistaireLanding.tsx"
   ]) {
     const result = classify([path]);
     assert.equal(result.public_navigation, true, path);

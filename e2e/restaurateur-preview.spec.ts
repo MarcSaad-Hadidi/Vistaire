@@ -244,7 +244,7 @@ async function revealFilm(page: Page) {
 }
 
 for (const scenario of scenarios) {
-  test(`${scenario.path} presents a non-interactive looping video with private data isolation and arrival autoplay`, async ({baseURL, page}, testInfo) => {
+  test(`${scenario.path} presents a non-interactive looping video with private data isolation and arrival autoplay`, { tag: '@critical' }, async ({baseURL, page}, testInfo) => {
     const runtime = observeRuntime(page, baseURL ?? "http://127.0.0.1:3000");
     await page.setViewportSize({width: 1280, height: 720});
     const response = await page.goto(scenario.path, {waitUntil: "domcontentloaded"});
@@ -270,7 +270,7 @@ for (const scenario of scenarios) {
     expect(box!.y + box!.height).toBeLessThanOrEqual(720);
     expect(Math.abs(box!.x + box!.width / 2 - 640)).toBeLessThan(2);
     await expect(video).toHaveAttribute("src", "https://cdn.vistaire.ca/demo/dashboard-studio-3x-67468b94997f.mp4");
-    expect(await video.evaluate(element => (element as HTMLVideoElement).muted)).toBe(true);
+    await expect.poll(() => video.evaluate(element => (element as HTMLVideoElement).muted)).toBe(true);
     await expect.poll(() => video.evaluate(element => (element as HTMLVideoElement).currentTime)).toBeGreaterThan(.2);
     expect(await video.evaluate(element => (element as HTMLVideoElement).duration)).toBeCloseTo(137.9, 1);
     // The Studio walkthrough plays at twice its recorded speed.

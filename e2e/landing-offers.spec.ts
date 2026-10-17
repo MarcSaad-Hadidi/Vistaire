@@ -156,7 +156,7 @@ async function assertOnPhotoContrast(page: Page, selector: string) {
 }
 
 for (const profile of profiles) {
-  test(`${profile.label}: projected offers and closing sections retain dark/light readability`, async ({ page }, info) => {
+  test(`${profile.label}: projected offers and closing sections retain dark/light readability`, { tag: profile.width < 500 ? '@critical' : [] }, async ({ page }, info) => {
     test.setTimeout(240_000);
     const errors: string[] = [];
     page.on('pageerror', error => errors.push(error.message));
@@ -237,7 +237,7 @@ for (const profile of profiles) {
   });
 }
 
-test('keyboard reads every offer, yields to the FAQ and wakes the original scene on reverse', async ({ page }, info) => {
+test('keyboard reads every offer, yields to the FAQ and wakes the original scene on reverse', { tag: '@critical' }, async ({ page }, info) => {
   test.setTimeout(210_000);
   await page.setViewportSize({ width: 390, height: 844 });
   await openScene(page);
@@ -372,7 +372,7 @@ test('portrait to landscape remeasures the actual hand and returns to a usable p
   }
 });
 
-test('an unavailable hand keeps all offers and keyboard access in the semantic fallback', async ({ page }, info) => {
+test('an unavailable hand keeps all offers and keyboard access in the semantic fallback', { tag: '@critical' }, async ({ page }, info) => {
   test.setTimeout(210_000);
   await page.setViewportSize({ width: 390, height: 844 });
   await page.route('**/immersive-assets/pricing-hand/fair-hand-grip-v3.png', route => route.abort('failed'));

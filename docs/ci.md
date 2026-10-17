@@ -62,13 +62,22 @@ indépendamment. `build-app` compile une fois avec la fixture Supabase hermétiq
 puis publie `.next` sans son cache de compilation. Les navigateurs attendent
 uniquement ce build ; les contrôles statiques restent obligatoires dans `CI Gate`.
 
-Les tests sélectionnés core, landing, menu et SEO forment un seul pool Chromium
-réparti entre 12 jobs. Chaque test est exécuté une seule fois. Le pool WebKit est
-réparti entre 8 jobs, Sauge Noire entre 2 jobs Chromium et Studio entre 4 jobs
-(2 Chromium, 2 WebKit). Les contrats QR navigateur sont exécutés dans un seul
-job Studio. Chaque job installe uniquement son navigateur et récupère le même
-build. Les scénarios avec plusieurs routes ou formats sont des tests séparés,
-afin que Playwright puisse les répartir entre runners.
+Les PR sélectionnent uniquement les scénarios existants marqués `@critical`,
+parmi les familles concernées par le diff. Une modification SEO ne sélectionne
+pas les menus, Sauge Noire ou les QR privés, même si son chemin contient « QR ».
+Les changements de navigation partagée gardent leurs contrôles communs.
+
+Le pool Chromium public utilise 4 shards, WebKit 2, Sauge un job et Studio un
+job par navigateur. Chaque test sélectionné est exécuté une seule fois par
+navigateur. Les contrôles QR sensibles restent complets dans le job Studio
+Chromium. Au maximum 9 jobs navigateur tournent en parallèle. Le cache de
+compilation Next.js est réutilisé entre builds et reste exclu de l'artefact
+transféré aux navigateurs.
+
+Le nightly et le dispatch `target: full` exécutent les suites exhaustives,
+y compris les variantes de thèmes, formats et chorégraphies 3D. Les PR et les
+autres lancements conservent les contrôles statiques, sécurité et contrats SQL
+applicables, avec les parcours navigateur critiques uniquement.
 
 Chaque shard publie son rapport structuré et ses éléments de diagnostic. Les
 rapports sont agrégés sans masquer les échecs, interruptions ou tests ignorés.

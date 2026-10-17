@@ -32,6 +32,7 @@ concurrency:
 env:
   NODE_VERSION: 24
   CI: true
+  VISTAIRE_CI_CRITICAL_ONLY: ${{ inputs.target != 'full' && github.event.inputs.target != 'full' }}
 
 jobs:
   classify-changes:
@@ -278,6 +279,13 @@ jobs:
           cache: npm
       - name: Install dependencies
         run: npm ci
+      - name: Reuse Next.js compilation cache
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: .next/cache
+          key: ${{ runner.os }}-next-${{ env.NODE_VERSION }}-${{ hashFiles('package-lock.json', 'next.config.*') }}-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-next-${{ env.NODE_VERSION }}-${{ hashFiles('package-lock.json', 'next.config.*') }}-
       - name: Build Next.js once against the hermetic fixture
         run: |
           node e2e/support/sauge-noire-fixture-server.mjs > "$RUNNER_TEMP/sauge-fixture.log" 2>&1 &
@@ -311,7 +319,7 @@ jobs:
           { du -sh .next 2>/dev/null || true; } >> "$GITHUB_STEP_SUMMARY"
 
   e2e-public-chromium:
-    name: e2e-public-chromium (${{ matrix.shard }}/12)
+    name: e2e-public-chromium (${{ matrix.shard }}/4)
     needs: [classify-changes, build-app]
     if: >-
       !cancelled() && needs.classify-changes.result == 'success' &&
@@ -325,21 +333,13 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
+        shard: [1, 2, 3, 4]
     outputs:
-      test_shards: '12'
+      test_shards: '4'
       test_report_1: ${{ steps.publish-test-report.outputs.report_1 }}
       test_report_2: ${{ steps.publish-test-report.outputs.report_2 }}
       test_report_3: ${{ steps.publish-test-report.outputs.report_3 }}
       test_report_4: ${{ steps.publish-test-report.outputs.report_4 }}
-      test_report_5: ${{ steps.publish-test-report.outputs.report_5 }}
-      test_report_6: ${{ steps.publish-test-report.outputs.report_6 }}
-      test_report_7: ${{ steps.publish-test-report.outputs.report_7 }}
-      test_report_8: ${{ steps.publish-test-report.outputs.report_8 }}
-      test_report_9: ${{ steps.publish-test-report.outputs.report_9 }}
-      test_report_10: ${{ steps.publish-test-report.outputs.report_10 }}
-      test_report_11: ${{ steps.publish-test-report.outputs.report_11 }}
-      test_report_12: ${{ steps.publish-test-report.outputs.report_12 }}
     env:
       CI_SHARD: ${{ matrix.shard }}
       CI_TEST_REPORT_PATH: ${{ github.workspace }}/.ci-test-report-e2e-public-chromium.json
@@ -388,10 +388,12 @@ jobs:
           NODE
           )
           (( ${#specs[@]} > 0 )) || exit 1
+          critical=()
+          [[ "$VISTAIRE_CI_CRITICAL_ONLY" == true ]] && critical=(--grep @critical)
           node scripts/run-playwright-e2e.mjs "${specs[@]}" \
             --project=chromium --workers=1 --retries=0 --forbid-only \
             --reporter=list,./e2e/support/forbid-skipped-tests-reporter.ts \
-            --fully-parallel --shard=${{ matrix.shard }}/12
+            --fully-parallel --shard=${{ matrix.shard }}/4 "${critical[@]}"
       - name: Publish structured test report
         id: publish-test-report
         if: ${{ always() }}
@@ -413,21 +415,15 @@ jobs:
           retention-days: 7
 
   e2e-sauge-chromium:
-    name: e2e-sauge-chromium (${{ matrix.shard }}/2)
+    name: e2e-sauge-chromium
     needs: [classify-changes, build-app]
     if: ${{ !cancelled() && needs.classify-changes.result == 'success' && needs.build-app.result == 'success' && needs.classify-changes.outputs.run_sauge == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 35
-    strategy:
-      fail-fast: false
-      matrix:
-        shard: [1, 2]
     outputs:
-      test_shards: '2'
-      test_report_1: ${{ steps.publish-test-report.outputs.report_1 }}
-      test_report_2: ${{ steps.publish-test-report.outputs.report_2 }}
+      test_report: ${{ steps.publish-test-report.outputs.report_1 }}
     env:
-      CI_SHARD: ${{ matrix.shard }}
+      CI_SHARD: 1
       CI_TEST_REPORT_PATH: ${{ github.workspace }}/.ci-test-report-e2e-sauge-chromium.json
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
@@ -446,8 +442,11 @@ jobs:
         with:
           name: next-build-${{ github.run_id }}
           path: .next
-      - name: Sauge deep browser suite
-        run: npm run test:ci:e2e:sauge -- --fully-parallel --shard=${{ matrix.shard }}/2
+      - name: Selected Sauge browser tests
+        run: |
+          critical=()
+          [[ "$VISTAIRE_CI_CRITICAL_ONLY" == true ]] && critical=(--grep @critical)
+          npm run test:ci:e2e:sauge -- --fully-parallel "${critical[@]}"
       - name: Publish structured test report
         id: publish-test-report
         if: ${{ always() }}
@@ -463,7 +462,7 @@ jobs:
       - if: ${{ failure() }}
         uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
         with:
-          name: e2e-sauge-chromium-failure-${{ github.run_id }}-${{ matrix.shard }}
+          name: e2e-sauge-chromium-failure-${{ github.run_id }}
           path: |
             test-results/
             playwright-report/
@@ -478,7 +477,7 @@ jobs:
           echo "- Categories: \`${CATEGORIES}\`" >> "$GITHUB_STEP_SUMMARY"
 
   e2e-admin-browser:
-    name: e2e-admin-browser (${{ matrix.shard }}/4)
+    name: e2e-admin-browser (${{ matrix.shard }}/2)
     needs: [classify-changes, build-app]
     if: ${{ !cancelled() && needs.classify-changes.result == 'success' && needs.build-app.result == 'success' && needs.classify-changes.outputs.run_admin_qr == 'true' }}
     runs-on: ubuntu-latest
@@ -487,16 +486,12 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { shard: 1, browser: chromium, part: 1 }
-          - { shard: 2, browser: chromium, part: 2 }
-          - { shard: 3, browser: webkit, part: 1 }
-          - { shard: 4, browser: webkit, part: 2 }
+          - { shard: 1, browser: chromium }
+          - { shard: 2, browser: webkit }
     outputs:
-      test_shards: '4'
+      test_shards: '2'
       test_report_1: ${{ steps.publish-test-report.outputs.report_1 }}
       test_report_2: ${{ steps.publish-test-report.outputs.report_2 }}
-      test_report_3: ${{ steps.publish-test-report.outputs.report_3 }}
-      test_report_4: ${{ steps.publish-test-report.outputs.report_4 }}
     env:
       CI_SHARD: ${{ matrix.shard }}
       CI_TEST_REPORT_PATH: ${{ github.workspace }}/.ci-test-report-e2e-admin-browser.json
@@ -525,7 +520,7 @@ jobs:
         env:
           VISTAIRE_ADMIN_FULL_MENU_PROJECT: ${{ matrix.browser }}
           CI_TEST_REPORT_PATH: ${{ github.workspace }}/.ci-test-report-studio.json
-        run: npm run test:admin:full-menu -- --fully-parallel --shard=${{ matrix.part }}/2
+        run: npm run test:admin:full-menu
       - name: Preserve Studio visual evidence
         if: ${{ always() }}
         uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
@@ -567,7 +562,7 @@ jobs:
           echo "- Categories: \`${CATEGORIES}\`" >> "$GITHUB_STEP_SUMMARY"
 
   webkit-critical:
-    name: webkit-critical (${{ matrix.shard }}/8)
+    name: webkit-critical (${{ matrix.shard }}/2)
     needs: [classify-changes, build-app]
     if: ${{ !cancelled() && needs.classify-changes.result == 'success' && needs.build-app.result == 'success' && needs.classify-changes.outputs.run_webkit == 'true' }}
     runs-on: ubuntu-latest
@@ -575,17 +570,11 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2, 3, 4, 5, 6, 7, 8]
+        shard: [1, 2]
     outputs:
-      test_shards: '8'
+      test_shards: '2'
       test_report_1: ${{ steps.publish-test-report.outputs.report_1 }}
       test_report_2: ${{ steps.publish-test-report.outputs.report_2 }}
-      test_report_3: ${{ steps.publish-test-report.outputs.report_3 }}
-      test_report_4: ${{ steps.publish-test-report.outputs.report_4 }}
-      test_report_5: ${{ steps.publish-test-report.outputs.report_5 }}
-      test_report_6: ${{ steps.publish-test-report.outputs.report_6 }}
-      test_report_7: ${{ steps.publish-test-report.outputs.report_7 }}
-      test_report_8: ${{ steps.publish-test-report.outputs.report_8 }}
     env:
       CI_SHARD: ${{ matrix.shard }}
       CI_TEST_REPORT_PATH: ${{ github.workspace }}/.ci-test-report-webkit-critical.json
@@ -607,23 +596,33 @@ jobs:
           path: .next
       - name: Public critical browser suite (WebKit)
         env:
+          RUN_CORE: ${{ needs.classify-changes.outputs.run_core }}
           RUN_LANDING: ${{ needs.classify-changes.outputs.run_landing }}
+          RUN_MENU: ${{ needs.classify-changes.outputs.run_menu }}
+          RUN_SAUGE: ${{ needs.classify-changes.outputs.run_sauge }}
         shell: bash
         run: |
           mapfile -t specs < <(node --input-type=module <<'NODE'
           import { readFileSync } from 'node:fs';
           const scripts = JSON.parse(readFileSync('package.json', 'utf8')).scripts;
-          const specs = scripts['test:ci:e2e:webkit'].match(/\be2e\/[^\s]+\.spec\.ts\b/g);
-          if (!specs?.length) throw new Error('No public WebKit specs');
+          const catalog = scripts['test:ci:e2e:webkit'].match(/\be2e\/[^\s]+\.spec\.ts\b/g);
+          const specs = catalog.filter(path =>
+            process.env.RUN_MENU === 'true' && /maison-elyse-public-menu/.test(path) ||
+            process.env.RUN_SAUGE === 'true' && /sauge-noire-/.test(path) ||
+            process.env.RUN_CORE === 'true' && /demo-restaurant|restaurateur-preview/.test(path));
+          if (process.env.RUN_CORE === 'true') specs.push('e2e/ci-smoke.spec.ts');
           if (process.env.RUN_LANDING === 'true') specs.push('e2e/landing-offers.spec.ts');
+          if (!specs.length) throw new Error('No applicable WebKit specs');
           process.stdout.write([...new Set(specs)].join('\n') + '\n');
           NODE
           )
           (( ${#specs[@]} > 0 )) || exit 1
+          critical=()
+          [[ "$VISTAIRE_CI_CRITICAL_ONLY" == true ]] && critical=(--grep @critical)
           node scripts/run-playwright-e2e.mjs "${specs[@]}" \
             --project=webkit --workers=1 --retries=0 --forbid-only \
             --reporter=list,./e2e/support/forbid-skipped-tests-reporter.ts \
-            --fully-parallel --shard=${{ matrix.shard }}/8
+            --fully-parallel --shard=${{ matrix.shard }}/2 "${critical[@]}"
       - name: Publish structured test report
         id: publish-test-report
         if: ${{ always() }}

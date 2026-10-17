@@ -66,7 +66,7 @@ async function expectNoHorizontalOverflow(page: Page) {
     .toBe(true);
 }
 
-test.describe("shared public menu smoke · one Chromium fixture", () => {
+test.describe("shared public menu smoke · one Chromium fixture", { tag: '@critical' }, () => {
   test.use({ viewport: MOBILE_VIEWPORT });
 
   test("generic demo navigates menu → dish → menu without early 3D requests", async ({ page }) => {

@@ -80,7 +80,7 @@ for (const { label, viewport } of viewports) {
   test.describe(label, () => {
     test.use({ viewport });
 
-    test("resets the viewer across A-B-C with a stale load pending, history, and previous navigation", async ({ page }) => {
+    test("resets the viewer across A-B-C with a stale load pending, history, and previous navigation", { tag: '@critical' }, async ({ page }) => {
       const modelRequests: string[] = [];
       const pageErrors: string[] = [];
       const consoleErrors: string[] = [];
