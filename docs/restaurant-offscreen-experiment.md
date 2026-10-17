@@ -155,7 +155,7 @@ pose/pixel guards. Any later frame or pose drift still fails capture acceptance.
 
 ## 2026-10-12: same-source guarded-index candidate
 
-The current seven existing CI profiles explicitly select `VISTAIRE_RESTAURANT_AB_MODE=guarded-index`. Each pair loads the same pinned phase-one restaurant bytes. Only the candidate context receives `restaurantCrop=guarded`; ordinary navigation remains unmodified. No second profile matrix or benchmark is added.
+The seven comparison profiles remain available through the manual command above with `VISTAIRE_RESTAURANT_AB_MODE=guarded-index`. The experimental job has been removed from App CI. Each pair loads the same pinned phase-one restaurant bytes. Only the candidate context receives `restaurantCrop=guarded`; ordinary navigation remains unmodified.
 
 The inactive candidate compacts ordered indices for 19,150 of 81,821 room faces. It retains source attributes, bounds, original index storage, donor/floor geometry, and 523,356 bytes of browser CPU backup. The installed Three r183 `DRACOLoader.decodeIndex` uses `GetTrianglesUInt32Array` and returns `Uint32Array`; the earlier 261,678-byte estimate came from NodeIO's compact 16-bit fixture. The strict browser expectation is derived from the unique certificate-selected meshes' pinned GLB index accessor counts multiplied by `Uint32Array.BYTES_PER_ELEMENT`, and the derived result is pinned to 523,356. Before each actual room draw, expanded-frustum and renderer/material/geometry guards either permit the compact indices or permanently restore the original indices before submission. Unsupported shadow modes also restore. This does not reduce downloaded bytes or GPU allocation.
 

@@ -12,9 +12,9 @@ node scripts/benchmark-landing.mjs
 
 The script only accepts a loopback server, to keep benchmark traffic on the hermetic fixture.
 
-## Existing App CI opt-in
+## Manual diagnostics
 
-Use the `benchmark` boolean input together with the `landing` or `full` validation target, or add the `landing-performance` label to a PR before its next push. Adding the label alone does not trigger a workflow. Remove it after collecting the requested comparisons. The measurement job runs on a separate runner, consumes the same run’s verified production build, and must complete successfully when selected. It does not set an arbitrary FPS threshold.
+These measurements are manual tools, separate from App CI's production checks. Use the command above against a verified production build and the hermetic fixture. App CI no longer exposes benchmark/composition inputs or experimental jobs that appear as skipped PR checks. Software-renderer diagnostics do not establish physical-device FPS.
 
 On PR events, the build SHA is GitHub’s synthetic merge commit, while `headSHA` identifies the feature branch revision. The report also records the exact run/attempt URL. Keep all three with exported artifacts; do not describe merge-build measurements as head-only builds.
 
@@ -31,7 +31,7 @@ Inspection started at `f836193f6058f8e581e64e9d573cfd700e6e6c07`. Its rendered t
 - Setup/settling phases kept separate from true idle intervals; setup can make elapsed session exceed three minutes
 - One local pricing FAQ open/close and a public About navigation/back per profile; no RAG/Mistral query is sent
 - Expected video frame advancement, model readiness and absence of unexpected network/console/page errors are completion gates; these are not FPS thresholds
-- A 25-minute script deadline leaves time inside the 30-minute job for artifact uploads
+- A 25-minute script deadline bounds each manual measurement
 - Native hide/wake is attempted using tab focus; if the headless browser keeps `document.hidden=false`, this check is explicitly unverified
 - Each action retains its 40-second watchdog; a blocked software renderer is reported as a failure rather than excused by an increased budget
 - JSON is saved after each cold/warm start and each phase, plus bounded best-effort failure snapshot/screenshot, substep and failed-phase counters or a final screenshot; a late lost/failed WebGL context fails the profile instead of producing fallback numbers
