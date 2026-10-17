@@ -288,9 +288,8 @@ test("PR graph fetch is bounded and fail-closed", () => {
   assert.match(fetchGraph, /--filter=blob:none/);
   assert.match(fetchGraph, /refs\/pull\//);
   assert.match(fetchGraph, /--deepen=/);
-  assert.match(fetchGraph, /GIT_CONFIG_KEY_0:\s*"remote\.origin\.url"/);
-  assert.match(fetchGraph, /x-access-token:\$\{encodeURIComponent\(token\)\}@/);
-  assert.match(fetchGraph, /GIT_CONFIG_VALUE_0:\s*authenticatedOrigin/);
+  assert.doesNotMatch(fetchGraph, /GITHUB_TOKEN|GH_TOKEN|x-access-token|authenticatedOrigin/,
+    'public PR metadata must not require the intentionally withheld token');
   assert.match(fetchGraph, /GIT_TERMINAL_PROMPT:\s*"0"/);
   assert.doesNotMatch(fetchGraph, /\["-c", `http\.extraheader=AUTHORIZATION/);
   assert.match(fetchGraph, /classifier will use full CI/);
