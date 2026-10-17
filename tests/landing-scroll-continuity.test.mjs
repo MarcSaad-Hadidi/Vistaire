@@ -7,7 +7,7 @@ import * as THREE from 'three';
 import * as director from '../components/immersive/SceneDirector.js';
 
 // Exercise the real authored object poses without requiring a WebGL context.
-const source = readFileSync('components/immersive/Scene.jsx', 'utf8');
+const source = readFileSync('components/immersive/Scene.jsx', 'utf8').replaceAll('\r\n', '\n');
 const context = { ...director, THREE, HALF_PI: Math.PI / 2, clamp: (v, a, b) => Math.min(b, Math.max(a, v)) };
 vm.runInNewContext(source.slice(source.indexOf('function baseComposition('), source.indexOf('\nfunction composition(')) + ';this.base = baseComposition', context);
 const ids = ['hero', 'ai', 'wearable', 'features', 'encryption', 'grip', 'sustainability', 'testimonies', 'social-content', 'product', 'open-weight', 'footer'];

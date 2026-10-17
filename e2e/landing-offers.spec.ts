@@ -15,6 +15,7 @@ const test = base.extend({
       : {});
   },
 });
+test.use({ actionTimeout: 15_000 });
 const profiles = [
   { label: '390-fr', width: 390, height: 844, path: '/' },
   { label: '430-en', width: 430, height: 932, path: '/en' },
@@ -59,6 +60,10 @@ async function handReady(page: Page) {
   await expect(page.locator('.scene-canvas')).toHaveAttribute('data-pricing-active', 'true');
   await expect(page.locator('.scene-canvas')).toHaveAttribute('data-pricing-hand-progress', '1');
   await expect(page.locator('.scene-canvas')).toHaveAttribute('data-pricing-backdrop', 'ready');
+  await expect.poll(() => page.locator('.scene-canvas').evaluate((canvas: HTMLCanvasElement) =>
+    canvas.dataset.pricingBackdropWidth === String(canvas.width) &&
+    canvas.dataset.pricingBackdropHeight === String(canvas.height)
+  ), { message: 'the current viewport has a rendered pricing projection' }).toBe(true);
 }
 
 async function enterOffers(page: Page) {
@@ -802,11 +807,11 @@ for (const width of [390, 1440]) test(`continuous assistance retains the actual 
         && row.trusted && row.documentScroll && Number(row.at) <= Number(start?.handledAt));
       const observed = positions.filter(row => Number(row.at) >= Number(start?.handledAt));
       const monotone = observed.every((row, index) => index === 0 || Number(row.y) >= Number(observed[index - 1].y) - 1);
-      const gradual = completed && Number(completed.duration) >= 950;
+      const gradual = completed && start && Number(completed.duration) >= Number(start.duration);
       if (!trusted || !moved) failures.push('actual trusted input and at least three distinct frame positions were not captured');
       if (!start || !helpers.some(row => row.type === 'handoff')) failures.push('actual assist/handoff was not retained');
       if (!nativeEnd) failures.push('assistance must wait for the native gesture to finish');
-      if (!controlledWrites || !gradual) failures.push('the continuation must take at least one second through controlled frame positions');
+      if (!controlledWrites || !gradual) failures.push('the continuation must honor its authored duration through controlled frame positions');
       if (!monotone) failures.push('the visible continuation must not jump backwards');
       if (captured.meta.exhausted || !targetCaptured) failures.push('trace was exhausted or did not retain the acknowledged post-handoff target');
     }

@@ -32,6 +32,9 @@ export function DemoWalkthroughVideo({
     const video = videoRef.current;
     if (!video) return;
 
+    // WebKit needs the live property set before attaching an autoplay source.
+    video.defaultMuted = true;
+    video.muted = true;
     // A new source restarts at defaultPlaybackRate: set both.
     video.defaultPlaybackRate = playbackRate;
     video.playbackRate = playbackRate;

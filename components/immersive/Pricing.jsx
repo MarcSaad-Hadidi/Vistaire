@@ -529,8 +529,8 @@ export default function Pricing({ collection, stateRef }) {
     const atStart = current <= 0.5 || Math.abs(window.scrollY - pricingPagePosition(sectionTop, 0, layout)) <= 1;
     const atEnd = current >= layout.maxScroll - 0.5 || Math.abs(window.scrollY - pricingPagePosition(sectionTop, layout.maxScroll, layout)) <= 1;
     if ((atStart && next <= 0) || (atEnd && next >= layout.maxScroll)) {
+      event.preventDefault();
       if (event.key in changes) {
-        event.preventDefault();
         window.scrollBy({
           top: event.key.startsWith("Page") ? Math.sign(changes[event.key]) * window.innerHeight * 0.8 : changes[event.key],
           behavior: "instant",

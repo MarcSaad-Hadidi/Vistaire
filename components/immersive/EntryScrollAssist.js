@@ -165,9 +165,10 @@ export function createEntryScrollAssist({ getGeometry, isBlocked, fastTrips = fa
     else {
       // The last browser scroll event may arrive after the final instant write.
       // Verify for 400ms without leaving a dead controlled trip behind.
+      active.arrivalStarted ??= now;
       complete(null);
       if (assisting === active) {
-        if (now - active.started < active.duration + 400) frame = view.requestAnimationFrame(animate);
+        if (now - active.arrivalStarted < 400) frame = view.requestAnimationFrame(animate);
         else cancel("arrival-unconfirmed");
       }
     }

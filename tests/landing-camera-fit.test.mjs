@@ -23,7 +23,7 @@ function assertWholeFoodFit(bounds, focus, width, height, label) {
 }
 
 test('yaw preserves the camera at cropped maximum zoom and reset restores the complete food', () => {
-  const source = readFileSync(process.env.VISTAIRE_SCENE_SOURCE || 'components/immersive/Scene.jsx', 'utf8');
+  const source = readFileSync(process.env.VISTAIRE_SCENE_SOURCE || 'components/immersive/Scene.jsx', 'utf8').replaceAll('\r\n', '\n');
   const hulls = JSON.parse(readFileSync('public/immersive-assets/dishes/framing-hulls.json', 'utf8')).byUrl;
   const footprints = { homard: 1.75, souffle: 1.65, huitres: 1.5, sushi: 2, "chocolat-fume": 1.5, poutine: 1.75, burger: 1.1 };
   const profiles = [
@@ -168,7 +168,7 @@ test('default full-fit mode contains the rotated food inside desktop and phone s
 // Actual shipped scan + actual frameSubjects/calibration code. This protects
 // the rendered damping guard, which a standalone fit-helper test cannot see.
 test('close-up reset and chapter transitions preserve hull depth, then restore full fit at 100%', () => {
-  const source = readFileSync(process.env.VISTAIRE_SCENE_SOURCE || 'components/immersive/Scene.jsx', 'utf8');
+  const source = readFileSync(process.env.VISTAIRE_SCENE_SOURCE || 'components/immersive/Scene.jsx', 'utf8').replaceAll('\r\n', '\n');
   const hull = Object.values(JSON.parse(readFileSync('public/immersive-assets/dishes/framing-hulls.json', 'utf8')).byUrl).find(h => h.id === 'sushi');
   const scene = new THREE.Scene();
   const roots = Array.from({ length: 4 }, () => new THREE.Group());
@@ -317,7 +317,7 @@ test('close-up reset and chapter transitions preserve hull depth, then restore f
 // A screen-space fit alone cannot detect opaque-table occlusion. These are
 // the shipped scans that reproduced the dip during rotation and Home/reset.
 test('rotating and resetting food keeps every transformed hull point above the tabletop without resizing it', () => {
-  const source = readFileSync(process.env.VISTAIRE_SCENE_SOURCE || 'components/immersive/Scene.jsx', 'utf8');
+  const source = readFileSync(process.env.VISTAIRE_SCENE_SOURCE || 'components/immersive/Scene.jsx', 'utf8').replaceAll('\r\n', '\n');
   const helper = source.match(/function minimumDishY\([^]*?\n}/)?.[0];
   assert.ok(helper, 'the actual and target dish poses need a tabletop-clearance constraint');
   const scope = { THREE, separateSolids() {}, activeDish: new THREE.Group(), nativeTable: { metadata: { surfaceY: -0.02 } }, objectTarget: new THREE.Vector3(), targetEuler: new THREE.Euler(), targetQuaternion: new THREE.Quaternion() };
@@ -398,7 +398,7 @@ test('rotating and resetting food keeps every transformed hull point above the t
 // Lifting a rotated plate above the table must not push it out of its existing
 // scissor frame, even before the visitor requests any zoom.
 test('the default-zoom camera fits a lifted high-pitch mobile homard', () => {
-  const source = readFileSync(process.env.VISTAIRE_SCENE_SOURCE || 'components/immersive/Scene.jsx', 'utf8');
+  const source = readFileSync(process.env.VISTAIRE_SCENE_SOURCE || 'components/immersive/Scene.jsx', 'utf8').replaceAll('\r\n', '\n');
   const hull = JSON.parse(readFileSync('public/immersive-assets/dishes/framing-hulls.json', 'utf8')).byUrl['/media/homard-mobile.glb'];
   assert.ok(hull, 'use the actual mobile homard scan');
   const scene = new THREE.Scene();
@@ -437,7 +437,7 @@ test('the default-zoom camera fits a lifted high-pitch mobile homard', () => {
 // Run the full production fitting path; count serialization without replacing
 // calibration math or inventing bounds for a laptop that has not loaded yet.
 function referenceFixture(diagnosticsEnabled = false) {
-  const source = readFileSync(process.env.VISTAIRE_SCENE_SOURCE || 'components/immersive/Scene.jsx', 'utf8');
+  const source = readFileSync(process.env.VISTAIRE_SCENE_SOURCE || 'components/immersive/Scene.jsx', 'utf8').replaceAll('\r\n', '\n');
   const scene = new THREE.Scene();
   const roots = Array.from({ length: 4 }, () => new THREE.Group());
   roots.forEach(root => scene.add(root));
@@ -553,7 +553,7 @@ test('cropped close-up uses the cylinder near guard without silently retaining a
 });
 
 test('the actual opening camera track stops at the AI reading plateau in both directions', () => {
-  const source = readFileSync(process.env.VISTAIRE_SCENE_SOURCE || 'components/immersive/Scene.jsx', 'utf8');
+  const source = readFileSync(process.env.VISTAIRE_SCENE_SOURCE || 'components/immersive/Scene.jsx', 'utf8').replaceAll('\r\n', '\n');
   // ddb600c retained mobile rendered-scroll-telemetry (--afa87), samples
   // 202/203/206 at p=.375444/.499667/.625370, replayed as .375/.5/.625 anchors.
   // These are measured poses, not a recreation of model calibration or GPU

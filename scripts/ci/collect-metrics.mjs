@@ -111,7 +111,7 @@ function normalizeJob(job, expected) {
     id: job?.id,
     result,
     status,
-    expected: expected[String(job?.name ?? "")],
+    expected: expected[String(job?.name ?? "").replace(/ \(\d+\/4\)$/, "")],
     steps: stepMetrics(job)
   };
   for (const [key, value] of Object.entries({
@@ -251,13 +251,15 @@ function parseStructuredReports(value) {
     const parsed = JSON.parse(value);
     const reports = {};
     for (const [name, payload] of Object.entries(parsed ?? {})) {
-      const raw = payload?.outputs?.test_report ?? payload?.test_report;
-      if (!raw) continue;
-      try {
-        reports[name] = typeof raw === "string" ? JSON.parse(raw) : raw;
-      } catch {
-        // Keep malformed reports unavailable; collection quality will surface
-        // the missing structured data instead of inventing test totals.
+      const outputs = payload?.outputs ?? payload;
+      for (const [key, raw] of Object.entries(outputs ?? {})) {
+        const match = /^test_report(?:_([1-4]))?$/.exec(key);
+        if (!match || !raw) continue;
+        try {
+          reports[match[1] ? `${name} (${match[1]}/4)` : name] = typeof raw === "string" ? JSON.parse(raw) : raw;
+        } catch {
+          // Malformed reports stay unavailable rather than inventing totals.
+        }
       }
     }
     return reports;

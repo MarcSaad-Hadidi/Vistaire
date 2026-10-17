@@ -6,7 +6,7 @@ import * as THREE from 'three';
 import { cameraDollyPose } from '../components/immersive/CameraDolly.js';
 import { interpolatePose } from '../components/immersive/SceneDirector.js';
 
-const source = readFileSync(process.env.VISTAIRE_SCENE_SOURCE || 'components/immersive/Scene.jsx', 'utf8');
+const source = readFileSync(process.env.VISTAIRE_SCENE_SOURCE || 'components/immersive/Scene.jsx', 'utf8').replaceAll('\r\n', '\n');
 function between(start, end) {
   const a = source.indexOf(start), b = source.indexOf(end, a + start.length);
   assert.ok(a >= 0 && b > a, `production boundary: ${start} → ${end}`);

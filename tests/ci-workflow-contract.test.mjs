@@ -4,7 +4,7 @@ import test from "node:test";
 import vm from "node:vm";
 import { spawnSync } from "node:child_process";
 
-const workflow = await readFile(new URL("../.github/workflows/app-ci.yml", import.meta.url), "utf8");
+const workflow = (await readFile(new URL("../.github/workflows/app-ci.yml", import.meta.url), "utf8")).replaceAll("\r\n", "\n");
 const nightly = await readFile(new URL("../.github/workflows/nightly.yml", import.meta.url), "utf8");
 const saugeFixtureData = await readFile(
   new URL("../e2e/support/sauge-noire-fixture-data.mjs", import.meta.url),
@@ -25,6 +25,29 @@ const menuExperiences = await readFile(new URL("../lib/landing/menuExperiences.t
 const e2eRunner = await readFile(new URL("../scripts/run-playwright-e2e.mjs", import.meta.url), "utf8");
 const fetchGraph = await readFile(new URL("../scripts/ci/fetch-pr-graph.mjs", import.meta.url), "utf8");
 const packageJson = JSON.parse(await readFile(new URL("../package.json", import.meta.url), "utf8"));
+
+test("public browser jobs shard all selected suites without sharing a GPU or losing reports", () => {
+  for (const [name, end] of [["e2e-public-chromium", "e2e-sauge-chromium"], ["webkit-critical", "ci-gate"]]) {
+    const job = workflow.slice(workflow.indexOf(`  ${name}:`), workflow.indexOf(`  ${end}:`));
+    assert.match(job, /fail-fast: false/);
+    assert.match(job, /shard: \[1, 2, 3, 4\]/);
+    for (const line of job.split("\n").filter(line => /run:.*(?:run-playwright-e2e|test:ci:e2e|test:seo:e2e)/.test(line))) {
+      assert.match(line, /--fully-parallel --shard=\$\{\{ matrix\.shard \}\}\/4/, line);
+      if (line.includes("npm run")) assert.match(line, / -- /, "npm must forward shard flags to Playwright");
+    }
+    assert.doesNotMatch(job, /mobile_filter|complement_status/);
+    if (name === "e2e-public-chromium") {
+      assert.match(job, /heavy_filter='rendered scroll choreography\|food zoom safety'/);
+      assert.match(job, /--grep "\$heavy_filter"/);
+      assert.match(job, /--grep-invert "\$heavy_filter"/);
+      assert.match(job, /heavy_status != 0 \|\| general_status != 0/);
+    }
+    for (const shard of [1, 2, 3, 4]) assert.match(job, new RegExp(`test_report_${shard}:`));
+    for (const line of job.split("\n").filter(line => /name:.*\$\{\{ github\.run_id \}\}/.test(line) && !line.includes("next-build-"))) {
+      assert.match(line, /matrix\.shard/, "shards must upload distinct artifacts");
+    }
+  }
+});
 
 test("CPU diagnostic is opt-in, preserves the full journey gate, and passes its flag through an environment variable", () => {
   const dispatch = workflow.slice(workflow.indexOf('  workflow_dispatch:'), workflow.indexOf('\npermissions:'));
@@ -251,7 +274,7 @@ test("browser jobs publish structured reports to the metrics collector", () => {
     const nextJobOffset = workflow.slice(start + 3).search(/^\n  [A-Za-z0-9_-]+:/m);
     const end = nextJobOffset < 0 ? workflow.length : start + 3 + nextJobOffset;
     const block = workflow.slice(start, end);
-    assert.match(block, /outputs:\s+test_report:/s, `${job} must expose a report output`);
+    assert.match(block, /outputs:\s+test_report(?:_[1-4])?:/s, `${job} must expose a report output`);
     assert.match(block, /CI_TEST_REPORT_PATH:/, `${job} must configure the report path`);
     assert.match(block, /id: publish-test-report/, `${job} must publish its report`);
     assert.match(block, /did not publish|no selected browser family/, `${job} must fail when the report is absent`);

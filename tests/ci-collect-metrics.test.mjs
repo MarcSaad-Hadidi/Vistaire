@@ -8,6 +8,20 @@ import { analyzeJobs, collectMetrics, MetricsConsistencyError } from "../scripts
 const times = { started_at: "2026-08-03T10:00:00Z", completed_at: "2026-08-03T10:01:00Z" };
 const job = (name, conclusion = "success", extra = {}) => ({ id: Math.random(), name, status: "completed", conclusion, ...times, steps: [], ...extra });
 
+test("matrix outputs retain every shard's test counts when the PR has no API token", async () => {
+  const report = { total: 2, passed: 1, failed: 1, skipped: 0, flaky: 0, interrupted: 0 };
+  const metrics = await collectMetrics({
+    env: { CI_TEST_REPORTS_JSON: JSON.stringify({ "e2e-public-chromium": { outputs: {
+      test_report_1: JSON.stringify(report), test_report_2: JSON.stringify(report),
+      test_report_3: JSON.stringify(report), test_report_4: JSON.stringify(report)
+    } } }) },
+    write: async () => {}
+  });
+  assert.equal(metrics.tests.total, 8);
+  assert.equal(metrics.tests.failed, 4);
+  assert.equal(metrics.tests.report_sources, 4);
+});
+
 test("green run excludes the collector and reports zero job failures", () => {
   const result = analyzeJobs([
     job("classify-changes"),

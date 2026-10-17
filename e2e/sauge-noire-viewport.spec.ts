@@ -53,15 +53,19 @@ function collectHealth(page: Page) {
   page.on("requestfailed", (request) => {
     const failure = request.failure()?.errorText ?? "request failed";
     const url = new URL(request.url());
-    const isSupersededSaugeRscNavigation =
-      /(?:ERR_ABORTED|NS_BINDING_ABORTED|cancelled)/i.test(failure) &&
+    const cancelled = /(?:ERR_ABORTED|NS_BINDING_ABORTED|cancelled)/i.test(failure);
+    const isSupersededPrefetch =
+      cancelled &&
       url.origin === BASE_ORIGIN &&
-      url.pathname === "/menu/sauge-noire" &&
       url.searchParams.has("_rsc") &&
       request.method() === "GET" &&
       request.resourceType() === "fetch" &&
       !request.isNavigationRequest();
-    if (isSupersededSaugeRscNavigation) return;
+    // Leaving discovery cancels its speculative routes and video ranges.
+    const isReleasedDemoVideo = cancelled && url.origin === BASE_ORIGIN &&
+      request.method() === "GET" && request.resourceType() === "media" &&
+      /^\/videos\/demo\/(?:maison-elyse|trouvable|sauge-noire)\.mp4$/.test(url.pathname);
+    if (isSupersededPrefetch || isReleasedDemoVideo) return;
     failedRequests.push(
       `${failure} ${request.url()}`
     );

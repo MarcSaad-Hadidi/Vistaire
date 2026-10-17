@@ -30,7 +30,7 @@ function fixture() {
     pricingLightTheme: () => false, subscribePricingTheme: callback => { theme = callback; return () => {}; },
     console, setTimeout: callback => timers.push(callback), clearTimeout: id => { timers[id - 1] = null; },
   });
-  const source = readFileSync(path, 'utf8').replace(/import[^;]+;\n/g, '').replace('export function', 'function');
+  const source = readFileSync(path, 'utf8').replace(/import[^;]+;\r?\n/g, '').replace('export function', 'function');
   vm.runInContext(source, scope);
   const adapter = scope.createPricingSceneAdapter({ renderer, phoneRoot: {}, scene: {}, camera: {}, environment: {},
     world, stateRef: { current: state }, invalidate: () => counts.invalidate++ });

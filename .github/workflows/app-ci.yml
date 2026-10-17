@@ -345,7 +345,7 @@ jobs:
           { du -sh .next 2>/dev/null || true; } >> "$GITHUB_STEP_SUMMARY"
 
   e2e-public-chromium:
-    name: e2e-public-chromium
+    name: e2e-public-chromium (${{ matrix.shard }}/4)
     needs: [classify-changes, fast-gate, static-quality, build-app]
     if: >-
       !cancelled() && needs.classify-changes.result == 'success' &&
@@ -356,12 +356,18 @@ jobs:
       needs.classify-changes.outputs.run_menu == 'true' ||
       needs.classify-changes.outputs.run_seo == 'true')
     runs-on: ubuntu-latest
-    # Six software-WebGL cases total 50 minutes of declared test budgets.
-    # Reserve ~10 minutes of observed setup/other suites plus artifact margin.
-    timeout-minutes: 65
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
     outputs:
-      test_report: ${{ steps.publish-test-report.outputs.report }}
+      test_report_1: ${{ steps.publish-test-report.outputs.report_1 }}
+      test_report_2: ${{ steps.publish-test-report.outputs.report_2 }}
+      test_report_3: ${{ steps.publish-test-report.outputs.report_3 }}
+      test_report_4: ${{ steps.publish-test-report.outputs.report_4 }}
     env:
+      CI_SHARD: ${{ matrix.shard }}
       CI_TEST_REPORT_PATH: ${{ github.workspace }}/.ci-test-report-e2e-public-chromium.json
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
@@ -384,12 +390,12 @@ jobs:
         if: ${{ !cancelled() && needs.classify-changes.outputs.run_landing == 'true' }}
         env:
           CI_TEST_REPORT_PATH: ${{ github.workspace }}/.ci-test-report-offers.json
-        run: node scripts/run-playwright-e2e.mjs e2e/landing-offers.spec.ts --project=chromium --workers=1 --retries=0 --forbid-only --reporter=list,./e2e/support/forbid-skipped-tests-reporter.ts --output=test-results/offers-acceptance
+        run: node scripts/run-playwright-e2e.mjs e2e/landing-offers.spec.ts --project=chromium --workers=1 --retries=0 --forbid-only --reporter=list,./e2e/support/forbid-skipped-tests-reporter.ts --output=test-results/offers-acceptance --fully-parallel --shard=${{ matrix.shard }}/4
       - name: Retain offers projection and input evidence
         if: ${{ always() && needs.classify-changes.outputs.run_landing == 'true' }}
         uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
         with:
-          name: landing-offers-chromium-${{ github.run_id }}
+          name: landing-offers-chromium-${{ github.run_id }}-${{ matrix.shard }}
           path: |
             test-results/offers-acceptance/
             .ci-test-report-offers.json
@@ -400,12 +406,12 @@ jobs:
         if: ${{ !cancelled() && needs.classify-changes.outputs.run_landing == 'true' }}
         env:
           CI_TEST_REPORT_PATH: ${{ github.workspace }}/.ci-test-report-features-frame.json
-        run: npm run test:ci:e2e:landing -- --grep 'Features keeps a stable natural reading frame' --output=test-results/features-frame-baseline
+        run: npm run test:ci:e2e:landing -- --grep 'Features keeps a stable natural reading frame' --output=test-results/features-frame-baseline --fully-parallel --shard=${{ matrix.shard }}/4
       - name: Upload Features reading frame evidence
         if: ${{ always() && needs.classify-changes.outputs.run_landing == 'true' }}
         uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
         with:
-          name: features-frame-${{ github.run_id }}
+          name: features-frame-${{ github.run_id }}-${{ matrix.shard }}
           include-hidden-files: true
           path: |
             test-results/features-frame-baseline/
@@ -416,12 +422,12 @@ jobs:
         if: ${{ !cancelled() && needs.classify-changes.outputs.run_core == 'true' }}
         env:
           CI_TEST_REPORT_PATH: ${{ github.workspace }}/.ci-test-report-core.json
-        run: npm run test:ci:e2e:core
+        run: npm run test:ci:e2e:core -- --fully-parallel --shard=${{ matrix.shard }}/4
       - name: Preserve native navigation diagnostics before the next suite
         if: ${{ always() && needs.classify-changes.outputs.run_core == 'true' }}
         uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
         with:
-          name: core-navigation-${{ github.run_id }}
+          name: core-navigation-${{ github.run_id }}-${{ matrix.shard }}
           path: |
             test-results/**/*native-scroll*.json
             test-results/**/error-context.md
@@ -434,25 +440,23 @@ jobs:
           CI_TEST_REPORT_PATH: ${{ github.workspace }}/.ci-test-report-landing.json
         shell: bash
         run: |
-          # One controlled isolation experiment: preserve each complete journey,
-          # its deadlines and quality, with a fresh CLI/server for mobile zoom.
-          mobile_filter='food zoom safety \(Chromium software WebGL\) /en preserves whole-food reset and safe close-ups while rotating and resizing$'
-          mobile_report="$GITHUB_WORKSPACE/.ci-test-report-landing-mobile-first.json"
-          complement_report="$GITHUB_WORKSPACE/.ci-test-report-landing-complement.json"
-          mobile_status=0
-          CI_TEST_REPORT_PATH="$mobile_report" npm run test:ci:e2e:landing -- \
-            --grep "$mobile_filter" --output=test-results/landing-mobile-first || mobile_status=$?
-          complement_status=0
-          CI_TEST_REPORT_PATH="$complement_report" npm run test:ci:e2e:landing -- \
-            --grep-invert "$mobile_filter" --output=test-results/landing-complement || complement_status=$?
-          printf 'Landing exit codes: mobile=%s complement=%s\n' "$mobile_status" "$complement_status"
-          CI_TEST_REPORT_PATHS="$mobile_report,$complement_report" node scripts/ci/aggregate-test-reports.mjs
-          if (( mobile_status != 0 || complement_status != 0 )); then exit 1; fi
+          # Balance the four long 3D journeys separately from shorter tests.
+          heavy_filter='rendered scroll choreography|food zoom safety'
+          heavy_report="$GITHUB_WORKSPACE/.ci-test-report-landing-heavy.json"
+          general_report="$GITHUB_WORKSPACE/.ci-test-report-landing-general.json"
+          heavy_status=0
+          CI_TEST_REPORT_PATH="$heavy_report" npm run test:ci:e2e:landing -- \
+            --grep "$heavy_filter" --fully-parallel --shard=${{ matrix.shard }}/4 --output=test-results/landing-heavy || heavy_status=$?
+          general_status=0
+          CI_TEST_REPORT_PATH="$general_report" npm run test:ci:e2e:landing -- \
+            --grep-invert "$heavy_filter" --fully-parallel --shard=${{ matrix.shard }}/4 --output=test-results/landing-general || general_status=$?
+          CI_TEST_REPORT_PATHS="$heavy_report,$general_report" node scripts/ci/aggregate-test-reports.mjs
+          if (( heavy_status != 0 || general_status != 0 )); then exit 1; fi
       - name: Upload rendered landing evidence
         if: ${{ always() && needs.classify-changes.outputs.run_landing == 'true' }}
         uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
         with:
-          name: landing-rendered-${{ github.run_id }}
+          name: landing-rendered-${{ github.run_id }}-${{ matrix.shard }}
           include-hidden-files: true
           path: |
             .ci-test-report-landing*.json
@@ -466,12 +470,12 @@ jobs:
         if: ${{ !cancelled() && needs.classify-changes.outputs.run_menu == 'true' }}
         env:
           CI_TEST_REPORT_PATH: ${{ github.workspace }}/.ci-test-report-menu.json
-        run: npm run test:ci:e2e:menu
+        run: npm run test:ci:e2e:menu -- --fully-parallel --shard=${{ matrix.shard }}/4
       - name: SEO browser smoke
         if: ${{ !cancelled() && needs.classify-changes.outputs.run_seo == 'true' }}
         env:
           CI_TEST_REPORT_PATH: ${{ github.workspace }}/.ci-test-report-seo.json
-        run: npm run test:seo:e2e
+        run: npm run test:seo:e2e -- --fully-parallel --shard=${{ matrix.shard }}/4
       - name: Publish structured test report
         id: publish-test-report
         if: ${{ always() }}
@@ -498,12 +502,12 @@ jobs:
             exit 1
           fi
           report="$(tr -d '\n' < "$CI_TEST_REPORT_PATH")"
-          echo "report=$report" >> "$GITHUB_OUTPUT"
+          echo "report_${CI_SHARD}=$report" >> "$GITHUB_OUTPUT"
       - name: Upload browser diagnostics
         if: ${{ failure() }}
         uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
         with:
-          name: e2e-public-chromium-failure-${{ github.run_id }}
+          name: e2e-public-chromium-failure-${{ github.run_id }}-${{ matrix.shard }}
           path: |
             test-results/
             playwright-report/
@@ -810,14 +814,22 @@ jobs:
           retention-days: 7
 
   webkit-critical:
-    name: webkit-critical
+    name: webkit-critical (${{ matrix.shard }}/4)
     needs: [classify-changes, fast-gate, static-quality, build-app]
     if: ${{ !cancelled() && needs.classify-changes.result == 'success' && needs.fast-gate.result == 'success' && needs.static-quality.result == 'success' && needs.build-app.result == 'success' && needs.classify-changes.outputs.run_webkit == 'true' }}
     runs-on: ubuntu-latest
-    timeout-minutes: 35
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
     outputs:
-      test_report: ${{ steps.publish-test-report.outputs.report }}
+      test_report_1: ${{ steps.publish-test-report.outputs.report_1 }}
+      test_report_2: ${{ steps.publish-test-report.outputs.report_2 }}
+      test_report_3: ${{ steps.publish-test-report.outputs.report_3 }}
+      test_report_4: ${{ steps.publish-test-report.outputs.report_4 }}
     env:
+      CI_SHARD: ${{ matrix.shard }}
       CI_TEST_REPORT_PATH: ${{ github.workspace }}/.ci-test-report-webkit-critical.json
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
@@ -839,12 +851,12 @@ jobs:
         if: ${{ !cancelled() && needs.classify-changes.outputs.run_landing == 'true' }}
         env:
           CI_TEST_REPORT_PATH: ${{ github.workspace }}/.ci-test-report-offers.json
-        run: node scripts/run-playwright-e2e.mjs e2e/landing-offers.spec.ts --project=webkit --workers=1 --retries=0 --forbid-only --reporter=list,./e2e/support/forbid-skipped-tests-reporter.ts --output=test-results/offers-acceptance
+        run: node scripts/run-playwright-e2e.mjs e2e/landing-offers.spec.ts --project=webkit --workers=1 --retries=0 --forbid-only --reporter=list,./e2e/support/forbid-skipped-tests-reporter.ts --output=test-results/offers-acceptance --fully-parallel --shard=${{ matrix.shard }}/4
       - name: Retain offers projection and input evidence
         if: ${{ always() && needs.classify-changes.outputs.run_landing == 'true' }}
         uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
         with:
-          name: landing-offers-webkit-${{ github.run_id }}
+          name: landing-offers-webkit-${{ github.run_id }}-${{ matrix.shard }}
           path: |
             test-results/offers-acceptance/
             .ci-test-report-offers.json
@@ -852,7 +864,7 @@ jobs:
           if-no-files-found: error
           retention-days: 7
       - name: Admin dish image browser suite (WebKit)
-        if: ${{ !cancelled() && needs.classify-changes.outputs.run_admin_qr == 'true' }}
+        if: ${{ !cancelled() && matrix.shard == 1 && needs.classify-changes.outputs.run_admin_qr == 'true' }}
         env:
           VISTAIRE_ADMIN_FULL_MENU_PROJECT: webkit
         run: npm run test:admin:full-menu
@@ -860,7 +872,7 @@ jobs:
         if: ${{ always() }}
         uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
         with:
-          name: admin-studio-webkit-${{ github.run_id }}
+          name: admin-studio-webkit-${{ github.run_id }}-${{ matrix.shard }}
           path: |
             test-results/**/vistaire-studio-*.png
             test-results/**/error-context.md
@@ -869,7 +881,7 @@ jobs:
           retention-days: 7
       - name: Public critical browser suite (WebKit)
         if: ${{ !cancelled() }}
-        run: npm run test:ci:e2e:webkit
+        run: npm run test:ci:e2e:webkit -- --fully-parallel --shard=${{ matrix.shard }}/4
       - name: Publish structured test report
         id: publish-test-report
         if: ${{ always() }}
@@ -886,11 +898,11 @@ jobs:
             exit 1
           fi
           report="$(tr -d '\n' < "$CI_TEST_REPORT_PATH")"
-          echo "report=$report" >> "$GITHUB_OUTPUT"
+          echo "report_${CI_SHARD}=$report" >> "$GITHUB_OUTPUT"
       - if: ${{ failure() }}
         uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
         with:
-          name: webkit-failure-${{ github.run_id }}
+          name: webkit-failure-${{ github.run_id }}-${{ matrix.shard }}
           path: |
             test-results/
             playwright-report/

@@ -9,7 +9,7 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
 
 const { createLaptopModel } = await import(pathToFileURL(resolve(process.env.VISTAIRE_LAPTOP_SOURCE || 'components/immersive/LaptopModel.js')));
-const source = readFileSync(process.env.VISTAIRE_SCENE_SOURCE || 'components/immersive/Scene.jsx', 'utf8');
+const source = readFileSync(process.env.VISTAIRE_SCENE_SOURCE || 'components/immersive/Scene.jsx', 'utf8').replaceAll('\r\n', '\n');
 function between(start, end, text = source) {
   const a = text.indexOf(start), b = text.indexOf(end, a + start.length);
   assert.ok(a >= 0 && b > a, `production boundary: ${start} → ${end}`);

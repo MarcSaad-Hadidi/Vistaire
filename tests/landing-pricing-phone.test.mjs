@@ -92,6 +92,14 @@ test('keyboard reading explicitly continues the page at both fixed-portal bounda
   press('ArrowDown');
   assert.equal(prevented, true);
   assert.equal(calls.length, 3, 'inside the phone, keyboard movement still resolves to a native page position');
+  for (const [key, top] of [['Home', 0], ['End', -1000]]) {
+    introTop = top;
+    prevented = false;
+    const before = calls.length;
+    press(key);
+    assert.equal(prevented, true, `${key} at the reader boundary must not jump the document`);
+    assert.equal(calls.length, before, 'an already reached reader endpoint stays in place');
+  }
 });
 
 test('the first native phone projection cannot move the FAQ or footer', async () => {

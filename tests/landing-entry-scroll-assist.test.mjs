@@ -887,6 +887,27 @@ test('controlled continuation waits for final scroll and fresh input cancels wit
   finishing.assist.dispose();
 });
 
+test('a delayed final animation frame keeps a bounded window for its trusted arrival event', () => {
+  for (const delivered of [true, false]) {
+    const f = fixture({ nativeMotion: false });
+    f.wheel(100); f.end(); f.advance(40);
+    const duration = f.reports.find(row => row.type === 'assist-start').duration;
+    f.stall(duration + 450); f.advance(0);
+    assert.equal(f.reports.some(row => row.reason === 'arrival-unconfirmed'), false,
+      'a late frame must not expire confirmation before issuing its final write');
+    if (delivered) {
+      f.advance(100);
+      f.move(f.calls.at(-1).top);
+      assert.equal(f.reports.filter(row => row.type === 'completed').length, 1);
+    } else {
+      f.advance(420);
+      assert.equal(f.reports.some(row => row.reason === 'arrival-unconfirmed'), true);
+    }
+    assert.equal(f.frames(), 0, 'completion and missing confirmation both release the RAF');
+    f.assist.dispose();
+  }
+});
+
 test('delayed Safari scroll events never race native coast or reverse an assisted write', () => {
   // Physical trace: a pending instant write used to land 47ms after newer
   // native momentum, pulling Brave/WebKit backwards mid-transition.
