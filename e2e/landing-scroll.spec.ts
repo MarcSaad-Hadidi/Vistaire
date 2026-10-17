@@ -1047,18 +1047,26 @@ renderedTouchTest('healthy mobile: pricing offers stay JavaScript-owned at the s
     expect(await page.evaluate(() => document.hasFocus())).toBe(true);
     let trustedKey: Record<string, unknown> | undefined;
     try {
-      await page.keyboard.down('PageDown');
-      try {
-        // Prove the trusted key has started native scrolling before delivering
-        // the stale notification; a zero-motion input cannot exercise the race.
-        await expect.poll(() => page.evaluate(() => scrollY)).toBeGreaterThan(collectionY + 1);
-      } finally {
-        await page.keyboard.up('PageDown');
-      }
+      // Deliver from the first genuine displacement, independently of delayed
+      // automation polling. Release the key normally; some mobile engines do
+      // not commit a held PageDown until keyup.
+      await page.evaluate(from => {
+        const state = window as unknown as { __landingDelayedHash: HashChangeEvent; __landingHashDelivered: boolean };
+        state.__landingHashDelivered = false;
+        const deliver = (event: Event) => {
+          if (!event.isTrusted || event.target !== document || scrollY <= from + 1) return;
+          removeEventListener('scroll', deliver);
+          state.__landingHashDelivered = true;
+          dispatchEvent(state.__landingDelayedHash);
+        };
+        addEventListener('scroll', deliver);
+      }, collectionY);
+      await page.keyboard.press('PageDown');
+      await expect.poll(() => page.evaluate(() => (window as unknown as { __landingHashDelivered: boolean }).__landingHashDelivered),
+        { timeout: 15_000 }).toBe(true);
       trustedKey = await page.evaluate(() => (window as unknown as { __landingHashTrace: Record<string, unknown>[] }).__landingHashTrace.find(entry => entry.type === 'intent' && entry.eventType === 'keydown'));
       expect(trustedKey?.trusted).toBe(true);
       expect(Number(trustedKey?.eventTimeStamp)).toBeGreaterThan(olderHash);
-      await page.evaluate(() => dispatchEvent((window as unknown as { __landingDelayedHash: HashChangeEvent }).__landingDelayedHash));
       await expect.poll(() => page.evaluate(y => Math.abs(scrollY - y), firstOffer), { timeout: 10_000 }).toBeLessThanOrEqual(1);
     } finally {
       const data = await page.evaluate(() => ({ y: scrollY, hash: location.hash, focused: document.hasFocus(), trace: (window as unknown as { __landingHashTrace: Record<string, unknown>[] }).__landingHashTrace }));

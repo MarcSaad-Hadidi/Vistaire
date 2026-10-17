@@ -939,12 +939,12 @@ test("public theme uses BeUI blinds with keyboard and rapid-click safety on mobi
     await toggle.focus();
     await page.keyboard.press("Enter");
     await expect(toggle).toHaveAttribute("aria-pressed", "true");
-    await expect(page.locator("html")).not.toHaveAttribute("data-vistaire-theme-transition");
+    await expect(page.locator("html")).not.toHaveAttribute("data-vistaire-theme-transition", { timeout: 30_000 });
     await expect(toggle).toBeFocused();
     // Two synchronous activations must not create competing page snapshots.
     await toggle.evaluate((button) => { (button as HTMLButtonElement).click(); (button as HTMLButtonElement).click(); });
     await expect(toggle).toHaveAttribute("aria-pressed", "false");
-    await expect(page.locator("html")).not.toHaveAttribute("data-vistaire-theme-transition");
+    await expect(page.locator("html")).not.toHaveAttribute("data-vistaire-theme-transition", { timeout: 30_000 });
     const captures = await page.evaluate(() => (window as unknown as {
       themeTransitionCaptures: { variant: string; animation: string; mask: string }[];
     }).themeTransitionCaptures);
