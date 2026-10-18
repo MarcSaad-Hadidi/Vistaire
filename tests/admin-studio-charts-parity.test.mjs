@@ -81,3 +81,11 @@ test("category sectors carry palette colors and radar uses separated percentage 
   assert.ok(workspace.includes("wrapChartLabel"));
   assert.doesNotMatch(workspace, /name\.slice\(0, 16\)/);
 });
+
+test("application-owned chart primitives have a direct pinned Recharts dependency", async () => {
+  const manifest = JSON.parse(await readFile("package.json", "utf8"));
+  const lock = JSON.parse(await readFile("package-lock.json", "utf8"));
+  assert.equal(manifest.dependencies.recharts, "3.10.1");
+  assert.equal(lock.packages[""].dependencies.recharts, "3.10.1");
+  assert.equal(lock.packages["node_modules/recharts"].version, "3.10.1");
+});
