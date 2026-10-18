@@ -99,3 +99,10 @@ test("overview ranking uses compact changes and the whole heatmap uses fluid col
   assert.doesNotMatch(charts, /cellSize:\s*24/);
   assert.match(css, /\.heatmapGrid\s*\{[^}]*min-width:\s*0/s);
 });
+
+test("library exclusions keep shell button specificity below Studio card layouts", async () => {
+  const css = await readFile(new URL("../components/admin/studio/Studio.module.css", import.meta.url), "utf8");
+  assert.match(css, /\.studio :where\(button:not\(\[data-kind-ui\]\)/);
+  assert.doesNotMatch(css, /\.studio button:not\(\[data-kind-ui\]\)/);
+  assert.match(css, /\.panelHead > \[data-component="beui-combobox"\][\s\S]*?max-width:\s*48%/);
+});

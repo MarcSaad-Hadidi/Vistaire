@@ -2,12 +2,19 @@
 import { useStudioLocale } from "./studioLocale";
 import { useRef, useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Search, CalendarClock, SlidersHorizontal } from "lucide-react";
+import { CalendarClock, SlidersHorizontal } from "lucide-react";
 import type { AdminDashboardData } from "@/lib/admin/dashboardData";
 import type { AdminMenuDish } from "@/lib/admin/menuReadiness";
 import { resolveAvailabilityForSource } from "../availability/availabilityMutation";
 import { AdminDishThumbnail } from "../AdminDishThumbnail";
 import styles from "./Studio.module.css";
+import {
+  StudioSearch,
+  StudioCombobox,
+  StudioSwitch,
+  StudioCheckbox,
+  StudioToast,
+} from "./StudioControls";
 
 export function StudioDishes({
   data,
@@ -22,7 +29,7 @@ export function StudioDishes({
   onDish: (dish: AdminMenuDish) => void;
   onSchedule: (dish: AdminMenuDish) => void;
 }) {
-  const {t,locale,number}=useStudioLocale();
+  const { t, locale, number } = useStudioLocale();
   const router = useRouter();
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState("");
@@ -122,78 +129,83 @@ export function StudioDishes({
   return (
     <>
       {!canWrite && (
-        <p className={styles.notice}>{t(demo ? "Cette démonstration ne modifie aucun restaurant. Les disponibilités sont en lecture seule." : "Accès en lecture seule. Un QR admin autorisé est nécessaire pour modifier les plats.")}</p>
+        <p className={styles.notice}>
+          {t(
+            demo
+              ? "Cette démonstration ne modifie aucun restaurant. Les disponibilités sont en lecture seule."
+              : "Accès en lecture seule. Un QR admin autorisé est nécessaire pour modifier les plats.",
+          )}
+        </p>
       )}
       {feedback && (
-        <p
-          className={`${styles.feedback} ${error ? styles.error : ""}`}
-          role={error ? "alert" : "status"}
-        >
-          {feedback}
-        </p>
+        <StudioToast
+          message={feedback}
+          error={error}
+          onClose={() => setFeedback("")}
+        />
       )}
       <section className={styles.panel} aria-label={t("Les plats")}>
         <div className={styles.filterBar}>
-          <label className={styles.search}>
-            <Search size={18} />
-            <span className={styles.srOnly}>{t("Rechercher un plat")}</span>
-            <input
-              value={query}
-              onChange={(event) => {
-                setQuery(event.target.value);
-                setSelected([]);
-              }}
-              placeholder={t("Rechercher un plat…")}
-              type="search"
-            />
-          </label>
-          <label>
-            <span className={styles.srOnly}>{t("Catégorie")}</span>
-            <select
-              value={category}
-              onChange={(event) => {
-                setCategory(event.target.value);
-                setSelected([]);
-              }}
-            >
-              <option value="">{t("Toutes les catégories")}</option>
-              {[...new Set(data.menu.dishes.map((dish) => dish.category))].map(
-                (value) => (
-                  <option key={value}>{value}</option>
-                ),
-              )}
-            </select>
-          </label>
-          <label>
-            <span className={styles.srOnly}>{t("Disponibilité")}</span>
-            <select
-              value={status}
-              onChange={(event) => {
-                setStatus(event.target.value);
-                setSelected([]);
-              }}
-            >
-              <option value="all">{t("Tous les plats")}</option>
-              <option value="available">{t("Disponibles")}</option>
-              <option value="unavailable">{t("Indisponibles")}</option>
-            </select>
-          </label>
+          <StudioSearch
+            value={query}
+            onChange={(value) => {
+              setQuery(value);
+              setSelected([]);
+            }}
+            label={t("Rechercher un plat")}
+            placeholder={t("Rechercher un plat…")}
+          />
+          <StudioCombobox
+            value={category}
+            onChange={(value) => {
+              setCategory(value);
+              setSelected([]);
+            }}
+            label={t("Catégorie")}
+            options={[
+              { value: "", label: t("Toutes les catégories") },
+              ...[
+                ...new Set(data.menu.dishes.map((dish) => dish.category)),
+              ].map((value) => ({ value, label: value })),
+            ]}
+          />
+          <StudioCombobox
+            value={status}
+            onChange={(value) => {
+              setStatus(value);
+              setSelected([]);
+            }}
+            label={t("Disponibilité")}
+            options={[
+              { value: "all", label: t("Tous les plats") },
+              { value: "available", label: t("Disponibles") },
+              { value: "unavailable", label: t("Indisponibles") },
+            ]}
+          />
         </div>
         <div className={styles.selectionHead}>
-          <label>
-            <input
-              type="checkbox"
-              checked={all}
-              disabled={!visible.length || pending || !canWrite}
-              onChange={() =>
-                setSelected(all ? [] : visible.map((dish) => dish.id))
-              }
-            />{t("Tout sélectionner")}<span role="status" aria-live="polite">({visible.length})</span>
-          </label>
+          <StudioCheckbox
+            checked={all}
+            disabled={!visible.length || pending || !canWrite}
+            label={t("Tout sélectionner")}
+            onCheckedChange={() =>
+              setSelected(all ? [] : visible.map((dish) => dish.id))
+            }
+          >
+            {t("Tout sélectionner")}{" "}
+            <span role="status" aria-live="polite">
+              ({visible.length})
+            </span>
+          </StudioCheckbox>
           {picked.length > 0 && (
-            <div className={styles.batchActions} aria-label={t("Actions groupées")}>
+            <div
+              className={styles.batchActions}
+              aria-label={t("Actions groupées")}
+            >
               <strong>
-                {picked.length}{t("sélectionné")}{picked.length > 1 ? "s" : ""}
+                {picked.length}
+                {t("sélectionné")}
+                {picked.length > 1 ? "s" : ""}
               </strong>
               <button
                 type="button"
@@ -204,7 +216,9 @@ export function StudioDishes({
                     true,
                   )
                 }
-              >{t("Rendre disponibles")}</button>
+              >
+                {t("Rendre disponibles")}
+              </button>
               <button
                 type="button"
                 disabled={pending}
@@ -214,7 +228,9 @@ export function StudioDishes({
                     false,
                   )
                 }
-              >{t("Rendre indisponibles")}</button>
+              >
+                {t("Rendre indisponibles")}
+              </button>
             </div>
           )}
         </div>
@@ -229,7 +245,9 @@ export function StudioDishes({
                 setCategory("");
                 setStatus("all");
               }}
-            >{t("Effacer les filtres")}</button>
+            >
+              {t("Effacer les filtres")}
+            </button>
           </div>
         ) : (
           visible.map((dish) => {
@@ -244,13 +262,12 @@ export function StudioDishes({
                 data-category-id={dish.categorySlug ?? dish.category}
                 data-available={isAvailable}
               >
-                <label className={styles.dishSelect}>
-                  <input
-                    type="checkbox"
+                <div className={styles.dishSelect}>
+                  <StudioCheckbox
                     checked={picked.includes(dish.id)}
                     disabled={pending || !canWrite}
-                    aria-label={`${locale === "en" ? "Select" : "Sélectionner"} ${dish.name}`}
-                    onChange={() =>
+                    label={`${locale === "en" ? "Select" : "Sélectionner"} ${dish.name}`}
+                    onCheckedChange={() =>
                       setSelected((previous) =>
                         previous.includes(dish.id)
                           ? previous.filter((id) => id !== dish.id)
@@ -258,7 +275,7 @@ export function StudioDishes({
                       )
                     }
                   />
-                </label>
+                </div>
                 <div className={styles.dishIdentity}>
                   <AdminDishThumbnail
                     name={dish.name}
@@ -271,7 +288,9 @@ export function StudioDishes({
                     <h3>
                       <button
                         className={styles.dishName}
-                        onClick={() => onDish(dish)}
+                        onClick={() =>
+                          onDish({ ...dish, available: isAvailable })
+                        }
                       >
                         {dish.name}
                       </button>
@@ -326,16 +345,16 @@ export function StudioDishes({
                     </small>
                   </div>
                   <div className={styles.dishControls}>
-                    <button
-                      className={styles.switch}
-                      role="switch"
-                      aria-checked={isAvailable}
-                      aria-label={`${locale === "en" ? "Availability of" : "Disponibilité de"} ${dish.name}`}
+                    <StudioSwitch
+                      checked={isAvailable}
                       disabled={pending || !canWrite}
-                      onClick={() => update([dish], !isAvailable)}
+                      label={`${locale === "en" ? "Availability of" : "Disponibilité de"} ${dish.name}`}
+                      onCheckedChange={(value) => update([dish], value)}
                     />
                     <button disabled={pending} onClick={() => onSchedule(dish)}>
-                      <CalendarClock size={15} />{t("Planifier")}</button>
+                      <CalendarClock size={15} />
+                      {t("Planifier")}
+                    </button>
                   </div>
                 </div>
               </article>

@@ -49,7 +49,7 @@
 .studio * {
   box-sizing: border-box;
 }
-.studio button,
+.studio :where(button:not([data-kind-ui]):not([data-kind-ui] *):not([data-date-picker] *)),
 .studio input,
 .studio select,
 .dialog button,
@@ -58,13 +58,13 @@
   font: inherit;
   color: inherit;
 }
-.studio button,
+.studio :where(button:not([data-kind-ui]):not([data-kind-ui] *):not([data-date-picker] *)),
 .studio a,
 .studio input,
 .studio select {
   touch-action: manipulation;
 }
-.studio button,
+.studio :where(button:not([data-kind-ui]):not([data-kind-ui] *):not([data-date-picker] *)),
 .button,
 .dialog button {
   min-height: 44px;
@@ -79,7 +79,7 @@
   cursor: pointer;
   text-decoration: none;
 }
-.studio button:hover,
+.studio :where(button:not([data-kind-ui]):not([data-kind-ui] *):not([data-date-picker] *)):hover,
 .button:hover,
 .dialog button:hover {
   background: var(--soft);
@@ -478,23 +478,24 @@
 .chart {
   width: 100%;
   min-width: 0;
-  --color-background: var(--surface);
-  --color-foreground: var(--ink);
-  --color-muted-foreground: var(--muted);
-  --color-border: var(--line);
+  --kind-ui-chart-popover: var(--surface);
+  --kind-ui-chart-popover-foreground: var(--ink);
+  --kind-ui-chart-muted-foreground: var(--muted);
+  --kind-ui-chart-border: var(--line);
+  --kind-ui-chart-legend-background: var(--surface);
+  --kind-ui-chart-radius: 8px;
 }
-.chart :global(.recharts-default-tooltip) {
-  background: var(--surface) !important;
-  border-color: var(--line) !important;
-  color: var(--ink) !important;
+.chart :global(.recharts-wrapper) { max-width: 100%; }
+.chart :global([data-kind-ui="chart"]) { width: 100%; min-width: 0; }
+.chart :global([data-kind-ui="chart-legend"]) { gap: 8px; margin: 12px 0; }
+.chart :global([data-kind-ui="chart-legend-button"]) {
+  min-height: 38px;
+  padding: 7px 10px;
+  border-radius: 8px;
+  font-size: 11px;
 }
-.chart :global(.recharts-wrapper) {
-  max-width: 100%;
-}
-.chart :global(.kind-root) {
-  width: 100%;
-  min-width: 0;
-}
+.chart :global([data-kind-ui="chart-legend-button"] strong) { font-variant-numeric: tabular-nums; margin-left: 4px; }
+.chart :global([data-kind-ui="chart-legend-button"] small) { color: var(--muted); font-size: 9px; }
 .dataDisclosure {
   border-top: 1px solid var(--line);
   padding: 12px 24px;
@@ -717,7 +718,7 @@
 }
 .dishRow {
   display: grid;
-  grid-template-columns: 24px minmax(150px, 1fr) minmax(240px, 1.25fr) minmax(
+  grid-template-columns: 44px minmax(150px, 1fr) minmax(240px, 1.25fr) minmax(
       180px,
       0.9fr
     );
@@ -1056,7 +1057,7 @@
     padding: 0 24px;
   }
   .dishRow {
-    grid-template-columns: 24px minmax(155px, 1fr) minmax(240px, 1.2fr);
+    grid-template-columns: 44px minmax(155px, 1fr) minmax(240px, 1.2fr);
   }
   .dishAvailability {
     grid-column: 2/-1;
@@ -1282,7 +1283,7 @@
     gap: 6px;
   }
   .dishRow {
-    grid-template-columns: 24px minmax(0, 1fr);
+    grid-template-columns: 44px minmax(0, 1fr);
     gap: 14px 12px;
     padding: 18px 16px;
   }
@@ -1421,3 +1422,14 @@
 @media(max-width:650px) { .stateCard{padding:24px;} .stateBrand{font-size:22px;} .loadingCards{grid-template-columns:repeat(2,minmax(0,1fr));} }
 
 .nav button { border:0; width:100%; background:transparent; text-align:left; }
+
+/* The approved searchable controls need an unclipped floating list. */
+.panel:has([data-component="beui-combobox"]){overflow:visible;}
+.filterBar>[data-component="beui-input"]{flex:2 1 220px;}
+.filterBar>[data-component="beui-combobox"]{flex:1 1 160px;}
+
+.panelHead > [data-component="beui-combobox"] { flex:0 1 260px; width:260px; max-width:48%; }
+@media(max-width:650px) {
+  .panelHead:has(> [data-component="beui-combobox"]) { flex-direction:column; align-items:stretch; }
+  .panelHead > [data-component="beui-combobox"] { flex-basis:auto; width:100%; max-width:100%; }
+}

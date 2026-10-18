@@ -3,8 +3,10 @@ import { createContext, useContext, type ReactNode } from "react";
 
 const StudioLocale = createContext<"fr" | "en">("fr");
 const english: Record<string, string> = {
+  "Aucun résultat": "No results",
   "Vue d’ensemble": "Overview",
   "Analyses": "Insights",
+  "Analyses visuelles": "Visual insights",
   "Les plats": "Dishes",
   "Planning": "Scheduling",
   "Ouvertures du menu": "Menu opens",
