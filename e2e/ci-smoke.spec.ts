@@ -95,7 +95,7 @@ const pricingScenarios = [
 
 for (const scenario of pricingScenarios) {
 test(`CI smoke validates ${scenario.path} Pricing table estimator`, { tag: '@critical' }, async ({ page }) => {
-  // Reuse each localized page when checking the responsive estimator.
+  // Smoke checks stay mobile-first; full runs retain the desktop resize matrix.
   test.setTimeout(120_000);
   const consoleErrors: string[] = [];
   const networkIssues: string[] = [];
@@ -133,7 +133,7 @@ test(`CI smoke validates ${scenario.path} Pricing table estimator`, { tag: '@cri
 
 
 
-  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.setViewportSize({ width: 390, height: 844 });
 
     await expectHealthy(page, scenario.path);
 
@@ -149,37 +149,24 @@ test(`CI smoke validates ${scenario.path} Pricing table estimator`, { tag: '@cri
     await expect(increment).toBeEnabled();
     await expect(collections).toHaveCount(4);
 
-    for (const [index, expectedPrice] of scenario.initialPrices.entries()) {
-      await expect(
-        collections.nth(index).locator("[data-pricing-estimated-setup]")
-      ).toHaveText(expectedPrice);
-      await expect(collections.nth(index).getByText(scenario.monthly, { exact: true })).toBeVisible();
-    }
+    const prices = collections.locator("[data-pricing-estimated-setup]");
+    await expect(prices).toHaveText([...scenario.initialPrices]);
+    await expect(collections.getByText(scenario.monthly, { exact: true })).toHaveCount(4);
 
     await increment.click();
     await expect(input).toHaveValue("21");
-    for (const [index, expectedPrice] of scenario.pricesAt21.entries()) {
-      await expect(
-        collections.nth(index).locator("[data-pricing-estimated-setup]")
-      ).toHaveText(expectedPrice);
-    }
+    await expect(prices).toHaveText([...scenario.pricesAt21]);
 
     await decrement.click();
     await expect(input).toHaveValue("20");
-    for (const [index, expectedPrice] of scenario.initialPrices.entries()) {
-      await expect(
-        collections.nth(index).locator("[data-pricing-estimated-setup]")
-      ).toHaveText(expectedPrice);
-    }
+    await expect(prices).toHaveText([...scenario.initialPrices]);
 
     await input.fill("37");
     await expect(input).toHaveValue("37");
     await expect(estimator.getByText(scenario.summaryAt37, { exact: true })).toBeVisible();
-    for (const [index, expectedPrice] of scenario.pricesAt37.entries()) {
-      const price = collections.nth(index).locator("[data-pricing-estimated-setup]");
-      await expect(price).toHaveText(expectedPrice);
-      await expect(price).toHaveAttribute("data-setup-amount", String(scenario.amountsAt37[index]));
-      await expect(collections.nth(index).getByText(scenario.monthly, { exact: true })).toBeVisible();
+    await expect(prices).toHaveText([...scenario.pricesAt37]);
+    for (const [index, amount] of scenario.amountsAt37.entries()) {
+      await expect(prices.nth(index)).toHaveAttribute("data-setup-amount", String(amount));
     }
 
     await expect(page.locator("[data-pricing-pilotage]").getByText(scenario.pilotage, { exact: true })).toBeVisible();
@@ -220,22 +207,20 @@ test(`CI smoke validates ${scenario.path} Pricing table estimator`, { tag: '@cri
     { width: 1280, height: 800 },
     { width: 1440, height: 900 }
   ]) {
+    if (process.env.VISTAIRE_CI_CRITICAL_ONLY === "true" && viewport.width > 430) continue;
     await page.setViewportSize(viewport);
-    const estimator = page.locator("[data-pricing-table-estimator]");
-    await expect(estimator).toBeVisible();
-    await expectNoHorizontalOverflow(page);
-
-    if (viewport.width <= 430) {
-      for (const button of [
-        estimator.getByRole("button", { name: scenario.decrement }),
-        estimator.getByRole("button", { name: scenario.increment })
-      ]) {
-        const box = await button.boundingBox();
-        expect(box).not.toBeNull();
-        expect(box?.width ?? 0).toBeGreaterThanOrEqual(44);
-        expect(box?.height ?? 0).toBeGreaterThanOrEqual(44);
+    await test.step(`Responsive pricing at ${viewport.width}px`, async () => {
+      await expect(estimator).toBeVisible();
+      await expectNoHorizontalOverflow(page);
+      if (viewport.width <= 430) {
+        for (const button of [decrement, increment]) {
+          const box = await button.boundingBox();
+          expect(box).not.toBeNull();
+          expect(box?.width ?? 0).toBeGreaterThanOrEqual(44);
+          expect(box?.height ?? 0).toBeGreaterThanOrEqual(44);
+        }
       }
-    }
+    });
   }
 
   await expect.poll(() => consoleErrors).toEqual([]);

@@ -67,6 +67,10 @@ parmi les familles concernées par le diff. Une modification SEO ne sélectionne
 pas les menus, Sauge Noire ou les QR privés, même si son chemin contient « QR ».
 Les changements de navigation partagée gardent leurs contrôles communs.
 
+Le smoke des tarifs contrôle le calculateur et le clavier à 390 px, puis
+l'absence de débordement et les cibles tactiles à 390/430 px. Les autres
+redimensionnements du décor 3D restent réservés aux lancements exhaustifs.
+
 Le pool Chromium public utilise 6 shards, WebKit 2, Sauge un job et Studio un
 job par navigateur. Chaque test sélectionné est exécuté une seule fois par
 navigateur. Les contrôles QR sensibles restent complets dans le job Studio
