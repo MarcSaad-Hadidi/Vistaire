@@ -67,10 +67,10 @@ parmi les familles concernées par le diff. Une modification SEO ne sélectionne
 pas les menus, Sauge Noire ou les QR privés, même si son chemin contient « QR ».
 Les changements de navigation partagée gardent leurs contrôles communs.
 
-Le pool Chromium public utilise 4 shards, WebKit 2, Sauge un job et Studio un
+Le pool Chromium public utilise 6 shards, WebKit 2, Sauge un job et Studio un
 job par navigateur. Chaque test sélectionné est exécuté une seule fois par
 navigateur. Les contrôles QR sensibles restent complets dans le job Studio
-Chromium. Au maximum 9 jobs navigateur tournent en parallèle. Le cache de
+Chromium. Au maximum 11 jobs navigateur tournent en parallèle. Le cache de
 compilation Next.js est réutilisé entre builds et reste exclu de l'artefact
 transféré aux navigateurs.
 

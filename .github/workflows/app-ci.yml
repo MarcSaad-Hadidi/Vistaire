@@ -324,7 +324,7 @@ jobs:
           { du -sh .next 2>/dev/null || true; } >> "$GITHUB_STEP_SUMMARY"
 
   e2e-public-chromium:
-    name: e2e-public-chromium (${{ matrix.shard }}/4)
+    name: e2e-public-chromium (${{ matrix.shard }}/6)
     needs: [classify-changes, build-app]
     if: >-
       !cancelled() && needs.classify-changes.result == 'success' &&
@@ -338,13 +338,15 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2, 3, 4]
+        shard: [1, 2, 3, 4, 5, 6]
     outputs:
-      test_shards: '4'
+      test_shards: '6'
       test_report_1: ${{ steps.publish-test-report.outputs.report_1 }}
       test_report_2: ${{ steps.publish-test-report.outputs.report_2 }}
       test_report_3: ${{ steps.publish-test-report.outputs.report_3 }}
       test_report_4: ${{ steps.publish-test-report.outputs.report_4 }}
+      test_report_5: ${{ steps.publish-test-report.outputs.report_5 }}
+      test_report_6: ${{ steps.publish-test-report.outputs.report_6 }}
     env:
       CI_SHARD: ${{ matrix.shard }}
       CI_TEST_REPORT_PATH: ${{ github.workspace }}/.ci-test-report-e2e-public-chromium.json
@@ -357,7 +359,8 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
-      - run: npm ci --no-audit --no-fund
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
       - name: Install Chromium once for public suites
         run: npx --no-install playwright install chromium --only-shell
       - name: Download verified Next.js build
@@ -398,7 +401,7 @@ jobs:
           node scripts/run-playwright-e2e.mjs "${specs[@]}" \
             --project=chromium --workers=1 --retries=0 --forbid-only \
             --reporter=list,./e2e/support/forbid-skipped-tests-reporter.ts \
-            --fully-parallel --shard=${{ matrix.shard }}/4 "${critical[@]}"
+            --fully-parallel --shard=${{ matrix.shard }}/6 "${critical[@]}"
       - name: Publish structured test report
         id: publish-test-report
         if: ${{ always() }}
@@ -439,7 +442,8 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
-      - run: npm ci --no-audit --no-fund
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
       - name: Install Chromium once for Sauge
         run: npx --no-install playwright install chromium --only-shell
       - name: Download verified Next.js build
@@ -509,7 +513,8 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
-      - run: npm ci --no-audit --no-fund
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
       - name: Install browser once for Admin
         run: |
           if [[ '${{ matrix.browser }}' == chromium ]]; then
@@ -597,7 +602,8 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
-      - run: npm ci --no-audit --no-fund
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
       - run: npx --no-install playwright install --with-deps webkit
       - name: Download verified Next.js build
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0

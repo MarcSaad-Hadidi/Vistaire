@@ -58,7 +58,43 @@ test("CI smoke keeps admin gated and metadata routes healthy", { tag: '@critical
   }
 });
 
-test("CI smoke validates the bilingual Pricing table estimator", { tag: '@critical' }, async ({ page }) => {
+const pricingScenarios = [
+  {
+    path: "/tarifs-menu-digital-restaurant",
+    question: "Nombre de tables à équiper ?",
+    decrement: "Réduire le nombre de tables",
+    increment: "Augmenter le nombre de tables",
+    initialPrices: ["2 000 $ CAD", "2 050 $ CAD", "2 100 $ CAD", "2 200 $ CAD"],
+    pricesAt21: ["2 040 $ CAD", "2 095 $ CAD", "2 155 $ CAD", "2 255 $ CAD"],
+    pricesAt37: ["2 680 $ CAD", "2 815 $ CAD", "3 035 $ CAD", "3 135 $ CAD"],
+    amountsAt37: [2680, 2815, 3035, 3135],
+    monthly: "+ 200 $ CAD / mois",
+    pilotage: "+ 100 $ CAD / mois",
+    pilotageTotal: "Total 300 $ / mois",
+    summaryAt37: "20 supports inclus · 17 supports supplémentaires",
+    disclaimer:
+      "Estimation indicative. Le prix final sera confirmé dans votre devis après analyse de votre établissement et de vos besoins."
+  },
+  {
+    path: "/en/pricing-digital-restaurant-menu",
+    question: "How many tables would you like to equip?",
+    decrement: "Decrease the number of tables",
+    increment: "Increase the number of tables",
+    initialPrices: ["$2,000 CAD", "$2,050 CAD", "$2,100 CAD", "$2,200 CAD"],
+    pricesAt21: ["$2,040 CAD", "$2,095 CAD", "$2,155 CAD", "$2,255 CAD"],
+    pricesAt37: ["$2,680 CAD", "$2,815 CAD", "$3,035 CAD", "$3,135 CAD"],
+    amountsAt37: [2680, 2815, 3035, 3135],
+    monthly: "+ $200 CAD / month",
+    pilotage: "+ $100 CAD / month",
+    pilotageTotal: "Total $300 / month",
+    summaryAt37: "20 displays included · 17 additional displays",
+    disclaimer:
+      "Indicative estimate. Final pricing will be confirmed in your quote after reviewing your venue and project requirements."
+  }
+] as const;
+
+for (const scenario of pricingScenarios) {
+test(`CI smoke validates ${scenario.path} Pricing table estimator`, { tag: '@critical' }, async ({ page }) => {
   // Reuse each localized page when checking the responsive estimator.
   test.setTimeout(120_000);
   const consoleErrors: string[] = [];
@@ -95,44 +131,10 @@ test("CI smoke validates the bilingual Pricing table estimator", { tag: '@critic
     }
   });
 
-  const scenarios = [
-    {
-      path: "/tarifs-menu-digital-restaurant",
-      question: "Nombre de tables à équiper ?",
-      decrement: "Réduire le nombre de tables",
-      increment: "Augmenter le nombre de tables",
-      initialPrices: ["2 000 $ CAD", "2 050 $ CAD", "2 100 $ CAD", "2 200 $ CAD"],
-      pricesAt21: ["2 040 $ CAD", "2 095 $ CAD", "2 155 $ CAD", "2 255 $ CAD"],
-      pricesAt37: ["2 680 $ CAD", "2 815 $ CAD", "3 035 $ CAD", "3 135 $ CAD"],
-      amountsAt37: [2680, 2815, 3035, 3135],
-      monthly: "+ 200 $ CAD / mois",
-      pilotage: "+ 100 $ CAD / mois",
-      pilotageTotal: "Total 300 $ / mois",
-      summaryAt37: "20 supports inclus · 17 supports supplémentaires",
-      disclaimer:
-        "Estimation indicative. Le prix final sera confirmé dans votre devis après analyse de votre établissement et de vos besoins."
-    },
-    {
-      path: "/en/pricing-digital-restaurant-menu",
-      question: "How many tables would you like to equip?",
-      decrement: "Decrease the number of tables",
-      increment: "Increase the number of tables",
-      initialPrices: ["$2,000 CAD", "$2,050 CAD", "$2,100 CAD", "$2,200 CAD"],
-      pricesAt21: ["$2,040 CAD", "$2,095 CAD", "$2,155 CAD", "$2,255 CAD"],
-      pricesAt37: ["$2,680 CAD", "$2,815 CAD", "$3,035 CAD", "$3,135 CAD"],
-      amountsAt37: [2680, 2815, 3035, 3135],
-      monthly: "+ $200 CAD / month",
-      pilotage: "+ $100 CAD / month",
-      pilotageTotal: "Total $300 / month",
-      summaryAt37: "20 displays included · 17 additional displays",
-      disclaimer:
-        "Indicative estimate. Final pricing will be confirmed in your quote after reviewing your venue and project requirements."
-    }
-  ] as const;
+
 
   await page.setViewportSize({ width: 1280, height: 800 });
 
-  for (const scenario of scenarios) {
     await expectHealthy(page, scenario.path);
 
     const estimator = page.locator("[data-pricing-table-estimator]");
@@ -236,8 +238,8 @@ test("CI smoke validates the bilingual Pricing table estimator", { tag: '@critic
     }
   }
 
-  }
   await expect.poll(() => consoleErrors).toEqual([]);
   expect(networkIssues, networkIssues.join("\n")).toEqual([]);
   expect(modelRequests, "Pricing must not trigger heavy 3D assets").toEqual([]);
 });
+}

@@ -26,7 +26,7 @@ const fetchGraph = await readFile(new URL("../scripts/ci/fetch-pr-graph.mjs", im
 const packageJson = JSON.parse(await readFile(new URL("../package.json", import.meta.url), "utf8"));
 
 test("public browser jobs distribute one selected test pool and retain every shard report", () => {
-  for (const [name, end, count] of [["e2e-public-chromium", "e2e-sauge-chromium", 4], ["webkit-critical", "ci-gate", 2]]) {
+  for (const [name, end, count] of [["e2e-public-chromium", "e2e-sauge-chromium", 6], ["webkit-critical", "ci-gate", 2]]) {
     const job = workflow.slice(workflow.indexOf(`  ${name}:`), workflow.indexOf(`  ${end}:`));
     assert.match(job, /fail-fast: false/);
     assert.match(job, new RegExp(`test_shards: '${count}'`));
