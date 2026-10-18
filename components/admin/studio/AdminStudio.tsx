@@ -25,8 +25,11 @@ import type { AdminMetricSeriesId } from "@/lib/admin/analyticsState";
 import { StudioTrend, StudioHeatmap } from "./StudioCharts";
 import { StudioAnalysisWorkspace } from "./StudioAnalysisWorkspace";
 import { StudioDateRangePicker } from "./StudioDateRangePicker";
+import { AdminDishThumbnail } from "../AdminDishThumbnail";
+import { StudioNumber } from "./StudioNumber";
 import { StudioDishes } from "./StudioDishes";
 import { StudioDialog } from "./StudioDialog";
+import { StudioMetricExplorer } from "./StudioMetricExplorer";
 import { StudioExportDialog } from "./StudioExportDialog";
 import styles from "./Studio.module.css";
 import { useStudioTheme } from "./studioTheme";
@@ -163,11 +166,14 @@ export function AdminStudio({
   const mainId = demo ? "studio-preview-main" : "studio-main";
   const [exportOpen, setExportOpen] = useState(false);
   const [selectedMetric, setSelectedMetric] =
-    useState<AdminMetricSeriesId>("dishOpened");
+    useState<AdminMetricSeriesId>("menuOpened");
   const [explore, setExplore] = useState<AdminMetricSeriesId | null>(null);
   const [dish, setDish] = useState<AdminMenuDish | null>(null);
   const [scheduleDish, setScheduleDish] = useState<AdminMenuDish | null>(null);
   const [notice, setNotice] = useState("");
+  const [analysisView, setAnalysisView] = useState<"charts" | "table">(
+    "charts",
+  );
   const active = pages.find((item) => item.id === page)!;
   const analytics = data.analytics;
   const real = analytics.kind === "real" ? analytics : null;
@@ -221,13 +227,10 @@ export function AdminStudio({
         <div>
           <h2>
             {page === "overview"
-              ? t("L’activité de votre menu")
+              ? t("Évolution quotidienne")
               : t("Évolution dans le temps")}
           </h2>
-          <p>
-            {rangeLabel}
-            {t("· heures UTC")}
-          </p>
+          <p>{selected.label} · UTC</p>
         </div>
         <StudioCombobox
           label={t("Indicateur du graphique")}
@@ -241,10 +244,6 @@ export function AdminStudio({
       </header>
       {real ? (
         <>
-          <div className={styles.chartTotal}>
-            <strong>{number(metricValue(selected.id)?.value)}</strong>
-            <span>{selected.label.toLowerCase()}</span>
-          </div>
           <div className={styles.chartBody}>
             <StudioTrend
               series={real.metricSeries[selectedMetric]}
@@ -258,23 +257,21 @@ export function AdminStudio({
       )}
     </section>
   );
+  const totalDishViews = metricValue("dish-opens")?.value;
   const dishRanking = (
     <section className={styles.panel}>
       <header className={styles.panelHead}>
         <div>
-          <h2>{t("Les plats les plus consultés")}</h2>
-          <p>
-            {t("Évolution")} {t("vs période précédente")}
-          </p>
+          <h2>{t("Consultations par plat")}</h2>
         </div>
         {demo ? (
           <button onClick={() => onPageChange?.("dishes")}>
-            {t("Tous les plats")}
+            {t("Explorer les plats")}
             <ArrowUpRight size={15} />
           </button>
         ) : (
           <Link href={`/admin/availability?range=${range}`}>
-            {t("Tous les plats")}
+            {t("Explorer les plats")}
             <ArrowUpRight size={15} />
           </Link>
         )}
@@ -290,18 +287,35 @@ export function AdminStudio({
                 <th>{t("Plat")}</th>
                 <th>{t("Consultations")}</th>
                 <th>{t("Évolution")}</th>
+                <th className={styles.rankingShare}>{t("Part des vues")}</th>
               </tr>
             </thead>
             <tbody>
-              {ranking.slice(0, 8).map((row, index) => {
+              {ranking.slice(0, 6).map((row, index) => {
                 const item = dishMap.get(row.slug);
                 return (
                   <tr key={row.slug}>
                     <td>
-                      <button onClick={() => item && setDish(item)}>
-                        {index + 1}. {item?.name ?? row.label ?? row.slug}
-                      </button>
-                      <small>{item?.category}</small>
+                      <div className={styles.rankingDish}>
+                        <span className={styles.rankNumber}>
+                          {String(index + 1).padStart(2, "0")}
+                        </span>
+                        {item && (
+                          <AdminDishThumbnail
+                            compact
+                            name={item.name}
+                            thumbnailUrl={item.thumbnailUrl}
+                            imageUrl={item.imageUrl}
+                            sizes="38px"
+                          />
+                        )}
+                        <button onClick={() => item && setDish(item)}>
+                          <span>
+                            {item?.name ?? row.label ?? row.slug}
+                            <small>{item?.category}</small>
+                          </span>
+                        </button>
+                      </div>
                     </td>
                     <td>{number(row.count)}</td>
                     <td>
@@ -313,6 +327,11 @@ export function AdminStudio({
                             : null
                         }
                       />
+                    </td>
+                    <td className={styles.rankingShare}>
+                      {typeof totalDishViews === "number" && totalDishViews > 0
+                        ? `${new Intl.NumberFormat(locale === "en" ? "en-CA" : "fr-CA", { maximumFractionDigits: 1 }).format((row.count / totalDishViews) * 100)} %`
+                        : "N/A"}
                     </td>
                   </tr>
                 );
@@ -336,17 +355,13 @@ export function AdminStudio({
         {t("Aller au contenu")}
       </a>
       <aside className={styles.sidebar}>
-        <div className={styles.wordmark}>
-          vistaire<span>RESTAURANT STUDIO</span>
-        </div>
+        <div className={styles.wordmark}>vistaire</div>
         <div className={styles.restaurant}>
           <span className={styles.seal}>{data.restaurant.name[0]}</span>
           <div>
             <strong>{data.restaurant.name}</strong>
-            <small>{t("ESPACE RESTAURATEUR")}</small>
           </div>
         </div>
-        <div className={styles.navLabel}>{t("VOTRE RESTAURANT")}</div>
         <nav className={styles.nav} aria-label={t("Navigation principale")}>
           {pages.map(({ id, label, href, Icon }) =>
             demo ? (
@@ -448,7 +463,13 @@ export function AdminStudio({
         <div className={styles.content}>
           <header className={styles.pageHead}>
             <Heading>
-              {page === "insights" ? t("Analyses visuelles") : active.label}
+              {page === "insights"
+                ? analysisView === "table"
+                  ? locale === "en"
+                    ? "Data explorer"
+                    : "Explorateur de données"
+                  : t("Analyses visuelles")
+                : active.label}
             </Heading>
             <div className={styles.toolbar}>
               <StudioDateRangePicker
@@ -516,8 +537,11 @@ export function AdminStudio({
             <>
               <div className={styles.contextRow}>
                 <p>
-                  {rangeLabel}
-                  {t("· données du menu")}
+                  {comparable && real
+                    ? `${locale === "en" ? "Comparison" : "Comparaison"} · ${formatDate(real.observationWindow.comparisonStartInclusive)} — ${formatDate(new Date(Date.parse(real.observationWindow.comparisonEndExclusive) - 1).toISOString())}`
+                    : locale === "en"
+                      ? "Comparison N/A · previous history unavailable"
+                      : "Comparaison N/A · historique précédent indisponible"}
                 </p>
                 {demo ? (
                   <button onClick={() => onPageChange?.("dishes")}>
@@ -546,7 +570,9 @@ export function AdminStudio({
                       <Icon size={15} />
                       {label}
                     </span>
-                    <strong>{number(metricValue(id)?.value)}</strong>
+                    <strong>
+                      <StudioNumber value={metricValue(id)?.value} />
+                    </strong>
                     <Delta
                       rate={comparable ? metricValue(id)?.changeRate : null}
                     />
@@ -573,20 +599,25 @@ export function AdminStudio({
             </>
           )}
           {page === "insights" && (
-            <StudioAnalysisWorkspace data={data} onDishOpen={setDish} />
+            <StudioAnalysisWorkspace
+              view={analysisView}
+              onViewChange={setAnalysisView}
+              data={data}
+              onDishOpen={setDish}
+              onExport={() => setExportOpen(true)}
+            />
           )}
           {page === "dishes" && (
             <>
               <div className={styles.contextRow}>
+                <p>{rangeLabel} · UTC</p>
                 <p>
-                  {t(
-                    "Les chiffres de chaque plat et leur disponibilité, au même endroit",
-                  )}
+                  {comparable && real
+                    ? `vs ${formatDate(real.observationWindow.comparisonStartInclusive)} — ${formatDate(new Date(Date.parse(real.observationWindow.comparisonEndExclusive) - 1).toISOString())}`
+                    : locale === "en"
+                      ? "Previous period: N/A"
+                      : "Période précédente : N/A"}
                 </p>
-                <span>
-                  {data.menu.dishes.length}
-                  {t("plats au menu")}
-                </span>
               </div>
               <StudioDishes
                 key={`${data.restaurant.id}:${data.menu.id}`}
@@ -595,6 +626,13 @@ export function AdminStudio({
                 demo={demo}
                 onDish={setDish}
                 onSchedule={setScheduleDish}
+                onPlanning={() =>
+                  demo
+                    ? onPageChange?.("planning")
+                    : router.push(
+                        `/admin/planning?range=${encodeURIComponent(range)}`,
+                      )
+                }
               />
             </>
           )}
@@ -651,94 +689,104 @@ export function AdminStudio({
       )}
       {explore && (
         <StudioDialog
-          title={metrics.find((item) => item.series === explore)!.label}
+          title={locale === "en" ? "Explore the period" : "Explorer la période"}
           onClose={() => setExplore(null)}
         >
-          <div className={styles.dialogBody}>
-            {real ? (
-              <>
-                <div className={styles.metricSummary}>
-                  <div>
-                    <span>{t("Période sélectionnée")}</span>
-                    <strong>
-                      {number(
-                        metricValue(
-                          metrics.find((item) => item.series === explore)!.id,
-                        )?.value,
-                      )}
-                    </strong>
-                  </div>
-                  <div>
-                    <span>{t("Période précédente")}</span>
-                    <strong>
-                      {comparable
-                        ? number(
-                            real.metricSeries[explore].previous.reduce(
-                              (sum, row) => sum + row.value,
-                              0,
-                            ),
-                          )
-                        : "N/A"}
-                    </strong>
-                  </div>
-                  <div>
-                    <span>{t("Évolution")}</span>
-                    <strong>
-                      <Delta
-                        rate={
-                          comparable
-                            ? metricValue(
-                                metrics.find((item) => item.series === explore)!
-                                  .id,
-                              )?.changeRate
-                            : null
-                        }
-                      />
-                    </strong>
-                  </div>
-                </div>
-                <StudioTrend
-                  series={real.metricSeries[explore]}
-                  label={metrics.find((item) => item.series === explore)!.label}
-                  comparison={Boolean(comparable)}
-                />
-              </>
-            ) : (
-              <Evidence data={data} />
-            )}
+          <StudioMetricExplorer
+            data={data}
+            initialMetric={explore}
+            onDishOpen={(selectedDish) => {
+              setExplore(null);
+              setDish(selectedDish);
+            }}
+          />
+          <div className={styles.dialogFooter}>
+            <button onClick={() => setExplore(null)}>{t("Fermer")}</button>
           </div>
         </StudioDialog>
       )}
       {dish && (
-        <StudioDialog title={dish.name} onClose={() => setDish(null)}>
+        <StudioDialog
+          title={
+            locale === "en"
+              ? "Through your visitors’ eyes"
+              : "Dans le regard des visiteurs"
+          }
+          onClose={() => setDish(null)}
+        >
           <div className={styles.dialogBody}>
-            <p className={styles.muted}>
-              {dish.category} · {rangeLabel}
-            </p>
-            <div className={styles.metricSummary}>
+            <div className={styles.detailHero}>
+              <AdminDishThumbnail
+                name={dish.name}
+                thumbnailUrl={dish.thumbnailUrl}
+                imageUrl={dish.imageUrl}
+                sizes="110px"
+              />
+              <div>
+                <span className={styles.muted}>{dish.category}</span>
+                <h2>{dish.name}</h2>
+                <span
+                  className={styles.status}
+                  data-status={dish.available ? "available" : "unavailable"}
+                >
+                  {dish.available ? t("Disponible") : t("Indisponible")}
+                </span>
+              </div>
+            </div>
+            <div className={styles.detailMetrics}>
               {[
                 [t("Consultations"), data.dishStatistics?.[dish.id]?.views],
                 [t("Clics 3D"), data.dishStatistics?.[dish.id]?.three],
                 [t("Clics AR"), data.dishStatistics?.[dish.id]?.ar],
               ].map(([label, value]) => (
                 <div key={String(label)}>
-                  <span>{label}</span>
                   <strong>{number(value as number | undefined)}</strong>
+                  <span>{label}</span>
                 </div>
               ))}
             </div>
-            <p>{dish.description}</p>
-            <span
-              className={styles.status}
-              data-status={dish.available ? "available" : "unavailable"}
-            >
+            <p className={styles.detailHint}>
+              {typeof totalDishViews === "number" &&
+              totalDishViews > 0 &&
+              data.dishStatistics?.[dish.id]
+                ? `${new Intl.NumberFormat(locale === "en" ? "en-CA" : "fr-CA", { maximumFractionDigits: 1 }).format((data.dishStatistics[dish.id].views / totalDishViews) * 100)} % ${locale === "en" ? "of menu dish views" : "des consultations des plats du menu"}`
+                : locale === "en"
+                  ? "Share of views: N/A"
+                  : "Part des consultations : N/A"}
+              {" · "}
+              {rangeLabel}
+            </p>
+            <h3>
+              {locale === "en"
+                ? "Current availability"
+                : "Disponibilité actuelle"}
+            </h3>
+            <p className={styles.muted}>
               {dish.available ? t("Disponible") : t("Indisponible")}
-            </span>
+            </p>
             <p className={styles.muted}>
               {t(
                 "Les clics ne sont pas des commandes. N/A signifie que les données ne sont pas suffisamment complètes ou nombreuses.",
               )}
             </p>
+          </div>
+          <div className={styles.dialogFooter}>
+            <button onClick={() => setDish(null)}>{t("Fermer")}</button>
+            <button
+              className={styles.primary}
+              onClick={() => {
+                const id = dish.id;
+                setDish(null);
+                if (demo) onPageChange?.("dishes");
+                else
+                  router.push(
+                    `/admin/availability?range=${encodeURIComponent(range)}#dish-${encodeURIComponent(id)}`,
+                  );
+              }}
+            >
+              {locale === "en" ? "Manage this dish" : "Gérer ce plat"}
+              <ArrowUpRight size={16} />
+            </button>
           </div>
         </StudioDialog>
       )}

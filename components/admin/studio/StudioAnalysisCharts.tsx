@@ -12,6 +12,8 @@ import {
   ScatterTooltip,
   XAxis,
   YAxis,
+  ZAxis,
+  LabelList,
   CartesianGrid,
   RadarChart,
   RadarSeries,
@@ -34,14 +36,10 @@ import visual from "./StudioAnalysisWorkspace.module.css";
 export type StudioAnalysisMetric = "views" | "three" | "ar";
 export type StudioAnalysisFamily =
   "composition" | "scatter" | "flow" | "profile";
-const palette = [
-  "var(--chart-current)",
-  "var(--chart-three)",
-  "var(--chart-ar)",
-  "var(--chart-previous)",
-  "#c58b64",
-  "#89925e",
-];
+export const studioCategoryPalette = Array.from(
+  { length: 6 },
+  (_, index) => `var(--chart-category-${index})`,
+);
 const categoryKey = (name: string) =>
   `category-${Array.from(name)
     .map((char) => char.codePointAt(0)!.toString(16))
@@ -85,7 +83,9 @@ export function StudioAnalysisCharts({
     ...new Set(data.menu.dishes.map((dish) => dish.category)),
   ];
   const color = (name: string) =>
-    palette[Math.max(0, allCategories.indexOf(name)) % palette.length];
+    studioCategoryPalette[
+      Math.max(0, allCategories.indexOf(name)) % studioCategoryPalette.length
+    ];
   const dishes = data.menu.dishes.flatMap((dish) => {
     const stats = data.dishStatistics?.[dish.id];
     return stats && (category === "all" || dish.category === category)
@@ -99,6 +99,7 @@ export function StudioAnalysisCharts({
       return {
         key: categoryKey(name),
         name,
+        fill: color(name),
         value: rows.reduce((sum, row) => sum + row.value, 0),
         views: rows.reduce((sum, row) => sum + row.views, 0),
         three: rows.reduce((sum, row) => sum + row.three, 0),
@@ -153,8 +154,9 @@ export function StudioAnalysisCharts({
     </details>
   );
   const composition = (
-    <div className={styles.chart}>
+    <div className={styles.chart} data-studio-chart="composition">
       <Root
+        className={visual.compositionRoot}
         config={config}
         interaction={{
           kind: "category",
@@ -269,10 +271,15 @@ export function StudioAnalysisCharts({
           }
           margin={{ top: 20, right: 24, bottom: 18, left: 4 }}
         >
-          <CartesianGrid stroke="var(--line)" strokeDasharray="2 5" />
+          <CartesianGrid
+            stroke="var(--line)"
+            strokeDasharray="2 5"
+            vertical={false}
+          />
           <XAxis
             type="number"
             dataKey="views"
+            padding={{ left: 12, right: 12 }}
             name={t("Consultations")}
             domain={[0, "auto"]}
             tick={{ fill: "var(--muted)", fontSize: 11 }}
@@ -283,6 +290,7 @@ export function StudioAnalysisCharts({
           <YAxis
             type="number"
             dataKey="three"
+            padding={{ top: 12, bottom: 12 }}
             name={t("Clics 3D")}
             domain={[0, "auto"]}
             tick={{ fill: "var(--muted)", fontSize: 11 }}
@@ -293,24 +301,66 @@ export function StudioAnalysisCharts({
           />
           <ScatterTooltip<(typeof dishes)[number]>
             pointLabel={(row) => row.name}
+            content={({ active, payload }) => {
+              const row = payload?.[0]?.payload as
+                (typeof dishes)[number] | undefined;
+              return active && row ? (
+                <div className={visual.tooltip} data-kind-ui="chart-tooltip">
+                  <strong>{row.name}</strong>
+                  <div>
+                    <span>{t("Consultations")}</span>
+                    <b>{fmt(row.views)}</b>
+                  </div>
+                  <div>
+                    <span>{t("Clics 3D")}</span>
+                    <b>{fmt(row.three)}</b>
+                  </div>
+                </div>
+              ) : null;
+            }}
+          />
+          <ZAxis
+            zAxisId="fixed-size"
+            type="number"
+            domain={[0, 1]}
+            range={[450, 450]}
           />
           {categories.map((row) => (
             <ScatterSeries
+              zAxisId="fixed-size"
               key={row.key}
               seriesKey={row.key}
-              data={dishes.filter((dish) => dish.category === row.name)}
+              data={dishes
+                .filter((dish) => dish.category === row.name)
+                .map((dish) => ({
+                  ...dish,
+                  pointNumber:
+                    data.menu.dishes.findIndex((item) => item.id === dish.id) +
+                    1,
+                }))}
               name={row.name}
               fill={color(row.name)}
+              shape="circle"
+              material="plain"
+              stroke="var(--surface)"
+              strokeWidth={2}
               onClick={(point) => {
                 const dish = data.menu.dishes.find(
                   (item) => item.id === point.payload?.id,
                 );
                 if (dish) onDishOpen?.(dish);
               }}
-            />
+            >
+              <LabelList
+                dataKey="pointNumber"
+                position="inside"
+                fontSize={10}
+                fontWeight={700}
+                fill={`var(--chart-category-${Math.max(0, allCategories.indexOf(row.name)) % 6}-ink)`}
+              />
+            </ScatterSeries>
           ))}
         </ScatterChart>
-        <Legend />
       </Root>
       <p className={visual.axisCaption}>
         {t("Consultations")} → · {t("Clics 3D")} ↑
@@ -392,7 +442,13 @@ export function StudioAnalysisCharts({
     ? describeFlow(flowInspection.id, flowInspection.kind)
     : "";
   const flow = (
-    <div className={styles.chart}>
+    <div className={styles.chart} data-studio-chart="flow">
+      <div className={visual.flowSummary}>
+        <strong>{fmt(links.reduce((sum, link) => sum + link.value, 0))}</strong>
+        <span>
+          {locale === "en" ? "total recorded events" : "événements au total"}
+        </span>
+      </div>
       <Root
         config={flowConfig}
         interaction={{
@@ -577,12 +633,26 @@ export function StudioAnalysisCharts({
         ? (row.previousViews / prior) * 100
         : null,
   }));
+  const profileMaximum = Math.max(
+    10,
+    Math.ceil(
+      Math.max(...radar.flatMap((row) => [row.current, row.previous ?? 0])) /
+        10,
+    ) * 10,
+  );
+  const profileTicks = Array.from(
+    { length: 5 },
+    (_, index) => (index * profileMaximum) / 4,
+  );
   const profileKeys = comparable ? ["current", "previous"] : ["current"];
   const selectedProfileKeys = profileSelection.filter((key) =>
     profileKeys.includes(key),
   );
   const profile = (
-    <div className={styles.chart}>
+    <div
+      className={`${styles.chart} ${visual.radar}`}
+      data-studio-chart="profile"
+    >
       {categories.length >= 3 && total > 0 ? (
         <Root
           interaction={{
@@ -617,9 +687,12 @@ export function StudioAnalysisCharts({
         >
           <RadarChart
             responsive
-            style={{ width: "100%", height: 320 }}
+            style={{ width: "100%", height: 380 }}
             data={radar}
-            outerRadius="67%"
+            outerRadius="82%"
+            cx="50%"
+            cy="49%"
+            margin={{ top: 28, right: 50, bottom: 28, left: 50 }}
             accessibilityLayer
             aria-label={
               locale === "en" ? "Category shares" : "Part des catégories"
@@ -629,18 +702,57 @@ export function StudioAnalysisCharts({
             <PolarGrid stroke="var(--line)" />
             <PolarAngleAxis
               dataKey="name"
-              tick={{ fill: "var(--muted)", fontSize: 10 }}
+              tick={({ x, y, payload, textAnchor }) => {
+                const words = String(payload.value).split(" ");
+                const lines = words.reduce<string[]>((result, word) => {
+                  const last = result.length - 1;
+                  if (last < 0 || result[last].length + word.length + 1 > 12)
+                    result.push(word);
+                  else result[last] += ` ${word}`;
+                  return result;
+                }, []);
+                return (
+                  <text
+                    x={x}
+                    y={y}
+                    textAnchor={textAnchor}
+                    fill="var(--muted)"
+                    fontSize={11}
+                  >
+                    <title>{payload.value}</title>
+                    {lines.map((line, index) => (
+                      <tspan
+                        key={index}
+                        x={x}
+                        dy={index === 0 ? -(lines.length - 1) * 6 : 12}
+                      >
+                        {line}
+                      </tspan>
+                    ))}
+                  </text>
+                );
+              }}
+              tickSize={14}
+              tickLine={false}
             />
             <PolarRadiusAxis
-              domain={[0, "auto"]}
-              tick={{ fill: "var(--muted)", fontSize: 9 }}
+              angle={30}
+              domain={[0, profileMaximum]}
+              ticks={profileTicks}
+              tickFormatter={(value) => (value === 0 ? "" : `${fmt(value)} %`)}
+              axisLine={false}
+              tick={{ fill: "var(--muted)", fontSize: 10 }}
             />
             <RadarSeries
               seriesKey="current"
               dataKey="current"
               fill="var(--chart-current)"
               stroke="var(--chart-current)"
-              fillOpacity={0.15}
+              material="plain"
+              activeDot={false}
+              strokeWidth={2.4}
+              dot={{ r: 4 }}
+              fillOpacity={0.19}
             />
             {comparable && (
               <RadarSeries
@@ -648,11 +760,39 @@ export function StudioAnalysisCharts({
                 dataKey="previous"
                 fill="var(--chart-previous)"
                 stroke="var(--chart-previous)"
-                fillOpacity={0.08}
-                strokeDasharray="4 4"
+                material="plain"
+                activeDot={false}
+                strokeWidth={2.4}
+                dot={{ r: 4 }}
+                fillOpacity={0.035}
+                strokeDasharray="5 5"
               />
             )}
-            <Tooltip />
+            <Tooltip
+              maxWidth={300}
+              wrapperStyle={{ outline: "none" }}
+              content={({ active, payload }) => {
+                const row = payload?.[0]?.payload as
+                  (typeof radar)[number] | undefined;
+                const percent = (value: number | null) =>
+                  value === null
+                    ? "N/A"
+                    : `${value.toLocaleString(locale, { maximumFractionDigits: 1 })} %`;
+                return active && row ? (
+                  <div className={visual.tooltip} data-kind-ui="chart-tooltip">
+                    <strong>{row.name}</strong>
+                    <div>
+                      <span>{t("Actuel")}</span>
+                      <b>{percent(row.current)}</b>
+                    </div>
+                    <div>
+                      <span>{t("Précédent")}</span>
+                      <b>{percent(row.previous)}</b>
+                    </div>
+                  </div>
+                ) : null;
+              }}
+            />
           </RadarChart>
           <Legend
             aria-label={

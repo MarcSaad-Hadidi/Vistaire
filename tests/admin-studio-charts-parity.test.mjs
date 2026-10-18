@@ -57,7 +57,27 @@ test("analysis workspace preserves global time scope and restores supported visu
     "aria-pressed={view",
   ])
     assert.ok(source.includes(contract), contract);
+  assert.ok(source.includes('hasRanking && view === "charts"'));
   assert.doesNotMatch(source, /role="tablist"/);
-  assert.ok(source.includes('view === "table" && !hasRanking'));
+  assert.ok(source.includes("<StudioAnalysisTables"));
+  assert.ok(source.includes("onExport={onExport}"));
   assert.doesNotMatch(source, /Math\.random|\.fill\(42\)|sessions.*\*\s*0\./);
+});
+
+test("category sectors carry palette colors and radar uses separated percentage scale", async () => {
+  const source = await readFile(
+    "components/admin/studio/StudioAnalysisCharts.tsx",
+    "utf8",
+  );
+  assert.ok(source.includes("fill: color(name)"));
+  assert.doesNotMatch(source, /markerSize/);
+  assert.ok(source.includes("angle={30}"));
+  assert.ok(source.includes("ticks={profileTicks}"));
+  assert.ok(source.includes('outerRadius="82%"'));
+  const workspace = await readFile(
+    "components/admin/studio/StudioAnalysisWorkspace.tsx",
+    "utf8",
+  );
+  assert.ok(workspace.includes("wrapChartLabel"));
+  assert.doesNotMatch(workspace, /name\.slice\(0, 16\)/);
 });

@@ -310,3 +310,10 @@
   background: var(--surface);
   box-shadow: 0 2px 5px #0001;
 }
+
+.comboLabel {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 11px;
+  color: var(--muted);
+}

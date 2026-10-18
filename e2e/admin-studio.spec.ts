@@ -25,24 +25,35 @@ async function preview(page: Page) {
 }
 async function expectSemanticSwitchTracks(page: Page) {
   for (const available of [true, false]) {
-    const track = await page
-      .locator(`[role="switch"][aria-checked="${available}"]`)
-      .first()
-      .evaluate((element, isAvailable) => {
-        const style = getComputedStyle(element);
-        const token = style
-          .getPropertyValue(isAvailable ? "--available" : "--unavailable")
-          .trim();
-        const channels = token
-          .match(/^#(..)(..)(..)$/)
-          ?.slice(1)
-          .map((channel) => Number.parseInt(channel, 16));
-        return {
-          actual: getComputedStyle(element, "::before").backgroundColor,
-          expected: channels ? `rgb(${channels.join(", ")})` : token,
-        };
-      }, available);
-    expect(track.actual).toBe(track.expected);
+    // The BeUI switch track animates for 150ms when theme tokens change.
+    // Retry the actual pseudo-element color instead of sampling its old frame.
+    await expect
+      .poll(
+        async () => {
+          const track = await page
+            .locator(`[role="switch"][aria-checked="${available}"]`)
+            .first()
+            .evaluate((element, isAvailable) => {
+              const style = getComputedStyle(element);
+              const token = style
+                .getPropertyValue(isAvailable ? "--available" : "--unavailable")
+                .trim();
+              const channels = token
+                .match(/^#(..)(..)(..)$/)
+                ?.slice(1)
+                .map((channel) => Number.parseInt(channel, 16));
+              return {
+                actual: getComputedStyle(element, "::before").backgroundColor,
+                expected: channels ? `rgb(${channels.join(", ")})` : token,
+              };
+            }, available);
+          return track.actual === track.expected;
+        },
+        {
+          message: `The ${available ? "available" : "unavailable"} track settles on its theme token`,
+        },
+      )
+      .toBe(true);
   }
 }
 function watchPrivatePage(page: Page) {
@@ -137,7 +148,7 @@ for (const width of [390, 430, 1440]) {
       expect(nameBox!.width).toBeGreaterThanOrEqual(rankingBox!.width * 0.48);
       await expect(ranking.getByText("vs période précédente")).toHaveCount(0);
       const heatmap = page.locator('[data-kind-ui="heatmap-grid"]');
-      await expect(heatmap.getByRole("gridcell")).toHaveCount(168);
+      await expect(heatmap.getByRole("gridcell")).toHaveCount(84);
       const heatmapBox = await heatmap.boundingBox();
       const lastHour = await heatmap.getByRole("gridcell").last().boundingBox();
       expect(lastHour!.width).toBeGreaterThan(0);
@@ -261,20 +272,11 @@ for (const width of [390, 430, 1440]) {
         name: "Disponibilité",
         exact: true,
       });
-      await state.click();
-      await page
-        .getByRole("option", { name: "Indisponibles", exact: true })
-        .click();
+      await state.selectOption("unavailable");
       await expect(rows).toHaveCount(2);
-      await state.click();
-      await page
-        .getByRole("option", { name: "Disponibles", exact: true })
-        .click();
+      await state.selectOption("available");
       await expect(rows).toHaveCount(10);
-      await state.click();
-      await page
-        .getByRole("option", { name: "Tous les plats", exact: true })
-        .click();
+      await state.selectOption("all");
       await expect(rows).toHaveCount(12);
       await expect(
         page
@@ -282,6 +284,10 @@ for (const width of [390, 430, 1440]) {
           .filter({ visible: true }),
       ).toHaveCount(1);
       await page.getByRole("button", { name: "Passer au thème clair" }).click();
+      await expect(page.locator("[data-admin-studio]")).toHaveAttribute(
+        "data-theme",
+        "light",
+      );
       await expectSemanticSwitchTracks(page);
       await page.screenshot({
         path: testInfo.outputPath(`vistaire-studio-${width}.png`),
@@ -555,12 +561,13 @@ test("studio restored date picker cancels drafts and analysis controls work from
     .getByRole("navigation")
     .getByRole("link", { name: "Analyses", exact: true })
     .click();
-  const display = page.getByRole("group", { name: "Affichage des analyses" });
-  const data = display.getByRole("button", { name: "Données", exact: true });
+  const data = page.getByRole("button", { name: "Vue tableau", exact: true });
   await data.focus();
   await data.press("Enter");
-  await expect(data).toHaveAttribute("aria-pressed", "true");
-  await expect(page.getByRole("table")).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Vue graphique", exact: true }),
+  ).toHaveAttribute("aria-pressed", "true");
+  await expect(page.locator('[data-dataset="dishes"]')).toBeVisible();
 });
 
 test("studio command search restores focus and navigates by keyboard", async ({
@@ -585,3 +592,243 @@ test("studio command search restores focus and navigates by keyboard", async ({
   await expect(page.getByText("Aucun résultat", { exact: true })).toBeVisible();
   await input.press("Escape");
 });
+
+for (const width of [390, 1440]) {
+  test(
+    `studio dialogs stay centered after page scroll at ${width}px`,
+    { tag: "@critical" },
+    async ({ page }, testInfo) => {
+      await page.setViewportSize({ width, height: 900 });
+      await preview(page);
+      let dialogIndex = 0;
+      const assertCentered = async () => {
+        const dialog = page.getByRole("dialog");
+        await expect(dialog).toBeVisible();
+        await page.evaluate(() =>
+          scrollTo(0, document.documentElement.scrollHeight),
+        );
+        await expect
+          .poll(async () =>
+            dialog.evaluate((element) => {
+              const box = element.getBoundingClientRect();
+              return Math.max(
+                Math.abs(
+                  box.x +
+                    box.width / 2 -
+                    document.documentElement.clientWidth / 2,
+                ),
+                Math.abs(box.y + box.height / 2 - innerHeight / 2),
+              );
+            }),
+          )
+          .toBeLessThanOrEqual(2);
+        const box = await dialog.boundingBox();
+        expect(box!.x).toBeGreaterThanOrEqual(8);
+        expect(box!.y).toBeGreaterThanOrEqual(8);
+        expect(box!.x + box!.width).toBeLessThanOrEqual(width - 8);
+        expect(box!.y + box!.height).toBeLessThanOrEqual(892);
+        await page.screenshot({
+          path: testInfo.outputPath(
+            `studio-centered-${width}-${++dialogIndex}.png`,
+          ),
+        });
+        await page.keyboard.press("Escape");
+        await expect(dialog).toBeHidden();
+      };
+      await page.evaluate(() => scrollTo(0, document.body.scrollHeight));
+      await page
+        .getByRole("button", { name: "Agrandir le graphique d’évolution" })
+        .first()
+        .click();
+      await assertCentered();
+      await page
+        .getByRole("button", { name: "Consultations de plats", exact: false })
+        .first()
+        .click();
+      await assertCentered();
+      await page.getByRole("button", { name: "Exporter", exact: true }).click();
+      await assertCentered();
+      await page
+        .getByRole("button", { name: "Rechercher", exact: true })
+        .click();
+      await assertCentered();
+      await page.screenshot({
+        path: testInfo.outputPath(`studio-centered-${width}.png`),
+        fullPage: true,
+      });
+    },
+  );
+}
+
+test(
+  "studio chart marks retain approved colors in both themes",
+  { tag: "@critical" },
+  async ({ page }, testInfo) => {
+    await preview(page);
+    await page.goto("/admin/insights?range=7d");
+    for (const theme of ["light", "dark"] as const) {
+      if (theme === "dark")
+        await page
+          .getByRole("button", { name: "Passer au thème sombre" })
+          .click();
+      await expect(page.locator("[data-admin-studio]")).toHaveAttribute(
+        "data-theme",
+        theme,
+      );
+      const pie = page.locator('[data-studio-chart="composition"]');
+      await expect
+        .poll(async () =>
+          pie
+            .locator('[data-kind-ui="pie-sector"]')
+            .evaluateAll(
+              (marks) =>
+                new Set(marks.map((mark) => getComputedStyle(mark).fill)).size,
+            ),
+        )
+        .toBeGreaterThan(1);
+      await expect
+        .poll(() =>
+          pie.evaluate((root) => {
+            const style = getComputedStyle(root);
+            const expected = Array.from({ length: 6 }, (_, index) => {
+              const hex = style
+                .getPropertyValue(`--chart-category-${index}`)
+                .trim();
+              const channels = hex
+                .match(/^#(..)(..)(..)$/)
+                ?.slice(1)
+                .map((value) => parseInt(value, 16));
+              return channels ? `rgb(${channels.join(", ")})` : hex;
+            });
+            return [
+              ...root.querySelectorAll('[data-kind-ui="pie-sector"]'),
+            ].every((mark) => expected.includes(getComputedStyle(mark).fill));
+          }),
+        )
+        .toBe(true);
+      const cells = page.locator(
+        '[data-kind-ui="heatmap-grid"] [role="gridcell"]',
+      );
+      await expect(cells).toHaveCount(84);
+      const expectedZero =
+        theme === "dark" ? "rgb(23, 32, 50)" : "rgb(232, 247, 255)";
+      await expect
+        .poll(async () =>
+          cells.evaluateAll((marks) =>
+            marks.map((mark) => getComputedStyle(mark).backgroundColor),
+          ),
+        )
+        .toContain(expectedZero);
+      await expect
+        .poll(async () => {
+          const ticks = await page
+            .locator(
+              '[data-studio-chart="profile"] .recharts-polar-radius-axis-tick',
+            )
+            .allTextContents();
+          return (
+            ticks.filter(Boolean).length > 0 &&
+            ticks.filter(Boolean).every((tick) => tick.endsWith(" %"))
+          );
+        })
+        .toBe(true);
+      await page.screenshot({
+        path: testInfo.outputPath(`studio-chart-colors-${theme}.png`),
+        fullPage: true,
+      });
+    }
+  },
+);
+
+test(
+  "studio source table workspace exposes five truthful datasets and real export",
+  { tag: "@critical" },
+  async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await preview(page);
+    await page.goto("/admin/insights?range=30d");
+    await page
+      .getByRole("button", { name: "Vue tableau", exact: true })
+      .click();
+    await expect(page.locator('[data-component="number-flow"]')).toHaveCount(0);
+    const datasets = page.getByRole("group", {
+      name: "Jeu de données",
+      exact: true,
+    });
+    await expect(datasets.getByRole("button")).toHaveCount(5);
+    for (const [label, id] of [
+      ["Plats", "dishes"],
+      ["Par jour", "daily"],
+      ["Horaires", "hours"],
+      ["Catégories", "categories"],
+      ["Comparaison", "comparison"],
+    ]) {
+      await datasets.getByRole("button", { name: label, exact: true }).click();
+      await expect(page.locator(`[data-dataset="${id}"]`)).toBeVisible();
+      await expect(page.getByRole("table")).toHaveCount(1);
+    }
+    await datasets
+      .getByRole("button", { name: "Par jour", exact: true })
+      .click();
+    await expect(page.getByText("Page 1 sur 2", { exact: true })).toBeVisible();
+    await page
+      .getByRole("button", { name: "Page suivante", exact: true })
+      .click();
+    await expect(page.getByText("Page 2 sur 2", { exact: true })).toBeVisible();
+    await page
+      .getByRole("searchbox", { name: "Rechercher dans Par jour", exact: true })
+      .fill("aucune-ligne-correspondante");
+    await expect(
+      page
+        .getByText("Aucun résultat", { exact: true })
+        .filter({ visible: true }),
+    ).toBeVisible();
+    await page
+      .getByRole("button", { name: "Effacer la recherche", exact: true })
+      .click();
+    await page
+      .getByRole("button", {
+        name: "Exporter toutes les données de la période sélectionnée",
+        exact: true,
+      })
+      .click();
+    await expect(page.getByRole("dialog")).toBeVisible();
+    await page.keyboard.press("Escape");
+  },
+);
+
+test(
+  "metric explorer keeps nested expansion and dish handoff accessible",
+  { tag: "@critical" },
+  async ({ page }) => {
+    await preview(page);
+    const trigger = page
+      .getByRole("button", { name: "Consultations de plats", exact: false })
+      .first();
+    await trigger.click();
+    const explorer = page.getByRole("dialog", {
+      name: "Explorer la période",
+      exact: true,
+    });
+    await expect(
+      explorer.locator("[data-studio-metric-explorer]"),
+    ).toHaveAttribute("data-studio-metric-explorer", "dishOpened");
+    const expand = explorer.getByRole("button", {
+      name: "Agrandir le graphique d’évolution",
+    });
+    await expand.click();
+    await expect(page.locator("dialog[open]")).toHaveCount(2);
+    await page.keyboard.press("Escape");
+    await expect(page.locator("dialog[open]")).toHaveCount(1);
+    await expect(expand).toBeFocused();
+    await explorer
+      .getByRole("group", { name: "Mesure à explorer" })
+      .getByRole("button", { name: "3D", exact: true })
+      .click();
+    await expect(
+      explorer.locator("[data-studio-metric-explorer]"),
+    ).toHaveAttribute("data-studio-metric-explorer", "three");
+    await page.keyboard.press("Escape");
+    await expect(trigger).toBeFocused();
+  },
+);

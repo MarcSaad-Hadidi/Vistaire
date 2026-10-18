@@ -1,5 +1,5 @@
 "use client";
-import { useId, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { Maximize2, X } from "lucide-react";
 import chartStyles from "./StudioCharts.module.css";
 import { useStudioLocale } from "./studioLocale";
@@ -9,6 +9,8 @@ import {
   HeatmapGrid,
   HeatmapTooltip,
   HeatmapLegend,
+  HeatmapCellContent,
+  type HeatmapCellContentProps,
   Root,
   BarChart,
   BarSeries,
@@ -21,12 +23,6 @@ import {
 import "@kind-ui/charts/styles.css";
 import type { AdminMetricSeries } from "@/lib/admin/analyticsState";
 import styles from "./Studio.module.css";
-
-// Native grid-cell labels and the focus/touch tooltip retain exact values.
-// Text inside all 168 cells would make a 24-hour mobile matrix unreadable.
-function HeatmapSwatch() {
-  return null;
-}
 
 export function StudioTrend({
   series,
@@ -72,145 +68,153 @@ export function StudioTrend({
     ? `${day(inspected.date)} · ${label} : ${number(inspected.current)} · ${t("Précédent")} : ${inspected.previousDate ? day(inspected.previousDate) + " · " + number(inspected.previous ?? undefined) : "N/A"}`
     : "";
   const plot = (large = false) => (
-    <LineChart
-      data={data}
-      config={config}
-      xDataKey="date"
-      responsive
-      height={large ? 430 : 320}
-      curve="linear"
-      animate={{ revealDurationMs: 550 }}
-      accessibilityLayer
-      aria-label={
-        locale === "en"
-          ? `${label} by day. Use left and right arrows to explore.`
-          : `${label} par jour. Flèches gauche et droite pour explorer.`
-      }
-      rootProps={{
-        interaction: {
-          kind: "series",
-          mode: "visibility",
-          eligibleKeys: comparison ? ["current", "previous"] : ["current"],
-        },
-      }}
-      visibleSeries={visible}
-      onVisibleSeriesChange={setVisible}
-      xAxis={{
-        tickFormatter: day,
-        minTickGap: 30,
-        interval: "preserveStartEnd",
-        height: 34,
-        padding: { left: 10, right: 10 },
-        tick: { fontSize: 11, fill: "var(--muted)" },
-        axisLine: false,
-        tickLine: false,
-      }}
-      yAxis={{
-        allowDecimals: false,
-        width: 56,
-        tickCount: 5,
-        domain: [0, "auto"],
-        tick: { fontSize: 11, fill: "var(--muted)" },
-        axisLine: false,
-        tickLine: false,
-      }}
-      grid={{ vertical: false, stroke: "var(--line)", strokeDasharray: "2 5" }}
-      margin={{ top: 16, right: 18, bottom: 12, left: 0 }}
-      series={[
-        {
-          seriesKey: "current",
-          dataKey: "current",
-          strokeWidth: 2.7,
-          dot: data.length === 1,
-          activeDot: {
-            r: 5,
-            fill: "var(--surface)",
-            stroke: "var(--chart-current)",
-            strokeWidth: 2.5,
+    <div className={chartStyles.stage}>
+      <LineChart
+        data={data}
+        config={config}
+        xDataKey="date"
+        responsive
+        height={large ? 430 : 320}
+        curve="linear"
+        animate={{ revealDurationMs: 550 }}
+        accessibilityLayer
+        aria-label={
+          locale === "en"
+            ? `${label} by day. Use left and right arrows to explore.`
+            : `${label} par jour. Flèches gauche et droite pour explorer.`
+        }
+        rootProps={{
+          interaction: {
+            kind: "series",
+            mode: "visibility",
+            eligibleKeys: comparison ? ["current", "previous"] : ["current"],
           },
-        },
-        ...(comparison
-          ? [
-              {
-                seriesKey: "previous",
-                dataKey: "previous" as const,
-                strokeWidth: 2,
-                strokeDasharray: "6 5",
-                dot: data.length === 1,
-                activeDot: {
-                  r: 4,
-                  fill: "var(--surface)",
-                  stroke: "var(--chart-previous)",
+        }}
+        visibleSeries={visible}
+        onVisibleSeriesChange={setVisible}
+        xAxis={{
+          tickFormatter: day,
+          minTickGap: 30,
+          interval: "preserveStartEnd",
+          height: 34,
+          padding: { left: 10, right: 10 },
+          tick: { fontSize: 11, fill: "var(--muted)" },
+          axisLine: false,
+          tickLine: false,
+        }}
+        yAxis={{
+          allowDecimals: false,
+          width: 56,
+          tickCount: 5,
+          domain: [0, "auto"],
+          tick: { fontSize: 11, fill: "var(--muted)" },
+          axisLine: false,
+          tickLine: false,
+        }}
+        grid={{
+          vertical: false,
+          stroke: "var(--line)",
+          strokeDasharray: "2 5",
+        }}
+        margin={{ top: 16, right: 18, bottom: 12, left: 0 }}
+        series={[
+          {
+            seriesKey: "current",
+            dataKey: "current",
+            strokeWidth: 2.7,
+            dot: data.length === 1,
+            activeDot: {
+              r: 5,
+              fill: "var(--surface)",
+              stroke: "var(--chart-current)",
+              strokeWidth: 2.5,
+            },
+          },
+          ...(comparison
+            ? [
+                {
+                  seriesKey: "previous",
+                  dataKey: "previous" as const,
                   strokeWidth: 2,
+                  strokeDasharray: "6 5",
+                  dot: data.length === 1,
+                  activeDot: {
+                    r: 4,
+                    fill: "var(--surface)",
+                    stroke: "var(--chart-previous)",
+                    strokeWidth: 2,
+                  },
                 },
-              },
-            ]
-          : []),
-      ]}
-      tooltip={{
-        cursor: { stroke: "var(--muted)", strokeDasharray: "4 4" },
-        maxWidth: 310,
-        content: ({ active, payload }) => {
-          const row = payload?.[0]?.payload as
-            (typeof data)[number] | undefined;
-          if (!active || !row) return null;
-          return (
-            <div
-              className={chartStyles.tooltip}
-              data-kind-ui="chart-tooltip"
-              data-studio-tooltip-date={row.date}
-            >
-              <strong>{label}</strong>
-              <div>
-                <span>{day(row.date)}</span>
-                <b
-                  data-kind-ui="chart-tooltip-value"
-                  data-studio-tooltip-series="current"
-                  data-studio-tooltip-value={row.current}
-                >
-                  {number(row.current)}
-                </b>
-              </div>
-              {comparison && (
+              ]
+            : []),
+        ]}
+        tooltip={{
+          cursor: { stroke: "var(--muted)", strokeDasharray: "4 4" },
+          maxWidth: 310,
+          content: ({ active, payload }) => {
+            const row = payload?.[0]?.payload as
+              (typeof data)[number] | undefined;
+            if (!active || !row) return null;
+            return (
+              <div
+                className={chartStyles.tooltip}
+                data-kind-ui="chart-tooltip"
+                data-studio-tooltip-date={row.date}
+              >
+                <strong>{label}</strong>
                 <div>
-                  <span>
-                    {row.previousDate ? day(row.previousDate) : t("Précédent")}
-                  </span>
+                  <span>{day(row.date)}</span>
                   <b
                     data-kind-ui="chart-tooltip-value"
-                    data-studio-tooltip-series="previous"
-                    data-studio-tooltip-date={row.previousDate ?? undefined}
-                    data-studio-tooltip-value={row.previous ?? undefined}
+                    data-studio-tooltip-series="current"
+                    data-studio-tooltip-value={row.current}
                   >
-                    {row.previous === null ? "N/A" : number(row.previous)}
+                    {number(row.current)}
                   </b>
                 </div>
-              )}
-            </div>
-          );
-        },
-      }}
-      legend={{
-        "aria-label": t("Afficher ou masquer une période"),
-        emphasis: "none",
-        children: ({ key, label: name, visible: shown, marker }) => (
-          <>
-            {marker}
-            <span>{name}</span>
-            <strong>{number(totals[key as keyof typeof totals])}</strong>
-            <small>
-              {locale === "en"
-                ? shown
-                  ? "Visible"
-                  : "Hidden"
-                : shown
-                  ? "Visible"
-                  : "Masqué"}
-            </small>
-          </>
-        ),
-      }}
-    />
+                {comparison && (
+                  <div>
+                    <span>
+                      {row.previousDate
+                        ? day(row.previousDate)
+                        : t("Précédent")}
+                    </span>
+                    <b
+                      data-kind-ui="chart-tooltip-value"
+                      data-studio-tooltip-series="previous"
+                      data-studio-tooltip-date={row.previousDate ?? undefined}
+                      data-studio-tooltip-value={row.previous ?? undefined}
+                    >
+                      {row.previous === null ? "N/A" : number(row.previous)}
+                    </b>
+                  </div>
+                )}
+              </div>
+            );
+          },
+        }}
+        legend={{
+          "aria-label": t("Afficher ou masquer une période"),
+          emphasis: "none",
+          children: ({ key, label: name, visible: shown, marker }) => (
+            <>
+              {marker}
+              <span>{name}</span>
+              <strong>{number(totals[key as keyof typeof totals])}</strong>
+              <small>
+                {locale === "en"
+                  ? shown
+                    ? "Visible"
+                    : "Hidden"
+                  : shown
+                    ? "Visible"
+                    : "Masqué"}
+              </small>
+            </>
+          ),
+        }}
+      />
+    </div>
   );
   const inspector = (large = false) => (
     <div className={chartStyles.inspection}>
@@ -423,67 +427,172 @@ export function StudioBars({
     </div>
   );
 }
-export function StudioHeatmap({
-  cells,
-}: {
-  cells: { weekdayUtc: number; hourUtc: number; count: number }[];
-}) {
-  const { t, number } = useStudioLocale();
-  const rows = [
-    t("Lun"),
-    t("Mar"),
-    t("Mer"),
-    t("Jeu"),
-    t("Ven"),
-    t("Sam"),
-    t("Dim"),
-  ];
-  const columns = Array.from({ length: 24 }, (_, i) => `${i} h`);
-  const counts = new Map(
-    cells.map((cell) => [`${cell.weekdayUtc}:${cell.hourUtc}`, cell.count]),
+type StudioHeatmapCell = { weekdayUtc: number; hourUtc: number; count: number };
+
+// Approved six-stop scale. CSS owns the active palette; KindUI needs opaque hex.
+const heatmapPalettes = {
+  light: ["#e8f7ff", "#a5e6f1", "#46c5de", "#3b82f6", "#7556e8", "#5b21b6"],
+  dark: ["#172032", "#23405b", "#146b8c", "#397dda", "#9275f2", "#b39bfa"],
+};
+
+export function createStudioHeatmapData(
+  cells: StudioHeatmapCell[],
+  columns: string[],
+) {
+  const rows = Array.from(
+    { length: 12 },
+    (_, index) =>
+      `${String(index * 2).padStart(2, "0")}–${String(index * 2 + 2).padStart(2, "0")} h UTC`,
   );
-  const data = rows.flatMap((row, index) =>
-    columns.map((column, hour) => ({
+  const counts = new Map<string, number>();
+  for (const cell of cells) {
+    const key = `${cell.weekdayUtc}:${Math.floor(cell.hourUtc / 2)}`;
+    counts.set(key, (counts.get(key) ?? 0) + cell.count);
+  }
+  const data = rows.flatMap((row, interval) =>
+    columns.map((column, day) => ({
       row,
       column,
-      value: counts.get(`${(index + 1) % 7}:${hour}`) ?? 0,
+      value: counts.get(`${(day + 1) % 7}:${interval}`) ?? 0,
     })),
   );
-  const max = Math.max(1, ...cells.map((cell) => cell.count));
+  return {
+    rows,
+    columns,
+    data,
+    max: Math.max(1, ...data.map((cell) => cell.value)),
+  };
+}
+
+export function observeStudioHeatmapPalette(
+  element: HTMLElement,
+  onChange: (colors: string[]) => void,
+) {
+  const studio =
+    element.closest("[data-admin-studio]") ??
+    element.closest("[data-theme]") ??
+    element.ownerDocument.documentElement;
+  const read = () => {
+    const computed = getComputedStyle(element);
+    const fallback =
+      element.closest("[data-theme]")?.getAttribute("data-theme") === "dark"
+        ? heatmapPalettes.dark
+        : heatmapPalettes.light;
+    onChange(
+      fallback.map((color, index) => {
+        const token = computed.getPropertyValue(`--chart-heat-${index}`).trim();
+        return /^#[0-9a-f]{6}$/i.test(token) ? token : color;
+      }),
+    );
+  };
+  read();
+  const observer = new MutationObserver(read);
+  observer.observe(studio, {
+    attributes: true,
+    attributeFilter: ["data-theme", "class", "style"],
+  });
+  return () => observer.disconnect();
+}
+
+function StudioHeatmapValue(props: HeatmapCellContentProps) {
+  const { locale } = useStudioLocale();
+  const compact =
+    props.cell.value === null
+      ? props.formattedValue
+      : new Intl.NumberFormat(locale === "en" ? "en-CA" : "fr-CA", {
+          useGrouping: false,
+          ...(props.cell.value >= 10_000
+            ? { notation: "compact" as const, maximumSignificantDigits: 2 }
+            : { maximumFractionDigits: 0 }),
+        }).format(props.cell.value);
   return (
-    <div className={styles.chart}>
+    <span aria-hidden="true">
+      <span className={styles.heatmapValueExact}>
+        <HeatmapCellContent {...props} />
+      </span>
+      <span className={styles.heatmapValueCompact}>
+        <HeatmapCellContent {...props} formattedValue={compact} />
+      </span>
+    </span>
+  );
+}
+
+function StudioHeatmapReadout({
+  cell,
+  formattedValue,
+}: HeatmapCellContentProps) {
+  return (
+    <>
+      <strong>
+        {cell.column} · {cell.row}
+      </strong>
+      <span>{formattedValue}</span>
+    </>
+  );
+}
+
+export function StudioHeatmap({ cells }: { cells: StudioHeatmapCell[] }) {
+  const { t, number, locale } = useStudioLocale();
+  const root = useRef<HTMLDivElement>(null);
+  const helpId = useId();
+  const [colors, setColors] = useState(heatmapPalettes.light);
+  useEffect(() => {
+    if (!root.current) return;
+    return observeStudioHeatmapPalette(root.current, (next) => {
+      setColors((current) =>
+        current.every((color, index) => color === next[index]) ? current : next,
+      );
+    });
+  }, []);
+  const { rows, columns, data, max } = useMemo(
+    () =>
+      createStudioHeatmapData(
+        cells,
+        locale === "en"
+          ? ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+          : ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"],
+      ),
+    [cells, locale],
+  );
+  const scale = useMemo(
+    () => createHeatmapScale({ domain: [0, max], colors }),
+    [max, colors],
+  );
+  const intervalLabel =
+    locale === "en" ? "2-hour UTC intervals" : "tranches de 2 h UTC";
+  return (
+    <div ref={root} className={`${styles.chart} ${styles.heatmap}`}>
       <HeatmapChart
         rows={rows}
         columns={columns}
         data={data}
-        scale={createHeatmapScale({
-          domain: [0, max],
-          colors: ["#e8f7ff", "#46c5de", "#3b82f6", "#5b21b6"],
-        })}
+        scale={scale}
         formatValue={number}
         missingLabel={t("Indisponible")}
         aria-label={t("Événements par jour et heure UTC")}
+        aria-describedby={helpId}
       >
         <HeatmapGrid
           className={styles.heatmapGrid}
-          caption={t("Moments d’activité · heures UTC")}
-          layout={{ gap: 2 }}
-          Cell={HeatmapSwatch}
-          columnLabel={(column) => {
-            const hour = Number.parseInt(column, 10);
-            return (
-              <>
-                <span aria-hidden="true">
-                  {hour % 6 === 0 || hour === 23 ? hour : ""}
-                </span>
-                <span className={styles.srOnly}>{column}</span>
-              </>
-            );
-          }}
+          caption={`${t("Nombre d’événements")} · ${intervalLabel}`}
+          aria-describedby={helpId}
+          layout={{ gap: 5, rowLabels: "visible", columnLabels: "visible" }}
+          material="plain"
+          Cell={StudioHeatmapValue}
+          rowLabel={(row) => `${Number.parseInt(row, 10)} h`}
         />
-        <HeatmapTooltip />
-        <HeatmapLegend label={t("Nombre d’événements")} />
+        <div className={styles.heatmapTooltipSlot}>
+          <HeatmapTooltip Content={StudioHeatmapReadout} />
+        </div>
+        <HeatmapLegend
+          label={`${t("Nombre d’événements")} · ${intervalLabel}`}
+        />
       </HeatmapChart>
+      <p id={helpId} className={styles.srOnly}>
+        {locale === "en"
+          ? "Hover or touch a cell. Use arrow keys to explore; Home and End move across the row. Escape dismisses the tooltip. Each cell totals two hours in UTC."
+          : "Survolez ou touchez une case. Utilisez les flèches pour explorer, Début et Fin pour parcourir la ligne. Échap ferme l’infobulle. Chaque case totalise deux heures en UTC."}
+      </p>
     </div>
   );
 }

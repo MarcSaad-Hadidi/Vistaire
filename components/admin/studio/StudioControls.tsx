@@ -45,11 +45,15 @@ export function StudioCombobox({
   options,
   onChange,
   label,
+  showLabel = false,
+  searchIcon = false,
 }: {
   value: string;
   options: { value: string; label: string }[];
   onChange: (value: string) => void;
   label: string;
+  showLabel?: boolean;
+  searchIcon?: boolean;
 }) {
   const { t } = useStudioLocale();
   const id = useId();
@@ -120,7 +124,10 @@ export function StudioCombobox({
   }, [active, open, id]);
   return (
     <div className={styles.combobox} ref={root} data-component="beui-combobox">
-      <label className={styles.srOnly} htmlFor={id}>
+      <label
+        className={showLabel ? styles.comboLabel : styles.srOnly}
+        htmlFor={id}
+      >
         {label}
       </label>
       <div
@@ -130,6 +137,7 @@ export function StudioCombobox({
           input.current?.focus();
         }}
       >
+        {searchIcon && <Search size={16} aria-hidden />}
         <input
           id={id}
           ref={input}

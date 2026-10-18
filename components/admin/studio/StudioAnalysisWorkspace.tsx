@@ -1,5 +1,6 @@
 "use client";
 import { useState, type ReactNode } from "react";
+import { Cell } from "recharts";
 import {
   BarChart,
   BarSeries,
@@ -15,8 +16,10 @@ import { ArrowUpRight, ChartNoAxesCombined, Table2 } from "lucide-react";
 import type { AdminDashboardData } from "@/lib/admin/dashboardData";
 import type { AdminMenuDish } from "@/lib/admin/menuReadiness";
 import { StudioTrend, StudioHeatmap } from "./StudioCharts";
+import { StudioAnalysisTables } from "./StudioAnalysisTables";
 import {
   StudioAnalysisCharts,
+  studioCategoryPalette,
   type StudioAnalysisMetric,
 } from "./StudioAnalysisCharts";
 import { StudioCombobox, StudioMetricTabs } from "./StudioControls";
@@ -30,7 +33,16 @@ type BarRow = {
   value: number;
   three?: number;
   ar?: number;
+  fill?: string;
 };
+function wrapChartLabel(name: string): string[] {
+  return name.split(/\s+/).reduce<string[]>((lines, word) => {
+    const last = lines.length - 1;
+    if (last < 0 || lines[last].length + word.length + 1 > 23) lines.push(word);
+    else lines[last] += ` ${word}`;
+    return lines;
+  }, []);
+}
 function AnalysisBars({
   rows,
   label,
@@ -45,20 +57,59 @@ function AnalysisBars({
   onSelect?: (id: string) => void;
 }) {
   const { t, number, locale } = useStudioLocale();
+  const [visible, setVisible] = useState(["three", "ar"]);
   const config: SeriesConfig = immersive
     ? {
         three: { label: t("Clics 3D"), color: "var(--chart-three)" },
         ar: { label: t("Clics AR"), color: "var(--chart-ar)" },
       }
     : { value: { label, color: "var(--chart-current)" } };
+  const rowHeight = Math.max(
+    44,
+    ...rows.map((row) => wrapChartLabel(row.name).length * 13 + 16),
+  );
   const act = (row: BarRow) => onSelect?.(row.id);
   return (
     <div className={styles.chart}>
-      <Root config={config}>
+      <Root
+        config={config}
+        interaction={{
+          kind: "series",
+          mode: "visibility",
+          eligibleKeys: immersive ? ["three", "ar"] : ["value"],
+        }}
+        visibleSeries={immersive ? visible : ["value"]}
+        onVisibleSeriesChange={(next) => {
+          if (next.length && immersive) setVisible(next);
+        }}
+      >
+        {immersive && (
+          <Legend
+            className={css.immersionLegend}
+            aria-label={t("Afficher ou masquer une période")}
+          >
+            {({ key, label: name, marker }) => (
+              <>
+                {marker}
+                <span>{name}</span>
+                <strong>
+                  {number(
+                    rows.reduce(
+                      (sum, row) =>
+                        sum +
+                        (key === "three" ? (row.three ?? 0) : (row.ar ?? 0)),
+                      0,
+                    ),
+                  )}
+                </strong>
+              </>
+            )}
+          </Legend>
+        )}
         <BarChart
           data={rows}
           responsive
-          height={horizontal ? Math.max(240, rows.length * 44) : 270}
+          height={horizontal ? Math.max(240, rows.length * rowHeight) : 270}
           layout={horizontal ? "vertical" : "horizontal"}
           animate={{ revealDurationMs: 550 }}
           accessibilityLayer
@@ -86,13 +137,43 @@ function AnalysisBars({
             {...(horizontal
               ? {
                   dataKey: "name",
-                  width: 105,
-                  tickFormatter: (name: string) =>
-                    name.length > 17 ? name.slice(0, 16) + "…" : name,
+                  width: 148,
+                  interval: 0,
                 }
               : { width: 40 })}
             allowDecimals={false}
-            tick={{ fontSize: 10, fill: "var(--muted)" }}
+            tick={
+              horizontal
+                ? ({ x, y, payload }) => {
+                    const lines = wrapChartLabel(String(payload.value));
+                    return (
+                      <text
+                        x={Number(x) - 5}
+                        y={Number(y)}
+                        textAnchor="end"
+                        fill="var(--muted)"
+                        fontSize={11}
+                        data-studio-bar-label={payload.value}
+                      >
+                        <title>{payload.value}</title>
+                        {lines.map((line, index) => (
+                          <tspan
+                            key={index}
+                            x={Number(x) - 5}
+                            dy={
+                              index === 0
+                                ? -((lines.length - 1) * 13) / 2 + 4
+                                : 13
+                            }
+                          >
+                            {line}
+                          </tspan>
+                        ))}
+                      </text>
+                    );
+                  }
+                : { fontSize: 10, fill: "var(--muted)" }
+            }
             axisLine={false}
             tickLine={false}
           />
@@ -154,10 +235,13 @@ function AnalysisBars({
                 const source = row.payload as BarRow | undefined;
                 if (source) act(source);
               }}
-            />
+            >
+              {rows.map((row) => (
+                <Cell key={row.id} fill={row.fill ?? "var(--chart-current)"} />
+              ))}
+            </BarSeries>
           )}
         </BarChart>
-        {immersive && <Legend />}
       </Root>
       <details className={styles.dataDisclosure}>
         <summary>{t("Voir les chiffres")}</summary>
@@ -218,7 +302,7 @@ function AnalysisPanel({
   title: string;
   eyebrow: string;
   children: ReactNode;
-  span?: 4 | 6 | 8 | 12;
+  span?: 4 | 5 | 6 | 7 | 8 | 12;
 }) {
   return (
     <section className={`${styles.panel} ${css.panel}`} data-span={span}>
@@ -238,14 +322,19 @@ function AnalysisPanel({
 export function StudioAnalysisWorkspace({
   data,
   onDishOpen,
+  onExport,
+  view,
+  onViewChange: setView,
 }: {
   data: AdminDashboardData;
   onDishOpen?: (dish: AdminMenuDish) => void;
+  onExport?: () => void;
+  view: "charts" | "table";
+  onViewChange: (view: "charts" | "table") => void;
 }) {
   const { t, locale, number, date } = useStudioLocale();
   const [category, setCategory] = useState("all");
   const [metric, setMetric] = useState<StudioAnalysisMetric>("views");
-  const [view, setView] = useState<"charts" | "table">("charts");
   const real = data.analytics.kind === "real" ? data.analytics : null;
   const hasRanking =
     real?.panels.ranking.kind === "supported" && Boolean(data.dishStatistics);
@@ -288,6 +377,7 @@ export function StudioAnalysisWorkspace({
     ? weekdays.map((name, index) => ({
         id: String(index),
         name,
+        fill: index === 6 ? "var(--chart-day-7)" : studioCategoryPalette[index],
         value: heatmap
           .filter((cell) => cell.weekdayUtc === (index + 1) % 7)
           .reduce((sum, cell) => sum + cell.count, 0),
@@ -296,7 +386,8 @@ export function StudioAnalysisWorkspace({
   const hourRows = heatmap
     ? Array.from({ length: 12 }, (_, index) => ({
         id: String(index * 2),
-        name: `${index * 2} h`,
+        name: `${index * 2}–${index * 2 + 2} h`,
+        fill: studioCategoryPalette[index % studioCategoryPalette.length],
         value: heatmap
           .filter(
             (cell) => cell.hourUtc >= index * 2 && cell.hourUtc < index * 2 + 2,
@@ -335,9 +426,44 @@ export function StudioAnalysisWorkspace({
     );
   return (
     <div className={css.workspace}>
+      <div className={css.periodCaption}>
+        <span>
+          {date(real.observationWindow.startInclusive)} –{" "}
+          {date(
+            new Date(
+              Date.parse(real.observationWindow.endExclusive) - 1,
+            ).toISOString(),
+          )}{" "}
+          ·{" "}
+          {Math.round(
+            (Date.parse(real.observationWindow.endExclusive) -
+              Date.parse(real.observationWindow.startInclusive)) /
+              86400000,
+          )}{" "}
+          {locale === "en" ? "days" : "jours"}
+        </span>
+        <span>
+          {real.panels.dailyComparison.kind === "supported" ? (
+            <>
+              vs {date(real.observationWindow.comparisonStartInclusive)} –{" "}
+              {date(
+                new Date(
+                  Date.parse(real.observationWindow.comparisonEndExclusive) - 1,
+                ).toISOString(),
+              )}
+            </>
+          ) : locale === "en" ? (
+            "Previous period: N/A"
+          ) : (
+            "Période précédente : N/A"
+          )}
+        </span>
+      </div>
       <div className={css.filters}>
         {hasRanking && (
           <StudioCombobox
+            showLabel
+            searchIcon
             value={category}
             onChange={setCategory}
             options={[
@@ -354,10 +480,11 @@ export function StudioAnalysisWorkspace({
         <StudioMetricTabs
           value={metric}
           onChange={(value) => setMetric(value as StudioAnalysisMetric)}
-          options={Object.entries(labels).map(([value, label]) => ({
-            value,
-            label,
-          }))}
+          options={[
+            { value: "views", label: labels.views },
+            { value: "three", label: "3D" },
+            { value: "ar", label: "AR" },
+          ]}
           label={locale === "en" ? "Primary metric" : "Mesure principale"}
         />
         <button
@@ -370,45 +497,35 @@ export function StudioAnalysisWorkspace({
         >
           {locale === "en" ? "Reset" : "Réinitialiser"}
         </button>
-        <div
-          role="group"
-          aria-label={
-            locale === "en" ? "Analysis display" : "Affichage des analyses"
-          }
-          className={css.viewTabs}
+        <button
+          type="button"
+          className={css.viewToggle}
+          aria-pressed={view === "table"}
+          onClick={() => setView(view === "table" ? "charts" : "table")}
         >
-          <button
-            type="button"
-            aria-pressed={view === "charts"}
-            onClick={() => setView("charts")}
-          >
+          {view === "table" ? (
             <ChartNoAxesCombined size={15} />
-            <span>{locale === "en" ? "Charts" : "Graphiques"}</span>
-          </button>
-          <button
-            type="button"
-            aria-pressed={view === "table"}
-            onClick={() => setView("table")}
-          >
+          ) : (
             <Table2 size={15} />
-            <span>{locale === "en" ? "Data" : "Données"}</span>
-          </button>
-        </div>
+          )}
+          <span>
+            {view === "table"
+              ? locale === "en"
+                ? "Chart view"
+                : "Vue graphique"
+              : locale === "en"
+                ? "Table view"
+                : "Vue tableau"}
+          </span>
+        </button>
       </div>
-      <p className={css.scope}>
-        {locale === "en"
-          ? "The category filter applies to dish and category charts. Time-based charts always cover the entire menu."
-          : "Le filtre catégorie s’applique aux plats et aux catégories. Les graphiques temporels portent toujours sur le menu entier."}
-      </p>
-      {hasRanking && (
+
+      {hasRanking && view === "charts" && (
         <div className={css.summary}>
           {(["views", "three", "ar"] as const).map((key) => (
             <button key={key} onClick={() => setMetric(key)}>
               <span>{labels[key]}</span>
               <strong>{number(totals[key])}</strong>
-              <small>
-                {locale === "en" ? "Selected dishes" : "Plats sélectionnés"}
-              </small>
             </button>
           ))}
           {top && (
@@ -418,77 +535,18 @@ export function StudioAnalysisWorkspace({
                 {labels[metric].toLowerCase()}
               </span>
               <strong>{top.name}</strong>
-              <small>
-                {number(top[metric])} ·{" "}
-                {locale === "en" ? "View dish" : "Voir le plat"} ↗
-              </small>
             </button>
           )}
         </div>
       )}
-      {view === "table" && !hasRanking ? (
-        <section className={styles.panel}>
-          <div className={styles.empty}>
-            <h2>{t("Pas encore assez de données")}</h2>
-            <p>
-              {locale === "en"
-                ? "Dish-level statistics are not available for this period. Time-based charts remain available in Charts view."
-                : "Les statistiques par plat ne sont pas disponibles pour cette période. Les graphiques temporels restent accessibles dans la vue Graphiques."}
-            </p>
-          </div>
-        </section>
-      ) : view === "table" ? (
-        <section className={styles.panel}>
-          <header className={styles.panelHead}>
-            <h2>
-              {locale === "en"
-                ? "Dishes, in numbers"
-                : "Les plats, en chiffres"}
-            </h2>
-          </header>
-          <div className={styles.tableScroll}>
-            <table className={styles.table}>
-              <thead>
-                <tr>
-                  <th>{t("Plat")}</th>
-                  <th>{t("Catégorie")}</th>
-                  <th>{labels.views}</th>
-                  <th>{labels.three}</th>
-                  <th>{labels.ar}</th>
-                  <th>
-                    {t("Précédent")} · {labels.views}
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {dishes.map((dish) => (
-                  <tr key={dish.id}>
-                    <td>
-                      <button onClick={() => onDishOpen?.(dish)}>
-                        {dish.name}
-                        <ArrowUpRight size={12} />
-                      </button>
-                    </td>
-                    <td>{dish.category}</td>
-                    <td>{number(dish.views)}</td>
-                    <td>{number(dish.three)}</td>
-                    <td>{number(dish.ar)}</td>
-                    <td>
-                      {dish.previousViews === null
-                        ? "N/A"
-                        : number(dish.previousViews)}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          <p className={css.scope}>
-            {locale === "en"
-              ? "Category-filtered dish counts. Previous values are available for views only."
-              : "Chiffres des plats de la catégorie sélectionnée. L’historique par plat est disponible pour les consultations uniquement."}
-          </p>
-        </section>
+      {view === "table" ? (
+        <StudioAnalysisTables
+          data={data}
+          category={category}
+          metric={metric}
+          onDishOpen={onDishOpen}
+          onExport={onExport}
+        />
       ) : (
         <div className={css.grid}>
           <AnalysisPanel
@@ -516,7 +574,7 @@ export function StudioAnalysisWorkspace({
               </strong>
               <span>{labels[metric]}</span>
             </div>
-            <div className={styles.chartBody}>
+            <div className={styles.chartBody} data-analysis-body>
               <StudioTrend
                 series={real.metricSeries[metricSeries]}
                 label={labels[metric]}
@@ -540,13 +598,15 @@ export function StudioAnalysisWorkspace({
                 }
                 span={4}
               >
-                <StudioAnalysisCharts
-                  data={data}
-                  family="composition"
-                  metric={metric}
-                  category={category}
-                  onCategoryChange={setCategory}
-                />
+                <div className={styles.chartBody} data-analysis-body>
+                  <StudioAnalysisCharts
+                    data={data}
+                    family="composition"
+                    metric={metric}
+                    category={category}
+                    onCategoryChange={setCategory}
+                  />
+                </div>
               </AnalysisPanel>
               <AnalysisPanel
                 index="03"
@@ -559,12 +619,16 @@ export function StudioAnalysisWorkspace({
                   locale === "en" ? "DISH RANKING" : "CLASSEMENT DES PLATS"
                 }
               >
-                <div className={styles.chartBody}>
+                <div className={styles.chartBody} data-analysis-body>
                   <AnalysisBars
                     rows={ranked.map((dish) => ({
                       id: dish.id,
                       name: dish.name,
                       value: dish[metric],
+                      fill: studioCategoryPalette[
+                        categories.indexOf(dish.category) %
+                          studioCategoryPalette.length
+                      ],
                     }))}
                     label={labels[metric]}
                     horizontal
@@ -577,15 +641,13 @@ export function StudioAnalysisWorkspace({
                 title={
                   locale === "en"
                     ? "Which dishes invite exploration?"
-                    : "Quels plats invitent à explorer ?"
+                    : "Où commence l’immersion ?"
                 }
                 eyebrow={
-                  locale === "en"
-                    ? "3D + AR INTERACTIONS"
-                    : "INTERACTIONS 3D + AR"
+                  locale === "en" ? "3D + AR INTERACTIONS" : "CLICS 3D ET AR"
                 }
               >
-                <div className={styles.chartBody}>
+                <div className={styles.chartBody} data-analysis-body>
                   <AnalysisBars
                     rows={[...dishes]
                       .sort((a, b) => b.three + b.ar - a.three - a.ar)
@@ -611,12 +673,12 @@ export function StudioAnalysisWorkspace({
               title={
                 locale === "en"
                   ? "Which days are busiest?"
-                  : "Quels jours concentrent l’activité ?"
+                  : "Quel jour fait la différence ?"
               }
               eyebrow={globalScope}
-              span={4}
+              span={5}
             >
-              <div className={styles.chartBody}>
+              <div className={styles.chartBody} data-analysis-body>
                 <AnalysisBars
                   rows={dayRows}
                   label={
@@ -634,16 +696,16 @@ export function StudioAnalysisWorkspace({
               title={
                 locale === "en"
                   ? "From views to exploration"
-                  : "Du regard à l’exploration"
+                  : "Le regard devient-il exploration ?"
               }
               eyebrow={
                 locale === "en"
                   ? "VIEWS × 3D CLICKS"
                   : "CONSULTATIONS × CLICS 3D"
               }
-              span={8}
+              span={7}
             >
-              <div className={styles.chartBody}>
+              <div className={styles.chartBody} data-analysis-body>
                 <StudioAnalysisCharts
                   data={data}
                   family="scatter"
@@ -661,24 +723,29 @@ export function StudioAnalysisWorkspace({
                 title={
                   locale === "en"
                     ? "When does activity build?"
-                    : "Quand l’activité se concentre-t-elle ?"
+                    : "Quand votre carte est-elle explorée ?"
                 }
                 eyebrow={globalScope}
-                span={8}
+                span={7}
               >
-                <div className={styles.chartBody}>
+                <div className={styles.chartBody} data-analysis-body>
                   <StudioHeatmap cells={heatmap} />
                 </div>
               </AnalysisPanel>
               <AnalysisPanel
                 index="08"
-                title={locale === "en" ? "At what time?" : "À quelles heures ?"}
+                title={
+                  locale === "en"
+                    ? "At what time?"
+                    : "La soirée change-t-elle le rythme ?"
+                }
                 eyebrow={globalScope}
-                span={4}
+                span={5}
               >
-                <div className={styles.chartBody}>
+                <div className={styles.chartBody} data-analysis-body>
                   <AnalysisBars
                     rows={hourRows}
+                    horizontal
                     label={
                       locale === "en"
                         ? "Recorded events"
@@ -696,16 +763,16 @@ export function StudioAnalysisWorkspace({
                 title={
                   locale === "en"
                     ? "Where do interactions go?"
-                    : "Où vont les interactions ?"
+                    : "Comment se répartissent les événements ?"
                 }
                 eyebrow={
                   locale === "en"
                     ? "CATEGORIES → EVENT TYPES"
                     : "CATÉGORIES → TYPES D’ÉVÉNEMENTS"
                 }
-                span={8}
+                span={7}
               >
-                <div className={styles.chartBody}>
+                <div className={styles.chartBody} data-analysis-body>
                   <StudioAnalysisCharts
                     data={data}
                     family="flow"
@@ -722,19 +789,23 @@ export function StudioAnalysisWorkspace({
                   title={
                     locale === "en"
                       ? "The category profile"
-                      : "Le profil des catégories"
+                      : "Le profil de votre carte évolue-t-il ?"
                   }
                   eyebrow={
-                    locale === "en" ? "RELATIVE SHARES" : "PARTS RELATIVES"
+                    locale === "en"
+                      ? "RELATIVE SHARES"
+                      : "PARTS COMPARÉES PAR CATÉGORIE · %"
                   }
-                  span={4}
+                  span={5}
                 >
-                  <StudioAnalysisCharts
-                    data={data}
-                    family="profile"
-                    metric={metric}
-                    category={category}
-                  />
+                  <div className={styles.chartBody} data-analysis-body>
+                    <StudioAnalysisCharts
+                      data={data}
+                      family="profile"
+                      metric={metric}
+                      category={category}
+                    />
+                  </div>
                 </AnalysisPanel>
               )}
             </>
@@ -775,6 +846,11 @@ export function StudioAnalysisWorkspace({
             )}
         </div>
       )}
+      <p className={css.scope}>
+        {locale === "en"
+          ? "The category filter applies to dish and category charts. Time-based charts always cover the entire menu."
+          : "Le filtre catégorie s’applique aux plats et aux catégories. Les graphiques temporels portent toujours sur le menu entier."}
+      </p>
       <footer className={css.source}>
         {locale === "en"
           ? "Recorded menu events. No sales estimates or unique-person attribution. Hours are UTC. Comparisons require usable prior data."

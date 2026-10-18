@@ -40,3 +40,31 @@ The public preview import allowlist adds only the exact reviewed presentation fi
 - Independent source reviews: chart interactions and control/theme lifecycle; findings corrected before publication
 - Full repository node suite: 2,137 passed, 10 failed, 6 skipped. Remaining failures: five Maison Elyse media-backfill cases require sparse-excluded models; public-model-assets requires chocolat-fume.usdz; restaurant-geometry-pruning requires restaurant-evening.glb; restaurant-index-crop and restaurant-offscreen-experiment require restaurant-visible-59412334.glb; owner-pipeline-console IPv6 fetch fails through the local proxy. None of those source files are changed. The IPv6 case also fails when run alone. Hosted CI remains required
 - Browser interaction and visual comparison status is recorded in the PR; source/unit checks alone do not establish exact visual parity
+
+## Screenshot-driven corrections
+
+The first PR preview exposed gaps that source checks had missed: gray pie sectors, a light-only heatmap in dark mode, cramped radar ticks, changed chart composition and dialogs opening at the top-left. The follow-up uses the recovered deployed reference directly for chart proportions, fonts, legend chips, categorical colors, hourly orientation, numbered scatter markers, heatmap cells and shell spacing.
+
+- Pie records carry their actual category fill into the rendered sectors; browser tests inspect computed SVG fills against the six theme tokens.
+- Heatmaps now show weekday columns and two-hour UTC rows with the exact six-stop light/dark palettes. Twelve rows retain overnight evidence that the six-row synthetic restaurant demo does not contain. Tests verify count preservation and actual Studio-root theme observation.
+- Native dialogs explicitly restore fixed positioning and auto margins after Tailwind Preflight's margin reset. Critical browser tests inspect viewport centering after scrolling at390px and1440px and capture each open modal.
+- The semantic availability assertion waits for the existing150ms switch background transition while retaining strict token equality and explicit light-theme state.
+- Runtime browser inspection verified dark→light→dark heatmap zero and maximum colors,84 grid cells, arrow-key navigation, restored pie colors and desktop modal centering. Further responsive comparison and hosted checks remain required before the draft can be considered ready.
+
+The complete reference pass also restores the overview's menu-opens default and four-column ranking, the dishes availability-summary/metric hierarchy, and the actual mounted five-dataset data workspace (not its older HTML fallback). The latter uses the original pinned TanStack Table9.2.8 with search, sort,15-row pagination and mobile expandable rows. Overview and analysis KPI islands use the original NumberFlow0.6.2 with reduced-motion and accessible text. The fresh audit after adding these packages still reports only the existing accepted braces advisory; no new advisory was added to the baseline.
+
+Table datasets distinguish the real adapter's capabilities: daily values describe the entire menu, hourly rows contain only recorded all-event totals in UTC, and unsupported previous category3D/AR counts remain N/A. The download action explicitly exports the whole selected period through the existing export dialog rather than claiming a category-filtered export.
+
+The final modal pass ports the deployed `Nee` / `mx-*` metric explorer: five metric tabs, actual UTC period comparison, daily inspection, sortable dish contributions and method disclosures. Dish detail restores the reference hero, real photo/category/status, three actual metric cards and management link. Unsupported synthetic per-dish histories are not copied. Independent review of this final increment found no verified P0/P1/P2 issue; nested chart dialog focus is separately covered by a critical browser test.
+
+### Follow-up validation checkpoint
+
+- Studio, availability, public import/privacy boundaries and dependency contracts: 94 tests passed
+- Fresh TypeScript and full ESLint passed; the final nested-dialog cancellation guard and browser-test additions also passed targeted ESLint
+- Independent expanded source review: no open P0/P1/P2 finding, including table-library usage, real-data scope, metric explorer and dish navigation
+- Critical hosted browser coverage now includes computed SVG/theme colors, all five table datasets, pagination/search, nested metric-explorer focus, and viewport centering after scrolling
+- Local cloud-browser inspection and hosted CI results remain separate: the new Playwright coverage must execute in CI before readiness is established
+- Final controlled-fixture browser pass verified all five datasets, search and sort, hourly pagination, actual export dialog, availability summary/filter, five dish metrics, restored detail hero, management navigation to the matching dish hash, and nested chart Escape/focus restoration. At 430 CSS pixels in dark mode, document scroll width equaled client width; this is desktop responsive testing, not touch-device emulation.
+- The last browser pass also verified 390px light, 430px dark and 1176px desktop layouts. It identified two small copy omissions, subsequently corrected in source: the table-mode “Explorateur de données” heading and actual period/comparison caption above the dishes summary. These final text/context changes have dedicated regression coverage.
+
+- Final production build passed after the complete source restoration and last heading/context corrections; final fresh TypeScript and targeted ESLint also passed. Hosted browser/CI checks remain pending for the corrective commit.

@@ -77,8 +77,13 @@
   line-height: 1.6;
 }
 .dialog {
+  /* Preflight resets the native dialog auto margins. */
+  position: fixed;
+  inset: 0;
+  margin: auto;
   width: min(1120px, calc(100% - 32px));
-  max-height: 92dvh;
+  max-height: calc(100dvh - 32px);
+  overflow: auto;
   padding: 25px;
   background: var(--surface);
   color: var(--ink);
@@ -132,4 +137,49 @@
   .dialog h2 {
     font-size: 28px;
   }
+}
+
+/* Exact approved chart stage and legend chips (v29 deployed stylesheet). */
+.stage {
+  background: color-mix(in srgb, var(--soft) 45%, var(--surface));
+  padding: 12px 8px 4px;
+  border-radius: 10px;
+  min-width: 0;
+}
+.trend :global([data-kind-ui="chart-legend"]) {
+  margin: 7px 7px 8px;
+  gap: 8px;
+  align-items: center;
+}
+.trend :global([data-kind-ui="chart-legend-button"]) {
+  min-height: 44px;
+  padding: 8px 11px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  font-size: 11px;
+  gap: 8px;
+  color: var(--ink);
+}
+.trend :global([data-kind-ui="chart-legend-button"]) strong {
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+.trend :global([data-kind-ui="chart-legend-button"]) small {
+  font-size: 8px;
+  color: var(--muted);
+  margin-left: 2px;
+}
+.trend :global([data-kind-ui="chart-legend-button"][data-inactive="true"]) {
+  border-style: dashed;
+  background: var(--soft);
+  color: var(--muted);
+}
+.trend :global([data-kind-ui="chart-legend-item"]) {
+  opacity: 1 !important;
+}
+.trend :global([data-kind-ui="chart-indicator"]) {
+  border-radius: 3px;
+  width: 12px;
+  height: 3px;
 }
