@@ -12,7 +12,20 @@ create table public.analytics_events (
   event_name text not null constraint analytics_events_event_name_check check(event_name in ('menu_opened')),
   created_at timestamptz not null default now(), search_query text, user_agent text, viewport jsonb
 );
+-- Populate the pre-migration schema: rollout must not restart retention clocks.
+insert into public.analytics_events(session_id,event_name,created_at) values
+  ('legacy-expired','menu_opened',now()-interval '100 days'),
+  ('legacy-recent','menu_opened',now()-interval '10 days');
 -- TELEMETRY_MIGRATION_BODY
+do $$ begin
+  assert not exists (
+    select 1 from public.analytics_events
+    where session_id in ('legacy-expired','legacy-recent')
+      and expires_at <> created_at + interval '90 days'
+  ), 'migration restarted legacy retention clocks';
+  assert exists (select 1 from public.analytics_events where session_id='legacy-expired' and expires_at < now()), 'old legacy row received new retention life';
+  assert exists (select 1 from public.analytics_events where session_id='legacy-recent' and expires_at > now()), 'recent legacy row expired prematurely';
+end $$;
 insert into public.analytics_events(session_id,event_name,schema_version,event_id,sequence,environment,search_query,user_agent,viewport)
 values ('session-test','menu_opened',2,'44444444-4444-4444-8444-444444444444',1,'preview','private','raw','{}');
 do $$ declare row public.analytics_events; begin
@@ -46,6 +59,8 @@ update public.analytics_events set expires_at=now()-interval '1 second' where se
 select public.purge_expired_menu_telemetry();
 do $$ begin
   assert not exists(select 1 from public.analytics_events where session_id='session-test'), 'expired event retained';
+  assert not exists(select 1 from public.analytics_events where session_id='legacy-expired'), 'expired legacy row retained after purge';
+  assert exists(select 1 from public.analytics_events where session_id='legacy-recent'), 'unexpired legacy row deleted';
   assert (select count(*) from public.analytics_events where session_id='session-rate')=120, 'unexpired events deleted';
 end $$;
 rollback;

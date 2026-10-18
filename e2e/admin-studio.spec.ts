@@ -770,11 +770,48 @@ test(
     await datasets
       .getByRole("button", { name: "Par jour", exact: true })
       .click();
-    await expect(page.getByText("Page 1 sur 2", { exact: true })).toBeVisible();
-    await page
-      .getByRole("button", { name: "Page suivante", exact: true })
-      .click();
-    await expect(page.getByText("Page 2 sur 2", { exact: true })).toBeVisible();
+    const daily = page.locator('[data-dataset="daily"]');
+    const results = daily.getByRole("status");
+    await expect(results).toHaveText("31 résultats");
+    // Fixed fixture: June 10–July 10 at 08:00 Toronto spans 31 calendar dates.
+    // Keep both boundary dates and prove every row is reachable exactly once.
+    const rowCount = Number.parseInt(
+      (await results.innerText()).split(" ")[0],
+      10,
+    );
+    const pageCount = Math.ceil(rowCount / 15);
+    const next = daily.getByRole("button", {
+      name: "Page suivante",
+      exact: true,
+    });
+    const previous = daily.getByRole("button", {
+      name: "Page précédente",
+      exact: true,
+    });
+    const dates: string[] = [];
+    for (let pageNumber = 1; pageNumber <= pageCount; pageNumber += 1) {
+      await expect(
+        daily.getByText(`Page ${pageNumber} sur ${pageCount}`, { exact: true }),
+      ).toBeVisible();
+      const rows = daily.getByRole("table").locator("tbody tr");
+      await expect(rows).toHaveCount(
+        Math.min(15, rowCount - (pageNumber - 1) * 15),
+      );
+      dates.push(
+        ...(await rows.evaluateAll((elements) =>
+          elements.map((element) => element.getAttribute("data-row-id") ?? ""),
+        )),
+      );
+      if (pageNumber === 1) await expect(previous).toBeDisabled();
+      else await expect(previous).toBeEnabled();
+      if (pageNumber < pageCount) {
+        await expect(next).toBeEnabled();
+        await next.click();
+      } else await expect(next).toBeDisabled();
+    }
+    expect(dates).toHaveLength(rowCount);
+    expect(new Set(dates).size).toBe(rowCount);
+    expect(dates).toEqual(expect.arrayContaining(["2026-06-10", "2026-07-10"]));
     await page
       .getByRole("searchbox", { name: "Rechercher dans Par jour", exact: true })
       .fill("aucune-ligne-correspondante");

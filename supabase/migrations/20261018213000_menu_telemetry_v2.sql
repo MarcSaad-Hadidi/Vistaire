@@ -15,6 +15,10 @@ alter table public.analytics_events
   add column sequence integer check (sequence between 1 and 3600),
   add column environment text not null default 'legacy' check (environment in ('legacy','production','preview','development')),
   add column expires_at timestamptz not null default (now() + interval '90 days');
+-- Existing events keep their original retention clock; the migration must not
+-- grant historical data another 90 days. The scheduled job performs deletion.
+update public.analytics_events
+set expires_at = created_at + interval '90 days';
 alter table public.analytics_events add constraint analytics_events_v2_identity_check check (schema_version <> 2 or (event_id is not null and sequence is not null));
 create unique index analytics_events_event_id_unique on public.analytics_events(event_id) where event_id is not null;
 create index analytics_events_expiry_idx on public.analytics_events(expires_at);

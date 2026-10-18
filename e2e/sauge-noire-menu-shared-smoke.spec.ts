@@ -50,9 +50,17 @@ async function interceptTelemetry(page: Page) {
   });
   return events;
 }
+async function expectTelemetryEvent(events: MenuTelemetry[], eventName: string, restaurantId: string, menuId: string) {
+  await expect.poll(
+    () => events.map(event => event.restaurantId === restaurantId && event.menuId === menuId
+      ? event.eventName
+      : `${event.eventName} (${event.source}:${event.restaurantId}:${event.menuId})`),
+    { message: `Expected ${eventName} for restaurant ${restaurantId}, menu ${menuId}; captured events follow` }
+  ).toContain(eventName);
+}
 async function expectMenuTelemetry(events: MenuTelemetry[], restaurantId: string, menuId: string) {
   for (const eventName of ["menu_opened", "menu_list_viewed", "dish_visible", "dish_selected", "dish_opened"]) {
-    await expect.poll(() => events.some(event => event.eventName === eventName && event.restaurantId === restaurantId && event.menuId === menuId)).toBe(true);
+    await expectTelemetryEvent(events, eventName, restaurantId, menuId);
   }
   const tenantEvents = events.filter(event => event.restaurantId === restaurantId);
   expect(tenantEvents.every(event => event.source === "production" && event.menuId === menuId)).toBe(true);
@@ -107,9 +115,19 @@ test.describe("shared public menu smoke · one Chromium fixture", { tag: '@criti
     await expect(menu.getByRole("heading", { name: "LA CARTE" })).toBeVisible();
     const dish = menu.getByRole("link", { name: /Ravioles/i }).first();
     await expect(dish).toBeVisible();
+    await dish.scrollIntoViewIfNeeded();
+    // SSR links work before hydration. Remain on this page until the client
+    // observer has actually seen the menu and card before navigating away.
+    for (const eventName of ["menu_opened", "menu_list_viewed", "dish_visible"]) {
+      await expectTelemetryEvent(telemetry, eventName, "11111111-1111-4111-8111-111111111112", "22222222-2222-4222-8222-222222222223");
+    }
     await dish.click();
     await expect(page).toHaveURL(/\/menu\/maison-elyse\/dishes\//);
     await expect(page.getByRole("heading", { level: 1, name: /Ravioles/i })).toBeVisible({ timeout: 15_000 });
+    // The server-rendered heading/back link can precede the detail effect and
+    // its first IntersectionObserver callback on a cold client chunk.
+    await expectTelemetryEvent(telemetry, "dish_selected", "11111111-1111-4111-8111-111111111112", "22222222-2222-4222-8222-222222222223");
+    await expectTelemetryEvent(telemetry, "dish_opened", "11111111-1111-4111-8111-111111111112", "22222222-2222-4222-8222-222222222223");
     await page.getByRole("link", { name: /Retour/i }).first().click();
     await expect(page).toHaveURL(/\/menu\/maison-elyse\?/);
     await expect(page.getByRole("heading", { name: "LA CARTE" })).toBeVisible();
