@@ -28,10 +28,12 @@ export function StudioTrend({
   series,
   label,
   comparison,
+  timezone = "UTC",
 }: {
   series: AdminMetricSeries;
   label: string;
   comparison: boolean;
+  timezone?: string;
 }) {
   const { t, locale, number, date: day } = useStudioLocale();
   const id = useId();
@@ -294,7 +296,7 @@ export function StudioTrend({
           <table className={styles.table}>
             <thead>
               <tr>
-                <th>Date (UTC)</th>
+                <th>Date ({timezone})</th>
                 <th>{t("Actuel")}</th>
                 <th>{locale === "en" ? "Previous date" : "Date précédente"}</th>
                 <th>{t("Précédent")}</th>
@@ -438,11 +440,12 @@ const heatmapPalettes = {
 export function createStudioHeatmapData(
   cells: StudioHeatmapCell[],
   columns: string[],
+  timezone = "UTC",
 ) {
   const rows = Array.from(
     { length: 12 },
     (_, index) =>
-      `${String(index * 2).padStart(2, "0")}–${String(index * 2 + 2).padStart(2, "0")} h UTC`,
+      `${String(index * 2).padStart(2, "0")}–${String(index * 2 + 2).padStart(2, "0")} h ${timezone}`,
   );
   const counts = new Map<string, number>();
   for (const cell of cells) {
@@ -531,7 +534,13 @@ function StudioHeatmapReadout({
   );
 }
 
-export function StudioHeatmap({ cells }: { cells: StudioHeatmapCell[] }) {
+export function StudioHeatmap({
+  cells,
+  timezone = "UTC",
+}: {
+  cells: StudioHeatmapCell[];
+  timezone?: string;
+}) {
   const { t, number, locale } = useStudioLocale();
   const root = useRef<HTMLDivElement>(null);
   const helpId = useId();
@@ -551,15 +560,18 @@ export function StudioHeatmap({ cells }: { cells: StudioHeatmapCell[] }) {
         locale === "en"
           ? ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
           : ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"],
+        timezone,
       ),
-    [cells, locale],
+    [cells, locale, timezone],
   );
   const scale = useMemo(
     () => createHeatmapScale({ domain: [0, max], colors }),
     [max, colors],
   );
   const intervalLabel =
-    locale === "en" ? "2-hour UTC intervals" : "tranches de 2 h UTC";
+    locale === "en"
+      ? `2-hour intervals (${timezone})`
+      : `tranches de 2 h (${timezone})`;
   return (
     <div ref={root} className={`${styles.chart} ${styles.heatmap}`}>
       <HeatmapChart
@@ -569,7 +581,7 @@ export function StudioHeatmap({ cells }: { cells: StudioHeatmapCell[] }) {
         scale={scale}
         formatValue={number}
         missingLabel={t("Indisponible")}
-        aria-label={t("Événements par jour et heure UTC")}
+        aria-label={`${t("Événements par jour et heure")} (${timezone})`}
         aria-describedby={helpId}
       >
         <HeatmapGrid
@@ -590,8 +602,8 @@ export function StudioHeatmap({ cells }: { cells: StudioHeatmapCell[] }) {
       </HeatmapChart>
       <p id={helpId} className={styles.srOnly}>
         {locale === "en"
-          ? "Hover or touch a cell. Use arrow keys to explore; Home and End move across the row. Escape dismisses the tooltip. Each cell totals two hours in UTC."
-          : "Survolez ou touchez une case. Utilisez les flèches pour explorer, Début et Fin pour parcourir la ligne. Échap ferme l’infobulle. Chaque case totalise deux heures en UTC."}
+          ? "Hover or touch a cell. Use arrow keys to explore; Home and End move across the row. Escape dismisses the tooltip. Each cell totals two hours."
+          : "Survolez ou touchez une case. Utilisez les flèches pour explorer, Début et Fin pour parcourir la ligne. Échap ferme l’infobulle. Chaque case totalise deux heures."}
       </p>
     </div>
   );

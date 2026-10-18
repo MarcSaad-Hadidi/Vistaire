@@ -7,6 +7,7 @@ import { buildAdminAnalyticsState } from "../lib/admin/analyticsState.ts";
 
 registerHooks({
   resolve(specifier, context, nextResolve) {
+    if (specifier === "@/lib/admin/studioTemporalData") return { url: new URL("../lib/admin/studioTemporalData.ts", import.meta.url).href, shortCircuit: true };
     if (specifier.startsWith(".") && context.parentURL?.endsWith(".tsx")) {
       for (const extension of [".tsx", ".ts"]) {
         const url = new URL(`${specifier}${extension}`, context.parentURL);

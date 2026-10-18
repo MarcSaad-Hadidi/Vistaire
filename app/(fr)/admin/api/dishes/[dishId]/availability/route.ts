@@ -1,4 +1,5 @@
 import { revalidatePath } from "next/cache";
+import { mutateAvailabilityWithSchedulingFallback } from "@/lib/admin/schedulingAvailability";
 import type { NextRequest } from "next/server";
 import { requireAdminRestaurantAccess } from "@/lib/admin/access";
 import {
@@ -36,14 +37,14 @@ async function updateDishAvailability({
     dishId
   });
 
-  const { data, error } = await admin.client
-    .rpc("set_admin_dish_availability", {
+  const { data, error } = await mutateAvailabilityWithSchedulingFallback((rpcName) => admin.client
+    .rpc(rpcName, {
       p_qr_id: qrId,
       p_restaurant_id: restaurantId,
       p_dish_id: dishId,
       p_available: available
     })
-    .maybeSingle();
+    .maybeSingle());
 
   if (error) return { ok: false, status: 503 };
   if (!data) return { ok: false, status: 404 };

@@ -333,3 +333,22 @@ test("tag-only keys permit stale resurrection while revision keys isolate fills"
   assert.equal(shared.get(newKey), "new-revision");
   assert.notEqual(oldKey, newKey);
 });
+
+test("missing scheduling migration preserves legacy menu but other scheduling read failures do not", async () => {
+  globalThis[adminClientFactorySymbol] = unavailableAdminClient;
+  const rows = {
+    restaurants: [{ id: "restaurant-rollout", slug: "rollout-menu", name: "Rollout", status: "active" }],
+    menus: [{ id: "menu-rollout", restaurant_id: "restaurant-rollout", name: "Carte", status: "published", is_primary: true, settings_json: {} }],
+    menu_categories: [{ id: "category-rollout", restaurant_id: "restaurant-rollout", menu_id: "menu-rollout", name: "Plats", slug: "plats" }],
+    menu_dishes: [{ id: "dish-rollout", restaurant_id: "restaurant-rollout", menu_id: "menu-rollout", category_id: "category-rollout", slug: "plat", name: "Plat", price_cents: 1000, currency: "CAD", is_available: true }]
+  };
+  const read = (error) => async ({ table }) => table === "dish_schedules"
+    ? { ok: false, rows: [], error }
+    : { ok: true, rows: rows[table] ?? [] };
+  const menu = await getPublicMenuBySlug("rollout-menu", "fr", { nodeEnv: "production", readRows: read("Could not find the table 'public.dish_schedules' in the schema cache") });
+  assert.ok(menu);
+  assert.equal(menu.dishes[0]?.available, true);
+  rows.menus[0].settings_json = { availabilityScheduleVersion: 1 };
+  assert.equal(await getPublicMenuBySlug("rollout-menu", "fr", { nodeEnv: "production", readRows: read("Could not find the table 'public.dish_schedules' in the schema cache") }), null, "an opted-in menu must not return stale static availability");
+  assert.equal(await getPublicMenuBySlug("rollout-menu", "fr", { nodeEnv: "production", readRows: read("permission denied for dish_schedules") }), null);
+});

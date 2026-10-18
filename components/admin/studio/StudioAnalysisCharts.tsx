@@ -1,6 +1,7 @@
 "use client";
 import { Tooltip as NativeTooltip } from "recharts";
 import { useState } from "react";
+import { selectStudioTemporalMetrics } from "../../../lib/admin/studioTemporalData";
 import {
   Root,
   PieChart,
@@ -92,6 +93,12 @@ export function StudioAnalysisCharts({
       ? [{ ...stats, ...dish, value: stats[metric] }]
       : [];
   });
+  const previousKey =
+    metric === "views"
+      ? "previousViews"
+      : metric === "three"
+        ? "previousThree"
+        : "previousAr";
   const categories = allCategories
     .filter((name) => category === "all" || category === name)
     .map((name) => {
@@ -104,15 +111,30 @@ export function StudioAnalysisCharts({
         views: rows.reduce((sum, row) => sum + row.views, 0),
         three: rows.reduce((sum, row) => sum + row.three, 0),
         ar: rows.reduce((sum, row) => sum + row.ar, 0),
-        previousViews: rows.every((row) => row.previousViews !== null)
-          ? rows.reduce((sum, row) => sum + (row.previousViews ?? 0), 0)
+        previousMetric: rows.every((row) => row[previousKey] != null)
+          ? rows.reduce((sum, row) => sum + (row[previousKey] ?? 0), 0)
           : null,
       };
     });
   const total = categories.reduce((sum, row) => sum + row.value, 0);
-  const prior = categories.every((row) => row.previousViews !== null)
-    ? categories.reduce((sum, row) => sum + (row.previousViews ?? 0), 0)
-    : null;
+  const temporalPrior =
+    data.temporalAnalytics === undefined
+      ? undefined
+      : selectStudioTemporalMetrics(data.temporalAnalytics, {
+          metric,
+          dishIds:
+            category === "all"
+              ? undefined
+              : data.menu.dishes
+                  .filter((dish) => dish.category === category)
+                  .map((dish) => dish.id),
+        }).previousTotal;
+  const prior =
+    temporalPrior === null
+      ? null
+      : categories.every((row) => row.previousMetric !== null)
+        ? categories.reduce((sum, row) => sum + (row.previousMetric ?? 0), 0)
+        : null;
   const label =
     metric === "views"
       ? t("Consultations")
@@ -624,13 +646,13 @@ export function StudioAnalysisCharts({
       </p>
     </div>
   );
-  const comparable = metric === "views" && prior !== null && prior > 0;
+  const comparable = prior !== null && prior > 0;
   const radar = categories.map((row) => ({
     name: row.name,
     current: total ? (row.value / total) * 100 : 0,
     previous:
-      comparable && row.previousViews !== null
-        ? (row.previousViews / prior) * 100
+      comparable && row.previousMetric !== null
+        ? (row.previousMetric / prior) * 100
         : null,
   }));
   const profileMaximum = Math.max(

@@ -8,18 +8,18 @@ import {
   useMemo,
   useRef,
   useState,
-  type CSSProperties
+  type CSSProperties,
 } from "react";
 import {
   trackMenuEvent,
-  type PublicMenuAnalyticsContext
+  type PublicMenuAnalyticsContext,
 } from "@/lib/analytics/client";
 import {
   buildDemoDish3dManifest,
   isSafe3dAssetUrl,
   selectImmersiveVariant,
   type ImmersiveBrowser,
-  type ImmersiveDevice
+  type ImmersiveDevice,
 } from "@/lib/dish3dManifest";
 import type { Dish } from "@/lib/demoMenuData";
 import {
@@ -28,16 +28,15 @@ import {
   readLiveArClientSnapshot,
   resolveArExperience,
   type ArExperiencePhase,
-  type ArRuntimeSignal
+  type ArRuntimeSignal,
 } from "@/lib/ar/arExperience";
 import { configureModelViewerAssetDecoders } from "@/lib/modelViewerAssetDecoders";
+import { useModelTelemetry } from "./useModelTelemetry";
 import { usePrefersReducedMotion } from "@/lib/usePrefersReducedMotion";
-import {
-  getSafeCurrentPageUrl
-} from "@/lib/menu/arBrowserHandoff";
+import { getSafeCurrentPageUrl } from "@/lib/menu/arBrowserHandoff";
 import {
   ArFallbackPanel,
-  type ArFallbackPanelVariant
+  type ArFallbackPanelVariant,
 } from "@/components/dish/ArFallbackPanel";
 
 export { configureModelViewerAssetDecoders } from "@/lib/modelViewerAssetDecoders";
@@ -54,7 +53,9 @@ const MODEL_VIEWER_SHELL_CLASS =
   "min-h-[350px] w-full overflow-hidden rounded-xl bg-[#10100e] ring-1 ring-white/8 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] sm:min-h-[430px]";
 const MODEL_VIEWER_CANVAS_CLASS =
   "h-[min(48vh,350px)] min-h-[250px] w-full bg-[#10100e] sm:h-[min(55vh,380px)] sm:min-h-[310px]";
-const ALLOWED_3D_CDN_ORIGINS = (process.env.NEXT_PUBLIC_VISTAIRE_3D_CDN_ORIGINS ?? "")
+const ALLOWED_3D_CDN_ORIGINS = (
+  process.env.NEXT_PUBLIC_VISTAIRE_3D_CDN_ORIGINS ?? ""
+)
   .split(/[,\s]+/)
   .map((entry) => entry.trim().replace(/\/+$/, ""))
   .filter(Boolean);
@@ -144,7 +145,8 @@ const DEFAULT_MODEL_VIEWER_COPY = {
   copyLink: "Copier le lien",
   linkCopied: "Lien copié",
   share: "Partager",
-  iosUsdzMissing: "Pour activer l'AR iPhone, ajoutez un fichier USDZ à ce plat.",
+  iosUsdzMissing:
+    "Pour activer l'AR iPhone, ajoutez un fichier USDZ à ce plat.",
   desktopArHint:
     "La réalité augmentée se lance depuis un téléphone compatible.",
   arAndroidBrowser:
@@ -166,7 +168,7 @@ const DEFAULT_MODEL_VIEWER_COPY = {
     "La copie automatique a échoué. Sélectionnez le lien ci-dessous et copiez-le manuellement.",
   manualCopyLabel: "Lien de la fiche",
   selectLink: "Sélectionner le lien",
-  modelAlt: (dishName: string) => `Vue du plat : ${dishName}`
+  modelAlt: (dishName: string) => `Vue du plat : ${dishName}`,
 } satisfies ResolvedDishModelViewerCopy;
 
 export type DishModelViewerProps = {
@@ -205,11 +207,13 @@ export type DishModelViewerProps = {
   analyticsContext?: PublicMenuAnalyticsContext;
 };
 
-function resolveModelViewerCopy(copy?: DishModelViewerCopy): ResolvedDishModelViewerCopy {
+function resolveModelViewerCopy(
+  copy?: DishModelViewerCopy,
+): ResolvedDishModelViewerCopy {
   return {
     ...DEFAULT_MODEL_VIEWER_COPY,
     ...copy,
-    modelAlt: copy?.modelAlt ?? DEFAULT_MODEL_VIEWER_COPY.modelAlt
+    modelAlt: copy?.modelAlt ?? DEFAULT_MODEL_VIEWER_COPY.modelAlt,
   };
 }
 
@@ -254,10 +258,12 @@ type ModelViewerArStatusEvent = Event & {
 };
 
 function arFallbackReasonForPhase(
-  phase: ArExperiencePhase
+  phase: ArExperiencePhase,
 ): ArFallbackReason | null {
   if (phase.kind === "handoff") {
-    return phase.recommendedBrowser === "safari" ? "ios-handoff" : "android-handoff";
+    return phase.recommendedBrowser === "safari"
+      ? "ios-handoff"
+      : "android-handoff";
   }
   if (phase.kind === "unsupported-device") return "unsupported-device";
   if (phase.kind === "activation-failed") return "activation-failed";
@@ -281,7 +287,7 @@ function fallbackPanelCopy(
     | { kind: "missing-usdz" }
     | { kind: "desktop-hint" }
   >,
-  copy: ResolvedDishModelViewerCopy
+  copy: ResolvedDishModelViewerCopy,
 ) {
   if (phase.kind === "handoff" && phase.recommendedBrowser === "safari") {
     return {
@@ -292,7 +298,7 @@ function fallbackPanelCopy(
       share: copy.share,
       copyError: copy.copyError,
       manualCopyLabel: copy.manualCopyLabel,
-      selectLink: copy.selectLink
+      selectLink: copy.selectLink,
     };
   }
   if (phase.kind === "handoff") {
@@ -304,7 +310,7 @@ function fallbackPanelCopy(
       share: copy.share,
       copyError: copy.copyError,
       manualCopyLabel: copy.manualCopyLabel,
-      selectLink: copy.selectLink
+      selectLink: copy.selectLink,
     };
   }
   if (phase.kind === "asset-unavailable") {
@@ -316,7 +322,7 @@ function fallbackPanelCopy(
       share: copy.share,
       copyError: copy.copyError,
       manualCopyLabel: copy.manualCopyLabel,
-      selectLink: copy.selectLink
+      selectLink: copy.selectLink,
     };
   }
   if (phase.kind === "missing-usdz") {
@@ -328,7 +334,7 @@ function fallbackPanelCopy(
       share: copy.share,
       copyError: copy.copyError,
       manualCopyLabel: copy.manualCopyLabel,
-      selectLink: copy.selectLink
+      selectLink: copy.selectLink,
     };
   }
   if (phase.kind === "desktop-hint") {
@@ -340,7 +346,7 @@ function fallbackPanelCopy(
       share: copy.share,
       copyError: copy.copyError,
       manualCopyLabel: copy.manualCopyLabel,
-      selectLink: copy.selectLink
+      selectLink: copy.selectLink,
     };
   }
   return {
@@ -351,7 +357,7 @@ function fallbackPanelCopy(
     share: copy.share,
     copyError: copy.copyError,
     manualCopyLabel: copy.manualCopyLabel,
-    selectLink: copy.selectLink
+    selectLink: copy.selectLink,
   };
 }
 
@@ -364,7 +370,7 @@ function readClientConnection(): ClientConnection {
   ).connection;
   return {
     effectiveType: connection?.effectiveType,
-    saveData: connection?.saveData
+    saveData: connection?.saveData,
   };
 }
 
@@ -372,23 +378,25 @@ function readClientViewport(): { width: number; height: number } {
   if (typeof window === "undefined") return { width: 0, height: 0 };
   return {
     width: window.innerWidth,
-    height: window.innerHeight
+    height: window.innerHeight,
   };
 }
 
 function browserForSelection(
-  arBrowser: ReturnType<typeof classifyArBrowser>
+  arBrowser: ReturnType<typeof classifyArBrowser>,
 ): ImmersiveBrowser {
   if (arBrowser === "ios-safari") return "safari";
-  if (arBrowser === "ios-other" || arBrowser === "android-other") return "unknown";
+  if (arBrowser === "ios-other" || arBrowser === "android-other")
+    return "unknown";
   return "chrome";
 }
 
 function deviceForSelection(
-  arBrowser: ReturnType<typeof classifyArBrowser>
+  arBrowser: ReturnType<typeof classifyArBrowser>,
 ): ImmersiveDevice {
   if (arBrowser === "ios-safari" || arBrowser === "ios-other") return "ios";
-  if (arBrowser === "android-chrome" || arBrowser === "android-other") return "android";
+  if (arBrowser === "android-chrome" || arBrowser === "android-other")
+    return "android";
   return "desktop";
 }
 
@@ -397,12 +405,10 @@ function getCurrentPageUrl(): string {
 }
 
 function getPosterPosition(
-  dish: Pick<Dish, "imageObjectPosition" | "imageObjectPositionDetail">
+  dish: Pick<Dish, "imageObjectPosition" | "imageObjectPositionDetail">,
 ): string {
   return (
-    dish.imageObjectPositionDetail ??
-    dish.imageObjectPosition ??
-    "center 44%"
+    dish.imageObjectPositionDetail ?? dish.imageObjectPosition ?? "center 44%"
   );
 }
 
@@ -412,7 +418,7 @@ function isDynamicPublicDishPhoto(src: string): boolean {
 
 function DishBackdropImage({
   src,
-  objectPosition
+  objectPosition,
 }: {
   src: string;
   objectPosition: string;
@@ -446,7 +452,7 @@ function DishBackdropImage({
 }
 
 function PremiumDishBackdrop({
-  dish
+  dish,
 }: {
   dish: Pick<
     Dish,
@@ -483,7 +489,7 @@ function PremiumDishBackdrop({
 function PremiumLoadingState({
   dish,
   copy,
-  progress = 0
+  progress = 0,
 }: {
   dish: Pick<
     Dish,
@@ -492,7 +498,10 @@ function PremiumLoadingState({
   copy: ResolvedDishModelViewerCopy;
   progress?: number;
 }) {
-  const progressPercent = Math.max(8, Math.min(100, Math.round(progress * 100)));
+  const progressPercent = Math.max(
+    8,
+    Math.min(100, Math.round(progress * 100)),
+  );
 
   return (
     <div
@@ -524,7 +533,7 @@ function IosQuickLookArLink({
   href,
   className,
   label,
-  onClick
+  onClick,
 }: {
   href: string;
   className: string;
@@ -553,7 +562,7 @@ function PremiumFailureState({
   onReturnToDish,
   quickLookHref,
   onQuickLookClick,
-  quietChrome = false
+  quietChrome = false,
 }: {
   dish: Pick<
     Dish,
@@ -628,7 +637,7 @@ export function DishModelViewer({
   onArFallbackCleared,
   fallbackPresentation = "inline",
   fallbackPanelVariant = "default",
-  analyticsContext
+  analyticsContext,
 }: DishModelViewerProps) {
   const copy = resolveModelViewerCopy(customCopy);
   const titleId = useId();
@@ -659,7 +668,8 @@ export function DishModelViewer({
   }, [onViewerMounted]);
 
   const arBrowser = classifyArBrowser(readLiveArClientSnapshot());
-  const isAndroid = arBrowser === "android-chrome" || arBrowser === "android-other";
+  const isAndroid =
+    arBrowser === "android-chrome" || arBrowser === "android-other";
   const isIos = arBrowser === "ios-safari" || arBrowser === "ios-other";
   const needsIosHandoff = arBrowser === "ios-other";
   const manifest = useMemo(() => buildDemoDish3dManifest(dish), [dish]);
@@ -680,7 +690,7 @@ export function DishModelViewer({
     connection: effectiveConnection,
     userIntent: "view3d",
     prefersReducedMotion,
-    allowedExternalOrigins: ALLOWED_3D_CDN_ORIGINS
+    allowedExternalOrigins: ALLOWED_3D_CDN_ORIGINS,
   });
   const arSelection = selectImmersiveVariant({
     manifest,
@@ -690,7 +700,7 @@ export function DishModelViewer({
     connection: effectiveConnection,
     userIntent: "ar",
     prefersReducedMotion,
-    allowedExternalOrigins: ALLOWED_3D_CDN_ORIGINS
+    allowedExternalOrigins: ALLOWED_3D_CDN_ORIGINS,
   });
   const androidArReady =
     (arSelection.kind === "web" || arSelection.kind === "arLite") &&
@@ -700,7 +710,9 @@ export function DishModelViewer({
   const modelSrc =
     isAndroid && androidArReady
       ? arSelection.url
-      : modelSelection.shouldLoadModel ? modelSelection.url : "";
+      : modelSelection.shouldLoadModel
+        ? modelSelection.url
+        : "";
   const hasModel = Boolean(modelSrc);
   const shouldConfirmSlowNetwork =
     modelSelection.requiresConfirmation && !slowNetworkConfirmed;
@@ -709,12 +721,44 @@ export function DishModelViewer({
       ? arSelection.url
       : "";
   const dishHasAndroidAr =
-    isSafe3dAssetUrl(manifest.variants.web?.url ?? "", ALLOWED_3D_CDN_ORIGINS, "web") ||
-    isSafe3dAssetUrl(manifest.variants.arLite?.url ?? "", ALLOWED_3D_CDN_ORIGINS, "arLite");
+    isSafe3dAssetUrl(
+      manifest.variants.web?.url ?? "",
+      ALLOWED_3D_CDN_ORIGINS,
+      "web",
+    ) ||
+    isSafe3dAssetUrl(
+      manifest.variants.arLite?.url ?? "",
+      ALLOWED_3D_CDN_ORIGINS,
+      "arLite",
+    );
   const iosNativeArEnabled = arBrowser === "ios-safari" && !missingIosAr;
-  const androidNativeArEnabled = arBrowser === "android-chrome" && androidArReady;
+  const androidNativeArEnabled =
+    arBrowser === "android-chrome" && androidArReady;
   const showNoModelIosHandoff =
-    !hasModel && needsIosHandoff && Boolean(iosSrc) && !shouldConfirmSlowNetwork;
+    !hasModel &&
+    needsIosHandoff &&
+    Boolean(iosSrc) &&
+    !shouldConfirmSlowNetwork;
+
+  const {
+    bindNode: bindTelemetryNode,
+    arIntent: observeArIntent,
+    arOutcome: observeArOutcome,
+  } = useModelTelemetry({
+    context: analyticsContext,
+    dishSlug: dish.slug,
+    categorySlug: dish.categorySlug,
+    attempt: modelAttempt,
+    modelSource: modelSrc,
+    hasModel,
+    loaded: modelLoaded,
+    failure:
+      initTimedOut || modelLoadTimedOut
+        ? "timeout"
+        : modelLoadError
+          ? "load-failed"
+          : null,
+  });
 
   const markModelLoaded = useCallback(() => {
     setModelLoaded(true);
@@ -732,7 +776,7 @@ export function DishModelViewer({
       },
       () => {
         if (!cancelled) setInitTimedOut(true);
-      }
+      },
     );
 
     return () => {
@@ -745,6 +789,7 @@ export function DishModelViewer({
       listenerCleanupRef.current?.();
       listenerCleanupRef.current = null;
       loadWatchRef.current = node;
+      bindTelemetryNode(node);
       setModelLoaded(false);
       setModelProgress(0);
       if (!node) return;
@@ -763,11 +808,13 @@ export function DishModelViewer({
       const onArStatus = (event: Event) => {
         const status = (event as ModelViewerArStatusEvent).detail?.status;
         if (status === "failed") {
+          observeArOutcome("failed");
           setRuntimeSignal("ar-status-failed");
           setArSessionActive(false);
           return;
         }
         if (status === "session-started" || status === "object-placed") {
+          observeArOutcome(status);
           setRuntimeSignal("active");
           setArSessionActive(true);
           onArFallbackCleared?.();
@@ -775,6 +822,7 @@ export function DishModelViewer({
           return;
         }
         if (status === "not-presenting") {
+          observeArOutcome("ended");
           setArSessionActive(false);
           window.requestAnimationFrame(() => {
             arCtaButtonRef.current?.focus();
@@ -799,7 +847,7 @@ export function DishModelViewer({
         if (node.loaded === true) onLoad();
       });
     },
-    [markModelLoaded, onArFallbackCleared]
+    [markModelLoaded, onArFallbackCleared, bindTelemetryNode, observeArOutcome],
   );
 
   useEffect(
@@ -807,19 +855,20 @@ export function DishModelViewer({
       listenerCleanupRef.current?.();
       listenerCleanupRef.current = null;
     },
-    []
+    [],
   );
 
   useEffect(() => {
     const onHashChange = () => {
       if (!isSceneViewerFallbackHash(window.location.hash)) return;
+      observeArOutcome("failed");
       setRuntimeSignal("scene-viewer-unavailable");
       setArSessionActive(false);
       const { pathname, search } = window.location;
       window.history.replaceState(
         window.history.state,
         "",
-        `${pathname}${search}`
+        `${pathname}${search}`,
       );
     };
 
@@ -829,16 +878,25 @@ export function DishModelViewer({
     return () => {
       window.removeEventListener("hashchange", onHashChange);
     };
-  }, []);
+  }, [observeArOutcome]);
 
   useEffect(() => {
     if (!hasModel || mvReady) return;
-    const t = window.setTimeout(() => setInitTimedOut(true), MV_INIT_TIMEOUT_MS);
+    const t = window.setTimeout(
+      () => setInitTimedOut(true),
+      MV_INIT_TIMEOUT_MS,
+    );
     return () => window.clearTimeout(t);
   }, [hasModel, mvReady, modelAttempt]);
 
   useEffect(() => {
-    if (!hasModel || !mvReady || modelLoaded || modelLoadError || modelLoadTimedOut) {
+    if (
+      !hasModel ||
+      !mvReady ||
+      modelLoaded ||
+      modelLoadError ||
+      modelLoadTimedOut
+    ) {
       return undefined;
     }
     const syncLoaded = window.setInterval(() => {
@@ -860,10 +918,11 @@ export function DishModelViewer({
     modelLoadError,
     modelLoadTimedOut,
     modelAttempt,
-    markModelLoaded
+    markModelLoaded,
   ]);
 
   const trackArIntent = useCallback(() => {
+    observeArIntent();
     prepareModelViewerForAr(loadWatchRef.current);
     window.setTimeout(() => {
       try {
@@ -871,13 +930,13 @@ export function DishModelViewer({
           ...analyticsContext,
           eventName: "dish_ar_clicked",
           dishSlug: dish.slug,
-          categorySlug: dish.categorySlug
+          categorySlug: dish.categorySlug,
         });
       } catch {
         // Analytics must never block Safari Quick Look navigation.
       }
     }, 0);
-  }, [analyticsContext, dish.categorySlug, dish.slug]);
+  }, [analyticsContext, dish.categorySlug, dish.slug, observeArIntent]);
 
   const handleModelViewerArClick = useCallback(() => {
     trackArIntent();
@@ -886,15 +945,17 @@ export function DishModelViewer({
       const activation = loadWatchRef.current?.activateAR?.();
       if (activation && typeof activation.then === "function") {
         void activation.catch(() => {
+          observeArOutcome("failed");
           setRuntimeSignal("activation-rejected");
           setArSessionActive(false);
         });
       }
     } catch {
+      observeArOutcome("failed");
       setRuntimeSignal("activation-rejected");
       setArSessionActive(false);
     }
-  }, [trackArIntent]);
+  }, [trackArIntent, observeArOutcome]);
 
   const handleRetry = useCallback(() => {
     setInitTimedOut(false);
@@ -919,7 +980,7 @@ export function DishModelViewer({
     modelReady: showArReady,
     hasAndroidModel: dishHasAndroidAr,
     hasUsdz: Boolean(iosSrc),
-    runtime: runtimeSignal
+    runtime: runtimeSignal,
     // canActivateAR is intentionally omitted: model-viewer 4.2 reports false
     // until AR init finishes, which would hide a valid Chrome Android CTA.
   });
@@ -964,8 +1025,7 @@ export function DishModelViewer({
   const arModes = isAndroid
     ? "scene-viewer webxr quick-look"
     : "webxr scene-viewer quick-look";
-  const shouldEnableModelViewerAr =
-    androidNativeArEnabled && !runtimeArFailed;
+  const shouldEnableModelViewerAr = androidNativeArEnabled && !runtimeArFailed;
 
   const notifiedFallbackReason = showNoModelIosHandoff
     ? "ios-handoff"
@@ -986,14 +1046,14 @@ export function DishModelViewer({
     notifiedFallbackReason,
     onArFallbackCleared,
     onArFallbackNeeded,
-    showArReady
+    showArReady,
   ]);
 
   useEffect(() => {
     if (!isLoadingModel) return undefined;
     const t = window.setTimeout(
       () => setLoaderRevealed(true),
-      LOADER_REVEAL_DELAY_MS
+      LOADER_REVEAL_DELAY_MS,
     );
     return () => window.clearTimeout(t);
   }, [isLoadingModel, modelAttempt]);
@@ -1067,7 +1127,7 @@ export function DishModelViewer({
                 : copy.noModelIos
               : showNoModelIosHandoff
                 ? copy.noModelIosHandoff
-              : copy.noModelSoon}
+                : copy.noModelSoon}
           </p>
           {canOpenDirectIosQuickLook ? (
             <IosQuickLookArLink
@@ -1083,7 +1143,7 @@ export function DishModelViewer({
                 phase={{ kind: "handoff", recommendedBrowser: "safari" }}
                 copy={fallbackPanelCopy(
                   { kind: "handoff", recommendedBrowser: "safari" },
-                  copy
+                  copy,
                 )}
                 pageUrl={getCurrentPageUrl()}
                 shareText={copy.shareText}
@@ -1104,7 +1164,10 @@ export function DishModelViewer({
     >
       {!minimalChrome ? (
         <div className="mb-2 text-center sm:mb-3">
-          <h3 id={titleId} className="font-display text-lg text-cream sm:text-xl">
+          <h3
+            id={titleId}
+            className="font-display text-lg text-cream sm:text-xl"
+          >
             {dish.name}
           </h3>
         </div>
@@ -1127,7 +1190,9 @@ export function DishModelViewer({
           />
         ) : (
           <div className="relative">
-            <div className={`relative flex ${MODEL_VIEWER_SHELL_CLASS} flex-col touch-none overscroll-contain [contain:layout_paint]`}>
+            <div
+              className={`relative flex ${MODEL_VIEWER_SHELL_CLASS} flex-col touch-none overscroll-contain [contain:layout_paint]`}
+            >
               {mvReady ? (
                 /* GLB en mètres réalistes ; ar-scale fixed évite l’auto-scale agressif sur Android */
                 <model-viewer
@@ -1138,7 +1203,9 @@ export function DishModelViewer({
                   alt={copy.modelAlt(dish.name)}
                   aria-describedby={quietChrome ? undefined : helpId}
                   camera-controls
-                  {...(!prefersReducedMotion && !arSessionActive ? { "auto-rotate": true } : {})}
+                  {...(!prefersReducedMotion && !arSessionActive
+                    ? { "auto-rotate": true }
+                    : {})}
                   {...(shouldEnableModelViewerAr ? { ar: true } : {})}
                   ar-modes={arModes}
                   ar-placement="floor"
@@ -1184,7 +1251,11 @@ export function DishModelViewer({
                 </div>
               ) : null}
               {showLoader ? (
-                <PremiumLoadingState dish={dish} copy={copy} progress={modelProgress} />
+                <PremiumLoadingState
+                  dish={dish}
+                  copy={copy}
+                  progress={modelProgress}
+                />
               ) : null}
               {visibleFallbackPhase && fallbackPresentation === "inline" ? (
                 <div className="pointer-events-none absolute inset-x-0 bottom-0 z-40 p-3">

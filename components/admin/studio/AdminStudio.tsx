@@ -1,7 +1,7 @@
 "use client";
 import { useStudioLocale } from "./studioLocale";
 import Link from "next/link";
-import { useState, useMemo } from "react";
+import { useState, useMemo, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import {
   LayoutDashboard,
@@ -22,6 +22,8 @@ import type { AdminDashboardData } from "@/lib/admin/dashboardData";
 import type { AdminDashboardRange } from "@/lib/admin/dashboardRange";
 import type { AdminMenuDish } from "@/lib/admin/menuReadiness";
 import type { AdminMetricSeriesId } from "@/lib/admin/analyticsState";
+import { selectStudioTemporalMetrics } from "@/lib/admin/studioTemporalData";
+import { StudioMetricTabs } from "./StudioControls";
 import { StudioTrend, StudioHeatmap } from "./StudioCharts";
 import { StudioAnalysisWorkspace } from "./StudioAnalysisWorkspace";
 import { StudioDateRangePicker } from "./StudioDateRangePicker";
@@ -143,6 +145,7 @@ export function AdminStudio({
   demoRanges = ["today-utc", "7d", "30d"],
   onPageChange,
   onRangeChange,
+  planningContent,
 }: {
   data: AdminDashboardData;
   range: AdminDashboardRange;
@@ -152,6 +155,7 @@ export function AdminStudio({
   demoRanges?: AdminDashboardRange[];
   onPageChange?: (page: StudioPage) => void;
   onRangeChange?: (range: AdminDashboardRange) => void;
+  planningContent?: ReactNode;
 }) {
   const { t, locale, number, date: formatDate } = useStudioLocale();
   const pages = basePages.map((item) => ({ ...item, label: t(item.label) }));
@@ -169,6 +173,9 @@ export function AdminStudio({
     useState<AdminMetricSeriesId>("menuOpened");
   const [explore, setExplore] = useState<AdminMetricSeriesId | null>(null);
   const [dish, setDish] = useState<AdminMenuDish | null>(null);
+  const [dishMetric, setDishMetric] = useState<"views" | "three" | "ar">(
+    "views",
+  );
   const [scheduleDish, setScheduleDish] = useState<AdminMenuDish | null>(null);
   const [notice, setNotice] = useState("");
   const [analysisView, setAnalysisView] = useState<"charts" | "table">(
@@ -191,8 +198,46 @@ export function AdminStudio({
   );
   const ranking =
     real?.panels.ranking.kind === "supported" ? real.panels.ranking.data : [];
-  const heatmap =
-    real?.panels.hourWeekday.kind === "supported"
+  const temporal = selectStudioTemporalMetrics(data.temporalAnalytics, {
+    metric:
+      selectedMetric === "dishOpened"
+        ? "views"
+        : selectedMetric === "menuOpened"
+          ? "menu"
+          : selectedMetric,
+  });
+  const timezone = temporal.timezone;
+  const engagement =
+    data.engagementAnalytics?.kind === "available" &&
+    data.engagementAnalytics.current.v2Events > 0
+      ? data.engagementAnalytics.current
+      : null;
+  const dishTemporal = selectStudioTemporalMetrics(data.temporalAnalytics, {
+    dishId: dish?.id,
+    metric: dishMetric,
+  });
+  const selectedSeries = data.temporalAnalytics
+    ? {
+        id: selectedMetric,
+        current: temporal.current.map((point) => ({
+          ...point,
+          timestampLabel: point.bucket,
+        })),
+        previous: temporal.previous.map((point) => ({
+          ...point,
+          timestampLabel: point.bucket,
+        })),
+      }
+    : real?.metricSeries[selectedMetric];
+  const heatmap = data.temporalAnalytics
+    ? temporal.kind === "available"
+      ? temporal.hours.map((cell) => ({
+          weekdayUtc: cell.weekday,
+          hourUtc: cell.hour,
+          count: cell.count,
+        }))
+      : null
+    : real?.panels.hourWeekday.kind === "supported"
       ? real.panels.hourWeekday.data
       : null;
   function changeTheme(next: "light" | "dark") {
@@ -230,7 +275,7 @@ export function AdminStudio({
               ? t("Évolution quotidienne")
               : t("Évolution dans le temps")}
           </h2>
-          <p>{selected.label} · UTC</p>
+          <p>{selected.label} · {timezone}</p>
         </div>
         <StudioCombobox
           label={t("Indicateur du graphique")}
@@ -242,13 +287,18 @@ export function AdminStudio({
           }))}
         />
       </header>
-      {real ? (
+      {real && selectedSeries ? (
         <>
           <div className={styles.chartBody}>
             <StudioTrend
-              series={real.metricSeries[selectedMetric]}
+              series={selectedSeries}
+              timezone={timezone}
               label={selected.label}
-              comparison={Boolean(comparable)}
+              comparison={
+                data.temporalAnalytics
+                  ? temporal.previousTotal !== null
+                  : Boolean(comparable)
+              }
             />
           </div>
         </>
@@ -588,11 +638,11 @@ export function AdminStudio({
                   <header className={styles.panelHead}>
                     <div>
                       <h2>{t("Quand votre menu est consulté")}</h2>
-                      <p>{t("Événements enregistrés par jour et heure UTC")}</p>
+                      <p>{`${selected.label} · ${timezone}`}</p>
                     </div>
                   </header>
                   <div className={styles.chartBody}>
-                    <StudioHeatmap cells={heatmap} />
+                    <StudioHeatmap cells={heatmap} timezone={timezone} />
                   </div>
                 </section>
               )}
@@ -606,6 +656,117 @@ export function AdminStudio({
               onDishOpen={setDish}
               onExport={() => setExportOpen(true)}
             />
+          )}
+          {page === "insights" && engagement && (
+            <section
+              className={styles.panel}
+              style={{ marginTop: 22 }}
+              aria-label={
+                locale === "en"
+                  ? "Observed interactions"
+                  : "Interactions observées"
+              }
+            >
+              <header className={styles.panelHead}>
+                <div>
+                  <h2>
+                    {locale === "en"
+                      ? "Observed interactions"
+                      : "Interactions observées"}
+                  </h2>
+                  <p>
+                    {locale === "en"
+                      ? "Active visible time and observable experience outcomes"
+                      : "Temps actif visible et résultats observables des expériences"}
+                  </p>
+                </div>
+              </header>
+              <div className={styles.chartBody}>
+                <dl className={styles.detailMetrics}>
+                  {[
+                    [
+                      locale === "en"
+                        ? "Active menu time (s)"
+                        : "Temps actif du menu (s)",
+                      engagement.activeSessionMs === null
+                        ? null
+                        : Math.round(engagement.activeSessionMs / 1000),
+                    ],
+                    [
+                      locale === "en"
+                        ? "Active dish time (s)"
+                        : "Temps actif sur les plats (s)",
+                      engagement.activeDishMs === null
+                        ? null
+                        : Math.round(engagement.activeDishMs / 1000),
+                    ],
+                    [
+                      locale === "en"
+                        ? "Searches without results"
+                        : "Recherches sans résultat",
+                      engagement.search?.noResults,
+                    ],
+                    [
+                      locale === "en"
+                        ? "Loaded 3D attempts"
+                        : "Tentatives 3D chargées",
+                      engagement.model?.succeeded,
+                    ],
+                    [
+                      locale === "en"
+                        ? "Failed 3D attempts"
+                        : "Tentatives 3D échouées",
+                      engagement.model?.failed,
+                    ],
+                    [
+                      locale === "en"
+                        ? "Unobserved 3D outcomes"
+                        : "Résultats 3D non observés",
+                      engagement.model?.unknown,
+                    ],
+                    [
+                      locale === "en"
+                        ? "Mean successful load (ms)"
+                        : "Chargement réussi moyen (ms)",
+                      engagement.model?.meanSuccessfulLoadMs == null
+                        ? null
+                        : Math.round(engagement.model.meanSuccessfulLoadMs),
+                    ],
+                    [
+                      locale === "en"
+                        ? "Unknown AR outcomes"
+                        : "Résultats AR inconnus",
+                      engagement.ar?.unknownOutcomes,
+                    ],
+                  ].map(([label, value]) => (
+                    <div key={String(label)}>
+                      <dt>{label}</dt>
+                      <dd>
+                        <StudioNumber
+                          value={typeof value === "number" ? value : undefined}
+                        />
+                      </dd>
+                    </div>
+                  ))}
+                </dl>
+                {engagement.ar && (
+                  <p>
+                    {locale === "en"
+                      ? "AR outcome events"
+                      : "Événements de résultat AR"}{" "}
+                    :{" "}
+                    {Object.entries(engagement.ar.outcomes)
+                      .map(([outcome, count]) => `${outcome} ${number(count)}`)
+                      .join(" · ")}
+                  </p>
+                )}
+                <p className={styles.muted}>
+                  {locale === "en"
+                    ? "Totals cover recorded v2 activity only. AR outcome events can include several stages of one attempt; they are not unique people or a conversion rate."
+                    : "Ces totaux couvrent uniquement l’activité v2 enregistrée. Les événements AR peuvent décrire plusieurs étapes d’une tentative ; ce ne sont pas des personnes uniques ni un taux de conversion."}
+                </p>
+              </div>
+            </section>
           )}
           {page === "dishes" && (
             <>
@@ -625,7 +786,13 @@ export function AdminStudio({
                 canWrite={!demo && canWrite}
                 demo={demo}
                 onDish={setDish}
-                onSchedule={setScheduleDish}
+                onSchedule={(selectedDish) =>
+                  demo
+                    ? setScheduleDish(selectedDish)
+                    : router.push(
+                        `/admin/planning?range=${encodeURIComponent(range)}&dish=${encodeURIComponent(selectedDish.id)}`,
+                      )
+                }
                 onPlanning={() =>
                   demo
                     ? onPageChange?.("planning")
@@ -636,40 +803,43 @@ export function AdminStudio({
               />
             </>
           )}
-          {page === "planning" && (
-            <>
-              <p className={styles.notice}>
-                <strong>{t("Planning des disponibilités")}</strong>
-                {t(
-                  "· Les horaires automatiques nécessitent le service de planification du restaurant. Aucune règle simulée n’est enregistrée.",
-                )}
-              </p>
-              <section className={styles.panel}>
-                <header className={styles.panelHead}>
-                  <div>
-                    <h2>{t("Les horaires de vos plats")}</h2>
-                    <p>
-                      {t("Choisissez un plat pour consulter sa planification.")}
-                    </p>
-                  </div>
-                </header>
-                <div className={styles.planningList}>
-                  {data.menu.dishes.map((item) => (
-                    <div key={item.id} className={styles.planningItem}>
-                      <div>
-                        <strong>{item.name}</strong>
-                        <small>{item.category}</small>
-                      </div>
-                      <button onClick={() => setScheduleDish(item)}>
-                        <CalendarDays size={16} />
-                        {t("Planifier")}
-                      </button>
+          {page === "planning" &&
+            (planningContent ?? (
+              <>
+                <p className={styles.notice}>
+                  <strong>{t("Planning des disponibilités")}</strong>
+                  {t(
+                    "· Les horaires automatiques nécessitent le service de planification du restaurant. Aucune règle simulée n’est enregistrée.",
+                  )}
+                </p>
+                <section className={styles.panel}>
+                  <header className={styles.panelHead}>
+                    <div>
+                      <h2>{t("Les horaires de vos plats")}</h2>
+                      <p>
+                        {t(
+                          "Choisissez un plat pour consulter sa planification.",
+                        )}
+                      </p>
                     </div>
-                  ))}
-                </div>
-              </section>
-            </>
-          )}
+                  </header>
+                  <div className={styles.planningList}>
+                    {data.menu.dishes.map((item) => (
+                      <div key={item.id} className={styles.planningItem}>
+                        <div>
+                          <strong>{item.name}</strong>
+                          <small>{item.category}</small>
+                        </div>
+                        <button onClick={() => setScheduleDish(item)}>
+                          <CalendarDays size={16} />
+                          {t("Planifier")}
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </section>
+              </>
+            ))}
           <footer className={styles.footer}>
             <span>{data.restaurant.name} · Vistaire Studio</span>
             <span>
@@ -756,6 +926,40 @@ export function AdminStudio({
               {" · "}
               {rangeLabel}
             </p>
+            {data.temporalAnalytics &&
+              dishTemporal.kind === "available" &&
+              dishTemporal.current.length > 0 && (
+                <section aria-label={t("Évolution quotidienne")}>
+                  <StudioMetricTabs
+                    label={t("Mesure à explorer")}
+                    value={dishMetric}
+                    onChange={(value) =>
+                      setDishMetric(value as "views" | "three" | "ar")
+                    }
+                    options={[
+                      { value: "views", label: t("Consultations") },
+                      { value: "three", label: "3D" },
+                      { value: "ar", label: "AR" },
+                    ]}
+                  />
+                  <StudioTrend
+                    series={{
+                      id: dishMetric === "views" ? "dishOpened" : dishMetric,
+                      current: dishTemporal.current.map((point) => ({
+                        ...point,
+                        timestampLabel: point.bucket,
+                      })),
+                      previous: dishTemporal.previous.map((point) => ({
+                        ...point,
+                        timestampLabel: point.bucket,
+                      })),
+                    }}
+                    label={`${dish.name} · ${dishMetric === "views" ? t("Consultations") : dishMetric.toUpperCase()}`}
+                    comparison={dishTemporal.previousTotal !== null}
+                    timezone={dishTemporal.timezone}
+                  />
+                </section>
+              )}
             <h3>
               {locale === "en"
                 ? "Current availability"

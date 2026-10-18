@@ -118,7 +118,7 @@ function isForbiddenLocalModule(file) {
     return !allowedAdminComponentModules.has(modulePath);
   }
   const pureStudioDependencies = new Set([
-    "lib/admin/studioExport", "lib/admin/studioExportFiles", "lib/admin/analyticsPresentation", "lib/admin/analyticsThresholds",
+    "lib/admin/studioTemporalData", "lib/admin/studioExport", "lib/admin/studioExportFiles", "lib/admin/analyticsPresentation", "lib/admin/analyticsThresholds",
     "lib/admin/export-fonts/DejaVuSans", "lib/admin/dishPhotoUrl", "lib/owner/storageSafeIdentifier"
   ]);
   return !pureStudioDependencies.has(modulePath) && forbiddenLocalModules.some((pattern) => pattern.test(modulePath));

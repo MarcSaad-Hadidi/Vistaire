@@ -652,7 +652,7 @@
   font-size: 0;
 }
 .heatmapGrid thead th:first-child::after {
-  content: "UTC";
+  content: "2 h";
   font-size: 10px;
 }
 .heatmapGrid tbody th {

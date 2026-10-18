@@ -1,5 +1,8 @@
 "use client";
 
+import { useVisibleMenuAnalytics } from "@/components/menu/analytics/useVisibleMenuAnalytics";
+
+import { getPublicMenuAnalyticsContext, trackPublicMenuEvent } from "@/lib/analytics/client";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -278,6 +281,7 @@ export type SaugeNoireDishRenderMode =
   | "route-preview";
 
 function SaugeNoireDish3dSection({
+  menu,
   dish,
   copy,
   publicLocale,
@@ -287,6 +291,7 @@ function SaugeNoireDish3dSection({
   copy: SaugeNoireDishSheetCopy;
   publicLocale: string;
   viewerCopy: Required<DishModelViewerCopy>;
+  menu: PublicMenu;
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const [viewerMounted, setViewerMounted] = useState(false);
@@ -322,9 +327,10 @@ function SaugeNoireDish3dSection({
   }, [isOpen, restoreScroll]);
 
   const toggleViewer = useCallback(() => {
+    if (!isOpen) trackPublicMenuEvent(menu, { eventName: "dish_3d_clicked", dishSlug: dish.slug, categorySlug: dish.categorySlug });
     preservedScrollTopRef.current = getScrollContainer()?.scrollTop ?? 0;
     setIsOpen((current) => !current);
-  }, [getScrollContainer]);
+  }, [getScrollContainer, isOpen, menu, dish.slug, dish.categorySlug]);
 
   const closeViewer = useCallback(() => {
     preservedScrollTopRef.current = getScrollContainer()?.scrollTop ?? 0;
@@ -372,6 +378,7 @@ function SaugeNoireDish3dSection({
             </div>
           ) : null}
           <LazyDishModelViewer
+            analyticsContext={getPublicMenuAnalyticsContext(menu) ?? undefined}
             dish={modelViewerDishFromPublicDish(dish)}
             fallbackPanelVariant="sauge-noire"
             fallbackPresentation="below"
@@ -402,6 +409,7 @@ export function SaugeNoireDishSheet({
   onMenuLinkClick,
   onMenuLinkIntent
 }: SaugeNoireDishSheetProps) {
+  const analyticsRef = useVisibleMenuAnalytics(menu, !isPreview && renderMode === "reading-surface", dish);
   const isPhysicalPageMedia = useSaugeNoirePhysicalPageMedia();
   const dishCount = Math.max(menu.dishes.length, 1);
   const targetDishIndex = menu.dishes.findIndex((item) => item.id === dish.id);
@@ -435,6 +443,7 @@ export function SaugeNoireDishSheet({
 
   return (
     <article
+      ref={analyticsRef}
       className={`${styles.paper} ${
         naturalHeight ? styles.naturalHeightPaper : styles.pageFlipSheet
       } ${isPreview ? styles.transitionPreview : ""}`}
@@ -488,6 +497,7 @@ export function SaugeNoireDishSheet({
         </div>
         {targetCanOpen3d ? (
           <SaugeNoireDish3dSection
+            menu={menu}
             key={dish.id}
             dish={dish}
             copy={copy}
@@ -816,6 +826,11 @@ export function SaugeNoireDishDetail({
   ) => {
     if (navigationInFlightRef.current) return;
     navigationInFlightRef.current = true;
+    trackPublicMenuEvent(menu, {
+      eventName: "dish_selected",
+      dishSlug: targetDish.slug,
+      categorySlug: targetDish.categorySlug
+    });
     setPageTurn({
       dishId: currentDishRef.current.id,
       direction,
@@ -836,7 +851,7 @@ export function SaugeNoireDishDetail({
       returnedToRead: false,
       navigationStarted: false
     };
-  }, []);
+  }, [menu]);
 
   const handleDishLinkClick = useCallback((
     event: React.MouseEvent<HTMLAnchorElement>,

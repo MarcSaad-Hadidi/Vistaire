@@ -1,5 +1,7 @@
 "use client";
 
+import { useVisibleMenuAnalytics } from "@/components/menu/analytics/useVisibleMenuAnalytics";
+
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
@@ -214,13 +216,6 @@ export function TrouvableDishDetailExperience({
     return () => window.cancelAnimationFrame(frameId);
   }, [arCopyStatus, manualDishUrl]);
 
-  useEffect(() => {
-    trackPublicMenuEvent(menu, {
-      eventName: "dish_opened",
-      dishSlug: activeDish.slug,
-      categorySlug: activeDish.categorySlug
-    });
-  }, [activeDish.categorySlug, activeDish.slug, menu]);
   const menuHref = buildPublicMenuPath(menu.slug, localizedQuery);
   const activeCategoryKey = activeDish.categoryId || activeDish.category;
   const sectionDishes = useMemo(
@@ -431,6 +426,7 @@ export function TrouvableDishDetailExperience({
     const nextIndex = (safeIndex + direction + sectionDishes.length) % sectionDishes.length;
     const nextDish = sectionDishes[nextIndex];
     if (nextDish) {
+      trackPublicMenuEvent(menu, { eventName: "dish_selected", dishSlug: nextDish.slug, categorySlug: nextDish.categorySlug });
       setActiveDish(nextDish);
       setShowModelViewer(false);
       resetArHandoffState();
@@ -467,8 +463,11 @@ export function TrouvableDishDetailExperience({
 
   const paletteSource = getTrouvablePaletteSource(menu);
 
+  const analyticsRef = useVisibleMenuAnalytics(menu, true, activeDish);
+
   return (
     <main
+      ref={analyticsRef}
       data-public-dish-renderer="trouvable"
       data-menu-context={context}
       className={`${styles.page} ${styles.standaloneDetailPage} ${typographyClassName}`.trim()}

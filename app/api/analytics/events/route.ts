@@ -11,7 +11,18 @@ import type { AnalyticsApiResponse } from "@/lib/analytics/types";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const MAX_BODY_BYTES = 16_000;
+const MAX_BODY_BYTES = 8_000;
+// Bounded process-local abuse guard; the database also caps each session.
+const rateWindows = new Map<string, { start: number; count: number }>();
+function acceptsRate(sessionId: string): boolean {
+  const now = Date.now();
+  for (const [key, value] of rateWindows) if (now - value.start >= 60_000) rateWindows.delete(key);
+  const prior = rateWindows.get(sessionId);
+  if (!prior && rateWindows.size >= 5_000) return false;
+  if (prior && prior.count >= 120) return false;
+  rateWindows.set(sessionId, { start: prior?.start ?? now, count: (prior?.count ?? 0) + 1 });
+  return true;
+}
 
 export async function POST(request: NextRequest) {
   const contentType = request.headers.get("content-type")?.split(";", 1)[0].trim().toLowerCase();
@@ -43,6 +54,18 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  if (process.env.ANALYTICS_DISABLED === "true" || request.headers.get("dnt") === "1" || request.headers.get("sec-gpc") === "1") {
+    return NextResponse.json<AnalyticsApiResponse>({ ok: true, persisted: false }, { status: 202 });
+  }
+  if (!acceptsRate(validation.payload.sessionId)) {
+    return NextResponse.json<AnalyticsApiResponse>({ ok: false, error: "Analytics rate limit exceeded." }, { status: 429 });
+  }
+  // A local production build is not evidence of a production deployment.
+  // Self-hosted installations may explicitly set ANALYTICS_ENVIRONMENT.
+  const environment = process.env.ANALYTICS_ENVIRONMENT ?? process.env.VERCEL_ENV;
+  validation.payload.environment = environment === "production" ? "production"
+    : environment === "preview" ? "preview" : "development";
+
   if (!isConfiguredDemoAnalyticsPayload(validation.payload)) {
     const context = await validateAnalyticsEventContext(validation.payload);
     if (!context.ok) {
@@ -53,8 +76,7 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  const userAgent = request.headers.get("user-agent") ?? "";
-  const inserted = await insertAnalyticsEvent(validation.payload, userAgent);
+  const inserted = await insertAnalyticsEvent(validation.payload);
 
   if (!inserted.ok) {
     if (validation.payload.source === "demo") {

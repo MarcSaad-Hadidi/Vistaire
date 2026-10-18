@@ -89,3 +89,26 @@ test("application-owned chart primitives have a direct pinned Recharts dependenc
   assert.equal(lock.packages[""].dependencies.recharts, "3.10.1");
   assert.equal(lock.packages["node_modules/recharts"].version, "3.10.1");
 });
+
+test("analysis temporal charts consume scoped evidence and configured timezone", async () => {
+  const workspace = await readFile(
+    "components/admin/studio/StudioAnalysisWorkspace.tsx",
+    "utf8",
+  );
+  for (const contract of [
+    "selectStudioTemporalMetrics",
+    "dishIds:",
+    "temporalPresent",
+    "timezone={timezone}",
+    "temporal.total !== null",
+    "StudioNumber value={totals[key]}",
+  ])
+    assert.ok(workspace.includes(contract), contract);
+  const charts = await readFile(
+    "components/admin/studio/StudioAnalysisCharts.tsx",
+    "utf8",
+  );
+  assert.ok(charts.includes('"previousThree"'));
+  assert.ok(charts.includes('"previousAr"'));
+  assert.doesNotMatch(charts, /const comparable = metric === "views"/);
+});

@@ -16,6 +16,8 @@ import { ArrowUpRight, ChartNoAxesCombined, Table2 } from "lucide-react";
 import type { AdminDashboardData } from "@/lib/admin/dashboardData";
 import type { AdminMenuDish } from "@/lib/admin/menuReadiness";
 import { StudioTrend, StudioHeatmap } from "./StudioCharts";
+import { StudioNumber } from "./StudioNumber";
+import { selectStudioTemporalMetrics } from "../../../lib/admin/studioTemporalData";
 import { StudioAnalysisTables } from "./StudioAnalysisTables";
 import {
   StudioAnalysisCharts,
@@ -354,7 +356,41 @@ export function StudioAnalysisWorkspace({
     three: t("Clics 3D"),
     ar: t("Clics AR"),
   };
-  const metricSeries = metric === "views" ? "dishOpened" : metric;
+  const metricSeries: "dishOpened" | "three" | "ar" =
+    metric === "views" ? "dishOpened" : metric;
+  const temporalPresent = data.temporalAnalytics !== undefined;
+  const temporal = selectStudioTemporalMetrics(data.temporalAnalytics, {
+    metric,
+    dishIds:
+      category === "all"
+        ? undefined
+        : data.menu.dishes
+            .filter((dish) => dish.category === category)
+            .map((dish) => dish.id),
+  });
+  const timezone = temporalPresent ? temporal.timezone : "UTC";
+  const trendSeries = temporalPresent
+    ? {
+        id: metricSeries as "dishOpened" | "three" | "ar",
+        current: temporal.current.map((point) => ({
+          ...point,
+          timestampLabel: point.bucket,
+        })),
+        previous: temporal.previous.map((point) => ({
+          ...point,
+          timestampLabel: point.bucket,
+        })),
+      }
+    : real?.metricSeries[metricSeries];
+  const trendAvailable = temporalPresent
+    ? temporal.total !== null
+    : Boolean(trendSeries);
+  const trendTotal = temporalPresent
+    ? temporal.total
+    : (trendSeries?.current.reduce((sum, row) => sum + row.value, 0) ?? null);
+  const trendComparison = temporalPresent
+    ? temporal.previousTotal !== null
+    : real?.panels.dailyComparison.kind === "supported";
   const totals = dishes.reduce(
     (sum, dish) => ({
       views: sum.views + dish.views,
@@ -365,8 +401,15 @@ export function StudioAnalysisWorkspace({
   );
   const ranked = [...dishes].sort((a, b) => b[metric] - a[metric]);
   const top = ranked[0];
-  const heatmap =
-    real?.panels.hourWeekday.kind === "supported"
+  const heatmap = temporalPresent
+    ? temporal.total !== null
+      ? temporal.hours.map((cell) => ({
+          weekdayUtc: cell.weekday,
+          hourUtc: cell.hour,
+          count: cell.count,
+        }))
+      : null
+    : real?.panels.hourWeekday.kind === "supported"
       ? real.panels.hourWeekday.data
       : null;
   const weekdays =
@@ -395,8 +438,9 @@ export function StudioAnalysisWorkspace({
           .reduce((sum, cell) => sum + cell.count, 0),
       }))
     : [];
-  const globalScope =
-    locale === "en"
+  const globalScope = temporalPresent
+    ? `${category === "all" ? (locale === "en" ? "Entire menu" : "Menu entier") : category} · ${labels[metric]} · ${timezone}`
+    : locale === "en"
       ? "Entire menu · all recorded events · UTC"
       : "Menu entier · tous les événements enregistrés · UTC";
   const open = (id: string) => {
@@ -443,7 +487,7 @@ export function StudioAnalysisWorkspace({
           {locale === "en" ? "days" : "jours"}
         </span>
         <span>
-          {real.panels.dailyComparison.kind === "supported" ? (
+          {trendComparison ? (
             <>
               vs {date(real.observationWindow.comparisonStartInclusive)} –{" "}
               {date(
@@ -525,7 +569,9 @@ export function StudioAnalysisWorkspace({
           {(["views", "three", "ar"] as const).map((key) => (
             <button key={key} onClick={() => setMetric(key)}>
               <span>{labels[key]}</span>
-              <strong>{number(totals[key])}</strong>
+              <strong>
+                <StudioNumber value={totals[key]} />
+              </strong>
             </button>
           ))}
           {top && (
@@ -557,29 +603,35 @@ export function StudioAnalysisWorkspace({
                 : "Comment l’intérêt évolue-t-il ?"
             }
             eyebrow={
-              locale === "en"
-                ? "DAILY TREND · ENTIRE MENU"
-                : "ÉVOLUTION QUOTIDIENNE · MENU ENTIER"
+              temporalPresent
+                ? globalScope
+                : locale === "en"
+                  ? "DAILY TREND · ENTIRE MENU · UTC"
+                  : "ÉVOLUTION QUOTIDIENNE · MENU ENTIER · UTC"
             }
             span={8}
           >
             <div className={css.trendTotal}>
               <strong>
-                {number(
-                  real.metricSeries[metricSeries].current.reduce(
-                    (sum, row) => sum + row.value,
-                    0,
-                  ),
-                )}
+                {trendTotal === null ? "N/A" : number(trendTotal)}
               </strong>
               <span>{labels[metric]}</span>
             </div>
             <div className={styles.chartBody} data-analysis-body>
-              <StudioTrend
-                series={real.metricSeries[metricSeries]}
-                label={labels[metric]}
-                comparison={real.panels.dailyComparison.kind === "supported"}
-              />
+              {trendAvailable && trendSeries ? (
+                <StudioTrend
+                  series={trendSeries}
+                  label={labels[metric]}
+                  comparison={trendComparison}
+                  timezone={timezone}
+                />
+              ) : (
+                <p className={styles.empty}>
+                  {locale === "en"
+                    ? "Temporal data unavailable for this selection."
+                    : "Données temporelles indisponibles pour cette sélection."}
+                </p>
+              )}
             </div>
           </AnalysisPanel>
           {hasRanking && (
@@ -682,9 +734,11 @@ export function StudioAnalysisWorkspace({
                 <AnalysisBars
                   rows={dayRows}
                   label={
-                    locale === "en"
-                      ? "Recorded events"
-                      : "Événements enregistrés"
+                    temporalPresent
+                      ? labels[metric]
+                      : locale === "en"
+                        ? "Recorded events"
+                        : "Événements enregistrés"
                   }
                 />
               </div>
@@ -729,7 +783,7 @@ export function StudioAnalysisWorkspace({
                 span={7}
               >
                 <div className={styles.chartBody} data-analysis-body>
-                  <StudioHeatmap cells={heatmap} />
+                  <StudioHeatmap cells={heatmap} timezone={timezone} />
                 </div>
               </AnalysisPanel>
               <AnalysisPanel
@@ -747,9 +801,11 @@ export function StudioAnalysisWorkspace({
                     rows={hourRows}
                     horizontal
                     label={
-                      locale === "en"
-                        ? "Recorded events"
-                        : "Événements enregistrés"
+                      temporalPresent
+                        ? labels[metric]
+                        : locale === "en"
+                          ? "Recorded events"
+                          : "Événements enregistrés"
                     }
                   />
                 </div>
@@ -847,14 +903,18 @@ export function StudioAnalysisWorkspace({
         </div>
       )}
       <p className={css.scope}>
-        {locale === "en"
-          ? "The category filter applies to dish and category charts. Time-based charts always cover the entire menu."
-          : "Le filtre catégorie s’applique aux plats et aux catégories. Les graphiques temporels portent toujours sur le menu entier."}
+        {temporalPresent
+          ? locale === "en"
+            ? `Dish metrics follow the selected category. Daily and hourly grouping: ${timezone}; observation windows: UTC.`
+            : `Les indicateurs des plats suivent la catégorie sélectionnée. Regroupement des jours et heures : ${timezone}; fenêtres d’observation : UTC.`
+          : locale === "en"
+            ? "The category filter applies to dish and category charts. Time-based charts always cover the entire menu (UTC)."
+            : "Le filtre catégorie s’applique aux plats et aux catégories. Les graphiques temporels portent toujours sur le menu entier (UTC)."}
       </p>
       <footer className={css.source}>
         {locale === "en"
-          ? "Recorded menu events. No sales estimates or unique-person attribution. Hours are UTC. Comparisons require usable prior data."
-          : "Événements enregistrés sur le menu. Aucune estimation de ventes ni attribution à des personnes uniques. Horaires en UTC. Les comparaisons nécessitent un historique exploitable."}{" "}
+          ? "Recorded menu events. No sales estimates or unique-person attribution. Comparisons require usable prior data."
+          : "Événements enregistrés sur le menu. Aucune estimation de ventes ni attribution à des personnes uniques. Les comparaisons nécessitent un historique exploitable."}{" "}
         {date(real.observationWindow.startInclusive)} —{" "}
         {date(
           new Date(

@@ -154,3 +154,67 @@ test("unsupported evidence never leaks stale rows or becomes a fabricated zero",
   result = createStudioAnalysisDatasets(data, "all", "views");
   assert.ok(result.every((dataset) => dataset.rows.length === 0));
 });
+
+test("temporal evidence scopes daily/hourly metrics to category IDs in configured timezone and retains 3D/AR history", async () => {
+  const { createStudioAnalysisDatasets } =
+    await import("../components/admin/studio/StudioAnalysisTables.tsx");
+  const { buildStudioTemporalAnalytics } =
+    await import("../lib/admin/studioTemporalData.ts");
+  const data = fixture();
+  const event = (dish_id, event_name, created_at) => ({
+    dish_id,
+    event_name,
+    created_at,
+    schema_version: 2,
+  });
+  data.temporalAnalytics = buildStudioTemporalAnalytics({
+    dishes: data.menu.dishes,
+    window: data.analytics.observationWindow,
+    timezone: "America/Montreal",
+    sourceComplete: true,
+    current: [
+      event("a", "dish_3d_clicked", "2026-10-02T01:00:00Z"),
+      event("b", "dish_3d_clicked", "2026-10-02T02:00:00Z"),
+      event("a", "dish_ar_clicked", "2026-10-02T01:00:00Z"),
+    ],
+    previous: [
+      event("a", "dish_3d_clicked", "2026-09-12T01:00:00Z"),
+      event("a", "dish_ar_clicked", "2026-09-12T01:00:00Z"),
+    ],
+  });
+  data.dishStatistics.a.previousThree = 1;
+  data.dishStatistics.a.previousAr = 1;
+  let rows = createStudioAnalysisDatasets(data, "Entrées", "three");
+  assert.equal(
+    get(rows, "daily").rows.reduce((n, r) => n + r.three, 0),
+    1,
+  );
+  assert.equal(
+    get(rows, "daily").rows.find((r) => r.id === "2026-10-01").three,
+    1,
+  );
+  assert.equal(
+    get(rows, "hours").rows.reduce((n, r) => n + r.events, 0),
+    1,
+  );
+  assert.match(get(rows, "hours").description, /America\/Montreal/);
+  assert.equal(get(rows, "dishes").rows[0].previousMetric, 1);
+  assert.equal(get(rows, "comparison").rows[0].previousCount, 1);
+  rows = createStudioAnalysisDatasets(data, "Entrées", "ar");
+  assert.equal(get(rows, "dishes").rows[0].previousMetric, 1);
+  // Local date counts can differ around DST; missing prior buckets stay unknown.
+  data.temporalAnalytics.previous.dates =
+    data.temporalAnalytics.previous.dates.slice(0, 1);
+  rows = createStudioAnalysisDatasets(data, "Entrées", "ar");
+  assert.equal(get(rows, "daily").rows[1].previousMetric, null);
+  assert.equal(get(rows, "daily").rows[1].previousDate, null);
+  data.temporalAnalytics.previous = null;
+  rows = createStudioAnalysisDatasets(data, "Entrées", "three");
+  assert.ok(
+    get(rows, "daily").rows.every((row) => row.previousMetric === null),
+  );
+  data.temporalAnalytics = { kind: "unavailable", reason: "incomplete-source" };
+  rows = createStudioAnalysisDatasets(data, "Entrées", "three");
+  assert.deepEqual(get(rows, "daily").rows, []);
+  assert.deepEqual(get(rows, "hours").rows, []);
+});

@@ -7,7 +7,7 @@ test("dashboard loader exposes the approved nested range contract without demo a
   assert.match(source, /loadAdminDashboardData\(\s*restaurantId:\s*string,\s*range:\s*AdminDashboardRange/);
   assert.match(source, /location:\s*string \| null/);
   assert.match(source, /cuisineType:\s*string \| null/);
-  assert.match(source, /timezone:\s*null/);
+  assert.match(source, /timezone:\s*string \| null/);
   assert.match(source, /publicMenuPath:\s*string/);
   assert.match(source, /menu:\s*\{/);
   assert.doesNotMatch(source, /DemoAdminInsights|getRestaurantInsights/);

@@ -4,6 +4,7 @@
  * Reuses the deployed structure with existing Studio data and BeUI input. No demo model.
  */
 import { useId, useMemo, useState } from "react";
+import { selectStudioTemporalMetrics } from "../../../lib/admin/studioTemporalData";
 import {
   columnFilteringFeature,
   globalFilteringFeature,
@@ -95,7 +96,38 @@ export function createStudioAnalysisDatasets(
   const real = data.analytics.kind === "real" ? data.analytics : null;
   const ranking =
     real?.panels.ranking.kind === "supported" && Boolean(data.dishStatistics);
-  const comparison = real?.panels.dailyComparison.kind === "supported";
+  const dishIds =
+    category === "all"
+      ? undefined
+      : data.menu.dishes
+          .filter((dish) => dish.category === category)
+          .map((dish) => dish.id);
+  const temporal = selectStudioTemporalMetrics(data.temporalAnalytics, {
+    metric,
+    dishIds,
+  });
+  const temporalPresent = data.temporalAnalytics !== undefined;
+  const temporalMetrics = Object.fromEntries(
+    (["views", "three", "ar"] as const).map((key) => [
+      key,
+      selectStudioTemporalMetrics(data.temporalAnalytics, {
+        metric: key,
+        dishIds,
+      }),
+    ]),
+  ) as Record<
+    StudioAnalysisMetric,
+    ReturnType<typeof selectStudioTemporalMetrics>
+  >;
+  const comparison = temporalPresent
+    ? temporal.previousTotal !== null
+    : real?.panels.dailyComparison.kind === "supported";
+  const previousKey =
+    metric === "views"
+      ? "previousViews"
+      : metric === "three"
+        ? "previousThree"
+        : "previousAr";
   const allCategories = [
     ...new Set(data.menu.dishes.map((dish) => dish.category)),
   ];
@@ -136,11 +168,13 @@ export function createStudioAnalysisDatasets(
             three: stats?.three ?? null,
             ar: stats?.ar ?? null,
             previousViews: comparison ? (stats?.previousViews ?? null) : null,
+            previousThree: comparison ? (stats?.previousThree ?? null) : null,
+            previousAr: comparison ? (stats?.previousAr ?? null) : null,
           };
         })
     : [];
   const withComparison = (row: (typeof dishes)[number]) => {
-    const previousMetric = metric === "views" ? row.previousViews : null;
+    const previousMetric = row[previousKey];
     return {
       ...row,
       previousMetric,
@@ -160,14 +194,15 @@ export function createStudioAnalysisDatasets(
             three: sumKnown(rows.map((row) => row.three)),
             ar: sumKnown(rows.map((row) => row.ar)),
             previousViews: sumKnown(rows.map((row) => row.previousViews)),
+            previousThree: sumKnown(rows.map((row) => row.previousThree)),
+            previousAr: sumKnown(rows.map((row) => row.previousAr)),
           };
         })
     : [];
   const currentTotal = sumKnown(categories.map((row) => row[metric]));
-  const previousTotal =
-    comparison && metric === "views"
-      ? sumKnown(categories.map((row) => row.previousViews))
-      : null;
+  const previousTotal = comparison
+    ? sumKnown(categories.map((row) => row[previousKey]))
+    : null;
   const metricSeries = metric === "views" ? "dishOpened" : metric;
   const dateFormat = new Intl.DateTimeFormat(
     locale === "en" ? "en-CA" : "fr-CA",
@@ -182,8 +217,30 @@ export function createStudioAnalysisDatasets(
   const arByDay = new Map(
     real?.metricSeries.ar.current.map((point) => [point.bucket, point.value]),
   );
-  const daily: Row[] =
-    real?.panels.currentDaily.kind === "supported"
+  const daily: Row[] = temporalPresent
+    ? real && temporal.total !== null
+      ? temporal.current.map((point, index) => {
+          const values = Object.fromEntries(
+            (["views", "three", "ar"] as const).map((key) => [
+              key,
+              temporalMetrics[key].current.find(
+                (row) => row.bucket === point.bucket,
+              )?.value ?? null,
+            ]),
+          ) as Record<StudioAnalysisMetric, number | null>;
+          const previousMetric = temporal.previous[index]?.value ?? null;
+          return {
+            id: point.bucket,
+            label: dateFormat.format(new Date(`${point.bucket}T12:00:00Z`)),
+            sortDate: point.bucket,
+            ...values,
+            previousMetric,
+            previousDate: temporal.previous[index]?.bucket ?? null,
+            change: change(values[metric], previousMetric),
+          };
+        })
+      : []
+    : real?.panels.currentDaily.kind === "supported"
       ? real.metricSeries.dishOpened.current.map((point, index) => {
           const values = {
             views: point.value,
@@ -199,6 +256,10 @@ export function createStudioAnalysisDatasets(
             sortDate: point.bucket,
             ...values,
             previousMetric,
+            previousDate: comparison
+              ? (real.metricSeries[metricSeries].previous[index]?.bucket ??
+                null)
+              : null,
             change: change(values[metric], previousMetric),
           };
         })
@@ -207,8 +268,15 @@ export function createStudioAnalysisDatasets(
     locale === "en"
       ? ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
       : ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"];
-  const heatmap =
-    real?.panels.hourWeekday.kind === "supported"
+  const heatmap = temporalPresent
+    ? real && temporal.total !== null
+      ? temporal.hours.map((cell) => ({
+          weekdayUtc: cell.weekday,
+          hourUtc: cell.hour,
+          count: cell.count,
+        }))
+      : null
+    : real?.panels.hourWeekday.kind === "supported"
       ? real.panels.hourWeekday.data
       : null;
   const hours: Row[] = heatmap
@@ -248,9 +316,10 @@ export function createStudioAnalysisDatasets(
       ? unavailable
       : insufficient;
   const historyNote =
-    metric === "views"
-      ? ""
-      : text(" · Historique précédent N/A", " · Previous history N/A");
+    previousTotal === null
+      ? text(" · Historique précédent N/A", " · Previous history N/A")
+      : "";
+  const temporalScope = `${category === "all" ? text("Menu entier", "Entire menu") : category} · ${temporal.timezone}`;
   return [
     {
       id: "dishes",
@@ -268,16 +337,20 @@ export function createStudioAnalysisDatasets(
       id: "daily",
       label: text("Par jour", "By day"),
       title: text("La lecture quotidienne", "The daily picture"),
-      description: text(
-        "Toutes les dates de la sélection · Menu entier · UTC",
-        "All selected dates · Entire menu · UTC",
-      ),
+      description: temporalPresent
+        ? `${text("Toutes les dates locales de la sélection", "All local dates in selection")} · ${temporalScope} · ${text("fenêtre UTC", "UTC window")}`
+        : text(
+            "Toutes les dates de la sélection · Menu entier · UTC",
+            "All selected dates · Entire menu · UTC",
+          ),
       columns: [
         { id: "label", label: "Date", sortKey: "sortDate" },
+        { id: "previousDate", label: text("Date précédente", "Previous date") },
         ...compareColumns,
       ],
       rows: daily,
       emptyReason:
+        data.temporalAnalytics?.kind === "unavailable" ||
         data.analytics.kind === "unavailable" ||
         real?.panels.currentDaily.kind === "unavailable"
           ? unavailable
@@ -290,21 +363,26 @@ export function createStudioAnalysisDatasets(
       id: "hours",
       label: text("Horaires", "Hours"),
       title: text("Les tranches horaires", "Time slots"),
-      description: text(
-        "Menu entier · tous les événements enregistrés · UTC",
-        "Entire menu · all recorded events · UTC",
-      ),
+      description: temporalPresent
+        ? `${temporalScope} · ${labels[metric]} · ${text("fenêtre UTC", "UTC window")}`
+        : text(
+            "Menu entier · tous les événements enregistrés · UTC",
+            "Entire menu · all recorded events · UTC",
+          ),
       columns: [
         { id: "label", label: text("Jour et heure", "Day and time") },
         {
           id: "events",
-          label: text("Événements", "Events"),
+          label: temporalPresent
+            ? labels[metric]
+            : text("Événements", "Events"),
           format: "number",
           primary: true,
         },
       ],
       rows: hours,
       emptyReason:
+        data.temporalAnalytics?.kind === "unavailable" ||
         data.analytics.kind === "unavailable" ||
         real?.panels.hourWeekday.kind === "unavailable"
           ? unavailable
@@ -323,7 +401,7 @@ export function createStudioAnalysisDatasets(
         ...compareColumns,
       ],
       rows: categories.map((row) => {
-        const previousMetric = metric === "views" ? row.previousViews : null;
+        const previousMetric = row[previousKey];
         return {
           ...row,
           previousMetric,
@@ -337,7 +415,7 @@ export function createStudioAnalysisDatasets(
       label: text("Comparaison", "Comparison"),
       title: text("Profil comparé des catégories", "Category comparison"),
       description:
-        comparison && metric === "views"
+        comparison && previousTotal !== null
           ? `${labels[metric]} · ${text("périodes de même durée", "equal-duration periods")}`
           : text(
               metric !== "views"
@@ -377,9 +455,8 @@ export function createStudioAnalysisDatasets(
         color: row.color,
         currentCount: row[metric],
         current: share(row[metric], currentTotal),
-        previousCount:
-          comparison && metric === "views" ? row.previousViews : null,
-        previous: share(row.previousViews, previousTotal),
+        previousCount: comparison ? row[previousKey] : null,
+        previous: share(row[previousKey], previousTotal),
       })),
       emptyReason: ranking ? undefined : rankReason,
     },

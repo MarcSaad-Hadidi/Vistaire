@@ -1,8 +1,10 @@
 "use client";
 
+import { useVisibleMenuAnalytics } from "@/components/menu/analytics/useVisibleMenuAnalytics";
+
 import Link from "next/link";
 import type { CSSProperties, ReactNode } from "react";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { trackPublicMenuEvent } from "@/lib/analytics/client";
 import { normalizeLocale, type Locale } from "@/lib/i18n";
 import {
@@ -278,6 +280,8 @@ export function PublicMenuRenderer({
   const [activeTab, setActiveTab] = useState<string>(initialTab);
   const [selectedDish, setSelectedDish] = useState<PublicMenuDish | null>(null);
   const [menuFilter, setMenuFilter] = useState<MenuFilterId>("all");
+  const analyticsRef = useVisibleMenuAnalytics(menu, mode === "public" && !selectedDish);
+  const detailAnalyticsRef = useVisibleMenuAnalytics(menu, mode === "public" && Boolean(selectedDish), selectedDish);
   const googleReviewLocale =
     menu.activeLocale ?? query?.lang ?? menu.settings.defaultLocale;
   const categories = useMemo(
@@ -356,20 +360,9 @@ export function PublicMenuRenderer({
   const showCategoryCards =
     config.navigation.style !== "tabs" || resolvedActiveTab === HOME_TAB_ID;
 
-  useEffect(() => {
-    if (mode !== "public") return;
-    trackPublicMenuEvent(menu, { eventName: "menu_opened" });
-  }, [menu, mode]);
 
   function openDish(dish: PublicMenuDish) {
     setSelectedDish(dish);
-    if (mode === "public") {
-      trackPublicMenuEvent(menu, {
-        eventName: "dish_opened",
-        dishSlug: dish.slug,
-        categorySlug: dish.categorySlug
-      });
-    }
     onDishOpen?.(dish);
   }
 
@@ -482,6 +475,7 @@ export function PublicMenuRenderer({
             <button
               type="button"
               className={styles.inlinePreviewButton}
+              data-analytics-dish={dish.slug}
               onClick={() => openDish(dish)}
             >
               Apercu rapide
@@ -491,7 +485,8 @@ export function PublicMenuRenderer({
           <button
             type="button"
             className={dishCardClassName}
-            onClick={() => openDish(dish)}
+            data-analytics-dish={dish.slug}
+              onClick={() => openDish(dish)}
           >
             {dishCardContent}
           </button>
@@ -571,12 +566,6 @@ export function PublicMenuRenderer({
               onClick={() => {
                 setActiveTab(tab.id);
                 setSelectedDish(null);
-                if (mode === "public" && tab.id !== ALL_TAB_ID && tab.id !== HOME_TAB_ID) {
-                  trackPublicMenuEvent(menu, {
-                    eventName: "category_viewed",
-                    categorySlug: tab.id
-                  });
-                }
               }}
             >
               <span>{tab.label}</span>
@@ -987,7 +976,7 @@ export function PublicMenuRenderer({
     if (!selectedDish) return null;
     return (
       <div className={`${styles.detailOverlay} ${detailClass(config)}`}>
-        <article className={styles.detailSheet}>
+        <article ref={detailAnalyticsRef} className={styles.detailSheet}>
           <div
             className={`${styles.detailHero} ${
               config.detail.photoHero === "full-bleed"
@@ -1148,6 +1137,7 @@ export function PublicMenuRenderer({
 
   return (
     <main
+      ref={analyticsRef}
       className={`${styles.page} ${themeClass(config.theme)} ${densityClass(
         config.density
       )} ${backgroundClass(config)} ${radiusClass(config)} ${shadowClass(

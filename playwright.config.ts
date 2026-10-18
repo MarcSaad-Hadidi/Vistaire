@@ -76,6 +76,7 @@ const fixtureOnlyTestIgnore = [
   ...(adminVisualFixture ? [] : [
       "**/admin-chart-interactions.spec.ts",
       "**/admin-studio.spec.ts",
+      "**/admin-scheduling.spec.ts",
       ...(process.env.VISTAIRE_ADMIN_PERFORMANCE_SESSION_SECRET
         ? []
         : ["**/admin-performance.spec.ts"])
@@ -156,6 +157,7 @@ export default defineConfig({
             ...process.env,
             NEXT_PUBLIC_SUPABASE_URL: adminVisualFixtureOrigin,
             SUPABASE_SERVICE_ROLE_KEY: "visual-fixture-service-role-key",
+            VISTAIRE_ADMIN_SESSION_SECRET: "admin-visual-fixture-session-secret-2026-only",
             NEXT_PUBLIC_DEMO_RESTAURANT_ID: "11111111-1111-1111-1111-111111111111",
             VISTAIRE_ADMIN_VISUAL_NOW: "2026-07-10T12:00:00.000Z",
             VISTAIRE_LOCAL_PREVIEW_SECRET: "admin-visual-fixture-preview-secret-2026",
