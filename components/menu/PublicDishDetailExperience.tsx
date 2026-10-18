@@ -402,6 +402,7 @@ export function PublicDishDetailExperience({
                     >
                       {ModelViewerComponent ? (
                         <ModelViewerComponent
+                          analyticsEnabled={mode === "public"}
                           key={[
                             dish.id,
                             dish.modelAssetVersion ?? "",

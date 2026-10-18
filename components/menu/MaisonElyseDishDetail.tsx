@@ -612,6 +612,7 @@ export function MaisonElyseDishDetail({
               <div className={styles.modelStage} id={MODEL_VIEWER_ID}>
                 {showModelViewer ? (
                   <LazyDishModelViewer
+                    analyticsEnabled={displayMode === "public"}
                     analyticsContext={analyticsContext ?? undefined}
                     copy={copy.modelViewer}
                     dish={modelViewerDishFromPublicDish(dish)}

@@ -1,3 +1,16 @@
+import { trackMenuEvent, type PublicMenuAnalyticsContext } from "../../lib/analytics/client.ts";
+
+/** Public viewing is opt-in. Missing context must never fall back to demo. */
+export function trackPublicModelEvent(
+  enabled: boolean,
+  context: PublicMenuAnalyticsContext | undefined,
+  event: Omit<Parameters<typeof trackMenuEvent>[0], "restaurantId" | "menuId" | "source">
+): void {
+  if (!enabled || !context?.restaurantId || !context.menuId ||
+    (context.source !== "production" && context.source !== "demo")) return;
+  trackMenuEvent({ ...event, ...context });
+}
+
 /** Bounded observable model lifecycle. No native-AR success is inferred from a link or promise. */
 export type ModelInteraction = "rotate" | "zoom" | "pan";
 export type ArObservedOutcome =

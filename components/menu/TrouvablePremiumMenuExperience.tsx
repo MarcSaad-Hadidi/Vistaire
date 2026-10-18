@@ -1990,6 +1990,7 @@ export function TrouvablePremiumMenuExperience({
           >
             {showDetailModelViewer ? (
               <TrouvableImmersivePanelBody
+                analyticsEnabled={displayMode === "public"}
                 arCopyStatus={arCopyStatus}
                 arHandoffPlatform={arHandoffPlatform}
                 copy={copy}

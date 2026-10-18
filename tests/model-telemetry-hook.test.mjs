@@ -8,7 +8,7 @@ import { createModelTelemetry } from "../components/dish/modelTelemetry.ts";
 test("model hook preserves visible deltas across ancestor hiding and node removal", () => {
   let now = 0;
   let hidden = false;
-  const emitted = [], effects = [], intersections = [], mutations = [];
+  const emitted = [], effects = [], layoutEffects = [], intersections = [], mutations = [];
   const timers = new Set();
   class Element extends EventTarget {
     parentElement = null;
@@ -38,9 +38,15 @@ test("model hook preserves visible deltas across ancestor hiding and node remova
         useRef: value => ({ current: value }),
         useCallback: callback => callback,
         useEffect: effect => effects.push(effect),
+        useLayoutEffect: effect => layoutEffects.push(effect),
       };
       if (name === "@/lib/analytics/client") return { trackMenuEvent: event => emitted.push(event) };
-      if (name === "./modelTelemetry") return { createModelTelemetry };
+      if (name === "./modelTelemetry") return {
+        createModelTelemetry,
+        trackPublicModelEvent: (enabled, context, event) => {
+          if (enabled && context) emitted.push({ ...event, ...context });
+        }
+      };
       throw new Error(`Unexpected hook dependency: ${name}`);
     },
     document, window: new EventTarget(), IntersectionObserver, MutationObserver,
@@ -54,13 +60,15 @@ test("model hook preserves visible deltas across ancestor hiding and node remova
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
   }).outputText, runtime);
   const hook = hookModule.exports.useModelTelemetry({
-    context: {}, dishSlug: "dish", categorySlug: "main", attempt: 0,
+    enabled: true,
+    context: { restaurantId: "tenant", menuId: "menu", source: "production" }, dishSlug: "dish", categorySlug: "main", attempt: 0,
     modelSource: "/model.glb", hasModel: true, loaded: true, failure: null,
   });
   const parent = new Element();
   const element = new Element();
   element.parentElement = parent;
   hook.bindNode(element);
+  layoutEffects.forEach(effect => effect());
   const cleanup = effects.map(effect => effect()).filter(Boolean);
   intersections.at(-1).callback([{ isIntersecting: true, intersectionRatio: 1 }]);
   now = 5000;

@@ -1,16 +1,17 @@
 "use client";
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef } from "react";
 import {
-  trackMenuEvent,
   type PublicMenuAnalyticsContext,
 } from "@/lib/analytics/client";
 import {
   createModelTelemetry,
+  trackPublicModelEvent,
   type ArObservedOutcome,
   type ModelInteraction,
 } from "./modelTelemetry";
 
 export function useModelTelemetry({
+  enabled,
   context,
   dishSlug,
   categorySlug,
@@ -20,6 +21,7 @@ export function useModelTelemetry({
   loaded,
   failure,
 }: {
+  enabled: boolean;
   context?: PublicMenuAnalyticsContext;
   dishSlug: string;
   categorySlug: string;
@@ -35,15 +37,19 @@ export function useModelTelemetry({
   const node = useRef<HTMLElement | null>(null);
   const disposeNode = useRef<(() => void) | null>(null);
   const contextRef = useRef(context);
-  useEffect(() => {
+  const enabledRef = useRef(false);
+  // Layout effects revoke emission before passive cleanup/timers can flush an
+  // old public controller into a newly private preview.
+  useLayoutEffect(() => {
+    enabledRef.current = enabled && Boolean(context);
     contextRef.current = context;
-  }, [context]);
+  }, [enabled, context]);
   const arTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const connect = useCallback(() => {
     disposeNode.current?.();
     disposeNode.current = null;
     const element = node.current;
-    if (!element) return;
+    if (!element || !enabledRef.current) return;
     let inView = false,
       pointer: { id: number; x: number; y: number; pan: boolean } | null = null;
     const sync = () =>
@@ -164,6 +170,9 @@ export function useModelTelemetry({
     [connect],
   );
   useEffect(() => {
+    const context = contextRef.current;
+    if (!enabled || !context) return;
+    const publicContext = context;
     const modelAttemptId = crypto.randomUUID();
     const current = createModelTelemetry({
       now: () => performance.now(),
@@ -173,8 +182,7 @@ export function useModelTelemetry({
           node.current?.closest('[aria-hidden="true"], [inert], [hidden]')
         )
           return;
-        trackMenuEvent({
-          ...contextRef.current,
+        trackPublicModelEvent(enabledRef.current, publicContext, {
           ...event,
           metadata: { ...event.metadata, modelAttemptId },
           dishSlug,
@@ -193,6 +201,7 @@ export function useModelTelemetry({
       if (arTimer.current) clearTimeout(arTimer.current);
     };
   }, [
+    enabled,
     attempt,
     modelSource,
     hasModel,
@@ -206,15 +215,19 @@ export function useModelTelemetry({
   useEffect(() => {
     if (loaded) controller.current?.loaded();
     else if (failure) controller.current?.failed(failure);
-  }, [loaded, failure, attempt]);
+  }, [loaded, failure, attempt, enabled, modelSource, hasModel, dishSlug, categorySlug, context?.restaurantId, context?.menuId, context?.source]);
   const arIntent = useCallback(() => {
-    controller.current?.arIntent();
+    if (!enabledRef.current || !contextRef.current || !controller.current) return;
+    trackPublicModelEvent(true, contextRef.current, {
+      eventName: "dish_ar_clicked", dishSlug, categorySlug
+    });
+    controller.current.arIntent();
     if (arTimer.current) clearTimeout(arTimer.current);
     arTimer.current = setTimeout(
       () => controller.current?.arOutcome("unknown"),
       10000,
     );
-  }, []);
+  }, [dishSlug, categorySlug]);
   const arOutcome = useCallback((outcome: ArObservedOutcome) => {
     if (arTimer.current) clearTimeout(arTimer.current);
     controller.current?.arOutcome(outcome);

@@ -607,6 +607,7 @@ export function TrouvableDishDetailExperience({
 
           {showModelViewer ? (
             <TrouvableImmersivePanelBody
+              analyticsEnabled={true}
               arCopyStatus={arCopyStatus}
               arHandoffPlatform={arHandoffPlatform}
               copy={copy}

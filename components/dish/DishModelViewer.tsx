@@ -11,7 +11,6 @@ import {
   type CSSProperties,
 } from "react";
 import {
-  trackMenuEvent,
   type PublicMenuAnalyticsContext,
 } from "@/lib/analytics/client";
 import {
@@ -205,6 +204,8 @@ export type DishModelViewerProps = {
   fallbackPresentation?: "inline" | "below" | "external";
   fallbackPanelVariant?: ArFallbackPanelVariant;
   analyticsContext?: PublicMenuAnalyticsContext;
+  /** Only explicitly public menu viewers may emit analytics. */
+  analyticsEnabled?: boolean;
 };
 
 function resolveModelViewerCopy(
@@ -638,6 +639,7 @@ export function DishModelViewer({
   fallbackPresentation = "inline",
   fallbackPanelVariant = "default",
   analyticsContext,
+  analyticsEnabled = false,
 }: DishModelViewerProps) {
   const copy = resolveModelViewerCopy(customCopy);
   const titleId = useId();
@@ -745,6 +747,7 @@ export function DishModelViewer({
     arIntent: observeArIntent,
     arOutcome: observeArOutcome,
   } = useModelTelemetry({
+    enabled: analyticsEnabled,
     context: analyticsContext,
     dishSlug: dish.slug,
     categorySlug: dish.categorySlug,
@@ -922,21 +925,13 @@ export function DishModelViewer({
   ]);
 
   const trackArIntent = useCallback(() => {
-    observeArIntent();
     prepareModelViewerForAr(loadWatchRef.current);
-    window.setTimeout(() => {
-      try {
-        trackMenuEvent({
-          ...analyticsContext,
-          eventName: "dish_ar_clicked",
-          dishSlug: dish.slug,
-          categorySlug: dish.categorySlug,
-        });
-      } catch {
-        // Analytics must never block Safari Quick Look navigation.
-      }
-    }, 0);
-  }, [analyticsContext, dish.categorySlug, dish.slug, observeArIntent]);
+    try {
+      observeArIntent();
+    } catch {
+      // Analytics must never block Safari Quick Look navigation.
+    }
+  }, [observeArIntent]);
 
   const handleModelViewerArClick = useCallback(() => {
     trackArIntent();

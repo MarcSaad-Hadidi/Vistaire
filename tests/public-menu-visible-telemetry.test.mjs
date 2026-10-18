@@ -19,7 +19,7 @@ test('Trouvable sends only query length buckets and results, never query text', 
 });
 test('Sauge excludes physical pageflip copies from detail reading analytics', () => {
  const source = read('components/menu/unique/sauge-noire/SaugeNoireDishDetail.tsx');
- assert.match(source, /useVisibleMenuAnalytics\(menu, !isPreview && renderMode === "reading-surface", dish\)/);
+ assert.match(source, /useVisibleMenuAnalytics\(menu, analyticsEnabled && !isPreview && renderMode === "reading-surface", dish\)/);
 });
 test('Sauge adjacent navigation emits selected target once with the owning menu', () => {
  const source = read('components/menu/unique/sauge-noire/SaugeNoireDishDetail.tsx');
