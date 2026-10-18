@@ -1,4 +1,7 @@
-import { expect, test } from "@playwright/test";
+import { writeFile } from "node:fs/promises";
+import { expect, test, type Request, type Response } from "@playwright/test";
+
+test.use({ trace: "retain-on-failure" });
 
 const MODEL_REQUEST =
   /(?:\.(?:glb|usdz)(?:$|[?#])|\/model\/(?:glb|usdz)(?:\/|$|[?#])|model-viewer)/i;
@@ -32,10 +35,87 @@ for (const scenario of DISCOVERY_ROUTES) {
   }));
   test.describe(`${scenario.language} restaurant discovery`, () => {
     test.setTimeout(90_000);
-    test("presents three real experiences without previews, early models or mobile overflow", async ({ page }) => {
+    for (const viewport of [
+      { width: 390, height: 844 }, { width: 430, height: 932 }, { width: 1440, height: 900 },
+    ]) test(`presents three real experiences without previews, early models or overflow at ${viewport.width}px`, async ({ page }, testInfo) => {
       const errors: string[] = [];
       const unexpectedRequests: string[] = [];
       const requestedVideos = new Set<string>();
+      // Passive diagnostics only: never change playback, requests, or test deadlines.
+      const videoNetwork: Record<string, unknown>[] = [];
+      const videoRequestIds = new WeakMap<Request, number>();
+      let nextVideoRequestId = 0;
+      const recordVideoNetwork = (event: string, request: Request, response?: Response) => {
+        const pathname = new URL(request.url()).pathname;
+        if (!/^\/videos\/demo\/(?:maison-elyse|trouvable|sauge-noire)\.mp4$/.test(pathname)) return;
+        if (!videoRequestIds.has(request)) videoRequestIds.set(request, ++nextVideoRequestId);
+        const headers = response?.headers();
+        videoNetwork.push({
+          at: Date.now(), event, pathname, requestId: videoRequestIds.get(request),
+          range: request.headers().range ?? null, status: response?.status() ?? null,
+          contentRange: headers?.["content-range"] ?? null,
+          contentLength: headers?.["content-length"] ?? null,
+          acceptRanges: headers?.["accept-ranges"] ?? null,
+          failure: request.failure()?.errorText ?? null
+        });
+        if (videoNetwork.length > 200) videoNetwork.shift();
+      };
+      await page.addInitScript(() => {
+        const diagnostics = { events: [] as unknown[], lifecycle: [] as unknown[] };
+        const append = (entries: unknown[], entry: unknown, limit: number) => {
+          entries.push(entry);
+          if (entries.length > limit) entries.shift();
+        };
+        const ranges = (value: TimeRanges) => Array.from({ length: Math.min(value.length, 8) }, (_, i) =>
+          [value.start(i), value.end(i)]
+        );
+        const snapshot = (video: HTMLVideoElement) => {
+          const rect = video.getBoundingClientRect();
+          const pathname = video.currentSrc ? new URL(video.currentSrc, location.href).pathname : null;
+          return {
+            at: Date.now(),
+            experience: video.closest("[data-demo-experience]")?.getAttribute("data-demo-experience"),
+            currentSrc: pathname?.startsWith("/videos/demo/") ? pathname : null,
+            currentTime: video.currentTime, duration: video.duration,
+            paused: video.paused, seeking: video.seeking, ended: video.ended,
+            readyState: video.readyState, networkState: video.networkState, errorCode: video.error?.code ?? null,
+            buffered: ranges(video.buffered), seekable: ranges(video.seekable),
+            opacity: getComputedStyle(video).opacity,
+            rect: { x: rect.x, y: rect.y, width: rect.width, height: rect.height },
+            viewport: { width: innerWidth, height: innerHeight }, visibility: document.visibilityState
+          };
+        };
+        (window as typeof window & { __demoVideoDiagnostics?: () => unknown }).__demoVideoDiagnostics = () => ({
+          ...diagnostics, current: Array.from(document.querySelectorAll<HTMLVideoElement>("video[data-demo-video]"), snapshot)
+        });
+        const recordMedia = (event: Event) => {
+          const video = event.target;
+          if (!(video instanceof HTMLVideoElement) || !video.matches("video[data-demo-video]")) return;
+          append(diagnostics.events, { event: event.type, ...snapshot(video) }, 300);
+        };
+        for (const name of ["loadstart", "loadedmetadata", "loadeddata", "canplay", "canplaythrough",
+          "play", "playing", "pause", "waiting", "stalled", "progress", "suspend", "abort", "emptied",
+          "seeking", "seeked", "ended", "error"]) {
+          document.addEventListener(name, recordMedia, true);
+        }
+        const motion = matchMedia("(prefers-reduced-motion: reduce)");
+        const recordLifecycle = (event: string) => append(diagnostics.lifecycle, {
+          at: Date.now(), event, width: innerWidth, height: innerHeight,
+          scrollX, scrollY, visibility: document.visibilityState, reducedMotion: motion.matches
+        }, 100);
+        let lastScroll = 0;
+        window.addEventListener("scroll", () => {
+          if (Date.now() - lastScroll < 250) return;
+          lastScroll = Date.now();
+          recordLifecycle("scroll");
+        }, { passive: true });
+        for (const name of ["resize", "pageshow", "pagehide"]) {
+          window.addEventListener(name, () => recordLifecycle(name));
+        }
+        document.addEventListener("visibilitychange", () => recordLifecycle("visibilitychange"));
+        motion.addEventListener("change", () => recordLifecycle("reduced-motion"));
+        recordLifecycle("init");
+      });
       page.on("pageerror", (error) => errors.push(error.message));
       page.on("console", (message) => {
         if (message.type() === "error" || /hydration|did not match/i.test(message.text())) {
@@ -43,16 +123,21 @@ for (const scenario of DISCOVERY_ROUTES) {
         }
       });
       page.on("request", (request) => {
+        recordVideoNetwork("request", request);
         const pathname = new URL(request.url()).pathname;
         if (pathname.startsWith("/videos/demo/")) requestedVideos.add(pathname);
-        if (MODEL_REQUEST.test(request.url()) || /\/api\/public\/landing-menu-preview\//.test(request.url())) {
+        // The page plays in the shared 3D room: its own GLBs are expected.
+        const roomModel = /^\/(?:immersive-assets|models\/demo)\/.+\.glb$/i.test(pathname);
+        if ((MODEL_REQUEST.test(request.url()) && !roomModel) || /\/api\/public\/landing-menu-preview\//.test(request.url())) {
           unexpectedRequests.push(request.url());
         }
       });
       page.on("response", (response) => {
+        recordVideoNetwork("response", response.request(), response);
         if (response.status() >= 400) errors.push(`${response.status()} ${response.url()}`);
       });
       page.on("requestfailed", (request) => {
+        recordVideoNetwork("requestfailed", request);
         const errorText = request.failure()?.errorText;
         // WebKit can report a cancelled video range as resourceType "other".
         const cancelledVideoRange = errorText === "Load request cancelled"
@@ -62,92 +147,147 @@ for (const scenario of DISCOVERY_ROUTES) {
         }
       });
 
-      await page.setViewportSize({ width: 390, height: 844 });
-      const response = await page.goto(`${scenario.path}?lang=${scenario.queryLang}&experience=trouvable&utm_source=qa`, { waitUntil: "domcontentloaded" });
-      expect(response?.status()).toBe(200);
-      await expect(page.locator("html")).toHaveAttribute("lang", scenario.lang);
-      await expect(page.getByRole("link", { name: scenario.activeLanguage }).first()).toHaveAttribute("aria-current", "true");
-      await expect(page.getByRole("link", { name: scenario.otherLanguage }).first()).toHaveAttribute("href", scenario.alternatePath);
-      for (const id of ["trouvable", "sauge-noire"]) {
-        await expect(page.locator(`[data-demo-experience="${id}"] video`)).not.toHaveAttribute("src", /.+/);
-        expect(requestedVideos.has(`/videos/demo/${id}.mp4`)).toBe(false);
-      }
-      for (const viewport of [
-        { width: 390, height: 844 },
-        { width: 430, height: 932 },
-        { width: 1440, height: 900 }
-      ]) {
+      page.on("requestfinished", (request) => recordVideoNetwork("requestfinished", request));
+      let completed = false;
+      try {
         await page.setViewportSize(viewport);
-        await expect(page).toHaveTitle(scenario.title);
-        await expect(page.getByRole("heading", { level: 1 })).toHaveText(scenario.heading);
-        await expect(page.locator("[data-demo-experience]")).toHaveCount(3);
+        const response = await page.goto(`${scenario.path}?lang=${scenario.queryLang}&experience=trouvable&utm_source=qa`, { waitUntil: "domcontentloaded" });
+        expect(response?.status()).toBe(200);
+        await expect(page.locator("html")).toHaveAttribute("lang", scenario.lang);
+        await expect(page.locator("[data-public-navigation-open]")).toBeVisible();
+        await expect(page.getByRole("link", { name: scenario.activeLanguage }).first()).toHaveAttribute("aria-current", "true");
+        await expect(page.getByRole("link", { name: scenario.otherLanguage }).first()).toHaveAttribute("href", scenario.alternatePath);
+        for (const id of ["trouvable", "sauge-noire"]) {
+          await expect(page.locator(`[data-demo-experience="${id}"] video`)).not.toHaveAttribute("src", /.+/);
+          expect(requestedVideos.has(`/videos/demo/${id}.mp4`)).toBe(false);
+        }
+          await expect(page).toHaveTitle(scenario.title);
+          await expect(page.getByRole("heading", { level: 1 })).toHaveText(scenario.heading);
+          await expect(page.locator("[data-demo-experience]")).toHaveCount(3);
+          for (const experience of experiences) {
+            const panel = page.locator(`[data-demo-experience="${experience.id}"]`);
+            await panel.scrollIntoViewIfNeeded();
+            await expect(panel.getByRole("heading", { level: 2, name: experience.name, exact: true })).toBeVisible();
+            const link = panel.getByRole("link", { name: `${scenario.explore} ${experience.name}`, exact: true });
+            await expect(link).toBeVisible();
+            await expect(link).toHaveAttribute("href", experience.href);
+            await expect(panel.getByRole("link", { name: new RegExp(`^${scenario.discover} `) })).toHaveAttribute("href", new RegExp(`[?&]lang=${scenario.lang}(?:&|$)`));
+            expect((await link.boundingBox())?.height).toBeGreaterThanOrEqual(44);
+            const video = panel.locator("video[data-demo-video]");
+            await video.scrollIntoViewIfNeeded();
+            await expect(video).toHaveJSProperty("autoplay", true);
+            await expect(video).toHaveJSProperty("loop", true);
+            await expect(video).toHaveJSProperty("muted", true);
+            await expect(video).toHaveJSProperty("playsInline", true);
+            await expect(video).toHaveJSProperty("controls", false);
+            await expect.poll(() => video.evaluate((element: HTMLVideoElement) =>
+              element.readyState >= 2 && !element.paused && element.videoWidth > 0 && element.videoHeight > 0
+            ), { timeout: 15_000 }).toBe(true);
+            expect(await video.evaluate((element: HTMLVideoElement) =>
+              element.videoWidth / element.videoHeight
+            )).toBeCloseTo(780 / 1688, 2);
+            const initialTime = await video.evaluate((element: HTMLVideoElement) => element.currentTime);
+            await expect.poll(() => video.evaluate((element: HTMLVideoElement) => ({
+              currentTime: element.currentTime,
+              paused: element.paused,
+              readyState: element.readyState,
+              networkState: element.networkState,
+              error: element.error?.message ?? null,
+              opacity: getComputedStyle(element).opacity
+            })), { message: `${experience.id} playback at ${viewport.width}px must advance` })
+              .not.toMatchObject({ currentTime: initialTime });
+            expect(await video.evaluate(async (element: HTMLVideoElement) => {
+              const poster = new Image();
+              poster.src = element.poster;
+              await poster.decode();
+              return poster.naturalWidth > 0;
+            })).toBe(true);
+          }
+          await expect(page.getByTestId("demo-phone-mockup")).toHaveCount(0);
+          await expect(page.locator("[data-demo-experience] button")).toHaveCount(0);
+          await expect(page.getByText("Le menu en action · en boucle", { exact: true })).toHaveCount(0);
+          await expect(page.locator("[data-phone-mockup-scroll], [data-public-menu-renderer], model-viewer, iframe")).toHaveCount(0);
+          await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+          expect(await page.locator("main").evaluate((element) => getComputedStyle(element).overflowY)).toBe("visible");
+          await expect(page.getByRole("contentinfo")).toBeVisible();
+        const visibleVideo = page.locator("video[data-demo-video]").last();
+        await visibleVideo.scrollIntoViewIfNeeded();
+        await expect(visibleVideo).toHaveJSProperty("paused", false);
+        await page.emulateMedia({ reducedMotion: "reduce" });
+        await page.evaluate(() => new Promise<void>(resolve => requestAnimationFrame(() => resolve())));
+        await expect(visibleVideo).toHaveJSProperty("paused", true);
+        await page.emulateMedia({ reducedMotion: "no-preference" });
+        await page.evaluate(() => new Promise<void>(resolve => requestAnimationFrame(() => resolve())));
+        await expect(visibleVideo).toHaveJSProperty("paused", false);
+        await page.emulateMedia({ reducedMotion: "reduce" });
+        await page.reload({ waitUntil: "domcontentloaded" });
         for (const experience of experiences) {
-          const panel = page.locator(`[data-demo-experience="${experience.id}"]`);
-          await panel.scrollIntoViewIfNeeded();
-          await expect(panel.getByRole("heading", { level: 2, name: experience.name, exact: true })).toBeVisible();
-          const link = panel.getByRole("link", { name: `${scenario.explore} ${experience.name}`, exact: true });
-          await expect(link).toBeVisible();
-          await expect(link).toHaveAttribute("href", experience.href);
-          await expect(panel.getByRole("link", { name: new RegExp(`^${scenario.discover} `) })).toHaveAttribute("href", new RegExp(`[?&]lang=${scenario.lang}(?:&|$)`));
-          expect((await link.boundingBox())?.height).toBeGreaterThanOrEqual(44);
-          const video = panel.locator("video[data-demo-video]");
+          const video = page.locator(`[data-demo-experience="${experience.id}"] video`);
           await video.scrollIntoViewIfNeeded();
-          await expect(video).toHaveJSProperty("autoplay", true);
-          await expect(video).toHaveJSProperty("loop", true);
-          await expect(video).toHaveJSProperty("muted", true);
-          await expect(video).toHaveJSProperty("playsInline", true);
-          await expect(video).toHaveJSProperty("controls", false);
-          await expect.poll(() => video.evaluate((element: HTMLVideoElement) =>
-            element.readyState >= 2 && !element.paused && element.videoWidth > 0 && element.videoHeight > 0
-          ), { timeout: 15_000 }).toBe(true);
-          expect(await video.evaluate((element: HTMLVideoElement) =>
-            element.videoWidth / element.videoHeight
-          )).toBeCloseTo(780 / 1688, 2);
-          const initialTime = await video.evaluate((element: HTMLVideoElement) => element.currentTime);
-          await expect.poll(() => video.evaluate((element: HTMLVideoElement) => element.currentTime)).not.toBe(initialTime);
+          await expect(video).toHaveJSProperty("paused", true);
+          await expect(video).not.toHaveAttribute("src", /.+/);
           expect(await video.evaluate(async (element: HTMLVideoElement) => {
             const poster = new Image();
             poster.src = element.poster;
             await poster.decode();
-            return poster.naturalWidth > 0;
+            return poster.naturalWidth > 0 && poster.naturalHeight > 0;
           })).toBe(true);
         }
-        await expect(page.getByTestId("demo-phone-mockup")).toHaveCount(0);
-        await expect(page.locator("[data-demo-experience] button")).toHaveCount(0);
-        await expect(page.getByText("Le menu en action · en boucle", { exact: true })).toHaveCount(0);
-        await expect(page.locator("[data-phone-mockup-scroll], [data-public-menu-renderer], model-viewer, iframe")).toHaveCount(0);
-        await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
-        expect(await page.locator("main").evaluate((element) => getComputedStyle(element).overflowY)).toBe("visible");
-        await expect(page.getByRole("contentinfo")).toBeVisible();
+        const firstLink = page.getByRole("link", { name: `${scenario.explore} Maison Élyse`, exact: true });
+        await firstLink.focus();
+        await expect(firstLink).toBeFocused();
+        expect(await firstLink.evaluate((element) => getComputedStyle(element).outlineStyle)).toBe("solid");
+        expect(await firstLink.evaluate((element) =>
+          Math.max(...getComputedStyle(element).transitionDuration.split(",").map(parseFloat))
+        )).toBeLessThanOrEqual(0.001);
+        await expect(page.locator('link[rel="canonical"]')).toHaveAttribute("href", new RegExp(`${scenario.path}$`));
+        await expect(page.locator(`link[rel="alternate"][hreflang="${scenario.alternateLocale}"]`)).toHaveAttribute("href", new RegExp(`${scenario.alternatePath}$`));
+        await expect(page.locator('meta[property="og:title"]')).toHaveAttribute("content", scenario.title);
+        expect(errors, errors.join("\n")).toEqual([]);
+        expect(unexpectedRequests).toEqual([]);
+        completed = true;
+      } finally {
+        if (!completed) {
+          let diagnosticTimer: ReturnType<typeof setTimeout> | undefined;
+          const media = await Promise.race([
+            page.evaluate(() => {
+              const diagnostics = (window as typeof window & {
+                __demoVideoDiagnostics?: () => unknown;
+              }).__demoVideoDiagnostics;
+              return diagnostics?.() ?? null;
+            }).catch(() => null),
+            new Promise<null>((resolve) => {
+              diagnosticTimer = setTimeout(() => resolve(null), 1000);
+            })
+          ]).finally(() => clearTimeout(diagnosticTimer));
+          // Strip URL queries and common credential forms from pre-existing error text.
+          const safeErrors = errors.slice(-50).map((error) => error
+            .replace(/https?:\/\/[^\s"'<>]+/g, (url) => {
+              try { return new URL(url).pathname; } catch { return "[URL]"; }
+            })
+            .replace(/\b(?:Bearer\s+\S+|(?:sk|pk)_(?:live|test)_\S+|eyJ[\w-]+\.[\w-]+\.[\w-]+)\b/gi, "[redacted]")
+            .replace(/((?:authorization|cookie|password|token|secret|api[_-]?key)["']?\s*[:=]\s*)[^\s,}]+/gi, "$1[redacted]")
+            .slice(0, 1000));
+          try {
+            const diagnosticPath = testInfo.outputPath("demo-video-diagnostics.json");
+            await writeFile(diagnosticPath, JSON.stringify({ errors: safeErrors, videoNetwork, media }, null, 2));
+            await testInfo.attach("demo-video-diagnostics", {
+              path: diagnosticPath,
+              contentType: "application/json"
+            });
+          } catch {
+            console.warn("Could not write or attach demo video diagnostics; retaining the original failure.");
+          }
+        }
       }
-      await page.emulateMedia({ reducedMotion: "reduce" });
-      const loopingVideo = page.locator("video[data-demo-video]").first();
-      await loopingVideo.scrollIntoViewIfNeeded();
-      await expect.poll(() => loopingVideo.evaluate((element: HTMLVideoElement) =>
-        !element.paused && element.readyState >= 2
-      )).toBe(true);
-      await loopingVideo.evaluate((element: HTMLVideoElement) => { element.currentTime = element.duration - 0.1; });
-      await expect.poll(() => loopingVideo.evaluate((element: HTMLVideoElement) =>
-        element.currentTime < 1 && !element.paused
-      )).toBe(true);
-      const firstLink = page.getByRole("link", { name: `${scenario.explore} Maison Élyse`, exact: true });
-      await firstLink.focus();
-      await expect(firstLink).toBeFocused();
-      expect(await firstLink.evaluate((element) => getComputedStyle(element).outlineStyle)).toBe("solid");
-      expect(await firstLink.evaluate((element) =>
-        Math.max(...getComputedStyle(element).transitionDuration.split(",").map(parseFloat))
-      )).toBeLessThanOrEqual(0.001);
-      await expect(page.locator('link[rel="canonical"]')).toHaveAttribute("href", new RegExp(`${scenario.path}$`));
-      await expect(page.locator(`link[rel="alternate"][hreflang="${scenario.alternateLocale}"]`)).toHaveAttribute("href", new RegExp(`${scenario.alternatePath}$`));
-      await expect(page.locator('meta[property="og:title"]')).toHaveAttribute("content", scenario.title);
-      expect(errors, errors.join("\n")).toEqual([]);
-      expect(unexpectedRequests).toEqual([]);
     });
 
     for (const experience of experiences) {
       test(`opens the real ${experience.name} menu through its accessible link`, async ({ page }) => {
         await page.setViewportSize({ width: 390, height: 844 });
         await page.goto(scenario.path, { waitUntil: "domcontentloaded" });
+        // The page stays inert behind the 3D room's loading screen.
+        await expect(page.locator(".preloader")).toHaveCount(0, { timeout: 60_000 });
         const link = page.getByRole("link", { name: `${scenario.explore} ${experience.name}`, exact: true });
         await expect(link).toHaveAttribute("href", experience.href);
         await link.scrollIntoViewIfNeeded();
@@ -155,7 +295,7 @@ for (const scenario of DISCOVERY_ROUTES) {
         await link.focus();
         await expect(link).toBeFocused();
         await link.press("Enter");
-        await expect(page).toHaveURL(new RegExp(`/menu/${experience.id}\\?`), { timeout: 15_000 });
+        await expect(page).toHaveURL(new RegExp(`/menu/${experience.id}\\?`), { timeout: 30_000 });
         expect(new URL(page.url()).searchParams.get("lang")).toBe(scenario.lang);
         if (experience.id === "sauge-noire") {
           await expect(page.getByTestId("sauge-noire-book")).toBeVisible();
@@ -165,8 +305,10 @@ for (const scenario of DISCOVERY_ROUTES) {
         if (scenario.language === "English" && experience.id === "maison-elyse") {
           await page.goBack({ waitUntil: "domcontentloaded" });
           await expect(page.getByRole("heading", { level: 1 })).toHaveText(scenario.heading);
+          await expect(page.locator(".preloader")).toHaveCount(0, { timeout: 60_000 });
           const video = page.locator('[data-demo-experience="maison-elyse"] video');
           await video.scrollIntoViewIfNeeded();
+          await expect(video).toBeInViewport();
           await expect.poll(() => video.evaluate((element: HTMLVideoElement) =>
             element.readyState >= 2 && !element.paused
           ), { timeout: 15_000 }).toBe(true);
@@ -183,6 +325,7 @@ for (const scenario of DISCOVERY_ROUTES) {
         if (MODEL_REQUEST.test(request.url())) modelRequests.push(request.url());
       });
       await page.goto(scenario.path, { waitUntil: "domcontentloaded" });
+      await expect(page.locator(".preloader")).toHaveCount(0, { timeout: 60_000 });
       const dishLink = page.locator("[data-demo-3d-link]");
       await expect(dishLink).toHaveAttribute("href", `/menu/sauge-noire/dishes/truite-des-laurentides?lang=${scenario.lang}&view=sauge-2`);
       await dishLink.scrollIntoViewIfNeeded();
@@ -191,6 +334,8 @@ for (const scenario of DISCOVERY_ROUTES) {
       await expect(dishLink).toBeFocused();
       await dishLink.press("Enter");
       await expect(page).toHaveURL(/\/menu\/sauge-noire\/dishes\/truite-des-laurentides\?/, { timeout: 15_000 });
+      // The demo page itself plays in the 3D room; only the dish page counts.
+      modelRequests.length = 0;
       expect(new URL(page.url()).searchParams.get("lang")).toBe(scenario.lang);
       await expect(page.getByTestId("sauge-noire-dish-detail")).toBeVisible();
       await page.waitForLoadState("load");

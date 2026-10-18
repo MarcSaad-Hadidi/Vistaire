@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { JsonLd } from "@/components/JsonLd";
 import { VistaireRendezVousPreview } from "@/components/vistaire-preview/VistaireRendezVousPreview";
 import { buildPageAlternates, LOCALE_OPEN_GRAPH } from "@/lib/i18n";
-import {
+import { socialImages,
   absoluteUrl,
   buildBreadcrumbJsonLd,
   buildPageServiceJsonLd,
@@ -19,6 +19,7 @@ export const metadata: Metadata = {
   description,
   alternates: buildPageAlternates(canonicalPath),
   openGraph: {
+    images: socialImages("BOOK:panel", "en").openGraph,
     url: absoluteUrl(canonicalPath),
     title,
     description:
@@ -27,7 +28,8 @@ export const metadata: Metadata = {
     type: "website"
   },
   twitter: {
-    card: "summary",
+    images: socialImages("BOOK:panel", "en").twitter,
+    card: "summary_large_image",
     title,
     description:
       "Tell us about your restaurant, your menu and the experience you want to offer."

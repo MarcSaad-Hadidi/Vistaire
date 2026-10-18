@@ -2,14 +2,14 @@ import type { Metadata } from "next";
 import { JsonLd } from "@/components/JsonLd";
 import { VistaireContactPreview } from "@/components/vistaire-preview/VistaireContactPreview";
 import { buildPageAlternates, LOCALE_OPEN_GRAPH } from "@/lib/i18n";
-import {
+import { socialImages,
   absoluteUrl,
   buildBreadcrumbJsonLd,
   buildContactPageJsonLd
 } from "@/lib/seo";
 
 const canonicalPath = "/contact";
-const title = "Contact Vistaire";
+const title = "Nous contacter";
 const description =
   "Contactez Vistaire pour créer une carte digitale premium pour restaurant haut de gamme.";
 
@@ -18,6 +18,7 @@ export const metadata: Metadata = {
   description,
   alternates: buildPageAlternates(canonicalPath),
   openGraph: {
+    images: socialImages("CONTACT:hero", "fr").openGraph,
     url: absoluteUrl(canonicalPath),
     title,
     description:
@@ -26,8 +27,9 @@ export const metadata: Metadata = {
     type: "website"
   },
   twitter: {
-    card: "summary",
-    title: "Contact Vistaire",
+    images: socialImages("CONTACT:hero", "fr").twitter,
+    card: "summary_large_image",
+    title,
     description:
       "Parlez à Vistaire de votre carte, de vos fiches plats et de votre expérience mobile."
   }

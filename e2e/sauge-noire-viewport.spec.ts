@@ -53,15 +53,19 @@ function collectHealth(page: Page) {
   page.on("requestfailed", (request) => {
     const failure = request.failure()?.errorText ?? "request failed";
     const url = new URL(request.url());
-    const isSupersededSaugeRscNavigation =
-      /(?:ERR_ABORTED|NS_BINDING_ABORTED|cancelled)/i.test(failure) &&
+    const cancelled = /(?:ERR_ABORTED|NS_BINDING_ABORTED|cancelled)/i.test(failure);
+    const isSupersededPrefetch =
+      cancelled &&
       url.origin === BASE_ORIGIN &&
-      url.pathname === "/menu/sauge-noire" &&
       url.searchParams.has("_rsc") &&
       request.method() === "GET" &&
       request.resourceType() === "fetch" &&
       !request.isNavigationRequest();
-    if (isSupersededSaugeRscNavigation) return;
+    // Leaving discovery cancels its speculative routes and video ranges.
+    const isReleasedDemoVideo = cancelled && url.origin === BASE_ORIGIN &&
+      request.method() === "GET" && request.resourceType() === "media" &&
+      /^\/videos\/demo\/(?:maison-elyse|trouvable|sauge-noire)\.mp4$/.test(url.pathname);
+    if (isSupersededPrefetch || isReleasedDemoVideo) return;
     failedRequests.push(
       `${failure} ${request.url()}`
     );
@@ -236,7 +240,9 @@ for (const viewport of viewports) {
 test("cleans and reapplies the Sauge theme during client transitions", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   const health = collectHealth(page);
-  await page.goto("/", { waitUntil: "domcontentloaded" });
+  // The restaurant discovery is the public page that links into the Sauge menu.
+  await page.goto("/demo", { waitUntil: "domcontentloaded" });
+  await expect(page.locator(".preloader")).toHaveCount(0, { timeout: 60_000 });
   let theme = await readViewportTheme(page);
   expect(theme.themeColors).toEqual(["#080706"]);
   expect(theme.htmlBackground).toBe(dark);
@@ -245,10 +251,8 @@ test("cleans and reapplies the Sauge theme during client transitions", async ({ 
   expect(theme.bodyRouteTheme).toBeNull();
 
   const enterSauge = async (sentinel: string) => {
-    const link = page
-      .getByTestId("landing-experiences")
-      .locator('a[href^="/menu/sauge-noire"]')
-      .first();
+    const link = page.getByRole("link", { name: "Explorer Sauge Noire", exact: true });
+    await link.scrollIntoViewIfNeeded();
     await expect(link).toBeVisible();
     await link.evaluate((element) => element.removeAttribute("target"));
     await page.evaluate((value) => {
@@ -271,8 +275,8 @@ test("cleans and reapplies the Sauge theme during client transitions", async ({ 
 
   await enterSauge("first-entry");
   await page.goBack({ waitUntil: "domcontentloaded" });
-  await expect.poll(() => new URL(page.url()).pathname).toBe("/");
-  await expect(page.getByTestId("landing-experiences")).toBeVisible();
+  await expect.poll(() => new URL(page.url()).pathname).toBe("/demo");
+  await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
   await expect
     .poll(async () => {
       const landingTheme = await readViewportTheme(page);
@@ -289,5 +293,5 @@ test("cleans and reapplies the Sauge theme during client transitions", async ({ 
   theme = await readViewportTheme(page);
   expect(theme.htmlRouteTheme).toBe("sauge-noire");
   expect(theme.bodyRouteTheme).toBe("sauge-noire");
-  expectNoHealthFailures(health, "landing to Sauge transition round trip");
+  expectNoHealthFailures(health, "restaurant discovery to Sauge transition round trip");
 });

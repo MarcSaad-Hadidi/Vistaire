@@ -4,13 +4,12 @@ Le workflow requis pour les pull requests est **CI Gate**
 (`.github/workflows/app-ci.yml`). Il démarre toujours et refuse une
 classification invalide, un job attendu en échec, annulé, absent ou sauté.
 
-## Fast gate and dependency barrier
+## Contrôles indépendants
 
 `fast-gate` validates the classifier, workflow contracts, and CI scripts without
-running `npm ci` or installing a browser. Browser jobs explicitly require
-successful `classify-changes`, `fast-gate`, `static-quality`, and `build-app`
-results; a failed root job therefore produces downstream skips instead of
-secondary browser failures. `Asset Policy` remains independent and owns the
+running `npm ci` or installing a browser. Browser jobs require only successful
+`classify-changes` and `build-app` results. Static checks remain blocking in
+`CI Gate` and run independently. `Asset Policy` remains independent and owns the
 only `assets:check` and `lfs:check` invocations. `fast-gate` runs the CI and
 Preview workflow contracts without `npm ci`; `static-quality` then runs every
 `tests/*.test.mjs` file once through `npm run test:node`.
@@ -48,8 +47,9 @@ Pour une pull request, le diff est calculé entre le merge-base réel de la base
 et de la tête et la tête. Le checkout est borné et
 `scripts/ci/fetch-pr-graph.mjs` récupère seulement le graphe nécessaire. Si le
 merge-base ne peut pas être obtenu, le classificateur passe en `full_ci=true`.
-Les chemins inconnus, l'infrastructure CI, les dépendances, `main`,
-`merge_group` et le nightly sont exhaustifs.
+Les chemins inconnus, l'infrastructure CI, les dépendances, `main` et
+`merge_group` sélectionnent toutes les familles critiques. Le nightly et le
+dispatch `full` exécutent tous leurs scénarios.
 
 `docs_only` est une allowlist explicite : `README.md`, `CONTRIBUTING.md`,
 `SECURITY.md`, `docs/**` et `documentation/**`. Une extension Markdown/TXT dans
@@ -57,30 +57,38 @@ Les chemins inconnus, l'infrastructure CI, les dépendances, `main`,
 
 ## Familles et navigateurs
 
-Les jobs applicatifs sont indépendants et s'exécutent en parallèle. `build-app`
-compile une fois avec la fixture Supabase hermétique puis publie `.next`.
-Static et PostgreSQL n'installent aucun navigateur. Chromium est installé
-uniquement par les familles Chromium ; WebKit uniquement par `webkit-critical`.
+Après classification, les contrôles statiques, PostgreSQL et le build démarrent
+indépendamment. `build-app` compile une fois avec la fixture Supabase hermétique
+puis publie `.next` sans son cache de compilation. Les navigateurs attendent
+uniquement ce build ; les contrôles statiques restent obligatoires dans `CI Gate`.
 
-Le groupe `e2e-public-chromium` regroupe conditionnellement core, landing, SEO
-et `e2e/sauge-noire-menu-shared-smoke.spec.ts` avec une seule installation
-Chromium, une seule fixture Supabase et un seul download `.next`. Le smoke menu
-couvre le parcours menu → plat → retour de la démo générique, le menu Trouvable
-(catégories, changement de langue, photo/fallback, ouverture et retour) et un
-parcours Sauge Noire critique court; les rapports restent distincts par famille
-avant agrégation. `e2e-sauge-chromium` conserve les suites Sauge profondes,
-`e2e-admin-qr-chromium` garde les contrats QR sensibles et `webkit-critical`
-reste isolé. Le full CI cible ainsi sept `npm ci`, trois installations
-Chromium, une installation WebKit et quatre downloads `.next`; cette topologie
-a été confirmée par le run GitHub `30853839277`.
+Les PR sélectionnent uniquement les scénarios existants marqués `@critical`,
+parmi les familles concernées par le diff. Une modification SEO ne sélectionne
+pas les menus, Sauge Noire ou les QR privés, même si son chemin contient « QR ».
+Les changements de navigation partagée gardent leurs contrôles communs.
 
-Sur ce run réel, les rapports structurés ont compté 28 tests public Chromium,
-66 tests Sauge Chromium, 7 tests QR et 10 tests WebKit: 111 passés, 0 échoué,
-0 ignoré, 0 flaky et 0 interrompu. L’artefact `ci-metrics-30853839277`
-(`8871794612`) contient le JSON machine-readable et le résumé humain provient
-du même fichier. Les runner-minutes et la fenêtre murale doivent être lus dans
-cet artefact pour chaque run; ils ne sont jamais déduits du seul nombre de
-jobs.
+Le smoke des tarifs contrôle le calculateur et le clavier à 390 px, puis
+l'absence de débordement et les cibles tactiles à 390/430 px. Les autres
+redimensionnements du décor 3D restent réservés aux lancements exhaustifs.
+
+Le pool Chromium public utilise 6 shards, WebKit 2, Sauge un job et Studio un
+job par navigateur. Chaque test sélectionné est exécuté une seule fois par
+navigateur. Les contrôles QR sensibles restent complets dans le job Studio
+Chromium. Au maximum 11 jobs navigateur tournent en parallèle. Le cache de
+compilation Next.js est réutilisé entre builds et reste exclu de l'artefact
+transféré aux navigateurs.
+
+Le nightly et le dispatch `target: full` exécutent les suites exhaustives,
+y compris les variantes de thèmes, formats et chorégraphies 3D. Les PR et les
+autres lancements conservent les contrôles statiques, sécurité et contrats SQL
+applicables, avec les parcours navigateur critiques uniquement.
+
+Chaque shard publie son rapport structuré et ses éléments de diagnostic. Les
+rapports sont agrégés sans masquer les échecs, interruptions ou tests ignorés.
+`CI Gate` attend tous les contrôles applicables. Le temps mural et les
+runner-minutes proviennent des métriques du run GitHub ; la parallélisation ne
+garantit pas à elle seule la cible de cinq minutes, notamment en cas de file
+d'attente des runners.
 
 ## Événements et dispatch manuel
 

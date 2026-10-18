@@ -49,7 +49,7 @@ function denseDaily(events: EventRow[], period?: DensePeriod): DailyPoint[] {
   const start = Date.parse(period.startInclusive);
   const end = Date.parse(period.endExclusive);
   if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start || period.bucketCount < 1) return [];
-  const duration = (end - start) / period.bucketCount;
+  const duration = Math.min(86_400_000, end - start);
   const counts = Array.from({ length: period.bucketCount }, () => 0);
   for (const row of events) {
     const timestamp = validDate(row)?.getTime();

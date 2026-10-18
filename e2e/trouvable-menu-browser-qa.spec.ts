@@ -93,6 +93,7 @@ async function expectLegibleText(
     element.scrollIntoView({ behavior: "instant", block: "center", inline: "nearest" });
   });
   await expect(locator, `${label}: visible text element`).toBeVisible();
+  await expect(locator, `${label}: reveal completed`).toHaveCSS('opacity', '1');
   const measurement = await locator.evaluate((element) => {
     const rect = element.getBoundingClientRect();
     const root = element.closest(

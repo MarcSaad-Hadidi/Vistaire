@@ -8,6 +8,8 @@ Language: fr-CA
 Contact: contact@vistaire.ca
 Phone: 514-715-2421
 Location: Montréal, Québec, Canada
+Full text of every public page: https://www.vistaire.ca/llms-full.txt
+Every public page also answers `Accept: text/markdown` with its markdown version.
 
 ## Summary
 

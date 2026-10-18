@@ -1,47 +1,61 @@
 import { expect, test, type Page } from "@playwright/test";
 
+const renderedTest = test.extend({
+  launchOptions: async ({ browserName }, provideOptions) => {
+    await provideOptions(browserName === 'chromium'
+      ? { args: ['--use-angle=swiftshader', '--use-gl=angle'] }
+      : {});
+  },
+});
+
 const routes = [
   {
     path: "/guides/anatomie-menu-digital-premium",
     fr: "/guides/anatomie-menu-digital-premium",
     en: "/en/guides/premium-digital-menu-anatomy",
     lang: "fr-CA",
-    h1: "L’anatomie d’un menu digital premium"
+    h1: "L’anatomie d’un menu digital premium",
+    experience: "guide-anatomy"
   },
   {
     path: "/en/guides/premium-digital-menu-anatomy",
     fr: "/guides/anatomie-menu-digital-premium",
     en: "/en/guides/premium-digital-menu-anatomy",
     lang: "en-CA",
-    h1: "The anatomy of a premium digital restaurant menu"
+    h1: "The anatomy of a premium digital restaurant menu",
+    experience: "guide-anatomy"
   },
   {
     path: "/guides/menu-qr-mobile-sans-application",
     fr: "/guides/menu-qr-mobile-sans-application",
     en: "/en/guides/mobile-qr-menu-without-app",
     lang: "fr-CA",
-    h1: "Un menu QR mobile sans application"
+    h1: "Un menu QR mobile sans application",
+    experience: "guide-journey"
   },
   {
     path: "/en/guides/mobile-qr-menu-without-app",
     fr: "/guides/menu-qr-mobile-sans-application",
     en: "/en/guides/mobile-qr-menu-without-app",
     lang: "en-CA",
-    h1: "A mobile QR menu without an app"
+    h1: "A mobile QR menu without an app",
+    experience: "guide-journey"
   },
   {
     path: "/guides/3d-restaurant-utile-vs-gadget",
     fr: "/guides/3d-restaurant-utile-vs-gadget",
     en: "/en/guides/restaurant-3d-useful-vs-gimmick",
     lang: "fr-CA",
-    h1: "La 3D au restaurant : utile ou gadget ?"
+    h1: "La 3D au restaurant : utile ou gadget ?",
+    experience: "guide-decision"
   },
   {
     path: "/en/guides/restaurant-3d-useful-vs-gimmick",
     fr: "/guides/3d-restaurant-utile-vs-gadget",
     en: "/en/guides/restaurant-3d-useful-vs-gimmick",
     lang: "en-CA",
-    h1: "Restaurant 3D: useful tool or gimmick?"
+    h1: "Restaurant 3D: useful tool or gimmick?",
+    experience: "guide-decision"
   }
 ] as const;
 
@@ -56,7 +70,11 @@ async function expectNoHorizontalOverflow(page: Page) {
   expect(overflow).toBeLessThanOrEqual(2);
 }
 
-test("six bilingual guides render complete, crawlable editorial pages", async ({ page }) => {
+for (const route of routes) for (const viewport of [
+  { width: 390, height: 844 },
+  { width: 430, height: 932 },
+  { width: 1366, height: 900 }
+]) test(`${route.path} renders a complete, crawlable guide at ${viewport.width}px`, async ({ page }) => {
   const consoleErrors: string[] = [];
   const pageErrors: string[] = [];
   const badResponses: string[] = [];
@@ -70,19 +88,24 @@ test("six bilingual guides render complete, crawlable editorial pages", async ({
     }
   });
 
-  for (const route of routes) {
-    for (const viewport of [
-      { width: 390, height: 844 },
-      { width: 430, height: 932 },
-      { width: 1366, height: 900 }
-    ]) {
       await page.setViewportSize(viewport);
       const response = await page.goto(route.path, { waitUntil: "domcontentloaded" });
       expect(response?.status(), route.path).toBeLessThan(400);
       await expect(page.locator("html")).toHaveAttribute("lang", route.lang);
       await expect(page.locator("h1")).toHaveCount(1);
       await expect(page.locator("h1")).toHaveText(route.h1);
-      await expect(page.getByRole("navigation", { name: /fil d’ariane|breadcrumb/i })).toBeVisible();
+      await expect(page.locator("main[data-seo-experience]")).toHaveAttribute("data-seo-experience", route.experience);
+      if (route.experience === "guide-journey") {
+        const checklist = page.locator("#checklist");
+        const firstCheck = checklist.getByRole("checkbox").first();
+        await expect(firstCheck).not.toBeChecked();
+        await firstCheck.check();
+        await expect(firstCheck).toBeChecked();
+        await checklist.getByRole("button", { name: /réinitialiser la liste|reset the checklist/i }).click();
+        await expect(firstCheck).not.toBeChecked();
+      }
+      // Breadcrumbs live in BreadcrumbList JSON-LD only, never as visible page chrome.
+      await expect(page.getByRole("navigation", { name: /fil d’ariane|breadcrumb/i })).toHaveCount(0);
       await expect(page.locator("article")).toBeVisible();
       expect(await page.locator("article h2").count()).toBeGreaterThanOrEqual(7);
       await expect(page.locator("article li")).not.toHaveCount(0);
@@ -125,25 +148,32 @@ test("six bilingual guides render complete, crawlable editorial pages", async ({
       expect(types.filter((type) => type === "Article")).toHaveLength(1);
       expect(types.filter((type) => type === "BreadcrumbList")).toHaveLength(1);
       await expectNoHorizontalOverflow(page);
-    }
-  }
-
   expect(consoleErrors).toEqual([]);
   expect(pageErrors).toEqual([]);
   expect(badResponses).toEqual([]);
 });
 
-test("localized landing pages expose all three editorial guides", async ({ page }) => {
+renderedTest("localized landing guide links lead to all three editorial guides", async ({ page }) => {
+  renderedTest.setTimeout(180_000);
   for (const [path, localeRoutes] of [
     ["/", routes.filter((route) => route.lang === "fr-CA")],
     ["/en", routes.filter((route) => route.lang === "en-CA")]
   ] as const) {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto(path, { waitUntil: "domcontentloaded" });
-    const section = page.locator("#guides");
-    await expect(section).toBeVisible();
+    await expect(page.locator('.scene-canvas')).toHaveAttribute('data-ready', 'true', { timeout: 120_000 });
+    await expect(page.locator(".preloader")).toHaveCount(0);
+    const landingFooter = page.getByRole("contentinfo");
+    await landingFooter.scrollIntoViewIfNeeded();
+    const guidesLink = landingFooter.locator(`a[href="${localeRoutes[0].path}"]`);
+    await expect(guidesLink).toBeVisible();
+    await guidesLink.click();
+    await expect(page).toHaveURL(new RegExp(`${localeRoutes[0].path}$`), { timeout: 30_000 });
+    await expect(page.locator("article").first()).toBeVisible();
+    const section = page.locator("footer#contact");
+    await section.scrollIntoViewIfNeeded();
     for (const route of localeRoutes) {
-      await expect(section.locator(`a[href="${route.path}"]`)).toBeVisible();
+      await expect(section.getByRole("region", { name: "Guides", exact: true }).locator(`a[href="${route.path}"]`)).toBeVisible();
     }
     await expectNoHorizontalOverflow(page);
   }

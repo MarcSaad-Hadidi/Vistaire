@@ -1,0 +1,123 @@
+{
+  "createdAt": "2026-10-09T17:35:09.536Z",
+  "method": "Independent Three.js 3D scene rendered at native resolution, 8 source frames per second, optical motion interpolation to 24 output frames per second. No raster upscaling and no still-image camera pan.",
+  "sourceFrames": {
+    "fps": 8,
+    "loopFrames": 64,
+    "lookAheadFrames": 2
+  },
+  "encoding": {
+    "codec": "H.264",
+    "profile": "High",
+    "crf": 18,
+    "pixelFormat": "yuv420p",
+    "outputFps": 24,
+    "durationSeconds": 8,
+    "frames": 192,
+    "audio": false,
+    "fastStart": true,
+    "interpolation": "minterpolate=fps=24:mi_mode=mci:mc_mode=aobmc:me_mode=bidir:vsbmc=1"
+  },
+  "scene": {
+    "camera": "Periodic slow orbit inside the uploaded Restaurant in the evening GLB; exact pose at t=8 equals t=0",
+    "lighting": "Neutral ivory key, champagne rim, warm fill and environment reflections",
+    "materials": "Original Vistaire dish PBR textures; Original white-cloth table, chair and source accessories below the windows and painting; original Vistaire dish PBR textures; uploaded restaurant geometry and native WebP materials",
+    "effects": "Static shadow map, ACES filmic tone mapping, subtle vignette"
+  },
+  "sources": [
+    {
+      "path": "public/media/homard-mobile.glb",
+      "bytes": 8590900,
+      "sha256": "ed79969621acd82c0bb55cc3b7ec2973dfd8be843da7ee697ac57a0c059a3001"
+    },
+    {
+      "path": "public/media/souffle.glb",
+      "bytes": 1754380,
+      "sha256": "0ad050afaba40a739c0a2bc794e52a080125dc78072440d8ef0b0441093eee95"
+    },
+    {
+      "path": "public/assets/restaurant/restaurant-evening.glb",
+      "bytes": 4131356,
+      "sha256": "9c9a160387f36a6830f395e5c863b44ac79863513558ffe5e1bdf24e9e6931f1"
+    },
+    {
+      "path": "public/assets/restaurant-stone.webp",
+      "bytes": 537700,
+      "sha256": "58b265e64e72fbf591526fabbdae03362146957ccc57c9a409c49e0a40f2086b"
+    }
+  ],
+  "sourceRepository": "https://github.com/MarcSaad-Hadidi/Vistaire",
+  "sourceCommit": "cd91ec7556c9d6dcafe6d2d44b27f571abd1e0be",
+  "generator": "scripts/cinematic/render.mjs",
+  "sceneSource": "scripts/cinematic/stage.js",
+  "videos": [
+    {
+      "path": "public/media/cinematic-landscape.mp4",
+      "bytes": 2452664,
+      "sha256": "4d62ac4fe90bb689a966619cc539b30a313a0a4e2e39424138b83c6b6ef73965",
+      "metadata": {
+        "programs": [],
+        "streams": [
+          {
+            "codec_name": "h264",
+            "profile": "High",
+            "codec_type": "video",
+            "width": 1280,
+            "height": 720,
+            "pix_fmt": "yuv420p",
+            "r_frame_rate": "24/1",
+            "avg_frame_rate": "24/1",
+            "duration": "8.000000",
+            "nb_frames": "192"
+          }
+        ],
+        "format": {
+          "duration": "8.000000",
+          "size": "2452664"
+        }
+      },
+      "poster": {
+        "path": "public/assets/cinematic-landscape.webp",
+        "bytes": 98536,
+        "sha256": "e7ba5128bcd91200ff5bc309a5a0ae51e3b76b898f7d6162495fcd26d77038bf"
+      }
+    },
+    {
+      "path": "public/media/cinematic-portrait.mp4",
+      "bytes": 2788366,
+      "sha256": "9e6f75ae365eaec6ee49c0735732d8234be4f9a4e185586ca51c7b6297d5e621",
+      "metadata": {
+        "programs": [],
+        "streams": [
+          {
+            "codec_name": "h264",
+            "profile": "High",
+            "codec_type": "video",
+            "width": 720,
+            "height": 1280,
+            "pix_fmt": "yuv420p",
+            "r_frame_rate": "24/1",
+            "avg_frame_rate": "24/1",
+            "duration": "8.000000",
+            "nb_frames": "192"
+          }
+        ],
+        "format": {
+          "duration": "8.000000",
+          "size": "2788366"
+        }
+      },
+      "poster": {
+        "path": "public/assets/cinematic-portrait.webp",
+        "bytes": 107532,
+        "sha256": "68d9ad7b687c9b05e562a2e73e4b8ba3f41f581c243629ef21cb28e70a5766d9"
+      }
+    }
+  ],
+  "limitations": [
+    "Rendered source models retain the detail and appearance of the supplied Vistaire meshes.",
+    "These loops do not recreate the proprietary Oryzo footage.",
+    "Optical interpolation can produce small edge artifacts; selected interpolated frames must be inspected visually.",
+    "A native 1280 × 720 landscape render is HD, not 1080p or 4K."
+  ]
+}

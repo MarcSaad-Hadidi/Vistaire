@@ -66,14 +66,17 @@ async function expectNoHorizontalOverflow(page: Page) {
     .toBe(true);
 }
 
-test.describe("shared public menu smoke · one Chromium fixture", () => {
+test.describe("shared public menu smoke · one Chromium fixture", { tag: '@critical' }, () => {
   test.use({ viewport: MOBILE_VIEWPORT });
 
   test("generic demo navigates menu → dish → menu without early 3D requests", async ({ page }) => {
     const expectHealthy = installHealthChecks(page);
     const modelRequests: string[] = [];
     page.on("request", (request) => {
-      if (/\.(?:glb|usdz)(?:$|[?#])/i.test(request.url())) modelRequests.push(request.url());
+      const url = new URL(request.url());
+      // The discovery page owns a 3D room; dish/AR assets still require intent.
+      if (/\.(?:glb|usdz)(?:$|[?#])/i.test(url.pathname)
+        && !url.pathname.startsWith('/immersive-assets/')) modelRequests.push(request.url());
     });
 
     await expectHealthyNavigation(page, "/demo");

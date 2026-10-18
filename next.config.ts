@@ -1,3 +1,4 @@
+import { getPublicModelRedirects } from "./lib/publicModelAssets.ts";
 import { dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { NextConfig } from "next";
@@ -269,6 +270,8 @@ const nextConfig: NextConfig = {
   outputFileTracingIncludes: {
     ...OWNER_MODEL_PIPELINE_TRACE_INCLUDES_BY_ROUTE,
     "/api/owner/model-lab/optimize": MODEL_LAB_TRACE_INCLUDES,
+    // Read with fs at runtime; Next cannot infer these files from imports.
+    "/api/public/faq": ["docs/faq-knowledge/**/*"],
   },
   outputFileTracingExcludes: {
     ...OWNER_MODEL_PIPELINE_TRACE_EXCLUDES,
@@ -291,6 +294,7 @@ const nextConfig: NextConfig = {
   },
   async redirects() {
     return [
+      ...getPublicModelRedirects(),
       {
         source: "/carte-vistaire",
         destination: "/demo",
@@ -304,6 +308,8 @@ const nextConfig: NextConfig = {
         source: "/",
         headers: [...HOMEPAGE_AGENT_DISCOVERY_HEADERS],
       },
+      { source: "/immersive-assets/ar/:path*.usdz", headers: [...USDZ_MODEL_HEADERS, { key: "Accept-Ranges", value: "bytes" }] },
+      { source: "/immersive-assets/:path*.glb", headers: [...GLB_MODEL_HEADERS] },
       {
         source: "/models/demo/:path*.usdz",
         headers: [...USDZ_MODEL_HEADERS],

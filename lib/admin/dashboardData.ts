@@ -1,4 +1,5 @@
 import "server-only";
+import { buildStudioDishStatistics, type StudioDishStatistics } from "./studioData";
 
 import { buildRelationalSupabasePublicMenu, type PublicMenuDish } from "@/lib/menu/publicMenuCore";
 import { getNullableString, getString, readAnalyticsEventsForPeriod, readSupabaseRowsByFilters, type AnyRow } from "@/lib/analytics/serverRows";
@@ -11,6 +12,7 @@ export type AdminDashboardData = {
   restaurant: { id: string; name: string; slug: string; location: string | null; cuisineType: string | null; timezone: null; publicMenuPath: string };
   menu: { id: string; status: "published" | "draft"; categories: AdminMenuCategory[]; dishes: AdminMenuDish[]; readiness: AdminMenuReadiness };
   analytics: AdminAnalyticsState;
+  dishStatistics?: Record<string, StudioDishStatistics>;
 };
 export type AdminDashboardLoadResult = { ok: true; data: AdminDashboardData } | { ok: false; reason: "restaurant-lookup-failed" | "restaurant-not-found" | "menu-lookup-failed" };
 
@@ -59,5 +61,6 @@ export async function loadAdminDashboardDataWithDependencies(restaurantId: strin
   const lastUpdatedAt = currentEvents.reduce<string | null>((latest, row) => { const value = getNullableString(row, ["created_at"]); return value && (!latest || value > latest) ? value : latest; }, null);
   const readiness = buildAdminMenuReadiness(categories, dishes);
   const publicMenuPath = `/menu/${menu.slug}`;
-  return { ok: true, data: { restaurant: { id: restaurantId, name: getString(restaurantRow, ["name"], "Restaurant"), slug: menu.slug, location: getNullableString(restaurantRow, ["city", "location"]), cuisineType: getNullableString(restaurantRow, ["cuisine_type"]), timezone: null, publicMenuPath }, menu: { id: selectedMenu.id, status: selectedMenu.status, categories, dishes, readiness }, analytics: buildAdminAnalyticsState({ observationWindow: window, observedAt, events:currentEvents, previousEvents, analyticsScope:{restaurantId,menuId:selectedMenu.id,source:"production",metricDefinition:"all-events-v1"}, selectedMenuCategories:categories.map(({slug,label})=>({slug,label})), availableDishCount:readiness.counts.available, lastUpdatedAt, databaseError: !currentEventRead.ok || !previousEventRead.ok, truncated: (currentEventRead.ok && currentEventRead.truncated) || (previousEventRead.ok && previousEventRead.truncated), partialSource: !categoriesResult.ok || !dishesResult.ok }) } };
+  const analytics = buildAdminAnalyticsState({ observationWindow: window, observedAt, events:currentEvents, previousEvents, analyticsScope:{restaurantId,menuId:selectedMenu.id,source:"production",metricDefinition:"all-events-v1"}, selectedMenuCategories:categories.map(({slug,label})=>({slug,label})), availableDishCount:readiness.counts.available, lastUpdatedAt, databaseError: !currentEventRead.ok || !previousEventRead.ok, truncated: (currentEventRead.ok && currentEventRead.truncated) || (previousEventRead.ok && previousEventRead.truncated), partialSource: !categoriesResult.ok || !dishesResult.ok });
+  return { ok: true, data: { restaurant: { id: restaurantId, name: getString(restaurantRow, ["name"], "Restaurant"), slug: menu.slug, location: getNullableString(restaurantRow, ["city", "location"]), cuisineType: getNullableString(restaurantRow, ["cuisine_type"]), timezone: null, publicMenuPath }, menu: { id: selectedMenu.id, status: selectedMenu.status, categories, dishes, readiness }, analytics, dishStatistics: buildStudioDishStatistics(dishes, currentEvents, previousEvents, analytics.kind === "real" && analytics.panels.ranking.kind === "supported", analytics.kind === "real" && analytics.panels.dailyComparison.kind === "supported") } };
 }

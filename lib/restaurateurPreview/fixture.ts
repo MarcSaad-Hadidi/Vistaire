@@ -40,15 +40,15 @@ const dishes = [
   ["tartare-saumon-label-rouge", "entrees", "Tartare de saumon Label Rouge", "Label Rouge salmon tartare", 2400, true],
   ["ravioles-chevre-miel-monteregie", "entrees", "Ravioles chèvre et miel de Montérégie", "Goat cheese ravioli with Montérégie honey", 2200, true],
   ["homard-bleu-bisque-fenouil", "signatures", "Homard bleu, bisque et fenouil", "Blue lobster, bisque and fennel", 5800, true],
-  ["pave-boeuf-mature-bordelaise", "signatures", "Pavé de bœuf maturé, bordelaise", "Dry-aged beef, Bordelaise sauce", 5200, true],
+  ["pave-boeuf-mature-bordelaise", "signatures", "Pavé de bœuf maturé, bordelaise", "Matured beef, Bordelaise sauce", 5200, true],
   ["canette-rotie-figues-epices", "signatures", "Canette rôtie, figues et épices", "Roasted duckling, figs and spices", 4600, true],
-  ["bar-de-ligne-artichaut-citron", "signatures", "Bar de ligne, artichaut et citron", "Line-caught sea bass, artichoke and lemon", 4900, false],
+  ["bar-de-ligne-artichaut-citron", "signatures", "Bar de ligne, artichaut et citron", "Sea bass caught by line, artichoke and lemon", 4900, false],
   ["risotto-cepes-parmesan", "signatures", "Risotto aux cèpes et parmesan", "Porcini and Parmesan risotto", 3600, true],
   ["souffle-chocolat-grand-cru", "desserts", "Soufflé chocolat grand cru", "Grand cru chocolate soufflé", 1800, true],
   ["tarte-citron-basilic-pourpre", "desserts", "Tarte citron et basilic pourpre", "Lemon tart with purple basil", 1600, true],
   ["maison-elyse-n1", "cocktails", "Maison Élyse N°1", "Maison Élyse No. 1", 1900, true],
   ["elixir-bergamote-earl-grey", "cocktails", "Élixir bergamote et Earl Grey", "Bergamot and Earl Grey elixir", 1700, true],
-  ["negroni-vieilli-fut", "cocktails", "Negroni vieilli en fût", "Barrel-aged Negroni", 2100, false]
+  ["negroni-vieilli-fut", "cocktails", "Negroni vieilli en fût", "Negroni aged in a barrel", 2100, false]
 ].map(([id, categoryId, fr, en, priceCents, available]) => ({
   id: id as string,
   categoryId: categoryId as string,
@@ -158,7 +158,7 @@ const label = (fr: string, en = fr) => text(fr, en);
 
 export const RESTAURATEUR_PREVIEW_FIXTURE: RestaurateurPreviewFixture = {
   generatedAt: "2026-08-08T22:00:00.000Z",
-  restaurant: { demo: true, name: text("Maison Élyse — Démo", "Maison Élyse — Demo") },
+  restaurant: { demo: true, name: text("Maison Élyse · Démo", "Maison Élyse · Demo") },
   categories: [...categories],
   dishes,
   periods: {
@@ -188,7 +188,7 @@ export const RESTAURATEUR_PREVIEW_FIXTURE: RestaurateurPreviewFixture = {
       metrics(4540,11810,1490,760),
       series([420,445,462,478,501,520,538,524,506,496], [1080,1125,1180,1215,1260,1305,1360,1340,1390,1385], [128,135,142,149,155,162,170,178,190,201], [68,72,76,80,84,89,94,99,109,119]),
       series([390,410,430,445,462,478,493,490,476,466], [1010,1050,1100,1135,1175,1220,1270,1255,1300,1295], [120,125,132,138,144,150,158,165,175,183], [58,62,65,69,72,76,80,84,94,100]),
-      [label("1–3"),label("4–6"),label("7–9"),label("10–12"),label("13–15"),label("16–18"),label("19–21"),label("22–24"),label("25–27"),label("28–30")],
+      [label("1-3"),label("4-6"),label("7-9"),label("10-12"),label("13-15"),label("16-18"),label("19-21"),label("22-24"),label("25-27"),label("28-30")],
       [2200,1050,2680,1810,1640,1310,760,480,300,190,125,95], [420,315,270,230,205,170], [890,2740,5670,4020,6710],
       (_currentSeries, serviceCounts) => heatmapFromMargins(heatWeekdayTotals30d, serviceCounts)
     )

@@ -12,10 +12,10 @@ const PUBLIC_FILES_FOR_THIS_TASK = [
   "components/vistaire-preview/PricingLaunchWorkflow.tsx",
   "components/vistaire-preview/PricingPageExtensions.module.css",
   "lib/pricingPage.ts",
-  "public/images/pricing/vistaire-acrylique.jpg",
-  "public/images/pricing/vistaire-sculpte.jpg",
-  "public/images/pricing/vistaire-carre.png",
-  "public/images/pricing/vistaire-signature.jpg"
+  "public/images/marketing/pricing-acrylique-setting.webp",
+  "public/images/marketing/pricing-sculpte-setting.webp",
+  "public/images/marketing/pricing-carre-setting.webp",
+  "public/images/marketing/pricing-signature-setting.webp"
 ];
 
 const EXPECTED_COLLECTIONS = [
@@ -26,10 +26,10 @@ const EXPECTED_COLLECTIONS = [
 ];
 
 const EXPECTED_COLLECTION_IMAGES = [
-  "/images/pricing/vistaire-acrylique.jpg",
-  "/images/pricing/vistaire-sculpte.jpg",
-  "/images/pricing/vistaire-carre.png",
-  "/images/pricing/vistaire-signature.jpg"
+  "/images/marketing/pricing-acrylique-setting.webp",
+  "/images/marketing/pricing-sculpte-setting.webp",
+  "/images/marketing/pricing-carre-setting.webp",
+  "/images/marketing/pricing-signature-setting.webp"
 ];
 
 const LEGACY_PRICING_TERMS = [

@@ -1,3 +1,4 @@
+import { resolvePublicModelUrl } from "./publicModelAssets.ts";
 import type { Locale } from "./i18n.ts";
 import type { GoogleReviewConfig } from "./menu/publicMenuCore.ts";
 import type { DishAllergenDeclaration } from "./menu/allergens.ts";
@@ -800,10 +801,14 @@ function localizeCategory(category: Category, locale: Locale): Category {
 }
 
 function localizeDish(dish: Dish, locale: Locale): Dish {
-  if (locale !== "en") return dish;
   return {
     ...dish,
-    ...(DISH_TRANSLATIONS_EN[dish.slug] ?? {})
+    ...(locale === "en" ? DISH_TRANSLATIONS_EN[dish.slug] ?? {} : {}),
+    model3dUrl: resolvePublicModelUrl(dish.model3dUrl),
+    webModel3dUrl: dish.webModel3dUrl ? resolvePublicModelUrl(dish.webModel3dUrl) : dish.webModel3dUrl,
+    arModel3dUrl: dish.arModel3dUrl ? resolvePublicModelUrl(dish.arModel3dUrl) : dish.arModel3dUrl,
+    usdzUrl: resolvePublicModelUrl(dish.usdzUrl),
+    arUsdzUrl: dish.arUsdzUrl ? resolvePublicModelUrl(dish.arUsdzUrl) : dish.arUsdzUrl,
   };
 }
 

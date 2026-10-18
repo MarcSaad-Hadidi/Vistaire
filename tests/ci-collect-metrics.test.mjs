@@ -8,6 +8,20 @@ import { analyzeJobs, collectMetrics, MetricsConsistencyError } from "../scripts
 const times = { started_at: "2026-08-03T10:00:00Z", completed_at: "2026-08-03T10:01:00Z" };
 const job = (name, conclusion = "success", extra = {}) => ({ id: Math.random(), name, status: "completed", conclusion, ...times, steps: [], ...extra });
 
+test("matrix outputs retain every shard's test counts when the PR has no API token", async () => {
+  const report = { total: 2, passed: 1, failed: 1, skipped: 0, flaky: 0, interrupted: 0 };
+  const metrics = await collectMetrics({
+    env: { CI_TEST_REPORTS_JSON: JSON.stringify({ "e2e-public-chromium": { outputs: {
+      test_shards: "12",
+      ...Object.fromEntries(Array.from({ length: 12 }, (_, index) => [`test_report_${index + 1}`, JSON.stringify(report)]))
+    } } }) },
+    write: async () => {}
+  });
+  assert.equal(metrics.tests.total, 24);
+  assert.equal(metrics.tests.failed, 12);
+  assert.equal(metrics.tests.report_sources, 12);
+});
+
 test("green run excludes the collector and reports zero job failures", () => {
   const result = analyzeJobs([
     job("classify-changes"),
@@ -98,7 +112,7 @@ test("structured PR reports remain measurable when the API token is withheld", a
     CI_TEST_REPORTS_JSON: JSON.stringify({
       "e2e-public-chromium": { outputs: { test_report: report(28) } },
       "e2e-sauge-chromium": { outputs: { test_report: report(66) } },
-      "e2e-admin-qr-chromium": { outputs: { test_report: report(7) } },
+      "e2e-admin-browser": { outputs: { test_report: report(7) } },
       "webkit-critical": { outputs: { test_report: report(10) } }
     })
   };

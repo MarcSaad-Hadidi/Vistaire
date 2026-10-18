@@ -46,7 +46,9 @@ const PUBLIC_PREVIEW_SHARED_DEPENDENCIES = new Set([
   "components/admin/system/adminicons.tsx",
   "components/admin/system/adminpresentationprimitives.tsx",
   "components/admin/system/adminsystem.module.css",
-  "lib/adminpresentationcopy.ts"
+  "lib/adminpresentationcopy.ts",
+  "lib/admin/studioexport.ts",
+  "lib/admin/studioexportfiles.ts"
 ]);
 
 // These are the only job-policy outputs consumed by App CI.  Keeping the
@@ -108,7 +110,7 @@ export function classifyPath(input) {
   if (/^\.github\/(?:workflows|actions)\//.test(lower) || lower === ".github/dependabot.yml" ||
       /^scripts\/ci\//.test(lower) || lower === "scripts/run-playwright-e2e.mjs" ||
       /^playwright\.config\.(?:[cm]?js|ts|mts|cts)$/.test(lower) ||
-      /(?:ci|contract).*\.test\.(?:mjs|js|ts)$/.test(base)) {
+      /(?:^|-)(?:ci|workflow)-.*\.test\.(?:mjs|js|ts)$/.test(base)) {
     add(categories, "ci_infrastructure");
   }
 
@@ -121,7 +123,7 @@ export function classifyPath(input) {
     add(categories, "assets");
   }
 
-  if (/^public\/(?:images\/landing|videos\/|frames\/menualive)/.test(lower)) {
+  if (/^public\/(?:images\/landing|immersive-assets\/|videos\/|frames\/menualive)/.test(lower)) {
     add(categories, "landing");
   }
 
@@ -137,14 +139,19 @@ export function classifyPath(input) {
     add(categories, "translations");
   }
 
-  if (/^(?:app\/(?:\(?(?:landing|marketing)\)?|page(?:\.|\/)|\(fr\)\/page\.tsx)|components\/landing\/|lib\/landing\/|styles\/landing(?:\/|\.|$)|e2e\/landing[-/])/.test(lower) ||
+  if (/^(?:app\/(?:\(?(?:landing|marketing)\)?|page(?:\.|\/)|\(fr\)\/page\.tsx)|components\/(?:landing|immersive)\/|lib\/landing\/|styles\/landing(?:\/|\.|$)|e2e\/landing[-/])/.test(lower) ||
       /(?:landing|marketing|showcase)/.test(base)) {
     add(categories, "landing");
   }
 
   if (/^(?:lib\/seo|app\/(?:robots|sitemap)(?:\.|\/|$)|app\/(?:seo|geo)(?:\/|$)|app\/\(fr\)\/\((?:seo|geo)\)(?:\/|$)|e2e\/seo[-/])/.test(lower) ||
+      /^(?:components\/(?:seo|guides)\/|app\/\((?:fr|en)\)\/(?:en\/)?(?:\((?:seo|geo)\)\/|guides\/)|e2e\/prompt5-)/.test(lower) ||
+      /^app\/\(en\)\/en\/(?:digital-restaurant-menu|qr-code-restaurant-menu|3d-ar-restaurant-menu|pdf-vs-digital-menu)\//.test(lower) ||
+      /^components\/immersive\/pages\/(?:digitalmenu|menuqr|menu3dar|pdfmenu|editorialguide)cinematic\./.test(lower) ||
       /(?:^|[-_.])seo(?:[-_.]|$)|metadata|json-ld/.test(base)) {
     add(categories, "seo");
+    // A page in the shared room still owns SEO coverage, not landing choreography.
+    if (lower.startsWith('components/immersive/pages/')) categories.delete('landing');
   }
 
   if (/^(?:components\/menu\/|lib\/menu\/|app\/(?:\(fr\)\/menu|menu|api\/(?:public\/)?menu(?:[-/]))|e2e\/menu[-/])/.test(lower) ||
@@ -167,7 +174,7 @@ export function classifyPath(input) {
     add(categories, "admin");
   }
 
-  if (/qr|qr-codes|qrcode/.test(lower)) add(categories, "qr");
+  if (/qr|qr-codes|qrcode/.test(lower) && !categories.has('seo')) add(categories, "qr");
 
   // Public preview chrome owns the navigation contract.  Keep this signal
   // alongside specialised categories (for example the QR preview) so a
@@ -175,11 +182,11 @@ export function classifyPath(input) {
   // admin QR classification.
   if (
     /^components\/vistaire-preview\//.test(lower) ||
-    /^components\/admin\/charts\//.test(lower) ||
+    /^components\/admin\/(?:charts|studio)\//.test(lower) ||
     PUBLIC_PREVIEW_SHARED_DEPENDENCIES.has(lower) ||
     /^lib\/restaurateurpreview\//.test(lower) ||
     /^e2e\/restaurateur-preview(?:-[^/]+)?\.spec\.ts$/.test(lower) ||
-    PUBLIC_NAVIGATION_CALLSITES.has(lower) ||
+    PUBLIC_NAVIGATION_CALLSITES.has(lower) && !categories.has('seo') ||
     lower === "e2e/public-navigation.spec.ts"
   ) {
     add(categories, "public_navigation");
@@ -284,7 +291,7 @@ export function deriveRunOutputs(flags) {
     run_sauge: full || flags.sauge_renderer === true || flags.pageflip_gestures === true,
     run_admin_qr: full || flags.admin === true || flags.qr === true,
     run_seo: full || flags.seo === true,
-    run_webkit: full || flags.public_navigation === true || flags.menu_shared === true || flags.translations === true ||
+    run_webkit: full || flags.landing === true || flags.public_navigation === true || flags.menu_shared === true || flags.translations === true ||
       flags.sauge_renderer === true || flags.pageflip_gestures === true
   };
 }
