@@ -39,7 +39,7 @@ test("menu dwell excludes ancestor-hidden time outside the observed reading root
       };
       if (name === "@/lib/analytics/client") return {
         trackPublicMenuEvent: (_menu, event) => emitted.push(event),
-        trackPublicMenuSessionStarted() {},
+        registerPublicMenuVisibility() { return () => {}; },
       };
       throw new Error(`Unexpected hook dependency: ${name}`);
     },

@@ -63,7 +63,7 @@ function createSessionId(): string {
 }
 
 let memorySession: { id: string; expires: number; sequence: number; started?: string[] } | undefined;
-function getSessionId(): string {
+function getSessionId(reservedEvents = 1, allowRotation = true): string {
   const now = Date.now();
   try {
     const raw = window.sessionStorage.getItem(SESSION_KEY);
@@ -72,7 +72,8 @@ function getSessionId(): string {
       if (UUID_PATTERN.test(saved.id) && saved.expires > now && saved.expires <= now + 1800000) memorySession = saved;
     }
   } catch { /* In-memory session works when storage is unavailable. */ }
-  if (!memorySession || memorySession.expires <= now || memorySession.sequence >= 3600) {
+  if (!memorySession || memorySession.expires <= now || memorySession.sequence + reservedEvents > 3600) {
+    if (!allowRotation) return "";
     memorySession = { id: createSessionId(), expires: now + 1800000, sequence: 0 };
     try { window.sessionStorage.setItem(SESSION_KEY, JSON.stringify(memorySession)); } catch { /* No persistence required. */ }
   }
@@ -99,10 +100,27 @@ function browserMetadata() {
 let rateWindow = 0;
 let rateCount = 0;
 
+type VisibleMenu = { menu: PublicMenuAnalyticsInput; dish?: { slug: string; categorySlug?: string }; isVisible: () => boolean; opening: { sessionId?: string } };
+const visibleMenus = new Set<VisibleMenu>();
+
+/** Registration does not collect anything until the public surface is visibly active. */
+export function registerPublicMenuVisibility(menu: PublicMenuAnalyticsInput, dish: VisibleMenu["dish"], isVisible: () => boolean, opening: { sessionId?: string } = {}): () => void {
+  const registration = { menu, dish, isVisible, opening };
+  if (visibleMenus.size < 120) visibleMenus.add(registration);
+  return () => { visibleMenus.delete(registration); };
+}
+
+function collectionAllowed(): boolean {
+  return typeof window !== "undefined" && process.env.NEXT_PUBLIC_ANALYTICS_DISABLED !== "true" &&
+    !(typeof navigator !== "undefined" && (navigator.doNotTrack === "1" || (navigator as Navigator & { globalPrivacyControl?: boolean }).globalPrivacyControl));
+}
+
 export function trackMenuEvent(input: TrackMenuEventInput): void {
-  if (typeof window === "undefined") return;
-  if (typeof navigator !== "undefined" && (navigator.doNotTrack === "1" || (navigator as Navigator & { globalPrivacyControl?: boolean }).globalPrivacyControl)) return;
-  if (process.env.NEXT_PUBLIC_ANALYTICS_DISABLED === "true") return;
+  sendMenuEvent(input);
+}
+
+function sendMenuEvent(input: TrackMenuEventInput, initialize = true, batchSessionId?: string): boolean {
+  if (!collectionAllowed()) return false;
   const source = input.source ?? "demo";
   const restaurantId =
     input.restaurantId ?? (source === "demo" ? DEMO_RESTAURANT_ID : undefined);
@@ -111,9 +129,33 @@ export function trackMenuEvent(input: TrackMenuEventInput): void {
     if (process.env.NODE_ENV !== "production") {
       console.warn("[Vistaire analytics] missing relational menu context");
     }
-    return;
+    return false;
+  }
+  const matching = initialize ? [...visibleMenus].filter(entry => {
+    const context = getPublicMenuAnalyticsContext(entry.menu);
+    return context?.source === source && context.restaurantId === restaurantId && context.menuId === menuId &&
+      (source !== "demo" || !input.metadata?.demoMenu || input.metadata.demoMenu === (entry.menu.slug === "trouvable" ? "le-trouvable" : entry.menu.slug));
+  }) : [];
+  const active = matching.filter(entry => entry.isVisible());
+  const visible = (input.dishSlug ? active.find(entry => entry.dish?.slug === input.dishSlug) : undefined) ??
+    active.find(entry => !entry.dish) ?? active[0];
+  // Reserve start, page opening and triggering event together. Never recurse into initialization.
+  const sessionId = batchSessionId ?? getSessionId(visible ? 3 : 1, Boolean(visible) || matching.length === 0);
+  if (!sessionId) return false;
+  if (visible && memorySession) {
+    if (!startPublicMenuSession(visible.menu, sessionId)) return false;
+    const opening = visible.dish ? "dish_opened" : "menu_opened";
+    if (visible.opening.sessionId !== sessionId) {
+      const accepted = sendMenuEvent({ ...getPublicMenuAnalyticsContext(visible.menu)!, eventName: opening,
+        dishSlug: visible.dish?.slug, categorySlug: visible.dish?.categorySlug,
+        metadata: { pageType: visible.dish ? "dish" : "menu", ...(source === "demo" ? sanitizeAnalyticsMetadata({demoMenu: visible.menu.slug === "trouvable" ? "le-trouvable" : visible.menu.slug}) : {}) } }, false, sessionId);
+      if (!accepted) return false;
+      visible.opening.sessionId = sessionId;
+    }
+    if (input.eventName === opening && input.dishSlug === visible.dish?.slug) return true;
   }
   const dedupeKey = [
+    sessionId,
     source,
     restaurantId,
     menuId,
@@ -126,16 +168,15 @@ export function trackMenuEvent(input: TrackMenuEventInput): void {
   ].join(":");
   const now = Date.now();
   if (now - rateWindow >= 60000) { rateWindow = now; rateCount = 0; }
-  if (rateCount >= 120) return;
+  if (rateCount >= 120) return false;
   for (const [key, timestamp] of recentEvents) if (now - timestamp >= 1000) recentEvents.delete(key);
   const lastSeen = recentEvents.get(dedupeKey) ?? 0;
   const durationDelta = ["session_duration", "dish_dwell", "model_active_duration"].includes(input.eventName);
-  if (!durationDelta && now - lastSeen < 1_000) return;
+  if (!durationDelta && now - lastSeen < 1_000) return false;
   recentEvents.set(dedupeKey, now);
   rateCount += 1;
-  const sessionId = getSessionId();
   const eventId = createSessionId();
-  if (!sessionId || !eventId) return;
+  if (!sessionId || !eventId) return false;
   const queryLength = input.searchQuery?.trim().length;
 
   const payload: AnalyticsEventPayload = {
@@ -168,6 +209,7 @@ export function trackMenuEvent(input: TrackMenuEventInput): void {
       console.debug("[Vistaire analytics] event skipped", error);
     }
   });
+  return true;
 }
 
 export function getPublicMenuAnalyticsContext(
@@ -202,17 +244,23 @@ export function trackPublicMenuEvent(
 }
 
 /** Call only when the menu or dish is actually visible. */
-export function trackPublicMenuSessionStarted(menu: PublicMenuAnalyticsInput): void {
-  if (typeof window === "undefined") return;
+export function trackPublicMenuSessionStarted(menu: PublicMenuAnalyticsInput): boolean {
+  return startPublicMenuSession(menu);
+}
+
+function startPublicMenuSession(menu: PublicMenuAnalyticsInput, batchSessionId?: string): boolean {
+  if (!collectionAllowed()) return false;
   const context = getPublicMenuAnalyticsContext(menu);
-  if (!context) return;
-  getSessionId();
-  if (!memorySession) return;
+  if (!context) return false;
+  const sessionId = batchSessionId ?? getSessionId();
+  if (!sessionId || !memorySession) return false;
   const demo = context.source === "demo" ? sanitizeAnalyticsMetadata({ demoMenu: menu.slug === "trouvable" ? "le-trouvable" : menu.slug }).demoMenu ?? "" : "";
   const key = `${context.source}:${context.restaurantId}:${context.menuId}:${demo}`;
   const started = Array.isArray(memorySession.started) ? memorySession.started.slice(0, 120) : [];
-  if (started.includes(key) || started.length >= 120) return;
+  if (started.includes(key)) return true;
+  if (started.length >= 120) return false;
+  if (!sendMenuEvent({ ...context, eventName: "session_started", metadata: demo ? { demoMenu: demo } : {} }, false, sessionId)) return false;
   memorySession.started = [...started, key];
   try { window.sessionStorage.setItem(SESSION_KEY, JSON.stringify(memorySession)); } catch { /* Memory-only session. */ }
-  trackPublicMenuEvent(menu, { eventName: "session_started" });
+  return true;
 }

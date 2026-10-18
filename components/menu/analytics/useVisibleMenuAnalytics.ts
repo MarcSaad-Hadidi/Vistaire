@@ -1,12 +1,13 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { trackPublicMenuEvent, trackPublicMenuSessionStarted } from "@/lib/analytics/client";
+import { trackPublicMenuEvent, registerPublicMenuVisibility } from "@/lib/analytics/client";
 import type { PublicMenu, PublicMenuDish } from "@/lib/menu/publicMenuCore";
 
 /** Only visible, foreground reading time. No URLs, query text or user identity. */
 export function useVisibleMenuAnalytics(menu: PublicMenu, enabled: boolean, dish?: PublicMenuDish | null) {
   const rootRef = useRef<HTMLElement | null>(null);
+  const openings = useRef(new Map<string, { sessionId?: string }>());
   const seen = useRef(new Set<string>());
   useEffect(() => {
     const root = rootRef.current;
@@ -20,6 +21,13 @@ export function useVisibleMenuAnalytics(menu: PublicMenu, enabled: boolean, dish
     const emit = (eventName: Parameters<typeof trackPublicMenuEvent>[1]["eventName"], item = dish, metadata = {}) =>
       trackPublicMenuEvent(menu, { eventName, dishSlug: item?.slug, categorySlug: item?.categorySlug, metadata: { pageType, ...metadata } });
     const isActive = () => !pageHidden && document.visibilityState === "visible" && document.hasFocus() && !root.closest('[aria-hidden="true"], [inert], [hidden], [data-transition-preview="true"]');
+    let opening = openings.current.get(identity);
+    if (!opening) {
+      opening = {};
+      if (openings.current.size >= 120) openings.current.delete(openings.current.keys().next().value!);
+      openings.current.set(identity, opening);
+    }
+    const unregister = registerPublicMenuVisibility(menu, dish ?? undefined, () => isActive() && intersecting, opening);
     const once = (key: string, action: () => void) => {
       if (seen.current.has(key)) return;
       seen.current.add(key);
@@ -37,10 +45,7 @@ export function useVisibleMenuAnalytics(menu: PublicMenu, enabled: boolean, dish
     const sync = () => {
       if (!isActive() || !intersecting) { flush(); return; }
       if (started === null) started = performance.now();
-      once(identity, () => {
-        trackPublicMenuSessionStarted(menu);
-        emit(dish ? "dish_opened" : "menu_opened");
-      });
+      emit(dish ? "dish_opened" : "menu_opened");
       for (const [element, item] of visibleItems) {
         if (element.closest('[aria-hidden="true"], [inert], [hidden], [data-transition-preview="true"], [data-sauge-flip-page-index]')) continue;
         once(`${identity}:list`, () => emit("menu_list_viewed", null));
@@ -96,7 +101,7 @@ export function useVisibleMenuAnalytics(menu: PublicMenu, enabled: boolean, dish
     window.addEventListener("pagehide", hide);
     window.addEventListener("pageshow", show);
     return () => {
-      flush(); observer.disconnect(); mutation.disconnect(); ancestors.disconnect();
+      flush(); unregister(); observer.disconnect(); mutation.disconnect(); ancestors.disconnect();
       window.clearInterval(interval);
       root.removeEventListener("click", click);
       document.removeEventListener("visibilitychange", sync);
