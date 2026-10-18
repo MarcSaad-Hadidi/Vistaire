@@ -22,14 +22,10 @@ test('scheduling isolation resets independent fixture state before and after fai
 
 test('fixture reset restores availability, timezone, schedules, history and replay state', async (t) => {
   const { spawn } = await import('node:child_process');
-  const { once } = await import('node:events');
   const child = spawn(process.execPath, ['e2e/support/admin-visual-fixture-server.mjs'], { env: { ...process.env, VISTAIRE_ADMIN_VISUAL_FIXTURE_PORT: '0', VISTAIRE_ADMIN_FIXTURE_SCENARIO: 'full-menu' }, stdio: ['ignore', 'pipe', 'pipe'] });
-  t.after(async () => { const exited = once(child, 'exit'); child.kill('SIGTERM'); await exited; });
-  const port = await new Promise((resolve, reject) => {
-    const timer = setTimeout(() => reject(new Error('Fixture startup timeout')), 15000);
-    child.once('error', reject);
-    child.stdout.on('data', (chunk) => { const match = chunk.toString().match(/ready on (\d+)/); if (match) { clearTimeout(timer); resolve(match[1]); } });
-  });
+  const lifecycle = observeFixture(child);
+  t.after(lifecycle.stop);
+  const port = await lifecycle.ready;
   const origin = `http://127.0.0.1:${port}`;
   const get = async (table) => (await fetch(`${origin}/rest/v1/${table}`)).json();
   const post = async (path, body) => fetch(`${origin}/${path}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
@@ -47,4 +43,43 @@ test('fixture reset restores availability, timezone, schedules, history and repl
   assert.deepEqual(await Promise.all(names.map(get)), baseline);
   // Same request ID with a different payload succeeds after reset: no stale replay.
   assert.equal((await post('rest/v1/rpc/save_admin_dish_schedule', { ...schedule, p_base_available: true })).status, 200);
+});
+
+function observeFixture(child) {
+  // Register immediately. close also fires after spawn errors, unlike exit.
+  const closed = new Promise(resolve => child.once('close', resolve));
+  const ready = new Promise((resolve, reject) => {
+    const fail = (error) => { clearTimeout(timer); reject(error); };
+    const timer = setTimeout(() => fail(new Error('Fixture startup timeout')), 15000);
+    child.once('error', fail);
+    child.once('exit', (code, signal) => fail(new Error(`Fixture exited before readiness: ${code ?? signal}`)));
+    child.stdout?.on('data', (chunk) => {
+      const match = chunk.toString().match(/ready on (\d+)/);
+      if (match) { clearTimeout(timer); resolve(match[1]); }
+    });
+  });
+  return {
+    ready,
+    stop: async () => {
+      if (child.exitCode === null && child.signalCode === null) child.kill('SIGTERM');
+      await closed;
+    },
+  };
+}
+
+test('fixture cleanup settles after an early startup exit', { timeout: 5000 }, async () => {
+  const { spawn } = await import('node:child_process');
+  const lifecycle = observeFixture(spawn(process.execPath, ['-e', 'process.exit(7)'], { stdio: ['ignore', 'pipe', 'pipe'] }));
+  await assert.rejects(lifecycle.ready, /exited before readiness: 7/);
+  // Let close fire before cleanup, reproducing the original missed-event race.
+  await new Promise(resolve => setImmediate(resolve));
+  await lifecycle.stop();
+  await lifecycle.stop();
+});
+
+test('fixture cleanup settles after a spawn failure', { timeout: 5000 }, async () => {
+  const { spawn } = await import('node:child_process');
+  const lifecycle = observeFixture(spawn('/nonexistent/vistaire-fixture-node', [], { stdio: ['ignore', 'pipe', 'pipe'] }));
+  await assert.rejects(lifecycle.ready, /ENOENT/);
+  await lifecycle.stop();
 });

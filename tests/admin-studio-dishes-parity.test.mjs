@@ -46,3 +46,11 @@ test("dishes show only complete known view shares and preserve real read-only mu
     /Model\.|NOW|localStorage|Math\.random|2026-10-10/,
   );
 });
+
+test("dish rows describe manual precedence only when scheduling readiness is known", async () => {
+  const source = await readFile("components/admin/studio/StudioDishes.tsx", "utf8");
+  assert.doesNotMatch(source, /Automatic scheduling is not connected|Planification automatique non connectée/);
+  assert.match(source, /data.schedulingStatus === "available"/);
+  assert.match(source, /A manual change takes priority over schedules/);
+  assert.match(source, /Une modification manuelle prime sur les horaires/);
+});

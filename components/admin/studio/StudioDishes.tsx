@@ -429,11 +429,13 @@ export function StudioDishes({
                         : t("Disponibilité enregistrée")}
                     </p>
                   </div>
-                  <p className={dishesStyles.nextStatus}>
-                    {locale === "en"
-                      ? "Automatic scheduling is not connected"
-                      : "Planification automatique non connectée"}
-                  </p>
+                  {data.schedulingStatus === "available" && (
+                    <p className={dishesStyles.nextStatus}>
+                      {locale === "en"
+                        ? "A manual change takes priority over schedules"
+                        : "Une modification manuelle prime sur les horaires"}
+                    </p>
+                  )}
                   <div className={dishesStyles.dishControls}>
                     <StudioSwitch
                       checked={isAvailable}
