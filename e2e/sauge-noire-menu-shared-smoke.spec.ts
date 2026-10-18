@@ -58,12 +58,12 @@ async function expectTelemetryEvent(events: MenuTelemetry[], eventName: string, 
     { message: `Expected ${eventName} for restaurant ${restaurantId}, menu ${menuId}; captured events follow` }
   ).toContain(eventName);
 }
-async function expectMenuTelemetry(events: MenuTelemetry[], restaurantId: string, menuId: string) {
+async function expectMenuTelemetry(events: MenuTelemetry[], restaurantId: string, menuId: string, source: "production" | "demo" = "production") {
   for (const eventName of ["menu_opened", "menu_list_viewed", "dish_visible", "dish_selected", "dish_opened"]) {
     await expectTelemetryEvent(events, eventName, restaurantId, menuId);
   }
   const tenantEvents = events.filter(event => event.restaurantId === restaurantId);
-  expect(tenantEvents.every(event => event.source === "production" && event.menuId === menuId)).toBe(true);
+  expect(tenantEvents.every(event => event.source === source && event.menuId === menuId)).toBe(true);
   expect(tenantEvents.filter(event => event.eventName === "dish_opened")).toHaveLength(1);
   expect(JSON.stringify(events)).not.toMatch(/searchQuery|referrer|private-query@example/);
   expect(events.some(event => event.eventName === "ar_outcome" && event.metadata?.outcome === "presenting")).toBe(false);
@@ -97,6 +97,9 @@ async function expectNoHorizontalOverflow(page: Page) {
 test.describe("shared public menu smoke · one Chromium fixture", { tag: '@critical' }, () => {
   test.use({ viewport: MOBILE_VIEWPORT });
 
+  // The runner explicitly selects the complete static Maison demo fixture,
+  // whose analytics uses the configured demo restaurant and sentinel menu.
+  // Sauge and Trouvable below exercise relational production-context fixtures.
   test("generic demo navigates menu → dish → menu without early 3D requests", async ({ page }) => {
     const expectHealthy = installHealthChecks(page);
     const telemetry = await interceptTelemetry(page);
@@ -119,20 +122,20 @@ test.describe("shared public menu smoke · one Chromium fixture", { tag: '@criti
     // SSR links work before hydration. Remain on this page until the client
     // observer has actually seen the menu and card before navigating away.
     for (const eventName of ["menu_opened", "menu_list_viewed", "dish_visible"]) {
-      await expectTelemetryEvent(telemetry, eventName, "11111111-1111-4111-8111-111111111112", "22222222-2222-4222-8222-222222222223");
+      await expectTelemetryEvent(telemetry, eventName, "11111111-1111-4111-8111-111111111112", "22222222-2222-2222-2222-222222222222");
     }
     await dish.click();
     await expect(page).toHaveURL(/\/menu\/maison-elyse\/dishes\//);
     await expect(page.getByRole("heading", { level: 1, name: /Ravioles/i })).toBeVisible({ timeout: 15_000 });
     // The server-rendered heading/back link can precede the detail effect and
     // its first IntersectionObserver callback on a cold client chunk.
-    await expectTelemetryEvent(telemetry, "dish_selected", "11111111-1111-4111-8111-111111111112", "22222222-2222-4222-8222-222222222223");
-    await expectTelemetryEvent(telemetry, "dish_opened", "11111111-1111-4111-8111-111111111112", "22222222-2222-4222-8222-222222222223");
+    await expectTelemetryEvent(telemetry, "dish_selected", "11111111-1111-4111-8111-111111111112", "22222222-2222-2222-2222-222222222222");
+    await expectTelemetryEvent(telemetry, "dish_opened", "11111111-1111-4111-8111-111111111112", "22222222-2222-2222-2222-222222222222");
     await page.getByRole("link", { name: /Retour/i }).first().click();
     await expect(page).toHaveURL(/\/menu\/maison-elyse\?/);
     await expect(page.getByRole("heading", { name: "LA CARTE" })).toBeVisible();
     await expectNoHorizontalOverflow(page);
-    await expectMenuTelemetry(telemetry, "11111111-1111-4111-8111-111111111112", "22222222-2222-4222-8222-222222222223");
+    await expectMenuTelemetry(telemetry, "11111111-1111-4111-8111-111111111112", "22222222-2222-2222-2222-222222222222", "demo");
     expect(modelRequests).toEqual([]);
     expectHealthy();
   });

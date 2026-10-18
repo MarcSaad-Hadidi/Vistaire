@@ -22,6 +22,7 @@ const tables = {
 for (const [table, rows] of Object.entries(saugeNoireFixture)) {
   tables[table] = [...(tables[table] ?? []), ...structuredClone(rows)];
 }
+const baselineTables = structuredClone(tables);
 const qrTokenHash = `sha256:${createHash("sha256").update(ADMIN_VISUAL_QR_TOKEN).digest("hex")}`;
 
 const demoImages = new Map(
@@ -147,8 +148,12 @@ async function handleRpc(request, response, name) {
 }
 
 const port = Number(process.env.VISTAIRE_ADMIN_VISUAL_FIXTURE_PORT || 3110);
-http.createServer(async (request, response) => {
+const server = http.createServer(async (request, response) => {
   const url = new URL(request.url, "http://localhost");
+  if (request.method === "POST" && url.pathname === "/fixture/reset-admin-scheduling") {
+    for (const [table, rows] of Object.entries(baselineTables)) tables[table] = structuredClone(rows);
+    return sendJson(response, 200, { ok: true });
+  }
   if (url.pathname.startsWith("/rest/v1/rpc/")) {
     await handleRpc(request, response, url.pathname.split("/").at(-1));
     return;
@@ -167,4 +172,5 @@ http.createServer(async (request, response) => {
   const page = paginateAdminVisualFixtureRows(rows, request.headers.range, { offset: url.searchParams.get("offset"), limit: url.searchParams.get("limit") });
   response.writeHead(200, { "content-type": "application/json", "content-range": page.contentRange, "cache-control": "no-store" });
   response.end(JSON.stringify(page.rows));
-}).listen(port, "127.0.0.1", () => console.log(`admin visual fixture ready on ${port}`));
+});
+server.listen(port, "127.0.0.1", () => console.log(`admin visual fixture ready on ${server.address().port}`));

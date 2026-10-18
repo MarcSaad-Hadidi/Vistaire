@@ -58,3 +58,6 @@
   .studio-planning.planning-form { padding: 16px; }
   .studio-planning.planning-form .planning-rule { padding: 12px; }
 }
+
+.studio-planning.planning-form .planning-field { display: flex; flex-direction: column; gap: 7px; margin-bottom: 15px; min-width: 0; }
+.studio-planning.planning-form .planning-field > label { margin-bottom: 0; }

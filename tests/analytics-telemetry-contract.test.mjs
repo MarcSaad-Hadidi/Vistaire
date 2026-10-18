@@ -106,3 +106,17 @@ test('public QR attribution never propagates credentials or admin identities and
  assert.equal(await core.validateAnalyticsContext(payload,{menuBelongsToRestaurant:async()=>true,restaurantExists:async()=>true,publicQrBelongsToRestaurant:async()=>false}),false);
  assert.equal(await core.validateAnalyticsContext(payload,{menuBelongsToRestaurant:async()=>true,restaurantExists:async()=>true,publicQrBelongsToRestaurant:async()=>true}),true);
 });
+test("locale changes accept every canonical menu locale prefix and still strip unknown values", async () => {
+  const { PUBLIC_MENU_LOCALE_OPTIONS } = await import("../lib/menu/publicMenuSettings.ts");
+  for (const { value } of PUBLIC_MENU_LOCALE_OPTIONS) {
+    const locale = value.split("-")[0];
+    const result = validateAnalyticsEvent({ ...v2, eventName: "locale_changed", metadata: { locale } });
+    assert.equal(result.ok, true, value);
+    assert.equal(result.payload.metadata.locale, locale, value);
+  }
+  assert.equal(validateAnalyticsEvent({
+    ...v2,
+    eventName: "locale_changed",
+    metadata: { locale: "unknown-private-value" }
+  }).ok, false);
+});

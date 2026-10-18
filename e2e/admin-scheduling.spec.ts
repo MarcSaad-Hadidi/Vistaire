@@ -1,11 +1,22 @@
 import { randomUUID } from "node:crypto";
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Page, type APIRequestContext } from "@playwright/test";
 import { ADMIN_ACCESS_COOKIE_NAME, createAdminAccessToken } from "../lib/admin/accessSessionCore";
 import { ADMIN_VISUAL_FULL_MENU_DISH_IDS, ADMIN_VISUAL_QR_ID, ADMIN_VISUAL_RESTAURANT_ID } from "./support/adminVisualFixtureData";
 
 // Deliberately public, fixture-only value. Never configure it outside loopback E2E.
 const fixtureSecret = "admin-visual-fixture-session-secret-2026-only";
 test.skip(process.env.VISTAIRE_ADMIN_VISUAL_FIXTURE !== "1", "Requires the hermetic admin visual fixture");
+
+// A separate fixture request survives page failures/timeouts. Reset the complete
+// in-memory baseline, including dish availability, menu settings and replay IDs.
+async function resetSchedulingFixture({ request }: { request: APIRequestContext }) {
+  const port = process.env.VISTAIRE_ADMIN_VISUAL_FIXTURE_PORT ?? "3110";
+  const response = await request.post(`http://127.0.0.1:${port}/fixture/reset-admin-scheduling`);
+  expect(response.status()).toBe(200);
+  expect(await response.json()).toEqual({ ok: true });
+}
+test.beforeEach(resetSchedulingFixture);
+test.afterEach(resetSchedulingFixture);
 
 function fixtureOrigin(baseURL: string): URL {
   const origin = new URL(baseURL);

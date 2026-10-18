@@ -73,6 +73,8 @@ const useMaisonPublicMenuFixture =
     const normalized = argument.replaceAll("\\", "/");
     return (
       normalized.endsWith("e2e/maison-elyse-public-menu.spec.ts") ||
+      // Keep the shared smoke dataset identical alone and in the public CI batch.
+      normalized.endsWith("e2e/sauge-noire-menu-shared-smoke.spec.ts") ||
       normalized.endsWith("e2e/ar-handoff.spec.ts")
     );
   });

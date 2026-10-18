@@ -181,6 +181,8 @@ test("HTTP fixture projects English public menus into landing payloads", async (
     }
     assert.ok(stableContext);
     assert.equal(stableContext.menu.source, "supabase");
+    assert.equal(stableContext.menu.restaurantId, "11111111-1111-4111-8111-111111111112");
+    assert.equal(stableContext.menu.menuId, "22222222-2222-4222-8222-222222222223");
     assert.deepEqual(stableContext.stableCacheReadiness, {
       publishedUiConfig: true,
       localizedMenusComplete: true
