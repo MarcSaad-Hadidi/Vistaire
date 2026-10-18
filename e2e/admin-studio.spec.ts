@@ -83,6 +83,7 @@ for (const width of [390, 430, 1440]) {
     });
     await analysisLink.focus();
     await analysisLink.press("Enter");
+    await page.waitForURL(/\/admin\/insights(?:\?|$)/);
     await expect(analysisLink).toHaveAttribute("aria-current", "page");
     await nav
       .getByRole("link", { name: "Vue d’ensemble", exact: true })
