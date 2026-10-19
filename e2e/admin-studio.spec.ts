@@ -871,7 +871,7 @@ test(
 );
 
 
-test("studio dates preserve the selected window when analytics reads fail", async ({ page, request }) => {
+test("studio dates preserve the selected window when analytics reads fail", { tag: "@critical" }, async ({ page, request }) => {
   const fixture = `http://127.0.0.1:${process.env.VISTAIRE_ADMIN_VISUAL_FIXTURE_PORT ?? "3110"}`;
   await request.post(`${fixture}/fixture/analytics-read-error?enabled=1`);
   try {
