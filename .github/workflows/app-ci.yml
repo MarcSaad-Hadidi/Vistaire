@@ -245,6 +245,11 @@ jobs:
           npm run test:maison-elyse-postgres
           npm run test:qr:postgres
           npm run test:media-capacity:postgres
+          # Each additive dashboard suite starts from an isolated empty schema.
+          createdb vistaire_scheduling_ci
+          PGDATABASE=vistaire_scheduling_ci node scripts/run-admin-scheduling-postgres-tests.mjs
+          createdb vistaire_telemetry_test
+          PGDATABASE=vistaire_telemetry_test node scripts/run-menu-telemetry-postgres-tests.mjs
       - name: Job summary
         if: ${{ always() }}
         env:

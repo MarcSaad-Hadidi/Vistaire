@@ -1,4 +1,17 @@
 export const ANALYTICS_EVENT_NAMES = [
+  "menu_list_viewed",
+  "dish_selected",
+  "dish_visible",
+  "dish_dwell",
+  "search_results",
+  "search_result_selected",
+  "model_load_started",
+  "model_load_succeeded",
+  "model_load_failed",
+  "model_interacted",
+  "model_active_duration",
+  "ar_outcome",
+  "locale_changed",
   "session_started",
   "session_duration",
   "menu_opened",
@@ -25,6 +38,10 @@ export type AnalyticsViewport = {
 export type AnalyticsMetadata = Record<string, unknown>;
 
 export type AnalyticsEventPayload = {
+  schemaVersion?: 1 | 2;
+  eventId?: string;
+  sequence?: number;
+  environment?: "production" | "preview" | "development";
   eventName: AnalyticsEventName;
   restaurantId: string;
   menuId?: string;

@@ -38,8 +38,26 @@ const forbiddenLocalModules = [
 const allowedAdminComponentModules = new Set([
   "components/admin/studio/AdminStudio",
   "components/admin/studio/StudioCharts",
+  "components/admin/studio/StudioNumber",
+  "components/admin/studio/StudioMetricExplorer",
+  "components/admin/studio/StudioMetricExplorer.module.css",
+  "components/admin/studio/StudioCommandPalette",
+  "components/admin/studio/StudioCommandPalette.module.css",
+  "components/admin/studio/StudioAnalysisWorkspace",
+  "components/admin/studio/StudioAnalysisTables",
+  "components/admin/studio/StudioAnalysisTables.module.css",
+  "components/admin/studio/StudioAnalysisWorkspace.module.css",
+  "components/admin/studio/StudioCharts.module.css",
+  "components/admin/studio/StudioDateRangePicker",
+  "components/admin/studio/StudioDateRangePicker.module.css",
+  "components/admin/studio/StudioThemeToggle",
+  "components/admin/studio/studioThemeTransition",
+  "components/admin/studio/studio-theme-transition.css",
+  "components/admin/studio/StudioControls",
+  "components/admin/studio/StudioControls.module.css",
   "components/admin/studio/StudioAnalysisCharts",
   "components/admin/studio/StudioDishes",
+  "components/admin/studio/StudioDishes.module.css",
   "components/admin/studio/StudioDialog",
   "components/admin/studio/StudioExportDialog",
   "components/admin/studio/Studio.module.css",
@@ -100,7 +118,7 @@ function isForbiddenLocalModule(file) {
     return !allowedAdminComponentModules.has(modulePath);
   }
   const pureStudioDependencies = new Set([
-    "lib/admin/studioExport", "lib/admin/studioExportFiles", "lib/admin/analyticsPresentation", "lib/admin/analyticsThresholds",
+    "lib/admin/studioTemporalData", "lib/admin/studioExport", "lib/admin/studioExportFiles", "lib/admin/analyticsPresentation", "lib/admin/analyticsThresholds",
     "lib/admin/export-fonts/DejaVuSans", "lib/admin/dishPhotoUrl", "lib/owner/storageSafeIdentifier"
   ]);
   return !pureStudioDependencies.has(modulePath) && forbiddenLocalModules.some((pattern) => pattern.test(modulePath));
@@ -330,7 +348,9 @@ test("the public preview import graph cannot reach private capabilities or persi
   const studio = readFileSync(path.join(root, "components/admin/studio/AdminStudio.tsx"), "utf8");
   assert.match(studio, /canWrite=\{!demo && canWrite\}/);
   assert.match(studio, /synthetic=\{demo\}/);
-  assert.match(studio, /!demo && <option value="custom"/);
+  assert.match(studio, /allowedRanges=\{demo \? demoRanges : undefined\}/);
+  const picker = readFileSync(path.join(root, "components/admin/studio/StudioDateRangePicker.tsx"), "utf8");
+  assert.match(picker, /allowedRanges/);
   const dishes = readFileSync(path.join(root, "components/admin/studio/StudioDishes.tsx"), "utf8");
   assert.match(dishes, /if \(lock.current \|\| !canWrite\) return;/);
 

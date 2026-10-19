@@ -530,7 +530,7 @@ test("only four exact public-safe owner helpers are traversed instead of blanket
 test("exact shared Studio helpers stay traversed and cannot hide private capabilities", async (t) => {
   const root = await makeGraph(t);
   const helpers = [
-    "lib/admin/dishPhotoUrl.ts", "lib/admin/studioExport.ts", "lib/admin/studioExportFiles.ts",
+    "lib/admin/studioTemporalData.ts", "lib/admin/dishPhotoUrl.ts", "lib/admin/studioExport.ts", "lib/admin/studioExportFiles.ts",
     "lib/admin/analyticsPresentation.ts", "lib/admin/analyticsThresholds.ts", "lib/admin/export-fonts/DejaVuSans.ts"
   ];
   await moduleFile(root, "entry.ts", [...helpers, "lib/admin/studioExportPrivate.ts"].map(file => `import "@/${file}";`).join("\n"));

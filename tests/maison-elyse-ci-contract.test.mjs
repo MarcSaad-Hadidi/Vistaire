@@ -70,3 +70,14 @@ test("Maison public browser tests opt into the complete tracked menu fixture", a
     /resolvePublicMenuStableRenderContext[\s\S]*?bypassMaisonE2eFixture:\s*true/
   );
 });
+
+test("shared menu smoke selects the same Maison demo fixture alone and in a CI batch", async () => {
+  const runner = await readFile(new URL("../scripts/run-playwright-e2e.mjs", import.meta.url), "utf8");
+  const expression = runner.match(/const useMaisonPublicMenuFixture =\n([\s\S]*?);\nconst includesPrompt5BrowserFlow/)?.[1];
+  assert.ok(expression, "Maison fixture selection remains explicit");
+  const selectsDemo = new Function("playwrightInputArgs", "useGoogleReviewDirectCtaFixture", `return (${expression});`);
+  const smoke = "e2e/sauge-noire-menu-shared-smoke.spec.ts";
+  assert.equal(selectsDemo([smoke], false), true);
+  assert.equal(selectsDemo([smoke, "e2e/maison-elyse-public-menu.spec.ts"], false), true);
+  assert.equal(selectsDemo(["e2e/trouvable-menu-browser-qa.spec.ts"], false), false);
+});

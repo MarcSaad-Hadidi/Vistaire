@@ -1,3 +1,4 @@
+import { StudioPlanning } from "@/components/admin/studio/StudioPlanning";
 import { AdminStudio } from "@/components/admin/studio/AdminStudio";
 import { StudioState } from "@/components/admin/studio/StudioState";
 import { requireAdminRestaurantAccess } from "@/lib/admin/access";
@@ -6,11 +7,54 @@ import { parseAdminPageSearchParams } from "@/lib/admin/pageSearchParams";
 
 export const dynamic = "force-dynamic";
 
-export default async function AdminPlanningRoute({ searchParams }: { searchParams?: Promise<{ range?: string | string[] }> }) {
+export default async function AdminPlanningRoute({
+  searchParams,
+}: {
+  searchParams?: Promise<{
+    range?: string | string[];
+    dish?: string | string[];
+  }>;
+}) {
   const access = await requireAdminRestaurantAccess("dashboard:read");
-  if (!access.ok) return <StudioState kind="access" title="Accès dashboard restaurant requis" description="Scannez le QR admin interne de votre restaurant." localPreview={process.env.NODE_ENV !== "production"}/>;
-  const range = parseAdminPageSearchParams(await searchParams);
+  if (!access.ok)
+    return (
+      <StudioState
+        kind="access"
+        title="Accès dashboard restaurant requis"
+        description="Scannez le QR admin interne de votre restaurant."
+        localPreview={process.env.NODE_ENV !== "production"}
+      />
+    );
+  const params = await searchParams;
+  const range = parseAdminPageSearchParams(params);
+  const initialDishId =
+    typeof params?.dish === "string" ? params.dish : undefined;
   const result = await loadAdminDashboardData(access.restaurantId, range);
-  if (!result.ok) return <StudioState kind="unavailable" title="Planning indisponible" description="Les données du restaurant ne peuvent pas être chargées." retryHref="/admin/planning"/>;
-  return <AdminStudio data={result.data} range={range} page="planning" canWrite={access.capabilities.includes("dish:availability:write") && access.qrId !== null}/>;
+  if (!result.ok)
+    return (
+      <StudioState
+        kind="unavailable"
+        title="Planning indisponible"
+        description="Les données du restaurant ne peuvent pas être chargées."
+        retryHref="/admin/planning"
+      />
+    );
+  const canWrite =
+    access.capabilities.includes("dish:availability:write") &&
+    access.qrId !== null;
+  return (
+    <AdminStudio
+      data={result.data}
+      range={range}
+      page="planning"
+      canWrite={canWrite}
+      planningContent={
+        <StudioPlanning
+          dishes={result.data.menu.dishes}
+          canWrite={canWrite}
+          initialDishId={initialDishId}
+        />
+      }
+    />
+  );
 }

@@ -1,5 +1,8 @@
 "use client";
 
+import { trackPublicMenuEvent } from "@/lib/analytics/client";
+import { useVisibleMenuAnalytics } from "@/components/menu/analytics/useVisibleMenuAnalytics";
+
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { flushSync } from "react-dom";
@@ -316,6 +319,7 @@ export function SaugeNoireBookMenu({
   const [showBackToTop, setShowBackToTop] = useState(false);
   const currency = activeCurrency;
   const searchParamsString = searchParams.toString();
+  const analyticsRef = useVisibleMenuAnalytics(menu, mode === "public");
   const isPhonePreview = mode === "phone-preview";
   const pageFlipEnabled =
     mode === "public" ||
@@ -509,10 +513,11 @@ export function SaugeNoireBookMenu({
   }, [isPhonePreview, pathname, router]);
 
   const selectLocale = useCallback((nextLocale: string) => {
+    if (mode === "public") trackPublicMenuEvent(menu, { eventName: "locale_changed", metadata: { locale: nextLocale.toLowerCase().split(/[-_]/)[0] } });
     activeLocaleRef.current = nextLocale;
     setActiveLocaleValue(nextLocale);
     updatePreference({ locale: nextLocale });
-  }, [updatePreference]);
+  }, [menu, mode, updatePreference]);
 
   const selectCurrency = useCallback((nextCurrency: string) => {
     const normalizedCurrency = normalizePublicMenuCurrencyPreference(
@@ -790,6 +795,7 @@ export function SaugeNoireBookMenu({
 
   return (
     <main
+      ref={analyticsRef}
       className={styles.book}
       dir="ltr"
       lang={activeLocaleValue}

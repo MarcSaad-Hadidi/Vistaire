@@ -263,6 +263,7 @@ test("Maison Elysee preview does not substitute fictional analytics", async () =
         if (table === "menus") return { ok: true, rows: [{ id: "menu-demo", status: "published", is_primary: true }] };
         if (table === "menu_categories") return { ok: true, rows: [{ id: "cat-1", menu_id: "menu-demo", name: "Signatures", slug: "signatures" }] };
         if (table === "menu_dishes") return { ok: true, rows: [{ id: "dish-1", menu_id: "menu-demo", category_id: "cat-1", name: "Homard bleu", slug: "homard-bleu", price_cents: 10400, is_available: true }] };
+        if (table === "dish_schedules") return { ok: true, rows: [] };
         throw new Error(`unexpected table: ${table}`);
       },
       readEvents: async () => ({ ok: true, rows: [], truncated: false }),
@@ -285,7 +286,8 @@ test("dashboard reads current and previous periods independently and fails close
       if (table === "menus") return { ok: true, rows: [{ id: "menu-1", status: "published", is_primary: true }] };
       if (table === "menu_categories") return { ok: true, rows: [] };
       if (table === "menu_dishes") return { ok: true, rows: [] };
-      throw new Error(`unexpected table: ${table}`);
+      if (table === "dish_schedules") return { ok: true, rows: [] };
+        throw new Error(`unexpected table: ${table}`);
     },
     readEvents: async (args) => {
       periods.push(args);
@@ -311,4 +313,13 @@ test("dashboard reads current and previous periods independently and fails close
 test("dashboard loader contains no fictional analytics fallback", async () => {
   const loader = await readFile("lib/admin/dashboardData.ts", "utf8");
   assert.doesNotMatch(loader, /buildMaisonElyseeDemoEvents|MAISON_ELYSEE_DEMO_ID/);
+});
+
+test("dashboard resolves persisted schedules using explicit menu timezone while missing scheduling stays separate from analytics", async () => {
+ const {loadAdminDashboardDataWithDependencies}=await import('../lib/admin/dashboardData.ts');
+ const dependencies={now:()=>new Date('2026-10-18T18:00:00Z'),readEvents:async()=>({ok:true,rows:[],truncated:false}),readRows:async({table})=>({ok:true,rows:table==='restaurants'?[{id:'r',name:'Test',slug:'test'}]:table==='menus'?[{id:'m',restaurant_id:'r',status:'published',is_primary:true,settings_json:{timezone:'America/Toronto'}}]:[]})};
+ const result=await loadAdminDashboardDataWithDependencies('r','7d',dependencies);
+ assert.equal(result.ok,true);assert.equal(result.data.restaurant.timezone,'America/Toronto');assert.equal(result.data.schedulingStatus,'available');
+ const unavailable=await loadAdminDashboardDataWithDependencies('r','7d',{...dependencies,readRows:async(args)=>args.table==='dish_schedules'?{ok:false,rows:[],error:'not installed'}:dependencies.readRows(args)});
+ assert.equal(unavailable.data.schedulingStatus,'unavailable');assert.equal(unavailable.data.temporalAnalytics.kind,'available');
 });

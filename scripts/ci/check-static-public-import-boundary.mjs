@@ -97,6 +97,7 @@ const REVIEWED_PUBLIC_OWNER_HELPERS = new Set([
 // They are still traversed and checked; this does not allow private admin loaders.
 const REVIEWED_PUBLIC_STUDIO_HELPERS = new Set([
   "lib/admin/dishPhotoUrl.ts",
+  "lib/admin/studioTemporalData.ts",
   "lib/admin/studioExport.ts",
   "lib/admin/studioExportFiles.ts",
   "lib/admin/analyticsPresentation.ts",

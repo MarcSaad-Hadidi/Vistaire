@@ -1,66 +1,46 @@
 import "server-only";
 
 import type { AnalyticsEventPayload } from "@/lib/analytics/types";
+import { canRetryLegacyAnalyticsInsert } from "./validationCore.mjs";
 import { getSupabaseAdminClient } from "@/utils/supabase/admin";
-import { getSupabaseTableColumns, pickColumn } from "@/lib/analytics/serverRows";
 
 type InsertEventResult =
   | { ok: true; persisted: true }
   | { ok: false; error: string };
 
-function assignMappedValue(
-  row: Record<string, unknown>,
-  columns: Set<string>,
-  candidates: string[],
-  value: unknown
-) {
-  if (value === undefined || value === null || value === "") return;
-  const column = columns.size > 0 ? pickColumn(columns, candidates) : candidates[0];
-  if (column) row[column] = value;
-}
-
-export async function insertAnalyticsEvent(
-  payload: AnalyticsEventPayload,
-  userAgent: string
-): Promise<InsertEventResult> {
+export async function insertAnalyticsEvent(payload: AnalyticsEventPayload): Promise<InsertEventResult> {
   const admin = getSupabaseAdminClient();
-  if (!admin.ok) {
-    return { ok: false, error: admin.reason };
+  if (!admin.ok) return { ok: false, error: admin.reason };
+
+  let dishId: string | undefined;
+  if (payload.dishSlug && payload.menuId) {
+    const { data, error } = await admin.client.from("menu_dishes").select("id")
+      .eq("restaurant_id", payload.restaurantId).eq("menu_id", payload.menuId)
+      .eq("slug", payload.dishSlug).maybeSingle();
+    if (error) return { ok: false, error: "Analytics dish context is unavailable." };
+    dishId = data?.id;
   }
-
-  const columns = await getSupabaseTableColumns("analytics_events");
-  const row: Record<string, unknown> = {};
-
-  assignMappedValue(row, columns, ["event_name", "eventName", "event_type"], payload.eventName);
-  assignMappedValue(
-    row,
-    columns,
-    ["restaurant_id", "restaurantId", "restaurant_uuid"],
-    payload.restaurantId
-  );
-  assignMappedValue(row, columns, ["menu_id", "menuId"], payload.menuId);
-  assignMappedValue(row, columns, ["session_id", "sessionId"], payload.sessionId);
-  assignMappedValue(row, columns, ["source"], payload.source);
-  assignMappedValue(row, columns, ["dish_slug", "dishSlug"], payload.dishSlug);
-  assignMappedValue(row, columns, ["category_slug", "categorySlug"], payload.categorySlug);
-  assignMappedValue(
-    row,
-    columns,
-    ["search_query", "searchQuery", "search_term"],
-    payload.searchQuery
-  );
-  assignMappedValue(row, columns, ["filter_name", "filterName"], payload.filterName);
-  assignMappedValue(row, columns, ["cta_name", "ctaName"], payload.ctaName);
-  assignMappedValue(row, columns, ["viewport"], payload.viewport);
-  assignMappedValue(row, columns, ["metadata"], payload.metadata ?? {});
-  assignMappedValue(row, columns, ["user_agent", "userAgent"], userAgent.slice(0, 500));
-
-  const { error } = await admin.client.from("analytics_events").insert(row);
-
+  // V2 always requires its schema; old browsers retain a narrow baseline-only
+  // retry during schema-first rollouts after a confirmed missing-column error.
+  const row = {
+    event_name: payload.eventName, restaurant_id: payload.restaurantId,
+    menu_id: payload.menuId, session_id: payload.sessionId, source: payload.source,
+    dish_id: dishId, dish_slug: payload.dishSlug, category_slug: payload.categorySlug,
+    filter_name: payload.filterName, cta_name: payload.ctaName,
+    schema_version: payload.schemaVersion ?? 1, event_id: payload.eventId, sequence: payload.sequence,
+    environment: payload.environment ?? "development", metadata: payload.metadata ?? {}
+  };
+  let { error } = await admin.client.from("analytics_events").insert(row);
+  if (canRetryLegacyAnalyticsInsert(payload, error)) {
+    const legacyRow: Record<string, unknown> = { ...row };
+    for (const key of ["schema_version", "event_id", "sequence", "environment"]) delete legacyRow[key];
+    ({ error } = await admin.client.from("analytics_events").insert(legacyRow));
+  }
+  // A retry with the same event ID is already persisted, not another observation.
+  if (error?.code === "23505" && payload.eventId && error.message?.includes("analytics_events_event_id")) return { ok: true, persisted: true };
   if (error) {
-    console.error("[Vistaire analytics] insert failed", error.message);
+    console.error("[Vistaire analytics] insert failed");
     return { ok: false, error: "Analytics event could not be persisted." };
   }
-
   return { ok: true, persisted: true };
 }

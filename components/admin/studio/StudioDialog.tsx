@@ -41,6 +41,7 @@ export function StudioDialog({
       className={styles.dialog}
       aria-labelledby={heading}
       onCancel={(event) => {
+        if (event.target !== event.currentTarget) return;
         event.preventDefault();
         closeRef.current();
       }}

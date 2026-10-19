@@ -41,6 +41,34 @@ function installHealthChecks(page: Page) {
   };
 }
 
+type MenuTelemetry = { eventName: string; restaurantId: string; menuId: string; source: string; dishSlug?: string; metadata?: Record<string, unknown> };
+async function interceptTelemetry(page: Page) {
+  const events: MenuTelemetry[] = [];
+  await page.route("**/api/analytics/events", async route => {
+    events.push(route.request().postDataJSON() as MenuTelemetry);
+    await route.fulfill({ status: 200, contentType: "application/json", body: '{"ok":true,"persisted":false}' });
+  });
+  return events;
+}
+async function expectTelemetryEvent(events: MenuTelemetry[], eventName: string, restaurantId: string, menuId: string) {
+  await expect.poll(
+    () => events.map(event => event.restaurantId === restaurantId && event.menuId === menuId
+      ? event.eventName
+      : `${event.eventName} (${event.source}:${event.restaurantId}:${event.menuId})`),
+    { message: `Expected ${eventName} for restaurant ${restaurantId}, menu ${menuId}; captured events follow` }
+  ).toContain(eventName);
+}
+async function expectMenuTelemetry(events: MenuTelemetry[], restaurantId: string, menuId: string, source: "production" | "demo" = "production") {
+  for (const eventName of ["menu_opened", "menu_list_viewed", "dish_visible", "dish_selected", "dish_opened"]) {
+    await expectTelemetryEvent(events, eventName, restaurantId, menuId);
+  }
+  const tenantEvents = events.filter(event => event.restaurantId === restaurantId);
+  expect(tenantEvents.every(event => event.source === source && event.menuId === menuId)).toBe(true);
+  expect(tenantEvents.filter(event => event.eventName === "dish_opened")).toHaveLength(1);
+  expect(JSON.stringify(events)).not.toMatch(/searchQuery|referrer|private-query@example/);
+  expect(events.some(event => event.eventName === "ar_outcome" && event.metadata?.outcome === "presenting")).toBe(false);
+}
+
 async function expectHealthyNavigation(page: Page, path: string) {
   const response = await page.goto(path, { waitUntil: "domcontentloaded" });
   expect(response, `${path} should return a response`).not.toBeNull();
@@ -69,8 +97,12 @@ async function expectNoHorizontalOverflow(page: Page) {
 test.describe("shared public menu smoke · one Chromium fixture", { tag: '@critical' }, () => {
   test.use({ viewport: MOBILE_VIEWPORT });
 
+  // The runner explicitly selects the complete static Maison demo fixture,
+  // whose analytics uses the configured demo restaurant and sentinel menu.
+  // Sauge and Trouvable below exercise relational production-context fixtures.
   test("generic demo navigates menu → dish → menu without early 3D requests", async ({ page }) => {
     const expectHealthy = installHealthChecks(page);
+    const telemetry = await interceptTelemetry(page);
     const modelRequests: string[] = [];
     page.on("request", (request) => {
       const url = new URL(request.url());
@@ -86,13 +118,24 @@ test.describe("shared public menu smoke · one Chromium fixture", { tag: '@criti
     await expect(menu.getByRole("heading", { name: "LA CARTE" })).toBeVisible();
     const dish = menu.getByRole("link", { name: /Ravioles/i }).first();
     await expect(dish).toBeVisible();
+    await dish.scrollIntoViewIfNeeded();
+    // SSR links work before hydration. Remain on this page until the client
+    // observer has actually seen the menu and card before navigating away.
+    for (const eventName of ["menu_opened", "menu_list_viewed", "dish_visible"]) {
+      await expectTelemetryEvent(telemetry, eventName, "11111111-1111-4111-8111-111111111112", "22222222-2222-2222-2222-222222222222");
+    }
     await dish.click();
     await expect(page).toHaveURL(/\/menu\/maison-elyse\/dishes\//);
     await expect(page.getByRole("heading", { level: 1, name: /Ravioles/i })).toBeVisible({ timeout: 15_000 });
+    // The server-rendered heading/back link can precede the detail effect and
+    // its first IntersectionObserver callback on a cold client chunk.
+    await expectTelemetryEvent(telemetry, "dish_selected", "11111111-1111-4111-8111-111111111112", "22222222-2222-2222-2222-222222222222");
+    await expectTelemetryEvent(telemetry, "dish_opened", "11111111-1111-4111-8111-111111111112", "22222222-2222-2222-2222-222222222222");
     await page.getByRole("link", { name: /Retour/i }).first().click();
     await expect(page).toHaveURL(/\/menu\/maison-elyse\?/);
     await expect(page.getByRole("heading", { name: "LA CARTE" })).toBeVisible();
     await expectNoHorizontalOverflow(page);
+    await expectMenuTelemetry(telemetry, "11111111-1111-4111-8111-111111111112", "22222222-2222-2222-2222-222222222222", "demo");
     expect(modelRequests).toEqual([]);
     expectHealthy();
   });
@@ -101,6 +144,7 @@ test.describe("shared public menu smoke · one Chromium fixture", { tag: '@criti
     page
   }) => {
     const expectHealthy = installHealthChecks(page);
+    const telemetry = await interceptTelemetry(page);
     await expectHealthyNavigation(page, "/menu/trouvable?lang=fr-CA&table=12&zone=terrasse");
     const menu = page.locator('main[data-menu-ui="trouvable"]');
     await expect(menu).toBeVisible();
@@ -125,6 +169,10 @@ test.describe("shared public menu smoke · one Chromium fixture", { tag: '@criti
     await expect(dishDialog.locator("img, [class*='detailVisual'] > span")).toHaveCount(1);
     await dishDialog.getByRole("button", { name: /Retour|Back/i }).click();
     await expect(dishDialog).toBeHidden();
+    await expectMenuTelemetry(telemetry, "11111111-1111-4111-8111-111111111113", "22222222-2222-4222-8222-222222222224");
+    await page.locator("#trouvable-menu-search").fill("private-query@example.test");
+    await expect.poll(() => telemetry.some(event => event.eventName === "search_results" && event.metadata?.resultCount === 0 && event.metadata?.queryLengthBucket === "11-30")).toBe(true);
+    expect(JSON.stringify(telemetry)).not.toContain("private-query@example.test");
     await expectNoHorizontalOverflow(page);
     expectHealthy();
   });
@@ -133,6 +181,7 @@ test.describe("shared public menu smoke · one Chromium fixture", { tag: '@criti
     page
   }) => {
     const expectHealthy = installHealthChecks(page);
+    const telemetry = await interceptTelemetry(page);
     const context = { lang: "fr-CA", currency: "CAD", table: "main", zone: "terrasse" };
     const menuPath = `/menu/sauge-noire?${new URLSearchParams({ ...context, view: "sauge-1" })}`;
     await expectHealthyNavigation(page, menuPath);
@@ -159,6 +208,7 @@ test.describe("shared public menu smoke · one Chromium fixture", { tag: '@criti
       .locator('[data-sauge-route-renderer-pending-handoff="false"]')
       .locator('[data-sauge-reading-surface="true"][data-sauge-scroll-owner="true"][data-sauge-reading-visible="true"]');
     await expect(detailSurface).toHaveCount(1, { timeout: 15_000 });
+    await expectMenuTelemetry(telemetry, "11111111-1111-4111-8111-111111111111", "22222222-2222-4222-8222-222222222222");
     await detailSurface.locator('[data-sauge-typography-role="back-control"]').click();
     await expect(page).toHaveURL(/\/menu\/sauge-noire\?.*view=sauge-2/);
     await expectNoHorizontalOverflow(page);

@@ -12,7 +12,7 @@ for (const project of projects) {
 }
 
 const result = spawnSync(process.execPath, [
-  "scripts/run-playwright-e2e.mjs", "e2e/admin-chart-interactions.spec.ts", "e2e/admin-studio.spec.ts",
+  "scripts/run-playwright-e2e.mjs", "e2e/admin-chart-interactions.spec.ts", "e2e/admin-studio.spec.ts", "e2e/admin-scheduling.spec.ts",
   ...projects.map((project) => `--project=${project}`),
   "--grep", process.env.VISTAIRE_CI_CRITICAL_ONLY === 'true' ? '@critical' : "full-menu admin (?:parity|thumbnails)|studio ",
   "--workers=1", "--retries=0", "--forbid-only",
