@@ -878,7 +878,7 @@ test("studio dates preserve the selected window when analytics reads fail", asyn
     await preview(page);
     await page.goto("/admin?range=custom%3A2026-07-01%3A2026-07-09");
     const trigger = page.getByRole("button", { name: /Modifier la période d’analyse/ });
-    const expected = /1 juil\. 2026.*9 juil\. 2026/;
+    const expected = /1 juill?\. 2026.*9 juill?\. 2026/;
     await expect(trigger).toHaveText(expected);
     await expect(page.locator('[data-studio-chart="trend"]')).toHaveCount(0);
     await trigger.click();
@@ -889,7 +889,7 @@ test("studio dates preserve the selected window when analytics reads fail", asyn
     await page.getByRole("button", { name: "30 jours", exact: true }).click();
     await page.getByRole("button", { name: "Appliquer", exact: true }).click();
     await expect(page).toHaveURL(/range=30d/);
-    await expect(trigger).toHaveText(/10 juin 2026.*10 juil\. 2026/);
+    await expect(trigger).toHaveText(/10 juin 2026.*10 juill?\. 2026/);
     await trigger.click();
     await page.goBack();
     await expect(trigger).toHaveText(expected);
