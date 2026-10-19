@@ -2,10 +2,10 @@
 
 ## Deployment order
 
-1. Review and approve the database migration separately. No production database application is performed by this PR.
-2. On the target Supabase project, verify the approved `pg_cron` extension is available. Migration `20261018213000_menu_telemetry_v2.sql` aborts without it; do not remove or bypass this prerequisite.
-3. Apply the migration before deploying the v2 client/API. It adds event identity, sequence, schema version, environment, expiry, expanded event names, rate limiting and the retention job. Existing events are labelled `environment=legacy`, not retroactively claimed as verified production observations. Their expiry is backfilled to `created_at + 90 days`; migration does not grant historical rows a new 90-day lifetime. Rows already older than 90 days are eligible for the first scheduled purge, rather than being deleted by the migration itself.
-4. Verify PostgREST's schema cache exposes the new columns and the hourly `vistaire-menu-telemetry-retention` cron job exists and executes successfully. Raw events expire after 90 days, with hourly deletion giving a normal maximum retention of 90 days plus one hour. Investigate cron failures rather than treating job registration as proof of deletion.
+1. Review and approve the database migration separately. The authorized 2026-10-19 production application is recorded in [the deployment ledger](dashboard-migration-deployment-2026-10-19.md).
+2. Apply `20261019050917_menu_telemetry_v2_preserve_history.sql` before deploying the v2 client/API. It adds event identity, sequence, schema version, environment, expanded event names and rate limiting. No `pg_cron` extension is required.
+3. Preserve all history: this migration adds no expiry column, backfill, purge function or scheduled deletion. Existing timestamps and event rows remain intact, including records older than 90 days. Existing events are labelled `environment=legacy`, not retroactively claimed as verified production observations. Any future retention/deletion policy requires separate explicit approval.
+4. Verify PostgREST's schema cache exposes the new columns and compare existing row counts and timestamps before/after application. Verify no telemetry purge function or retention job exists; if a previous expiry-enabled version was already applied, stop and review that deployed state separately rather than treating this pending migration as a corrective migration.
 5. Deploy the client/API together. Vercel deployment environment is server-assigned; self-hosted production must set `ANALYTICS_ENVIRONMENT=production`. Unknown environments are classified as development. Preview observations never become production observations.
 6. Verify a controlled event returns `persisted:true`, retrying its event ID does not add a row, and preview/demo observations are excluded from production reporting. Do not infer successful collection from an HTTP202 response: it explicitly means `persisted:false`.
 
@@ -27,9 +27,7 @@ In a dedicated empty, local PostgreSQL17 database named for tests:
 
 Outside CI, replace `CI=true` with `VISTAIRE_MENU_TELEMETRY_POSTGRES_TEST=1`. The runner rejects remote hosts, connection-string database names, service overrides, existing public tables and other PostgreSQL versions.
 
-The runner first executes the complete migration and confirms failure on missing pg_cron. It then executes the exact unchanged schema/function portion inside the rollback-only fixture `supabase/tests/menu_telemetry_v2.sql`, verifying identity/sequence constraints, deduplication, privacy stripping, environment, rate bounds, expiry deletion, populated-table legacy retention backfill and purge privileges. The fixture includes 100-day-old and 10-day-old pre-migration rows, checking the expired row is removed by the purge while the recent row is retained.
-
-Actual pg_cron installation and job execution are deliberately untested on plain PostgreSQL/PGlite. They require the separate approved deployment verification above; no extension is faked in tests.
+The runner executes the complete exact migration body inside the rollback-only fixture `supabase/tests/menu_telemetry_v2.sql`, removing only the migration's outer `BEGIN`/`COMMIT` wrappers. It verifies identity/sequence constraints, deduplication, privacy stripping, environment and rate bounds. Pre-migration 100-day-old and 10-day-old rows must survive with unchanged timestamps and legacy environment; new events must also remain. It asserts that no expiry column or purge function exists. The test requires no cron extension and makes no scheduling calls.
 
 ## Public QR attribution limits
 

@@ -18,22 +18,18 @@ function run(input) {
   if (result.error) throw new Error(`Unable to execute psql: ${result.error.message}`);
   return result;
 }
-const preflight = run("select current_setting('server_version_num'); select count(*) from information_schema.tables where table_schema='public'; select count(*) from pg_extension where extname='pg_cron';");
+const preflight = run("select current_setting('server_version_num'); select count(*) from information_schema.tables where table_schema='public';");
 if (preflight.status !== 0) throw new Error(preflight.stderr);
-const [version, tables, cron] = preflight.stdout.trim().split(/\s+/).map(Number);
-if (version < 170000 || version >= 180000 || tables !== 0 || cron !== 0) throw new Error("Requires empty local PostgreSQL17 database without pg_cron; never point this runner at an existing project.");
-const migration = readFileSync(new URL("../supabase/migrations/20261018213000_menu_telemetry_v2.sql", import.meta.url), "utf8");
-const missingCron = run(migration);
-if (missingCron.status === 0 || !/requires pg_cron/.test(missingCron.stderr)) throw new Error("Full migration did not fail closed on its missing pg_cron prerequisite.");
-// Do not fake pg_extension or schedule a job. Exercise the exact unchanged
-// schema/function body after independently testing its prerequisite above.
-const start = migration.indexOf("alter table public.analytics_events");
-const end = migration.indexOf("select cron.schedule");
-if (start < 0 || end <= start) throw new Error("Migration structure changed; review the integration-test boundaries.");
+const [version, tables] = preflight.stdout.trim().split(/\s+/).map(Number);
+if (version < 170000 || version >= 180000 || tables !== 0) throw new Error("Requires empty local PostgreSQL17 database; never point this runner at an existing project.");
+const migration = readFileSync(new URL("../supabase/migrations/20261019050917_menu_telemetry_v2_preserve_history.sql", import.meta.url), "utf8");
+// Run every statement, including trailing comments/DDL, inside the fixture's
+// rollback-only transaction. Remove only the migration's outer transaction.
+if (!/^\s*begin;[\s\S]*commit;\s*$/i.test(migration)) throw new Error("Migration must have one outer BEGIN/COMMIT wrapper.");
+const body = migration.replace(/^\s*begin;\s*/i, "").replace(/\s*commit;\s*$/i, "");
 const fixture = readFileSync(new URL("../supabase/tests/menu_telemetry_v2.sql", import.meta.url), "utf8");
 const marker = "-- TELEMETRY_MIGRATION_BODY";
 if (fixture.split(marker).length !== 2) throw new Error("Missing unique migration fixture marker.");
-const result = run(fixture.replace(marker, () => migration.slice(start, end)));
+const result = run(fixture.replace(marker, () => body));
 if (result.status !== 0) throw new Error(`Telemetry PostgreSQL contracts failed: ${result.stderr}`);
-console.log("PASS: pg_cron fail-closed prerequisite, exact schema/functions, deduplication, privacy, environment, v2 identity, rate limit and expiry purge.");
-console.log("UNTESTED: actual pg_cron job installation/execution. Verify this separately during approved deployment on a pg_cron-enabled project.");
+console.log("PASS: complete migration, deduplication, privacy, environment, v2 identity, rate limit and preservation of all historical rows without expiry or purge.");
