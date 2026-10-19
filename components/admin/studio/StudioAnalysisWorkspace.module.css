@@ -73,7 +73,7 @@
   text-align: left;
   min-width: 0;
 }
-.summary span {
+.summary > button > span {
   font-size: 10px;
   color: var(--muted);
 }
@@ -412,4 +412,20 @@
     min-width: 0;
     flex-basis: auto;
   }
+}
+
+/* Exact-coordinate scatter groups retain every dish in a bounded chooser. */
+.scatterMembers {
+  max-height: min(320px, 40dvh);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  margin: 12px 0;
+  padding: 0;
+  list-style: none;
+}
+.scatterMembers button {
+  width: 100%;
+  text-align: left;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }

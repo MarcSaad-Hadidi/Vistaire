@@ -675,6 +675,18 @@ test(
         "data-theme",
         theme,
       );
+      const summaryNumbers = page.locator('button strong [data-component="number-flow"]');
+      await expect(summaryNumbers).toHaveCount(3);
+      for (const value of await summaryNumbers.all()) {
+        await expect.poll(() => value.evaluate(element => parseFloat(getComputedStyle(element).fontSize))).toBeGreaterThanOrEqual(25);
+      }
+      const scatterMarks = page.locator('[data-studio-scatter-point]');
+      await expect.poll(() => scatterMarks.evaluateAll(marks => marks.reduce((sum, mark) => sum + Number(mark.getAttribute("data-studio-scatter-count")), 0))).toBe(12);
+      await expect.poll(() => scatterMarks.evaluateAll(marks => new Set(marks.map(mark => `${mark.getAttribute("data-studio-scatter-views")}:${mark.getAttribute("data-studio-scatter-three")}`)).size === marks.length)).toBe(true);
+      await expect.poll(() => scatterMarks.evaluateAll(marks => marks.every(mark => {
+        const box = (mark as SVGGraphicsElement).getBBox();
+        return box.width >= 23 && box.height >= 23;
+      }))).toBe(true);
       const pie = page.locator('[data-studio-chart="composition"]');
       await expect
         .poll(async () =>

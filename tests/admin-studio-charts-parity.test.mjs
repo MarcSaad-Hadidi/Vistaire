@@ -112,3 +112,64 @@ test("analysis temporal charts consume scoped evidence and configured timezone",
   assert.ok(charts.includes('"previousAr"'));
   assert.doesNotMatch(charts, /const comparable = metric === "views"/);
 });
+
+test("scatter fixed geometry renders full-sized native symbols without inventing a Z metric", async () => {
+  const ts = (await import("typescript")).default;
+  const { createRequire } = await import("node:module");
+  const require = createRequire(import.meta.url);
+  const { renderToStaticMarkup } = require("react-dom/server");
+  const { createElement } = require("react");
+  const { Symbols } = require("recharts");
+  const source = await readFile("components/admin/studio/StudioAnalysisCharts.tsx", "utf8");
+  const ast = ts.createSourceFile("chart.tsx", source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+  const shape = ast.statements.find((node) => ts.isFunctionDeclaration(node) && node.name?.text === "StudioScatterPoint");
+  assert.ok(shape, "fixed geometry must be owned by the rendered shape");
+  const compiled = ts.transpileModule(shape.getText(ast), {
+    compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX },
+  }).outputText;
+  const exports = {};
+  new Function("exports", "require", "Symbols", compiled)(exports, require, Symbols);
+  const html = renderToStaticMarkup(createElement(exports.StudioScatterPoint, {
+    cx: 65, cy: 0, size: 64, fill: "#60a5fa", stroke: "#fff", strokeWidth: 2,
+    payload: { members: [{ id: "a" }, { id: "b" }], views: 65, three: 0 },
+  }));
+  assert.match(html, /data-studio-scatter-point="true"/);
+  assert.match(html, /data-studio-scatter-count="2"/);
+  assert.match(html, /data-studio-scatter-views="65"/);
+  assert.match(html, /data-studio-scatter-three="0"/);
+  assert.match(html, /translate\(65, 0\)/, "real zero coordinate must remain unchanged");
+  assert.match(html, /fill="#60a5fa"/);
+  const radius = Number(html.match(/d="M([\d.]+),0A/)?.[1]);
+  assert.ok(Math.abs(radius - Math.sqrt(450 / Math.PI)) < 0.01, html);
+  assert.match(source, /shape=\{StudioScatterPoint\}/);
+  assert.match(source, /activeShape=\{StudioScatterPoint\}/);
+  assert.doesNotMatch(source, /<ZAxis|markerSize/);
+});
+
+test("scatter groups only exact coordinates and preserves all original members", async () => {
+  const ts = (await import("typescript")).default;
+  const source = await readFile("components/admin/studio/StudioAnalysisCharts.tsx", "utf8");
+  const ast = ts.createSourceFile("chart.tsx", source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
+  const helper = ast.statements.find((node) => ts.isFunctionDeclaration(node) && node.name?.text === "groupStudioScatterPoints");
+  assert.ok(helper, "exact-coordinate grouping helper exists");
+  const compiled = ts.transpileModule(helper.getText(ast), { compilerOptions: { module: ts.ModuleKind.CommonJS } }).outputText;
+  const exports = {};
+  new Function("exports", compiled)(exports);
+  const dishes = [
+    { id: "a", category: "A", views: 10, three: 0 },
+    { id: "b", category: "B", views: 10, three: 0 },
+    { id: "c", category: "A", views: 10.01, three: 0 },
+    { id: "d", category: "A", views: 10, three: 1 },
+  ];
+  const groups = exports.groupStudioScatterPoints(dishes);
+  assert.equal(groups.length, 3);
+  assert.equal(groups[0].views, 10);
+  assert.equal(groups[0].three, 0);
+  assert.equal(groups[0].category, null);
+  assert.deepEqual(groups[0].members, dishes.slice(0, 2));
+  assert.equal(groups[1].members[0], dishes[2]);
+  assert.equal(groups[1].category, "A");
+  assert.deepEqual(groups.flatMap((group) => group.members), dishes);
+  assert.match(source, /data-studio-scatter-chooser/);
+  assert.match(source, /setScatterGroup\(point.payload.key\)/);
+});

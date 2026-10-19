@@ -14,7 +14,9 @@ const tables = {
   menus: fixture.menus,
   menu_categories: fixture.menu_categories,
   menu_dishes: fixture.menu_dishes,
-  analytics_events: fixture.analytics_events,
+  analytics_events: process.env.VISTAIRE_ADMIN_FIXTURE_ZERO_3D === "1"
+    ? fixture.analytics_events.filter(row => row.event_name !== "dish_3d_clicked")
+    : fixture.analytics_events,
   dish_schedules: fixture.dish_schedules,
   menu_change_history: fixture.menu_change_history
 };

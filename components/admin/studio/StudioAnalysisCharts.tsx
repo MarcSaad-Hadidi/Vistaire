@@ -1,6 +1,6 @@
 "use client";
-import { Tooltip as NativeTooltip } from "recharts";
-import { useState } from "react";
+import { Symbols, Tooltip as NativeTooltip } from "recharts";
+import { useEffect, useRef, useState, type ComponentProps } from "react";
 import { selectStudioTemporalMetrics } from "../../../lib/admin/studioTemporalData";
 import {
   Root,
@@ -13,7 +13,6 @@ import {
   ScatterTooltip,
   XAxis,
   YAxis,
-  ZAxis,
   LabelList,
   CartesianGrid,
   RadarChart,
@@ -33,6 +32,38 @@ import type { AdminMenuDish } from "@/lib/admin/menuReadiness";
 import { useStudioLocale } from "./studioLocale";
 import styles from "./Studio.module.css";
 import visual from "./StudioAnalysisWorkspace.module.css";
+
+// Recharts drops a data-less ZAxis scale and falls back to area 64.
+// Size is presentation-only: keep native positions and no synthetic Z metric.
+export function StudioScatterPoint(props: ComponentProps<typeof Symbols> & { payload?: { members: unknown[]; views: number; three: number } }) {
+  return (
+    <Symbols
+      {...props}
+      type="circle"
+      size={450}
+      sizeType="area"
+      data-studio-scatter-point="true"
+      data-studio-scatter-count={props.payload?.members.length ?? 1}
+      data-studio-scatter-views={props.payload?.views}
+      data-studio-scatter-three={props.payload?.three}
+    />
+  );
+}
+
+export function groupStudioScatterPoints<T extends { views: number; three: number; category: string }>(dishes: T[]) {
+  const groups = new Map<string, { key: string; views: number; three: number; category: string | null; members: T[] }>();
+  for (const dish of dishes) {
+    const key = JSON.stringify([dish.views, dish.three]);
+    const existing = groups.get(key);
+    if (existing) {
+      existing.members.push(dish);
+      if (existing.category !== dish.category) existing.category = null;
+    } else {
+      groups.set(key, { key, views: dish.views, three: dish.three, category: dish.category, members: [dish] });
+    }
+  }
+  return [...groups.values()];
+}
 
 export type StudioAnalysisMetric = "views" | "three" | "ar";
 export type StudioAnalysisFamily =
@@ -64,6 +95,16 @@ export function StudioAnalysisCharts({
   onDishOpen?: (dish: AdminMenuDish) => void;
 }) {
   const { t, locale, number: fmt } = useStudioLocale();
+  const [scatterGroup, setScatterGroup] = useState<string | null>(null);
+  const scatterChooser = useRef<HTMLDivElement>(null);
+  const scatterGroupTrigger = useRef<HTMLButtonElement>(null);
+  const closeScatterGroup = () => {
+    scatterGroupTrigger.current?.focus();
+    setScatterGroup(null);
+  };
+  useEffect(() => {
+    if (scatterGroup) scatterChooser.current?.focus();
+  }, [scatterGroup]);
   const [flowNode, setFlowNode] = useState<string | null>(null);
   const [flowInspection, setFlowInspection] = useState<{
     id: string;
@@ -279,6 +320,15 @@ export function StudioAnalysisCharts({
       {table}
     </div>
   );
+  const scatterPoints = groupStudioScatterPoints(dishes).map((point) => ({
+    ...point,
+    pointNumber: point.members.length > 1
+      ? `×${point.members.length}`
+      : String(data.menu.dishes.findIndex((dish) => dish.id === point.members[0].id) + 1),
+  }));
+  const scatterGroupLabel = (point: (typeof scatterPoints)[number]) =>
+    `${point.members.length} ${locale === "en" ? "dishes" : "plats"} · ${fmt(point.views)} ${t("Consultations")} · ${fmt(point.three)} ${t("Clics 3D")}`;
+  const selectedScatterGroup = scatterPoints.find((point) => point.key === scatterGroup && point.members.length > 1);
   const scatter = (
     <div className={styles.chart}>
       <Root config={config}>
@@ -321,56 +371,42 @@ export function StudioAnalysisCharts({
             axisLine={false}
             tickLine={false}
           />
-          <ScatterTooltip<(typeof dishes)[number]>
-            pointLabel={(row) => row.name}
+          <ScatterTooltip<(typeof scatterPoints)[number]>
+            pointLabel={(point) => point.members.length > 1 ? scatterGroupLabel(point) : point.members[0].name}
             content={({ active, payload }) => {
-              const row = payload?.[0]?.payload as
-                (typeof dishes)[number] | undefined;
-              return active && row ? (
+              const point = payload?.[0]?.payload as (typeof scatterPoints)[number] | undefined;
+              return active && point ? (
                 <div className={visual.tooltip} data-kind-ui="chart-tooltip">
-                  <strong>{row.name}</strong>
-                  <div>
-                    <span>{t("Consultations")}</span>
-                    <b>{fmt(row.views)}</b>
-                  </div>
-                  <div>
-                    <span>{t("Clics 3D")}</span>
-                    <b>{fmt(row.three)}</b>
-                  </div>
+                  {point.members.length > 1 && <strong>{scatterGroupLabel(point)}{point.category === null ? (locale === "en" ? " · Mixed categories" : " · Catégories mixtes") : ""}</strong>}
+                  {point.members.slice(0, 3).map((member) => (
+                    <section key={member.id}>
+                      <strong>{member.name}</strong>
+                      <p>{member.category}</p>
+                      <div><span>{t("Consultations")}</span> <b>{fmt(member.views)}</b></div>
+                      <div><span>{t("Clics 3D")}</span> <b>{fmt(member.three)}</b></div>
+                    </section>
+                  ))}
+                  {point.members.length > 3 && <p>{locale === "en" ? `+${point.members.length - 3} other dishes · Select this group to see all` : `+${point.members.length - 3} autres plats · Sélectionnez ce groupe pour tout voir`}</p>}
                 </div>
               ) : null;
             }}
           />
-          <ZAxis
-            zAxisId="fixed-size"
-            type="number"
-            domain={[0, 1]}
-            range={[450, 450]}
-          />
-          {categories.map((row) => (
+          {scatterPoints.map((point) => (
             <ScatterSeries
-              zAxisId="fixed-size"
-              key={row.key}
-              seriesKey={row.key}
-              data={dishes
-                .filter((dish) => dish.category === row.name)
-                .map((dish) => ({
-                  ...dish,
-                  pointNumber:
-                    data.menu.dishes.findIndex((item) => item.id === dish.id) +
-                    1,
-                }))}
-              name={row.name}
-              fill={color(row.name)}
-              shape="circle"
+              key={point.key}
+              seriesKey={point.category === null ? "mixed-group" : categoryKey(point.category)}
+              data={[point]}
+              name={point.members.length > 1 ? scatterGroupLabel(point) : point.members[0].name}
+              fill={point.category === null ? "var(--muted)" : color(point.category)}
+              shape={StudioScatterPoint}
+              activeShape={StudioScatterPoint}
               material="plain"
               stroke="var(--surface)"
               strokeWidth={2}
               onClick={(point) => {
-                const dish = data.menu.dishes.find(
-                  (item) => item.id === point.payload?.id,
-                );
-                if (dish) onDishOpen?.(dish);
+                if (!point.payload) return;
+                if (point.payload.members.length > 1) setScatterGroup(point.payload.key);
+                else onDishOpen?.(point.payload.members[0]);
               }}
             >
               <LabelList
@@ -378,7 +414,7 @@ export function StudioAnalysisCharts({
                 position="inside"
                 fontSize={10}
                 fontWeight={700}
-                fill={`var(--chart-category-${Math.max(0, allCategories.indexOf(row.name)) % 6}-ink)`}
+                fill={point.category === null ? "var(--surface)" : `var(--chart-category-${Math.max(0, allCategories.indexOf(point.category)) % 6}-ink)`}
               />
             </ScatterSeries>
           ))}
@@ -387,6 +423,34 @@ export function StudioAnalysisCharts({
       <p className={visual.axisCaption}>
         {t("Consultations")} → · {t("Clics 3D")} ↑
       </p>
+      {scatterPoints.some((point) => point.members.length > 1) && (
+        <div role="group" aria-label={locale === "en" ? "Dishes at identical coordinates" : "Plats aux coordonnées identiques"}>
+          {scatterPoints.filter((point) => point.members.length > 1).map((point) => (
+            <button key={point.key} ref={selectedScatterGroup?.key === point.key ? scatterGroupTrigger : undefined} type="button" aria-expanded={selectedScatterGroup?.key === point.key} onClick={() => setScatterGroup(point.key)}>
+              ×{point.members.length} · {scatterGroupLabel(point)}
+            </button>
+          ))}
+        </div>
+      )}
+      {selectedScatterGroup && (
+        <div ref={scatterChooser} tabIndex={-1} role="region" aria-label={locale === "en" ? "Choose a dish" : "Choisir un plat"} className={visual.tooltip} data-studio-scatter-chooser onKeyDown={(event) => {
+          if (event.key === "Escape") {
+            event.stopPropagation();
+            closeScatterGroup();
+          }
+        }}>
+          <strong>{scatterGroupLabel(selectedScatterGroup)}</strong>
+          {selectedScatterGroup.category === null && <p>{locale === "en" ? "Mixed categories" : "Catégories mixtes"}</p>}
+          <ul className={visual.scatterMembers}>
+            {selectedScatterGroup.members.map((member) => (
+              <li key={member.id}>
+                <button type="button" disabled={!onDishOpen} onClick={() => onDishOpen?.(member)}>{member.name} · {member.category} · {fmt(member.views)} / {fmt(member.three)}</button>
+              </li>
+            ))}
+          </ul>
+          <button type="button" onClick={closeScatterGroup}>{locale === "en" ? "Close" : "Fermer"}</button>
+        </div>
+      )}
       <details className={styles.dataDisclosure}>
         <summary>{t("Voir les chiffres par plat")}</summary>
         <div className={styles.tableScroll}>

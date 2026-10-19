@@ -18,3 +18,9 @@ test("approved metric island uses actual pinned NumberFlow with motion and unkno
   assert.match(source, /aria-hidden="true"/);
   assert.match(source, /className=\{styles\.srOnly\}/);
 });
+
+test("analysis summary label sizing cannot shrink nested NumberFlow digits", async () => {
+  const css = await readFile("components/admin/studio/StudioAnalysisWorkspace.module.css", "utf8");
+  assert.match(css, /\.summary\s*>\s*button\s*>\s*span\s*\{/);
+  assert.doesNotMatch(css, /\.summary\s+span\s*\{/);
+});
