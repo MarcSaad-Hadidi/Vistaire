@@ -183,13 +183,11 @@ export function AdminStudio({
   );
   const active = pages.find((item) => item.id === page)!;
   const analytics = data.analytics;
+  const observationWindow = analytics.observationWindow;
   const real = analytics.kind === "real" ? analytics : null;
   const comparable = real?.panels.dailyComparison.kind === "supported";
   const selected = metrics.find((item) => item.series === selectedMetric)!;
-  const rangeLabel =
-    analytics.kind !== "unavailable"
-      ? `${formatDate(analytics.observationWindow.startInclusive)} ${locale === "en" ? "to" : "au"} ${formatDate(new Date(Date.parse(analytics.observationWindow.endExclusive) - 1).toISOString())}`
-      : t("Période indisponible");
+  const rangeLabel = `${formatDate(observationWindow.startInclusive)} ${locale === "en" ? "to" : "au"} ${formatDate(new Date(Date.parse(observationWindow.endExclusive) - 1).toISOString())}`;
   const metricValue = (id: string) =>
     real?.metrics.find((item) => item.id === id);
   const dishMap = useMemo(
@@ -523,37 +521,18 @@ export function AdminStudio({
             </Heading>
             <div className={styles.toolbar}>
               <StudioDateRangePicker
-                value={
-                  analytics.kind !== "unavailable"
-                    ? {
-                        from: analytics.observationWindow.startInclusive.slice(
-                          0,
-                          10,
-                        ),
-                        to: new Date(
-                          Math.max(
-                            Date.parse(
-                              analytics.observationWindow.startInclusive,
-                            ),
-                            Date.parse(
-                              analytics.observationWindow.endExclusive,
-                            ) - 1,
-                          ),
-                        )
-                          .toISOString()
-                          .slice(0, 10),
-                      }
-                    : {
-                        from: new Date().toISOString().slice(0, 10),
-                        to: new Date().toISOString().slice(0, 10),
-                      }
-                }
+                key={range}
+                value={{
+                  from: observationWindow.startInclusive.slice(0, 10),
+                  to: new Date(
+                    Math.max(
+                      Date.parse(observationWindow.startInclusive),
+                      Date.parse(observationWindow.endExclusive) - 1,
+                    ),
+                  ).toISOString().slice(0, 10),
+                }}
                 range={range}
-                observationWindow={
-                  analytics.kind !== "unavailable"
-                    ? analytics.observationWindow
-                    : undefined
-                }
+                observationWindow={observationWindow}
                 locale={locale}
                 allowedRanges={demo ? demoRanges : undefined}
                 onApply={(next) =>

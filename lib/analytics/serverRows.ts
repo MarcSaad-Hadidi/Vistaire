@@ -230,26 +230,39 @@ export async function readAnalyticsEventsForPeriod<T extends AnyRow>(args: {
   }
 
   const rows: T[] = [];
+  // The telemetry migration is deployed separately from the application.
+  // Remove only a column the database explicitly proves absent; a working
+  // environment filter must survive even a partially migrated projection.
+  const optionalColumns = new Set(["schema_version", "environment", "sequence"]);
+  const baseColumns = `${defaultProjection("analytics_events")},metadata`;
   for (let offset = 0; offset < maxRows; offset += pageSize) {
-    let query = admin.client
-      .from("analytics_events")
-      .select("id,restaurant_id,menu_id,dish_id,session_id,event_name,source,dish_slug,category_slug,search_query,filter_name,cta_name,created_at,metadata,schema_version,environment,sequence")
-      .eq("restaurant_id", restaurantId)
-      .eq("source", "production")
-      .in("environment", ["production", "legacy"])
-      .gte("created_at", fromIso)
-      .lt("created_at", toIso)
-      .order("created_at", { ascending: true })
-      .order("id", { ascending: true });
-    if (args.menuId) query = query.eq("menu_id", args.menuId);
-    const { data, error } = await query.range(offset, offset + pageSize - 1);
+    const readPage = async () => {
+      let query = admin.client
+        .from("analytics_events")
+        .select([baseColumns, ...optionalColumns].join(","))
+        .eq("restaurant_id", restaurantId)
+        .eq("source", "production")
+        .gte("created_at", fromIso)
+        .lt("created_at", toIso)
+        .order("created_at", { ascending: true })
+        .order("id", { ascending: true });
+      if (optionalColumns.has("environment")) query = query.in("environment", ["production", "legacy"]);
+      if (args.menuId) query = query.eq("menu_id", args.menuId);
+      return query.range(offset, offset + pageSize - 1);
+    };
+    let { data, error } = await readPage();
+    while (error?.code === "42703") {
+      const missingColumn = error.message.match(/column (?:[\w]+\.)?["']?(schema_version|environment|sequence)["']? does not exist/i)?.[1];
+      if (!missingColumn || !optionalColumns.delete(missingColumn)) break;
+      ({ data, error } = await readPage());
+    }
 
     if (error) {
       logServerDataError("read analytics_events period", error.message);
       return { ok: false, error: error.message, rows: [], truncated: false };
     }
 
-    const page = (data ?? []) as T[];
+    const page = (data ?? []) as unknown as T[];
     rows.push(...page);
     if (page.length < pageSize) {
       return { ok: true, rows, truncated: false };

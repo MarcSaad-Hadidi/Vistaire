@@ -23,6 +23,7 @@ for (const [table, rows] of Object.entries(saugeNoireFixture)) {
   tables[table] = [...(tables[table] ?? []), ...structuredClone(rows)];
 }
 const baselineTables = structuredClone(tables);
+let analyticsReadError = false;
 const qrTokenHash = `sha256:${createHash("sha256").update(ADMIN_VISUAL_QR_TOKEN).digest("hex")}`;
 
 const demoImages = new Map(
@@ -150,6 +151,10 @@ async function handleRpc(request, response, name) {
 const port = Number(process.env.VISTAIRE_ADMIN_VISUAL_FIXTURE_PORT || 3110);
 const server = http.createServer(async (request, response) => {
   const url = new URL(request.url, "http://localhost");
+  if (request.method === "POST" && url.pathname === "/fixture/analytics-read-error") {
+    analyticsReadError = url.searchParams.get("enabled") === "1";
+    return sendJson(response, 200, { ok: true });
+  }
   if (request.method === "POST" && url.pathname === "/fixture/reset-admin-scheduling") {
     for (const [table, rows] of Object.entries(baselineTables)) tables[table] = structuredClone(rows);
     return sendJson(response, 200, { ok: true });
@@ -167,6 +172,15 @@ const server = http.createServer(async (request, response) => {
     }
     sendStorageResponse(request, response, asset);
     return;
+  }
+  // Exercise the deployed pre-v2 analytics schema in every admin browser test.
+  // Unknown projected columns must fail like PostgREST, rather than silently
+  // returning rows and hiding rollout regressions.
+  if (url.pathname === "/rest/v1/analytics_events") {
+    if (analyticsReadError) return sendJson(response, 503, { code: "PGRST000", message: "Fixture analytics read unavailable" });
+    const selected = (url.searchParams.get("select") ?? "").split(",");
+    const missing = ["schema_version", "environment", "sequence"].find(column => selected.includes(column) || url.searchParams.has(column));
+    if (missing) return sendJson(response, 400, { code: "42703", message: `column analytics_events.${missing} does not exist` });
   }
   const rows = filteredRows(url);
   const page = paginateAdminVisualFixtureRows(rows, request.headers.range, { offset: url.searchParams.get("offset"), limit: url.searchParams.get("limit") });

@@ -869,3 +869,32 @@ test(
     await expect(trigger).toBeFocused();
   },
 );
+
+
+test("studio dates preserve the selected window when analytics reads fail", async ({ page, request }) => {
+  const fixture = `http://127.0.0.1:${process.env.VISTAIRE_ADMIN_VISUAL_FIXTURE_PORT ?? "3110"}`;
+  await request.post(`${fixture}/fixture/analytics-read-error?enabled=1`);
+  try {
+    await preview(page);
+    await page.goto("/admin?range=custom%3A2026-07-01%3A2026-07-09");
+    const trigger = page.getByRole("button", { name: /Modifier la période d’analyse/ });
+    const expected = /1 juil\. 2026.*9 juil\. 2026/;
+    await expect(trigger).toHaveText(expected);
+    await expect(page.locator('[data-studio-chart="trend"]')).toHaveCount(0);
+    await trigger.click();
+    await page.getByRole("button", { name: "Appliquer", exact: true }).click();
+    await expect(trigger).toHaveText(expected);
+    expect(new URL(page.url()).searchParams.get("range")).toBe("custom:2026-07-01:2026-07-09");
+    await trigger.click();
+    await page.getByRole("button", { name: "30 jours", exact: true }).click();
+    await page.getByRole("button", { name: "Appliquer", exact: true }).click();
+    await expect(page).toHaveURL(/range=30d/);
+    await expect(trigger).toHaveText(/10 juin 2026.*10 juil\. 2026/);
+    await trigger.click();
+    await page.goBack();
+    await expect(trigger).toHaveText(expected);
+    await expect(page.getByRole("button", { name: "Appliquer", exact: true })).toHaveCount(0);
+  } finally {
+    await request.post(`${fixture}/fixture/analytics-read-error?enabled=0`);
+  }
+});

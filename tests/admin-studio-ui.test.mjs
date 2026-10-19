@@ -44,6 +44,17 @@ test("studio charts use KindUI and availability is semantic in both themes", asy
   assert.match(css, /data-theme="dark"/);
   assert.match(css, /prefers-reduced-motion/);
 });
+
+test("date control uses the server window even during data failures and resets on range navigation", async () => {
+  const source = await readFile("components/admin/studio/AdminStudio.tsx", "utf8");
+  assert.match(source, /const observationWindow = analytics\.observationWindow;/);
+  const picker = source.slice(source.indexOf("<StudioDateRangePicker"), source.indexOf("<button onClick={() => setExportOpen(true)}"));
+  assert.match(picker, /key=\{range\}/);
+  assert.match(picker, /from: observationWindow\.startInclusive\.slice/);
+  assert.match(picker, /Date\.parse\(observationWindow\.endExclusive\) - 1/);
+  assert.match(picker, /observationWindow=\{observationWindow\}/);
+  assert.doesNotMatch(picker, /analytics\.kind|new Date\(\)/);
+});
 test("analysis retains approved category, distribution and relationship chart families", async () => {
   const charts = await readFile(
     "components/admin/studio/StudioAnalysisCharts.tsx",
