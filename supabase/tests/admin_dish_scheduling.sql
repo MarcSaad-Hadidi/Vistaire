@@ -22,7 +22,7 @@ insert into public.qr_codes values('55555555-1111-4111-8111-111111111111','11111
 select * from public.set_admin_dish_availability('55555555-1111-4111-8111-111111111111','11111111-1111-4111-8111-111111111111','44444444-1111-4111-8111-111111111111',false);
 do $$ begin if (select is_available from public.menu_dishes) is distinct from false then raise exception 'Legacy pre-migration availability failed';end if;end $$;
 select * from public.set_admin_dish_availability('55555555-1111-4111-8111-111111111111','11111111-1111-4111-8111-111111111111','44444444-1111-4111-8111-111111111111',true);
-\ir ../migrations/20261018212202_admin_dish_scheduling.sql
+\ir ../migrations/20261019050749_admin_dish_scheduling.sql
 set local role service_role;
 select public.save_admin_dish_schedule('55555555-1111-4111-8111-111111111111','11111111-1111-4111-8111-111111111111','44444444-1111-4111-8111-111111111111','America/Toronto',null,false,null,'[{"type":"weekly","days":[1],"start":"22:00","end":"02:00","available":true}]',0,'66666666-1111-4111-8111-111111111111');
 do $$ begin if (select settings_json->>'availabilityScheduleVersion' from public.menus) is distinct from '1' then raise exception 'Missing schedule capability marker';end if;end $$;
