@@ -177,7 +177,7 @@ const server = http.createServer(async (request, response) => {
   // Unknown projected columns must fail like PostgREST, rather than silently
   // returning rows and hiding rollout regressions.
   if (url.pathname === "/rest/v1/analytics_events") {
-    if (analyticsReadError) return sendJson(response, 503, { code: "PGRST000", message: "Fixture analytics read unavailable" });
+    if (analyticsReadError) return sendJson(response, 400, { code: "42703", message: "column analytics_events.unavailable_fixture_column does not exist" });
     const selected = (url.searchParams.get("select") ?? "").split(",");
     const missing = ["schema_version", "environment", "sequence"].find(column => selected.includes(column) || url.searchParams.has(column));
     if (missing) return sendJson(response, 400, { code: "42703", message: `column analytics_events.${missing} does not exist` });
