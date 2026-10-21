@@ -1310,6 +1310,13 @@ test("an early scroll waits on the opening poster until the full scene is ready"
   // The first input starts the 3D and is held at the opening, never past it.
   await page.mouse.wheel(0, 600);
   await expect(page.locator(".poster-cue")).toBeVisible();
+  expect(await page.evaluate(() => scrollY)).toBe(0);
+  // The still stays painted over the loading scene layer.
+  await expect.poll(() => page.evaluate(() => {
+    const layer = document.querySelector(".scene-layer");
+    const poster = document.querySelector(".opening-poster");
+    return Boolean(layer && poster && layer.compareDocumentPosition(poster) & Node.DOCUMENT_POSITION_FOLLOWING);
+  })).toBe(true);
   await page.mouse.wheel(0, 2400);
   expect(await page.evaluate(() => scrollY)).toBe(0);
   const canvas = page.locator(".scene-canvas");

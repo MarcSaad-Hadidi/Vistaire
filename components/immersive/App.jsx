@@ -305,6 +305,15 @@ function Modal({ label, children, close }) {
     </div>
   );
 }
+const SCROLL_KEYS = new Set([" ", "PageDown", "PageUp", "ArrowDown", "ArrowUp", "End", "Home"]);
+// The visitor inputs that scroll the journey: wheel, touch drags and scroll
+// keys outside form fields.
+function isHeldScroll(event) {
+  if (event.type === "keydown")
+    return SCROLL_KEYS.has(event.key) && !event.target.closest?.("input, textarea, select, [contenteditable]");
+  return event.type === "wheel" || event.type === "touchmove";
+}
+
 export function App({ locale = "fr" }) {
   // The opening is first painted as a still of its own 3D frame (the poster in
   // .world). The scene, its models and GPU setup start on the first visitor
@@ -316,10 +325,9 @@ export function App({ locale = "fr" }) {
     const inputs = ["pointerdown", "touchstart", "wheel", "keydown", "scroll"];
     const start = (event) => {
       stop();
-      // The journey waits at the opening while the scene loads (see the
-      // scroll hold in LandingContent): undo the input's first scroll step.
-      // A scroll event alone is the browser's (an anchor): keep its position.
-      if (event && event.type !== "scroll" && !location.hash) scrollTo({ top: 0, behavior: "instant" });
+      // The journey waits at the opening while the scene loads (the scroll
+      // hold in LandingContent): the starting wheel or key does not scroll.
+      if (event && isHeldScroll(event)) event.preventDefault();
       const fetchHint = { as: "fetch", crossOrigin: "anonymous" };
       // The scene's own fetches reuse these (same URL and CORS mode).
       for (const id of ["immersive.restaurant.visible.textures-512", "immersive.phone", "immersive.support.acrylique"])
@@ -347,7 +355,7 @@ export function App({ locale = "fr" }) {
     // A restored or anchored scroll position is already past the opening.
     if (scrollY > 0) start();
     else {
-      inputs.forEach((type) => addEventListener(type, start, { passive: true }));
+      inputs.forEach((type) => addEventListener(type, start, { passive: type !== "wheel" }));
       if (document.readyState === "complete") schedule();
       else addEventListener("load", schedule);
     }
@@ -423,20 +431,10 @@ function LandingContent({ sceneStarted }) {
     // Visitor inputs are held, not the page: overflow hidden would drop the
     // desktop scrollbar and shift the layout, and the journey's own scrolls
     // (anchors, chapter links) must still land.
-    const scrollKeys = new Set([" ", "PageDown", "PageUp", "ArrowDown", "ArrowUp", "End", "Home"]);
-    const hold = (event) => event.preventDefault();
-    const holdKey = (event) => {
-      if (scrollKeys.has(event.key) && !event.target.closest?.("input, textarea, select, [contenteditable]"))
-        event.preventDefault();
-    };
-    const release = () => {
-      removeEventListener("wheel", hold);
-      removeEventListener("touchmove", hold);
-      removeEventListener("keydown", holdKey);
-    };
-    addEventListener("wheel", hold, { passive: false });
-    addEventListener("touchmove", hold, { passive: false });
-    addEventListener("keydown", holdKey);
+    const hold = (event) => { if (isHeldScroll(event)) event.preventDefault(); };
+    const types = ["wheel", "touchmove", "keydown"];
+    const release = () => types.forEach((type) => removeEventListener(type, hold));
+    types.forEach((type) => addEventListener(type, hold, { passive: false }));
     const timer = setTimeout(release, 20_000);
     return () => { clearTimeout(timer); release(); };
   }, [holdingScroll]);
@@ -1187,13 +1185,6 @@ function LandingContent({ sceneStarted }) {
       </a>
       <div className="world">
         <div id="pricing-screen-host" />
-        {!posterGone && (
-          <picture className={`opening-poster${ready ? " is-faded" : ""}`}
-            onTransitionEnd={() => ready && setPosterGone(true)}>
-            <source media="(orientation: landscape)" srcSet="/immersive-assets/opening-poster-landscape.webp" />
-            <img src="/immersive-assets/opening-poster-portrait.webp" alt="" fetchPriority="high" />
-          </picture>
-        )}
         <Suspense fallback={null}>
           {!gpuError && sceneStarted && (
             <Scene
@@ -1211,6 +1202,14 @@ function LandingContent({ sceneStarted }) {
             />
           )}
         </Suspense>
+        {/* After the scene layer, so the still covers the loading canvas. */}
+        {!posterGone && (
+          <picture className={`opening-poster${ready ? " is-faded" : ""}`}
+            onTransitionEnd={() => ready && setPosterGone(true)}>
+            <source media="(orientation: landscape)" srcSet="/immersive-assets/opening-poster-landscape.webp" />
+            <img src="/immersive-assets/opening-poster-portrait.webp" alt="" fetchPriority="high" />
+          </picture>
+        )}
       </div>
       <div id="pricing-actions-host" />
       {performanceCapture && (
