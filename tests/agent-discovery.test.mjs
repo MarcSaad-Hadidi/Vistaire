@@ -305,6 +305,9 @@ test("markdown 404 only when the app itself answers 404 for the path", async () 
   // A probe GETs the route: /q/<token> would record a second QR scan.
   assert.equal(await isMissingRoute(new URL("https://www.vistaire.ca/q/live-token"), fakeFetch(404)), false);
   assert.equal(calls.length, before);
+  // Only the single-segment scan route is exempt; other /q paths are probed normally.
+  assert.equal(await isMissingRoute(new URL("https://www.vistaire.ca/q"), fakeFetch(404)), true);
+  assert.equal(await isMissingRoute(new URL("https://www.vistaire.ca/q/token/extra"), fakeFetch(404)), true);
 
   const markdown = buildNotFoundMarkdown("/__probe");
   assert.ok(markdown.length > 20);
