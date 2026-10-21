@@ -134,6 +134,12 @@ export function buildOpenApiDocument() {
       }
     }
   };
+  const errorResponse = (description: string) => ({
+    description,
+    content: {
+      "application/json": { schema: { $ref: "#/components/schemas/Error" } }
+    }
+  });
   return {
     openapi: "3.1.0",
     info: {
@@ -146,6 +152,7 @@ export function buildOpenApiDocument() {
     paths: {
       "/api/exchange-rates": {
         get: {
+          operationId: "getExchangeRates",
           summary: "Read public menu currency exchange rates",
           description:
             "Returns public exchange-rate data used by menu display. This endpoint does not expose owner data.",
@@ -189,6 +196,7 @@ export function buildOpenApiDocument() {
       },
       "/api/public/menu-dishes/{dishId}/photo": {
         get: {
+          operationId: "getPublicDishPhoto",
           summary: "Read a public dish photo",
           description:
             "Returns a public dish image only when the dish is available and the media exists.",
@@ -208,13 +216,14 @@ export function buildOpenApiDocument() {
           ],
           responses: {
             "307": signedStorageRedirect,
-            "404": { description: "Dish photo not found" },
-            "503": { description: "Media storage unavailable" }
+            "404": errorResponse("Dish photo not found"),
+            "503": errorResponse("Media storage unavailable")
           }
         }
       },
       "/api/public/menu-dishes/{dishId}/model/glb": {
         get: {
+          operationId: "getPublicDishGlbModel",
           summary: "Read a public dish GLB model",
           description:
             "Returns a public GLB model only when the dish is available and the model exists.",
@@ -240,13 +249,13 @@ export function buildOpenApiDocument() {
           ],
           responses: {
             "307": signedStorageRedirect,
-            "404": { description: "Dish model not found" },
-            "503": { description: "Model storage unavailable" }
+            "404": errorResponse("Dish model not found")
           }
         }
       },
       "/api/public/menu-dishes/{dishId}/model/usdz": {
         get: {
+          operationId: "getPublicDishUsdzModel",
           summary: "Read a public dish USDZ model",
           description:
             "Returns a public USDZ model only when the dish is available and the model exists.",
@@ -266,8 +275,21 @@ export function buildOpenApiDocument() {
           ],
           responses: {
             "307": signedStorageRedirect,
-            "404": { description: "Dish model not found" },
-            "503": { description: "Model storage unavailable" }
+            "404": errorResponse("Dish model not found")
+          }
+        }
+      }
+    },
+    components: {
+      schemas: {
+        Error: {
+          type: "object",
+          required: ["ok", "error"],
+          properties: {
+            ok: { type: "boolean", const: false },
+            error: { type: "string", description: "Human-readable message." },
+            code: { type: "string", description: "Machine-readable error code, e.g. not_found." },
+            hint: { type: "string", description: "How to recover." }
           }
         }
       }

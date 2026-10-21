@@ -16,6 +16,7 @@ export const metadata: Metadata = {
   description: DEFAULT_SITE_DESCRIPTION,
   alternates: buildPageAlternates("/"),
   openGraph: {
+    type: "website",
     images: socialImages("DIGITAL:hero", "fr").openGraph,
     url: absoluteUrl("/"),
     title: "Vistaire | Menu digital QR premium pour restaurants haut de gamme",

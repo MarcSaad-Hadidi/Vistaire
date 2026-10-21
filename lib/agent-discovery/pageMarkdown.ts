@@ -160,6 +160,32 @@ export function buildPageMarkdown(pathname: string): string | null {
   return entry ? entry.build().join("\n").replace(/\n{3,}/g, "\n\n").trim() + "\n" : null;
 }
 
+// First path segments served by real app routes without a markdown twin (menus, owner app, files...).
+// Any other path with no twin cannot render, so the proxy can answer it with a markdown 404.
+const ROUTED_ROOTS = new Set([
+  "a-propos", "admin", "api", "apercu-restaurateur", "contact", "demo", "en", "guides", "legacy", "menu",
+  "owner", "prendre-rendez-vous", "q", "sign-in", "todos", "_next", ".well-known", "cdn-cgi"
+]);
+
+export function isUnknownPublicPath(pathname: string): boolean {
+  if (pathname.includes(".")) return false; // files: llms.txt, auth.md, assets
+  const root = pathname.split("/")[1] ?? "";
+  return root !== "" && !ROUTED_ROOTS.has(root) && buildPageMarkdown(pathname) === null;
+}
+
+export function buildNotFoundMarkdown(pathname: string): string {
+  return [
+    "# Page not found",
+    "",
+    `No Vistaire page exists at \`${pathname}\`.`,
+    "",
+    `- Site overview for agents: ${absoluteUrl("/llms.txt")}`,
+    `- All public pages: ${absoluteUrl("/sitemap.xml")}`,
+    `- Homepage: ${absoluteUrl("/")}`,
+    ""
+  ].join("\n");
+}
+
 /** Every structured page, once, for agents that read the whole site in one request. */
 export function buildLlmsFullText(): string {
   return [

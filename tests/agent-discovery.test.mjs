@@ -1,10 +1,11 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
 import nextConfig from "../next.config.ts";
+import { buildNotFoundMarkdown, isUnknownPublicPath } from "../lib/agent-discovery/pageMarkdown.ts";
 import * as agentDiscovery from "../lib/agent-discovery/index.ts";
 import {
   AGENT_SKILL_DOCS,
@@ -255,4 +256,43 @@ test("discovery outputs do not expose known secret names", () => {
   ]) {
     assert.ok(!outputs.includes(forbidden), `discovery output contains ${forbidden}`);
   }
+});
+
+test("agent readiness gaps: when-to-use, trust redirect, og:type, Organization address", async () => {
+  assert.match(readRepoFile("public/llms.txt"), /^## When to use Vistaire$/m);
+  assert.match(readRepoFile("app/(fr)/page.tsx"), /type: "website"/);
+  assert.match(readRepoFile("lib/seo.ts"), /"@type": "Organization",[\s\S]*?address: ORGANIZATION_ADDRESS_JSON_LD/);
+
+  const redirects = await nextConfig.redirects();
+  assert.ok(redirects.some((r) => r.source === "/about" && r.destination === "/a-propos"));
+});
+
+test("unknown API paths answer a structured JSON 404", async () => {
+  const { GET } = await import("../app/api/[...path]/route.ts");
+  const response = GET();
+  assert.equal(response.status, 404);
+  assert.match(response.headers.get("content-type"), /application\/json/);
+  const body = await response.json();
+  assert.equal(body.ok, false);
+  assert.equal(body.code, "not_found");
+  assert.ok(body.hint.includes("/openapi.json"));
+});
+
+test("markdown 404 only for paths no route can serve", () => {
+  assert.equal(isUnknownPublicPath("/__ora-404-probe-8lbnm6hl"), true);
+  assert.equal(isUnknownPublicPath("/nope/deeper"), true);
+  for (const known of ["/menu/maison-elyse", "/q/abc", "/en/about", "/auth.md", "/owner", "/demo", "/api/x", "/contact/marc"]) {
+    assert.equal(isUnknownPublicPath(known), false, known);
+  }
+  // every real top-level route folder must stay known, or proxy would 404 it
+  const roots = ["app", "app/(fr)", "app/(fr)/(seo)", "app/(en)"].flatMap((dir) =>
+    readdirSync(join(repoRoot, dir), { withFileTypes: true })
+      .filter((d) => d.isDirectory() && !/^[([]/.test(d.name))
+      .map((d) => d.name)
+  );
+  for (const root of roots) assert.equal(isUnknownPublicPath(`/${root}`), false, root);
+
+  const markdown = buildNotFoundMarkdown("/__probe");
+  assert.ok(markdown.length > 20);
+  assert.match(markdown, /\/llms\.txt/);
 });
