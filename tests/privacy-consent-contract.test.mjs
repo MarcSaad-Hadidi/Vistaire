@@ -223,3 +223,13 @@ test("Vercel Web Analytics only loads and sends after analytics consent", async 
   assert.match(consented, /hydrated && analyticsAllowed/);
   assert.match(consented, /beforeSend=\{[^}]*hasAnalyticsConsent\(\)/);
 });
+
+test("every analytics recipient enabled by consent is disclosed in both languages", async () => {
+  const banner = await readSource("components/privacy/PrivacyConsentBanner.tsx");
+  assert.equal((banner.match(/Vercel Web Analytics/g) ?? []).length >= 2, true, "banner FR and EN");
+  for (const policy of ["app/(fr)/politique-de-confidentialite/page.tsx", "app/(en)/en/privacy-policy/page.tsx"]) {
+    const source = await readSource(policy);
+    assert.match(source, /<strong>Vercel Web Analytics<\/strong>/, policy);
+    assert.match(source, /Microsoft Clarity<\/strong>[^<]*(?:et à|and to) <strong>Vercel Web Analytics<\/strong>/, policy);
+  }
+});

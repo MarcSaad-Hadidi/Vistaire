@@ -25,7 +25,7 @@ const copy = {
     alwaysActive: "Toujours actifs",
     analytics: "Analyse",
     analyticsDescription:
-      "Microsoft Clarity et l'analyse interne Vistaire. Ces outils peuvent mesurer les interactions, les pages consultées et la performance d'utilisation.",
+      "Microsoft Clarity, Vercel Web Analytics et l'analyse interne Vistaire. Ces outils peuvent mesurer les interactions, les pages consultées et la performance d'utilisation.",
     privacy: "Politique de confidentialité"
   },
   en: {
@@ -44,7 +44,7 @@ const copy = {
     alwaysActive: "Always active",
     analytics: "Analytics",
     analyticsDescription:
-      "Microsoft Clarity and Vistaire first-party analytics. These tools may measure interactions, viewed pages and usage performance.",
+      "Microsoft Clarity, Vercel Web Analytics and Vistaire first-party analytics. These tools may measure interactions, viewed pages and usage performance.",
     privacy: "Privacy policy"
   }
 } as const;

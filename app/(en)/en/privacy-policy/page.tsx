@@ -26,7 +26,7 @@ export default function PrivacyPolicyPage() {
       languageLabel="FR"
       locale="en"
       title="Privacy policy"
-      updatedLabel="Last updated: September 2, 2026"
+      updatedLabel="Last updated: October 21, 2026"
     >
       <section>
         <h2>1. Scope and responsibility</h2>
@@ -65,7 +65,10 @@ export default function PrivacyPolicyPage() {
           With your permission, Vistaire uses <strong>Microsoft Clarity</strong> to understand interactions such as clicks, scrolling and navigation paths, including through heatmaps and session recordings. Clarity may then use cookies such as <code>_clck</code> and <code>_clsk</code>. Without your permission, Vistaire does not load the Clarity script.
         </p>
         <p>
-          You may change or withdraw your choice at any time through “Privacy settings” at the bottom of public pages. Withdrawal disables optional analytics, clears Vistaire’s internal analytics session identifier and signals withdrawal to Clarity.
+          With your permission, Vistaire also uses <strong>Vercel Web Analytics</strong> to measure viewed pages, the referring page, browser, device type and country. This tool does not set cookies. Without your permission, it is not loaded.
+        </p>
+        <p>
+          You may change or withdraw your choice at any time through “Privacy settings” at the bottom of public pages. Withdrawal disables optional analytics, clears Vistaire’s internal analytics session identifier signals withdrawal to Clarity and stops sending data to Vercel Web Analytics.
         </p>
       </section>
 
@@ -85,7 +88,7 @@ export default function PrivacyPolicyPage() {
           Vistaire uses <strong>Brevo</strong> to transmit requests submitted through the contact form. Information you enter in the form may therefore be disclosed to Brevo for that purpose.
         </p>
         <p>
-          When you accept analytics, usage data may be disclosed to <strong>Microsoft Clarity</strong>. Depending on the feature used, Vistaire may also rely on technical hosting, database or authentication providers, including Vercel, Supabase and Clerk, only to the extent needed to operate the relevant service.
+          When you accept analytics, usage data may be disclosed to <strong>Microsoft Clarity</strong> and to <strong>Vercel Web Analytics</strong>. Depending on the feature used, Vistaire may also rely on technical hosting, database or authentication providers, including Vercel, Supabase and Clerk, only to the extent needed to operate the relevant service.
         </p>
       </section>
 

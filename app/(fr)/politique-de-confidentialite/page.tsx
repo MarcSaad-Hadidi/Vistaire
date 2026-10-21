@@ -26,7 +26,7 @@ export default function PolitiqueConfidentialitePage() {
       languageLabel="EN"
       locale="fr"
       title="Politique de confidentialité"
-      updatedLabel="Dernière mise à jour : 2 septembre 2026"
+      updatedLabel="Dernière mise à jour : 21 octobre 2026"
     >
       <section>
         <h2>1. Portée et responsable</h2>
@@ -65,7 +65,10 @@ export default function PolitiqueConfidentialitePage() {
           Avec votre accord, Vistaire utilise <strong>Microsoft Clarity</strong> pour comprendre des interactions comme les clics, le défilement et les parcours de navigation, notamment au moyen de cartes de chaleur et d’enregistrements de session. Clarity peut alors utiliser des témoins tels que <code>_clck</code> et <code>_clsk</code>. Sans votre accord, le script Clarity n’est pas chargé par Vistaire.
         </p>
         <p>
-          Vous pouvez modifier ou retirer votre choix en tout temps avec « Préférences de confidentialité » au bas des pages publiques. Le retrait désactive l’analyse facultative, efface l’identifiant de session d’analyse interne et demande à Clarity de retirer son consentement.
+          Avec votre accord, Vistaire utilise aussi <strong>Vercel Web Analytics</strong> pour mesurer les pages consultées, la page de provenance, le navigateur, le type d’appareil et le pays. Cet outil ne dépose pas de témoin. Sans votre accord, il n’est pas chargé.
+        </p>
+        <p>
+          Vous pouvez modifier ou retirer votre choix en tout temps avec « Préférences de confidentialité » au bas des pages publiques. Le retrait désactive l’analyse facultative, efface l’identifiant de session d’analyse interne demande à Clarity de retirer son consentement et arrête l’envoi de données à Vercel Web Analytics.
         </p>
       </section>
 
@@ -85,7 +88,7 @@ export default function PolitiqueConfidentialitePage() {
           Vistaire utilise <strong>Brevo</strong> pour transmettre les demandes envoyées par le formulaire de contact. Les renseignements que vous inscrivez au formulaire peuvent donc être communiqués à Brevo pour cette finalité.
         </p>
         <p>
-          Lorsque vous acceptez l’analyse, des données d’utilisation peuvent être communiquées à <strong>Microsoft Clarity</strong>. Selon la fonctionnalité utilisée, Vistaire peut aussi s’appuyer sur des fournisseurs techniques d’hébergement, de base de données ou d’authentification, notamment Vercel, Supabase et Clerk, uniquement dans la mesure nécessaire à l’exploitation du service concerné.
+          Lorsque vous acceptez l’analyse, des données d’utilisation peuvent être communiquées à <strong>Microsoft Clarity</strong> et à <strong>Vercel Web Analytics</strong>. Selon la fonctionnalité utilisée, Vistaire peut aussi s’appuyer sur des fournisseurs techniques d’hébergement, de base de données ou d’authentification, notamment Vercel, Supabase et Clerk, uniquement dans la mesure nécessaire à l’exploitation du service concerné.
         </p>
       </section>
 
