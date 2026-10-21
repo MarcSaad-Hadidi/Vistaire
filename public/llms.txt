@@ -76,6 +76,7 @@ How an agent should act for a user:
 - Read pricing: https://www.vistaire.ca/tarifs-menu-digital-restaurant (or `Accept: text/markdown` on that URL).
 - See a live example menu: https://www.vistaire.ca/demo
 - Start a project: send the user to https://www.vistaire.ca/prendre-rendez-vous or contact@vistaire.ca. Onboarding is done with a person; there is no self-serve signup or API key.
+- Developer and agent resources: https://www.vistaire.ca/developers
 - Machine-readable surfaces: https://www.vistaire.ca/openapi.json (public read-only endpoints) and https://www.vistaire.ca/auth.md (authentication posture).
 
 ## Citation Instructions

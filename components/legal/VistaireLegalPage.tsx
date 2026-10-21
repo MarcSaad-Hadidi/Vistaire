@@ -5,6 +5,7 @@ import styles from "./VistaireLegalPage.module.css";
 
 export function VistaireLegalPage({
   children,
+  eyebrow,
   intro,
   languageHref,
   languageLabel,
@@ -13,6 +14,7 @@ export function VistaireLegalPage({
   updatedLabel
 }: {
   children: ReactNode;
+  eyebrow?: string;
   intro: string;
   languageHref: string;
   languageLabel: string;
@@ -39,7 +41,7 @@ export function VistaireLegalPage({
       </header>
 
       <article className={styles.article}>
-        <p className={styles.eyebrow}>{locale === "en" ? "Vistaire · Legal" : "Vistaire · Légal"}</p>
+        <p className={styles.eyebrow}>{eyebrow ?? (locale === "en" ? "Vistaire · Legal" : "Vistaire · Légal")}</p>
         <h1>{title}</h1>
         <p className={styles.intro}>{intro}</p>
         <p className={styles.updated}>{updatedLabel}</p>

@@ -316,3 +316,25 @@ test("markdown 404 only when the app itself answers 404 for the path", async () 
   assert.ok(markdown.length > 20);
   assert.match(markdown, /\/llms\.txt/);
 });
+
+test("developer resources are discoverable: skills when-to-use, /developers, /privacy", async () => {
+  for (const skill of AGENT_SKILL_DOCS) {
+    assert.match(skill.content, /^## When to use$/m, skill.name);
+  }
+
+  const redirects = await nextConfig.redirects();
+  assert.ok(redirects.some((r) => r.source === "/privacy" && r.destination === "/politique-de-confidentialite"));
+  assert.ok(redirects.some((r) => r.source === "/docs" && r.destination === "/developers"));
+
+  const developers = readRepoFile("app/(fr)/developers/page.tsx");
+  for (const resource of ["/openapi.json", "/auth.md", "/llms.txt", "/.well-known/agent-skills/index.json", "/api/exchange-rates"]) {
+    assert.ok(developers.includes(resource), resource);
+  }
+  for (const footer of ["components/vistaire-preview/VistairePreviewChrome.tsx", "components/immersive/App.jsx"]) {
+    assert.match(readRepoFile(footer), /href="\/developers"/, footer);
+  }
+  assert.match(readRepoFile("public/llms.txt"), /https:\/\/www\.vistaire\.ca\/developers/);
+
+  const { buildSitemapEntries } = await import("../lib/seo.ts");
+  assert.ok(buildSitemapEntries().some((entry) => entry.url.endsWith("/developers")));
+});

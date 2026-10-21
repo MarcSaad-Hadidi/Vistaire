@@ -385,6 +385,9 @@ export function PreviewFooter({
         <Link href={`${routes.pricing}#pricing-terms-title`} prefetch={false}>
           {locale === "en" ? "Offer terms" : "Conditions de l’offre"}
         </Link>
+        <Link href="/developers" prefetch={false}>
+          {locale === "en" ? "Developers" : "Développeurs"}
+        </Link>
         <PrivacyUtilityBar
           className={styles.footerUtilityLinks}
           locale={locale}
