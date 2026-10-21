@@ -1971,9 +1971,6 @@ function LandingContent() {
           <Link prefetch={false} href={`${link("/tarifs-menu-digital-restaurant")}#pricing-terms-title`}>
             {locale === "en" ? "Offer terms" : "Conditions de l’offre"}
           </Link>
-          <Link prefetch={false} href={link("/developers")}>
-            {locale === "en" ? "Developers" : "Développeurs"}
-          </Link>
         </div>
       </Chapter>
       <AdaptiveScrollGuide visible={guideVisible && ready && !menu && !modal && chapter !== "footer"} />

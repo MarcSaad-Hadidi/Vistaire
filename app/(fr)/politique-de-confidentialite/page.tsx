@@ -85,7 +85,7 @@ export default function PolitiqueConfidentialitePage() {
       <section>
         <h2>5. Fournisseurs et communications</h2>
         <p>
-          Vistaire utilise <strong>Brevo</strong> pour transmettre les demandes envoyées par le formulaire de contact. Les renseignements que vous inscrivez au formulaire peuvent donc être communiqués à Brevo pour cette finalité.
+          Vistaire utilise <strong>Resend</strong> pour transmettre les demandes envoyées par le formulaire de contact. Les renseignements que vous inscrivez au formulaire peuvent donc être communiqués à Resend pour cette finalité.
         </p>
         <p>
           Lorsque vous acceptez l’analyse, des données d’utilisation peuvent être communiquées à <strong>Microsoft Clarity</strong> et à <strong>Vercel Web Analytics</strong>. Selon la fonctionnalité utilisée, Vistaire peut aussi s’appuyer sur des fournisseurs techniques d’hébergement, de base de données ou d’authentification, notamment Vercel, Supabase et Clerk, uniquement dans la mesure nécessaire à l’exploitation du service concerné.

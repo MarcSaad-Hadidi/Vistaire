@@ -80,7 +80,7 @@ export const DEVELOPERS_PAGE: Record<DevelopersLocale, DevelopersPageContent> = 
       { path: "/.well-known/mcp/server-card.json", text: "fiche MCP (pas de serveur MCP pour l’instant)." }
     ],
     booking: {
-      text: "Chaque page publique répond aussi en Markdown avec l’en-tête `Accept: text/markdown`. Pour un projet de menu :",
+      text: "Les pages de contenu (tarifs, guides, pages produit et locales, cette page) répondent aussi en Markdown avec l’en-tête `Accept: text/markdown` ; leur texte complet est dans /llms-full.txt. Pour un projet de menu :",
       label: "Prendre rendez-vous",
       path: "/prendre-rendez-vous"
     }
@@ -133,7 +133,7 @@ export const DEVELOPERS_PAGE: Record<DevelopersLocale, DevelopersPageContent> = 
       { path: "/.well-known/mcp/server-card.json", text: "MCP card (no MCP server yet)." }
     ],
     booking: {
-      text: "Every public page also answers in Markdown with the `Accept: text/markdown` header. For a menu project:",
+      text: "Content pages (pricing, guides, product and local pages, this page) also answer in Markdown with the `Accept: text/markdown` header; their full text is in /llms-full.txt. For a menu project:",
       label: "Book a call",
       path: "/en/book-a-call"
     }

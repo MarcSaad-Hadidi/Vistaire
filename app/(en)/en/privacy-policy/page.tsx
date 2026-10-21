@@ -85,7 +85,7 @@ export default function PrivacyPolicyPage() {
       <section>
         <h2>5. Service providers and disclosures</h2>
         <p>
-          Vistaire uses <strong>Brevo</strong> to transmit requests submitted through the contact form. Information you enter in the form may therefore be disclosed to Brevo for that purpose.
+          Vistaire uses <strong>Resend</strong> to transmit requests submitted through the contact form. Information you enter in the form may therefore be disclosed to Resend for that purpose.
         </p>
         <p>
           When you accept analytics, usage data may be disclosed to <strong>Microsoft Clarity</strong> and to <strong>Vercel Web Analytics</strong>. Depending on the feature used, Vistaire may also rely on technical hosting, database or authentication providers, including Vercel, Supabase and Clerk, only to the extent needed to operate the relevant service.

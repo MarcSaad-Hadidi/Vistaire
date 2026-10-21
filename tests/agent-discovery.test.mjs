@@ -338,8 +338,11 @@ test("developer resources are discoverable: skills when-to-use, /developers, /pr
   // Footer links go through the bilingual route map, so English pages reach /en/developers.
   const { getLocalizedPath } = await import("../lib/i18n.ts");
   assert.equal(getLocalizedPath("/developers", "en"), "/en/developers");
-  assert.match(readRepoFile("components/immersive/App.jsx"), /href=\{link\("\/developers"\)\}/);
-  assert.match(readRepoFile("components/vistaire-preview/VistairePreviewChrome.tsx"), /getLocalizedPath\("\/developers", locale\)/);
+  const { getPublicFooterNavigation } = await import("../lib/publicFooterNavigation.ts");
+  for (const locale of ["fr", "en"]) {
+    const hrefs = getPublicFooterNavigation(locale).flatMap((group) => group.links.map((entry) => entry.href));
+    assert.ok(hrefs.includes(getLocalizedPath("/developers", locale)), locale);
+  }
   assert.match(readRepoFile("public/llms.txt"), /https:\/\/www\.vistaire\.ca\/developers/);
 
   const { buildSitemapEntries } = await import("../lib/seo.ts");

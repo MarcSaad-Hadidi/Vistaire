@@ -188,7 +188,7 @@ test("public legal and privacy controls are discoverable before collection in bo
 
   for (const source of [privacyFr, privacyEn]) {
     assert.match(source, /Microsoft Clarity/);
-    assert.match(source, /Brevo/);
+    assert.match(source, /Resend/);
     assert.match(source, /contact@vistaire\.ca/);
   }
 
@@ -231,5 +231,14 @@ test("every analytics recipient enabled by consent is disclosed in both language
     const source = await readSource(policy);
     assert.match(source, /<strong>Vercel Web Analytics<\/strong>/, policy);
     assert.match(source, /Microsoft Clarity<\/strong>[^<]*(?:et à|and to) <strong>Vercel Web Analytics<\/strong>/, policy);
+  }
+});
+
+test("the contact-form processor named in the policies is the one the route uses", async () => {
+  assert.match(await readSource("app/api/contact/route.ts"), /from "resend"/);
+  for (const policy of ["app/(fr)/politique-de-confidentialite/page.tsx", "app/(en)/en/privacy-policy/page.tsx"]) {
+    const source = await readSource(policy);
+    assert.match(source, /<strong>Resend<\/strong>/, policy);
+    assert.doesNotMatch(source, /Brevo/, policy);
   }
 });
