@@ -298,6 +298,11 @@ test("markdown 404 only when the app itself answers 404 for the path", async () 
   assert.equal(calls[0].init.method, "HEAD");
   assert.equal(calls[0].init.redirect, "manual");
   assert.match(calls[0].init.headers.accept, /text\/html/);
+  // API paths keep their own JSON 404 body, so they are never probed.
+  const before = calls.length;
+  assert.equal(await isMissingRoute(new URL("https://www.vistaire.ca/api/nope"), fakeFetch(404)), false);
+  assert.equal(await isMissingRoute(new URL("https://www.vistaire.ca/api"), fakeFetch(404)), false);
+  assert.equal(calls.length, before);
 
   const markdown = buildNotFoundMarkdown("/__probe");
   assert.ok(markdown.length > 20);
