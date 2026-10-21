@@ -180,6 +180,9 @@ renderedTest('a failed full scene offers an honest retry without a cinematic rep
     } as typeof original;
   });
   await page.goto('/', { waitUntil: 'domcontentloaded' });
+  // The 3D (and so its failure) starts on the visitor's first input.
+  await page.waitForFunction(() => document.documentElement.style.getPropertyValue('--vistaire-journey-vh') !== '');
+  await page.mouse.wheel(0, 10);
   const failure = page.getByRole('alertdialog');
   await expect(failure).toBeVisible();
   await expect(failure).toContainText('L’expérience 3D est indisponible.');

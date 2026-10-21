@@ -1,6 +1,8 @@
 import * as THREE from "three";
 import { fairHandEase } from "./PricingPhoneLayout.js";
 
+export { fairHandEase };
+
 // Measured on the owner-supplied PNG. The photographic phone is masked
 // in the shader; Vistaire's actual 3D case and live HTML screen replace it.
 export const FAIR_HAND_ASSET = Object.freeze({

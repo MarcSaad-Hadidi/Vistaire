@@ -26,6 +26,9 @@ const domTest = base.extend({
 });
 async function exposeDomLayout(page: Page) {
   const failure = page.getByRole('alertdialog');
+  // The 3D (and so this failure) starts on the first input once hydrated.
+  await page.waitForFunction(() => document.documentElement.style.getPropertyValue('--vistaire-journey-vh') !== '');
+  await page.keyboard.press('Shift');
   await expect(failure).toBeVisible();
   await failure.evaluate((dialog: HTMLDialogElement) => dialog.close());
   await expect(failure).toBeHidden();
