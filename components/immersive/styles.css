@@ -3424,12 +3424,12 @@ html[data-vistaire-theme="light"] :where([data-immersive-vistaire]) .footer .act
   text-transform: uppercase;
   pointer-events: none;
   opacity: 1;
-  visibility: visible;
-  transition: opacity 0.2s ease, visibility 0.2s;
+  transition: opacity 0.2s ease;
 }
+/* Opacity only: a visibility transition is not composited. The guide takes no
+   pointer events and aria-hidden already hides it from assistive tech. */
 :where([data-immersive-vistaire]) .scroll-guide[aria-hidden="true"] {
   opacity: 0;
-  visibility: hidden;
 }
 :where([data-immersive-vistaire]) .scroll-guide svg {
   width: 22px;
