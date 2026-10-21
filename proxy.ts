@@ -18,7 +18,7 @@ import {
   markdownTokenEstimate,
   shouldServeMarkdownForAcceptHeader
 } from "@/lib/agent-discovery";
-import { buildNotFoundMarkdown, buildPageMarkdown, isUnknownPublicPath } from "@/lib/agent-discovery/pageMarkdown";
+import { buildNotFoundMarkdown, buildPageMarkdown, isMissingRoute } from "@/lib/agent-discovery/pageMarkdown";
 import { updateSession } from "@/utils/supabase/middleware";
 
 const isProtectedRoute = createRouteMatcher([
@@ -117,13 +117,13 @@ const handleProtectedRoute = clerkMiddleware(async (auth, request) => {
   });
 }, { signInUrl: "/sign-in" });
 
-export default function proxy(request: NextRequest, event: NextFetchEvent) {
+export default async function proxy(request: NextRequest, event: NextFetchEvent) {
   if (acceptsMarkdown(request) && (request.method === "GET" || request.method === "HEAD")) {
     // Agents asking for text/markdown get each public page's markdown twin.
     const { pathname } = request.nextUrl;
     const markdown = pathname === "/" ? buildHomepageMarkdown() : buildPageMarkdown(pathname);
     if (markdown) return markdownResponse(request.method, markdown);
-    if (isUnknownPublicPath(pathname)) {
+    if (await isMissingRoute(request.nextUrl)) {
       return markdownResponse(request.method, buildNotFoundMarkdown(pathname), 404);
     }
   }

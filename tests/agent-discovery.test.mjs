@@ -1,11 +1,11 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { existsSync, readdirSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
 import nextConfig from "../next.config.ts";
-import { buildNotFoundMarkdown, isUnknownPublicPath } from "../lib/agent-discovery/pageMarkdown.ts";
+import { buildNotFoundMarkdown, isMissingRoute } from "../lib/agent-discovery/pageMarkdown.ts";
 import * as agentDiscovery from "../lib/agent-discovery/index.ts";
 import {
   AGENT_SKILL_DOCS,
@@ -282,22 +282,22 @@ test("unknown API paths answer a structured JSON 404", async () => {
   assert.ok(body.hint.includes("/openapi.json"));
 });
 
-test("markdown 404 only for paths no route can serve", () => {
-  assert.equal(isUnknownPublicPath("/__ora-404-probe-8lbnm6hl"), true);
-  assert.equal(isUnknownPublicPath("/nope/deeper"), true);
-  for (const missing of ["/a-propos/missing", "/contact/missing", "/demo/x"]) {
-    assert.equal(isUnknownPublicPath(missing), true, missing);
-  }
-  for (const known of ["/menu/maison-elyse", "/q/abc", "/en/about", "/auth.md", "/owner", "/demo", "/api/x", "/contact/marc", "/a-propos/"]) {
-    assert.equal(isUnknownPublicPath(known), false, known);
-  }
-  // every real top-level route folder must stay known, or proxy would 404 it
-  const roots = ["app", "app/(fr)", "app/(fr)/(seo)", "app/(en)"].flatMap((dir) =>
-    readdirSync(join(repoRoot, dir), { withFileTypes: true })
-      .filter((d) => d.isDirectory() && !/^[([]/.test(d.name))
-      .map((d) => d.name)
-  );
-  for (const root of roots) assert.equal(isUnknownPublicPath(`/${root}`), false, root);
+test("markdown 404 only when the app itself answers 404 for the path", async () => {
+  const calls = [];
+  const fakeFetch = (status) => async (url, init) => {
+    calls.push({ url: String(url), init });
+    if (status instanceof Error) throw status;
+    return new Response(null, { status });
+  };
+  const url = new URL("https://www.vistaire.ca/guides/missing.json?x=1");
+  assert.equal(await isMissingRoute(url, fakeFetch(404)), true);
+  assert.equal(await isMissingRoute(url, fakeFetch(200)), false);
+  assert.equal(await isMissingRoute(url, fakeFetch(307)), false);
+  assert.equal(await isMissingRoute(url, fakeFetch(new Error("offline"))), false);
+  assert.equal(calls[0].url, url.href);
+  assert.equal(calls[0].init.method, "HEAD");
+  assert.equal(calls[0].init.redirect, "manual");
+  assert.match(calls[0].init.headers.accept, /text\/html/);
 
   const markdown = buildNotFoundMarkdown("/__probe");
   assert.ok(markdown.length > 20);
