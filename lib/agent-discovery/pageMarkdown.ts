@@ -160,10 +160,13 @@ export function buildPageMarkdown(pathname: string): string | null {
   return entry ? entry.build().join("\n").replace(/\n{3,}/g, "\n\n").trim() + "\n" : null;
 }
 
+const UNPROBED_ROOTS = new Set(["api", "q"]);
+
 // Asks the app itself (as HTML) whether the path renders, so no route list can drift:
 // only a real 404 earns the markdown 404. Network failures fall back to Next's own response.
 export async function isMissingRoute(url: URL, fetchImpl: typeof fetch = fetch): Promise<boolean> {
-  if (url.pathname === "/api" || url.pathname.startsWith("/api/")) return false; // API keeps its JSON errors
+  // The probe runs the route's GET: API keeps its JSON errors, and /q/<token> would count a second QR scan.
+  if (UNPROBED_ROOTS.has(url.pathname.split("/")[1] ?? "")) return false;
   try {
     const response = await fetchImpl(url, { method: "HEAD", redirect: "manual", headers: { accept: "text/html" } });
     return response.status === 404;

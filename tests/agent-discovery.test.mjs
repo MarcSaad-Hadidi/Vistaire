@@ -272,7 +272,7 @@ test("agent readiness gaps: when-to-use, trust redirect, og:type, Organization a
 });
 
 test("unknown API paths answer a structured JSON 404", async () => {
-  const { GET } = await import("../app/api/[...path]/route.ts");
+  const { GET } = await import("../app/api/[[...path]]/route.ts");
   const response = GET();
   assert.equal(response.status, 404);
   assert.match(response.headers.get("content-type"), /application\/json/);
@@ -302,6 +302,8 @@ test("markdown 404 only when the app itself answers 404 for the path", async () 
   const before = calls.length;
   assert.equal(await isMissingRoute(new URL("https://www.vistaire.ca/api/nope"), fakeFetch(404)), false);
   assert.equal(await isMissingRoute(new URL("https://www.vistaire.ca/api"), fakeFetch(404)), false);
+  // A probe GETs the route: /q/<token> would record a second QR scan.
+  assert.equal(await isMissingRoute(new URL("https://www.vistaire.ca/q/live-token"), fakeFetch(404)), false);
   assert.equal(calls.length, before);
 
   const markdown = buildNotFoundMarkdown("/__probe");
