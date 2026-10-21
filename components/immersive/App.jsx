@@ -306,28 +306,35 @@ function Modal({ label, children, close }) {
   );
 }
 export function App({ locale = "fr" }) {
-  // The opening shot's models start at hydration, still before the lazy scene
-  // chunk (its fetches reuse them: same URL and CORS mode). Not in the server
-  // HTML: ~3.4 MB there competed with the page's own CSS and scripts before
-  // first paint on slow mobile networks.
+  // The 3D scene and the opening shot's models start once the server page has
+  // painted (two frames after hydration). Started earlier, ~3.4 MB of models
+  // and the scene's GPU setup delayed the first paint on slow mobiles. The
+  // scene's own fetches reuse these (same URL and CORS mode).
+  const [painted, setPainted] = useState(false);
   useEffect(() => {
-    const fetchHint = { as: "fetch", crossOrigin: "anonymous" };
-    for (const id of ["immersive.restaurant.visible.textures-512", "immersive.phone", "immersive.support.acrylique"])
-      preload(resolvePublicModelUrl(id), fetchHint);
-    // The Draco decoder the room needs, fetched by three's FileLoader.
-    for (const file of ["draco_wasm_wrapper.js", "draco_decoder.wasm"])
-      preload(`/immersive-assets/draco/${file}`, fetchHint);
-    // The opening lobster depends on the viewport (Scene.jsx modelUrl).
-    preload(resolvePublicModelUrl(innerWidth < 768 ? "immersive.dish.homard.scene-mobile" : "immersive.dish.homard.scene"), fetchHint);
+    let frame = requestAnimationFrame(() => {
+      frame = requestAnimationFrame(() => {
+        const fetchHint = { as: "fetch", crossOrigin: "anonymous" };
+        for (const id of ["immersive.restaurant.visible.textures-512", "immersive.phone", "immersive.support.acrylique"])
+          preload(resolvePublicModelUrl(id), fetchHint);
+        // The Draco decoder the room needs, fetched by three's FileLoader.
+        for (const file of ["draco_wasm_wrapper.js", "draco_decoder.wasm"])
+          preload(`/immersive-assets/draco/${file}`, fetchHint);
+        // The opening lobster depends on the viewport (Scene.jsx modelUrl).
+        preload(resolvePublicModelUrl(innerWidth < 768 ? "immersive.dish.homard.scene-mobile" : "immersive.dish.homard.scene"), fetchHint);
+        setPainted(true);
+      });
+    });
+    return () => cancelAnimationFrame(frame);
   }, []);
   return (
     <LandingLocaleProvider locale={locale}>
-      <LandingContent />
+      <LandingContent painted={painted} />
     </LandingLocaleProvider>
   );
 }
 
-function LandingContent() {
+function LandingContent({ painted }) {
   const { locale, t, href: link } = useLandingLocale();
   const collections = sourceCollections.map((item) => ({
     ...item,
@@ -1127,7 +1134,7 @@ function LandingContent() {
       <div className="world">
         <div id="pricing-screen-host" />
         <Suspense fallback={null}>
-          {!gpuError && (
+          {!gpuError && painted && (
             <Scene
               stateRef={stateRef}
               onReady={onSceneReady}
