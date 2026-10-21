@@ -160,17 +160,19 @@ export function buildPageMarkdown(pathname: string): string | null {
   return entry ? entry.build().join("\n").replace(/\n{3,}/g, "\n\n").trim() + "\n" : null;
 }
 
-// First path segments served by real app routes without a markdown twin (menus, owner app, files...).
-// Any other path with no twin cannot render, so the proxy can answer it with a markdown 404.
-const ROUTED_ROOTS = new Set([
-  "a-propos", "admin", "api", "apercu-restaurateur", "contact", "demo", "en", "guides", "legacy", "menu",
-  "owner", "prendre-rendez-vous", "q", "sign-in", "todos", "_next", ".well-known", "cdn-cgi"
+// Static pages with no markdown twin, matched exactly.
+const ROUTED_PAGES = new Set(["/a-propos", "/apercu-restaurateur", "/contact", "/contact/marc", "/demo", "/prendre-rendez-vous", "/todos"]);
+// First segments whose subtree has dynamic routes (menus, owner app, locales...): every descendant may exist.
+const ROUTED_PREFIXES = new Set([
+  "admin", "api", "en", "guides", "legacy", "menu", "owner", "q", "sign-in", "_next", ".well-known", "cdn-cgi"
 ]);
 
+// True only when no route can serve the path, so the proxy can answer it with a markdown 404.
 export function isUnknownPublicPath(pathname: string): boolean {
   if (pathname.includes(".")) return false; // files: llms.txt, auth.md, assets
-  const root = pathname.split("/")[1] ?? "";
-  return root !== "" && !ROUTED_ROOTS.has(root) && buildPageMarkdown(pathname) === null;
+  const path = pathname.length > 1 ? pathname.replace(/\/$/, "") : pathname;
+  const root = path.split("/")[1] ?? "";
+  return root !== "" && !ROUTED_PREFIXES.has(root) && !ROUTED_PAGES.has(path) && buildPageMarkdown(path) === null;
 }
 
 export function buildNotFoundMarkdown(pathname: string): string {

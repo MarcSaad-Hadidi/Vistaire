@@ -193,6 +193,10 @@ test("public OpenAPI document excludes owner admin and auth server endpoints", (
       }
     });
     assert.equal(Object.hasOwn(responses["307"], "content"), false, path);
+    // redirectPublicDishAsset answers JSON 404 and 503 for every dish asset route
+    for (const status of ["404", "503"]) {
+      assert.equal(responses[status].content["application/json"].schema.$ref, "#/components/schemas/Error", `${path} ${status}`);
+    }
   }
 });
 
@@ -281,7 +285,10 @@ test("unknown API paths answer a structured JSON 404", async () => {
 test("markdown 404 only for paths no route can serve", () => {
   assert.equal(isUnknownPublicPath("/__ora-404-probe-8lbnm6hl"), true);
   assert.equal(isUnknownPublicPath("/nope/deeper"), true);
-  for (const known of ["/menu/maison-elyse", "/q/abc", "/en/about", "/auth.md", "/owner", "/demo", "/api/x", "/contact/marc"]) {
+  for (const missing of ["/a-propos/missing", "/contact/missing", "/demo/x"]) {
+    assert.equal(isUnknownPublicPath(missing), true, missing);
+  }
+  for (const known of ["/menu/maison-elyse", "/q/abc", "/en/about", "/auth.md", "/owner", "/demo", "/api/x", "/contact/marc", "/a-propos/"]) {
     assert.equal(isUnknownPublicPath(known), false, known);
   }
   // every real top-level route folder must stay known, or proxy would 404 it

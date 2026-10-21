@@ -249,7 +249,8 @@ export function buildOpenApiDocument() {
           ],
           responses: {
             "307": signedStorageRedirect,
-            "404": errorResponse("Dish model not found")
+            "404": errorResponse("Dish model not found"),
+            "503": errorResponse("Model storage unavailable")
           }
         }
       },
@@ -275,7 +276,8 @@ export function buildOpenApiDocument() {
           ],
           responses: {
             "307": signedStorageRedirect,
-            "404": errorResponse("Dish model not found")
+            "404": errorResponse("Dish model not found"),
+            "503": errorResponse("Model storage unavailable")
           }
         }
       }
