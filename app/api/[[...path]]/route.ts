@@ -13,4 +13,4 @@ function notFound() {
   );
 }
 
-export { notFound as GET, notFound as POST, notFound as PUT, notFound as PATCH, notFound as DELETE };
+export { notFound as GET, notFound as POST, notFound as PUT, notFound as PATCH, notFound as DELETE, notFound as OPTIONS };

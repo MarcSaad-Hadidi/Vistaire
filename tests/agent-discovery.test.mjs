@@ -272,7 +272,10 @@ test("agent readiness gaps: when-to-use, trust redirect, og:type, Organization a
 });
 
 test("unknown API paths answer a structured JSON 404", async () => {
-  const { GET } = await import("../app/api/[[...path]]/route.ts");
+  const routeModule = await import("../app/api/[[...path]]/route.ts");
+  const { GET } = routeModule;
+  // Every method, OPTIONS included, gets the same 404 instead of Next's auto 204.
+  for (const method of ["POST", "PUT", "PATCH", "DELETE", "OPTIONS"]) assert.equal(routeModule[method], GET, method);
   const response = GET();
   assert.equal(response.status, 404);
   assert.match(response.headers.get("content-type"), /application\/json/);
