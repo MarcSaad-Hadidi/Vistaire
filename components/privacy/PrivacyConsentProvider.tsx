@@ -36,7 +36,7 @@ const PrivacyConsentContext = createContext<PrivacyConsentContextValue | null>(
 
 function subscribeToPrivacyConsent(onStoreChange: () => void) {
   const syncFromStorage = (event: StorageEvent) => {
-    if (event.key !== PRIVACY_CONSENT_STORAGE_KEY) return;
+    if (event.key !== null && event.key !== PRIVACY_CONSENT_STORAGE_KEY) return; // null: storage cleared
     if (parsePrivacyConsent(event.newValue)?.analytics !== true) {
       clearVistaireAnalyticsSession();
     }

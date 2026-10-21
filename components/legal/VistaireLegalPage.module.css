@@ -128,6 +128,13 @@
   text-underline-offset: 3px;
 }
 
+/* Long one-line samples (curl, JSON) wrap inside the column instead of widening the page. */
+.content pre {
+  max-width: 100%;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
 @media (max-width: 520px) {
   .page {
     padding: 18px 16px 56px;

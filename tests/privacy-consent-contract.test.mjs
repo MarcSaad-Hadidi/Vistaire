@@ -242,3 +242,9 @@ test("the contact-form processor named in the policies is the one the route uses
     assert.doesNotMatch(source, /Brevo/, policy);
   }
 });
+
+test("a cleared localStorage in another tab counts as a consent change", async () => {
+  const provider = await readSource("components/privacy/PrivacyConsentProvider.tsx");
+  // StorageEvent.key is null after localStorage.clear(); that must not be ignored.
+  assert.match(provider, /event\.key !== null && event\.key !== PRIVACY_CONSENT_STORAGE_KEY/);
+});
