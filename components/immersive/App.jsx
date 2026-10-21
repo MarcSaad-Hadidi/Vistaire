@@ -306,35 +306,57 @@ function Modal({ label, children, close }) {
   );
 }
 export function App({ locale = "fr" }) {
-  // The 3D scene and the opening shot's models start once the server page has
-  // painted (two frames after hydration). Started earlier, ~3.4 MB of models
-  // and the scene's GPU setup delayed the first paint on slow mobiles. The
-  // scene's own fetches reuse these (same URL and CORS mode).
-  const [painted, setPainted] = useState(false);
+  // The opening is first painted as a still of its own 3D frame (the poster in
+  // .world). The scene, its models and GPU setup start on the first visitor
+  // input, or once the loaded page has idled, then crossfade over the poster.
+  const [sceneStarted, setSceneStarted] = useState(false);
   useEffect(() => {
-    let frame = requestAnimationFrame(() => {
-      frame = requestAnimationFrame(() => {
-        const fetchHint = { as: "fetch", crossOrigin: "anonymous" };
-        for (const id of ["immersive.restaurant.visible.textures-512", "immersive.phone", "immersive.support.acrylique"])
-          preload(resolvePublicModelUrl(id), fetchHint);
-        // The Draco decoder the room needs, fetched by three's FileLoader.
-        for (const file of ["draco_wasm_wrapper.js", "draco_decoder.wasm"])
-          preload(`/immersive-assets/draco/${file}`, fetchHint);
-        // The opening lobster depends on the viewport (Scene.jsx modelUrl).
-        preload(resolvePublicModelUrl(innerWidth < 768 ? "immersive.dish.homard.scene-mobile" : "immersive.dish.homard.scene"), fetchHint);
-        setPainted(true);
-      });
-    });
-    return () => cancelAnimationFrame(frame);
+    let timer;
+    let idle;
+    const inputs = ["pointerdown", "touchstart", "wheel", "keydown", "scroll"];
+    const start = () => {
+      stop();
+      const fetchHint = { as: "fetch", crossOrigin: "anonymous" };
+      // The scene's own fetches reuse these (same URL and CORS mode).
+      for (const id of ["immersive.restaurant.visible.textures-512", "immersive.phone", "immersive.support.acrylique"])
+        preload(resolvePublicModelUrl(id), fetchHint);
+      // The Draco decoder the room needs, fetched by three's FileLoader.
+      for (const file of ["draco_wasm_wrapper.js", "draco_decoder.wasm"])
+        preload(`/immersive-assets/draco/${file}`, fetchHint);
+      // The opening lobster depends on the viewport (Scene.jsx modelUrl).
+      preload(resolvePublicModelUrl(innerWidth < 768 ? "immersive.dish.homard.scene-mobile" : "immersive.dish.homard.scene"), fetchHint);
+      setSceneStarted(true);
+    };
+    const stop = () => {
+      clearTimeout(timer);
+      if (idle) cancelIdleCallback(idle);
+      inputs.forEach((type) => removeEventListener(type, start));
+      removeEventListener("load", schedule);
+    };
+    // Without input, start after a quiet spell past load, not inside it.
+    const schedule = () => {
+      timer = setTimeout(() => {
+        if (typeof requestIdleCallback === "function") idle = requestIdleCallback(start, { timeout: 2000 });
+        else start();
+      }, 6000);
+    };
+    // A restored or anchored scroll position is already past the opening.
+    if (scrollY > 0) start();
+    else {
+      inputs.forEach((type) => addEventListener(type, start, { passive: true }));
+      if (document.readyState === "complete") schedule();
+      else addEventListener("load", schedule);
+    }
+    return stop;
   }, []);
   return (
     <LandingLocaleProvider locale={locale}>
-      <LandingContent painted={painted} />
+      <LandingContent sceneStarted={sceneStarted} />
     </LandingLocaleProvider>
   );
 }
 
-function LandingContent({ painted }) {
+function LandingContent({ sceneStarted }) {
   const { locale, t, href: link } = useLandingLocale();
   const collections = sourceCollections.map((item) => ({
     ...item,
@@ -385,6 +407,7 @@ function LandingContent({ painted }) {
     }
   };
   const [ready, setReady] = useState(false);
+  const [posterGone, setPosterGone] = useState(false);
   const [gpuError, setGpuError] = useState(false);
   // Another page fetches as a link is reached and shows the loading screen the
   // moment it is clicked (useLinkIntent); 8 s releases a navigation that never came.
@@ -1133,8 +1156,15 @@ function LandingContent({ painted }) {
       </a>
       <div className="world">
         <div id="pricing-screen-host" />
+        {!posterGone && (
+          <picture className={`opening-poster${ready ? " is-faded" : ""}`}
+            onTransitionEnd={() => ready && setPosterGone(true)}>
+            <source media="(orientation: landscape)" srcSet="/immersive-assets/opening-poster-landscape.webp" />
+            <img src="/immersive-assets/opening-poster-portrait.webp" alt="" fetchPriority="high" />
+          </picture>
+        )}
         <Suspense fallback={null}>
-          {!gpuError && painted && (
+          {!gpuError && sceneStarted && (
             <Scene
               stateRef={stateRef}
               onReady={onSceneReady}
@@ -1197,7 +1227,7 @@ function LandingContent({ painted }) {
           </Link>
         </dialog>
       )}
-      {(!ready || leaving) && !gpuError && (
+      {leaving && !gpuError && (
         <div className="preloader" role="status">
           <div className="loading-word">Vistaire</div>
           <div className="loading-line" />

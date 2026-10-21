@@ -163,6 +163,26 @@
   width: 100%;
   height: 100%;
 }
+/* The opening's own 3D frame, shown until the live scene is ready. */
+:where([data-immersive-vistaire]) .opening-poster {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  transition: opacity 0.9s cubic-bezier(0.22, 1, 0.36, 1);
+}
+:where([data-immersive-vistaire]) .opening-poster img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+:where([data-immersive-vistaire]) .opening-poster.is-faded {
+  opacity: 0;
+}
+@media (prefers-reduced-motion: reduce) {
+  :where([data-immersive-vistaire]) .opening-poster.is-faded {
+    display: none;
+  }
+}
 /* One full-world surface follows the identities copy, without a sticky edge. */
 :where([data-immersive-vistaire]) .world::before {
   content: "";
