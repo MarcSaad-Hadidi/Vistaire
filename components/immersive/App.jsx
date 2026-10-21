@@ -314,8 +314,11 @@ export function App({ locale = "fr" }) {
     let timer;
     let idle;
     const inputs = ["pointerdown", "touchstart", "wheel", "keydown", "scroll"];
-    const start = () => {
+    const start = (event) => {
       stop();
+      // The journey waits at the opening while the scene loads (see the
+      // scroll hold in LandingContent): undo the input's first scroll step.
+      if (event) scrollTo({ top: 0, behavior: "instant" });
       const fetchHint = { as: "fetch", crossOrigin: "anonymous" };
       // The scene's own fetches reuse these (same URL and CORS mode).
       for (const id of ["immersive.restaurant.visible.textures-512", "immersive.phone", "immersive.support.acrylique"])
@@ -409,6 +412,36 @@ function LandingContent({ sceneStarted }) {
   const [ready, setReady] = useState(false);
   const [posterGone, setPosterGone] = useState(false);
   const [gpuError, setGpuError] = useState(false);
+  // Once the 3D starts, scrolling waits on the poster until the whole opening
+  // shot (room included) is ready: shots reached early showed the phone and
+  // stand without their room. 20 s releases a load that never finishes; the
+  // poster still covers the canvas until it is ready.
+  const holdingScroll = sceneStarted && !ready && !gpuError;
+  useEffect(() => {
+    if (!holdingScroll) return;
+    // Inputs are held rather than overflow hidden, which would drop the
+    // desktop scrollbar and shift the layout.
+    const top = scrollY;
+    const scrollKeys = new Set([" ", "PageDown", "PageUp", "ArrowDown", "ArrowUp", "End", "Home"]);
+    const hold = (event) => event.preventDefault();
+    const holdKey = (event) => {
+      if (scrollKeys.has(event.key) && !event.target.closest?.("input, textarea, select, [contenteditable]"))
+        event.preventDefault();
+    };
+    const pin = () => { if (scrollY !== top) scrollTo({ top, behavior: "instant" }); };
+    const release = () => {
+      removeEventListener("wheel", hold);
+      removeEventListener("touchmove", hold);
+      removeEventListener("keydown", holdKey);
+      removeEventListener("scroll", pin);
+    };
+    addEventListener("wheel", hold, { passive: false });
+    addEventListener("touchmove", hold, { passive: false });
+    addEventListener("keydown", holdKey);
+    addEventListener("scroll", pin, { passive: true });
+    const timer = setTimeout(release, 20_000);
+    return () => { clearTimeout(timer); release(); };
+  }, [holdingScroll]);
   // Another page fetches as a link is reached and shows the loading screen the
   // moment it is clicked (useLinkIntent); 8 s releases a navigation that never came.
   const [leaving, setLeaving] = useState(false);
@@ -1226,6 +1259,12 @@ function LandingContent({ sceneStarted }) {
             {t("Explorer la carte")} <ArrowUpRight size={17} />
           </Link>
         </dialog>
+      )}
+      {holdingScroll && !leaving && (
+        <div className="poster-cue" role="status">
+          <div className="loading-line" />
+          <span>{t("Préparons votre table.")}</span>
+        </div>
       )}
       {leaving && !gpuError && (
         <div className="preloader" role="status">

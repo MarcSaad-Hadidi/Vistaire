@@ -1291,3 +1291,28 @@ renderedTouchTest('Chromium trusted touch: pricing edges own one trip and offer 
     await testInfo.attach('trusted-touch-ownership', { path: artifact, contentType: 'application/json' });
   }
 });
+
+test("an early scroll waits on the opening poster until the full scene is ready", async ({ page }) => {
+  test.setTimeout(180_000);
+  await page.setViewportSize({ width: 390, height: 844 });
+  const hydrated = () => page.waitForFunction(() =>
+    document.documentElement.style.getPropertyValue("--vistaire-journey-vh") !== "");
+  // A cold dev compile can outlast the idle start; measure a warm load.
+  await page.goto("/");
+  await hydrated();
+  await page.reload();
+  await expect(page.locator(".opening-poster")).toBeVisible();
+  // Hydrated: the landing's parent effect binds the journey viewport last.
+  await hydrated();
+  // The first input starts the 3D and is held at the opening, never past it.
+  await page.mouse.wheel(0, 600);
+  await expect(page.locator(".poster-cue")).toBeVisible();
+  await page.mouse.wheel(0, 2400);
+  expect(await page.evaluate(() => scrollY)).toBe(0);
+  const canvas = page.locator(".scene-canvas");
+  await expect(canvas).toHaveAttribute("data-ready", "true", { timeout: 120_000 });
+  await expect(canvas).toHaveAttribute("data-restaurant-ready", "true");
+  await expect(page.locator(".poster-cue")).toHaveCount(0);
+  await page.mouse.wheel(0, 400);
+  await expect.poll(() => page.evaluate(() => scrollY)).toBeGreaterThan(0);
+});
