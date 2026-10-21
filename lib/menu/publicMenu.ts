@@ -1,6 +1,8 @@
+import { resolvePublicModelUrl } from "../publicModelAssets.ts";
 import "server-only";
 
 import { cache } from "react";
+import { applyScheduleAvailability, validTimezone, type DishSchedule } from "@/lib/admin/scheduling";
 
 import {
   getBoolean,
@@ -370,9 +372,9 @@ function demoMenu(slug: string, locale: Locale = "fr"): PublicMenu {
       has3d: Boolean(
         dish.model3dUrl || dish.webModel3dUrl || dish.arModel3dUrl
       ),
-      hasAr: Boolean(dish.arModel3dUrl || dish.usdzUrl || dish.arUsdzUrl),
+      hasAr: Boolean(dish.webModel3dUrl || dish.model3dUrl || dish.arModel3dUrl || dish.usdzUrl || dish.arUsdzUrl),
       hasIosAr: Boolean(dish.usdzUrl || dish.arUsdzUrl),
-      hasAndroidAr: Boolean(dish.arModel3dUrl),
+      hasAndroidAr: Boolean(dish.webModel3dUrl || dish.model3dUrl || dish.arModel3dUrl),
       model3dUrl: dish.model3dUrl ?? "",
       webModel3dUrl: dish.webModel3dUrl ?? dish.model3dUrl ?? "",
       webModel3dBytes: 0,
@@ -466,10 +468,10 @@ function trouvableDemoMenu(
       const e2eImmersiveAssets =
         e2eImmersiveFixture && dish.slug === "ravioles-chevre-miel-monteregie"
           ? {
-              model3dUrl: "/models/demo/ravioles-chevre-miel-meshy.glb",
-              webModel3dUrl: "/models/demo/ravioles-chevre-miel-meshopt-8a28933e.glb",
-              arModel3dUrl: "/models/demo/ar-lite/ravioles-chevre-miel-ar-lite-meshy.glb",
-              arUsdzUrl: "/models/demo/ar-lite/ravioles-chevre-miel-ios-quicklook-meshy.usdz"
+              model3dUrl: resolvePublicModelUrl("/models/demo/ravioles-chevre-miel-meshy.glb"),
+              webModel3dUrl: resolvePublicModelUrl("/models/demo/ravioles-chevre-miel-meshopt-8a28933e.glb"),
+              arModel3dUrl: resolvePublicModelUrl("/models/demo/ar-lite/ravioles-chevre-miel-ar-lite-meshy.glb"),
+              arUsdzUrl: resolvePublicModelUrl("/models/demo/ar-lite/ravioles-chevre-miel-ios-quicklook-meshy.usdz")
             }
           : null;
 
@@ -744,6 +746,25 @@ async function getPublicMenuBySlugUncached(
     }
 
     if (primaryMenu) {
+      // Resolve against the request clock, not a stored/cached effective flag.
+      // Missing migration preserves the existing menu; other read failures fail
+      // closed rather than accidentally advertising a scheduled unavailable dish.
+      const scheduleResult = await dependencies.readRows<PublicMenuRow>({
+        table: "dish_schedules", columns: "dish_id,base_available,manual_override,revision,rules",
+        filters: { restaurant_id: restaurantId }, orderBy: "dish_id", limit: 1_000
+      });
+      const settings = primaryMenu.settings_json as Record<string, unknown> | undefined;
+      if (!scheduleResult.ok && settings?.availabilityScheduleVersion === 1) return { status: "temporarily_unavailable" };
+      if (!scheduleResult.ok && !/(?:relation|table).*dish_schedules.*does not exist|could not find.*(?:table|relation).*dish_schedules/i.test(scheduleResult.error)) {
+        return { status: "temporarily_unavailable" };
+      }
+      if (scheduleResult.ok && scheduleResult.rows.length >= 1_000) return { status: "temporarily_unavailable" };
+      const selectedDishIds = new Set(dishRows.filter(row => row.menu_id === primaryMenu.id).map(row => row.id));
+      const relevantSchedules = scheduleResult.ok ? scheduleResult.rows.filter(row => selectedDishIds.has(row.dish_id)) : [];
+      if (relevantSchedules.length) {
+        if (!validTimezone(settings?.timezone)) return { status: "temporarily_unavailable" };
+        dishRows = applyScheduleAvailability(dishRows, relevantSchedules as unknown as DishSchedule[], settings.timezone);
+      }
       const menu = buildRelationalSupabasePublicMenu({
         slug,
         restaurantRow: match,

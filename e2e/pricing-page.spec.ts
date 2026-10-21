@@ -44,11 +44,13 @@ function installPageHealth(page: Page): PageHealth {
 }
 
 async function expectHealthyPricingPage(page: Page, health: PageHealth) {
-  await page.locator("footer").scrollIntoViewIfNeeded();
-  await expect(page.locator("footer")).toBeVisible();
+  // The Studio preview has its own <footer>; the page footer is #contact.
+  await page.locator("footer#contact").scrollIntoViewIfNeeded();
+  await expect(page.locator("footer#contact")).toBeVisible();
   await expect.poll(() => health.consoleErrors).toEqual([]);
   expect(health.networkIssues, health.networkIssues.join("\n")).toEqual([]);
-  expect(health.modelRequests, "3D assets must wait for explicit menu intent").toEqual([]);
+  // The page plays in the shared 3D room (its GLBs); AR models still wait for intent.
+  expect(health.modelRequests.filter((url) => /\.usdz(?:$|[?#])/i.test(url)), "AR assets must wait for explicit menu intent").toEqual([]);
 }
 
 async function expectNoHorizontalOverflow(page: Page) {
@@ -58,10 +60,60 @@ async function expectNoHorizontalOverflow(page: Page) {
   expect(overflow).toBeLessThanOrEqual(2);
 }
 
+// This copy contract belongs to the authored pricing sections, not the shared
+// navigation or footer (whose French rendez-vous label is correctly hyphenated).
+async function visiblePricingDashText(page: Page) {
+  return page.locator("main > section").evaluateAll((sections) => {
+    if (!sections.length) throw new Error("Pricing copy sections are missing.");
+    const matches: string[] = [];
+    const isVisuallyHidden = (element: Element) => {
+      let current: Element | null = element;
+      while (current && current !== document.body) {
+        const style = getComputedStyle(current);
+        if (
+          style.display === "none" ||
+          style.visibility === "hidden" ||
+          Number.parseFloat(style.opacity || "1") === 0
+        ) {
+          return true;
+        }
+        const className = typeof current.className === "string" ? current.className : "";
+        if (className.toLowerCase().includes("sronly")) return true;
+        const rect = current.getBoundingClientRect();
+        const isTinyClippedElement =
+          rect.width <= 2 &&
+          rect.height <= 2 &&
+          (style.position === "absolute" || style.position === "fixed") &&
+          (style.overflow === "hidden" ||
+            style.clip !== "auto" ||
+            style.clipPath !== "none");
+        if (isTinyClippedElement) return true;
+        current = current.parentElement;
+      }
+      return false;
+    };
+
+    for (const section of sections) {
+      const walker = document.createTreeWalker(section, NodeFilter.SHOW_TEXT);
+      let node = walker.nextNode();
+      while (node) {
+        const text = node.textContent?.replace(/\s+/g, " ").trim() ?? "";
+        const parent = node.parentElement;
+        if (text && /[-–—]/.test(text) && parent && !isVisuallyHidden(parent)) {
+          matches.push(text);
+        }
+        node = walker.nextNode();
+      }
+    }
+    return [...new Set(matches)];
+  });
+}
+
 async function expectPrimaryNavigationFits(
   page: Page,
   labels: readonly string[]
 ) {
+  await expect(page.locator("[data-public-navigation-open]")).toBeVisible();
   const navigation = page.getByRole("navigation").first();
   await expect(navigation).toBeVisible();
   const navigationBox = await navigation.boundingBox();
@@ -186,13 +238,13 @@ test.describe("Vistaire pricing collections", () => {
         prices: ["2 000 $ CAD", "2 050 $ CAD", "2 100 $ CAD", "2 200 $ CAD"],
         monthly: "+ 200 $ CAD / mois",
         pilotage: "+ 100 $ CAD / mois",
-        total: "Total — 300 $ / mois",
+        total: "Total 300 $ / mois",
         navLinks: ["Accueil", "Carte", "Tarifs", "À propos", "Contact"],
         pricingLabel: "Tarifs",
         pricingPath: "#pricing-title",
         brandLabel: "Vistaire - accueil",
         navCta: "Prendre rendez-vous",
-        appointmentCta: "Prendre rendez-vous",
+        appointmentCta: "Prendre rendez vous",
         appointmentPath: "/prendre-rendez-vous",
         forbiddenPreviewVocabulary: /démo|démonstration/i,
         forbiddenPrices: [
@@ -215,7 +267,7 @@ test.describe("Vistaire pricing collections", () => {
         prices: ["$2,000 CAD", "$2,050 CAD", "$2,100 CAD", "$2,200 CAD"],
         monthly: "+ $200 CAD / month",
         pilotage: "+ $100 CAD / month",
-        total: "Total — $300 / month",
+        total: "Total $300 / month",
         navLinks: ["Home", "Menu", "Pricing", "About", "Contact"],
         pricingLabel: "Pricing",
         pricingPath: "#pricing-title",
@@ -272,7 +324,7 @@ test.describe("Vistaire pricing collections", () => {
       );
       await expect(page.locator('meta[property="og:image"]')).toHaveAttribute(
         "content",
-        "https://www.vistaire.ca/images/pricing/vistaire-acrylique.jpg"
+        "https://www.vistaire.ca/images/marketing/pricing-acrylique-setting.webp"
       );
       await expect(page.locator('meta[name="twitter:card"]')).toHaveAttribute(
         "content",
@@ -299,6 +351,7 @@ test.describe("Vistaire pricing collections", () => {
       const pilotage = page.locator("[data-pricing-pilotage]");
       await expect(pilotage.getByText(scenario.pilotage, { exact: true })).toBeVisible();
       await expect(pilotage.getByText(scenario.total, { exact: true })).toBeVisible();
+      await expect(page.locator("[data-public-navigation-open]")).toBeVisible();
       const navigation = page.getByRole("navigation").first();
       for (const label of scenario.navLinks) {
         await expect(navigation.getByRole("link", { name: label, exact: true })).toBeVisible();
@@ -309,8 +362,7 @@ test.describe("Vistaire pricing collections", () => {
           name: scenario.pricingLabel,
           exact: true
         })
-      )
-        .toHaveAttribute("href", scenario.pricingPath);
+      ).toHaveAttribute("href", scenario.pricingPath);
       await expect(
         navigation.getByRole("link", {
           name: scenario.pricingLabel,
@@ -340,6 +392,8 @@ test.describe("Vistaire pricing collections", () => {
       expect(await page.locator("body").innerText()).not.toMatch(
         scenario.forbiddenPreviewVocabulary
       );
+      const dashText = await visiblePricingDashText(page);
+      expect(dashText, dashText.join("\n")).toEqual([]);
 
       const publicPayload = await page.evaluate(() =>
         [
@@ -430,7 +484,7 @@ test.describe("Vistaire pricing collections", () => {
       await expect(
         page
           .locator('section[aria-labelledby="pricing-final-title"]')
-          .getByRole("link", { name: "Prendre rendez-vous", exact: true })
+          .getByRole("link", { name: "Prendre rendez vous", exact: true })
       ).toHaveAttribute("href", "/prendre-rendez-vous");
       await expectNoHorizontalOverflow(page);
     }
@@ -484,10 +538,9 @@ test.describe("Vistaire pricing collections", () => {
     await dashboard.scrollIntoViewIfNeeded();
     await expect(dashboard).toHaveAttribute("aria-hidden", "true");
     await expect(dashboard).toHaveAttribute("inert", "");
-    await expect(dashboard.locator('button[data-demo-period="30d"]')).toHaveAttribute(
-      "aria-pressed",
-      "true"
-    );
+    await expect(dashboard.locator("[data-admin-studio]")).toHaveCount(1);
+    await expect(dashboard.locator("select").first()).toHaveValue("30d");
+    await expect(dashboard.locator("[data-studio-preview-banner]")).toContainText("données fictives");
     await expect(dashboard.locator("a, button, input, select, textarea").first()).not.toBeFocused();
     await expect(
       page.getByRole("link", { name: "Explorer l’aperçu restaurateur", exact: true })

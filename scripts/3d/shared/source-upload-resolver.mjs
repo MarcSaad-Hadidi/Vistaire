@@ -1,3 +1,5 @@
+import { shouldUseR2ForBucket } from "../../../lib/storage/r2Config.ts";
+import { storageBucket } from "../../../lib/storage/backend.ts";
 import { createHash } from "node:crypto";
 import { existsSync, lstatSync, mkdirSync, writeFileSync } from "node:fs";
 import { dirname, normalize, relative, resolve, sep } from "node:path";
@@ -265,12 +267,12 @@ export async function downloadAndMaterializeSourceUpload(
 ) {
   const row = verifySourceUploadRecord(sourceUpload, { identity, env, allowedRestaurantSlugs });
   const bucket = row.storage_bucket;
-  if (typeof client.storage?.getBucket === "function") {
+  if (!shouldUseR2ForBucket(bucket) && typeof client.storage?.getBucket === "function") {
     const bucketStatus = await client.storage.getBucket(bucket);
     if (bucketStatus.error) throw new Error(`Source bucket lookup failed: ${bucketStatus.error.message}`);
     if (bucketStatus.data?.public === true) throw new Error("Source upload bucket must be private.");
   }
-  const download = await client.storage.from(bucket).download(row.storage_path);
+  const download = await storageBucket(client.storage, bucket).download(row.storage_path);
   if (download.error) throw new Error(`Source download failed: ${download.error.message}`);
   const bytes = await bytesFromStorageObject(download.data);
   const actualSha256 = sha256(bytes);

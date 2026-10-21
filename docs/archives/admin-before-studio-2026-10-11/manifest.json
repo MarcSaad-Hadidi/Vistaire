@@ -1,0 +1,410 @@
+{
+  "baseCommit": "ecaf036a1c69964ca9a5a71bd32c2be3e7786445",
+  "files": [
+    {
+      "path": "app/(fr)/admin/access/route.ts",
+      "snapshot": "source/app/(fr)/admin/access/route.ts.txt",
+      "sha256": "5badde75ad7893c67c8b403d358f92704ac0a3d3d828ce73bb9f5427c8da75e2"
+    },
+    {
+      "path": "app/(fr)/admin/api/assistant/route.ts",
+      "snapshot": "source/app/(fr)/admin/api/assistant/route.ts.txt",
+      "sha256": "ea67664556757624b2266d2ccc5b93fdedc077e34b96ea70d0a435787dcba30f"
+    },
+    {
+      "path": "app/(fr)/admin/api/dishes/[dishId]/availability/route.ts",
+      "snapshot": "source/app/(fr)/admin/api/dishes/[dishId]/availability/route.ts.txt",
+      "sha256": "cd3f1cec2612b707a86dc47aaf650157cef1906bd4f72b13254a887320af8b46"
+    },
+    {
+      "path": "app/(fr)/admin/api/menu-dishes/[dishId]/photo/route.ts",
+      "snapshot": "source/app/(fr)/admin/api/menu-dishes/[dishId]/photo/route.ts.txt",
+      "sha256": "3108d3a75d34739f98705f4c5c50f0833a57d1f505a59e9f208b0804a6b41c18"
+    },
+    {
+      "path": "app/(fr)/admin/availability/page.tsx",
+      "snapshot": "source/app/(fr)/admin/availability/page.tsx.txt",
+      "sha256": "971ca6caf231a2ab591dbed05f313a5a702b1070acdb2c38e7cf8298a5aa5e4e"
+    },
+    {
+      "path": "app/(fr)/admin/insights/page.tsx",
+      "snapshot": "source/app/(fr)/admin/insights/page.tsx.txt",
+      "sha256": "b9ee91e89199a322aaa6976e20edd276127061e466357d4ffd2d1d20b7cd5e9a"
+    },
+    {
+      "path": "app/(fr)/admin/layout.tsx",
+      "snapshot": "source/app/(fr)/admin/layout.tsx.txt",
+      "sha256": "94ae39b60ba9906a27da5dbf63889913109dca4219e935c0f43eabaf0e6dea76"
+    },
+    {
+      "path": "app/(fr)/admin/loading.tsx",
+      "snapshot": "source/app/(fr)/admin/loading.tsx.txt",
+      "sha256": "b9ebd105d9017598fcdb17def75b7bce1effdf5773ed21a1ce0c6e1bb539d6cf"
+    },
+    {
+      "path": "app/(fr)/admin/logout/route.ts",
+      "snapshot": "source/app/(fr)/admin/logout/route.ts.txt",
+      "sha256": "c81f4a06367714b01d514137026ccd3930cbb77a082d9d6f54d2ce1c881d3ccd"
+    },
+    {
+      "path": "app/(fr)/admin/page.tsx",
+      "snapshot": "source/app/(fr)/admin/page.tsx.txt",
+      "sha256": "b64d71c0eb1256f5e7f7a5c903a6e973fcc691ec08e83c680058b090a23773df"
+    },
+    {
+      "path": "app/(fr)/admin/preview/route.ts",
+      "snapshot": "source/app/(fr)/admin/preview/route.ts.txt",
+      "sha256": "5d88d9f42681b9b7de032338d4e92969b7a13406fbdccba37298371f70394d3c"
+    },
+    {
+      "path": "components/admin/AdminDashboard.module.css",
+      "snapshot": "source/components/admin/AdminDashboard.module.css.txt",
+      "sha256": "a643ddb79dc65a84ccf7b7631b651630a576e8938284570eae11fcfcdb4ceca8"
+    },
+    {
+      "path": "components/admin/AdminDishAvailabilityControl.tsx",
+      "snapshot": "source/components/admin/AdminDishAvailabilityControl.tsx.txt",
+      "sha256": "4f9efe9e65136e8f8d6a956d51120eb4dcaf778d4061918a0e9cb5d1f4f22629"
+    },
+    {
+      "path": "components/admin/AdminDishThumbnail.module.css",
+      "snapshot": "source/components/admin/AdminDishThumbnail.module.css.txt",
+      "sha256": "5475f3d808f17ebf8c095cb5148063379879f98ef8217418736bdd2b32743811"
+    },
+    {
+      "path": "components/admin/AdminDishThumbnail.tsx",
+      "snapshot": "source/components/admin/AdminDishThumbnail.tsx.txt",
+      "sha256": "89511ac8b5c561df14334d2c0e0c3527f9370b7da4df7a2cd955ba4ab048e088"
+    },
+    {
+      "path": "components/admin/AdminMenuActions.tsx",
+      "snapshot": "source/components/admin/AdminMenuActions.tsx.txt",
+      "sha256": "6febed56b3d500424cc3977a5402a4270a09d100926ab13e8e95e8d5e5125fbf"
+    },
+    {
+      "path": "components/admin/availability/AdminAvailability.module.css",
+      "snapshot": "source/components/admin/availability/AdminAvailability.module.css.txt",
+      "sha256": "77ff89459a53018dd14a8ac111bd229acc2ea1193d2be942eff151360757d256"
+    },
+    {
+      "path": "components/admin/availability/AdminAvailabilityList.tsx",
+      "snapshot": "source/components/admin/availability/AdminAvailabilityList.tsx.txt",
+      "sha256": "760c44cbeffea357655c5db9997624d05a74eea74cd89cf843c07f02459d7226"
+    },
+    {
+      "path": "components/admin/availability/AdminAvailabilityPage.tsx",
+      "snapshot": "source/components/admin/availability/AdminAvailabilityPage.tsx.txt",
+      "sha256": "019c3f2ad3adbb4858250ba872bd51ef09c4dcf4556390dc9be91fabe160fc87"
+    },
+    {
+      "path": "components/admin/availability/availabilityMutation.ts",
+      "snapshot": "source/components/admin/availability/availabilityMutation.ts.txt",
+      "sha256": "694e59374c666cdde2ddb69906b4e68152674e11b7567a8808e229dfe76cc90d"
+    },
+    {
+      "path": "components/admin/charts/CartesianAxes.tsx",
+      "snapshot": "source/components/admin/charts/CartesianAxes.tsx.txt",
+      "sha256": "7dd253e7bf2d0b1f36651869171afa6245198bfd09e09fa99119b0de31bd45bb"
+    },
+    {
+      "path": "components/admin/charts/ChartFrame.tsx",
+      "snapshot": "source/components/admin/charts/ChartFrame.tsx.txt",
+      "sha256": "627b94314c80bbc1b56d9c5104888d666d3306707a5bd3964b120e96348a1156"
+    },
+    {
+      "path": "components/admin/charts/Charts.module.css",
+      "snapshot": "source/components/admin/charts/Charts.module.css.txt",
+      "sha256": "494da228650e38622c35548f0b60ba7c53128df07dd5c1cb5c8fc648e36f204d"
+    },
+    {
+      "path": "components/admin/charts/ComparisonLineChart.tsx",
+      "snapshot": "source/components/admin/charts/ComparisonLineChart.tsx.txt",
+      "sha256": "691e801f12043c956bbe9bed1c3db442b7b18245f2694432a9f72900579a9218"
+    },
+    {
+      "path": "components/admin/charts/InteractiveDonut.tsx",
+      "snapshot": "source/components/admin/charts/InteractiveDonut.tsx.txt",
+      "sha256": "78f4d270c582d0a2752a5d1ed656aaa960e1758ea1eaa9ecbf1f10c87639f91b"
+    },
+    {
+      "path": "components/admin/charts/InteractiveHeatmap.tsx",
+      "snapshot": "source/components/admin/charts/InteractiveHeatmap.tsx.txt",
+      "sha256": "23f60819691871da7d9f3027e80fc71344270cd9a7d933c61c7e52c2432364b4"
+    },
+    {
+      "path": "components/admin/charts/InteractiveLineChart.tsx",
+      "snapshot": "source/components/admin/charts/InteractiveLineChart.tsx.txt",
+      "sha256": "a3141fb5e7a26279a6ec6d74052d3f094070c959f6d2f415c022636c035e0e78"
+    },
+    {
+      "path": "components/admin/charts/Sparkline.tsx",
+      "snapshot": "source/components/admin/charts/Sparkline.tsx.txt",
+      "sha256": "e97452d8232dafdb84f950e76727888c16b22c438915ef2eb04ba57c981f2d08"
+    },
+    {
+      "path": "components/admin/charts/data.ts",
+      "snapshot": "source/components/admin/charts/data.ts.txt",
+      "sha256": "0ae0c39ac99381fbac901fab41c5bc719803dfd0b9ad208c230f92160b5d9aac"
+    },
+    {
+      "path": "components/admin/charts/formatters.ts",
+      "snapshot": "source/components/admin/charts/formatters.ts.txt",
+      "sha256": "a1cb6f3cb27b7183423100478e4b7df69a99b082ca14dd5eb6aff73e68c530f2"
+    },
+    {
+      "path": "components/admin/charts/geometry.ts",
+      "snapshot": "source/components/admin/charts/geometry.ts.txt",
+      "sha256": "e4a1004f1a7b3906b23477bf5d716ebc6857594629c8cebacc96ae6b06be03a6"
+    },
+    {
+      "path": "components/admin/charts/index.ts",
+      "snapshot": "source/components/admin/charts/index.ts.txt",
+      "sha256": "73a3974830ba920412f4aca4d8b80b24c5e8a65b901da6b933f26624fef028b4"
+    },
+    {
+      "path": "components/admin/charts/interaction.ts",
+      "snapshot": "source/components/admin/charts/interaction.ts.txt",
+      "sha256": "67ed73dc657a45a524b632ef32bbfb409dcbe16ff4b7263f9de8f26df820feea"
+    },
+    {
+      "path": "components/admin/charts/types.ts",
+      "snapshot": "source/components/admin/charts/types.ts.txt",
+      "sha256": "13916418fad217eec0f733245ab1039d9557eaa5690c5658a5b51f50a3d5f2ee"
+    },
+    {
+      "path": "components/admin/charts/useChartInteraction.ts",
+      "snapshot": "source/components/admin/charts/useChartInteraction.ts.txt",
+      "sha256": "b0d4b23eab57779d8775b410ff9928a3383599eb762ea051656a23e5c1ee4c3f"
+    },
+    {
+      "path": "components/admin/insights/AdminBreakdowns.tsx",
+      "snapshot": "source/components/admin/insights/AdminBreakdowns.tsx.txt",
+      "sha256": "f997f558c358927faf8c6161044750a8e31c3b0deb15a4b254db40ecf948043b"
+    },
+    {
+      "path": "components/admin/insights/AdminComparisonChart.tsx",
+      "snapshot": "source/components/admin/insights/AdminComparisonChart.tsx.txt",
+      "sha256": "d67a1eac7fc11befea29bf4be469992f7b7061b44d7965826482a89ec3aeb28c"
+    },
+    {
+      "path": "components/admin/insights/AdminHeatmap.tsx",
+      "snapshot": "source/components/admin/insights/AdminHeatmap.tsx.txt",
+      "sha256": "3cf15797944e4cb5b22dc5e6746cd252fb385e27e339597a32be143a57a0d9db"
+    },
+    {
+      "path": "components/admin/insights/AdminInsights.module.css",
+      "snapshot": "source/components/admin/insights/AdminInsights.module.css.txt",
+      "sha256": "ed9be9afe0b665f8b5d0a2c2e7e38c2182d7f6990fa738089db3467bd087de11"
+    },
+    {
+      "path": "components/admin/insights/AdminInsightsPage.tsx",
+      "snapshot": "source/components/admin/insights/AdminInsightsPage.tsx.txt",
+      "sha256": "e9eb86f9b2fe941e4237054fe4c43639784def34b78889fe311ba44f8a170c7a"
+    },
+    {
+      "path": "components/admin/insights/InsightsActivityChart.tsx",
+      "snapshot": "source/components/admin/insights/InsightsActivityChart.tsx.txt",
+      "sha256": "e24e6a50b02aa8bac9c2e69a38c67dadc9d6dc7d56b9319bb2e184bde8613cd4"
+    },
+    {
+      "path": "components/admin/insights/InsightsRows.tsx",
+      "snapshot": "source/components/admin/insights/InsightsRows.tsx.txt",
+      "sha256": "a68dfed63769227ed0f0c1e23361d92b591ea226cce975c0929610832167a6f0"
+    },
+    {
+      "path": "components/admin/overview/AdminAvailabilityStrip.tsx",
+      "snapshot": "source/components/admin/overview/AdminAvailabilityStrip.tsx.txt",
+      "sha256": "6c6e216f4ef003b209f689943ff5bf9893805c8f568b18a1e5a381050de6cee0"
+    },
+    {
+      "path": "components/admin/overview/AdminMetricLineChart.tsx",
+      "snapshot": "source/components/admin/overview/AdminMetricLineChart.tsx.txt",
+      "sha256": "d45ad0f7e2b96fdf8f3ccc611befbd8ca190719c6e9843dae76f7b54eb00501d"
+    },
+    {
+      "path": "components/admin/overview/AdminOverview.module.css",
+      "snapshot": "source/components/admin/overview/AdminOverview.module.css.txt",
+      "sha256": "f6f4b75c66d0632a777b095904554db864a0ec084b8805bef030589b1799d3cf"
+    },
+    {
+      "path": "components/admin/overview/AdminOverview.tsx",
+      "snapshot": "source/components/admin/overview/AdminOverview.tsx.txt",
+      "sha256": "395a8ec41d8a0edecae8c3cb31efe7c7ab22ef7806199cd52479542d919da32c"
+    },
+    {
+      "path": "components/admin/overview/AdminTopDishes.tsx",
+      "snapshot": "source/components/admin/overview/AdminTopDishes.tsx.txt",
+      "sha256": "54169eb3039b227b4b4b512de9ed0c15912e0955f0ecab16f6071100194b0e83"
+    },
+    {
+      "path": "components/admin/overview/servicePreview.ts",
+      "snapshot": "source/components/admin/overview/servicePreview.ts.txt",
+      "sha256": "cc5078c9bd0c767ce16de406494a267509c9c6401da7996801567b6857e6a42f"
+    },
+    {
+      "path": "components/admin/system/AdminIcons.tsx",
+      "snapshot": "source/components/admin/system/AdminIcons.tsx.txt",
+      "sha256": "103ea5f2ae1e8073d2e4d088f780bd8bd1c3e3dc9230044ca85439aa68ca8ef8"
+    },
+    {
+      "path": "components/admin/system/AdminNav.tsx",
+      "snapshot": "source/components/admin/system/AdminNav.tsx.txt",
+      "sha256": "63db6f85f5391a873559b32a29a7f08a264db71133b6e60b05e814b597d6d144"
+    },
+    {
+      "path": "components/admin/system/AdminPresentationPrimitives.tsx",
+      "snapshot": "source/components/admin/system/AdminPresentationPrimitives.tsx.txt",
+      "sha256": "105ac7b27818d0fa73ffc45fd1c4cc501476ffe08ea2aa2bb6c40ec149a9bc01"
+    },
+    {
+      "path": "components/admin/system/AdminPrimitives.tsx",
+      "snapshot": "source/components/admin/system/AdminPrimitives.tsx.txt",
+      "sha256": "4f257d4c21f00a01f1ab1ad88867e6e0c41d0aa70622bb19d827e8986a739ab8"
+    },
+    {
+      "path": "components/admin/system/AdminShell.tsx",
+      "snapshot": "source/components/admin/system/AdminShell.tsx.txt",
+      "sha256": "e41fe09069e93eaaca8e1057f457068068e16859da26ae7eaad6ad90937d9712"
+    },
+    {
+      "path": "components/admin/system/AdminSystem.module.css",
+      "snapshot": "source/components/admin/system/AdminSystem.module.css.txt",
+      "sha256": "7fd41f170eb109e994806577cda9acc05aa398604d51e275d2ff8f2ddecee699"
+    },
+    {
+      "path": "lib/admin/access.ts",
+      "snapshot": "source/lib/admin/access.ts.txt",
+      "sha256": "97bdfdfe310b1ccfc98cbfe55bd75d8e1b6989a007b9757c388085dd14bbd5f9"
+    },
+    {
+      "path": "lib/admin/accessCore.ts",
+      "snapshot": "source/lib/admin/accessCore.ts.txt",
+      "sha256": "9f336ec1f392c4da63f3643525577a532235eb726f7912dedbba154467e0de0f"
+    },
+    {
+      "path": "lib/admin/accessSessionCore.ts",
+      "snapshot": "source/lib/admin/accessSessionCore.ts.txt",
+      "sha256": "8593752bf23b46d72f35452def41391f2a194f4efbed36724356133bcd1715af"
+    },
+    {
+      "path": "lib/admin/analyticsEvidence.ts",
+      "snapshot": "source/lib/admin/analyticsEvidence.ts.txt",
+      "sha256": "90d61aab7c0ca7022670cf62bb02e571b4b915c8c2555a29494a86c5776d3292"
+    },
+    {
+      "path": "lib/admin/analyticsPresentation.ts",
+      "snapshot": "source/lib/admin/analyticsPresentation.ts.txt",
+      "sha256": "117dd47425e08ce9262c5c32aaf96569fa1b14e3f94ab70d4167ff9dc0703106"
+    },
+    {
+      "path": "lib/admin/analyticsPresentationCopy.ts",
+      "snapshot": "source/lib/admin/analyticsPresentationCopy.ts.txt",
+      "sha256": "c45a357e2c7d9166951915b3a1c4ef93dea6cac404b8cdef86a63adadfe0cd7d"
+    },
+    {
+      "path": "lib/admin/analyticsState.ts",
+      "snapshot": "source/lib/admin/analyticsState.ts.txt",
+      "sha256": "3310b4f8725b373555c286687787d781ea4e8fb874264b559e7f6bacd891a09d"
+    },
+    {
+      "path": "lib/admin/analyticsThresholds.ts",
+      "snapshot": "source/lib/admin/analyticsThresholds.ts.txt",
+      "sha256": "94b5584eedf6afc0cd37122ff4d0e2ae3544747fc910b716e420670956fbcf02"
+    },
+    {
+      "path": "lib/admin/apiAuth.ts",
+      "snapshot": "source/lib/admin/apiAuth.ts.txt",
+      "sha256": "206fe6707d17fce3792b67baa97b2f7aca0fb6dd849ae76f2d933eb974a0da41"
+    },
+    {
+      "path": "lib/admin/assistant.ts",
+      "snapshot": "source/lib/admin/assistant.ts.txt",
+      "sha256": "3e4e8cd589632fc51b9bf96c0ddc927229b48933985a03db2534553a4cc1d152"
+    },
+    {
+      "path": "lib/admin/availability.ts",
+      "snapshot": "source/lib/admin/availability.ts.txt",
+      "sha256": "60b21d5d880190d27c551a72a0de7d13c8ea9bf6734829451ec36fcfdd403b9a"
+    },
+    {
+      "path": "lib/admin/dashboardClock.ts",
+      "snapshot": "source/lib/admin/dashboardClock.ts.txt",
+      "sha256": "8f93a05442e42c1254acc47ff086c7909a58fb75f971886b16873333301400af"
+    },
+    {
+      "path": "lib/admin/dashboardData.ts",
+      "snapshot": "source/lib/admin/dashboardData.ts.txt",
+      "sha256": "3c53bd7bc2131d4e0927c2ffaa28c630160d9197b97378c21526240d526b3d2c"
+    },
+    {
+      "path": "lib/admin/dashboardRange.ts",
+      "snapshot": "source/lib/admin/dashboardRange.ts.txt",
+      "sha256": "fe29abeae76eb1b372b0f40713fe201013214c5fda42a6c287e2aea407e00d98"
+    },
+    {
+      "path": "lib/admin/dishPhotoUrl.ts",
+      "snapshot": "source/lib/admin/dishPhotoUrl.ts.txt",
+      "sha256": "07fb715227ac73758794acddb4a8e67d8bccb2ace3b6aad2e9990ac7fae3ec76"
+    },
+    {
+      "path": "lib/admin/localPreviewCore.ts",
+      "snapshot": "source/lib/admin/localPreviewCore.ts.txt",
+      "sha256": "9358b67cc8631dee9c372633292b7ac4010e87f837da1064e22166667380c41f"
+    },
+    {
+      "path": "lib/admin/localPreviewSecret.ts",
+      "snapshot": "source/lib/admin/localPreviewSecret.ts.txt",
+      "sha256": "0bdb7a3078602d5d88e1565d43553adc61d37365bb48bc180c77b7bc0bd36b5a"
+    },
+    {
+      "path": "lib/admin/menuReadiness.ts",
+      "snapshot": "source/lib/admin/menuReadiness.ts.txt",
+      "sha256": "9923d84c7ffdff8c9e36b7bca662412093ec0897df004c46f51f21b415a142c2"
+    },
+    {
+      "path": "lib/admin/pageSearchParams.ts",
+      "snapshot": "source/lib/admin/pageSearchParams.ts.txt",
+      "sha256": "8d204766a4eabffae3e00a648600aa4bba6879f70d8bbc239c07c06e50973ae8"
+    },
+    {
+      "path": "lib/admin/qrAccessInputCore.ts",
+      "snapshot": "source/lib/admin/qrAccessInputCore.ts.txt",
+      "sha256": "732628e9972da6fb8e0fd671c99cf94a7789b0c7136cffb823fd14bfe8aa0604"
+    },
+    {
+      "path": "lib/admin/recommendations.ts",
+      "snapshot": "source/lib/admin/recommendations.ts.txt",
+      "sha256": "bdec6ce7fced0d6ce28a2b7d3b5fb32622f96250192e607e93a2254d3da02ede"
+    },
+    {
+      "path": "lib/admin/requestBody.ts",
+      "snapshot": "source/lib/admin/requestBody.ts.txt",
+      "sha256": "2551a4e66cc5b8cacff2ffa4f077c6439c8f4b3358ac627fa5ad775888e51c90"
+    },
+    {
+      "path": "e2e/admin-chart-interactions.spec.ts",
+      "snapshot": "source/e2e/admin-chart-interactions.spec.ts.txt",
+      "sha256": "6645c80fb1a864ffd39498a467fabfd0877daa2696af32b3886c1523d8c652be"
+    },
+    {
+      "path": "e2e/admin-insights-fidelity.spec.ts",
+      "snapshot": "source/e2e/admin-insights-fidelity.spec.ts.txt",
+      "sha256": "6cbb313ca246e9cb5c0c5f490c30aad99987665aadfa2c856fe326f2fa881562"
+    },
+    {
+      "path": "e2e/admin-visual.spec.ts",
+      "snapshot": "source/e2e/admin-visual.spec.ts.txt",
+      "sha256": "6b9b58aa10f3d04700910d2b0991fc60c2833008f6f9d84a8c154d1716bad218"
+    },
+    {
+      "path": "components/vistaire-preview/RestaurateurDashboardDemo.tsx",
+      "snapshot": "source/components/vistaire-preview/RestaurateurDashboardDemo.tsx.txt",
+      "sha256": "406e6dae92c6de078d5ec56c6e8d56bba21b100a54423e0e87f64d7870f1cdb1"
+    },
+    {
+      "path": "components/vistaire-preview/VistaireRestaurateurDashboardPreview.module.css",
+      "snapshot": "source/components/vistaire-preview/VistaireRestaurateurDashboardPreview.module.css.txt",
+      "sha256": "67ef4a8eea49f96cd6913a424135412ce9bc7b5ea5ef9b6d1343acd2dccc2868"
+    }
+  ]
+}

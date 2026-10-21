@@ -10,6 +10,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: vistaire-workflow-security-${{ github.event_name == 'pull_request' && github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   actionlint:
     name: actionlint
@@ -39,7 +43,7 @@ jobs:
           persist-credentials: false
           fetch-depth: 1
       - name: Run zizmor 1.21.0 (offline, no token or secrets)
-        uses: zizmorcore/zizmor-action@3dc1ecc9bcb9e94e9b2c709687979e1298497054 # v0.6.2
+        uses: zizmorcore/zizmor-action@cc914d7f3750a2d13d75c7f184a1060aa0e9d482 # v0.6.4
         with:
           version: 1.21.0
           online-audits: false
@@ -62,11 +66,8 @@ jobs:
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 24
-          cache: npm
-      - name: Install dependencies without lifecycle scripts
-        run: npm ci --ignore-scripts
       - name: Capture npm audit report
         shell: bash
-        run: npm audit --json > npm-audit.json || test -s npm-audit.json
+        run: npm audit --package-lock-only --json > npm-audit.json || test -s npm-audit.json
       - name: Enforce explicit high/critical baseline
         run: node scripts/ci/check-npm-audit-baseline.mjs npm-audit.json ci/npm-audit-baseline.json

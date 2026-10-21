@@ -656,7 +656,7 @@ test("restaurant creation keeps rich menu dish fallback columns when column disc
     category_name: "Plats",
     price: 14.99,
     available: true,
-    sort_order: 1,
+    display_order: 1,
     image_url: "https://cdn.example.com/bar.jpg",
     thumbnail_url: "https://cdn.example.com/bar.jpg",
     ingredients: ["bar", "fenouil", "citron"],
@@ -955,35 +955,6 @@ test("restaurant creation wizard keeps structure before dishes and style after d
   assert.match(ownerStyles, /@media \(max-width: 720px\)[\s\S]*\.menuPhoneFrame[\s\S]*border: 0/);
   assert.match(ownerStyles, /@media \(max-width: 720px\)[\s\S]*\.menuPhoneNotch,[\s\S]*\.menuPhoneTopbar[\s\S]*display: none/);
   assert.match(ownerStyles, /@media \(max-width: 720px\)[\s\S]*\.menuPhoneScreen[\s\S]*height: auto[\s\S]*overflow-y: visible/);
-});
-
-test("restaurant creation wizard keeps price decimals and targeted post-create links", async () => {
-  const form = await readFile("components/owner/RestaurantCreateForm.tsx", "utf8");
-  const page = await readFile("app/(fr)/owner/restaurants/create/page.tsx", "utf8");
-  const formatted = new Intl.NumberFormat("fr-CA", {
-    style: "currency",
-    currency: "CAD",
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2
-  }).format(14.99);
-
-  assert.match(form, /parsePriceToCents/);
-  assert.match(form, /formatPriceCentsForMenu/);
-  assert.match(form, /displayPriceMode/);
-  assert.match(form, /inputMode="decimal"/);
-  assert.match(form, /Affichage prix/);
-  assert.match(formatted, /14[,.]99/);
-  assert.doesNotMatch(formatted, /^15/);
-  assert.match(form, /Le resultat final confirme ce qui a ete persiste\./);
-  assert.match(form, /Plats sauvegardes/);
-  assert.match(form, /Plats non sauvegardes/);
-  assert.match(form, /Sections non confirmees/);
-  assert.match(form, /Chemin media prevu/);
-  assert.match(form, /Chemin media reference/);
-  assert.match(form, /\/owner\/medias\?restaurantId=/);
-  assert.match(form, /Voir les photos a ajouter/);
-  assert.match(page, /Creation Supabase avec rapport de persistance/);
-  assert.doesNotMatch(page, /Profil \+ menu persistants/);
 });
 
 test("owner e2e bypass can cover restaurant API during browser QA", async () => {

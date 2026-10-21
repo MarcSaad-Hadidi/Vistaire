@@ -192,7 +192,7 @@ test("prepared GLB owner routes are guarded and run the Meshy owner pipeline", a
   assert.match(meshyPipeline, /\/models\/restaurants\//);
   assert.match(meshyPipeline, /owner-meshy-pipeline/);
   assert.match(meshyPipeline, /publishMeshyAssetsToStorage/);
-  assert.match(meshyPipeline, /storage\s*\.from\(MODEL_BUCKET\)\s*\.upload/);
+  assert.match(meshyPipeline, /storageBucket\(args\.adminClient\.storage, MODEL_BUCKET\)\s*\.upload/);
   assert.match(meshyPipeline, /webModel3dStoragePath/);
   assert.match(meshyPipeline, /arModel3dStoragePath/);
   assert.match(meshyPipeline, /arUsdzStoragePath/);

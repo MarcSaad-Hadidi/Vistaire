@@ -1,5 +1,7 @@
 "use client";
 
+import { useVisibleMenuAnalytics } from "@/components/menu/analytics/useVisibleMenuAnalytics";
+
 import Link from "next/link";
 import {
   useEffect,
@@ -114,7 +116,7 @@ function hasPublic3d(dish: PublicMenuDish): boolean {
 
 function hasPublicAr(dish: PublicMenuDish): boolean {
   return (
-    isSafe3dAssetUrl(dish.arModel3dUrl, ALLOWED_3D_CDN_ORIGINS, "arLite") ||
+    hasPublic3d(dish) ||
     isSafe3dAssetUrl(
       dish.arUsdzUrl || dish.usdzUrl,
       ALLOWED_3D_CDN_ORIGINS,
@@ -181,14 +183,6 @@ export function PublicDishDetailExperience({
     mode === "builder-preview" && (hasBuilder3dStatus || hasBuilderArStatus);
   const publicModelButtonLabel = showModelViewer ? "Masquer la 3D" : "Voir en 3D";
 
-  useEffect(() => {
-    if (mode !== "public") return;
-    trackPublicMenuEvent(menu, {
-      eventName: "dish_opened",
-      dishSlug: dish.slug,
-      categorySlug: dish.categorySlug
-    });
-  }, [dish.categorySlug, dish.slug, menu, mode]);
 
   useEffect(() => {
     if (!showModelViewer || ModelViewerComponent || modelViewerLoadFailed) return;
@@ -211,8 +205,11 @@ export function PublicDishDetailExperience({
     };
   }, [ModelViewerComponent, modelViewerLoadFailed, showModelViewer]);
 
+  const analyticsRef = useVisibleMenuAnalytics(menu, mode === "public", dish);
+
   return (
     <main
+      ref={analyticsRef}
       className={`${styles.page} ${
         mode === "builder-preview" ? styles.builderPreview : ""
       }`}
@@ -405,6 +402,7 @@ export function PublicDishDetailExperience({
                     >
                       {ModelViewerComponent ? (
                         <ModelViewerComponent
+                          analyticsEnabled={mode === "public"}
                           key={[
                             dish.id,
                             dish.modelAssetVersion ?? "",

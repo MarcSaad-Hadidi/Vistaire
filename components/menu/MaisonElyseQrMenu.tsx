@@ -1,5 +1,7 @@
 "use client";
 
+import { useVisibleMenuAnalytics } from "@/components/menu/analytics/useVisibleMenuAnalytics";
+
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import type { CSSProperties, KeyboardEvent } from "react";
@@ -360,7 +362,7 @@ function hasReal3d(dish: PublicMenuDish): boolean {
 
 function hasRealAr(dish: PublicMenuDish): boolean {
   return (
-    isSafe3dAssetUrl(dish.arModel3dUrl, ALLOWED_3D_CDN_ORIGINS, "arLite") ||
+    hasReal3d(dish) ||
     isSafe3dAssetUrl(
       dish.arUsdzUrl || dish.usdzUrl,
       ALLOWED_3D_CDN_ORIGINS,
@@ -636,12 +638,8 @@ export function MaisonElyseQrMenu({
   const [shouldPersistCurrencyInLinks, setShouldPersistCurrencyInLinks] =
     useState(() => Boolean(queryCurrency));
   const restaurantDisplayName = activeMenu.name.trim() || "Restaurant";
-  const menuOpenedTrackedRef = useRef(false);
-  useEffect(() => {
-    if (displayMode !== "public" || menuOpenedTrackedRef.current) return;
-    menuOpenedTrackedRef.current = true;
-    trackPublicMenuEvent(activeMenu, { eventName: "menu_opened" });
-  }, [activeMenu, displayMode]);
+
+  const analyticsRef = useVisibleMenuAnalytics(menu, displayMode === "public");
   const copy = useMemo(
     () =>
       personalizeBranding(
@@ -1265,6 +1263,7 @@ export function MaisonElyseQrMenu({
   }
 
   function toggleFilter(filterId: FilterId) {
+    if (displayMode === "public") trackPublicMenuEvent(menu, { eventName: "filter_used", filterName: filterId });
     setActiveFilter((currentFilter) =>
       currentFilter === filterId ? "all" : filterId
     );
@@ -1293,6 +1292,7 @@ export function MaisonElyseQrMenu({
   }
 
   function selectLanguage(nextLocale: PublicMenuLocale) {
+    if (displayMode === "public") trackPublicMenuEvent(menu, { eventName: "locale_changed", metadata: { locale: nextLocale.toLowerCase().split(/[-_]/)[0] } });
     const resolved = resolveMaisonElyseLocalizedMenu({
       fallbackLocale: propLocale,
       fallbackMenu: menu,
@@ -1677,6 +1677,7 @@ export function MaisonElyseQrMenu({
 
   return (
     <MenuRoot
+      ref={(node) => { analyticsRef.current = node; }}
       className={`${styles.page} ${styles.isMenuMode} ${
         isEmbeddedPreview ? styles.phonePreview : ""
       } ${isComparisonPreview ? styles.comparisonPreview : ""}`}

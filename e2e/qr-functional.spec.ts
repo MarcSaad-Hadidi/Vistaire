@@ -347,9 +347,10 @@ test("QR fonctionnel: creation owner admin, echange HttpOnly et dashboard restau
   expect(environment.fixture.liveQrReadMatches).toBe(
     environment.fixture.liveQrReads
   );
-  await expect(
-    page.getByRole("heading", { name: /Restaurant Fixture QR/i })
-  ).toBeVisible();
+  const studio = page.locator("[data-admin-studio]");
+  await expect(studio).toBeVisible();
+  await expect(studio.locator("aside strong")).toHaveText("Restaurant Fixture QR");
+  await expect(studio.getByRole("heading", { level: 1, name: "Vue d’ensemble", exact: true })).toBeVisible();
   await expect(page.getByText("Restaurant Hors Scope")).toHaveCount(0);
   expect(environment.fixture.adminScopeVerified()).toBe(true);
   health.expectClean();

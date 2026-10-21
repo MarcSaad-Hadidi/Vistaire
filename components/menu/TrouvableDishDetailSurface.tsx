@@ -40,6 +40,7 @@ type TrouvableImmersivePanelBodyProps = {
   manualDishUrlRef: RefObject<HTMLInputElement | null>;
   menu: PublicMenu;
   analyticsContext?: PublicMenuAnalyticsContext;
+  analyticsEnabled: boolean;
   modelControlsId: string;
   modelViewerComponent: DishModelViewerComponent | null;
   modelViewerLoadFailed: boolean;
@@ -124,6 +125,7 @@ export function TrouvableImmersivePanelBody({
   manualDishUrlRef,
   menu,
   analyticsContext,
+  analyticsEnabled,
   modelControlsId,
   modelViewerComponent: ModelViewerComponent,
   modelViewerLoadFailed,
@@ -152,6 +154,7 @@ export function TrouvableImmersivePanelBody({
       >
         {ModelViewerComponent ? (
           <ModelViewerComponent
+            analyticsEnabled={analyticsEnabled}
             dish={modelViewerDishFromPublicDish(dish)}
             analyticsContext={analyticsContext ?? getPublicMenuAnalyticsContext(menu) ?? undefined}
             minimalChrome

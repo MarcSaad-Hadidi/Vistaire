@@ -9,7 +9,9 @@ import ts from "typescript";
 const root = fileURLToPath(new URL("../", import.meta.url));
 const entrypoints = [
   "app/(fr)/apercu-restaurateur/page.tsx",
-  "app/(en)/en/restaurant-preview/page.tsx"
+  "app/(en)/en/restaurant-preview/page.tsx",
+  "app/(fr)/(seo)/tarifs-menu-digital-restaurant/page.tsx",
+  "app/(en)/en/pricing-digital-restaurant-menu/page.tsx"
 ];
 const codeExtensions = ["", ".ts", ".tsx", ".mjs", ".js"];
 const indexExtensions = ["/index.ts", "/index.tsx", "/index.mjs", "/index.js"];
@@ -34,6 +36,37 @@ const forbiddenLocalModules = [
 ];
 
 const allowedAdminComponentModules = new Set([
+  "components/admin/studio/AdminStudio",
+  "components/admin/studio/StudioCharts",
+  "components/admin/studio/StudioNumber",
+  "components/admin/studio/StudioMetricExplorer",
+  "components/admin/studio/StudioMetricExplorer.module.css",
+  "components/admin/studio/StudioCommandPalette",
+  "components/admin/studio/StudioCommandPalette.module.css",
+  "components/admin/studio/StudioAnalysisWorkspace",
+  "components/admin/studio/StudioAnalysisTables",
+  "components/admin/studio/StudioAnalysisTables.module.css",
+  "components/admin/studio/StudioAnalysisWorkspace.module.css",
+  "components/admin/studio/StudioCharts.module.css",
+  "components/admin/studio/StudioDateRangePicker",
+  "components/admin/studio/StudioDateRangePicker.module.css",
+  "components/admin/studio/StudioThemeToggle",
+  "components/admin/studio/studioThemeTransition",
+  "components/admin/studio/studio-theme-transition.css",
+  "components/admin/studio/StudioControls",
+  "components/admin/studio/StudioControls.module.css",
+  "components/admin/studio/StudioAnalysisCharts",
+  "components/admin/studio/StudioDishes",
+  "components/admin/studio/StudioDishes.module.css",
+  "components/admin/studio/StudioDialog",
+  "components/admin/studio/StudioExportDialog",
+  "components/admin/studio/Studio.module.css",
+  "components/admin/studio/StudioExportDialog.module.css",
+  "components/admin/studio/studioTheme",
+  "components/admin/studio/studioLocale",
+  "components/admin/availability/availabilityMutation",
+  "components/admin/AdminDishThumbnail",
+  "components/admin/AdminDishThumbnail.module.css",
   "components/admin/system/AdminIcons",
   "components/admin/system/AdminPresentationPrimitives",
   "components/admin/system/AdminSystem.module.css",
@@ -41,7 +74,6 @@ const allowedAdminComponentModules = new Set([
   "components/admin/charts/ChartFrame",
   "components/admin/charts/Charts.module.css",
   "components/admin/charts/ComparisonLineChart",
-  "components/admin/charts/InteractiveBars",
   "components/admin/charts/InteractiveDonut",
   "components/admin/charts/InteractiveHeatmap",
   "components/admin/charts/InteractiveLineChart",
@@ -85,7 +117,11 @@ function isForbiddenLocalModule(file) {
   if (/^components\/admin(?:\/|$)/.test(modulePath)) {
     return !allowedAdminComponentModules.has(modulePath);
   }
-  return forbiddenLocalModules.some((pattern) => pattern.test(modulePath));
+  const pureStudioDependencies = new Set([
+    "lib/admin/studioTemporalData", "lib/admin/studioExport", "lib/admin/studioExportFiles", "lib/admin/analyticsPresentation", "lib/admin/analyticsThresholds",
+    "lib/admin/export-fonts/DejaVuSans", "lib/admin/dishPhotoUrl", "lib/owner/storageSafeIdentifier"
+  ]);
+  return !pureStudioDependencies.has(modulePath) && forbiddenLocalModules.some((pattern) => pattern.test(modulePath));
 }
 
 function localSpecifierPath(specifier, importer) {
@@ -127,7 +163,10 @@ function importsFrom(source, file) {
       node.moduleSpecifier &&
       ts.isStringLiteralLike(node.moduleSpecifier)
     ) {
-      imports.push(node.moduleSpecifier.text);
+      // Type-only contracts are erased from the public runtime bundle.
+      const typeOnly = node.isTypeOnly || (ts.isImportDeclaration(node) && (node.importClause?.isTypeOnly ||
+        (!node.importClause?.name && node.importClause?.namedBindings && ts.isNamedImports(node.importClause.namedBindings) && node.importClause.namedBindings.elements.every(item => item.isTypeOnly))));
+      if (!typeOnly) imports.push(node.moduleSpecifier.text);
     }
     if (ts.isCallExpression(node) && node.expression.kind === ts.SyntaxKind.ImportKeyword) {
       if (node.arguments.length === 1 && ts.isStringLiteralLike(node.arguments[0])) {
@@ -153,6 +192,13 @@ function importsFrom(source, file) {
   return { imports, nonliteralDynamicImports };
 }
 
+// These pages play in the shared 3D restaurant room (components/immersive):
+// Three.js and fetches of its public models only. Every other rule (private
+// modules, Supabase, Clerk, server-only, persistence) still applies to it.
+function isImmersiveRoom(modulePath) {
+  return modulePath.startsWith("components/immersive/");
+}
+
 function publicPreviewGraph() {
   const pending = entrypoints.map((entry) => path.resolve(root, entry));
   const visited = new Map();
@@ -165,7 +211,8 @@ function publicPreviewGraph() {
     const parsed = importsFrom(source, file);
     violations.push(...parsed.nonliteralDynamicImports.map((location) => `${location} nonliteral dynamic import`));
     for (const specifier of parsed.imports) {
-      if (forbiddenPackages.some((pattern) => pattern.test(specifier))) {
+      if (forbiddenPackages.some((pattern) => pattern.test(specifier)) &&
+        !(isImmersiveRoom(normalized(file)) && /^three(?:\/|$)/.test(specifier))) {
         violations.push(`${normalized(file)} imports forbidden package ${specifier}`);
       }
       const resolved = resolveLocal(specifier, file);
@@ -195,19 +242,38 @@ function assertPrivateModulePolicy() {
   const relativeModules = parsed.imports.map((specifier) => specifier.replace(/^@\//, ""));
 
   assert.deepEqual(relativeModules, [
-    "lib/admin/dashboardTypes",
-    "app/api/owner/restaurants/route",
     "app/api/private-preview/route",
-    "components/admin/AdminDishWorklist",
     "components/admin/AdminInsightCard",
     "components/admin/system/AdminPrimitives",
     "components/admin/system/AdminPresentationPrimitives",
-    "components/admin/charts/types"
   ]);
   assert.deepEqual(
     relativeModules.map(isForbiddenLocalModule),
-    [true, true, true, true, true, true, false, false]
+    [true, true, true, false]
   );
+}
+
+function hasForbiddenBrowserPersistence(file, source) {
+  let checkedSource = source;
+  // The public theme is the sole user-authorized storage exception. Remove only
+  // its exact preference read/write expressions, never exempt the whole module.
+  if (
+    normalized(file) === "lib/publicTheme.ts" &&
+    /export const PUBLIC_THEME_KEY = "vistaire-public-theme";/.test(source)
+  ) {
+    checkedSource = source
+      .replaceAll('localStorage.getItem("vistaire-public-theme")', "undefined")
+      .replaceAll("localStorage.setItem(PUBLIC_THEME_KEY, theme)", "undefined");
+  }
+  if (normalized(file) === "components/admin/studio/studioTheme.ts") {
+    assert.match(source, /demo \? getPublicTheme : snapshot/);
+    checkedSource = checkedSource.replaceAll('localStorage.getItem("vistaire-studio-theme")', "undefined");
+  }
+  if (normalized(file) === "components/admin/studio/AdminStudio.tsx") {
+    assert.match(source, /if \(demo\) \{[\s\S]*?setPublicTheme[\s\S]*?return;/);
+    checkedSource = checkedSource.replace(/localStorage\.setItem\(\s*"vistaire-studio-theme",[\s\S]*?\);/, "undefined");
+  }
+  return /\b(?:localStorage|sessionStorage)\b/.test(checkedSource);
 }
 
 function assertBrowserStatePolicy() {
@@ -238,16 +304,56 @@ function assertBrowserStatePolicy() {
   }
 }
 
-test("the public preview import graph cannot reach private capabilities or browser persistence", () => {
+test("only the shared public theme may persist its one non-sensitive preference", () => {
+  const themeFile = path.join(root, "lib/publicTheme.ts");
+  const source = readFileSync(themeFile, "utf8");
+  assert.equal(hasForbiddenBrowserPersistence(themeFile, source), false);
+  assert.equal(hasForbiddenBrowserPersistence(path.join(root, "components/preview.tsx"), source), true);
+  for (const mutation of [
+    source.replace('PUBLIC_THEME_KEY = "vistaire-public-theme"', 'PUBLIC_THEME_KEY = "private-preview-data"'),
+    source.replace('getItem("vistaire-public-theme")', 'getItem("private-preview-data")'),
+    source + "\nlocalStorage.setItem('private-preview-data', 'secret');",
+    source + "\nsessionStorage.setItem('vistaire-public-theme', 'light');",
+    source + "\nconst store = localStorage;",
+    source + "\nlocalStorage.clear();",
+  ]) {
+    assert.equal(hasForbiddenBrowserPersistence(themeFile, mutation), true);
+  }
+});
+
+test("the public preview import graph cannot reach private capabilities or persistence beyond public theme", () => {
   assertPrivateModulePolicy();
   assertBrowserStatePolicy();
   const graph = publicPreviewGraph();
   for (const [file, source] of graph.visited) {
     for (const [label, pattern] of forbiddenSource) {
-      if (pattern.test(source)) graph.violations.push(`${normalized(file)} contains ${label}`);
+      const forbidden = label === "browser persistence"
+        ? hasForbiddenBrowserPersistence(file, source)
+        : pattern.test(source);
+      const modulePath = normalized(file);
+      const guardedStudioCapability =
+        (modulePath === "components/admin/studio/AdminStudio.tsx" && ["router navigation", "private rendered destination"].includes(label)) ||
+        (modulePath === "components/admin/studio/StudioDishes.tsx" && ["network fetch", "router navigation"].includes(label)) ||
+        (isImmersiveRoom(modulePath) && label === "network fetch") ||
+        // Hover prefetch of links already on the page; it never navigates itself.
+        (modulePath === "components/immersive/useLinkIntent.js" && label === "router navigation" &&
+          !/\brouter\.(?:push|replace|refresh|back|forward)\s*\(/.test(source));
+      if (forbidden && !guardedStudioCapability) graph.violations.push(`${normalized(file)} contains ${label}`);
     }
   }
   assert.deepEqual(graph.violations, []);
+  const adapter = readFileSync(path.join(root, "components/vistaire-preview/RestaurateurDashboardDemo.tsx"), "utf8");
+  assert.match(adapter, /canWrite=\{false\} demo/);
+  assert.match(adapter, /createPublicStudioDemo/);
+  const studio = readFileSync(path.join(root, "components/admin/studio/AdminStudio.tsx"), "utf8");
+  assert.match(studio, /canWrite=\{!demo && canWrite\}/);
+  assert.match(studio, /synthetic=\{demo\}/);
+  assert.match(studio, /allowedRanges=\{demo \? demoRanges : undefined\}/);
+  const picker = readFileSync(path.join(root, "components/admin/studio/StudioDateRangePicker.tsx"), "utf8");
+  assert.match(picker, /allowedRanges/);
+  const dishes = readFileSync(path.join(root, "components/admin/studio/StudioDishes.tsx"), "utf8");
+  assert.match(dishes, /if \(lock.current \|\| !canWrite\) return;/);
+
 });
 
 test("request policy distinguishes Next internals from private product mutations without retaining secrets", async () => {

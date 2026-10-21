@@ -40,6 +40,7 @@ async function handlePhotoRequest(
     dishId,
     kind: "photo",
     requestedAssetVersion: assetVersion || undefined,
+    requestMethod: request.method === "HEAD" ? "HEAD" : "GET",
     supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL,
     notFoundMessage: "Photo introuvable.",
     unavailableMessage: "Photo indisponible.",

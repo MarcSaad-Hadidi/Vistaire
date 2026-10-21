@@ -1,31 +1,19 @@
 {
   "schema_version": 1,
   "owner": "Vistaire maintainers",
-  "lockfile_sha256": "92f1130dacb88a346a59787768bd1efeaf224979350a7aa33ad11adddf4ed8d6",
+  "lockfile_sha256": "2c74d94cd669584a83c890d2096a8a595276240d27710e0606ef906209660c03",
   "entries": [
     {
-      "advisory_id": "GHSA-73wf-gq98-2v4g",
-      "package": "browserslist",
-      "dependency_path": "node_modules/browserslist",
-      "scope": "dev",
+      "advisory_id": "GHSA-vfj7-8cjw-p6xm",
+      "package": "braces",
+      "dependency_path": "@gltf-transform/cli@4.5.1 > micromatch@4.0.8 > braces@3.0.3; eslint-config-next@16.3.8 > @next/eslint-plugin-next@16.3.8 > fast-glob@3.3.1 > micromatch@4.0.8 > braces@3.0.3",
+      "scope": "runtime",
       "severity": "high",
-      "exploitability": "Build-time only in Vistaire: requires attacker-controlled browserslist-stats.json input; browserslist is dev-only and is not shipped in the production runtime.",
+      "exploitability": "Not reachable. Runtime path: @gltf-transform/cli runs only in the server-side owner 3D pipeline and operator scripts; micromatch there only compiles constant patterns or the --pattern/--slots CLI flags, which Vistaire never passes, and GLB texture slot names are match subjects, not expanded patterns. Dev path: eslint-config-next runs only in development and CI lint.",
       "owner": "Vistaire maintainers",
-      "issue": "#227",
-      "reason": "Temporary, explicit risk acceptance while the npm lockfile is regenerated with browserslist >= 4.28.7. Runtime exposure is absent; CI remains read-only for PR-controlled code.",
-      "expires_on": "2026-09-08"
-    },
-    {
-      "advisory_id": "GHSA-c83g-rgw3-j3cx",
-      "package": "browserslist",
-      "dependency_path": "node_modules/browserslist",
-      "scope": "dev",
-      "severity": "high",
-      "exploitability": "Build-time only in Vistaire: the reported memory-growth path requires sustained attacker-controlled distinct Browserslist queries, while Vistaire build tooling uses static project configuration.",
-      "owner": "Vistaire maintainers",
-      "issue": "#227",
-      "reason": "Temporary, explicit risk acceptance while the npm lockfile is regenerated with browserslist >= 4.28.7. The package is dev-only and not part of the deployed runtime.",
-      "expires_on": "2026-09-08"
+      "issue": "https://github.com/MarcSaad-Hadidi/Vistaire/issues/272",
+      "reason": "No patched braces release exists (affected <= 3.0.3). Latest @gltf-transform/cli 4.5.1, micromatch 4.0.8 and @next/eslint-plugin-next 16.3.8 still resolve braces 3.0.3; npm audit only offers semver-major downgrades. Temporary acceptance, not a fix.",
+      "expires_on": "2026-11-02"
     }
   ]
 }

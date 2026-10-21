@@ -17,6 +17,8 @@ on `main` are grandfathered exceptions, not precedent.
   sha256 `e4a89ed6ab21f55f60c9ee33a676ea2292bae5b6ecef09efefcf3173a6e85e29`).
 - Existing demo runtime assets already on `main`, until a separate migration
   moves them to storage/CDN.
+- The three reviewed, optimized `/demo` mobile menu walkthroughs listed below.
+  Their raw recordings and review output stay outside Git.
 
 ## What does not belong in Git
 
@@ -76,6 +78,33 @@ non-public asset workflow, so LFS cannot block Vercel clone or checkout.
 5. Any new hero video must pass network/performance review before it is
    allowlisted.
 
+## Demo menu walkthroughs
+
+Reviewed on 2026-10-03 for the requested `/demo` restaurant presentation.
+Owner: `MarcSaad-Hadidi`. Each silent H264 clip shows the real published menu
+at phone size, including one loaded and manipulated 3D dish. Runtime exports
+are 780 × 1688, 24 fps, with MP4 faststart; their WebP posters live
+under `public/images/demo-walkthrough/`. Browser playback, visual frames and
+3D loading were reviewed before adding these exact exceptions.
+
+The HD captures preserve the original action sequences and loop durations.
+Their native double-density rendering and higher encoding quality address the
+requested improvement in text and image clarity.
+
+Each video has a maximum budget of **8,388,608 bytes**. No wildcard exception
+or LFS rule is permitted. New versions require another review and checksum.
+
+| Runtime file | Reviewed bytes | SHA256 |
+| --- | ---: | --- |
+| `public/videos/demo/maison-elyse.mp4` | 4,053,916 | `179465b86ac821e3e4aef6a0669f055334d7f87610d7db30a1486b1d73c8ec6a` |
+| `public/videos/demo/trouvable.mp4` | 7,031,957 | `223505b2c8eee29a1f6aa59726fe215badfeecf1775e7917831fe963c6a5138c` |
+| `public/videos/demo/sauge-noire.mp4` | 7,772,626 | `98dec39df7c10ac9036f0c0c533a8e2d80baae88370d950a92da651aa76a3089` |
+
+These exceptions cover only the optimized files served by `/demo`.
+Playwright WebM recordings, screenshots, scripts and intermediate encodes do
+not belong in the repository. Native iPhone/Android AR has not been validated
+by the desktop recordings.
+
 ## Before opening a PR
 
 Run:
@@ -88,3 +117,86 @@ npm run lfs:check
 If either command fails, move the asset out of Git or add a reviewed exact
 exception. Do not bypass the guard with `git add -f` unless the exception has
 already been documented and approved.
+
+## Immersive public presentation
+
+The user-authorized immersive presentation imports original runtime assets under `public/immersive-assets` and `public/immersive-media`. Their narrow exceptions live in `docs/immersive-asset-exceptions.json`, with MarcSaad-Hadidi as owner, exact byte limits, SHA-256 checksums and individual reasons. The policy checker loads this manifest; it does not permit arbitrary future assets. Existing assets under `public/models`, `public/videos` and `public/frames` are unchanged.
+
+`assets/immersive-runtime/burger.usdz.gz` is a deterministic, lossless copy of the original USDZ. `postinstall` and `prebuild` restore its exact original bytes to the ignored public runtime destination after verifying both checksums. The compressed form fits the publishing connector's request limit without reducing 3D quality. The archived previous public UI is a separately pinned exception; see `docs/immersive-integration.md`.
+
+## Restaurant Studio presentation walkthrough
+
+Requested and revised by `MarcSaad-Hadidi` on 2026-10-11 for the French and
+English dashboard presentation pages. Owner: `MarcSaad-Hadidi`. This is a genuine
+silent recording of the approved public demonstration at
+`https://sauge-noire-dashboard-demo.plumtuna4.chatgpt.site/`, captured through
+supported cloud-browser screenshots while operating the UI. All figures are
+fictional and actions are local simulations. No private restaurant session or
+customer data was recorded.
+
+The revised 128-second user journey covers reporting presets and custom dates;
+chart measures, tooltip, comparison legend, enlarged view and data table; ten
+analysis chart families and category drill-down; dish search and details;
+selection, batch availability and undo; weekly/one-time scheduling choices
+followed by Cancel; calendar and service-date/time preview; PDF, Excel, CSV and
+JSON format choices and the actual synthetic PDF download; light/dark theme.
+The public prototype's schedule Save throws when adding to a frozen rules array,
+so failed-save takes are excluded. The film shows no successful schedule save
+and makes no claim of backend persistence. That separate prototype was not edited.
+
+Fourteen retained sections supplied 3,937 captured frames at measured section
+cadences of 20.4–40.3 fps. Encoding selects the nearest genuinely captured frame
+at 24 fps, with no generated frames or motion interpolation. The retained
+sections contain 314 distinct recorded frames, including actual transitions.
+Raw captures, rejected takes, review sheets, encoding intermediates and the
+previous reviewed clip remain outside Git.
+
+- Runtime: `public/videos/demo/dashboard-studio.mp4`
+- Format: H264, 1168 × 748, 24 fps, yuv420p, no audio, MP4 faststart
+- Duration: 128.000 seconds
+- Reviewed bytes: 2,756,273; exact-file budget: 3,145,728 bytes
+- SHA-256: `e23fee4660945b73a16e6cd6ebabb1ad8de91053a414a0fbb7763232d4d7fcb2`
+- Poster: `public/images/demo-walkthrough/dashboard-studio.webp` (46,066 bytes)
+
+The centered hero starts muted when visible unless reduced motion is preferred.
+Native pause/fullscreen controls remain available, a failed-autoplay button is
+visible when necessary, and playback pauses offscreen or when the tab is hidden.
+Manual pause is retained. Localized text describes each chapter and the English
+page discloses the recorded French interface. Existing menu video behavior and
+private Studio are preserved. The exception is limited to this exact reviewed
+clip; replacement requires an updated checksum. Source interactions, a contact
+sheet and full decoding were checked. Deployed layout and playback verification
+remain covered by the public preview E2E suite and must run on the final revision.
+
+
+### Current dashboard walkthrough (2026-10-12)
+
+MarcSaad-Hadidi approved the new complete walkthrough at baked-in 3× speed and
+its upload to the existing `vistaire-media` Cloudflare R2 bucket. The old
+Git-served video and its poster remain unchanged; the shared French/English
+`DashboardWalkthrough` now references the immutable CDN object below. No MP4,
+raw capture, new LFS rule, or asset-policy exception is added to Git.
+
+- Runtime: `https://cdn.vistaire.ca/demo/dashboard-studio-3x-67468b94997f.mp4`
+- Source: approved `Vistaire-dashboard-demo-3x.mp4`
+- Format: silent H264, 1166 × 756, 30 fps, yuv420p, MP4 faststart
+- Duration: 137.900 seconds; reviewed bytes: 6,064,059
+- SHA-256: `67468b94997f8c5c205ab71568a44052388484e2350935156913b9bf5d2c6d34`
+- Runtime playback rate: native 1×; the source is already accelerated 3×
+- Poster: `public/images/demo-walkthrough/dashboard-studio-3x.webp`
+  (51,276 bytes; SHA-256 `ffcb1fa4d1d2c33a0dfc1fda344f22cbc28326a6296e4a2ebd231027c9ae957b`)
+
+The genuine recording covers overview/search/theme, periods and calendar,
+export format choices, metrics and chart controls, all ten analysis groups,
+dish filters/batch controls/details, planning/service preview and scheduling
+options. Scheduling is cancelled; no successful save or backend persistence is
+claimed. All data is synthetic. The existing page disclosure remains visible.
+
+The owner subsequently requested the same non-interactive presentation as the
+menu videos: muted inline autoplay in an endless loop, with no native controls,
+caption, chapter disclosure, seek UI or fallback play button. The dashboard
+wrapper is inert and ignores pointer input, preserving normal page scrolling;
+picture-in-picture is disabled where supported. Shared menu behavior is unchanged.
+Reduced-motion preferences retain the still poster, and playback pauses when the
+page is hidden or the video leaves the shared player’s viewport margin. The
+frame follows the source aspect ratio without cropping.

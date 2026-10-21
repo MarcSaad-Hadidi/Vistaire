@@ -1,22 +1,22 @@
 import type { Metadata } from "next";
 import { JsonLd } from "@/components/JsonLd";
-import { DemoPhoneShowcase } from "@/components/vistaire-preview/DemoPhoneShowcase";
-import { buildPageAlternates, LOCALE_OPEN_GRAPH, normalizeLocale } from "@/lib/i18n";
-import { getLandingExperiences } from "@/lib/landing/menuExperiences";
-import { absoluteUrl, buildBreadcrumbJsonLd, buildWebPageJsonLd } from "@/lib/seo";
+import { RestaurantExperiences } from "@/components/vistaire-preview/RestaurantExperiences";
+import { buildPageAlternates, LOCALE_OPEN_GRAPH } from "@/lib/i18n";
+import { socialImages, absoluteUrl, buildBreadcrumbJsonLd, buildWebPageJsonLd } from "@/lib/seo";
 
 export const dynamic = "force-dynamic";
 
 const canonicalPath = "/demo";
-const title = "Menu client exemple | Vistaire";
+const title = "Trois expériences de menu restaurant | Vistaire";
 const description =
-  "Explorez trois expériences de menu client Vistaire, pensées pour une lecture fluide à table.";
+  "Découvrez Maison Élyse, Trouvable et Sauge Noire : trois identités Vistaire, leurs vraies cartes et leurs fiches plats, avec 3D et AR sur les plats compatibles.";
 
 export const metadata: Metadata = {
   title: { absolute: title },
   description,
   alternates: buildPageAlternates(canonicalPath),
   openGraph: {
+    images: socialImages("DIGITAL:proof", "fr").openGraph,
     url: absoluteUrl(canonicalPath),
     title,
     description,
@@ -24,22 +24,14 @@ export const metadata: Metadata = {
     type: "website"
   },
   twitter: {
-    card: "summary",
+    images: socialImages("DIGITAL:proof", "fr").twitter,
+    card: "summary_large_image",
     title,
     description
   }
 };
 
-type DemoPageProps = {
-  searchParams: Promise<{ lang?: string; experience?: string }>;
-};
-
-export default async function DemoPage({ searchParams }: DemoPageProps) {
-  const query = await searchParams;
-  const hasLangParam = typeof query.lang === "string" && query.lang.trim().length > 0;
-  const locale = hasLangParam ? normalizeLocale(query.lang) : "fr";
-  const experiences = await getLandingExperiences(locale);
-
+export default function DemoPage() {
   return (
     <>
       <JsonLd
@@ -47,14 +39,11 @@ export default async function DemoPage({ searchParams }: DemoPageProps) {
           buildWebPageJsonLd({ path: canonicalPath, name: title, description }),
           buildBreadcrumbJsonLd([
             { name: "Accueil", path: "/" },
-            { name: "Menu client Vistaire", path: canonicalPath }
+            { name: "Expériences Vistaire", path: canonicalPath }
           ])
         ]}
       />
-      <DemoPhoneShowcase
-        experiences={experiences}
-        menuLocale={locale}
-      />
+      <RestaurantExperiences currentPath={canonicalPath} locale="fr" />
     </>
   );
 }

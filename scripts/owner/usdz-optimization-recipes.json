@@ -14,7 +14,7 @@
           "decimateRatio": 0.78,
           "minDecimateRatio": 0.05,
           "maxDecimatePasses": 1,
-          "mergeDistance": 0.00003
+          "mergeDistance": 3e-05
         },
         {
           "slug": "premium-fit",
@@ -26,7 +26,7 @@
           "decimateRatio": 0.7,
           "minDecimateRatio": 0.05,
           "maxDecimatePasses": 1,
-          "mergeDistance": 0.00004
+          "mergeDistance": 4e-05
         },
         {
           "slug": "premium-safe",
@@ -38,7 +38,7 @@
           "decimateRatio": 0.62,
           "minDecimateRatio": 0.05,
           "maxDecimatePasses": 1,
-          "mergeDistance": 0.00005
+          "mergeDistance": 5e-05
         }
       ]
     },
@@ -56,7 +56,7 @@
           "decimateRatio": 0.66,
           "minDecimateRatio": 0.05,
           "maxDecimatePasses": 1,
-          "mergeDistance": 0.00005
+          "mergeDistance": 5e-05
         },
         {
           "slug": "balanced-fit",
@@ -68,7 +68,7 @@
           "decimateRatio": 0.58,
           "minDecimateRatio": 0.05,
           "maxDecimatePasses": 1,
-          "mergeDistance": 0.00006
+          "mergeDistance": 6e-05
         },
         {
           "slug": "balanced-safe",
@@ -80,7 +80,7 @@
           "decimateRatio": 0.52,
           "minDecimateRatio": 0.05,
           "maxDecimatePasses": 1,
-          "mergeDistance": 0.00007
+          "mergeDistance": 7e-05
         }
       ]
     },
@@ -98,7 +98,7 @@
           "decimateRatio": 0.5,
           "minDecimateRatio": 0.05,
           "maxDecimatePasses": 1,
-          "mergeDistance": 0.00008
+          "mergeDistance": 8e-05
         },
         {
           "slug": "light-safe",
@@ -110,7 +110,7 @@
           "decimateRatio": 0.46,
           "minDecimateRatio": 0.05,
           "maxDecimatePasses": 1,
-          "mergeDistance": 0.00009
+          "mergeDistance": 9e-05
         }
       ]
     },
@@ -144,5 +144,59 @@
         }
       ]
     }
+  },
+  "variants": {
+    "label": "Variantes (choix visuel)",
+    "recipes": [
+      {
+        "baseColorMax": 1024,
+        "decimateRatio": 0.5,
+        "jpegQuality": 65,
+        "maxDecimatePasses": 1,
+        "mergeDistance": 8e-05,
+        "minDecimateRatio": 0.05,
+        "normalMax": 1024,
+        "ormMax": 1024,
+        "slug": "variant-r50",
+        "targetTriangles": 90000
+      },
+      {
+        "baseColorMax": 1024,
+        "decimateRatio": 0.5,
+        "jpegQuality": 65,
+        "maxDecimatePasses": 1,
+        "mergeDistance": 8e-05,
+        "minDecimateRatio": 0.05,
+        "normalMax": 1024,
+        "ormMax": 1024,
+        "slug": "variant-r25",
+        "targetTriangles": 45000
+      },
+      {
+        "baseColorMax": 1024,
+        "decimateRatio": 0.5,
+        "jpegQuality": 65,
+        "maxDecimatePasses": 2,
+        "mergeDistance": 8e-05,
+        "minDecimateRatio": 0.05,
+        "normalMax": 1024,
+        "ormMax": 1024,
+        "slug": "variant-r15",
+        "targetTriangles": 27000
+      },
+      {
+        "baseColorMax": 1024,
+        "decimateRatio": 0.5,
+        "jpegQuality": 65,
+        "maxDecimatePasses": 2,
+        "mergeDistance": 0.0001,
+        "minDecimateRatio": 0.02,
+        "normalMax": 1024,
+        "ormMax": 512,
+        "slug": "variant-r10",
+        "targetTriangles": 18000
+      }
+    ],
+    "targetMaxBytes": 16777216
   }
 }

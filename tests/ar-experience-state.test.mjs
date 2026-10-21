@@ -176,7 +176,7 @@ test("resolveArExperience keeps Chrome Android on the CTA until a runtime failur
   const chromeReady = resolveArExperience({
     browser: "android-chrome",
     modelReady: true,
-    hasArLite: true,
+    hasAndroidModel: true,
     hasUsdz: false,
     runtime: "none"
   });
@@ -185,7 +185,7 @@ test("resolveArExperience keeps Chrome Android on the CTA until a runtime failur
   const chromeFailed = resolveArExperience({
     browser: "android-chrome",
     modelReady: true,
-    hasArLite: true,
+    hasAndroidModel: true,
     hasUsdz: false,
     runtime: "ar-status-failed"
   });
@@ -194,7 +194,7 @@ test("resolveArExperience keeps Chrome Android on the CTA until a runtime failur
   const chromeRejected = resolveArExperience({
     browser: "android-chrome",
     modelReady: true,
-    hasArLite: true,
+    hasAndroidModel: true,
     hasUsdz: false,
     runtime: "activation-rejected"
   });
@@ -203,7 +203,7 @@ test("resolveArExperience keeps Chrome Android on the CTA until a runtime failur
   const chromeSceneViewer = resolveArExperience({
     browser: "android-chrome",
     modelReady: true,
-    hasArLite: true,
+    hasAndroidModel: true,
     hasUsdz: false,
     runtime: "scene-viewer-unavailable"
   });
@@ -219,7 +219,7 @@ test("resolveArExperience never recommends Chrome when the session is already Ch
     const phase = resolveArExperience({
       browser: "android-chrome",
       modelReady: true,
-      hasArLite: true,
+      hasAndroidModel: true,
       hasUsdz: false,
       runtime
     });
@@ -234,7 +234,7 @@ test("resolveArExperience sends unsupported Android browsers to Chrome handoff w
   const phase = resolveArExperience({
     browser: "android-other",
     modelReady: true,
-    hasArLite: true,
+    hasAndroidModel: true,
     hasUsdz: false,
     runtime: "none"
   });
@@ -246,7 +246,7 @@ test("resolveArExperience sends unsupported Android browsers to Chrome handoff w
   const afterFailedAttempt = resolveArExperience({
     browser: "android-other",
     modelReady: true,
-    hasArLite: true,
+    hasAndroidModel: true,
     hasUsdz: false,
     runtime: "activation-rejected"
   });
@@ -266,7 +266,7 @@ test("iOS Safari Quick Look stays available even if an Android runtime signal is
       resolveArExperience({
         browser: "ios-safari",
         modelReady: true,
-        hasArLite: true,
+        hasAndroidModel: true,
         hasUsdz: true,
         runtime
       }),
@@ -280,7 +280,7 @@ test("resolveArExperience preserves iOS Safari Quick Look and iOS handoff", () =
     resolveArExperience({
       browser: "ios-safari",
       modelReady: true,
-      hasArLite: true,
+      hasAndroidModel: true,
       hasUsdz: true,
       runtime: "none"
     }),
@@ -291,7 +291,7 @@ test("resolveArExperience preserves iOS Safari Quick Look and iOS handoff", () =
     resolveArExperience({
       browser: "ios-other",
       modelReady: true,
-      hasArLite: true,
+      hasAndroidModel: true,
       hasUsdz: true,
       runtime: "none"
     }),
@@ -302,7 +302,7 @@ test("resolveArExperience preserves iOS Safari Quick Look and iOS handoff", () =
     resolveArExperience({
       browser: "ios-safari",
       modelReady: true,
-      hasArLite: true,
+      hasAndroidModel: true,
       hasUsdz: false,
       runtime: "none"
     }),
@@ -315,7 +315,7 @@ test("resolveArExperience keeps desktop 3D without an AR CTA", () => {
     resolveArExperience({
       browser: "desktop",
       modelReady: true,
-      hasArLite: true,
+      hasAndroidModel: true,
       hasUsdz: true,
       runtime: "none"
     }),
@@ -328,7 +328,7 @@ test("resolveArExperience stays idle until the 3D model is ready", () => {
     resolveArExperience({
       browser: "android-chrome",
       modelReady: false,
-      hasArLite: true,
+      hasAndroidModel: true,
       hasUsdz: false,
       runtime: "none"
     }),
@@ -340,7 +340,7 @@ test("canActivateAR false after load on Chrome Android is an unsupported device,
   const phase = resolveArExperience({
     browser: "android-chrome",
     modelReady: true,
-    hasArLite: true,
+    hasAndroidModel: true,
     hasUsdz: false,
     runtime: "none",
     canActivateAR: false
@@ -353,7 +353,7 @@ test("canActivateAR true or unset never hides a ready Chrome Android CTA", () =>
     const phase = resolveArExperience({
       browser: "android-chrome",
       modelReady: true,
-      hasArLite: true,
+      hasAndroidModel: true,
       hasUsdz: false,
       runtime: "none",
       canActivateAR
@@ -362,12 +362,12 @@ test("canActivateAR true or unset never hides a ready Chrome Android CTA", () =>
   }
 });
 
-test("Chrome Android without an AR Lite asset is asset-unavailable, never a Chrome handoff", () => {
+test("Chrome Android without an Android GLB asset is asset-unavailable, never a Chrome handoff", () => {
   assert.deepEqual(
     resolveArExperience({
       browser: "android-chrome",
       modelReady: true,
-      hasArLite: false,
+      hasAndroidModel: false,
       hasUsdz: false,
       runtime: "none"
     }),
@@ -375,12 +375,12 @@ test("Chrome Android without an AR Lite asset is asset-unavailable, never a Chro
   );
 });
 
-test("unsupported Android browsers without an AR Lite asset do not recommend Chrome", () => {
+test("unsupported Android browsers without an Android GLB asset do not recommend Chrome", () => {
   assert.deepEqual(
     resolveArExperience({
       browser: "android-other",
       modelReady: true,
-      hasArLite: false,
+      hasAndroidModel: false,
       hasUsdz: false,
       runtime: "none"
     }),
@@ -388,12 +388,12 @@ test("unsupported Android browsers without an AR Lite asset do not recommend Chr
   );
 });
 
-test("unsupported Android browsers with an AR Lite asset still get a Chrome handoff", () => {
+test("unsupported Android browsers with an Android GLB asset still get a Chrome handoff", () => {
   assert.deepEqual(
     resolveArExperience({
       browser: "android-other",
       modelReady: true,
-      hasArLite: true,
+      hasAndroidModel: true,
       hasUsdz: false,
       runtime: "none"
     }),

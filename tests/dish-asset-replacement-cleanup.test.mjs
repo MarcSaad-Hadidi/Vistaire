@@ -388,7 +388,7 @@ test("viewer GLB upload rolls back the newly uploaded file when DB update fails"
   assert.match(source, /if \(updated\.error \|\| !updated\.data\) \{/);
   assert.match(source, /await rollbackUploadedGlb\(args\.adminClient, plan\.webStoragePath, activeViewerPaths\)/);
   assert.match(source, /protectedPaths\.some\(\(protectedPath\) => protectedPath\.trim\(\) === path\)/);
-  assert.match(source, /storage\.from\(MODEL_BUCKET\)\.remove\(\[path\]\)/);
+  assert.match(source, /storageBucket\(adminClient\.storage, MODEL_BUCKET\)\.remove\(\[path\]\)/);
 });
 
 test("public photo, GLB, and USDZ routes redirect active metadata objects through the shared guard", async () => {

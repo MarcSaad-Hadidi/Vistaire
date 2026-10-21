@@ -434,8 +434,8 @@ export function buildViewerGlbStoragePlan(args: {
 
 /**
  * Metadata keys that describe an Android AR-lite GLB. A viewer GLB is NOT an
- * AR-lite asset, so a viewer upload clears these to guarantee the public never
- * reports Android AR ready from a viewer-only dish.
+ * AR-lite asset, so a viewer upload clears stale separate-export references.
+ * Android AR may use the web GLB directly.
  */
 export const VIEWER_GLB_CLEARED_AR_LITE_FIELDS = [
   "arModel3dUrl",
@@ -452,7 +452,7 @@ export const VIEWER_GLB_CLEARED_AR_LITE_FIELDS = [
  * The metadata patch for a viewer GLB upload. Preserves the web public contract
  * (webModel3dUrl/model3dUrl + storage paths + version) and adds additive
  * viewerGlb* fields. It NEVER sets any AR-lite (arModel3d*) field, so a
- * viewer-only dish is not treated as Android AR ready, and it never derives or
+ * web GLB is not mislabeled as an AR-lite export, and it never derives or
  * references any USDZ.
  */
 export function buildViewerGlbMetadataPatch(

@@ -3,9 +3,10 @@ import type { RestaurateurPreviewLocale, RestaurateurPreviewMetricId } from "./t
 const fr = {
   introBadge: "Aperçu restaurateur",
   h1: "Explorez le vrai fonctionnement du dashboard Vistaire.",
-  lead: "Passez de la vue d’ensemble aux disponibilités et aux analyses dans une reproduction fidèle, conçue pour montrer le produit sans ouvrir le système privé.",
+  lead: "Suivez un parcours dans le Studio : lire les chiffres, explorer les graphiques, gérer les plats et préparer le service.",
   demoLabel: "Données de démonstration",
-  demoStatement: "Cette interface reproduit le fonctionnement du dashboard Vistaire avec des données fictives. Aucune donnée client n’est affichée ni modifiée.",
+  demoStatement: "Cette vidéo montre une démonstration avec des données fictives et des actions simulées. Aucune donnée client n’est affichée ni modifiée.",
+  screenStatement: "L’écran affiche le dashboard de démonstration : ses chiffres sont fictifs. Aucune donnée client n’est affichée ni modifiée.",
   appointment: "Prendre rendez-vous",
   sampleMenu: "Voir la carte exemple",
   dashboardEyebrow: "Vistaire · Démonstration",
@@ -45,7 +46,7 @@ const fr = {
   resultCountOne: "1 plat affiché",
   toggleOn: "Rendre {dish} indisponible",
   toggleOff: "Rendre {dish} disponible",
-  simulation: "Simulation — ce changement n’est pas enregistré.",
+  simulation: "Simulation : ce changement n’est pas enregistré.",
   insightsKpis: "Indicateurs analytiques",
   activity: "Activité",
   activityTitle: "Activité du menu sur la période",
@@ -82,15 +83,16 @@ const fr = {
   qrBody: "Le QR dirige uniquement vers la carte publique Vistaire. Il ne donne jamais accès au dashboard privé.",
   qrAria: "QR code vers la carte exemple Vistaire",
   finalTitle: "Reconnaissez le produit avant votre premier service.",
-  finalBody: "Cette démonstration reprend les mêmes repères visuels et les mêmes vues métier que le dashboard restaurateur actuel, avec une fixture synthétique isolée."
+  finalBody: "Découvrez comment le Studio rassemble les chiffres de votre carte et la disponibilité de vos plats. La vidéo est enregistrée dans un environnement de démonstration."
 } as const;
 
 const en = {
   introBadge: "Restaurant preview",
   h1: "Explore how the Vistaire dashboard really works.",
-  lead: "Move from Overview to Availability and Insights in a faithful product reproduction that demonstrates the experience without opening the private system.",
+  lead: "Follow a journey through Studio: read your metrics, explore charts, manage dishes and prepare for service.",
   demoLabel: "Demo data",
-  demoStatement: "This interface reproduces how the Vistaire dashboard works using fictional data. No customer data is displayed or modified.",
+  demoStatement: "This video shows a demonstration with fictional data and simulated actions. No customer data is displayed or modified.",
+  screenStatement: "The screen shows the demo dashboard: its figures are fictional. No customer data is displayed or modified.",
   appointment: "Book a call",
   sampleMenu: "View sample menu",
   dashboardEyebrow: "Vistaire · Demonstration",
@@ -130,7 +132,7 @@ const en = {
   resultCountOne: "1 dish shown",
   toggleOn: "Make {dish} unavailable",
   toggleOff: "Make {dish} available",
-  simulation: "Simulation — this change is not saved.",
+  simulation: "Simulation: this change is not saved.",
   insightsKpis: "Analytics indicators",
   activity: "Activity",
   activityTitle: "Menu activity over the period",
@@ -167,7 +169,7 @@ const en = {
   qrBody: "The QR only opens the public Vistaire menu. It never provides access to the private dashboard.",
   qrAria: "QR code to the Vistaire sample menu",
   finalTitle: "Recognize the product before your first service.",
-  finalBody: "This demonstration uses the same visual language and core views as the current restaurant dashboard, with an isolated synthetic fixture."
+  finalBody: "Discover how Studio brings your menu activity and dish availability together. This video was recorded in a demonstration environment."
 };
 
 export const RESTAURATEUR_PREVIEW_COPY = { fr, en } as const;

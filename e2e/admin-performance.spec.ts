@@ -43,8 +43,12 @@ test("admin insights keeps a bounded production performance profile", async ({ p
     await preview.click();
     await expect(preview).toBeHidden({ timeout: 30_000 });
   }
-  await expect(page.getByRole("heading", { name: "Maison Élysée", exact: true })).toBeVisible();
+  const studio = page.locator("[data-admin-studio]");
+  await expect(studio).toBeVisible();
+  await expect(studio.locator("aside strong")).toHaveText("Maison Élysée");
+  await expect(studio.getByRole("heading", { level: 1, name: "Vue d’ensemble", exact: true })).toBeVisible();
   await page.goto("/admin/insights", { waitUntil: "networkidle" });
+  await expect(studio.getByRole("heading", { level: 1, name: "Analyses", exact: true })).toBeVisible();
   await page.evaluate(async () => { await document.fonts.ready; await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))); });
 
   const client = await context.newCDPSession(page);
@@ -54,14 +58,14 @@ test("admin insights keeps a bounded production performance profile", async ({ p
   await page.waitForTimeout(250);
   await page.evaluate(() => { window.__adminPerformance = { cls: 0, longTasks: [] }; });
 
-  const marks = page.locator('[data-chart-frame] svg [tabindex]');
+  const marks = studio.getByRole("gridcell");
   expect(await marks.count()).toBeGreaterThan(20);
   for (let index = 0; index < Math.min(12, await marks.count()); index += 1) await marks.nth(index).hover();
-  for (const sparkline of await page.locator('[data-kpi-trend] svg[role="button"]').all()) {
-    await sparkline.focus();
-    await sparkline.press("Enter");
-    await sparkline.press("Escape");
-  }
+  const trend = studio.locator('[data-studio-chart="trend"] svg[role="application"]');
+  await expect(trend).toHaveCount(1);
+  await trend.focus();
+  await trend.press("ArrowRight");
+  await trend.press("Escape");
   await page.mouse.move(1, 1);
 
   const frameIntervals = await page.evaluate(async () => {

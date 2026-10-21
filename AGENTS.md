@@ -221,8 +221,9 @@ Do not parallelize work that can be completed more safely and simply in one thre
 
 * Prefer small, evidence-backed changes.
 * Follow established Next.js App Router, React, Tailwind, TypeScript, and local helper patterns.
-* Preserve existing routes unless the task explicitly requires changing them.
-* Preserve existing data contracts unless the task explicitly requires changing them.
+* Preserve externally required routes, APIs, data contracts, storage contracts, and public behavior unless the current task explicitly changes them.
+* Do not preserve backward compatibility for legacy behavior unless the current requirements explicitly require it.
+* Do not add compatibility layers, shims, dual paths, migration scaffolding, or fallback implementations solely to preserve behavior that is no longer required.
 * Preserve mobile performance.
 * Preserve existing auth, analytics, SEO, AR, and asset flows unless evidence proves the existing approach cannot satisfy the requirement.
 * Do not add dependencies unless their necessity is clear and validation proves they work.
@@ -232,6 +233,17 @@ Do not parallelize work that can be completed more safely and simply in one thre
 * Do not delete production code, public assets, data, or source drops as cleanup without explicit approval.
 * Keep setup-only PRs limited to instructions, documentation, templates, CI, and package scripts.
 * Do not place internal instructions under `public/`, because files there are served to users.
+
+When choosing how to satisfy a requirement, prefer capabilities in this order:
+
+1. Existing Vistaire implementation.
+2. Standard/platform capability.
+3. Framework-native capability.
+4. Existing dependency.
+5. Established and well-maintained new dependency.
+6. Small custom implementation.
+
+Do not create custom infrastructure when an existing solution cleanly satisfies the current requirement.
 
 Prefer:
 
@@ -363,6 +375,68 @@ Before adding any new test, answer:
 
 If test code becomes significantly more complicated than the behavior it protects, treat that as a warning signal and simplify either the test or the implementation unless the complexity is demonstrably necessary.
 
+### Test Before Implementation
+
+Never write a new isolated/unit test after writing the production code that the test is intended to validate.
+
+When a new isolated test is genuinely necessary for behavior introduced by the current task:
+
+1. Identify the required behavior.
+2. Write down the meaningful ways it could fail.
+3. Define the expected behavior.
+4. Write the smallest useful test.
+5. Run it and confirm it fails for the expected reason.
+6. Only then implement the production change.
+7. Make the test pass with the smallest correct implementation.
+
+Do not implement first and then create isolated tests merely to mirror or bless the implementation.
+
+Existing tests do not need to be rewritten into this order.
+
+### E2E Preference
+
+Highly prefer Vistaire's existing Playwright E2E infrastructure for complex, user-visible, cross-layer behavior.
+
+Prefer E2E verification for:
+
+* Critical restaurant/menu user flows.
+* Navigation and routing.
+* Frontend/backend integration.
+* API interactions.
+* Persistence behavior.
+* Authentication and authorization.
+* Supabase interactions.
+* Validation/error states visible to users.
+* Responsive/interactivity regressions.
+* Browser/runtime regressions.
+
+Do not create a broad new E2E suite when an existing targeted test or existing E2E scenario already provides sufficient regression protection.
+
+Use isolated tests when they provide materially better or more practical verification of a narrow pure behavior, contract, migration, safety invariant, or failure mode.
+
+At the end of E2E verification, provide a verifiable and repeatable artifact. At minimum report:
+
+* The exact command executed.
+* The observed result.
+
+When useful, also preserve/report:
+
+* Playwright trace.
+* Test report.
+* Screenshot for visual evidence.
+* Deterministic reproduction steps.
+
+Do not manufacture artifacts merely for appearance.
+
+### Supabase / E2E Safety
+
+* Prefer Vistaire's existing local Supabase fixtures for automated E2E tests.
+* Do not point Playwright at an external or production Supabase project unless the current task explicitly requires a controlled production smoke test.
+* Never bypass Vistaire's `VISTAIRE_ALLOW_PRODUCTION_SUPABASE_E2E` / `VISTAIRE_E2E_PRODUCTION_SMOKE` safeguards.
+* Treat service-role keys, production database mutations, storage deletion, media backfills, capacity migrations, and destructive Supabase operations as high-risk operations.
+* Do not run destructive production/database/storage commands merely to verify a local change.
+* Use the repository's existing fixtures, dry-run modes, and safety scripts when available.
+
 ## Validation
 
 Identify the package manager from the lockfile before executing package commands.
@@ -383,6 +457,9 @@ Also:
 * Run relevant existing tests for changed behavior.
 * Run `npm run test:e2e` for changed critical routes when the script exists and the environment is stable.
 * Do not invent commands that are not defined in the repository.
+* Inspect `package.json` before selecting validation commands, because Vistaire has domain-specific test scripts.
+* Prefer an existing named targeted test script from `package.json` when one matches the affected area, instead of inventing a new command or immediately running an unnecessarily broad suite.
+* Broad validation is still required when repository policy or the scope of the change requires it.
 * If a required check cannot run, report:
 
   * the exact command,

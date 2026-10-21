@@ -39,6 +39,7 @@ async function handleGlbRequest(
     dishId,
     kind: variant === "ar-lite" ? "ar-lite-glb" : "web-glb",
     requestedAssetVersion: assetVersion || undefined,
+    requestMethod: request.method === "HEAD" ? "HEAD" : "GET",
     supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL,
     notFoundMessage: "Modele introuvable.",
     unavailableMessage: "Modele indisponible."

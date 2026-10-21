@@ -504,3 +504,71 @@ test("fails wrong media types and CORS origins at the followed and direct Range 
     await fixture.stop();
   }
 });
+
+test("validates bounded R2 reads per bucket and rejects a forged host without leaking SigV4", async (t) => {
+  const { formatRuntimeAssetReport, validateRuntimeAssetPreview } = await loadValidator();
+  const endpoint = "review-account.r2.cloudflarestorage.com";
+  const baseUrl = "https://preview.example.test";
+  const storageRequests = [];
+  let forgedHost = false;
+  const signedLocation = (assetName) => {
+    const asset = ASSETS[assetName];
+    const [, bucket, key] = asset.storagePath.match(/^\/storage\/v1\/object\/sign\/([^/]+)\/(.+)$/);
+    const host = `${bucket}.${endpoint}${forgedHost ? ".attacker.invalid" : ""}`;
+    const url = new URL(`https://${host}/${key}`);
+    url.search = new URLSearchParams({
+      "X-Amz-Algorithm": "AWS4-HMAC-SHA256",
+      "X-Amz-Date": "20260927T120000Z",
+      "X-Amz-Expires": "270",
+      "X-Amz-Signature": REDIRECT_SECRET
+    }).toString();
+    return url;
+  };
+  t.mock.method(globalThis, "fetch", async (input, options) => {
+    const url = new URL(input);
+    const isPublic = url.origin === baseUrl;
+    const entry = Object.entries(ASSETS).find(([name, asset]) =>
+      isPublic ? asset.route === url.pathname : signedLocation(name).pathname === url.pathname
+    );
+    assert.ok(entry, "only the three known assets may be requested");
+    const [name, asset] = entry;
+    if (isPublic && url.searchParams.get("v") !== (name === "photo" ? PHOTO_VERSION : ASSET_VERSION)) {
+      return new Response(null, { status: 404 });
+    }
+    if (isPublic && options.redirect === "manual") {
+      return new Response(null, { status: 307, headers: { Location: signedLocation(name).href } });
+    }
+    const location = isPublic ? signedLocation(name) : url;
+    storageRequests.push({ host: location.host, range: options.headers.Range });
+    const end = Number(options.headers.Range.match(/^bytes=0-(\d+)$/)[1]);
+    const response = new Response(new Uint8Array(end + 1), {
+      status: 206,
+      headers: {
+        "Content-Type": asset.contentType,
+        "Content-Range": `bytes 0-${end}/4096`,
+        "Access-Control-Allow-Origin": baseUrl
+      }
+    });
+    Object.defineProperty(response, "url", { value: location.href });
+    return response;
+  });
+  const options = {
+    baseUrl, dishId: DISH_ID, assetVersion: ASSET_VERSION, photoVersion: PHOTO_VERSION,
+    expectedStorageHost: endpoint, expectedRestaurantId: RESTAURANT_ID
+  };
+  const result = await validateRuntimeAssetPreview(options);
+  assert.equal(result.ok, true, formatRuntimeAssetReport(result));
+  assert.equal(storageRequests.length, 6);
+  assert.deepEqual(new Set(storageRequests.map((request) => request.host)), new Set([
+    `vistaire-media.${endpoint}`, `vistaire-3d.${endpoint}`
+  ]));
+  assert.ok(storageRequests.every((request) => ["bytes=0-0", RANGE_HEADER].includes(request.range)));
+  assert.doesNotMatch(JSON.stringify(result) + formatRuntimeAssetReport(result), new RegExp(REDIRECT_SECRET));
+  forgedHost = true;
+  storageRequests.length = 0;
+  const rejected = await validateRuntimeAssetPreview(options);
+  assert.equal(rejected.ok, false);
+  assert.equal(rejected.checks.filter((check) => check.status === "fail").length, 3);
+  assert.equal(storageRequests.length, 0, "never request an untrusted Storage host");
+  assert.doesNotMatch(JSON.stringify(rejected) + formatRuntimeAssetReport(rejected), new RegExp(REDIRECT_SECRET));
+});

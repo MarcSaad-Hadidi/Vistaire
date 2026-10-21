@@ -47,11 +47,6 @@ jobs:
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 24
-          cache: npm
-
-      - name: Install dependencies
-        if: ${{ steps.classify.outputs.assets == 'true' || steps.classify.outputs.full_ci == 'true' }}
-        run: npm ci
 
       - name: Large file guard
         if: ${{ steps.classify.outputs.assets == 'true' || steps.classify.outputs.full_ci == 'true' }}
@@ -67,5 +62,5 @@ jobs:
           {
             echo '## Asset policy'
             echo "- Asset/infrastructure impact: \`${{ steps.classify.outputs.assets }}\` / \`${{ steps.classify.outputs.full_ci }}\`"
-            echo '- Pure documentation-only changes intentionally skip npm installation; documentation media remains subject to asset guards.'
+            echo '- Asset guards use Node built-ins and Git; no dependency installation is required.'
           } >> "$GITHUB_STEP_SUMMARY"

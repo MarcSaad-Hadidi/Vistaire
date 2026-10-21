@@ -1,0 +1,563 @@
+[
+  {
+    "sourcePath": "public/models/demo/homard-bisque-meshopt-ee44bc60.glb",
+    "bytes": 4955904,
+    "sha256": "ee44bc6028b8dff1f7bedef686f995c6b3b51ac5298bcc55d8da31be65267874"
+  },
+  {
+    "sourcePath": "public/models/demo/souffle-chocolat-meshopt-0ad050af.glb",
+    "bytes": 1754380,
+    "sha256": "0ad050afaba40a739c0a2bc794e52a080125dc78072440d8ef0b0441093eee95"
+  },
+  {
+    "sourcePath": "public/images/demo/dishes/homard-bleu-bisque-fenouil.png",
+    "bytes": 2119063,
+    "sha256": "aeb340a2d2601a73ceaf84f74c9f9ee108101633e1295bd4272ca2dee93f67df"
+  },
+  {
+    "sourcePath": "public/images/demo/dishes/ravioles-chevre-miel-monteregie.png",
+    "bytes": 2233181,
+    "sha256": "a4ab316568668db121d32130ba53e60f2093872faaf106cbd4ceede879ec1f1f",
+    "output": "public/assets/ravioles.webp",
+    "sourceCommit": "cd91ec7556c9d6dcafe6d2d44b27f571abd1e0be",
+    "sourceUrl": "https://raw.githubusercontent.com/MarcSaad-Hadidi/Vistaire/cd91ec7556c9d6dcafe6d2d44b27f571abd1e0be/public/images/demo/dishes/ravioles-chevre-miel-monteregie.png",
+    "outputBytes": 248180,
+    "outputSha256": "f32221e0089b08d02f9fbcc4dd8f6261c566b91a9b4e81ee9bcba244733263de",
+    "dimensions": "1122×1402",
+    "derivation": "Original native-size PNG converted to WebP quality 90, method 6; no crop, resizing or upscaling"
+  },
+  {
+    "sourcePath": "public/images/demo/dishes/souffle-chocolat-grand-cru.png",
+    "bytes": 2152403,
+    "sha256": "213199a34ac01ca2a406726f599f2665ce01404a53fccfe857e7268775711b79"
+  },
+  {
+    "sourcePath": "Framer/Photo table.png",
+    "bytes": 1747803,
+    "sha256": "eb5954e293ad0f759fabc0e45ea084d0607e1586313979f4da4d213b0f566d05"
+  },
+  {
+    "sourcePath": "public/images/pricing/vistaire-acrylique.jpg",
+    "bytes": 220705,
+    "sha256": "cac9713befd5c6be66b0e23581b31458d7c2bc26d3f52c4b44f63646d896e4fa"
+  },
+  {
+    "sourcePath": "public/images/pricing/vistaire-carre.png",
+    "bytes": 1641332,
+    "sha256": "66a697789f8b1efd19cf23c81f7ba79d621f7ab240914e27a892ce94dddaebea"
+  },
+  {
+    "sourcePath": "public/images/pricing/vistaire-sculpte.jpg",
+    "bytes": 307411,
+    "sha256": "9af8df30ec4f23eb8b360dc1453451774414aeeca938176a691121021a767441"
+  },
+  {
+    "sourcePath": "public/images/pricing/vistaire-signature.jpg",
+    "bytes": 292926,
+    "sha256": "f1b50429bf85733a9ca5c037cba33d16b1eb649afd45290c86094b0e707407b4"
+  },
+  {
+    "sourcePath": "LogoVistaire.png",
+    "bytes": 942770,
+    "sha256": "5b1d471dfcb493fad4607262c9e89f97c8c8ffc1858f5e27a34baf2be683934c"
+  },
+  {
+    "sourcePath": "public/videos/optimized/upscaled-video-mobile-scrub.mp4",
+    "bytes": 3093827,
+    "sha256": "32e28f2cf533ec3975fa3291090f6262f4645ea26f18ea1d8b9fbdd8c9c1f8ff"
+  },
+  {
+    "sourcePath": "public/models/demo/ar-lite/homard-bisque-ar-lite-meshy.glb",
+    "bytes": 8590900,
+    "sha256": "ed79969621acd82c0bb55cc3b7ec2973dfd8be843da7ee697ac57a0c059a3001"
+  },
+  {
+    "sourcePath": "public/models/demo/ar-lite/homard-bisque-ios-quicklook-meshy.usdz",
+    "bytes": 2450572,
+    "sha256": "addff79da4a4e4b487949e4981a7e19cfcd39c82f1d4c36784d3c2a9d039c1e4"
+  },
+  {
+    "sourcePath": "public/images/landing/maison-elyse-experience.jpg",
+    "bytes": 245390,
+    "sha256": "548c20dc869442fdf49c6d6dc6a56e84cd0caf76b37e8b6f805e193739ac4b48"
+  },
+  {
+    "sourcePath": "public/images/landing/trouvable-experience.jpg",
+    "bytes": 286623,
+    "sha256": "863fd02655635cd2cc165d6c266d3a09aff0a74190dc4376a39664546c87d720"
+  },
+  {
+    "sourcePath": "public/images/landing/sauge-noire-experience.jpg",
+    "bytes": 197423,
+    "sha256": "9834e3aa71b740a582a27e4cf2a24fa16b08f53471c149829555329bae638054"
+  },
+  {
+    "sourcePath": "public/videos/demo/maison-elyse.mp4",
+    "bytes": 4053916,
+    "sha256": "179465b86ac821e3e4aef6a0669f055334d7f87610d7db30a1486b1d73c8ec6a"
+  },
+  {
+    "sourcePath": "public/videos/demo/trouvable.mp4",
+    "bytes": 7031957,
+    "sha256": "223505b2c8eee29a1f6aa59726fe215badfeecf1775e7917831fe963c6a5138c"
+  },
+  {
+    "sourcePath": "public/videos/demo/sauge-noire.mp4",
+    "bytes": 7772626,
+    "sha256": "98dec39df7c10ac9036f0c0c533a8e2d80baae88370d950a92da651aa76a3089"
+  },
+  {
+    "output": "public/assets/phone-poster.webp",
+    "sourcePath": "public/videos/demo/maison-elyse.mp4",
+    "derivation": "Frame at 00:02.000, ffmpeg WebP quality 85; original aspect ratio retained"
+  },
+  {
+    "output": "public/assets/walnut-texture.webp",
+    "source": "image_gen.imagegen",
+    "kind": "generated PBR texture",
+    "prompt": "Seamless photorealistic warm dark walnut top-down base-color texture, matching the original Vistaire restaurant table reference; uniform lighting, fine natural grain, no objects, no text, no baked shadows, highlights or reflections. Used as diffuse and bump maps on real Three.js table geometry.",
+    "size": "1536×1536 WebP",
+    "reference": "Framer/Photo table.png"
+  },
+  {
+    "sourcePath": "public/models/demo/bar-de-ligne-meshopt-e67c9019.glb",
+    "bytes": 2690484,
+    "sha256": "e67c9019a7cbcc623802e3eac181f3938fceaf3fb483a30b3329ae310f5e59b8",
+    "output": "public/media/bar.glb",
+    "sourceCommit": "cd91ec7556c9d6dcafe6d2d44b27f571abd1e0be",
+    "sourceUrl": "https://raw.githubusercontent.com/MarcSaad-Hadidi/Vistaire/cd91ec7556c9d6dcafe6d2d44b27f571abd1e0be/public/models/demo/bar-de-ligne-meshopt-e67c9019.glb",
+    "triangles": 296668,
+    "textureDimensions": "1024×1024 WebP",
+    "extensions": [
+      "EXT_meshopt_compression",
+      "EXT_texture_webp",
+      "KHR_mesh_quantization"
+    ],
+    "kind": "Existing Vistaire Maison Élyse demo model"
+  },
+  {
+    "sourcePath": "public/images/demo/dishes/bar-de-ligne-artichaut-citron.png",
+    "bytes": 2036445,
+    "sha256": "a7f8b6752a02db65059795f4e4757738325c59a0f2f7a16647ce2b7a81efd37f",
+    "output": "public/assets/bar.webp",
+    "sourceCommit": "cd91ec7556c9d6dcafe6d2d44b27f571abd1e0be",
+    "sourceUrl": "https://raw.githubusercontent.com/MarcSaad-Hadidi/Vistaire/cd91ec7556c9d6dcafe6d2d44b27f571abd1e0be/public/images/demo/dishes/bar-de-ligne-artichaut-citron.png",
+    "outputBytes": 201886,
+    "outputSha256": "31b9046bf5371a6c3a62a4b458ef360ee01931bdc83d641ae3fd229da73e05e8",
+    "dimensions": "1122×1402",
+    "derivation": "Original native-size PNG converted to WebP quality 90, method 6; no crop, resizing or upscaling"
+  },
+  {
+    "sourcePath": "public/models/demo/canette-aux-figues-meshopt-d54f097e.glb",
+    "bytes": 3434508,
+    "sha256": "d54f097eb527eb7292bcb8a7b333c86d40eea69457bde10f346141b745e5dbc0",
+    "output": "public/media/canette.glb",
+    "sourceCommit": "cd91ec7556c9d6dcafe6d2d44b27f571abd1e0be",
+    "sourceUrl": "https://raw.githubusercontent.com/MarcSaad-Hadidi/Vistaire/cd91ec7556c9d6dcafe6d2d44b27f571abd1e0be/public/models/demo/canette-aux-figues-meshopt-d54f097e.glb",
+    "triangles": 486355,
+    "textureDimensions": "1024×1024 WebP",
+    "extensions": [
+      "EXT_meshopt_compression",
+      "EXT_texture_webp",
+      "KHR_mesh_quantization"
+    ],
+    "kind": "Existing Vistaire Maison Élyse demo model"
+  },
+  {
+    "sourcePath": "public/images/demo/dishes/canette-rotie-figues-epices.png",
+    "bytes": 2141869,
+    "sha256": "aed86a739629c88413cb97c7540f9e55c2a3a94b480b5f7d6804cb455f28683f",
+    "output": "public/assets/canette.webp",
+    "sourceCommit": "cd91ec7556c9d6dcafe6d2d44b27f571abd1e0be",
+    "sourceUrl": "https://raw.githubusercontent.com/MarcSaad-Hadidi/Vistaire/cd91ec7556c9d6dcafe6d2d44b27f571abd1e0be/public/images/demo/dishes/canette-rotie-figues-epices.png",
+    "outputBytes": 219910,
+    "outputSha256": "ec70ca11882eb451d366bef196eddc2b7124f96e30f286608279cc0df9a3c486",
+    "dimensions": "1122×1402",
+    "derivation": "Original native-size PNG converted to WebP quality 90, method 6; no crop, resizing or upscaling"
+  },
+  {
+    "sourcePath": "public/models/demo/pave-boeuf-meshopt-9e10c3a6.glb",
+    "bytes": 1774344,
+    "sha256": "9e10c3a6d937500e949add00c2cc5794606ebbe88b232307c8af5d682ca44350",
+    "output": "public/media/boeuf.glb",
+    "sourceCommit": "cd91ec7556c9d6dcafe6d2d44b27f571abd1e0be",
+    "sourceUrl": "https://raw.githubusercontent.com/MarcSaad-Hadidi/Vistaire/cd91ec7556c9d6dcafe6d2d44b27f571abd1e0be/public/models/demo/pave-boeuf-meshopt-9e10c3a6.glb",
+    "triangles": 244220,
+    "textureDimensions": "1024×1024 WebP",
+    "extensions": [
+      "EXT_meshopt_compression",
+      "EXT_texture_webp",
+      "KHR_mesh_quantization"
+    ],
+    "kind": "Existing Vistaire Maison Élyse demo model"
+  },
+  {
+    "sourcePath": "public/images/demo/dishes/pave-boeuf-mature-bordelaise.png",
+    "bytes": 2053001,
+    "sha256": "c01636dd89400008de560f7142d1ef710bcea89f58e3d22fe36db440b5cebec6",
+    "output": "public/assets/boeuf.webp",
+    "sourceCommit": "cd91ec7556c9d6dcafe6d2d44b27f571abd1e0be",
+    "sourceUrl": "https://raw.githubusercontent.com/MarcSaad-Hadidi/Vistaire/cd91ec7556c9d6dcafe6d2d44b27f571abd1e0be/public/images/demo/dishes/pave-boeuf-mature-bordelaise.png",
+    "outputBytes": 217628,
+    "outputSha256": "44177937f3e6f384e111a72f68e61ff7cacf136087729a4ecbbca2ea15972994",
+    "dimensions": "1122×1402",
+    "derivation": "Original native-size PNG converted to WebP quality 90, method 6; no crop, resizing or upscaling"
+  },
+  {
+    "sourcePath": "public/models/demo/ravioles-chevre-miel-meshopt-8a28933e.glb",
+    "bytes": 3332584,
+    "sha256": "8a28933e66fd1c42d3dd3de9f7dbcbb7ae199eac6dd61a63e94a40bdf92d1a42",
+    "output": "public/media/ravioles.glb",
+    "sourceCommit": "cd91ec7556c9d6dcafe6d2d44b27f571abd1e0be",
+    "sourceUrl": "https://raw.githubusercontent.com/MarcSaad-Hadidi/Vistaire/cd91ec7556c9d6dcafe6d2d44b27f571abd1e0be/public/models/demo/ravioles-chevre-miel-meshopt-8a28933e.glb",
+    "triangles": 467870,
+    "textureDimensions": "1024×1024 WebP",
+    "extensions": [
+      "EXT_meshopt_compression",
+      "EXT_texture_webp",
+      "KHR_mesh_quantization"
+    ],
+    "kind": "Existing Vistaire Maison Élyse demo model"
+  },
+  {
+    "sourcePath": "public/models/demo/tartare-saumon-meshopt-4b0b610c.glb",
+    "bytes": 5091112,
+    "sha256": "4b0b610c0ea76f646849f7b78daca6c29b57abe4538d223d823e43eebf3d6f01",
+    "output": "public/media/tartare.glb",
+    "sourceCommit": "cd91ec7556c9d6dcafe6d2d44b27f571abd1e0be",
+    "sourceUrl": "https://raw.githubusercontent.com/MarcSaad-Hadidi/Vistaire/cd91ec7556c9d6dcafe6d2d44b27f571abd1e0be/public/models/demo/tartare-saumon-meshopt-4b0b610c.glb",
+    "triangles": 669326,
+    "textureDimensions": "1024×1024 WebP",
+    "extensions": [
+      "EXT_meshopt_compression",
+      "EXT_texture_webp",
+      "KHR_mesh_quantization"
+    ],
+    "kind": "Existing Vistaire Maison Élyse demo model"
+  },
+  {
+    "sourcePath": "public/images/demo/dishes/tartare-saumon-label-rouge.png",
+    "bytes": 2018000,
+    "sha256": "5fbb5a11ffc421e702c6dc1be06cca0a8a372f8538a73da89f50c2db8de8fe33",
+    "output": "public/assets/tartare.webp",
+    "sourceCommit": "cd91ec7556c9d6dcafe6d2d44b27f571abd1e0be",
+    "sourceUrl": "https://raw.githubusercontent.com/MarcSaad-Hadidi/Vistaire/cd91ec7556c9d6dcafe6d2d44b27f571abd1e0be/public/images/demo/dishes/tartare-saumon-label-rouge.png",
+    "outputBytes": 218094,
+    "outputSha256": "3c59ed311afbd77d1b21425e347f491d8f3cea9777655c25b7d966112465fd29",
+    "dimensions": "1122×1402",
+    "derivation": "Original native-size PNG converted to WebP quality 90, method 6; no crop, resizing or upscaling"
+  },
+  {
+    "sourcePath": "public/models/demo/tarte-citron-basilic-meshopt-2ab5b779.glb",
+    "bytes": 2494476,
+    "sha256": "2ab5b779e3122cb1090c3996825194d789e3102b83c9db693204a5d5026c1161",
+    "output": "public/media/tarte.glb",
+    "sourceCommit": "cd91ec7556c9d6dcafe6d2d44b27f571abd1e0be",
+    "sourceUrl": "https://raw.githubusercontent.com/MarcSaad-Hadidi/Vistaire/cd91ec7556c9d6dcafe6d2d44b27f571abd1e0be/public/models/demo/tarte-citron-basilic-meshopt-2ab5b779.glb",
+    "triangles": 351315,
+    "textureDimensions": "1024×1024 WebP",
+    "extensions": [
+      "EXT_meshopt_compression",
+      "EXT_texture_webp",
+      "KHR_mesh_quantization"
+    ],
+    "kind": "Existing Vistaire Maison Élyse demo model"
+  },
+  {
+    "sourcePath": "public/images/demo/dishes/tarte-citron-basilic-pourpre.png",
+    "bytes": 1942481,
+    "sha256": "da906d2c63712d1d57c705a97896b8732b50c25e2ee699d94dee96f67dd97e01",
+    "output": "public/assets/tarte.webp",
+    "sourceCommit": "cd91ec7556c9d6dcafe6d2d44b27f571abd1e0be",
+    "sourceUrl": "https://raw.githubusercontent.com/MarcSaad-Hadidi/Vistaire/cd91ec7556c9d6dcafe6d2d44b27f571abd1e0be/public/images/demo/dishes/tarte-citron-basilic-pourpre.png",
+    "outputBytes": 165898,
+    "outputSha256": "013d50c4bed561470bdb53b3078c0af5a62ba00b913326524d654f3a97509ff9",
+    "dimensions": "1122×1402",
+    "derivation": "Original native-size PNG converted to WebP quality 90, method 6; no crop, resizing or upscaling"
+  },
+  {
+    "output": "public/assets/restaurant-stone.webp",
+    "kind": "Generated bitmap material",
+    "tool": "built-in image_gen.imagegen",
+    "date": "2026-10-08",
+    "prompt": "Seamless flat honed ivory limestone texture, fine mineral grain, uniform diffuse light, no objects; applied to real 3D stone tables and floor.",
+    "dimensions": "1254×1254",
+    "outputBytes": 537700,
+    "outputSha256": "58b265e64e72fbf591526fabbdae03362146957ccc57c9a409c49e0a40f2086b",
+    "derivation": "Native generated image converted to WebP quality 91, no upscaling. Architectural set and camera movement remain real Three.js geometry."
+  },
+  {
+    "output": "public/assets/restaurant-courtyard.webp",
+    "kind": "Generated bitmap material",
+    "tool": "built-in image_gen.imagegen",
+    "date": "2026-10-08",
+    "prompt": "Panoramic blue-hour limestone city courtyard, trees, ivy and warm lit windows; applied only to the distant view behind real 3D restaurant window frames.",
+    "dimensions": "2172×724",
+    "outputBytes": 416502,
+    "outputSha256": "a542a8006c766c041ce8f6ff3a6849aa09db7502cacad7105fa23dad48e26709",
+    "derivation": "Native generated image converted to WebP quality 91, no upscaling. Architectural set and camera movement remain real Three.js geometry."
+  },
+  {
+    "source": "user-upload: optimized-models.zip",
+    "sourceFile": "Meshy_AI_Sauge_Noire_QR_Displa_1008220727_texture.glb",
+    "output": "public/assets/supports/Meshy_AI_Sauge_Noire_QR_Displa_1008220727_texture.glb",
+    "collection": "acrylique",
+    "bytes": 948164,
+    "sha256": "fb09fd8e1a793db196d52ab27eb5f71ec1f971dd7a9a26b56f4f7af7951619bb",
+    "triangles": 17852,
+    "derivation": "Original binary unchanged. Runtime normalization/anisotropy only. Original front QR/artwork and PBR materials retained. Personalization is a separate optional rear print."
+  },
+  {
+    "source": "user-upload: optimized-models.zip",
+    "sourceFile": "Meshy_AI_Wooden_QR_Menu_Stand_1008220658_texture.glb",
+    "output": "public/assets/supports/Meshy_AI_Wooden_QR_Menu_Stand_1008220658_texture.glb",
+    "collection": "sculpte",
+    "bytes": 1622784,
+    "sha256": "7823e4213b0ac123b2eaae7789b2a56a972d7cc8b06af3e9799ccd58922db6de",
+    "triangles": 25188,
+    "derivation": "Original binary unchanged. Runtime normalization/anisotropy only. Original front QR/artwork and PBR materials retained. Personalization is a separate optional rear print."
+  },
+  {
+    "source": "user-upload: optimized-models.zip",
+    "sourceFile": "sauge-noire-vistaire-corrige.glb",
+    "output": "public/assets/supports/sauge-noire-vistaire-corrige.glb",
+    "collection": "signature",
+    "bytes": 336144,
+    "sha256": "b3bf09c3073d9070923c0dd6c8ec01787602374d032e2d21e9ed7fe683e2a8cc",
+    "triangles": 4536,
+    "derivation": "Original binary unchanged. Runtime normalization/anisotropy only. Original front QR/artwork and PBR materials retained. Personalization is a separate optional rear print."
+  },
+  {
+    "source": "user-upload: optimized-models.zip",
+    "sourceFile": "sauge-noire-carre-vistaire-corrige.glb",
+    "output": "public/assets/supports/sauge-noire-carre-vistaire-corrige.glb",
+    "collection": "carre",
+    "bytes": 809220,
+    "sha256": "a83703a7c49395076e86f5e568dbeeffd5df35460228eebcbf9348ed7becaa15",
+    "triangles": 1664,
+    "derivation": "Original binary unchanged. Runtime normalization/anisotropy only. Original front QR/artwork and PBR materials retained. Personalization is a separate optional rear print."
+  },
+  {
+    "source": "user-upload: iphone_16_-_free.glb",
+    "output": "public/assets/phone/iphone_16_-_free.glb",
+    "bytes": 2456120,
+    "sha256": "ec6002b3c4daa325643da029d192d0f3a493e66bb71fb9dbc7cef8ef887fea64",
+    "triangles": 56342,
+    "assetMetadata": {
+      "author": "Wes (https://sketchfab.com/wimell)",
+      "license": "SKETCHFAB Standard (https://sketchfab.com/licenses)",
+      "source": "https://sketchfab.com/3d-models/iphone-16-free-d58591e88a824dfd8cef0af616273b02",
+      "title": "iPhone 16 - Free"
+    },
+    "derivation": "Original binary unchanged. Runtime scale/position normalization. Existing rounded screen Object_18 receives generated planar UV and the Vistaire menu poster/video material; original frame, island, buttons, back, cameras and other PBR materials retained."
+  },
+  {
+    "output": "public/assets/restaurant/restaurant-evening.glb",
+    "source": "User upload: restaurant_in_the_evening (1)(1).glb",
+    "kind": "Exact optimized uploaded restaurant GLB",
+    "bytes": 4131356,
+    "sha256": "9c9a160387f36a6830f395e5c863b44ac79863513558ffe5e1bdf24e9e6931f1",
+    "triangles": 163642,
+    "meshes": 48,
+    "materials": 45,
+    "embeddedImages": 44,
+    "textureDimensions": "128–1024 pixels, original optimized WebP maps preserved",
+    "extensions": ["KHR_draco_mesh_compression", "EXT_texture_webp"],
+    "decodedTextureMemoryWithMipmapsApproxMiB": 89,
+    "runtimeTransformation": "Uniform scale 2; source point X=10.5/Z=-5 anchored under foreground table; floor aligned by raycast against FrontSide_20, FrontSide_25, FrontSide_33; source root rotation and materials preserved",
+    "author": "katydid",
+    "sourceUrl": "https://sketchfab.com/3d-models/restaurant-in-the-evening-42b57039275c4da0941a2706f617f95a",
+    "embeddedLicense": "SKETCHFAB Standard",
+    "licenseUrl": "https://sketchfab.com/licenses",
+    "licenseVerification": "Embedded metadata inspected; external licence terms not independently retrieved"
+  },
+  {
+    "type": "user-uploaded-dish",
+    "output": "public/assets/dishes/burger.glb",
+    "bytes": 2979416,
+    "sha256": "0452856149f975b5a8867e4d2e40f71dc69c7bc3a26942cd14a71bcdc23660ae",
+    "derivation": "Exact uploaded optimized GLB retained. Real model loaded with local Draco/Meshopt, native 1024-square source textures.",
+    "thumbnail": {
+      "output": "public/assets/burger.webp",
+      "bytes": 88060,
+      "sha256": "e199e43b940c77d364cec27cb0b9cc1028ec173b6e1e8ff72a941fef31da5d3d",
+      "dimensions": [1122, 1402],
+      "derivation": "Real GLB WebGL render with Three.js PBR studio lights; no generated substitute food; scripts/qa/render-dish-thumbnails.mjs"
+    }
+  },
+  {
+    "type": "user-uploaded-dish",
+    "output": "public/assets/dishes/chocolat-fume.glb",
+    "bytes": 979612,
+    "sha256": "81cc641cf08f34d1ef0854f55c0dfe1a101f0f1814de8fbefc6fda7d36ecee73",
+    "derivation": "Exact uploaded optimized GLB retained. Real model loaded with local Draco/Meshopt, native 1024-square source textures.",
+    "thumbnail": {
+      "output": "public/assets/chocolat-fume.webp",
+      "bytes": 67854,
+      "sha256": "313e0ea80ad9d19db61f2d59cdb3cb1037a1a7ec7d60b4dc3dde5b71fc270f50",
+      "dimensions": [1122, 1402],
+      "derivation": "Real GLB WebGL render with Three.js PBR studio lights; no generated substitute food; scripts/qa/render-dish-thumbnails.mjs"
+    }
+  },
+  {
+    "type": "user-uploaded-dish",
+    "output": "public/assets/dishes/huitres.glb",
+    "bytes": 3699644,
+    "sha256": "5169fc3b87f36927a770fce880de6cc2a7f9acc4ddfd037974b82dbc319069d7",
+    "derivation": "Exact uploaded optimized GLB retained. Real model loaded with local Draco/Meshopt, native 1024-square source textures.",
+    "thumbnail": {
+      "output": "public/assets/huitres.webp",
+      "bytes": 82662,
+      "sha256": "c5d194aa9881e7dce7127e47b726d3ca8e8d898eb248f3ec166975a50c00cada",
+      "dimensions": [1122, 1402],
+      "derivation": "Real GLB WebGL render with Three.js PBR studio lights; no generated substitute food; scripts/qa/render-dish-thumbnails.mjs"
+    }
+  },
+  {
+    "type": "user-uploaded-dish",
+    "output": "public/assets/dishes/poutine.glb",
+    "bytes": 1631104,
+    "sha256": "66d25e9532f04591c8f3cbd818d80dc797b1611a8fa75041beb89d52eb1d6f2d",
+    "derivation": "Exact uploaded optimized GLB retained. Real model loaded with local Draco/Meshopt, native 1024-square source textures.",
+    "thumbnail": {
+      "output": "public/assets/poutine.webp",
+      "bytes": 61882,
+      "sha256": "bc8fc327702c296f5ab6e5ef28eef3454a1e97cc26dfce1c26527f0d64468c3e",
+      "dimensions": [1122, 1402],
+      "derivation": "Real GLB WebGL render with Three.js PBR studio lights; no generated substitute food; scripts/qa/render-dish-thumbnails.mjs"
+    }
+  },
+  {
+    "type": "user-uploaded-dish",
+    "output": "public/assets/dishes/sushi.glb",
+    "bytes": 3895760,
+    "sha256": "9b94523eaf54c6789d66c02d1bcb5fafd8d910dab5237e55b0c8016323056e88",
+    "derivation": "Exact uploaded optimized GLB retained. Real model loaded with local Draco/Meshopt, native 1024-square source textures.",
+    "thumbnail": {
+      "output": "public/assets/sushi.webp",
+      "bytes": 69380,
+      "sha256": "5e2eb531839b5c90d47cba1d43908f5c536dc7e7387d591a17b6c1117fe16781",
+      "dimensions": [1122, 1402],
+      "derivation": "Real GLB WebGL render with Three.js PBR studio lights; no generated substitute food; scripts/qa/render-dish-thumbnails.mjs"
+    }
+  },
+  {
+    "type": "generated-illustrative-ambience",
+    "output": "public/assets/ambience-maison-elyse.webp",
+    "bytes": 463964,
+    "sha256": "91f585e5a34665f900ece691855f0949ad0653db31f0b531408da726f30d9d09",
+    "dimensions": [1672, 941],
+    "generator": "OpenAI imagegen builtin",
+    "created": "2026-10-08",
+    "rights": "Created for this user-authorized Vistaire prototype. Illustrative restaurant atmosphere, not a photograph of the named establishment.",
+    "promptSummary": "Panoramic premium restaurant, ivory linen and travertine, warm natural window light, no text.",
+    "derivation": "Native generated1672×941 PNG converted to WebP quality94 without resizing/upscaling."
+  },
+  {
+    "type": "generated-illustrative-ambience",
+    "output": "public/assets/ambience-sauge-noire.webp",
+    "bytes": 510150,
+    "sha256": "4953c6d51d7b23478ca07c6dd61ae489eb864904494f1ce6039ff3c66113dccd",
+    "dimensions": [1672, 941],
+    "generator": "OpenAI imagegen builtin",
+    "created": "2026-10-08",
+    "rights": "Created for this user-authorized Vistaire prototype. Illustrative restaurant atmosphere, not a photograph of the named establishment.",
+    "promptSummary": "Panoramic botanical restaurant, sage-green atmosphere and blue-hour windows, no text.",
+    "derivation": "Native generated1672×941 PNG converted to WebP quality94 without resizing/upscaling."
+  },
+  {
+    "type": "generated-illustrative-ambience",
+    "output": "public/assets/ambience-trouvable.webp",
+    "bytes": 434982,
+    "sha256": "7503635c3366bc3f35b4ca6b88fae27f07aa1856b7a6d3903fa61da02df80470",
+    "dimensions": [1672, 941],
+    "generator": "OpenAI imagegen builtin",
+    "created": "2026-10-08",
+    "rights": "Created for this user-authorized Vistaire prototype. Illustrative restaurant atmosphere, not a photograph of the named establishment.",
+    "promptSummary": "Panoramic contemporary restaurant, charcoal and walnut bar, warm restrained lights, no text.",
+    "derivation": "Native generated1672×941 PNG converted to WebP quality94 without resizing/upscaling."
+  },
+  {
+    "type": "locally-subset-font",
+    "output": "public/assets/fonts/biolinum-bold.woff",
+    "bytes": 149032,
+    "sha256": "37b1b60129c6dd584f91b292284064de40136c85be1010e7eaa202af5e835f08",
+    "license": "SIL Open Font License1.1; source author PhilippH.Poll, preserved original notices in adjacent *.license.txt and OFL.txt.",
+    "derivation": "Latin/French/punctuation subset of installed LinuxLibertineDisplay/Italic or LinuxBiolinum regular/bold. Renamed Vistaire Editorial/Vistaire Text to respect reserved font names. WOFF compressed; no modified glyph design."
+  },
+  {
+    "type": "locally-subset-font",
+    "output": "public/assets/fonts/biolinum.woff",
+    "bytes": 138232,
+    "sha256": "df89b821ce59c71454002521dd4a01363e850e5aa99101d1409b1ece7a05db4d",
+    "license": "SIL Open Font License1.1; source author PhilippH.Poll, preserved original notices in adjacent *.license.txt and OFL.txt.",
+    "derivation": "Latin/French/punctuation subset of installed LinuxLibertineDisplay/Italic or LinuxBiolinum regular/bold. Renamed Vistaire Editorial/Vistaire Text to respect reserved font names. WOFF compressed; no modified glyph design."
+  },
+  {
+    "type": "locally-subset-font",
+    "output": "public/assets/fonts/libertine-display.woff",
+    "bytes": 149804,
+    "sha256": "6d311e30fc60306bf16c3a99d9161b4941b5d53602dc8b95e348ba329f7dea9b",
+    "license": "SIL Open Font License1.1; source author PhilippH.Poll, preserved original notices in adjacent *.license.txt and OFL.txt.",
+    "derivation": "Latin/French/punctuation subset of installed LinuxLibertineDisplay/Italic or LinuxBiolinum regular/bold. Renamed Vistaire Editorial/Vistaire Text to respect reserved font names. WOFF compressed; no modified glyph design."
+  },
+  {
+    "type": "locally-subset-font",
+    "output": "public/assets/fonts/libertine-italic.woff",
+    "bytes": 162244,
+    "sha256": "8c2ad98c6068811ff3fe07528dba61e738a66b5fe5b332f287a6b3d6d019ae85",
+    "license": "SIL Open Font License1.1; source author PhilippH.Poll, preserved original notices in adjacent *.license.txt and OFL.txt.",
+    "derivation": "Latin/French/punctuation subset of installed LinuxLibertineDisplay/Italic or LinuxBiolinum regular/bold. Renamed Vistaire Editorial/Vistaire Text to respect reserved font names. WOFF compressed; no modified glyph design."
+  },
+  {
+    "type": "user-uploaded-ar-packages",
+    "inventory": "docs/uploaded-ar-inventory.json",
+    "derivation": "Seven matching USDZs: embedded layers and textures unchanged. Six container-only64-byte alignment repairs, burger archive unchanged. Full original/served hashes and CRC/alignment evidence in inventory.",
+    "rendering": "iOS native Quick Look rel=ar first-child image. Android native WebXR reuses selected decoded GLB and existing Three renderer, horizontal hit-test placement, dimensions matching suppliedUSDZ widths with editable scale. No compressedSceneViewer handoff.",
+    "physicalDeviceStatus": "Tracking and actualnativeplacement unverified; no certificationusdchecker/QuickLook."
+  },
+  {
+    "type": "derived-mobile-dish-lods",
+    "inventory": "docs/lod-inventory.json",
+    "outputs": [
+      {
+        "path": "public/assets/dishes/lod/huitres-mobile.glb",
+        "sha256": "4ef77f7f9beab7fb4aa1aba7c38d100b82aad40ed18170733d13350783693742",
+        "triangles": 119970
+      },
+      {
+        "path": "public/assets/dishes/lod/sushi-mobile.glb",
+        "sha256": "5e42486f9e1a0895a28f7b506dc98dfcf5f5805e7ef7bfb52b5011e11337bb02",
+        "triangles": 119995
+      },
+      {
+        "path": "public/assets/dishes/lod/chocolat-fume-mobile.glb",
+        "sha256": "cff5dac881a28bbaeed85d3c0bd73072fe999a22e5824c12319d1e014c847d5f",
+        "triangles": 120000
+      },
+      {
+        "path": "public/assets/dishes/lod/poutine-mobile.glb",
+        "sha256": "ab1631006783fb212c8833f9cb5a54582eccbaacdea7c6c0a072d002e4007f26",
+        "triangles": 120000
+      },
+      {
+        "path": "public/assets/dishes/lod/burger-mobile.glb",
+        "sha256": "e1995a7f3487ae98d84e0734cdeb973234f758fa69390a74c10efda64130b6ef",
+        "triangles": 145031
+      }
+    ],
+    "rightsScope": "User authorized geometric LOD derivation of supplied dishes. Original attribution retained; no broader licence inferred.",
+    "texturePreservation": "Independent raw GLB image-buffer SHA-256 verification: all 17 images identical in bytes, MIME and order. See independentByteVerification in inventory.",
+    "physicalDeviceStatus": "No physical-device FPS or thermal certification."
+  },
+  {
+    "type": "derived-framing-hulls",
+    "output": "public/assets/dishes/framing-hulls.json",
+    "bytes": 1482330,
+    "sha256": "8c46596fe64bb0850763eee49ecc9da0dc9a797862505527745d3638e7b5df9e",
+    "generator": "scripts/assets/generate-framing-hulls.mjs",
+    "derivation": "Unsampled convex hulls of all decoded referenced vertices from eight exact active models, after all intrinsic glTF transforms and Scene normalization. No asset changes, jitter or geometry approximation. All-point inclusion checked.",
+    "rightsScope": "Derived geometric metadata only. Original author, attribution and licence are not changed or expanded. Existing user-authorized Vistaire runtime and supplied model assets; no broader redistribution licence is inferred.",
+    "coordinateSpace": "Normalized activeDish coordinates, before dishRoot transform"
+  }
+]

@@ -53,7 +53,7 @@ export function LandingExperienceSection({
                   <span className={styles.cardLink}>
                     {copy.cta}
                     <span aria-hidden="true" className={styles.linkArrow}>
-                      ↗
+                      {"↗︎"}
                     </span>
                   </span>
                 </div>

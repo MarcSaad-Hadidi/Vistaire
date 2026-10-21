@@ -2,14 +2,14 @@ import type { Metadata } from "next";
 import { JsonLd } from "@/components/JsonLd";
 import { VistaireContactPreview } from "@/components/vistaire-preview/VistaireContactPreview";
 import { buildPageAlternates, LOCALE_OPEN_GRAPH } from "@/lib/i18n";
-import {
+import { socialImages,
   absoluteUrl,
   buildBreadcrumbJsonLd,
   buildContactPageJsonLd
 } from "@/lib/seo";
 
 const canonicalPath = "/en/contact";
-const title = "Contact Vistaire";
+const title = "Contact us";
 const description =
   "Contact Vistaire to create a premium digital menu for a high-end restaurant.";
 
@@ -18,6 +18,7 @@ export const metadata: Metadata = {
   description,
   alternates: buildPageAlternates(canonicalPath),
   openGraph: {
+    images: socialImages("CONTACT:hero", "en").openGraph,
     url: absoluteUrl(canonicalPath),
     title,
     description:
@@ -26,7 +27,8 @@ export const metadata: Metadata = {
     type: "website"
   },
   twitter: {
-    card: "summary",
+    images: socialImages("CONTACT:hero", "en").twitter,
+    card: "summary_large_image",
     title,
     description:
       "Talk to Vistaire about your menu, dish pages and mobile experience."

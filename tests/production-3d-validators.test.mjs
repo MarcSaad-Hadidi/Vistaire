@@ -641,7 +641,7 @@ test("validate-network CLI serializes diagnostic JSON by default", async () => {
 });
 
 test("3D pipeline branch does not add public media binaries or wildcard LFS rules", () => {
-  const allowedPublicVideoExceptions = new Set(["public/videos/Vistaire2.mp4"]);
+  const allowedPublicVideoExceptions = new Set(["public/videos/Vistaire2.mp4", "public/videos/demo/dashboard-studio.mp4"]);
   const status = execFileSync(
     "git",
     ["-c", "core.quotepath=false", "status", "--porcelain", "--untracked-files=all"],

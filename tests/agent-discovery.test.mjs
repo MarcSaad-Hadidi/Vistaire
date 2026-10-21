@@ -5,6 +5,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
 import nextConfig from "../next.config.ts";
+import { buildNotFoundMarkdown, isMissingRoute } from "../lib/agent-discovery/pageMarkdown.ts";
 import * as agentDiscovery from "../lib/agent-discovery/index.ts";
 import {
   AGENT_SKILL_DOCS,
@@ -192,6 +193,10 @@ test("public OpenAPI document excludes owner admin and auth server endpoints", (
       }
     });
     assert.equal(Object.hasOwn(responses["307"], "content"), false, path);
+    // redirectPublicDishAsset answers JSON 404 and 503 for every dish asset route
+    for (const status of ["404", "503"]) {
+      assert.equal(responses[status].content["application/json"].schema.$ref, "#/components/schemas/Error", `${path} ${status}`);
+    }
   }
 });
 
@@ -248,11 +253,66 @@ test("discovery outputs do not expose known secret names", () => {
   for (const forbidden of [
     "SUPABASE_SERVICE_ROLE",
     "CLERK_SECRET",
-    "BREVO_API_KEY",
+    "RESEND_API_KEY",
     "API_KEY",
     "SECRET",
     "TOKEN"
   ]) {
     assert.ok(!outputs.includes(forbidden), `discovery output contains ${forbidden}`);
   }
+});
+
+test("agent readiness gaps: when-to-use, trust redirect, og:type, Organization address", async () => {
+  assert.match(readRepoFile("public/llms.txt"), /^## When to use Vistaire$/m);
+  assert.match(readRepoFile("app/(fr)/page.tsx"), /type: "website"/);
+  assert.match(readRepoFile("lib/seo.ts"), /"@type": "Organization",[\s\S]*?address: ORGANIZATION_ADDRESS_JSON_LD/);
+
+  const redirects = await nextConfig.redirects();
+  assert.ok(redirects.some((r) => r.source === "/about" && r.destination === "/a-propos"));
+});
+
+test("unknown API paths answer a structured JSON 404", async () => {
+  const routeModule = await import("../app/api/[[...path]]/route.ts");
+  const { GET } = routeModule;
+  // Every method, OPTIONS included, gets the same 404 instead of Next's auto 204.
+  for (const method of ["POST", "PUT", "PATCH", "DELETE", "OPTIONS"]) assert.equal(routeModule[method], GET, method);
+  const response = GET();
+  assert.equal(response.status, 404);
+  assert.match(response.headers.get("content-type"), /application\/json/);
+  const body = await response.json();
+  assert.equal(body.ok, false);
+  assert.equal(body.code, "not_found");
+  assert.ok(body.hint.includes("/openapi.json"));
+});
+
+test("markdown 404 only when the app itself answers 404 for the path", async () => {
+  const calls = [];
+  const fakeFetch = (status) => async (url, init) => {
+    calls.push({ url: String(url), init });
+    if (status instanceof Error) throw status;
+    return new Response(null, { status });
+  };
+  const url = new URL("https://www.vistaire.ca/guides/missing.json?x=1");
+  assert.equal(await isMissingRoute(url, fakeFetch(404)), true);
+  assert.equal(await isMissingRoute(url, fakeFetch(200)), false);
+  assert.equal(await isMissingRoute(url, fakeFetch(307)), false);
+  assert.equal(await isMissingRoute(url, fakeFetch(new Error("offline"))), false);
+  assert.equal(calls[0].url, url.href);
+  assert.equal(calls[0].init.method, "HEAD");
+  assert.equal(calls[0].init.redirect, "manual");
+  assert.match(calls[0].init.headers.accept, /text\/html/);
+  // API paths keep their own JSON 404 body, so they are never probed.
+  const before = calls.length;
+  assert.equal(await isMissingRoute(new URL("https://www.vistaire.ca/api/nope"), fakeFetch(404)), false);
+  assert.equal(await isMissingRoute(new URL("https://www.vistaire.ca/api"), fakeFetch(404)), false);
+  // A probe GETs the route: /q/<token> would record a second QR scan.
+  assert.equal(await isMissingRoute(new URL("https://www.vistaire.ca/q/live-token"), fakeFetch(404)), false);
+  assert.equal(calls.length, before);
+  // Only the single-segment scan route is exempt; other /q paths are probed normally.
+  assert.equal(await isMissingRoute(new URL("https://www.vistaire.ca/q"), fakeFetch(404)), true);
+  assert.equal(await isMissingRoute(new URL("https://www.vistaire.ca/q/token/extra"), fakeFetch(404)), true);
+
+  const markdown = buildNotFoundMarkdown("/__probe");
+  assert.ok(markdown.length > 20);
+  assert.match(markdown, /\/llms\.txt/);
 });

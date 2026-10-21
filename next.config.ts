@@ -1,3 +1,4 @@
+import { getPublicModelRedirects } from "./lib/publicModelAssets.ts";
 import { dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { NextConfig } from "next";
@@ -43,16 +44,12 @@ const GLB_MODEL_HEADERS = [
   ...STATIC_ASSET_HEADERS,
 ] as const;
 
-const OWNER_MODEL_PIPELINE_ROUTES = [
+const OWNER_MODEL_PIPELINE_TRACED_ROUTES = [
   "/api/owner/restaurants/*/dishes/*/model/glb",
-  "/api/owner/restaurants/*/dishes/*/model/viewer-glb",
-  "/api/owner/restaurants/*/dishes/*/model/usdz-runtime",
   "/api/owner/restaurants/*/dishes/*/model/publish",
-  "/api/owner/model-lab/optimize",
 ] as const;
 
 const OWNER_MODEL_PIPELINE_SCRIPT_TRACE_INCLUDES = [
-  "lib/owner/modelLab/optimizeWorker.mjs",
   "scripts/shared/gltf-transform-cli.mjs",
   "scripts/shared/ios-quicklook-promotion.mjs",
   "scripts/owner/build-restaurant-meshy-dish.mjs",
@@ -79,7 +76,6 @@ const OWNER_MODEL_PIPELINE_PACKAGE_TRACE_INCLUDES = [
   "node_modules/@isaacs/**/*",
   "node_modules/@pkgjs/**/*",
   "node_modules/@so-ric/**/*",
-  "node_modules/@types/**/*",
   "node_modules/ajv/**/*",
   "node_modules/ansi-escapes/**/*",
   "node_modules/ansi-regex/**/*",
@@ -226,14 +222,38 @@ const OWNER_MODEL_PIPELINE_TRACE_INCLUDES = [
   ...OWNER_MODEL_PIPELINE_PACKAGE_TRACE_INCLUDES,
 ] as const;
 
-const OWNER_MODEL_PIPELINE_TRACE_EXCLUDES = OWNER_MODEL_PIPELINE_ROUTES.reduce<
+// This worker uses glTF-Transform directly, without the Meshy CLI or USDZ toolchain.
+const MODEL_LAB_TRACE_INCLUDES = [
+  "lib/owner/modelLab/optimizeWorker.mjs",
+  "node_modules/@emnapi/**/*",
+  "node_modules/@gltf-transform/core/**/*",
+  "node_modules/@gltf-transform/extensions/**/*",
+  "node_modules/@gltf-transform/functions/**/*",
+  "node_modules/@img/**/*",
+  "node_modules/cwise-compiler/**/*",
+  "node_modules/detect-libc/**/*",
+  "node_modules/iota-array/**/*",
+  "node_modules/is-buffer/**/*",
+  "node_modules/ktx-parse/**/*",
+  "node_modules/meshoptimizer/**/*",
+  "node_modules/ndarray/**/*",
+  "node_modules/ndarray-lanczos/**/*",
+  "node_modules/ndarray-ops/**/*",
+  "node_modules/ndarray-pixels/**/*",
+  "node_modules/property-graph/**/*",
+  "node_modules/sharp/**/*",
+  "node_modules/tslib/**/*",
+  "node_modules/uniq/**/*",
+];
+
+const OWNER_MODEL_PIPELINE_TRACE_EXCLUDES = OWNER_MODEL_PIPELINE_TRACED_ROUTES.reduce<
   NonNullable<NextConfig["outputFileTracingExcludes"]>
 >((routes, route) => {
   routes[route] = ["public/**/*"];
   return routes;
 }, {});
 
-const OWNER_MODEL_PIPELINE_TRACE_INCLUDES_BY_ROUTE = OWNER_MODEL_PIPELINE_ROUTES.reduce<
+const OWNER_MODEL_PIPELINE_TRACE_INCLUDES_BY_ROUTE = OWNER_MODEL_PIPELINE_TRACED_ROUTES.reduce<
   NonNullable<NextConfig["outputFileTracingIncludes"]>
 >((routes, route) => {
   routes[route] = [...OWNER_MODEL_PIPELINE_TRACE_INCLUDES];
@@ -247,8 +267,16 @@ const nextConfig: NextConfig = {
     proxyClientMaxBodySize: MODEL_LAB_PROXY_CLIENT_MAX_BODY_SIZE,
   },
   outputFileTracingRoot: PROJECT_ROOT,
-  outputFileTracingIncludes: OWNER_MODEL_PIPELINE_TRACE_INCLUDES_BY_ROUTE,
-  outputFileTracingExcludes: OWNER_MODEL_PIPELINE_TRACE_EXCLUDES,
+  outputFileTracingIncludes: {
+    ...OWNER_MODEL_PIPELINE_TRACE_INCLUDES_BY_ROUTE,
+    "/api/owner/model-lab/optimize": MODEL_LAB_TRACE_INCLUDES,
+    // Read with fs at runtime; Next cannot infer these files from imports.
+    "/api/public/faq": ["docs/faq-knowledge/**/*"],
+  },
+  outputFileTracingExcludes: {
+    ...OWNER_MODEL_PIPELINE_TRACE_EXCLUDES,
+    "/api/owner/model-lab/optimize": ["public/**/*"],
+  },
   turbopack: {
     root: PROJECT_ROOT,
   },
@@ -266,6 +294,8 @@ const nextConfig: NextConfig = {
   },
   async redirects() {
     return [
+      ...getPublicModelRedirects(),
+      { source: "/about", destination: "/a-propos", permanent: true },
       {
         source: "/carte-vistaire",
         destination: "/demo",
@@ -279,6 +309,8 @@ const nextConfig: NextConfig = {
         source: "/",
         headers: [...HOMEPAGE_AGENT_DISCOVERY_HEADERS],
       },
+      { source: "/immersive-assets/ar/:path*.usdz", headers: [...USDZ_MODEL_HEADERS, { key: "Accept-Ranges", value: "bytes" }] },
+      { source: "/immersive-assets/:path*.glb", headers: [...GLB_MODEL_HEADERS] },
       {
         source: "/models/demo/:path*.usdz",
         headers: [...USDZ_MODEL_HEADERS],

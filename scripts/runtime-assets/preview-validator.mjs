@@ -249,11 +249,12 @@ async function cancelBody(response) {
   }
 }
 
-function safeStorageLocation(
+async function safeStorageLocation(
   location,
   expectedStorageHost,
   expectedRestaurantId,
-  asset
+  asset,
+  r2Endpoint
 ) {
   let url;
   try {
@@ -268,7 +269,7 @@ function safeStorageLocation(
       url
     };
   }
-  const prefix = `/storage/v1/object/sign/${asset.bucket}/`;
+  const prefix = r2Endpoint ? "/" : `/storage/v1/object/sign/${asset.bucket}/`;
   const objectPath = url.pathname.startsWith(prefix)
     ? url.pathname.slice(prefix.length)
     : "";
@@ -291,7 +292,15 @@ function safeStorageLocation(
       url
     };
   }
-  if (!url.searchParams.get("token")) {
+  const signed = r2Endpoint
+    ? (await import("../../lib/storage/r2Config.ts")).isExpectedR2PresignedAssetUrl({
+        presignedUrl: url.href,
+        bucket: asset.bucket,
+        storagePath: objectPath,
+        env: { R2_S3_ENDPOINT: r2Endpoint }
+      })
+    : Boolean(url.searchParams.get("token"));
+  if (!signed) {
     return {
       ok: false,
       reason: "redirect Location is missing its signed Storage token",
@@ -323,6 +332,7 @@ async function validateAsset({
   baseUrl,
   expectedStorageHost,
   expectedRestaurantId,
+  r2Endpoint,
   timeoutMs,
   result
 }) {
@@ -446,17 +456,19 @@ async function validateAsset({
     return;
   }
 
-  const storageLocation = safeStorageLocation(
+  const storageLocation = await safeStorageLocation(
     getLocation,
     expectedStorageHost,
     expectedRestaurantId,
-    asset
+    asset,
+    r2Endpoint
   );
-  const headStorageLocation = safeStorageLocation(
+  const headStorageLocation = await safeStorageLocation(
     headLocation,
     expectedStorageHost,
     expectedRestaurantId,
-    asset
+    asset,
+    r2Endpoint
   );
   if (!storageLocation.ok || !headStorageLocation.ok) {
     const reason = !storageLocation.ok ? storageLocation.reason : headStorageLocation.reason;
@@ -780,6 +792,10 @@ export async function validateRuntimeAssetPreview({
   const assetVersion = assertIdentifier(assetVersionInput, "assetVersion");
   const photoVersion = assertPhotoVersion(photoVersionInput);
   const expectedStorageHost = normalizeExpectedHost(expectedStorageHostInput);
+  // R2 exposes each bucket on its own host; the CLI receives the account endpoint.
+  const r2Endpoint = /^[a-z0-9-]+(?:\.(?:eu|fedramp))?\.r2\.cloudflarestorage\.com$/i.test(expectedStorageHost)
+    ? `https://${expectedStorageHost}`
+    : null;
   const expectedRestaurantId = assertIdentifier(
     expectedRestaurantIdInput,
     "expectedRestaurantId"
@@ -817,8 +833,9 @@ export async function validateRuntimeAssetPreview({
       asset,
       publicUrl,
       baseUrl,
-      expectedStorageHost,
+      expectedStorageHost: r2Endpoint ? `${asset.bucket}.${expectedStorageHost}` : expectedStorageHost,
       expectedRestaurantId,
+      r2Endpoint,
       timeoutMs,
       result
     });

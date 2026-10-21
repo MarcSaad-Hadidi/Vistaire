@@ -555,8 +555,10 @@ test("prepare-upload signs only runtime USDZ and report JSON paths", async () =>
   });
   assert.equal(token.ok, true);
   const signedPaths = [];
+  const signedSizes = [];
   const { client } = mockAdminClient({
-    createSignedUploadUrl: async (path) => {
+    createSignedUploadUrl: async (path, options) => {
+      signedSizes.push(options.contentLength);
       signedPaths.push(path);
       return {
         data: {
@@ -591,6 +593,7 @@ test("prepare-upload signs only runtime USDZ and report JSON paths", async () =>
 
   assert.equal(prepared.ok, true);
   assert.equal(signedPaths.length, 2);
+  assert.deepEqual(signedSizes, [runtimeBytes.byteLength, 512]);
   assert.ok(signedPaths[0].includes("/models/ar-ios/"));
   assert.ok(signedPaths[0].endsWith(".usdz"));
   assert.ok(signedPaths[1].includes("/models/manifests/"));
@@ -1418,7 +1421,7 @@ test("viewer GLB upload lib does not copy AR-lite to Storage", () => {
   );
 });
 
-test("hasAndroidAr stays false when only GLB viewer metadata exists", () => {
+test("web GLB enables Android AR without inventing AR-lite or iOS assets", () => {
   const menu = buildSupabasePublicMenu(
     "demo",
     { id: RESTAURANT_ID, slug: "demo", name: "Demo" },
@@ -1439,7 +1442,8 @@ test("hasAndroidAr stays false when only GLB viewer metadata exists", () => {
 
   const dish = menu.dishes[0];
   assert.equal(dish.has3d, true);
-  assert.equal(dish.hasAndroidAr, false);
+  assert.equal(dish.hasAndroidAr, true);
+  assert.equal(dish.hasAr, true);
   assert.equal(dish.hasIosAr, false);
   assert.equal(dish.arModel3dUrl, "");
 });

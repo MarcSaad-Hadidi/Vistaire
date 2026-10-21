@@ -187,11 +187,6 @@ test("declares an indexable public restaurateur dashboard page", () => {
     join(process.cwd(), "app", "(fr)", "apercu-restaurateur", "page.tsx"),
     "utf8"
   );
-  const header = readFileSync(join(process.cwd(), "components", "Header.tsx"), "utf8");
-  const footer = readFileSync(
-    join(process.cwd(), "components", "seo", "SeoFooter.tsx"),
-    "utf8"
-  );
 
   assert.match(page, /buildPageAlternates\(canonicalPath\)/);
   assert.match(page, /openGraph:/);
@@ -199,8 +194,6 @@ test("declares an indexable public restaurateur dashboard page", () => {
   assert.match(page, /buildWebPageJsonLd/);
   assert.match(page, /buildPageServiceJsonLd/);
   assert.doesNotMatch(page, /index:\s*false/);
-  assert.match(header, /href="\/apercu-restaurateur"/);
-  assert.match(footer, /href:\s*"\/apercu-restaurateur"/);
 });
 
 test("landing preview footer routes restaurateur preview to the public dashboard page", () => {

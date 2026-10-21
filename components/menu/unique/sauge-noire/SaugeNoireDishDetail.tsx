@@ -1,5 +1,8 @@
 "use client";
 
+import { useVisibleMenuAnalytics } from "@/components/menu/analytics/useVisibleMenuAnalytics";
+
+import { getPublicMenuAnalyticsContext, trackPublicMenuEvent } from "@/lib/analytics/client";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -253,6 +256,7 @@ type SaugeNoireDishSheetCopy = {
 };
 
 type SaugeNoireDishSheetProps = {
+  analyticsEnabled?: boolean;
   menu: PublicMenu;
   query?: PublicMenuContextQuery;
   currency: string;
@@ -278,6 +282,8 @@ export type SaugeNoireDishRenderMode =
   | "route-preview";
 
 function SaugeNoireDish3dSection({
+  analyticsEnabled,
+  menu,
   dish,
   copy,
   publicLocale,
@@ -287,6 +293,8 @@ function SaugeNoireDish3dSection({
   copy: SaugeNoireDishSheetCopy;
   publicLocale: string;
   viewerCopy: Required<DishModelViewerCopy>;
+  analyticsEnabled: boolean;
+  menu: PublicMenu;
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const [viewerMounted, setViewerMounted] = useState(false);
@@ -322,9 +330,10 @@ function SaugeNoireDish3dSection({
   }, [isOpen, restoreScroll]);
 
   const toggleViewer = useCallback(() => {
+    if (analyticsEnabled && !isOpen) trackPublicMenuEvent(menu, { eventName: "dish_3d_clicked", dishSlug: dish.slug, categorySlug: dish.categorySlug });
     preservedScrollTopRef.current = getScrollContainer()?.scrollTop ?? 0;
     setIsOpen((current) => !current);
-  }, [getScrollContainer]);
+  }, [analyticsEnabled, getScrollContainer, isOpen, menu, dish.slug, dish.categorySlug]);
 
   const closeViewer = useCallback(() => {
     preservedScrollTopRef.current = getScrollContainer()?.scrollTop ?? 0;
@@ -372,7 +381,11 @@ function SaugeNoireDish3dSection({
             </div>
           ) : null}
           <LazyDishModelViewer
+            analyticsEnabled={analyticsEnabled}
+            analyticsContext={getPublicMenuAnalyticsContext(menu) ?? undefined}
             dish={modelViewerDishFromPublicDish(dish)}
+            fallbackPanelVariant="sauge-noire"
+            fallbackPresentation="below"
             minimalChrome
             quietChrome
             copy={viewerCopy}
@@ -386,6 +399,7 @@ function SaugeNoireDish3dSection({
 }
 
 export function SaugeNoireDishSheet({
+  analyticsEnabled = false,
   menu,
   query,
   currency,
@@ -400,6 +414,7 @@ export function SaugeNoireDishSheet({
   onMenuLinkClick,
   onMenuLinkIntent
 }: SaugeNoireDishSheetProps) {
+  const analyticsRef = useVisibleMenuAnalytics(menu, analyticsEnabled && !isPreview && renderMode === "reading-surface", dish);
   const isPhysicalPageMedia = useSaugeNoirePhysicalPageMedia();
   const dishCount = Math.max(menu.dishes.length, 1);
   const targetDishIndex = menu.dishes.findIndex((item) => item.id === dish.id);
@@ -433,6 +448,7 @@ export function SaugeNoireDishSheet({
 
   return (
     <article
+      ref={analyticsRef}
       className={`${styles.paper} ${
         naturalHeight ? styles.naturalHeightPaper : styles.pageFlipSheet
       } ${isPreview ? styles.transitionPreview : ""}`}
@@ -486,6 +502,8 @@ export function SaugeNoireDishSheet({
         </div>
         {targetCanOpen3d ? (
           <SaugeNoireDish3dSection
+            analyticsEnabled={analyticsEnabled && !isPreview && renderMode === "reading-surface"}
+            menu={menu}
             key={dish.id}
             dish={dish}
             copy={copy}
@@ -616,7 +634,8 @@ export function SaugeNoireDishDetail({
   query,
   locale = "fr",
   exchangeRates,
-  dish
+  dish,
+  mode
 }: DishDetailProps) {
   const currency = normalizePublicMenuCurrencyPreference(
     query?.currency,
@@ -814,6 +833,11 @@ export function SaugeNoireDishDetail({
   ) => {
     if (navigationInFlightRef.current) return;
     navigationInFlightRef.current = true;
+    trackPublicMenuEvent(menu, {
+      eventName: "dish_selected",
+      dishSlug: targetDish.slug,
+      categorySlug: targetDish.categorySlug
+    });
     setPageTurn({
       dishId: currentDishRef.current.id,
       direction,
@@ -834,7 +858,7 @@ export function SaugeNoireDishDetail({
       returnedToRead: false,
       navigationStarted: false
     };
-  }, []);
+  }, [menu]);
 
   const handleDishLinkClick = useCallback((
     event: React.MouseEvent<HTMLAnchorElement>,
@@ -1039,6 +1063,7 @@ export function SaugeNoireDishDetail({
   ) => {
     return (
       <SaugeNoireDishSheet
+        analyticsEnabled={mode === "public"}
         menu={menu}
         query={query}
         currency={currency}
@@ -1054,7 +1079,7 @@ export function SaugeNoireDishDetail({
         onMenuLinkIntent={isPreview ? undefined : handleMenuLinkIntent}
       />
     );
-  }, [copy, currency, exchangeRates, handleDishLinkClick, handleMenuLinkClick, handleMenuLinkIntent, locale, menu, publicLocale, query]);
+  }, [copy, currency, exchangeRates, handleDishLinkClick, handleMenuLinkClick, handleMenuLinkIntent, locale, menu, mode, publicLocale, query]);
 
   useEffect(() => {
     renderDishPaperRef.current = renderDishPaper;

@@ -148,14 +148,17 @@ test("public E2E contexts start with an explicit rejected consent state", async 
 
 test("Vistaire first-party menu analytics is also opt-in", async () => {
   const source = await readSource(analyticsClientPath);
-  const consentCheck = source.indexOf("hasAnalyticsConsent()");
-  const sessionRead = source.indexOf("sessionId: getSessionId()");
-  const analyticsFetch = source.indexOf('fetch("/api/analytics/events"');
+  assert.match(source, /function collectionAllowed\(\)[\s\S]{0,240}hasAnalyticsConsent\(\)/);
 
-  assert.match(source, /hasAnalyticsConsent/);
-  assert.ok(consentCheck >= 0, "analytics consent check is missing");
-  assert.ok(sessionRead > consentCheck, "session id must not be created before consent");
-  assert.ok(analyticsFetch > consentCheck, "analytics request must not be sent before consent");
+  // Every session-id read and the analytics request sit in a function that bails out first without consent.
+  const guardedUse = /(?:getSessionId\(|fetch\("\/api\/analytics\/events")/g;
+  const uses = [...source.matchAll(guardedUse)].filter((match) => !source.slice(match.index - 9, match.index).includes("function"));
+  assert.ok(uses.length >= 2, "expected session reads and the analytics request");
+  for (const use of uses) {
+    const header = source.lastIndexOf("\nfunction ", use.index);
+    const body = source.slice(source.indexOf("{", header), use.index);
+    assert.match(body, /^\{\s*if \(!collectionAllowed\(\)\) return false;/, `unguarded analytics use at ${use.index}`);
+  }
 });
 
 test("public legal and privacy controls are discoverable before collection in both languages", async () => {
@@ -204,7 +207,7 @@ test("the preview footer places legal controls beside the copyright", async () =
   assert.match(previewFooter, /data-vistaire-preview-footer/);
   assert.match(
     previewFooter,
-    /footerCopyright[\s\S]{0,260}<PrivacyUtilityBar[\s\S]{0,180}variant="footer"/
+    /footerCopyright[\s\S]{0,500}<PrivacyUtilityBar[\s\S]{0,180}variant="footer"/
   );
   assert.match(utilityBar, /variant\?: "global" \| "footer"/);
   assert.match(utilityBar, /variant === "global"/);

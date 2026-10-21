@@ -153,7 +153,7 @@ test("reduced motion turns chart animation contracts instant", () => {
 test("interactive islands expose complete semantics and bounded responsive SVG contracts", async () => {
   const files = await Promise.all([
     "ChartFrame.tsx", "InteractiveLineChart.tsx", "ComparisonLineChart.tsx",
-    "InteractiveBars.tsx", "InteractiveDonut.tsx", "InteractiveHeatmap.tsx", "useChartInteraction.ts", "Charts.module.css",
+    "InteractiveDonut.tsx", "InteractiveHeatmap.tsx", "useChartInteraction.ts", "Charts.module.css",
   ].map((name) => readFile(`components/admin/charts/${name}`, "utf8")));
   const source = files.join("\n");
   for (const token of ["aria-describedby", "<title", "<desc", "summary", "unit", "period", "exactTable"]) assert.match(source, new RegExp(token));

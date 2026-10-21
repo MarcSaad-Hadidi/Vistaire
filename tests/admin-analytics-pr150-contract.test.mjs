@@ -68,6 +68,8 @@ test("real analytics exposes exact raw KPIs independently from privacy breakdown
     "dish-opens": 4,
     searches: 2,
     immersive: 2,
+    three: 1,
+    ar: 1,
     "available-dishes": 9
   });
   assert.deepEqual(state.searches, []);

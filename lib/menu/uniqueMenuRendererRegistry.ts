@@ -65,7 +65,7 @@ const PRODUCTION_UNIQUE_MENU_RENDERERS: ReadonlyArray<UniqueMenuRendererEntry> =
       key: "sauge-noire-book-v1",
       designId: "073bd2ca-56f9-46ee-bd7c-38ab22f01c9a",
       version: 1,
-      displayName: "Sauge Noire — Livre éditorial v1",
+      displayName: "Sauge Noire, livre éditorial v1",
       menu: SaugeNoireBookMenu,
       dishDetail: SaugeNoireDishDetail,
       capabilities: {

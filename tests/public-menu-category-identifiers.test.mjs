@@ -3,7 +3,6 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 
 const componentPaths = [
-  "components/menu/PublicMenuExperience.tsx",
   "components/menu/PublicMenuRenderer.tsx",
   "components/menu/MaisonElyseQrMenu.tsx",
   "components/menu/TrouvablePremiumMenuExperience.tsx"

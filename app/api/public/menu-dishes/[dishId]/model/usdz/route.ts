@@ -26,6 +26,7 @@ async function handleUsdzRequest(
     dishId,
     kind: "usdz",
     requestedAssetVersion: assetVersion || undefined,
+    requestMethod: request.method === "HEAD" ? "HEAD" : "GET",
     supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL,
     notFoundMessage: "USDZ introuvable.",
     unavailableMessage: "USDZ indisponible."

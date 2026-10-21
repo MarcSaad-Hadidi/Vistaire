@@ -1,5 +1,7 @@
 "use client";
 
+import { useVisibleMenuAnalytics } from "@/components/menu/analytics/useVisibleMenuAnalytics";
+
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useEffect, useState, type CSSProperties } from "react";
@@ -222,7 +224,7 @@ function hasReal3d(dish: PublicMenuDish): boolean {
 
 function hasRealAr(dish: PublicMenuDish): boolean {
   return (
-    isSafe3dAssetUrl(dish.arModel3dUrl, ALLOWED_3D_CDN_ORIGINS, "arLite") ||
+    hasReal3d(dish) ||
     isSafe3dAssetUrl(
       dish.arUsdzUrl || dish.usdzUrl,
       ALLOWED_3D_CDN_ORIGINS,
@@ -501,16 +503,9 @@ export function MaisonElyseDishDetail({
     return () => window.cancelAnimationFrame(frameId);
   }, [dish, displayMode, exchangeRates, explicitCurrency, menu]);
 
-  useEffect(() => {
-    if (displayMode !== "public") return;
-    trackPublicMenuEvent(menu, {
-      eventName: "dish_opened",
-      dishSlug: dish.slug,
-      categorySlug: dish.categorySlug ?? slugify(dish.category)
-    });
-  }, [displayMode, dish.category, dish.categorySlug, dish.slug, menu]);
 
   function toggleModelViewer() {
+    if (!showModelViewer && displayMode === "public") trackPublicMenuEvent(menu, { eventName: "dish_3d_clicked", dishSlug: dish.slug, categorySlug: dish.categorySlug });
     setShowModelViewer((isVisible) => {
       const nextVisible = !isVisible;
       if (nextVisible) scrollToModelViewer();
@@ -518,8 +513,11 @@ export function MaisonElyseDishDetail({
     });
   }
 
+  const analyticsRef = useVisibleMenuAnalytics(menu, displayMode === "public", dish);
+
   return (
     <main
+      ref={analyticsRef}
       dir="ltr"
       lang={locale}
       data-text-direction={textDirection}
@@ -614,9 +612,12 @@ export function MaisonElyseDishDetail({
               <div className={styles.modelStage} id={MODEL_VIEWER_ID}>
                 {showModelViewer ? (
                   <LazyDishModelViewer
+                    analyticsEnabled={displayMode === "public"}
                     analyticsContext={analyticsContext ?? undefined}
                     copy={copy.modelViewer}
                     dish={modelViewerDishFromPublicDish(dish)}
+                    fallbackPanelVariant="maison-elyse"
+                    fallbackPresentation="below"
                     minimalChrome
                     quietChrome
                     onReturnToDish={() => setShowModelViewer(false)}

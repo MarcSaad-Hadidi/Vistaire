@@ -1,19 +1,22 @@
-import { BrevoClient, BrevoError } from "@getbrevo/brevo";
+import { randomUUID } from "node:crypto";
+import { Resend } from "resend";
 import { NextResponse, type NextRequest } from "next/server";
 import { getSiteUrl } from "@/lib/seo";
+import { normalizeLocale } from "@/lib/i18n";
+import { CONTACT_EMAIL, renderContactEmails, type ContactEmailData } from "@/lib/contactEmails";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 type ContactField = "name" | "email" | "restaurant" | "message";
 
-type ContactRequest = Record<ContactField, string> & {
+type ContactRequest = ContactEmailData & {
   company?: string;
+  submissionId: string;
+  submittedAt: string;
 };
 
-const CONTACT_EMAIL = "contact@vistaire.ca";
-const SENDER_NAME = "Vistaire";
-const SOURCE_PATH = "/prendre-rendez-vous";
+const CONTACT_SENDER = `Vistaire <${CONTACT_EMAIL}>`;
 const MAX_BODY_LENGTH = 12_000;
 const CONTACT_RATE_LIMIT_WINDOW_MS = 10 * 60 * 1_000;
 const CONTACT_RATE_LIMIT_MAX_REQUESTS = 5;
@@ -29,6 +32,8 @@ const FIELD_LIMITS: Record<ContactField | "company", number> = {
   company: 120
 };
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const unsafeEmailPattern = /[\p{Cc}<>,;:"()\\]/u;
+const submissionIdPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 type ContactValidationResult =
   | { ok: true; data: ContactRequest }
@@ -89,6 +94,24 @@ function validateContactPayload(
   }
 
   const data = normalized as ContactRequest;
+  data.locale = normalizeLocale(source.locale);
+
+  if (source.submissionId === undefined && source.submittedAt === undefined) {
+    data.submissionId = randomUUID();
+    data.submittedAt = new Date().toISOString();
+  } else {
+    if (
+      typeof source.submissionId !== "string" ||
+      !submissionIdPattern.test(source.submissionId) ||
+      typeof source.submittedAt !== "string" ||
+      !Number.isFinite(Date.parse(source.submittedAt)) ||
+      new Date(source.submittedAt).toISOString() !== source.submittedAt
+    ) {
+      return { ok: false, error: "Veuillez verifier les champs du formulaire." };
+    }
+    data.submissionId = source.submissionId.toLowerCase();
+    data.submittedAt = source.submittedAt;
+  }
 
   if (data.company && data.company.length > FIELD_LIMITS.company) {
     return {
@@ -107,7 +130,8 @@ function validateContactPayload(
   if (
     !data.email ||
     data.email.length > FIELD_LIMITS.email ||
-    !emailPattern.test(data.email)
+    !emailPattern.test(data.email) ||
+    unsafeEmailPattern.test(data.email)
   ) {
     return {
       ok: false,
@@ -306,99 +330,23 @@ function consumeContactRateLimit(request: NextRequest) {
   return null;
 }
 
-function escapeHtml(value: string) {
-  return value
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
-}
+const SAFE_RESEND_ERROR_NAMES = new Set([
+  "validation_error", "missing_api_key", "restricted_api_key", "invalid_api_key",
+  "invalid_idempotency_key", "invalid_idempotent_request", "concurrent_idempotent_requests",
+  "invalid_from_address", "invalid_access", "missing_required_field", "rate_limit_exceeded",
+  "daily_quota_exceeded", "monthly_quota_exceeded", "application_error", "internal_server_error"
+]);
 
-function buildTextContent(data: ContactRequest, submittedAt: string) {
-  return [
-    "Nouvelle demande Vistaire",
-    "",
-    "Cette demande vient du formulaire Vistaire.",
-    "",
-    `Nom: ${data.name}`,
-    `Courriel: ${data.email}`,
-    `Restaurant: ${data.restaurant}`,
-    "Source: /prendre-rendez-vous",
-    `Date/heure serveur: ${submittedAt}`,
-    "",
-    "Message:",
-    data.message
-  ].join("\n");
-}
-
-function buildHtmlContent(data: ContactRequest, submittedAt: string) {
-  const rows = [
-    ["Nom", data.name],
-    ["Courriel", data.email],
-    ["Restaurant", data.restaurant],
-    ["Source", SOURCE_PATH],
-    ["Date", submittedAt]
-  ]
-    .map(
-      ([label, value]) => `
-        <tr>
-          <td style="padding:10px 12px;border-bottom:1px solid #ece2d4;color:#6f5a41;font-size:13px;font-weight:700;">${escapeHtml(
-            label
-          )}</td>
-          <td style="padding:10px 12px;border-bottom:1px solid #ece2d4;color:#20160f;font-size:14px;">${escapeHtml(
-            value
-          )}</td>
-        </tr>`
-    )
-    .join("");
-
-  return `
-    <div style="margin:0;padding:0;background:#f7f1e8;color:#20160f;font-family:Arial,Helvetica,sans-serif;">
-      <div style="max-width:640px;margin:0 auto;padding:28px 18px;">
-        <div style="background:#fffaf3;border:1px solid #e6d7c4;border-radius:12px;padding:24px;">
-          <p style="margin:0 0 8px;color:#8b6b3f;font-size:12px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;">Vistaire</p>
-          <h1 style="margin:0 0 16px;color:#20160f;font-size:24px;line-height:1.2;">Nouvelle demande Vistaire</h1>
-          <p style="margin:0 0 20px;color:#6f5a41;font-size:14px;line-height:1.6;">Cette demande vient du formulaire Vistaire.</p>
-          <table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;border-collapse:collapse;margin:0 0 20px;background:#fff;border:1px solid #ece2d4;">
-            ${rows}
-          </table>
-          <div style="padding:16px;background:#f3eadc;border:1px solid #e6d7c4;border-radius:10px;">
-            <p style="margin:0 0 8px;color:#6f5a41;font-size:13px;font-weight:700;">Message</p>
-            <p style="margin:0;color:#20160f;font-size:15px;line-height:1.6;white-space:pre-wrap;">${escapeHtml(
-              data.message
-            )}</p>
-          </div>
-        </div>
-      </div>
-    </div>`;
-}
-
-function getContactConfig() {
-  const apiKey = process.env.BREVO_API_KEY?.trim();
-
-  if (!apiKey) return null;
-
-  return {
-    apiKey,
-    toEmail: process.env.BREVO_CONTACT_TO?.trim() || CONTACT_EMAIL,
-    senderEmail:
-      process.env.BREVO_CONTACT_SENDER_EMAIL?.trim() || CONTACT_EMAIL,
-    senderName: process.env.BREVO_CONTACT_SENDER_NAME?.trim() || SENDER_NAME
-  };
-}
-
-function logBrevoFailure(error: unknown) {
-  if (error instanceof BrevoError) {
-    console.error("Brevo contact email failed", {
-      statusCode: error.statusCode,
-      message: error.message
-    });
-    return;
-  }
-
-  console.error("Brevo contact email failed", {
-    message: error instanceof Error ? error.message : "Unknown error"
+function logResendFailure(error: unknown) {
+  const failure = error && typeof error === "object"
+    ? error as Record<string, unknown>
+    : {};
+  console.error("Resend contact emails failed", {
+    name: typeof failure.name === "string" && SAFE_RESEND_ERROR_NAMES.has(failure.name)
+      ? failure.name : "provider_error",
+    statusCode: typeof failure.statusCode === "number" &&
+      Number.isInteger(failure.statusCode) && failure.statusCode >= 100 && failure.statusCode <= 599
+      ? failure.statusCode : null
   });
 }
 
@@ -448,8 +396,8 @@ export async function POST(request: NextRequest) {
     return json({ ok: true }, { status: 202 });
   }
 
-  const config = getContactConfig();
-  if (!config) {
+  const apiKey = process.env.RESEND_API_KEY?.trim();
+  if (!apiKey) {
     return json(
       {
         ok: false,
@@ -459,33 +407,46 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const submittedAt = new Date().toISOString();
-  const client = new BrevoClient({ apiKey: config.apiKey });
-
   try {
-    await client.transactionalEmails.sendTransacEmail({
-      sender: {
-        email: config.senderEmail,
-        name: config.senderName
-      },
-      to: [
+    const emails = renderContactEmails(data, data.submittedAt);
+    const client = new Resend(apiKey);
+    const { data: accepted, error } = await client.batch.send(
+      [
         {
-          email: config.toEmail,
-          name: SENDER_NAME
+          from: CONTACT_SENDER,
+          to: [CONTACT_EMAIL],
+          replyTo: [data.email],
+          ...emails.internal
+        },
+        {
+          from: CONTACT_SENDER,
+          to: [data.email],
+          replyTo: [CONTACT_EMAIL],
+          ...emails.confirmation
         }
       ],
-      subject: `Nouvelle demande Vistaire - ${data.restaurant}`,
-      htmlContent: buildHtmlContent(data, submittedAt),
-      textContent: buildTextContent(data, submittedAt),
-      replyTo: {
-        email: data.email,
-        name: data.name
+      {
+        batchValidation: "strict",
+        idempotencyKey: `contact/${data.submissionId}`
       }
-    });
+    );
+
+    // Acceptance of both messages is required; delivery is asynchronous at Resend.
+    const batchErrors: unknown = accepted?.errors;
+    if (
+      error ||
+      !Array.isArray(accepted?.data) ||
+      accepted.data.length !== 2 ||
+      !accepted.data.every((email) => email && typeof email.id === "string" && email.id.trim()) ||
+      accepted.data[0].id === accepted.data[1].id ||
+      (Array.isArray(batchErrors) && batchErrors.length > 0)
+    ) {
+      throw error;
+    }
 
     return json({ ok: true }, { status: 202 });
   } catch (error) {
-    logBrevoFailure(error);
+    logResendFailure(error);
     return json(
       {
         ok: false,

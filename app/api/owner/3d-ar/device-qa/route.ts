@@ -1,3 +1,4 @@
+import { storageBucket } from "@/lib/storage/backend";
 import { NextResponse, type NextRequest } from "next/server";
 import {
   requireOwner3dRestaurantAccess,
@@ -312,7 +313,7 @@ export async function POST(request: NextRequest) {
       extension
     });
 
-    const upload = await admin.client.storage.from(bucket).upload(evidencePath, evidenceBytes, {
+    const upload = await storageBucket(admin.client.storage, bucket).upload(evidencePath, evidenceBytes, {
       cacheControl: "0",
       contentType: validation.record.evidence.mimeType,
       upsert: false
@@ -346,7 +347,7 @@ export async function POST(request: NextRequest) {
       .select("id")
       .single();
     if (artifact.error || !artifact.data) {
-      await admin.client.storage.from(bucket).remove([evidencePath]);
+      await storageBucket(admin.client.storage, bucket).remove([evidencePath]);
       return NextResponse.json({ ok: false, error: "Device QA evidence metadata could not be recorded." }, { status: 503 });
     }
     artifactId = String(artifact.data.id);
@@ -366,7 +367,7 @@ export async function POST(request: NextRequest) {
     .select("id");
 
   if (superseded.error) {
-    if (evidencePath) await admin.client.storage.from(bucket).remove([evidencePath]);
+    if (evidencePath) await storageBucket(admin.client.storage, bucket).remove([evidencePath]);
     return NextResponse.json(
       { ok: false, error: "Existing Device QA result could not be superseded." },
       { status: 503 }
@@ -410,7 +411,7 @@ export async function POST(request: NextRequest) {
     .single();
 
   if (deviceQa.error || !deviceQa.data) {
-    if (evidencePath) await admin.client.storage.from(bucket).remove([evidencePath]);
+    if (evidencePath) await storageBucket(admin.client.storage, bucket).remove([evidencePath]);
     const supersededIds = Array.isArray(superseded.data)
       ? superseded.data
           .map((row) => (row && typeof row === "object" && "id" in row ? String(row.id) : ""))

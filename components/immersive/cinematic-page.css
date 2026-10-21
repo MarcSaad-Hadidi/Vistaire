@@ -1,0 +1,614 @@
+/* Cinematic pages outside the landing (CinematicPage.jsx). Base tokens, .chapter,
+   .stage, .action and the copy fade come from styles.css. Copy renders at once;
+   the room fades in when its scene is ready. */
+.cinematic-page[data-immersive-vistaire] .world {
+  opacity: 0;
+  transition: opacity 700ms ease;
+}
+/* Never a black page: a dim, softened dining room holds the frame until the
+   3D room fades in over it (or stays if WebGL is unavailable). */
+.cinematic-page[data-immersive-vistaire]::before {
+  content: "";
+  position: fixed;
+  inset: -24px;
+  z-index: 0;
+  pointer-events: none;
+  background: #0b0b0a url("/immersive-assets/restaurant-table-blur.webp") center / cover no-repeat;
+  filter: blur(8px) brightness(0.5);
+}
+/* The landing's loading screen, above the navigation, in the page's own language. */
+.cinematic-page[data-immersive-vistaire] .cinematic-preloader {
+  z-index: 1000;
+  background: var(--black);
+}
+html:not([lang^="en"]) .cinematic-preloader span[lang="en"],
+html[lang^="en"] .cinematic-preloader span[lang="fr"] {
+  display: none;
+}
+@media (max-width: 767.98px) {
+  .cinematic-page[data-immersive-vistaire] .cinematic-preloader .loading-word { font-size: 56px; }
+}
+.cinematic-page[data-immersive-vistaire].is-ready::before {
+  visibility: hidden;
+  transition: visibility 0s linear 800ms;
+}
+.cinematic-page[data-immersive-vistaire].is-ready .world {
+  opacity: 1;
+}
+.cinematic-page[data-immersive-vistaire] .cinematic-main {
+  position: relative;
+  z-index: 1;
+}
+:where(.cinematic-page[data-immersive-vistaire]) .cinematic-chapter .stage {
+  display: grid;
+  grid-template-columns: 44fr 56fr;
+  column-gap: 24px;
+  align-items: center;
+}
+:where(.cinematic-page[data-immersive-vistaire]) .cinematic-copy {
+  display: grid;
+  gap: 18px;
+  max-width: 540px;
+  text-shadow: 0 2px 24px #050505cc;
+}
+:where(.cinematic-page[data-immersive-vistaire]) .align-left .cinematic-copy { grid-column: 1; grid-row: 1; }
+:where(.cinematic-page[data-immersive-vistaire]) .align-left .scene-focus { grid-column: 2; grid-row: 1; }
+:where(.cinematic-page[data-immersive-vistaire]) .align-right .cinematic-copy { grid-column: 2; grid-row: 1; justify-self: end; }
+:where(.cinematic-page[data-immersive-vistaire]) .align-right .scene-focus { grid-column: 1; grid-row: 1; }
+:where(.cinematic-page[data-immersive-vistaire]) .align-center .stage { grid-template-columns: 1fr; grid-template-rows: auto 1fr; }
+:where(.cinematic-page[data-immersive-vistaire]) .align-center .cinematic-copy { justify-self: center; text-align: center; max-width: 720px; }
+:where(.cinematic-page[data-immersive-vistaire]) .scene-focus {
+  height: 72%;
+  align-self: center;
+}
+:where(.cinematic-page[data-immersive-vistaire]) .cinematic-copy h1,
+:where(.cinematic-page[data-immersive-vistaire]) .cinematic-copy h2 {
+  font-family: "Vistaire Editorial", serif;
+  font-weight: 400;
+  line-height: 1.04;
+  font-size: clamp(36px, min(4.6vw, calc(7 * var(--scene-vh))), 76px);
+}
+:where(.cinematic-page[data-immersive-vistaire]) .cinematic-copy h1 em,
+:where(.cinematic-page[data-immersive-vistaire]) .cinematic-copy h2 em {
+  color: var(--amber);
+}
+:where(.cinematic-page[data-immersive-vistaire]) .cinematic-copy p,
+:where(.cinematic-page[data-immersive-vistaire]) .cinematic-copy li {
+  font-size: var(--body);
+  line-height: 1.55;
+  color: var(--muted);
+}
+/* Short point lists (copy cards and guide panels) read as a list, never as
+   loose lines: left-aligned, an amber marker, a capital first letter. */
+:where(.cinematic-page[data-immersive-vistaire]) :is(.cinematic-copy, .cinematic-panel) :is(ul, ol) {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 14px 0 0;
+  border-top: 1px solid color-mix(in srgb, var(--cream) 16%, transparent);
+  text-align: left;
+  counter-reset: cinematic-point;
+}
+:where(.cinematic-page[data-immersive-vistaire]) :is(.cinematic-copy, .cinematic-panel) :is(ul, ol) > li {
+  position: relative;
+  padding-left: 22px;
+  counter-increment: cinematic-point;
+}
+:where(.cinematic-page[data-immersive-vistaire]) :is(.cinematic-copy, .cinematic-panel) :is(ul, ol) > li::first-letter { text-transform: uppercase; }
+:where(.cinematic-page[data-immersive-vistaire]) :is(.cinematic-copy, .cinematic-panel) ul > li::before {
+  content: "";
+  position: absolute;
+  left: 2px;
+  top: 0.62em;
+  width: 6px;
+  height: 6px;
+  background: var(--amber);
+  transform: rotate(45deg);
+}
+:where(.cinematic-page[data-immersive-vistaire]) :is(.cinematic-copy, .cinematic-panel) ol > li { padding-left: 30px; }
+:where(.cinematic-page[data-immersive-vistaire]) :is(.cinematic-copy, .cinematic-panel) ol > li::before {
+  content: counter(cinematic-point, decimal-leading-zero);
+  position: absolute;
+  left: 0;
+  top: 0.35em;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  color: var(--amber);
+}
+:where(.cinematic-page[data-immersive-vistaire]) .cinematic-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+:where(.cinematic-page[data-immersive-vistaire]) .align-center .cinematic-actions {
+  justify-content: center;
+}
+:where(.cinematic-page[data-immersive-vistaire]) .cinematic-natural {
+  position: relative;
+  padding-top: 120px;
+}
+/* Tablets and phones: copy on top, the object below, always centered. */
+@media (max-width: 1050px) {
+  :where(.cinematic-page[data-immersive-vistaire]) .cinematic-chapter .stage {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto 1fr;
+    align-items: start;
+  }
+  :where(.cinematic-page[data-immersive-vistaire]) .cinematic-chapter .cinematic-copy {
+    grid-column: 1;
+    grid-row: 1;
+    justify-self: center;
+    text-align: center;
+  }
+  :where(.cinematic-page[data-immersive-vistaire]) .cinematic-chapter .scene-focus {
+    grid-column: 1;
+    grid-row: 2;
+    height: 100%;
+  }
+  :where(.cinematic-page[data-immersive-vistaire]) .cinematic-actions {
+    justify-content: center;
+  }
+}
+@media (max-width: 767.98px) {
+  :where(.cinematic-page[data-immersive-vistaire]) .cinematic-copy h1,
+  :where(.cinematic-page[data-immersive-vistaire]) .cinematic-copy h2 {
+    font-size: clamp(30px, 8.6vw, 40px);
+  }
+  :where(.cinematic-page[data-immersive-vistaire]) .cinematic-copy p,
+  :where(.cinematic-page[data-immersive-vistaire]) .cinematic-copy li {
+    font-size: 15px;
+  }
+}
+
+/* Copy legibility over a bright room: a soft shade on the copy side, fading
+   with the copy itself. Behind the copy, never over the object. */
+:where(.cinematic-page[data-immersive-vistaire]) .cinematic-chapter .stage::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  opacity: var(--copy-opacity, 1);
+  background: linear-gradient(90deg, #050505c4 0%, #05050594 34%, #05050500 62%);
+}
+:where(.cinematic-page[data-immersive-vistaire]) .align-right .stage::before {
+  background: linear-gradient(270deg, #050505c4 0%, #05050594 34%, #05050500 62%);
+}
+:where(.cinematic-page[data-immersive-vistaire]) .align-center .stage::before {
+  background: linear-gradient(180deg, #050505c4 0%, #05050580 30%, #05050500 55%);
+}
+@media (max-width: 1050px) {
+  :where(.cinematic-page[data-immersive-vistaire]) .cinematic-chapter .stage::before {
+    background: linear-gradient(180deg, #050505b8 0%, #05050580 38%, #05050500 60%);
+  }
+}
+
+/* Before/after comparison read as short labelled pairs (digital menu page). */
+:where(.cinematic-page[data-immersive-vistaire]) .cinematic-compare {
+  display: grid;
+  gap: 14px;
+  margin: 0;
+  text-align: left;
+}
+:where(.cinematic-page[data-immersive-vistaire]) .cinematic-compare > div {
+  display: grid;
+  gap: 4px;
+  padding-top: 12px;
+  border-top: 1px solid #f8f3e82b;
+}
+:where(.cinematic-page[data-immersive-vistaire]) .cinematic-compare dt {
+  font-family: "Vistaire Editorial", serif;
+  font-size: 20px;
+  color: var(--cream);
+}
+:where(.cinematic-page[data-immersive-vistaire]) .cinematic-compare dd {
+  margin: 0;
+  font-size: 14px;
+  color: var(--muted);
+}
+/* The side label sits on its own line above its text: every row aligns. */
+:where(.cinematic-page[data-immersive-vistaire]) .cinematic-compare dd span {
+  display: block;
+  margin-bottom: 2px;
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--amber);
+}
+@media (max-width: 767.98px) {
+  /* Phones keep the Vistaire side of each row; the full table is in the guide below. */
+  :where(.cinematic-page[data-immersive-vistaire]) .cinematic-compare dd:first-of-type {
+    display: none;
+  }
+  :where(.cinematic-page[data-immersive-vistaire]) .cinematic-compare dt {
+    font-size: 17px;
+  }
+}
+
+/* Free reading in the landing's language: the room stays visible behind glass. */
+:where(.cinematic-page[data-immersive-vistaire]) .cinematic-guide {
+  display: grid;
+  gap: 28px;
+  width: min(1100px, calc(100% - 2 * var(--pad)));
+  margin: 0 auto;
+  padding-bottom: 80px;
+}
+:where(.cinematic-page[data-immersive-vistaire]) .cinematic-panel {
+  display: grid;
+  gap: 14px;
+  padding: clamp(22px, 3vw, 36px);
+  border: 1px solid #f8f3e82b;
+  border-radius: 8px;
+  background: #111110c5;
+  backdrop-filter: blur(10px);
+  color: var(--cream);
+}
+:where(.cinematic-page[data-immersive-vistaire]) .cinematic-panel h2,
+:where(.cinematic-page[data-immersive-vistaire]) .cinematic-panel h3,
+:where(.cinematic-page[data-immersive-vistaire]) .cinematic-faq h2 {
+  font-family: "Vistaire Editorial", serif;
+  font-weight: 400;
+  line-height: 1.08;
+}
+:where(.cinematic-page[data-immersive-vistaire]) .cinematic-panel h2 { font-size: clamp(32px, 3.4vw, 52px); }
+:where(.cinematic-page[data-immersive-vistaire]) .cinematic-panel h3 { font-size: clamp(24px, 2.4vw, 34px); }
+:where(.cinematic-page[data-immersive-vistaire]) .cinematic-panel p,
+:where(.cinematic-page[data-immersive-vistaire]) .cinematic-panel li {
+  font-size: var(--body);
+  line-height: 1.6;
+  color: var(--muted);
+}
+:where(.cinematic-page[data-immersive-vistaire]) .cinematic-guide-sections {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr));
+  gap: 20px;
+}
+:where(.cinematic-page[data-immersive-vistaire]) .cinematic-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 15px;
+}
+:where(.cinematic-page[data-immersive-vistaire]) .cinematic-table th,
+:where(.cinematic-page[data-immersive-vistaire]) .cinematic-table td {
+  padding: 14px 12px;
+  border-top: 1px solid #f8f3e81f;
+  text-align: left;
+  vertical-align: top;
+  color: var(--muted);
+}
+:where(.cinematic-page[data-immersive-vistaire]) .cinematic-table thead th {
+  border-top: 0;
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--amber);
+}
+:where(.cinematic-page[data-immersive-vistaire]) .cinematic-table tbody th {
+  font-family: "Vistaire Editorial", serif;
+  font-size: 19px;
+  font-weight: 400;
+  color: var(--cream);
+}
+/* Same FAQ as the landing: transparent over the room, readable by shadow. */
+:where(.cinematic-page[data-immersive-vistaire]) .cinematic-faq {
+  display: grid;
+  grid-template-columns: minmax(200px, 0.7fr) minmax(0, 1.3fr);
+  gap: 60px;
+  padding: 60px 0;
+  --public-surface: transparent;
+  --public-blue: color-mix(in srgb, var(--cream) 25%, transparent);
+  text-shadow: 0 2px 12px #0009;
+}
+:where(.cinematic-page[data-immersive-vistaire]) .cinematic-faq h2 {
+  margin: 16px 0 0;
+  font-size: clamp(40px, 4vw, 60px);
+  letter-spacing: -0.035em;
+}
+:where(.cinematic-page[data-immersive-vistaire]) .cinematic-faq [data-seo-faq] { background: transparent; }
+:where(.cinematic-page[data-immersive-vistaire]) .cinematic-faq [data-seo-faq-question] { font-family: "Vistaire Editorial", Georgia, serif; }
+:where(.cinematic-page[data-immersive-vistaire]) .cinematic-related {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr));
+  gap: 16px;
+}
+:where(.cinematic-page[data-immersive-vistaire]) .cinematic-related a { text-decoration: none; transition: border-color 200ms ease; }
+:where(.cinematic-page[data-immersive-vistaire]) .cinematic-related a:hover { border-color: var(--amber); }
+:where(.cinematic-page[data-immersive-vistaire]) .cinematic-related strong {
+  font-family: "Vistaire Editorial", serif;
+  font-size: 24px;
+  font-weight: 400;
+}
+:where(.cinematic-page[data-immersive-vistaire]) .cinematic-related span:last-child { font-size: 14px; color: var(--muted); }
+/* The landing footer, over the dimmed room. */
+:where(.cinematic-page[data-immersive-vistaire]) .cinematic-footer {
+  display: grid;
+  gap: 30px;
+  padding: 40px 0 28px;
+  background: linear-gradient(180deg, #11111026, #111110b8 400px);
+}
+:where(.cinematic-page[data-immersive-vistaire]) .cinematic-footer [data-footer-navigation],
+:where(.cinematic-page[data-immersive-vistaire]) .cinematic-footer .footer-grid,
+:where(.cinematic-page[data-immersive-vistaire]) .cinematic-footer .footer-bottom {
+  padding-inline: var(--pad);
+}
+@media (max-width: 767.98px) {
+  :where(.cinematic-page[data-immersive-vistaire]) .cinematic-faq { grid-template-columns: minmax(0, 1fr); gap: 24px; }
+  /* Phones read each row as a stacked card: the whole table, no sideways scroll. */
+  :where(.cinematic-page[data-immersive-vistaire]) .cinematic-table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  :where(.cinematic-page[data-immersive-vistaire]) .cinematic-table :is(tr, tbody th, td) { display: block; }
+  :where(.cinematic-page[data-immersive-vistaire]) .cinematic-table tbody tr { padding: 14px 0; border-top: 1px solid #f8f3e81f; }
+  :where(.cinematic-page[data-immersive-vistaire]) .cinematic-table :is(tbody th, td) { padding: 0; border-top: 0; }
+  :where(.cinematic-page[data-immersive-vistaire]) .cinematic-table tbody th { margin-bottom: 8px; }
+  :where(.cinematic-page[data-immersive-vistaire]) .cinematic-table td + td { margin-top: 8px; }
+  :where(.cinematic-page[data-immersive-vistaire]) .cinematic-table td::before {
+    content: attr(data-label);
+    display: block;
+    font-size: 11px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--amber);
+  }
+}
+@media (max-width: 1050px) {
+  /* Stacked copy can run over the bright tablecloth: a glass card keeps it
+     legible whatever lies behind (as the landing's feature card does). */
+  :where(.cinematic-page[data-immersive-vistaire]) .cinematic-chapter .cinematic-copy {
+    padding: 18px 18px 20px;
+    border: 1px solid #f8f3e82b;
+    border-radius: 8px;
+    background: #111110c9;
+    backdrop-filter: blur(8px);
+    text-shadow: none;
+  }
+}
+/* Unlike the landing's darker closing room, page FAQs can sit over the bright
+   table: the same glass as the guide panels keeps every question legible. */
+:where(.cinematic-page[data-immersive-vistaire]) .cinematic-faq {
+  padding: clamp(24px, 4vw, 56px);
+  border: 1px solid #f8f3e82b;
+  border-radius: 8px;
+  background: #111110d6;
+  backdrop-filter: blur(10px);
+  text-shadow: none;
+}
+
+/* The footer sits outside <main> (its contentinfo landmark), above the room. */
+.cinematic-page[data-immersive-vistaire] > .cinematic-footer {
+  position: relative;
+  z-index: 1;
+}
+/* Short facts inside chapter copy: values, contact details, prices. */
+:where(.cinematic-page[data-immersive-vistaire]) .cinematic-values {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
+  margin: 0;
+  text-align: left;
+}
+:where(.cinematic-page[data-immersive-vistaire]) .cinematic-values > div,
+:where(.cinematic-page[data-immersive-vistaire]) .cinematic-contact > div {
+  display: grid;
+  gap: 6px;
+  padding-top: 12px;
+  border-top: 1px solid #f8f3e82b;
+}
+:where(.cinematic-page[data-immersive-vistaire]) .cinematic-values dt {
+  display: flex;
+  gap: 10px;
+  font-family: "Vistaire Editorial", serif;
+  font-size: 22px;
+  color: var(--cream);
+}
+:where(.cinematic-page[data-immersive-vistaire]) .cinematic-values dt span,
+:where(.cinematic-page[data-immersive-vistaire]) .cinematic-contact dt {
+  font-family: inherit;
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--amber);
+}
+:where(.cinematic-page[data-immersive-vistaire]) .cinematic-values dd,
+:where(.cinematic-page[data-immersive-vistaire]) .cinematic-contact dd {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+:where(.cinematic-page[data-immersive-vistaire]) .cinematic-contact {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px 22px;
+  margin: 0;
+  text-align: left;
+}
+:where(.cinematic-page[data-immersive-vistaire]) .cinematic-contact a,
+:where(.cinematic-page[data-immersive-vistaire]) .cinematic-contact-line a {
+  color: var(--cream);
+  text-underline-offset: 4px;
+}
+:where(.cinematic-page[data-immersive-vistaire]) .cinematic-contact-line {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 18px;
+}
+:where(.cinematic-page[data-immersive-vistaire]) .cinematic-contact-line span,
+:where(.cinematic-page[data-immersive-vistaire]) .cinematic-note {
+  font-size: 12px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--amber);
+}
+:where(.cinematic-page[data-immersive-vistaire]) .cinematic-copy .cinematic-price strong {
+  font-family: "Vistaire Editorial", serif;
+  font-size: 30px;
+  font-weight: 400;
+  color: var(--cream);
+}
+/* Booking form: free reading, never pinned or faded. */
+:where(.cinematic-page[data-immersive-vistaire]) .cinematic-form {
+  width: min(760px, 100%);
+  justify-self: center;
+  scroll-margin-top: 104px;
+}
+:where(.cinematic-page[data-immersive-vistaire]) .cinematic-back {
+  color: var(--muted);
+  font-size: 14px;
+}
+/* Long free reading (pricing details, guide articles): one dark glass sheet
+   keeps the existing layouts legible over the room. */
+.cinematic-page .cinematic-pricing-sheet,
+.cinematic-page .cinematic-article-sheet {
+  width: min(1360px, calc(100% - 2 * var(--pad)));
+  min-height: 0;
+  margin: 0 auto 80px;
+  border: 1px solid #f8f3e82b;
+  border-radius: 8px;
+  background: #0b0b0ae6;
+  backdrop-filter: blur(10px);
+}
+.cinematic-page .cinematic-pricing-sheet { padding-top: 56px; }
+.cinematic-page .cinematic-article-sheet > article { padding-top: 56px; }
+@media (max-width: 767.98px) {
+  :where(.cinematic-page[data-immersive-vistaire]) .cinematic-values {
+    grid-template-columns: 1fr;
+  }
+  .cinematic-page .cinematic-pricing-sheet,
+  .cinematic-page .cinematic-article-sheet {
+    width: calc(100% - 2 * var(--pad));
+  }
+  .cinematic-page .cinematic-article-sheet > article { padding: 32px 18px 48px; }
+}
+/* Pricing inclusions keep their own glass panel inside the sheet. */
+.cinematic-page .cinematic-pricing-sheet [data-pricing-included-panel] {
+  padding: clamp(22px, 3vw, 40px);
+  border: 1px solid #f8f3e82b;
+  border-radius: 8px;
+  background: #1a1a18a8;
+  backdrop-filter: blur(8px);
+}
+
+/* Light theme, as on the landing: ivory UI surfaces over the unchanged
+   cinematic room. Every text area sits on a surface; no dark shade. */
+html[data-vistaire-theme="light"] .cinematic-page[data-immersive-vistaire] {
+  --cream: var(--public-text);
+  --muted: var(--public-muted);
+  --amber: var(--public-gold);
+}
+html[data-vistaire-theme="light"] .cinematic-page .cinematic-chapter .stage::before {
+  display: none;
+}
+html[data-vistaire-theme="light"] .cinematic-page :is(.cinematic-copy, .cinematic-panel, .cinematic-faq, .cinematic-pricing-sheet, .cinematic-article-sheet) {
+  border: 1px solid var(--public-blue);
+  border-radius: 8px;
+  background: #fffcf5;
+  color: var(--public-text);
+  text-shadow: none;
+}
+html[data-vistaire-theme="light"] .cinematic-page .cinematic-copy {
+  padding: 22px 24px 24px;
+}
+html[data-vistaire-theme="light"] .cinematic-page .cinematic-footer {
+  background: #fffcf5;
+  color: var(--public-text);
+}
+html[data-vistaire-theme="light"] .cinematic-page .cinematic-pricing-sheet [data-pricing-included-panel] {
+  background: #eee7d9;
+}
+
+/* Need pages: their own restaurant photographs and tools in free reading. */
+:where(.cinematic-page[data-immersive-vistaire]) .cinematic-gallery {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+:where(.cinematic-page[data-immersive-vistaire]) .cinematic-photo {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+}
+:where(.cinematic-page[data-immersive-vistaire]) .cinematic-photo a {
+  display: grid;
+  gap: 8px;
+  color: var(--cream);
+  font-size: 14px;
+}
+:where(.cinematic-page[data-immersive-vistaire]) .cinematic-photo-frame {
+  position: relative;
+  aspect-ratio: 4 / 5;
+  overflow: hidden;
+  border: 1px solid #f8f3e82b;
+  border-radius: 8px;
+}
+:where(.cinematic-page[data-immersive-vistaire]) .cinematic-photo-frame img { object-fit: cover; }
+:where(.cinematic-page[data-immersive-vistaire]) .cinematic-photo figcaption {
+  font-size: 14px;
+  color: var(--muted);
+}
+:where(.cinematic-page[data-immersive-vistaire]) .cinematic-checklist fieldset {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+:where(.cinematic-page[data-immersive-vistaire]) .cinematic-checklist legend {
+  margin-bottom: 8px;
+  font-family: "Vistaire Editorial", serif;
+  font-size: clamp(24px, 2.4vw, 34px);
+  color: var(--cream);
+}
+:where(.cinematic-page[data-immersive-vistaire]) .cinematic-checklist label {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  min-height: 44px;
+  color: var(--muted);
+}
+:where(.cinematic-page[data-immersive-vistaire]) .cinematic-checklist input { width: 20px; height: 20px; margin-top: 3px; accent-color: var(--amber); }
+:where(.cinematic-page[data-immersive-vistaire]) .cinematic-checklist button,
+:where(.cinematic-page[data-immersive-vistaire]) .cinematic-panel summary {
+  min-height: 44px;
+  color: var(--cream);
+  cursor: pointer;
+}
+:where(.cinematic-page[data-immersive-vistaire]) .cinematic-checklist button {
+  justify-self: start;
+  padding: 10px 18px;
+  border: 1px solid #f8f3e855;
+  border-radius: 4px;
+  background: transparent;
+  font: inherit;
+}
+/* Disclosures read as rows that open: number, title, then a + that turns to ×. */
+:where(.cinematic-page[data-immersive-vistaire]) .cinematic-panel details { border-top: 1px solid color-mix(in srgb, var(--cream) 16%, transparent); }
+:where(.cinematic-page[data-immersive-vistaire]) .cinematic-panel details:last-of-type { border-bottom: 1px solid color-mix(in srgb, var(--cream) 16%, transparent); }
+:where(.cinematic-page[data-immersive-vistaire]) .cinematic-panel summary {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 0;
+  list-style: none;
+}
+:where(.cinematic-page[data-immersive-vistaire]) .cinematic-panel summary::-webkit-details-marker { display: none; }
+:where(.cinematic-page[data-immersive-vistaire]) .cinematic-panel summary > span { color: var(--amber); font-size: 12px; letter-spacing: 0.08em; }
+:where(.cinematic-page[data-immersive-vistaire]) .cinematic-panel summary::after {
+  content: "+";
+  margin-left: auto;
+  color: var(--amber);
+  font-size: 22px;
+  line-height: 1;
+  transition: transform 0.2s ease;
+}
+:where(.cinematic-page[data-immersive-vistaire]) .cinematic-panel details[open] > summary::after { transform: rotate(45deg); }
+:where(.cinematic-page[data-immersive-vistaire]) .cinematic-panel details > p { margin: 0 0 14px; }
+@media (prefers-reduced-motion: reduce) {
+  :where(.cinematic-page[data-immersive-vistaire]) .cinematic-panel summary::after { transition: none; }
+}
+@media (max-width: 767.98px) {
+  :where(.cinematic-page[data-immersive-vistaire]) .cinematic-gallery { grid-template-columns: 1fr; }
+  :where(.cinematic-page[data-immersive-vistaire]) .cinematic-photo-frame { aspect-ratio: 4 / 3; }
+}
+/* Grid children never grow past the reading column on narrow phones. */
+:where(.cinematic-page[data-immersive-vistaire]) :is(.cinematic-guide, .cinematic-faq) > * {
+  min-width: 0;
+}

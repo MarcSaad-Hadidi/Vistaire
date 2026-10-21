@@ -1105,7 +1105,7 @@ function mapDishRow(
   );
   const has3d = Boolean(model3dUrl || webModel3dUrl || arModel3dUrl);
   const hasIosAr = Boolean(arUsdzUrl || usdzUrl);
-  const hasAndroidAr = Boolean(arModel3dUrl);
+  const hasAndroidAr = Boolean(webModel3dUrl || arModel3dUrl);
   const hasAr = hasIosAr || hasAndroidAr;
   const slug = slugify(
     getString(row, ["slug", "dish_slug", "dishSlug"], name)

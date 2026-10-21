@@ -226,16 +226,18 @@ async function postJson(url, payload) {
 }
 
 async function uploadSigned(upload, bytes, contentType) {
+  const signedHeaders = new URL(upload.signedUrl).searchParams.get("X-Amz-SignedHeaders")?.split(";") ?? [];
   const response = await fetch(upload.signedUrl, {
     method: "PUT",
     headers: {
       "Content-Type": contentType,
+      ...(signedHeaders.includes("if-none-match") ? { "If-None-Match": "*" } : {}),
       "Cache-Control": contentType === "application/json" ? "max-age=3600" : "max-age=31536000"
     },
     body: bytes
   });
   if (!response.ok) {
-    throw new Error(`Upload signe Supabase impossible (${response.status}).`);
+    throw new Error(`Upload signe Storage impossible (${response.status}).`);
   }
 }
 

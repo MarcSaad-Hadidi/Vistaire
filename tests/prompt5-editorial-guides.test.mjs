@@ -213,19 +213,22 @@ test("keeps bilingual guide routes lightweight for shared client imports", async
   const routeModulePath = join(process.cwd(), "lib", "editorialGuideRoutes.ts");
   assert.equal(existsSync(routeModulePath), true, "lightweight guide route module must exist");
 
-  const [routeSource, i18nSource, footerSource] = await Promise.all([
+  const [routeSource, i18nSource, footerSource, navigationSource] = await Promise.all([
     readFile(routeModulePath, "utf8"),
     readFile(join(process.cwd(), "lib", "i18n.ts"), "utf8"),
     readFile(
       join(process.cwd(), "components", "vistaire-preview", "VistairePreviewChrome.tsx"),
       "utf8"
-    )
+    ),
+    readFile(join(process.cwd(), "lib", "publicFooterNavigation.ts"), "utf8")
   ]);
 
   assert.doesNotMatch(routeSource, /sections|paragraphs|checklist/);
   assert.match(i18nSource, /from\s+["']\.\/editorialGuideRoutes\.ts["']/);
   assert.doesNotMatch(i18nSource, /from\s+["']\.\/editorialGuides\.ts["']/);
-  assert.match(footerSource, /@\/lib\/editorialGuideRoutes/);
+  assert.match(footerSource, /PublicFooterNavigation/);
+  assert.match(navigationSource, /from\s+["']\.\/editorialGuideRoutes\.ts["']/);
+  assert.doesNotMatch(navigationSource, /from\s+["']\.\/editorialGuides\.ts["']/);
   assert.doesNotMatch(footerSource, /@\/lib\/editorialGuides/);
 });
 

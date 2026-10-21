@@ -1,7 +1,7 @@
 export const PRIVACY_CONSENT_VERSION = 1 as const;
 export const PRIVACY_CONSENT_STORAGE_KEY = "vistaire.privacyConsent.v1";
 export const PRIVACY_CONSENT_CHANGED_EVENT = "vistaire:privacy-consent-changed";
-export const VISTAIRE_ANALYTICS_SESSION_KEY = "vistaire.analytics.sessionId.v1";
+export const VISTAIRE_ANALYTICS_SESSION_KEY = "vistaire.analytics.sessionId.v2";
 
 export type PrivacyConsent = {
   version: typeof PRIVACY_CONSENT_VERSION;

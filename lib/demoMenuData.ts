@@ -1,3 +1,4 @@
+import { resolvePublicModelUrl } from "./publicModelAssets.ts";
 import type { Locale } from "./i18n.ts";
 import type { GoogleReviewConfig } from "./menu/publicMenuCore.ts";
 import type { DishAllergenDeclaration } from "./menu/allergens.ts";
@@ -135,16 +136,6 @@ export function getDishCardImageObjectPosition(dish: Dish): string {
     dish.imageObjectPosition ??
     DEFAULT_IMAGE_FOCUS[dish.categorySlug] ??
     "center 48%"
-  );
-}
-
-/** Cadrage hero fiche plat. */
-export function getDishDetailImageObjectPosition(dish: Dish): string {
-  return (
-    dish.imageObjectPositionDetail ??
-    dish.imageObjectPosition ??
-    DEFAULT_IMAGE_FOCUS[dish.categorySlug] ??
-    "center 44%"
   );
 }
 
@@ -810,10 +801,14 @@ function localizeCategory(category: Category, locale: Locale): Category {
 }
 
 function localizeDish(dish: Dish, locale: Locale): Dish {
-  if (locale !== "en") return dish;
   return {
     ...dish,
-    ...(DISH_TRANSLATIONS_EN[dish.slug] ?? {})
+    ...(locale === "en" ? DISH_TRANSLATIONS_EN[dish.slug] ?? {} : {}),
+    model3dUrl: resolvePublicModelUrl(dish.model3dUrl),
+    webModel3dUrl: dish.webModel3dUrl ? resolvePublicModelUrl(dish.webModel3dUrl) : dish.webModel3dUrl,
+    arModel3dUrl: dish.arModel3dUrl ? resolvePublicModelUrl(dish.arModel3dUrl) : dish.arModel3dUrl,
+    usdzUrl: resolvePublicModelUrl(dish.usdzUrl),
+    arUsdzUrl: dish.arUsdzUrl ? resolvePublicModelUrl(dish.arUsdzUrl) : dish.arUsdzUrl,
   };
 }
 
@@ -841,12 +836,6 @@ export function getDishesByCategorySlug(
   locale: Locale = "fr"
 ): Dish[] {
   return DISHES.filter((dish) => dish.categorySlug === categorySlug).map((dish) =>
-    localizeDish(dish, locale)
-  );
-}
-
-export function getSignatureDishes(locale: Locale = "fr"): Dish[] {
-  return DISHES.filter((dish) => dish.isSignature).map((dish) =>
     localizeDish(dish, locale)
   );
 }

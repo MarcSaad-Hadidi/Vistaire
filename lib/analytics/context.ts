@@ -22,6 +22,21 @@ export async function validateAnalyticsEventContext(
 
   try {
     const result = await validateAnalyticsContext(payload, {
+      publicQrBelongsToRestaurant: async (qrId, restaurantId) => {
+        const [qr, restaurant] = await Promise.all([
+          admin.client.from("qr_codes").select("target_path")
+            .eq("id", qrId).eq("restaurant_id", restaurantId)
+            .eq("target_kind", "menu").eq("status", "active").maybeSingle(),
+          admin.client.from("restaurants").select("slug").eq("id", restaurantId).maybeSingle()
+        ]);
+        if (qr.error || restaurant.error) throw qr.error ?? restaurant.error;
+        if (!qr.data || !restaurant.data?.slug) return false;
+        try {
+          const target = new URL(qr.data.target_path, "https://vistaire.local");
+          return target.origin === "https://vistaire.local"
+            && decodeURIComponent(target.pathname).replace(/\/$/, "") === `/menu/${restaurant.data.slug}`;
+        } catch { return false; }
+      },
       restaurantExists: async (restaurantId) => {
         const { data, error } = await admin.client
           .from("restaurants")

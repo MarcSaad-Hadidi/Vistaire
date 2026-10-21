@@ -23,12 +23,12 @@ export function InternalSeoLinks({
 
   if (variant === "inline") {
     return (
-      <nav aria-label={resolvedHeading} className="flex flex-wrap gap-x-4 gap-y-2">
+      <nav aria-label={resolvedHeading} className="public-related-inline">
         {relatedPages.map((page) => (
           <Link
             key={page.path}
             href={page.path}
-            className="text-sm text-champagne/90 underline decoration-champagne/30 underline-offset-4 transition hover:text-champagne hover:decoration-champagne/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-champagne"
+            prefetch={false}
           >
             {page.footerLabel ?? page.eyebrow}
           </Link>
@@ -38,29 +38,20 @@ export function InternalSeoLinks({
   }
 
   return (
-    <section aria-labelledby={`${currentSlug}-guides`}>
-      <h2
-        id={`${currentSlug}-guides`}
-        className="font-display text-3xl font-normal leading-tight text-cream sm:text-4xl"
-      >
+    <section aria-labelledby={`${currentSlug}-guides`} className="public-related">
+      <h2 id={`${currentSlug}-guides`}>
         {resolvedHeading}
       </h2>
-      <div className="mt-8 grid gap-4 md:grid-cols-3">
+      <div>
         {relatedPages.map((page) => (
           <Link
             key={page.path}
             href={page.path}
-            className="group rounded-lg border border-white/10 bg-[#0d0907] p-5 transition hover:border-champagne/35 hover:bg-[#120d09] focus:outline-none focus-visible:ring-2 focus-visible:ring-champagne"
+            prefetch={false}
           >
-            <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-champagne/70">
-              {page.eyebrow}
-            </p>
-            <h3 className="mt-3 font-display text-xl leading-tight text-cream group-hover:text-champagne">
-              {page.linkTitle ?? page.h1}
-            </h3>
-            <p className="mt-3 text-sm leading-6 text-[#a99984]">
-              {page.relatedDescription}
-            </p>
+            <p>{page.eyebrow}</p>
+            <h3>{page.linkTitle ?? page.h1}</h3>
+            <span>{page.relatedDescription}</span>
           </Link>
         ))}
       </div>
