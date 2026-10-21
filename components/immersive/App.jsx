@@ -306,18 +306,19 @@ function Modal({ label, children, close }) {
   );
 }
 export function App({ locale = "fr" }) {
-  // The room and phone download with the HTML, not after the lazy scene chunk;
-  // the scene's own fetches reuse them (same URL and CORS mode).
-  for (const id of ["immersive.restaurant.visible.textures-512", "immersive.phone", "immersive.support.acrylique"])
-    preload(resolvePublicModelUrl(id), { as: "fetch", crossOrigin: "anonymous" });
-  // The Draco decoder the room needs, fetched by three's FileLoader.
-  for (const file of ["draco_wasm_wrapper.js", "draco_decoder.wasm"])
-    preload(`/immersive-assets/draco/${file}`, { as: "fetch", crossOrigin: "anonymous" });
-  // The opening lobster depends on the viewport (Scene.jsx modelUrl): start it
-  // at hydration rather than after the scene chunk.
+  // The opening shot's models start at hydration, still before the lazy scene
+  // chunk (its fetches reuse them: same URL and CORS mode). Not in the server
+  // HTML: ~3.4 MB there competed with the page's own CSS and scripts before
+  // first paint on slow mobile networks.
   useEffect(() => {
-    preload(resolvePublicModelUrl(innerWidth < 768 ? "immersive.dish.homard.scene-mobile" : "immersive.dish.homard.scene"),
-      { as: "fetch", crossOrigin: "anonymous" });
+    const fetchHint = { as: "fetch", crossOrigin: "anonymous" };
+    for (const id of ["immersive.restaurant.visible.textures-512", "immersive.phone", "immersive.support.acrylique"])
+      preload(resolvePublicModelUrl(id), fetchHint);
+    // The Draco decoder the room needs, fetched by three's FileLoader.
+    for (const file of ["draco_wasm_wrapper.js", "draco_decoder.wasm"])
+      preload(`/immersive-assets/draco/${file}`, fetchHint);
+    // The opening lobster depends on the viewport (Scene.jsx modelUrl).
+    preload(resolvePublicModelUrl(innerWidth < 768 ? "immersive.dish.homard.scene-mobile" : "immersive.dish.homard.scene"), fetchHint);
   }, []);
   return (
     <LandingLocaleProvider locale={locale}>

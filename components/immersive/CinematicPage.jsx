@@ -37,19 +37,12 @@ export function CinematicPage({ chapters, scene = {}, children, footer, mainProp
   // Each page shows its own dish, stand and one restaurant's menu on every
   // phone shot (pagePhoneDemo, unlike the landing's demo picker).
   const { phoneDemo = "maison-elyse", ...objects } = scene;
-  // What the opening shot shows downloads with the HTML (these hints render
-  // into the server page), not after the lazy scene chunk: the reveal waits for
-  // it. The scene's own fetches reuse them (same URL and CORS mode); objects of
-  // later shots load after the reveal.
+  // What the opening shot shows starts downloading at hydration (see the
+  // effect below), before the scene chunk needs it: the reveal waits for it.
+  // Not in the server HTML, where megabytes of models competed with the page's
+  // CSS and scripts before first paint. Later shots load after the reveal.
   const opening = pageShot(chapters[0].shot, 0, false, true)
     ?? { [PILLAR_OPENINGS[chapters[0].shot]]: 1 };
-  preload(resolvePublicModelUrl("immersive.restaurant.visible.textures-512"), fetchHint);
-  if (opening.phoneScale > 0 || opening.pdfPhoneScale > 0) preload(resolvePublicModelUrl("immersive.phone"), fetchHint);
-  if (opening.supportScale > 0)
-    preload(supportModelUrls[chapters[0].scene?.collection ?? objects.collection ?? "acrylique"], fetchHint);
-  // The Draco decoder the room needs, fetched by three's FileLoader.
-  for (const file of ["draco_wasm_wrapper.js", "draco_decoder.wasm"])
-    preload(`/immersive-assets/draco/${file}`, fetchHint);
   // Chapters may own the stand's collection, the phone's restaurant or the
   // laptop's lid (pricing, demo and restaurant preview pages).
   const needsLaptop = chapters.some((chapter) => chapter.laptopLid);
@@ -112,9 +105,16 @@ export function CinematicPage({ chapters, scene = {}, children, footer, mainProp
     };
   }, [loading]);
 
-  // The opening dish's file depends on the viewport, known at hydration (as
-  // the landing does for its lobster).
+  // The scene reuses these fetches (same URL and CORS mode). The opening dish's
+  // file depends on the viewport, known at hydration.
   useEffect(() => {
+    preload(resolvePublicModelUrl("immersive.restaurant.visible.textures-512"), fetchHint);
+    if (opening.phoneScale > 0 || opening.pdfPhoneScale > 0) preload(resolvePublicModelUrl("immersive.phone"), fetchHint);
+    if (opening.supportScale > 0)
+      preload(supportModelUrls[chapters[0].scene?.collection ?? objects.collection ?? "acrylique"], fetchHint);
+    // The Draco decoder the room needs, fetched by three's FileLoader.
+    for (const file of ["draco_wasm_wrapper.js", "draco_decoder.wasm"])
+      preload(`/immersive-assets/draco/${file}`, fetchHint);
     if (opening.dishScale > 0) preload(dishSceneModelUrl(objects.dish ?? "homard", innerWidth < 768), fetchHint);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- the opening shot is fixed per page.
   }, []);
