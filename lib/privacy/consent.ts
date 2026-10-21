@@ -69,6 +69,7 @@ export function writePrivacyConsent(analytics: boolean): PrivacyConsent | null {
     version: PRIVACY_CONSENT_VERSION,
     analytics
   };
+  const wasGranted = hasAnalyticsConsent();
 
   try {
     window.localStorage.setItem(
@@ -76,7 +77,8 @@ export function writePrivacyConsent(analytics: boolean): PrivacyConsent | null {
       JSON.stringify(consent)
     );
 
-    if (!analytics) {
+    // Withdrawal ends the session; a fresh grant must not resume one recorded before consent.
+    if (!analytics || !wasGranted) {
       clearVistaireAnalyticsSession();
     }
 

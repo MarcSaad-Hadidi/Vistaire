@@ -104,3 +104,21 @@ test('withdrawing analytics consent ends the in-memory session, so a later accep
   assert.notEqual(sent.at(-1).sessionId,first);
  } finally {globalThis.window=previous.window;globalThis.fetch=previous.fetch;}
 });
+test('a first acceptance does not resume a session recorded before consent existed', async () => {
+ const client = await import('../lib/analytics/client.ts?first-acceptance');
+ const { writePrivacyConsent } = await import('../lib/privacy/consent.ts');
+ const previous = {window:globalThis.window,fetch:globalThis.fetch};
+ const legacyId='11111111-2222-4333-8444-555555555555';
+ const session=new Map([['vistaire.analytics.sessionId.v2',JSON.stringify({id:legacyId,expires:Date.now()+600000,sequence:4,started:['legacy']})]]);
+ const local=new Map();const sent=[];
+ globalThis.window={innerWidth:390,dispatchEvent:()=>true,
+  localStorage:{getItem:k=>local.get(k)??null,setItem:(k,v)=>local.set(k,v)},
+  sessionStorage:{getItem:k=>session.get(k),setItem:(k,v)=>session.set(k,v),removeItem:k=>session.delete(k)}};
+ globalThis.fetch=async(_,options)=>{sent.push(JSON.parse(options.body));return {ok:true}};
+ try {
+  writePrivacyConsent(true);
+  client.trackPublicMenuEvent(menu,{eventName:'menu_opened'});
+  assert.ok(sent.length > 0);
+  assert.ok(sent.every((event)=>event.sessionId!==legacyId), 'pre-consent session must not be reused');
+ } finally {globalThis.window=previous.window;globalThis.fetch=previous.fetch;}
+});
