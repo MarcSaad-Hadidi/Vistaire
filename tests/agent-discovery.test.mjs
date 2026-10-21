@@ -5,7 +5,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
 import nextConfig from "../next.config.ts";
-import { buildNotFoundMarkdown, isMissingRoute } from "../lib/agent-discovery/pageMarkdown.ts";
+import { buildNotFoundMarkdown, buildPageMarkdown, isMissingRoute } from "../lib/agent-discovery/pageMarkdown.ts";
 import * as agentDiscovery from "../lib/agent-discovery/index.ts";
 import {
   AGENT_SKILL_DOCS,
@@ -326,15 +326,24 @@ test("developer resources are discoverable: skills when-to-use, /developers, /pr
   assert.ok(redirects.some((r) => r.source === "/privacy" && r.destination === "/politique-de-confidentialite"));
   assert.ok(redirects.some((r) => r.source === "/docs" && r.destination === "/developers"));
 
-  const developers = readRepoFile("app/(fr)/developers/page.tsx");
-  for (const resource of ["/openapi.json", "/auth.md", "/llms.txt", "/.well-known/agent-skills/index.json", "/api/exchange-rates"]) {
-    assert.ok(developers.includes(resource), resource);
+  // FR and EN pages share one content module, which also feeds their Markdown twins.
+  for (const path of ["/developers", "/en/developers"]) {
+    const markdown = buildPageMarkdown(path);
+    assert.ok(markdown, path);
+    for (const resource of ["/openapi.json", "/auth.md", "/llms.txt", "/.well-known/agent-skills/index.json", "/api/exchange-rates"]) {
+      assert.ok(markdown.includes(resource), `${path} ${resource}`);
+    }
   }
-  for (const footer of ["components/vistaire-preview/VistairePreviewChrome.tsx", "components/immersive/App.jsx"]) {
-    assert.match(readRepoFile(footer), /href="\/developers"/, footer);
-  }
+  assert.ok(existsSync(join(repoRoot, "app/(en)/en/developers/page.tsx")));
+  // Footer links go through the bilingual route map, so English pages reach /en/developers.
+  const { getLocalizedPath } = await import("../lib/i18n.ts");
+  assert.equal(getLocalizedPath("/developers", "en"), "/en/developers");
+  assert.match(readRepoFile("components/immersive/App.jsx"), /href=\{link\("\/developers"\)\}/);
+  assert.match(readRepoFile("components/vistaire-preview/VistairePreviewChrome.tsx"), /getLocalizedPath\("\/developers", locale\)/);
   assert.match(readRepoFile("public/llms.txt"), /https:\/\/www\.vistaire\.ca\/developers/);
 
   const { buildSitemapEntries } = await import("../lib/seo.ts");
-  assert.ok(buildSitemapEntries().some((entry) => entry.url.endsWith("/developers")));
+  for (const path of ["/developers", "/en/developers"]) {
+    assert.ok(buildSitemapEntries().some((entry) => new URL(entry.url).pathname === path), path);
+  }
 });

@@ -100,7 +100,8 @@ test("builds a focused sitemap for public Vistaire surfaces", () => {
     "https://www.vistaire.ca/en/high-end-restaurant-digital-menu",
     "https://www.vistaire.ca/menu-digital-restaurant-gastronomique",
     "https://www.vistaire.ca/en/fine-dining-restaurant-digital-menu",
-    "https://www.vistaire.ca/developers"
+    "https://www.vistaire.ca/developers",
+    "https://www.vistaire.ca/en/developers"
   ]);
   for (const internalPath of ["/admin", "/owner", "/sign-in", "/todos", "/api/"]) {
     assert.equal(urls.some((url) => url.includes(internalPath)), false);

@@ -430,7 +430,8 @@ test.describe("Vistaire SEO smoke", () => {
         englishEditorialGuidePages[index]
       ]),
       ...seoGeoPages.flatMap((path, index) => [path, englishSeoGeoPages[index]]),
-      "/developers"
+      "/developers",
+      "/en/developers"
     ]);
     expect(sitemapText).not.toContain("/carte-vistaire");
     expect(sitemapText).not.toContain("/admin");

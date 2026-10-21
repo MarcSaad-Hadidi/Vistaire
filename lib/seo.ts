@@ -289,7 +289,6 @@ export function buildSitemapEntries(
       );
     }
   }
-  setEntry("/developers", "monthly", 0.3, resolveLastModified("2026-10-21"));
 
   return [...entries.values()];
 }
