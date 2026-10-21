@@ -30,7 +30,15 @@ export function parsePrivacyConsent(raw: string | null): PrivacyConsent | null {
   }
 }
 
+let analyticsSessionGeneration = 0;
+
+/** Bumped on withdrawal so in-memory analytics sessions cannot resume. */
+export function currentAnalyticsSessionGeneration(): number {
+  return analyticsSessionGeneration;
+}
+
 export function clearVistaireAnalyticsSession(): void {
+  analyticsSessionGeneration += 1;
   if (typeof window === "undefined") return;
 
   try {

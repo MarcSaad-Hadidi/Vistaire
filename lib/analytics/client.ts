@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  currentAnalyticsSessionGeneration,
   hasAnalyticsConsent,
   VISTAIRE_ANALYTICS_SESSION_KEY
 } from "../privacy/consent.ts";
@@ -67,8 +68,13 @@ function createSessionId(): string {
 }
 
 let memorySession: { id: string; expires: number; sequence: number; started?: string[] } | undefined;
+let memorySessionGeneration = currentAnalyticsSessionGeneration();
 function getSessionId(reservedEvents = 1, allowRotation = true): string {
   const now = Date.now();
+  if (memorySessionGeneration !== currentAnalyticsSessionGeneration()) {
+    memorySession = undefined;
+    memorySessionGeneration = currentAnalyticsSessionGeneration();
+  }
   try {
     const raw = window.sessionStorage.getItem(SESSION_KEY);
     if (raw) {

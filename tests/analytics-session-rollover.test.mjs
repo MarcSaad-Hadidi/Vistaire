@@ -6,7 +6,7 @@ test('visible public session rollover initializes before direct model events, on
  const previous = {window:globalThis.window,fetch:globalThis.fetch,now:Date.now};
  let now=2_000_000, visible=true; const sent=[],storage=new Map();
  Date.now=()=>now;
- globalThis.window={innerWidth:390,sessionStorage:{getItem:k=>storage.get(k),setItem:(k,v)=>storage.set(k,v)}};
+ globalThis.window={innerWidth:390, localStorage: { getItem: () => '{"version":1,"analytics":true}' },sessionStorage:{getItem:k=>storage.get(k),setItem:(k,v)=>storage.set(k,v)}};
  globalThis.fetch=async(_,options)=>{sent.push(JSON.parse(options.body));return {ok:true}};
  try {
   const stop=client.registerPublicMenuVisibility(menu,{slug:'sole',categorySlug:'mains'},()=>visible);
@@ -35,7 +35,7 @@ test('hidden or revoked collection cannot consume initialization; rate-limited a
  const client=await import('../lib/analytics/client.ts?privacy-rollover');
  const old={window:globalThis.window,fetch:globalThis.fetch,now:Date.now,disabled:process.env.NEXT_PUBLIC_ANALYTICS_DISABLED};
  let now=10_000_000,visible=false;const sent=[],storage=new Map();Date.now=()=>now;
- globalThis.window={innerWidth:390,sessionStorage:{getItem:k=>storage.get(k),setItem:(k,v)=>storage.set(k,v)}};
+ globalThis.window={innerWidth:390, localStorage: { getItem: () => '{"version":1,"analytics":true}' },sessionStorage:{getItem:k=>storage.get(k),setItem:(k,v)=>storage.set(k,v)}};
  globalThis.fetch=async(_,o)=>{sent.push(JSON.parse(o.body));return {ok:true}};
  try {
   process.env.NEXT_PUBLIC_ANALYTICS_DISABLED='true';
@@ -61,7 +61,7 @@ test('overlaid detail, repeated visits, demo identity and advancing-clock batche
  const client=await import('../lib/analytics/client.ts?overlays');
  const old={window:globalThis.window,fetch:globalThis.fetch,now:Date.now};let now=20_000_000;const sent=[],storage=new Map();
  Date.now=()=>now;
- globalThis.window={innerWidth:390,sessionStorage:{getItem:k=>storage.get(k),setItem:(k,v)=>storage.set(k,v)}};
+ globalThis.window={innerWidth:390, localStorage: { getItem: () => '{"version":1,"analytics":true}' },sessionStorage:{getItem:k=>storage.get(k),setItem:(k,v)=>storage.set(k,v)}};
  globalThis.fetch=async(_,o)=>{sent.push(JSON.parse(o.body));return {ok:true}};
  try {
   const stops=[client.registerPublicMenuVisibility(menu,undefined,()=>true)];
@@ -86,4 +86,21 @@ test('overlaid detail, repeated visits, demo identity and advancing-clock batche
   assert.equal(sent.filter(e=>e.eventName==='session_started'&&e.metadata.demoMenu==='sauge-noire').length,0);
   stopA();stopB();
  }finally {globalThis.window=old.window;globalThis.fetch=old.fetch;Date.now=old.now;}
+});
+test('withdrawing analytics consent ends the in-memory session, so a later acceptance starts a new one', async () => {
+ const client = await import('../lib/analytics/client.ts?withdrawal');
+ const { clearVistaireAnalyticsSession } = await import('../lib/privacy/consent.ts');
+ const previous = {window:globalThis.window,fetch:globalThis.fetch};
+ const sent=[],storage=new Map();
+ globalThis.window={innerWidth:390, localStorage: { getItem: () => '{"version":1,"analytics":true}' },sessionStorage:{getItem:k=>storage.get(k),setItem:(k,v)=>storage.set(k,v),removeItem:k=>storage.delete(k)}};
+ globalThis.fetch=async(_,options)=>{sent.push(JSON.parse(options.body));return {ok:true}};
+ try {
+  const event=()=>client.trackPublicMenuEvent(menu,{eventName:'menu_opened'});
+  event();
+  const first=sent.at(-1).sessionId;
+  clearVistaireAnalyticsSession();
+  event();
+  assert.ok(first);
+  assert.notEqual(sent.at(-1).sessionId,first);
+ } finally {globalThis.window=previous.window;globalThis.fetch=previous.fetch;}
 });

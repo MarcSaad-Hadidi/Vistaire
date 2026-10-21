@@ -1,5 +1,6 @@
 import type React from "react";
 import { WebMcpProvider } from "@/components/agent/WebMcpProvider";
+import { ConsentedVercelAnalytics } from "@/components/analytics/ConsentedVercelAnalytics";
 import { MicrosoftClarity } from "@/components/analytics/MicrosoftClarity";
 import { JsonLd } from "@/components/JsonLd";
 import { PrivacyConsentProvider } from "@/components/privacy/PrivacyConsentProvider";
@@ -38,6 +39,7 @@ export function VistaireDocumentShell({
           <div id="contenu">{children}</div>
         </MicrosoftClarity>
         <PrivacyUtilityBar locale={locale} />
+        {process.env.VERCEL_URL && <ConsentedVercelAnalytics />}
       </PrivacyConsentProvider>
     </>
   );

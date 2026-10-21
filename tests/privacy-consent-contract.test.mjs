@@ -212,3 +212,14 @@ test("the preview footer places legal controls beside the copyright", async () =
   assert.match(utilityBar, /variant\?: "global" \| "footer"/);
   assert.match(utilityBar, /variant === "global"/);
 });
+
+test("Vercel Web Analytics only loads and sends after analytics consent", async () => {
+  for (const layout of ["app/(fr)/layout.tsx", "app/(en)/layout.tsx"]) {
+    assert.doesNotMatch(await readSource(layout), /@vercel\/analytics/, layout);
+  }
+  const shell = await readSource("components/layout/VistaireDocumentShell.tsx");
+  assert.match(shell, /<PrivacyConsentProvider[\s\S]*<ConsentedVercelAnalytics[\s\S]*<\/PrivacyConsentProvider>/);
+  const consented = await readSource("components/analytics/ConsentedVercelAnalytics.tsx");
+  assert.match(consented, /hydrated && analyticsAllowed/);
+  assert.match(consented, /beforeSend=\{[^}]*hasAnalyticsConsent\(\)/);
+});
