@@ -622,9 +622,7 @@ for (const width of [390,1440]) test(`native entry assistance is bounded, interr
   await page.emulateMedia({reducedMotion:'reduce'});
   await position(end-inputRoom);
   await gesture(1);
-  await expect.poll(()=>page.evaluate(()=>scrollY)).toBeGreaterThan(end-inputRoom+5);
-  await page.waitForTimeout(350);
-  expect(await page.evaluate(()=>scrollY)).toBeLessThan(end-10);
+  await expect.poll(()=>page.evaluate(target=>Math.abs(scrollY-target),end)).toBeLessThanOrEqual(1);
   expect(errors).toEqual([]);
   } finally {
     let diagnosticTimer: ReturnType<typeof setTimeout> | undefined;
