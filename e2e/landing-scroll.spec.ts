@@ -1295,30 +1295,33 @@ renderedTouchTest('Chromium trusted touch: pricing edges own one trip and offer 
   }
 });
 
-test("the 3D loads behind the opening poster on arrival; an early scroll waits until it is ready", async ({ page }) => {
-  test.setTimeout(180_000);
-  await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto("/");
-  await expect(page.locator(".opening-poster")).toBeVisible();
-  // Without any input, the scene starts loading once the page has loaded.
-  const canvas = page.locator(".scene-canvas");
-  await expect(canvas).toBeAttached({ timeout: 30_000 });
-  if (await canvas.getAttribute("data-ready") !== "true") {
-    await expect(page.locator(".poster-cue")).toBeVisible();
-    // The still stays painted over the loading scene layer.
-    expect(await page.evaluate(() => {
-      const layer = document.querySelector(".scene-layer");
-      const poster = document.querySelector(".opening-poster");
-      return Boolean(layer && poster && layer.compareDocumentPosition(poster) & Node.DOCUMENT_POSITION_FOLLOWING);
-    })).toBe(true);
-    // A scroll before the scene is ready is held at the opening.
-    await page.mouse.wheel(0, 2400);
-    const [y, ready] = await page.evaluate(() => [scrollY, document.querySelector<HTMLElement>(".scene-canvas")?.dataset.ready]);
-    if (ready !== "true") expect(y).toBe(0);
+test("scene startup keeps the first scroll free while 3D loads automatically", async ({ page }) => {
+  test.setTimeout(240_000);
+  for (const [route, width] of [["/", 390], ["/menu-digital-restaurant", 430]] as const) {
+    let releaseModels!: () => void;
+    const models = new Promise<void>(resolve => { releaseModels = resolve; });
+    await page.route(/\.glb(?:\?|$)/, async route => {
+      await models;
+      await route.continue();
+    });
+    try {
+      await page.setViewportSize({ width, height: width === 390 ? 844 : 932 });
+      await page.goto(route);
+      const canvas = page.locator(".scene-canvas");
+      await expect(canvas).toBeAttached({ timeout: 30_000 });
+      await expect(canvas).toHaveAttribute("data-ready", "false");
+      await page.mouse.wheel(0, 400);
+      await expect.poll(() => page.evaluate(() => scrollY), {
+        message: "the first gesture scrolls even while the model response is pending",
+        timeout: 2_000,
+      }).toBeGreaterThan(0);
+      await expect(page.locator(".poster-cue")).toHaveCount(0);
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    } finally {
+      releaseModels();
+      await page.unrouteAll({ behavior: "wait" });
+    }
+    await expect(page.locator(".scene-canvas")).toHaveAttribute("data-ready", "true", { timeout: 120_000 });
+    await expect(page.locator(".scene-canvas")).toHaveAttribute("data-restaurant-ready", "true");
   }
-  await expect(canvas).toHaveAttribute("data-ready", "true", { timeout: 120_000 });
-  await expect(canvas).toHaveAttribute("data-restaurant-ready", "true");
-  await expect(page.locator(".poster-cue")).toHaveCount(0);
-  await page.mouse.wheel(0, 400);
-  await expect.poll(() => page.evaluate(() => scrollY)).toBeGreaterThan(0);
 });

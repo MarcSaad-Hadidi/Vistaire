@@ -13,6 +13,7 @@ import {
 } from "./ProjectedBounds.js";
 import { createARExperience } from "./ARExperience.js";
 import { useEffect, useRef } from "react";
+import { yieldToMainThread } from "./deferredScene.js";
 import * as THREE from "three";
 import { DRACOLoader } from "three/examples/jsm/loaders/DRACOLoader.js";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
@@ -479,6 +480,9 @@ export default function Scene({
   }, [onReady, onError, onAssetError, onAssetLoading, onPhoneVideoError, onARStatus, onZoomFit]);
 
   useEffect(() => {
+    let cleanup = () => {};
+    let cancelled = false;
+    async function initialize() {
     const sceneState = stateRef.current;
     const diagnosticsEnabled = new URLSearchParams(window.location.search).get("sceneDiagnostics") === "1";
     // A fresh canvas per effect avoids reusing a lost context in StrictMode.
@@ -563,6 +567,15 @@ export default function Scene({
       );
     }
 
+    cleanup = () => {
+      disposed = true;
+      renderer?.dispose();
+      environmentTarget?.dispose();
+      environmentScene?.dispose();
+      canvas.remove();
+    };
+    await yieldToMainThread();
+    if (disposed) return;
     try {
       renderer = new THREE.WebGLRenderer({
         canvas,
@@ -581,6 +594,8 @@ export default function Scene({
       renderer.shadowMap.enabled = true;
       renderer.shadowMap.autoUpdate = false;
       renderer.shadowMap.type = THREE.PCFShadowMap;
+      await yieldToMainThread();
+      if (disposed) return;
       environmentScene = new RoomEnvironment();
       const pmrem = new THREE.PMREMGenerator(renderer);
       environmentTarget = pmrem.fromScene(environmentScene, 0.08);
@@ -589,14 +604,11 @@ export default function Scene({
       pmrem.dispose();
     } catch (error) {
       fail(error);
-      renderer?.dispose();
-      environmentTarget?.dispose();
-      environmentScene?.dispose();
-      return () => {
-        disposed = true;
-        canvas.remove();
-      };
+      cleanup();
+      return;
     }
+    await yieldToMainThread();
+    if (disposed) return;
 
     const warmFill = new THREE.HemisphereLight("#f1e9da", "#1b1813", 1.5);
     scene.add(warmFill);
@@ -1011,7 +1023,8 @@ export default function Scene({
           decodeQueue = decoding;
           return decoding;
         })
-        .then((gltf) => {
+        .then(async (gltf) => {
+          await yieldToMainThread();
           if (disposed || request.signal.aborted || currentDish !== name) {
             disposeTree(gltf.scene);
             return;
@@ -2351,7 +2364,7 @@ export default function Scene({
     document.addEventListener("visibilitychange", visibilityChanged);
     invalidateScene();
 
-    return () => {
+    cleanup = () => {
       disposed = true;
       cancelAnimationFrame(frame);
       frame = 0;
@@ -2403,6 +2416,15 @@ export default function Scene({
           renderer.forceContextLoss();
           canvas.remove();
         });
+    };
+    }
+    initialize().catch(error => {
+      cleanup();
+      if (!cancelled) callbacks.current.onError?.(error);
+    });
+    return () => {
+      cancelled = true;
+      cleanup();
     };
   }, [stateRef]);
 

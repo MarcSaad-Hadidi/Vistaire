@@ -438,6 +438,7 @@ test.describe("Vistaire pricing collections", () => {
       });
       expect(response?.status()).toBeLessThan(400);
       await expect(page.locator("[data-pricing-collection]")).toHaveCount(4);
+      await expect(page.locator("[data-pricing-dashboard] [data-admin-studio]")).toHaveCount(0);
       await expectNoHorizontalOverflow(page);
 
       if (viewport.width === 390 || viewport.width === 430) {
@@ -481,6 +482,7 @@ test.describe("Vistaire pricing collections", () => {
 
       await page.locator("[data-pricing-pilotage]").scrollIntoViewIfNeeded();
       await expect(page.locator("[data-pricing-dashboard]")).toBeVisible();
+      await expect(page.locator("[data-pricing-dashboard] [data-admin-studio]")).toBeVisible();
       await expect(
         page
           .locator('section[aria-labelledby="pricing-final-title"]')

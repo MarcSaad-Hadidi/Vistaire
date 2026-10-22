@@ -21,8 +21,8 @@
   z-index: 1000;
   background: var(--black);
 }
-html:not([lang^="en"]) :is(.cinematic-preloader, .cinematic-cue) span[lang="en"],
-html[lang^="en"] :is(.cinematic-preloader, .cinematic-cue) span[lang="fr"] {
+html:not([lang^="en"]) .cinematic-preloader span[lang="en"],
+html[lang^="en"] .cinematic-preloader span[lang="fr"] {
   display: none;
 }
 @media (max-width: 767.98px) {

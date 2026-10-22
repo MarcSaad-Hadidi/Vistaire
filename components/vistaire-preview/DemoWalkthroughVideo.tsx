@@ -85,6 +85,7 @@ export function DemoWalkthroughVideo({
     const observer = new IntersectionObserver(
       ([entry]) => {
         isIntersecting = Boolean(entry?.isIntersecting);
+        if (isIntersecting) video.poster = poster;
         updatePlayback();
       },
       { rootMargin: controls ? "0px" : "200px 0px" }
@@ -116,7 +117,7 @@ export function DemoWalkthroughVideo({
       observer.disconnect();
       releaseVideo();
     };
-  }, [src, controls, autoPlay, playbackRate]);
+  }, [src, poster, controls, autoPlay, playbackRate]);
 
   return (
     <div className="public-film-frame">
@@ -137,7 +138,7 @@ export function DemoWalkthroughVideo({
         loop
         muted
         playsInline
-        poster={poster}
+        poster={controls ? poster : undefined}
         preload={controls ? "none" : "metadata"}
         ref={videoRef}
         onLoadedData={() => setDecoded(true)}
