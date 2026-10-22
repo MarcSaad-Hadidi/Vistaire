@@ -60,7 +60,10 @@ export const DEVELOPERS_PAGE: Record<DevelopersLocale, DevelopersPageContent> = 
       },
       {
         heading: "Erreurs",
-        paragraphs: ["Les erreurs de l’API sont en JSON, avec un code lisible par une machine et une piste de résolution :"],
+        paragraphs: [
+          "Les photos et modèles 3D introuvables répondent `{ \"ok\": false, \"error\": \"…\" }` en 404, ou en 503 si le stockage est indisponible.",
+          "Toute route inconnue sous /api répond en JSON 404 avec un code lisible par une machine et une piste de résolution :"
+        ],
         code: errorExample
       },
       {
@@ -113,7 +116,10 @@ export const DEVELOPERS_PAGE: Record<DevelopersLocale, DevelopersPageContent> = 
       },
       {
         heading: "Errors",
-        paragraphs: ["API errors are JSON, with a machine-readable code and a recovery hint:"],
+        paragraphs: [
+          "Missing dish photos and 3D models answer `{ \"ok\": false, \"error\": \"…\" }` with 404, or 503 when storage is unavailable.",
+          "Any unknown path under /api answers a JSON 404 with a machine-readable code and a recovery hint:"
+        ],
         code: errorExample
       },
       {

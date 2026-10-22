@@ -350,3 +350,15 @@ test("developer resources are discoverable: skills when-to-use, /developers, /pr
     assert.ok(buildSitemapEntries().some((entry) => new URL(entry.url).pathname === path), path);
   }
 });
+
+test("developer pages describe each error body the API really returns", async () => {
+  const { DEVELOPERS_PAGE } = await import("../lib/developersPage.ts");
+  for (const page of Object.values(DEVELOPERS_PAGE)) {
+    const text = page.sections.flatMap((section) => section.paragraphs ?? []).join(" ");
+    // Only the unknown-path catch-all adds code and hint; dish media keep { ok, error }.
+    assert.match(text, /\/api/, page.locale);
+    assert.match(text, /`\{ "ok": false, "error": "…" \}`/, page.locale);
+    assert.match(text, /404/, page.locale);
+    assert.match(text, /503/, page.locale);
+  }
+});
