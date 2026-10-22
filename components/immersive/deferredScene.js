@@ -1,11 +1,15 @@
 import { useEffect, useState } from "react";
 
 const SCROLL_KEYS = new Set([" ", "PageDown", "PageUp", "ArrowDown", "ArrowUp", "End", "Home"]);
+// Focused controls keep their own keys (Space activates a button or summary).
+const KEY_OWNERS = "input, textarea, select, button, summary, audio, video, [contenteditable], " +
+  "[role=button], [role=checkbox], [role=radio], [role=switch], [role=tab], [role=menuitem], " +
+  "[role=option], [role=slider], [role=spinbutton], [role=combobox], [role=listbox], [role=textbox]";
 // The visitor inputs that scroll the journey: wheel, touch drags and scroll
-// keys outside form fields.
+// keys outside focused controls.
 export function isHeldScroll(event) {
   if (event.type === "keydown")
-    return SCROLL_KEYS.has(event.key) && !event.target.closest?.("input, textarea, select, [contenteditable]");
+    return SCROLL_KEYS.has(event.key) && !event.target.closest?.(KEY_OWNERS);
   return event.type === "wheel" || event.type === "touchmove";
 }
 
