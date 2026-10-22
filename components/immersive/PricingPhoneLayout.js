@@ -1,4 +1,9 @@
-import { Vector3 } from "three";
+// No three.js import: the page bundle loads this module before the 3D scene.
+
+export function fairHandEase(ratio) {
+  const t = Math.min(1, Math.max(0, ratio));
+  return t * t * t * (t * (t * 6 - 15) + 10);
+}
 
 export const PRICING_SCREEN_WIDTH = 280;
 export const PRICING_SCREEN_HEIGHT =
@@ -67,7 +72,7 @@ export function projectPricingScreen(screen, camera, width, height) {
   const box = screen.geometry.boundingBox;
   const z = (box.min.z + box.max.z) / 2;
   const project = (x, y) => {
-    const p = new Vector3(x, y, z)
+    const p = camera.position.clone().set(x, y, z)
       .applyMatrix4(screen.matrixWorld)
       .project(camera);
     return [((p.x + 1) * width) / 2, ((1 - p.y) * height) / 2];

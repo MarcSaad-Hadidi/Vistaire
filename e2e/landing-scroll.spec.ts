@@ -26,6 +26,9 @@ const domTest = base.extend({
 });
 async function exposeDomLayout(page: Page) {
   const failure = page.getByRole('alertdialog');
+  // The 3D (and so this failure) starts on the first input once hydrated.
+  await page.waitForFunction(() => document.documentElement.style.getPropertyValue('--vistaire-journey-vh') !== '');
+  await page.keyboard.press('Shift');
   await expect(failure).toBeVisible();
   await failure.evaluate((dialog: HTMLDialogElement) => dialog.close());
   await expect(failure).toBeHidden();
@@ -1290,4 +1293,32 @@ renderedTouchTest('Chromium trusted touch: pricing edges own one trip and offer 
     await writeFile(artifact, JSON.stringify(await evidence(), null, 2));
     await testInfo.attach('trusted-touch-ownership', { path: artifact, contentType: 'application/json' });
   }
+});
+
+test("the 3D loads behind the opening poster on arrival; an early scroll waits until it is ready", async ({ page }) => {
+  test.setTimeout(180_000);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/");
+  await expect(page.locator(".opening-poster")).toBeVisible();
+  // Without any input, the scene starts loading once the page has loaded.
+  const canvas = page.locator(".scene-canvas");
+  await expect(canvas).toBeAttached({ timeout: 30_000 });
+  if (await canvas.getAttribute("data-ready") !== "true") {
+    await expect(page.locator(".poster-cue")).toBeVisible();
+    // The still stays painted over the loading scene layer.
+    expect(await page.evaluate(() => {
+      const layer = document.querySelector(".scene-layer");
+      const poster = document.querySelector(".opening-poster");
+      return Boolean(layer && poster && layer.compareDocumentPosition(poster) & Node.DOCUMENT_POSITION_FOLLOWING);
+    })).toBe(true);
+    // A scroll before the scene is ready is held at the opening.
+    await page.mouse.wheel(0, 2400);
+    const [y, ready] = await page.evaluate(() => [scrollY, document.querySelector<HTMLElement>(".scene-canvas")?.dataset.ready]);
+    if (ready !== "true") expect(y).toBe(0);
+  }
+  await expect(canvas).toHaveAttribute("data-ready", "true", { timeout: 120_000 });
+  await expect(canvas).toHaveAttribute("data-restaurant-ready", "true");
+  await expect(page.locator(".poster-cue")).toHaveCount(0);
+  await page.mouse.wheel(0, 400);
+  await expect.poll(() => page.evaluate(() => scrollY)).toBeGreaterThan(0);
 });

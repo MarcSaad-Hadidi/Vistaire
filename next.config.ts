@@ -265,6 +265,9 @@ const nextConfig: NextConfig = {
   devIndicators: false,
   experimental: {
     proxyClientMaxBodySize: MODEL_LAB_PROXY_CLIENT_MAX_BODY_SIZE,
+    // Styles ship inside the HTML: four render-blocking stylesheet requests
+    // held the first paint on mobile networks (PSI: ~1.5 s).
+    inlineCss: true,
   },
   outputFileTracingRoot: PROJECT_ROOT,
   outputFileTracingIncludes: {

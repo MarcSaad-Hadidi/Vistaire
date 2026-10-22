@@ -572,6 +572,9 @@ export default function Scene({
         alpha: true,
         powerPreference: "high-performance",
       });
+      // Shader error checks force a synchronous wait on every program link
+      // (the top main-thread cost of the opening on mobile Lighthouse).
+      renderer.debug.checkShaderErrors = process.env.NODE_ENV !== "production";
       renderer.outputColorSpace = THREE.SRGBColorSpace;
       renderer.toneMapping = THREE.ACESFilmicToneMapping;
       renderer.toneMappingExposure = 1.05;
