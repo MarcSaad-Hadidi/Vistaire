@@ -384,8 +384,7 @@ function LandingContent({ sceneStarted }) {
   const [gpuError, setGpuError] = useState(false);
   // Once the 3D starts, scrolling waits on the poster until the whole opening
   // shot (room included) is ready; the poster covers the canvas until then.
-  const holdingScroll = sceneStarted && !ready && !gpuError;
-  useScrollHold(holdingScroll);
+  const holdingScroll = useScrollHold(sceneStarted && !ready && !gpuError);
   // Another page fetches as a link is reached and shows the loading screen the
   // moment it is clicked (useLinkIntent); 8 s releases a navigation that never came.
   const [leaving, setLeaving] = useState(false);

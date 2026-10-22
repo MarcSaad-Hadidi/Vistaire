@@ -84,8 +84,7 @@ export function CinematicPage({ chapters, scene = {}, children, footer, mainProp
     // The opening dish's file depends on the viewport.
     if (opening.dishScale > 0) preload(dishSceneModelUrl(objects.dish ?? "homard", innerWidth < 768), fetchHint);
   });
-  const sceneLoading = started && !ready && !failed;
-  useScrollHold(sceneLoading);
+  const sceneLoading = useScrollHold(started && !ready && !failed);
   // A click to another page shows the loading screen at once (the next page
   // keeps its still until its own room is ready); 8 s releases a navigation
   // that never came.

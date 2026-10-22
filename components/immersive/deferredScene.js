@@ -50,7 +50,8 @@ export function useDeferredScene(prefetch) {
     // A restored or anchored scroll position is already past the opening.
     if (scrollY > 0) start();
     else {
-      inputs.forEach((type) => addEventListener(type, start, { passive: type !== "wheel" }));
+      // Wheel and keys must be cancelable: the starting one does not scroll.
+      inputs.forEach((type) => addEventListener(type, start, { passive: type !== "wheel" && type !== "keydown" }));
       if (document.readyState === "complete") schedule();
       else addEventListener("load", schedule);
     }
@@ -64,15 +65,21 @@ export function useDeferredScene(prefetch) {
 // showed objects without their room. Visitor inputs are held, not the page:
 // overflow hidden would drop the desktop scrollbar and shift the layout, and
 // the journey's own scrolls (anchors, chapter links) must still land. 20 s
-// releases a load that never finishes.
+// releases a load that never finishes. Returns whether scrolling is held (for
+// the loading cue).
 export function useScrollHold(active) {
+  const [timedOut, setTimedOut] = useState(false);
+  const holding = active && !timedOut;
   useEffect(() => {
-    if (!active) return;
+    if (!holding) return;
     const hold = (event) => { if (isHeldScroll(event)) event.preventDefault(); };
     const types = ["wheel", "touchmove", "keydown"];
-    const release = () => types.forEach((type) => removeEventListener(type, hold));
     types.forEach((type) => addEventListener(type, hold, { passive: false }));
-    const timer = setTimeout(release, 20_000);
-    return () => { clearTimeout(timer); release(); };
-  }, [active]);
+    const timer = setTimeout(() => setTimedOut(true), 20_000);
+    return () => {
+      clearTimeout(timer);
+      types.forEach((type) => removeEventListener(type, hold));
+    };
+  }, [holding]);
+  return holding;
 }
