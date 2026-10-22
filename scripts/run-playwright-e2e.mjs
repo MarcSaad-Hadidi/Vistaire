@@ -75,7 +75,9 @@ const useMaisonPublicMenuFixture =
       normalized.endsWith("e2e/maison-elyse-public-menu.spec.ts") ||
       // Keep the shared smoke dataset identical alone and in the public CI batch.
       normalized.endsWith("e2e/sauge-noire-menu-shared-smoke.spec.ts") ||
-      normalized.endsWith("e2e/ar-handoff.spec.ts")
+      normalized.endsWith("e2e/ar-handoff.spec.ts") ||
+      // Consent flow asserts Maison menu analytics before and after acceptance.
+      normalized.endsWith("e2e/privacy-consent.spec.ts")
     );
   });
 const includesPrompt5BrowserFlow = playwrightInputArgs.some((argument) =>

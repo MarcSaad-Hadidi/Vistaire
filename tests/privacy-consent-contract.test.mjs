@@ -254,3 +254,9 @@ test("a cross-tab consent grant clears the receiving tab's pre-consent session",
   // Only a grant that was already a grant keeps the session; any transition clears it.
   assert.match(provider, /parsePrivacyConsent\(event\.oldValue\)\?\.analytics !== true \|\|\s*parsePrivacyConsent\(event\.newValue\)\?\.analytics !== true/);
 });
+
+test("an open consent editor remounts when another tab changes the choice", async () => {
+  const provider = await readSource("components/privacy/PrivacyConsentProvider.tsx");
+  // The banner's draft toggle is local state; keying on the persisted value resets it.
+  assert.match(provider, /<PrivacyConsentBanner\s+key=\{String\(consent\?\.analytics \?\? "unset"\)\}/);
+});

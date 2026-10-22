@@ -115,6 +115,7 @@ export function PrivacyConsentProvider({
         {children}
         {hydrated && (consent === null || preferencesOpen) ? (
           <PrivacyConsentBanner
+            key={String(consent?.analytics ?? "unset")}
             consent={consent}
             locale={locale}
             onClose={() => setPreferencesOpen(false)}
