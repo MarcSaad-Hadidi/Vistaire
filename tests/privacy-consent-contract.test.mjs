@@ -267,3 +267,46 @@ test("withdrawing consent stops a running Clarity recorder and a later grant res
   assert.match(clarity, /window\.clarity\("consent", false\);\s*window\.clarity\("stop"\);/);
   assert.match(clarity, /window\.clarity\("start"\)/);
 });
+
+test("a first consent choice clears legacy Clarity IDs before publishing the choice", async () => {
+  const { writePrivacyConsent } = await import("../lib/privacy/consent.ts");
+  const previous = { window: globalThis.window, document: globalThis.document };
+  try {
+    for (const analytics of [false, true]) {
+      const cookies = new Map([
+        ["_clck;vistaire.ca", "legacy-user"],
+        ["_clsk;host-only", "legacy-session"],
+        ["auth;host-only", "keep"],
+      ]);
+      const local = new Map();
+      const cookiesAtPublication = [];
+      globalThis.document = {
+        get cookie() { return [...cookies].map(([key, value]) => `${key.split(";")[0]}=${value}`).join("; "); },
+        set cookie(value) {
+          const name = value.split("=")[0];
+          const domain = /(?:^|;)\s*domain=([^;]+)/i.exec(value)?.[1].replace(/^\./, "") ?? "host-only";
+          if (/(?:^|;)\s*max-age=0(?:;|$)/i.test(value)) cookies.delete(`${name};${domain}`);
+        },
+      };
+      globalThis.window = {
+        location: { hostname: "menu.vistaire.ca" },
+        localStorage: {
+          getItem: key => local.get(key) ?? null,
+          setItem(key, value) {
+            cookiesAtPublication.push([...cookies.keys()]);
+            local.set(key, value);
+          },
+        },
+        sessionStorage: { removeItem() {} },
+        dispatchEvent: () => true,
+      };
+      const choice = writePrivacyConsent(analytics);
+      assert.deepEqual(cookiesAtPublication, [["auth;host-only"]], "legacy IDs must be gone before another tab observes the grant");
+      assert.deepEqual(choice, { version: 1, analytics });
+      assert.deepEqual([...cookies], [["auth;host-only", "keep"]]);
+    }
+  } finally {
+    globalThis.window = previous.window;
+    globalThis.document = previous.document;
+  }
+});

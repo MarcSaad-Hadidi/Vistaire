@@ -62,6 +62,20 @@ export function readPrivacyConsent(): PrivacyConsent | null {
   return parsePrivacyConsent(readPrivacyConsentRaw());
 }
 
+function clearClarityCookies(): void {
+  if (typeof document === "undefined") return;
+
+  const hostnameParts = window.location.hostname.split(".");
+  for (const name of ["_clck", "_clsk"]) {
+    const expired = `${name}=; Max-Age=0; Path=/`;
+    document.cookie = expired;
+    // Clarity may have stored its IDs on a parent domain, including from www.
+    for (let index = 0; index < hostnameParts.length - 1; index += 1) {
+      document.cookie = `${expired}; Domain=${hostnameParts.slice(index).join(".")}`;
+    }
+  }
+}
+
 export function writePrivacyConsent(analytics: boolean): PrivacyConsent | null {
   if (typeof window === "undefined") return null;
 
@@ -72,6 +86,7 @@ export function writePrivacyConsent(analytics: boolean): PrivacyConsent | null {
   const wasGranted = hasAnalyticsConsent();
 
   try {
+    if (!analytics || !wasGranted) clearClarityCookies();
     window.localStorage.setItem(
       PRIVACY_CONSENT_STORAGE_KEY,
       JSON.stringify(consent)

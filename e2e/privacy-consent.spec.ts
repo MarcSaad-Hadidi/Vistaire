@@ -38,6 +38,17 @@ test("fresh visitors can refuse, accept, and revoke optional analytics", async (
   expect(clarityRequests).toEqual([]);
   expect(analyticsRequests).toEqual([]);
 
+  const seedLegacyClarityCookies = () => page.context().addCookies(
+    ["_clck", "_clsk", "necessary-session"].map((name) => ({
+      name, value: "pre-consent-sentinel", url: new URL(page.url()).origin
+    }))
+  );
+  const expectLegacyClarityCookiesCleared = async () => {
+    const cookies = await page.context().cookies();
+    expect(cookies.filter(({ name }) => name === "_clck" || name === "_clsk")).toEqual([]);
+    expect(cookies.some(({ name }) => name === "necessary-session")).toBe(true);
+  };
+  await seedLegacyClarityCookies();
   await page.evaluate((key) => sessionStorage.setItem(key, "pre-consent-sentinel"), VISTAIRE_ANALYTICS_SESSION_KEY);
   await banner.getByRole("button", { name: "Tout refuser" }).click();
   await expect(banner).toBeHidden();
@@ -50,7 +61,9 @@ test("fresh visitors can refuse, accept, and revoke optional analytics", async (
       VISTAIRE_ANALYTICS_SESSION_KEY
     )
   ).toBeNull();
+  await expectLegacyClarityCookiesCleared();
 
+  await seedLegacyClarityCookies();
   await page.getByRole("button", { name: "Préférences de confidentialité" }).click();
   await expect(banner).toBeVisible();
   const analyticsToggle = banner.getByRole("checkbox");
@@ -60,6 +73,8 @@ test("fresh visitors can refuse, accept, and revoke optional analytics", async (
   expect(
     await page.evaluate((key) => JSON.parse(localStorage.getItem(key) ?? "null"), PRIVACY_CONSENT_STORAGE_KEY)
   ).toEqual({ version: 1, analytics: true });
+  await expectLegacyClarityCookiesCleared();
+  await expect.poll(() => analyticsRequests.length).toBeGreaterThan(0);
 
   await page.reload({ waitUntil: "networkidle" });
   await expect(page.getByTestId("privacy-consent")).toHaveCount(0);
