@@ -1295,31 +1295,27 @@ renderedTouchTest('Chromium trusted touch: pricing edges own one trip and offer 
   }
 });
 
-test("an early scroll waits on the opening poster until the full scene is ready", async ({ page }) => {
+test("the 3D loads behind the opening poster on arrival; an early scroll waits until it is ready", async ({ page }) => {
   test.setTimeout(180_000);
   await page.setViewportSize({ width: 390, height: 844 });
-  const hydrated = () => page.waitForFunction(() =>
-    document.documentElement.style.getPropertyValue("--vistaire-journey-vh") !== "");
-  // A cold dev compile can outlast the idle start; measure a warm load.
   await page.goto("/");
-  await hydrated();
-  await page.reload();
   await expect(page.locator(".opening-poster")).toBeVisible();
-  // Hydrated: the landing's parent effect binds the journey viewport last.
-  await hydrated();
-  // The first input starts the 3D and is held at the opening, never past it.
-  await page.mouse.wheel(0, 600);
-  await expect(page.locator(".poster-cue")).toBeVisible();
-  expect(await page.evaluate(() => scrollY)).toBe(0);
-  // The still stays painted over the loading scene layer.
-  await expect.poll(() => page.evaluate(() => {
-    const layer = document.querySelector(".scene-layer");
-    const poster = document.querySelector(".opening-poster");
-    return Boolean(layer && poster && layer.compareDocumentPosition(poster) & Node.DOCUMENT_POSITION_FOLLOWING);
-  })).toBe(true);
-  await page.mouse.wheel(0, 2400);
-  expect(await page.evaluate(() => scrollY)).toBe(0);
+  // Without any input, the scene starts loading once the page has loaded.
   const canvas = page.locator(".scene-canvas");
+  await expect(canvas).toBeAttached({ timeout: 30_000 });
+  if (await canvas.getAttribute("data-ready") !== "true") {
+    await expect(page.locator(".poster-cue")).toBeVisible();
+    // The still stays painted over the loading scene layer.
+    expect(await page.evaluate(() => {
+      const layer = document.querySelector(".scene-layer");
+      const poster = document.querySelector(".opening-poster");
+      return Boolean(layer && poster && layer.compareDocumentPosition(poster) & Node.DOCUMENT_POSITION_FOLLOWING);
+    })).toBe(true);
+    // A scroll before the scene is ready is held at the opening.
+    await page.mouse.wheel(0, 2400);
+    const [y, ready] = await page.evaluate(() => [scrollY, document.querySelector<HTMLElement>(".scene-canvas")?.dataset.ready]);
+    if (ready !== "true") expect(y).toBe(0);
+  }
   await expect(canvas).toHaveAttribute("data-ready", "true", { timeout: 120_000 });
   await expect(canvas).toHaveAttribute("data-restaurant-ready", "true");
   await expect(page.locator(".poster-cue")).toHaveCount(0);
