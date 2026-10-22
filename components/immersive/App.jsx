@@ -357,8 +357,10 @@ export function App({ locale = "fr" }) {
     // in the page's first seconds.
     const schedule = () => {
       prefetch();
-      if (typeof requestIdleCallback === "function") idle = requestIdleCallback(() => start(), { timeout: 2000 });
-      else timer = setTimeout(() => start(), 200);
+      timer = setTimeout(() => {
+        if (typeof requestIdleCallback === "function") idle = requestIdleCallback(() => start(), { timeout: 2000 });
+        else start();
+      }, 6000);
     };
     // A restored or anchored scroll position is already past the opening.
     if (scrollY > 0) start();
