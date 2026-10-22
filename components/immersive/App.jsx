@@ -319,6 +319,8 @@ function prefetchOpening() {
 }
 
 export function App({ locale = "fr" }) {
+  preload("/immersive-assets/fonts/libertine-display.woff2", { as: "font", type: "font/woff2", crossOrigin: "anonymous" });
+  preload("/immersive-assets/fonts/biolinum.woff2", { as: "font", type: "font/woff2", crossOrigin: "anonymous" });
   // The opening is first painted as a still of its own 3D frame (the poster in
   // .world); the scene crossfades over it once ready (useDeferredScene).
   const sceneStarted = useDeferredScene(prefetchOpening);

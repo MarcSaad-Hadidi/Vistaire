@@ -33,6 +33,8 @@ const fetchHint = { as: "fetch", crossOrigin: "anonymous" };
 const PILLAR_OPENINGS = { "qr-hero": "supportScale", "digital-hero": "phoneScale", "ar-hero": "dishScale", "pdf-flat": "pdfPhoneScale" };
 
 export function CinematicPage({ chapters, scene = {}, children, footer, mainProps }) {
+  preload("/immersive-assets/fonts/libertine-display.woff2", { as: "font", type: "font/woff2", crossOrigin: "anonymous" });
+  preload("/immersive-assets/fonts/biolinum.woff2", { as: "font", type: "font/woff2", crossOrigin: "anonymous" });
   // Each page shows its own dish, stand and one restaurant's menu on every
   // phone shot (pagePhoneDemo, unlike the landing's demo picker).
   const { phoneDemo = "maison-elyse", ...objects } = scene;

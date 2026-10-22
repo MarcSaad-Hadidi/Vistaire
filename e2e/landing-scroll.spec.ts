@@ -1295,7 +1295,7 @@ renderedTouchTest('Chromium trusted touch: pricing edges own one trip and offer 
   }
 });
 
-test("scene startup keeps the first scroll free while 3D loads automatically", async ({ page }) => {
+test("scene startup keeps the first scroll free while 3D loads automatically @critical", async ({ page }) => {
   test.setTimeout(240_000);
   for (const [route, width] of [["/", 390], ["/menu-digital-restaurant", 430]] as const) {
     let releaseModels!: () => void;
@@ -1323,5 +1323,18 @@ test("scene startup keeps the first scroll free while 3D loads automatically", a
     }
     await expect(page.locator(".scene-canvas")).toHaveAttribute("data-ready", "true", { timeout: 120_000 });
     await expect(page.locator(".scene-canvas")).toHaveAttribute("data-restaurant-ready", "true");
+  }
+});
+
+test("opening fonts are preloaded in the server response @critical", async ({ request }) => {
+  for (const route of ["/", "/en/digital-restaurant-menu"]) {
+    const response = await request.get(route);
+    expect(response.ok()).toBe(true);
+    const links = (await response.text()).match(/<link\b[^>]*>/g) ?? [];
+    for (const font of ["libertine-display", "biolinum"]) {
+      expect(links.some(link => link.includes(`href="/immersive-assets/fonts/${font}.woff2"`) &&
+        link.includes('rel="preload"') && link.includes('as="font"') && link.includes('crossorigin=""')),
+        `${route}: the opening ${font} font is discoverable before CSS layout`).toBe(true);
+    }
   }
 });
