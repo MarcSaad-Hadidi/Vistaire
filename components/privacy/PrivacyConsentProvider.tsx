@@ -37,7 +37,11 @@ const PrivacyConsentContext = createContext<PrivacyConsentContextValue | null>(
 function subscribeToPrivacyConsent(onStoreChange: () => void) {
   const syncFromStorage = (event: StorageEvent) => {
     if (event.key !== null && event.key !== PRIVACY_CONSENT_STORAGE_KEY) return; // null: storage cleared
-    if (parsePrivacyConsent(event.newValue)?.analytics !== true) {
+    // Each tab owns its sessionStorage, so the receiving tab must drop a session that predates the grant.
+    if (
+      parsePrivacyConsent(event.oldValue)?.analytics !== true ||
+      parsePrivacyConsent(event.newValue)?.analytics !== true
+    ) {
       clearVistaireAnalyticsSession();
     }
     onStoreChange();

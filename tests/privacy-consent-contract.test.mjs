@@ -248,3 +248,9 @@ test("a cleared localStorage in another tab counts as a consent change", async (
   // StorageEvent.key is null after localStorage.clear(); that must not be ignored.
   assert.match(provider, /event\.key !== null && event\.key !== PRIVACY_CONSENT_STORAGE_KEY/);
 });
+
+test("a cross-tab consent grant clears the receiving tab's pre-consent session", async () => {
+  const provider = await readSource("components/privacy/PrivacyConsentProvider.tsx");
+  // Only a grant that was already a grant keeps the session; any transition clears it.
+  assert.match(provider, /parsePrivacyConsent\(event\.oldValue\)\?\.analytics !== true \|\|\s*parsePrivacyConsent\(event\.newValue\)\?\.analytics !== true/);
+});
