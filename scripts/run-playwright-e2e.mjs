@@ -412,10 +412,13 @@ async function main() {
         }
       );
 
+      // A cold `next dev` compiles the proxy on its first request, which already takes
+      // ~100-125 s on CI and Windows; 120 s left no margin, so match the other dev waits.
       await waitForServer(
         useDevelopmentServer
           ? new URL("/robots.txt", baseURL).toString()
-          : baseURL
+          : baseURL,
+        useDevelopmentServer ? 300_000 : undefined
       );
       if (includesPrompt5BrowserFlow) {
         for (const route of PROMPT5_WARMUP_ROUTES) {
