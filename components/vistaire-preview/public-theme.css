@@ -67,7 +67,6 @@ html[data-vistaire-theme-transition="blinds"]::view-transition-new(root) {
 }
 @media (prefers-reduced-motion: reduce) {
   html[data-vistaire-theme-transition="blinds"]::view-transition-new(root) {
-    animation: none;
-    mask-image: none;
+    animation-duration: 80ms;
   }
 }

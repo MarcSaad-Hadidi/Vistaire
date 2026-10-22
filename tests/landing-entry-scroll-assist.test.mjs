@@ -239,11 +239,26 @@ test('reduced motion preserves user-requested wheel and touch trips to the same 
     } else f.input('wheel', { deltaY: 100, deltaX: 0, cancelable: true });
     const target = f.bounds.opening.motionTravel / 2;
     assert.deepEqual(assistedTargets(f), [target]);
-    f.advance(5000);
+    assert.ok(f.reports.find(row => row.type === 'assist-start').duration <= 100, 'reduced motion uses a near-instant trip');
+    f.advance(132);
     assert.ok(Math.abs(f.view.scrollY - target) < 1);
     assert.equal(f.reports.filter(row => row.type === 'completed').length, 1);
     f.assist.dispose();
   }
+});
+
+test('keyboard reading can leave the last offer without the touch momentum guard clamping it', () => {
+  const f = fixture({ coarse: true });
+  const start = f.bounds.transitions.find(join => join.to.id === 'open-weight').end;
+  f.bounds.pricing = { start, end: start + 2000, faq: start + 2800 };
+  f.move(start + 2000); f.advance(1000);
+  f.input('keydown', { key: 'PageDown', target: { closest: () => ({}) } });
+  f.move(start + 2200);
+  f.input('keyup', { key: 'PageDown' });
+  f.advance(1000);
+  assert.equal(f.calls.length, 0);
+  assert.equal(f.view.scrollY, start + 2200);
+  f.assist.dispose();
 });
 
 test('blocked, pricing reading and footer spans remain native; disposal removes all work', () => {

@@ -425,19 +425,54 @@ for (const profile of [{width:390,height:844,path:'/en',label:'Pricing'}, {width
   });
 }
 
-test('the laptop uses the current dashboard capture in the selected site theme',async({page},info)=>{
+for (const width of [390, 430, 1440]) test(`the laptop follows scroll and animates the selected site theme at ${width}px`,async({page,browserName},info)=>{
   test.setTimeout(210_000);
   await page.addInitScript(()=>localStorage.setItem('vistaire-public-theme','light'));
-  await page.setViewportSize({width:1440,height:900});
+  await page.setViewportSize({width,height:900});
   await openScene(page);
   await page.locator('#sustainability').evaluate(el=>scrollTo({top:el.getBoundingClientRect().top+scrollY+innerHeight*.5,behavior:'instant'}));
   const canvas=page.locator('.scene-canvas');
   await expect(canvas).toHaveAttribute('data-laptop-ready','true',{timeout:ASSET_READY_MS});
   await expect(canvas).toHaveAttribute('data-laptop-dashboard-theme','light');
+  const angle = () => canvas.evaluate(el => Number((el as HTMLElement).dataset.laptopAngle));
+  const position = async (progress: number) => {
+    await page.locator('#sustainability').evaluate((el, progress) => scrollTo({
+      top: el.getBoundingClientRect().top + scrollY + (el.clientHeight - el.firstElementChild!.clientHeight) * progress,
+      behavior: 'instant',
+    }), progress);
+    await expect(canvas).toHaveAttribute('data-section', 'sustainability');
+  };
+  await position(.2);
+  await expect.poll(angle).toBeLessThan(90);
+  const early = await angle();
+  await position(.65);
+  await expect.poll(angle).toBeGreaterThan(early + 20);
+  await position(.2);
+  await expect.poll(async () => Math.abs(await angle() - early)).toBeLessThan(1);
   await screenshot(page,info,'current-dashboard-laptop-light');
   await expect(page.locator("[data-public-navigation-open]")).toBeVisible();
+  await page.evaluate(() => {
+    if (!document.startViewTransition) return;
+    const native = document.startViewTransition.bind(document);
+    document.startViewTransition = update => {
+      const transition = native(update);
+      void transition.ready.then(() => {
+        const style = getComputedStyle(document.documentElement, '::view-transition-new(root)');
+        document.documentElement.dataset.themeAnimation = style.animationName;
+        document.documentElement.dataset.themeAnimationDuration = style.animationDuration;
+      }).catch(() => {});
+      return transition;
+    };
+  });
   await page.locator('.site-header [data-public-theme-toggle]').click();
   await expect(canvas).toHaveAttribute('data-laptop-dashboard-theme','dark');
+  if (browserName === 'chromium') {
+    await expect(page.locator('html')).toHaveAttribute('data-theme-animation', 'vistaire-theme-blinds-reveal');
+    const duration = await page.locator('html').evaluate(el => parseFloat(el.dataset.themeAnimationDuration!));
+    expect(duration).toBeGreaterThan(0);
+    expect(duration).toBeLessThanOrEqual(.1);
+  }
+  expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(1);
   await screenshot(page,info,'current-dashboard-laptop-dark');
 });
 

@@ -45,8 +45,9 @@ export function assistedScrollDuration(stages, destinationId, fast = FAST_SCENE_
  * navigation/layout remaps and while UI blocks scrolling. No idle RAF remains.
  */
 export function createEntryScrollAssist({ getGeometry, isBlocked, fastTrips = false }, view = window) {
-  // User-requested navigation stays available; Scene owns reduced decorative motion.
+  // Reduced motion shortens user navigation; Scene owns decorative motion.
   const document = view.document;
+  const reduced = view.matchMedia("(prefers-reduced-motion: reduce)");
   const finePointer = view.matchMedia("(hover: hover) and (pointer: fine)");
   const coarsePointer = view.matchMedia("(hover: none) and (pointer: coarse)");
   const cinematicMain = document.querySelector?.("main");
@@ -328,7 +329,7 @@ export function createEntryScrollAssist({ getGeometry, isBlocked, fastTrips = fa
     // A shorter physical trip never takes longer than a longer one.
     const stages = Math.abs(target - y) / opening.stageHeight;
     const fast = fastTrips || FAST_SCENE_DESTINATIONS.has(destination.id);
-    const duration = fixed ?? assistedScrollDuration(stages, destination.id, fast);
+    const duration = reduced.matches ? 80 : fixed ?? assistedScrollDuration(stages, destination.id, fast);
     readingGuard = null;
     assisting = { target, started: now, direction, lastY: y, from: y, duration, coast,
       fast, elapsed: 0, written: y };
@@ -681,7 +682,7 @@ export function createEntryScrollAssist({ getGeometry, isBlocked, fastTrips = fa
     // events, so native movement from inside the offers always arms their edges,
     // and native reading below them (FAQ, guide) never coasts back above its head.
     // A navigation jump is larger than one viewport and is never pulled back.
-    if (!readingGuard && !touching && !assisting && touchRange && Math.abs(y - lastY) < view.innerHeight) {
+    if (!readingGuard && !touching && !assisting && inputKind !== "keydown" && touchRange && Math.abs(y - lastY) < view.innerHeight) {
       const { pricing: reading, naturalFrom } = getGeometry(), inside = at => at > reading.start - 1 && at < reading.end + 1;
       const floor = reading?.end ?? naturalFrom;
       if (reading && (inside(y) || inside(lastY) || (gesture && inside(gesture.inputY))))

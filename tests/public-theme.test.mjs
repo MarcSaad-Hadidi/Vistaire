@@ -37,9 +37,10 @@ test("blocked storage never breaks prepaint or a user's immediate theme choice",
   assert.equal(context.attributes["data-vistaire-theme"], "light");
 });
 
-test("BeUI blinds changes the existing public theme once and guards rapid activations", async () => {
+for (const reduced of [false, true]) test(`BeUI blinds changes the public theme once and guards rapid activations (reduced=${reduced})`, async () => {
   const saved = [];
   const context = await themeModule({ setItem: (...args) => saved.push(args) });
+  context.window.matchMedia = () => ({ matches: reduced });
   assert.equal(typeof context.exports.togglePublicTheme, "function");
   let update;
   const finished = Promise.withResolvers();
@@ -68,10 +69,9 @@ test("BeUI blinds changes the existing public theme once and guards rapid activa
 });
 
 test("theme animation degrades to an immediate choice and cleans up failed transitions", async () => {
-  for (const scenario of ["unsupported", "reduced", "throw", "reject"]) {
+  for (const scenario of ["unsupported", "throw", "reject"]) {
     const context = await themeModule({ setItem() { throw new Error("blocked"); } });
     assert.equal(typeof context.exports.togglePublicTheme, "function");
-    context.window.matchMedia = () => ({ matches: scenario === "reduced" });
     let starts = 0;
     if (scenario !== "unsupported") context.document.startViewTransition = () => {
       starts += 1;
@@ -85,7 +85,7 @@ test("theme animation degrades to an immediate choice and cleans up failed trans
     const pending = context.exports.togglePublicTheme();
     if (scenario !== "reject") assert.equal(context.exports.getPublicTheme(), "light");
     await pending;
-    assert.equal(starts, scenario === "unsupported" || scenario === "reduced" ? 0 : 1, scenario);
+    assert.equal(starts, scenario === "unsupported" ? 0 : 1, scenario);
     assert.equal(context.exports.getPublicTheme(), "light", scenario);
     assert.equal(context.attributes["data-vistaire-theme-transition"], undefined, scenario);
     assert.deepEqual(context.events, ["vistaire-public-theme-change"], scenario);
