@@ -1,15 +1,21 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { usePrivacyConsent } from "@/components/privacy/PrivacyConsentProvider";
 import { trackPublicMenuEvent, registerPublicMenuVisibility } from "@/lib/analytics/client";
 import type { PublicMenu, PublicMenuDish } from "@/lib/menu/publicMenuCore";
 
 /** Only visible, foreground reading time. No URLs, query text or user identity. */
 export function useVisibleMenuAnalytics(menu: PublicMenu, enabled: boolean, dish?: PublicMenuDish | null) {
+  const { analyticsAllowed } = usePrivacyConsent();
   const rootRef = useRef<HTMLElement | null>(null);
   const openings = useRef(new Map<string, { sessionId?: string }>());
   const seen = useRef(new Set<string>());
   useEffect(() => {
+    if (!analyticsAllowed) {
+      seen.current.clear();
+      return;
+    }
     const root = rootRef.current;
     if (!enabled || !root || typeof IntersectionObserver === "undefined") return;
     const pageType = dish ? "dish" : "menu";
@@ -110,6 +116,6 @@ export function useVisibleMenuAnalytics(menu: PublicMenu, enabled: boolean, dish
       window.removeEventListener("pagehide", hide);
       window.removeEventListener("pageshow", show);
     };
-  }, [menu, enabled, dish]);
+  }, [menu, enabled, dish, analyticsAllowed]);
   return rootRef;
 }

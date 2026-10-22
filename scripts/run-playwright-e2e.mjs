@@ -75,7 +75,9 @@ const useMaisonPublicMenuFixture =
       normalized.endsWith("e2e/maison-elyse-public-menu.spec.ts") ||
       // Keep the shared smoke dataset identical alone and in the public CI batch.
       normalized.endsWith("e2e/sauge-noire-menu-shared-smoke.spec.ts") ||
-      normalized.endsWith("e2e/ar-handoff.spec.ts")
+      normalized.endsWith("e2e/ar-handoff.spec.ts") ||
+      // Consent flow asserts Maison menu analytics before and after acceptance.
+      normalized.endsWith("e2e/privacy-consent.spec.ts")
     );
   });
 const includesPrompt5BrowserFlow = playwrightInputArgs.some((argument) =>
@@ -410,10 +412,13 @@ async function main() {
         }
       );
 
+      // A cold `next dev` compiles the proxy on its first request, which already takes
+      // ~100-125 s on CI and Windows; 120 s left no margin, so match the other dev waits.
       await waitForServer(
         useDevelopmentServer
           ? new URL("/robots.txt", baseURL).toString()
-          : baseURL
+          : baseURL,
+        useDevelopmentServer ? 300_000 : undefined
       );
       if (includesPrompt5BrowserFlow) {
         for (const route of PROMPT5_WARMUP_ROUTES) {

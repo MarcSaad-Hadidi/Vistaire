@@ -22,7 +22,7 @@ test('legacy events remain countable without retaining raw searches, viewport or
 });
 test('client emits v2 opaque IDs and safe measurements without raw browser/search data',async()=>{
  const sent=[];const oldWindow=globalThis.window,oldFetch=globalThis.fetch;const storage=new Map();
- globalThis.window={innerWidth:390,sessionStorage:{getItem:k=>storage.get(k),setItem:(k,v)=>storage.set(k,v)},location:{search:'?placement=table&source=qr&campaign=person@example.com'}};
+ globalThis.window={innerWidth:390, localStorage: { getItem: () => '{"version":1,"analytics":true}' },sessionStorage:{getItem:k=>storage.get(k),setItem:(k,v)=>storage.set(k,v)},location:{search:'?placement=table&source=qr&campaign=person@example.com'}};
  globalThis.fetch=async(_,o)=>{sent.push(JSON.parse(o.body));return {ok:true}};
  try {const {trackMenuEvent}=await import('../lib/analytics/client.ts');trackMenuEvent({...base,eventName:'search_used',searchQuery:'private query',metadata:{url:'secret'}});
  assert.equal(sent.length,1);assert.equal(sent[0].schemaVersion,2);assert.match(sent[0].eventId,/^[a-f0-9-]{36}$/);assert.equal(sent[0].searchQuery,undefined);assert.equal(sent[0].viewport,undefined);assert.equal(sent[0].metadata.placement,'table');assert.equal(sent[0].metadata.campaign,undefined);assert.equal(sent[0].metadata.queryLengthBucket,'11-30');
@@ -41,7 +41,7 @@ test('synthetic demo context is isolated and duration deltas are never suppresse
  assert.equal(getPublicMenuAnalyticsContext({source:'demo',restaurantId:'trouvable-demo'}).source,'demo');
  assert.equal(getPublicMenuAnalyticsContext({source:'supabase',restaurantId:'trouvable-demo'}),null);
  const sent=[],oldWindow=globalThis.window,oldFetch=globalThis.fetch;
- globalThis.window={innerWidth:390,sessionStorage:{getItem:()=>null,setItem:()=>{}}};globalThis.fetch=async(_,o)=>{sent.push(JSON.parse(o.body));return {ok:true}};
+ globalThis.window={innerWidth:390, localStorage: { getItem: () => '{"version":1,"analytics":true}' },sessionStorage:{getItem:()=>null,setItem:()=>{}}};globalThis.fetch=async(_,o)=>{sent.push(JSON.parse(o.body));return {ok:true}};
  try {for(let i=0;i<2;i++) trackMenuEvent({...base,eventName:'session_duration',metadata:{durationMs:100}});
  assert.equal(sent.filter(e=>e.eventName==='session_duration').length,2);
  }finally{globalThis.window=oldWindow;globalThis.fetch=oldFetch}
@@ -49,7 +49,7 @@ test('synthetic demo context is isolated and duration deltas are never suppresse
 test('session arrival is recorded once per tenant and accepts only known demo labels',async()=>{
  const client=await import('../lib/analytics/client.ts');assert.equal(typeof client.trackPublicMenuSessionStarted,'function');
  const sent=[],oldWindow=globalThis.window,oldFetch=globalThis.fetch;
- globalThis.window={innerWidth:390,sessionStorage:{getItem:()=>null,setItem:()=>{}}};globalThis.fetch=async(_,o)=>{sent.push(JSON.parse(o.body));return {ok:true}};
+ globalThis.window={innerWidth:390, localStorage: { getItem: () => '{"version":1,"analytics":true}' },sessionStorage:{getItem:()=>null,setItem:()=>{}}};globalThis.fetch=async(_,o)=>{sent.push(JSON.parse(o.body));return {ok:true}};
  try {const menu={source:'demo',restaurantId:'trouvable-demo',slug:'le-trouvable'};
  client.trackPublicMenuSessionStarted(menu);client.trackPublicMenuSessionStarted(menu);
  assert.equal(sent.filter(e=>e.eventName==='session_started').length,1);assert.equal(sent[0].metadata.demoMenu,'le-trouvable');
@@ -58,7 +58,7 @@ test('session arrival is recorded once per tenant and accepts only known demo la
 });
 test('distinct AR outcomes inside one second remain distinct',async()=>{
  const {trackMenuEvent}=await import('../lib/analytics/client.ts');const sent=[],oldWindow=globalThis.window,oldFetch=globalThis.fetch;
- globalThis.window={innerWidth:390,sessionStorage:{getItem:()=>null,setItem:()=>{}}};globalThis.fetch=async(_,o)=>{sent.push(JSON.parse(o.body));return {ok:true}};
+ globalThis.window={innerWidth:390, localStorage: { getItem: () => '{"version":1,"analytics":true}' },sessionStorage:{getItem:()=>null,setItem:()=>{}}};globalThis.fetch=async(_,o)=>{sent.push(JSON.parse(o.body));return {ok:true}};
  try {for(const outcome of ['unknown','presenting'])trackMenuEvent({...base,eventName:'ar_outcome',dishSlug:'sole',metadata:{outcome}});assert.equal(sent.length,2)}finally{globalThis.window=oldWindow;globalThis.fetch=oldFetch}
 });
 
@@ -71,7 +71,7 @@ test('v2 journey ordering and model attempt correlation are bounded',()=>{
 });
 test('session arrival deduplication and event sequence survive page reload within the short session',async()=>{
  const sent=[],store=new Map(),oldWindow=globalThis.window,oldFetch=globalThis.fetch;
- globalThis.window={innerWidth:390,sessionStorage:{getItem:k=>store.get(k),setItem:(k,v)=>store.set(k,v)}};globalThis.fetch=async(_,o)=>{sent.push(JSON.parse(o.body));return {ok:true}};
+ globalThis.window={innerWidth:390, localStorage: { getItem: () => '{"version":1,"analytics":true}' },sessionStorage:{getItem:k=>store.get(k),setItem:(k,v)=>store.set(k,v)}};globalThis.fetch=async(_,o)=>{sent.push(JSON.parse(o.body));return {ok:true}};
  try {const menu={source:'supabase',restaurantId:base.restaurantId,menuId:base.menuId};
  const first=await import('../lib/analytics/client.ts?first-page');first.trackPublicMenuSessionStarted(menu);
  const next=await import('../lib/analytics/client.ts?next-page');next.trackPublicMenuSessionStarted(menu);next.trackPublicMenuEvent(menu,{eventName:'menu_opened'});

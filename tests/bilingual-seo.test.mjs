@@ -62,7 +62,8 @@ test("declares a complete bilingual FR/EN route map", async () => {
       [
         "/menu-digital-restaurant-gastronomique",
         "/en/fine-dining-restaurant-digital-menu"
-      ]
+      ],
+      ["/developers", "/en/developers"]
     ]
   );
 

@@ -4,9 +4,9 @@ import { readFileSync } from "node:fs";
 import vm from "node:vm";
 import ts from "typescript";
 
-test("menu dwell excludes ancestor-hidden time outside the observed reading root", () => {
-  let now = 0, hidden = false;
-  const effects = [], emitted = [], intersections = [], mutations = [];
+function mountAnalytics(analyticsAllowed = true, dishPage = true) {
+  let now = 0, hidden = false, refIndex = 0, pendingEffect, cleanup, dependencies;
+  const refs = [], emitted = [], intersections = [], mutations = [];
   const timers = new Set();
   class Element extends EventTarget {
     parentElement = null;
@@ -35,10 +35,17 @@ test("menu dwell excludes ancestor-hidden time outside the observed reading root
     module: hookModule, exports: hookModule.exports,
     require(name) {
       if (name === "react") return {
-        useRef: value => ({ current: value }), useEffect: effect => effects.push(effect),
+        useRef: value => refs[refIndex++] ?? (refs[refIndex - 1] = { current: value }),
+        useEffect(effect, nextDependencies) {
+          if (!dependencies || nextDependencies.some((value, index) => value !== dependencies[index])) pendingEffect = effect;
+          dependencies = nextDependencies;
+        },
+      };
+      if (name === "@/components/privacy/PrivacyConsentProvider") return {
+        usePrivacyConsent: () => ({ analyticsAllowed }),
       };
       if (name === "@/lib/analytics/client") return {
-        trackPublicMenuEvent: (_menu, event) => emitted.push(event),
+        trackPublicMenuEvent: (_menu, event) => { if (analyticsAllowed) emitted.push(event); },
         registerPublicMenuVisibility() { return () => {}; },
       };
       throw new Error(`Unexpected hook dependency: ${name}`);
@@ -51,24 +58,87 @@ test("menu dwell excludes ancestor-hidden time outside the observed reading root
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
   }).outputText, runtime);
   const dish = { slug: "soup", categorySlug: "main" };
-  const ref = hookModule.exports.useVisibleMenuAnalytics({
+  const menu = {
     source: "supabase", restaurantId: "restaurant", menuId: "menu", dishes: [dish],
-  }, true, dish);
+  };
   const parent = new Element();
-  ref.current = new Element();
-  ref.current.parentElement = parent;
-  const cleanup = effects.map(effect => effect()).filter(Boolean);
-  intersections.at(-1).callback([{ target: ref.current, isIntersecting: true, intersectionRatio: 1 }]);
-  now = 5000;
-  hidden = true;
-  for (const observer of mutations) if (observer.targets.has(parent)) observer.callback();
-  now = 30000;
-  for (const callback of timers) callback();
+  const root = new Element();
+  const item = new Element();
+  root.parentElement = parent;
+  root.querySelectorAll = () => [item];
+  root.contains = element => element === root || element === item;
+  item.getAttribute = name => name === "data-analytics-dish" ? dish.slug : null;
+  const render = (allowed) => {
+    analyticsAllowed = allowed;
+    refIndex = 0;
+    const ref = hookModule.exports.useVisibleMenuAnalytics(menu, true, dishPage ? dish : null);
+    ref.current = root;
+    if (pendingEffect) {
+      cleanup?.();
+      cleanup = pendingEffect();
+      pendingEffect = undefined;
+      if (cleanup) intersections.at(-1)?.callback([root, ...(dishPage ? [] : [item])].map(target => ({
+        target, isIntersecting: true, intersectionRatio: 1,
+      })));
+    }
+  };
+  render(analyticsAllowed);
+  return {
+    emitted, timers, mutations,
+    at: value => { now = value; },
+    consent: render,
+    hide() {
+      hidden = true;
+      for (const observer of mutations) if (observer.targets.has(parent)) observer.callback();
+    },
+    flush: () => { for (const callback of timers) callback(); },
+    cleanup: () => cleanup?.(),
+  };
+}
+
+test("menu dwell excludes ancestor-hidden time outside the observed reading root", () => {
+  const hook = mountAnalytics();
+  hook.at(5000);
+  hook.hide();
+  hook.at(30000);
+  hook.flush();
   for (const name of ["session_duration", "dish_dwell"]) {
-    assert.equal(emitted.filter(event => event.eventName === name)
+    assert.equal(hook.emitted.filter(event => event.eventName === name)
       .reduce((sum, event) => sum + event.metadata.durationMs, 0), 5000, name);
   }
-  for (const callback of cleanup) callback();
-  assert.equal(timers.size, 0);
-  assert.ok(mutations.every(observer => observer.targets.size === 0));
+  hook.cleanup();
+  assert.equal(hook.timers.size, 0);
+  assert.ok(hook.mutations.every(observer => observer.targets.size === 0));
+});
+
+test("menu dwell starts at consent and never includes time before a later grant", () => {
+  const hook = mountAnalytics(false);
+  hook.at(20000);
+  assert.deepEqual(hook.emitted, []);
+  hook.consent(true);
+  hook.at(21000);
+  hook.flush();
+  hook.at(22000);
+  hook.consent(false);
+  hook.at(42000);
+  hook.consent(true);
+  hook.at(43000);
+  hook.flush();
+  for (const name of ["session_duration", "dish_dwell"]) {
+    assert.deepEqual(hook.emitted.filter(event => event.eventName === name)
+      .map(event => event.metadata.durationMs), [1000, 1000], name);
+  }
+  hook.cleanup();
+});
+
+test("menu visibility events restart once after consent is withdrawn and granted again", () => {
+  const hook = mountAnalytics(true, false);
+  hook.flush();
+  hook.consent(false);
+  hook.consent(true);
+  hook.flush();
+  for (const name of ["menu_list_viewed", "dish_visible", "category_viewed"]) {
+    assert.equal(hook.emitted.filter(event => event.eventName === name).length, 2, name);
+  }
+  hook.cleanup();
 });

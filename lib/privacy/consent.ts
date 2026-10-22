@@ -1,0 +1,111 @@
+export const PRIVACY_CONSENT_VERSION = 1 as const;
+export const PRIVACY_CONSENT_STORAGE_KEY = "vistaire.privacyConsent.v1";
+export const PRIVACY_CONSENT_CHANGED_EVENT = "vistaire:privacy-consent-changed";
+export const VISTAIRE_ANALYTICS_SESSION_KEY = "vistaire.analytics.sessionId.v2";
+
+export type PrivacyConsent = {
+  version: typeof PRIVACY_CONSENT_VERSION;
+  analytics: boolean;
+};
+
+export function parsePrivacyConsent(raw: string | null): PrivacyConsent | null {
+  if (!raw) return null;
+
+  try {
+    const parsed = JSON.parse(raw) as Partial<PrivacyConsent> | null;
+    if (
+      !parsed ||
+      parsed.version !== PRIVACY_CONSENT_VERSION ||
+      typeof parsed.analytics !== "boolean"
+    ) {
+      return null;
+    }
+
+    return {
+      version: PRIVACY_CONSENT_VERSION,
+      analytics: parsed.analytics
+    };
+  } catch {
+    return null;
+  }
+}
+
+let analyticsSessionGeneration = 0;
+
+/** Bumped on withdrawal so in-memory analytics sessions cannot resume. */
+export function currentAnalyticsSessionGeneration(): number {
+  return analyticsSessionGeneration;
+}
+
+export function clearVistaireAnalyticsSession(): void {
+  analyticsSessionGeneration += 1;
+  if (typeof window === "undefined") return;
+
+  try {
+    window.sessionStorage.removeItem(VISTAIRE_ANALYTICS_SESSION_KEY);
+  } catch {
+    // Storage can be unavailable in hardened/private browser contexts.
+  }
+}
+
+export function readPrivacyConsentRaw(): string | null {
+  if (typeof window === "undefined") return null;
+
+  try {
+    return window.localStorage.getItem(PRIVACY_CONSENT_STORAGE_KEY);
+  } catch {
+    return null;
+  }
+}
+
+export function readPrivacyConsent(): PrivacyConsent | null {
+  return parsePrivacyConsent(readPrivacyConsentRaw());
+}
+
+function clearClarityCookies(): void {
+  if (typeof document === "undefined") return;
+
+  const hostnameParts = window.location.hostname.split(".");
+  for (const name of ["_clck", "_clsk"]) {
+    const expired = `${name}=; Max-Age=0; Path=/`;
+    document.cookie = expired;
+    // Clarity may have stored its IDs on a parent domain, including from www.
+    for (let index = 0; index < hostnameParts.length - 1; index += 1) {
+      document.cookie = `${expired}; Domain=${hostnameParts.slice(index).join(".")}`;
+    }
+  }
+}
+
+export function writePrivacyConsent(analytics: boolean): PrivacyConsent | null {
+  if (typeof window === "undefined") return null;
+
+  const consent: PrivacyConsent = {
+    version: PRIVACY_CONSENT_VERSION,
+    analytics
+  };
+  const wasGranted = hasAnalyticsConsent();
+
+  try {
+    if (!analytics || !wasGranted) clearClarityCookies();
+    window.localStorage.setItem(
+      PRIVACY_CONSENT_STORAGE_KEY,
+      JSON.stringify(consent)
+    );
+
+    // Withdrawal ends the session; a fresh grant must not resume one recorded before consent.
+    if (!analytics || !wasGranted) {
+      clearVistaireAnalyticsSession();
+    }
+
+    window.dispatchEvent(
+      new CustomEvent(PRIVACY_CONSENT_CHANGED_EVENT, { detail: consent })
+    );
+    return consent;
+  } catch {
+    return null;
+  }
+}
+
+export function hasAnalyticsConsent(): boolean {
+  return readPrivacyConsent()?.analytics === true;
+}

@@ -2,7 +2,8 @@
 
 import Script from "next/script";
 import { usePathname } from "next/navigation";
-import { useLayoutEffect, useState, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useState, type ReactNode } from "react";
+import { usePrivacyConsent } from "@/components/privacy/PrivacyConsentProvider";
 import {
   shouldLoadMicrosoftClarity,
   shouldReloadForMicrosoftClarityBoundary
@@ -12,6 +13,7 @@ declare global {
   interface Window {
     __vistaireClarityBlocked?: boolean;
     __vistaireClarityPathname?: string;
+    __vistaireClarityStopped?: boolean;
     clarity?: (...args: unknown[]) => void;
   }
 }
@@ -26,6 +28,7 @@ export function MicrosoftClarityScript({
   projectId
 }: MicrosoftClarityScriptProps) {
   const pathname = usePathname();
+  const { analyticsAllowed, hydrated } = usePrivacyConsent();
   const [initialPathname] = useState(pathname);
   const shouldLoad = shouldLoadMicrosoftClarity(pathname);
   const shouldReload = shouldReloadForMicrosoftClarityBoundary(
@@ -47,11 +50,40 @@ export function MicrosoftClarityScript({
     window.location.reload();
   }, [pathname, shouldLoad, shouldReload]);
 
+  useEffect(() => {
+    if (!hydrated || !window.clarity) return;
+
+    if (analyticsAllowed && shouldLoad) {
+      // A recorder stopped by an earlier withdrawal on this page must be restarted explicitly.
+      if (window.__vistaireClarityStopped) {
+        window.clarity("start");
+        window.__vistaireClarityStopped = false;
+      }
+      window.clarity("consentv2", {
+        ad_Storage: "denied",
+        analytics_Storage: "granted"
+      });
+      return;
+    }
+
+    window.clarity("consentv2", {
+      ad_Storage: "denied",
+      analytics_Storage: "denied"
+    });
+    window.clarity("consent", false);
+    window.clarity("stop");
+    window.__vistaireClarityStopped = true;
+  }, [analyticsAllowed, hydrated, shouldLoad]);
+
   if (shouldReload) {
     return null;
   }
 
   if (!shouldLoad) {
+    return children;
+  }
+
+  if (!analyticsAllowed) {
     return children;
   }
 
@@ -65,6 +97,10 @@ export function MicrosoftClarityScript({
               t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
               y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
             })(window, document, "clarity", "script", "${projectId}");
+            window.clarity("consentv2", {
+              ad_Storage: "denied",
+              analytics_Storage: "granted"
+            });
           }
         `}
       </Script>

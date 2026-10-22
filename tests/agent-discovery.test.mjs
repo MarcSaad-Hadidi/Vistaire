@@ -5,7 +5,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
 import nextConfig from "../next.config.ts";
-import { buildNotFoundMarkdown, isMissingRoute } from "../lib/agent-discovery/pageMarkdown.ts";
+import { buildNotFoundMarkdown, buildPageMarkdown, isMissingRoute } from "../lib/agent-discovery/pageMarkdown.ts";
 import * as agentDiscovery from "../lib/agent-discovery/index.ts";
 import {
   AGENT_SKILL_DOCS,
@@ -315,4 +315,50 @@ test("markdown 404 only when the app itself answers 404 for the path", async () 
   const markdown = buildNotFoundMarkdown("/__probe");
   assert.ok(markdown.length > 20);
   assert.match(markdown, /\/llms\.txt/);
+});
+
+test("developer resources are discoverable: skills when-to-use, /developers, /privacy", async () => {
+  for (const skill of AGENT_SKILL_DOCS) {
+    assert.match(skill.content, /^## When to use$/m, skill.name);
+  }
+
+  const redirects = await nextConfig.redirects();
+  assert.ok(redirects.some((r) => r.source === "/privacy" && r.destination === "/politique-de-confidentialite"));
+  assert.ok(redirects.some((r) => r.source === "/docs" && r.destination === "/developers"));
+
+  // FR and EN pages share one content module, which also feeds their Markdown twins.
+  for (const path of ["/developers", "/en/developers"]) {
+    const markdown = buildPageMarkdown(path);
+    assert.ok(markdown, path);
+    for (const resource of ["/openapi.json", "/auth.md", "/llms.txt", "/.well-known/agent-skills/index.json", "/api/exchange-rates"]) {
+      assert.ok(markdown.includes(resource), `${path} ${resource}`);
+    }
+  }
+  assert.ok(existsSync(join(repoRoot, "app/(en)/en/developers/page.tsx")));
+  // Footer links go through the bilingual route map, so English pages reach /en/developers.
+  const { getLocalizedPath } = await import("../lib/i18n.ts");
+  assert.equal(getLocalizedPath("/developers", "en"), "/en/developers");
+  const { getPublicFooterNavigation } = await import("../lib/publicFooterNavigation.ts");
+  for (const locale of ["fr", "en"]) {
+    const hrefs = getPublicFooterNavigation(locale).flatMap((group) => group.links.map((entry) => entry.href));
+    assert.ok(hrefs.includes(getLocalizedPath("/developers", locale)), locale);
+  }
+  assert.match(readRepoFile("public/llms.txt"), /https:\/\/www\.vistaire\.ca\/developers/);
+
+  const { buildSitemapEntries } = await import("../lib/seo.ts");
+  for (const path of ["/developers", "/en/developers"]) {
+    assert.ok(buildSitemapEntries().some((entry) => new URL(entry.url).pathname === path), path);
+  }
+});
+
+test("developer pages describe each error body the API really returns", async () => {
+  const { DEVELOPERS_PAGE } = await import("../lib/developersPage.ts");
+  for (const page of Object.values(DEVELOPERS_PAGE)) {
+    const text = page.sections.flatMap((section) => section.paragraphs ?? []).join(" ");
+    // Only the unknown-path catch-all adds code and hint; dish media keep { ok, error }.
+    assert.match(text, /\/api/, page.locale);
+    assert.match(text, /`\{ "ok": false, "error": "…" \}`/, page.locale);
+    assert.match(text, /404/, page.locale);
+    assert.match(text, /503/, page.locale);
+  }
 });

@@ -518,3 +518,32 @@
   .navLinks { display: none; }
   .navBrand { margin-right: auto; }
 }
+.footerUtilityLinks {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px;
+}
+.footerUtilityLinks a,
+.footerUtilityLinks button {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  color: inherit;
+  font: inherit;
+  text-decoration: none;
+  cursor: pointer;
+}
+.footerUtilityLinks a:hover,
+.footerUtilityLinks button:hover {
+  color: var(--public-gold-light);
+}
+.footerUtilityLinks a:focus-visible,
+.footerUtilityLinks button:focus-visible {
+  border-radius: 4px;
+  outline: 2px solid var(--public-gold-light);
+  outline-offset: 2px;
+}

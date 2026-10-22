@@ -86,6 +86,9 @@ registerHooks({
 
 const React = await import("react");
 const { renderToStaticMarkup } = await import("react-dom/server");
+const { PrivacyConsentProvider } = await import(
+  "../components/privacy/PrivacyConsentProvider.tsx"
+);
 const { PublicMenuRenderer } = await import(
   "../components/menu/PublicMenuRenderer.tsx"
 );
@@ -189,11 +192,13 @@ test("renders card media for generic photo-large cards", () => {
     cards: { ...DEFAULT_MENU_UI_CONFIG.cards, variant: "photo-large" }
   };
   const markup = renderToStaticMarkup(
-    React.createElement(PublicMenuRenderer, {
-      config,
-      menu: surfaceMenu,
-      mode: "public"
-    })
+    React.createElement(PrivacyConsentProvider, { locale: "fr" },
+      React.createElement(PublicMenuRenderer, {
+        config,
+        menu: surfaceMenu,
+        mode: "public"
+      })
+    )
   );
 
   assert.match(markup, markupUrlPattern(distinctUrls.card));
@@ -203,11 +208,13 @@ test("renders card media for generic photo-large cards", () => {
 
 test("renders display media for a dish detail", () => {
   const detailMarkup = renderToStaticMarkup(
-    React.createElement(PublicDishDetailExperience, {
-      dish: surfaceDish,
-      menu: surfaceMenu,
-      mode: "public"
-    })
+    React.createElement(PrivacyConsentProvider, { locale: "fr" },
+      React.createElement(PublicDishDetailExperience, {
+        dish: surfaceDish,
+        menu: surfaceMenu,
+        mode: "public"
+      })
+    )
   );
 
   assert.match(detailMarkup, markupUrlPattern(distinctUrls.display));

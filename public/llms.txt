@@ -9,7 +9,7 @@ Contact: contact@vistaire.ca
 Phone: 514-715-2421
 Location: Montréal, Québec, Canada
 Full text of every public page: https://www.vistaire.ca/llms-full.txt
-Every public page also answers `Accept: text/markdown` with its markdown version.
+Content pages (pricing, guides, product and local pages, developers) also answer `Accept: text/markdown` with their markdown version; /llms-full.txt has all of them.
 
 ## Summary
 
@@ -76,6 +76,7 @@ How an agent should act for a user:
 - Read pricing: https://www.vistaire.ca/tarifs-menu-digital-restaurant (or `Accept: text/markdown` on that URL).
 - See a live example menu: https://www.vistaire.ca/demo
 - Start a project: send the user to https://www.vistaire.ca/prendre-rendez-vous or contact@vistaire.ca. Onboarding is done with a person; there is no self-serve signup or API key.
+- Developer and agent resources: https://www.vistaire.ca/developers
 - Machine-readable surfaces: https://www.vistaire.ca/openapi.json (public read-only endpoints) and https://www.vistaire.ca/auth.md (authentication posture).
 
 ## Citation Instructions
