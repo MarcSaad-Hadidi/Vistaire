@@ -316,18 +316,18 @@ function isHeldScroll(event) {
 
 export function App({ locale = "fr" }) {
   // The opening is first painted as a still of its own 3D frame (the poster in
-  // .world). The scene, its models and GPU setup start on the first visitor
-  // input, or once the loaded page has idled, then crossfade over the poster.
+  // .world). Once the page has loaded, the models download and the scene sets
+  // up on the first idle moment, so it is usually ready before the visitor
+  // scrolls; an earlier input starts it at once. It crossfades over the poster.
   const [sceneStarted, setSceneStarted] = useState(false);
   useEffect(() => {
     let timer;
     let idle;
+    let fetched = false;
     const inputs = ["pointerdown", "touchstart", "wheel", "keydown", "scroll"];
-    const start = (event) => {
-      stop();
-      // The journey waits at the opening while the scene loads (the scroll
-      // hold in LandingContent): the starting wheel or key does not scroll.
-      if (event && isHeldScroll(event)) event.preventDefault();
+    const prefetch = () => {
+      if (fetched) return;
+      fetched = true;
       const fetchHint = { as: "fetch", crossOrigin: "anonymous" };
       // The scene's own fetches reuse these (same URL and CORS mode).
       for (const id of ["immersive.restaurant.visible.textures-512", "immersive.phone", "immersive.support.acrylique"])
@@ -337,6 +337,13 @@ export function App({ locale = "fr" }) {
         preload(`/immersive-assets/draco/${file}`, fetchHint);
       // The opening lobster depends on the viewport (Scene.jsx modelUrl).
       preload(resolvePublicModelUrl(innerWidth < 768 ? "immersive.dish.homard.scene-mobile" : "immersive.dish.homard.scene"), fetchHint);
+    };
+    const start = (event) => {
+      stop();
+      // The journey waits at the opening while the scene loads (the scroll
+      // hold in LandingContent): the starting wheel or key does not scroll.
+      if (event && isHeldScroll(event)) event.preventDefault();
+      prefetch();
       setSceneStarted(true);
     };
     const stop = () => {
@@ -345,12 +352,11 @@ export function App({ locale = "fr" }) {
       inputs.forEach((type) => removeEventListener(type, start));
       removeEventListener("load", schedule);
     };
-    // Without input, start after a quiet spell past load, not inside it.
+    // The models download right after load (network only). The scene's
+    // main-thread setup waits for input or a quiet spell, so it never lands
+    // in the page's first seconds.
     const schedule = () => {
-      timer = setTimeout(() => {
-        if (typeof requestIdleCallback === "function") idle = requestIdleCallback(start, { timeout: 2000 });
-        else start();
-      }, 6000);
+      prefetch();
     };
     // A restored or anchored scroll position is already past the opening.
     if (scrollY > 0) start();
