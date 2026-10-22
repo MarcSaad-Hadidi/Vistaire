@@ -252,7 +252,7 @@ export function CinematicPage({ chapters, scene = {}, children, footer, mainProp
           naturalFrom: guideStop,
         };
       },
-      isBlocked: () => stopped || !state.sceneReady || state.reducedMotion,
+      isBlocked: () => stopped || !state.sceneReady,
       // Content pages join short scenes: every trip uses the fast landing pace.
       fastTrips: true,
     });

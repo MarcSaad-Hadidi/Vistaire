@@ -35,6 +35,48 @@ async function waitForScene(page: Page) {
   await expect(page.locator('.preloader, [role="alertdialog"]')).toHaveCount(0);
 }
 
+for (const width of [1280, 390, 430]) {
+  const motionTest = test.extend({ hasTouch: width < 768, isMobile: width < 768 });
+  motionTest(`${width < 768 ? 'Chromium trusted touch: ' : ''}reduced motion: user navigation completes on landing and content pages at ${width}px`, async ({ page, context }) => {
+    test.setTimeout(180_000);
+    const errors: string[] = [];
+    page.on('pageerror', error => errors.push(error.message));
+    page.on('console', message => { if (message.type() === 'error') errors.push(message.text()); });
+    page.on('response', response => { if (response.status() >= 400) errors.push(`${response.status()} ${response.url()}`); });
+    await page.setViewportSize({ width, height: 844 });
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await page.addInitScript(() => {
+      const state = window as unknown as { __motionTrips: number[]; __vistaireScrollAssistTrace: (entry: { type: string; target: number }) => void };
+      state.__motionTrips = [];
+      state.__vistaireScrollAssistTrace = entry => { if (entry.type === 'completed') state.__motionTrips.push(entry.target); };
+    });
+    const trips = () => page.evaluate(() => (window as unknown as { __motionTrips: number[] }).__motionTrips);
+    for (const route of ['/', '/menu-digital-restaurant']) {
+      await page.goto(`${route}?sceneDiagnostics=1`);
+      await waitForScene(page);
+      await page.evaluate(() => document.fonts.ready);
+      expect(await page.evaluate(() => matchMedia('(prefers-reduced-motion: reduce)').matches)).toBe(true);
+      expect(await trips()).toEqual([]);
+      if (width < 768) {
+        await expect(page.locator('main')).toHaveClass(/cinematic-touch-lock/);
+        const session = await context.newCDPSession(page);
+        await session.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: 20, y: 600 }] });
+        await session.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: 20, y: 400 }] });
+        await session.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+        await session.detach();
+      } else await page.keyboard.press('PageDown');
+      await expect.poll(async () => (await trips()).length, { timeout: 15_000 }).toBe(1);
+      const [target] = await trips();
+      expect(target).toBeGreaterThan(844);
+      expect(await page.evaluate(target => Math.abs(scrollY - target), target)).toBeLessThanOrEqual(1);
+      await expect(page.locator('.scene-canvas')).toHaveAttribute('data-ready', 'true');
+      expect(await page.evaluate(() => document.documentElement.scrollWidth - innerWidth)).toBeLessThanOrEqual(1);
+      for (const video of await page.locator('video[data-demo]').all()) await expect(video).toHaveJSProperty('paused', true);
+    }
+    expect(errors).toEqual([]);
+  });
+}
+
 // Toolbar-height freezing is a touch/coarse-pointer contract, not a narrow
 // desktop-window contract. Keep these inputs explicit in the relevant cases.
 const touchTest = domTest.extend({ hasTouch: true });

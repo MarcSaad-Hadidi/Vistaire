@@ -856,7 +856,7 @@ function LandingContent() {
       getGeometry: () => ({ opening, transitions, pricing: stateRef.current.pricingReadingStops?.() }),
       isBlocked: () => {
         const state = stateRef.current;
-        return stopped || !state.sceneReady || state.menuOpen || state.modalOpen || state.arActive || state.reducedMotion;
+        return stopped || !state.sceneReady || state.menuOpen || state.modalOpen || state.arActive;
       },
     });
     paceState.cancelEntryAssist = entryAssist.cancel;
@@ -935,7 +935,7 @@ function LandingContent() {
       sceneReady: ready && !gpuError,
       retryModel,
     });
-    if (menu || modal || reduce || arStatus !== "idle" || !ready || gpuError) stateRef.current.cancelEntryAssist?.("blocked-ui-state");
+    if (menu || modal || arStatus !== "idle" || !ready || gpuError) stateRef.current.cancelEntryAssist?.("blocked-ui-state");
     stateRef.current.setEntryTouchSuppressed?.(Boolean(menu || modal || arStatus !== "idle"));
     stateRef.current.syncEntryTouchLock?.();
     stateRef.current.invalidateScene?.();
