@@ -9,6 +9,7 @@ import { preload } from "react-dom";
 import { resolvePublicModelUrl } from "../../lib/publicModelAssets.ts";
 import { dishSceneModelUrl, supportModelUrls } from "./content.js";
 import { createEntryScrollAssist } from "./EntryScrollAssist.js";
+import { useDeferredScene, useScrollHold } from "./deferredScene.js";
 import { useLinkIntent } from "./useLinkIntent.js";
 import { pageShot } from "./PageShots.js";
 import { bindJourneyViewport } from "./JourneyViewport.js";
@@ -22,11 +23,9 @@ import {
 import "./styles.css";
 import "./cinematic-page.css";
 
-// The scene chunk (three.js) starts with this module, not when hydration first
-// renders it: on a cold visit it was the longest wait before any room showed.
-const loadScene = () => import("./Scene.jsx");
-const sceneChunk = typeof window === "undefined" ? null : loadScene();
-const Scene = lazy(() => sceneChunk ?? loadScene());
+// The scene chunk (three.js) loads when the scene starts (useDeferredScene),
+// after the page has painted.
+const Scene = lazy(() => import("./Scene.jsx"));
 const clamp = (value) => Math.max(0, Math.min(1, value));
 const fetchHint = { as: "fetch", crossOrigin: "anonymous" };
 
@@ -37,10 +36,9 @@ export function CinematicPage({ chapters, scene = {}, children, footer, mainProp
   // Each page shows its own dish, stand and one restaurant's menu on every
   // phone shot (pagePhoneDemo, unlike the landing's demo picker).
   const { phoneDemo = "maison-elyse", ...objects } = scene;
-  // What the opening shot shows starts downloading at hydration (see the
-  // effect below), before the scene chunk needs it: the reveal waits for it.
-  // Not in the server HTML, where megabytes of models competed with the page's
-  // CSS and scripts before first paint. Later shots load after the reveal.
+  // What the opening shot shows downloads right after load, ahead of the
+  // scene (see prefetch below): the reveal waits for it. Later shots load
+  // after the reveal.
   const opening = pageShot(chapters[0].shot, 0, false, true)
     ?? { [PILLAR_OPENINGS[chapters[0].shot]]: 1 };
   // Chapters may own the stand's collection, the phone's restaurant or the
@@ -71,20 +69,30 @@ export function CinematicPage({ chapters, scene = {}, children, footer, mainProp
     setReady(true);
   }, []);
   const onError = useCallback(() => setFailed(true), []);
-  // Until the room is revealed, a loading screen holds the page (no scroll, no
-  // clicks behind it). It never traps anyone: a failed scene or a 20 s wait
-  // releases it, and the page works on the dimmed room still.
-  const [held, setHeld] = useState(true);
-  // A click to another page shows the same screen at once (the next page keeps
-  // it up until its own room is ready); 8 s releases a navigation that never came.
+  // The page first paints its copy over the dimmed room still; the 3D starts
+  // after load and fades in once ready. Scrolling waits for it meanwhile
+  // (released by a failure or after 20 s), with a quiet cue.
+  const started = useDeferredScene(() => {
+    // The scene reuses these fetches (same URL and CORS mode).
+    preload(resolvePublicModelUrl("immersive.restaurant.visible.textures-512"), fetchHint);
+    if (opening.phoneScale > 0 || opening.pdfPhoneScale > 0) preload(resolvePublicModelUrl("immersive.phone"), fetchHint);
+    if (opening.supportScale > 0)
+      preload(supportModelUrls[chapters[0].scene?.collection ?? objects.collection ?? "acrylique"], fetchHint);
+    // The Draco decoder the room needs, fetched by three's FileLoader.
+    for (const file of ["draco_wasm_wrapper.js", "draco_decoder.wasm"])
+      preload(`/immersive-assets/draco/${file}`, fetchHint);
+    // The opening dish's file depends on the viewport.
+    if (opening.dishScale > 0) preload(dishSceneModelUrl(objects.dish ?? "homard", innerWidth < 768), fetchHint);
+  });
+  const sceneLoading = started && !ready && !failed;
+  useScrollHold(sceneLoading);
+  // A click to another page shows the loading screen at once (the next page
+  // keeps its still until its own room is ready); 8 s releases a navigation
+  // that never came.
   const [leaving, setLeaving] = useState(false);
   const leave = useCallback(() => setLeaving(true), []);
   useLinkIntent(leave, ready);
-  const loading = (held && !ready && !failed) || leaving;
-  useEffect(() => {
-    const release = setTimeout(() => setHeld(false), 20000);
-    return () => clearTimeout(release);
-  }, []);
+  const loading = leaving;
   useEffect(() => {
     if (!leaving) return;
     const release = setTimeout(() => setLeaving(false), 8000);
@@ -104,20 +112,6 @@ export function CinematicPage({ chapters, scene = {}, children, footer, mainProp
       if (main) main.inert = false;
     };
   }, [loading]);
-
-  // The scene reuses these fetches (same URL and CORS mode). The opening dish's
-  // file depends on the viewport, known at hydration.
-  useEffect(() => {
-    preload(resolvePublicModelUrl("immersive.restaurant.visible.textures-512"), fetchHint);
-    if (opening.phoneScale > 0 || opening.pdfPhoneScale > 0) preload(resolvePublicModelUrl("immersive.phone"), fetchHint);
-    if (opening.supportScale > 0)
-      preload(supportModelUrls[chapters[0].scene?.collection ?? objects.collection ?? "acrylique"], fetchHint);
-    // The Draco decoder the room needs, fetched by three's FileLoader.
-    for (const file of ["draco_wasm_wrapper.js", "draco_decoder.wasm"])
-      preload(`/immersive-assets/draco/${file}`, fetchHint);
-    if (opening.dishScale > 0) preload(dishSceneModelUrl(objects.dish ?? "homard", innerWidth < 768), fetchHint);
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- the opening shot is fixed per page.
-  }, []);
 
   useEffect(() => {
     const root = document.documentElement;
@@ -279,10 +273,17 @@ export function CinematicPage({ chapters, scene = {}, children, footer, mainProp
     <div data-immersive-vistaire className={`cinematic-page${ready ? " is-ready" : ""}`}>
       <div className="world" aria-hidden="true">
         <Suspense fallback={null}>
-          {!failed && <Scene stateRef={stateRef} onReady={onReady} onError={onError} />}
+          {!failed && started && <Scene stateRef={stateRef} onReady={onReady} onError={onError} />}
         </Suspense>
       </div>
       <noscript><style>{".cinematic-preloader{display:none}"}</style></noscript>
+      {sceneLoading && !leaving && (
+        <div className="poster-cue cinematic-cue" role="status">
+          <div className="loading-line" />
+          <span lang="fr">Préparons votre table.</span>
+          <span lang="en">Preparing your table.</span>
+        </div>
+      )}
       {loading && (
         <div className="preloader cinematic-preloader" role="status">
           <div className="loading-word">Vistaire</div>

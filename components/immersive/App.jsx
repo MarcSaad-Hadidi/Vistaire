@@ -4,6 +4,7 @@ import Link from "next/link";
 import { preload } from "react-dom";
 import { resolvePublicModelUrl } from "../../lib/publicModelAssets.ts";
 import { createEntryScrollAssist } from "./EntryScrollAssist.js";
+import { useDeferredScene, useScrollHold } from "./deferredScene.js";
 import { useLinkIntent } from "./useLinkIntent.js";
 import { bindPublicMenuViewport } from "@/lib/publicMenuViewport";
 import {
@@ -305,72 +306,22 @@ function Modal({ label, children, close }) {
     </div>
   );
 }
-const SCROLL_KEYS = new Set([" ", "PageDown", "PageUp", "ArrowDown", "ArrowUp", "End", "Home"]);
-// The visitor inputs that scroll the journey: wheel, touch drags and scroll
-// keys outside form fields.
-function isHeldScroll(event) {
-  if (event.type === "keydown")
-    return SCROLL_KEYS.has(event.key) && !event.target.closest?.("input, textarea, select, [contenteditable]");
-  return event.type === "wheel" || event.type === "touchmove";
+// The opening's models, fetched by the scene with the same URL and CORS mode.
+function prefetchOpening() {
+  const fetchHint = { as: "fetch", crossOrigin: "anonymous" };
+  for (const id of ["immersive.restaurant.visible.textures-512", "immersive.phone", "immersive.support.acrylique"])
+    preload(resolvePublicModelUrl(id), fetchHint);
+  // The Draco decoder the room needs, fetched by three's FileLoader.
+  for (const file of ["draco_wasm_wrapper.js", "draco_decoder.wasm"])
+    preload(`/immersive-assets/draco/${file}`, fetchHint);
+  // The opening lobster depends on the viewport (Scene.jsx modelUrl).
+  preload(resolvePublicModelUrl(innerWidth < 768 ? "immersive.dish.homard.scene-mobile" : "immersive.dish.homard.scene"), fetchHint);
 }
 
 export function App({ locale = "fr" }) {
   // The opening is first painted as a still of its own 3D frame (the poster in
-  // .world). Once the page has loaded, the models download and the scene sets
-  // up on the first idle moment, so it is usually ready before the visitor
-  // scrolls; an earlier input starts it at once. It crossfades over the poster.
-  const [sceneStarted, setSceneStarted] = useState(false);
-  useEffect(() => {
-    let timer;
-    let idle;
-    let fetched = false;
-    const inputs = ["pointerdown", "touchstart", "wheel", "keydown", "scroll"];
-    const prefetch = () => {
-      if (fetched) return;
-      fetched = true;
-      const fetchHint = { as: "fetch", crossOrigin: "anonymous" };
-      // The scene's own fetches reuse these (same URL and CORS mode).
-      for (const id of ["immersive.restaurant.visible.textures-512", "immersive.phone", "immersive.support.acrylique"])
-        preload(resolvePublicModelUrl(id), fetchHint);
-      // The Draco decoder the room needs, fetched by three's FileLoader.
-      for (const file of ["draco_wasm_wrapper.js", "draco_decoder.wasm"])
-        preload(`/immersive-assets/draco/${file}`, fetchHint);
-      // The opening lobster depends on the viewport (Scene.jsx modelUrl).
-      preload(resolvePublicModelUrl(innerWidth < 768 ? "immersive.dish.homard.scene-mobile" : "immersive.dish.homard.scene"), fetchHint);
-    };
-    const start = (event) => {
-      stop();
-      // The journey waits at the opening while the scene loads (the scroll
-      // hold in LandingContent): the starting wheel or key does not scroll.
-      if (event && isHeldScroll(event)) event.preventDefault();
-      prefetch();
-      setSceneStarted(true);
-    };
-    const stop = () => {
-      clearTimeout(timer);
-      if (idle) cancelIdleCallback(idle);
-      inputs.forEach((type) => removeEventListener(type, start));
-      removeEventListener("load", schedule);
-    };
-    // The models download right after load (network only). The scene's
-    // main-thread setup waits for input or a quiet spell, so it never lands
-    // in the page's first seconds.
-    const schedule = () => {
-      prefetch();
-      timer = setTimeout(() => {
-        if (typeof requestIdleCallback === "function") idle = requestIdleCallback(() => start(), { timeout: 2000 });
-        else start();
-      }, 6000);
-    };
-    // A restored or anchored scroll position is already past the opening.
-    if (scrollY > 0) start();
-    else {
-      inputs.forEach((type) => addEventListener(type, start, { passive: type !== "wheel" }));
-      if (document.readyState === "complete") schedule();
-      else addEventListener("load", schedule);
-    }
-    return stop;
-  }, []);
+  // .world); the scene crossfades over it once ready (useDeferredScene).
+  const sceneStarted = useDeferredScene(prefetchOpening);
   return (
     <LandingLocaleProvider locale={locale}>
       <LandingContent sceneStarted={sceneStarted} />
@@ -432,22 +383,9 @@ function LandingContent({ sceneStarted }) {
   const [posterGone, setPosterGone] = useState(false);
   const [gpuError, setGpuError] = useState(false);
   // Once the 3D starts, scrolling waits on the poster until the whole opening
-  // shot (room included) is ready: shots reached early showed the phone and
-  // stand without their room. 20 s releases a load that never finishes; the
-  // poster still covers the canvas until it is ready.
+  // shot (room included) is ready; the poster covers the canvas until then.
   const holdingScroll = sceneStarted && !ready && !gpuError;
-  useEffect(() => {
-    if (!holdingScroll) return;
-    // Visitor inputs are held, not the page: overflow hidden would drop the
-    // desktop scrollbar and shift the layout, and the journey's own scrolls
-    // (anchors, chapter links) must still land.
-    const hold = (event) => { if (isHeldScroll(event)) event.preventDefault(); };
-    const types = ["wheel", "touchmove", "keydown"];
-    const release = () => types.forEach((type) => removeEventListener(type, hold));
-    types.forEach((type) => addEventListener(type, hold, { passive: false }));
-    const timer = setTimeout(release, 20_000);
-    return () => { clearTimeout(timer); release(); };
-  }, [holdingScroll]);
+  useScrollHold(holdingScroll);
   // Another page fetches as a link is reached and shows the loading screen the
   // moment it is clicked (useLinkIntent); 8 s releases a navigation that never came.
   const [leaving, setLeaving] = useState(false);
