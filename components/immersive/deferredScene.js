@@ -5,12 +5,21 @@ const SCROLL_KEYS = new Set([" ", "PageDown", "PageUp", "ArrowDown", "ArrowUp", 
 const KEY_OWNERS = "input, textarea, select, button, summary, audio, video, [contenteditable], " +
   "[role=button], [role=checkbox], [role=radio], [role=switch], [role=tab], [role=menuitem], " +
   "[role=option], [role=slider], [role=spinbutton], [role=combobox], [role=listbox], [role=textbox]";
+// An overlay that scrolls itself (mobile menu, dialog) keeps its own scrolling.
+function inScrollableArea(target) {
+  for (let el = target; el instanceof Element && el !== document.body && el !== document.documentElement; el = el.parentElement) {
+    const { overflowY } = getComputedStyle(el);
+    if ((overflowY === "auto" || overflowY === "scroll") && el.scrollHeight > el.clientHeight) return true;
+  }
+  return false;
+}
 // The visitor inputs that scroll the journey: wheel, touch drags and scroll
-// keys outside focused controls.
+// keys outside focused controls and self-scrolling overlays.
 export function isHeldScroll(event) {
-  if (event.type === "keydown")
-    return SCROLL_KEYS.has(event.key) && !event.target.closest?.(KEY_OWNERS);
-  return event.type === "wheel" || event.type === "touchmove";
+  if (event.type === "keydown") {
+    if (!SCROLL_KEYS.has(event.key) || event.target.closest?.(KEY_OWNERS)) return false;
+  } else if (event.type !== "wheel" && event.type !== "touchmove") return false;
+  return !inScrollableArea(event.target);
 }
 
 // A page paints its opening (still and copy) before any 3D work. The models
