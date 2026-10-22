@@ -13,6 +13,7 @@ declare global {
   interface Window {
     __vistaireClarityBlocked?: boolean;
     __vistaireClarityPathname?: string;
+    __vistaireClarityStopped?: boolean;
     clarity?: (...args: unknown[]) => void;
   }
 }
@@ -53,6 +54,11 @@ export function MicrosoftClarityScript({
     if (!hydrated || !window.clarity) return;
 
     if (analyticsAllowed && shouldLoad) {
+      // A recorder stopped by an earlier withdrawal on this page must be restarted explicitly.
+      if (window.__vistaireClarityStopped) {
+        window.clarity("start");
+        window.__vistaireClarityStopped = false;
+      }
       window.clarity("consentv2", {
         ad_Storage: "denied",
         analytics_Storage: "granted"
@@ -65,6 +71,8 @@ export function MicrosoftClarityScript({
       analytics_Storage: "denied"
     });
     window.clarity("consent", false);
+    window.clarity("stop");
+    window.__vistaireClarityStopped = true;
   }, [analyticsAllowed, hydrated, shouldLoad]);
 
   if (shouldReload) {

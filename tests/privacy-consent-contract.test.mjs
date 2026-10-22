@@ -260,3 +260,10 @@ test("an open consent editor remounts when another tab changes the choice", asyn
   // The banner's draft toggle is local state; keying on the persisted value resets it.
   assert.match(provider, /<PrivacyConsentBanner\s+key=\{String\(consent\?\.analytics \?\? "unset"\)\}/);
 });
+
+test("withdrawing consent stops a running Clarity recorder and a later grant restarts it", async () => {
+  const clarity = await readSource("components/analytics/MicrosoftClarityScript.tsx");
+  // Denying storage alone keeps Clarity recording cookieless; stop/start control the recorder itself.
+  assert.match(clarity, /window\.clarity\("consent", false\);\s*window\.clarity\("stop"\);/);
+  assert.match(clarity, /window\.clarity\("start"\)/);
+});
