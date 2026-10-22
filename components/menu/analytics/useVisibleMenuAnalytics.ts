@@ -12,8 +12,12 @@ export function useVisibleMenuAnalytics(menu: PublicMenu, enabled: boolean, dish
   const openings = useRef(new Map<string, { sessionId?: string }>());
   const seen = useRef(new Set<string>());
   useEffect(() => {
+    if (!analyticsAllowed) {
+      seen.current.clear();
+      return;
+    }
     const root = rootRef.current;
-    if (!enabled || !analyticsAllowed || !root || typeof IntersectionObserver === "undefined") return;
+    if (!enabled || !root || typeof IntersectionObserver === "undefined") return;
     const pageType = dish ? "dish" : "menu";
     const identity = `${menu.source}:${menu.restaurantId}:${menu.menuId}:${pageType}:${dish?.slug ?? ""}`;
     let intersecting = false;

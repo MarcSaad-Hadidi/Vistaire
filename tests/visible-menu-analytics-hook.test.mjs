@@ -4,7 +4,7 @@ import { readFileSync } from "node:fs";
 import vm from "node:vm";
 import ts from "typescript";
 
-function mountAnalytics(analyticsAllowed = true) {
+function mountAnalytics(analyticsAllowed = true, dishPage = true) {
   let now = 0, hidden = false, refIndex = 0, pendingEffect, cleanup, dependencies;
   const refs = [], emitted = [], intersections = [], mutations = [];
   const timers = new Set();
@@ -63,17 +63,23 @@ function mountAnalytics(analyticsAllowed = true) {
   };
   const parent = new Element();
   const root = new Element();
+  const item = new Element();
   root.parentElement = parent;
+  root.querySelectorAll = () => [item];
+  root.contains = element => element === root || element === item;
+  item.getAttribute = name => name === "data-analytics-dish" ? dish.slug : null;
   const render = (allowed) => {
     analyticsAllowed = allowed;
     refIndex = 0;
-    const ref = hookModule.exports.useVisibleMenuAnalytics(menu, true, dish);
+    const ref = hookModule.exports.useVisibleMenuAnalytics(menu, true, dishPage ? dish : null);
     ref.current = root;
     if (pendingEffect) {
       cleanup?.();
       cleanup = pendingEffect();
       pendingEffect = undefined;
-      intersections.at(-1)?.callback([{ target: root, isIntersecting: true, intersectionRatio: 1 }]);
+      if (cleanup) intersections.at(-1)?.callback([root, ...(dishPage ? [] : [item])].map(target => ({
+        target, isIntersecting: true, intersectionRatio: 1,
+      })));
     }
   };
   render(analyticsAllowed);
@@ -121,6 +127,18 @@ test("menu dwell starts at consent and never includes time before a later grant"
   for (const name of ["session_duration", "dish_dwell"]) {
     assert.deepEqual(hook.emitted.filter(event => event.eventName === name)
       .map(event => event.metadata.durationMs), [1000, 1000], name);
+  }
+  hook.cleanup();
+});
+
+test("menu visibility events restart once after consent is withdrawn and granted again", () => {
+  const hook = mountAnalytics(true, false);
+  hook.flush();
+  hook.consent(false);
+  hook.consent(true);
+  hook.flush();
+  for (const name of ["menu_list_viewed", "dish_visible", "category_viewed"]) {
+    assert.equal(hook.emitted.filter(event => event.eventName === name).length, 2, name);
   }
   hook.cleanup();
 });
