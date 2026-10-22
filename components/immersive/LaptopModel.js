@@ -275,9 +275,8 @@ export function createLaptopModel({
     desiredProgress = clamp(progress);
     desiredReduced = Boolean(reducedMotion);
     if (disposed || !modelReady) return false;
-    const openingProgress = desiredReduced
-      ? 1
-      : cinematicEase(desiredProgress);
+    // The hinge follows user scroll even when time-based decorative motion is reduced.
+    const openingProgress = cinematicEase(desiredProgress);
     const target = THREE.MathUtils.lerp(
       openingStart,
       openingEnd,

@@ -910,6 +910,7 @@ test("public theme remains usable when local storage is blocked", async ({ page 
 
 test("public theme uses BeUI blinds with keyboard and rapid-click safety on mobile and desktop", async ({ page }) => {
   test.setTimeout(240_000);
+  await page.emulateMedia({ reducedMotion: "no-preference" });
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(error.message));
   await page.addInitScript(() => {
@@ -962,14 +963,21 @@ test("public theme uses BeUI blinds with keyboard and rapid-click safety on mobi
   expect(errors).toEqual([]);
 });
 
-test("public theme skips animation for reduced motion and unsupported browsers", async ({ page }) => {
+test("public theme animates reduced motion briefly and supports browsers without transitions", async ({ page }) => {
   await page.addInitScript(() => {
     localStorage.removeItem("vistaire-public-theme");
-    const probe = { starts: 0 };
+    const probe = { starts: 0, duration: 0, animation: "" };
     Object.assign(window, { themeTransitionProbe: probe });
-    Object.defineProperty(document, "startViewTransition", { value: () => {
+    const nativeStart = document.startViewTransition.bind(document);
+    Object.defineProperty(document, "startViewTransition", { value: (update: () => void) => {
       probe.starts += 1;
-      throw new Error("Reduced motion started a transition");
+      const transition = nativeStart(update);
+      void transition.ready.then(() => {
+        const style = getComputedStyle(document.documentElement, "::view-transition-new(root)");
+        probe.animation = style.animationName;
+        probe.duration = parseFloat(style.animationDuration);
+      }).catch(() => {});
+      return transition;
     }, configurable: true });
   });
   const errors: string[] = [];
@@ -981,7 +989,11 @@ test("public theme skips animation for reduced motion and unsupported browsers",
   await toggle.click();
   await expect(toggle).toHaveAttribute("aria-pressed", "true");
   await expect(page.locator("html")).not.toHaveAttribute("data-vistaire-theme-transition");
-  expect(await page.evaluate(() => (window as unknown as { themeTransitionProbe: { starts: number } }).themeTransitionProbe.starts)).toBe(0);
+  const probe = await page.evaluate(() => (window as unknown as { themeTransitionProbe: { starts: number; duration: number; animation: string } }).themeTransitionProbe);
+  expect(probe.starts).toBe(1);
+  expect(probe.animation).toBe("vistaire-theme-blinds-reveal");
+  expect(probe.duration).toBeGreaterThan(0);
+  expect(probe.duration).toBeLessThanOrEqual(.1);
   await page.emulateMedia({ reducedMotion: "no-preference" });
   await page.evaluate(() => Object.defineProperty(document, "startViewTransition", { value: undefined }));
   await toggle.focus();

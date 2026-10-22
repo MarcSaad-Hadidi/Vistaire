@@ -22,8 +22,7 @@ let themeTransitionPending = false;
 export async function togglePublicTheme() {
   if (themeTransitionPending) return;
   const next = getPublicTheme() === "dark" ? "light" : "dark";
-  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches ||
-      typeof document.startViewTransition !== "function") {
+  if (typeof document.startViewTransition !== "function") {
     setPublicTheme(next);
     return;
   }

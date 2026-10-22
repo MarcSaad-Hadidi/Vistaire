@@ -115,7 +115,7 @@ function deferred() {
   return { promise, resolve };
 }
 
-function appRouteDoFixture() {
+function appRouteFixture() {
   const implicitTags = {
     tags: [],
     expirationsByCacheKind: new Map()
@@ -165,12 +165,11 @@ function appRouteDoFixture() {
     context,
     workStore,
     invoke(handler) {
-      return routeModule.do(
+      return routeModule.renderToResponse(
         handler,
         actionStore,
         workStore,
         requestStore,
-        implicitTags,
         request,
         context
       );
@@ -412,7 +411,7 @@ async function committedRouteHandler({
 
 test("a post-commit cleanup error is caught, rescheduled and returned as a controlled Response", async () => {
   const events = [];
-  const fixture = appRouteDoFixture();
+  const fixture = appRouteFixture();
   const recorder = pendingRevalidationRecorder(fixture.workStore, events);
   const response = await fixture.invoke(
     () =>
@@ -465,7 +464,7 @@ test("a post-commit cleanup error is caught, rescheduled and returned as a contr
 
 test("an arbitrary post-commit throw bypasses Next pending revalidation flush", async () => {
   const events = [];
-  const fixture = appRouteDoFixture();
+  const fixture = appRouteFixture();
   const recorder = pendingRevalidationRecorder(fixture.workStore, events);
   const identity = await featuredIdentity();
 
@@ -488,7 +487,7 @@ test("an arbitrary post-commit throw bypasses Next pending revalidation flush", 
 test("only committed and partial outcomes schedule; failed, no-op, draft and dry-run outcomes do not", async () => {
   for (const outcome of ["failed", "noop", "draft", "dry-run"]) {
     const events = [];
-    const fixture = appRouteDoFixture();
+    const fixture = appRouteFixture();
     const recorder = pendingRevalidationRecorder(fixture.workStore, events);
     const response = await fixture.invoke(
       () =>
@@ -504,7 +503,7 @@ test("only committed and partial outcomes schedule; failed, no-op, draft and dry
   }
 
   const partialEvents = [];
-  const partialFixture = appRouteDoFixture();
+  const partialFixture = appRouteFixture();
   const partialRecorder = pendingRevalidationRecorder(
     partialFixture.workStore,
     partialEvents
