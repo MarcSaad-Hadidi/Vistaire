@@ -1,5 +1,34 @@
 import { useEffect, useState } from "react";
 
+// The visitor inputs that scroll the journey: wheel, touch drags and scroll keys
+// outside focused controls (Space activates a button or summary) and
+// self-scrolling overlays (mobile menu, dialog). Self-contained: its source also
+// runs inline before hydration (EARLY_SCROLL_HOLD).
+function holdInput(event) {
+  if (event.type === "keydown") {
+    if (![" ", "PageDown", "PageUp", "ArrowDown", "ArrowUp", "End", "Home"].includes(event.key)) return;
+    if (event.target.closest?.("input, textarea, select, button, summary, audio, video, [contenteditable], " +
+      "[role=button], [role=checkbox], [role=radio], [role=switch], [role=tab], [role=menuitem], " +
+      "[role=option], [role=slider], [role=spinbutton], [role=combobox], [role=listbox], [role=textbox]")) return;
+  } else if (event.type !== "wheel" && event.type !== "touchmove") return;
+  for (let el = event.target; el instanceof Element && el !== document.body && el !== document.documentElement; el = el.parentElement) {
+    const { overflowY } = getComputedStyle(el);
+    if ((overflowY === "auto" || overflowY === "scroll") && el.scrollHeight > el.clientHeight) return;
+  }
+  globalThis.__vistaireIntent = true;
+  event.preventDefault();
+}
+const HELD_INPUTS = ["wheel", "touchmove", "keydown"];
+// One listener from the HTML parse to the ready scene: hydration adopts the
+// inline one, so releasing it removes both.
+const heldListener = () => (globalThis.__vistaireHoldInput ??= holdInput);
+// Rendered inline by pages with a scene: scrolling waits before hydration too.
+export const EARLY_SCROLL_HOLD = `window.__vistaireHoldInput=${holdInput};` +
+  `${JSON.stringify(HELD_INPUTS)}.forEach(t=>addEventListener(t,__vistaireHoldInput,{passive:false}));` +
+  `setTimeout(()=>${JSON.stringify(HELD_INPUTS)}.forEach(t=>removeEventListener(t,__vistaireHoldInput)),20000);` +
+  // A tap before hydration is an intent too; the scene then starts at mount.
+  `["pointerdown","touchstart"].forEach(t=>addEventListener(t,()=>{window.__vistaireIntent=true},{passive:true,once:true}))`;
+
 // Give input and painting a turn between the expensive WebGL setup stages.
 export function yieldToMainThread() {
   if (globalThis.scheduler?.yield) return globalThis.scheduler.yield();
@@ -43,7 +72,8 @@ export function prepareEnvironmentShaders(renderer, pmrem, environment, camera, 
 
 // The poster is presented first; the models then download (network only) and
 // the scene's main-thread setup waits for a visitor input or a quiet spell, so
-// it never lands in the page's first seconds. Inputs are passive: never held.
+// it never lands in the page's first seconds. Scrolling waits at the opening
+// meanwhile (useScrollHold).
 // A frame callback is not enough: WebGL work can delay presenting that frame.
 const INPUTS = ["pointerdown", "touchstart", "wheel", "keydown", "scroll"];
 // Lab traces end ~2.5 s after the first paint on a quiet page; 4 s keeps a margin.
@@ -86,8 +116,9 @@ export function useDeferredScene(prefetch) {
       });
       painted.observe({ type: "paint", buffered: true });
     };
-    // A restored or anchored scroll position is already past the opening.
-    if (scrollY > 0) start();
+    // A restored or anchored scroll position is already past the opening, and
+    // an input held before hydration (EARLY_SCROLL_HOLD) asked for the scene.
+    if (scrollY > 0 || globalThis.__vistaireIntent) start();
     else {
       INPUTS.forEach(name => addEventListener(name, start, { passive: true }));
       if (document.readyState === "complete") schedule();
@@ -97,4 +128,26 @@ export function useDeferredScene(prefetch) {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- the opening is fixed per page.
   }, []);
   return started;
+}
+
+// Until the scene is ready, scrolling waits at the opening: shots reached early
+// showed objects without their room. Visitor inputs are held, not the page:
+// overflow hidden would drop the desktop scrollbar and shift the layout, and
+// the journey's own scrolls (anchors, chapter links) must still land. 20 s
+// releases a load that never finishes. Returns whether scrolling is held (for
+// the loading cue).
+export function useScrollHold(active) {
+  const [timedOut, setTimedOut] = useState(false);
+  const holding = active && !timedOut;
+  useEffect(() => {
+    const release = () => HELD_INPUTS.forEach(type => removeEventListener(type, heldListener()));
+    if (!holding) return release();
+    HELD_INPUTS.forEach(type => addEventListener(type, heldListener(), { passive: false }));
+    const timer = setTimeout(() => setTimedOut(true), 20_000);
+    return () => {
+      clearTimeout(timer);
+      release();
+    };
+  }, [holding]);
+  return holding;
 }

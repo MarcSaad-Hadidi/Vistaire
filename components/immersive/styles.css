@@ -183,6 +183,23 @@
     display: none;
   }
 }
+/* While the live scene loads over the poster (the preloader's line and copy). */
+:where([data-immersive-vistaire]) .poster-cue {
+  position: fixed;
+  z-index: 12;
+  left: 50%;
+  bottom: calc(28px + env(safe-area-inset-bottom, 0px));
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  color: var(--cream);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  pointer-events: none;
+}
 /* One full-world surface follows the identities copy, without a sticky edge. */
 :where([data-immersive-vistaire]) .world::before {
   content: "";

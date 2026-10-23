@@ -1295,7 +1295,7 @@ renderedTouchTest('Chromium trusted touch: pricing edges own one trip and offer 
   }
 });
 
-test("scene startup keeps the first scroll free while 3D loads automatically @critical", async ({ page }) => {
+test("an early scroll waits at the opening until the 3D is ready @critical", async ({ page }) => {
   test.setTimeout(240_000);
   for (const [route, width] of [["/", 390], ["/menu-digital-restaurant", 430]] as const) {
     let releaseModels!: () => void;
@@ -1306,16 +1306,16 @@ test("scene startup keeps the first scroll free while 3D loads automatically @cr
     });
     try {
       await page.setViewportSize({ width, height: width === 390 ? 844 : 932 });
-      await page.goto(route);
+      await page.goto(route, { waitUntil: "load" });
+      // The first wheel starts the scene at once and does not scroll past the opening.
+      await page.mouse.wheel(0, 2400);
       const canvas = page.locator(".scene-canvas");
       await expect(canvas).toBeAttached({ timeout: 30_000 });
       await expect(canvas).toHaveAttribute("data-ready", "false");
-      await page.mouse.wheel(0, 400);
-      await expect.poll(() => page.evaluate(() => scrollY), {
-        message: "the first gesture scrolls even while the model response is pending",
-        timeout: 2_000,
-      }).toBeGreaterThan(0);
-      await expect(page.locator(".poster-cue")).toHaveCount(0);
+      await expect(page.locator(".poster-cue")).toBeVisible();
+      await page.mouse.wheel(0, 2400);
+      await page.waitForTimeout(500);
+      expect(await page.evaluate(() => scrollY), "scrolling is held while the models are pending").toBe(0);
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     } finally {
       releaseModels();
@@ -1323,6 +1323,9 @@ test("scene startup keeps the first scroll free while 3D loads automatically @cr
     }
     await expect(page.locator(".scene-canvas")).toHaveAttribute("data-ready", "true", { timeout: 120_000 });
     await expect(page.locator(".scene-canvas")).toHaveAttribute("data-restaurant-ready", "true");
+    await expect(page.locator(".poster-cue")).toHaveCount(0);
+    await page.mouse.wheel(0, 400);
+    await expect.poll(() => page.evaluate(() => scrollY), { message: "scrolling resumes once the scene is ready" }).toBeGreaterThan(0);
   }
 });
 

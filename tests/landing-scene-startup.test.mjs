@@ -7,11 +7,11 @@ const source = readFileSync("components/immersive/deferredScene.js", "utf8")
   .replace(/import[^;]+from "react";/, "")
   .replaceAll("export ", "");
 
-function startupScope({ readyState = "complete", scrollY = 0 } = {}) {
+function startupScope({ readyState = "complete", scrollY = 0, earlyInput } = {}) {
   const state = { listeners: new Map(), idle: new Map(), observers: new Set(), timers: new Map(), fetched: 0, started: false };
   let nextId = 0;
   state.scope = vm.createContext({
-    document: { readyState }, scrollY,
+    document: { readyState }, scrollY, Element: class {}, __vistaireIntent: earlyInput,
     useState: () => [false, value => { state.started = value; }],
     useEffect: effect => { state.cleanup = effect(); },
     addEventListener: (name, callback, options) => state.listeners.set(name, { callback, options }),
@@ -31,11 +31,12 @@ function startupScope({ readyState = "complete", scrollY = 0 } = {}) {
   return state;
 }
 const INPUTS = ["keydown", "pointerdown", "scroll", "touchstart", "wheel"];
+const HELD = ["keydown", "touchmove", "wheel"];
 
 test("models download after the first contentful paint; the scene sets up after a quiet spell", () => {
   for (const readyState of ["loading", "complete"]) {
     const s = startupScope({ readyState });
-    for (const name of INPUTS) assert.equal(s.listeners.get(name).options.passive, true, `${name}: the first scroll is never held`);
+    for (const name of INPUTS) assert.equal(s.listeners.get(name).options.passive, true, `${name}: starting listeners never block (the hold does)`);
     if (readyState === "loading") {
       assert.equal(s.observers.size, 0, "the poster keeps network priority until load");
       s.listeners.get("load").callback();
@@ -65,7 +66,7 @@ test("models download after the first contentful paint; the scene sets up after 
 
 test("a visitor input or a restored scroll starts the scene at once; unmount cancels everything", () => {
   const input = startupScope({ readyState: "loading" });
-  input.listeners.get("wheel").callback();
+  input.listeners.get("wheel").callback({ type: "wheel" });
   assert.equal(input.started, true);
   assert.equal(input.fetched, 1);
   assert.equal(input.listeners.size, 0);
@@ -74,6 +75,10 @@ test("a visitor input or a restored scroll starts the scene at once; unmount can
   const restored = startupScope({ scrollY: 400 });
   assert.equal(restored.started, true, "a restored or anchored scroll is already past the opening");
   assert.equal(restored.fetched, 1);
+
+  const early = startupScope({ earlyInput: true });
+  assert.equal(early.started, true, "an input before hydration (held inline) starts the scene at mount");
+  assert.equal(early.fetched, 1);
 
   const pending = startupScope();
   const [observer] = pending.observers;
@@ -148,4 +153,100 @@ test("PMREM shaders link off the main thread before the environment is filtered"
   linked = true;
   timers.shift()();
   assert.equal(await pending, true);
+});
+
+function holdScope({ overflowY = "visible" } = {}) {
+  const state = { listeners: new Map(), timers: new Map(), holding: undefined };
+  let nextId = 0, cleanup, value = false;
+  class Element { constructor(tag, parent) { this.tag = tag; this.parentElement = parent; this.scrollHeight = 900; this.clientHeight = 300; }
+    closest(selector) { return selector.includes(this.tag) ? this : null; } }
+  const body = new Element("body", null);
+  state.scope = vm.createContext({
+    Element, document: { body, documentElement: body },
+    getComputedStyle: () => ({ overflowY }),
+    useState: initial => [value ?? initial, next => { value = next; }],
+    useEffect: effect => { cleanup?.(); cleanup = effect() ?? undefined; },
+    addEventListener: (name, callback, options) => state.listeners.set(name, { callback, options }),
+    removeEventListener: name => state.listeners.delete(name),
+    setTimeout: (callback, delay) => { state.timers.set(++nextId, { callback, delay }); return nextId; },
+    clearTimeout: id => state.timers.delete(id),
+  });
+  vm.runInContext(source, state.scope);
+  state.render = active => { state.holding = vm.runInContext(`useScrollHold(${active})`, state.scope); };
+  state.unmount = () => cleanup?.();
+  state.element = tag => new Element(tag, body);
+  state.timedOut = () => value;
+  return state;
+}
+const event = (type, target, extra = {}) => ({ type, target, prevented: false, preventDefault() { this.prevented = true; }, ...extra });
+
+test("while the scene loads, scrolling waits at the opening; controls and overlays keep theirs", () => {
+  const s = holdScope();
+  s.render(true);
+  assert.equal(s.holding, true);
+  for (const type of ["wheel", "touchmove", "keydown"]) assert.equal(s.listeners.get(type).options.passive, false);
+  const page = s.element("main");
+  for (const e of [event("wheel", page), event("touchmove", page), event("keydown", page, { key: "PageDown" }), event("keydown", page, { key: " " })]) {
+    s.listeners.get(e.type).callback(e);
+    assert.equal(e.prevented, true, `${e.type} ${e.key ?? ""} is held`);
+  }
+  const button = event("keydown", s.element("button"), { key: " " });
+  s.listeners.get("keydown").callback(button);
+  assert.equal(button.prevented, false, "a focused control keeps Space");
+  const letter = event("keydown", page, { key: "a" });
+  s.listeners.get("keydown").callback(letter);
+  assert.equal(letter.prevented, false, "only scrolling keys are held");
+  s.unmount();
+  assert.equal(s.listeners.size, 0);
+
+  const overlay = holdScope({ overflowY: "auto" });
+  overlay.render(true);
+  const menu = event("wheel", overlay.element("nav"));
+  overlay.listeners.get("wheel").callback(menu);
+  assert.equal(menu.prevented, false, "a self-scrolling menu or dialog keeps its scrolling");
+});
+
+test("the scroll hold releases after 20 s or when the scene is ready", () => {
+  const s = holdScope();
+  s.render(true);
+  const [{ callback, delay }] = s.timers.values();
+  assert.equal(delay, 20_000);
+  callback();
+  assert.equal(s.timedOut(), true);
+  s.render(true);
+  assert.equal(s.holding, false, "a load that never finishes does not trap the visitor");
+  assert.equal(s.listeners.size, 0);
+
+  const ready = holdScope();
+  ready.render(false);
+  assert.equal(ready.holding, false);
+  assert.equal(ready.listeners.size, 0);
+});
+
+test("scrolling is held from the HTML parse, before hydration, by the same listener React later releases", () => {
+  const s = holdScope();
+  s.scope.window = s.scope;
+  vm.runInContext(vm.runInContext("EARLY_SCROLL_HOLD", s.scope), s.scope);
+  for (const name of HELD) assert.ok(s.listeners.has(name), name);
+  const early = s.listeners.get("wheel").callback;
+  assert.equal(s.listeners.get("wheel").options.passive, false);
+  const wheel = event("wheel", s.element("main"));
+  early(wheel);
+  assert.equal(wheel.prevented, true, "a wheel before hydration does not scroll");
+  const [{ delay }] = s.timers.values();
+  assert.equal(delay, 20_000, "a page whose scripts never run is released");
+  s.render(true);
+  assert.equal(s.listeners.get("wheel").callback, early, "hydration keeps the very same hold");
+  s.render(false);
+  for (const name of HELD) assert.ok(!s.listeners.has(name), `the ready scene releases the early ${name} hold too`);
+});
+
+test("the inline hold remembers an input made before hydration", () => {
+  const s = holdScope();
+  s.scope.window = s.scope;
+  vm.runInContext(vm.runInContext("EARLY_SCROLL_HOLD", s.scope), s.scope);
+  assert.equal(s.scope.__vistaireIntent, undefined);
+  for (const type of ["pointerdown", "touchstart"]) assert.equal(s.listeners.get(type).options.passive, true);
+  s.listeners.get("touchstart").callback();
+  assert.equal(s.scope.__vistaireIntent, true);
 });

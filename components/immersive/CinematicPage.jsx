@@ -9,7 +9,7 @@ import { preload } from "react-dom";
 import { resolvePublicModelUrl } from "../../lib/publicModelAssets.ts";
 import { dishSceneModelUrl, supportModelUrls } from "./content.js";
 import { createEntryScrollAssist } from "./EntryScrollAssist.js";
-import { useDeferredScene } from "./deferredScene.js";
+import { EARLY_SCROLL_HOLD, useDeferredScene, useScrollHold } from "./deferredScene.js";
 import { useLinkIntent } from "./useLinkIntent.js";
 import { pageShot } from "./PageShots.js";
 import { bindJourneyViewport } from "./JourneyViewport.js";
@@ -71,8 +71,9 @@ export function CinematicPage({ chapters, scene = {}, children, footer, mainProp
     setReady(true);
   }, []);
   const onError = useCallback(() => setFailed(true), []);
-  // Copy and native scrolling stay available while the 3D prepares behind
-  // the existing dimmed room still, then fades in once ready.
+  // The page first paints its copy over the dimmed room still; the 3D starts
+  // on the first input or a quiet spell and fades in once ready. Scrolling
+  // waits for it meanwhile (released by a failure or after 20 s), with a quiet cue.
   const started = useDeferredScene(() => {
     // The scene reuses these fetches (same URL and CORS mode).
     preload(resolvePublicModelUrl("immersive.restaurant.visible.textures-512"), fetchHint);
@@ -85,6 +86,7 @@ export function CinematicPage({ chapters, scene = {}, children, footer, mainProp
     // The opening dish's file depends on the viewport.
     if (opening.dishScale > 0) preload(dishSceneModelUrl(objects.dish ?? "homard", innerWidth < 768), fetchHint);
   });
+  const sceneLoading = useScrollHold(!ready && !failed);
   // A click to another page shows the loading screen at once (the next page
   // keeps its still until its own room is ready); 8 s releases a navigation
   // that never came.
@@ -270,12 +272,20 @@ export function CinematicPage({ chapters, scene = {}, children, footer, mainProp
 
   return (
     <div data-immersive-vistaire className={`cinematic-page${ready ? " is-ready" : ""}`}>
+      <script dangerouslySetInnerHTML={{ __html: EARLY_SCROLL_HOLD }} />
       <div className="world" aria-hidden="true">
         <Suspense fallback={null}>
           {!failed && started && <Scene stateRef={stateRef} onReady={onReady} onError={onError} />}
         </Suspense>
       </div>
       <noscript><style>{".cinematic-preloader{display:none}"}</style></noscript>
+      {sceneLoading && started && !leaving && (
+        <div className="poster-cue cinematic-cue" role="status">
+          <div className="loading-line" />
+          <span lang="fr">Préparons votre table.</span>
+          <span lang="en">Preparing your table.</span>
+        </div>
+      )}
       {loading && (
         <div className="preloader cinematic-preloader" role="status">
           <div className="loading-word">Vistaire</div>

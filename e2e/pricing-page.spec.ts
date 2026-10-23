@@ -482,7 +482,9 @@ test.describe("Vistaire pricing collections", () => {
 
       await page.locator("[data-pricing-pilotage]").scrollIntoViewIfNeeded();
       await expect(page.locator("[data-pricing-dashboard]")).toBeVisible();
-      await expect(page.locator("[data-pricing-dashboard] [data-admin-studio]")).toBeVisible();
+      // The jump starts the 3D setup; under software WebGL the lazy dashboard
+      // mounts 3-4.5 s later behind it (measured), past the 5 s default.
+      await expect(page.locator("[data-pricing-dashboard] [data-admin-studio]")).toBeVisible({ timeout: 15_000 });
       await expect(
         page
           .locator('section[aria-labelledby="pricing-final-title"]')

@@ -4,7 +4,7 @@ import Link from "next/link";
 import { preload } from "react-dom";
 import { resolvePublicModelUrl } from "../../lib/publicModelAssets.ts";
 import { createEntryScrollAssist } from "./EntryScrollAssist.js";
-import { useDeferredScene } from "./deferredScene.js";
+import { EARLY_SCROLL_HOLD, useDeferredScene, useScrollHold } from "./deferredScene.js";
 import { useLinkIntent } from "./useLinkIntent.js";
 import { bindPublicMenuViewport } from "@/lib/publicMenuViewport";
 import {
@@ -384,6 +384,9 @@ function LandingContent({ sceneStarted }) {
   const [ready, setReady] = useState(false);
   const [posterGone, setPosterGone] = useState(false);
   const [gpuError, setGpuError] = useState(false);
+  // Scrolling waits on the poster until the whole opening shot (room included)
+  // is ready; the poster covers the canvas until then.
+  const holdingScroll = useScrollHold(!ready && !gpuError);
   // Another page fetches as a link is reached and shows the loading screen the
   // moment it is clicked (useLinkIntent); 8 s releases a navigation that never came.
   const [leaving, setLeaving] = useState(false);
@@ -1119,6 +1122,7 @@ function LandingContent({ sceneStarted }) {
   };
   return (
     <>
+      <script dangerouslySetInnerHTML={{ __html: EARLY_SCROLL_HOLD }} />
       <a
         className="skip-link"
         href="#ai"
@@ -1202,6 +1206,12 @@ function LandingContent({ sceneStarted }) {
             {t("Explorer la carte")} <ArrowUpRight size={17} />
           </Link>
         </dialog>
+      )}
+      {holdingScroll && sceneStarted && !leaving && (
+        <div className="poster-cue" role="status">
+          <div className="loading-line" />
+          <span>{t("Préparons votre table.")}</span>
+        </div>
       )}
       {leaving && !gpuError && (
         <div className="preloader" role="status">
