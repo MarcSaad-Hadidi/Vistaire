@@ -5,6 +5,18 @@ import { useEffect, useState } from "react";
 // self-scrolling overlays (mobile menu, dialog). Self-contained: its source also
 // runs inline before hydration (EARLY_SCROLL_HOLD).
 function holdInput(event) {
+  // The native scrollbar scrolls without a cancelable input: while it is
+  // pressed, scrolling returns to where it started (anchors still land).
+  if (event.type === "pointerdown" || event.type === "pointerup") {
+    const root = document.documentElement;
+    globalThis.__vistaireScrollbarY = event.type === "pointerdown" && event.target === root &&
+      event.clientX >= root.clientWidth ? scrollY : undefined;
+    return;
+  }
+  if (event.type === "scroll") {
+    if (globalThis.__vistaireScrollbarY !== undefined) scrollTo(0, globalThis.__vistaireScrollbarY);
+    return;
+  }
   if (event.type === "keydown") {
     if (![" ", "PageDown", "PageUp", "ArrowDown", "ArrowUp", "End", "Home"].includes(event.key)) return;
     if (event.target.closest?.("input, textarea, select, button, summary, audio, video, [contenteditable], " +
@@ -18,7 +30,7 @@ function holdInput(event) {
   globalThis.__vistaireIntent = true;
   event.preventDefault();
 }
-const HELD_INPUTS = ["wheel", "touchmove", "keydown"];
+const HELD_INPUTS = ["wheel", "touchmove", "keydown", "pointerdown", "pointerup", "scroll"];
 // One listener from the HTML parse to the ready scene: hydration adopts the
 // inline one, so releasing it removes both.
 const heldListener = () => (globalThis.__vistaireHoldInput ??= holdInput);
@@ -140,7 +152,10 @@ export function useScrollHold(active) {
   const [timedOut, setTimedOut] = useState(false);
   const holding = active && !timedOut;
   useEffect(() => {
-    const release = () => HELD_INPUTS.forEach(type => removeEventListener(type, heldListener()));
+    const release = () => {
+      HELD_INPUTS.forEach(type => removeEventListener(type, heldListener()));
+      globalThis.__vistaireScrollbarY = undefined;
+    };
     if (!holding) return release();
     HELD_INPUTS.forEach(type => addEventListener(type, heldListener(), { passive: false }));
     const timer = setTimeout(() => setTimedOut(true), 20_000);

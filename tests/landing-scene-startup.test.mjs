@@ -156,13 +156,16 @@ test("PMREM shaders link off the main thread before the environment is filtered"
 });
 
 function holdScope({ overflowY = "visible" } = {}) {
-  const state = { listeners: new Map(), timers: new Map(), holding: undefined };
+  const state = { listeners: new Map(), timers: new Map(), holding: undefined, scrolledTo: [] };
   let nextId = 0, cleanup, value = false;
   class Element { constructor(tag, parent) { this.tag = tag; this.parentElement = parent; this.scrollHeight = 900; this.clientHeight = 300; }
     closest(selector) { return selector.includes(this.tag) ? this : null; } }
-  const body = new Element("body", null);
+  const root = new Element("html", null);
+  root.clientWidth = 1425;
+  const body = new Element("body", root);
   state.scope = vm.createContext({
-    Element, document: { body, documentElement: body },
+    Element, document: { body, documentElement: root }, scrollY: 0,
+    scrollTo: (x, y) => { state.scrolledTo.push(y); },
     getComputedStyle: () => ({ overflowY }),
     useState: initial => [value ?? initial, next => { value = next; }],
     useEffect: effect => { cleanup?.(); cleanup = effect() ?? undefined; },
@@ -175,6 +178,7 @@ function holdScope({ overflowY = "visible" } = {}) {
   state.render = active => { state.holding = vm.runInContext(`useScrollHold(${active})`, state.scope); };
   state.unmount = () => cleanup?.();
   state.element = tag => new Element(tag, body);
+  state.root = root;
   state.timedOut = () => value;
   return state;
 }
@@ -249,4 +253,24 @@ test("the inline hold remembers an input made before hydration", () => {
   for (const type of ["pointerdown", "touchstart"]) assert.equal(s.listeners.get(type).options.passive, true);
   s.listeners.get("touchstart").callback();
   assert.equal(s.scope.__vistaireIntent, true);
+});
+
+test("dragging the native scrollbar cannot move past the opening while the scene loads", () => {
+  const s = holdScope();
+  s.render(true);
+  const fire = e => s.listeners.get(e.type).callback(e);
+  s.scope.scrollY = 120;
+  fire(event("pointerdown", s.root, { clientX: 1432 }));
+  s.scope.scrollY = 2400;
+  fire(event("scroll", null));
+  assert.deepEqual(s.scrolledTo, [120], "the page returns to where the scrollbar was pressed");
+  fire(event("pointerup", s.root));
+  s.scope.scrollY = 3000;
+  fire(event("scroll", null));
+  assert.deepEqual(s.scrolledTo, [120], "anchors and chapter links (no scrollbar press) still land");
+  fire(event("pointerdown", s.element("main"), { clientX: 200 }));
+  fire(event("scroll", null));
+  assert.deepEqual(s.scrolledTo, [120], "a press on the page itself does not pin it");
+  s.render(false);
+  for (const type of ["pointerdown", "pointerup", "scroll"]) assert.ok(!s.listeners.has(type), `${type} is released`);
 });
