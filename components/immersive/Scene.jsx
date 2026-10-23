@@ -13,7 +13,7 @@ import {
 } from "./ProjectedBounds.js";
 import { createARExperience } from "./ARExperience.js";
 import { useEffect, useRef } from "react";
-import { yieldToMainThread } from "./deferredScene.js";
+import { prepareEnvironmentShaders, prepareSceneShaders, yieldToMainThread } from "./deferredScene.js";
 import * as THREE from "three";
 import { DRACOLoader } from "three/examples/jsm/loaders/DRACOLoader.js";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
@@ -504,6 +504,8 @@ export default function Scene({
     let lastTime = 0;
     let lastScrollDistance = stateRef.current?.scrollDistance;
     let renderRequested = false;
+    let openingShadersPending = false;
+    let compiledOpeningKey = "";
     let wasOccluded = false;
     let pricingPresentation;
     let assetRequest;
@@ -598,6 +600,9 @@ export default function Scene({
       if (disposed) return;
       environmentScene = new RoomEnvironment();
       const pmrem = new THREE.PMREMGenerator(renderer);
+      await prepareEnvironmentShaders(renderer, pmrem, environmentScene,
+        new THREE.PerspectiveCamera(90, 1, 0.1, 100), () => disposed);
+      if (disposed) return pmrem.dispose();
       environmentTarget = pmrem.fromScene(environmentScene, 0.08);
       scene.environment = environmentTarget.texture;
       scene.environmentIntensity = 0.48;
@@ -1817,7 +1822,7 @@ export default function Scene({
     }
     function draw(now) {
       frame = 0;
-      if (disposed || failed || arExperience?.active) {
+      if (disposed || failed || arExperience?.active || openingShadersPending) {
         lastTime = 0;
         return;
       }
@@ -2189,6 +2194,17 @@ export default function Scene({
                 o.shadow?.camera.layers.enable(2);
               }
             });
+          }
+          if (!ready && layerKey !== compiledOpeningKey) {
+            compiledOpeningKey = layerKey;
+            openingShadersPending = true;
+            camera.position.copy(authoredCamera);
+            prepareSceneShaders(renderer, scene, camera, () => disposed || failed)
+              .then(() => {
+                openingShadersPending = false;
+                invalidateScene();
+              }).catch(fail);
+            return;
           }
           renderer.info.reset();
           const startRender = performance.now();
