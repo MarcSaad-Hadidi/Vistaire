@@ -239,8 +239,12 @@ test("scrolling is held from the HTML parse, before hydration, by the same liste
   assert.equal(wheel.prevented, true, "a wheel before hydration does not scroll");
   const [{ delay }] = s.timers.values();
   assert.equal(delay, 20_000, "a page whose scripts never run is released");
+  const inlineTimer = s.scope.__vistaireHoldTimer;
+  assert.ok(s.timers.has(inlineTimer), "the inline hold keeps its timeout handle");
   s.render(true);
   assert.equal(s.listeners.get("wheel").callback, early, "hydration keeps the very same hold");
+  assert.equal(s.timers.has(inlineTimer), false,
+    "React cancels the inline timeout, so an earlier page cannot release a later page's hold");
   s.render(false);
   for (const name of HELD) assert.ok(!s.listeners.has(name), `the ready scene releases the early ${name} hold too`);
 });

@@ -37,7 +37,7 @@ const heldListener = () => (globalThis.__vistaireHoldInput ??= holdInput);
 // Rendered inline by pages with a scene: scrolling waits before hydration too.
 export const EARLY_SCROLL_HOLD = `window.__vistaireHoldInput=${holdInput};` +
   `${JSON.stringify(HELD_INPUTS)}.forEach(t=>addEventListener(t,__vistaireHoldInput,{passive:false}));` +
-  `setTimeout(()=>${JSON.stringify(HELD_INPUTS)}.forEach(t=>removeEventListener(t,__vistaireHoldInput)),20000);` +
+  `window.__vistaireHoldTimer=setTimeout(()=>${JSON.stringify(HELD_INPUTS)}.forEach(t=>removeEventListener(t,__vistaireHoldInput)),20000);` +
   // A tap before hydration is an intent too; the scene then starts at mount.
   `["pointerdown","touchstart"].forEach(t=>addEventListener(t,()=>{window.__vistaireIntent=true},{passive:true,once:true}))`;
 
@@ -152,6 +152,9 @@ export function useScrollHold(active) {
   const [timedOut, setTimedOut] = useState(false);
   const holding = active && !timedOut;
   useEffect(() => {
+    // The page's own timer replaces the inline one, which could otherwise
+    // release a later page's hold after a client-side navigation.
+    clearTimeout(globalThis.__vistaireHoldTimer);
     const release = () => {
       HELD_INPUTS.forEach(type => removeEventListener(type, heldListener()));
       globalThis.__vistaireScrollbarY = undefined;
