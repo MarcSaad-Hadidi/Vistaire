@@ -252,6 +252,10 @@ for (const scenario of scenarios) {
     await expect(page.getByRole("heading", {level: 1})).toHaveCount(1);
     await expect(page.locator("[data-admin-studio]")).toHaveCount(0);
     await revealFilm(page);
+    // The jump starts this page's 3D. Under CI's software WebGL its setup holds
+    // the main thread for 6-8 s (measured, with or without the scroll hold), so
+    // the media timing below is checked once the scene is ready.
+    await expect(page.locator(".scene-canvas")).toHaveAttribute("data-ready", "true", {timeout: 60_000});
     const film = page.locator("[data-dashboard-walkthrough]");
     const video = film.locator("video");
     await expect(video).toHaveAttribute("aria-label", scenario.videoLabel);

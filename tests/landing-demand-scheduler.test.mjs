@@ -79,7 +79,7 @@ function fixture({ section = 'hero', laptopFactory, laptopSignals = false } = {}
   run(productionFunction('visibilityChanged'));
   run(between('    Object.assign(stateRef.current, {', '    canvas.addEventListener("webglcontextlost", contextLost);'));
   const lifecycle = source.slice(source.indexOf('    document.addEventListener("visibilitychange", visibilityChanged);'));
-  run(between('    document.addEventListener("visibilitychange", visibilityChanged);', '\n\n    return () =>', lifecycle).split('\n').slice(1).join('\n'));
+  run(between('    document.addEventListener("visibilitychange", visibilityChanged);', '\n\n    cleanup = () =>', lifecycle).split('\n').slice(1).join('\n'));
   return {
     scope, state, run, pending,
     get renders() { return renders; },

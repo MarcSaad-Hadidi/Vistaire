@@ -26,6 +26,9 @@ const domTest = base.extend({
 });
 async function exposeDomLayout(page: Page) {
   const failure = page.getByRole('alertdialog');
+  // The 3D (and so this failure) starts on the first input once hydrated.
+  await page.waitForFunction(() => document.documentElement.style.getPropertyValue('--vistaire-journey-vh') !== '');
+  await page.keyboard.press('Shift');
   await expect(failure).toBeVisible();
   await failure.evaluate((dialog: HTMLDialogElement) => dialog.close());
   await expect(failure).toBeHidden();
@@ -1289,5 +1292,52 @@ renderedTouchTest('Chromium trusted touch: pricing edges own one trip and offer 
     const artifact = testInfo.outputPath('trusted-touch-ownership.json');
     await writeFile(artifact, JSON.stringify(await evidence(), null, 2));
     await testInfo.attach('trusted-touch-ownership', { path: artifact, contentType: 'application/json' });
+  }
+});
+
+test("an early scroll waits at the opening until the 3D is ready @critical", async ({ page }) => {
+  test.setTimeout(240_000);
+  for (const [route, width] of [["/", 390], ["/menu-digital-restaurant", 430]] as const) {
+    let releaseModels!: () => void;
+    const models = new Promise<void>(resolve => { releaseModels = resolve; });
+    await page.route(/\.glb(?:\?|$)/, async route => {
+      await models;
+      await route.continue();
+    });
+    try {
+      await page.setViewportSize({ width, height: width === 390 ? 844 : 932 });
+      await page.goto(route, { waitUntil: "load" });
+      // The first wheel starts the scene at once and does not scroll past the opening.
+      await page.mouse.wheel(0, 2400);
+      const canvas = page.locator(".scene-canvas");
+      await expect(canvas).toBeAttached({ timeout: 30_000 });
+      await expect(canvas).toHaveAttribute("data-ready", "false");
+      await expect(page.locator(".poster-cue")).toBeVisible();
+      await page.mouse.wheel(0, 2400);
+      await page.waitForTimeout(500);
+      expect(await page.evaluate(() => scrollY), "scrolling is held while the models are pending").toBe(0);
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    } finally {
+      releaseModels();
+      await page.unrouteAll({ behavior: "wait" });
+    }
+    await expect(page.locator(".scene-canvas")).toHaveAttribute("data-ready", "true", { timeout: 120_000 });
+    await expect(page.locator(".scene-canvas")).toHaveAttribute("data-restaurant-ready", "true");
+    await expect(page.locator(".poster-cue")).toHaveCount(0);
+    await page.mouse.wheel(0, 400);
+    await expect.poll(() => page.evaluate(() => scrollY), { message: "scrolling resumes once the scene is ready" }).toBeGreaterThan(0);
+  }
+});
+
+test("opening fonts are preloaded in the server response @critical", async ({ request }) => {
+  for (const route of ["/", "/en/digital-restaurant-menu"]) {
+    const response = await request.get(route);
+    expect(response.ok()).toBe(true);
+    const links = (await response.text()).match(/<link\b[^>]*>/g) ?? [];
+    for (const font of ["libertine-display", "biolinum"]) {
+      expect(links.some(link => link.includes(`href="/immersive-assets/fonts/${font}.woff2"`) &&
+        link.includes('rel="preload"') && link.includes('as="font"') && link.includes('crossorigin=""')),
+        `${route}: the opening ${font} font is discoverable before CSS layout`).toBe(true);
+    }
   }
 });

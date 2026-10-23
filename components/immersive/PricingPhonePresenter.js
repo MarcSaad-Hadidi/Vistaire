@@ -1,5 +1,4 @@
-import { pricingScreenScroll } from "./PricingPhoneLayout.js";
-import { fairHandEase } from "./PricingFairHand.js";
+import { fairHandEase, pricingScreenScroll } from "./PricingPhoneLayout.js";
 
 // Scroll samples use measured geometry and write only changed values. Reading
 // CSSOM/scrollTop after cinematic style writes can force page layout each frame.

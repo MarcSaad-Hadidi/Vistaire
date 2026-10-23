@@ -66,9 +66,11 @@ export function createPricingRoomBackdrop({ renderer, scene, camera }) {
       const previousAutoClear = renderer.autoClear;
       const previousShadowUpdate = renderer.shadowMap.needsUpdate;
       const previousShaderError = renderer.debug?.onShaderError;
+      const previousShaderCheck = renderer.debug?.checkShaderErrors;
       let shaderFailed = false;
       try {
-        if (renderer.debug) renderer.debug.onShaderError = () => { shaderFailed = true; };
+        // Production renders skip shader checks; this fallback needs them.
+        if (renderer.debug) Object.assign(renderer.debug, { checkShaderErrors: true, onShaderError: () => { shaderFailed = true; } });
         const pixelWidth = renderer.domElement.width;
         const pixelHeight = renderer.domElement.height;
         if (target.width !== pixelWidth || target.height !== pixelHeight) {
@@ -110,7 +112,7 @@ export function createPricingRoomBackdrop({ renderer, scene, camera }) {
           theme: lightTheme ? "light" : "dark" };
       } finally {
         if (shaderFailed) valid = false;
-        if (renderer.debug) renderer.debug.onShaderError = previousShaderError;
+        if (renderer.debug) Object.assign(renderer.debug, { checkShaderErrors: previousShaderCheck, onShaderError: previousShaderError });
         renderer.setRenderTarget(previousTarget);
         renderer.setViewport(previousViewport);
         renderer.setScissor(previousScissor);

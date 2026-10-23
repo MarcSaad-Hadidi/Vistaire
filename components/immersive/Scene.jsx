@@ -13,6 +13,7 @@ import {
 } from "./ProjectedBounds.js";
 import { createARExperience } from "./ARExperience.js";
 import { useEffect, useRef } from "react";
+import { prepareEnvironmentShaders, prepareSceneShaders, yieldToMainThread } from "./deferredScene.js";
 import * as THREE from "three";
 import { DRACOLoader } from "three/examples/jsm/loaders/DRACOLoader.js";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
@@ -479,6 +480,9 @@ export default function Scene({
   }, [onReady, onError, onAssetError, onAssetLoading, onPhoneVideoError, onARStatus, onZoomFit]);
 
   useEffect(() => {
+    let cleanup = () => {};
+    let cancelled = false;
+    async function initialize() {
     const sceneState = stateRef.current;
     const diagnosticsEnabled = new URLSearchParams(window.location.search).get("sceneDiagnostics") === "1";
     // A fresh canvas per effect avoids reusing a lost context in StrictMode.
@@ -500,6 +504,8 @@ export default function Scene({
     let lastTime = 0;
     let lastScrollDistance = stateRef.current?.scrollDistance;
     let renderRequested = false;
+    let openingShadersPending = false;
+    let compiledOpeningKey = "";
     let wasOccluded = false;
     let pricingPresentation;
     let assetRequest;
@@ -563,6 +569,15 @@ export default function Scene({
       );
     }
 
+    cleanup = () => {
+      disposed = true;
+      renderer?.dispose();
+      environmentTarget?.dispose();
+      environmentScene?.dispose();
+      canvas.remove();
+    };
+    await yieldToMainThread();
+    if (disposed) return;
     try {
       renderer = new THREE.WebGLRenderer({
         canvas,
@@ -572,28 +587,33 @@ export default function Scene({
         alpha: true,
         powerPreference: "high-performance",
       });
+      // Shader error checks force a synchronous wait on every program link
+      // (the top main-thread cost of the opening on mobile Lighthouse).
+      renderer.debug.checkShaderErrors = process.env.NODE_ENV !== "production";
       renderer.outputColorSpace = THREE.SRGBColorSpace;
       renderer.toneMapping = THREE.ACESFilmicToneMapping;
       renderer.toneMappingExposure = 1.05;
       renderer.shadowMap.enabled = true;
       renderer.shadowMap.autoUpdate = false;
       renderer.shadowMap.type = THREE.PCFShadowMap;
+      await yieldToMainThread();
+      if (disposed) return;
       environmentScene = new RoomEnvironment();
       const pmrem = new THREE.PMREMGenerator(renderer);
+      await prepareEnvironmentShaders(renderer, pmrem, environmentScene,
+        new THREE.PerspectiveCamera(90, 1, 0.1, 100), () => disposed);
+      if (disposed) return pmrem.dispose();
       environmentTarget = pmrem.fromScene(environmentScene, 0.08);
       scene.environment = environmentTarget.texture;
       scene.environmentIntensity = 0.48;
       pmrem.dispose();
     } catch (error) {
       fail(error);
-      renderer?.dispose();
-      environmentTarget?.dispose();
-      environmentScene?.dispose();
-      return () => {
-        disposed = true;
-        canvas.remove();
-      };
+      cleanup();
+      return;
     }
+    await yieldToMainThread();
+    if (disposed) return;
 
     const warmFill = new THREE.HemisphereLight("#f1e9da", "#1b1813", 1.5);
     scene.add(warmFill);
@@ -1008,7 +1028,8 @@ export default function Scene({
           decodeQueue = decoding;
           return decoding;
         })
-        .then((gltf) => {
+        .then(async (gltf) => {
+          await yieldToMainThread();
           if (disposed || request.signal.aborted || currentDish !== name) {
             disposeTree(gltf.scene);
             return;
@@ -1801,7 +1822,7 @@ export default function Scene({
     }
     function draw(now) {
       frame = 0;
-      if (disposed || failed || arExperience?.active) {
+      if (disposed || failed || arExperience?.active || openingShadersPending) {
         lastTime = 0;
         return;
       }
@@ -2174,6 +2195,17 @@ export default function Scene({
               }
             });
           }
+          if (!ready && layerKey !== compiledOpeningKey) {
+            compiledOpeningKey = layerKey;
+            openingShadersPending = true;
+            camera.position.copy(authoredCamera);
+            prepareSceneShaders(renderer, scene, camera, () => disposed || failed)
+              .then(() => {
+                openingShadersPending = false;
+                invalidateScene();
+              }).catch(fail);
+            return;
+          }
           renderer.info.reset();
           const startRender = performance.now();
           canvas.dataset.shadowUpdated = String(renderer.shadowMap.needsUpdate);
@@ -2348,7 +2380,7 @@ export default function Scene({
     document.addEventListener("visibilitychange", visibilityChanged);
     invalidateScene();
 
-    return () => {
+    cleanup = () => {
       disposed = true;
       cancelAnimationFrame(frame);
       frame = 0;
@@ -2400,6 +2432,15 @@ export default function Scene({
           renderer.forceContextLoss();
           canvas.remove();
         });
+    };
+    }
+    initialize().catch(error => {
+      cleanup();
+      if (!cancelled) callbacks.current.onError?.(error);
+    });
+    return () => {
+      cancelled = true;
+      cleanup();
     };
   }, [stateRef]);
 

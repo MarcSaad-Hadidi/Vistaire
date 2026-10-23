@@ -438,16 +438,16 @@ test.describe("Vistaire pricing collections", () => {
       });
       expect(response?.status()).toBeLessThan(400);
       await expect(page.locator("[data-pricing-collection]")).toHaveCount(4);
+      await expect(page.locator("[data-pricing-dashboard] [data-admin-studio]")).toHaveCount(0);
       await expectNoHorizontalOverflow(page);
 
       if (viewport.width === 390 || viewport.width === 430) {
         await expectPrimaryNavigationFits(page, [
-          "Accueil",
-          "Carte",
-          "Tarifs",
-          "À propos",
-          "Contact"
+          "Vistaire - accueil",
+          "Voir cette page en français",
+          "View this page in English"
         ]);
+        await expect(page.getByRole("navigation").first().getByRole("button", { name: "Menu", exact: true })).toBeVisible();
       }
 
       const renderedColumns = await page.locator("[data-pricing-collection]").first().evaluate((card) => {
@@ -457,6 +457,7 @@ test.describe("Vistaire pricing collections", () => {
       expect(renderedColumns).toBe(viewport.columns);
 
       const firstImage = page.locator("[data-pricing-collection] img").first();
+      await firstImage.scrollIntoViewIfNeeded();
       await expect
         .poll(() => firstImage.evaluate((image) => (image as HTMLImageElement).naturalWidth))
         .toBeGreaterThan(0);
@@ -471,8 +472,8 @@ test.describe("Vistaire pricing collections", () => {
           return (
             bounds.width > 0 &&
             bounds.height > 0 &&
-            Math.abs(bounds.width - bounds.height) <= 2 &&
-            Boolean(frame && Math.abs(frame.width - frame.height) <= 2) &&
+            Math.abs(bounds.width - bounds.height * 4 / 3) <= 2 &&
+            Boolean(frame && Math.abs(frame.width - frame.height * 4 / 3) <= 2) &&
             getComputedStyle(element).objectFit === "cover"
           );
         })
@@ -481,6 +482,9 @@ test.describe("Vistaire pricing collections", () => {
 
       await page.locator("[data-pricing-pilotage]").scrollIntoViewIfNeeded();
       await expect(page.locator("[data-pricing-dashboard]")).toBeVisible();
+      // The jump starts the 3D setup; under software WebGL the lazy dashboard
+      // mounts 3-4.5 s later behind it (measured), past the 5 s default.
+      await expect(page.locator("[data-pricing-dashboard] [data-admin-studio]")).toBeVisible({ timeout: 15_000 });
       await expect(
         page
           .locator('section[aria-labelledby="pricing-final-title"]')
