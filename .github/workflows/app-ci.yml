@@ -313,7 +313,7 @@ jobs:
           node scripts/ci/check-static-public-routes.mjs
           node scripts/ci/check-public-prerender-artifacts.mjs
       - name: Upload verified Next.js build
-        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: next-build-${{ github.run_id }}
           path: |
@@ -417,7 +417,7 @@ jobs:
           echo "report_${CI_SHARD}=$report" >> "$GITHUB_OUTPUT"
       - name: Preserve public browser evidence
         if: ${{ always() }}
-        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: public-browser-${{ github.run_id }}-${{ matrix.shard }}
           include-hidden-files: true
@@ -474,7 +474,7 @@ jobs:
           report="$(tr -d '\n' < "$CI_TEST_REPORT_PATH")"
           echo "report_${CI_SHARD}=$report" >> "$GITHUB_OUTPUT"
       - if: ${{ failure() }}
-        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: e2e-sauge-chromium-failure-${{ github.run_id }}
           path: |
@@ -543,7 +543,7 @@ jobs:
         run: npm run test:admin:full-menu
       - name: Preserve Studio visual evidence
         if: ${{ always() }}
-        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: admin-studio-${{ github.run_id }}-${{ matrix.shard }}
           path: test-results/**/vistaire-studio-*.png
@@ -565,7 +565,7 @@ jobs:
           report="$(tr -d '\n' < "$CI_TEST_REPORT_PATH")"
           echo "report_${CI_SHARD}=$report" >> "$GITHUB_OUTPUT"
       - if: ${{ failure() }}
-        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: e2e-admin-browser-failure-${{ github.run_id }}-${{ matrix.shard }}
           path: |
@@ -653,7 +653,7 @@ jobs:
           echo "report_${CI_SHARD}=$report" >> "$GITHUB_OUTPUT"
       - name: Preserve WebKit browser evidence
         if: ${{ always() }}
-        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: webkit-browser-${{ github.run_id }}-${{ matrix.shard }}
           include-hidden-files: true
@@ -818,7 +818,7 @@ jobs:
         run: node scripts/ci/collect-metrics.mjs
       - name: Upload CI metrics JSON
         if: ${{ always() && hashFiles('ci-metrics.json') != '' }}
-        uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08 # v4.6.0
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: ci-metrics-${{ github.run_id }}
           path: ci-metrics.json
