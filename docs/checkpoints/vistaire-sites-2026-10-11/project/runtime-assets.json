@@ -1,0 +1,52 @@
+[
+  {
+    "name": "homard.glb",
+    "sourcePath": "public/models/demo/homard-bisque-meshopt-ee44bc60.glb",
+    "sha256": "ee44bc6028b8dff1f7bedef686f995c6b3b51ac5298bcc55d8da31be65267874",
+    "bytes": 4955904
+  },
+  {
+    "name": "souffle.glb",
+    "sourcePath": "public/models/demo/souffle-chocolat-meshopt-0ad050af.glb",
+    "sha256": "0ad050afaba40a739c0a2bc794e52a080125dc78072440d8ef0b0441093eee95",
+    "bytes": 1754380
+  },
+  {
+    "name": "homard-mobile.glb",
+    "sourcePath": "public/models/demo/ar-lite/homard-bisque-ar-lite-meshy.glb",
+    "sha256": "ed79969621acd82c0bb55cc3b7ec2973dfd8be843da7ee697ac57a0c059a3001",
+    "bytes": 8590900
+  },
+  {
+    "name": "walkthrough-maison-elyse.mp4",
+    "sourcePath": "public/videos/demo/maison-elyse.mp4",
+    "sha256": "179465b86ac821e3e4aef6a0669f055334d7f87610d7db30a1486b1d73c8ec6a",
+    "bytes": 4053916
+  },
+  {
+    "name": "walkthrough-trouvable.mp4",
+    "sourcePath": "public/videos/demo/trouvable.mp4",
+    "sha256": "223505b2c8eee29a1f6aa59726fe215badfeecf1775e7917831fe963c6a5138c",
+    "bytes": 7031957
+  },
+  {
+    "name": "walkthrough-sauge-noire.mp4",
+    "sourcePath": "public/videos/demo/sauge-noire.mp4",
+    "sha256": "98dec39df7c10ac9036f0c0c533a8e2d80baae88370d950a92da651aa76a3089",
+    "bytes": 7772626
+  },
+  {
+    "name": "cinematic-landscape.mp4",
+    "sourcePath": "runtime-sources/cinematic-landscape.mp4",
+    "sha256": "4d62ac4fe90bb689a966619cc539b30a313a0a4e2e39424138b83c6b6ef73965",
+    "bytes": 2452664,
+    "localOnly": true
+  },
+  {
+    "name": "cinematic-portrait.mp4",
+    "sourcePath": "runtime-sources/cinematic-portrait.mp4",
+    "sha256": "9e6f75ae365eaec6ee49c0735732d8234be4f9a4e185586ca51c7b6297d5e621",
+    "bytes": 2788366,
+    "localOnly": true
+  }
+]

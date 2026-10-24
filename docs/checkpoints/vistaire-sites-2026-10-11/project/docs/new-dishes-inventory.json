@@ -1,0 +1,514 @@
+{
+  "schemaVersion": 1,
+  "inspectedAt": "2026-10-09",
+  "scope": "Read-only offline user-uploaded GLB inventory plus pinned primary Vistaire repository content. No browser, GPU, edits to application, or recompression.",
+  "inputsRetainedUnchanged": true,
+  "totalBytes": 13185536,
+  "allTexturesNative1024Square": true,
+  "renderingRequirements": {
+    "draco": [
+      "huitres",
+      "chocolat",
+      "burger"
+    ],
+    "meshopt": [
+      "sushi",
+      "poutine"
+    ],
+    "allNeedWebP": true,
+    "meshoptNeedMeshQuantization": true,
+    "configuration": "Register DRACOLoader and MeshoptDecoder on GLTFLoader. Retain imported material texture references and node transforms; no runtime texture upscaling performed."
+  },
+  "contentSearch": {
+    "localPartialRepo": "/workspace/scratch/51ebef2040ae/vistaire",
+    "cachedTextFilesInspected": 26,
+    "githubDefaultBranchQueries": [
+      "bc1845b3-3f42-480f-aee2-6ec472c52e41",
+      "Plateau sushi Horizon",
+      "Burger signature maison",
+      "Poutine du Vieux-Montréal"
+    ],
+    "githubExactQueryMatches": 0,
+    "pinnedFilesRead": [
+      "e2e/support/sauge-noire-fixture-data.mjs",
+      "scripts/owner/sync-sauge-noire-menu.mjs",
+      "supabase/seeds/resto-marc-public-menu.sql",
+      "lib/demoMenuData.ts",
+      "lib/restaurateurPreview/fixture.ts"
+    ],
+    "unknownContentIds": [
+      "sushi",
+      "poutine",
+      "burger"
+    ],
+    "caution": "Missing price, allergens, and descriptions must remain unverified; do not infer from visible food or assign previous dish values."
+  },
+  "remainingUnverified": [
+    "Actual render appearance/orientation",
+    "Runtime decoder loads and console/network status",
+    "Mobile performance",
+    "Live restaurant menu values",
+    "Author/licence conditions beyond user supply"
+  ],
+  "dishes": [
+    {
+      "id": "chocolat",
+      "name": "Chocolat fumé",
+      "filename": "restaurants_86c56c72-d63c-4077-b79b-73e810236033_models_web_chocolat-fume-20260727-81cc641c.glb",
+      "path": "/workspace/scratch/51ebef2040ae/upload/restaurants_86c56c72-d63c-4077-b79b-73e810236033_models_web_chocolat-fume-20260727-81cc641c.glb",
+      "bytes": 979612,
+      "sha256": "81cc641cf08f34d1ef0854f55c0dfe1a101f0f1814de8fbefc6fda7d36ecee73",
+      "triangles": 193524,
+      "vertices": 112711,
+      "meshes": 1,
+      "primitives": 1,
+      "materials": 1,
+      "nodes": 1,
+      "asset": {
+        "generator": "glTF-Transform v4.4.0",
+        "version": "2.0"
+      },
+      "extensionsRequired": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ],
+      "extensionsUsed": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ],
+      "decoder": "Draco",
+      "images": [
+        {
+          "index": 0,
+          "name": null,
+          "mimeType": "image/webp",
+          "bytes": 177608,
+          "uri": null,
+          "width": 1024,
+          "height": 1024,
+          "format": "WEBP",
+          "mode": "RGB"
+        },
+        {
+          "index": 1,
+          "name": null,
+          "mimeType": "image/webp",
+          "bytes": 27108,
+          "uri": null,
+          "width": 1024,
+          "height": 1024,
+          "format": "WEBP",
+          "mode": "RGB"
+        },
+        {
+          "index": 2,
+          "name": null,
+          "mimeType": "image/webp",
+          "bytes": 66450,
+          "uri": null,
+          "width": 1024,
+          "height": 1024,
+          "format": "WEBP",
+          "mode": "RGB"
+        }
+      ],
+      "userProvidedOriginal": true,
+      "embeddedAttributionFound": false,
+      "embeddedLicenceFound": false,
+      "content": {
+        "status": "verified_repository_canonical_dataset",
+        "name": "Chocolat fumé",
+        "section": "À côté & desserts",
+        "price": 15,
+        "currency": "CAD",
+        "description": "Le chocolat noir à 70 % est servi avec de l’huile d’olive, du sel fumé et du grué de cacao.",
+        "ingredients": [
+          "chocolat noir 70 %",
+          "huile d’olive",
+          "sel fumé",
+          "grué de cacao"
+        ],
+        "options": [
+          "sans sel fumé",
+          "huile d’olive à part"
+        ],
+        "chefNote": "La fumée, l’huile d’olive et le sel prolongent les arômes intenses du chocolat noir.",
+        "badges": [
+          "Signature",
+          "Populaire",
+          "Vegetarien"
+        ],
+        "allergens": [],
+        "confirmedFreeAllergens": [],
+        "allergenCaution": "Empty canonical declarations are not proof of absence of allergens. Do not label allergen-free.",
+        "source": {
+          "repository": "MarcSaad-Hadidi/Vistaire",
+          "ref": "cd91ec7556c9d6dcafe6d2d44b27f571abd1e0be",
+          "path": "scripts/owner/sync-sauge-noire-menu.mjs",
+          "line": 60,
+          "url": "https://github.com/MarcSaad-Hadidi/Vistaire/blob/cd91ec7556c9d6dcafe6d2d44b27f571abd1e0be/scripts/owner/sync-sauge-noire-menu.mjs#L60",
+          "snippet": "  dish(\"Chocolat fumé\", \"À côté & desserts\", 15, \"Le chocolat noir à 70 % est servi avec de l’huile d’olive, du sel fumé et du grué de cacao.\", [\"chocolat noir 70 %\", \"huile d’olive\", \"sel fumé\", \"grué de cacao\"], [\"sans sel fumé\", \"huile d’olive à part\"], \"La fumée, l’huile d’olive et le sel prolongent les arômes intenses du chocolat noir.\", [\"Signature\", \"Populaire\", \"Vegetarien\"]),",
+          "context": "export const TARGET_SLUG = \"sauge-noire\";\nexport const TARGET_NAME = \"Sauge Noire\";\n",
+          "allergenDefaultDefinition": "const dish = (name, section, price, description, ingredients, options, chefNote, badges, allergensContains = [], allergensConfirmedFree = [], customAllergens = []) => ({",
+          "currentLiveMenuVerified": false
+        }
+      }
+    },
+    {
+      "id": "huitres",
+      "name": "Huîtres tièdes au kombu",
+      "filename": "restaurants_86c56c72-d63c-4077-b79b-73e810236033_models_web_huitres-tiedes-au-kombu-20260725-5169fc3b.glb",
+      "path": "/workspace/scratch/51ebef2040ae/upload/restaurants_86c56c72-d63c-4077-b79b-73e810236033_models_web_huitres-tiedes-au-kombu-20260725-5169fc3b.glb",
+      "bytes": 3699644,
+      "sha256": "5169fc3b87f36927a770fce880de6cc2a7f9acc4ddfd037974b82dbc319069d7",
+      "triangles": 991760,
+      "vertices": 566919,
+      "meshes": 1,
+      "primitives": 1,
+      "materials": 1,
+      "nodes": 1,
+      "asset": {
+        "generator": "glTF-Transform v4.4.0",
+        "version": "2.0"
+      },
+      "extensionsRequired": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ],
+      "extensionsUsed": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ],
+      "decoder": "Draco",
+      "images": [
+        {
+          "index": 0,
+          "name": null,
+          "mimeType": "image/webp",
+          "bytes": 190388,
+          "uri": null,
+          "width": 1024,
+          "height": 1024,
+          "format": "WEBP",
+          "mode": "RGB"
+        },
+        {
+          "index": 1,
+          "name": null,
+          "mimeType": "image/webp",
+          "bytes": 64138,
+          "uri": null,
+          "width": 1024,
+          "height": 1024,
+          "format": "WEBP",
+          "mode": "RGB"
+        },
+        {
+          "index": 2,
+          "name": null,
+          "mimeType": "image/webp",
+          "bytes": 61252,
+          "uri": null,
+          "width": 1024,
+          "height": 1024,
+          "format": "WEBP",
+          "mode": "RGB"
+        }
+      ],
+      "userProvidedOriginal": true,
+      "embeddedAttributionFound": false,
+      "embeddedLicenceFound": false,
+      "content": {
+        "status": "verified_repository_canonical_dataset",
+        "name": "Huîtres tièdes au kombu",
+        "section": "Premiers gestes",
+        "price": 20,
+        "currency": "CAD",
+        "description": "Trois huîtres tièdes au kombu sont servies avec de la pomme verte, du beurre noisette et une huile de livèche.",
+        "ingredients": [
+          "huîtres",
+          "kombu",
+          "pomme verte",
+          "beurre noisette",
+          "livèche"
+        ],
+        "options": [
+          "portion supplémentaire de trois huîtres +18 $",
+          "beurre noisette à part"
+        ],
+        "chefNote": "Le kombu et la pomme verte soulignent la salinité naturelle des huîtres sans masquer leur finesse.",
+        "badges": [
+          "Nouveau"
+        ],
+        "allergens": [
+          "Mollusques",
+          "Produits laitiers"
+        ],
+        "confirmedFreeAllergens": [],
+        "allergenCaution": null,
+        "source": {
+          "repository": "MarcSaad-Hadidi/Vistaire",
+          "ref": "cd91ec7556c9d6dcafe6d2d44b27f571abd1e0be",
+          "path": "scripts/owner/sync-sauge-noire-menu.mjs",
+          "line": 38,
+          "url": "https://github.com/MarcSaad-Hadidi/Vistaire/blob/cd91ec7556c9d6dcafe6d2d44b27f571abd1e0be/scripts/owner/sync-sauge-noire-menu.mjs#L38",
+          "snippet": "  dish(\"Huîtres tièdes au kombu\", \"Premiers gestes\", 20, \"Trois huîtres tièdes au kombu sont servies avec de la pomme verte, du beurre noisette et une huile de livèche.\", [\"huîtres\", \"kombu\", \"pomme verte\", \"beurre noisette\", \"livèche\"], [\"portion supplémentaire de trois huîtres +18 $\", \"beurre noisette à part\"], \"Le kombu et la pomme verte soulignent la salinité naturelle des huîtres sans masquer leur finesse.\", [\"Nouveau\"], [\"Mollusques\", \"Produits laitiers\"]),",
+          "context": "export const TARGET_SLUG = \"sauge-noire\";\nexport const TARGET_NAME = \"Sauge Noire\";\n",
+          "allergenDefaultDefinition": "const dish = (name, section, price, description, ingredients, options, chefNote, badges, allergensContains = [], allergensConfirmedFree = [], customAllergens = []) => ({",
+          "currentLiveMenuVerified": false
+        }
+      }
+    },
+    {
+      "id": "burger",
+      "name": "Burger signature maison",
+      "filename": "restaurants_bc1845b3-3f42-480f-aee2-6ec472c52e41_models_web_burger-signature-maison-20260704-04528561.glb",
+      "path": "/workspace/scratch/51ebef2040ae/upload/restaurants_bc1845b3-3f42-480f-aee2-6ec472c52e41_models_web_burger-signature-maison-20260704-04528561.glb",
+      "bytes": 2979416,
+      "sha256": "0452856149f975b5a8867e4d2e40f71dc69c7bc3a26942cd14a71bcdc23660ae",
+      "triangles": 777884,
+      "vertices": 466850,
+      "meshes": 1,
+      "primitives": 1,
+      "materials": 1,
+      "nodes": 1,
+      "asset": {
+        "generator": "glTF-Transform v4.4.0",
+        "version": "2.0"
+      },
+      "extensionsRequired": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ],
+      "extensionsUsed": [
+        "EXT_texture_webp",
+        "KHR_draco_mesh_compression"
+      ],
+      "decoder": "Draco",
+      "images": [
+        {
+          "index": 0,
+          "name": "Image_3",
+          "mimeType": "image/webp",
+          "bytes": 6434,
+          "uri": null,
+          "width": 1024,
+          "height": 1024,
+          "format": "WEBP",
+          "mode": "RGB"
+        },
+        {
+          "index": 1,
+          "name": "Image_2",
+          "mimeType": "image/webp",
+          "bytes": 47464,
+          "uri": null,
+          "width": 1024,
+          "height": 1024,
+          "format": "WEBP",
+          "mode": "RGB"
+        },
+        {
+          "index": 2,
+          "name": "Image_0",
+          "mimeType": "image/webp",
+          "bytes": 204714,
+          "uri": null,
+          "width": 1024,
+          "height": 1024,
+          "format": "WEBP",
+          "mode": "RGB"
+        },
+        {
+          "index": 3,
+          "name": "Image_1",
+          "mimeType": "image/webp",
+          "bytes": 50506,
+          "uri": null,
+          "width": 1024,
+          "height": 1024,
+          "format": "WEBP",
+          "mode": "RGB"
+        }
+      ],
+      "userProvidedOriginal": true,
+      "embeddedAttributionFound": false,
+      "embeddedLicenceFound": false,
+      "content": {
+        "status": "not_verified",
+        "name": "Burger signature maison",
+        "nameEvidence": "user-uploaded filename",
+        "price": null,
+        "currency": null,
+        "description": null,
+        "allergens": null,
+        "confirmedFreeAllergens": null
+      }
+    },
+    {
+      "id": "sushi",
+      "name": "Plateau sushi Horizon",
+      "filename": "restaurants_bc1845b3-3f42-480f-aee2-6ec472c52e41_models_web_plateau-sushi-horizon-20260701-32da0d54e650-a341922469b8.glb",
+      "path": "/workspace/scratch/51ebef2040ae/upload/restaurants_bc1845b3-3f42-480f-aee2-6ec472c52e41_models_web_plateau-sushi-horizon-20260701-32da0d54e650-a341922469b8.glb",
+      "bytes": 3895760,
+      "sha256": "9b94523eaf54c6789d66c02d1bcb5fafd8d910dab5237e55b0c8016323056e88",
+      "triangles": 590186,
+      "vertices": 345541,
+      "meshes": 1,
+      "primitives": 1,
+      "materials": 1,
+      "nodes": 1,
+      "asset": {
+        "generator": "glTF-Transform v4.3.0",
+        "version": "2.0"
+      },
+      "extensionsRequired": [
+        "EXT_meshopt_compression",
+        "EXT_texture_webp",
+        "KHR_mesh_quantization"
+      ],
+      "extensionsUsed": [
+        "EXT_meshopt_compression",
+        "EXT_texture_webp",
+        "KHR_mesh_quantization"
+      ],
+      "decoder": "Meshopt",
+      "images": [
+        {
+          "index": 0,
+          "name": "Image_3",
+          "mimeType": "image/webp",
+          "bytes": 17040,
+          "uri": null,
+          "width": 1024,
+          "height": 1024,
+          "format": "WEBP",
+          "mode": "RGB"
+        },
+        {
+          "index": 1,
+          "name": "Image_2",
+          "mimeType": "image/webp",
+          "bytes": 32850,
+          "uri": null,
+          "width": 1024,
+          "height": 1024,
+          "format": "WEBP",
+          "mode": "RGB"
+        },
+        {
+          "index": 2,
+          "name": "Image_0",
+          "mimeType": "image/webp",
+          "bytes": 193446,
+          "uri": null,
+          "width": 1024,
+          "height": 1024,
+          "format": "WEBP",
+          "mode": "RGB"
+        },
+        {
+          "index": 3,
+          "name": "Image_1",
+          "mimeType": "image/webp",
+          "bytes": 39664,
+          "uri": null,
+          "width": 1024,
+          "height": 1024,
+          "format": "WEBP",
+          "mode": "RGB"
+        }
+      ],
+      "userProvidedOriginal": true,
+      "embeddedAttributionFound": false,
+      "embeddedLicenceFound": false,
+      "content": {
+        "status": "not_verified",
+        "name": "Plateau sushi Horizon",
+        "nameEvidence": "user-uploaded filename",
+        "price": null,
+        "currency": null,
+        "description": null,
+        "allergens": null,
+        "confirmedFreeAllergens": null
+      }
+    },
+    {
+      "id": "poutine",
+      "name": "Poutine du Vieux-Montréal",
+      "filename": "restaurants_bc1845b3-3f42-480f-aee2-6ec472c52e41_models_web_poutine-du-vieux-montreal-20260701-827c8cfef602-416cf6d7dbf3.glb",
+      "path": "/workspace/scratch/51ebef2040ae/upload/restaurants_bc1845b3-3f42-480f-aee2-6ec472c52e41_models_web_poutine-du-vieux-montreal-20260701-827c8cfef602-416cf6d7dbf3.glb",
+      "bytes": 1631104,
+      "sha256": "66d25e9532f04591c8f3cbd818d80dc797b1611a8fa75041beb89d52eb1d6f2d",
+      "triangles": 224586,
+      "vertices": 137426,
+      "meshes": 1,
+      "primitives": 1,
+      "materials": 1,
+      "nodes": 1,
+      "asset": {
+        "generator": "glTF-Transform v4.3.0",
+        "version": "2.0"
+      },
+      "extensionsRequired": [
+        "EXT_meshopt_compression",
+        "EXT_texture_webp",
+        "KHR_mesh_quantization"
+      ],
+      "extensionsUsed": [
+        "EXT_meshopt_compression",
+        "EXT_texture_webp",
+        "KHR_mesh_quantization"
+      ],
+      "decoder": "Meshopt",
+      "images": [
+        {
+          "index": 0,
+          "name": "Image_2",
+          "mimeType": "image/webp",
+          "bytes": 20208,
+          "uri": null,
+          "width": 1024,
+          "height": 1024,
+          "format": "WEBP",
+          "mode": "RGB"
+        },
+        {
+          "index": 1,
+          "name": "Image_0",
+          "mimeType": "image/webp",
+          "bytes": 132256,
+          "uri": null,
+          "width": 1024,
+          "height": 1024,
+          "format": "WEBP",
+          "mode": "RGB"
+        },
+        {
+          "index": 2,
+          "name": "Image_1",
+          "mimeType": "image/webp",
+          "bytes": 36114,
+          "uri": null,
+          "width": 1024,
+          "height": 1024,
+          "format": "WEBP",
+          "mode": "RGB"
+        }
+      ],
+      "userProvidedOriginal": true,
+      "embeddedAttributionFound": false,
+      "embeddedLicenceFound": false,
+      "content": {
+        "status": "not_verified",
+        "name": "Poutine du Vieux-Montréal",
+        "nameEvidence": "user-uploaded filename",
+        "price": null,
+        "currency": null,
+        "description": null,
+        "allergens": null,
+        "confirmedFreeAllergens": null
+      }
+    }
+  ]
+}

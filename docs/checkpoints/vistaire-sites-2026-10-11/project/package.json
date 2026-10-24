@@ -1,0 +1,44 @@
+{
+  "name": "immersive",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "prebuild": "node scripts/prepare-runtime-assets.mjs",
+    "build": "vite build && node scripts/prepare-sites-build.mjs && node scripts/verify-runtime-assets.mjs",
+    "preview": "vite preview",
+    "test:sites": "node --test tests/sites-worker.test.mjs",
+    "assets:prepare": "node scripts/prepare-runtime-assets.mjs",
+    "test:browser": "playwright test",
+    "format:check": "prettier --check src playwright.config.mjs tests/browser scripts/prepare-runtime-assets.mjs",
+    "lint": "eslint src",
+    "videos:render": "node scripts/cinematic/render.mjs"
+  },
+  "dependencies": {
+    "@fontsource/archivo": "^5.3.0",
+    "@fontsource/dm-mono": "^5.3.0",
+    "@kind-ui/charts": "0.4.0",
+    "@types/qrcode": "^1.5.6",
+    "@types/three": "^0.186.0",
+    "@vitejs/plugin-react": "5.0.4",
+    "exceljs": "4.4.0",
+    "jspdf": "4.2.1",
+    "jspdf-autotable": "5.0.8",
+    "lucide-react": "^1.53.0",
+    "qrcode": "^1.5.4",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "three": "^0.183.2",
+    "vite": "6.4.2"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.5",
+    "@playwright/test": "^1.64.0",
+    "eslint": "^9.39.5",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "globals": "^17.13.0",
+    "prettier": "^3.9.9",
+    "react-test-renderer": "19.3.0"
+  }
+}
