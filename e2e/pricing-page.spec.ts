@@ -378,6 +378,9 @@ test.describe("Vistaire pricing collections", () => {
       await expect(page.getByRole("heading", { level: 1, name: scenario.h1 })).toBeVisible();
 
       const collections = page.locator("[data-pricing-collection]");
+      const sharedInclusions = page.locator("[data-pricing-shared-inclusions]");
+      await expect(sharedInclusions).toContainText(scenario.path.startsWith("/en") ? "All five offers" : "Les cinq offres");
+      await expect(sharedInclusions).toContainText("3D");
       await expect(collections).toHaveCount(5);
       await expect(collections.first()).toContainText(scenario.digitalDisclosure);
       for (const [index, collection] of scenario.collectionNames.entries()) {

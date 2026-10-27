@@ -73,8 +73,12 @@ does not claim an immutable caching header. Chromium fetches from the www and
 apex production origins, `http://localhost:3000`, and the Vercel branch-pattern
 origin returned 200 and the same complete byte count and SHA-256. The actual
 generated preview origin is checked during integration after deployment.
-`http://127.0.0.1:3000` remains outside the existing CORS policy; local QA uses
-`localhost`. No global CORS policy was changed.
+Follow-up on 2026-10-27: the PR's Chromium smoke jobs used
+`http://127.0.0.1:3000` and failed because only `localhost` was authorized.
+The existing read-only CORS rule now also authorizes that exact loopback origin.
+GET/HEAD, production origins and the Vercel branch pattern are preserved; no
+write method or additional wildcard was added. Browser and CI verification are
+recorded in the Digital delivery report.
 
 This is an illustrative open Sauge Noire book, not an included physical product
 or an AR handoff. It has no fictitious local URL or redirect. Its existing Draco

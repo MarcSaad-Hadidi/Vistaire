@@ -176,7 +176,7 @@ export const PRICING_PAGE = {
       label: "Vistaire",
       positioning: "Toute l’expérience Vistaire, sans support physique.",
       description:
-        "Un menu digital à votre image, vos photographies culinaires et une sélection de plats en 3D. Un QR code personnalisé vous permet de prolonger l'expérience sur votre menu papier ou vos supports existants. Aucun support physique inclus. Le livre présenté est illustratif.",
+        "Votre QR personnalisé est livré au format numérique pour être intégré à votre menu papier ou à vos supports actuels. Vous conservez votre présentation de table, sans nouveau support physique.",
       setupAmount: SETUP_AMOUNTS.digital,
       setupPrice: formatSetupAmount(SETUP_AMOUNTS.digital, "fr"),
       monthlyPrice: `+ ${formatSetupAmount(MONTHLY_AMOUNT, "fr")} / mois`,
@@ -195,7 +195,7 @@ export const PRICING_PAGE = {
       label: "Vistaire",
       positioning: "Minimal. Moderne. Épuré.",
       description:
-        "Support vertical en acrylique avec base en bois.",
+        "Une plaque verticale en acrylique sur une base en bois. La transparence du panneau et la chaleur du socle composent une présentation épurée, pensée pour laisser respirer la table.",
       setupAmount: SETUP_AMOUNTS.acrylique,
       setupPrice: formatSetupAmount(SETUP_AMOUNTS.acrylique, "fr"),
       monthlyPrice: `+ ${formatSetupAmount(MONTHLY_AMOUNT, "fr")} / mois`,
@@ -214,7 +214,7 @@ export const PRICING_PAGE = {
       label: "Vistaire",
       positioning: "Design. Sculpté. Pour se démarquer.",
       description:
-        "Support vertical en bois avec coin supérieur droit arrondi et sculpté.",
+        "Une silhouette verticale en bois dont l’angle supérieur droit est arrondi et sculpté. Ses lignes travaillées donnent du relief à la présentation du QR et font du support un élément du dressage.",
       setupAmount: SETUP_AMOUNTS.sculpte,
       setupPrice: formatSetupAmount(SETUP_AMOUNTS.sculpte, "fr"),
       monthlyPrice: `+ ${formatSetupAmount(MONTHLY_AMOUNT, "fr")} / mois`,
@@ -233,7 +233,7 @@ export const PRICING_PAGE = {
       label: "Vistaire",
       positioning: "Compact. Design. Chaleureux.",
       description:
-        "Petit support carré en bois avec QR directement intégré, offert dans plusieurs finitions.",
+        "Un format carré compact en bois, avec le QR directement intégré au support. Ses différentes finitions permettent de choisir l’accord avec la table et le décor du restaurant.",
       setupAmount: SETUP_AMOUNTS.carre,
       setupPrice: formatSetupAmount(SETUP_AMOUNTS.carre, "fr"),
       monthlyPrice: `+ ${formatSetupAmount(MONTHLY_AMOUNT, "fr")} / mois`,
@@ -252,7 +252,7 @@ export const PRICING_PAGE = {
       label: "Vistaire",
       positioning: "Premium. Distinctif. Signature.",
       description:
-        "Support horizontal en bois premium avec partie QR noire et amovible.",
+        "Une présentation horizontale en bois premium avec un insert QR noir et amovible. Le contraste du bois et du noir souligne une silhouette basse, différente de nos présentations verticales.",
       setupAmount: SETUP_AMOUNTS.signature,
       setupPrice: formatSetupAmount(SETUP_AMOUNTS.signature, "fr"),
       monthlyPrice: `+ ${formatSetupAmount(MONTHLY_AMOUNT, "fr")} / mois`,
@@ -270,7 +270,7 @@ export const PRICING_PAGE = {
     eyebrow: "Inclus dans l’offre Vistaire",
     title: "L’essentiel digital dans chaque offre Vistaire.",
     body:
-      "Quelle que soit la collection choisie, vous profitez du même menu digital, des mêmes services et du même accompagnement Vistaire.",
+      "Les cinq offres incluent le même menu digital, un QR personnalisé, les photographies culinaires prises sur place et jusqu’à 5 plats en 3D. Choisissez ensuite le QR numérique seul ou le support qui vous ressemble.",
     priceDifference:
       "Digital ne comprend aucun support physique. Les quatre collections physiques ajoutent jusqu’à 20 supports QR personnalisés ; leur différence de prix provient principalement du support choisi et de son positionnement premium."
   },
@@ -466,7 +466,7 @@ export const PRICING_PAGE_EN = {
       label: "Vistaire",
       positioning: "Everything Vistaire offers, without a physical display.",
       description:
-        "A personalized digital menu, professional food photography and a selection of 3D dishes. A custom QR code lets you extend the experience to your printed menu or existing displays. No physical display included. The book shown is illustrative.",
+        "Your personalized QR code is delivered digitally, ready to add to your printed menu or existing displays. Keep your current table presentation without introducing a new physical display.",
       setupAmount: SETUP_AMOUNTS.digital,
       setupPrice: formatSetupAmount(SETUP_AMOUNTS.digital, "en"),
       monthlyPrice: `+ ${formatSetupAmount(MONTHLY_AMOUNT, "en")} / month`,
@@ -485,7 +485,7 @@ export const PRICING_PAGE_EN = {
       label: "Vistaire",
       positioning: "Minimal. Modern. Refined.",
       description:
-        "A vertical acrylic display set into a wooden base.",
+        "A vertical acrylic panel set into a wooden base. The transparent panel and warm wooden base create a clean presentation that leaves the rest of your table in view.",
       setupAmount: SETUP_AMOUNTS.acrylique,
       setupPrice: formatSetupAmount(SETUP_AMOUNTS.acrylique, "en"),
       monthlyPrice: `+ ${formatSetupAmount(MONTHLY_AMOUNT, "en")} / month`,
@@ -504,7 +504,7 @@ export const PRICING_PAGE_EN = {
       label: "Vistaire",
       positioning: "Designed. Sculpted. Made to stand out.",
       description:
-        "A vertical wooden display with a rounded, sculpted upper right corner.",
+        "A vertical wooden silhouette with a rounded, sculpted upper right corner. Its shaped lines bring depth to the QR presentation and make the display part of your table setting.",
       setupAmount: SETUP_AMOUNTS.sculpte,
       setupPrice: formatSetupAmount(SETUP_AMOUNTS.sculpte, "en"),
       monthlyPrice: `+ ${formatSetupAmount(MONTHLY_AMOUNT, "en")} / month`,
@@ -523,7 +523,7 @@ export const PRICING_PAGE_EN = {
       label: "Vistaire",
       positioning: "Compact. Designed. Warm.",
       description:
-        "A compact square wooden display with the QR code built directly into it, available in several finishes.",
+        "A compact square wooden display with the QR code integrated directly into it. Choose from several finishes to find the right match for your tables and restaurant decor.",
       setupAmount: SETUP_AMOUNTS.carre,
       setupPrice: formatSetupAmount(SETUP_AMOUNTS.carre, "en"),
       monthlyPrice: `+ ${formatSetupAmount(MONTHLY_AMOUNT, "en")} / month`,
@@ -542,7 +542,7 @@ export const PRICING_PAGE_EN = {
       label: "Vistaire",
       positioning: "Premium. Distinctive. Signature.",
       description:
-        "A premium horizontal wooden display with a removable black QR insert.",
+        "A premium horizontal wooden display with a removable black QR insert. The contrast between wood and black defines a low silhouette that stands apart from our vertical displays.",
       setupAmount: SETUP_AMOUNTS.signature,
       setupPrice: formatSetupAmount(SETUP_AMOUNTS.signature, "en"),
       monthlyPrice: `+ ${formatSetupAmount(MONTHLY_AMOUNT, "en")} / month`,
@@ -560,7 +560,7 @@ export const PRICING_PAGE_EN = {
     eyebrow: "Included in the Vistaire offer",
     title: "Digital essentials in every Vistaire offer.",
     body:
-      "Whichever collection you choose, you receive the same digital menu, services and guided Vistaire setup.",
+      "All five offers include the same digital menu, a personalized QR code, on site food photography and up to 5 dishes in 3D. Then choose a digital QR code on its own or the display that suits your tables.",
     priceDifference:
       "Digital includes no physical display. The four physical collections add up to 20 personalized QR displays; their price difference comes primarily from the display selected and its premium positioning."
   },

@@ -150,6 +150,9 @@ export function VistairePricingPreview({
         className={styles.collectionsSection}
         id="pricing-collections"
       >
+        <div className={styles.sectionIntro} data-pricing-shared-inclusions>
+          <p>{page.included.body}</p>
+        </div>
         <PricingTableEstimator collections={page.collections} locale={locale} />
       </section>
 
@@ -161,7 +164,6 @@ export function VistairePricingPreview({
         <header className={styles.sectionIntro}>
           <p className={styles.eyebrow}>{page.included.eyebrow}</p>
           <h2 id="pricing-included-title">{page.included.title}</h2>
-          <p>{page.included.body}</p>
         </header>
 
         <div aria-label={copy.includedLabel} className={styles.includedGrid}>
