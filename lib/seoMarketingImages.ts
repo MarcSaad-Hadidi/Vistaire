@@ -1,4 +1,5 @@
-// One original photographic composition per logical placement; FR/EN share it.
+// One photographic composition per logical slot; FR/EN share it.
+// Digital intentionally shares one illustrative photo across phone and pricing cards.
 // Source fidelity, semantic intent and checksums: docs/marketing-photography.json.
 export type SeoMarketingImage = { src: string; alt: string };
 
@@ -351,6 +352,13 @@ export const SEO_MARKETING_IMAGES: Record<string, { src: string; alt: { fr: stri
     "alt": {
       "fr": "Spritz Riviera Trouvable avec tranche d’orange dans une ambiance de bistrot",
       "en": "Trouvable Spritz Riviera with an orange slice in a bistro setting"
+    }
+  },
+  "PRICING:collection:digital": {
+    "src": "/images/marketing/vistaire-digital-sauge-noire.webp",
+    "alt": {
+      "fr": "Livre-menu Sauge Noire ouvert avec un QR code, illustration de Vistaire Digital sans support physique inclus",
+      "en": "Open Sauge Noire menu book with a QR code, illustrating Vistaire Digital with no physical display included"
     }
   },
   "HOME:pricing:acrylique": {
