@@ -1,5 +1,7 @@
 # Vistaire Digital — rapport de vérification
 
+Le suivi « Descriptions et CI » en fin de document complète ce bilan initial et remplace ses constats sur les dépendances et les origines CORS. Le bilan initial porte sur `2d9a5b66` ; le suivi porte sur `6b54e6c2` et `c2834d9c`.
+
 Rapport de livraison et de limites observées. Une assertion ou une commande en échec est signalée comme telle ; aucun essai logiciel ne vaut validation sur appareil physique.
 
 ## 1. Branche, base et livraison
@@ -219,3 +221,47 @@ Le rendu software et les captures ne prouvent pas 60 FPS, consommation thermique
 - Les échecs Node/WebKit/tactile et la comparaison expirée restent des limites explicites de validation, pas des résultats verts. La revue sur appareils physiques avant merge reste nécessaire pour le ressenti tactile et les traits fins en mouvement.
 
 Le diff reste celui de l’offre Digital, du livre, de sa photographie et de leurs contrats/tests/documentation. Aucun merge vers `main`, aucune réécriture d’historique et aucune suppression de production.
+
+
+## 11. Suivi — descriptions et CI
+
+Demande : chaque carte décrit sa propre différence, avec des descriptions FR/EN comparables ; les services digitaux communs sont explicités avant les cartes. Les prix, options, modèles, routes et contrats restent identiques. La même PR #321 reste brouillon, sans merge.
+
+- `lib/pricingPage.ts` : Digital décrit la réutilisation des menus/supports existants et le QR livré numériquement ; Acrylique le panneau transparent et sa base bois ; Sculpté l’angle arrondi sculpté ; Carré le format compact et les finitions ; Signature la silhouette horizontale et l’insert amovible. Menu, QR personnalisé, photos sur place et jusqu’à cinq plats en 3D sont communs aux cinq offres.
+- `components/vistaire-preview/VistairePricingPreview.tsx` : ce rappel commun est déplacé avant les cartes, avec les styles existants. Aucun allongement artificiel ni refonte de grille.
+- `e2e/pricing-page.spec.ts` : le parcours FR/EN vérifie le rappel des cinq offres et de la 3D.
+- `e2e/restaurateur-preview.spec.ts` : le helper attend la disparition du préchargement avant de faire défiler la vidéo dans le viewport ; attente fixe retirée, assertions autoplay/lecture/isolement conservées.
+- `package.json`, `package-lock.json` : Next.js et eslint-config-next 16.4.3, DOMPurify 3.4.17, Zod 4.6.7 ferment les avis détectés par l’audit. Pas de nouvelle dépendance ni de changement majeur.
+- `ci/npm-audit-baseline.json` : nouvelle empreinte du lock et aucune exception ; audit neuf à zéro vulnérabilité. `docs/ci-supply-chain.md` décrit ce nouvel état.
+- `tests/menu-mutation-cache-invalidation.test.mjs` : le fixture utilise `executeRequest` et la factory userland de Next 16.4.3, remplaçant l'ancienne méthode interne `do` supprimée. Les assertions de réponse et de revalidation restent identiques ; aucun code de mutation applicatif n'est changé.
+- `docs/public-model-assets.md` : le CORS R2 accepte désormais aussi l’origine exacte `http://127.0.0.1:3000`, utilisée par la CI. Méthodes GET/HEAD et autres origines conservées ; aucune permission d’écriture ou wildcard supplémentaire.
+
+Les journaux GitHub du head `2d9a5b66` identifient les causes : les shards Chromium 1/6 et 2/6 échouaient sur le preload GLB refusé par CORS depuis 127.0.0.1 ; WebKit 2/2 attendait autoplay alors que le scroll pouvait encore être retenu par le chargement initial ; l’audit bloquait six avis nouveaux. Les autres jobs étaient verts. Les assertions et gardes de CI n’ont pas été désactivées.
+
+Preuves déjà observées :
+
+- Audit frais : `npm audit --package-lock-only --json`, zéro vulnérabilité ; `node scripts/ci/check-npm-audit-baseline.mjs … ci/npm-audit-baseline.json` passe ; `node --test tests/dependency-security-contract.test.mjs` passe 3/3.
+- HTTP CDN : GET 200 et empreinte exacte du GLB pour 127.0.0.1, localhost et www ; pas de CORS accordé à `https://not-allowed.example`.
+- Le nouveau job GitHub « npm audit baseline » passe sur `6b54e6c25ea66628ac4b8a2b2c5fcfe5957174a9`.
+
+Sources des correctifs de sécurité : [Next.js](https://github.com/vercel/next.js/security/advisories/GHSA-2464-fhr4-w9xw), [DOMPurify](https://github.com/cure53/DOMPurify/security/advisories/GHSA-cg2g-xh64-v4q7), [Zod](https://github.com/advisories/GHSA-mrhx-c7xc-m3w5). Les plages et versions résolues ont également été contrôlées par le registre npm et l’audit neuf.
+
+Validation locale du suivi :
+
+- `npm ci --no-audit --no-fund` : installation propre réussie, préparation du runtime USDZ existant vérifiée.
+- `npm run assets:check` : passe, 2 174 fichiers et 97 exceptions historiques ; `npm run lfs:check` : passe, aucune règle ou pointeur LFS actif.
+- `npm run lint`, `npm run typecheck`, `npm run build` : passent. Build Next 16.4.3 avec les seules données et clés factices des fixtures locales, aucune configuration Supabase externe.
+- `node --test --test-reporter=tap tests/menu-mutation-cache-invalidation.test.mjs tests/tarifs-carte-vistaire-public.test.mjs tests/pricing-table-estimator.test.mjs tests/landing-collection-copy.test.mjs tests/dependency-security-contract.test.mjs tests/dashboard-walkthrough-media.test.mjs` : 29/29 passent, aucun skip.
+- QA Chromium de la [nouvelle preview](https://vistaire-4c1impm9b-capoships-projects.vercel.app/tarifs-menu-digital-restaurant) : FR/EN à 390, 430 et 1280 px ; cinq descriptions distinctes, inclusions communes présentes, zéro débordement, erreur console/page ou réponse HTTP 4xx/5xx pertinente. Captures examinées ; preuves hors Git `digital-offer-copy-390.png`, `digital-offer-copy-430.png`, `digital-offer-copy-1280.png`, `digital-offer-copy-evidence.json` dans le dossier de visualisations de la tâche.
+
+Les commandes E2E suivantes utilisent `CI=true` et `PLAYWRIGHT_BASE_URL=http://127.0.0.1:3000`, les fixtures Supabase locales et le build de production ; aucun opt-in de production :
+
+- `npm.cmd run test:e2e -- e2e/ci-smoke.spec.ts e2e/pricing-page.spec.ts --grep 'Pricing table estimator|publishes the same five offers|six required responsive' --project=chromium --workers=1 --retries=0 --forbid-only` : 4/4 passent, aucun retry ; estimateur FR/EN, inclusions et cinq cartes FR/EN, six viewports 360/390/430/768/1280/1440.
+- `npm.cmd run test:e2e -- e2e/restaurateur-preview.spec.ts --grep 'non-interactive looping video' --project=chromium --workers=1 --retries=0 --forbid-only` : 2/2 passent, incluant autoplay, boucle, visibilité et absence d'accès aux données privées.
+- Même commande vidéo avec `--project=webkit` : 0/2 en local Windows. Les attributs et l'arrivée autoplay passent, puis `videoWidth/videoHeight` vaut 703 × 456 au lieu de 1166 × 756 ; le reste du scénario n'est donc pas vérifié par cet essai. Ce résultat n'est pas présenté comme vert et l'assertion n'a pas été assouplie. Les deux shards WebKit Linux de la CI passent sur le même code.
+
+Sur `c2834d9c7bba295fbd65f7948196023d47170c0e`, les 24 check runs GitHub passent : [App CI et son CI Gate](https://github.com/MarcSaad-Hadidi/Vistaire/actions/runs/40555350306), [audit et sécurité des workflows](https://github.com/MarcSaad-Hadidi/Vistaire/actions/runs/40555350449), [politique des assets](https://github.com/MarcSaad-Hadidi/Vistaire/actions/runs/40555350405), [CodeQL](https://github.com/MarcSaad-Hadidi/Vistaire/actions/runs/40555350222). Ceci inclut les six shards publics Chromium, Sauge Noire, les deux shards admin, les deux shards WebKit, les contrats DB, le build et les contrôles statiques. Vercel signale success pour le commit de tests ignoré par sa règle de build ; la preview réellement construite et examinée reste celle de `6b54e6c2` liée ci-dessus. Les exécutions distantes vérifient la sélection critique définie par la CI, sans revendiquer la suite exhaustive hors sélection.
+
+Nettoyage du suivi : serveurs de tests et fixtures arrêtés par le runner, sorties `.next` et `test-results` retirées après vérification des chemins absolus ; aucun `playwright-report` présent. Captures et JSON utiles restent hors Git. `git diff --check` passe ; aucun secret, `.env`, log de debug, nouvelle dépendance ou nouvel asset n'est ajouté par ce suivi. Le checkout utilisateur reste au SHA `104eb1c4` avec ses seuls changements préexistants. Le diff reste limité aux descriptions, à leurs vérifications et aux causes réelles des checks rouges ; même PR brouillon #321, aucun merge.
+
+Limites restantes : la suite Node exhaustive du bilan initial n'a pas été relancée ; aucune validation Quick Look, Scene Viewer, ressenti tactile ou performance sur appareil réel. L'écart de dimensions WebKit Windows ci-dessus reste explicite.
