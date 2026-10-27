@@ -178,6 +178,16 @@ html.journey-compact :where([data-immersive-vistaire]) .pricing > .stage {
   object-fit: cover;
   object-position: center;
 }
+:where([data-immersive-vistaire]) .pricing [data-pricing-kind="digital"] .pricing-offer-photo img {
+  object-fit: contain;
+}
+:where([data-immersive-vistaire]) .pricing .pricing-offer-disclosure {
+  display: block;
+  padding: 0 10px 12px;
+  color: var(--public-muted);
+  font-size: 11px;
+  line-height: 1.4;
+}
 :where([data-immersive-vistaire]) .pricing .pricing-offer-number {
   position: absolute;
   top: 10px;

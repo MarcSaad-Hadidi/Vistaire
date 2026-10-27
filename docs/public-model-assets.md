@@ -3,10 +3,11 @@
 ## Migration status
 
 The public model migration is **incomplete**. The lightweight manifest at
-`lib/publicModelAssets.json` inventories 58 public GLB/USDZ candidates. Every
-`publicUrl` is currently `null`, so all application consumers still use their
-existing local URLs. No model binary, asset exception, build hook, or source file
-has been removed by this change.
+`lib/publicModelAssets.json` inventories 72 existing public GLB/USDZ candidates
+and the CDN-only Digital presentation. The 72 existing records retain their
+local URLs and exact content identities. Digital uses the verified public URL
+documented below. No model binary, asset exception, build hook, or source file
+has been removed.
 
 One additive object was uploaded on 10 October 2026:
 
@@ -20,7 +21,7 @@ returned 200, the MIME was `model/gltf-binary`, and the tested byte range return
 206. These observations preceded the subsequent CORS configuration change.
 The earlier response allowed the production origin but not the tested preview
 origin. Post-change HTTP and browser CORS behavior has not yet been verified, so
-this object remains inactive in the application. The other 57 candidates have
+this object remains inactive in the application. The other 71 existing candidates have
 not been uploaded in this migration.
 
 ## Manifest and resolver
@@ -35,7 +36,8 @@ Each entry records:
 - `id`: stable identity independent of hosting and content version
 - `kind`, `format`, `visibility`: asset classification and public-only scope
 - `bytes`, `sha256`, `version`: exact runtime content identity
-- `legacyUrl`: existing public URL and local fallback during migration
+- `legacyUrl`: existing public URL and local fallback during migration; absent
+  for a new CDN-only presentation with no historical local URL
 - `publicUrl`: verified CDN URL, or `null` until activation gates pass
 - `variants`: related mobile/iOS asset IDs where applicable
 
@@ -54,7 +56,35 @@ count to stable IDs. Their geometry is unchanged; this repairs the diagnostic
 The shared 3D URL validator recognizes only exact activated manifest URLs in
 addition to its existing explicit origin allowlist. It does not generally allow
 all objects on the CDN. Next.js generates a finite 307 redirect for each activated
-legacy URL, with no binary proxy. There are currently no such model redirects.
+legacy URL, with no binary proxy. CDN-only entries create no legacy redirect.
+
+## Digital presentation (27 October 2026)
+
+- ID: `immersive.presentation.digital`
+- URL: `https://3d.vistaire.ca/marketing/immersive/20261027-digital/sauge-noire-menu-fe0d2f932d2efafe3b2d305dbd66539839cac35ea19591f81098478217daac59.glb`
+- Size: 451,824 bytes
+- SHA-256: `fe0d2f932d2efafe3b2d305dbd66539839cac35ea19591f81098478217daac59`
+- Original remains outside Git at `D:/Perso/SupportQrCode/Sauge_Noire_Menu_corrige (1).glb`.
+
+The publication owner verified full GET readback and checksum, GET/HEAD 200,
+`model/gltf-binary`, exact length, Range 206 and missing-object 404. ETag and
+Last-Modified are present; no Cache-Control header was observed, so this record
+does not claim an immutable caching header. Chromium fetches from the www and
+apex production origins, `http://localhost:3000`, and the Vercel branch-pattern
+origin returned 200 and the same complete byte count and SHA-256. The actual
+generated preview origin is checked during integration after deployment.
+Follow-up on 2026-10-27: the PR's Chromium smoke jobs used
+`http://127.0.0.1:3000` and failed because only `localhost` was authorized.
+The existing read-only CORS rule now also authorizes that exact loopback origin.
+GET/HEAD, production origins and the Vercel branch pattern are preserved; no
+write method or additional wildcard was added. Browser and CI verification are
+recorded in the Digital delivery report.
+
+This is an illustrative open Sauge Noire book, not an included physical product
+or an AR handoff. It has no fictitious local URL or redirect. Its existing Draco
+geometry and embedded WebP materials remain unchanged; the scene rotates it
+before uniform width normalization and grounding. A local load failure uses the
+shared lightweight marketing photograph without disabling navigation or scroll.
 
 ## Activation and removal gates
 

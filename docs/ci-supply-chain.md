@@ -52,10 +52,14 @@ manual update until an image-update owner is assigned.
 
 ## npm audit baseline
 
-The current lockfile has integrity metadata for all 666 installed packages, but
-the audit report still contains high-severity advisories. This PR does not run
-`npm audit fix --force` and does not silently change production dependencies.
-Remediation belongs in a separate dependency PR. The `Workflow Security`
+On 2026-10-27, the PR #321 follow-up updated Next.js and its ESLint config to
+16.4.3, DOMPurify to 3.4.17 and the transitive Zod dependency to 4.6.7.
+A fresh `npm audit --package-lock-only --json` reports zero vulnerabilities.
+The obsolete braces acceptance was removed because the fresh report no longer
+contains it; the baseline now has no accepted advisories and pins the new
+canonical lockfile hash. No new exception or severity suppression was added.
+
+The `Workflow Security`
 workflow runs `npm audit --json` and
 `scripts/ci/check-npm-audit-baseline.mjs` on every pull request and push to
 `main`. The checked-in baseline is

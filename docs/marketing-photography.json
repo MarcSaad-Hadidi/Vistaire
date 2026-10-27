@@ -1,12 +1,13 @@
 {
-  "date": "2026-10-10",
+  "date": "2026-10-27",
   "integrationBase": "afbc6cf87a193b1c20026adfe082a77915d9ff9b",
-  "scope": "One distinct photographic composition per logical in-page public marketing placement. FR/EN equivalents share that composition.",
-  "logicalPlacements": 67,
-  "uniqueRuntimePaths": 67,
-  "uniqueRuntimeHashes": 67,
+  "scope": "One distinct photographic composition per logical public marketing slot. FR/EN equivalents share that composition. The approved Digital slot also shares its supplied book photograph across the home phone and pricing cards.",
+  "logicalPlacements": 68,
+  "uniqueRuntimePaths": 68,
+  "uniqueRuntimeHashes": 68,
   "newPhotographicScenes": 50,
-  "newWebPBytes": 9664862,
+  "suppliedIllustrativePhotos": 1,
+  "newWebPBytes": 9822864,
   "reusedExistingUniquePhotos": 16,
   "differentExistingDishReplacement": 1,
   "publicRouteInstances": 48,
@@ -109,6 +110,7 @@
     ]
   },
   "exceptions": [
+    "PRICING:collection:digital intentionally shares one supplied illustrative photograph across the home phone and pricing cards; no duplicate file, crop or hash is counted as a new photo.",
     "French/English versions of one logical placement share the same photo by explicit user choice.",
     "OpenGraph/Twitter metadata may reuse the photo from its own page; it is not a separate in-page placement.",
     "Actual interactive restaurant UI, menu dish records, video/poster assets, source models and inactive historical photo fields are not replaced by this photography work."
@@ -151,6 +153,42 @@
     "nativeArPhysicalQrScanAndManufacturedDimensions": "Not verified by marketing photography."
   },
   "assets": [
+    {
+      "id": "pricing-collection-digital",
+      "slot": "PRICING:collection:digital",
+      "routes": [
+        "/",
+        "/en",
+        "/tarifs-menu-digital-restaurant",
+        "/en/pricing-digital-restaurant-menu"
+      ],
+      "path": "/images/marketing/vistaire-digital-sauge-noire.webp",
+      "restaurant": "sauge-noire",
+      "family": "products",
+      "width": 1536,
+      "height": 1024,
+      "format": "WEBP",
+      "bytes": 158002,
+      "sha256": "6a21dc7b4be8af2e0e76eb064660581ae215b1c1ea649b4672d2dd09e5535fa0",
+      "newScene": false,
+      "sectionHeading": "Vistaire Digital",
+      "sectionCopy": "Digital menu with a digitally delivered QR code; no physical display, book, printing or delivery included.",
+      "semanticIntent": "Illustrate a QR entry point on an existing paper menu without promising a supplied physical book or display.",
+      "visibleEvidence": "Open Sauge Noire menu book with printed artwork and a QR code. Its physical fulfillment and QR operation are not verified or promised.",
+      "semanticSource": "components/immersive/Pricing.jsx; components/vistaire-preview/PricingTableEstimator.tsx; lib/pricingPage.ts",
+      "alt": {
+        "fr": "Livre de menu Sauge Noire ouvert avec un QR code, illustration de Vistaire Digital sans support physique inclus",
+        "en": "Open Sauge Noire menu book with a QR code, illustrating Vistaire Digital with no physical display included"
+      },
+      "provenance": {
+        "source": "User-supplied D:/Perso/SupportQrCode/vistaire-digital-sauge-noire.webp",
+        "integrationDate": "2026-10-27",
+        "processing": "Copied byte-for-byte; no crop, re-encoding or duplicate runtime asset. CSS contain preserves the full book in phone and pricing cards.",
+        "sourceBytes": 158002,
+        "sourceSha256": "6a21dc7b4be8af2e0e76eb064660581ae215b1c1ea649b4672d2dd09e5535fa0",
+        "fidelityStatement": "Supplied illustrative view; not documentary proof of physical fulfillment or a verified working QR code. Book, printing, fabrication, delivery and physical installation are excluded from Digital."
+      }
+    },
     {
       "id": "g10-hero",
       "slot": "G10:hero",

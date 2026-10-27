@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 
 type PhoneDemo = "maison-elyse" | "trouvable" | "sauge-noire";
-type Collection = "acrylique" | "sculpte" | "carre" | "signature";
+type Collection = "digital" | "acrylique" | "sculpte" | "carre" | "signature";
 
 export type CinematicChapter = {
   /** Anchor id of the section. */
@@ -23,4 +23,4 @@ export type CinematicScene = {
   collection?: Collection;
 };
 
-export function CinematicPage(props: { chapters: CinematicChapter[]; scene?: CinematicScene; children?: ReactNode; footer?: ReactNode; mainProps?: Record<`data-${string}`, string> }): ReactNode;
+export function CinematicPage(props: { chapters: CinematicChapter[]; scene?: CinematicScene; children?: ReactNode; footer?: ReactNode; mainProps?: Record<`data-${string}`, string>; locale?: "fr" | "en" }): ReactNode;

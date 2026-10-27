@@ -8,7 +8,7 @@ export type PublicModelAsset = {
   bytes: number;
   sha256: string;
   version: string;
-  legacyUrl: string;
+  legacyUrl?: string;
   /** Set only after full-byte, HTTP and required-origin browser CORS verification. */
   publicUrl: string | null;
   variants?: { mobile?: string; ios?: string };
@@ -19,7 +19,7 @@ export const PUBLIC_MODEL_ASSETS = manifest.assets as readonly PublicModelAsset[
 const assetsByReference = new Map<string, PublicModelAsset>();
 for (const asset of PUBLIC_MODEL_ASSETS) {
   assetsByReference.set(asset.id, asset);
-  assetsByReference.set(asset.legacyUrl, asset);
+  if (asset.legacyUrl) assetsByReference.set(asset.legacyUrl, asset);
   if (asset.publicUrl) assetsByReference.set(asset.publicUrl, asset);
 }
 
@@ -30,7 +30,7 @@ export function getPublicModelAsset(reference: string): PublicModelAsset | undef
 /** Only inventoried public files are resolved; private and signed routes pass through. */
 export function resolvePublicModelUrl(reference: string): string {
   const asset = getPublicModelAsset(reference);
-  return asset ? asset.publicUrl || asset.legacyUrl : reference;
+  return asset ? asset.publicUrl || asset.legacyUrl || reference : reference;
 }
 
 export function isPublicModelCdnUrl(url: string): boolean {
@@ -48,7 +48,7 @@ export function publicModelBaseUrl(url: string): string {
 
 /** Temporary redirects preserve published legacy URLs while remaining rollback-safe. */
 export function getPublicModelRedirects() {
-  return PUBLIC_MODEL_ASSETS.flatMap((asset) => asset.publicUrl ? [{
+  return PUBLIC_MODEL_ASSETS.flatMap((asset) => asset.publicUrl && asset.legacyUrl ? [{
     source: asset.legacyUrl,
     destination: asset.publicUrl,
     permanent: false,

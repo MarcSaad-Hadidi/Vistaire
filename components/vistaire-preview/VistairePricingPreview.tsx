@@ -16,7 +16,7 @@ import styles from "./VistairePricingPreview.module.css";
 
 const UI_COPY = {
   fr: {
-    collectionsLabel: "Collections physiques Vistaire",
+    collectionsLabel: "Les cinq offres Vistaire",
     includedLabel: "Ce qui est inclus dans l’offre Vistaire",
     pilotagePreview: "Aperçu du tableau de bord · Données de démonstration",
     pricingEquation: "Abonnement mensuel avec l’option Pilotage",
@@ -27,7 +27,7 @@ const UI_COPY = {
     commercialTermsLabel: "Conditions commerciales essentielles",
   },
   en: {
-    collectionsLabel: "Vistaire physical collections",
+    collectionsLabel: "The five Vistaire offers",
     includedLabel: "What the Vistaire offer includes",
     pilotagePreview: "Dashboard preview · Demonstration data",
     pricingEquation: "Monthly subscription with the Pilotage option",
@@ -77,10 +77,11 @@ function CheckIcon() {
   );
 }
 
-// Pricing page, "choose your collection": one chapter per stand, each on its
-// own side of the table; the stand changes unseen between chapters. The
+// Pricing page: one chapter per presentation model, each on its own side
+// of the table; the model changes unseen between chapters. The
 // estimator, inclusions and terms follow in free reading, on one glass sheet.
 const COLLECTION_SHOTS = {
+  digital: "pricing-digital",
   acrylique: "pricing-acrylique",
   sculpte: "pricing-sculpte",
   carre: "pricing-carre",
@@ -109,14 +110,18 @@ export function VistairePricingPreview({
           <>
             <span className="eyebrow">{page.eyebrow}</span>
             <h1 id="pricing-title">{page.h1}</h1>
-            <p>{page.subtitle}</p>
           </>
         ) : null}
         <span className="eyebrow">0{index + 1} · {collection.positioning}</span>
         {index === 0
           ? <p><strong>{collection.name}</strong></p>
           : <h2 id={`pricing-${collection.id}-title`}>{collection.name}</h2>}
-        <p>{collection.description}</p>
+        {collection.kind === "physical" && <p>{collection.description}</p>}
+        {collection.kind === "digital" && (
+          <p>{locale === "en"
+            ? "Illustrative book. No physical display included."
+            : "Livre illustratif. Aucun support physique inclus."}</p>
+        )}
         <p className="cinematic-price"><strong>{collection.setupPrice}</strong> <span>{collection.monthlyPrice}</span></p>
         {index === page.collections.length - 1 ? (
           <nav className="cinematic-actions" aria-label={locale === "en" ? "Explore pricing" : "Explorer les tarifs"}>
@@ -133,7 +138,8 @@ export function VistairePricingPreview({
       <PreviewNav activeSection="pricing" currentPath={page.path} locale={locale} routeMode={routeMode} />
       <CinematicPage
         chapters={chapters}
-        scene={{ dish: "huitres", phoneDemo: "sauge-noire", collection: "acrylique" }}
+        locale={locale}
+        scene={{ dish: "huitres", phoneDemo: "sauge-noire", collection: "digital" }}
         footer={<CinematicFooter locale={locale} id="pricing" />}
         mainProps={{ "data-seo-experience": "pricing-support-showroom" }}
       >
@@ -144,6 +150,9 @@ export function VistairePricingPreview({
         className={styles.collectionsSection}
         id="pricing-collections"
       >
+        <div className={styles.sectionIntro} data-pricing-shared-inclusions>
+          <p>{page.included.body}</p>
+        </div>
         <PricingTableEstimator collections={page.collections} locale={locale} />
       </section>
 
@@ -155,7 +164,6 @@ export function VistairePricingPreview({
         <header className={styles.sectionIntro}>
           <p className={styles.eyebrow}>{page.included.eyebrow}</p>
           <h2 id="pricing-included-title">{page.included.title}</h2>
-          <p>{page.included.body}</p>
         </header>
 
         <div aria-label={copy.includedLabel} className={styles.includedGrid}>

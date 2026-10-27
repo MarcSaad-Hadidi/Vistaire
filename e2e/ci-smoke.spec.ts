@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { getPublicModelAsset } from "../lib/publicModelAssets";
 
 async function expectHealthy(page: Page, path: string) {
   const response = await page.goto(path, { waitUntil: "domcontentloaded" });
@@ -61,13 +62,13 @@ test("CI smoke keeps admin gated and metadata routes healthy", { tag: '@critical
 const pricingScenarios = [
   {
     path: "/tarifs-menu-digital-restaurant",
-    question: "Nombre de tables à équiper ?",
+    question: "Nombre de tables à équiper avec une collection physique ?",
     decrement: "Réduire le nombre de tables",
     increment: "Augmenter le nombre de tables",
-    initialPrices: ["2 000 $ CAD", "2 050 $ CAD", "2 100 $ CAD", "2 200 $ CAD"],
-    pricesAt21: ["2 040 $ CAD", "2 095 $ CAD", "2 155 $ CAD", "2 255 $ CAD"],
-    pricesAt37: ["2 680 $ CAD", "2 815 $ CAD", "3 035 $ CAD", "3 135 $ CAD"],
-    amountsAt37: [2680, 2815, 3035, 3135],
+    initialPrices: ["1 500 $ CAD", "2 000 $ CAD", "2 050 $ CAD", "2 100 $ CAD", "2 200 $ CAD"],
+    pricesAt21: ["1 500 $ CAD", "2 040 $ CAD", "2 095 $ CAD", "2 155 $ CAD", "2 255 $ CAD"],
+    pricesAt37: ["1 500 $ CAD", "2 680 $ CAD", "2 815 $ CAD", "3 035 $ CAD", "3 135 $ CAD"],
+    amountsAt37: [1500, 2680, 2815, 3035, 3135],
     monthly: "+ 200 $ CAD / mois",
     pilotage: "+ 100 $ CAD / mois",
     pilotageTotal: "Total 300 $ / mois",
@@ -77,13 +78,13 @@ const pricingScenarios = [
   },
   {
     path: "/en/pricing-digital-restaurant-menu",
-    question: "How many tables would you like to equip?",
+    question: "How many tables would you equip with a physical collection?",
     decrement: "Decrease the number of tables",
     increment: "Increase the number of tables",
-    initialPrices: ["$2,000 CAD", "$2,050 CAD", "$2,100 CAD", "$2,200 CAD"],
-    pricesAt21: ["$2,040 CAD", "$2,095 CAD", "$2,155 CAD", "$2,255 CAD"],
-    pricesAt37: ["$2,680 CAD", "$2,815 CAD", "$3,035 CAD", "$3,135 CAD"],
-    amountsAt37: [2680, 2815, 3035, 3135],
+    initialPrices: ["$1,500 CAD", "$2,000 CAD", "$2,050 CAD", "$2,100 CAD", "$2,200 CAD"],
+    pricesAt21: ["$1,500 CAD", "$2,040 CAD", "$2,095 CAD", "$2,155 CAD", "$2,255 CAD"],
+    pricesAt37: ["$1,500 CAD", "$2,680 CAD", "$2,815 CAD", "$3,035 CAD", "$3,135 CAD"],
+    amountsAt37: [1500, 2680, 2815, 3035, 3135],
     monthly: "+ $200 CAD / month",
     pilotage: "+ $100 CAD / month",
     pilotageTotal: "Total $300 / month",
@@ -108,7 +109,7 @@ test(`CI smoke validates ${scenario.path} Pricing table estimator`, { tag: '@cri
   page.on("request", (request) => {
     const { pathname } = new URL(request.url());
     // The page's own 3D room is expected; restaurant menu models are not.
-    if (/\.(?:glb|usdz)$/i.test(pathname) && !pathname.startsWith("/immersive-assets/")) {
+    if (/\.(?:glb|usdz)$/i.test(pathname) && !pathname.startsWith("/immersive-assets/") && request.url() !== getPublicModelAsset("immersive.presentation.digital")?.publicUrl) {
       modelRequests.push(request.url());
     }
   });
@@ -147,11 +148,11 @@ test(`CI smoke validates ${scenario.path} Pricing table estimator`, { tag: '@cri
     await expect(input).toHaveValue("20");
     await expect(decrement).toBeEnabled();
     await expect(increment).toBeEnabled();
-    await expect(collections).toHaveCount(4);
+    await expect(collections).toHaveCount(5);
 
     const prices = collections.locator("[data-pricing-estimated-setup]");
     await expect(prices).toHaveText([...scenario.initialPrices]);
-    await expect(collections.getByText(scenario.monthly, { exact: true })).toHaveCount(4);
+    await expect(collections.getByText(scenario.monthly, { exact: true })).toHaveCount(5);
 
     await increment.click();
     await expect(input).toHaveValue("21");

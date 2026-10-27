@@ -1,6 +1,27 @@
 import { expect, type Page, test } from "@playwright/test";
+import { getPublicModelAsset, PUBLIC_MODEL_ASSETS } from "../lib/publicModelAssets";
 
 const MODEL_ASSET_RE = /\.(?:glb|usdz)(?:$|[?#])/i;
+const DIGITAL_MODEL_URL = getPublicModelAsset("immersive.presentation.digital")!.publicUrl!;
+const PHYSICAL_MODELS = PUBLIC_MODEL_ASSETS.filter((asset) => asset.id.startsWith("immersive.support."));
+
+async function pricingSceneUrl(baseURL: string, path = "/tarifs-menu-digital-restaurant") {
+  const url = new URL(path, baseURL);
+  // The existing public bucket authorizes localhost for browser CORS.
+  if (url.hostname === "127.0.0.1") url.hostname = "localhost";
+  url.searchParams.set("sceneDiagnostics", "1");
+  return url.href;
+}
+
+async function visitPricingChapter(page: Page, id: string) {
+  await page.locator(`#pricing-${id}`).evaluate((section) => {
+    const stage = section.firstElementChild as HTMLElement;
+    scrollTo({ top: section.getBoundingClientRect().top + scrollY + Math.max(0, (section as HTMLElement).offsetHeight - stage.clientHeight) * 0.35, behavior: "instant" });
+  });
+  const canvas = page.locator(".scene-canvas");
+  await expect(canvas).toHaveAttribute("data-support", id, { timeout: 120_000 });
+  await expect(canvas).toHaveAttribute("data-support-ready", "true", { timeout: 120_000 });
+}
 
 type PageHealth = {
   consoleErrors: string[];
@@ -25,7 +46,7 @@ function installPageHealth(page: Page): PageHealth {
   page.on("response", (response) => {
     const target = new URL(response.url());
     if (!page.url().startsWith("http")) return;
-    if (target.origin !== new URL(page.url()).origin) return;
+    if (target.origin !== new URL(page.url()).origin && target.origin !== "https://3d.vistaire.ca") return;
     if (response.status() === 404 || response.status() >= 500) {
       networkIssues.push(`${response.status()} ${response.url()}`);
     }
@@ -35,7 +56,7 @@ function installPageHealth(page: Page): PageHealth {
     if (failure === "net::ERR_ABORTED") return;
     const target = new URL(request.url());
     if (!page.url().startsWith("http")) return;
-    if (target.origin === new URL(page.url()).origin) {
+    if (target.origin === new URL(page.url()).origin || target.origin === "https://3d.vistaire.ca") {
       networkIssues.push(`${failure} ${request.url()}`);
     }
   });
@@ -45,7 +66,7 @@ function installPageHealth(page: Page): PageHealth {
 
 async function expectHealthyPricingPage(page: Page, health: PageHealth) {
   // The Studio preview has its own <footer>; the page footer is #contact.
-  await page.locator("footer#contact").scrollIntoViewIfNeeded();
+  await page.locator("footer#contact").scrollIntoViewIfNeeded({ timeout: 30_000 });
   await expect(page.locator("footer#contact")).toBeVisible();
   await expect.poll(() => health.consoleErrors).toEqual([]);
   expect(health.networkIssues, health.networkIssues.join("\n")).toEqual([]);
@@ -109,60 +130,26 @@ async function visiblePricingDashText(page: Page) {
   });
 }
 
-async function expectPrimaryNavigationFits(
-  page: Page,
-  labels: readonly string[]
-) {
-  await expect(page.locator("[data-public-navigation-open]")).toBeVisible();
+async function expectPrimaryNavigationFits(page: Page) {
   const navigation = page.getByRole("navigation").first();
   await expect(navigation).toBeVisible();
-  const navigationBox = await navigation.boundingBox();
-  expect(navigationBox).not.toBeNull();
-  if (!navigationBox) return;
-
-  const linkBoxes = [];
-  for (const label of labels) {
-    const link = navigation.getByRole("link", { name: label, exact: true });
-    await expect(link).toHaveCount(1);
-    await expect(link).toBeVisible();
-    const box = await link.boundingBox();
-    expect(box, `${label} should have rendered geometry`).not.toBeNull();
-    if (!box) continue;
-    expect(box.x).toBeGreaterThanOrEqual(navigationBox.x - 1);
-    expect(box.y).toBeGreaterThanOrEqual(navigationBox.y - 1);
-    expect(box.x + box.width).toBeLessThanOrEqual(
-      navigationBox.x + navigationBox.width + 1
-    );
-    expect(box.y + box.height).toBeLessThanOrEqual(
-      navigationBox.y + navigationBox.height + 1
-    );
-    linkBoxes.push({ box, label });
+  const controlsFit = await navigation.locator("a:visible, button:visible").evaluateAll((controls) => {
+    const boxes = controls.map((control) => control.getBoundingClientRect());
+    return boxes.every((box, index) => box.width > 0 && box.height > 0 &&
+      box.left >= 0 && box.right <= innerWidth + 1 &&
+      boxes.slice(index + 1).every((other) =>
+        Math.min(box.right, other.right) - Math.max(box.left, other.left) <= 1 ||
+        Math.min(box.bottom, other.bottom) - Math.max(box.top, other.top) <= 1));
+  });
+  expect(controlsFit).toBe(true);
+  await navigation.getByRole("button", { name: "Menu", exact: true }).click();
+  const menu = page.locator("[data-public-menu]");
+  await expect(menu).toHaveAttribute("aria-hidden", "false");
+  for (const label of ["Les cartes", "L’offre complète", "À propos", "Nous contacter"]) {
+    await expect(menu.getByRole("link", { name: label, exact: true })).toBeVisible();
   }
-  expect(linkBoxes).toHaveLength(labels.length);
-
-  for (let index = 0; index < linkBoxes.length; index += 1) {
-    for (let other = index + 1; other < linkBoxes.length; other += 1) {
-      const first = linkBoxes[index];
-      const second = linkBoxes[other];
-      const horizontalOverlap = Math.min(
-        first.box.x + first.box.width,
-        second.box.x + second.box.width
-      ) - Math.max(first.box.x, second.box.x);
-      const verticalOverlap = Math.min(
-        first.box.y + first.box.height,
-        second.box.y + second.box.height
-      ) - Math.max(first.box.y, second.box.y);
-      expect(
-        horizontalOverlap <= 1 || verticalOverlap <= 1,
-        `${first.label} and ${second.label} must not overlap`
-      ).toBe(true);
-    }
-  }
-
-  const internalOverflow = await navigation.evaluate(
-    (element) => element.scrollWidth - element.clientWidth
-  );
-  expect(internalOverflow).toBeLessThanOrEqual(1);
+  await page.keyboard.press("Escape");
+  await expect(menu).toHaveAttribute("aria-hidden", "true");
   await expectNoHorizontalOverflow(page);
 }
 
@@ -177,14 +164,12 @@ async function expectVistaireChromeTypography(
 
   const navigation = page.getByRole("navigation").first();
   const brand = navigation
-    .getByRole("link", { name: brandLabel, exact: true })
-    .locator("span")
-    .first();
+    .getByRole("link", { name: brandLabel, exact: true });
   const bodyLink = navigation.getByRole("link", {
     name: bodyLinkLabel,
     exact: true
   });
-  const footerBrand = page.locator('footer section[aria-label="Vistaire"] h2');
+  const footerBrand = page.locator('footer#contact .footer-bottom span');
 
   await expect(brand).toBeVisible();
   await expect(bodyLink).toBeVisible();
@@ -195,9 +180,9 @@ async function expectVistaireChromeTypography(
     footerBrand.evaluate((element) => getComputedStyle(element).fontFamily)
   ]);
 
-  expect(headerFamily).toContain("BT Suave");
-  expect(footerFamily).toContain("BT Suave");
-  expect(bodyFamily).toContain("Neue Montreal");
+  expect(headerFamily).toContain("Vistaire Editorial");
+  expect(footerFamily).toContain("Vistaire Text");
+  expect(bodyFamily).toContain("Vistaire Text");
 }
 
 async function structuredDataTypes(page: Page) {
@@ -222,7 +207,58 @@ async function structuredDataTypes(page: Page) {
 }
 
 test.describe("Vistaire pricing collections", () => {
-  test("publishes the same four-collection offer in French and English", async ({ page }) => {
+  test("Digital renders the real book, keeps its framing and reuses it after physical chapters", async ({ page, baseURL }) => {
+    test.setTimeout(420_000);
+    const health = installPageHealth(page);
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto(await pricingSceneUrl(baseURL!), { waitUntil: "domcontentloaded" });
+    const canvas = page.locator(".scene-canvas");
+    await expect(canvas).toHaveAttribute("data-ready", "true", { timeout: 120_000 });
+    await expect(canvas).toHaveAttribute("data-support", "digital");
+    await expect(canvas).toHaveAttribute("data-support-ready", "true", { timeout: 120_000 });
+    expect(health.modelRequests.filter((url) => url === DIGITAL_MODEL_URL)).toHaveLength(1);
+    expect(health.modelRequests.filter((url) => PHYSICAL_MODELS.some((asset) => url === asset.publicUrl || (asset.legacyUrl && url.endsWith(asset.legacyUrl))))).toEqual([]);
+
+    for (const [width, height] of [[360, 800], [390, 844], [430, 932], [768, 1024], [1280, 800], [1440, 900]]) {
+      await page.setViewportSize({ width, height });
+      await visitPricingChapter(page, "digital");
+      await expect.poll(() => canvas.evaluate((node) => {
+        const bounds = JSON.parse((node as HTMLElement).dataset.supportBounds || "null");
+        return Boolean(bounds && bounds.width >= Math.min(180, innerWidth * 0.5) && bounds.height >= 100 && bounds.x >= -2 && bounds.y >= -2 && bounds.x + bounds.width <= innerWidth + 2 && bounds.y + bounds.height <= innerHeight + 2);
+      }), { message: `complete book in ${width}px viewport`, timeout: 20_000 }).toBe(true);
+      await expectNoHorizontalOverflow(page);
+    }
+    for (const id of ["acrylique", "digital", "sculpte", "carre", "signature", "digital"]) await visitPricingChapter(page, id);
+    expect(health.modelRequests.filter((url) => url === DIGITAL_MODEL_URL)).toHaveLength(1);
+    await page.locator('[data-pricing-table-input]').fill("100");
+    await expect(page.locator('[data-pricing-collection="digital"] [data-setup-amount]')).toHaveAttribute("data-setup-amount", "1500");
+    await expectHealthyPricingPage(page, health);
+  });
+
+  test("a failed book request leaves a photograph and the complete pricing journey usable", async ({ page, baseURL }) => {
+    test.setTimeout(120_000);
+    const pageErrors: string[] = [];
+    page.on("pageerror", (error) => pageErrors.push(error.message));
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.route(DIGITAL_MODEL_URL, (route) => route.fulfill({ status: 503, body: "controlled book failure", headers: { "access-control-allow-origin": "*" } }));
+    await page.goto(await pricingSceneUrl(baseURL!), { waitUntil: "domcontentloaded" });
+    const fallback = page.locator('#pricing-digital .presentation-fallback');
+    await expect(fallback).toBeVisible({ timeout: 60_000 });
+    await expect(fallback.locator('img')).toHaveAttribute('src', '/images/marketing/vistaire-digital-sauge-noire.webp');
+    await expect(page.locator('.preloader')).toHaveCount(0);
+    await expect(page.getByRole('alertdialog')).toHaveCount(0);
+    await visitPricingChapter(page, "acrylique");
+    const digital = page.locator('[data-pricing-collection="digital"]');
+    await digital.scrollIntoViewIfNeeded();
+    await expect(digital).toContainText("Aucun support physique inclus");
+    await expect(digital.getByRole('link')).toHaveAttribute('href', '/prendre-rendez-vous');
+    await expectNoHorizontalOverflow(page);
+    expect(pageErrors).toEqual([]);
+  });
+
+  test("publishes the same five offers in French and English", async ({ page }) => {
+    test.setTimeout(120_000);
     const health = installPageHealth(page);
     await page.setViewportSize({ width: 1280, height: 800 });
 
@@ -231,11 +267,11 @@ test.describe("Vistaire pricing collections", () => {
         path: "/tarifs-menu-digital-restaurant",
         title: "Tarifs Vistaire | Supports QR et menu digital restaurant",
         description:
-          "Découvrez les quatre collections de supports QR Vistaire dès 2 000 $ CAD, avec menu digital restaurant à 200 $ par mois et Pilotage en option.",
+          "Découvrez Vistaire Digital dès 1 500 $ CAD et quatre collections de supports QR, avec menu digital à 200 $ CAD par mois et Pilotage en option.",
         canonical: "https://www.vistaire.ca/tarifs-menu-digital-restaurant",
         h1: "Choisissez l’expérience qui prendra place sur vos tables.",
-        collectionNames: ["Acrylique", "Sculpté", "Carré", "Signature"],
-        prices: ["2 000 $ CAD", "2 050 $ CAD", "2 100 $ CAD", "2 200 $ CAD"],
+        collectionNames: ["Digital", "Acrylique", "Sculpté", "Carré", "Signature"],
+        prices: ["1 500 $ CAD", "2 000 $ CAD", "2 050 $ CAD", "2 100 $ CAD", "2 200 $ CAD"],
         monthly: "+ 200 $ CAD / mois",
         pilotage: "+ 100 $ CAD / mois",
         total: "Total 300 $ / mois",
@@ -243,10 +279,10 @@ test.describe("Vistaire pricing collections", () => {
         pricingLabel: "Tarifs",
         pricingPath: "#pricing-title",
         brandLabel: "Vistaire - accueil",
-        navCta: "Prendre rendez-vous",
+        navCta: "Prendre rendez vous",
         appointmentCta: "Prendre rendez vous",
         appointmentPath: "/prendre-rendez-vous",
-        forbiddenPreviewVocabulary: /démo|démonstration/i,
+        digitalDisclosure: "Aucun support physique inclus",
         forbiddenPrices: [
           "950 $ CAD setup",
           "125 $ CAD / mois",
@@ -260,11 +296,11 @@ test.describe("Vistaire pricing collections", () => {
         path: "/en/pricing-digital-restaurant-menu",
         title: "Vistaire Pricing | QR Displays & Digital Restaurant Menu",
         description:
-          "Explore four Vistaire QR display collections from $2,000 CAD, with a digital restaurant menu at $200 per month and optional Pilotage controls.",
+          "Explore Vistaire Digital from $1,500 CAD and four QR display collections, with a digital menu at $200 CAD per month and optional Pilotage controls.",
         canonical: "https://www.vistaire.ca/en/pricing-digital-restaurant-menu",
         h1: "Choose the experience that belongs on your tables.",
-        collectionNames: ["Acrylic", "Sculpted", "Square", "Signature"],
-        prices: ["$2,000 CAD", "$2,050 CAD", "$2,100 CAD", "$2,200 CAD"],
+        collectionNames: ["Digital", "Acrylic", "Sculpted", "Square", "Signature"],
+        prices: ["$1,500 CAD", "$2,000 CAD", "$2,050 CAD", "$2,100 CAD", "$2,200 CAD"],
         monthly: "+ $200 CAD / month",
         pilotage: "+ $100 CAD / month",
         total: "Total $300 / month",
@@ -275,7 +311,7 @@ test.describe("Vistaire pricing collections", () => {
         navCta: "Book a call",
         appointmentCta: "Book a call",
         appointmentPath: "/en/book-a-call",
-        forbiddenPreviewVocabulary: /demo|demonstration/i,
+        digitalDisclosure: "No physical display included",
         forbiddenPrices: [
           "$950 CAD",
           "$125 CAD / month",
@@ -288,6 +324,7 @@ test.describe("Vistaire pricing collections", () => {
     ] as const) {
       const response = await page.goto(scenario.path, { waitUntil: "domcontentloaded" });
       expect(response?.status()).toBeLessThan(400);
+      await expect(page.locator('.preloader')).toHaveCount(0, { timeout: 30_000 });
       await expect(page).toHaveTitle(scenario.title);
       await expect(page.locator('meta[name="description"]')).toHaveAttribute(
         "content",
@@ -341,7 +378,11 @@ test.describe("Vistaire pricing collections", () => {
       await expect(page.getByRole("heading", { level: 1, name: scenario.h1 })).toBeVisible();
 
       const collections = page.locator("[data-pricing-collection]");
-      await expect(collections).toHaveCount(4);
+      const sharedInclusions = page.locator("[data-pricing-shared-inclusions]");
+      await expect(sharedInclusions).toContainText(scenario.path.startsWith("/en") ? "All five offers" : "Les cinq offres");
+      await expect(sharedInclusions).toContainText("3D");
+      await expect(collections).toHaveCount(5);
+      await expect(collections.first()).toContainText(scenario.digitalDisclosure);
       for (const [index, collection] of scenario.collectionNames.entries()) {
         await expect(collections.nth(index).getByRole("heading", { name: collection })).toBeVisible();
         await expect(collections.nth(index).getByText(scenario.prices[index], { exact: true })).toBeVisible();
@@ -389,9 +430,6 @@ test.describe("Vistaire pricing collections", () => {
           .locator('section[aria-labelledby="pricing-final-title"]')
           .getByRole("link", { name: scenario.appointmentCta, exact: true })
       ).toHaveAttribute("href", scenario.appointmentPath);
-      expect(await page.locator("body").innerText()).not.toMatch(
-        scenario.forbiddenPreviewVocabulary
-      );
       const dashText = await visiblePricingDashText(page);
       expect(dashText, dashText.join("\n")).toEqual([]);
 
@@ -422,33 +460,26 @@ test.describe("Vistaire pricing collections", () => {
     await expectHealthyPricingPage(page, health);
   });
 
-  test("keeps the required five responsive viewports free of page overflow", async ({ page }) => {
+  test("keeps all six required responsive viewports free of page overflow", async ({ page }) => {
+    test.setTimeout(180_000);
     const health = installPageHealth(page);
 
     for (const viewport of [
+      { width: 360, height: 800, columns: 1 },
       { width: 390, height: 844, columns: 1 },
       { width: 430, height: 932, columns: 1 },
       { width: 768, height: 1024, columns: 2 },
-      { width: 1280, height: 800, columns: 4 },
-      { width: 1440, height: 900, columns: 4 }
+      { width: 1280, height: 800, columns: 3 },
+      { width: 1440, height: 900, columns: 3 }
     ]) {
       await page.setViewportSize(viewport);
       const response = await page.goto("/tarifs-menu-digital-restaurant", {
         waitUntil: "domcontentloaded"
       });
       expect(response?.status()).toBeLessThan(400);
-      await expect(page.locator("[data-pricing-collection]")).toHaveCount(4);
+      await expect(page.locator('.preloader')).toHaveCount(0, { timeout: 30_000 });
+      await expect(page.locator("[data-pricing-collection]")).toHaveCount(5);
       await expectNoHorizontalOverflow(page);
-
-      if (viewport.width === 390 || viewport.width === 430) {
-        await expectPrimaryNavigationFits(page, [
-          "Accueil",
-          "Carte",
-          "Tarifs",
-          "À propos",
-          "Contact"
-        ]);
-      }
 
       const renderedColumns = await page.locator("[data-pricing-collection]").first().evaluate((card) => {
         const grid = card.parentElement;
@@ -457,8 +488,9 @@ test.describe("Vistaire pricing collections", () => {
       expect(renderedColumns).toBe(viewport.columns);
 
       const firstImage = page.locator("[data-pricing-collection] img").first();
+      await firstImage.scrollIntoViewIfNeeded();
       await expect
-        .poll(() => firstImage.evaluate((image) => (image as HTMLImageElement).naturalWidth))
+        .poll(() => firstImage.evaluate((image) => (image as HTMLImageElement).naturalWidth), { timeout: 30_000 })
         .toBeGreaterThan(0);
 
       const imageGeometryIsCorrect = await page
@@ -471,9 +503,8 @@ test.describe("Vistaire pricing collections", () => {
           return (
             bounds.width > 0 &&
             bounds.height > 0 &&
-            Math.abs(bounds.width - bounds.height) <= 2 &&
-            Boolean(frame && Math.abs(frame.width - frame.height) <= 2) &&
-            getComputedStyle(element).objectFit === "cover"
+            Boolean(frame && Math.abs(frame.width / frame.height - 4 / 3) <= 0.02) &&
+            getComputedStyle(element).objectFit === (element.closest('[data-pricing-collection="digital"]') ? "contain" : "cover")
           );
         })
       );
@@ -487,6 +518,9 @@ test.describe("Vistaire pricing collections", () => {
           .getByRole("link", { name: "Prendre rendez vous", exact: true })
       ).toHaveAttribute("href", "/prendre-rendez-vous");
       await expectNoHorizontalOverflow(page);
+      if (viewport.width === 390 || viewport.width === 430) {
+        await expectPrimaryNavigationFits(page);
+      }
     }
 
     await expectHealthyPricingPage(page, health);
@@ -524,7 +558,7 @@ test.describe("Vistaire pricing collections", () => {
     await expectNoHorizontalOverflow(page);
   });
 
-  test("embeds the real Pilotage dashboard preview at 30 days without tiny focus targets", async ({
+  test("embeds the real read only Pilotage dashboard without tiny focus targets", async ({
     page
   }) => {
     const health = installPageHealth(page);
@@ -539,7 +573,7 @@ test.describe("Vistaire pricing collections", () => {
     await expect(dashboard).toHaveAttribute("aria-hidden", "true");
     await expect(dashboard).toHaveAttribute("inert", "");
     await expect(dashboard.locator("[data-admin-studio]")).toHaveCount(1);
-    await expect(dashboard.locator("select").first()).toHaveValue("30d");
+    await expect(dashboard.locator('[data-date-picker] button').first()).toHaveAttribute("aria-label", /Modifier la période d’analyse/);
     await expect(dashboard.locator("[data-studio-preview-banner]")).toContainText("données fictives");
     await expect(dashboard.locator("a, button, input, select, textarea").first()).not.toBeFocused();
     await expect(

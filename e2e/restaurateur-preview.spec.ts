@@ -239,8 +239,9 @@ async function expectSafeSeo(page: Page, scenario: Scenario) {
 // The film plays in free reading, after the page's 3D chapters: bring it to
 // the middle of the screen, as a visitor scrolling to it would.
 async function revealFilm(page: Page) {
+  await expect(page.locator(".preloader")).toHaveCount(0, {timeout: 30_000});
   await page.locator("[data-dashboard-walkthrough]").evaluate(element => element.scrollIntoView({block: "center"}));
-  await page.waitForTimeout(1000);
+  await expect(page.locator("[data-dashboard-walkthrough] video")).toBeInViewport();
 }
 
 for (const scenario of scenarios) {

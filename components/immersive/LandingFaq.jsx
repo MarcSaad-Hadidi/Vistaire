@@ -5,6 +5,10 @@ import { useLandingLocale } from "./locale.jsx";
 const QUESTIONS = {
   fr: [
     [
+      "Vistaire Digital inclut-il un support physique ?",
+      "Aucun support physique inclus. Vous recevez un menu digital et un QR numérique à utiliser sur votre menu papier ou un support existant. Le livre présenté est illustratif : aucun livre, impression, fabrication, livraison ni installation physique n’est inclus.",
+    ],
+    [
       "Comment mes clients ouvrent-ils le menu ?",
       "Ils scannent le QR code à table. Votre carte s’ouvre sur leur téléphone, avec les catégories et les fiches de vos plats.",
     ],
@@ -22,10 +26,14 @@ const QUESTIONS = {
     ],
     [
       "Combien de temps prend la mise en place ?",
-      "Généralement environ deux semaines après validation du menu et des maquettes, et réception des éléments nécessaires. Le délai dépend du projet et de la production.",
+      "Généralement environ deux semaines après validation du menu et des maquettes applicables, et réception des éléments nécessaires. Le délai dépend du projet ; la production de supports concerne uniquement les collections physiques.",
     ],
   ],
   en: [
+    [
+      "Does Vistaire Digital include a physical display?",
+      "No physical display included. You receive a digital menu and a digital QR code for your paper menu or an existing display. The book shown is illustrative: no book, printing, manufacturing, delivery or physical installation is included.",
+    ],
     [
       "How do guests open the menu?",
       "They scan the QR code at the table. Your menu opens on their phone, with categories and individual dish pages.",
@@ -44,7 +52,7 @@ const QUESTIONS = {
     ],
     [
       "How long does setup take?",
-      "Usually around two weeks after the menu and mockups are approved and all necessary materials are received. Timing depends on the project and production.",
+      "Usually around two weeks after the menu and applicable mockups are approved and all necessary materials are received. Timing depends on the project; display production applies only to physical collections.",
     ],
   ],
 };

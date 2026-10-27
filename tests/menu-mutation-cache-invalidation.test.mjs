@@ -115,7 +115,7 @@ function deferred() {
   return { promise, resolve };
 }
 
-function appRouteDoFixture() {
+function appRouteRequestFixture() {
   const implicitTags = {
     tags: [],
     expirationsByCacheKind: new Map()
@@ -147,7 +147,7 @@ function appRouteDoFixture() {
     sharedContext: { buildId: "test-build", deploymentId: "test-deployment" }
   };
   const routeModule = new AppRouteRouteModule({
-    userland: { POST: () => new Response(null, { status: 204 }) },
+    userland: () => ({ POST: () => new Response(null, { status: 204 }) }),
     definition: {
       kind: RouteKind.APP_ROUTE,
       page: "/api/test/public-mutation/route",
@@ -165,14 +165,11 @@ function appRouteDoFixture() {
     context,
     workStore,
     invoke(handler) {
-      return routeModule.do(
-        handler,
-        actionStore,
-        workStore,
-        requestStore,
-        implicitTags,
+      return routeModule.executeRequest(
         request,
-        context
+        context,
+        { handler, actionStore, requestStore, implicitTags, dynamic: undefined, hasNonStaticMethods: true },
+        workStore
       );
     }
   };
@@ -412,7 +409,7 @@ async function committedRouteHandler({
 
 test("a post-commit cleanup error is caught, rescheduled and returned as a controlled Response", async () => {
   const events = [];
-  const fixture = appRouteDoFixture();
+  const fixture = appRouteRequestFixture();
   const recorder = pendingRevalidationRecorder(fixture.workStore, events);
   const response = await fixture.invoke(
     () =>
@@ -465,7 +462,7 @@ test("a post-commit cleanup error is caught, rescheduled and returned as a contr
 
 test("an arbitrary post-commit throw bypasses Next pending revalidation flush", async () => {
   const events = [];
-  const fixture = appRouteDoFixture();
+  const fixture = appRouteRequestFixture();
   const recorder = pendingRevalidationRecorder(fixture.workStore, events);
   const identity = await featuredIdentity();
 
@@ -488,7 +485,7 @@ test("an arbitrary post-commit throw bypasses Next pending revalidation flush", 
 test("only committed and partial outcomes schedule; failed, no-op, draft and dry-run outcomes do not", async () => {
   for (const outcome of ["failed", "noop", "draft", "dry-run"]) {
     const events = [];
-    const fixture = appRouteDoFixture();
+    const fixture = appRouteRequestFixture();
     const recorder = pendingRevalidationRecorder(fixture.workStore, events);
     const response = await fixture.invoke(
       () =>
@@ -504,7 +501,7 @@ test("only committed and partial outcomes schedule; failed, no-op, draft and dry
   }
 
   const partialEvents = [];
-  const partialFixture = appRouteDoFixture();
+  const partialFixture = appRouteRequestFixture();
   const partialRecorder = pendingRevalidationRecorder(
     partialFixture.workStore,
     partialEvents

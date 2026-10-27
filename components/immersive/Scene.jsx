@@ -383,6 +383,11 @@ function baseComposition(state, mobile) {
     case "social-content":
       break;
     case "product":
+      if (state.collection === "digital") {
+        Object.assign(pose, pageShot("pricing-digital", 0.25, mobile, true));
+        pose.supportRotation = [0, -0.15 + ((state.supportAngle || 0) * Math.PI) / 180, 0];
+        break;
+      }
       Object.assign(pose, {
         support: [0, 0.08, mobile ? 0.45 : 0.6],
         supportScale: mobile ? 0.9 : 1.1,
@@ -460,6 +465,7 @@ export default function Scene({
   onError,
   onAssetError,
   onAssetLoading,
+  onSupportError,
   onPhoneVideoError,
   onARStatus,
   onZoomFit,
@@ -470,13 +476,14 @@ export default function Scene({
     onError,
     onAssetError,
     onAssetLoading,
+    onSupportError,
     onPhoneVideoError,
     onARStatus,
     onZoomFit,
   });
   useEffect(() => {
-    callbacks.current = { onReady, onError, onAssetError, onAssetLoading, onPhoneVideoError, onARStatus, onZoomFit };
-  }, [onReady, onError, onAssetError, onAssetLoading, onPhoneVideoError, onARStatus, onZoomFit]);
+    callbacks.current = { onReady, onError, onAssetError, onAssetLoading, onSupportError, onPhoneVideoError, onARStatus, onZoomFit };
+  }, [onReady, onError, onAssetError, onAssetLoading, onSupportError, onPhoneVideoError, onARStatus, onZoomFit]);
 
   useEffect(() => {
     const sceneState = stateRef.current;
@@ -510,7 +517,7 @@ export default function Scene({
     let lastRetryModel = stateRef.current?.retryModel ?? 0;
     let activeDish;
     let lastCollection = "";
-    let collectionsPreloaded = false;
+    let lastPreloadCollections = "";
     const ownedTextures = new Set();
     const mobileViewport = () => window.innerWidth < 768;
     const scene = new THREE.Scene();
@@ -713,9 +720,12 @@ export default function Scene({
       canvas,
       renderer,
       disposeTree,
-      onError: fail,
+      onError: (error, id) => callbacks.current.onSupportError?.(error, id),
       onInvalidate: invalidateScene,
-      onModel: warmModel,
+      onModel: (group, id) => {
+        warmModel(group);
+        callbacks.current.onSupportError?.(null, id);
+      },
     });
     const supportRoot = supportAssets.root;
     scene.add(supportRoot);
@@ -2010,11 +2020,16 @@ export default function Scene({
       particles.visible = pose.particles;
       if (particles.visible)
         particles.rotation.y = state.reducedMotion ? 0 : now * 0.000025;
-      const collection = state.collection || "acrylique";
-      // A page that changes stands between chapters loads them once ready.
-      if (ready && state.preloadCollections && !collectionsPreloaded) {
-        collectionsPreloaded = true;
-        supportAssets.preload(state.preloadCollections);
+      const owner = state.transition
+        ? (state.transition.progress < 0.5 ? state.transition.from : state.transition.to)
+        : state.section;
+      // Digital belongs to its discovery and pricing shots; other landing props stay physical.
+      const collection = state.collection === "digital" && LANDING_SECTIONS.has(owner) && owner !== "product"
+        ? "acrylique" : state.collection || "acrylique";
+      const preloadKey = state.preloadCollections?.join("|") ?? "";
+      if (ready && preloadKey !== lastPreloadCollections) {
+        lastPreloadCollections = preloadKey;
+        supportAssets.preload(state.preloadCollections ?? []);
       }
       // A stand or phone downloads once a shot shows one (or after the reveal),
       // never competing with an opening that has none.
@@ -2238,7 +2253,7 @@ export default function Scene({
           !ready &&
           // Only what the opening shot shows gates the reveal; the rest loads behind.
           (activeDish || !(pose.dishScale > 0.003)) &&
-          (canvas.dataset.supportReady === "true" || !(pose.supportScale > 0.003)) &&
+          (canvas.dataset.supportReady === "true" || canvas.dataset.supportError || !(pose.supportScale > 0.003)) &&
           (canvas.dataset.phoneReady === "true" || !(pose.phoneScale > 0.003 || pose.pdfPhoneScale > 0.003)) &&
           canvas.dataset.restaurantReady === "true" &&
           (!state.needsLaptop || canvas.dataset.laptopReady === "true") &&
