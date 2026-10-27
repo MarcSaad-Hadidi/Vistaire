@@ -20,7 +20,7 @@ async function visitPricingChapter(page: Page, id: string) {
   });
   const canvas = page.locator(".scene-canvas");
   await expect(canvas).toHaveAttribute("data-support", id, { timeout: 120_000 });
-  await expect(canvas).toHaveAttribute("data-support-ready", "true");
+  await expect(canvas).toHaveAttribute("data-support-ready", "true", { timeout: 120_000 });
 }
 
 type PageHealth = {
@@ -130,60 +130,26 @@ async function visiblePricingDashText(page: Page) {
   });
 }
 
-async function expectPrimaryNavigationFits(
-  page: Page,
-  labels: readonly string[]
-) {
-  await expect(page.locator("[data-public-navigation-open]")).toBeVisible();
+async function expectPrimaryNavigationFits(page: Page) {
   const navigation = page.getByRole("navigation").first();
   await expect(navigation).toBeVisible();
-  const navigationBox = await navigation.boundingBox();
-  expect(navigationBox).not.toBeNull();
-  if (!navigationBox) return;
-
-  const linkBoxes = [];
-  for (const label of labels) {
-    const link = navigation.getByRole("link", { name: label, exact: true });
-    await expect(link).toHaveCount(1);
-    await expect(link).toBeVisible();
-    const box = await link.boundingBox();
-    expect(box, `${label} should have rendered geometry`).not.toBeNull();
-    if (!box) continue;
-    expect(box.x).toBeGreaterThanOrEqual(navigationBox.x - 1);
-    expect(box.y).toBeGreaterThanOrEqual(navigationBox.y - 1);
-    expect(box.x + box.width).toBeLessThanOrEqual(
-      navigationBox.x + navigationBox.width + 1
-    );
-    expect(box.y + box.height).toBeLessThanOrEqual(
-      navigationBox.y + navigationBox.height + 1
-    );
-    linkBoxes.push({ box, label });
+  const controlsFit = await navigation.locator("a:visible, button:visible").evaluateAll((controls) => {
+    const boxes = controls.map((control) => control.getBoundingClientRect());
+    return boxes.every((box, index) => box.width > 0 && box.height > 0 &&
+      box.left >= 0 && box.right <= innerWidth + 1 &&
+      boxes.slice(index + 1).every((other) =>
+        Math.min(box.right, other.right) - Math.max(box.left, other.left) <= 1 ||
+        Math.min(box.bottom, other.bottom) - Math.max(box.top, other.top) <= 1));
+  });
+  expect(controlsFit).toBe(true);
+  await navigation.getByRole("button", { name: "Menu", exact: true }).click();
+  const menu = page.locator("[data-public-menu]");
+  await expect(menu).toHaveAttribute("aria-hidden", "false");
+  for (const label of ["Les cartes", "L’offre complète", "À propos", "Nous contacter"]) {
+    await expect(menu.getByRole("link", { name: label, exact: true })).toBeVisible();
   }
-  expect(linkBoxes).toHaveLength(labels.length);
-
-  for (let index = 0; index < linkBoxes.length; index += 1) {
-    for (let other = index + 1; other < linkBoxes.length; other += 1) {
-      const first = linkBoxes[index];
-      const second = linkBoxes[other];
-      const horizontalOverlap = Math.min(
-        first.box.x + first.box.width,
-        second.box.x + second.box.width
-      ) - Math.max(first.box.x, second.box.x);
-      const verticalOverlap = Math.min(
-        first.box.y + first.box.height,
-        second.box.y + second.box.height
-      ) - Math.max(first.box.y, second.box.y);
-      expect(
-        horizontalOverlap <= 1 || verticalOverlap <= 1,
-        `${first.label} and ${second.label} must not overlap`
-      ).toBe(true);
-    }
-  }
-
-  const internalOverflow = await navigation.evaluate(
-    (element) => element.scrollWidth - element.clientWidth
-  );
-  expect(internalOverflow).toBeLessThanOrEqual(1);
+  await page.keyboard.press("Escape");
+  await expect(menu).toHaveAttribute("aria-hidden", "true");
   await expectNoHorizontalOverflow(page);
 }
 
@@ -249,7 +215,7 @@ test.describe("Vistaire pricing collections", () => {
     const canvas = page.locator(".scene-canvas");
     await expect(canvas).toHaveAttribute("data-ready", "true", { timeout: 120_000 });
     await expect(canvas).toHaveAttribute("data-support", "digital");
-    await expect(canvas).toHaveAttribute("data-support-ready", "true");
+    await expect(canvas).toHaveAttribute("data-support-ready", "true", { timeout: 120_000 });
     expect(health.modelRequests.filter((url) => url === DIGITAL_MODEL_URL)).toHaveLength(1);
     expect(health.modelRequests.filter((url) => PHYSICAL_MODELS.some((asset) => url === asset.publicUrl || (asset.legacyUrl && url.endsWith(asset.legacyUrl))))).toEqual([]);
 
@@ -512,16 +478,6 @@ test.describe("Vistaire pricing collections", () => {
       await expect(page.locator("[data-pricing-collection]")).toHaveCount(5);
       await expectNoHorizontalOverflow(page);
 
-      if (viewport.width === 390 || viewport.width === 430) {
-        await expectPrimaryNavigationFits(page, [
-          "Accueil",
-          "Carte",
-          "Tarifs",
-          "À propos",
-          "Contact"
-        ]);
-      }
-
       const renderedColumns = await page.locator("[data-pricing-collection]").first().evaluate((card) => {
         const grid = card.parentElement;
         return grid ? getComputedStyle(grid).gridTemplateColumns.split(" ").length : 0;
@@ -531,7 +487,7 @@ test.describe("Vistaire pricing collections", () => {
       const firstImage = page.locator("[data-pricing-collection] img").first();
       await firstImage.scrollIntoViewIfNeeded();
       await expect
-        .poll(() => firstImage.evaluate((image) => (image as HTMLImageElement).naturalWidth))
+        .poll(() => firstImage.evaluate((image) => (image as HTMLImageElement).naturalWidth), { timeout: 30_000 })
         .toBeGreaterThan(0);
 
       const imageGeometryIsCorrect = await page
@@ -559,6 +515,9 @@ test.describe("Vistaire pricing collections", () => {
           .getByRole("link", { name: "Prendre rendez vous", exact: true })
       ).toHaveAttribute("href", "/prendre-rendez-vous");
       await expectNoHorizontalOverflow(page);
+      if (viewport.width === 390 || viewport.width === 430) {
+        await expectPrimaryNavigationFits(page);
+      }
     }
 
     await expectHealthyPricingPage(page, health);

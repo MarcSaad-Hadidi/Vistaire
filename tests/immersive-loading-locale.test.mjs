@@ -21,11 +21,15 @@ test("Digital loads its own horizontal grounded book while four physical support
   assert.deepEqual(presentationOptions?.map(({ id }) => id), ["digital", "acrylique", "sculpte", "carre", "signature"]);
   assert.ok(presentationModelUrls?.digital, "Digital needs its own real model URL");
   const requests = [];
-  const model = new THREE.Mesh(new THREE.BoxGeometry(2, 3, 0.2), new THREE.MeshBasicMaterial());
+  const papers = ["gauche", "droite"].map((side) => new THREE.MeshStandardMaterial({ name: `Papier ivoire — impression ${side} 4096 × 4096`, roughness: 0.94, map: new THREE.Texture() }));
+  const cover = new THREE.MeshStandardMaterial({ map: new THREE.Texture() });
+  const physical = new THREE.Mesh(new THREE.BoxGeometry(), new THREE.MeshStandardMaterial({ map: new THREE.Texture() }));
+  const model = new THREE.Mesh(new THREE.BoxGeometry(2, 3, 0.2), [...papers, cover]);
   t.mock.method(globalThis, "fetch", async (url) => { requests.push(url); return { ok: true, arrayBuffer: async () => new ArrayBuffer(0) }; });
-  t.mock.method(GLTFLoader.prototype, "parseAsync", async () => ({ scene: model }));
+  let parsed = 0;
+  t.mock.method(GLTFLoader.prototype, "parseAsync", async () => ({ scene: parsed++ ? physical : model }));
   const canvas = { dataset: {} };
-  const assets = createSupportModels({ canvas, renderer: { capabilities: { getMaxAnisotropy: () => 1 } }, disposeTree() {}, onError: assert.fail });
+  const assets = createSupportModels({ canvas, renderer: { capabilities: { getMaxAnisotropy: () => 8 } }, disposeTree() {}, onError: assert.fail });
   t.after(() => assets.dispose());
   assets.select("digital");
   await settle();
@@ -37,6 +41,19 @@ test("Digital loads its own horizontal grounded book while four physical support
   assert.ok(size.y < size.z * 0.1, "the paper book lies on the table");
   assert.ok(Math.abs(size.x / size.z - 2 / 3) < 1e-6, "normalization preserves the book proportions");
   assert.ok(Math.abs(bounds.min.y) < 1e-6, "the cover is grounded after rotation");
+  for (const paper of papers) {
+    assert.equal(paper.roughness, 0.94);
+    assert.ok(paper.map, "keep the embedded printing");
+    assert.equal(paper.map.minFilter, THREE.LinearFilter, "keep thin printed strokes from disappearing into lower mip levels");
+  }
+  assert.equal(cover.envMapIntensity, 1);
+  assert.equal(cover.envMap, null);
+  assert.equal(cover.map.minFilter, THREE.LinearMipmapLinearFilter);
+  assets.select("acrylique");
+  await settle();
+  assert.equal(physical.material.envMapIntensity, 1, "physical supports keep their authored lighting response");
+  assert.equal(physical.material.envMap, null);
+  assert.equal(physical.material.map.minFilter, THREE.LinearMipmapLinearFilter);
 });
 
 test("stands load only on selection and retain a visible model until a switch is ready", async (t) => {

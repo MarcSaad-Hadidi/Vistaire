@@ -93,6 +93,10 @@ export function createSupportModels({
                 renderer.capabilities.getMaxAnisotropy(),
               );
           }
+          // shortcut: retain fine print at this size; revisit filtering if motion shows shimmer.
+          if (id === "digital" && material.name.startsWith("Papier ivoire — impression")) {
+            material.map.minFilter = THREE.LinearFilter;
+          }
         }
       });
       const group = new THREE.Group();
