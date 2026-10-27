@@ -6,22 +6,32 @@ import {
 } from "./seo.ts";
 import type { Locale } from "./i18n.ts";
 import { getSeoMarketingImage } from "./seoMarketingImages.ts";
+import { formatSetupAmount } from "./pricingCalculator.ts";
 
 export const PRICING_PATH = "/tarifs-menu-digital-restaurant";
 export const SAMPLE_MENU_PATH = "/demo";
 export const PRICING_PATH_EN = "/en/pricing-digital-restaurant-menu";
 export const SAMPLE_MENU_PATH_EN = "/en/vistaire-menu";
 
+const MONTHLY_AMOUNT = 200;
+const SETUP_AMOUNTS = {
+  digital: 1_500,
+  acrylique: 2_000,
+  sculpte: 2_050,
+  carre: 2_100,
+  signature: 2_200
+} as const satisfies Readonly<Record<PricingOfferId, number>>;
+
 export const pricingMetadata = {
   title: "Tarifs Vistaire | Supports QR et menu digital restaurant",
   description:
-    "Découvrez les quatre collections de supports QR Vistaire dès 2 000 $ CAD, avec menu digital restaurant à 200 $ par mois et Pilotage en option."
+    `Découvrez Vistaire Digital dès ${formatSetupAmount(SETUP_AMOUNTS.digital, "fr")} et quatre collections de supports QR, avec menu digital à ${formatSetupAmount(MONTHLY_AMOUNT, "fr")} par mois et Pilotage en option.`
 } as const;
 
 export const pricingMetadataEn = {
   title: "Vistaire Pricing | QR Displays & Digital Restaurant Menu",
   description:
-    "Explore four Vistaire QR display collections from $2,000 CAD, with a digital restaurant menu at $200 per month and optional Pilotage controls."
+    `Explore Vistaire Digital from ${formatSetupAmount(SETUP_AMOUNTS.digital, "en")} and four QR display collections, with a digital menu at ${formatSetupAmount(MONTHLY_AMOUNT, "en")} per month and optional Pilotage controls.`
 } as const;
 
 export type PricingCollectionId =
@@ -30,8 +40,11 @@ export type PricingCollectionId =
   | "carre"
   | "signature";
 
+export type PricingOfferId = "digital" | PricingCollectionId;
+
 export type PricingCollection = {
-  id: PricingCollectionId;
+  id: PricingOfferId;
+  kind: "digital" | "physical";
   name: string;
   label: string;
   positioning: string;
@@ -141,6 +154,7 @@ export type PricingPageContent = {
 };
 
 const collectionImages = {
+  digital: getSeoMarketingImage("PRICING:collection:digital").src,
   acrylique: getSeoMarketingImage("PRICING:collection:acrylique").src,
   sculpte: getSeoMarketingImage("PRICING:collection:sculpte").src,
   carre: getSeoMarketingImage("PRICING:collection:carre").src,
@@ -152,19 +166,39 @@ export const PRICING_PAGE = {
   eyebrow: "Tarifs",
   h1: "Choisissez l’expérience qui prendra place sur vos tables.",
   subtitle:
-    "Chaque support Vistaire est conçu pour mettre en valeur votre menu et votre identité tout en offrant une expérience digitale immersive.",
-  monthlyAmount: 200,
+    "Choisissez le menu digital seul ou une collection de supports QR pour mettre en valeur votre menu et votre identité.",
+  monthlyAmount: MONTHLY_AMOUNT,
   collections: [
     {
+      id: "digital",
+      kind: "digital",
+      name: "Vistaire Digital",
+      label: "Vistaire",
+      positioning: "Toute l’expérience Vistaire, sans support physique.",
+      description:
+        "Un menu digital à votre image, vos photographies culinaires et une sélection de plats en 3D. Un QR code personnalisé vous permet de prolonger l'expérience sur votre menu papier ou vos supports existants. Aucun support physique inclus. Le livre présenté est illustratif.",
+      setupAmount: SETUP_AMOUNTS.digital,
+      setupPrice: formatSetupAmount(SETUP_AMOUNTS.digital, "fr"),
+      monthlyPrice: `+ ${formatSetupAmount(MONTHLY_AMOUNT, "fr")} / mois`,
+      image: collectionImages.digital,
+      imageAlt: getSeoMarketingImage("PRICING:collection:digital", "fr").alt,
+      imagePosition: "50% 50%",
+      cta: {
+        label: "Découvrir Vistaire Digital",
+        href: "/prendre-rendez-vous"
+      }
+    },
+    {
       id: "acrylique",
+      kind: "physical",
       name: "Vistaire Acrylique",
       label: "Vistaire",
       positioning: "Minimal. Moderne. Épuré.",
       description:
         "Support vertical en acrylique avec base en bois.",
-      setupAmount: 2_000,
-      setupPrice: "2 000 $ CAD",
-      monthlyPrice: "+ 200 $ CAD / mois",
+      setupAmount: SETUP_AMOUNTS.acrylique,
+      setupPrice: formatSetupAmount(SETUP_AMOUNTS.acrylique, "fr"),
+      monthlyPrice: `+ ${formatSetupAmount(MONTHLY_AMOUNT, "fr")} / mois`,
       image: collectionImages.acrylique,
       imageAlt: getSeoMarketingImage("PRICING:collection:acrylique", "fr").alt,
       imagePosition: "50% 50%",
@@ -175,14 +209,15 @@ export const PRICING_PAGE = {
     },
     {
       id: "sculpte",
+      kind: "physical",
       name: "Vistaire Sculpté",
       label: "Vistaire",
       positioning: "Design. Sculpté. Pour se démarquer.",
       description:
         "Support vertical en bois avec coin supérieur droit arrondi et sculpté.",
-      setupAmount: 2_050,
-      setupPrice: "2 050 $ CAD",
-      monthlyPrice: "+ 200 $ CAD / mois",
+      setupAmount: SETUP_AMOUNTS.sculpte,
+      setupPrice: formatSetupAmount(SETUP_AMOUNTS.sculpte, "fr"),
+      monthlyPrice: `+ ${formatSetupAmount(MONTHLY_AMOUNT, "fr")} / mois`,
       image: collectionImages.sculpte,
       imageAlt: getSeoMarketingImage("PRICING:collection:sculpte", "fr").alt,
       imagePosition: "50% 50%",
@@ -193,14 +228,15 @@ export const PRICING_PAGE = {
     },
     {
       id: "carre",
+      kind: "physical",
       name: "Vistaire Carré",
       label: "Vistaire",
       positioning: "Compact. Design. Chaleureux.",
       description:
         "Petit support carré en bois avec QR directement intégré, offert dans plusieurs finitions.",
-      setupAmount: 2_100,
-      setupPrice: "2 100 $ CAD",
-      monthlyPrice: "+ 200 $ CAD / mois",
+      setupAmount: SETUP_AMOUNTS.carre,
+      setupPrice: formatSetupAmount(SETUP_AMOUNTS.carre, "fr"),
+      monthlyPrice: `+ ${formatSetupAmount(MONTHLY_AMOUNT, "fr")} / mois`,
       image: collectionImages.carre,
       imageAlt: getSeoMarketingImage("PRICING:collection:carre", "fr").alt,
       imagePosition: "50% 50%",
@@ -211,14 +247,15 @@ export const PRICING_PAGE = {
     },
     {
       id: "signature",
+      kind: "physical",
       name: "Vistaire Signature",
       label: "Vistaire",
       positioning: "Premium. Distinctif. Signature.",
       description:
         "Support horizontal en bois premium avec partie QR noire et amovible.",
-      setupAmount: 2_200,
-      setupPrice: "2 200 $ CAD",
-      monthlyPrice: "+ 200 $ CAD / mois",
+      setupAmount: SETUP_AMOUNTS.signature,
+      setupPrice: formatSetupAmount(SETUP_AMOUNTS.signature, "fr"),
+      monthlyPrice: `+ ${formatSetupAmount(MONTHLY_AMOUNT, "fr")} / mois`,
       image: collectionImages.signature,
       imageAlt: getSeoMarketingImage("PRICING:collection:signature", "fr").alt,
       imagePosition: "50% 50%",
@@ -231,11 +268,11 @@ export const PRICING_PAGE = {
   ],
   included: {
     eyebrow: "Inclus dans l’offre Vistaire",
-    title: "Une seule offre Vistaire, avec l’essentiel inclus.",
+    title: "L’essentiel digital dans chaque offre Vistaire.",
     body:
       "Quelle que soit la collection choisie, vous profitez du même menu digital, des mêmes services et du même accompagnement Vistaire.",
     priceDifference:
-      "La différence de prix entre les collections provient principalement du support physique choisi et de son positionnement premium."
+      "Digital ne comprend aucun support physique. Les quatre collections physiques ajoutent jusqu’à 20 supports QR personnalisés ; leur différence de prix provient principalement du support choisi et de son positionnement premium."
   },
   includedGroups: [
     {
@@ -254,7 +291,7 @@ export const PRICING_PAGE = {
       index: "02",
       title: "Sur vos tables",
       items: [
-        "Jusqu’à 20 supports QR personnalisés",
+        "Jusqu’à 20 supports QR personnalisés avec les collections physiques seulement",
         "QR code personnalisé",
         "Jusqu’à 5 plats en 3D",
         "Expériences 3D / AR lorsque disponibles"
@@ -334,7 +371,7 @@ export const PRICING_PAGE = {
     eyebrow: "De votre restaurant à la mise en ligne",
     title: "Un lancement cadré, validé à chaque étape.",
     body:
-      "Vistaire prend en charge la préparation, les maquettes et la production. Votre restaurant valide les éléments clés avant toute fabrication finale.",
+      "Vistaire prend en charge la préparation du menu et les maquettes. Les maquettes et la fabrication des supports concernent uniquement les collections physiques ; Digital ne comprend aucune production ni installation physique.",
     steps: [
       {
         index: "01",
@@ -346,7 +383,7 @@ export const PRICING_PAGE = {
         index: "02",
         title: "Création des maquettes",
         body:
-          "Nous préparons la maquette du menu numérique et celle des supports physiques personnalisés."
+          "Nous préparons la maquette du menu numérique et, pour les collections physiques, celle des supports personnalisés."
       },
       {
         index: "03",
@@ -358,7 +395,7 @@ export const PRICING_PAGE = {
         index: "04",
         title: "Production",
         body:
-          "Après validation, Vistaire lance la fabrication des supports et finalise le menu digital."
+          "Après validation, Vistaire finalise le menu digital. La fabrication des supports concerne uniquement les collections physiques."
       },
       {
         index: "05",
@@ -368,17 +405,17 @@ export const PRICING_PAGE = {
       }
     ],
     leadTime:
-      "Une fois le menu et les maquettes des supports validés, et les éléments nécessaires reçus, la mise en place complète prend généralement environ deux semaines. Ce délai peut varier selon la complexité et les délais de production."
+      "Une fois le menu et, le cas échéant, les maquettes des supports validés, et les éléments nécessaires reçus, la mise en place complète prend généralement environ deux semaines. Ce délai peut varier selon la complexité et, pour les collections physiques, les délais de production."
   },
   additional: {
     eyebrow: "Besoins complémentaires",
     extras: [
-      "Supports supplémentaires après les 20 inclus ou supports de remplacement : estimation selon la collection et le besoin."
+      "Collections physiques seulement : supports supplémentaires après les 20 inclus ou supports de remplacement, selon la collection et le besoin. Aucun support physique inclus avec Digital."
     ],
     startingAtTitle:
       "Pourquoi les frais de mise en place sont indiqués « À partir de » ?",
     startingAtBody:
-      "Chaque projet est ajusté à la réalité de l’établissement et à la quantité de contenu à préparer.",
+      "Les collections physiques sont ajustées à la réalité de l’établissement et à la quantité de contenu à préparer. Le prix de Digital reste fixe quel que soit le nombre de tables.",
     variables: [
       "taille du menu",
       "nombre de plats",
@@ -406,7 +443,7 @@ export const PRICING_PAGE = {
     eyebrow: "Votre collection",
     title: "Besoin d’aide pour choisir ?",
     body:
-      "Nous vous accompagnons dans le choix du support qui s’intègre le mieux à votre établissement.",
+      "Nous vous accompagnons dans le choix du menu digital seul ou du support qui s’intègre le mieux à votre établissement.",
     primary: {
       label: "Prendre rendez vous",
       href: "/prendre-rendez-vous"
@@ -419,19 +456,39 @@ export const PRICING_PAGE_EN = {
   eyebrow: "Pricing",
   h1: "Choose the experience that belongs on your tables.",
   subtitle:
-    "Every Vistaire display is designed to showcase your menu and identity while delivering an immersive digital experience.",
-  monthlyAmount: 200,
+    "Choose the digital menu on its own or a QR display collection to showcase your menu and identity.",
+  monthlyAmount: MONTHLY_AMOUNT,
   collections: [
     {
+      id: "digital",
+      kind: "digital",
+      name: "Vistaire Digital",
+      label: "Vistaire",
+      positioning: "Everything Vistaire offers, without a physical display.",
+      description:
+        "A personalized digital menu, professional food photography and a selection of 3D dishes. A custom QR code lets you extend the experience to your printed menu or existing displays. No physical display included. The book shown is illustrative.",
+      setupAmount: SETUP_AMOUNTS.digital,
+      setupPrice: formatSetupAmount(SETUP_AMOUNTS.digital, "en"),
+      monthlyPrice: `+ ${formatSetupAmount(MONTHLY_AMOUNT, "en")} / month`,
+      image: collectionImages.digital,
+      imageAlt: getSeoMarketingImage("PRICING:collection:digital", "en").alt,
+      imagePosition: "50% 50%",
+      cta: {
+        label: "Discover Vistaire Digital",
+        href: "/en/book-a-call"
+      }
+    },
+    {
       id: "acrylique",
+      kind: "physical",
       name: "Vistaire Acrylic",
       label: "Vistaire",
       positioning: "Minimal. Modern. Refined.",
       description:
         "A vertical acrylic display set into a wooden base.",
-      setupAmount: 2_000,
-      setupPrice: "$2,000 CAD",
-      monthlyPrice: "+ $200 CAD / month",
+      setupAmount: SETUP_AMOUNTS.acrylique,
+      setupPrice: formatSetupAmount(SETUP_AMOUNTS.acrylique, "en"),
+      monthlyPrice: `+ ${formatSetupAmount(MONTHLY_AMOUNT, "en")} / month`,
       image: collectionImages.acrylique,
       imageAlt: getSeoMarketingImage("PRICING:collection:acrylique", "en").alt,
       imagePosition: "50% 50%",
@@ -442,14 +499,15 @@ export const PRICING_PAGE_EN = {
     },
     {
       id: "sculpte",
+      kind: "physical",
       name: "Vistaire Sculpted",
       label: "Vistaire",
       positioning: "Designed. Sculpted. Made to stand out.",
       description:
         "A vertical wooden display with a rounded, sculpted upper right corner.",
-      setupAmount: 2_050,
-      setupPrice: "$2,050 CAD",
-      monthlyPrice: "+ $200 CAD / month",
+      setupAmount: SETUP_AMOUNTS.sculpte,
+      setupPrice: formatSetupAmount(SETUP_AMOUNTS.sculpte, "en"),
+      monthlyPrice: `+ ${formatSetupAmount(MONTHLY_AMOUNT, "en")} / month`,
       image: collectionImages.sculpte,
       imageAlt: getSeoMarketingImage("PRICING:collection:sculpte", "en").alt,
       imagePosition: "50% 50%",
@@ -460,14 +518,15 @@ export const PRICING_PAGE_EN = {
     },
     {
       id: "carre",
+      kind: "physical",
       name: "Vistaire Square",
       label: "Vistaire",
       positioning: "Compact. Designed. Warm.",
       description:
         "A compact square wooden display with the QR code built directly into it, available in several finishes.",
-      setupAmount: 2_100,
-      setupPrice: "$2,100 CAD",
-      monthlyPrice: "+ $200 CAD / month",
+      setupAmount: SETUP_AMOUNTS.carre,
+      setupPrice: formatSetupAmount(SETUP_AMOUNTS.carre, "en"),
+      monthlyPrice: `+ ${formatSetupAmount(MONTHLY_AMOUNT, "en")} / month`,
       image: collectionImages.carre,
       imageAlt: getSeoMarketingImage("PRICING:collection:carre", "en").alt,
       imagePosition: "50% 50%",
@@ -478,14 +537,15 @@ export const PRICING_PAGE_EN = {
     },
     {
       id: "signature",
+      kind: "physical",
       name: "Vistaire Signature",
       label: "Vistaire",
       positioning: "Premium. Distinctive. Signature.",
       description:
         "A premium horizontal wooden display with a removable black QR insert.",
-      setupAmount: 2_200,
-      setupPrice: "$2,200 CAD",
-      monthlyPrice: "+ $200 CAD / month",
+      setupAmount: SETUP_AMOUNTS.signature,
+      setupPrice: formatSetupAmount(SETUP_AMOUNTS.signature, "en"),
+      monthlyPrice: `+ ${formatSetupAmount(MONTHLY_AMOUNT, "en")} / month`,
       image: collectionImages.signature,
       imageAlt: getSeoMarketingImage("PRICING:collection:signature", "en").alt,
       imagePosition: "50% 50%",
@@ -498,11 +558,11 @@ export const PRICING_PAGE_EN = {
   ],
   included: {
     eyebrow: "Included in the Vistaire offer",
-    title: "One Vistaire offer, with the essentials included.",
+    title: "Digital essentials in every Vistaire offer.",
     body:
       "Whichever collection you choose, you receive the same digital menu, services and guided Vistaire setup.",
     priceDifference:
-      "The price difference between collections comes primarily from the physical display selected and its premium positioning."
+      "Digital includes no physical display. The four physical collections add up to 20 personalized QR displays; their price difference comes primarily from the display selected and its premium positioning."
   },
   includedGroups: [
     {
@@ -521,7 +581,7 @@ export const PRICING_PAGE_EN = {
       index: "02",
       title: "On your tables",
       items: [
-        "Up to 20 personalized QR displays",
+        "Up to 20 personalized QR displays with physical collections only",
         "Personalized QR code",
         "Up to 5 dishes in 3D",
         "3D / AR experiences when available"
@@ -601,7 +661,7 @@ export const PRICING_PAGE_EN = {
     eyebrow: "From your restaurant to launch",
     title: "A structured launch, approved at every key step.",
     body:
-      "Vistaire handles preparation, mockups and production. Your restaurant approves the key elements before final manufacturing.",
+      "Vistaire handles menu preparation and mockups. Display mockups and manufacturing apply only to physical collections; Digital includes no physical production or installation.",
     steps: [
       {
         index: "01",
@@ -613,7 +673,7 @@ export const PRICING_PAGE_EN = {
         index: "02",
         title: "Mockup creation",
         body:
-          "We prepare the digital menu mockup and the personalized physical display mockup."
+          "We prepare the digital menu mockup and, for physical collections, the personalized display mockup."
       },
       {
         index: "03",
@@ -625,7 +685,7 @@ export const PRICING_PAGE_EN = {
         index: "04",
         title: "Production",
         body:
-          "After approval, Vistaire starts display manufacturing and finalizes the digital menu."
+          "After approval, Vistaire finalizes the digital menu. Display manufacturing applies only to physical collections."
       },
       {
         index: "05",
@@ -635,16 +695,16 @@ export const PRICING_PAGE_EN = {
       }
     ],
     leadTime:
-      "Once the menu and display mockups are approved and all required materials are received, full setup generally takes about two weeks. Timing may vary with project complexity and production lead times."
+      "Once the menu and, where applicable, display mockups are approved and all required materials are received, full setup generally takes about two weeks. Timing may vary with project complexity and, for physical collections, production lead times."
   },
   additional: {
     eyebrow: "Additional needs",
     extras: [
-      "Displays beyond 20 or replacements: estimated according to the collection and project need."
+      "Physical collections only: displays beyond 20 or replacements, according to the collection and project need. No physical display included with Digital."
     ],
     startingAtTitle: "Why are setup fees shown as “Starting at”?",
     startingAtBody:
-      "Every project is adjusted to the venue and the amount of content to prepare.",
+      "Physical collections are adjusted to the venue and the amount of content to prepare. Digital pricing stays fixed regardless of the table count.",
     variables: [
       "menu size",
       "dish count",
@@ -672,7 +732,7 @@ export const PRICING_PAGE_EN = {
     eyebrow: "Your collection",
     title: "Need help choosing?",
     body:
-      "We will help you choose the display that fits most naturally into your restaurant.",
+      "We will help you choose the digital menu on its own or the display that fits most naturally into your restaurant.",
     primary: {
       label: "Book a call",
       href: "/en/book-a-call"
@@ -700,8 +760,8 @@ function buildPricingOfferCatalog(
     "@type": "OfferCatalog",
     "@id": `${absoluteUrl(page.path, env)}#offer-catalog`,
     name: english
-      ? "Vistaire physical QR display collections"
-      : "Collections de supports QR physiques Vistaire",
+      ? "Vistaire digital menu and QR display offers"
+      : "Offres de menu digital et supports QR Vistaire",
     url: absoluteUrl(page.path, env),
     itemListElement: page.collections.map((collection, index) => ({
       "@type": "Offer",
@@ -714,9 +774,13 @@ function buildPricingOfferCatalog(
         name: english
           ? `${collection.name} restaurant menu experience`
           : `Expérience restaurant ${collection.name}`,
-        serviceType: english
-          ? "Physical QR display with a guided premium digital restaurant menu"
-          : "Support QR physique avec menu digital restaurant premium accompagné",
+        serviceType: collection.kind === "digital"
+          ? english
+            ? "Premium digital restaurant menu with no physical display included"
+            : "Menu digital restaurant premium sans support physique inclus"
+          : english
+            ? "Physical QR display with a guided premium digital restaurant menu"
+            : "Support QR physique avec menu digital restaurant premium accompagné",
         description: collection.description
       },
       priceSpecification: [
@@ -737,7 +801,9 @@ function buildPricingOfferCatalog(
         {
           "@type": "PropertyValue",
           name: english ? "Personalized QR displays" : "Supports QR personnalisés",
-          value: english ? "Up to 20" : "Jusqu’à 20"
+          value: collection.kind === "digital"
+            ? english ? "No physical display included" : "Aucun support physique inclus"
+            : english ? "Up to 20" : "Jusqu’à 20"
         },
         {
           "@type": "PropertyValue",
@@ -764,15 +830,15 @@ function buildPricingServiceJsonLd(
     "@type": "Service",
     "@id": `${absoluteUrl(page.path, env)}#service`,
     name: english
-      ? "Vistaire physical QR displays and digital restaurant menu"
-      : "Supports QR physiques et menu digital restaurant Vistaire",
+      ? "Vistaire digital restaurant menu and optional physical QR displays"
+      : "Menu digital restaurant Vistaire et supports QR physiques au choix",
     serviceType: english
       ? "Premium physical and digital restaurant menu experience"
       : "Expérience de menu restaurant physique et digitale premium",
     url: absoluteUrl(page.path, env),
     description: english
-      ? "A guided Vistaire experience combining a personalized physical QR display, a premium mobile menu, selected 3D dishes and optional Pilotage controls."
-      : "Une expérience Vistaire accompagnée qui réunit support QR physique personnalisé, carte mobile premium, plats 3D sélectionnés et option Pilotage.",
+      ? "A guided Vistaire experience with a premium mobile menu, selected 3D dishes and optional Pilotage controls. Digital includes no physical display; physical collections include personalized QR displays."
+      : "Une expérience Vistaire accompagnée avec carte mobile premium, plats 3D sélectionnés et option Pilotage. Digital ne comprend aucun support physique ; les collections physiques incluent des supports QR personnalisés.",
     provider: {
       "@id": `${absoluteUrl("/", env)}#organization`
     },

@@ -6,6 +6,7 @@ import { SEO_PAGES, SEO_PAGES_EN, type SeoPageData } from "../seoPages.ts";
 import { SEO_GEO_PAGES, SEO_GEO_PAGES_EN, type SeoGeoPageData } from "../seoGeoPages.ts";
 import { EDITORIAL_GUIDES, type EditorialGuide } from "../editorialGuides.ts";
 import { PRICING_PAGE, PRICING_PAGE_EN, type PricingPageContent } from "../pricingPage.ts";
+import { calculateFirstYearCost, formatSetupAmount } from "../pricingCalculator.ts";
 
 const list = (items: string[] = []) => items.map((item) => `- ${item}`);
 const link = (href: string, label: string) => `[${label}](${href.startsWith("http") ? href : absoluteUrl(href)})`;
@@ -105,16 +106,23 @@ function guideMarkdown(guide: EditorialGuide) {
 }
 
 function pricingMarkdown(page: PricingPageContent) {
+  const locale = page.path === PRICING_PAGE_EN.path ? "en" : "fr";
   return [
     `# ${page.h1}`,
     "",
     page.subtitle,
     "",
-    ...page.collections.map((c) => `- **${c.name}** (${c.label}) : ${c.setupPrice} · ${c.monthlyPrice}. ${c.description}`),
+    ...page.collections.map((c) => {
+      const firstYearCost = calculateFirstYearCost({ setupAmount: c.setupAmount, monthlyAmount: page.monthlyAmount });
+      const firstYearLabel = locale === "en" ? "First year before taxes and options" : "Première année hors taxes et options";
+      return `- **${c.name}** (${c.label}) : ${c.setupPrice} · ${c.monthlyPrice}. ${c.description} ${firstYearLabel} : ${formatSetupAmount(firstYearCost, locale)}.`;
+    }),
     "",
     `## ${page.included.title}`,
     "",
     page.included.body,
+    "",
+    page.included.priceDifference,
     "",
     ...page.includedGroups.flatMap((group) => [`### ${group.title}`, "", ...list(group.items), ""]),
     `## ${page.threeDAddOns.title}`,

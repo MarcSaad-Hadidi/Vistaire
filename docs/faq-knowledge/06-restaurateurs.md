@@ -2,13 +2,13 @@
 
 ## resto-etapes
 topics: étapes, processus, comment ça se passe, lancement, démarrer, commencer, mise en place, maquette, validation, production, steps, process, launch, get started, mockup, approval
-fr: La mise en place Vistaire suit cinq étapes : prise de photos des plats sur place et préparation, création des maquettes du menu digital et des supports, validation des maquettes par le restaurant, production des supports et finalisation du menu, puis mise en ligne.
-en: Vistaire setup follows five steps: on-site dish photography and preparation, mockups of the digital menu and displays, restaurant approval of the mockups, display production and menu finalization, then go-live.
+fr: La mise en place Vistaire suit cinq étapes : prise de photos des plats sur place et préparation, création des maquettes du menu digital et, pour les collections physiques, des supports, validation des maquettes par le restaurant, finalisation du menu avec production des supports uniquement pour les collections physiques, puis mise en ligne. Digital livre le QR numériquement, sans fabrication, livraison ni installation physique.
+en: Vistaire setup follows five steps: on-site dish photography and preparation, mockups of the digital menu and, for physical collections, displays, restaurant approval of the mockups, menu finalization with display production only for physical collections, then go-live. Digital delivers the QR code digitally, without manufacturing, delivery or physical installation.
 
 ## resto-delai
 topics: délai, combien de temps, durée, semaines, rapidement, quand, mise en ligne, timeline, how long, lead time, weeks, when
-fr: Une fois le menu et les maquettes des supports validés, et les éléments nécessaires reçus, la mise en place complète prend généralement environ deux semaines. Ce délai peut varier selon la complexité du projet et les délais de production.
-en: Once the menu and display mockups are approved and all required materials are received, full setup generally takes about two weeks. Timing may vary with project complexity and production lead times.
+fr: Une fois le menu et les maquettes applicables validés, et les éléments nécessaires reçus, la mise en place complète prend généralement environ deux semaines. Ce délai peut varier selon la complexité du projet et, pour les collections physiques, les délais de production.
+en: Once the menu and applicable mockups are approved and all required materials are received, full setup generally takes about two weeks. Timing may vary with project complexity and, for physical collections, production lead times.
 
 ## resto-pilotage
 topics: pilotage, dashboard, tableau de bord, statistiques, analytics, données, disponibilités, rupture, suivi, ouvertures, recherches, stats, data, availability, tracking
