@@ -10,7 +10,7 @@ const read = (file) => readFileSync(`components/immersive/${file}`, "utf8");
 const content = read("content.js");
 const localeSource = read("locale.jsx");
 const app = read("App.jsx");
-const collections = vm.runInNewContext(content.match(/export const collections = (\[[\s\S]*?\n\]);/)[1]);
+const { collections } = await import("../components/immersive/content.js");
 const EN = vm.runInNewContext(`(${localeSource.match(/const EN = (\{[\s\S]*?\n\});/)[1]})`);
 const panel = app.match(/<div\s+role="tabpanel"\s+id="collection-panel"[\s\S]*?<\/Action>\s*<\/div>/)[0];
 const renderPanel = ts.transpileModule(`function Panel({selected, collection, t, link, money}) { return (${panel}); }`, {

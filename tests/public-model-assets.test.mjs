@@ -14,14 +14,31 @@ import {
 } from "../lib/publicModelAssets.ts";
 import { isSafe3dAssetUrl } from "../lib/dish3dManifest.ts";
 
+test("Digital is a pinned CDN-only illustrative presentation without a fictitious legacy redirect", () => {
+  const digital = getPublicModelAsset("immersive.presentation.digital");
+  assert.ok(digital, "the actual book needs an inventoried public identity");
+  assert.equal(digital.bytes, 451824);
+  assert.equal(digital.sha256, "fe0d2f932d2efafe3b2d305dbd66539839cac35ea19591f81098478217daac59");
+  assert.equal(digital.legacyUrl, undefined);
+  assert.match(digital.publicUrl, /^https:\/\/3d\.vistaire\.ca\/marketing\/immersive\/.+\.glb$/);
+  assert.equal(resolvePublicModelUrl(digital.id), digital.publicUrl);
+  assert.equal(getPublicModelAsset(digital.publicUrl), digital);
+  assert.ok(getPublicModelRedirects().every(({ source }) => typeof source === "string" && source.startsWith("/")));
+});
+
 test("public model manifest pins all authorized candidates to their exact source bytes", async () => {
-  assert.equal(PUBLIC_MODEL_ASSETS.length, 72);
-  assert.equal(new Set(PUBLIC_MODEL_ASSETS.map((asset) => asset.id)).size, 72);
-  assert.equal(new Set(PUBLIC_MODEL_ASSETS.map((asset) => asset.legacyUrl)).size, 72);
+  assert.equal(PUBLIC_MODEL_ASSETS.length, 73);
+  assert.equal(new Set(PUBLIC_MODEL_ASSETS.map((asset) => asset.id)).size, 73);
+  assert.equal(new Set(PUBLIC_MODEL_ASSETS.map((asset) => asset.legacyUrl).filter(Boolean)).size, 72);
   for (const asset of PUBLIC_MODEL_ASSETS) {
     assert.equal(asset.visibility, "public");
     assert.equal(asset.version, `sha256-${asset.sha256}`);
     assert.match(asset.sha256, /^[a-f0-9]{64}$/);
+    if (!asset.legacyUrl) {
+      assert.equal(asset.id, "immersive.presentation.digital", "only the verified new book is CDN-only");
+      assert.ok(asset.publicUrl, "a remote-only asset must have a verified public URL");
+      continue;
+    }
     assert.ok(!asset.legacyUrl.includes("homard-bisque.usdz"), "source-only USDZ is excluded");
     const source = asset.legacyUrl === "/immersive-assets/ar/burger.usdz"
       ? gunzipSync(await readFile("assets/immersive-runtime/burger.usdz.gz"))
@@ -37,7 +54,7 @@ test("resolver and legacy redirects use only exact reviewed public references", 
   for (const asset of PUBLIC_MODEL_ASSETS) {
     const expected = asset.publicUrl || asset.legacyUrl;
     assert.equal(resolvePublicModelUrl(asset.id), expected);
-    assert.equal(resolvePublicModelUrl(asset.legacyUrl), expected);
+    if (asset.legacyUrl) assert.equal(resolvePublicModelUrl(asset.legacyUrl), expected);
     assert.equal(getPublicModelAsset(expected)?.id, asset.id);
     if (asset.publicUrl) {
       assert.ok(isPublicModelCdnUrl(asset.publicUrl));
@@ -46,7 +63,7 @@ test("resolver and legacy redirects use only exact reviewed public references", 
       assert.equal(isPublicModelCdnUrl(`${asset.publicUrl}?download=1`), false);
     }
   }
-  assert.deepEqual(getPublicModelRedirects(), PUBLIC_MODEL_ASSETS.filter((asset) => asset.publicUrl).map((asset) => ({
+  assert.deepEqual(getPublicModelRedirects(), PUBLIC_MODEL_ASSETS.filter((asset) => asset.publicUrl && asset.legacyUrl).map((asset) => ({
     source: asset.legacyUrl,
     destination: asset.publicUrl,
     permanent: false,

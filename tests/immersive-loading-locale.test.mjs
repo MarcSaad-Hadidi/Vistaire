@@ -14,6 +14,31 @@ const { createPhoneModel } = await import(sourcePath("PhoneModel.js"));
 
 const settle = () => new Promise((resolve) => setImmediate(resolve));
 
+test("Digital loads its own horizontal grounded book while four physical supports remain distinct", async (t) => {
+  const { collections, presentationOptions, supportModelUrls, presentationModelUrls } = await import(sourcePath("content.js"));
+  assert.deepEqual(Object.keys(supportModelUrls), ["acrylique", "sculpte", "carre", "signature"]);
+  assert.equal(collections.length, 4);
+  assert.deepEqual(presentationOptions?.map(({ id }) => id), ["digital", "acrylique", "sculpte", "carre", "signature"]);
+  assert.ok(presentationModelUrls?.digital, "Digital needs its own real model URL");
+  const requests = [];
+  const model = new THREE.Mesh(new THREE.BoxGeometry(2, 3, 0.2), new THREE.MeshBasicMaterial());
+  t.mock.method(globalThis, "fetch", async (url) => { requests.push(url); return { ok: true, arrayBuffer: async () => new ArrayBuffer(0) }; });
+  t.mock.method(GLTFLoader.prototype, "parseAsync", async () => ({ scene: model }));
+  const canvas = { dataset: {} };
+  const assets = createSupportModels({ canvas, renderer: { capabilities: { getMaxAnisotropy: () => 1 } }, disposeTree() {}, onError: assert.fail });
+  t.after(() => assets.dispose());
+  assets.select("digital");
+  await settle();
+  assert.deepEqual(requests, [presentationModelUrls.digital]);
+  assert.equal(canvas.dataset.support, "digital");
+  assert.equal(canvas.dataset.supportReady, "true");
+  const bounds = new THREE.Box3().setFromObject(assets.active);
+  const size = bounds.getSize(new THREE.Vector3());
+  assert.ok(size.y < size.z * 0.1, "the paper book lies on the table");
+  assert.ok(Math.abs(size.x / size.z - 2 / 3) < 1e-6, "normalization preserves the book proportions");
+  assert.ok(Math.abs(bounds.min.y) < 1e-6, "the cover is grounded after rotation");
+});
+
 test("stands load only on selection and retain a visible model until a switch is ready", async (t) => {
   const pending = [];
   const wakes = [];

@@ -19,6 +19,7 @@ const PUBLIC_FILES_FOR_THIS_TASK = [
 ];
 
 const EXPECTED_COLLECTIONS = [
+  ["digital", "Vistaire Digital", 1_500],
   ["acrylique", "Vistaire Acrylique", 2_000],
   ["sculpte", "Vistaire Sculpté", 2_050],
   ["carre", "Vistaire Carré", 2_100],
@@ -26,6 +27,7 @@ const EXPECTED_COLLECTIONS = [
 ];
 
 const EXPECTED_COLLECTION_IMAGES = [
+  "/images/marketing/vistaire-digital-sauge-noire.webp",
   "/images/marketing/pricing-acrylique-setting.webp",
   "/images/marketing/pricing-sculpte-setting.webp",
   "/images/marketing/pricing-carre-setting.webp",
@@ -165,7 +167,7 @@ test("pricing public routes share one bilingual production surface", () => {
   }
 });
 
-test("pricing exposes four physical collections and Pilotage as an add-on", async () => {
+test("pricing exposes Digital and four physical collections with Pilotage as an add-on", async () => {
   const {
     PRICING_PAGE,
     PRICING_PATH,
@@ -380,7 +382,7 @@ test("French and English pricing stay commercially equivalent", async () => {
   }
 });
 
-test("structured data publishes four collections, 3D pricing and keeps Pilotage separate", async () => {
+test("structured data publishes five offers, 3D pricing and keeps Pilotage separate", async () => {
   const { buildPricingPageJsonLd } = await import("../lib/pricingPage.ts");
 
   for (const locale of ["fr", "en"]) {
@@ -396,13 +398,17 @@ test("structured data publishes four collections, 3D pricing and keeps Pilotage 
       true
     );
     assert.equal(jsonLdTypes.includes("FAQPage"), false);
-    assert.equal(catalog.itemListElement.length, 4);
+    assert.equal(catalog.itemListElement.length, 5);
     assert.deepEqual(
       catalog.itemListElement.map(({ priceSpecification }) =>
         priceSpecification.map(({ price }) => price)
       ),
-      [[2_000, 200], [2_050, 200], [2_100, 200], [2_200, 200]]
+      [[1_500, 200], [2_000, 200], [2_050, 200], [2_100, 200], [2_200, 200]]
     );
+    const digital = JSON.stringify(catalog.itemListElement[0]);
+    assert.match(digital, /Digital/);
+    assert.match(digital, /Aucun support physique|No physical display/);
+    assert.doesNotMatch(digital, /20 supports|20 personalized QR displays/);
 
     const serialized = JSON.stringify(jsonLd);
     assert.match(serialized, /Pilotage/);
