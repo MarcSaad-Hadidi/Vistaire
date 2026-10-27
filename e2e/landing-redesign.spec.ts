@@ -140,7 +140,9 @@ test("a Next navigation releases the immersive viewport and queued scroll work",
 test("collections support keyboard selection and accessible stand rotation", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await openScene(page, "/#product");
-  const tabs = page.getByRole("tablist", { name: "Collections de supports" });
+  const tabs = page.getByRole("tablist", { name: "Offres Vistaire" });
+  await expect(tabs.getByRole("tab")).toHaveCount(5);
+  await expect(tabs.getByRole("tab").first()).toContainText("Digital");
   await tabs.getByRole("tab", { selected: true }).focus();
   await page.keyboard.press("ArrowRight");
   await expect(tabs.getByRole("tab", { selected: true })).toBeFocused();
@@ -153,7 +155,7 @@ test("collections support keyboard selection and accessible stand rotation", asy
 
 const renderedTest = test;
 
-renderedTest('a failed full scene offers an honest retry without a cinematic replacement', async ({ page }, testInfo) => {
+renderedTest('a failed full scene keeps the photograph and navigation usable with an honest retry', async ({ page }, testInfo) => {
   renderedTest.setTimeout(180_000);
   await page.setViewportSize({ width: 390, height: 844 });
   await page.emulateMedia({ reducedMotion: 'reduce' });
@@ -180,13 +182,18 @@ renderedTest('a failed full scene offers an honest retry without a cinematic rep
     } as typeof original;
   });
   await page.goto('/', { waitUntil: 'domcontentloaded' });
-  const failure = page.getByRole('alertdialog');
+  const failure = page.locator('.scene-notice[role="status"]');
   await expect(failure).toBeVisible();
   await expect(failure).toContainText('L’expérience 3D est indisponible.');
   await expect(failure.locator('.loading-line')).toHaveCount(0);
   await expect(page.locator('.fallback-film, .world-fallback, .gpu-status')).toHaveCount(0);
   await expect(page.locator('.scene-canvas')).toHaveCount(0);
   const retry = failure.getByRole('button', { name: 'Réessayer' });
+  await expect(page.getByRole('alertdialog')).toHaveCount(0);
+  await page.locator('#product').scrollIntoViewIfNeeded();
+  await expect(page.locator('#product .presentation-fallback img')).toBeVisible();
+  await expect(page.locator('#product .presentation-fallback')).toContainText('Photographie présentée');
+  await retry.focus();
   await expect(retry).toBeFocused();
   await page.keyboard.press('Tab');
   await expect(failure.getByRole('link', { name: 'Explorer la carte' })).toBeFocused();

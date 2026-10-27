@@ -7,7 +7,6 @@ import { renderToStaticMarkup } from "react-dom/server";
 import ts from "typescript";
 
 const read = (file) => readFileSync(`components/immersive/${file}`, "utf8");
-const content = read("content.js");
 const localeSource = read("locale.jsx");
 const app = read("App.jsx");
 const { collections } = await import("../components/immersive/content.js");

@@ -177,7 +177,7 @@
       "visibleEvidence": "Open Sauge Noire menu book with printed artwork and a QR code. Its physical fulfillment and QR operation are not verified or promised.",
       "semanticSource": "components/immersive/Pricing.jsx; components/vistaire-preview/PricingTableEstimator.tsx; lib/pricingPage.ts",
       "alt": {
-        "fr": "Livre-menu Sauge Noire ouvert avec un QR code, illustration de Vistaire Digital sans support physique inclus",
+        "fr": "Livre de menu Sauge Noire ouvert avec un QR code, illustration de Vistaire Digital sans support physique inclus",
         "en": "Open Sauge Noire menu book with a QR code, illustrating Vistaire Digital with no physical display included"
       },
       "provenance": {

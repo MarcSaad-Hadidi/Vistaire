@@ -110,18 +110,17 @@ export function VistairePricingPreview({
           <>
             <span className="eyebrow">{page.eyebrow}</span>
             <h1 id="pricing-title">{page.h1}</h1>
-            <p>{page.subtitle}</p>
           </>
         ) : null}
         <span className="eyebrow">0{index + 1} · {collection.positioning}</span>
         {index === 0
           ? <p><strong>{collection.name}</strong></p>
           : <h2 id={`pricing-${collection.id}-title`}>{collection.name}</h2>}
-        <p>{collection.description}</p>
+        {collection.kind === "physical" && <p>{collection.description}</p>}
         {collection.kind === "digital" && (
           <p>{locale === "en"
-            ? "Illustrative book. No physical display, book, printing or delivery included."
-            : "Livre illustratif. Aucun support physique, livre, impression ou livraison inclus."}</p>
+            ? "Illustrative book. No physical display included."
+            : "Livre illustratif. Aucun support physique inclus."}</p>
         )}
         <p className="cinematic-price"><strong>{collection.setupPrice}</strong> <span>{collection.monthlyPrice}</span></p>
         {index === page.collections.length - 1 ? (

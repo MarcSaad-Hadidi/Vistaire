@@ -357,7 +357,7 @@ export const SEO_MARKETING_IMAGES: Record<string, { src: string; alt: { fr: stri
   "PRICING:collection:digital": {
     "src": "/images/marketing/vistaire-digital-sauge-noire.webp",
     "alt": {
-      "fr": "Livre-menu Sauge Noire ouvert avec un QR code, illustration de Vistaire Digital sans support physique inclus",
+      "fr": "Livre de menu Sauge Noire ouvert avec un QR code, illustration de Vistaire Digital sans support physique inclus",
       "en": "Open Sauge Noire menu book with a QR code, illustrating Vistaire Digital with no physical display included"
     }
   },

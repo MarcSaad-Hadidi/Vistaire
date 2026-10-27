@@ -73,9 +73,11 @@ export function CinematicPage({ chapters, scene = {}, children, footer, mainProp
   const mainRef = useRef(null);
   const [ready, setReady] = useState(false);
   const [failed, setFailed] = useState(false);
+  const [held, setHeld] = useState(true);
   const [presentationErrors, setPresentationErrors] = useState({});
   const onSupportError = useCallback((error, id) => {
     setPresentationErrors((errors) => ({ ...errors, [id]: Boolean(error) }));
+    if (error) setHeld(false);
   }, []);
   const onReady = useCallback(() => {
     stateRef.current.sceneReady = true;
@@ -85,7 +87,6 @@ export function CinematicPage({ chapters, scene = {}, children, footer, mainProp
   // Until the room is revealed, a loading screen holds the page (no scroll, no
   // clicks behind it). It never traps anyone: a failed scene or a 20 s wait
   // releases it, and the page works on the dimmed room still.
-  const [held, setHeld] = useState(true);
   // A click to another page shows the same screen at once (the next page keeps
   // it up until its own room is ready); 8 s releases a navigation that never came.
   const [leaving, setLeaving] = useState(false);
