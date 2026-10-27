@@ -4,7 +4,7 @@ import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { MeshoptDecoder } from "three/examples/jsm/libs/meshopt_decoder.module.js";
 import { sharedDraco } from "./sharedDraco.js";
 
-import { supportModelUrls as supportModels } from "./content.js";
+import { presentationModelUrls as supportModels } from "./content.js";
 
 export { supportModels };
 
@@ -36,6 +36,7 @@ export function createSupportModels({
     });
     canvas.dataset.support = visibleCollection || collection;
     canvas.dataset.supportReady = String(Boolean(groups[collection]));
+    canvas.dataset.supportError = "";
     if (!loading.has(collection)) {
       loading.set(collection, load(collection));
     }
@@ -63,11 +64,13 @@ export function createSupportModels({
         disposeTree(model);
         return;
       }
+      // The book's printed pages face +Z in XY; normalize it on the table first.
+      if (id === "digital") model.rotation.x = -Math.PI / 2;
       const bounds = new THREE.Box3().setFromObject(model);
       const size = bounds.getSize(new THREE.Vector3());
       const center = bounds.getCenter(new THREE.Vector3());
       const scale =
-        id === "signature"
+        id === "digital" || id === "signature"
           ? 2.2 / size.x
           : (id === "carre" ? 1.68 : 1.95) / size.y;
       model.scale.multiplyScalar(scale);
@@ -99,7 +102,7 @@ export function createSupportModels({
       groups[id] = group;
       root.add(group);
       attached = true;
-      onModel?.(group);
+      onModel?.(group, id);
       if (id === collection) {
         select(collection);
         onInvalidate?.();
@@ -107,8 +110,11 @@ export function createSupportModels({
     } catch (error) {
       loading.delete(id);
       if (model && !attached) disposeTree(model);
-      if (!disposed && id === collection && error.name !== "AbortError")
-        onError(error);
+      if (!disposed && id === collection && error.name !== "AbortError") {
+        canvas.dataset.supportError = error.message || String(error);
+        onError(error, id);
+        onInvalidate?.();
+      }
     }
   }
   // Every collection loads only when selected (the scene selects one when a

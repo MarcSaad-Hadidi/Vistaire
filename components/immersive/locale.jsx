@@ -12,6 +12,13 @@ export function LandingLocaleProvider({ locale = "fr", children }) {
 // One scene and one set of components serve both public landing routes.
 // French remains the source copy; only presentation text is translated.
 const EN = {
+  "Choisissez votre offre": "Choose your offer",
+  "Offres Vistaire": "Vistaire offers",
+  "Glissez la présentation pour la tourner": "Drag the presentation to rotate it",
+  "Recentrer la présentation": "Reset the presentation view",
+  "Aperçu 3D indisponible. Photographie présentée.": "3D preview unavailable. Photograph shown.",
+  "Votre menu digital et votre QR livré numériquement, pour votre menu papier ou un support existant.": "Your digital menu and digitally delivered QR, for your paper menu or an existing display.",
+  "Livre Sauge Noire illustratif. Aucun support physique, livre, impression, fabrication ou livraison inclus.": "Illustrative Sauge Noire book. No physical display, book, printing, manufacturing or delivery included.",
   "Faites défiler pour découvrir": "Scroll to discover",
   "Aperçu du menu": "Menu preview",
   "Rotation du plat 3D": "Rotate the 3D dish",

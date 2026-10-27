@@ -25,7 +25,7 @@ import {
 } from "lucide-react";
 import {
   chapters,
-  collections as sourceCollections,
+  presentationOptions as sourceCollections,
   dishes as sourceDishes,
   experiences as sourceExperiences,
   site,
@@ -389,10 +389,15 @@ function LandingContent() {
     return () => clearTimeout(release);
   }, [leaving]);
   const [modal, setModal] = useState(null);
-  const [collection, setCollection] = useState("acrylique");
+  const [collection, setCollection] = useState("digital");
+  const [presentationErrors, setPresentationErrors] = useState({});
+  const onSupportError = useCallback((error, id) => {
+    setPresentationErrors((errors) => ({ ...errors, [id]: Boolean(error) }));
+  }, []);
   const [phoneDemo, setPhoneDemo] = useState("maison-elyse");
   const [phoneVideoError, setPhoneVideoError] = useState(null);
   const [supportAngles, setSupportAngles] = useState({
+    digital: 0,
     acrylique: 0,
     sculpte: 0,
     carre: 0,
@@ -472,6 +477,7 @@ function LandingContent() {
   const featureBeat = chapterBeats.features;
   const socialBeat = chapterBeats["social-content"];
   const selected = collections.find((x) => x.id === collection);
+  const presentationFallback = gpuError || presentationErrors[collection];
   const close = useCallback(() => setModal(null), []);
   useEffect(() => {
     const query = matchMedia("(prefers-reduced-motion: reduce)");
@@ -1087,9 +1093,6 @@ function LandingContent() {
     setReady(false);
   }, []);
   const onSceneReady = useCallback(() => setReady(true), []);
-  const showSceneError = useCallback(dialog => {
-    if (dialog && !dialog.open) dialog.showModal();
-  }, []);
   useEffect(() => {
     if (!ready || !new URLSearchParams(location.search).has("dish")) return;
     const el = sectionRefs.current.grip;
@@ -1133,6 +1136,7 @@ function LandingContent() {
               onError={onSceneError}
               onAssetError={setModelError}
               onAssetLoading={setModelLoading}
+              onSupportError={onSupportError}
               onPhoneVideoError={setPhoneVideoError}
               onARStatus={setARStatus}
               onZoomFit={fit => {
@@ -1179,15 +1183,13 @@ function LandingContent() {
         </details>
       )}
       {gpuError && (
-        <dialog className="scene-error" role="alertdialog" aria-labelledby="scene-error-title"
-          ref={showSceneError} onCancel={event => event.preventDefault()}>
-          <div className="loading-word">Vistaire</div>
+        <div className="scene-notice" role="status" aria-labelledby="scene-error-title">
           <p id="scene-error-title">{t("L’expérience 3D est indisponible.")}</p>
           <Action onClick={() => location.reload()}>{t("Réessayer")}</Action>
           <Link prefetch={false} className="text-link" href={link("/demo")}>
             {t("Explorer la carte")} <ArrowUpRight size={17} />
           </Link>
-        </dialog>
+        </div>
       )}
       {(!ready || leaving) && !gpuError && (
         <div className="preloader" role="status">
@@ -1840,12 +1842,12 @@ function LandingContent() {
           className="product"
         >
           <span className="eyebrow stage-eyebrow">
-            {t("Choisissez votre collection")}
+            {t("Choisissez votre offre")}
           </span>
           <h2 id="product-title">VISTAIRE</h2>
           <div
             role="tablist"
-            aria-label={t("Collections de supports")}
+            aria-label={t("Offres Vistaire")}
             className="collection-tabs"
           >
             {collections.map((x) => (
@@ -1863,10 +1865,10 @@ function LandingContent() {
                     (c) => c.id === collection,
                   );
                   let next;
-                  if (e.key === "ArrowRight") next = (index + 1) % 4;
-                  else if (e.key === "ArrowLeft") next = (index + 3) % 4;
+                  if (e.key === "ArrowRight") next = (index + 1) % collections.length;
+                  else if (e.key === "ArrowLeft") next = (index + collections.length - 1) % collections.length;
                   else if (e.key === "Home") next = 0;
-                  else if (e.key === "End") next = 3;
+                  else if (e.key === "End") next = collections.length - 1;
                   if (next !== undefined) {
                     e.preventDefault();
                     setCollection(collections[next].id);
@@ -1882,34 +1884,41 @@ function LandingContent() {
           </div>
           <FocusFrame
             className="support-gesture"
-            role="slider"
-            tabIndex={0}
+            role={presentationFallback ? undefined : "slider"}
+            tabIndex={presentationFallback ? undefined : 0}
             aria-label={
               locale === "en"
-                ? `Rotate the ${selected.name} stand in 3D`
-                : `Tourner le support ${selected.name} en 3D`
+                ? `Rotate the ${selected.name} presentation in 3D`
+                : `Tourner la présentation ${selected.name} en 3D`
             }
-            aria-valuemin={0}
-            aria-valuemax={360}
-            aria-valuenow={Math.round(((supportAngle % 360) + 360) % 360)}
-            {...supportGestures}
+            aria-valuemin={presentationFallback ? undefined : 0}
+            aria-valuemax={presentationFallback ? undefined : 360}
+            aria-valuenow={presentationFallback ? undefined : Math.round(((supportAngle % 360) + 360) % 360)}
+            {...(presentationFallback ? {} : supportGestures)}
             onKeyDown={(e) => {
               if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
                 e.preventDefault();
                 turnSupport(supportAngle + (e.key === "ArrowRight" ? 15 : -15));
               }
             }}
-          />
-          <div className="support-controls">
-            <span>{t("Glissez le support pour le tourner")}</span>
+          >
+            {presentationFallback && (
+              <figure className="presentation-fallback" role="status">
+                <img src={selected.image} width="1536" height="1024" alt={locale === "en" ? `${selected.name} presentation` : `Présentation ${selected.name}`} />
+                <figcaption>{t("Aperçu 3D indisponible. Photographie présentée.")}</figcaption>
+              </figure>
+            )}
+          </FocusFrame>
+          {!presentationFallback && <div className="support-controls">
+            <span>{t("Glissez la présentation pour la tourner")}</span>
             <button
               onClick={() => turnSupport(0)}
-              aria-label={t("Recentrer le support")}
+              aria-label={t("Recentrer la présentation")}
             >
               <RotateCw size={14} />
               {t("Recentrer")}
             </button>
-          </div>
+          </div>}
           <div
             role="tabpanel"
             id="collection-panel"
@@ -1917,7 +1926,7 @@ function LandingContent() {
             className="collection-details"
           >
             <div>
-              <span className="eyebrow">Collection {selected.name}</span>
+              <span className="eyebrow">{selected.id === "digital" ? "Vistaire Digital" : `Collection ${selected.name}`}</span>
               <p>{selected.description}</p>
               <p className="collection-usage">{selected.usage}</p>
             </div>
