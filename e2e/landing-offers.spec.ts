@@ -171,7 +171,9 @@ for (const profile of profiles) {
     await assertProjection(page);
     const phone = page.locator('.pricing-phone-screen');
     await expect(phone.locator('.pricing-offer-card')).toHaveCount(5);
-    await expect(phone.locator('.pricing-offer-card h4')).toHaveText(['Digital', 'Acrylique', 'Sculpté', 'Carré', 'Signature']);
+    await expect(phone.locator('.pricing-offer-card h4')).toHaveText(profile.path === '/en'
+      ? ['Digital', 'Acrylic', 'Sculpted', 'Square', 'Signature']
+      : ['Digital', 'Acrylique', 'Sculpté', 'Carré', 'Signature']);
     for (const [index, amount] of ['1[\\s,\\u00a0\\u202f]*500', '2[\\s,\\u00a0\\u202f]*000', '2[\\s,\\u00a0\\u202f]*050', '2[\\s,\\u00a0\\u202f]*100', '2[\\s,\\u00a0\\u202f]*200'].entries()) {
       await expect(phone.locator('.pricing-offer-price').nth(index)).toContainText(new RegExp(amount));
       await expect(phone.locator('.pricing-offer-price small').nth(index)).toHaveText(index === 0
@@ -385,7 +387,7 @@ test('an unavailable hand keeps all offers and keyboard access in the semantic f
   await expect(page.locator('.pricing-phone-layer')).toHaveAttribute('aria-hidden', 'false');
   await expect(page.locator('.pricing-phone-layer')).toHaveAttribute('data-hand-ready', 'false');
   await expect(page.locator('.pricing-phone-layer')).not.toHaveAttribute('inert');
-  await expect(page.locator('.pricing-offer-card')).toHaveCount(4);
+  await expect(page.locator('.pricing-offer-card')).toHaveCount(5);
   for (const card of await page.locator('.pricing-offer-card').all()) {
     await card.focus();
     await expect(card).toBeFocused();
