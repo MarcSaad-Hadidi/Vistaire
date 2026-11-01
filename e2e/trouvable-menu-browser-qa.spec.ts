@@ -1,4 +1,5 @@
 import { expect, test, type BrowserContext, type Locator, type Page } from "@playwright/test";
+import { privacyRejectedStorageState } from "./support/privacy-consent";
 
 const BASE_ORIGIN = new URL(
   process.env.PLAYWRIGHT_BASE_URL ?? "http://127.0.0.1:3000"
@@ -249,7 +250,10 @@ test.describe("Trouvable menu browser QA", () => {
       expectCleanSignals(signals, `${viewport.name} normal`);
 
       const expectedFontAborts = new Set<string>();
-      const context = await browser.newContext({ viewport: viewport.size });
+      const context = await browser.newContext({
+        storageState: privacyRejectedStorageState(BASE_ORIGIN),
+        viewport: viewport.size
+      });
       await configureExactLocalFontAbort(context, expectedFontAborts);
       const fallbackPage = await context.newPage();
       try {

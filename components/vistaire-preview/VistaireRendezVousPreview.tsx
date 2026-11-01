@@ -23,6 +23,8 @@ const COPY = {
     exchangeBody:
       "Signature dishes, allergens, visuals, readable prices, PDF replacement and cases where 3D/AR brings real value.",
     directContact: "Direct contact",
+    privacyPrefix: "Before using this form, please review how Vistaire handles the information you provide in our",
+    privacyLink: "Privacy policy",
     toForm: "Go to the form",
     back: "Back to contact",
     closing: "A menu designed for your tables.",
@@ -39,6 +41,8 @@ const COPY = {
     exchangeBody:
       "Plats signatures, allergènes, visuels, prix lisibles, remplacement PDF et cas où la 3D/AR apporte une vraie valeur.",
     directContact: "Contact direct",
+    privacyPrefix: "Avant d’utiliser ce formulaire, consultez la façon dont Vistaire traite les renseignements que vous fournissez dans notre",
+    privacyLink: "Politique de confidentialité",
     toForm: "Aller au formulaire",
     back: "Retour au contact",
     closing: "Une carte pensée pour vos tables.",
@@ -107,6 +111,13 @@ export function VistaireRendezVousPreview({
         <section className="cinematic-guide">
           <section id="rendez-vous-form" className="cinematic-panel cinematic-form" aria-labelledby="rendez-vous-form-title">
             <h2 id="rendez-vous-form-title">{copy.formLabel}</h2>
+            <p className="cinematic-note">
+              {copy.privacyPrefix}{" "}
+              <Link href={locale === "en" ? "/en/privacy-policy" : "/politique-de-confidentialite"} prefetch={false}>
+                {copy.privacyLink}
+              </Link>
+              .
+            </p>
             <VistaireContactForm locale={locale} />
             <Link className="cinematic-back" href={routes.contact} prefetch={false}>
               <span aria-hidden="true">←</span> {copy.back}

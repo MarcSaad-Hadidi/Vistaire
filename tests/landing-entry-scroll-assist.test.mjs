@@ -223,11 +223,48 @@ test('touch and keyboard retain ownership while held with or without scrollend s
   }
 });
 
-test('blocked, reduced-motion, pricing reading and footer spans remain native; disposal removes all work', () => {
-  for (const kind of ['blocked', 'reduced', 'pricing', 'footer']) {
+test('reduced motion preserves user-requested wheel and touch trips to the same reading stop', () => {
+  for (const coarse of [false, true]) {
+    const f = fixture({ fine: !coarse, coarse });
+    f.media.matches = true;
+    f.emit(f.media, 'change');
+    f.assist.syncTouchLock();
+    f.advance(1000);
+    assert.equal(f.calls.length, 0, 'the preference alone never initiates navigation');
+    if (coarse) {
+      assert.equal(f.main.classList.contains('cinematic-touch-lock'), true);
+      f.input('touchstart', { touches: [{ clientX: 20, clientY: 480 }] });
+      f.input('touchmove', { touches: [{ clientX: 20, clientY: 330 }], cancelable: true });
+      f.input('touchend', { touches: [], cancelable: true });
+    } else f.input('wheel', { deltaY: 100, deltaX: 0, cancelable: true });
+    const target = f.bounds.opening.motionTravel / 2;
+    assert.deepEqual(assistedTargets(f), [target]);
+    assert.ok(f.reports.find(row => row.type === 'assist-start').duration <= 100, 'reduced motion uses a near-instant trip');
+    f.advance(132);
+    assert.ok(Math.abs(f.view.scrollY - target) < 1);
+    assert.equal(f.reports.filter(row => row.type === 'completed').length, 1);
+    f.assist.dispose();
+  }
+});
+
+test('keyboard reading can leave the last offer without the touch momentum guard clamping it', () => {
+  const f = fixture({ coarse: true });
+  const start = f.bounds.transitions.find(join => join.to.id === 'open-weight').end;
+  f.bounds.pricing = { start, end: start + 2000, faq: start + 2800 };
+  f.move(start + 2000); f.advance(1000);
+  f.input('keydown', { key: 'PageDown', target: { closest: () => ({}) } });
+  f.move(start + 2200);
+  f.input('keyup', { key: 'PageDown' });
+  f.advance(1000);
+  assert.equal(f.calls.length, 0);
+  assert.equal(f.view.scrollY, start + 2200);
+  f.assist.dispose();
+});
+
+test('blocked, pricing reading and footer spans remain native; disposal removes all work', () => {
+  for (const kind of ['blocked', 'pricing', 'footer']) {
     const f = fixture(), pricing = f.bounds.transitions.find(join => join.to.id === 'open-weight');
     if (kind === 'blocked') f.block(true);
-    if (kind === 'reduced') f.media.matches = true;
     const y = kind === 'pricing' ? pricing.end + 40 : kind === 'footer' ? f.bounds.transitions.at(-1).end - 40
       : f.bounds.transitions[0].end - 40;
     f.wheel(y); f.end(); f.advance(1000);
@@ -847,7 +884,7 @@ test('native momentum stays in control until end; unexplained reverse motion can
 });
 
 test('controlled continuation waits for final scroll and fresh input cancels without resetting an in-flight pose', () => {
-  for (const direction of [1, -1]) for (const action of ['touchstart', 'reverse', 'layout', 'reduced', 'dispose']) {
+  for (const direction of [1, -1]) for (const action of ['touchstart', 'reverse', 'layout', 'dispose']) {
     const f = fixture({ nativeMotion: false, diagnostics: true });
     const from = direction > 0 ? 100 : f.bounds.opening.motionTravel / 2 - 100;
     f.wheel(from, direction);
@@ -863,7 +900,6 @@ test('controlled continuation waits for final scroll and fresh input cancels wit
     if (action === 'touchstart') f.input('touchstart', { touches: [{ clientY: 200 }] });
     if (action === 'reverse') f.move(from - direction * 10);
     if (action === 'layout') f.assist.cancel('layout');
-    if (action === 'reduced') { f.media.matches = true; f.emit(f.media, 'change'); }
     if (action === 'dispose') f.assist.dispose();
     assert.equal(f.calls.length, calls, action + ': cancellation never writes a potentially stale position');
     f.end(); f.advance(5000);

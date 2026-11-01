@@ -45,6 +45,7 @@ export function assistedScrollDuration(stages, destinationId, fast = FAST_SCENE_
  * navigation/layout remaps and while UI blocks scrolling. No idle RAF remains.
  */
 export function createEntryScrollAssist({ getGeometry, isBlocked, fastTrips = false }, view = window) {
+  // Reduced motion shortens user navigation; Scene owns decorative motion.
   const document = view.document;
   const reduced = view.matchMedia("(prefers-reduced-motion: reduce)");
   const finePointer = view.matchMedia("(hover: hover) and (pointer: fine)");
@@ -115,14 +116,14 @@ export function createEntryScrollAssist({ getGeometry, isBlocked, fastTrips = fa
     let callerBlocked = false;
     // Visibility changes reset ownership (listener below); a page reporting
     // hidden while it is shown (app panes, in-app browsers) keeps its assist.
-    const result = disposed || reduced.matches || (callerBlocked = isBlocked())
+    const result = disposed || (callerBlocked = isBlocked())
       // A clicked header button may retain focus while the next gesture targets
       // the scene. Preserve editing/slider focus; event targets stay excluded.
       // Tapping or mouse-turning a 3D model focuses its slider; that focus only
       // owns arrow keys. Touch and wheel defer to editing focus alone.
       || controlled(document.activeElement, inputKind === "touch" || inputKind === "wheel" ? TOUCH_OWNERS : FOCUSED_CONTROLS);
     blockedReason = !result ? null : disposed ? "disposed"
-      : reduced.matches ? "reduced-motion" : callerBlocked ? "caller-blocked" : "protected-focus";
+      : callerBlocked ? "caller-blocked" : "protected-focus";
     return result;
   };
   const clearTimer = () => { view.clearTimeout(timer); timer = null; };
@@ -281,7 +282,7 @@ export function createEntryScrollAssist({ getGeometry, isBlocked, fastTrips = fa
     if (touching) return cinematicMain.classList.contains("cinematic-touch-lock");
     // Pricing measures after App; keep refreshing until its offers exist.
     if (refresh || !touchRange || touchRange.readingEnd == null) {
-      const geometry = coarsePointer.matches && !reduced.matches ? getGeometry() : null;
+      const geometry = coarsePointer.matches ? getGeometry() : null;
       const pricingStart = geometry?.pricing?.start ??
         geometry?.transitions?.find(join => join.to.id === "open-weight")?.end ?? null;
       // Offers are read by JavaScript-owned touch too: a native pan there lets
@@ -300,7 +301,7 @@ export function createEntryScrollAssist({ getGeometry, isBlocked, fastTrips = fa
           : pricingStart == null ? Infinity : Math.floor(pricingStart), geometry.naturalFrom ?? Infinity),
       } : null;
     }
-    const enabled = coarsePointer.matches && !reduced.matches && !touchSuppressed;
+    const enabled = coarsePointer.matches && !touchSuppressed;
     const locked = Boolean(enabled && touchRange
       && view.scrollY >= touchRange.top - 1 && view.scrollY < touchRange.end - 1);
     // The first offer keeps native pan-y. Only a cancelable first reverse
@@ -328,7 +329,7 @@ export function createEntryScrollAssist({ getGeometry, isBlocked, fastTrips = fa
     // A shorter physical trip never takes longer than a longer one.
     const stages = Math.abs(target - y) / opening.stageHeight;
     const fast = fastTrips || FAST_SCENE_DESTINATIONS.has(destination.id);
-    const duration = fixed ?? assistedScrollDuration(stages, destination.id, fast);
+    const duration = reduced.matches ? 80 : fixed ?? assistedScrollDuration(stages, destination.id, fast);
     readingGuard = null;
     assisting = { target, started: now, direction, lastY: y, from: y, duration, coast,
       fast, elapsed: 0, written: y };
@@ -681,7 +682,7 @@ export function createEntryScrollAssist({ getGeometry, isBlocked, fastTrips = fa
     // events, so native movement from inside the offers always arms their edges,
     // and native reading below them (FAQ, guide) never coasts back above its head.
     // A navigation jump is larger than one viewport and is never pulled back.
-    if (!readingGuard && !touching && !assisting && touchRange && Math.abs(y - lastY) < view.innerHeight) {
+    if (!readingGuard && !touching && !assisting && inputKind !== "keydown" && touchRange && Math.abs(y - lastY) < view.innerHeight) {
       const { pricing: reading, naturalFrom } = getGeometry(), inside = at => at > reading.start - 1 && at < reading.end + 1;
       const floor = reading?.end ?? naturalFrom;
       if (reading && (inside(y) || inside(lastY) || (gesture && inside(gesture.inputY))))
@@ -785,7 +786,7 @@ export function createEntryScrollAssist({ getGeometry, isBlocked, fastTrips = fa
     [document, "visibilitychange", reset], [view, "hashchange", navigateHash],
     // Capture also receives element blurs (an inert pricing layer drops focus
     // mid-trip); only the window losing focus releases ownership.
-    [view, "blur", event => { if (event.target === view) reset(event); }], [reduced, "change", reset],
+    [view, "blur", event => { if (event.target === view) reset(event); }],
   ];
   const options = { passive: true, capture: true };
   const ownership = { passive: false, capture: true }; // preventDefault needs an active listener.

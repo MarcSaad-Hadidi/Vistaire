@@ -1,4 +1,5 @@
 import { expect, type Page, test } from "@playwright/test";
+import { getPublicModelAsset } from "../lib/publicModelAssets";
 
 const DEMO_RESTAURANT_ID = "11111111-1111-1111-1111-111111111111";
 const MODEL_ASSET_RE = /\.(?:glb|usdz)(?:$|[?#])/i;
@@ -306,7 +307,7 @@ test.describe("Vistaire MVP smoke", () => {
     await expect(page.getByRole("link", { name: /Retour/i }).first()).toBeVisible();
   });
 
-  test("pricing exposes four physical collections and optional Pilotage", async ({
+  test("pricing exposes Digital, four physical collections and optional Pilotage", async ({
     page
   }) => {
     const health = installPageHealth(page);
@@ -331,23 +332,24 @@ test.describe("Vistaire MVP smoke", () => {
           name: "Choisissez l’expérience qui prendra place sur vos tables."
         })
       ).toBeVisible();
-      await expect(page.locator("[data-pricing-collection]")).toHaveCount(4);
-      for (const offer of ["Acrylique", "Sculpté", "Carré", "Signature"]) {
-        await expect(page.getByRole("heading", { name: offer })).toBeVisible();
+      const offers = page.locator("[data-pricing-collection]");
+      await expect(offers).toHaveCount(5);
+      for (const offer of ["Digital", "Acrylique", "Sculpté", "Carré", "Signature"]) {
+        await expect(offers.getByRole("heading", { name: offer })).toBeVisible();
       }
       await expect(page.getByText("Jusqu’à 5 plats en 3D", { exact: true })).toBeVisible();
       await expect(page.locator("[data-pricing-pilotage]")).toContainText(
         "+ 100 $ CAD / mois"
       );
       await expect(page.locator("[data-pricing-pilotage]")).toContainText(
-        "Total — 300 $ / mois"
+        "Total 300 $ / mois"
       );
       await expect(
         page.getByRole("link", { name: "Prendre rendez-vous", exact: true }).first()
       ).toHaveAttribute("href", "/prendre-rendez-vous");
       await expect(
-        page.getByRole("link", { name: "Parler à un expert", exact: true })
-      ).toHaveAttribute("href", "/contact");
+        offers.first().getByRole("link", { name: "Découvrir Vistaire Digital", exact: true })
+      ).toHaveAttribute("href", "/prendre-rendez-vous");
       expect(await collectStructuredDataTypes(page)).toEqual(
         expect.arrayContaining([
           "WebPage",
@@ -363,7 +365,7 @@ test.describe("Vistaire MVP smoke", () => {
       await expectNoHorizontalOverflow(page);
     }
 
-    expect(modelRequests).toEqual([]);
+    expect(modelRequests.filter((url) => !new URL(url).pathname.startsWith("/immersive-assets/") && url !== getPublicModelAsset("immersive.presentation.digital")?.publicUrl)).toEqual([]);
     health.expectClean();
   });
 

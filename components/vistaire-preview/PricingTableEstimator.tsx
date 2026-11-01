@@ -20,7 +20,10 @@ const COPY = {
   fr: {
     eyebrow: "Votre établissement",
     title: "Estimez votre mise en place",
-    question: "Nombre de tables à équiper ?",
+    question: "Nombre de tables à équiper avec une collection physique ?",
+    digitalFixed: "Mise en place fixe, indépendante du nombre de tables",
+    digitalExcluded: "Aucun support physique inclus",
+    digitalIllustration: "Livre illustratif · Livre, impression et livraison non inclus.",
     tables: "tables",
     decrease: "Réduire le nombre de tables",
     increase: "Augmenter le nombre de tables",
@@ -38,7 +41,10 @@ const COPY = {
   en: {
     eyebrow: "Your venue",
     title: "Estimate your setup",
-    question: "How many tables would you like to equip?",
+    question: "How many tables would you equip with a physical collection?",
+    digitalFixed: "Fixed setup, independent of table count",
+    digitalExcluded: "No physical display included",
+    digitalIllustration: "Illustrative book · Book, printing and delivery not included.",
     tables: "tables",
     decrease: "Decrease the number of tables",
     increase: "Increase the number of tables",
@@ -80,6 +86,7 @@ function CollectionCard({
 }) {
   const copy = COPY[locale];
   const displayName = collection.name.replace(/^Vistaire\s/, "");
+  const isDigital = collection.kind === "digital";
   const isIncludedQuantity = tableCount === INCLUDED_TABLE_COUNT;
   const estimatedSetupAmount = calculateEstimatedSetupPrice({
     collectionId: collection.id,
@@ -95,16 +102,17 @@ function CollectionCard({
           : cardStyles.collectionCard
       }
       data-pricing-collection={collection.id}
-      data-table-count={tableCount}
+      data-pricing-kind={collection.kind}
+      data-table-count={isDigital ? undefined : tableCount}
       id={`collection-${collection.id}`}
     >
       <figure className={cardStyles.collectionVisual}>
         <Image
           alt={collection.imageAlt}
-          className={cardStyles.collectionImage}
+          className={`${cardStyles.collectionImage}${isDigital ? ` ${cardStyles.collectionImageDigital}` : ""}`}
           fill
           quality={90}
-          sizes="(max-width: 700px) calc(100vw - 40px), (max-width: 1100px) 45vw, 24vw"
+          sizes="(max-width: 700px) calc(100vw - 40px), (max-width: 1100px) 45vw, 32vw"
           src={collection.image}
           style={{ objectPosition: collection.imagePosition }}
         />
@@ -119,7 +127,7 @@ function CollectionCard({
 
       <div className={cardStyles.collectionDetails}>
         <p className={`${cardStyles.pricePrefix} ${styles.dynamicPricePrefix}`}>
-          {isIncludedQuantity ? copy.startingAt : copy.estimateFor(tableCount)}
+          {isDigital ? copy.digitalFixed : isIncludedQuantity ? copy.startingAt : copy.estimateFor(tableCount)}
         </p>
         <p
           className={`${cardStyles.setupPrice} ${styles.priceValue}`}
@@ -129,13 +137,14 @@ function CollectionCard({
           {formatSetupAmount(estimatedSetupAmount, locale)}
         </p>
         <p className={`${cardStyles.setupLabel} ${styles.dynamicSetupLabel}`}>
-          {isIncludedQuantity ? copy.setup : copy.estimatedSetup}
+          {isDigital || isIncludedQuantity ? copy.setup : copy.estimatedSetup}
         </p>
         <p className={cardStyles.collectionQuantity}>
-          {tableCount <= INCLUDED_TABLE_COUNT ? copy.included : copy.includedWithExtras(calculateExtraTableCount(tableCount))}
+          {isDigital ? copy.digitalExcluded : tableCount <= INCLUDED_TABLE_COUNT ? copy.included : copy.includedWithExtras(calculateExtraTableCount(tableCount))}
         </p>
         <p className={cardStyles.monthlyPrice}>{collection.monthlyPrice}</p>
         <p className={cardStyles.collectionDescription}>{collection.description}</p>
+        {isDigital && <p className={cardStyles.collectionDescription}>{copy.digitalIllustration}</p>}
         <Link className={cardStyles.collectionLink} href={collection.cta.href} prefetch={false}>
           {collection.cta.label}
           <ArrowIcon />

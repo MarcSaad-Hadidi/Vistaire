@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import * as pricingCalculator from "../lib/pricingCalculator.ts";
 
 import {
   EXTRA_TABLE_PRICE_BY_COLLECTION,
@@ -16,6 +17,21 @@ const COLLECTIONS = {
   carre: { baseSetupAmount: 2_100, extraTablePrice: 55 },
   signature: { baseSetupAmount: 2_200, extraTablePrice: 55 }
 };
+
+test("Digital setup is fixed at every requested table count and annual costs derive from shared prices", async () => {
+  const { getPricingPage } = await import("../lib/pricingPage.ts");
+  for (const tableCount of [1, 10, 20, 21, 37, 100]) {
+    assert.equal(calculateEstimatedSetupPrice({ collectionId: "digital", baseSetupAmount: 1500, tableCount }), 1500, `${tableCount} tables`);
+  }
+  assert.equal(typeof pricingCalculator.calculateFirstYearCost, "function");
+  for (const locale of ["fr", "en"]) {
+    const page = getPricingPage(locale);
+    assert.deepEqual(page.collections.map(({ id, kind }) => [id, kind]), [
+      ["digital", "digital"], ["acrylique", "physical"], ["sculpte", "physical"], ["carre", "physical"], ["signature", "physical"],
+    ]);
+    assert.deepEqual(page.collections.map(({ setupAmount }) => pricingCalculator.calculateFirstYearCost({ setupAmount, monthlyAmount: page.monthlyAmount })), [3900, 4400, 4450, 4500, 4600]);
+  }
+});
 
 function estimate(collectionId, tableCount) {
   return calculateEstimatedSetupPrice({

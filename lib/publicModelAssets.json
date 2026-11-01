@@ -880,6 +880,16 @@
         "mobile": "demo.tarte-citron-basilic.mobile",
         "ios": "demo.tarte-citron-basilic.ios"
       }
+    },
+    {
+      "id": "immersive.presentation.digital",
+      "kind": "presentation",
+      "visibility": "public",
+      "format": "glb",
+      "bytes": 451824,
+      "sha256": "fe0d2f932d2efafe3b2d305dbd66539839cac35ea19591f81098478217daac59",
+      "version": "sha256-fe0d2f932d2efafe3b2d305dbd66539839cac35ea19591f81098478217daac59",
+      "publicUrl": "https://3d.vistaire.ca/marketing/immersive/20261027-digital/sauge-noire-menu-fe0d2f932d2efafe3b2d305dbd66539839cac35ea19591f81098478217daac59.glb"
     }
   ]
 }

@@ -265,7 +265,7 @@ test('generic chapters retain their budget while features and social share three
 
 test('the laptop hinge consumes the shared presentation phase instead of a second short local window', () => {
   const laptop = readFileSync('components/immersive/LaptopModel.js', 'utf8');
-  const expression = laptop.match(/const openingProgress = desiredReduced\s*\? 1\s*: ([^;]+);/)[1];
+  const expression = laptop.match(/const openingProgress = ([^;]+);/)[1];
   const sample = progress => vm.runInNewContext(expression, { desiredProgress: progress, cinematicEase: director.cinematicEase, clamp: n => Math.max(0, Math.min(1, n)) });
   assert.equal(sample(0), 0);
   assert.equal(sample(1), 1);

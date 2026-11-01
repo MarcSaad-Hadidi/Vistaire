@@ -220,6 +220,7 @@ export function createPricingHandScene({
         autoClear: renderer.autoClear,
         shadowUpdate: renderer.shadowMap.needsUpdate,
         shaderError: renderer.debug?.onShaderError,
+        shaderCheck: renderer.debug?.checkShaderErrors,
       };
       let shaderFailed = false;
       let contentTriangles = 0;
@@ -230,7 +231,8 @@ export function createPricingHandScene({
         renderer.autoClear = true;
         renderer.shadowMap.needsUpdate = false;
         renderer.info.reset();
-        if (renderer.debug) renderer.debug.onShaderError = () => { shaderFailed = true; };
+        // Production renders skip shader checks; this fallback needs them.
+        if (renderer.debug) Object.assign(renderer.debug, { checkShaderErrors: true, onShaderError: () => { shaderFailed = true; } });
         if (renderBackground) {
           renderBackground(width, viewport.canvasHeight);
           renderer.autoClear = false;
@@ -247,7 +249,7 @@ export function createPricingHandScene({
         renderer.setScissorTest(previous.scissorTest);
         renderer.autoClear = previous.autoClear;
         renderer.shadowMap.needsUpdate = previous.shadowUpdate;
-        if (renderer.debug) renderer.debug.onShaderError = previous.shaderError;
+        if (renderer.debug) Object.assign(renderer.debug, { checkShaderErrors: previous.shaderCheck, onShaderError: previous.shaderError });
       }
       if (shaderFailed) {
         unavailable = true;

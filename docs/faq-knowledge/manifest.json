@@ -64,9 +64,9 @@
         "fr": "/tarifs-menu-digital-restaurant",
         "en": "/en/pricing-digital-restaurant-menu"
       },
-      "sources": ["lib/pricingPage.ts", "components/immersive/Pricing.jsx"],
-      "verifiedAt": "2026-10-09",
-      "topics": ["prix", "abonnement", "collections", "pilotage", "plats 3d", "conditions"]
+      "sources": ["lib/pricingPage.ts", "lib/pricingCalculator.ts", "components/immersive/Pricing.jsx"],
+      "verifiedAt": "2026-10-27",
+      "topics": ["prix", "abonnement", "digital", "collections", "supports physiques", "pilotage", "plats 3d", "conditions"]
     },
     {
       "id": "restaurateurs",
@@ -76,7 +76,7 @@
       "title": { "fr": "Mise en place et Pilotage", "en": "Setup and Pilotage" },
       "publicPath": { "fr": "/apercu-restaurateur", "en": "/en/restaurant-preview" },
       "sources": ["lib/pricingPage.ts", "lib/seoPages.ts", "lib/seoGeoPages.fr.ts"],
-      "verifiedAt": "2026-10-09",
+      "verifiedAt": "2026-10-27",
       "topics": ["mise en place", "délai", "étapes", "dashboard", "pilotage", "mise à jour"]
     },
     {

@@ -13,6 +13,7 @@ import {
 } from "./ProjectedBounds.js";
 import { createARExperience } from "./ARExperience.js";
 import { useEffect, useRef } from "react";
+import { prepareEnvironmentShaders, prepareSceneShaders, yieldToMainThread } from "./deferredScene.js";
 import * as THREE from "three";
 import { DRACOLoader } from "three/examples/jsm/loaders/DRACOLoader.js";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
@@ -383,6 +384,11 @@ function baseComposition(state, mobile) {
     case "social-content":
       break;
     case "product":
+      if (state.collection === "digital") {
+        Object.assign(pose, pageShot("pricing-digital", 0.25, mobile, true));
+        pose.supportRotation = [0, -0.15 + ((state.supportAngle || 0) * Math.PI) / 180, 0];
+        break;
+      }
       Object.assign(pose, {
         support: [0, 0.08, mobile ? 0.45 : 0.6],
         supportScale: mobile ? 0.9 : 1.1,
@@ -460,6 +466,7 @@ export default function Scene({
   onError,
   onAssetError,
   onAssetLoading,
+  onSupportError,
   onPhoneVideoError,
   onARStatus,
   onZoomFit,
@@ -470,15 +477,19 @@ export default function Scene({
     onError,
     onAssetError,
     onAssetLoading,
+    onSupportError,
     onPhoneVideoError,
     onARStatus,
     onZoomFit,
   });
   useEffect(() => {
-    callbacks.current = { onReady, onError, onAssetError, onAssetLoading, onPhoneVideoError, onARStatus, onZoomFit };
-  }, [onReady, onError, onAssetError, onAssetLoading, onPhoneVideoError, onARStatus, onZoomFit]);
+    callbacks.current = { onReady, onError, onAssetError, onAssetLoading, onSupportError, onPhoneVideoError, onARStatus, onZoomFit };
+  }, [onReady, onError, onAssetError, onAssetLoading, onSupportError, onPhoneVideoError, onARStatus, onZoomFit]);
 
   useEffect(() => {
+    let cleanup = () => {};
+    let cancelled = false;
+    async function initialize() {
     const sceneState = stateRef.current;
     const diagnosticsEnabled = new URLSearchParams(window.location.search).get("sceneDiagnostics") === "1";
     // A fresh canvas per effect avoids reusing a lost context in StrictMode.
@@ -500,6 +511,8 @@ export default function Scene({
     let lastTime = 0;
     let lastScrollDistance = stateRef.current?.scrollDistance;
     let renderRequested = false;
+    let openingShadersPending = false;
+    let compiledOpeningKey = "";
     let wasOccluded = false;
     let pricingPresentation;
     let assetRequest;
@@ -510,7 +523,7 @@ export default function Scene({
     let lastRetryModel = stateRef.current?.retryModel ?? 0;
     let activeDish;
     let lastCollection = "";
-    let collectionsPreloaded = false;
+    let lastPreloadCollections = "";
     const ownedTextures = new Set();
     const mobileViewport = () => window.innerWidth < 768;
     const scene = new THREE.Scene();
@@ -563,6 +576,15 @@ export default function Scene({
       );
     }
 
+    cleanup = () => {
+      disposed = true;
+      renderer?.dispose();
+      environmentTarget?.dispose();
+      environmentScene?.dispose();
+      canvas.remove();
+    };
+    await yieldToMainThread();
+    if (disposed) return;
     try {
       renderer = new THREE.WebGLRenderer({
         canvas,
@@ -572,28 +594,33 @@ export default function Scene({
         alpha: true,
         powerPreference: "high-performance",
       });
+      // Shader error checks force a synchronous wait on every program link
+      // (the top main-thread cost of the opening on mobile Lighthouse).
+      renderer.debug.checkShaderErrors = process.env.NODE_ENV !== "production";
       renderer.outputColorSpace = THREE.SRGBColorSpace;
       renderer.toneMapping = THREE.ACESFilmicToneMapping;
       renderer.toneMappingExposure = 1.05;
       renderer.shadowMap.enabled = true;
       renderer.shadowMap.autoUpdate = false;
       renderer.shadowMap.type = THREE.PCFShadowMap;
+      await yieldToMainThread();
+      if (disposed) return;
       environmentScene = new RoomEnvironment();
       const pmrem = new THREE.PMREMGenerator(renderer);
+      await prepareEnvironmentShaders(renderer, pmrem, environmentScene,
+        new THREE.PerspectiveCamera(90, 1, 0.1, 100), () => disposed);
+      if (disposed) return pmrem.dispose();
       environmentTarget = pmrem.fromScene(environmentScene, 0.08);
       scene.environment = environmentTarget.texture;
       scene.environmentIntensity = 0.48;
       pmrem.dispose();
     } catch (error) {
       fail(error);
-      renderer?.dispose();
-      environmentTarget?.dispose();
-      environmentScene?.dispose();
-      return () => {
-        disposed = true;
-        canvas.remove();
-      };
+      cleanup();
+      return;
     }
+    await yieldToMainThread();
+    if (disposed) return;
 
     const warmFill = new THREE.HemisphereLight("#f1e9da", "#1b1813", 1.5);
     scene.add(warmFill);
@@ -713,9 +740,12 @@ export default function Scene({
       canvas,
       renderer,
       disposeTree,
-      onError: fail,
+      onError: (error, id) => callbacks.current.onSupportError?.(error, id),
       onInvalidate: invalidateScene,
-      onModel: warmModel,
+      onModel: (group, id) => {
+        warmModel(group);
+        callbacks.current.onSupportError?.(null, id);
+      },
     });
     const supportRoot = supportAssets.root;
     scene.add(supportRoot);
@@ -1008,7 +1038,8 @@ export default function Scene({
           decodeQueue = decoding;
           return decoding;
         })
-        .then((gltf) => {
+        .then(async (gltf) => {
+          await yieldToMainThread();
           if (disposed || request.signal.aborted || currentDish !== name) {
             disposeTree(gltf.scene);
             return;
@@ -1801,7 +1832,7 @@ export default function Scene({
     }
     function draw(now) {
       frame = 0;
-      if (disposed || failed || arExperience?.active) {
+      if (disposed || failed || arExperience?.active || openingShadersPending) {
         lastTime = 0;
         return;
       }
@@ -2010,11 +2041,16 @@ export default function Scene({
       particles.visible = pose.particles;
       if (particles.visible)
         particles.rotation.y = state.reducedMotion ? 0 : now * 0.000025;
-      const collection = state.collection || "acrylique";
-      // A page that changes stands between chapters loads them once ready.
-      if (ready && state.preloadCollections && !collectionsPreloaded) {
-        collectionsPreloaded = true;
-        supportAssets.preload(state.preloadCollections);
+      const owner = state.transition
+        ? (state.transition.progress < 0.5 ? state.transition.from : state.transition.to)
+        : state.section;
+      // Digital belongs to its discovery and pricing shots; other landing props stay physical.
+      const collection = state.collection === "digital" && LANDING_SECTIONS.has(owner) && owner !== "product"
+        ? "acrylique" : state.collection || "acrylique";
+      const preloadKey = state.preloadCollections?.join("|") ?? "";
+      if (ready && preloadKey !== lastPreloadCollections) {
+        lastPreloadCollections = preloadKey;
+        supportAssets.preload(state.preloadCollections ?? []);
       }
       // A stand or phone downloads once a shot shows one (or after the reveal),
       // never competing with an opening that has none.
@@ -2174,6 +2210,17 @@ export default function Scene({
               }
             });
           }
+          if (!ready && layerKey !== compiledOpeningKey) {
+            compiledOpeningKey = layerKey;
+            openingShadersPending = true;
+            camera.position.copy(authoredCamera);
+            prepareSceneShaders(renderer, scene, camera, () => disposed || failed)
+              .then(() => {
+                openingShadersPending = false;
+                invalidateScene();
+              }).catch(fail);
+            return;
+          }
           renderer.info.reset();
           const startRender = performance.now();
           canvas.dataset.shadowUpdated = String(renderer.shadowMap.needsUpdate);
@@ -2238,7 +2285,7 @@ export default function Scene({
           !ready &&
           // Only what the opening shot shows gates the reveal; the rest loads behind.
           (activeDish || !(pose.dishScale > 0.003)) &&
-          (canvas.dataset.supportReady === "true" || !(pose.supportScale > 0.003)) &&
+          (canvas.dataset.supportReady === "true" || canvas.dataset.supportError || !(pose.supportScale > 0.003)) &&
           (canvas.dataset.phoneReady === "true" || !(pose.phoneScale > 0.003 || pose.pdfPhoneScale > 0.003)) &&
           canvas.dataset.restaurantReady === "true" &&
           (!state.needsLaptop || canvas.dataset.laptopReady === "true") &&
@@ -2348,7 +2395,7 @@ export default function Scene({
     document.addEventListener("visibilitychange", visibilityChanged);
     invalidateScene();
 
-    return () => {
+    cleanup = () => {
       disposed = true;
       cancelAnimationFrame(frame);
       frame = 0;
@@ -2400,6 +2447,15 @@ export default function Scene({
           renderer.forceContextLoss();
           canvas.remove();
         });
+    };
+    }
+    initialize().catch(error => {
+      cleanup();
+      if (!cancelled) callbacks.current.onError?.(error);
+    });
+    return () => {
+      cancelled = true;
+      cleanup();
     };
   }, [stateRef]);
 

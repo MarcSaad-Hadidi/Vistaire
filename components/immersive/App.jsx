@@ -4,6 +4,7 @@ import Link from "next/link";
 import { preload } from "react-dom";
 import { resolvePublicModelUrl } from "../../lib/publicModelAssets.ts";
 import { createEntryScrollAssist } from "./EntryScrollAssist.js";
+import { EARLY_SCROLL_HOLD, useDeferredScene, useScrollHold } from "./deferredScene.js";
 import { useLinkIntent } from "./useLinkIntent.js";
 import { bindPublicMenuViewport } from "@/lib/publicMenuViewport";
 import {
@@ -25,7 +26,7 @@ import {
 } from "lucide-react";
 import {
   chapters,
-  collections as sourceCollections,
+  presentationOptions as sourceCollections,
   dishes as sourceDishes,
   experiences as sourceExperiences,
   site,
@@ -305,28 +306,32 @@ function Modal({ label, children, close }) {
     </div>
   );
 }
-export function App({ locale = "fr" }) {
-  // The room and phone download with the HTML, not after the lazy scene chunk;
-  // the scene's own fetches reuse them (same URL and CORS mode).
+// The opening's models, fetched by the scene with the same URL and CORS mode.
+function prefetchOpening() {
+  const fetchHint = { as: "fetch", crossOrigin: "anonymous" };
   for (const id of ["immersive.restaurant.visible.textures-512", "immersive.phone", "immersive.support.acrylique"])
-    preload(resolvePublicModelUrl(id), { as: "fetch", crossOrigin: "anonymous" });
+    preload(resolvePublicModelUrl(id), fetchHint);
   // The Draco decoder the room needs, fetched by three's FileLoader.
   for (const file of ["draco_wasm_wrapper.js", "draco_decoder.wasm"])
-    preload(`/immersive-assets/draco/${file}`, { as: "fetch", crossOrigin: "anonymous" });
-  // The opening lobster depends on the viewport (Scene.jsx modelUrl): start it
-  // at hydration rather than after the scene chunk.
-  useEffect(() => {
-    preload(resolvePublicModelUrl(innerWidth < 768 ? "immersive.dish.homard.scene-mobile" : "immersive.dish.homard.scene"),
-      { as: "fetch", crossOrigin: "anonymous" });
-  }, []);
+    preload(`/immersive-assets/draco/${file}`, fetchHint);
+  // The opening lobster depends on the viewport (Scene.jsx modelUrl).
+  preload(resolvePublicModelUrl(innerWidth < 768 ? "immersive.dish.homard.scene-mobile" : "immersive.dish.homard.scene"), fetchHint);
+}
+
+export function App({ locale = "fr" }) {
+  preload("/immersive-assets/fonts/libertine-display.woff2", { as: "font", type: "font/woff2", crossOrigin: "anonymous" });
+  preload("/immersive-assets/fonts/biolinum.woff2", { as: "font", type: "font/woff2", crossOrigin: "anonymous" });
+  // The opening is first painted as a still of its own 3D frame (the poster in
+  // .world); the scene crossfades over it once ready (useDeferredScene).
+  const sceneStarted = useDeferredScene(prefetchOpening);
   return (
     <LandingLocaleProvider locale={locale}>
-      <LandingContent />
+      <LandingContent sceneStarted={sceneStarted} />
     </LandingLocaleProvider>
   );
 }
 
-function LandingContent() {
+function LandingContent({ sceneStarted }) {
   const { locale, t, href: link } = useLandingLocale();
   const collections = sourceCollections.map((item) => ({
     ...item,
@@ -377,7 +382,11 @@ function LandingContent() {
     }
   };
   const [ready, setReady] = useState(false);
+  const [posterGone, setPosterGone] = useState(false);
   const [gpuError, setGpuError] = useState(false);
+  // Scrolling waits on the poster until the whole opening shot (room included)
+  // is ready; the poster covers the canvas until then.
+  const holdingScroll = useScrollHold(!ready && !gpuError);
   // Another page fetches as a link is reached and shows the loading screen the
   // moment it is clicked (useLinkIntent); 8 s releases a navigation that never came.
   const [leaving, setLeaving] = useState(false);
@@ -389,10 +398,15 @@ function LandingContent() {
     return () => clearTimeout(release);
   }, [leaving]);
   const [modal, setModal] = useState(null);
-  const [collection, setCollection] = useState("acrylique");
+  const [collection, setCollection] = useState("digital");
+  const [presentationErrors, setPresentationErrors] = useState({});
+  const onSupportError = useCallback((error, id) => {
+    setPresentationErrors((errors) => ({ ...errors, [id]: Boolean(error) }));
+  }, []);
   const [phoneDemo, setPhoneDemo] = useState("maison-elyse");
   const [phoneVideoError, setPhoneVideoError] = useState(null);
   const [supportAngles, setSupportAngles] = useState({
+    digital: 0,
     acrylique: 0,
     sculpte: 0,
     carre: 0,
@@ -472,6 +486,7 @@ function LandingContent() {
   const featureBeat = chapterBeats.features;
   const socialBeat = chapterBeats["social-content"];
   const selected = collections.find((x) => x.id === collection);
+  const presentationFallback = gpuError || presentationErrors[collection];
   const close = useCallback(() => setModal(null), []);
   useEffect(() => {
     const query = matchMedia("(prefers-reduced-motion: reduce)");
@@ -856,7 +871,7 @@ function LandingContent() {
       getGeometry: () => ({ opening, transitions, pricing: stateRef.current.pricingReadingStops?.() }),
       isBlocked: () => {
         const state = stateRef.current;
-        return stopped || !state.sceneReady || state.menuOpen || state.modalOpen || state.arActive || state.reducedMotion;
+        return stopped || !state.sceneReady || state.menuOpen || state.modalOpen || state.arActive;
       },
     });
     paceState.cancelEntryAssist = entryAssist.cancel;
@@ -935,7 +950,7 @@ function LandingContent() {
       sceneReady: ready && !gpuError,
       retryModel,
     });
-    if (menu || modal || reduce || arStatus !== "idle" || !ready || gpuError) stateRef.current.cancelEntryAssist?.("blocked-ui-state");
+    if (menu || modal || arStatus !== "idle" || !ready || gpuError) stateRef.current.cancelEntryAssist?.("blocked-ui-state");
     stateRef.current.setEntryTouchSuppressed?.(Boolean(menu || modal || arStatus !== "idle"));
     stateRef.current.syncEntryTouchLock?.();
     stateRef.current.invalidateScene?.();
@@ -1087,9 +1102,6 @@ function LandingContent() {
     setReady(false);
   }, []);
   const onSceneReady = useCallback(() => setReady(true), []);
-  const showSceneError = useCallback(dialog => {
-    if (dialog && !dialog.open) dialog.showModal();
-  }, []);
   useEffect(() => {
     if (!ready || !new URLSearchParams(location.search).has("dish")) return;
     const el = sectionRefs.current.grip;
@@ -1113,6 +1125,7 @@ function LandingContent() {
   };
   return (
     <>
+      <script dangerouslySetInnerHTML={{ __html: EARLY_SCROLL_HOLD }} />
       <a
         className="skip-link"
         href="#ai"
@@ -1126,13 +1139,14 @@ function LandingContent() {
       <div className="world">
         <div id="pricing-screen-host" />
         <Suspense fallback={null}>
-          {!gpuError && (
+          {!gpuError && sceneStarted && (
             <Scene
               stateRef={stateRef}
               onReady={onSceneReady}
               onError={onSceneError}
               onAssetError={setModelError}
               onAssetLoading={setModelLoading}
+              onSupportError={onSupportError}
               onPhoneVideoError={setPhoneVideoError}
               onARStatus={setARStatus}
               onZoomFit={fit => {
@@ -1142,6 +1156,14 @@ function LandingContent() {
             />
           )}
         </Suspense>
+        {/* After the scene layer, so the still covers the loading canvas. */}
+        {!posterGone && (
+          <picture className={`opening-poster${ready ? " is-faded" : ""}`}
+            onTransitionEnd={() => ready && setPosterGone(true)}>
+            <source media="(orientation: landscape)" srcSet="/immersive-assets/opening-poster-landscape.webp" />
+            <img src="/immersive-assets/opening-poster-portrait.webp" alt="" fetchPriority="high" />
+          </picture>
+        )}
       </div>
       <div id="pricing-actions-host" />
       {performanceCapture && (
@@ -1179,17 +1201,21 @@ function LandingContent() {
         </details>
       )}
       {gpuError && (
-        <dialog className="scene-error" role="alertdialog" aria-labelledby="scene-error-title"
-          ref={showSceneError} onCancel={event => event.preventDefault()}>
-          <div className="loading-word">Vistaire</div>
+        <div className="scene-notice" role="status" aria-labelledby="scene-error-title">
           <p id="scene-error-title">{t("L’expérience 3D est indisponible.")}</p>
           <Action onClick={() => location.reload()}>{t("Réessayer")}</Action>
           <Link prefetch={false} className="text-link" href={link("/demo")}>
             {t("Explorer la carte")} <ArrowUpRight size={17} />
           </Link>
-        </dialog>
+        </div>
       )}
-      {(!ready || leaving) && !gpuError && (
+      {holdingScroll && sceneStarted && !leaving && (
+        <div className="poster-cue" role="status">
+          <div className="loading-line" />
+          <span>{t("Préparons votre table.")}</span>
+        </div>
+      )}
+      {leaving && !gpuError && (
         <div className="preloader" role="status">
           <div className="loading-word">Vistaire</div>
           <div className="loading-line" />
@@ -1840,12 +1866,12 @@ function LandingContent() {
           className="product"
         >
           <span className="eyebrow stage-eyebrow">
-            {t("Choisissez votre collection")}
+            {t("Choisissez votre offre")}
           </span>
           <h2 id="product-title">VISTAIRE</h2>
           <div
             role="tablist"
-            aria-label={t("Collections de supports")}
+            aria-label={t("Offres Vistaire")}
             className="collection-tabs"
           >
             {collections.map((x) => (
@@ -1863,10 +1889,10 @@ function LandingContent() {
                     (c) => c.id === collection,
                   );
                   let next;
-                  if (e.key === "ArrowRight") next = (index + 1) % 4;
-                  else if (e.key === "ArrowLeft") next = (index + 3) % 4;
+                  if (e.key === "ArrowRight") next = (index + 1) % collections.length;
+                  else if (e.key === "ArrowLeft") next = (index + collections.length - 1) % collections.length;
                   else if (e.key === "Home") next = 0;
-                  else if (e.key === "End") next = 3;
+                  else if (e.key === "End") next = collections.length - 1;
                   if (next !== undefined) {
                     e.preventDefault();
                     setCollection(collections[next].id);
@@ -1882,34 +1908,41 @@ function LandingContent() {
           </div>
           <FocusFrame
             className="support-gesture"
-            role="slider"
-            tabIndex={0}
+            role={presentationFallback ? undefined : "slider"}
+            tabIndex={presentationFallback ? undefined : 0}
             aria-label={
               locale === "en"
-                ? `Rotate the ${selected.name} stand in 3D`
-                : `Tourner le support ${selected.name} en 3D`
+                ? `Rotate the ${selected.name} presentation in 3D`
+                : `Tourner la présentation ${selected.name} en 3D`
             }
-            aria-valuemin={0}
-            aria-valuemax={360}
-            aria-valuenow={Math.round(((supportAngle % 360) + 360) % 360)}
-            {...supportGestures}
+            aria-valuemin={presentationFallback ? undefined : 0}
+            aria-valuemax={presentationFallback ? undefined : 360}
+            aria-valuenow={presentationFallback ? undefined : Math.round(((supportAngle % 360) + 360) % 360)}
+            {...(presentationFallback ? {} : supportGestures)}
             onKeyDown={(e) => {
               if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
                 e.preventDefault();
                 turnSupport(supportAngle + (e.key === "ArrowRight" ? 15 : -15));
               }
             }}
-          />
-          <div className="support-controls">
-            <span>{t("Glissez le support pour le tourner")}</span>
+          >
+            {presentationFallback && (
+              <figure className="presentation-fallback" role="status">
+                <img src={selected.image} width="1536" height="1024" alt={locale === "en" ? `${selected.name} presentation` : `Présentation ${selected.name}`} />
+                <figcaption>{t("Aperçu 3D indisponible. Photographie présentée.")}</figcaption>
+              </figure>
+            )}
+          </FocusFrame>
+          {!presentationFallback && <div className="support-controls">
+            <span>{t("Glissez la présentation pour la tourner")}</span>
             <button
               onClick={() => turnSupport(0)}
-              aria-label={t("Recentrer le support")}
+              aria-label={t("Recentrer la présentation")}
             >
               <RotateCw size={14} />
               {t("Recentrer")}
             </button>
-          </div>
+          </div>}
           <div
             role="tabpanel"
             id="collection-panel"
@@ -1917,7 +1950,7 @@ function LandingContent() {
             className="collection-details"
           >
             <div>
-              <span className="eyebrow">Collection {selected.name}</span>
+              <span className="eyebrow">{selected.id === "digital" ? "Vistaire Digital" : `Collection ${selected.name}`}</span>
               <p>{selected.description}</p>
               <p className="collection-usage">{selected.usage}</p>
             </div>

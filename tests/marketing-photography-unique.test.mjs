@@ -4,10 +4,11 @@ import { existsSync } from "node:fs";
 
 // A translated route uses the same logical placement. Separate sections never
 // reuse a photograph, including home thumbnails and dedicated pricing cards.
+// Digital intentionally shares one registered slot between its card and phone.
 test("public marketing placements each own a unique existing photo and localized description", async () => {
   const { SEO_MARKETING_IMAGES, getSeoMarketingImage } = await import("../lib/seoMarketingImages.ts");
   const entries = Object.entries(SEO_MARKETING_IMAGES);
-  assert.equal(entries.length, 67);
+  assert.equal(entries.length, 68);
   assert.equal(new Set(entries.map(([, image]) => image.src)).size, entries.length);
   for (const [slot, image] of entries) {
     assert.ok(existsSync(new URL(`../public${image.src}`, import.meta.url)), `${slot}: ${image.src}`);
@@ -20,4 +21,5 @@ test("public marketing placements each own a unique existing photo and localized
     assert.match(getSeoMarketingImage(slot, "en").alt, /allergen/i);
   }
   assert.throws(() => getSeoMarketingImage("missing:slot", "fr"), /Unknown marketing image slot/);
+  assert.equal(getSeoMarketingImage("PRICING:collection:digital").src, "/images/marketing/vistaire-digital-sauge-noire.webp");
 });

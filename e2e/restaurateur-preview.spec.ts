@@ -239,8 +239,9 @@ async function expectSafeSeo(page: Page, scenario: Scenario) {
 // The film plays in free reading, after the page's 3D chapters: bring it to
 // the middle of the screen, as a visitor scrolling to it would.
 async function revealFilm(page: Page) {
+  await expect(page.locator(".preloader")).toHaveCount(0, {timeout: 30_000});
   await page.locator("[data-dashboard-walkthrough]").evaluate(element => element.scrollIntoView({block: "center"}));
-  await page.waitForTimeout(1000);
+  await expect(page.locator("[data-dashboard-walkthrough] video")).toBeInViewport();
 }
 
 for (const scenario of scenarios) {
@@ -252,6 +253,10 @@ for (const scenario of scenarios) {
     await expect(page.getByRole("heading", {level: 1})).toHaveCount(1);
     await expect(page.locator("[data-admin-studio]")).toHaveCount(0);
     await revealFilm(page);
+    // The jump starts this page's 3D. Under CI's software WebGL its setup holds
+    // the main thread for 6-8 s (measured, with or without the scroll hold), so
+    // the media timing below is checked once the scene is ready.
+    await expect(page.locator(".scene-canvas")).toHaveAttribute("data-ready", "true", {timeout: 60_000});
     const film = page.locator("[data-dashboard-walkthrough]");
     const video = film.locator("video");
     await expect(video).toHaveAttribute("aria-label", scenario.videoLabel);
@@ -271,7 +276,8 @@ for (const scenario of scenarios) {
     expect(Math.abs(box!.x + box!.width / 2 - 640)).toBeLessThan(2);
     await expect(video).toHaveAttribute("src", "https://cdn.vistaire.ca/demo/dashboard-studio-3x-67468b94997f.mp4");
     await expect.poll(() => video.evaluate(element => (element as HTMLVideoElement).muted)).toBe(true);
-    await expect.poll(() => video.evaluate(element => (element as HTMLVideoElement).currentTime)).toBeGreaterThan(.2);
+    // Software WebGL can still hold the main thread right after the scene reports ready.
+    await expect.poll(() => video.evaluate(element => (element as HTMLVideoElement).currentTime), {timeout: 15_000}).toBeGreaterThan(.2);
     expect(await video.evaluate(element => (element as HTMLVideoElement).duration)).toBeCloseTo(137.9, 1);
     // The Studio walkthrough plays at twice its recorded speed.
     expect(await video.evaluate(element => (element as HTMLVideoElement).playbackRate)).toBe(2);
@@ -279,7 +285,8 @@ for (const scenario of scenarios) {
     const beforeClick = await video.evaluate(element => (element as HTMLVideoElement).currentTime);
     await page.mouse.click(box!.x + box!.width / 2, box!.y + box!.height / 2);
     expect(await video.evaluate(element => (element as HTMLVideoElement).paused)).toBe(false);
-    await expect.poll(() => video.evaluate(element => (element as HTMLVideoElement).currentTime)).toBeGreaterThan(beforeClick);
+    // WebKit can pause to buffer while the page's 3D models download alongside.
+    await expect.poll(() => video.evaluate(element => (element as HTMLVideoElement).currentTime), {timeout: 15_000}).toBeGreaterThan(beforeClick);
     expect(await video.evaluate(element => {
       element.focus();
       return document.activeElement === element;

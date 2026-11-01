@@ -6,6 +6,7 @@ const RESTAURANT_A = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 const MENU_A = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
 const RESTAURANT_B = "cccccccc-cccc-4ccc-8ccc-cccccccccccc";
 const MENU_B = "dddddddd-dddd-4ddd-8ddd-dddddddddddd";
+const PRIVACY_CONSENT_KEY = "vistaire.privacyConsent.v1";
 
 test("production menu events require a relational menu identity", async () => {
   const { validateAnalyticsEvent } = await import("../lib/analytics/validationCore.mjs");
@@ -25,12 +26,18 @@ test("production menu events require a relational menu identity", async () => {
 test("two relational public menus keep their own identity across menu interactions", async () => {
   const sent = [];
   const storage = new Map();
+  const consentStorage = new Map([
+    [PRIVACY_CONSENT_KEY, JSON.stringify({ version: 1, analytics: true })]
+  ]);
   const previousWindow = globalThis.window;
   const previousFetch = globalThis.fetch;
   globalThis.window = {
     innerWidth: 390,
     innerHeight: 844,
     devicePixelRatio: 2,
+    localStorage: {
+      getItem: (key) => consentStorage.get(key) ?? null
+    },
     sessionStorage: {
       getItem: (key) => storage.get(key) ?? null,
       setItem: (key, value) => storage.set(key, value)

@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { privacyAcceptedStorageState } from "./support/privacy-consent";
 
 const MOBILE_VIEWPORT = { width: 390, height: 844 };
 
@@ -95,7 +96,11 @@ async function expectNoHorizontalOverflow(page: Page) {
 }
 
 test.describe("shared public menu smoke · one Chromium fixture", { tag: '@critical' }, () => {
-  test.use({ viewport: MOBILE_VIEWPORT });
+  test.use({
+    viewport: MOBILE_VIEWPORT,
+    // These checks assert first-party analytics events, which require opt-in.
+    storageState: privacyAcceptedStorageState(process.env.PLAYWRIGHT_BASE_URL ?? "http://127.0.0.1:3000")
+  });
 
   // The runner explicitly selects the complete static Maison demo fixture,
   // whose analytics uses the configured demo restaurant and sentinel menu.

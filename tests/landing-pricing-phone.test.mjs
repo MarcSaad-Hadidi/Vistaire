@@ -5,6 +5,17 @@ import { createHash } from 'node:crypto';
 import * as THREE from 'three';
 import vm from 'node:vm';
 
+test('Digital is the first commercial phone offer and has its own pricing scene', async () => {
+  const pricing = readFileSync('components/immersive/Pricing.jsx', 'utf8');
+  const page = readFileSync('components/vistaire-preview/VistairePricingPreview.tsx', 'utf8');
+  const { pageShot } = await import('../components/immersive/PageShots.js');
+  assert.match(pricing, /digital/);
+  assert.match(page, /digital:\s*["']pricing-digital["']/);
+  const shot = pageShot('pricing-digital', 0, false, true);
+  assert.ok(shot?.supportScale > 0, 'Digital must use a real model composition');
+  assert.ok(shot.camera[1] > 3, 'the camera sees the open paper from above');
+});
+
 // New lower-section behavior: a single native page scroll owns reading, with
 // reversible keyboard destinations. Existing landing tests do not cover a phone.
 test('pricing phone reading starts after entry and reverses through native page positions', async () => {

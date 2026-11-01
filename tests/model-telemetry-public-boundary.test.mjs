@@ -7,7 +7,7 @@ test('model and legacy AR events require an explicitly enabled public context', 
   assert.equal(typeof telemetry.trackPublicModelEvent, 'function');
   const previousWindow = globalThis.window, previousFetch = globalThis.fetch;
   const sent = [], storage = new Map();
-  globalThis.window = { innerWidth: 390, location: { search: '' }, sessionStorage: { getItem: key => storage.get(key), setItem: (key, value) => storage.set(key, value) } };
+  globalThis.window = { innerWidth: 390, localStorage: { getItem: () => '{"version":1,"analytics":true}' }, location: { search: '' }, sessionStorage: { getItem: key => storage.get(key), setItem: (key, value) => storage.set(key, value) } };
   globalThis.fetch = async (_url, request) => { sent.push(JSON.parse(request.body)); return { ok: true }; };
   const context = { restaurantId: '11111111-1111-4111-8111-111111111112', menuId: '22222222-2222-4222-8222-222222222223', source: 'production' };
   try {

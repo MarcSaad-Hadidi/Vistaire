@@ -1,4 +1,4 @@
-import type { PricingCollectionId } from "./pricingPage.ts";
+import type { PricingCollectionId, PricingOfferId } from "./pricingPage.ts";
 
 export const MIN_TABLE_COUNT = 1;
 export const INCLUDED_TABLE_COUNT = 20;
@@ -25,13 +25,25 @@ export function calculateEstimatedSetupPrice({
   baseSetupAmount,
   tableCount
 }: {
-  collectionId: PricingCollectionId;
+  collectionId: PricingOfferId;
   baseSetupAmount: number;
   tableCount: number;
 }): number {
+  if (collectionId === "digital") return baseSetupAmount;
+
   const extraTables = calculateExtraTableCount(tableCount);
 
   return baseSetupAmount + extraTables * EXTRA_TABLE_PRICE_BY_COLLECTION[collectionId];
+}
+
+export function calculateFirstYearCost({
+  setupAmount,
+  monthlyAmount
+}: {
+  setupAmount: number;
+  monthlyAmount: number;
+}): number {
+  return setupAmount + 12 * monthlyAmount;
 }
 
 function groupThousands(value: number, separator: string): string {
