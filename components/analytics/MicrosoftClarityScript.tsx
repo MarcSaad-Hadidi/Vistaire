@@ -79,16 +79,10 @@ export function MicrosoftClarityScript({
     return null;
   }
 
-  if (!shouldLoad) {
-    return children;
-  }
-
-  if (!analyticsAllowed) {
-    return children;
-  }
-
+  // children keep one position so a consent change never remounts the page.
   return (
     <>
+      {shouldLoad && analyticsAllowed && (
       <Script id="microsoft-clarity" strategy="afterInteractive">
         {`
           if (!window.__vistaireClarityBlocked) {
@@ -104,6 +98,7 @@ export function MicrosoftClarityScript({
           }
         `}
       </Script>
+      )}
       {children}
     </>
   );

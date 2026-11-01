@@ -108,7 +108,7 @@ test("Microsoft Clarity is gated by explicit analytics consent and signals conse
 
   assert.match(source, /usePrivacyConsent\(\)/);
   assert.match(source, /analyticsAllowed/);
-  assert.match(source, /if\s*\(!analyticsAllowed\)\s*\{\s*return children;\s*\}/);
+  assert.match(source, /\{shouldLoad && analyticsAllowed && \(\s*<Script id="microsoft-clarity"/);
   assert.match(source, /["']consentv2["']/);
   assert.match(source, /analytics_Storage:\s*["']granted["']/);
   assert.match(source, /ad_Storage:\s*["']denied["']/);

@@ -127,7 +127,7 @@ test("client route changes stop Clarity and reload before protected content rend
   );
   assert.match(
     clientComponent,
-    /if\s*\(!shouldLoad\)\s*\{\s*return children;\s*\}/
+    /\{shouldLoad && analyticsAllowed && \(\s*<Script id="microsoft-clarity"/
   );
 });
 
@@ -186,6 +186,13 @@ test("navigation start stops Clarity before a sensitive URL transition", async (
     await readSource(clientComponentPath),
     /window\.__vistaireClarityPathname\s*=\s*pathname/
   );
+});
+
+test("consent changes keep the page subtree mounted in one position", async () => {
+  const source = await readSource(clientComponentPath);
+  // Returning children alone on one branch and <>Script children</> on another remounts the whole page.
+  assert.doesNotMatch(source, /return children;/);
+  assert.equal(source.match(/\{children\}/g)?.length, 1);
 });
 
 test("Microsoft Clarity requires no additional package", async () => {
