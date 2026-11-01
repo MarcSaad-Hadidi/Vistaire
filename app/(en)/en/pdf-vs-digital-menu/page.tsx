@@ -1,8 +1,6 @@
 import type { Metadata } from "next";
 import { JsonLd } from "@/components/JsonLd";
-import { SeoInteractiveComparison } from "@/components/landing/SeoInteractiveComparison";
-import { VistairePdfVsMenuDigitalPreview } from "@/components/vistaire-preview/VistairePdfVsMenuDigitalPreview";
-import { VistaireSeoProductionSections } from "@/components/vistaire-preview/VistaireSeoProductionSections";
+import { PdfMenuCinematic } from "@/components/immersive/pages/PdfMenuCinematic";
 import { buildPageAlternates, LOCALE_OPEN_GRAPH } from "@/lib/i18n";
 import { absoluteUrl } from "@/lib/seo";
 import { buildSeoPillarJsonLd } from "@/lib/seoPillarJsonLd";
@@ -43,19 +41,7 @@ export default function PdfVsDigitalMenuRouteEn() {
   return (
     <>
       <JsonLd data={buildSeoPillarJsonLd(page)} />
-      <VistairePdfVsMenuDigitalPreview
-        h1={page.h1}
-        interactiveShowcase={
-          <SeoInteractiveComparison
-            deviceEmphasis
-            locale="en"
-            interaction="slider"
-          />
-        }
-        locale="en"
-        routeMode="production"
-        seoAppendix={<VistaireSeoProductionSections page={page} />}
-      />
+      <PdfMenuCinematic page={page} />
     </>
   );
 }

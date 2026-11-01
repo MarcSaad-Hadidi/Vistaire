@@ -634,7 +634,7 @@ test("landing runtime source keeps fallbacks and exchange state outside the live
   assert.doesNotMatch(landingSource, /\{\s*revalidate:\s*60\s*\}/);
   assert.match(resolverSource, /resolvePublicMenuStableRenderContext/);
   assert.match(resolverSource, /resolvePublicMenuExchangeRates/);
-  assert.match(resolverSource, /configRecord\.status === "published"/);
+  assert.match(resolverSource, /\.eq\("status", "published"\)/);
   assert.match(resolverSource, /resolved\.source === "supabase"/);
   assert.match(resolverSource, /resolved\.restaurantId === renderContext\.menu\.restaurantId/);
   assert.match(resolverSource, /resolved\.menuId === renderContext\.menu\.menuId/);

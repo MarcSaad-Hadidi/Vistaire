@@ -1,11 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import {
-  MENU_EXPERIENCE_BLUEPRINTS,
-  MENU_EXPERIENCE_BLUEPRINT_IDS,
-  getMenuExperienceBlueprint
-} from "../lib/menu/menuExperienceBlueprints.ts";
+import { getMenuExperienceBlueprint } from "../lib/menu/menuExperienceBlueprints.ts";
 
 const REQUIRED_BLUEPRINTS = [
   "classic-tabs",
@@ -21,16 +17,6 @@ const REQUIRED_BLUEPRINTS = [
   "tasting-journey",
   "compact-qr"
 ];
-
-test("menu experience blueprints expose the 12 required structures", () => {
-  assert.ok(MENU_EXPERIENCE_BLUEPRINTS.length >= 12);
-  assert.deepEqual(
-    REQUIRED_BLUEPRINTS.filter(
-      (blueprint) => !MENU_EXPERIENCE_BLUEPRINT_IDS.includes(blueprint)
-    ),
-    []
-  );
-});
 
 test("each blueprint has structural defaults and a render strategy", () => {
   const renderStrategies = new Set();

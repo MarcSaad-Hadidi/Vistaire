@@ -1,86 +1,16 @@
-import { expect, test, type Locator, type Page, type Request } from "@playwright/test";
+import { expect, test, type Page, type Request } from "@playwright/test";
 // @ts-expect-error -- dependency-free ESM policy is also exercised directly by Node contracts.
 import { classifyRestaurateurPreviewRequest, shouldIgnoreRestaurateurPreviewRequestFailure } from "./support/restaurateur-preview-request-policy.mjs";
 
 type Scenario = {
   path: "/apercu-restaurateur" | "/en/restaurant-preview";
-  demoLabel: RegExp;
-  forbiddenCopy: RegExp;
-  metricSelectorLabel: string;
-  periodsLabel: string;
-  metricButtons: readonly [string, string, string];
-  activityChartTitle: string;
-  noDishes: string;
-  tabs: readonly [string, string, string];
-  searchLabel: string;
-  filters: readonly [string, string, string];
-  simulation: RegExp;
-  sampleMenu: { label: string; href: string };
-  insights: readonly string[];
+  sampleMenu: {label: string; href: string};
+  videoLabel: string;
 };
-
-const scenarios: readonly Scenario[] = [
-  {
-    path: "/apercu-restaurateur",
-    demoLabel: /Données de démonstration/i,
-    forbiddenCopy: /Demo data|No customer data|Search dishes|View sample menu|this change is not saved/i,
-    metricSelectorLabel: "Métrique affichée",
-    periodsLabel: "Période analysée",
-    metricButtons: ["Ouvertures du menu", "Consultations de plats", "Recherches"],
-    activityChartTitle: "Activité du menu sur la période",
-    noDishes: "Aucun plat ne correspond à cette recherche.",
-    tabs: ["Vue d’ensemble", "Disponibilités", "Analyses"],
-    searchLabel: "Rechercher un plat",
-    filters: ["Tous", "Disponibles", "Indisponibles"],
-    simulation: /Simulation — ce changement n’est pas enregistré\./i,
-    sampleMenu: { label: "Voir la carte exemple", href: "/demo" },
-    insights: [
-      "Activité",
-      "Comparaison",
-      "Moments d’activité",
-      "Top plats consultés",
-      "Top recherches",
-      "Activité par catégorie",
-      "Moments de service",
-      "Résumé de la période",
-      "Insights clés"
-    ]
-  },
-  {
-    path: "/en/restaurant-preview",
-    demoLabel: /Demo data/i,
-    forbiddenCopy: /Données de démonstration|Aucune donnée client|Rechercher un plat|Voir la carte exemple|ce changement n’est pas enregistré/i,
-    metricSelectorLabel: "Metric shown",
-    periodsLabel: "Analysis period",
-    metricButtons: ["Menu opens", "Dish views", "Searches"],
-    activityChartTitle: "Menu activity over the period",
-    noDishes: "No dishes match this search.",
-    tabs: ["Overview", "Availability", "Insights"],
-    searchLabel: "Search dishes",
-    filters: ["All", "Available", "Unavailable"],
-    simulation: /Simulation — this change is not saved\./i,
-    sampleMenu: { label: "View sample menu", href: "/en/vistaire-menu" },
-    insights: [
-      "Activity",
-      "Comparison",
-      "Activity times",
-      "Top viewed dishes",
-      "Top searches",
-      "Activity by category",
-      "Service times",
-      "Period summary",
-      "Key insights"
-    ]
-  }
+const scenarios: Scenario[] = [
+  {path: "/apercu-restaurateur", sampleMenu: {label: "Voir la carte exemple", href: "/demo"}, videoLabel: "Vidéo de démonstration du Studio Vistaire"},
+  {path: "/en/restaurant-preview", sampleMenu: {label: "View sample menu", href: "/en/vistaire-menu"}, videoLabel: "Vistaire Studio demonstration video"}
 ];
-
-const viewports = [
-  { width: 390, height: 844 },
-  { width: 430, height: 932 },
-  { width: 768, height: 1024 },
-  { width: 1280, height: 800 },
-  { width: 1440, height: 900 }
-] as const;
 const canonicalOrigin = "https://www.vistaire.ca";
 
 const allowedJsonLdDocumentTypes = new Set(["WebPage", "Service", "BreadcrumbList"]);
@@ -143,6 +73,7 @@ function observeRuntime(page: Page, baseURL: string) {
   const frameworkPosts: string[] = [];
   const modelRequests: string[] = [];
   const videoRequests: string[] = [];
+  const videoNetworkEvents: {event: string; at: number; detail: string}[] = [];
 
   page.on("console", (message) => {
     if (message.type() === "error") consoleErrors.push(message.text());
@@ -160,7 +91,10 @@ function observeRuntime(page: Page, baseURL: string) {
     if (result.unexpectedWrite) unexpectedWrites.push(result.pathname);
     if (result.frameworkInternal) frameworkPosts.push(result.pathname);
     if (result.modelAsset) modelRequests.push(result.pathname);
-    if (result.videoAsset) videoRequests.push(result.pathname);
+    if (result.videoAsset) {
+      videoRequests.push(result.pathname);
+      videoNetworkEvents.push({event: "request", at: Date.now(), detail: request.headers().range ?? "full"});
+    }
   });
   page.on("requestfailed", (request) => {
     const headers = request.headers();
@@ -168,7 +102,17 @@ function observeRuntime(page: Page, baseURL: string) {
       /prefetch/i.test(headers.purpose ?? "") ||
       /^(?:1|true|prefetch)$/i.test(headers["next-router-prefetch"] ?? "");
     const errorText = request.failure()?.errorText ?? "request failed";
+    if (new URL(request.url()).pathname === "/demo/dashboard-studio-3x-67468b94997f.mp4") {
+      videoNetworkEvents.push({event: "requestfailed", at: Date.now(), detail: errorText});
+    }
     if (errorText === "net::ERR_ABORTED" && explicitPrefetch) return;
+    // Seeking/looping cancels obsolete byte-range requests in both engines.
+    // Keep genuine transport errors and HTTP failures visible.
+    if (
+      (errorText === "net::ERR_ABORTED" || errorText === "Load request cancelled") &&
+      request.method() === "GET" &&
+      request.url() === "https://cdn.vistaire.ca/demo/dashboard-studio-3x-67468b94997f.mp4"
+    ) return;
     if (shouldIgnoreRestaurateurPreviewRequestFailure({
       baseOrigin: baseURL,
       url: request.url(),
@@ -177,6 +121,9 @@ function observeRuntime(page: Page, baseURL: string) {
     networkErrors.push(`${errorText} ${new URL(request.url()).pathname}`);
   });
   page.on("response", (response) => {
+    if (new URL(response.url()).pathname === "/demo/dashboard-studio-3x-67468b94997f.mp4") {
+      videoNetworkEvents.push({event: "response", at: Date.now(), detail: `${response.status()}`});
+    }
     if (response.status() === 404 || response.status() >= 500) {
       networkErrors.push(`${response.status()} ${new URL(response.url()).pathname}`);
     }
@@ -191,53 +138,18 @@ function observeRuntime(page: Page, baseURL: string) {
     frameworkPosts,
     modelRequests,
     videoRequests,
+    videoNetworkEvents,
     expectClean() {
       expect(consoleErrors, "console and hydration errors").toEqual([]);
       expect(networkErrors, "failed requests and 404/5xx responses").toEqual([]);
       expect(privateRequests, "private/admin/owner/Supabase requests").toEqual([]);
       expect(productMutations, "private product or analytics mutations").toEqual([]);
       expect(unexpectedWrites, `unexpected writes; Next internals: ${frameworkPosts.join(", ")}`).toEqual([]);
-      expect(modelRequests, "GLB or USDZ requests").toEqual([]);
-      expect(videoRequests, "video requests").toEqual([]);
+      // The page plays in the shared 3D room (its GLBs); AR models still wait for intent.
+      expect(modelRequests.filter(path => /\.usdz(?:$|[?#])/i.test(path)), "USDZ requests").toEqual([]);
+      expect(videoRequests.filter(path => path !== "/demo/dashboard-studio-3x-67468b94997f.mp4"), "only the requested walkthrough video may load").toEqual([]);
     }
   };
-}
-
-async function activateTab(tab: Locator) {
-  await tab.focus();
-  if ((await tab.getAttribute("aria-selected")) !== "true") await tab.press("Enter");
-  await expect(tab).toHaveAttribute("aria-selected", "true");
-}
-
-async function expectTabContract(page: Page, scenario: Scenario) {
-  const tablist = page.getByRole("tablist");
-  const tabs = tablist.getByRole("tab");
-  await expect(tablist).toBeVisible();
-  await expect(tabs).toHaveCount(3);
-  await expect(tablist.locator('[role="tab"][aria-selected="true"]')).toHaveCount(1);
-  for (const label of scenario.tabs) await expect(tablist.getByRole("tab", { name: label, exact: true })).toBeVisible();
-
-  const first = tablist.getByRole("tab", { name: scenario.tabs[0], exact: true });
-  const second = tablist.getByRole("tab", { name: scenario.tabs[1], exact: true });
-  const last = tablist.getByRole("tab", { name: scenario.tabs[2], exact: true });
-  await first.focus();
-  await first.press("End");
-  await expect(last).toBeFocused();
-  await activateTab(last);
-  await last.press("Home");
-  await expect(first).toBeFocused();
-  await activateTab(first);
-  await first.press("ArrowRight");
-  await expect(second).toBeFocused();
-  await activateTab(second);
-  await second.press("ArrowLeft");
-  await expect(first).toBeFocused();
-  await activateTab(first);
-
-  const active = tablist.locator('[role="tab"][aria-selected="true"]');
-  const controls = await active.getAttribute("aria-controls");
-  expect(controls).toBeTruthy();
-  await expect(page.locator(`#${controls}`)).toHaveAttribute("role", "tabpanel");
 }
 
 async function expectSafeDom(page: Page, scenario: Scenario) {
@@ -324,246 +236,140 @@ async function expectSafeSeo(page: Page, scenario: Scenario) {
   expect(new Set(documentTypes)).toEqual(new Set(["WebPage", "Service", "BreadcrumbList"]));
 }
 
-async function periodSignature(page: Page) {
-  return page.locator("[data-demo-kpi]").allTextContents();
+// The film plays in free reading, after the page's 3D chapters: bring it to
+// the middle of the screen, as a visitor scrolling to it would.
+async function revealFilm(page: Page) {
+  await page.locator("[data-dashboard-walkthrough]").evaluate(element => element.scrollIntoView({block: "center"}));
+  await page.waitForTimeout(1000);
 }
 
-async function exercisePeriods(page: Page) {
-  const periods = page.locator("button[data-demo-period]");
-  await expect(periods).toHaveCount(3);
-  await expect(page.locator('button[data-demo-period][aria-pressed="true"]')).toHaveCount(1);
-  const initial = await periodSignature(page);
-  await periods.filter({ hasText: "7" }).click();
-  await expect.poll(() => periodSignature(page)).not.toEqual(initial);
-  const sevenDays = await periodSignature(page);
-  await periods.filter({ hasText: "30" }).click();
-  await expect.poll(() => periodSignature(page)).not.toEqual(sevenDays);
-  await periods.filter({ hasText: "24" }).click();
-  await expect.poll(() => periodSignature(page)).toEqual(initial);
-}
-
-async function exerciseAvailability(page: Page, scenario: Scenario) {
-  await page.getByRole("tab", { name: scenario.tabs[1], exact: true }).click();
-  await expect(page.getByRole("group", { name: scenario.periodsLabel })).toHaveCount(0);
-  const summary = (id: string) => page.locator(`[data-demo-availability-metric="${id}"]`);
-  await expect(summary("total")).toContainText("12");
-  await expect(summary("available")).toContainText("10");
-  await expect(summary("unavailable")).toContainText("2");
-  const rows = page.locator("[data-demo-dish]");
-  await expect(rows).toHaveCount(12);
-
-  const firstName = await rows.first().getByRole("heading").innerText();
-  const search = page.getByRole("searchbox", { name: scenario.searchLabel });
-  await search.fill(firstName);
-  await expect.poll(() => rows.filter({ visible: true }).count()).toBeLessThan(12);
-  const matchingRows = rows.filter({ visible: true });
-  expect(await matchingRows.count()).toBeGreaterThan(0);
-  for (const row of await matchingRows.all()) await expect(row).toContainText(firstName);
-  await search.fill("vistaire-no-matching-dish-zzzz");
-  await expect(rows.filter({ visible: true })).toHaveCount(0);
-  await expect(page.getByRole("status").filter({ hasText: scenario.noDishes })).toBeVisible();
-  await search.fill("");
-  await expect(page.getByText(scenario.noDishes, { exact: true })).toBeHidden();
-
-  const all = page.getByRole("button", { name: scenario.filters[0], exact: true });
-  const available = page.getByRole("button", { name: scenario.filters[1], exact: true });
-  const unavailable = page.getByRole("button", { name: scenario.filters[2], exact: true });
-  for (const filter of [all, available, unavailable]) await expect(filter).toHaveAttribute("aria-pressed", /true|false/);
-  await unavailable.click();
-  await expect(unavailable).toHaveAttribute("aria-pressed", "true");
-  expect(await rows.evaluateAll((items) => items.filter((item) => getComputedStyle(item).display !== "none").every((item) => item.getAttribute("data-available") === "false"))).toBe(true);
-  await available.click();
-  expect(await rows.evaluateAll((items) => items.filter((item) => getComputedStyle(item).display !== "none").every((item) => item.getAttribute("data-available") === "true"))).toBe(true);
-  await all.click();
-
-  const toggle = rows.first().getByRole("switch");
-  await expect(toggle).toBeVisible();
-  await expect(toggle).toHaveAttribute("aria-checked", "true");
-  await toggle.click();
-  await expect(toggle).toHaveAttribute("aria-checked", "false");
-  const simulationStatus = page.getByRole("status").filter({ hasText: scenario.simulation });
-  await expect(simulationStatus).toBeVisible();
-  const unavailableAnnouncement = await simulationStatus.innerText();
-  await toggle.click();
-  await expect(toggle).toHaveAttribute("aria-checked", "true");
-  await expect(simulationStatus).not.toHaveText(unavailableAnnouncement);
-  await toggle.click();
-  await expect(toggle).toHaveAttribute("aria-checked", "false");
-  await expect(summary("available")).toContainText("9");
-  await expect(summary("unavailable")).toContainText("3");
-}
-
-async function exerciseInsightsMetricSelector(page: Page, scenario: Scenario) {
-  const selector = page.getByRole("group", { name: scenario.metricSelectorLabel });
-  const buttons = selector.getByRole("button");
-  await expect(buttons).toHaveCount(3);
-  for (const label of scenario.metricButtons) {
-    await expect(selector.getByRole("button", { name: label, exact: true })).toHaveAttribute("aria-pressed", /true|false/);
-  }
-  const activityChart = page.locator("[data-chart-frame]").filter({
-    has: page.getByRole("heading", { name: scenario.activityChartTitle, exact: true })
-  });
-  await expect(activityChart).toHaveCount(1);
-  const signature = () => activityChart.locator("tbody").innerText();
-  const menu = selector.getByRole("button", { name: scenario.metricButtons[0], exact: true });
-  const dishes = selector.getByRole("button", { name: scenario.metricButtons[1], exact: true });
-  const searches = selector.getByRole("button", { name: scenario.metricButtons[2], exact: true });
-  const selectedButtons = selector.locator('button[aria-pressed="true"]');
-  await expect(selectedButtons).toHaveCount(1);
-  await expect(menu).toHaveAttribute("aria-pressed", "true");
-  const menuSignature = await signature();
-  await dishes.click();
-  await expect(selectedButtons).toHaveCount(1);
-  await expect(dishes).toHaveAttribute("aria-pressed", "true");
-  await expect.poll(signature).not.toEqual(menuSignature);
-  const dishSignature = await signature();
-  await searches.click();
-  await expect(selectedButtons).toHaveCount(1);
-  await expect(searches).toHaveAttribute("aria-pressed", "true");
-  await expect.poll(signature).not.toEqual(dishSignature);
-  const searchSignature = await signature();
-  expect(searchSignature).not.toEqual(menuSignature);
-  expect(searchSignature).not.toEqual(dishSignature);
-  await dishes.click();
-  await expect(selectedButtons).toHaveCount(1);
-  await expect.poll(signature).toEqual(dishSignature);
-  await menu.click();
-  await expect(selectedButtons).toHaveCount(1);
-  await expect(menu).toHaveAttribute("aria-pressed", "true");
-  await expect.poll(signature).toEqual(menuSignature);
-}
-
-async function exerciseCharts(page: Page) {
-  const heatmap = page.locator('[role="grid"][data-chart-kind="heatmap"]');
-  await expect(heatmap).toHaveCount(1);
-  await expect(heatmap).toHaveAttribute("aria-rowcount", "7");
-  await expect(heatmap).toHaveAttribute("aria-colcount", "24");
-  await expect(heatmap.getByRole("gridcell")).toHaveCount(168);
-  const charts = page.locator("[data-chart-frame]");
-  expect(await charts.count()).toBeGreaterThanOrEqual(3);
-  for (const chart of await charts.all()) {
-    await expect(chart.locator("table")).toHaveCount(1);
-    const marks = chart.locator("[tabindex]");
-    if ((await marks.count()) === 0) continue;
-    await marks.first().focus();
-    await expect(chart.locator("output[data-visible=true]")).toBeVisible();
-    if ((await marks.count()) > 1) {
-      await marks.first().press("ArrowRight");
-      await expect(marks.nth(1)).toBeFocused();
-    }
-    await page.keyboard.press("Escape");
-    await expect(chart.locator("output[data-visible=true]")).toHaveCount(0);
-  }
-}
-
-test.describe("public restaurateur dashboard preview", () => {
-  test("availability feedback clears after its live announcement", async ({ page }) => {
-    const scenario = scenarios[0];
-    const response = await page.goto(scenario.path, { waitUntil: "domcontentloaded" });
+for (const scenario of scenarios) {
+  test(`${scenario.path} presents a non-interactive looping video with private data isolation and arrival autoplay`, { tag: '@critical' }, async ({baseURL, page}, testInfo) => {
+    const runtime = observeRuntime(page, baseURL ?? "http://127.0.0.1:3000");
+    await page.setViewportSize({width: 1280, height: 720});
+    const response = await page.goto(scenario.path, {waitUntil: "domcontentloaded"});
     expect(response?.status()).toBe(200);
-    await page.getByRole("tab", { name: scenario.tabs[1], exact: true }).click();
-    const toggle = page.locator("[data-demo-dish]").first().getByRole("switch");
-    await toggle.click();
-    const simulationStatus = page.getByRole("status").filter({ hasText: scenario.simulation });
-    await expect(simulationStatus).toBeVisible();
-    await expect(simulationStatus).toBeHidden();
+    await expect(page.getByRole("heading", {level: 1})).toHaveCount(1);
+    await expect(page.locator("[data-admin-studio]")).toHaveCount(0);
+    await revealFilm(page);
+    const film = page.locator("[data-dashboard-walkthrough]");
+    const video = film.locator("video");
+    await expect(video).toHaveAttribute("aria-label", scenario.videoLabel);
+    await expect(video).not.toHaveAttribute("controls", "");
+    await expect(video).toHaveAttribute("loop", "");
+    await expect(video).toHaveAttribute("disablepictureinpicture", "");
+    await expect(film.locator("figcaption, details, summary, button")).toHaveCount(0);
+    await expect(film.locator("[inert]")).toHaveCount(1);
+    await expect(video).toHaveAttribute("playsinline", "");
+    await expect(video).toHaveAttribute("preload", "metadata");
+    await expect(video).toHaveAttribute("autoplay", "");
+    await expect(video).toHaveAttribute("poster", "/images/demo-walkthrough/dashboard-studio-3x.webp");
+    const box = await video.boundingBox();
+    expect(box).not.toBeNull();
+    expect(box!.y).toBeGreaterThan(88);
+    expect(box!.y + box!.height).toBeLessThanOrEqual(720);
+    expect(Math.abs(box!.x + box!.width / 2 - 640)).toBeLessThan(2);
+    await expect(video).toHaveAttribute("src", "https://cdn.vistaire.ca/demo/dashboard-studio-3x-67468b94997f.mp4");
+    await expect.poll(() => video.evaluate(element => (element as HTMLVideoElement).muted)).toBe(true);
+    await expect.poll(() => video.evaluate(element => (element as HTMLVideoElement).currentTime)).toBeGreaterThan(.2);
+    expect(await video.evaluate(element => (element as HTMLVideoElement).duration)).toBeCloseTo(137.9, 1);
+    // The Studio walkthrough plays at twice its recorded speed.
+    expect(await video.evaluate(element => (element as HTMLVideoElement).playbackRate)).toBe(2);
+    expect(await video.evaluate(element => [(element as HTMLVideoElement).videoWidth, (element as HTMLVideoElement).videoHeight])).toEqual([1166, 756]);
+    const beforeClick = await video.evaluate(element => (element as HTMLVideoElement).currentTime);
+    await page.mouse.click(box!.x + box!.width / 2, box!.y + box!.height / 2);
+    expect(await video.evaluate(element => (element as HTMLVideoElement).paused)).toBe(false);
+    await expect.poll(() => video.evaluate(element => (element as HTMLVideoElement).currentTime)).toBeGreaterThan(beforeClick);
+    expect(await video.evaluate(element => {
+      element.focus();
+      return document.activeElement === element;
+    })).toBe(false);
+    expect(await film.locator("[inert]").evaluate(element => getComputedStyle(element).pointerEvents)).toBe("none");
+    // A programmatic jump fetches new byte ranges; don't count that network seek
+    // against the native loop deadline. Keep a bounded event trace for failures.
+    await video.evaluate(element => {
+      const media = element as HTMLVideoElement;
+      const events: {event: string; at: number; time: number; seeking: boolean; paused: boolean; readyState: number}[] = [];
+      Reflect.set(media, "__dashboardSeekTrace", events);
+      for (const event of ["seeking", "seeked", "waiting", "playing", "pause", "ended", "error", "stalled"]) {
+        media.addEventListener(event, () => {
+          if (events.length < 100) events.push({event, at: Date.now(), time: media.currentTime, seeking: media.seeking, paused: media.paused, readyState: media.readyState});
+        });
+      }
+      media.currentTime = media.duration - .2;
+    });
+    try {
+      await expect.poll(() => video.evaluate(element => {
+        const events = Reflect.get(element, "__dashboardSeekTrace") as {event: string}[];
+        return events.some(event => event.event === "seeked");
+      }), {timeout: 10_000, intervals: [100]}).toBe(true);
+      await expect.poll(() => video.evaluate(element => (element as HTMLVideoElement).currentTime), {timeout: 5_000, intervals: [100]}).toBeLessThan(2);
+    } finally {
+      const mediaState = await video.evaluate(element => {
+        const media = element as HTMLVideoElement;
+        const ranges = (value: TimeRanges) => Array.from({length: value.length}, (_, index) => [value.start(index), value.end(index)]);
+        return {currentTime: media.currentTime, duration: media.duration, seeking: media.seeking, paused: media.paused, ended: media.ended, readyState: media.readyState, networkState: media.networkState, error: media.error ? {code: media.error.code, message: media.error.message} : null, buffered: ranges(media.buffered), seekable: ranges(media.seekable), events: Reflect.get(media, "__dashboardSeekTrace")};
+      });
+      await testInfo.attach("dashboard-loop-media-state", {body: JSON.stringify({mediaState, network: runtime.videoNetworkEvents}, null, 2), contentType: "application/json"});
+    }
+    await page.evaluate(() => {
+      Object.defineProperty(document, "hidden", {configurable: true, value: true});
+      document.dispatchEvent(new Event("visibilitychange"));
+    });
+    await expect.poll(() => video.evaluate(element => (element as HTMLVideoElement).paused)).toBe(true);
+    await page.evaluate(() => {
+      Reflect.deleteProperty(document, "hidden");
+      document.dispatchEvent(new Event("visibilitychange"));
+    });
+    await expect.poll(() => video.evaluate(element => (element as HTMLVideoElement).paused)).toBe(false);
+    await page.getByRole("contentinfo").scrollIntoViewIfNeeded();
+    await expect.poll(() => video.evaluate(element => (element as HTMLVideoElement).paused)).toBe(true);
+    expect(await video.evaluate(element => (element as HTMLVideoElement).error)).toBeNull();
+    await expectSafeDom(page, scenario);
+    await expectSafeSeo(page, scenario);
+    runtime.expectClean();
   });
 
-  for (const scenario of scenarios) {
-    test(`${scenario.path} keeps the availability simulation anonymous and local`, async ({ baseURL, page }) => {
-      // This full keyboard, filtering, mutation, reload and SEO contract exceeds 30s on WebKit CI.
-      test.setTimeout(45_000);
-      const origin = baseURL ?? "http://127.0.0.1:3000";
-      const runtime = observeRuntime(page, origin);
-      const response = await page.goto(scenario.path, { waitUntil: "domcontentloaded" });
-      expect(response?.status()).toBe(200);
-      await expect(page.getByRole("heading", { level: 1 })).toHaveCount(1);
-      await expect(page.getByText(scenario.demoLabel).first()).toBeVisible();
-      await expect(page.getByText(/Aucune donnée client|No customer data/i)).toBeVisible();
-      await expect(page.getByText(scenario.forbiddenCopy)).toHaveCount(0);
-      await expect(page.getByRole("group", { name: scenario.periodsLabel })).toBeVisible();
-      await expectTabContract(page, scenario);
-
-      const kpis = page.locator("[data-demo-kpi]");
-      await expect(kpis).toHaveCount(5);
-      for (const id of ["menu-opens", "dish-opens", "searches", "immersive", "available"]) {
-        await expect(page.locator(`[data-demo-kpi="${id}"]`)).toBeVisible();
-      }
-      const availableKpi = page.locator('[data-demo-kpi="available"]');
-      await expect(availableKpi).toContainText("10 / 12");
-      await exercisePeriods(page);
-      await exerciseAvailability(page, scenario);
-
-      await page.getByRole("tab", { name: scenario.tabs[0], exact: true }).click();
-      await expect(page.getByRole("group", { name: scenario.periodsLabel })).toBeVisible();
-      await expect(availableKpi).toContainText("9 / 12");
-      await page.reload({ waitUntil: "domcontentloaded" });
-      await expect(availableKpi).toContainText("10 / 12");
-      await expect(availableKpi).not.toContainText("9 / 12");
-
-      await expectSafeDom(page, scenario);
-      await expectSafeSeo(page, scenario);
-      await expect(page.locator("model-viewer")).toHaveCount(0);
-      expect(await page.evaluate(() => customElements.get("model-viewer") === undefined)).toBe(true);
-      runtime.expectClean();
-    });
-
-    test(`${scenario.path} keeps localized insights metrics and charts interactive`, async ({ baseURL, page }) => {
-      const origin = baseURL ?? "http://127.0.0.1:3000";
-      const runtime = observeRuntime(page, origin);
-      const response = await page.goto(scenario.path, { waitUntil: "domcontentloaded" });
-      expect(response?.status()).toBe(200);
-      await expect(page.getByRole("group", { name: scenario.periodsLabel })).toBeVisible();
-      await expectTabContract(page, scenario);
-
-      await page.getByRole("tab", { name: scenario.tabs[2], exact: true }).click();
-      await expect(page.getByRole("group", { name: scenario.periodsLabel })).toBeVisible();
-      for (const heading of scenario.insights) {
-        await expect(page.getByRole("heading", { name: heading, exact: true })).toBeVisible();
-      }
-      await exerciseInsightsMetricSelector(page, scenario);
-      await exercisePeriods(page);
-      await exerciseCharts(page);
-      const insightsPanelMaxHeight = (page.viewportSize()?.width ?? 1280) < 700 ? 460 : 420;
-      for (const panel of await page.locator('[class*="insightsSecondaryGrid"] > section').all()) {
-        const box = await panel.boundingBox();
-        expect(box?.height ?? Number.POSITIVE_INFINITY).toBeLessThan(insightsPanelMaxHeight);
-      }
-      await expectSafeDom(page, scenario);
-      await expect(page.locator("model-viewer")).toHaveCount(0);
-      expect(await page.evaluate(() => customElements.get("model-viewer") === undefined)).toBe(true);
-      runtime.expectClean();
-    });
-
-    test(`${scenario.path} fits every required viewport with mobile touch targets`, async ({ page }) => {
-      for (const viewport of viewports) {
-        await page.setViewportSize(viewport);
-        await page.goto(scenario.path, { waitUntil: "domcontentloaded" });
-        await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(2);
-        if (viewport.width > 430) continue;
-        for (const control of await page.locator('[role="tab"], button[data-demo-period]').all()) {
-          const box = await control.boundingBox();
-          expect(box?.width ?? 0).toBeGreaterThanOrEqual(44);
-          expect(box?.height ?? 0).toBeGreaterThanOrEqual(44);
-        }
-        const availabilityTab = page.getByRole("tab", { name: scenario.tabs[1], exact: true });
-        await expect(availabilityTab).toBeVisible();
-        await availabilityTab.click();
-        for (const control of await page.locator('button[data-demo-filter], [role="switch"]').all()) {
-          const box = await control.boundingBox();
-          expect(box?.width ?? 0).toBeGreaterThanOrEqual(44);
-          expect(box?.height ?? 0).toBeGreaterThanOrEqual(44);
-        }
-      }
-    });
-  }
-
-  test("reduced motion removes chart transitions during a real period change", async ({ page }) => {
-    await page.emulateMedia({ reducedMotion: "reduce" });
-    await page.goto("/apercu-restaurateur", { waitUntil: "domcontentloaded" });
-    const reducedCharts = page.locator('[data-chart-frame] svg[data-reduced-motion="true"]');
-    await expect.poll(() => reducedCharts.count()).toBeGreaterThan(0);
-    await page.locator('button[data-demo-period="7d"]').click();
-    await expect.poll(() => reducedCharts.evaluateAll((elements) => elements.flatMap((element) => element.getAnimations({ subtree: true })).length)).toBe(0);
+  test(`${scenario.path} keeps the video readable at mobile widths and still under reduced motion`, async ({page}) => {
+    await page.emulateMedia({reducedMotion: "reduce"});
+    for (const width of [390, 430, 1440]) {
+      await page.setViewportSize({width, height: 900});
+      await page.goto(scenario.path, {waitUntil: "domcontentloaded"});
+      await revealFilm(page);
+      const video = page.locator("[data-dashboard-walkthrough] video");
+      await expect(video).toBeVisible();
+      const box = await video.boundingBox();
+      expect(box!.y).toBeGreaterThan(74);
+      expect(box!.y + box!.height).toBeLessThanOrEqual(900);
+      expect(Math.abs(box!.x + box!.width / 2 - width / 2)).toBeLessThan(2);
+      await expect(video).not.toHaveAttribute("autoplay", "");
+      expect(await video.evaluate(element => (element as HTMLVideoElement).paused)).toBe(true);
+      expect(await video.evaluate(element => (element as HTMLVideoElement).controls)).toBe(false);
+      await expect(video).not.toHaveAttribute("src", /.+/);
+      await expect(page.locator("[data-dashboard-walkthrough] figcaption, [data-dashboard-walkthrough] details")).toHaveCount(0);
+      await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(2);
+    }
   });
-});
+
+  test(`${scenario.path} retains its poster without interactive fallback when autoplay is blocked`, async ({page}) => {
+    await page.addInitScript(() => {
+      const autoplay = Object.getOwnPropertyDescriptor(HTMLMediaElement.prototype, "autoplay");
+      Object.defineProperty(HTMLMediaElement.prototype, "autoplay", {
+        get() { return false; },
+        set() { autoplay?.set?.call(this, false); }
+      });
+      HTMLMediaElement.prototype.play = function () {
+        return Promise.reject(new DOMException("Autoplay blocked", "NotAllowedError"));
+      };
+    });
+    await page.goto(scenario.path, {waitUntil: "domcontentloaded"});
+    await revealFilm(page);
+    const film = page.locator("[data-dashboard-walkthrough]");
+    const video = film.locator("video");
+    await expect(video).toHaveAttribute("src", "https://cdn.vistaire.ca/demo/dashboard-studio-3x-67468b94997f.mp4");
+    await expect(film.locator(".public-film-poster")).toBeVisible();
+    await expect(film.locator("[data-video-play-fallback]")).toHaveCount(0);
+    expect(await video.evaluate(element => (element as HTMLVideoElement).controls)).toBe(false);
+    expect(await video.evaluate(element => (element as HTMLVideoElement).paused)).toBe(true);
+  });
+}

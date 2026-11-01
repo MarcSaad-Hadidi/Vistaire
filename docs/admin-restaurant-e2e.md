@@ -63,7 +63,7 @@ Après merge sur `main` et configuration humaine des protections, le workflow ma
 
 `gh workflow run admin-restaurant-e2e.yml --ref main -f expected_preview_host=<preview>.vercel.app -f expected_vercel_project_id=prj_... -f expected_team_id=team_... -f expected_repository=MarcSaad-Hadidi/Vistaire -f expected_branch=<branche> -f expected_commit_sha=<sha-40> -f expected_supabase_project_ref=<ref-preview> -f base_url=https://<preview>.vercel.app`
 
-Le résultat `success` du workflow manuel est une preuve séparée de la CI automatique. La CI App conserve `npm ci`, lint, typecheck, tests SEO, `npm run test:admin`, build et smoke SEO ; ces contrôles restent les checks bloquants des pull requests. Le workflow live manuel est donc explicitement non bloquant pour les pull requests normales. Le bouton GitHub n’est disponible que lorsque ce workflow est présent sur la branche par défaut ; sa présence dans ce PR ne crée aucun check automatique.
+Le résultat `success` du workflow manuel est une preuve séparée de la CI automatique. La CI App conserve `npm ci`, lint, typecheck, `npm run test:node`, build et smoke SEO ; ces contrôles restent les checks bloquants des pull requests. Le workflow live manuel est donc explicitement non bloquant pour les pull requests normales. Le bouton GitHub n’est disponible que lorsque ce workflow est présent sur la branche par défaut ; sa présence dans ce PR ne crée aucun check automatique.
 
 ## Preuve fournie par le spec
 

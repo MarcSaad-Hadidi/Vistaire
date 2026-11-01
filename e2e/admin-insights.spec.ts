@@ -26,9 +26,14 @@ test("insights supports reduced motion, keyboard and responsive reading order", 
   for (const width of [390, 430]) {
     await page.setViewportSize({ width, height: width === 390 ? 844 : 932 });
     await page.goto("/admin/insights", { waitUntil: "networkidle" });
-    await expect(page.getByRole("heading", { name: "Analyses détaillées" })).toBeVisible();
+    await expect(page.getByRole("heading", { level: 1, name: "Analyses", exact: true })).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
-    const controls = page.getByRole("navigation", { name: "Navigation du restaurant" }).locator("a:visible").or(page.getByRole("navigation", { name: "Période analysée" }).locator("a:visible")).or(page.getByRole("link", { name: /Retour au tableau de bord/ }));
+    const navigation = page.getByRole("navigation", { name: "Navigation principale" });
+    await expect(navigation.getByRole("link")).toHaveCount(4);
+    await expect(navigation.getByRole("link", { name: "Analyses", exact: true })).toHaveAttribute("aria-current", "page");
+    const period = page.getByRole("combobox", { name: "Période des statistiques", exact: true });
+    await expect(period).toBeVisible();
+    const controls = navigation.locator("a:visible").or(period);
     for (const control of await controls.all()) {
       const box = await control.boundingBox();
       if (box) { expect(box.width).toBeGreaterThanOrEqual(44); expect(box.height).toBeGreaterThanOrEqual(44); }
@@ -36,8 +41,9 @@ test("insights supports reduced motion, keyboard and responsive reading order", 
   }
   await page.keyboard.press("Tab");
   await expect(page.locator(":focus-visible")).toHaveCount(1);
-  await page.getByRole("link", { name: /Retour au tableau de bord/ }).focus();
+  await page.getByRole("navigation", { name: "Navigation principale" }).getByRole("link", { name: "Vue d’ensemble", exact: true }).focus();
   await page.keyboard.press("Enter");
-  await expect(page).toHaveURL(/\/admin$/);
+  await expect(page).toHaveURL(/\/admin\?range=7d$/);
+  await expect(page.getByRole("heading", { level: 1, name: "Vue d’ensemble", exact: true })).toBeVisible();
   healthy();
 });

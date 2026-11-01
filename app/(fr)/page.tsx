@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { JsonLd } from "@/components/JsonLd";
-import { VistairePreviewLanding } from "@/components/vistaire-preview/VistairePreviewLanding";
-import {
+import { ImmersiveLanding } from "@/components/immersive/ImmersiveLanding";
+import { socialImages,
   DEFAULT_SITE_DESCRIPTION,
   absoluteUrl,
   buildVistaireServiceJsonLd,
@@ -16,13 +16,16 @@ export const metadata: Metadata = {
   description: DEFAULT_SITE_DESCRIPTION,
   alternates: buildPageAlternates("/"),
   openGraph: {
+    type: "website",
+    images: socialImages("DIGITAL:hero", "fr").openGraph,
     url: absoluteUrl("/"),
     title: "Vistaire | Menu digital QR premium pour restaurants haut de gamme",
     description: DEFAULT_SITE_DESCRIPTION,
     locale: LOCALE_OPEN_GRAPH.fr
   },
   twitter: {
-    card: "summary",
+    images: socialImages("DIGITAL:hero", "fr").twitter,
+    card: "summary_large_image",
     title: "Vistaire | Menu digital QR premium pour restaurants haut de gamme",
     description: DEFAULT_SITE_DESCRIPTION
   }
@@ -41,7 +44,7 @@ export default function Home() {
           buildVistaireServiceJsonLd()
         ]}
       />
-      <VistairePreviewLanding routeMode="production" />
+      <ImmersiveLanding />
     </>
   );
 }

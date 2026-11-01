@@ -28,7 +28,7 @@ class ForbidSkippedTestsReporter implements Reporter {
     for (const { result, hadRetry } of this.results.values()) {
       if (result.status === "skipped") counts.skipped++;
       else if (result.status === "interrupted") counts.interrupted++;
-      else if (result.status === "failed") counts.failed++;
+      else if (result.status === "failed" || result.status === "timedOut") counts.failed++;
       else if (hadRetry) counts.flaky++;
       else if (result.status === "passed") counts.passed++;
     }

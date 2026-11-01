@@ -42,11 +42,11 @@ test("public dish detail route adds dish lookup and renderer selection to the sh
   );
   assert.match(
     dishResolverSource,
-    /experience\.kind === "trouvable"\s*\|\|\s*experience\.kind === "unique-registered"[\s\S]*getRenderContextExchangeRates/
+    /experience\.kind === "unique-registered"\s*\?\s*await resolvePublicMenuExchangeRates\(/
   );
   assert.match(
     renderContextSource,
-    /function getRenderContextExchangeRates[\s\S]*return getExchangeRates/
+    /function resolvePublicMenuExchangeRates[\s\S]*return getExchangeRates/
   );
   assert.doesNotMatch(dishResolverSource, /localizedMenus/);
   assert.doesNotMatch(

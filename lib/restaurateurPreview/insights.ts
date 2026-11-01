@@ -35,9 +35,9 @@ export function deriveRestaurateurPreviewPeriod(
   const leadingDishEntry = fixture.dishes.find((dish) => dish.id === ranked[0]?.dishId);
   const leadingDish = leadingDishEntry
     ? locale === "fr" ? leadingDishEntry.name : leadingDishEntry.nameEn
-    : "—";
+    : locale === "fr" ? "Aucun" : "None";
   const busiestServiceEntry = [...period.serviceBreakdown].sort((a, b) => b.count - a.count)[0];
-  const busiestService = busiestServiceEntry?.label[locale] ?? "—";
+  const busiestService = busiestServiceEntry?.label[locale] ?? (locale === "fr" ? "Aucun" : "None");
   const totalInteractions = metricIds.reduce((sum, id) => sum + period.metrics[id], 0);
   const availableRate = Math.round((availableCount / Math.max(1, fixture.dishes.length)) * 100);
   const menuChange = Math.round(Math.abs(comparison.menuOpens));

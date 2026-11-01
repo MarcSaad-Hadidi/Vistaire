@@ -103,3 +103,7 @@ public/videos/optimized/*.webm
 
 # clerk configuration (can include secrets)
 /.clerk/
+
+# Byte-for-byte runtime USDZ restored by postinstall/prebuild.
+/public/immersive-assets/ar/burger.usdz
+/public/immersive-assets/ar/burger.usdz.prepared

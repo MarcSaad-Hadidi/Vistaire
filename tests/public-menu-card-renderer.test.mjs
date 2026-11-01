@@ -92,9 +92,6 @@ const { PublicMenuRenderer } = await import(
 const { PublicDishDetailExperience } = await import(
   "../components/menu/PublicDishDetailExperience.tsx"
 );
-const { PublicMenuExperience } = await import(
-  "../components/menu/PublicMenuExperience.tsx"
-);
 const { MaisonElyseDishCard } = await import(
   "../components/menu/MaisonElyseQrMenu.tsx"
 );
@@ -204,7 +201,7 @@ test("renders card media for generic photo-large cards", () => {
   assert.doesNotMatch(markup, markupUrlPattern(distinctUrls.display));
 });
 
-test("renders display media for a dish detail and thumbnail media for compact rows", () => {
+test("renders display media for a dish detail", () => {
   const detailMarkup = renderToStaticMarkup(
     React.createElement(PublicDishDetailExperience, {
       dish: surfaceDish,
@@ -212,14 +209,8 @@ test("renders display media for a dish detail and thumbnail media for compact ro
       mode: "public"
     })
   );
-  const compactMarkup = renderToStaticMarkup(
-    React.createElement(PublicMenuExperience, { menu: surfaceMenu })
-  );
 
   assert.match(detailMarkup, markupUrlPattern(distinctUrls.display));
-  assert.match(compactMarkup, markupUrlPattern(distinctUrls.thumbnail));
-  assert.doesNotMatch(compactMarkup, markupUrlPattern(distinctUrls.card));
-  assert.doesNotMatch(compactMarkup, markupUrlPattern(distinctUrls.display));
 });
 
 test("renders branded small and card surfaces without selecting display media", () => {

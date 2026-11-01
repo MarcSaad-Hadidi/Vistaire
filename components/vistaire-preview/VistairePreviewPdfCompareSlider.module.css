@@ -6,12 +6,12 @@
 .phoneFrame {
   position: relative;
   width: 100%;
-  border: 9px solid #141416;
+  border: 9px solid #050505;
   border-radius: 42px;
-  background: #0c0c0e;
+  background: #050505;
   box-shadow:
-    0 28px 80px rgba(0, 0, 0, 0.55),
-    0 0 0 1px rgba(255, 255, 255, 0.05);
+    0 28px 80px rgba(5, 5, 5, 0.55),
+    0 0 0 1px rgba(248, 243, 232, 0.05);
 }
 
 .notch {
@@ -23,7 +23,7 @@
   height: 18px;
   transform: translateX(-50%);
   border-radius: 999px;
-  background: rgba(0, 0, 0, 0.92);
+  background: rgba(5, 5, 5, 0.92);
   pointer-events: none;
 }
 
@@ -32,7 +32,7 @@
   aspect-ratio: 9 / 16;
   overflow: hidden;
   border-radius: 34px;
-  background: #080706;
+  background: #050505;
 }
 
 .slider {
@@ -41,7 +41,7 @@
   position: absolute;
   inset: 0;
   overflow: hidden;
-  touch-action: pan-y;
+  touch-action: pan-y pinch-zoom;
   user-select: none;
 }
 
@@ -69,17 +69,17 @@
   overflow-x: hidden;
   overflow-y: auto;
   overscroll-behavior: contain;
-  background: #f3ece0;
-  color: #2a2118;
-  font-family: Georgia, "Times New Roman", serif;
+  background: #f8f3e8;
+  color: #050505;
+  font-family: "Vistaire Editorial", serif;
   -webkit-overflow-scrolling: touch;
-  scrollbar-color: rgba(94, 74, 54, 0.55) transparent;
+  scrollbar-color: rgba(5, 5, 5, 0.55) transparent;
   scrollbar-width: thin;
-  touch-action: pan-y;
+  touch-action: pan-y pinch-zoom;
 }
 
 .pdfScene:focus-visible {
-  outline: 2px solid rgba(94, 74, 54, 0.88);
+  outline: 2px solid rgba(5, 5, 5, 0.88);
   outline-offset: -3px;
 }
 
@@ -93,7 +93,7 @@
 .pdfRestaurant {
   margin: 0;
   text-align: center;
-  color: #5e4a36;
+  color: #111110;
   font-size: 10px;
   line-height: 1.2;
   text-transform: uppercase;
@@ -102,8 +102,8 @@
 .pdfTitle {
   margin: 5px 0 0;
   text-align: center;
-  color: #1f1810;
-  font-family: var(--vistaire-font-display);
+  color: #050505;
+  font-family: "Vistaire Editorial", serif;
   font-size: 24px;
   font-weight: 400;
   line-height: 1;
@@ -113,7 +113,7 @@
   width: 42px;
   height: 1px;
   margin: 10px auto 0;
-  background: rgba(94, 74, 54, 0.55);
+  background: rgba(5, 5, 5, 0.55);
 }
 
 .pdfSections {
@@ -124,8 +124,8 @@
 
 .pdfSectionTitle {
   margin: 0 0 5px;
-  color: #5e4a36;
-  font-family: Arial, sans-serif;
+  color: #111110;
+  font-family: "Vistaire Text", serif;
   font-size: 10px;
   font-weight: 700;
   line-height: 1;
@@ -136,8 +136,8 @@
   display: flex;
   align-items: flex-end;
   gap: 5px;
-  color: #2a2118;
-  font-family: Arial, sans-serif;
+  color: #050505;
+  font-family: "Vistaire Text", serif;
   font-size: 12px;
   line-height: 1.24;
 }
@@ -150,12 +150,12 @@
 .pdfDots {
   min-width: 8px;
   flex: 1;
-  border-bottom: 1px dotted rgba(42, 33, 24, 0.45);
+  border-bottom: 1px dotted rgba(5, 5, 5, 0.45);
 }
 
 .pdfPrice {
   flex: 0 0 auto;
-  color: #1f1810;
+  color: #050505;
   font-weight: 700;
 }
 
@@ -167,39 +167,43 @@
   gap: 9px;
   overflow: hidden;
   background:
-    radial-gradient(circle at 50% 0%, rgba(232, 207, 155, 0.12), transparent 36%),
-    linear-gradient(180deg, #170b05 0%, #100704 22%, #070504 68%, #050403 100%);
-  color: #fff7ea;
-  font-family: var(--vistaire-font-body);
+    radial-gradient(circle at 50% 0%, rgba(255, 195, 0, 0.12), transparent 36%),
+    linear-gradient(180deg, #050505 0%, #050505 22%, #050505 68%, #050505 100%);
+  color: #f8f3e8;
+  font-family: "Vistaire Text", serif;
   padding: 29px 12px 12px;
 }
 
 .previewMenu[data-preview-theme="trouvable"] {
   background:
-    radial-gradient(circle at 82% 4%, rgba(194, 126, 58, 0.24), transparent 34%),
-    linear-gradient(180deg, #211108 0%, #130b06 42%, #080604 100%);
+    radial-gradient(circle at 82% 4%, rgba(255, 195, 0, 0.24), transparent 34%),
+    linear-gradient(180deg, #050505 0%, #050505 42%, #050505 100%);
 }
 
 .previewMenu[data-preview-theme="sauge-noire"] {
   background:
-    radial-gradient(circle at 14% 4%, rgba(94, 108, 67, 0.2), transparent 34%),
-    linear-gradient(180deg, #15170f 0%, #0c0d09 44%, #050504 100%);
+    radial-gradient(
+      circle at 14% 4%,
+      rgba(248, 243, 232, 0.2),
+      transparent 34%
+    ),
+    linear-gradient(180deg, #050505 0%, #050505 44%, #050505 100%);
 }
 
 .previewMenu[data-preview-theme="trouvable"] .previewEyebrow,
 .previewMenu[data-preview-theme="trouvable"] .featuredKicker,
 .previewMenu[data-preview-theme="trouvable"] .featuredPrice {
-  color: #e0a864;
+  color: #ffc300;
 }
 
 .previewMenu[data-preview-theme="sauge-noire"] .previewEyebrow,
 .previewMenu[data-preview-theme="sauge-noire"] .featuredKicker,
 .previewMenu[data-preview-theme="sauge-noire"] .featuredPrice {
-  color: #b9b28b;
+  color: #cec8bd;
 }
 
 .previewMenu[data-preview-theme="sauge-noire"] .categoryCard {
-  border-color: rgba(185, 178, 139, 0.2);
+  border-color: rgba(248, 243, 232, 0.2);
 }
 
 .previewHeader {
@@ -210,7 +214,7 @@
 
 .previewEyebrow {
   margin: 0;
-  color: #e8cf9b;
+  color: #ffc300;
   font-size: 8.5px;
   font-weight: 800;
   line-height: 1.2;
@@ -220,8 +224,8 @@
 .previewHeader h3 {
   max-width: 250px;
   margin: 0;
-  color: #fffaf0;
-  font-family: var(--vistaire-font-display);
+  color: #f8f3e8;
+  font-family: "Vistaire Editorial", serif;
   font-size: 30px;
   font-weight: 400;
   line-height: 0.94;
@@ -230,7 +234,7 @@
 .previewTagline {
   max-width: 270px;
   margin: 0;
-  color: rgba(244, 235, 221, 0.86);
+  color: rgba(248, 243, 232, 0.86);
   font-size: 10.5px;
   font-weight: 700;
   line-height: 1.38;
@@ -244,7 +248,7 @@
   overflow-y: auto;
   overscroll-behavior: contain;
   padding-right: 1px;
-  scrollbar-color: rgba(232, 207, 155, 0.45) transparent;
+  scrollbar-color: rgba(255, 195, 0, 0.45) transparent;
   scrollbar-width: thin;
 }
 
@@ -254,7 +258,7 @@
 
 .categoryGrid::-webkit-scrollbar-thumb {
   border-radius: 999px;
-  background: rgba(232, 207, 155, 0.42);
+  background: rgba(255, 195, 0, 0.42);
 }
 
 .categoryCard {
@@ -262,16 +266,16 @@
   display: grid;
   min-height: 88px;
   overflow: hidden;
-  border: 1px solid rgba(232, 207, 155, 0.2);
+  border: 1px solid rgba(255, 195, 0, 0.2);
   border-radius: 16px;
-  background: #070504;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  background: #050505;
+  box-shadow: inset 0 1px 0 rgba(248, 243, 232, 0.05);
 }
 
 .categoryImage {
   position: absolute;
   inset: 0;
-  background: rgba(232, 207, 155, 0.07);
+  background: rgba(255, 195, 0, 0.07);
 }
 
 .categoryImage img,
@@ -283,8 +287,13 @@
   position: absolute;
   inset: 0;
   background:
-    linear-gradient(90deg, rgba(0, 0, 0, 0.66), rgba(0, 0, 0, 0.18) 56%, rgba(0, 0, 0, 0.45)),
-    linear-gradient(180deg, rgba(0, 0, 0, 0.1), rgba(0, 0, 0, 0.58));
+    linear-gradient(
+      90deg,
+      rgba(5, 5, 5, 0.66),
+      rgba(5, 5, 5, 0.18) 56%,
+      rgba(5, 5, 5, 0.45)
+    ),
+    linear-gradient(180deg, rgba(5, 5, 5, 0.1), rgba(5, 5, 5, 0.58));
 }
 
 .categoryCopy {
@@ -299,15 +308,15 @@
 .categoryCopy strong,
 .featuredSection h4 {
   margin: 0;
-  color: #fffaf0;
-  font-family: var(--vistaire-font-display);
+  color: #f8f3e8;
+  font-family: "Vistaire Editorial", serif;
   font-size: 21px;
   font-weight: 400;
   line-height: 0.98;
 }
 
 .categoryCopy small {
-  color: rgba(244, 235, 221, 0.86);
+  color: rgba(248, 243, 232, 0.86);
   font-size: 8.5px;
   font-weight: 800;
   line-height: 1.15;
@@ -316,13 +325,13 @@
 .featuredSection {
   display: grid;
   gap: 6px;
-  border-top: 1px solid rgba(232, 207, 155, 0.14);
+  border-top: 1px solid rgba(255, 195, 0, 0.14);
   padding-top: 9px;
 }
 
 .featuredKicker {
   margin: 0;
-  color: #e8cf9b;
+  color: #ffc300;
   font-size: 8px;
   font-weight: 800;
   line-height: 1;
@@ -334,8 +343,8 @@
   grid-template-columns: 46px minmax(0, 1fr) auto;
   gap: 8px;
   align-items: center;
-  border: 1px solid rgba(232, 207, 155, 0.18);
-  background: rgba(232, 207, 155, 0.045);
+  border: 1px solid rgba(255, 195, 0, 0.18);
+  background: rgba(255, 195, 0, 0.045);
   padding: 6px;
 }
 
@@ -344,7 +353,7 @@
   width: 46px;
   height: 46px;
   overflow: hidden;
-  background: rgba(255, 250, 240, 0.055);
+  background: rgba(248, 243, 232, 0.055);
 }
 
 .featuredCopy {
@@ -355,7 +364,7 @@
 
 .featuredCopy strong {
   overflow: hidden;
-  color: #fffaf0;
+  color: #f8f3e8;
   font-size: 9.5px;
   font-weight: 800;
   line-height: 1.2;
@@ -366,7 +375,7 @@
 .featuredCopy small {
   display: -webkit-box;
   overflow: hidden;
-  color: rgba(244, 235, 221, 0.68);
+  color: rgba(248, 243, 232, 0.68);
   font-size: 7.5px;
   font-weight: 700;
   line-height: 1.22;
@@ -375,7 +384,7 @@
 }
 
 .featuredPrice {
-  color: #e8cf9b;
+  color: #ffc300;
   font-size: 10px;
   font-weight: 800;
   line-height: 1;
@@ -386,9 +395,9 @@
   min-height: 28px;
   align-items: center;
   justify-content: center;
-  border: 1px solid rgba(232, 207, 155, 0.24);
-  background: rgba(232, 207, 155, 0.08);
-  color: #e8cf9b;
+  border: 1px solid rgba(255, 195, 0, 0.24);
+  background: rgba(255, 195, 0, 0.08);
+  color: #ffc300;
   font-size: 9px;
   font-weight: 800;
   line-height: 1;
@@ -411,9 +420,9 @@
 
 .pdfLabel {
   left: 5%;
-  border: 1px solid rgba(58, 46, 33, 0.4);
-  background: rgba(245, 234, 216, 0.92);
-  color: #3a2e21;
+  border: 1px solid rgba(5, 5, 5, 0.4);
+  background: rgba(248, 243, 232, 0.92);
+  color: #111110;
 }
 
 .handle {
@@ -430,7 +439,7 @@
 }
 
 .handle:focus-visible {
-  outline: 2px solid rgba(232, 207, 155, 0.96);
+  outline: 2px solid rgba(255, 195, 0, 0.96);
   outline-offset: -5px;
 }
 
@@ -442,11 +451,11 @@
   transform: translateX(-50%);
   background: linear-gradient(
     180deg,
-    rgba(255, 250, 240, 0.2),
-    rgba(232, 207, 155, 0.9),
-    rgba(255, 250, 240, 0.2)
+    rgba(248, 243, 232, 0.2),
+    rgba(255, 195, 0, 0.9),
+    rgba(248, 243, 232, 0.2)
   );
-  box-shadow: 0 0 16px rgba(232, 207, 155, 0.45);
+  box-shadow: 0 0 16px rgba(255, 195, 0, 0.45);
 }
 
 .handleButton {
@@ -458,11 +467,11 @@
   height: 46px;
   transform: translate(-50%, -50%);
   place-items: center;
-  border: 1px solid rgba(232, 207, 155, 0.62);
+  border: 1px solid rgba(255, 195, 0, 0.62);
   border-radius: 999px;
-  background: rgba(10, 7, 6, 0.84);
-  color: #fff7ea;
-  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.55);
+  background: rgba(5, 5, 5, 0.84);
+  color: #f8f3e8;
+  box-shadow: 0 6px 24px rgba(5, 5, 5, 0.55);
 }
 
 .hint {
@@ -472,11 +481,11 @@
   z-index: 32;
   max-width: 82%;
   transform: translateX(50%);
-  border: 1px solid rgba(255, 246, 225, 0.14);
+  border: 1px solid rgba(248, 243, 232, 0.14);
   border-radius: 999px;
-  background: rgba(10, 7, 6, 0.76);
+  background: rgba(5, 5, 5, 0.76);
   padding: 6px 9px;
-  color: rgba(255, 247, 234, 0.82);
+  color: rgba(248, 243, 232, 0.82);
   font-size: 8.5px;
   font-weight: 700;
   line-height: 1;
@@ -494,7 +503,7 @@
   width: 28%;
   height: 3px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.18);
+  background: rgba(248, 243, 232, 0.18);
 }
 
 .srOnly {

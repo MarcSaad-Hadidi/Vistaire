@@ -32,7 +32,7 @@ export function LandingPublicMenuLink({
       {children}
       {showArrow ? (
         <span aria-hidden="true" className={styles.linkArrow}>
-          ↗
+          {"↗︎"}
         </span>
       ) : null}
       <span className={newTabLabelClassName ?? styles.srOnly}>

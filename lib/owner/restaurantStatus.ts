@@ -1,3 +1,4 @@
+import { storageBucket } from "../storage/backend.ts";
 import type { OwnerRestaurantStatus } from "./types.ts";
 import type { PublicMutationIdentity } from "./menuMutationRevalidation.ts";
 import { slugifyRestaurantSlug } from "./menuUrlCore.ts";
@@ -549,7 +550,7 @@ async function cleanupRestaurantStorage(args: {
   }
 
   for (const bucketName of buckets) {
-    const bucket = args.client.storage.from(bucketName);
+    const bucket = storageBucket(args.client.storage, bucketName);
     for (const prefix of prefixes) {
       const listed = await listStorageFiles({ bucket, prefix });
       if (!listed.ok) {

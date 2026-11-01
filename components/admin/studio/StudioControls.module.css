@@ -1,0 +1,319 @@
+/* Control styling recovered from the approved v29 deployment; scoped to Studio. */
+.themeToggle.themeToggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  color: var(--ink);
+  background: var(--surface);
+}
+.themeIcon {
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  overflow: hidden;
+  width: 18px;
+  height: 18px;
+}
+.themeIcon > span {
+  grid-column: 1;
+  grid-row: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.srOnly {
+  position: absolute !important;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+.search.search {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-width: 0;
+  height: 44px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+}
+.search > svg {
+  position: absolute;
+  left: 13px;
+  color: var(--muted);
+  pointer-events: none;
+}
+.search input {
+  width: 100%;
+  min-width: 0;
+  height: 44px;
+  padding: 0 12px 0 39px;
+  border: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  font-size: 13px !important;
+}
+.search:focus-within,
+.comboTrigger:focus-within {
+  border-color: var(--muted);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--muted) 16%, transparent);
+}
+.combobox {
+  position: relative;
+  min-width: 0;
+  width: 100%;
+}
+.comboTrigger {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface);
+  cursor: text;
+}
+.comboTrigger input {
+  width: 100%;
+  min-width: 0;
+  height: 44px;
+  min-height: 44px;
+  padding: 0 !important;
+  border: 0 !important;
+  background: transparent !important;
+  color: var(--ink);
+  box-shadow: none !important;
+  font-size: 13px !important;
+  text-overflow: ellipsis;
+  outline: none;
+}
+.comboTrigger svg {
+  flex-shrink: 0;
+  color: var(--muted);
+}
+.comboPanel {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  width: 100%;
+  min-width: 200px;
+  max-width: calc(100vw - 32px);
+  z-index: 60;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: 0 12px 32px #0002;
+}
+.comboList {
+  max-height: min(300px, 50dvh);
+  overflow: auto;
+  overscroll-behavior: contain;
+  padding: 5px;
+  scrollbar-width: thin;
+}
+.comboOption {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  min-height: 44px;
+  padding: 10px;
+  border-radius: 8px;
+  color: var(--muted);
+  font-size: 13px;
+  cursor: pointer;
+  overflow-wrap: anywhere;
+}
+.comboOption[data-active="true"] {
+  background: var(--soft);
+  color: var(--ink);
+}
+.comboOption[aria-selected="true"] {
+  color: var(--ink);
+  font-weight: 600;
+}
+.comboEmpty {
+  padding: 22px 10px;
+  color: var(--muted);
+  font-size: 13px;
+  text-align: center;
+}
+.switch {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+}
+.switch > button {
+  position: relative !important;
+  isolation: isolate;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  width: 52px !important;
+  min-width: 52px !important;
+  height: 44px !important;
+  min-height: 44px !important;
+  padding: 0 4px !important;
+  border: 0 !important;
+  border-radius: 999px !important;
+  background: transparent !important;
+}
+.switch > button:before {
+  content: "";
+  position: absolute;
+  inset: 8px 0;
+  z-index: -1;
+  border-radius: 999px;
+  background: var(--unavailable);
+  transition: background 0.15s;
+}
+.switch > button[aria-checked="true"] {
+  justify-content: flex-end !important;
+}
+.switch > button[aria-checked="true"]:before {
+  background: var(--available);
+}
+.switch > button > div {
+  pointer-events: none;
+  display: block;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--surface);
+  box-shadow: 0 1px 3px #0002;
+}
+.checkbox {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  min-height: 44px;
+  margin: 0;
+  cursor: pointer;
+}
+.checkbox > button {
+  position: relative !important;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px !important;
+  min-width: 44px !important;
+  height: 44px !important;
+  min-height: 44px !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 8px !important;
+  background: transparent !important;
+  color: var(--surface) !important;
+}
+.checkbox > button:before {
+  content: "";
+  position: absolute;
+  inset: 12px;
+  border: 1.5px solid var(--muted);
+  border-radius: 5px;
+  background: var(--surface);
+}
+.checkbox > button[aria-checked="true"]:before {
+  background: var(--ink);
+  border-color: var(--ink);
+}
+.checkbox > button > svg {
+  position: relative;
+  z-index: 1;
+  width: 13px;
+  height: 13px;
+}
+.checkbox > span {
+  font-size: 13px;
+  color: var(--ink);
+}
+.toast {
+  position: fixed;
+  bottom: 90px;
+  right: 20px;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: min(380px, calc(100vw - 32px));
+  padding: 8px 8px 8px 14px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: 0 8px 32px #0003;
+}
+.toast > span {
+  flex: 1;
+  min-width: 0;
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+.toast > button {
+  padding: 0 !important;
+  width: 44px;
+  border: 0 !important;
+  background: transparent !important;
+}
+@media (prefers-reduced-motion: reduce) {
+  .themeToggle,
+  .switch > button:before {
+    transition: none;
+  }
+}
+.tabs {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  padding: 3px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--soft);
+}
+.tabs > button {
+  position: relative !important;
+  isolation: isolate;
+  min-height: 38px !important;
+  padding: 8px 13px !important;
+  border: 0 !important;
+  background: transparent !important;
+  font-size: 13px !important;
+  color: var(--muted) !important;
+}
+.tabs > button[aria-pressed="true"] {
+  color: var(--ink) !important;
+}
+.tabs > button > span:last-child {
+  position: relative;
+}
+.tabIndicator {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: 7px;
+  background: var(--surface);
+  box-shadow: 0 2px 5px #0001;
+}
+
+.comboLabel {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 11px;
+  color: var(--muted);
+}

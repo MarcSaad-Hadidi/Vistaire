@@ -1,226 +1,173 @@
-import Image, { type StaticImageData } from "next/image";
 import Link from "next/link";
-import restaurantBackground from "@/Framer/PhotoRestoComplet3.png";
-import lobsterPlate from "@/Framer/PlatHomard.png";
-import mobileQrTable from "@/Framer/PageApropos2.png";
-import restaurantGuest from "@/Framer/PageApropos.png";
+import { JsonLd } from "@/components/JsonLd";
+import { CinematicPage, type CinematicChapter } from "@/components/immersive/CinematicPage.jsx";
+import { CinematicFooter } from "@/components/immersive/pages/CinematicFooter";
+import { SeoFaq } from "@/components/seo/SeoFaq";
 import type { Locale } from "@/lib/i18n";
+import { buildFaqPageJsonLd } from "@/lib/seo";
 import {
   getVistaireChromeRoutes,
-  PreviewFooter,
   PreviewNav,
-  type VistaireRouteMode
+  type VistaireRouteMode,
 } from "./VistairePreviewChrome";
-import styles from "./VistaireAboutPreview.module.css";
 
-type FramerImageProps = {
-  alt: string;
-  className?: string;
-  priority?: boolean;
-  src: StaticImageData;
-};
+const COPY = {
+  en: {
+    badge: "About Vistaire",
+    title: "Digital should extend the restaurant",
+    titleAccent: "experience.",
+    proposition: "Vistaire turns the restaurant QR code into a premium digital menu.",
+    intro:
+      "Vistaire helps high-end restaurants present their menu in an elegant mobile experience: clear navigation, visual dish pages, allergens, prices and selective 3D/AR.",
+    appointment: "Book a call",
+    discover: "Discover Vistaire",
+    visionBadge: "Our vision",
+    visionTitle: "A Montreal studio dedicated to high-end restaurants",
+    visionA:
+      "Digital should extend the restaurant experience, not replace it. Vistaire keeps the dish at the center: a clear, visual, mobile-first menu designed to create desire without turning the dining room into a cold app.",
+    visionB:
+      "Vistaire supports restaurants in Montreal, Quebec and Canada that want to present their menu on mobile without losing the elegance of the room.",
+    serviceTitle: "Built for table service.",
+    values: [
+      { title: "Mobile-first", body: "A clear, visual menu designed for your guests’ phones." },
+      { title: "Selective 3D", body: "Dishes presented in detail, wherever 3D/AR brings real value." },
+      { title: "No app", body: "Your menu opens directly from the table QR code." },
+    ],
+    closing: "Your cuisine. Your world.",
+    closingAccent: "Another dimension.",
+    explore: "Explore the menus",
+    faq: [
+      { question: "What is Vistaire?", answer: "Vistaire turns the restaurant QR code into a premium digital menu. It helps high-end restaurants present their menu in an elegant mobile experience: clear navigation, visual dish pages, allergens, prices and selective 3D/AR." },
+      { question: "Where is Vistaire based?", answer: "Vistaire is a Montreal studio dedicated to high-end restaurants. It supports restaurants in Montreal, Quebec and Canada that want to present their menu on mobile without losing the elegance of the room." },
+      { question: "Do guests need to install an app?", answer: "No. The menu opens directly from the table QR code, in the guest’s phone browser." },
+      { question: "Is every dish shown in 3D?", answer: "No. 3D/AR is selective: it is used for the dishes where it brings real value, while every dish keeps a clear, visual page." },
+    ],
+  },
+  fr: {
+    badge: "À propos de Vistaire",
+    title: "Le digital doit prolonger l’expérience du",
+    titleAccent: "restaurant.",
+    proposition: "Vistaire transforme le QR code restaurant en carte digitale premium.",
+    intro:
+      "Vistaire aide les restaurants haut de gamme à présenter leur carte dans une expérience mobile élégante : menu clair, fiches plats visuelles, allergènes, prix et 3D/AR sélective.",
+    appointment: "Prendre rendez-vous",
+    discover: "Découvrir Vistaire",
+    visionBadge: "Notre vision",
+    visionTitle: "Une maison montréalaise dédiée aux restaurants haut de gamme",
+    visionA:
+      "Le digital doit prolonger l'expérience du restaurant, pas la remplacer. Vistaire garde le plat au centre : une carte claire, visuelle et mobile-first, conçue pour donner envie sans transformer la salle en application froide.",
+    visionB:
+      "Vistaire accompagne les restaurants de Montréal, du Québec et du Canada qui veulent présenter leur carte sur mobile sans perdre l'élégance de la salle.",
+    serviceTitle: "Pensée pour le service à table.",
+    values: [
+      { title: "Mobile-first", body: "Une carte claire et visuelle, pensée pour le téléphone de vos clients." },
+      { title: "3D sélective", body: "Des plats mis en valeur avec justesse, quand la 3D/AR apporte une vraie valeur." },
+      { title: "Sans application", body: "Votre carte s’ouvre directement depuis le QR code de la table." },
+    ],
+    closing: "Votre cuisine. Votre univers.",
+    closingAccent: "Une autre dimension.",
+    explore: "Explorer les cartes",
+    faq: [
+      { question: "Qu’est-ce que Vistaire ?", answer: "Vistaire transforme le QR code restaurant en carte digitale premium. Vistaire aide les restaurants haut de gamme à présenter leur carte dans une expérience mobile élégante : menu clair, fiches plats visuelles, allergènes, prix et 3D/AR sélective." },
+      { question: "Où se trouve Vistaire ?", answer: "Vistaire est une maison montréalaise dédiée aux restaurants haut de gamme. Elle accompagne les restaurants de Montréal, du Québec et du Canada qui veulent présenter leur carte sur mobile sans perdre l'élégance de la salle." },
+      { question: "Le client doit-il installer une application ?", answer: "Non. La carte s’ouvre directement depuis le QR code de la table, dans le navigateur du téléphone." },
+      { question: "Tous les plats sont-ils en 3D ?", answer: "Non. La 3D/AR est sélective : elle sert les plats où elle apporte une vraie valeur, et chaque plat garde une fiche claire et visuelle." },
+    ],
+  },
+} as const;
 
-function FramerImage({ alt, className, priority, src }: FramerImageProps) {
-  return (
-    <Image
-      alt={alt}
-      className={className}
-      fill
-      priority={priority}
-      quality={100}
-      sizes="(max-width: 720px) calc(100vw - 36px), 430px"
-      src={src}
-      unoptimized
-    />
-  );
-}
-
-function ArrowIcon() {
-  return (
-    <svg
-      aria-hidden="true"
-      className={styles.buttonIcon}
-      fill="none"
-      viewBox="0 0 12 12"
-    >
-      <path
-        d="M3.1 8.9 8.7 3.3m0 0H4.1m4.6 0v4.6"
-        stroke="currentColor"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeWidth="1.4"
-      />
-    </svg>
-  );
-}
-
+// About page, "a Montreal house for restaurants": the room seen from afar,
+// the plate up close, the three values side by side, the table from above.
 export function VistaireAboutPreview({
   locale = "fr",
-  routeMode = "production"
+  routeMode = "production",
 }: {
   locale?: Locale;
   routeMode?: VistaireRouteMode;
 }) {
   const routes = getVistaireChromeRoutes(routeMode, locale);
-  const copy =
-    locale === "en"
-      ? {
-          sectionLabel: "About Vistaire",
-          badge: "About",
-          h1: "Vistaire turns the restaurant QR code into a premium digital menu.",
-          intro:
-            "Vistaire helps high-end restaurants present their menu in an elegant mobile experience: clear navigation, visual dish pages, allergens, prices and selective 3D/AR.",
-          appointment: "Book a call",
-          mobileTitleA: "MOBILE",
-          mobileTitleB: "MENU",
-          mobileLine: "Built for table service",
-          discover: "Discover Vistaire",
-          visionBadge: "Our vision",
-          visionTitle: "A Montreal studio dedicated to high-end restaurants",
-          visionA:
-            "Digital should extend the restaurant experience, not replace it. Vistaire keeps the dish at the center: a clear, visual, mobile-first menu designed to create desire without turning the dining room into a cold app.",
-          visionB:
-            "Vistaire supports restaurants in Montreal, Quebec and Canada that want to present their menu on mobile without losing the elegance of the room.",
-          values: ["Mobile-first", "Selective 3D", "No app"]
-        }
-      : {
-          sectionLabel: "À propos de Vistaire",
-          badge: "À propos",
-          h1: "Vistaire transforme le QR code restaurant en carte digitale premium.",
-          intro:
-            "Vistaire aide les restaurants haut de gamme à présenter leur carte dans une expérience mobile élégante : menu clair, fiches plats visuelles, allergènes, prix et 3D/AR sélective.",
-          appointment: "Prendre rendez-vous",
-          mobileTitleA: "CARTE MOBILE",
-          mobileTitleB: "PREMIUM",
-          mobileLine: "Pensée pour le service à table",
-          discover: "Découvrir Vistaire",
-          visionBadge: "Notre Vision",
-          visionTitle:
-            "Une maison montréalaise dédiée aux restaurants haut de gamme",
-          visionA:
-            "Le digital doit prolonger l'expérience du restaurant, pas la remplacer. Vistaire garde le plat au centre : une carte claire, visuelle et mobile-first, conçue pour donner envie sans transformer la salle en application froide.",
-          visionB:
-            "Vistaire accompagne les restaurants de Montréal, du Québec et du Canada qui veulent présenter leur carte sur mobile sans perdre l'élégance de la salle.",
-          values: ["Mobile-First", "3D Sélective", "Sans Application"]
-        };
-
-  return (
-    <main className={styles.page}>
-      <Image
-        alt=""
-        aria-hidden="true"
-        className={styles.backgroundImage}
-        fill
-        priority
-        quality={100}
-        sizes="100vw"
-        src={restaurantBackground}
-        unoptimized
-      />
-
-      <section
-        aria-label={copy.sectionLabel}
-        className={styles.hero}
-        id="a-propos"
-      >
-        <div className={styles.previewFrame}>
-          <article className={`${styles.card} ${styles.introCard}`}>
-            <div aria-hidden="true" className={styles.textShade} />
-            <div className={styles.introCopy}>
-              <p className={styles.badge}>{copy.badge}</p>
-              <h1>{copy.h1}</h1>
-              <p>{copy.intro}</p>
-            </div>
-          </article>
-
-          <article className={`${styles.card} ${styles.plateCard}`}>
-            <FramerImage
-              alt="Plat de homard présenté dans une assiette noire"
-              className={styles.cardImage}
-              priority
-              src={lobsterPlate}
-            />
-            <div aria-hidden="true" className={styles.imageShade} />
-            <Link
-              className={`${styles.ctaButton} ${styles.plateButton}`}
-              href={routes.appointment}
-              prefetch={false}
-            >
-              {copy.appointment}
-              <ArrowIcon />
-            </Link>
-          </article>
-
-          <article
-            aria-labelledby="about-mobile-card-title"
-            className={`${styles.card} ${styles.mobileCard}`}
-          >
-            <FramerImage
-              alt="Téléphone affichant une carte Vistaire à côté d'un QR code de table"
-              className={styles.cardImage}
-              priority
-              src={mobileQrTable}
-            />
-            <div aria-hidden="true" className={styles.mobileShade} />
-            <div className={styles.mobileCopy}>
-              <div aria-hidden="true" className={styles.ornaments}>
-                <span>✽</span>
-                <span>✽</span>
-                <span>✽</span>
+  const copy = COPY[locale];
+  const chapters: CinematicChapter[] = [
+    {
+      id: "a-propos",
+      shot: "about-room",
+      titleId: "about-preview-title",
+      content: (
+        <>
+          <span className="eyebrow">{copy.badge}</span>
+          <h1 id="about-preview-title">{copy.title} <em>{copy.titleAccent}</em></h1>
+          <p><strong>{copy.proposition}</strong></p>
+          <p>{copy.intro}</p>
+          <div className="cinematic-actions">
+            <Link className="action" href={routes.appointment} prefetch={false}>{copy.appointment}</Link>
+            <Link className="action action-dark" href="#vision" prefetch={false}>{copy.discover}</Link>
+          </div>
+        </>
+      ),
+    },
+    {
+      id: "vision",
+      shot: "about-vision",
+      align: "right",
+      titleId: "about-vision-title",
+      content: (
+        <>
+          <span className="eyebrow">{copy.visionBadge}</span>
+          <h2 id="about-vision-title">{copy.visionTitle}</h2>
+          <p>{copy.visionA}</p>
+          <p>{copy.visionB}</p>
+        </>
+      ),
+    },
+    {
+      id: "service",
+      shot: "about-values",
+      align: "center",
+      titleId: "about-service-title",
+      content: (
+        <>
+          <h2 id="about-service-title">{copy.serviceTitle}</h2>
+          <dl className="cinematic-values">
+            {copy.values.map((value, index) => (
+              <div key={value.title}>
+                <dt><span aria-hidden="true">{String(index + 1).padStart(2, "0")}</span>{value.title}</dt>
+                <dd>{value.body}</dd>
               </div>
-              <h2 id="about-mobile-card-title">
-                {copy.mobileTitleA}
-                <span>{copy.mobileTitleB}</span>
-              </h2>
-              <p>{copy.mobileLine}</p>
+            ))}
+          </dl>
+        </>
+      ),
+    },
+    {
+      id: "univers",
+      shot: "about-closing",
+      titleId: "about-closing-title",
+      content: (
+        <>
+          <h2 id="about-closing-title">{copy.closing}<br /><em>{copy.closingAccent}</em></h2>
+          <div className="cinematic-actions">
+            <Link className="action" href={routes.menu} prefetch={false}>{copy.explore}</Link>
+            <Link className="action action-dark" href={routes.appointment} prefetch={false}>{copy.appointment}</Link>
+          </div>
+        </>
+      ),
+    },
+  ];
+  return (
+    <>
+      <PreviewNav activeSection="about" currentPath={routes.about} locale={locale} routeMode={routeMode} />
+      <CinematicPage chapters={chapters} scene={{ dish: "huitres", phoneDemo: "sauge-noire", collection: "acrylique" }} footer={<CinematicFooter locale={locale} id="about" />}>
+        <JsonLd data={buildFaqPageJsonLd([...copy.faq], routes.about)} />
+        <section className="cinematic-guide" aria-label={copy.badge}>
+          <section className="landing-faq cinematic-faq" aria-labelledby="about-faq-title">
+            <div className="landing-faq-heading">
+              <span className="pricing-eyebrow">FAQ</span>
+              <h2 id="about-faq-title">{locale === "en" ? "Your questions." : "Vos questions."}</h2>
             </div>
-          </article>
-
-          <article className={`${styles.card} ${styles.guestCard}`}>
-            <FramerImage
-              alt="Client consultant une carte digitale Vistaire dans un restaurant premium"
-              className={styles.cardImage}
-              src={restaurantGuest}
-            />
-            <div aria-hidden="true" className={styles.guestShade} />
-            <Link
-              className={`${styles.ctaButton} ${styles.guestButton}`}
-              href="#vision"
-              prefetch={false}
-            >
-              {copy.discover}
-              <ArrowIcon />
-            </Link>
-          </article>
-
-          <article className={`${styles.card} ${styles.visionCard}`} id="vision">
-            <div aria-hidden="true" className={styles.visionShade} />
-            <div className={styles.visionCopy}>
-              <p className={styles.badge}>{copy.visionBadge}</p>
-              <h2>{copy.visionTitle}</h2>
-              <p>{copy.visionA}</p>
-              <p>{copy.visionB}</p>
-              <p className={styles.values}>
-                {copy.values[0]} <span>·</span> {copy.values[1]} <span>·</span>{" "}
-                {copy.values[2]}
-              </p>
-            </div>
-          </article>
-        </div>
-
-        <PreviewNav
-          activeSection="about"
-          currentPath={routes.about}
-          locale={locale}
-          routeMode={routeMode}
-        />
-      </section>
-
-      <PreviewFooter
-        currentPath={routes.about}
-        locale={locale}
-        routeMode={routeMode}
-      />
-    </main>
+            <SeoFaq className="landing-faq-items" layout="stack" locale={locale} faqs={[...copy.faq]} />
+          </section>
+        </section>
+      </CinematicPage>
+    </>
   );
 }

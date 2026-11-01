@@ -1,592 +1,240 @@
 import Image from "next/image";
-import type { StaticImageData } from "next/image";
 import Link from "next/link";
-import beveragePhoto from "@/Framer/Boisson.png";
-import dessertPhoto from "@/Framer/Desert.png";
-import pageDigitalPhoto from "@/Framer/PageDigital.png";
-import photoPdfCompare from "@/Framer/PhotoComparaisonPDF.png";
-import photoDigital2 from "@/Framer/PhotoDigital2.png";
-import photoDigital3 from "@/Framer/PhotoDigital3.png";
-import photoPdfDetail from "@/Framer/PhotoPDFvsDigitalDetail.png";
-import photoQrCode1 from "@/Framer/PhotoQRcode1.png";
-import photoQrCode2 from "@/Framer/PhotoQRcode2.png";
-import photoResto from "@/Framer/PhotoRestoComplet4.png";
-import restaurantBackground from "@/Framer/PhotoRestoComplet5.png";
-import photoRestoDining from "@/Framer/PhotoRestoComplet6.png";
-import lobsterPlate from "@/Framer/PlatHomard.png";
-import { SeoFaq } from "@/components/seo/SeoFaq";
-import {
-  PreviewFooter,
-  PreviewNav
-} from "@/components/vistaire-preview/VistairePreviewChrome";
-import styles from "@/components/vistaire-preview/VistaireMenuDigitalRestaurantPreview.module.css";
-import type {
-  SeoGeoInternalLink,
-  SeoGeoPageData,
-  SeoGeoPageType
-} from "@/lib/seoGeoPages";
-import {
-  buildSeoGeoPublicFaq,
-  seoGeoPublicText as publicText
-} from "@/lib/seoGeoPublicText";
+import type { ReactNode } from "react";
+import { CinematicPage, type CinematicChapter, type CinematicScene } from "@/components/immersive/CinematicPage.jsx";
+import { CinematicFooter } from "@/components/immersive/pages/CinematicFooter";
+import { SEO_GEO_ROUTE_PAIRS } from "@/lib/seoGeoRoutes";
+import type { SeoGeoPageData } from "@/lib/seoGeoPages";
+import { getSeoMarketingImage } from "@/lib/seoMarketingImages";
+import { buildSeoGeoPublicFaq, seoGeoPublicText } from "@/lib/seoGeoPublicText";
+import { PreviewNav } from "../vistaire-preview/VistairePreviewChrome";
+import { SeoFaq } from "./SeoFaq";
 
-type PageVisual = {
-  alt: string;
-  src: StaticImageData | string;
+// Need and audience pages: the same four beats (answer, context, proof,
+// comparison), told by each page's own shots, dish, restaurant and stand
+// (PageShots.js "geo-<n>-<chapter>"), then free reading with the page's own
+// photographs and tools. Keyed by the French path of each pair.
+const GEO_SCRIPTS: Record<string, { n: number; composition: string; scene: CinematicScene }> = {
+  "/menu-qr-sans-pdf": { n: 1, composition: "qr-access-gate", scene: { dish: "huitres", phoneDemo: "sauge-noire", collection: "acrylique" } },
+  "/menu-digital-sans-application": { n: 2, composition: "browser-first-story", scene: { dish: "burger", phoneDemo: "trouvable" } },
+  "/remplacer-menu-pdf-restaurant": { n: 3, composition: "pdf-migration-folio", scene: { dish: "homard", phoneDemo: "maison-elyse" } },
+  "/alternative-menu-pdf-restaurant": { n: 4, composition: "pdf-alternative-choice-spread", scene: { dish: "souffle", phoneDemo: "maison-elyse" } },
+  "/fiche-plat-digitale-restaurant": { n: 5, composition: "annotated-dish-portrait", scene: { dish: "poutine", phoneDemo: "trouvable" } },
+  "/menu-restaurant-photos": { n: 6, composition: "food-photography-essay", scene: { dish: "chocolat-fume", phoneDemo: "sauge-noire", collection: "sculpte" } },
+  "/menu-restaurant-allergenes": { n: 7, composition: "allergen-information-inspection", scene: { dish: "sushi", phoneDemo: "trouvable" } },
+  "/menu-digital-restaurant-montreal": { n: 8, composition: "montreal-editorial-dossier", scene: { dish: "homard", phoneDemo: "maison-elyse" } },
+  "/menu-digital-restaurant-laval": { n: 9, composition: "laval-shared-table-story", scene: { dish: "burger", phoneDemo: "trouvable" } },
+  "/menu-digital-restaurant-brossard": { n: 10, composition: "brossard-destination-arrival", scene: { dish: "poutine", phoneDemo: "trouvable" } },
+  "/menu-digital-restaurant-haut-de-gamme": { n: 11, composition: "high-end-brand-manifesto", scene: { dish: "huitres", phoneDemo: "sauge-noire", collection: "signature" } },
+  "/menu-digital-restaurant-gastronomique": { n: 12, composition: "gastronomy-paced-narrative", scene: { dish: "souffle", phoneDemo: "maison-elyse" } },
 };
 
-const VISUAL_SETS: Record<string, PageVisual[]> = {
-  "menu-qr-sans-pdf": [
-    {
-      src: photoQrCode1,
-      alt: "Client ouvrant un menu Vistaire depuis un QR code à table"
-    },
-    {
-      src: photoQrCode2,
-      alt: "Menu mobile Vistaire consulté après le scan QR"
-    },
-    {
-      src: pageDigitalPhoto,
-      alt: "Fiche plat mobile affichée dans un menu Vistaire"
-    }
-  ],
-  "menu-digital-sans-application": [
-    {
-      src: pageDigitalPhoto,
-      alt: "Menu digital Vistaire ouvert dans le navigateur mobile"
-    },
-    {
-      src: photoDigital3,
-      alt: "Client consultant un menu digital à table sans application"
-    },
-    {
-      src: photoDigital2,
-      alt: "Expérience mobile Vistaire avec présentation visuelle des plats"
-    }
-  ],
-  "remplacer-menu-pdf-restaurant": [
-    {
-      src: photoPdfCompare,
-      alt: "Comparaison entre menu PDF et menu digital Vistaire"
-    },
-    {
-      src: photoPdfDetail,
-      alt: "Détail d'un menu PDF remplacé par une lecture mobile"
-    },
-    {
-      src: pageDigitalPhoto,
-      alt: "Menu digital Vistaire utilisé comme alternative au PDF"
-    }
-  ],
-  "alternative-menu-pdf-restaurant": [
-    {
-      src: photoPdfDetail,
-      alt: "Menu PDF transformé en expérience mobile lisible"
-    },
-    {
-      src: photoPdfCompare,
-      alt: "Comparaison visuelle entre PDF et carte digitale"
-    },
-    {
-      src: photoDigital3,
-      alt: "Client lisant un menu digital plutôt qu'un PDF à table"
-    }
-  ],
-  "fiche-plat-digitale-restaurant": [
-    {
-      src: lobsterPlate,
-      alt: "Plat signature présenté dans une fiche plat digitale"
-    },
-    {
-      src: pageDigitalPhoto,
-      alt: "Fiche plat Vistaire avec détails utiles sur mobile"
-    },
-    {
-      src: "/images/demo/dishes/homard-bleu-bisque-fenouil.png",
-      alt: "Homard présenté comme plat signature dans Vistaire"
-    }
-  ],
-  "menu-restaurant-photos": [
-    {
-      src: "/images/demo/dishes/tartare-saumon-label-rouge.png",
-      alt: "Photo de plat utilisée dans un menu restaurant"
-    },
-    {
-      src: "/images/demo/dishes/risotto-cepes-parmesan.png",
-      alt: "Risotto photographié pour une carte digitale"
-    },
-    {
-      src: dessertPhoto,
-      alt: "Dessert présenté avec une direction photo premium"
-    }
-  ],
-  "menu-restaurant-allergenes": [
-    {
-      src: pageDigitalPhoto,
-      alt: "Fiche plat mobile avec informations utiles pour le client"
-    },
-    {
-      src: "/images/demo/dishes/ravioles-chevre-miel-monteregie.png",
-      alt: "Plat avec informations de composition dans une fiche digitale"
-    },
-    {
-      src: "/images/demo/dishes/tarte-citron-basilic-pourpre.png",
-      alt: "Dessert affiché dans une fiche avec détails et allergènes"
-    }
-  ],
-  "menu-digital-restaurant-montreal": [
-    {
-      src: photoRestoDining,
-      alt: "Ambiance de restaurant à Montréal avec expérience mobile"
-    },
-    {
-      src: photoDigital3,
-      alt: "Menu digital consulté à table dans un restaurant montréalais"
-    },
-    {
-      src: "/images/demo/dishes/pave-boeuf-mature-bordelaise.png",
-      alt: "Plat signature présenté pour un restaurant à Montréal"
-    }
-  ],
-  "menu-digital-restaurant-laval": [
-    {
-      src: photoResto,
-      alt: "Salle de restaurant avec carte digitale pour Laval"
-    },
-    {
-      src: pageDigitalPhoto,
-      alt: "Carte mobile Vistaire pour restaurant à Laval"
-    },
-    {
-      src: "/images/demo/dishes/canette-rotie-figues-epices.png",
-      alt: "Plat premium présenté dans un menu digital à Laval"
-    }
-  ],
-  "menu-digital-restaurant-brossard": [
-    {
-      src: photoRestoDining,
-      alt: "Salle de restaurant avec menu digital pour Brossard"
-    },
-    {
-      src: photoQrCode1,
-      alt: "QR code de table ouvrant une carte mobile à Brossard"
-    },
-    {
-      src: "/images/demo/dishes/tartare-saumon-label-rouge.png",
-      alt: "Plat présenté dans une carte digitale pour Brossard"
-    }
-  ],
-  "menu-digital-restaurant-haut-de-gamme": [
-    {
-      src: photoResto,
-      alt: "Ambiance premium de restaurant haut de gamme"
-    },
-    {
-      src: lobsterPlate,
-      alt: "Plat signature mis en scène pour un menu haut de gamme"
-    },
-    {
-      src: beveragePhoto,
-      alt: "Boisson signature présentée dans une expérience Vistaire"
-    }
-  ],
-  "menu-digital-restaurant-gastronomique": [
-    {
-      src: lobsterPlate,
-      alt: "Plat gastronomique présenté dans une carte digitale"
-    },
-    {
-      src: "/images/demo/dishes/souffle-chocolat-grand-cru.png",
-      alt: "Dessert gastronomique dans un menu digital Vistaire"
-    },
-    {
-      src: photoRestoDining,
-      alt: "Salle gastronomique avec expérience mobile premium"
-    }
-  ]
+// Where a page's own slots show the same dish twice, borrow a distinct photograph.
+const PHOTO_OVERRIDES: Record<string, Partial<Record<"hero" | "proof" | "premium", string>>> = {
+  G4: { hero: "DIGITAL:hero", premium: "PDF:hero" },
+  G5: { premium: "DIGITAL:premium" },
+  G7: { hero: "DIGITAL:proof" },
+  G12: { proof: "PDF:detail" },
 };
 
-const VISUAL_ALIASES: Record<string, string> = {
-  "qr-menu-without-pdf": "menu-qr-sans-pdf",
-  "digital-menu-without-app": "menu-digital-sans-application",
-  "replace-restaurant-pdf-menu": "remplacer-menu-pdf-restaurant",
-  "restaurant-pdf-menu-alternative": "alternative-menu-pdf-restaurant",
-  "digital-dish-page-restaurant": "fiche-plat-digitale-restaurant",
-  "restaurant-menu-photos": "menu-restaurant-photos",
-  "restaurant-menu-allergens": "menu-restaurant-allergenes",
-  "digital-restaurant-menu-montreal": "menu-digital-restaurant-montreal",
-  "digital-restaurant-menu-laval": "menu-digital-restaurant-laval",
-  "digital-restaurant-menu-brossard": "menu-digital-restaurant-brossard",
-  "high-end-restaurant-digital-menu": "menu-digital-restaurant-haut-de-gamme",
-  "fine-dining-restaurant-digital-menu":
-    "menu-digital-restaurant-gastronomique"
-};
-
-const localizedCopy = {
-  fr: {
-    actions: "Actions principales",
-    direct: "Réponse directe",
-    context: "Contexte",
-    proof: "Vistaire",
-    includedEyebrow: "Inclus",
-    includedTitle: "Ce que le menu Vistaire inclut",
-    includedBody:
-      "La présentation garde la même direction que les expériences Vistaire existantes : mobile-first, food-first, sobre et utile pendant le service.",
-    comparison: "Comparaison",
-    criterion: "Critère",
-    comparisonBody:
-      "La différence doit rester concrète : lisibilité, image, informations utiles et performance mobile.",
-    faqEyebrow: "Questions fréquentes",
-    faqTitle: "Questions fréquentes des restaurateurs",
-    faqBody:
-      "Des réponses courtes pour préparer la carte, rassurer l'équipe et clarifier l'expérience à table.",
-    finalEyebrow: "Prochaine étape",
-    finalTitle: "Préparer une expérience Vistaire cohérente.",
-    finalBody:
-      "Le parcours renvoie vers les guides utiles, le menu exemple et la prise de rendez-vous pour aider le restaurateur à avancer clairement.",
-    internalLinks: "Guides Vistaire"
-  },
-  en: {
-    actions: "Primary actions",
-    direct: "Short answer",
-    context: "Restaurant context",
-    proof: "With Vistaire",
-    includedEyebrow: "Included",
-    includedTitle: "What a Vistaire menu includes",
-    includedBody:
-      "The presentation keeps the same Vistaire direction: mobile-first, food-first, restrained and useful during service.",
-    comparison: "Comparison",
-    criterion: "Criterion",
-    comparisonBody:
-      "The difference should stay concrete: readability, image, useful information and mobile performance.",
-    faqEyebrow: "Questions",
-    faqTitle: "Common restaurant questions",
-    faqBody:
-      "Short answers to help prepare the menu, align the team and clarify the table experience.",
-    finalEyebrow: "Next step",
-    finalTitle: "Prepare a coherent Vistaire experience.",
-    finalBody:
-      "The path points to useful guides, the sample menu and booking flow so restaurants can keep moving clearly.",
-    internalLinks: "Vistaire guides"
-  }
-} as const;
-
-const layoutClasses: Record<SeoGeoPageType, string> = {
-  aeo: styles.layoutAeo,
-  local: styles.layoutLocal,
-  vertical: styles.layoutVertical
-};
-
-const heroImageSizes: Record<SeoGeoPageType, string> = {
-  aeo: "(max-width: 920px) calc(100vw - 56px), (max-width: 1400px) 32vw, 460px",
-  local:
-    "(max-width: 920px) calc(100vw - 56px), (max-width: 1400px) 38vw, 520px",
-  vertical:
-    "(max-width: 920px) calc(100vw - 56px), (max-width: 1400px) 64vw, 780px"
-};
-
-function ArrowIcon() {
+// The page's three restaurant photographs (G<n>:hero|proof|premium slots).
+function GeoGallery({ page, group }: { page: SeoGeoPageData; group: string }) {
+  const en = page.locale === "en";
   return (
-    <svg
-      aria-hidden="true"
-      className={styles.buttonIcon}
-      fill="none"
-      viewBox="0 0 12 12"
-    >
-      <path
-        d="M3.1 8.9 8.7 3.3m0 0H4.1m4.6 0v4.6"
-        stroke="currentColor"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeWidth="1.4"
-      />
-    </svg>
+    <div className="cinematic-gallery">
+      {(["hero", "proof", "premium"] as const).map((placement) => {
+        const slot = `${group}:${placement}`;
+        const photo = getSeoMarketingImage(PHOTO_OVERRIDES[group]?.[placement] ?? slot, page.locale ?? "fr");
+        const frame = (
+          <div className="cinematic-photo-frame">
+            <Image alt={photo.alt} src={photo.src} fill quality={84} sizes="(max-width: 767px) calc(100vw - 32px), 360px" />
+          </div>
+        );
+        return (
+          <figure className="cinematic-photo" data-seo-photo-slot={slot} key={slot}>
+            {group === "G7" && placement === "proof" ? (
+              <a href={photo.src} target="_blank" rel="noopener noreferrer">
+                {frame}
+                <span>{en ? "View the allergen panel at full size (new tab)" : "Voir le panneau des allergènes en grand (nouvel onglet)"}</span>
+              </a>
+            ) : frame}
+            {group === "G7" && placement === "premium" ? (
+              <figcaption>{en ? "A dish example. Its photograph does not establish its allergen information." : "Un exemple de plat. Sa photographie ne permet pas d’établir ses allergènes."}</figcaption>
+            ) : null}
+          </figure>
+        );
+      })}
+    </div>
   );
 }
 
-function uniqueLinks(links: SeoGeoInternalLink[]) {
-  const seen = new Set<string>();
-
-  return links.filter((link) => {
-    const key = `${link.href}-${link.label}`;
-    if (seen.has(key)) return false;
-    seen.add(key);
-    return true;
-  });
+// Tools some needs keep from their former pages: a migration checklist, the
+// allergen caution, a dish page's anatomy, photography criteria.
+function GeoTools({ page, n, text }: { page: SeoGeoPageData; n: number; text: (value: string) => string }) {
+  const en = page.locale === "en";
+  const tools: Record<number, ReactNode> = {
+    3: (
+      <form className="cinematic-panel cinematic-checklist">
+        <fieldset>
+          <legend>{en ? "Prepare your menu" : "Préparer votre carte"}</legend>
+          <p>{en ? "A checklist for your team. Your choices stay on this page." : "Un aide-mémoire pour votre équipe. Vos choix restent sur cette page."}</p>
+          {page.context.points?.map((point, index) => <label key={point}><input type="checkbox" name={`preparation-${index}`} /><span>{text(point)}</span></label>)}
+          <button type="reset">{en ? "Start again" : "Recommencer"}</button>
+        </fieldset>
+      </form>
+    ),
+    5: (
+      <section className="cinematic-panel" aria-label={en ? "Explore a dish page" : "Explorer une fiche plat"}>
+        <h3>{en ? "The anatomy of a dish page" : "L’anatomie d’une fiche plat"}</h3>
+        {[page.included[3], page.included[2], page.included[4], page.included[5]].filter(Boolean).map((item, index) => (
+          <details key={item.title}><summary><span aria-hidden="true">{String(index + 1).padStart(2, "0")}</span> {text(item.title)}</summary><p>{text(item.text)}</p></details>
+        ))}
+      </section>
+    ),
+    6: (
+      <section className="cinematic-panel" aria-label={en ? "Look closely" : "Regarder de près"}>
+        <h3>{en ? "The dish. The detail. The menu." : "Le plat. Le détail. La carte."}</h3>
+        <ol>{page.context.points?.map((point) => <li key={point}>{text(point)}</li>)}</ol>
+      </section>
+    ),
+    7: (
+      <section className="cinematic-panel">
+        <p><strong>{en ? "For a sensitive dietary need, always confirm the information with the restaurant team." : "Pour un besoin alimentaire sensible, confirmez toujours l’information avec l’équipe du restaurant."}</strong></p>
+        <details data-allergen-service-note>
+          <summary>{en ? "What to confirm with the team" : "Ce qu’il faut confirmer avec l’équipe"}</summary>
+          <p>{text(page.context.body[0])}</p>
+          {page.comparison.rows[2] && <p>{text(page.comparison.rows[2].vistaire)}</p>}
+        </details>
+      </section>
+    ),
+  };
+  return tools[n] ?? null;
 }
 
 export function SeoGeoAeoPage({ page }: { page: SeoGeoPageData }) {
   const locale = page.locale ?? "fr";
-  const copy = localizedCopy[locale];
-  const visualKey = VISUAL_ALIASES[page.slug] ?? page.slug;
-  const visuals = VISUAL_SETS[visualKey] ?? [
-    page.visualImage,
-    page.visualImage,
-    page.visualImage
-  ];
-  const finalLinks = uniqueLinks([
-    ...page.relatedLinks,
-    page.primaryCta,
-    page.secondaryCta
-  ]);
-  const displayFaq = buildSeoGeoPublicFaq(page);
-
-  return (
-    <main className={styles.page}>
-      <Image
-        alt=""
-        aria-hidden="true"
-        className={styles.backgroundImage}
-        fill
-        quality={72}
-        sizes="100vw"
-        src={restaurantBackground}
-      />
-
-      <div className={styles.topNav}>
-        <PreviewNav
-          currentPath={page.path}
-          locale={locale}
-          routeMode="production"
-        />
-      </div>
-
-      <section
-        aria-labelledby={`${page.slug}-title`}
-        className={styles.hero}
-        id="accueil"
-      >
-        <div className={`${styles.previewFrame} ${layoutClasses[page.type]}`}>
-          <article className={`${styles.card} ${styles.heroCopy}`}>
-            <p className={styles.badge}>{publicText(page.eyebrow, locale)}</p>
-            <h1 id={`${page.slug}-title`}>{publicText(page.h1, locale)}</h1>
-            <p className={styles.heroLead}>
-              {publicText(page.directAnswer, locale)}
-            </p>
-            <div className={styles.heroActions} aria-label={copy.actions}>
-              <Link
-                className={styles.primaryButton}
-                href={page.primaryCta.href}
-                prefetch={false}
-              >
-                {publicText(page.primaryCta.label, locale)}
-                <ArrowIcon />
-              </Link>
-              <Link
-                className={styles.secondaryButton}
-                href={page.secondaryCta.href}
-                prefetch={false}
-              >
-                {publicText(page.secondaryCta.label, locale)}
-              </Link>
-            </div>
-            <figure className={`${styles.visualFigure} ${styles.heroVisual}`}>
-              <Image
-                alt={publicText(visuals[0].alt, locale)}
-                className={styles.visualImage}
-                fill
-                priority
-                quality={84}
-                sizes={heroImageSizes[page.type]}
-                src={visuals[0].src}
-              />
-            </figure>
-          </article>
-
-          <section
-            className={`${styles.card} ${styles.problemCard}`}
-            aria-labelledby={`${page.slug}-context-title`}
-          >
-            <p className={styles.badge}>{copy.context}</p>
-            <h2 id={`${page.slug}-context-title`}>
-              {publicText(page.context.heading, locale)}
-            </h2>
-            {page.context.body.map((paragraph) => (
-              <p key={paragraph}>{publicText(paragraph, locale)}</p>
+  const en = locale === "en";
+  const text = (value: string) => seoGeoPublicText(value, locale);
+  const pair = SEO_GEO_ROUTE_PAIRS.find((route) => route.fr === page.path || route.en === page.path);
+  const script = GEO_SCRIPTS[pair?.fr ?? page.path];
+  if (!script) throw new Error(`Missing restaurant page composition: ${page.path}`);
+  const shot = (index: number) => `geo-${script.n}-${index}`;
+  const links = page.relatedLinks.filter((link, index, all) => all.findIndex((item) => item.href === link.href) === index);
+  const faqs = buildSeoGeoPublicFaq(page);
+  const chapters: CinematicChapter[] = [
+    {
+      id: "accueil",
+      shot: shot(1),
+      titleId: `${page.slug}-title`,
+      content: (
+        <>
+          <span className="eyebrow">{text(page.eyebrow)}</span>
+          <h1 id={`${page.slug}-title`}>{text(page.h1)}</h1>
+          <p>{text(page.directAnswer)}</p>
+          <div className="cinematic-actions">
+            <Link className="action" href={page.primaryCta.href} prefetch={false}>{text(page.primaryCta.label)}</Link>
+            <Link className="action action-dark" href={page.secondaryCta.href} prefetch={false}>{text(page.secondaryCta.label)}</Link>
+          </div>
+        </>
+      ),
+    },
+    {
+      id: `${page.slug}-context`,
+      shot: shot(2),
+      align: script.n % 2 ? "right" : "left",
+      titleId: `${page.slug}-context-title`,
+      content: (
+        <>
+          <h2 id={`${page.slug}-context-title`}>{text(page.context.heading)}</h2>
+          <p>{text(page.context.body[0])}</p>
+          {page.context.points && <ul>{page.context.points.slice(0, 3).map((point) => <li key={point}>{text(point)}</li>)}</ul>}
+        </>
+      ),
+    },
+    {
+      id: `${page.slug}-proof`,
+      shot: shot(3),
+      align: script.n % 3 === 0 ? "center" : script.n % 2 ? "left" : "right",
+      titleId: `${page.slug}-proof-title`,
+      content: (
+        <>
+          <h2 id={`${page.slug}-proof-title`}>{text(page.productProof.heading)}</h2>
+          <p>{text(page.productProof.body)}</p>
+          <ul>{page.productProof.points.slice(0, 3).map((point) => <li key={point}>{text(point)}</li>)}</ul>
+        </>
+      ),
+    },
+    {
+      id: `${page.slug}-comparison`,
+      shot: shot(4),
+      align: script.n % 2 ? "right" : "left",
+      titleId: `${page.slug}-comparison-title`,
+      content: (
+        <>
+          <h2 id={`${page.slug}-comparison-title`}>{text(page.comparison.heading)}</h2>
+          <dl className="cinematic-compare">
+            {page.comparison.rows.slice(0, 3).map((row) => (
+              <div key={row.label}>
+                <dt>{text(row.label)}</dt>
+                <dd><span>{text(page.comparison.basicLabel)}</span>{text(row.basic)}</dd>
+                <dd><span>{text(page.comparison.vistaireLabel)}</span>{text(row.vistaire)}</dd>
+              </div>
             ))}
-            {page.context.points ? (
-              <div className={styles.problemList}>
-                {page.context.points.map((point) => (
-                  <section key={point}>
-                    <h3>{publicText(point, locale)}</h3>
-                  </section>
-                ))}
-              </div>
-            ) : null}
-          </section>
-
-          <section
-            className={`${styles.card} ${styles.mobileProofCard}`}
-            aria-labelledby={`${page.slug}-proof-title`}
-          >
-            <figure className={styles.visualFigure}>
-              <Image
-                alt={publicText(visuals[1].alt, locale)}
-                className={styles.visualImage}
-                fill
-                quality={80}
-                sizes="(max-width: 920px) calc(100vw - 56px), (max-width: 1400px) 58vw, 880px"
-                src={visuals[1].src}
-              />
-            </figure>
-            <div className={styles.visualCopy}>
-              <p className={styles.badge}>{copy.proof}</p>
-              <h2 id={`${page.slug}-proof-title`}>
-                {publicText(page.productProof.heading, locale)}
-              </h2>
-              <p>{publicText(page.productProof.body, locale)}</p>
-              {page.productProof.points.length > 0 ? (
-                <ul className={styles.proofPoints}>
-                  {page.productProof.points.map((point) => (
-                    <li key={point}>{publicText(point, locale)}</li>
-                  ))}
-                </ul>
-              ) : null}
-            </div>
-          </section>
-
-          <section
-            className={`${styles.card} ${styles.premiumPanel}`}
-            aria-labelledby={`${page.slug}-included-title`}
-          >
-            <div className={styles.premiumContent}>
-              <div className={styles.sectionIntro}>
-                <p className={styles.badge}>{copy.includedEyebrow}</p>
-                <h2 id={`${page.slug}-included-title`}>
-                  {copy.includedTitle}
-                </h2>
-                <p>{copy.includedBody}</p>
-              </div>
-              <div className={styles.benefitGrid}>
-                {page.included.slice(0, 6).map((item) => (
-                  <article className={styles.benefitItem} key={item.title}>
-                    <h3>{publicText(item.title, locale)}</h3>
-                    <p className="mt-3 text-[13px] font-medium leading-[1.45] text-[#f4e5cd]/72">
-                      {publicText(item.text, locale)}
-                    </p>
-                  </article>
-                ))}
-              </div>
-            </div>
-            <figure className={`${styles.visualFigure} ${styles.premiumVisual}`}>
-              <Image
-                alt={publicText(visuals[2].alt, locale)}
-                className={styles.visualImage}
-                fill
-                quality={80}
-                sizes="(max-width: 920px) calc(100vw - 56px), (max-width: 1400px) 34vw, 500px"
-                src={visuals[2].src}
-              />
-            </figure>
-          </section>
-
-          <section
-            className={`${styles.card} ${styles.comparisonCard}`}
-            aria-labelledby={`${page.slug}-comparison-title`}
-          >
-            <div className={styles.sectionIntro}>
-              <p className={styles.badge}>{copy.comparison}</p>
-              <h2 id={`${page.slug}-comparison-title`}>
-                {publicText(page.comparison.heading, locale)}
-              </h2>
-              <p>
-                {copy.comparisonBody}
-              </p>
-            </div>
-            <table className={styles.comparisonTable}>
+          </dl>
+        </>
+      ),
+    },
+  ];
+  return (
+    <>
+      <PreviewNav currentPath={page.path} locale={locale} routeMode="production" />
+      <CinematicPage chapters={chapters} scene={script.scene} footer={<CinematicFooter locale={locale} id={page.slug} />}>
+        <section className="cinematic-guide" aria-labelledby={`${page.slug}-guide-title`} data-seo-composition={script.composition}>
+          <div className="cinematic-panel cinematic-guide-intro">
+            <span className="eyebrow">{en ? "Vistaire guide" : "Guide Vistaire"}</span>
+            <h2 id={`${page.slug}-guide-title`}>{en ? "Direct answer" : "Réponse directe"}</h2>
+            <p>{text(page.directAnswer)}</p>
+            {page.context.body.slice(1).map((paragraph) => <p key={paragraph}>{text(paragraph)}</p>)}
+          </div>
+          <GeoTools page={page} n={script.n} text={text} />
+          <GeoGallery page={page} group={`G${script.n}`} />
+          <div className="cinematic-guide-sections">
+            {page.included.map((item) => (
+              <article className="cinematic-panel" key={item.title}>
+                <h3>{text(item.title)}</h3>
+                <p>{text(item.text)}</p>
+              </article>
+            ))}
+          </div>
+          <div className="cinematic-panel">
+            <h3>{text(page.comparison.heading)}</h3>
+            <table className="cinematic-table">
               <thead>
-                <tr>
-                  <th scope="col">{copy.criterion}</th>
-                  <th scope="col">
-                    {publicText(page.comparison.basicLabel, locale)}
-                  </th>
-                  <th scope="col">
-                    {publicText(page.comparison.vistaireLabel, locale)}
-                  </th>
-                </tr>
+                <tr><th scope="col"><span className="sr-only">{en ? "Criterion" : "Critère"}</span></th><th scope="col">{text(page.comparison.basicLabel)}</th><th scope="col">{text(page.comparison.vistaireLabel)}</th></tr>
               </thead>
               <tbody>
                 {page.comparison.rows.map((row) => (
-                  <tr key={row.label}>
-                    <th scope="row">{publicText(row.label, locale)}</th>
-                    <td
-                      data-label={publicText(
-                        page.comparison.basicLabel,
-                        locale
-                      )}
-                    >
-                      {publicText(row.basic, locale)}
-                    </td>
-                    <td
-                      data-label={publicText(
-                        page.comparison.vistaireLabel,
-                        locale
-                      )}
-                    >
-                      {publicText(row.vistaire, locale)}
-                    </td>
-                  </tr>
+                  <tr key={row.label}><th scope="row">{text(row.label)}</th><td data-label={text(page.comparison.basicLabel)}>{text(row.basic)}</td><td data-label={text(page.comparison.vistaireLabel)}>{text(row.vistaire)}</td></tr>
                 ))}
               </tbody>
             </table>
+          </div>
+          <section className="landing-faq cinematic-faq" aria-labelledby={`${page.slug}-faq-title`}>
+            <div className="landing-faq-heading">
+              <span className="pricing-eyebrow">{en ? "Your questions" : "Vos questions"}</span>
+              <h2 id={`${page.slug}-faq-title`}>{en ? "Common restaurant questions" : "Questions fréquentes des restaurateurs"}</h2>
+            </div>
+            <SeoFaq className="landing-faq-items" layout="stack" locale={locale} faqs={faqs} />
           </section>
-
-          <section
-            className={`${styles.card} ${styles.comparisonCard}`}
-            aria-labelledby={`${page.slug}-faq-title`}
-          >
-            <div className={styles.sectionIntro}>
-              <p className={styles.badge}>{copy.faqEyebrow}</p>
-              <h2 id={`${page.slug}-faq-title`}>
-                {copy.faqTitle}
-              </h2>
-              <p>{copy.faqBody}</p>
-            </div>
-            <div className="mt-8">
-              <SeoFaq faqs={displayFaq} layout="stack" locale={locale} />
-            </div>
-          </section>
-
-          <section
-            className={`${styles.card} ${styles.finalCta}`}
-            aria-labelledby={`${page.slug}-final-title`}
-          >
-            <div>
-              <p className={styles.badge}>{copy.finalEyebrow}</p>
-              <h2 id={`${page.slug}-final-title`}>
-                {copy.finalTitle}
-              </h2>
-              <p>{copy.finalBody}</p>
-            </div>
-            <div className={styles.finalActions}>
-              <Link
-                className={styles.primaryButton}
-                href={page.primaryCta.href}
-                prefetch={false}
-              >
-                {publicText(page.primaryCta.label, locale)}
-                <ArrowIcon />
+          <nav className="cinematic-related" aria-label={en ? "Related restaurant guides" : "Guides pour votre restaurant"}>
+            {links.map((link) => (
+              <Link className="cinematic-panel" href={link.href} key={link.href} prefetch={false}>
+                <strong>{text(link.label)}</strong>
               </Link>
-              <Link
-                className={styles.secondaryButton}
-                href={page.secondaryCta.href}
-                prefetch={false}
-              >
-                {publicText(page.secondaryCta.label, locale)}
-              </Link>
-            </div>
-            <nav className={styles.internalLinks} aria-label={copy.internalLinks}>
-              {finalLinks.map((link) => (
-                <Link href={link.href} key={`${link.href}-${link.label}`} prefetch={false}>
-                  {publicText(link.label, locale)}
-                </Link>
-              ))}
-            </nav>
-          </section>
-        </div>
-      </section>
-
-      <PreviewFooter currentPath={page.path} locale={locale} routeMode="production" width="wide" />
-    </main>
+            ))}
+          </nav>
+        </section>
+      </CinematicPage>
+    </>
   );
 }

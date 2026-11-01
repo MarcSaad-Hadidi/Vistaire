@@ -26,9 +26,11 @@ test("overview navigates and remains usable at 390 and 430", async ({ page }) =>
   for (const width of [390, 430]) {
     await page.setViewportSize({ width, height: width === 390 ? 844 : 932 });
     await page.goto("/admin", { waitUntil: "networkidle" });
-    await expect(page.getByRole("navigation", { name: "Navigation du restaurant" })).toBeVisible();
+    const navigation = page.getByRole("navigation", { name: "Navigation principale" });
+    await expect(navigation).toBeVisible();
+    await expect(navigation.getByRole("link")).toHaveCount(4);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
-    for (const control of await page.getByRole("navigation", { name: "Navigation du restaurant" }).locator("a:visible").all()) {
+    for (const control of await navigation.locator("a:visible").all()) {
       const box = await control.boundingBox();
       if (box) { expect(box.width).toBeGreaterThanOrEqual(44); expect(box.height).toBeGreaterThanOrEqual(44); }
     }
@@ -38,18 +40,33 @@ test("overview navigates and remains usable at 390 and 430", async ({ page }) =>
   healthy();
 });
 
-test("overview has visible detailed insights CTA", async ({ page }) => {
+test("overview navigation opens all four destinations by keyboard at desktop and mobile sizes", async ({ page }) => {
   const token = requireAdminFixture(process.env.VISTAIRE_ADMIN_E2E_QR_TOKEN, "VISTAIRE_ADMIN_E2E_QR_TOKEN");
   await page.goto(`/q/${encodeURIComponent(token)}`, { waitUntil: "networkidle" });
   for (const viewport of [{ width: 1440, height: 900 }, { width: 390, height: 844 }]) {
     await page.setViewportSize(viewport);
     await page.goto("/admin", { waitUntil: "networkidle" });
-    const cta = page.getByRole("link", { name: "Voir les statistiques détaillées" });
-    await expect(cta).toBeVisible();
-    await expect(cta).toHaveAttribute("href", "/admin/insights");
-    await cta.focus();
-    await expect(cta).toBeFocused();
-    await page.keyboard.press("Enter");
-    await expect(page).toHaveURL(/\/admin\/insights/);
+    const navigation = page.getByRole("navigation", { name: "Navigation principale" });
+    await expect(navigation.getByRole("link")).toHaveCount(4);
+    for (const [name, pathname] of [
+      ["Analyses", "/admin/insights"],
+      ["Les plats", "/admin/availability"],
+      ["Planning", "/admin/planning"],
+      ["Vue d’ensemble", "/admin"],
+    ]) {
+      const link = navigation.getByRole("link", { name, exact: true });
+      await expect(link).toBeVisible();
+      await expect(link).toHaveAttribute("href", `${pathname}?range=7d`);
+      const box = await link.boundingBox();
+      expect(box).not.toBeNull();
+      expect(box!.width).toBeGreaterThanOrEqual(44);
+      expect(box!.height).toBeGreaterThanOrEqual(44);
+      await link.focus();
+      await expect(link).toBeFocused();
+      await link.press("Enter");
+      await expect(page).toHaveURL((url) => url.pathname === pathname && url.searchParams.get("range") === "7d");
+      await expect(page.getByRole("heading", { level: 1, name, exact: true })).toBeVisible();
+      await expect(link).toHaveAttribute("aria-current", "page");
+    }
   }
 });

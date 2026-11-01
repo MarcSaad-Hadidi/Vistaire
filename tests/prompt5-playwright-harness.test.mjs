@@ -58,6 +58,6 @@ test("the SEO browser CI family executes every Prompt 5 suite", () => {
     appCiWorkflow.indexOf("  e2e-public-chromium:"),
     appCiWorkflow.indexOf("  e2e-sauge-chromium:")
   );
-  assert.match(publicJob, /run: npm run test:seo:e2e/);
+  assert.match(publicJob, /RUN_SEO: 'test:seo:e2e'/);
   assert.match(publicJob, /outputs\.run_seo == 'true'/);
 });

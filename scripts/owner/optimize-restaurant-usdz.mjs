@@ -6,6 +6,9 @@
  *   node scripts/owner/optimize-restaurant-usdz.mjs \
  *     --source <tmp source.usdz> --output <tmp runtime.usdz> \
  *     --report <tmp report.json> --profile balanced|premium|light|emergency
+ *   node scripts/owner/optimize-restaurant-usdz.mjs \
+ *     --source <source.usdz> --output <dossier-variantes> \
+ *     --report <manifest.json> --variants --dish-kind plate
  *
  * - Validates the source USDZ structurally (usdz-basic).
  * - Runs the Python worker (OpenUSD + Pillow) that extracts, inspects,
@@ -31,6 +34,7 @@ import { createHash } from "node:crypto";
 import {
   copyFileSync,
   existsSync,
+  mkdirSync,
   mkdtempSync,
   readFileSync,
   rmSync,
@@ -38,7 +42,7 @@ import {
   writeFileSync
 } from "node:fs";
 import { tmpdir } from "node:os";
-import { dirname, join, resolve } from "node:path";
+import { basename, dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { validateUsdzBasic } from "../3d/shared/validators/usdz-basic.mjs";
@@ -96,11 +100,26 @@ function parsePositiveInt(value, fallback) {
 
 function targetBudgetBytes(profile) {
   const envKey = `VISTAIRE_USDZ_${profile.toUpperCase()}_TARGET_BYTES`;
-  return parsePositiveInt(process.env[envKey], DEFAULT_PROFILE_BUDGETS[profile]);
+  const configuredBudget = profile === "variants" ? Number(variantProfileConfig()?.targetMaxBytes) : DEFAULT_PROFILE_BUDGETS[profile];
+  return parsePositiveInt(process.env[envKey], configuredBudget);
 }
 
 function profileRecipes(profile) {
   const recipes = RECIPE_CONFIG.profiles?.[profile]?.recipes;
+  return Array.isArray(recipes) ? recipes : [];
+}
+
+// Recettes expérimentales "variants" : volontairement HORS de
+// RECIPE_CONFIG.profiles pour ne pas casser le contrat du registre
+// partagé (lib/owner/usdzRuntimeModel.ts ne connaît que les 4 profils
+// de production). Clé de premier niveau "variants".
+function variantProfileConfig() {
+  const cfg = RECIPE_CONFIG.variants;
+  return cfg && typeof cfg === "object" ? cfg : null;
+}
+
+function variantRecipes() {
+  const recipes = variantProfileConfig()?.recipes;
   return Array.isArray(recipes) ? recipes : [];
 }
 
@@ -136,10 +155,11 @@ function assertAllowedWorkerOrigin(origin) {
   }
 }
 
-function runPython(python, args) {
+function runPython(python, args, env) {
   return new Promise((resolvePromise) => {
     const child = spawn(python, [PYTHON_WORKER, ...args], {
       windowsHide: true,
+      env: env ? { ...process.env, ...env } : process.env,
       shell: process.platform === "win32" && /\.(?:cmd|bat)$/i.test(python)
     });
     let stdout = "";
@@ -161,6 +181,66 @@ function runPython(python, args) {
 
 function formatBytes(bytes) {
   return `${Math.max(0, Number(bytes) || 0)} B`;
+}
+
+// Sonde temporaire compatible avec les lanceurs Python .cmd sous Windows.
+async function runPythonCode(python, code, args) {
+  const workspace = mkdtempSync(join(tmpdir(), "vistaire-usdz-probe-"));
+  const script = join(workspace, "triangle-probe.py");
+  writeFileSync(script, code, "utf8");
+  try {
+    return await new Promise((resolvePromise) => {
+      const child = spawn(python, [script, ...args], {
+        windowsHide: true,
+        shell: process.platform === "win32" && /\.(?:cmd|bat)$/i.test(python)
+      });
+      let stdout = "";
+      let stderr = "";
+      child.stdout.on("data", (chunk) => {
+        stdout += chunk.toString();
+      });
+      child.stderr.on("data", (chunk) => {
+        stderr += chunk.toString();
+      });
+      child.on("error", (error) => {
+        resolvePromise({ code: -1, stdout, stderr: `${stderr}${error.message}` });
+      });
+      child.on("close", (code) => {
+        resolvePromise({ code: code ?? -1, stdout, stderr });
+      });
+    });
+  } finally {
+    rmSync(workspace, { recursive: true, force: true });
+  }
+}
+
+// Compte les triangles d'une scène USD avec la formule exacte du worker
+// (mesh_triangle_count dans optimize_restaurant_usdz.py).
+const COUNT_TRIANGLES_PY = `
+import sys
+from pxr import Usd, UsdGeom
+stage = Usd.Stage.Open(sys.argv[1])
+total = 0
+for prim in stage.Traverse():
+    if prim.IsA(UsdGeom.Mesh):
+        counts = UsdGeom.Mesh(prim).GetFaceVertexCountsAttr().Get() or []
+        for c in counts:
+            if c >= 3:
+                total += max(1, int(c) - 2)
+print(total)
+`;
+
+async function measureSourceTriangles(python, source) {
+  try {
+    const result = await runPythonCode(python, COUNT_TRIANGLES_PY, [source]);
+    const count = Number(String(result.stdout).trim());
+    if (result.code === 0 && Number.isInteger(count) && count > 0) {
+      return count;
+    }
+  } catch {
+    // Un ratio ne peut pas être garanti sans mesure de la source.
+  }
+  return 0;
 }
 
 function profileLabel(profile) {
@@ -323,7 +403,7 @@ function parseWorkerReport(path) {
   return JSON.parse(readFileSync(path, "utf8"));
 }
 
-async function runCandidate({ python, source, workspace, profile, recipe, dishKind }) {
+async function runCandidate({ python, source, workspace, profile, recipe, dishKind, env }) {
   const recipeSlug = recipe?.slug || `${profile}-default`;
   const runtimePath = join(workspace, `runtime-${profile}-${recipeSlug}.usdz`);
   const reportPath = join(workspace, `report-${profile}-${recipeSlug}.json`);
@@ -341,7 +421,7 @@ async function runCandidate({ python, source, workspace, profile, recipe, dishKi
     recipeSlug,
     "--dish-kind",
     dishKind
-  ]);
+  ], env);
   const attempt = {
     profile,
     recipe: recipeSlug,
@@ -439,6 +519,146 @@ async function runCandidate({ python, source, workspace, profile, recipe, dishKi
   };
 }
 
+const VARIANT_SUFFIX_BY_SLUG = {
+  "variant-r50": "r50",
+  "variant-r25": "r25",
+  "variant-r15": "r15",
+  "variant-r10": "r10"
+};
+
+/**
+ * Mode variantes (--variants) : génère une variante par recette du profil
+ * "variants" et les garde TOUTES (aucune auto-sélection).
+ * --output est ici un DOSSIER de sortie.
+ * Sortie : <base>_r50.usdz, <base>_r25.usdz, <base>_r15.usdz,
+ *          <base>_r10.usdz + manifest.json
+ */
+async function runVariantsMode({ source, output, reportPath, dishKind, python, sourceBytes, sourceSha256 }) {
+  const recipes = variantRecipes();
+  if (recipes.length === 0) {
+    emitError("Clé 'variants' introuvable dans usdz-optimization-recipes.json.", "variants");
+  }
+  const outDir = resolve(output);
+  mkdirSync(outDir, { recursive: true });
+  const base = basename(source).replace(/\.usdz$/i, "");
+  const workspace = mkdtempSync(join(tmpdir(), "vistaire-usdz-variants-"));
+  const variants = [];
+  const cleanupOutputs = () => {
+    for (const recipe of recipes) {
+      const suffix = VARIANT_SUFFIX_BY_SLUG[recipe.slug] || recipe.slug;
+      rmSync(join(outDir, `${base}_${suffix}.usdz`), { force: true });
+    }
+    rmSync(join(outDir, "manifest.json"), { force: true });
+    rmSync(reportPath, { force: true });
+  };
+  try {
+    // Les suffixes représentent une fraction mesurée de la source.
+    const sourceTriangles = await measureSourceTriangles(python, source);
+    if (sourceTriangles <= 0) {
+      throw new OptimizerStageError("Impossible de mesurer les triangles de la source USDZ.", "geometry");
+    }
+    for (const recipe of recipes) {
+      const suffix = VARIANT_SUFFIX_BY_SLUG[recipe.slug] || recipe.slug;
+      const ratioMatch = /^r(\d+)$/.exec(suffix);
+      const ratio = ratioMatch ? parseInt(ratioMatch[1], 10) / 100 : 0;
+      const targetTriangles =
+        ratio > 0 && sourceTriangles > 0
+          ? Math.max(1, Math.round(sourceTriangles * ratio))
+          : Number(recipe.targetTriangles) || 0;
+      const candidate = await runCandidate({
+        python,
+        source,
+        workspace,
+        profile: "variants",
+        recipe,
+        dishKind,
+        env: {
+          VISTAIRE_USDZ_VARIANTS_TARGET_TRIANGLES: String(targetTriangles)
+        }
+      });
+      if (!candidate.ok || candidate.attempt?.ok === false) {
+        variants.push({
+          recipe: recipe.slug,
+          ok: false,
+          error: candidate.attempt?.error || "échec de la variante"
+        });
+        continue;
+      }
+      const runtimeBytes = statSync(candidate.runtimePath).size;
+      if (!(runtimeBytes > 0 && runtimeBytes <= candidate.attempt.targetBytes)) {
+        variants.push({
+          recipe: recipe.slug,
+          ok: false,
+          error: `Variante au-dessus du budget : ${runtimeBytes} > ${candidate.attempt.targetBytes} octets.`
+        });
+        continue;
+      }
+      const rep = candidate.report || {};
+      const runtimeValidation = validateUsdzBasic({
+        filePath: candidate.runtimePath,
+        label: "usdz-variant",
+        productionUrl: false
+      });
+      const before = Number(rep.triangleCountBefore);
+      const after = Number(rep.triangleCountAfter);
+      if (!runtimeValidation.ok || runtimeValidation.metrics.sha256 === sourceSha256 ||
+          rep.geometryOptimization !== "done" ||
+          !Number.isInteger(after) || after <= 0 || !(after < before) || after > targetTriangles ||
+          !["normalized", "unchanged"].includes(rep.physicalScale?.status)) {
+        variants.push({
+          recipe: recipe.slug,
+          ok: false,
+          error: "Variante USDZ invalide : package, géométrie ou échelle physique.",
+          fails: runtimeValidation.fails
+        });
+        continue;
+      }
+      const fileName = `${base}_${suffix}.usdz`;
+      copyFileSync(candidate.runtimePath, join(outDir, fileName));
+      variants.push({
+        recipe: recipe.slug,
+        ok: true,
+        file: fileName,
+        bytes: statSync(join(outDir, fileName)).size,
+        reductionPercent: rep.reductionPercent ?? 0,
+        ratio: ratio > 0 ? ratio : undefined,
+        sourceTriangles: sourceTriangles > 0 ? sourceTriangles : undefined,
+        targetTriangles,
+        triangleCountBefore: rep.triangleCountBefore ?? 0,
+        triangleCountAfter: rep.triangleCountAfter ?? 0,
+        geometryOptimization: rep.geometryOptimization ?? "skipped"
+      });
+    }
+    const failed = variants.filter((variant) => !variant.ok);
+    if (failed.length > 0) {
+      throw new OptimizerStageError(
+        `${failed.length} variante(s) en échec : ${failed.map((variant) => variant.recipe).join(", ")}`,
+        "variants",
+        { variants }
+      );
+    }
+    const manifest = {
+      ok: true,
+      mode: "variants",
+      generatedAt: new Date().toISOString(),
+      sourceBytes,
+      sourceSha256,
+      outDir,
+      variants
+    };
+    writeFileSync(join(outDir, "manifest.json"), `${JSON.stringify(manifest, null, 2)}\n`, "utf8");
+    if (reportPath) {
+      writeFileSync(reportPath, `${JSON.stringify(manifest, null, 2)}\n`, "utf8");
+    }
+    process.stdout.write(`${JSON.stringify({ ok: true, mode: "variants", outDir, variants })}\n`);
+  } catch (error) {
+    cleanupOutputs();
+    throw error;
+  } finally {
+    rmSync(workspace, { recursive: true, force: true });
+  }
+}
+
 async function main() {
   const args = parseArgs(process.argv.slice(2));
   const source = args.source ? resolve(args.source) : "";
@@ -460,6 +680,9 @@ async function main() {
   if (!VALID_DISH_KINDS.has(dishKind)) {
     emitError(`Type de plat invalide: ${dishKind}.`, "args");
   }
+  if (source === reportPath || output === reportPath) {
+    emitError("Le rapport doit être distinct de la source et de la sortie.", "args");
+  }
   if (source === output) {
     emitError("Source et output identiques.", "args");
   }
@@ -479,6 +702,13 @@ async function main() {
   const sourceSha256 = sha256File(source);
 
   const python = resolvePythonExecutable();
+
+  // Mode variantes : --output = dossier, on garde les 4 variantes.
+  if (args["variants"] === true) {
+    await runVariantsMode({ source, output, reportPath, dishKind, python, sourceBytes, sourceSha256 });
+    return;
+  }
+
   const candidateWorkspace = mkdtempSync(join(resolve(tmpdir()), "vistaire-usdz-candidates-"));
   const attempts = [];
   let chosen = null;

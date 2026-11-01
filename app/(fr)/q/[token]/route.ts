@@ -4,6 +4,7 @@ import {
   createAdminAccessToken,
   getAdminAccessCookieOptions
 } from "@/lib/admin/accessSessionCore";
+import { publicQrAttributionPath } from "@/lib/analytics/validationCore.mjs";
 import { resolveQrToken } from "@/lib/owner/qrStore";
 import { logQrResolutionFailure } from "@/lib/owner/qrDiagnostics";
 
@@ -37,7 +38,7 @@ export async function GET(request: NextRequest, context: QrRouteContext) {
   }
 
   if (resolved.targetKind === "menu") {
-    return protectedRedirect(request, resolved.targetPath);
+    return protectedRedirect(request, publicQrAttributionPath(resolved));
   }
 
   const secret = process.env.VISTAIRE_ADMIN_SESSION_SECRET;

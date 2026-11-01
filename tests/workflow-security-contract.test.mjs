@@ -21,11 +21,12 @@ test("workflow security gates are immutable, read-only, and explicit", () => {
   assert.match(workflow, /name: Workflow Security/);
   assert.match(workflow, /permissions:\s+contents: read/);
   assert.match(workflow, /devops-actions\/actionlint@[0-9a-f]{40}/);
-  assert.match(workflow, /zizmorcore\/zizmor-action@[0-9a-f]{40}/);
+  assert.match(workflow, /zizmorcore\/zizmor-action@85b2b9fb8e3325e7a23d7d0a9d7ba5ae0f999e3e\s+# v0\.7\.1(?:\s|$)/);
   assert.match(workflow, /version: 1\.21\.0/);
   assert.match(workflow, /online-audits: false/);
   assert.match(workflow, /advanced-security: false/);
-  assert.match(workflow, /npm audit --json/);
+  assert.match(workflow, /npm audit --package-lock-only --json/);
+  assert.doesNotMatch(workflow, /run: npm ci/);
   assert.match(workflow, /check-npm-audit-baseline\.mjs/);
   assert.doesNotMatch(workflow, /npm audit fix/);
   for (const match of workflow.matchAll(/uses:\s*([^\s]+)@([^\s#]+)/g)) {
@@ -158,5 +159,26 @@ test("Vercel cleanup workflow only runs from trusted events with read-only GitHu
   assert.doesNotMatch(vercelCleanupWorkflow, /continue-on-error/);
   for (const match of vercelCleanupWorkflow.matchAll(/uses:\s*([^\s]+)@([^\s#]+)/g)) {
     assert.match(match[2], /^[0-9a-f]{40}$/, `${match[1]} must use a full commit SHA`);
+  }
+});
+
+test("backfill validates an explicit storage backend before production operations", () => {
+  const validation = mediaBackfillWorkflow.split("node --input-type=module - <<'NODE'")[1].split("\n          NODE")[0];
+  const run = (env) => new Function("process", "console", validation)({ env }, { log() {} });
+  const supabase = {
+    NEXT_PUBLIC_SUPABASE_URL: "https://fixture.supabase.co",
+    SUPABASE_SERVICE_ROLE_KEY: "fixture-key",
+    VISTAIRE_EXPECTED_SUPABASE_PROJECT_REF: "fixture"
+  };
+  assert.throws(() => run(supabase), /R2_STORAGE_ENABLED/);
+  assert.doesNotThrow(() => run({ ...supabase, R2_STORAGE_ENABLED: "false" }));
+  assert.throws(() => run({ ...supabase, R2_STORAGE_ENABLED: "true" }), /R2 configuration is incomplete/);
+  const r2 = { ...supabase, R2_STORAGE_ENABLED: "true", R2_S3_ENDPOINT: "https://fixture.r2.cloudflarestorage.com", R2_S3_ACCESS_KEY_ID: "fixture", R2_S3_SECRET_ACCESS_KEY: "fixture" };
+  assert.doesNotThrow(() => run(r2));
+  assert.throws(() => run({ ...r2, R2_S3_ENDPOINT: "http://fixture.invalid" }), /HTTPS origin/);
+  for (const step of mediaBackfillWorkflow.split("      - name:").filter((step) => step.includes("node scripts/backfill-dish-photo-derivatives.mjs"))) {
+    for (const name of ["R2_S3_ENDPOINT", "R2_S3_ACCESS_KEY_ID", "R2_S3_SECRET_ACCESS_KEY"]) {
+      assert.ok(step.includes(name + ": ${{ secrets." + name + " }}"), `${name} must reach each backfill phase`);
+    }
   }
 });

@@ -606,7 +606,7 @@ const SEO_GEO_PAGE_DRAFTS: SeoGeoPageDraft[] = [
       heading: "Des visuels intégrés à la carte",
       body:
         "Les photos existantes peuvent être intégrées lorsqu'elles sont cohérentes avec le niveau du restaurant. Lorsqu'une photo manque, Vistaire garde une fiche propre plutôt que d'ajouter un asset lourd ou générique.",
-      points: ["alt text utile", "formats web", "priorité aux signatures", "fallback"]
+      points: ["photos décrites pour chaque plat", "formats web", "priorité aux signatures", "fallback"]
     },
     comparison: {
       heading: "Galerie de photos ou carte visuelle ?",

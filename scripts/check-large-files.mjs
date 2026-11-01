@@ -44,7 +44,7 @@ const BLOCKED_PREFIXES = [
   "assets/3d/work/"
 ];
 
-// Grandfathered assets already present on origin/main. These are exceptions,
+// Grandfathered assets and reviewed runtime media. These are exceptions,
 // not precedent: any new or changed heavy media must go through asset review.
 const DEMO_RUNTIME_ASSET_OWNER = "MarcSaad-Hadidi";
 
@@ -580,6 +580,48 @@ const ALLOWLIST = new Map(
       }
     ],
     [
+      "public/videos/demo/dashboard-studio.mp4",
+      {
+        maxBytes: 3145728,
+        sha256: ["e23fee4660945b73a16e6cd6ebabb1ad8de91053a414a0fbb7763232d4d7fcb2"],
+        reason: "User-requested genuine 128-second Studio feature walkthrough from the approved public demo; 1168x748 H264, 24 fps, no audio, raw frames outside Git. See docs/repo-asset-policy.md.",
+        owner: DEMO_RUNTIME_ASSET_OWNER
+      }
+    ],
+    [
+      "public/videos/demo/maison-elyse.mp4",
+      {
+        maxBytes: 8388608,
+        sha256: [
+          "179465b86ac821e3e4aef6a0669f055334d7f87610d7db30a1486b1d73c8ec6a"
+        ],
+        reason: "Reviewed /demo HD mobile walkthrough of Maison Élyse requested to improve clarity, including real 3D; 780x1688 H264 without audio, raw recording outside Git.",
+        owner: DEMO_RUNTIME_ASSET_OWNER
+      }
+    ],
+    [
+      "public/videos/demo/trouvable.mp4",
+      {
+        maxBytes: 8388608,
+        sha256: [
+          "223505b2c8eee29a1f6aa59726fe215badfeecf1775e7917831fe963c6a5138c"
+        ],
+        reason: "Reviewed /demo HD mobile walkthrough of Trouvable requested to improve clarity, including real 3D; 780x1688 H264 without audio, raw recording outside Git.",
+        owner: DEMO_RUNTIME_ASSET_OWNER
+      }
+    ],
+    [
+      "public/videos/demo/sauge-noire.mp4",
+      {
+        maxBytes: 8388608,
+        sha256: [
+          "98dec39df7c10ac9036f0c0c533a8e2d80baae88370d950a92da651aa76a3089"
+        ],
+        reason: "Reviewed /demo HD mobile walkthrough of Sauge Noire requested to improve clarity, including real 3D; 780x1688 H264 without audio, raw recording outside Git.",
+        owner: DEMO_RUNTIME_ASSET_OWNER
+      }
+    ],
+    [
       "public/videos/optimized/upscaled-video-desktop-scrub.mp4",
       {
         maxBytes: 24297153,
@@ -648,59 +690,14 @@ const ALLOWLIST = new Map(
         ],
         reason: "Existing public video asset."
       }
-    ],
-    [
-      "video/upscaled-video.mp4",
-      {
-        maxBytes: 41480123,
-        sha256: [
-          "1e9bc164c0b64855f94ba81464454de2a5d1f46e0b863bdf97c73464d5de4e05"
-        ],
-        reason: "Existing non-runtime source video retained on main."
-      }
-    ],
-    [
-      "video/video1.mp4",
-      {
-        maxBytes: 2043379,
-        sha256: [
-          "8f058c65b18c2c4bf6f344297fef5f3c6279b7d60e602f6397ec361e869aa0bf"
-        ],
-        reason: "Existing source video retained on main."
-      }
-    ],
-    [
-      "video/video2.mp4",
-      {
-        maxBytes: 1882038,
-        sha256: [
-          "26865a9d09d9396fd17872ed43ef7bed999f15dff30186dd53857621e9855dec"
-        ],
-        reason: "Existing source video retained on main."
-      }
-    ],
-    [
-      "video/video3.mp4",
-      {
-        maxBytes: 2798041,
-        sha256: [
-          "5441dae94fa1024b7030f409f76bd2b52a299660db69d7e80e6f688d1e5ff4ee"
-        ],
-        reason: "Existing source video retained on main."
-      }
-    ],
-    [
-      "video/video4.mp4",
-      {
-        maxBytes: 2741019,
-        sha256: [
-          "9b342195113c5f029416f37343bf2419dc6ac03e9820f42845a52ab28575a87b"
-        ],
-        reason: "Existing source video retained on main."
-      }
     ]
   ]
 );
+
+// Reviewed original assets for the requested immersive public integration.
+for (const entry of JSON.parse(readFileSync(new URL("../docs/immersive-asset-exceptions.json", import.meta.url), "utf8"))) {
+  ALLOWLIST.set(entry.path, entry);
+}
 
 const GRANDFATHERED_DEMO_RUNTIME_ALLOWLIST = new Set([
   "public/models/demo/homard-bisque-meshopt-ee44bc60.glb",

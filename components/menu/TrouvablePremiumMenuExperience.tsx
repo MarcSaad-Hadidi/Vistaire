@@ -1,5 +1,7 @@
 "use client";
 
+import { useVisibleMenuAnalytics } from "@/components/menu/analytics/useVisibleMenuAnalytics";
+
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   useCallback,
@@ -467,6 +469,7 @@ export function TrouvablePremiumMenuExperience({
     () => new Map()
   );
   const [activeSheet, setActiveSheet] = useState<ActiveSheet>(null);
+  const analyticsRef = useVisibleMenuAnalytics(menu, displayMode === "public" && activeSheet !== "dish");
   const [waiterTopic, setWaiterTopic] = useState<WaiterTopic>("recommendation");
   const [tableNumber, setTableNumber] = useState(query?.table?.slice(0, 24) ?? "");
   const [localMessage, setLocalMessage] = useState("");
@@ -602,23 +605,7 @@ export function TrouvablePremiumMenuExperience({
     return () => window.cancelAnimationFrame(frameId);
   }, [arCopyStatus, manualDishUrl]);
 
-  useEffect(() => {
-    if (displayMode !== "public") return;
-    trackPublicMenuEvent(menu, { eventName: "menu_opened" });
-  }, [displayMode, menu]);
 
-  useEffect(() => {
-    if (displayMode !== "public") return undefined;
-    const query = search.trim();
-    if (query.length < 2) return undefined;
-    const timeoutId = window.setTimeout(() => {
-      trackPublicMenuEvent(menu, {
-        eventName: "search_used",
-        searchQuery: query
-      });
-    }, 700);
-    return () => window.clearTimeout(timeoutId);
-  }, [displayMode, menu, search]);
 
   const categories = useMemo(
     () => sortTrouvablePublicMenuCategories(getVisiblePublicMenuCategories(menu.dishes)),
@@ -749,6 +736,18 @@ export function TrouvablePremiumMenuExperience({
     resolvedActiveCategory === ALL_CATEGORY_ID
       ? filteredDishes
       : filteredGroups.get(resolvedActiveCategory) ?? [];
+  useEffect(() => {
+    const length = search.trim().length;
+    if (displayMode !== "public" || length < 2) return;
+    const timeout = window.setTimeout(() => {
+      if (document.visibilityState !== "visible" || !document.hasFocus()) return;
+      const metadata = { queryLengthBucket: length <= 3 ? "1-3" : length <= 10 ? "4-10" : length <= 30 ? "11-30" : "31+", resultCount: Math.min(500, visibleDishes.length) };
+      trackPublicMenuEvent(menu, { eventName: "search_used", metadata });
+      trackPublicMenuEvent(menu, { eventName: "search_results", metadata });
+    }, 700);
+    return () => window.clearTimeout(timeout);
+  }, [displayMode, menu, search, visibleDishes.length]);
+  const detailAnalyticsRef = useVisibleMenuAnalytics(menu, displayMode === "public" && activeSheet === "dish", selectedDish);
   const selectionItems = useMemo(() => Array.from(selection.values()), [selection]);
   const selectionCount = selectionItems.reduce(
     (total, item) => total + item.quantity,
@@ -1217,6 +1216,7 @@ export function TrouvablePremiumMenuExperience({
       menu.localizedUiCopy
     );
     if (readyLocale !== nextLocale) return;
+    if (displayMode === "public") trackPublicMenuEvent(menu, { eventName: "locale_changed", metadata: { locale: readyLocale.toLowerCase().split(/[-_]/)[0] } });
     setSelectedLocale(readyLocale);
     if (displayMode === "public") {
       window.localStorage.setItem(TROUVABLE_LOCALE_STORAGE_KEY, readyLocale);
@@ -1333,13 +1333,10 @@ export function TrouvablePremiumMenuExperience({
     setShowDetailModelViewer(false);
     resetArHandoffState();
     setSelectedDish(dish);
-    if (displayMode === "public") {
-      trackPublicMenuEvent(menu, {
-        eventName: "dish_opened",
-        dishSlug: dish.slug,
-        categorySlug: dish.categorySlug
-      });
-    }
+    if (displayMode === "public" && search.trim().length >= 2) trackPublicMenuEvent(menu, {
+      eventName: "search_result_selected", dishSlug: dish.slug, categorySlug: dish.categorySlug,
+      metadata: { resultCount: Math.min(500, visibleDishes.length), resultPosition: Math.min(500, visibleDishes.findIndex(item => item.id === dish.id) + 1) }
+    });
     openSheet("dish");
   }
 
@@ -1351,7 +1348,9 @@ export function TrouvablePremiumMenuExperience({
     setDishSubSheet(null);
     setShowDetailModelViewer(false);
     resetArHandoffState();
-    setSelectedDish(visibleDishes[nextIndex] ?? selectedDish);
+    const nextDish = visibleDishes[nextIndex] ?? selectedDish;
+    setSelectedDish(nextDish);
+    if (displayMode === "public") trackPublicMenuEvent(menu, { eventName: "dish_selected", dishSlug: nextDish.slug, categorySlug: nextDish.categorySlug });
   }
 
   function handleDishPointerDown(event: PointerEvent<HTMLElement>) {
@@ -1442,6 +1441,7 @@ export function TrouvablePremiumMenuExperience({
               type="button"
               className={styles.dishSummary}
               aria-haspopup="dialog"
+              data-analytics-dish={dish.slug}
               onClick={() => openDishDetail(dish)}
             >
               {dishSummaryContent}
@@ -1902,7 +1902,7 @@ export function TrouvablePremiumMenuExperience({
         }}
       >
         <article
-          ref={sheetRef}
+          ref={(node) => { sheetRef.current = node; detailAnalyticsRef.current = node; }}
           className={`${styles.sheet} ${styles.detailSheet}`}
           tabIndex={-1}
           onPointerDown={handleDishPointerDown}
@@ -1990,6 +1990,7 @@ export function TrouvablePremiumMenuExperience({
           >
             {showDetailModelViewer ? (
               <TrouvableImmersivePanelBody
+                analyticsEnabled={displayMode === "public"}
                 arCopyStatus={arCopyStatus}
                 arHandoffPlatform={arHandoffPlatform}
                 copy={copy}
@@ -2039,7 +2040,6 @@ export function TrouvablePremiumMenuExperience({
 
   return (
     <MenuRoot
-      ref={pageTopRef}
       tabIndex={-1}
       className={`${styles.page} ${typographyClassName} ${
         isEmbeddedPreview ? styles.phonePreview : ""
@@ -2051,6 +2051,7 @@ export function TrouvablePremiumMenuExperience({
       data-menu-ui="trouvable"
       data-public-menu-renderer="trouvable"
       data-text-direction={textDirection}
+      ref={(node) => { pageTopRef.current = node; analyticsRef.current = node; }}
       data-blueprint={config.experience.blueprint}
       data-copy-built-in-locale={copyResolution.builtInLocale}
       data-copy-dynamic-source={copyResolution.dynamicSource}

@@ -1,4 +1,8 @@
 import "server-only";
+import { buildStudioEngagementAnalytics, type StudioEngagementAnalytics } from "./studioEngagementData";
+import { applyScheduleAvailability, type DishSchedule } from "./scheduling";
+import { buildStudioTemporalAnalytics, configuredStudioTimezone, type StudioTemporalAnalytics } from "./studioTemporalData";
+import { buildStudioDishStatistics, type StudioDishStatistics } from "./studioData";
 
 import { buildRelationalSupabasePublicMenu, type PublicMenuDish } from "@/lib/menu/publicMenuCore";
 import { getNullableString, getString, readAnalyticsEventsForPeriod, readSupabaseRowsByFilters, type AnyRow } from "@/lib/analytics/serverRows";
@@ -8,9 +12,13 @@ import { resolveAdminDashboardNow } from "@/lib/admin/dashboardClock";
 import { buildAdminMenuReadiness, selectAdminDashboardMenu, type AdminMenuCategory, type AdminMenuDish, type AdminMenuReadiness } from "@/lib/admin/menuReadiness";
 
 export type AdminDashboardData = {
-  restaurant: { id: string; name: string; slug: string; location: string | null; cuisineType: string | null; timezone: null; publicMenuPath: string };
+  restaurant: { id: string; name: string; slug: string; location: string | null; cuisineType: string | null; timezone: string | null; publicMenuPath: string };
   menu: { id: string; status: "published" | "draft"; categories: AdminMenuCategory[]; dishes: AdminMenuDish[]; readiness: AdminMenuReadiness };
   analytics: AdminAnalyticsState;
+  schedulingStatus?: "available" | "unavailable" | "timezone-required";
+  engagementAnalytics?: StudioEngagementAnalytics;
+  temporalAnalytics?: StudioTemporalAnalytics;
+  dishStatistics?: Record<string, StudioDishStatistics>;
 };
 export type AdminDashboardLoadResult = { ok: true; data: AdminDashboardData } | { ok: false; reason: "restaurant-lookup-failed" | "restaurant-not-found" | "menu-lookup-failed" };
 
@@ -34,21 +42,26 @@ export async function loadAdminDashboardDataWithDependencies(restaurantId: strin
   if (!restaurantResult.ok) return { ok: false, reason: "restaurant-lookup-failed" };
   const restaurantRow = restaurantResult.rows[0];
   if (!restaurantRow) return { ok: false, reason: "restaurant-not-found" };
-  const menuResult = await dependencies.readRows({ table: "menus", columns: "id,restaurant_id,status,is_primary,updated_at", filters: { restaurant_id: restaurantId }, orderBy: "id", limit: 100 });
+  const menuResult = await dependencies.readRows({ table: "menus", columns: "id,restaurant_id,status,is_primary,updated_at,settings_json", filters: { restaurant_id: restaurantId }, orderBy: "id", limit: 100 });
   if (!menuResult.ok) return { ok: false, reason: "menu-lookup-failed" };
   const selectedMenu = selectAdminDashboardMenu(menuResult.rows);
   if (!selectedMenu) return { ok: false, reason: "menu-lookup-failed" };
+  const configuredTimezone = configuredStudioTimezone(menuResult.rows.find(row => row.id === selectedMenu.id)?.settings_json);
   const filters = { restaurant_id: restaurantId, menu_id: selectedMenu.id };
-  const [categoriesResult, dishesResult] = await Promise.all([
+  const [categoriesResult, dishesResult, schedulesResult] = await Promise.all([
     dependencies.readRows({ table: "menu_categories", columns: "id,restaurant_id,menu_id,name,slug,display_order", filters, orderBy: "display_order", limit: 250 }),
-    dependencies.readRows({ table: "menu_dishes", columns: "id,restaurant_id,menu_id,category_id,name,slug,short_description,description,price_cents,currency,image_url,is_available,is_signature,is_recommended,has_immersive_view,metadata,created_at", filters, orderBy: "created_at", limit: 500 })
+    dependencies.readRows({ table: "menu_dishes", columns: "id,restaurant_id,menu_id,category_id,name,slug,short_description,description,price_cents,currency,image_url,is_available,is_signature,is_recommended,has_immersive_view,metadata,created_at", filters, orderBy: "created_at", limit: 500 }),
+    dependencies.readRows({ table: "dish_schedules", columns: "dish_id,base_available,manual_override,revision,rules", filters: { restaurant_id: restaurantId }, orderBy: "dish_id", limit: 501 })
   ]);
   const categoryRows = categoriesResult.ok ? categoriesResult.rows : [];
-  const dishRows = dishesResult.ok ? dishesResult.rows : [];
+  const observedAt = dependencies.now();
+  const schedulingStatus = !schedulesResult.ok || schedulesResult.rows.length > 500 ? "unavailable" : !configuredTimezone ? "timezone-required" : "available";
+  const rawDishRows = dishesResult.ok ? dishesResult.rows : [];
+  const dishRows = schedulingStatus === "available" && schedulesResult.ok ? applyScheduleAvailability(rawDishRows, schedulesResult.rows as unknown as DishSchedule[], configuredTimezone!, observedAt) : rawDishRows;
   const menu = buildRelationalSupabasePublicMenu({ slug: getString(restaurantRow, ["slug"]), restaurantRow, categoryRows, dishRows, includeUnavailableDishes: true });
   const categories = categoryRows.map(toCategory);
   const dishes = menu.dishes.map(toDish);
-  const observedAt = dependencies.now();
+  const analyticsDishes = dishes.map(dish => ({ ...dish, createdAt: getNullableString(dishRows.find(row => row.id === dish.id) ?? {}, ["created_at"]) }));
   const window = resolveAdminObservationWindow(range, observedAt);
   const [currentEventRead, previousEventRead] = await Promise.all([
     dependencies.readEvents({ restaurantId, menuId: selectedMenu.id, fromIso: window.startInclusive, toIso: window.endExclusive, maxRows: ADMIN_DASHBOARD_MAX_EVENTS_PER_WINDOW }),
@@ -59,5 +72,6 @@ export async function loadAdminDashboardDataWithDependencies(restaurantId: strin
   const lastUpdatedAt = currentEvents.reduce<string | null>((latest, row) => { const value = getNullableString(row, ["created_at"]); return value && (!latest || value > latest) ? value : latest; }, null);
   const readiness = buildAdminMenuReadiness(categories, dishes);
   const publicMenuPath = `/menu/${menu.slug}`;
-  return { ok: true, data: { restaurant: { id: restaurantId, name: getString(restaurantRow, ["name"], "Restaurant"), slug: menu.slug, location: getNullableString(restaurantRow, ["city", "location"]), cuisineType: getNullableString(restaurantRow, ["cuisine_type"]), timezone: null, publicMenuPath }, menu: { id: selectedMenu.id, status: selectedMenu.status, categories, dishes, readiness }, analytics: buildAdminAnalyticsState({ observationWindow: window, observedAt, events:currentEvents, previousEvents, analyticsScope:{restaurantId,menuId:selectedMenu.id,source:"production",metricDefinition:"all-events-v1"}, selectedMenuCategories:categories.map(({slug,label})=>({slug,label})), availableDishCount:readiness.counts.available, lastUpdatedAt, databaseError: !currentEventRead.ok || !previousEventRead.ok, truncated: (currentEventRead.ok && currentEventRead.truncated) || (previousEventRead.ok && previousEventRead.truncated), partialSource: !categoriesResult.ok || !dishesResult.ok }) } };
+  const analytics = buildAdminAnalyticsState({ observationWindow: window, observedAt, events:currentEvents, previousEvents, analyticsScope:{restaurantId,menuId:selectedMenu.id,source:"production",metricDefinition:"all-events-v1"}, selectedMenuCategories:categories.map(({slug,label})=>({slug,label})), availableDishCount:readiness.counts.available, lastUpdatedAt, databaseError: !currentEventRead.ok || !previousEventRead.ok, truncated: (currentEventRead.ok && currentEventRead.truncated) || (previousEventRead.ok && previousEventRead.truncated), partialSource: !categoriesResult.ok || !dishesResult.ok });
+  return { ok: true, data: { restaurant: { id: restaurantId, name: getString(restaurantRow, ["name"], "Restaurant"), slug: menu.slug, location: getNullableString(restaurantRow, ["city", "location"]), cuisineType: getNullableString(restaurantRow, ["cuisine_type"]), timezone: configuredTimezone, publicMenuPath }, menu: { id: selectedMenu.id, status: selectedMenu.status, categories, dishes, readiness }, analytics, schedulingStatus, engagementAnalytics: buildStudioEngagementAnalytics({ dishes: analyticsDishes, current: currentEvents, previous: previousEvents, sourceComplete: currentEventRead.ok && previousEventRead.ok && !currentEventRead.truncated && !previousEventRead.truncated && categoriesResult.ok && dishesResult.ok }), temporalAnalytics: buildStudioTemporalAnalytics({ dishes: analyticsDishes, window, timezone: configuredTimezone, current: currentEvents, previous: previousEvents, sourceComplete: currentEventRead.ok && previousEventRead.ok && !currentEventRead.truncated && !previousEventRead.truncated && categoriesResult.ok && dishesResult.ok }), dishStatistics: buildStudioDishStatistics(analyticsDishes, currentEvents, previousEvents, analytics.kind === "real" && analytics.panels.ranking.kind === "supported", analytics.kind === "real" && analytics.panels.dailyComparison.kind === "supported") } };
 }

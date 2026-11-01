@@ -7,8 +7,7 @@ const SAFE_PREFIXES = ["docs/", "tests/", "e2e/", ".github/"];
 const SAFE_FILES = new Set([
   "AGENTS.md",
   "README.md",
-  "SECURITY.md",
-  "design-qa.md"
+  "SECURITY.md"
 ]);
 
 export function isVercelBuildSkippablePath(filePath) {

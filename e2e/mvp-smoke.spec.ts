@@ -211,14 +211,15 @@ async function openDemoDish(page: Page, dishName: RegExp) {
     })
   );
 
-  const phoneViewport = page.getByTestId("demo-phone-viewport");
-  await expect(phoneViewport.getByText("LA COLLECTION")).toBeVisible();
-  await expect(phoneViewport.getByRole("heading", { name: "LA CARTE" })).toBeVisible();
-  const dishButton = phoneViewport.getByRole("button", { name: dishName });
-  await dishButton.scrollIntoViewIfNeeded();
-  await expect(dishButton).toBeVisible();
-  await dishButton.click();
-  await expect(phoneViewport.getByRole("heading", { level: 1, name: dishName })).toBeVisible();
+  await page.getByRole("link", { name: "Explorer Maison Élyse", exact: true }).click();
+  const menu = page.locator('[data-menu-ui="maison-elyse"]');
+  await expect(menu.getByText("LA COLLECTION")).toBeVisible();
+  await expect(menu.getByRole("heading", { name: "LA CARTE" })).toBeVisible();
+  const dishLink = menu.getByRole("link", { name: dishName }).first();
+  await dishLink.scrollIntoViewIfNeeded();
+  await expect(dishLink).toBeVisible();
+  await dishLink.click();
+  await expect(page.getByRole("heading", { level: 1, name: dishName })).toBeVisible();
 }
 
 test.describe("Vistaire MVP smoke", () => {
@@ -273,7 +274,7 @@ test.describe("Vistaire MVP smoke", () => {
     });
   }
 
-  test("demo menu loads, searches, and avoids early model assets", async ({
+  test("demo discovery opens a real menu and dish without early model assets", async ({
     page
   }) => {
     const health = installPageHealth(page);
@@ -285,29 +286,24 @@ test.describe("Vistaire MVP smoke", () => {
       await page.goto("/demo", { waitUntil: "domcontentloaded" })
     );
 
-    const phoneViewport = page.getByTestId("demo-phone-viewport");
-    await expect(phoneViewport.getByText("LA COLLECTION")).toBeVisible();
-    await expect(phoneViewport.getByRole("heading", { name: "LA CARTE" })).toBeVisible();
-    await expect(
-      phoneViewport.getByRole("heading", { level: 1, name: /Bienvenue chez Maison/i })
-    ).toHaveCount(0);
-    await expect(
-      phoneViewport.getByRole("button", { name: "Voir toute la carte" })
-    ).toHaveCount(0);
-    await expect(page.getByText(/D.mo interactive Vistaire/i)).toHaveCount(0);
-    const visibleDishButton = phoneViewport.getByRole("button", { name: /Ravioles/i });
-    await expect(visibleDishButton).toBeVisible();
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText("Trois restaurants. Trois identités.");
+    await expect(page.getByTestId("demo-phone-viewport")).toHaveCount(0);
+    await page.getByRole("link", { name: "Explorer Maison Élyse", exact: true }).click();
+    const menu = page.locator('[data-menu-ui="maison-elyse"]');
+    await expect(menu.getByRole("heading", { name: "LA CARTE" })).toBeVisible();
+    const visibleDishLink = menu.getByRole("link", { name: /Ravioles/i }).first();
+    await expect(visibleDishLink).toBeVisible();
 
     expect(modelRequests).toEqual([]);
     await expectNoHorizontalOverflow(page);
     health.expectClean();
 
-    await visibleDishButton.click();
-    await expect(page).toHaveURL(/\/demo$/);
+    await visibleDishLink.click();
+    await expect(page).toHaveURL(/\/menu\/maison-elyse\/dishes\//);
     await expect(
-      phoneViewport.getByRole("heading", { level: 1, name: /Ravioles/i })
+      page.getByRole("heading", { level: 1, name: /Ravioles/i })
     ).toBeVisible();
-    await expect(phoneViewport.getByRole("button", { name: /Retour . la carte/i })).toBeVisible();
+    await expect(page.getByRole("link", { name: /Retour/i }).first()).toBeVisible();
   });
 
   test("pricing exposes four physical collections and optional Pilotage", async ({

@@ -40,50 +40,24 @@ const payload = readPayload();
 const baseSha = payload.pull_request?.base?.sha;
 const headSha = payload.pull_request?.head?.sha;
 const pullNumber = payload.pull_request?.number;
-const token = process.env.GITHUB_TOKEN ?? process.env.GH_TOKEN ?? "";
 setOutput("merge_base_depth", "");
 if (!/^[0-9a-f]{40}$/i.test(String(baseSha)) || !/^[0-9a-f]{40}$/i.test(String(headSha)) ||
-    !/^\d+$/.test(String(pullNumber)) || !token) {
-  report("PR graph unavailable: malformed payload or missing read token; classifier will use full CI.");
+    !/^\d+$/.test(String(pullNumber))) {
+  report("PR graph unavailable: malformed payload; classifier will use full CI.");
   process.exit(0);
 }
 
 const pullRef = `refs/pull/${pullNumber}/head`;
-// Override only the child process' remote URL. This avoids putting the token
-// in Git's argv while remaining compatible with the Actions checkout's Git
-// configuration, which may ignore transient HTTP headers after cleanup.
-let authenticatedOrigin;
-try {
-  const origin = execFileSync("git", ["remote", "get-url", "origin"], {
-    encoding: "utf8",
-    stdio: ["ignore", "pipe", "ignore"]
-  }).trim();
-  authenticatedOrigin = origin.replace(
-    /^(https?:\/\/)(github\.com\/)/i,
-    `$1x-access-token:${encodeURIComponent(token)}@$2`
-  );
-  if (authenticatedOrigin === origin) {
-    report("PR graph unavailable: origin is not an HTTPS GitHub remote; classifier will use full CI.");
-    process.exit(0);
-  }
-} catch {
-  report("PR graph unavailable: origin remote could not be read; classifier will use full CI.");
-  process.exit(0);
-}
-
+// Vistaire is public: bounded metadata fetches need no credential. PR-owned
+// helpers must remain token-free; an unavailable remote still fails closed.
 const git = (args, options = {}) => {
   const { env: extraEnv, ...execOptions } = options;
   return execFileSync("git", args, {
     stdio: "inherit",
     ...execOptions,
-    // Keep the token out of Git's process arguments and therefore out of
-    // ordinary process-list/diagnostic output on a shared runner.
     env: {
       ...process.env,
       ...extraEnv,
-      GIT_CONFIG_COUNT: "1",
-      GIT_CONFIG_KEY_0: "remote.origin.url",
-      GIT_CONFIG_VALUE_0: authenticatedOrigin,
       GIT_TERMINAL_PROMPT: "0"
     }
   });

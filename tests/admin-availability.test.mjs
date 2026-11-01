@@ -163,7 +163,8 @@ test("availability route invokes the atomic RPC with access-derived QR and resta
   assert.doesNotMatch(contract, /request\.text\(\)/);
   assert.match(contract, /cache-control["']?\s*:\s*["']no-store["']/i);
   assert.doesNotMatch(route, /body\.restaurantId|input\.restaurantId/);
-  assert.match(route, /\.rpc\("set_admin_dish_availability",\s*\{/);
+  assert.match(route, /mutateAvailabilityWithSchedulingFallback/);
+  assert.match(route, /\.rpc\(rpcName,\s*\{/);
   assert.match(route, /p_qr_id:\s*qrId/);
   assert.match(route, /p_restaurant_id:\s*restaurantId/);
   assert.match(route, /p_dish_id:\s*dishId/);

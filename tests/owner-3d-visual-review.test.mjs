@@ -267,6 +267,7 @@ test("owner visual review route and component avoid early GLB loading", () => {
   const routePath = join(
     process.cwd(),
     "app",
+    "(fr)",
     "owner",
     "3d-ar",
     "[restaurantSlug]",

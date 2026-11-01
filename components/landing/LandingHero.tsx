@@ -110,7 +110,7 @@ export function LandingHero({
                 >
                   {copy.mobileCta}
                   <span aria-hidden="true" className={styles.linkArrow}>
-                    ↗
+                    {"↗︎"}
                   </span>
                 </Link>
               </div>
@@ -135,7 +135,7 @@ export function LandingHero({
                 >
                   {copy.simpleCta}
                   <span aria-hidden="true" className={styles.linkArrow}>
-                    ↗
+                    {"↗︎"}
                   </span>
                 </Link>
               </div>

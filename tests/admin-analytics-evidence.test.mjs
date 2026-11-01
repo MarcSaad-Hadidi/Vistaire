@@ -11,6 +11,20 @@ test("evidence never promotes failures, truncation or unproven zero", async () =
   assert.equal(buildAdminAnalyticsState({ observationWindow: window, instrumentationProven: false, eventCount: 0 }).reason, "instrumentation-unproven");
 });
 
+test("unavailable analytics retain the canonical selected dates without exposing partial metrics", async () => {
+  const { buildAdminAnalyticsState } = await import("../lib/admin/analyticsState.ts");
+  const { resolveAdminObservationWindow } = await import("../lib/admin/dashboardRange.ts");
+  const observationWindow = resolveAdminObservationWindow(
+    "custom:2026-07-03:2026-07-10", new Date("2026-10-19T04:00:00.000Z"),
+  );
+  for (const failure of ["databaseError", "queryError", "truncated", "partialSource"]) {
+    const state = buildAdminAnalyticsState({ observationWindow, [failure]: true });
+    assert.equal(state.kind, "unavailable");
+    assert.equal(state.observationWindow, observationWindow, failure);
+    assert.equal("metrics" in state, false, "date metadata must not promote partial counts");
+  }
+});
+
 test("complete zero and small samples remain distinct and comparisons avoid division by zero", async () => {
   const { buildAdminAnalyticsState } = await import("../lib/admin/analyticsState.ts");
   const zero = buildAdminAnalyticsState({ observationWindow: window, instrumentationProven: true, eventCount: 0 });

@@ -1,3 +1,4 @@
+import { storageBucket } from "../../lib/storage/backend.ts";
 import { createHash, randomUUID } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
@@ -834,7 +835,7 @@ async function createSupabaseAdapter() {
   if (JSON.stringify([...rowSlugs].sort()) !== JSON.stringify([...ALLOWED_SLUGS].sort())) fail("Supabase dish slugs do not match the exact allowlist");
   const existingObjects = new Map();
   async function listPrefix(bucket, prefix) {
-    const { data, error } = await client.storage.from(bucket).list(prefix, { limit: 1000, offset: 0, sortBy: { column: "name", order: "asc" } });
+    const { data, error } = await storageBucket(client.storage, bucket).list(prefix, { limit: 1000, offset: 0, sortBy: { column: "name", order: "asc" } });
     if (error) fail(`Storage list failed for ${bucket}/${prefix}`);
     for (const item of data ?? []) {
       const name = item.name;
@@ -903,7 +904,7 @@ async function createSupabaseAdapter() {
     rows,
     existingObjects,
     async uploadObject(object) {
-      const { error } = await client.storage.from(object.bucket).upload(object.path, object.data, { contentType: object.contentType, cacheControl: "31536000", upsert: false });
+      const { error } = await storageBucket(client.storage, object.bucket).upload(object.path, object.data, { contentType: object.contentType, cacheControl: "31536000", upsert: false });
       if (error) fail(`Storage upload failed for ${object.bucket}/${object.path}`);
       return { created: true };
     },
@@ -914,10 +915,10 @@ async function createSupabaseAdapter() {
       return runMediaRpc(update, update.patch, update.row, "rollback");
     },
     async removeObject(object) {
-      return client.storage.from(object.bucket).remove([object.path]);
+      return storageBucket(client.storage, object.bucket).remove([object.path]);
     },
     async downloadObject(object) {
-      const downloaded = await client.storage.from(object.bucket).download(object.path);
+      const downloaded = await storageBucket(client.storage, object.bucket).download(object.path);
       if (downloaded.error || !downloaded.data) fail(`Storage collision download failed for ${object.bucket}/${object.path}`);
       return {
         bytes: Buffer.from(await downloaded.data.arrayBuffer()),

@@ -8,9 +8,10 @@ import {
   PRICING_PATH_EN
 } from "@/lib/pricingPage";
 import { absoluteUrl } from "@/lib/seo";
+import { getSeoMarketingImage } from "@/lib/seoMarketingImages";
 
 const pricingMetadata = getPricingMetadata("en");
-const socialImage = "/images/pricing/vistaire-acrylique.jpg";
+const socialImage = getSeoMarketingImage("PRICING:collection:acrylique", "en").src;
 
 export const metadata: Metadata = {
   title: {

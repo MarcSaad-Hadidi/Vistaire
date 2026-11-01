@@ -1,5 +1,7 @@
 import "server-only";
 
+import { storageBucket } from "../storage/backend.ts";
+
 import { randomUUID } from "node:crypto";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
@@ -295,8 +297,7 @@ async function uploadDurableMeshyAsset(args: {
     throw new Error("Asset Meshy introuvable avant upload Storage.");
   }
   const bytes = readFileSync(args.localPath);
-  const uploaded = await args.adminClient.storage
-    .from(MODEL_BUCKET)
+  const uploaded = await storageBucket(args.adminClient.storage, MODEL_BUCKET)
     .upload(args.storagePath, bytes, {
       contentType: args.contentType,
       cacheControl: args.cacheControl ?? "31536000",
@@ -315,7 +316,7 @@ async function rollbackDurableMeshyAssets(
   const cleanPaths = paths.map((path) => path.trim()).filter(Boolean);
   if (cleanPaths.length === 0) return;
   try {
-    await adminClient.storage.from(MODEL_BUCKET).remove(cleanPaths);
+    await storageBucket(adminClient.storage, MODEL_BUCKET).remove(cleanPaths);
   } catch {
     // Best-effort rollback after a failed multi-asset publish.
   }

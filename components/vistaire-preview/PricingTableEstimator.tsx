@@ -98,24 +98,24 @@ function CollectionCard({
       data-table-count={tableCount}
       id={`collection-${collection.id}`}
     >
-      <header className={cardStyles.collectionHeader}>
-        <p>{collection.label}</p>
-        <h2 aria-label={collection.name}>{displayName}</h2>
-        <span>{collection.positioning}</span>
-      </header>
-
       <figure className={cardStyles.collectionVisual}>
         <Image
           alt={collection.imageAlt}
           className={cardStyles.collectionImage}
           fill
           quality={90}
-          sizes="(max-width: 767px) calc(100vw - 40px), (max-width: 1099px) 45vw, 24vw"
+          sizes="(max-width: 700px) calc(100vw - 40px), (max-width: 1100px) 45vw, 24vw"
           src={collection.image}
           style={{ objectPosition: collection.imagePosition }}
         />
-        <span aria-hidden="true" className={cardStyles.collectionImageShade} />
+
       </figure>
+
+      <header className={cardStyles.collectionHeader}>
+        <p>{collection.label}</p>
+        <h2 aria-label={collection.name}>{displayName}</h2>
+        <span>{collection.positioning}</span>
+      </header>
 
       <div className={cardStyles.collectionDetails}>
         <p className={`${cardStyles.pricePrefix} ${styles.dynamicPricePrefix}`}>
@@ -130,6 +130,9 @@ function CollectionCard({
         </p>
         <p className={`${cardStyles.setupLabel} ${styles.dynamicSetupLabel}`}>
           {isIncludedQuantity ? copy.setup : copy.estimatedSetup}
+        </p>
+        <p className={cardStyles.collectionQuantity}>
+          {tableCount <= INCLUDED_TABLE_COUNT ? copy.included : copy.includedWithExtras(calculateExtraTableCount(tableCount))}
         </p>
         <p className={cardStyles.monthlyPrice}>{collection.monthlyPrice}</p>
         <p className={cardStyles.collectionDescription}>{collection.description}</p>

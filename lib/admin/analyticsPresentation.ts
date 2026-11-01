@@ -5,6 +5,10 @@ export type AdminPanelEvidence<T> =
   | { kind: "insufficient"; reason: string }
   | { kind: "unavailable"; reason: string };
 
+/** Keep the established all-events-v1 panels independent of newly collected outcomes. */
+const BASELINE_EVENT_NAMES = new Set(["session_started", "session_duration", "menu_opened", "category_viewed", "dish_opened", "dish_3d_clicked", "dish_ar_clicked", "search_used", "filter_used", "cta_clicked", "dashboard_demo_opened"]);
+export const isBaselineAnalyticsEvent = (row: Record<string, unknown>) => BASELINE_EVENT_NAMES.has(String(row.event_name));
+
 type EventRow = Record<string, unknown>;
 export type AdminAnalyticsPanelScope = { restaurantId: string; menuId: string; source: "production"; metricDefinition: "all-events-v1" };
 type DailyPoint = { day: string; count: number };
@@ -49,7 +53,7 @@ function denseDaily(events: EventRow[], period?: DensePeriod): DailyPoint[] {
   const start = Date.parse(period.startInclusive);
   const end = Date.parse(period.endExclusive);
   if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start || period.bucketCount < 1) return [];
-  const duration = (end - start) / period.bucketCount;
+  const duration = Math.min(86_400_000, end - start);
   const counts = Array.from({ length: period.bucketCount }, () => 0);
   for (const row of events) {
     const timestamp = validDate(row)?.getTime();
@@ -119,6 +123,7 @@ export function countAdminSearchTermEvidence(events: EventRow[]): { term: string
 }
 
 export function buildAdminAnalyticsPanels(input: Input): AdminAnalyticsPanels {
+  input = { ...input, currentEvents: input.currentEvents.filter(isBaselineAnalyticsEvent), previousEvents: input.previousEvents.filter(isBaselineAnalyticsEvent) };
   if (input.sourceComplete === false) return {
     currentDaily: unavailable(), dailyComparison: unavailable(), hourWeekday: unavailable(), categories: unavailable(),
     serviceWindows: unavailable(), ranking: unavailable(), searches: unavailable()

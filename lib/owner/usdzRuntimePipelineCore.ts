@@ -1,3 +1,4 @@
+import { storageBucket } from "../storage/backend.ts";
 import { spawn } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync, existsSync } from "node:fs";
@@ -200,7 +201,7 @@ async function rollbackStorageObjects(
   const cleanPaths = paths.filter((path): path is string => Boolean(path && path.trim()));
   if (cleanPaths.length === 0) return;
   try {
-    await adminClient.storage.from(MODEL_BUCKET).remove(cleanPaths);
+    await storageBucket(adminClient.storage, MODEL_BUCKET).remove(cleanPaths);
   } catch {
     // best-effort rollback; the transient temp workspace is still cleaned in finally
   }
@@ -367,8 +368,7 @@ export async function runUsdzRuntimePipeline(
       runtimeStoragePath
     );
 
-    const uploadedRuntime = await args.adminClient.storage
-      .from(MODEL_BUCKET)
+    const uploadedRuntime = await storageBucket(args.adminClient.storage, MODEL_BUCKET)
       .upload(runtimeStoragePath, runtimeBytes, {
         contentType: "model/vnd.usdz+zip",
         cacheControl: "31536000",
@@ -378,8 +378,7 @@ export async function runUsdzRuntimePipeline(
       throw new Error("Upload Storage impossible pour le runtime USDZ.");
     }
 
-    const uploadedReport = await args.adminClient.storage
-      .from(MODEL_BUCKET)
+    const uploadedReport = await storageBucket(args.adminClient.storage, MODEL_BUCKET)
       .upload(reportStoragePath, reportBytes, {
         contentType: "application/json",
         cacheControl: "3600",

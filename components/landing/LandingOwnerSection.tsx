@@ -35,7 +35,7 @@ export function LandingOwnerSection({
           >
             {copy.cta}
             <span aria-hidden="true" className={styles.linkArrow}>
-              ↗
+              {"↗︎"}
             </span>
           </Link>
         </header>

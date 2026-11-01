@@ -73,6 +73,8 @@ const useMaisonPublicMenuFixture =
     const normalized = argument.replaceAll("\\", "/");
     return (
       normalized.endsWith("e2e/maison-elyse-public-menu.spec.ts") ||
+      // Keep the shared smoke dataset identical alone and in the public CI batch.
+      normalized.endsWith("e2e/sauge-noire-menu-shared-smoke.spec.ts") ||
       normalized.endsWith("e2e/ar-handoff.spec.ts")
     );
   });
@@ -96,7 +98,7 @@ const includesSaugeNoireBrowserFlow = playwrightInputArgs
       /(?:^|\/)ar-renderer-handoff\.spec\.ts$/.test(normalized) ||
       /(?:^|\/)demo-restaurant-experiences\.spec\.ts$/.test(normalized) ||
       /(?:^|\/)seo-interactive-showcases\.spec\.ts$/.test(normalized) ||
-      /(?:^|\/)landing-(?:redesign|production-photo)\.spec\.ts$/.test(normalized)
+      /(?:^|\/)landing-(?:redesign|production-photo|offers)\.spec\.ts$/.test(normalized)
     );
   }) || includesPrompt5BrowserFlow;
 const requestsWebkit = playwrightInputArgs.some((argument) => argument === "--project=webkit");
@@ -137,6 +139,7 @@ const SAUGE_FIXTURE_ENV = {
 const ADMIN_FIXTURE_PORT = process.env.VISTAIRE_ADMIN_VISUAL_FIXTURE_PORT ?? "3110";
 const ADMIN_FIXTURE_ORIGIN = `http://127.0.0.1:${ADMIN_FIXTURE_PORT}`;
 const ADMIN_FIXTURE_ENV = {
+  VISTAIRE_ADMIN_SESSION_SECRET: "admin-visual-fixture-session-secret-2026-only",
   NEXT_PUBLIC_SUPABASE_URL: ADMIN_FIXTURE_ORIGIN,
   SUPABASE_SERVICE_ROLE_KEY: "visual-fixture-service-role-key",
   NEXT_PUBLIC_DEMO_RESTAURANT_ID: "11111111-1111-1111-1111-111111111111",

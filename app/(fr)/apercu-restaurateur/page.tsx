@@ -3,7 +3,7 @@ import QRCode from "qrcode";
 import { JsonLd } from "@/components/JsonLd";
 import { VistaireRestaurateurDashboardPreview } from "@/components/vistaire-preview/VistaireRestaurateurDashboardPreview";
 import { buildPageAlternates, LOCALE_OPEN_GRAPH } from "@/lib/i18n";
-import {
+import { socialImages,
   absoluteUrl,
   buildBreadcrumbJsonLd,
   buildPageServiceJsonLd,
@@ -13,13 +13,14 @@ import {
 const canonicalPath = "/apercu-restaurateur";
 const title = "Aperçu restaurateur Vistaire";
 const description =
-  "Explorez une démonstration interactive du dashboard restaurateur Vistaire : vue d’ensemble, disponibilités et analyses, avec des données fictives isolées.";
+  "Découvrez en vidéo le Studio restaurateur Vistaire : statistiques, graphiques, plats, planning et exports dans un parcours avec des données fictives.";
 
 export const metadata: Metadata = {
   title,
   description,
   alternates: buildPageAlternates(canonicalPath),
   openGraph: {
+    images: socialImages("DIGITAL:premium", "fr").openGraph,
     url: absoluteUrl(canonicalPath),
     title: `${title} | Vistaire`,
     description,
@@ -27,6 +28,7 @@ export const metadata: Metadata = {
     type: "website"
   },
   twitter: {
+    images: socialImages("DIGITAL:premium", "fr").twitter,
     card: "summary_large_image",
     title: `${title} | Vistaire`,
     description

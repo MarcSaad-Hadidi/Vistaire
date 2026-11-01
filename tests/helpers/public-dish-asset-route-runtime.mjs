@@ -131,10 +131,6 @@ export function loadPublicDishAssetRedirect() {
   return import("../../lib/publicDishAssetRedirect.ts");
 }
 
-export function loadPublicMenuCache() {
-  return import("../../lib/menu/publicMenuCache.ts");
-}
-
 export function loadPublicMenu() {
   return import("../../lib/menu/publicMenu.ts");
 }

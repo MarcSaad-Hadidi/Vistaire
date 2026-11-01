@@ -57,7 +57,7 @@ export function RestaurateurPreviewKpis({
         return (
           <AdminKpiCard
             data-demo-kpi={id === "menuOpens" ? "menu-opens" : id === "dishOpens" ? "dish-opens" : id}
-            detail={`${rate >= 0 ? "↗" : "↘"} ${Math.abs(Math.round(rate))} % ${copy.trendAgainst}`}
+            detail={`${rate >= 0 ? "↗︎" : "↘︎"} ${Math.abs(Math.round(rate))} % ${copy.trendAgainst}`}
             icon={icons[id]}
             key={id}
             label={copy.metrics[id]}

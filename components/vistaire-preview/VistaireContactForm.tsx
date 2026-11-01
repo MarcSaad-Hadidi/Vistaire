@@ -147,13 +147,18 @@ function buildMailtoHref(values: ContactFormValues, locale: Locale): string {
   )}&body=${encodeURIComponent(body)}`;
 }
 
-function buildSubmissionSignature(values: ContactFormValues, company: string) {
+function buildSubmissionSignature(
+  values: ContactFormValues,
+  company: string,
+  locale: Locale
+) {
   return JSON.stringify([
     values.name,
     values.email,
     values.restaurant,
     values.message,
-    company.trim()
+    company.trim(),
+    locale
   ]);
 }
 
@@ -175,6 +180,11 @@ export function VistaireContactForm({ locale = "fr" }: { locale?: Locale }) {
     useState<string | null>(null);
   const submitInFlightRef = useRef(false);
   const submittedSignatureRef = useRef<string | null>(null);
+  const submissionAttemptRef = useRef<{
+    signature: string;
+    submissionId: string;
+    submittedAt: string;
+  } | null>(null);
 
   const updateField =
     (field: ContactField) =>
@@ -208,7 +218,8 @@ export function VistaireContactForm({ locale = "fr" }: { locale?: Locale }) {
     const trimmedCompany = company.trim();
     const submissionSignature = buildSubmissionSignature(
       normalizedValues,
-      trimmedCompany
+      trimmedCompany,
+      locale
     );
 
     if (
@@ -242,6 +253,16 @@ export function VistaireContactForm({ locale = "fr" }: { locale?: Locale }) {
     setSubmitState("sending");
 
     try {
+      // Keep the same Resend batch payload when retrying after a lost response.
+      if (submissionAttemptRef.current?.signature !== submissionSignature) {
+        submissionAttemptRef.current = {
+          signature: submissionSignature,
+          submissionId: crypto.randomUUID(),
+          submittedAt: new Date().toISOString()
+        };
+      }
+      const { submissionId, submittedAt } = submissionAttemptRef.current;
+
       const response = await fetch("/api/contact", {
         method: "POST",
         headers: {
@@ -251,7 +272,9 @@ export function VistaireContactForm({ locale = "fr" }: { locale?: Locale }) {
         body: JSON.stringify({
           ...normalizedValues,
           company: trimmedCompany,
-          locale
+          locale,
+          submissionId,
+          submittedAt
         })
       });
       const result = (await response
@@ -285,7 +308,7 @@ export function VistaireContactForm({ locale = "fr" }: { locale?: Locale }) {
   const isSuccessLocked =
     submitState === "success" &&
     successfulSubmissionSignature ===
-      buildSubmissionSignature(normalizeValues(values), company);
+      buildSubmissionSignature(normalizeValues(values), company, locale);
 
   return (
     <form

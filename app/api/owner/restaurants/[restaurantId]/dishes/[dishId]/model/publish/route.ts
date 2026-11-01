@@ -1,3 +1,4 @@
+import { storageBucket } from "@/lib/storage/backend";
 import { NextResponse, type NextRequest } from "next/server";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
@@ -61,7 +62,7 @@ async function downloadStorageBytes(
   storage: SupabaseClient["storage"],
   path: string
 ): Promise<Buffer | null> {
-  const downloaded = await storage.from(MODEL_BUCKET).download(path);
+  const downloaded = await storageBucket(storage, MODEL_BUCKET).download(path);
   if (downloaded.error || !downloaded.data) return null;
   return Buffer.from(await downloaded.data.arrayBuffer());
 }

@@ -1,0 +1,123 @@
+import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
+import { readFileSync } from 'node:fs';
+import test from 'node:test';
+import vm from 'node:vm';
+
+// Test the actual passive QA probe without a browser, GPU or extra RAF loop.
+function fixture() {
+  const source = readFileSync('scripts/diagnose-landing-composition.mjs', 'utf8');
+  const start = source.indexOf('function installVisualProbe(');
+  const end = source.indexOf('\nfunction installJourneyObservation(', start);
+  assert.ok(start >= 0 && end > start);
+  let now = 0, sequence = 0;
+  const callbacks = new Map();
+  const canvas = { width: 390, height: 844, dataset: { frames: '0' } };
+  const window = {
+    requestAnimationFrame(callback) { const id = ++sequence; callbacks.set(id, callback); return id; },
+    cancelAnimationFrame(id) { callbacks.delete(id); },
+  };
+  vm.runInNewContext(`(${source.slice(start, end)})(true)`, {
+    window, document: { documentElement: { getAttribute: () => 'dark' }, hidden: false, querySelector: () => canvas, querySelectorAll: () => [] },
+    performance: { now: () => now }, scrollY: 0,
+  });
+  return { window, canvas, callbacks, time(value) { now = value; },
+    deliver(id, at) { now = at; const callback = callbacks.get(id); callbacks.delete(id); callback(at); },
+    read: () => window.__compositionVisual.read(),
+  };
+}
+
+test('passive composition evidence separates RAF delivery delay from callback duration', () => {
+  const f = fixture();
+  function render() { f.canvas.dataset.frames = String(Number(f.canvas.dataset.frames) + 1); f.time(9687.2); }
+  const id = f.window.requestAnimationFrame(render);
+  assert.equal(f.callbacks.size, 1, 'probe must not schedule an independent animation loop');
+  f.deliver(id, 9685);
+  const sample = f.read().samples[0];
+  assert.equal(sample.startedAt - sample.requestedAt, 9685);
+  assert.ok(Math.abs(sample.endedAt - sample.startedAt - 2.2) < 1e-9);
+  assert.equal(sample.rendered, true);
+  assert.equal(sample.pose.frames, '1');
+});
+
+test('pending age tracks only known scene callbacks and cancellation removes ownership', () => {
+  const f = fixture();
+  function render() { f.canvas.dataset.frames = '1'; }
+  f.deliver(f.window.requestAnimationFrame(render), 10);
+  f.time(20);
+  const owned = f.window.requestAnimationFrame(render);
+  f.window.requestAnimationFrame(() => {});
+  f.time(5690.8);
+  const pending = f.read().pending;
+  assert.equal(pending.length, 1);
+  assert.equal(pending[0].id, owned);
+  assert.equal(pending[0].ageMs, 5670.8);
+  f.window.cancelAnimationFrame(owned);
+  assert.equal(f.read().pending.length, 0);
+  assert.equal(f.callbacks.size, 1, 'unrelated callback is untouched');
+});
+
+test('known callbacks that stop drawing remain observable without claiming a new render', () => {
+  const f = fixture();
+  let draw = true;
+  function render() { if (draw) f.canvas.dataset.frames = '1'; }
+  f.deliver(f.window.requestAnimationFrame(render), 10);
+  draw = false;
+  f.deliver(f.window.requestAnimationFrame(render), 20);
+  assert.equal(f.read().samples.length, 2);
+  assert.equal(f.read().samples[1].rendered, false);
+  assert.equal(f.read().samples[1].pose.frames, '1');
+});
+
+test('journey evidence reads only the active Features heading across baseline and stable-panel layouts', () => {
+  const source = readFileSync('scripts/diagnose-landing-composition.mjs', 'utf8');
+  const start = source.indexOf('function installJourneyObservation(');
+  const end = source.indexOf('\nasync function openPage(', start);
+  for (const panels of [false, true]) {
+    const window = {};
+    const document = {
+      createElement() { return {}; }, querySelectorAll() { return []; },
+      querySelector(selector) {
+        if (selector === '.feature-panel[data-feature-active="true"] h3' && panels) return { textContent: 'Active second card' };
+        if (selector === '.feature-card > h3' && !panels) return { textContent: 'Active second card' };
+        if (selector === '.feature-card h3') return { textContent: panels ? 'Hidden first card' : 'Active second card' };
+        return null;
+      },
+    };
+    vm.runInNewContext(`(${source.slice(start, end)})();`, { window, document });
+    assert.equal(window.__compositionJourney.read().featureHeading, 'Active second card');
+  }
+});
+
+
+test('passive lower-cache evidence records current buffer and theme without claiming fresh draws', () => {
+  const f = fixture();
+  let draw = true;
+  function render() { if (draw) f.canvas.dataset.frames = '1'; }
+  f.deliver(f.window.requestAnimationFrame(render), 10);
+  Object.assign(f.canvas.dataset, { pricingBackdrop: 'ready', pricingBackdropGeneration: '1', pricingBackdropWidth: '390', pricingBackdropHeight: '844', pricingBackdropTheme: 'dark', pricingBackdropPose: 'pricing-entry:fixture' });
+  draw = false;
+  f.deliver(f.window.requestAnimationFrame(render), 20);
+  const sample = f.read().samples[1];
+  assert.equal(sample.rendered, false);
+  assert.deepEqual(Array.from(sample.drawingBuffer), [390, 844]);
+  assert.equal(sample.theme, 'dark');
+  assert.equal(sample.pose.pricingBackdropGeneration, '1');
+  assert.equal(sample.pose.pricingBackdropPose, 'pricing-entry:fixture');
+});
+
+
+test('the reviewed composition runner accepts checkout line endings and rejects changed probe code', () => {
+  const helper = readFileSync('scripts/diagnose-landing-composition.mjs', 'utf8');
+  const start = helper.indexOf('const hash =');
+  const end = helper.indexOf('const git =', start);
+  assert.ok(start >= 0 && end > start);
+  const validation = helper.slice(start, end).replaceAll('import.meta.url', '"file:///probe.mjs"');
+  const runner = readFileSync('scripts/benchmark-landing.mjs', 'utf8').replace(/\r\n/g, '\n');
+  const verify = bytes => vm.runInNewContext(validation + '\nprobeScript;', {
+    assert, createHash, URL, readFileSync: () => bytes,
+  });
+  for (const bytes of [runner, runner.replaceAll('\n', '\r\n')])
+    assert.match(verify(bytes), /__vistaireBenchmark/);
+  assert.throws(() => verify(runner + '\n// unreviewed change\n'), /Frozen schema2 probe changed/);
+});

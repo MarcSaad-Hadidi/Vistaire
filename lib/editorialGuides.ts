@@ -103,7 +103,7 @@ export const EDITORIAL_GUIDES: EditorialGuide[] = [
         title: "La hiérarchie doit répondre avant de séduire",
         paragraphs: [
           "La première responsabilité de la carte est d’orienter. Le convive doit comprendre où il se trouve, quelles familles de plats sont disponibles et comment revenir à son point de départ. Une mise en scène raffinée ne compense pas une navigation ambiguë. Sur mobile, une catégorie visible, un titre court et un ordre cohérent réduisent les hésitations inutiles.",
-          "L’ordre des catégories traduit aussi le rythme du repas. Il peut suivre l’expérience de table — à partager, entrées, plats, desserts — ou un usage propre à l’établissement. Ce choix mérite d’être éditorial, pas automatique. Les catégories les plus importantes doivent apparaître sans obliger le convive à décoder une taxonomie interne."
+          "L’ordre des catégories traduit aussi le rythme du repas. Il peut suivre l’expérience de table (à partager, entrées, plats, desserts) ou un usage propre à l’établissement. Ce choix mérite d’être éditorial, pas automatique. Les catégories les plus importantes doivent apparaître sans obliger le convive à décoder une taxonomie interne."
         ],
         bullets: [
           "Une catégorie active clairement identifiable.",
@@ -217,7 +217,7 @@ export const EDITORIAL_GUIDES: EditorialGuide[] = [
     dek:
       "A premium digital menu is neither a PDF hidden behind a QR code nor a gallery of polished food pictures. It organizes a guest’s decision on a small screen, makes dishes understandable and carries the restaurant’s identity without getting in the way of service.",
     definition:
-      "A premium digital menu is a mobile-first path through the restaurant’s offer: clear categories, precise dish information, intentional imagery and restrained interactions that keep the food—not the interface—at the centre.",
+      "A premium digital menu is a mobile-first path through the restaurant’s offer: clear categories, precise dish information, intentional imagery and restrained interactions that keep the food, not the interface, at the centre.",
     cardTitle: "The anatomy of a premium digital menu",
     cardDescription:
       "A practical structure for categories, dish pages, prices, photography, allergen notes and selective 3D.",

@@ -254,6 +254,10 @@ test.describe("Android AR diagnosis", () => {
     await expect(page.locator("model-viewer")).toHaveJSProperty(
       "src", "/models/demo/ar-lite/homard-bisque-ar-lite-meshy.glb"
     );
+    // The fallback needs React's model-ready state, not only the assigned src.
+    await expect(page.getByRole("button", { name: "Afficher devant moi" })).toBeVisible({
+      timeout: 20_000
+    });
     await dispatchSceneViewerFallback(page);
     await expect(
       page.getByRole("heading", {
@@ -384,5 +388,29 @@ test.describe("Desktop 3D without AR CTA", () => {
     await expect(page.locator("model-viewer")).toHaveCount(1);
     await expect(page.getByRole("button", { name: "Afficher devant moi" })).toHaveCount(0);
     await expect(page.getByText("Ouvrez cette fiche dans Chrome")).toHaveCount(0);
+  });
+});
+
+test.describe("Landing AR on iOS browsers", () => {
+  test.describe.configure({ timeout: 120_000 });
+  test.use({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
+
+  test("Brave iOS gets an explanation, never a USDZ download; Safari keeps Quick Look", async ({ page }) => {
+    await simulateIosBrowser(page, BRAVE_IOS_UA);
+    const requests = collectModelAssetRequests(page);
+    await page.goto("/#grip");
+    const action = page.locator(".grip-actions .ar-action").first();
+    await expect(action).toBeVisible({ timeout: 60_000 });
+    await expect(page.locator('a[rel="ar"]')).toHaveCount(0);
+    await action.click();
+    await expect(page.getByRole("dialog")).toContainText("pas disponible dans ce navigateur");
+    await expect(page.getByRole("dialog")).toContainText("Safari");
+    expect(requests.filter(url => /\.usdz(?:$|[?#])/i.test(new URL(url).pathname))).toEqual([]);
+  });
+
+  test("Safari iOS keeps the Quick Look link on the landing", async ({ page }) => {
+    await simulateIosBrowser(page, IOS_SAFARI_UA);
+    await page.goto("/#grip");
+    await expect(page.locator('.grip-actions a[rel="ar"][href*=".usdz"]')).toHaveCount(1, { timeout: 60_000 });
   });
 });

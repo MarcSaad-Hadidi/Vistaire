@@ -283,7 +283,7 @@ async function expectUrlState(
 }
 
 test.describe("Maison Elyse public QR menu", () => {
-  test("mobile scan journey starts directly on the complete menu", async ({ page }) => {
+  test("mobile scan journey starts directly on the complete menu", { tag: '@critical' }, async ({ page }) => {
     const health = installPageHealth(page);
     const modelRequests = collectModelAssetRequests(page);
 
@@ -337,7 +337,7 @@ test.describe("Maison Elyse public QR menu", () => {
     await expectNoHorizontalOverflow(page);
     health.expectClean();
   });
-  test("public dish detail exposes 3D and AR only after user intent", async ({
+  test("public dish detail exposes 3D and AR only after user intent", { tag: '@critical' }, async ({
     page
   }) => {
     const health = installPageHealth(page);

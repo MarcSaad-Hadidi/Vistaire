@@ -1,0 +1,116 @@
+{
+  "version": 1,
+  "documents": [
+    {
+      "id": "vistaire",
+      "file": "01-vistaire.md",
+      "status": "approved",
+      "category": "produit",
+      "title": { "fr": "Présentation de Vistaire", "en": "About Vistaire" },
+      "publicPath": { "fr": "/a-propos", "en": "/en/about" },
+      "sources": [
+        "components/vistaire-preview/VistaireAboutPreview.tsx",
+        "lib/seo.ts",
+        "lib/seoGeoPages.fr.ts"
+      ],
+      "verifiedAt": "2026-10-09",
+      "topics": ["vistaire", "présentation", "positionnement", "zone desservie"]
+    },
+    {
+      "id": "fonctionnalites",
+      "file": "02-fonctionnalites.md",
+      "status": "approved",
+      "category": "fonctionnalites",
+      "title": { "fr": "Fonctionnalités du menu digital", "en": "Digital menu features" },
+      "publicPath": { "fr": "/menu-digital-restaurant", "en": "/en/digital-restaurant-menu" },
+      "sources": [
+        "lib/seoPages.ts",
+        "lib/seoGeoPages.fr.ts",
+        "lib/seoGeoPages.en.ts",
+        "lib/pricingPage.ts"
+      ],
+      "verifiedAt": "2026-10-09",
+      "topics": ["menu digital", "fiches plats", "photos", "allergènes", "langues", "devises", "qr code"]
+    },
+    {
+      "id": "experience-client",
+      "file": "03-experience-client.md",
+      "status": "approved",
+      "category": "experience-client",
+      "title": { "fr": "Expérience client au QR code", "en": "Guest QR code experience" },
+      "publicPath": { "fr": "/menu-qr-code-restaurant", "en": "/en/qr-code-restaurant-menu" },
+      "sources": ["lib/seoPages.ts", "lib/seoGeoPages.fr.ts", "lib/seoGeoPages.en.ts"],
+      "verifiedAt": "2026-10-09",
+      "topics": ["scan", "application", "navigateur", "iphone", "android", "wi-fi", "compte"]
+    },
+    {
+      "id": "3d-ar",
+      "file": "04-3d-ar.md",
+      "status": "approved",
+      "category": "3d-ar",
+      "title": { "fr": "Expériences 3D et AR", "en": "3D and AR experiences" },
+      "publicPath": { "fr": "/menu-3d-ar-restaurant", "en": "/en/3d-ar-restaurant-menu" },
+      "sources": ["lib/seoPages.ts", "lib/seoGeoPages.fr.ts", "lib/pricingPage.ts"],
+      "verifiedAt": "2026-10-09",
+      "topics": ["3d", "ar", "réalité augmentée", "compatibilité", "chargement"]
+    },
+    {
+      "id": "tarifs",
+      "file": "05-tarifs.md",
+      "status": "approved",
+      "category": "tarifs",
+      "title": { "fr": "Tarifs Vistaire", "en": "Vistaire pricing" },
+      "publicPath": {
+        "fr": "/tarifs-menu-digital-restaurant",
+        "en": "/en/pricing-digital-restaurant-menu"
+      },
+      "sources": ["lib/pricingPage.ts", "components/immersive/Pricing.jsx"],
+      "verifiedAt": "2026-10-09",
+      "topics": ["prix", "abonnement", "collections", "pilotage", "plats 3d", "conditions"]
+    },
+    {
+      "id": "restaurateurs",
+      "file": "06-restaurateurs.md",
+      "status": "approved",
+      "category": "restaurateurs",
+      "title": { "fr": "Mise en place et Pilotage", "en": "Setup and Pilotage" },
+      "publicPath": { "fr": "/apercu-restaurateur", "en": "/en/restaurant-preview" },
+      "sources": ["lib/pricingPage.ts", "lib/seoPages.ts", "lib/seoGeoPages.fr.ts"],
+      "verifiedAt": "2026-10-09",
+      "topics": ["mise en place", "délai", "étapes", "dashboard", "pilotage", "mise à jour"]
+    },
+    {
+      "id": "limites",
+      "file": "07-limites.md",
+      "status": "approved",
+      "category": "limites",
+      "title": { "fr": "Limites et engagements", "en": "Limits and commitments" },
+      "publicPath": null,
+      "sources": ["lib/seoPages.ts", "lib/seoGeoPages.fr.ts", "lib/pricingPage.ts"],
+      "verifiedAt": "2026-10-09",
+      "topics": ["limites", "garanties", "commande", "réservation", "ventes"]
+    },
+    {
+      "id": "contact",
+      "file": "08-contact.md",
+      "status": "approved",
+      "category": "contact",
+      "title": { "fr": "Contacter Vistaire", "en": "Contact Vistaire" },
+      "publicPath": { "fr": "/contact", "en": "/en/contact" },
+      "sources": ["lib/seo.ts", "lib/i18n.ts", "lib/pricingPage.ts"],
+      "verifiedAt": "2026-10-09",
+      "topics": ["contact", "démonstration", "rendez-vous", "exemple de menu"]
+    },
+    {
+      "id": "en-attente",
+      "file": "09-en-attente.md",
+      "status": "pending",
+      "category": "en-attente",
+      "title": { "fr": "Informations en attente de validation", "en": "Information pending validation" },
+      "publicPath": null,
+      "sources": ["lib/seoPages.ts", "lib/pricingPage.ts"],
+      "verifiedAt": "2026-10-09",
+      "topics": ["en attente"]
+    }
+  ]
+}

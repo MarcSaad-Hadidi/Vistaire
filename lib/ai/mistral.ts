@@ -346,3 +346,54 @@ export async function generateMistralMenuStyleAdvice(
     clearTimeout(timeoutId);
   }
 }
+
+export function isMistralConfigured(): boolean {
+  return Boolean(process.env.MISTRAL_API_KEY);
+}
+
+// Public FAQ: one bounded JSON-mode call per question, no retry. Returns raw JSON text.
+export async function generateMistralPublicFaqAnswer(
+  messages: Array<{ role: "system" | "user"; content: string }>
+): Promise<string | null> {
+  const apiKey = process.env.MISTRAL_API_KEY;
+  const model = process.env.MISTRAL_MODEL || "mistral-large-latest";
+
+  if (!apiKey) return null;
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 8_000);
+
+  try {
+    const response = await fetch("https://api.mistral.ai/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json"
+      },
+      signal: controller.signal,
+      body: JSON.stringify({
+        model,
+        temperature: 0.1,
+        max_tokens: 350,
+        response_format: { type: "json_object" },
+        messages
+      })
+    });
+
+    if (!response.ok) {
+      console.error("[Vistaire FAQ] Mistral unavailable", response.status);
+      return null;
+    }
+
+    const data = (await response.json()) as {
+      choices?: Array<{ message?: { content?: string } }>;
+    };
+    return data.choices?.[0]?.message?.content ?? null;
+  } catch (error) {
+    const reason = error instanceof Error ? error.name : "unknown";
+    console.error("[Vistaire FAQ] Mistral fallback", reason);
+    return null;
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}

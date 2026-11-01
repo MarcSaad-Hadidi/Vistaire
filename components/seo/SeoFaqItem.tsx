@@ -1,67 +1,30 @@
 "use client";
 
-import { useCallback, useId, useState } from "react";
+import { ChevronRightIcon } from "lucide-react";
+import { AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import styles from "./SeoFaq.module.css";
 
-type SeoFaqItemProps = {
-  answer: string;
-  initialOpen?: boolean;
-  question: string;
-};
-
-export function SeoFaqItem({
-  answer,
-  initialOpen = false,
-  question
-}: SeoFaqItemProps) {
-  const [isOpen, setIsOpen] = useState(initialOpen);
-  const reactId = useId();
-  const buttonId = `seo-faq-question-${reactId}`;
-  const answerId = `seo-faq-answer-${reactId}`;
-  const markHydrated = useCallback((element: HTMLButtonElement | null) => {
-    if (element) element.dataset.hydrated = "true";
-  }, []);
-
+// Adapted from the official @reui/c-accordion-10 (radix-nova) registry block:
+// https://reui.io/r/radix-nova/c-accordion-10.json
+// Registry IconPlaceholder is resolved to its lucide ChevronRightIcon.
+export function SeoFaqItem({ answer, question, value }: { answer: string; question: string; value: string }) {
   return (
-    <article className="group p-5 sm:p-6">
-      <h3>
-        <button
-          ref={markHydrated}
-          id={buttonId}
-          type="button"
-          className="flex min-h-11 w-full items-center justify-between gap-5 rounded-md text-left font-display text-xl leading-tight text-cream outline-none transition-colors hover:text-[#f1d8a6] focus-visible:ring-2 focus-visible:ring-[#e8cf9b] focus-visible:ring-offset-4 focus-visible:ring-offset-[#0d0907] motion-reduce:transition-none"
-          aria-controls={answerId}
-          aria-expanded={isOpen}
-          data-hydrated="false"
-          data-seo-faq-question
-          onClick={() => setIsOpen((open) => !open)}
-        >
-          <span>{question}</span>
-          <svg
-            aria-hidden="true"
-            className={`size-5 shrink-0 text-[#d7b978] transition-transform duration-200 motion-reduce:transition-none ${isOpen ? "rotate-180" : ""}`}
-            data-seo-faq-chevron
-            viewBox="0 0 20 20"
-            fill="none"
-          >
-            <path
-              d="m5 7.5 5 5 5-5"
-              stroke="currentColor"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth="1.5"
-            />
-          </svg>
-        </button>
-      </h3>
-      <div
-        id={answerId}
-        data-seo-faq-answer
-        hidden={!isOpen}
+    <AccordionItem value={value} className={styles.item}>
+      <AccordionTrigger
+        className={`flex-row-reverse items-center justify-end gap-3 py-3 hover:no-underline *:data-[slot=accordion-trigger-icon]:hidden ${styles.trigger}`}
+        data-hydrated="true"
+        data-seo-faq-question
       >
-        <p className="mt-3 max-w-3xl text-sm leading-7 text-[#cdbfa9]">
-          {answer}
-        </p>
-      </div>
-    </article>
+        <span>{question}</span>
+        <ChevronRightIcon
+          aria-hidden="true"
+          data-seo-faq-chevron
+          className={`size-4 shrink-0 transition-transform duration-200 group-aria-expanded/accordion-trigger:rotate-90 ${styles.chevron}`}
+        />
+      </AccordionTrigger>
+      <AccordionContent className={`ps-7 leading-relaxed ${styles.answer}`} data-seo-faq-answer role={undefined}>
+        {answer}
+      </AccordionContent>
+    </AccordionItem>
   );
 }

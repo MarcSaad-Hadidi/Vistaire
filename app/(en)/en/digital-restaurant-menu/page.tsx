@@ -1,8 +1,6 @@
 import type { Metadata } from "next";
 import { JsonLd } from "@/components/JsonLd";
-import { SeoInteractiveComparison } from "@/components/landing/SeoInteractiveComparison";
-import { VistaireMenuDigitalRestaurantPreview } from "@/components/vistaire-preview/VistaireMenuDigitalRestaurantPreview";
-import { VistaireSeoProductionSections } from "@/components/vistaire-preview/VistaireSeoProductionSections";
+import { DigitalMenuCinematic } from "@/components/immersive/pages/DigitalMenuCinematic";
 import { buildPageAlternates, LOCALE_OPEN_GRAPH } from "@/lib/i18n";
 import { absoluteUrl } from "@/lib/seo";
 import { buildSeoPillarJsonLd } from "@/lib/seoPillarJsonLd";
@@ -43,15 +41,7 @@ export default function DigitalRestaurantMenuRouteEn() {
   return (
     <>
       <JsonLd data={buildSeoPillarJsonLd(page)} />
-      <VistaireMenuDigitalRestaurantPreview
-        h1={page.h1}
-        interactiveShowcase={
-          <SeoInteractiveComparison locale="en" interaction="reveal" />
-        }
-        locale="en"
-        routeMode="production"
-        seoAppendix={<VistaireSeoProductionSections page={page} />}
-      />
+      <DigitalMenuCinematic page={page} />
     </>
   );
 }

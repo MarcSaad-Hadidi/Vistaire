@@ -1,0 +1,220 @@
+/* Self-contained styles: no dependency on generated Tailwind utilities. */
+.root {
+  padding: 24px 20px;
+  color: var(--public-text, #f5ead8);
+}
+
+.compact {
+  padding: 22px 0 8px;
+}
+
+.form {
+  margin: 0;
+}
+
+.label {
+  display: block;
+  font-family: Georgia, Cambria, "Times New Roman", serif;
+  font-size: 1.5rem;
+  font-weight: 400;
+  line-height: 1.25;
+  color: var(--public-text, #f5ead8);
+}
+
+.compact .label {
+  font-family: inherit;
+  font-size: 16px;
+  line-height: 1.4;
+}
+
+.field {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 14px;
+  border-bottom: 1px solid var(--public-blue, rgba(248, 243, 232, 0.22));
+  transition: border-color 0.2s ease;
+}
+
+.field:focus-within {
+  border-color: var(--public-gold, #ffc300);
+}
+
+.input {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 0;
+  padding: 10px 0;
+  border: 0;
+  outline: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 16px;
+  line-height: 1.5;
+}
+
+/* Focus is shown by the gold underline (.field:focus-within). */
+.field .input:focus-visible {
+  outline: none;
+}
+
+.input::placeholder {
+  color: var(--public-muted, #cec8bd);
+}
+
+.submit {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  margin: 0 0 6px;
+  padding: 0;
+  border: 1px solid var(--public-gold, #ffc300);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--public-gold, #ffc300);
+  cursor: pointer;
+  transition: background-color 0.2s ease, color 0.2s ease, opacity 0.2s ease;
+}
+
+.submit svg {
+  display: block;
+  width: 18px;
+  height: 18px;
+}
+
+.submit:hover:not(:disabled) {
+  background: var(--public-gold, #ffc300);
+  color: var(--public-black, #111110);
+}
+
+.submit:focus-visible {
+  outline: 2px solid var(--public-gold, #ffc300);
+  outline-offset: 3px;
+}
+
+.submit:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.spinner {
+  width: 16px;
+  height: 16px;
+  border: 1.5px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: faq-ask-spin 0.8s linear infinite;
+}
+
+.note {
+  margin: 10px 0 0;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--public-muted, #cec8bd);
+}
+
+.hint {
+  color: var(--public-gold-light, #ffd60a);
+}
+
+.loading {
+  margin: 18px 0 0;
+  font-size: 15px;
+  line-height: 1.6;
+  color: var(--public-muted, #cec8bd);
+  animation: faq-ask-pulse 1.4s ease-in-out infinite;
+}
+
+.answerBlock {
+  margin-top: 18px;
+  animation: faq-ask-reveal 0.28s ease-out;
+}
+
+.answer {
+  max-width: 70ch;
+  margin: 0;
+  font-size: 16px;
+  line-height: 1.75;
+  color: var(--public-muted, #cec8bd);
+}
+
+.compact .answer {
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+.sources {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px 14px;
+  margin: 12px 0 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--public-muted, #cec8bd);
+}
+
+.sources > span:first-child {
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--public-gold, #ffc300);
+}
+
+.sources a {
+  color: var(--public-text, #f5ead8);
+  text-decoration: underline;
+  text-decoration-color: var(--public-gold, #ffc300);
+  text-underline-offset: 3px;
+}
+
+.sources a:hover {
+  color: var(--public-gold-light, #ffd60a);
+}
+
+.sources a:focus-visible {
+  outline: 2px solid var(--public-gold, #ffc300);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+@media (min-width: 640px) {
+  .root:not(.compact) {
+    padding: 28px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .field,
+  .submit {
+    transition: none;
+  }
+
+  .spinner,
+  .loading,
+  .answerBlock {
+    animation: none;
+  }
+}
+
+@keyframes faq-ask-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes faq-ask-pulse {
+  50% {
+    opacity: 0.55;
+  }
+}
+
+@keyframes faq-ask-reveal {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+}

@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
+import nextConfig from "../next.config.ts";
 
 const OWNER_PIPELINE_ROUTES = [
   "/api/owner/restaurants/*/dishes/*/model/glb",
@@ -37,6 +38,16 @@ const RUNTIME_TRACE_ROOT_PACKAGES = [
   "fflate"
 ];
 
+const MODEL_LAB_ROUTE = "/api/owner/model-lab/optimize";
+const MODEL_LAB_WORKER = "lib/owner/modelLab/optimizeWorker.mjs";
+const MODEL_LAB_ROOT_PACKAGES = [
+  "@gltf-transform/core",
+  "@gltf-transform/extensions",
+  "@gltf-transform/functions",
+  "meshoptimizer",
+  "sharp"
+];
+
 function packagePathForName(name) {
   return `node_modules/${name}`;
 }
@@ -46,10 +57,10 @@ function dependencyPathForPackage(packages, packagePath, dependencyName) {
   return packages[nestedPath] ? nestedPath : packagePathForName(dependencyName);
 }
 
-function collectRuntimePackageClosure(packageLock) {
+function collectRuntimePackageClosure(packageLock, roots) {
   const packages = packageLock.packages ?? {};
   const seen = new Set();
-  const stack = RUNTIME_TRACE_ROOT_PACKAGES.map(packagePathForName);
+  const stack = roots.map(packagePathForName);
 
   while (stack.length > 0) {
     const packagePath = stack.pop();
@@ -65,17 +76,12 @@ function collectRuntimePackageClosure(packageLock) {
       ...(packageEntry.peerDependencies ?? {})
     };
     for (const dependencyName of Object.keys(dependencies)) {
+      if (dependencyName.startsWith("@types/")) continue;
       stack.push(dependencyPathForPackage(packages, packagePath, dependencyName));
     }
   }
 
   return [...seen].sort();
-}
-
-function extractPackageTraceIncludes(nextConfigSource) {
-  return [...nextConfigSource.matchAll(/"(node_modules\/[^"]+\/\*\*\/\*)"/g)].map(
-    (match) => match[1]
-  );
 }
 
 function traceIncludeCoversPackagePath(traceInclude, packagePath) {
@@ -99,46 +105,52 @@ test("owner runtime GLB conversion packages are production dependencies", async 
   }
 });
 
-test("owner runtime child-process scripts and toolchain are explicitly traced", async () => {
-  const nextConfig = await readFile("next.config.ts", "utf8");
-
-  assert.match(nextConfig, /outputFileTracingIncludes/);
+test("owner runtime child-process scripts and toolchain are explicitly traced", () => {
   for (const route of OWNER_PIPELINE_ROUTES) {
-    assert.match(nextConfig, new RegExp(route.replaceAll("*", "\\*").replaceAll("/", "\\/")));
+    const includes = nextConfig.outputFileTracingIncludes[route];
+    assert.ok(includes);
+    for (const include of TRACE_INCLUDES) {
+      assert.ok(includes.includes(include), `${route} must trace ${include}`);
+    }
+    assert.ok(!includes.includes(MODEL_LAB_WORKER));
   }
-  for (const include of TRACE_INCLUDES) {
-    assert.match(
-      nextConfig,
-      new RegExp(include.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")),
-      `${include} must be traced into the owner model runtime function`
-    );
+  const modelLabIncludes = nextConfig.outputFileTracingIncludes[MODEL_LAB_ROUTE];
+  assert.ok(modelLabIncludes.includes(MODEL_LAB_WORKER));
+  assert.ok(!modelLabIncludes.some((include) => include.startsWith("scripts/")));
+  for (const packagePath of ["node_modules/@babylonjs/core", "node_modules/@gltf-transform/cli"]) {
+    assert.ok(!modelLabIncludes.some((include) => traceIncludeCoversPackagePath(include, packagePath)));
   }
+  assert.deepEqual(nextConfig.outputFileTracingExcludes[MODEL_LAB_ROUTE], ["public/**/*"]);
 });
 
-test("owner runtime trace includes the package-lock dependency closure", async () => {
-  const nextConfig = await readFile("next.config.ts", "utf8");
+test("each owner runtime trace includes its own package-lock dependency closure", async () => {
   const packageLock = JSON.parse(await readFile("package-lock.json", "utf8"));
-  const packageTraceIncludes = extractPackageTraceIncludes(nextConfig);
-  const runtimePackagePaths = collectRuntimePackageClosure(packageLock);
-
-  for (const reviewedPackagePath of [
-    "node_modules/property-graph",
-    "node_modules/ndarray",
-    "node_modules/ndarray-pixels"
-  ]) {
-    assert.ok(
-      runtimePackagePaths.includes(reviewedPackagePath),
-      `${reviewedPackagePath} must be part of the checked runtime closure`
+  for (const route of [...OWNER_PIPELINE_ROUTES, MODEL_LAB_ROUTE]) {
+    const packageTraceIncludes = nextConfig.outputFileTracingIncludes[route];
+    const runtimePackagePaths = collectRuntimePackageClosure(
+      packageLock,
+      route === MODEL_LAB_ROUTE ? MODEL_LAB_ROOT_PACKAGES : RUNTIME_TRACE_ROOT_PACKAGES
     );
-  }
 
-  const missingPackagePaths = runtimePackagePaths.filter(
-    (packagePath) =>
-      !packageTraceIncludes.some((traceInclude) =>
-        traceIncludeCoversPackagePath(traceInclude, packagePath)
-      )
-  );
-  assert.deepEqual(missingPackagePaths, []);
+    for (const reviewedPackagePath of [
+      "node_modules/property-graph",
+      "node_modules/ndarray",
+      "node_modules/ndarray-pixels"
+    ]) {
+      assert.ok(
+        runtimePackagePaths.includes(reviewedPackagePath),
+        `${reviewedPackagePath} must be part of the checked runtime closure`
+      );
+    }
+
+    const missingPackagePaths = runtimePackagePaths.filter(
+      (packagePath) =>
+        !packageTraceIncludes.some((traceInclude) =>
+          traceIncludeCoversPackagePath(traceInclude, packagePath)
+        )
+    );
+    assert.deepEqual(missingPackagePaths, [], route);
+  }
 });
 
 test("owner runtime scripts resolve glTF Transform CLI through Node resolution", async () => {

@@ -1,107 +1,30 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
-import { pathToFileURL } from "node:url";
-import { createRequire } from "node:module";
-import ts from "typescript";
-import React from "react";
-import { renderToStaticMarkup } from "react-dom/server";
 
 const read = (path) => readFile(path, "utf8");
-async function loadAnalyticsPanel() {
-  let source = await read("components/admin/AdminAnalyticsPanel.tsx");
-  source = source.replace(/import[^;]+adminDashboardViewModel[^;]+;\s*/s, "").replace(/import styles[^;]+;\s*/, "const styles = { metrics: 'metrics', chart: 'chart', evidence: 'evidence' };\n").replace(/import analyticsStyles[^;]+;\s*/, "const analyticsStyles = { bars: 'bars', bar: 'bar', barFill: 'barFill' };\n");
-  const javascript = ts.transpileModule(source, { compilerOptions: { jsx: ts.JsxEmit.React, module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 } }).outputText;
-  const require = createRequire(import.meta.url);
-  const reactUrl = pathToFileURL(require.resolve("react")).href;
-  const viewModelUrl = pathToFileURL("components/admin/adminDashboardViewModel.ts").href;
-  const loaded = await import(`data:text/javascript;base64,${Buffer.from(`import React from '${reactUrl}'; import { buildAnalyticsPresentation } from '${viewModelUrl}'; ${javascript}`).toString("base64")}`);
-  return loaded.AdminAnalyticsPanel;
-}
 
 test("admin has a private dedicated shell without marketing or heavy media", async () => {
-  const [layout, page, dashboard, css] = await Promise.all([
+  const [layout, page, css] = await Promise.all([
     read("app/(fr)/admin/layout.tsx"), read("app/(fr)/admin/page.tsx"),
-    read("components/admin/AdminRestaurantDashboard.tsx"),
-    read("components/admin/AdminDashboard.module.css")
+    read("components/admin/studio/Studio.module.css")
   ]);
-  const source = `${layout}\n${page}\n${dashboard}`;
+  const source = `${layout}\n${page}`;
   assert.match(layout, /index:\s*false/);
   assert.match(layout, /follow:\s*true/);
   assert.match(layout, /noarchive:\s*true/);
-  assert.match(source, /AdminDashboard\.module\.css/);
+  assert.match(source, /studio\/Studio\.module\.css/);
   assert.doesNotMatch(source, /VistaireRestaurateurDashboardPreview|next\/image|PhotoResto|AdminAssistant|\/api\/owner|model-viewer|\.glb|\.usdz|<canvas/i);
-  assert.doesNotMatch(css, /background-image|url\(/i);
+  assert.doesNotMatch(css, /background-image|url\((?!["']?\/fonts\/)/i);
 });
 
-test("page strictly allowlists server ranges and discloses UTC timezone", async () => {
-  const [page, parser, dashboard] = await Promise.all([read("app/(fr)/admin/page.tsx"), read("lib/admin/pageSearchParams.ts"), read("components/admin/AdminRestaurantDashboard.tsx")]);
+test("page strictly allowlists server ranges and scopes the authorized restaurant", async () => {
+  const [page, parser] = await Promise.all([read("app/(fr)/admin/page.tsx"), read("lib/admin/pageSearchParams.ts")]);
   assert.match(page, /parseAdminPageSearchParams\(await searchParams\)/);
   assert.match(page, /loadAdminDashboardData\(access\.restaurantId, range\)/);
   assert.match(parser, /Pick<[^>]+["']range["']/);
   assert.doesNotMatch(parser, /restaurantId|restaurant_id|slug/);
   assert.doesNotMatch(page, /searchParams\?\.|searchParams\[|as\s+RangeLoader/);
-  assert.match(dashboard, /Aujourd.hui[^\n]*UTC|Fen.tre glissante[^\n]*UTC/);
-  assert.match(dashboard, /fuseau horaire[^\n]*pas configur/i);
-});
-
-test("dashboard exposes evidence semantics, chart alternatives and worklist controls", async () => {
-  const [dashboard, worklist, viewModel, panel] = await Promise.all([read("components/admin/AdminRestaurantDashboard.tsx"), read("components/admin/AdminDishWorklist.tsx"), read("components/admin/adminDashboardViewModel.ts"), read("components/admin/AdminAnalyticsPanel.tsx")]);
-  const source = `${dashboard}\n${worklist}\n${viewModel}\n${panel}`;
-  assert.match(source, /Donn.es insuffisantes|Donn.e insuffisante/);
-  assert.match(source, /Non mesur/);
-  assert.match(source, /aria-labelledby/);
-  assert.match(source, /<title>|aria-label/);
-  assert.match(source, /<desc>|description/i);
-  for (const label of ["Tous", "Disponibles", "Indisponibles", "Prix manquant", "Description manquante", "Photo manquante", "3D\/AR"]) assert.match(worklist, new RegExp(label));
-  assert.match(worklist, /type="search"/);
-  assert.match(source, /aria-live=/);
-  assert.match(source, /focus-visible/);
-  assert.doesNotMatch(dashboard, /d="M5 75/);
-  assert.match(worklist, /flex-wrap|grid-cols/);
-});
-
-test("analytics presentation exhaustively preserves real, insufficient and unavailable evidence", async () => {
-  const { buildAnalyticsPresentation } = await import("../components/admin/adminDashboardViewModel.ts");
-  const window = { range: "7d", startInclusive: "2026-07-03T12:00:00Z", endExclusive: "2026-07-10T12:00:00Z", comparisonStartInclusive: "2026-06-26T12:00:00Z", comparisonEndExclusive: "2026-07-03T12:00:00Z" };
-  const realState = { kind: "real", completeness: "complete", observationWindow: window, lastUpdatedAt: "2026-07-10T12:00:00Z", freshness: "fresh", coverage: { menuOpened: true, dishOpened: true }, metrics: [{ id: "menu-opens", value: 23, changeRate: null }], activitySeries: [{ bucket: "2026-07-09", count: 8 }, { bucket: "2026-07-10", count: 15 }], categoryBreakdown: [], topDishes: [], searches: [], immersive: [], funnel: { kind: "unsupported" }, comparison: null };
-  const real = buildAnalyticsPresentation(realState);
-  assert.equal(real.kind, "real");
-  assert.deepEqual(real.activity.map((point) => point.value), [8, 15]);
-  assert.match(real.summary, /23/);
-  const insufficient = buildAnalyticsPresentation({ kind: "insufficient", reason: "sample-too-small", completeness: "limited-sample", observationWindow: window, availableEvidence: [{ label: "Événements", value: 4 }], missingEvidence: ["20 sessions nécessaires"] });
-  assert.deepEqual(insufficient, { kind: "insufficient", reason: "sample-too-small", completeness: "limited-sample", title: "Donnée insuffisante", availableEvidence: [{ label: "Événements", value: 4 }], missingEvidence: ["20 sessions nécessaires"] });
-  const unavailable = buildAnalyticsPresentation({ kind: "unavailable", reason: "query", completeness: "truncated", title: "Lecture interrompue", explanation: "La lecture complète n’a pas abouti.", retryable: true });
-  assert.equal(unavailable.explanation, "La lecture complète n’a pas abouti.");
-  assert.equal(unavailable.retryable, true);
-  const Panel = await loadAnalyticsPanel();
-  const realDom = renderToStaticMarkup(React.createElement(Panel, { state: realState }));
-  assert.match(realDom, /2026-07-03T12:00:00Z/);
-  assert.match(realDom, /2026-07-10T12:00:00Z/);
-  assert.match(realDom, /class="bar"[\s\S]*class="barFill"/);
-  assert.match(realDom, /<table[\s\S]*2026-07-09[\s\S]*8/);
-  const insufficientDom = renderToStaticMarkup(React.createElement(Panel, { state: { kind: "insufficient", reason: "sample-too-small", completeness: "limited-sample", observationWindow: window, availableEvidence: [{ label: "Événements", value: 4 }], missingEvidence: ["20 sessions nécessaires"] } }));
-  const unavailableDom = renderToStaticMarkup(React.createElement(Panel, { state: { kind: "unavailable", reason: "query", completeness: "truncated", title: "Lecture interrompue", explanation: "La lecture complète n’a pas abouti.", retryable: true } }));
-  assert.match(insufficientDom, /sample-too-small[\s\S]*20 sessions nécessaires/);
-  assert.match(unavailableDom, /role="alert"[\s\S]*Lecture interrompue/);
-});
-
-test("analytics UI consumes only the canonical server union without fallback values", async () => {
-  const [viewModel, panel] = await Promise.all([read("components/admin/adminDashboardViewModel.ts"), read("components/admin/AdminAnalyticsPanel.tsx")]);
-  const source = `${viewModel}\n${panel}`;
-  assert.match(viewModel, /import type \{ AdminAnalyticsState \}/);
-  assert.match(viewModel, /Extract<AdminAnalyticsState/);
-  assert.match(panel, /import type \{ AdminAnalyticsState \}/);
-  assert.doesNotMatch(source, /TargetAnalyticsState|\?\?\s*0|\?\?\s*["']production["']|\bas\s+\{/);
-});
-
-test("activity bars have concrete responsive CSS", async () => {
-  const [panel, css] = await Promise.all([read("components/admin/AdminAnalyticsPanel.tsx"), read("components/admin/AdminAnalytics.module.css")]);
-  assert.match(panel, /analyticsStyles\.bars/);
-  assert.match(css, /\.bars\s*\{[^}]*height:/s);
-  assert.match(css, /align-items:\s*flex-end/);
-  assert.match(css, /\.barFill\s*\{[^}]*display:\s*block/s);
-  assert.doesNotMatch(css, /animation|transition/);
 });
 
 test("clipboard failures have a visible live alert", async () => {
@@ -179,7 +102,8 @@ test("admin visual system is scoped, locally typeset and accessible", async () =
   assert.match(primitives, /role="alert"/);
   assert.match(primitives, /aria-describedby/);
   assert.match(primitives, /aria-checked/);
-  assert.match(loading, /aria-busy="true"/);
+  assert.match(loading, /StudioState kind="loading"/);
+  assert.match(await read("components/admin/studio/StudioState.tsx"), /aria-busy=\{kind === "loading"/);
 });
 
 test("admin compact controls preserve 44px hit areas and direct tooltip semantics", async () => {
@@ -216,18 +140,18 @@ test("overview composes honest evidence panels with accessible exact values", as
   const [page, overview, activity, top, strip, css] = await Promise.all([
     read("app/(fr)/admin/page.tsx"),
     read("components/admin/overview/AdminOverview.tsx"),
-    read("components/admin/overview/AdminActivityChart.tsx"),
+    read("components/admin/overview/AdminMetricLineChart.tsx"),
     read("components/admin/overview/AdminTopDishes.tsx"),
     read("components/admin/overview/AdminAvailabilityStrip.tsx"),
     read("components/admin/overview/AdminOverview.module.css")
   ]);
   const source = `${page}\n${overview}\n${activity}\n${top}\n${strip}`;
-  assert.match(page, /<AdminOverview/);
+  assert.match(page, /<AdminStudio/);
   assert.match(source, /AdminShell/);
   assert.match(source, /href="\/admin\/insights"/);
   assert.match(source, /href="\/admin\/availability"/);
   assert.match(activity, /InteractiveLineChart/);
-  assert.match(activity, /title="Activit.+ du menu"/);
+  assert.match(overview, /title="Activit.+ du menu"/);
   assert.match(source, /AdminEvidenceState/);
   assert.doesNotMatch(source, /getDemo|Math\.random/);
   assert.match(css, /grid-template-areas/);
@@ -266,7 +190,7 @@ test("insights renders nine truthful panels with non-hover exact alternatives", 
   assert.match(css, /@media\s*\(prefers-reduced-motion:\s*reduce\)/);
 });
 
-test("insights review fixes lock bottom proportions, complete heatmap orientation and evidence fidelity", async () => {
+test("archived insights review fixes lock bottom proportions, complete heatmap orientation and evidence fidelity", async () => {
   const [overview, insights, heatmap, css, overviewE2e, insightsE2e] = await Promise.all([
     read("components/admin/overview/AdminOverview.tsx"),
     read("components/admin/insights/AdminInsightsPage.tsx"),
@@ -426,7 +350,7 @@ test("PR150 pages expose complete premium analytics with controlled visible rank
 
 test("full-menu parity exposes stable identity while keeping unavailable dishes private", async () => {
   const [admin, publicMenu, e2e] = await Promise.all([
-    read("components/admin/availability/AdminAvailabilityList.tsx"),
+    read("components/admin/studio/StudioDishes.tsx"),
     read("components/menu/PublicMenuRenderer.tsx"),
     read("e2e/admin-chart-interactions.spec.ts"),
   ]);
@@ -434,7 +358,7 @@ test("full-menu parity exposes stable identity while keeping unavailable dishes 
     assert.match(admin, new RegExp(attribute));
     assert.match(publicMenu, new RegExp(attribute));
   }
-  assert.match(e2e, /adminDishes\.filter\(\(\{ available \}\) => available === "true"\)/);
+  assert.match(e2e, /adminDishes\.filter\(\s*\(\{ available \}\) => available === "true",?\s*\)/);
   assert.match(e2e, /expect\(publicDishes\)\.toEqual\(availableAdminDishes\)/);
 });
 

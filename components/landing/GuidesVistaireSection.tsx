@@ -50,7 +50,7 @@ export function GuidesVistaireSection({ locale = "fr" }: { locale?: Locale }) {
           >
             {sectionCopy.pillarLabel}
             <span aria-hidden="true" className={styles.linkArrow}>
-              ↗
+              {"↗︎"}
             </span>
           </Link>
         </header>
@@ -73,7 +73,7 @@ export function GuidesVistaireSection({ locale = "fr" }: { locale?: Locale }) {
               <span className={styles.guideLink}>
                 {sectionCopy.read}{" "}
                 <span aria-hidden="true" className={styles.guideArrow}>
-                  ↗
+                  {"↗︎"}
                 </span>
               </span>
             </Link>

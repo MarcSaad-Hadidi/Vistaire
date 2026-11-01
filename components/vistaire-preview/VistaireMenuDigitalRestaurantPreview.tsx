@@ -1,40 +1,34 @@
 import Image from "next/image";
 import Link from "next/link";
 import type { ReactNode } from "react";
-import restaurantBackground from "@/Framer/PhotoRestoComplet5.png";
-import pageDigitalPhoto from "@/Framer/PageDigital.png";
-import photoDigital2 from "@/Framer/PhotoDigital2.png";
-import photoDigital3 from "@/Framer/PhotoDigital3.png";
+import { getSeoMarketingImage } from "@/lib/seoMarketingImages";
+import design from "./VistairePillarExperiences.module.css";
 import type { Locale } from "@/lib/i18n";
 import {
   getVistaireChromeRoutes,
   PreviewFooter,
   PreviewNav,
-  type VistaireRouteMode
+  type VistaireRouteMode,
 } from "./VistairePreviewChrome";
 import styles from "./VistaireMenuDigitalRestaurantPreview.module.css";
 
 const pdfProblems = [
   {
     title: "Zoom forcé",
-    text:
-      "Le client agrandit, recadre et perd le fil au lieu de parcourir la carte naturellement."
+    text: "Le client agrandit, recadre et perd le fil au lieu de parcourir la carte naturellement.",
   },
   {
     title: "Plats peu désirables",
-    text:
-      "Une page fixe laisse peu de place aux visuels, aux détails utiles et aux signatures de la maison."
+    text: "Une page fixe laisse peu de place aux visuels, aux détails utiles et aux signatures de la maison.",
   },
   {
     title: "Mobile secondaire",
-    text:
-      "Le PDF reproduit l'imprimé. Vistaire pense d'abord l'écran que le client tient à table."
+    text: "Le PDF reproduit l'imprimé. Vistaire pense d'abord l'écran que le client tient à table.",
   },
   {
     title: "Image moins premium",
-    text:
-      "Un fichier statique peut donner une impression pratique, mais rarement une vraie expérience de restaurant."
-  }
+    text: "Un fichier statique peut donner une impression pratique, mais rarement une vraie expérience de restaurant.",
+  },
 ] as const;
 
 const comparisonRows = [
@@ -42,44 +36,45 @@ const comparisonRows = [
     label: "Lisibilité mobile",
     pdf: "Zoom, page fixe et lecture dense.",
     standard: "Liste plus lisible, souvent générique.",
-    vistaire: "Navigation claire, catégories et fiches adaptées au téléphone."
+    vistaire: "Navigation claire, catégories et fiches adaptées au téléphone.",
   },
   {
     label: "Qualité visuelle",
     pdf: "Peu d'espace pour la mise en scène.",
     standard: "Visuels possibles, mais rarement premium.",
-    vistaire: "Food-first, surfaces sombres et accents champagne."
+    vistaire: "Food-first, surfaces sombres et accents champagne.",
   },
   {
     label: "Envie de choisir",
     pdf: "Le client cherche une ligne.",
     standard: "Le client consulte une liste.",
-    vistaire: "Le client découvre des plats, des prix lisibles et des détails utiles."
+    vistaire:
+      "Le client découvre des plats, des prix lisibles et des détails utiles.",
   },
   {
     label: "Fiches plats",
     pdf: "Détails limités par la mise en page.",
     standard: "Descriptions possibles, souvent uniformes.",
-    vistaire: "Fiches visuelles avec prix, allergènes, badges et récit court."
+    vistaire: "Fiches visuelles avec prix, allergènes, badges et récit court.",
   },
   {
     label: "Mise à jour",
     pdf: "Nouveau fichier et risque d'ancienne version.",
     standard: "Plus rapide, selon l'outil.",
-    vistaire: "Carte digitale plus simple à faire évoluer."
+    vistaire: "Carte digitale plus simple à faire évoluer.",
   },
   {
     label: "3D / AR",
     pdf: "Impossible dans le fichier.",
     standard: "Souvent gadget si tout est traité pareil.",
-    vistaire: "Sélective, réservée aux plats qui gagnent à être vus en volume."
-  }
+    vistaire: "Sélective, réservée aux plats qui gagnent à être vus en volume.",
+  },
 ] as const;
 
 const premiumPoints = [
   "Une présentation sobre qui respecte l'identité du lieu.",
   "Des fiches plats visuelles sans transformer la carte en application froide.",
-  "Une 3D / AR sélective, utile seulement quand elle rend le plat plus clair."
+  "Une 3D / AR sélective, utile seulement quand elle rend le plat plus clair.",
 ] as const;
 
 function ArrowIcon() {
@@ -106,7 +101,7 @@ export function VistaireMenuDigitalRestaurantPreview({
   locale = "fr",
   routeMode = "production",
   seoAppendix,
-  interactiveShowcase
+  interactiveShowcase,
 }: {
   h1?: string;
   locale?: Locale;
@@ -121,8 +116,7 @@ export function VistaireMenuDigitalRestaurantPreview({
           defaultTitle:
             "Digital restaurant menu: a premium menu designed for mobile",
           badge: "Restaurant guide",
-          lead:
-            "Vistaire turns a restaurant QR code into an elegant, fast and visual digital menu: clear categories, desirable dish pages, readable prices, allergens and selective 3D / AR when it brings real value.",
+          lead: "Vistaire turns a restaurant QR code into an elegant, fast and visual digital menu: clear categories, desirable dish pages, readable prices, allergens and selective 3D / AR when it brings real value.",
           viewMenu: "View the menu",
           appointment: "Book a call",
           pdfBadge: "PDF menu",
@@ -158,24 +152,20 @@ export function VistaireMenuDigitalRestaurantPreview({
           pdfProblems: [
             {
               title: "Forced zoom",
-              text:
-                "The guest enlarges, reframes and loses the thread instead of browsing the menu naturally."
+              text: "The guest enlarges, reframes and loses the thread instead of browsing the menu naturally.",
             },
             {
               title: "Dishes feel less desirable",
-              text:
-                "A fixed page leaves little room for visuals, useful details and house signatures."
+              text: "A fixed page leaves little room for visuals, useful details and house signatures.",
             },
             {
               title: "Mobile comes second",
-              text:
-                "The PDF reproduces print. Vistaire starts from the screen the guest holds at the table."
+              text: "The PDF reproduces print. Vistaire starts from the screen the guest holds at the table.",
             },
             {
               title: "Less premium image",
-              text:
-                "A static file can feel practical, but rarely like a true restaurant experience."
-            }
+              text: "A static file can feel practical, but rarely like a true restaurant experience.",
+            },
           ],
           comparisonRows: [
             {
@@ -183,54 +173,54 @@ export function VistaireMenuDigitalRestaurantPreview({
               pdf: "Zoom, fixed page and dense reading.",
               standard: "More readable list, often generic.",
               vistaire:
-                "Clear navigation, categories and dish pages adapted to the phone."
+                "Clear navigation, categories and dish pages adapted to the phone.",
             },
             {
               label: "Visual quality",
               pdf: "Little room for presentation.",
               standard: "Visuals possible, rarely premium.",
-              vistaire: "Food-first visuals, warm dark surfaces and champagne accents."
+              vistaire:
+                "Food-first visuals, warm dark surfaces and champagne accents.",
             },
             {
               label: "Desire to choose",
               pdf: "The guest searches for a line.",
               standard: "The guest reads a list.",
               vistaire:
-                "The guest discovers dishes, readable prices and useful details."
+                "The guest discovers dishes, readable prices and useful details.",
             },
             {
               label: "Dish pages",
               pdf: "Details limited by the layout.",
               standard: "Descriptions possible, often uniform.",
               vistaire:
-                "Visual pages with prices, allergens, badges and short story."
+                "Visual pages with prices, allergens, badges and short story.",
             },
             {
               label: "Updates",
               pdf: "New file and risk of an old version.",
               standard: "Faster, depending on the tool.",
-              vistaire: "A digital menu that is simpler to evolve."
+              vistaire: "A digital menu that is simpler to evolve.",
             },
             {
               label: "3D / AR",
               pdf: "Impossible in the file.",
               standard: "Often gimmicky if everything is treated the same.",
               vistaire:
-                "Selective, reserved for dishes that benefit from volume."
-            }
+                "Selective, reserved for dishes that benefit from volume.",
+            },
           ],
           premiumPoints: [
             "A calm presentation that respects the identity of the place.",
             "Visual dish pages without turning the menu into a cold app.",
-            "Selective 3D / AR, useful only when it makes the dish clearer."
-          ]
+            "Selective 3D / AR, useful only when it makes the dish clearer.",
+          ],
         }
       : {
           defaultTitle:
             "Menu digital restaurant : une carte premium pensée pour le mobile",
           badge: "Guide restaurateur",
-          lead:
-            "Vistaire transforme le QR code d'un restaurant en carte digitale élégante, rapide et visuelle : catégories claires, fiches plats désirables, prix lisibles, allergènes et 3D / AR sélective quand elle apporte une vraie valeur.",
+          lead: "Vistaire transforme le QR code d'un restaurant en carte digitale élégante, rapide et visuelle : catégories claires, fiches plats désirables, prix lisibles, allergènes et 3D / AR sélective quand elle apporte une vraie valeur.",
           viewMenu: "Voir la carte",
           appointment: "Prendre rendez-vous",
           pdfBadge: "Menu PDF",
@@ -265,118 +255,59 @@ export function VistaireMenuDigitalRestaurantPreview({
           internalLabel: "Liens internes Vistaire",
           pdfProblems,
           comparisonRows,
-          premiumPoints
+          premiumPoints,
         };
-  const pageTitle =
-    h1 ?? copy.defaultTitle;
+  const heroPhoto = getSeoMarketingImage("DIGITAL:hero", locale);
+  const proofPhoto = getSeoMarketingImage("DIGITAL:proof", locale);
+  const premiumPhoto = getSeoMarketingImage("DIGITAL:premium", locale);
+  const pageTitle = h1 ?? copy.defaultTitle;
   const pageInternalLinks = [
     { label: copy.comparePdf, href: routes.pdfVsDigital },
-    { label: copy.talk, href: routes.contact }
+    { label: copy.talk, href: routes.contact },
+  ];
+  const anatomy = locale === "en" ? [
+    { title: "Navigate the menu", text: copy.comparisonRows[0].vistaire },
+    { title: "Understand the dish", text: copy.comparisonRows[3].vistaire },
+    { title: "Look closer, when useful", text: copy.comparisonRows[5].vistaire },
+  ] : [
+    { title: "Parcourir la carte", text: copy.comparisonRows[0].vistaire },
+    { title: "Comprendre le plat", text: copy.comparisonRows[3].vistaire },
+    { title: "Approfondir, si utile", text: copy.comparisonRows[5].vistaire },
   ];
   return (
-    <main className={styles.page}>
-      <Image
-        alt=""
-        aria-hidden="true"
-        className={styles.backgroundImage}
-        fill
-        priority
-        quality={100}
-        sizes="100vw"
-        src={restaurantBackground}
-        unoptimized
-      />
-
-      <div className={styles.topNav}>
-        <PreviewNav
-          currentPath={routes.menuDigital}
-          locale={locale}
-          routeMode={routeMode}
-        />
-      </div>
-
-      <section
-        aria-labelledby="menu-digital-restaurant-preview-title"
-        className={styles.hero}
-      >
+    <main className={`${styles.page} ${design.atlasPage}`} data-public-vistaire data-seo-experience="digital-atlas">
+      <div className={styles.topNav}><PreviewNav currentPath={routes.menuDigital} locale={locale} routeMode={routeMode} /></div>
+      <div className={styles.hero}>
         <div className={styles.previewFrame}>
-          <article className={`${styles.card} ${styles.heroCopy}`}>
+          <header className={design.atlasHero} aria-labelledby="menu-digital-restaurant-preview-title">
             <p className={styles.badge}>{copy.badge}</p>
-            <h1
-              aria-label={pageTitle}
-              id="menu-digital-restaurant-preview-title"
-            >
-              {pageTitle}
-            </h1>
-            <p className={styles.heroLead}>
-              {copy.lead}
-            </p>
-            <div className={styles.heroActions} aria-label="Actions principales">
-              <Link className={styles.primaryButton} href={routes.menu} prefetch={false}>
-                {copy.viewMenu}
-                <ArrowIcon />
-              </Link>
-              <Link
-                className={styles.secondaryButton}
-                href={routes.appointment}
-                prefetch={false}
-              >
-                {copy.appointment}
-              </Link>
+            <h1 id="menu-digital-restaurant-preview-title">{pageTitle}</h1>
+            <div className={design.atlasCover}>
+              <figure className={styles.visualFigure}><Image alt={heroPhoto.alt} className={styles.visualImage} fill priority quality={90} sizes="(max-width: 700px) calc(100vw - 40px), 68vw" src={heroPhoto.src} /></figure>
+              <nav className={design.atlasIndex} aria-label={locale === "en" ? "Explore the menu" : "Explorer la carte"}>
+                <a href="#anatomie"><span>01</span>{copy.mobileTitle}</a>
+                <a href="#carte"><span>02</span>{copy.revealTitle}</a>
+                <a href="#comparaison"><span>03</span>{copy.comparisonBadge}</a>
+              </nav>
             </div>
-            <figure className={`${styles.visualFigure} ${styles.heroVisual}`}>
-              <Image
-                alt="Dessert signature avec fiche plat Vistaire affichée sur téléphone"
-                className={styles.visualImage}
-                fill
-                quality={100}
-                sizes="(max-width: 920px) calc(100vw - 56px), 20vw"
-                src={pageDigitalPhoto}
-                unoptimized
-              />
-            </figure>
+            <div className={design.atlasAnswer}><p className={styles.heroLead}>{copy.lead}</p><div className={styles.heroActions}><Link className={styles.primaryButton} href={routes.menu} prefetch={false}>{copy.viewMenu}<ArrowIcon /></Link><Link className={styles.secondaryButton} href={routes.appointment} prefetch={false}>{copy.appointment}</Link></div></div>
+          </header>
+          <section className={design.anatomyChapter} id="anatomie" aria-labelledby="mobile-proof-title">
+            <div className={styles.sectionIntro}><p className={styles.badge}>{copy.mobileBadge}</p><h2 id="mobile-proof-title">{copy.mobileTitle}</h2><p>{copy.mobileBody}</p></div>
+            <ol className={design.anatomyRail}>{anatomy.map((item, index) => <li key={item.title}><span>{String(index + 1).padStart(2, "0")}</span><h3>{item.title}</h3><p>{item.text}</p></li>)}</ol>
+            <figure className={design.anatomyPhoto}><Image alt={proofPhoto.alt} className={styles.visualImage} fill  quality={90} sizes="(max-width: 700px) calc(100vw - 40px), 50vw" src={proofPhoto.src} /></figure>
+          </section>
+          <article className={design.revealChapter} id="carte" aria-labelledby="hover-reveal-title">
+            <div className={styles.revealIntro}><p>{copy.revealEyebrow}</p><h2 id="hover-reveal-title">{copy.revealTitle}</h2><span className={styles.desktopInstruction}>{copy.revealDesktop}</span><span className={styles.mobileInstruction}>{copy.revealMobile}</span></div>
+            <div className={design.revealStage}>{interactiveShowcase}</div>
           </article>
-
-          <article
-            className={`${styles.card} ${styles.problemCard}`}
-            aria-labelledby="pdf-problem-title"
-          >
-            <p className={styles.badge}>{copy.pdfBadge}</p>
-            <h2 id="pdf-problem-title">{copy.pdfTitle}</h2>
-            <p>{copy.pdfBody}</p>
-            <div className={styles.problemList}>
-              {copy.pdfProblems.map((problem) => (
-                <section key={problem.title}>
-                  <h3>{problem.title}</h3>
-                  <p>{problem.text}</p>
-                </section>
-              ))}
-            </div>
-          </article>
-
-          <article
-            className={`${styles.card} ${styles.revealCard}`}
-            id="carte"
-            aria-labelledby="hover-reveal-title"
-          >
-            <div className={styles.revealIntro}>
-              <p>{copy.revealEyebrow}</p>
-              <h2 id="hover-reveal-title">{copy.revealTitle}</h2>
-              <span className={styles.desktopInstruction}>
-                {copy.revealDesktop}
-              </span>
-              <span className={styles.mobileInstruction}>
-                {copy.revealMobile}
-              </span>
-            </div>
-            <div className={styles.revealPreviewWrap}>
-              {interactiveShowcase}
-            </div>
-          </article>
-
+          <section className={`${styles.card} ${design.atlasProblems}`} aria-labelledby="pdf-problem-title">
+            <div className={styles.sectionIntro}><p className={styles.badge}>{copy.pdfBadge}</p><h2 id="pdf-problem-title">{copy.pdfTitle}</h2><p>{copy.pdfBody}</p></div>
+            <div className={styles.problemList}>{copy.pdfProblems.map((problem) => <section key={problem.title}><h3>{problem.title}</h3><p>{problem.text}</p></section>)}</div>
+          </section>
           <section
             className={`${styles.card} ${styles.comparisonCard}`}
-            aria-labelledby="comparison-title"
+            id="comparaison" aria-labelledby="comparison-title"
           >
             <div className={styles.sectionIntro}>
               <p className={styles.badge}>{copy.comparisonBadge}</p>
@@ -405,59 +336,11 @@ export function VistaireMenuDigitalRestaurantPreview({
             </table>
           </section>
 
-          <section
-            className={`${styles.card} ${styles.mobileProofCard}`}
-            aria-labelledby="mobile-proof-title"
-          >
-            <figure className={styles.visualFigure}>
-              <Image
-                alt="Cliente consultant une carte digitale Vistaire sur téléphone pendant le service"
-                className={styles.visualImage}
-                fill
-                quality={100}
-                sizes="(max-width: 920px) calc(100vw - 56px), 58vw"
-                src={photoDigital3}
-                unoptimized
-              />
-            </figure>
-            <div className={styles.visualCopy}>
-              <p className={styles.badge}>{copy.mobileBadge}</p>
-              <h2 id="mobile-proof-title">{copy.mobileTitle}</h2>
-              <p>{copy.mobileBody}</p>
-            </div>
-          </section>
 
-          <section
-            className={`${styles.card} ${styles.premiumPanel}`}
-            aria-labelledby="premium-title"
-          >
-            <div className={styles.premiumContent}>
-              <div className={styles.sectionIntro}>
-                <p className={styles.badge}>{copy.premiumBadge}</p>
-                <h2 id="premium-title">{copy.premiumTitle}</h2>
-                <p>{copy.premiumBody}</p>
-              </div>
-              <div className={styles.benefitGrid}>
-                {copy.premiumPoints.map((point) => (
-                  <article className={styles.benefitItem} key={point}>
-                    <h3>{point}</h3>
-                  </article>
-                ))}
-              </div>
-            </div>
-            <figure className={`${styles.visualFigure} ${styles.premiumVisual}`}>
-              <Image
-                alt="Vue 3D et réalité augmentée Vistaire présentées sur téléphone à table"
-                className={styles.visualImage}
-                fill
-                quality={100}
-                sizes="(max-width: 920px) calc(100vw - 56px), 24vw"
-                src={photoDigital2}
-                unoptimized
-              />
-            </figure>
+          <section className={design.atlasClosing} aria-labelledby="premium-title">
+            <figure className={styles.visualFigure}><Image alt={premiumPhoto.alt} className={styles.visualImage} fill  quality={90} sizes="(max-width: 700px) calc(100vw - 40px), 44vw" src={premiumPhoto.src} /></figure>
+            <div className={styles.sectionIntro}><p className={styles.badge}>{copy.premiumBadge}</p><h2 id="premium-title">{copy.premiumTitle}</h2><p>{copy.premiumBody}</p><ul className={styles.proofPoints}>{copy.premiumPoints.map((point) => <li key={point}>{point}</li>)}</ul></div>
           </section>
-
           <section
             className={`${styles.card} ${styles.finalCta}`}
             aria-labelledby="final-cta-title"
@@ -468,15 +351,26 @@ export function VistaireMenuDigitalRestaurantPreview({
               <p>{copy.finalBody}</p>
             </div>
             <div className={styles.finalActions}>
-              <Link className={styles.primaryButton} href={routes.appointment} prefetch={false}>
+              <Link
+                className={styles.primaryButton}
+                href={routes.appointment}
+                prefetch={false}
+              >
                 {copy.appointment}
                 <ArrowIcon />
               </Link>
-              <Link className={styles.secondaryButton} href={routes.menu} prefetch={false}>
+              <Link
+                className={styles.secondaryButton}
+                href={routes.menu}
+                prefetch={false}
+              >
                 {copy.viewMenu}
               </Link>
             </div>
-            <nav className={styles.internalLinks} aria-label={copy.internalLabel}>
+            <nav
+              className={styles.internalLinks}
+              aria-label={copy.internalLabel}
+            >
               {pageInternalLinks.map((item) => (
                 <Link href={item.href} key={item.href} prefetch={false}>
                   {item.label}
@@ -485,16 +379,10 @@ export function VistaireMenuDigitalRestaurantPreview({
             </nav>
           </section>
 
-          {seoAppendix}
+          <div className={styles.seoAppendix}>{seoAppendix}</div>
         </div>
-      </section>
-
-      <PreviewFooter
-        currentPath={routes.menuDigital}
-        locale={locale}
-        routeMode={routeMode}
-        width="wide"
-      />
+      </div>
+      <PreviewFooter currentPath={routes.menuDigital} locale={locale} routeMode={routeMode} width="wide" />
     </main>
   );
 }

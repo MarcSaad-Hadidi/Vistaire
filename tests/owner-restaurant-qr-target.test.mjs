@@ -6,10 +6,6 @@ const pageSource = await readFile(
   new URL("../app/(fr)/owner/restaurants/[restaurantId]/qr/page.tsx", import.meta.url),
   "utf8"
 );
-const switcherSource = await readFile(
-  new URL("../components/owner/OwnerRestaurantQrTargetSwitcher.tsx", import.meta.url),
-  "utf8"
-);
 
 test("scoped QR page reads only the selected canonical target", () => {
   assert.match(pageSource, /searchParams/);
@@ -30,11 +26,4 @@ test("scoped QR page reads only the selected canonical target", () => {
   assert.doesNotMatch(pageSource, /targetPath/);
   assert.doesNotMatch(pageSource, /console\.(log|info|debug).*token/i);
   assert.doesNotMatch(pageSource, /selectedStatus = targetKind === "menu"/);
-});
-
-test("QR target controls are real accessible pressed buttons", () => {
-  assert.match(switcherSource, /aria-pressed/);
-  assert.match(switcherSource, /selectTarget\("menu"\)/);
-  assert.match(switcherSource, /selectTarget\("admin"\)/);
-  assert.match(switcherSource, /URLSearchParams/);
 });

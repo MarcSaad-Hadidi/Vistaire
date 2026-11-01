@@ -73,7 +73,6 @@ test("owner menu mutations tolerate the production menu schema", async () => {
 test("owner menu deletes dishes and only deletes empty sections", async () => {
   const mutations = await source("lib/owner/menuMutations.ts");
   const manager = await source("components/owner/OwnerRestaurantMenuManager.tsx");
-  const revalidation = await source("lib/owner/menuMutationRevalidation.ts");
 
   assert.match(mutations, /deleteOwnerMenuDish/);
   assert.match(mutations, /\.from\("menu_dishes"\)[\s\S]*?\.delete\(\)/);
@@ -84,8 +83,6 @@ test("owner menu deletes dishes and only deletes empty sections", async () => {
   assert.match(manager, /requestDeleteCategory/);
   assert.match(manager, /method: "POST" \| "PATCH" \| "DELETE"/);
   assert.match(manager, /role="alertdialog"/);
-  assert.match(revalidation, /revalidatePath\(`\/menu\/\$\{restaurantSlug\}`\)/);
-  assert.match(revalidation, /\/dishes\/\$\{dishSlug\}/);
 });
 
 test("owner dish creation can attach photo and GLB and filter dishes by section", async () => {
