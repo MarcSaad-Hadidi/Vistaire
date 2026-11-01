@@ -52,7 +52,7 @@ manual update until an image-update owner is assigned.
 
 ## npm audit baseline
 
-On 2026-10-27, the PR #321 follow-up updated Next.js and its ESLint config to
+On 2026-10-28, #322 updated Next.js and its ESLint config to
 16.4.3, DOMPurify to 3.4.17 and the transitive Zod dependency to 4.6.7.
 A fresh `npm audit --package-lock-only --json` reports zero vulnerabilities.
 The obsolete braces acceptance was removed because the fresh report no longer
