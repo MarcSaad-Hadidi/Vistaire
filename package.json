@@ -136,11 +136,14 @@
     "minimatch@3.1.5": {
       "brace-expansion": "1.1.21"
     },
-    "minimatch@9.0.9": {
-      "brace-expansion": "2.1.7"
+    "@donmccurdy/caporal": {
+      "glob": "14.0.2"
     },
-    "minimatch@10.2.5": {
-      "brace-expansion": "5.0.12"
+    "@typescript-eslint/typescript-estree": {
+      "minimatch": "11.0.3"
+    },
+    "readdir-glob": {
+      "minimatch": "11.0.3"
     },
     "exceljs": {
       "uuid": "11.1.1"
