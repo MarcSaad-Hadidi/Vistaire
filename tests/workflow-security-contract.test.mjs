@@ -153,6 +153,11 @@ test("Vercel cleanup workflow only runs from trusted events with read-only GitHu
   assert.match(vercelCleanupWorkflow, /default: dry-run/);
   assert.match(vercelCleanupWorkflow, /VERCEL_CLEANUP_GRACE_MS: '3600000'/);
   assert.match(vercelCleanupWorkflow, /VERCEL_TOKEN: \$\{\{ secrets\.VERCEL_TOKEN \}\}/);
+  assert.match(
+    vercelCleanupWorkflow,
+    /if: github\.event_name != 'pull_request' \|\| \(github\.event\.pull_request\.head\.repo\.full_name == github\.repository && github\.actor != 'dependabot\[bot\]'\)/,
+    "fork and Dependabot close events get no secrets, so the cleanup job must skip them"
+  );
   assert.match(vercelCleanupWorkflow, /ref: \$\{\{ github\.event\.repository\.default_branch \}\}/);
   assert.match(vercelCleanupWorkflow, /persist-credentials: false/);
   assert.match(vercelCleanupWorkflow, /lfs: false/);
