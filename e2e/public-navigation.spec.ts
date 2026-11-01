@@ -1,5 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import { writeFile } from "node:fs/promises";
+import { privacyRejectedStorageState } from "./support/privacy-consent";
 
 const BASE_URL =
   process.env.PLAYWRIGHT_BASE_URL ?? "http://127.0.0.1:3000";
@@ -761,6 +762,7 @@ test.describe("Vistaire public navigation", () => {
     browserName
   }) => {
     const context = await browser.newContext({
+      storageState: privacyRejectedStorageState(BASE_URL),
       hasTouch: false,
       isMobile: false,
       viewport: { width: 1280, height: 900 }

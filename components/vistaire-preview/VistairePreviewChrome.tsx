@@ -12,6 +12,7 @@ import {
   CONTACT_PHONE_TEL,
   getVistaireSocialProfiles,
 } from "@/lib/seo";
+import { PrivacyUtilityBar } from "@/components/privacy/PrivacyUtilityBar";
 import styles from "./VistairePreviewChrome.module.css";
 import "./public-pages.css";
 
@@ -288,6 +289,7 @@ export function PreviewFooter({
       className={`${styles.previewFooter} ${
         width === "wide" ? styles.previewFooterWide : ""
       }`}
+      data-vistaire-preview-footer
       id="contact"
     >
       <div className={styles.footerInvitation}>
@@ -383,6 +385,11 @@ export function PreviewFooter({
         <Link href={`${routes.pricing}#pricing-terms-title`} prefetch={false}>
           {locale === "en" ? "Offer terms" : "Conditions de l’offre"}
         </Link>
+        <PrivacyUtilityBar
+          className={styles.footerUtilityLinks}
+          locale={locale}
+          variant="footer"
+        />
         <LanguageSwitcher currentPath={resolvedCurrentPath} locale={locale} />
       </div>
     </footer>

@@ -4,6 +4,7 @@ import { writeFile } from 'node:fs/promises';
 import { readFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import sharp from 'sharp';
+import { privacyRejectedStorageState } from './support/privacy-consent';
 import { zeroScaleEquivalentPoses } from './support/restaurant-capture-invariants.mjs';
 // @ts-expect-error -- use the same authored timing as the runtime, not copied scroll constants.
 import { CINEMATIC_TIMING } from '../components/immersive/SceneDirector.js';
@@ -288,6 +289,7 @@ for (const profile of profiles.filter(profile => !selected || profile.id === sel
     rendered.setTimeout(20 * 60_000);
     expect(browserName).toBe('chromium');
     const contexts = await Promise.all([0, 1].map(() => browser.newContext({ baseURL: testInfo.project.use.baseURL,
+      storageState: privacyRejectedStorageState(String(testInfo.project.use.baseURL)),
       viewport: { width: profile.width, height: profile.height }, deviceScaleFactor: 1, hasTouch: profile.touch,
       reducedMotion: 'no-preference', locale: 'fr-CA', timezoneId: 'America/Toronto' })));
     const pages = await Promise.all(contexts.map(context => context.newPage()));

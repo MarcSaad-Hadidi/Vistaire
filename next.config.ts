@@ -296,6 +296,8 @@ const nextConfig: NextConfig = {
     return [
       ...getPublicModelRedirects(),
       { source: "/about", destination: "/a-propos", permanent: true },
+      { source: "/privacy", destination: "/politique-de-confidentialite", permanent: true },
+      { source: "/docs", destination: "/developers", permanent: true },
       {
         source: "/carte-vistaire",
         destination: "/demo",

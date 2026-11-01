@@ -73,6 +73,7 @@ export function getPublicFooterNavigation(locale: Locale) {
         page("/a-propos", "À propos", "About"),
         page("/contact", "Nous contacter", "Contact us"),
         page("/prendre-rendez-vous", "Prendre rendez-vous", "Book a call"),
+        page("/developers", "Développeurs", "Developers"),
       ],
     },
   ];

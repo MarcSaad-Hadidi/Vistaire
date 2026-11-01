@@ -126,7 +126,14 @@ export const BILINGUAL_ROUTE_PAIRS: BilingualRoutePair[] = [
     changeFrequency: "monthly" as const,
     priority: route.priority,
     updatedAt: route.updatedAt
-  }))
+  })),
+  {
+    fr: "/developers",
+    en: "/en/developers",
+    changeFrequency: "monthly",
+    priority: 0.3,
+    updatedAt: "2026-10-21"
+  }
 ];
 
 export function normalizePathname(pathname: string): string {
