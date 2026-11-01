@@ -37,6 +37,48 @@ referenced through stable URLs. Git is not the delivery pipeline for heavy
 client-specific 3D, source models, review renders, or raw video exports.
 `.vercelignore` also excludes local source drops from deployment uploads.
 
+## Vercel deployment storage budget
+
+Each deployment copies `public/`. The October 2026 measurement was about
+447 MiB (models 139 MiB, videos 134 MiB, immersive assets 91 MiB, frames
+35 MiB, images 40 MiB). Excluding the six unused videos saves about 55 MiB
+per deployment, leaving roughly **0.4 GB per deployment** in public assets,
+before other build output. Retained deployments accumulate against the
+**10 GB Hobby limit shared by the whole team**; observed usage reached 14 GB.
+See [Vercel Deployment Storage](https://vercel.com/docs/deployment-storage).
+
+The existing [Vercel Preview Cleanup workflow](../.github/workflows/vercel-preview-cleanup.yml)
+runs hourly and on PR closure. It removes eligible obsolete Previews after
+a minimum 60-minute grace period, including Previews of PRs closed for at
+least 60 minutes. It protects production, promoted deployments, production
+aliases, and the latest Preview of each open PR. No workflow or secret
+configuration change is part of this PR.
+
+For exclusions of `public/` files in `.vercelignore`:
+
+- Use one exact file path per line, never a wildcard or an entire directory.
+- Exclude only files that no served code references; keep the files in Git.
+- Run `node --test tests/vercel-git-policy.test.mjs`. Its guard scans `app`,
+  `components`, `lib`, `proxy.ts`, `next.config.ts`, and `vercel.json` to
+  prevent references to excluded files.
+
+The owner must configure the Vercel dashboard manually under project
+**Settings → Build and Deployment → Deployment Retention Policy**:
+
+- Preview: **1 day**.
+- Canceled and Errored: **1 day** each.
+- Production: **1 month**.
+
+These settings are not applied by Git. Vercel retention exceptions and
+asynchronous deletion still apply, so shorter retention is not an immediate
+guarantee of remaining under quota. See [Deployment Retention](https://vercel.com/docs/deployment-retention).
+
+Next, migrate the used assets in `public/models` and `public/videos` to
+`https://3d.vistaire.ca`, following [public model distribution](public-model-assets.md)
+and the existing [model manifest](../lib/publicModelAssets.json). This requires
+an R2 upload using owner-supplied credentials and asset verification; it is
+outside this PR. No public asset is deleted or moved here.
+
 ## Git LFS
 
 LFS is file-specific only in this repo. Do not add broad rules such as
