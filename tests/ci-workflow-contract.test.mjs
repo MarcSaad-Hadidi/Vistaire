@@ -26,7 +26,7 @@ const fetchGraph = await readFile(new URL("../scripts/ci/fetch-pr-graph.mjs", im
 const packageJson = JSON.parse(await readFile(new URL("../package.json", import.meta.url), "utf8"));
 
 test("public browser jobs distribute one selected test pool and retain every shard report", () => {
-  for (const [name, end, count] of [["e2e-public-chromium", "e2e-sauge-chromium", 6], ["webkit-critical", "ci-gate", 2]]) {
+  for (const [name, end, count] of [["e2e-public-chromium", "e2e-sauge-chromium", 6], ["webkit-critical", "ci-gate", 3]]) {
     const job = workflow.slice(workflow.indexOf(`  ${name}:`), workflow.indexOf(`  ${end}:`));
     assert.match(job, /fail-fast: false/);
     assert.match(job, new RegExp(`test_shards: '${count}'`));
@@ -35,6 +35,15 @@ test("public browser jobs distribute one selected test pool and retain every sha
     assert.match(job, new RegExp(`--shard=\\$\\{\\{ matrix\\.shard \\}\\}/${count}`));
     assert.match(job, /critical=\(--grep @critical\)/);
   }
+  // Studio splits each browser's suite in two; only the first Chromium part also runs QR.
+  const studio = workflow.slice(workflow.indexOf('  e2e-admin-browser:'), workflow.indexOf('  webkit-critical:'));
+  assert.match(studio, /test_shards: '4'/);
+  for (let shard = 1; shard <= 4; shard++) assert.match(studio, new RegExp(`test_report_${shard}:`));
+  for (const [shard, browser, part] of [[1, "chromium", 1], [2, "chromium", 2], [3, "webkit", 1], [4, "webkit", 2]]) {
+    assert.match(studio, new RegExp(`\\{ shard: ${shard}, browser: ${browser}, part: ${part} \\}`));
+  }
+  assert.match(studio, /npm run test:admin:full-menu -- --fully-parallel --shard=\$\{\{ matrix\.part \}\}\/2/);
+  assert.match(studio, /Admin QR browser suite\s*\n\s*if: \$\{\{ matrix\.shard == 1 \}\}/);
   const job = workflow.slice(workflow.indexOf('  e2e-public-chromium:'), workflow.indexOf('  e2e-sauge-chromium:'));
   assert.doesNotMatch(job, /heavy_filter|Features reading frame regression|Landing browser smoke/);
   assert.match(job, /node scripts\/run-playwright-e2e\.mjs "\$\{specs\[@\]\}"/);
