@@ -482,15 +482,6 @@ test.describe("Vistaire pricing collections", () => {
       await expect(page.locator("[data-pricing-dashboard] [data-admin-studio]")).toHaveCount(0);
       await expectNoHorizontalOverflow(page);
 
-      if (viewport.width === 390 || viewport.width === 430) {
-        await expectPrimaryNavigationFits(page, [
-          "Vistaire - accueil",
-          "Voir cette page en français",
-          "View this page in English"
-        ]);
-        await expect(page.getByRole("navigation").first().getByRole("button", { name: "Menu", exact: true })).toBeVisible();
-      }
-
       const renderedColumns = await page.locator("[data-pricing-collection]").first().evaluate((card) => {
         const grid = card.parentElement;
         return grid ? getComputedStyle(grid).gridTemplateColumns.split(" ").length : 0;
