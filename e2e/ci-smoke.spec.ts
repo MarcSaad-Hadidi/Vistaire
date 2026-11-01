@@ -154,8 +154,12 @@ test(`CI smoke validates ${scenario.path} Pricing table estimator`, { tag: '@cri
     await expect(prices).toHaveText([...scenario.initialPrices]);
     await expect(collections.getByText(scenario.monthly, { exact: true })).toHaveCount(5);
 
-    await increment.click();
-    await expect(input).toHaveValue("21");
+    // Every assertion above holds on the server-rendered HTML, so the first click
+    // can land before hydration attaches its handler. Retry only while unchanged.
+    await expect(async () => {
+      if ((await input.inputValue()) === "20") await increment.click();
+      await expect(input).toHaveValue("21", { timeout: 1_000 });
+    }).toPass({ timeout: 30_000 });
     await expect(prices).toHaveText([...scenario.pricesAt21]);
 
     await decrement.click();
