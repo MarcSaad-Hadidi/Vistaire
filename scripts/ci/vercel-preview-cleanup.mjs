@@ -81,18 +81,28 @@ function normalizeClosedPullRequests(closedPullRequests) {
   return result;
 }
 
-function matchPullRequest(deployment, pullRequests) {
+const AMBIGUOUS_BRANCH = Symbol("ambiguous-branch-match");
+
+// An exact branch+SHA match wins; a branch-only match counts only when a single PR, open or closed, used that branch.
+function matchPullRequest(deployment, openPullRequests, closedPullRequests) {
   const branch = gitBranch(deployment);
   const sha = gitSha(deployment);
   const repository = gitRepository(deployment);
   if (!branch || !sha || !repository) return null;
 
-  const sameRepository = pullRequests.filter((pullRequest) => pullRequest.repository === repository);
-  const exact = sameRepository.find(
-    (pullRequest) => pullRequest.branch === branch && pullRequest.sha === sha
-  );
-  if (exact) return exact;
-  return sameRepository.find((pullRequest) => pullRequest.branch === branch) ?? null;
+  const sameBranch = (pullRequests) =>
+    pullRequests.filter((pullRequest) => pullRequest.repository === repository && pullRequest.branch === branch);
+  const open = sameBranch(openPullRequests);
+  const closed = sameBranch(closedPullRequests);
+
+  const exactOpen = open.find((pullRequest) => pullRequest.sha === sha);
+  if (exactOpen) return { pullRequest: exactOpen, open: true };
+  const exactClosed = closed.find((pullRequest) => pullRequest.sha === sha);
+  if (exactClosed) return { pullRequest: exactClosed, open: false };
+  if (open.length + closed.length > 1) return AMBIGUOUS_BRANCH;
+  if (open.length === 1) return { pullRequest: open[0], open: true };
+  if (closed.length === 1) return { pullRequest: closed[0], open: false };
+  return null;
 }
 
 function newerDeployment(left, right) {
@@ -127,8 +137,9 @@ export function classifyDeployments({
     if (deployment?.target !== null) continue;
     if (!text(deployment?.uid) || !gitBranch(deployment) || !gitSha(deployment) || !gitRepository(deployment)) continue;
     if (timestamp(deployment?.createdAt ?? deployment?.created) === null) continue;
-    const pullRequest = matchPullRequest(deployment, normalizedOpenPullRequests);
-    if (!pullRequest) continue;
+    const match = matchPullRequest(deployment, normalizedOpenPullRequests, normalizedClosedPullRequests);
+    if (!match?.open) continue;
+    const pullRequest = match.pullRequest;
     const current = latestByOpenPr.get(pullRequest.number);
     latestByOpenPr.set(pullRequest.number, current ? newerDeployment(current, deployment) : deployment);
   }
@@ -159,12 +170,15 @@ export function classifyDeployments({
     } else {
       const createdAt = timestamp(deployment?.createdAt ?? deployment?.created);
       const state = deploymentState(deployment);
-      const openPullRequest = matchPullRequest(deployment, normalizedOpenPullRequests);
+      const match = matchPullRequest(deployment, normalizedOpenPullRequests, normalizedClosedPullRequests);
+      const openPullRequest = match?.open === true ? match.pullRequest : null;
+      const closedPullRequest = match?.open === false ? match.pullRequest : null;
       const latest = openPullRequest ? latestByOpenPr.get(openPullRequest.number) : null;
-      const closedPullRequest = openPullRequest ? null : matchPullRequest(deployment, normalizedClosedPullRequests);
 
       if (createdAt === null) {
         decision = { uid, action: "keep", reason: "missing-created-at" };
+      } else if (match === AMBIGUOUS_BRANCH) {
+        decision = { uid, action: "keep", reason: "ambiguous-branch-match" };
       } else if (latest?.uid === deployment.uid) {
         decision = { uid, action: "keep", reason: "latest-open-pr-preview" };
       } else if (ACTIVE_STATES.has(state)) {

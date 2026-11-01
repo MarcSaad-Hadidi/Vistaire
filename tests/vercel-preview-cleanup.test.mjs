@@ -166,6 +166,34 @@ test("a closed PR Preview remains protected until 60 minutes after closed_at", (
   assert.equal(result.decisions[0]?.reason, "closed-pr-grace-period");
 });
 
+test("a branch reused by a newer open PR never borrows the closed PR's Previews", () => {
+  const result = classifyDeployments({
+    deployments: [
+      deployment({ uid: "closed-head", createdAt: NOW - 3 * DEFAULT_GRACE_MS, meta: gitMeta("feature/reused", "closed-sha") }),
+      deployment({ uid: "older-push", createdAt: NOW - 4 * DEFAULT_GRACE_MS, meta: gitMeta("feature/reused", "unknown-sha") }),
+      deployment({ uid: "open-head", createdAt: NOW - 2 * DEFAULT_GRACE_MS, meta: gitMeta("feature/reused", "open-sha") }),
+    ],
+    openPullRequests: [pullRequest({ number: 90, ref: "feature/reused", sha: "open-sha" })],
+    closedPullRequests: [pullRequest({
+      number: 89,
+      state: "closed",
+      ref: "feature/reused",
+      sha: "closed-sha",
+      closedAt: new Date(NOW - 10 * 60 * 1000).toISOString(),
+    })],
+    expectedProjectId: PROJECT_ID,
+    nowMs: NOW,
+    graceMs: DEFAULT_GRACE_MS,
+  });
+
+  assert.deepEqual(result.deleteCandidates, []);
+  assert.deepEqual(result.decisions.map((item) => item.reason), [
+    "closed-pr-grace-period",
+    "ambiguous-branch-match",
+    "latest-open-pr-preview",
+  ]);
+});
+
 test("dry-run never sends DELETE", async () => {
   const requests = [];
   const fetchImpl = async (url, options = {}) => {
