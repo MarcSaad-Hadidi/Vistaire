@@ -21,12 +21,20 @@ import {
   pricingCopyReserve,
 } from "./PricingPhoneLayout.js";
 
-// Verified against Vistaire's pricingPage.ts. Physical supports beyond the
-// included quantity are quoted individually; no per-support rate is assumed.
+// Home photography remains distinct for physical collections. Digital shares
+// its approved illustrative book photograph with the pricing page.
 const COLLECTIONS = [
   {
+    id: "digital",
+    image: getSeoMarketingImage("PRICING:collection:digital").src,
+    material: ["Aucun support physique inclus", "No physical display included"],
+    imageAlt: [
+      getSeoMarketingImage("PRICING:collection:digital", "fr").alt,
+      getSeoMarketingImage("PRICING:collection:digital", "en").alt,
+    ],
+  },
+  {
     id: "acrylique",
-    name: "Acrylique",
     image: getSeoMarketingImage("HOME:pricing:acrylique").src,
     material: ["Acrylique & bois", "Acrylic & wood"],
     imageAlt: [
@@ -36,7 +44,6 @@ const COLLECTIONS = [
   },
   {
     id: "sculpte",
-    name: "Sculpté",
     image: getSeoMarketingImage("HOME:pricing:sculpte").src,
     material: ["Bois sculpté", "Sculpted wood"],
     imageAlt: [
@@ -46,7 +53,6 @@ const COLLECTIONS = [
   },
   {
     id: "carre",
-    name: "Carré",
     image: getSeoMarketingImage("HOME:pricing:carre").src,
     material: ["Bois · format compact", "Wood · compact format"],
     imageAlt: [
@@ -56,7 +62,6 @@ const COLLECTIONS = [
   },
   {
     id: "signature",
-    name: "Signature",
     image: getSeoMarketingImage("HOME:pricing:signature").src,
     material: ["Bois & insert noir", "Wood & black insert"],
     imageAlt: [
@@ -128,39 +133,48 @@ export function PricingPhoneContent({
                 className="pricing-offers"
                 aria-label={t("Votre collection")}
               >
-                {COLLECTIONS.map((item, index) => (
-                  <a
-                    key={item.id}
-                    className="pricing-offer-card"
-                    href={`${href("/tarifs-menu-digital-restaurant")}#collection-${item.id}`}
-                  >
-                    <span className="pricing-offer-photo">
-                      <img
-                        // 640px suffices inside the scaled phone; full size slowed its reader.
-                        src={dashboardReady ? `/_next/image?url=${encodeURIComponent(item.image)}&w=640&q=75` : undefined}
-                        alt={item.imageAlt[locale === "en" ? 1 : 0]}
-                        width={1280}
-                        height={960}
-                        decoding="async"
-                        fetchPriority="low"
-                      />
-                      <span className="pricing-offer-number">0{index + 1}</span>
-                    </span>
-                    <span className="pricing-offer-summary">
-                      <span className="pricing-offer-name">
-                        <h4>{item.name}</h4>
-                        <span className="pricing-offer-material">
-                          {item.material[locale === "en" ? 1 : 0]}
+                {pricing.collections.map((collection, index) => {
+                  const item = COLLECTIONS.find((entry) => entry.id === collection.id);
+                  return (
+                    <a
+                      key={item.id}
+                      className="pricing-offer-card"
+                      data-pricing-kind={collection.kind}
+                      href={`${href("/tarifs-menu-digital-restaurant")}#collection-${item.id}`}
+                    >
+                      <span className="pricing-offer-photo">
+                        <img
+                          // 640px suffices inside the scaled phone; full size slowed its reader.
+                          src={dashboardReady ? `/_next/image?url=${encodeURIComponent(item.image)}&w=640&q=75` : undefined}
+                          alt={item.imageAlt[locale === "en" ? 1 : 0]}
+                          width={1280}
+                          height={960}
+                          decoding="async"
+                          fetchPriority="low"
+                        />
+                        <span className="pricing-offer-number">0{index + 1}</span>
+                      </span>
+                      <span className="pricing-offer-summary">
+                        <span className="pricing-offer-name">
+                          <h4>{collection.name.replace(/^Vistaire\s/, "")}</h4>
+                          <span className="pricing-offer-material">
+                            {item.material[locale === "en" ? 1 : 0]}
+                          </span>
                         </span>
+                        <span className="pricing-offer-price">
+                          <small>{collection.kind === "digital" ? (locale === "en" ? "Fixed setup" : "Mise en place fixe") : t("À partir de")}</small>
+                          {currency(collection.setupAmount)}
+                        </span>
+                        <ArrowUpRight size={14} aria-hidden="true" />
                       </span>
-                      <span className="pricing-offer-price">
-                        <small>{t("À partir de")}</small>
-                        {currency(pricing.collections.find((entry) => entry.id === item.id).setupAmount)}
-                      </span>
-                      <ArrowUpRight size={14} aria-hidden="true" />
-                    </span>
-                  </a>
-                ))}
+                      {collection.kind === "digital" && (
+                        <span className="pricing-offer-disclosure">
+                          {locale === "en" ? "Illustrative book · Book, printing and delivery not included." : "Livre illustratif · Livre, impression et livraison non inclus."}
+                        </span>
+                      )}
+                    </a>
+                  );
+                })}
               </div>
               <div className="pricing-monthly">
                 <span>
@@ -246,8 +260,8 @@ export function PricingStageContent({ layerRef } = {}) {
         </h2>
         <p>
           {en
-            ? "Four styles. One experience, designed for your restaurant."
-            : "Quatre styles. Une expérience pensée pour votre restaurant."}
+            ? "Five offers. One experience, designed for your restaurant."
+            : "Cinq offres. Une expérience pensée pour votre restaurant."}
         </p>
       </div>
       <div className="pricing-aside-actions">

@@ -7,7 +7,7 @@
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { preload } from "react-dom";
 import { resolvePublicModelUrl } from "../../lib/publicModelAssets.ts";
-import { dishSceneModelUrl, supportModelUrls } from "./content.js";
+import { dishSceneModelUrl, presentationModelUrls, presentationOptions } from "./content.js";
 import { createEntryScrollAssist } from "./EntryScrollAssist.js";
 import { EARLY_SCROLL_HOLD, useDeferredScene, useScrollHold } from "./deferredScene.js";
 import { useLinkIntent } from "./useLinkIntent.js";
@@ -32,7 +32,7 @@ const fetchHint = { as: "fetch", crossOrigin: "anonymous" };
 // The object each pillar page opens on (their shots live in Scene.jsx, not PageShots).
 const PILLAR_OPENINGS = { "qr-hero": "supportScale", "digital-hero": "phoneScale", "ar-hero": "dishScale", "pdf-flat": "pdfPhoneScale" };
 
-export function CinematicPage({ chapters, scene = {}, children, footer, mainProps }) {
+export function CinematicPage({ chapters, scene = {}, children, footer, mainProps, locale = "fr" }) {
   preload("/immersive-assets/fonts/libertine-display.woff2", { as: "font", type: "font/woff2", crossOrigin: "anonymous" });
   preload("/immersive-assets/fonts/biolinum.woff2", { as: "font", type: "font/woff2", crossOrigin: "anonymous" });
   // Each page shows its own dish, stand and one restaurant's menu on every
@@ -50,22 +50,26 @@ export function CinematicPage({ chapters, scene = {}, children, footer, mainProp
     section: chapters[0].shot,
     progress: 0,
     flip: false,
-    collection: "acrylique",
     drag: 0.5,
     dish: "homard",
     pointer: { x: 0, y: 0 },
     sceneReady: false,
     ...objects,
+    collection: chapters[0].scene?.collection ?? objects.collection ?? "acrylique",
     phoneDemo,
     pagePhoneDemo: phoneDemo,
     needsLaptop,
-    preloadCollections: [...new Set(chapters.map((chapter) => chapter.scene?.collection).filter(Boolean))],
+    preloadCollections: [],
   });
   const sectionRefs = useRef([]);
   const naturalRef = useRef(null);
   const mainRef = useRef(null);
   const [ready, setReady] = useState(false);
   const [failed, setFailed] = useState(false);
+  const [presentationErrors, setPresentationErrors] = useState({});
+  const onSupportError = useCallback((error, id) => {
+    setPresentationErrors((errors) => ({ ...errors, [id]: Boolean(error) }));
+  }, []);
   const onReady = useCallback(() => {
     stateRef.current.sceneReady = true;
     setReady(true);
@@ -73,20 +77,22 @@ export function CinematicPage({ chapters, scene = {}, children, footer, mainProp
   const onError = useCallback(() => setFailed(true), []);
   // The page first paints its copy over the dimmed room still; the 3D starts
   // on the first input or a quiet spell and fades in once ready. Scrolling
-  // waits for it meanwhile (released by a failure or after 20 s), with a quiet cue.
+  // waits for it meanwhile (released by a failure, a presentation model that
+  // falls back to its photograph, or after 20 s), with a quiet cue.
   const started = useDeferredScene(() => {
     // The scene reuses these fetches (same URL and CORS mode).
     preload(resolvePublicModelUrl("immersive.restaurant.visible.textures-512"), fetchHint);
     if (opening.phoneScale > 0 || opening.pdfPhoneScale > 0) preload(resolvePublicModelUrl("immersive.phone"), fetchHint);
     if (opening.supportScale > 0)
-      preload(supportModelUrls[chapters[0].scene?.collection ?? objects.collection ?? "acrylique"], fetchHint);
+      preload(presentationModelUrls[chapters[0].scene?.collection ?? objects.collection ?? "acrylique"], fetchHint);
     // The Draco decoder the room needs, fetched by three's FileLoader.
     for (const file of ["draco_wasm_wrapper.js", "draco_decoder.wasm"])
       preload(`/immersive-assets/draco/${file}`, fetchHint);
     // The opening dish's file depends on the viewport.
     if (opening.dishScale > 0) preload(dishSceneModelUrl(objects.dish ?? "homard", innerWidth < 768), fetchHint);
   });
-  const sceneLoading = useScrollHold(!ready && !failed);
+  const presentationFailed = Object.values(presentationErrors).some(Boolean);
+  const sceneLoading = useScrollHold(!ready && !failed && !presentationFailed);
   // A click to another page shows the loading screen at once (the next page
   // keeps its still until its own room is ready); 8 s releases a navigation
   // that never came.
@@ -124,7 +130,7 @@ export function CinematicPage({ chapters, scene = {}, children, footer, mainProp
 
   useEffect(() => {
     const state = stateRef.current;
-    const base = { collection: state.collection, phoneDemo: state.pagePhoneDemo, laptop: state.needsLaptop };
+    const base = { collection: objects.collection ?? "acrylique", phoneDemo: state.pagePhoneDemo, laptop: state.needsLaptop };
     let measurements = [];
     let transitions = [];
     let frames = {};
@@ -217,6 +223,8 @@ export function CinematicPage({ chapters, scene = {}, children, footer, mainProp
         sceneOccluded: y >= naturalTop,
         chapterProgress: {},
         collection: owner.scene?.collection ?? base.collection,
+        preloadCollections: ownerProgress > 0.45
+          ? [chapters[ownerIndex + 1]?.scene?.collection].filter(Boolean) : [],
         pagePhoneDemo: owner.scene?.phoneDemo ?? base.phoneDemo,
         laptopLid: base.laptop ? lid[0] + (lid[1] - lid[0]) * ownerProgress : undefined,
       });
@@ -268,14 +276,14 @@ export function CinematicPage({ chapters, scene = {}, children, footer, mainProp
       removeEventListener("scroll", queue);
       reduced.removeEventListener("change", motion);
     };
-  }, [chapters]);
+  }, [chapters, objects.collection]);
 
   return (
     <div data-immersive-vistaire className={`cinematic-page${ready ? " is-ready" : ""}`}>
       <script dangerouslySetInnerHTML={{ __html: EARLY_SCROLL_HOLD }} />
       <div className="world" aria-hidden="true">
         <Suspense fallback={null}>
-          {!failed && started && <Scene stateRef={stateRef} onReady={onReady} onError={onError} />}
+          {!failed && started && <Scene stateRef={stateRef} onReady={onReady} onError={onError} onSupportError={onSupportError} />}
         </Suspense>
       </div>
       <noscript><style>{".cinematic-preloader{display:none}"}</style></noscript>
@@ -295,7 +303,11 @@ export function CinematicPage({ chapters, scene = {}, children, footer, mainProp
         </div>
       )}
       <main ref={mainRef} className="cinematic-main" {...mainProps}>
-        {chapters.map((chapter, index) => (
+        {chapters.map((chapter, index) => {
+          const presentation = presentationOptions.find((item) => item.id === (chapter.scene?.collection ?? objects.collection));
+          const fallback = presentation && (failed || presentationErrors[presentation.id]) &&
+            (pageShot(chapter.shot, 0.5, false, true)?.supportScale > 0 || PILLAR_OPENINGS[chapter.shot] === "supportScale");
+          return (
           <section
             key={chapter.shot}
             id={chapter.id}
@@ -310,10 +322,18 @@ export function CinematicPage({ chapters, scene = {}, children, footer, mainProp
           >
             <div className="stage">
               <div className="cinematic-copy">{chapter.content}</div>
-              <div className="scene-focus" aria-hidden="true" />
+              <div className="scene-focus" aria-hidden={fallback ? undefined : true}>
+                {fallback && (
+                  <figure className="presentation-fallback" role="status">
+                    <img src={presentation.image} width="1536" height="1024" alt={locale === "en" ? `${presentation.name} presentation` : `Présentation ${presentation.name}`} />
+                    <figcaption>{locale === "en" ? "3D preview unavailable. Photograph shown." : "Aperçu 3D indisponible. Photographie présentée."}</figcaption>
+                  </figure>
+                )}
+              </div>
             </div>
           </section>
-        ))}
+          );
+        })}
         <div ref={naturalRef} className="cinematic-natural">{children}</div>
       </main>
       {footer}

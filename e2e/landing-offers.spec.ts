@@ -170,11 +170,15 @@ for (const profile of profiles) {
     expect(initial.height).toBe(initial.bufferHeight);
     await assertProjection(page);
     const phone = page.locator('.pricing-phone-screen');
-    await expect(phone.locator('.pricing-offer-card')).toHaveCount(4);
-    await expect(phone.locator('.pricing-offer-card h4')).toHaveText(['Acrylique', 'Sculpté', 'Carré', 'Signature']);
-    for (const [index, amount] of ['000', '050', '100', '200'].entries()) {
-      await expect(phone.locator('.pricing-offer-price').nth(index)).toContainText(new RegExp(`2[\\s,\\u00a0\\u202f]*${amount}`));
-      await expect(phone.locator('.pricing-offer-price small').nth(index)).toHaveText(profile.path === '/en' ? 'Starting from' : 'À partir de');
+    await expect(phone.locator('.pricing-offer-card')).toHaveCount(5);
+    await expect(phone.locator('.pricing-offer-card h4')).toHaveText(profile.path === '/en'
+      ? ['Digital', 'Acrylic', 'Sculpted', 'Square', 'Signature']
+      : ['Digital', 'Acrylique', 'Sculpté', 'Carré', 'Signature']);
+    for (const [index, amount] of ['1[\\s,\\u00a0\\u202f]*500', '2[\\s,\\u00a0\\u202f]*000', '2[\\s,\\u00a0\\u202f]*050', '2[\\s,\\u00a0\\u202f]*100', '2[\\s,\\u00a0\\u202f]*200'].entries()) {
+      await expect(phone.locator('.pricing-offer-price').nth(index)).toContainText(new RegExp(amount));
+      await expect(phone.locator('.pricing-offer-price small').nth(index)).toHaveText(index === 0
+        ? profile.path === '/en' ? 'Fixed setup' : 'Mise en place fixe'
+        : profile.path === '/en' ? 'Starting from' : 'À partir de');
     }
     await expect(phone.locator('.pricing-monthly')).toContainText('200');
     await expect(phone.locator('.pricing-pilotage-price')).toContainText('100');
@@ -217,7 +221,7 @@ for (const profile of profiles) {
       const currentLayout = await geometry(page);
       await scrollPage(page, currentLayout.top + currentLayout.height + 2);
       await expect(page.locator('.pricing-phone-layer')).toHaveAttribute('aria-hidden', 'true');
-      await expect(page.locator('.landing-faq [data-seo-faq-question]')).toHaveCount(5);
+      await expect(page.locator('.landing-faq [data-seo-faq-question]')).toHaveCount(6);
       await expect(page.locator('.landing-faq [data-faq-ask-input]')).toBeVisible();
       await assertOnPhotoContrast(page, '.landing-faq');
       await screenshot(page, info, `${profile.label}-${theme}-faq`);
@@ -244,7 +248,7 @@ test('keyboard reads every offer, yields to the FAQ and wakes the original scene
   const layout = await enterOffers(page);
   const viewport = page.locator('.pricing-phone-viewport');
   const cards = page.locator('.pricing-offer-card');
-  for (let index = 0; index < 4; index++) {
+  for (let index = 0; index < 5; index++) {
     await cards.nth(index).focus();
     await expect(cards.nth(index)).toBeFocused();
     await expect.poll(() => cards.nth(index).evaluate(el => {
@@ -383,7 +387,7 @@ test('an unavailable hand keeps all offers and keyboard access in the semantic f
   await expect(page.locator('.pricing-phone-layer')).toHaveAttribute('aria-hidden', 'false');
   await expect(page.locator('.pricing-phone-layer')).toHaveAttribute('data-hand-ready', 'false');
   await expect(page.locator('.pricing-phone-layer')).not.toHaveAttribute('inert');
-  await expect(page.locator('.pricing-offer-card')).toHaveCount(4);
+  await expect(page.locator('.pricing-offer-card')).toHaveCount(5);
   for (const card of await page.locator('.pricing-offer-card').all()) {
     await card.focus();
     await expect(card).toBeFocused();

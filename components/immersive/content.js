@@ -1,13 +1,14 @@
 import { resolvePublicModelUrl } from "../../lib/publicModelAssets.ts";
 import { getSeoMarketingImage } from "../../lib/seoMarketingImages.ts";
+import { getPricingPage } from "../../lib/pricingPage.ts";
+import { EXTRA_TABLE_PRICE_BY_COLLECTION } from "../../lib/pricingCalculator.ts";
 
 export const site = "https://www.vistaire.ca";
+const pricing = getPricingPage("fr");
 export const collections = [
   {
     id: "acrylique",
     name: "Acrylique",
-    price: 2000,
-    extra: 40,
     image: "/images/marketing/sauge-noire-acrylique.webp",
     description:
       "Transparent et posé sur une base en bois, il laisse respirer la table et s’accorde aux décors épurés.",
@@ -16,8 +17,6 @@ export const collections = [
   {
     id: "sculpte",
     name: "Sculpté",
-    price: 2050,
-    extra: 45,
     image: "/images/marketing/sauge-noire-sculpte.webp",
     description:
       "Son coin arrondi adoucit la silhouette du bois. Une touche sculpturale à table, en écho aux matières naturelles.",
@@ -26,8 +25,6 @@ export const collections = [
   {
     id: "carre",
     name: "Carré",
-    price: 2100,
-    extra: 55,
     image: "/images/marketing/sauge-noire-carre.webp",
     description:
       "Un petit format aux lignes franches, à glisser près d’un couvert. Le bois apporte une touche chaleureuse aux tables de bistrot.",
@@ -36,13 +33,26 @@ export const collections = [
   {
     id: "signature",
     name: "Signature",
-    price: 2200,
-    extra: 55,
     image: "/images/marketing/sauge-noire-signature.webp",
     description:
       "Le contraste du bois et du noir dessine une présence affirmée. Sa ligne horizontale accompagne les tables aux tons profonds.",
     usage: "À disposer au bord de la table pour laisser le centre dégagé.",
   },
+].map((collection) => ({
+  ...collection,
+  price: pricing.collections.find((offer) => offer.id === collection.id).setupAmount,
+  extra: EXTRA_TABLE_PRICE_BY_COLLECTION[collection.id],
+}));
+export const presentationOptions = [
+  ...pricing.collections.filter((offer) => offer.id === "digital").map((offer) => ({
+    id: offer.id,
+    name: offer.name,
+    price: offer.setupAmount,
+    image: offer.image,
+    description: "Votre menu digital et votre QR livré numériquement, pour votre menu papier ou un support existant.",
+    usage: "Livre Sauge Noire illustratif. Aucun support physique, livre, impression, fabrication ou livraison inclus.",
+  })),
+  ...collections,
 ];
 export const dishes = [
   {
@@ -172,6 +182,10 @@ export const supportModelUrls = {
   sculpte: resolvePublicModelUrl("immersive.support.sculpte.scene"),
   carre: resolvePublicModelUrl("immersive.support.carre.scene"),
   signature: resolvePublicModelUrl("immersive.support.signature.scene"),
+};
+export const presentationModelUrls = {
+  digital: resolvePublicModelUrl("immersive.presentation.digital"),
+  ...supportModelUrls,
 };
 export const experiences = [
   {

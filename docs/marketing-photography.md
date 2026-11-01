@@ -1,12 +1,13 @@
 # Vistaire public marketing photography
 
-Updated on 2026-10-10 during PR #296, after the user required a unique photograph per placement and section-specific visual meaning.
+Updated on 2026-10-27 for Vistaire Digital. The original 2026-10-10 photography integration (PR #296) required a unique photograph per placement and section-specific visual meaning.
 
 ## Result
 
-- **67 logical in-page placements, 67 unique photos and 67 unique file hashes** across 24 FR/EN route pairs
+- **68 logical image slots, 68 unique photos and 68 unique file hashes** across 24 FR/EN route pairs
 - **50 new optimized WebP scenes**, 9,664,862 bytes total; 16 existing distinct photos retained and one duplicated dish placement switched to an unused genuine dish photo
 - FR/EN versions of the same placement share a photograph, as requested
+- Digital adds one supplied 158,002-byte WebP, intentionally shared across the home phone and pricing cards through `PRICING:collection:digital`; no duplicate asset was created
 - Four removed home collection-modal placements stay removed. The new front-left product views now illustrate the four dedicated pricing-page cards
 - No raw image generations, screenshot sources, Blender renders, review sheets or processing scripts are shipped
 
@@ -14,7 +15,7 @@ The complete slot → route → image mapping, source hashes, screenshot crops/q
 
 ## Semantic audit
 
-All 67 remaining placements were matched to their real section heading and claim. Nine assignments were strengthened before integration:
+The original 67 placements were matched to their real section heading and claim. Nine assignments were strengthened before integration:
 
 - Allergen hero and proof: matching physical dish beside its real scrolled allergen declarations, with the restaurant caution retained
 - Photo-in-menu proof: actual menu image cards, rather than an isolated plate photograph
@@ -28,7 +29,7 @@ Room-only scenes remain where restaurant atmosphere or brand identity is the sub
 
 ## Fidelity and uniqueness
 
-Each new photo has its own generated setting/composition. Different crops, encodings, filenames or localized routes never count as new photographs. Home identity thumbnails are three distinct new scenes, not derivatives of the home room backdrops. Pricing uses eight distinct scenes; four front-left views were freshly rendered from the exact original product models.
+Each photo from the original integration has its own generated setting/composition. Different crops, encodings, filenames or localized routes never count as new photographs. Home identity thumbnails are three distinct new scenes, not derivatives of the home room backdrops. The four physical collections use eight distinct scenes; four front-left views were freshly rendered from the exact original product models. Digital intentionally shares its one supplied illustrative book photo across the home phone and pricing cards. The book is shown with `contain`, without a crop. Digital includes no physical display, book, printing, fabrication, delivery or physical installation; the QR shown in this photograph is not verified as functional.
 
 Phone displays use the original pixels of authentic Vistaire menu captures. Contiguous viewport crops preserve actual menu structure and wording; perspective/contain fitting adapts them to physical phone glass without stretching layouts or inventing content. Sauge Noire book pages retain their aspect ratio with natural black screen margins. The PDF comparison is the live site’s PDF-style representation of real Trouvable data, not an assertion that the restaurant supplied a PDF.
 
@@ -38,13 +39,14 @@ Product photos and QR/menu scenes composite exact source GLB render layers. Geom
 
 ## Distribution
 
-All placements: Maison Élyse 26, Trouvable 15, Sauge Noire 26.
+All image slots: Maison Élyse 26, Trouvable 15, Sauge Noire 27.
 New scenes: Maison Élyse 16, Trouvable 11, Sauge Noire 23. Sauge Noire includes the eight exact-product scenes because that is the source model artwork.
 
 ## Complete placement map
 
 | Slot | Image | Role |
 | --- | --- | --- |
+| `PRICING:collection:digital` | `/images/marketing/vistaire-digital-sauge-noire.webp` | Shared illustrative book for Digital phone and pricing cards; no physical fulfillment |
 | `G10:hero` | `/images/marketing/geo-brossard-room.webp` | Menu digital premium pour restaurants à Brossard. |
 | `G12:premium` | `/images/marketing/geo-gastronomy-room.webp` | Ce que le menu Vistaire inclut |
 | `G8:hero` | `/images/marketing/geo-montreal-room.webp` | Menu digital premium pour restaurants à Montréal. |
@@ -122,3 +124,7 @@ New scenes: Maison Élyse 16, Trouvable 11, Sauge Noire 23. Sauge Noire includes
 - Observed passing: targeted ESLint, `npm run typecheck`, `npm run assets:check`, `npm run lfs:check`, 27 focused tests, 67 unique SHA-256 hashes and `git diff --check`
 
 Page-level responsive crop, console/network and runtime interaction QA belongs to the coordinating frontend validation and is not asserted here. Actual native AR, physical QR scanning, manufactured dimensions and resemblance to real venues are not verified by these photographs. Source restaurant data, genuine dish media contracts, models, video/frame pipelines, owner/admin and authentication remain unchanged.
+
+## Supplied Digital photograph
+
+`D:/Perso/SupportQrCode/vistaire-digital-sauge-noire.webp` was copied byte-for-byte: 1536 × 1024, 158,002 bytes, SHA-256 `6a21dc7b4be8af2e0e76eb064660581ae215b1c1ea649b4672d2dd09e5535fa0`. The original PNG and GLB remain outside Git. Localized alt text, the shared-slot exception and provenance are recorded in the existing registry and JSON manifest. The historical validation and source-render details above describe the original photography work; final Digital browser QA is tracked by its integration task.

@@ -22,12 +22,12 @@ const KEYS = { dish: "dish", phone: "phone", pdf: "pdfPhone", stand: "support", 
 
 function place(pose, name, spec, p, mobile, calibrating, azimuth) {
   const key = KEYS[name];
-  const { at, scale = 1, flat = false, yaw = 0, turn = 0, swap, lift = 0, tilt = -0.04 } = spec;
+  const { at, scale = 1, flat = false, horizontal = false, yaw = 0, turn = 0, swap, lift = 0, tilt = -0.04 } = spec;
   const x = at[0] * (mobile ? 0.62 : 1), z = at[1];
   const s = scale * (mobile ? 0.9 : 1) * (swap && !calibrating ? presence(p, swap) : 1);
   // An upright phone or stand always shows its face to the camera: its yaw
   // stays within 0.4 rad of the view azimuth, turning included.
-  const facing = !flat && (name === "phone" || name === "pdf" || name === "stand");
+  const facing = !flat && !horizontal && (name === "phone" || name === "pdf" || name === "stand");
   const angle = facing ? azimuth + Math.max(-0.4, Math.min(0.4, yaw + turn * p - azimuth)) : yaw + turn * p;
   let position, rotation;
   if (name === "dish") {
@@ -38,7 +38,7 @@ function place(pose, name, spec, p, mobile, calibrating, azimuth) {
     rotation = flat ? [-HALF_PI, 0, angle] : [tilt, angle, 0];
   } else if (name === "stand") {
     position = flat ? [x, 0.13, z] : [x, 0.08, z];
-    rotation = flat ? [-HALF_PI + 0.2, 0, angle] : [-0.06, angle, 0];
+    rotation = horizontal ? [0, angle, 0] : flat ? [-HALF_PI + 0.2, 0, angle] : [-0.06, angle, 0];
   } else {
     position = [x, 0.08, z];
     rotation = [0, angle, 0];
@@ -70,7 +70,8 @@ const SHOTS = {
   "apercu-dashboard": { view: [-0.15, 0.1], laptop: { at: [0, 0.3], scale: 1.05, yaw: 0.1 } },
   "apercu-qr": { view: [0.5, 0.45], laptop: { at: [-0.95, 0], scale: 0.85, yaw: 0.25 }, stand: { at: [1.6, 0.6], scale: 0.85, yaw: -0.45 } },
   // Pricing: one chapter per collection; the stand changes unseen in between.
-  "pricing-acrylique": { view: [0.35, 0.22], stand: { at: [0, 0.6], scale: 1.1, yaw: -0.5, turn: 0.6, swap: "out" } },
+  "pricing-digital": { view: [0.15, 1.05], stand: { at: [0, 0.6], scale: 1.1, horizontal: true, yaw: -0.15, turn: 0.25, swap: "out" } },
+  "pricing-acrylique": { view: [0.35, 0.22], stand: { at: [0, 0.6], scale: 1.1, yaw: -0.5, turn: 0.6, swap: "both" } },
   "pricing-sculpte": { view: [-0.5, 0.35], stand: { at: [-0.55, 0.5], yaw: 0.4, swap: "both" }, dish: { at: [1.15, 0.7], scale: 0.8 } },
   "pricing-carre": { view: [0.1, 1.15], stand: { at: [0, 0.6], scale: 1.1, flat: true, yaw: 0.3, swap: "both" }, phone: { at: [1.55, 0.7], scale: 0.7, flat: true, yaw: -0.3 } },
   "pricing-signature": { view: [0.55, 0.18], stand: { at: [0.6, 0.5], scale: 1.05, yaw: -0.55, swap: "both" }, phone: { at: [-0.9, 0.9], scale: 0.85, yaw: 0.35 } },

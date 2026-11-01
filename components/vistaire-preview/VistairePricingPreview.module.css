@@ -68,7 +68,7 @@
 }
 .collectionGrid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 30px;
 }
 .collectionCard {
@@ -118,7 +118,10 @@
   object-fit: cover;
   transition: transform 220ms ease;
 }
-.collectionCard:hover .collectionImage {
+.collectionImageDigital {
+  object-fit: contain;
+}
+.collectionCard:hover .collectionImage:not(.collectionImageDigital) {
   transform: scale(1.025);
 }
 .collectionDetails {
