@@ -285,7 +285,8 @@ for (const scenario of scenarios) {
     const beforeClick = await video.evaluate(element => (element as HTMLVideoElement).currentTime);
     await page.mouse.click(box!.x + box!.width / 2, box!.y + box!.height / 2);
     expect(await video.evaluate(element => (element as HTMLVideoElement).paused)).toBe(false);
-    await expect.poll(() => video.evaluate(element => (element as HTMLVideoElement).currentTime)).toBeGreaterThan(beforeClick);
+    // WebKit can pause to buffer while the page's 3D models download alongside.
+    await expect.poll(() => video.evaluate(element => (element as HTMLVideoElement).currentTime), {timeout: 15_000}).toBeGreaterThan(beforeClick);
     expect(await video.evaluate(element => {
       element.focus();
       return document.activeElement === element;

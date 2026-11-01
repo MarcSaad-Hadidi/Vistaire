@@ -6,7 +6,9 @@ if (process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE)
       executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE,
     },
   });
-async function preview(page: Page) {
+// Open the target directly: a second goto right after /admin can be interrupted
+// by that first page's own late navigation in WebKit.
+async function preview(page: Page, path = "/admin") {
   const baseURL = test.info().project.use.baseURL;
   expect(
     baseURL,
@@ -20,7 +22,7 @@ async function preview(page: Page) {
       maxRedirects: 0,
     });
   expect(response.status()).toBe(303);
-  await page.goto("/admin");
+  await page.goto(path);
   await expect(page.locator("[data-admin-studio]")).toBeVisible();
 }
 async function expectSemanticSwitchTracks(page: Page) {
@@ -664,8 +666,7 @@ test(
   "studio chart marks retain approved colors in both themes",
   { tag: "@critical" },
   async ({ page }, testInfo) => {
-    await preview(page);
-    await page.goto("/admin/insights?range=7d");
+    await preview(page, "/admin/insights?range=7d");
     for (const theme of ["light", "dark"] as const) {
       if (theme === "dark")
         await page
@@ -757,8 +758,7 @@ test(
   { tag: "@critical" },
   async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 });
-    await preview(page);
-    await page.goto("/admin/insights?range=30d");
+    await preview(page, "/admin/insights?range=30d");
     await page
       .getByRole("button", { name: "Vue tableau", exact: true })
       .click();
@@ -887,8 +887,7 @@ test("studio dates preserve the selected window when analytics reads fail", { ta
   const fixture = `http://127.0.0.1:${process.env.VISTAIRE_ADMIN_VISUAL_FIXTURE_PORT ?? "3110"}`;
   await request.post(`${fixture}/fixture/analytics-read-error?enabled=1`);
   try {
-    await preview(page);
-    await page.goto("/admin?range=custom%3A2026-07-01%3A2026-07-09");
+    await preview(page, "/admin?range=custom%3A2026-07-01%3A2026-07-09");
     const trigger = page.getByRole("button", { name: /Modifier la période d’analyse/ });
     const expected = /1 juill?\. 2026.*9 juill?\. 2026/;
     await expect(trigger).toHaveText(expected);
