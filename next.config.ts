@@ -265,6 +265,9 @@ const nextConfig: NextConfig = {
   devIndicators: false,
   experimental: {
     proxyClientMaxBodySize: MODEL_LAB_PROXY_CLIENT_MAX_BODY_SIZE,
+    // Inlining copied every page's ~340 KB of CSS into both <style> and the RSC
+    // payload (guide HTML 135 KB gzip vs 17 KB); cached stylesheets measured faster.
+    inlineCss: false,
   },
   outputFileTracingRoot: PROJECT_ROOT,
   outputFileTracingIncludes: {

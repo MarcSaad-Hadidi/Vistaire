@@ -41,6 +41,7 @@ for (const scenario of DISCOVERY_ROUTES) {
       const errors: string[] = [];
       const unexpectedRequests: string[] = [];
       const requestedVideos = new Set<string>();
+      const requestedPosters = new Set<string>();
       // Passive diagnostics only: never change playback, requests, or test deadlines.
       const videoNetwork: Record<string, unknown>[] = [];
       const videoRequestIds = new WeakMap<Request, number>();
@@ -126,6 +127,7 @@ for (const scenario of DISCOVERY_ROUTES) {
         recordVideoNetwork("request", request);
         const pathname = new URL(request.url()).pathname;
         if (pathname.startsWith("/videos/demo/")) requestedVideos.add(pathname);
+        if (pathname.startsWith("/images/demo-walkthrough/")) requestedPosters.add(pathname);
         // The page plays in the shared 3D room: its own GLBs are expected.
         const roomModel = /^\/(?:immersive-assets|models\/demo)\/.+\.glb$/i.test(pathname);
         if ((MODEL_REQUEST.test(request.url()) && !roomModel) || /\/api\/public\/landing-menu-preview\//.test(request.url())) {
@@ -160,6 +162,7 @@ for (const scenario of DISCOVERY_ROUTES) {
         for (const id of ["trouvable", "sauge-noire"]) {
           await expect(page.locator(`[data-demo-experience="${id}"] video`)).not.toHaveAttribute("src", /.+/);
           expect(requestedVideos.has(`/videos/demo/${id}.mp4`)).toBe(false);
+          expect(requestedPosters.has(`/images/demo-walkthrough/${id}.webp`), "offscreen video posters wait for their panel").toBe(false);
         }
           await expect(page).toHaveTitle(scenario.title);
           await expect(page.getByRole("heading", { level: 1 })).toHaveText(scenario.heading);

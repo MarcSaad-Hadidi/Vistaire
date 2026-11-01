@@ -4,6 +4,7 @@ import Link from "next/link";
 import { preload } from "react-dom";
 import { resolvePublicModelUrl } from "../../lib/publicModelAssets.ts";
 import { createEntryScrollAssist } from "./EntryScrollAssist.js";
+import { EARLY_SCROLL_HOLD, useDeferredScene, useScrollHold } from "./deferredScene.js";
 import { useLinkIntent } from "./useLinkIntent.js";
 import { bindPublicMenuViewport } from "@/lib/publicMenuViewport";
 import {
@@ -305,28 +306,32 @@ function Modal({ label, children, close }) {
     </div>
   );
 }
-export function App({ locale = "fr" }) {
-  // The room and phone download with the HTML, not after the lazy scene chunk;
-  // the scene's own fetches reuse them (same URL and CORS mode).
+// The opening's models, fetched by the scene with the same URL and CORS mode.
+function prefetchOpening() {
+  const fetchHint = { as: "fetch", crossOrigin: "anonymous" };
   for (const id of ["immersive.restaurant.visible.textures-512", "immersive.phone", "immersive.support.acrylique"])
-    preload(resolvePublicModelUrl(id), { as: "fetch", crossOrigin: "anonymous" });
+    preload(resolvePublicModelUrl(id), fetchHint);
   // The Draco decoder the room needs, fetched by three's FileLoader.
   for (const file of ["draco_wasm_wrapper.js", "draco_decoder.wasm"])
-    preload(`/immersive-assets/draco/${file}`, { as: "fetch", crossOrigin: "anonymous" });
-  // The opening lobster depends on the viewport (Scene.jsx modelUrl): start it
-  // at hydration rather than after the scene chunk.
-  useEffect(() => {
-    preload(resolvePublicModelUrl(innerWidth < 768 ? "immersive.dish.homard.scene-mobile" : "immersive.dish.homard.scene"),
-      { as: "fetch", crossOrigin: "anonymous" });
-  }, []);
+    preload(`/immersive-assets/draco/${file}`, fetchHint);
+  // The opening lobster depends on the viewport (Scene.jsx modelUrl).
+  preload(resolvePublicModelUrl(innerWidth < 768 ? "immersive.dish.homard.scene-mobile" : "immersive.dish.homard.scene"), fetchHint);
+}
+
+export function App({ locale = "fr" }) {
+  preload("/immersive-assets/fonts/libertine-display.woff2", { as: "font", type: "font/woff2", crossOrigin: "anonymous" });
+  preload("/immersive-assets/fonts/biolinum.woff2", { as: "font", type: "font/woff2", crossOrigin: "anonymous" });
+  // The opening is first painted as a still of its own 3D frame (the poster in
+  // .world); the scene crossfades over it once ready (useDeferredScene).
+  const sceneStarted = useDeferredScene(prefetchOpening);
   return (
     <LandingLocaleProvider locale={locale}>
-      <LandingContent />
+      <LandingContent sceneStarted={sceneStarted} />
     </LandingLocaleProvider>
   );
 }
 
-function LandingContent() {
+function LandingContent({ sceneStarted }) {
   const { locale, t, href: link } = useLandingLocale();
   const collections = sourceCollections.map((item) => ({
     ...item,
@@ -377,7 +382,11 @@ function LandingContent() {
     }
   };
   const [ready, setReady] = useState(false);
+  const [posterGone, setPosterGone] = useState(false);
   const [gpuError, setGpuError] = useState(false);
+  // Scrolling waits on the poster until the whole opening shot (room included)
+  // is ready; the poster covers the canvas until then.
+  const holdingScroll = useScrollHold(!ready && !gpuError);
   // Another page fetches as a link is reached and shows the loading screen the
   // moment it is clicked (useLinkIntent); 8 s releases a navigation that never came.
   const [leaving, setLeaving] = useState(false);
@@ -1113,6 +1122,7 @@ function LandingContent() {
   };
   return (
     <>
+      <script dangerouslySetInnerHTML={{ __html: EARLY_SCROLL_HOLD }} />
       <a
         className="skip-link"
         href="#ai"
@@ -1126,7 +1136,7 @@ function LandingContent() {
       <div className="world">
         <div id="pricing-screen-host" />
         <Suspense fallback={null}>
-          {!gpuError && (
+          {!gpuError && sceneStarted && (
             <Scene
               stateRef={stateRef}
               onReady={onSceneReady}
@@ -1142,6 +1152,14 @@ function LandingContent() {
             />
           )}
         </Suspense>
+        {/* After the scene layer, so the still covers the loading canvas. */}
+        {!posterGone && (
+          <picture className={`opening-poster${ready ? " is-faded" : ""}`}
+            onTransitionEnd={() => ready && setPosterGone(true)}>
+            <source media="(orientation: landscape)" srcSet="/immersive-assets/opening-poster-landscape.webp" />
+            <img src="/immersive-assets/opening-poster-portrait.webp" alt="" fetchPriority="high" />
+          </picture>
+        )}
       </div>
       <div id="pricing-actions-host" />
       {performanceCapture && (
@@ -1189,7 +1207,13 @@ function LandingContent() {
           </Link>
         </dialog>
       )}
-      {(!ready || leaving) && !gpuError && (
+      {holdingScroll && sceneStarted && !leaving && (
+        <div className="poster-cue" role="status">
+          <div className="loading-line" />
+          <span>{t("Préparons votre table.")}</span>
+        </div>
+      )}
+      {leaving && !gpuError && (
         <div className="preloader" role="status">
           <div className="loading-word">Vistaire</div>
           <div className="loading-line" />

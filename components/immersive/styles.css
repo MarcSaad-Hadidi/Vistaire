@@ -163,6 +163,43 @@
   width: 100%;
   height: 100%;
 }
+/* The opening's own 3D frame, shown until the live scene is ready. */
+:where([data-immersive-vistaire]) .opening-poster {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  transition: opacity 0.9s cubic-bezier(0.22, 1, 0.36, 1);
+}
+:where([data-immersive-vistaire]) .opening-poster img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+:where([data-immersive-vistaire]) .opening-poster.is-faded {
+  opacity: 0;
+}
+@media (prefers-reduced-motion: reduce) {
+  :where([data-immersive-vistaire]) .opening-poster.is-faded {
+    display: none;
+  }
+}
+/* While the live scene loads over the poster (the preloader's line and copy). */
+:where([data-immersive-vistaire]) .poster-cue {
+  position: fixed;
+  z-index: 12;
+  left: 50%;
+  bottom: calc(28px + env(safe-area-inset-bottom, 0px));
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  color: var(--cream);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  pointer-events: none;
+}
 /* One full-world surface follows the identities copy, without a sticky edge. */
 :where([data-immersive-vistaire]) .world::before {
   content: "";
@@ -3424,12 +3461,12 @@ html[data-vistaire-theme="light"] :where([data-immersive-vistaire]) .footer .act
   text-transform: uppercase;
   pointer-events: none;
   opacity: 1;
-  visibility: visible;
-  transition: opacity 0.2s ease, visibility 0.2s;
+  transition: opacity 0.2s ease;
 }
+/* Opacity only: a visibility transition is not composited. The guide takes no
+   pointer events and aria-hidden already hides it from assistive tech. */
 :where([data-immersive-vistaire]) .scroll-guide[aria-hidden="true"] {
   opacity: 0;
-  visibility: hidden;
 }
 :where([data-immersive-vistaire]) .scroll-guide svg {
   width: 22px;
