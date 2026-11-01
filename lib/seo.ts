@@ -182,6 +182,14 @@ type SocialProfileEnv = SiteUrlEnv & {
   NEXT_PUBLIC_VISTAIRE_X_URL?: string;
 };
 
+// City-level only: no street address is published.
+const ORGANIZATION_ADDRESS_JSON_LD = {
+  "@type": "PostalAddress",
+  addressLocality: "Montréal",
+  addressRegion: "QC",
+  addressCountry: "CA"
+};
+
 export function resolveSiteUrl(value?: string | null): URL {
   const trimmed = value?.trim();
   if (!trimmed) return new URL(SITE_URL_FALLBACK);
@@ -391,6 +399,7 @@ export function buildOrganizationJsonLd(env?: SiteUrlEnv): JsonLdObject {
     url: absoluteUrl("/", env),
     email: CONTACT_EMAIL,
     telephone: CONTACT_PHONE_TEL,
+    address: ORGANIZATION_ADDRESS_JSON_LD,
     description:
       "Vistaire conçoit des expériences de menu digital QR premium pour restaurants haut de gamme à Montréal, au Québec et au Canada.",
     areaServed: AREA_SERVED_JSON_LD,
@@ -444,12 +453,7 @@ export function buildProfessionalServiceJsonLd(env?: SiteUrlEnv): JsonLdObject {
     telephone: CONTACT_PHONE_TEL,
     description:
       "Vistaire est un service professionnel de menu digital QR premium pour restaurants haut de gamme, restaurants indépendants et cartes issues de menus PDF.",
-    address: {
-      "@type": "PostalAddress",
-      addressLocality: "Montréal",
-      addressRegion: "QC",
-      addressCountry: "CA"
-    },
+    address: ORGANIZATION_ADDRESS_JSON_LD,
     areaServed: AREA_SERVED_JSON_LD,
     serviceType: "Menu digital QR premium pour restaurants",
     contactPoint: {

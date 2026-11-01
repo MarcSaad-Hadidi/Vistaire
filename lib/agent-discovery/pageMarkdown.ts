@@ -160,6 +160,32 @@ export function buildPageMarkdown(pathname: string): string | null {
   return entry ? entry.build().join("\n").replace(/\n{3,}/g, "\n\n").trim() + "\n" : null;
 }
 
+// Asks the app itself (as HTML) whether the path renders, so no route list can drift:
+// only a real 404 earns the markdown 404. Network failures fall back to Next's own response.
+export async function isMissingRoute(url: URL, fetchImpl: typeof fetch = fetch): Promise<boolean> {
+  // The probe runs the route's GET: API keeps its JSON errors, and /q/<token> would count a second QR scan.
+  if (/^\/api(\/|$)|^\/q\/[^/]+\/?$/.test(url.pathname)) return false;
+  try {
+    const response = await fetchImpl(url, { method: "HEAD", redirect: "manual", headers: { accept: "text/html" } });
+    return response.status === 404;
+  } catch {
+    return false;
+  }
+}
+
+export function buildNotFoundMarkdown(pathname: string): string {
+  return [
+    "# Page not found",
+    "",
+    `No Vistaire page exists at \`${pathname}\`.`,
+    "",
+    `- Site overview for agents: ${absoluteUrl("/llms.txt")}`,
+    `- All public pages: ${absoluteUrl("/sitemap.xml")}`,
+    `- Homepage: ${absoluteUrl("/")}`,
+    ""
+  ].join("\n");
+}
+
 /** Every structured page, once, for agents that read the whole site in one request. */
 export function buildLlmsFullText(): string {
   return [

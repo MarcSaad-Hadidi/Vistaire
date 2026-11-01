@@ -298,6 +298,7 @@ const nextConfig: NextConfig = {
   async redirects() {
     return [
       ...getPublicModelRedirects(),
+      { source: "/about", destination: "/a-propos", permanent: true },
       {
         source: "/carte-vistaire",
         destination: "/demo",
