@@ -107,21 +107,8 @@ test("builds a focused sitemap for public Vistaire surfaces", () => {
     assert.equal(urls.some((url) => url.includes(internalPath)), false);
   }
   assert.equal(urls.some((url) => url.includes("/demo/dishes/")), false);
-  const guidePaths = new Set([
-    "/guides/anatomie-menu-digital-premium",
-    "/en/guides/premium-digital-menu-anatomy",
-    "/guides/menu-qr-mobile-sans-application",
-    "/en/guides/mobile-qr-menu-without-app",
-    "/guides/3d-restaurant-utile-vs-gadget",
-    "/en/guides/restaurant-3d-useful-vs-gimmick"
-  ]);
   for (const entry of entries) {
-    const path = new URL(entry.url).pathname || "/";
-    if (guidePaths.has(path)) {
-      assert.equal("lastModified" in entry, false, `${path} has no verified editorial date`);
-    } else {
-      assert.equal(entry.lastModified, lastModified);
-    }
+    assert.equal(entry.lastModified, lastModified, entry.url);
   }
   assert.equal(entries.every((entry) => entry.priority > 0 && entry.priority <= 1), true);
 });
@@ -339,6 +326,9 @@ test("emits honest global JSON-LD without fictional restaurant markup", () => {
   assert.equal(organization.contactPoint.telephone, CONTACT_PHONE_TEL);
   assert.equal(organization.areaServed.length, 3);
   assert.equal("sameAs" in organization, false);
+  assert.equal(organization.logo, "https://www.vistaire.ca/icon.svg");
+  assert.equal(organization.founder["@id"], "https://www.vistaire.ca/#founder");
+  assert.equal(organization.founder.name, "Marc Saad-Hadidi");
   assert.equal(professionalService["@type"], "ProfessionalService");
   assert.equal(professionalService.email, CONTACT_EMAIL);
   assert.equal(professionalService.telephone, CONTACT_PHONE_TEL);

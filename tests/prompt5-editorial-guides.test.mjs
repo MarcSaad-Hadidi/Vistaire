@@ -169,22 +169,25 @@ test("registers exact reciprocal canonical, hreflang and sitemap pairs", async (
     );
     assert.ok(sitemapEntry);
     assert.equal(
-      "lastModified" in sitemapEntry,
-      false,
-      `${expected.path} must omit an unverified editorial date`
+      sitemapEntry.lastModified?.toISOString(),
+      "2026-08-09T00:00:00.000Z",
+      `${expected.path} must carry its verified publication date`
     );
   }
 });
 
-test("builds an honest Article graph without invented author or date fields", async () => {
-  const { getEditorialGuide } = await import("../lib/editorialGuides.ts");
+test("builds an Article graph with the verified founder byline and publication date", async () => {
+  const { getEditorialGuide, EDITORIAL_GUIDES_PUBLISHED_AT } = await import("../lib/editorialGuides.ts");
   const { buildArticleJsonLd } = await import("../lib/seo.ts");
   const guide = getEditorialGuide("premium-menu-anatomy", "en");
+  // Every guide was first published in eecc4b52; later commits only fixed punctuation.
+  assert.equal(EDITORIAL_GUIDES_PUBLISHED_AT, "2026-08-09");
   const article = buildArticleJsonLd({
     path: guide.path,
     headline: guide.h1,
     description: guide.metadataDescription,
-    locale: guide.locale
+    locale: guide.locale,
+    datePublished: EDITORIAL_GUIDES_PUBLISHED_AT
   }, {
     NEXT_PUBLIC_SITE_URL: "https://www.vistaire.ca"
   });
@@ -200,13 +203,20 @@ test("builds an honest Article graph without invented author or date fields", as
     mainEntityOfPage: {
       "@id": "https://www.vistaire.ca/en/guides/premium-digital-menu-anatomy#webpage"
     },
+    datePublished: "2026-08-09",
+    dateModified: "2026-08-09",
+    author: {
+      "@type": "Person",
+      "@id": "https://www.vistaire.ca/#founder",
+      name: "Marc Saad-Hadidi",
+      jobTitle: "Founder & CEO",
+      worksFor: { "@id": "https://www.vistaire.ca/#organization" },
+      sameAs: ["https://ca.linkedin.com/in/marc-saad-hadidi-403042339"]
+    },
     publisher: {
       "@id": "https://www.vistaire.ca/#organization"
     }
   });
-  assert.equal("author" in article, false);
-  assert.equal("datePublished" in article, false);
-  assert.equal("dateModified" in article, false);
 });
 
 test("keeps bilingual guide routes lightweight for shared client imports", async () => {

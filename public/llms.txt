@@ -4,6 +4,7 @@
 
 Official site: [Vistaire](https://www.vistaire.ca/)
 Entity name: Vistaire
+Founder: [Marc Saad-Hadidi](https://ca.linkedin.com/in/marc-saad-hadidi-403042339), Founder & CEO
 Languages: fr-CA and en-CA
 Contact: contact@vistaire.ca
 Phone: 514-715-2421

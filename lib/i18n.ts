@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { EDITORIAL_GUIDE_ROUTE_PAIRS } from "./editorialGuideRoutes.ts";
+import { EDITORIAL_GUIDE_ROUTE_PAIRS, EDITORIAL_GUIDES_PUBLISHED_AT } from "./editorialGuideRoutes.ts";
 import { SEO_GEO_ROUTE_PAIRS } from "./seoGeoRoutes.ts";
 
 export const SUPPORTED_LOCALES = ["fr", "en"] as const;
@@ -120,7 +120,8 @@ export const BILINGUAL_ROUTE_PAIRS: BilingualRoutePair[] = [
     fr,
     en,
     changeFrequency,
-    priority
+    priority,
+    updatedAt: EDITORIAL_GUIDES_PUBLISHED_AT
   })),
   ...SEO_GEO_ROUTE_PAIRS.map((route) => ({
     ...route,

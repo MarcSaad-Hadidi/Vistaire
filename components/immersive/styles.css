@@ -717,6 +717,17 @@
   text-wrap: pretty;
   line-height: 1.18;
 }
+:where([data-immersive-vistaire]) .hero-copy h1 {
+  letter-spacing: inherit;
+  line-height: inherit;
+  text-wrap: inherit;
+}
+:where([data-immersive-vistaire]) .hero-tagline {
+  margin-top: 0.6em;
+  color: var(--amber);
+  font-size: 0.62em;
+  font-style: italic;
+}
 :where([data-immersive-vistaire]) .hero .scene-focus {
   grid-column: 2;
   grid-row: 2;

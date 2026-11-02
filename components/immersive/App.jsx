@@ -1360,11 +1360,16 @@ function LandingContent({ sceneStarted }) {
               <div className="hero-word" aria-hidden="true">
                 VISTAIRE
               </div>
-              <h1 id="hero-title" className="hero-copy">
-                {t(
-                  "Vistaire, un menu digital QR premium pour votre restaurant. Photos, prix et allergènes, sans application.",
-                )}
-              </h1>
+              <div className="hero-copy">
+                <h1 id="hero-title">
+                  {t(
+                    "Vistaire, un menu digital QR premium pour votre restaurant. Photos, prix et allergènes, sans application.",
+                  )}
+                </h1>
+                <p className="hero-tagline">
+                  {t("Donnez envie avant la première bouchée.")}
+                </p>
+              </div>
               <div className="hero-glass">
                 <h2>
                   {t("Votre cuisine.")} <br />

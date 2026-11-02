@@ -1,10 +1,10 @@
 // Markdown twins of the structured public pages, served to agents that ask for
 // text/markdown and concatenated in /llms-full.txt. Built from the same content
 // modules as the HTML pages, so the two can never drift apart.
-import { CONTACT_EMAIL, CONTACT_PHONE_DISPLAY, CONTACT_LOCATION_LABEL, SITE_NAME, absoluteUrl } from "../seo.ts";
+import { CONTACT_EMAIL, CONTACT_PHONE_DISPLAY, CONTACT_LOCATION_LABEL, SITE_NAME, VISTAIRE_FOUNDER, absoluteUrl } from "../seo.ts";
 import { SEO_PAGES, SEO_PAGES_EN, type SeoPageData } from "../seoPages.ts";
 import { SEO_GEO_PAGES, SEO_GEO_PAGES_EN, type SeoGeoPageData } from "../seoGeoPages.ts";
-import { EDITORIAL_GUIDES, type EditorialGuide } from "../editorialGuides.ts";
+import { EDITORIAL_GUIDES, EDITORIAL_GUIDES_PUBLISHED_AT, type EditorialGuide } from "../editorialGuides.ts";
 import { PRICING_PAGE, PRICING_PAGE_EN, type PricingPageContent } from "../pricingPage.ts";
 import { DEVELOPERS_PAGE, type DevelopersPageContent } from "../developersPage.ts";
 import { calculateFirstYearCost, formatSetupAmount } from "../pricingCalculator.ts";
@@ -82,6 +82,10 @@ function guideMarkdown(guide: EditorialGuide) {
     `# ${guide.h1}`,
     "",
     guide.dek,
+    "",
+    guide.locale === "en"
+      ? `By ${link(VISTAIRE_FOUNDER.linkedInUrl, VISTAIRE_FOUNDER.name)}, founder of ${SITE_NAME} · Published ${EDITORIAL_GUIDES_PUBLISHED_AT}`
+      : `Par ${link(VISTAIRE_FOUNDER.linkedInUrl, VISTAIRE_FOUNDER.name)}, fondateur de ${SITE_NAME} · Publié le ${EDITORIAL_GUIDES_PUBLISHED_AT}`,
     "",
     `> ${guide.definition}`,
     ...guide.sections.flatMap((section) => [

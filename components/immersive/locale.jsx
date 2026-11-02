@@ -45,6 +45,7 @@ const EN = {
     "Designed for your dishes. Created for your tables.",
   "Vistaire, un menu digital QR premium pour votre restaurant. Photos, prix et allergènes, sans application.":
     "Vistaire, a premium QR digital menu for your restaurant. Photos, prices and allergens, without an app.",
+  "Donnez envie avant la première bouchée.": "Make them crave the first bite.",
   "Votre cuisine.": "Your cuisine.",
   "Votre univers.": "Your world.",
   "Une autre": "Another",
