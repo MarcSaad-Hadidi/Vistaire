@@ -228,10 +228,10 @@ test("App CI keeps deterministic checks blocking with the Sauge Noire browser pr
 
 test("CodeQL keeps analysis failures blocking and publishes SARIF", async () => {
   const workflow = await source(".github/workflows/codeql.yml");
-  const codeqlV4Commit = "6f2ac81f5cd81fe351a197ba0b00d91d03cd2aee";
+  const codeqlV4Commit = "9b3254085494b55a0f7c4c2b3d2d52cc712ce370";
 
-  assert.match(workflow, new RegExp(`uses:\\s*github/codeql-action/analyze@${codeqlV4Commit}\\s+# v4\\.39\\.0(?:\\s|$)`));
-  assert.match(workflow, new RegExp(`uses:\\s*github/codeql-action/init@${codeqlV4Commit}\\s+# v4\\.39\\.0(?:\\s|$)`));
+  assert.match(workflow, new RegExp(`uses:\\s*github/codeql-action/analyze@${codeqlV4Commit}\\s+# v4\\.39\\.1(?:\\s|$)`));
+  assert.match(workflow, new RegExp(`uses:\\s*github/codeql-action/init@${codeqlV4Commit}\\s+# v4\\.39\\.1(?:\\s|$)`));
   assert.match(workflow, /uses:\s*actions\/checkout@[0-9a-f]{40}\s+# v4\.4\.0/);
   assert.doesNotMatch(workflow, /upload:\s*never/);
   assert.match(workflow, /security-events:\s*write/);
