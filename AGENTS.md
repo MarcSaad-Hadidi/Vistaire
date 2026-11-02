@@ -190,6 +190,7 @@ Do not parallelize work that can be completed more safely and simply in one thre
 * Do not install heavy process tooling merely to perform a small task.
 * Do not introduce a dependency, testing framework, build tool, or repository-level workflow simply because the environment supports it.
 * Prefer existing project capabilities.
+* Do not create Vercel Sandboxes for testing (Vercel MCP `create_sandboxes_*` tools or `vercel sandbox`) unless the owner explicitly requests one. Use the local worktree, local Playwright, and GitHub CI instead: Hobby includes 5 active CPU hours/month, already exceeded in October 2026.
 * Use repository inspection, browser tooling, tests, DevTools, and deployment tooling proactively when they provide relevant evidence.
 
 ## Assets And LFS

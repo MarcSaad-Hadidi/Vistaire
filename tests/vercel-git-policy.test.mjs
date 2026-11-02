@@ -135,3 +135,23 @@ test("Vercel normalizes root discovery headers without dropping Markdown Vary", 
   const markdownTokens = applyVaryTransforms("Accept", varyTransforms);
   assert.deepEqual(markdownTokens, ["rsc", "accept"]);
 });
+
+test("public media kept out of deployments is never referenced by served code", async () => {
+  const { spawnSync } = await import("node:child_process");
+  const ignored = (await readFile(".vercelignore", "utf8"))
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter((line) => line.startsWith("public/"));
+  // Each deployment copies public/; unused media there only inflates Vercel storage.
+  assert.ok(ignored.length > 0, ".vercelignore must exclude unused public media");
+  for (const path of ignored) {
+    assert.doesNotMatch(path, /[*?]/, `${path} must name one exact file`);
+    const name = path.slice(path.lastIndexOf("/") + 1);
+    const users = spawnSync(
+      "git",
+      ["grep", "-l", "-F", name, "--", "app", "components", "lib", "proxy.ts", "next.config.ts", "vercel.json"],
+      { encoding: "utf8" }
+    ).stdout.trim();
+    assert.equal(users, "", `${path} is excluded from deployments but referenced by ${users}`);
+  }
+});

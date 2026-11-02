@@ -11,6 +11,15 @@ video/
 Framer/*.mp4
 Framer/*.zip
 
+# Grandfathered public videos that no served code loads (55 MB per deployment).
+# They stay in Git for scripts/optimize-videos.mjs and history; one exact file per line.
+public/videos/upscaled-video.mp4
+public/videos/menualive-full.mp4
+public/videos/video-1.mp4
+public/videos/video-2.mp4
+public/videos/video-3.mp4
+public/videos/video-4.mp4
+
 # Local build/test output.
 .next/
 coverage/
