@@ -156,11 +156,11 @@
     "@types/qrcode": "^1.5.6",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
-    "eslint": "9.39.5",
+    "eslint": "10.13.0",
     "eslint-config-next": "^16.4.2",
     "postcss": "^8.5.31",
     "tailwindcss": "^4.3.3",
-    "three": "0.183.2",
+    "three": "0.186.1",
     "typescript": "6.0.3"
   }
 }
