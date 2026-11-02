@@ -13,8 +13,8 @@ import styles from "./RestaurantExperiences.module.css";
 const pageCopy = {
   fr: {
     eyebrow: "Expériences Vistaire",
-    heading: ["Trois restaurants.", "Trois identités."],
-    introduction: "Une même attention à la carte, trois façons de la vivre. Entrez dans les vrais menus et découvrez les plats à votre rythme.",
+    heading: ["Trois expériences.", "Trois identités."],
+    introduction: "Une même attention à la carte, trois façons de la vivre. Explorez ces menus interactifs et découvrez les plats à votre rythme.",
     explore: "Explorer",
     discover: "Découvrir",
     videoLabel: "Utilisation du menu",
@@ -37,8 +37,8 @@ const pageCopy = {
   },
   en: {
     eyebrow: "Vistaire experiences",
-    heading: ["Three restaurants.", "Three identities."],
-    introduction: "The same care for every menu, three ways to experience it. Explore real restaurant menus and discover each dish at your own pace.",
+    heading: ["Three experiences.", "Three identities."],
+    introduction: "The same care for every menu, three ways to experience it. Explore these interactive menus and discover each dish at your own pace.",
     explore: "Explore",
     discover: "Discover",
     videoLabel: "Using the menu of",

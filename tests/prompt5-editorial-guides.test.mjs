@@ -240,7 +240,7 @@ test("lists every published editorial guide in llms.txt", async () => {
 
   for (const pair of EDITORIAL_GUIDE_ROUTE_PAIRS) {
     for (const path of [pair.fr, pair.en]) {
-      assert.match(llms, new RegExp(`https://www\\.vistaire\\.ca${path.replaceAll("/", "\\/")}(?:\\s|:)`));
+      assert.match(llms, new RegExp(`https://www\\.vistaire\\.ca${path.replaceAll("/", "\\/")}(?:\\s|:|\\))`));
     }
   }
 });

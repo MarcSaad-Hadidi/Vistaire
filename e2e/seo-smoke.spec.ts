@@ -467,7 +467,7 @@ test.describe("Vistaire SEO smoke", () => {
       );
       await expectNoHorizontalOverflow(page);
       await expect(page.locator("[data-immersive-vistaire]")).toBeVisible();
-      await expect(page.locator("h1")).toHaveText("VISTAIRE");
+      await expect(page.locator("h1")).toContainText("menu digital QR premium");
       await expect(page.getByRole('alertdialog')).toContainText('L’expérience 3D est indisponible.');
       await expect(page.locator('.fallback-film, .world-fallback')).toHaveCount(0);
       await expect(page.locator(".preloader")).toHaveCount(0);

@@ -282,7 +282,7 @@ export function buildSitemapEntries(
         path,
         route.changeFrequency,
         route.priority,
-        resolveLastModified(route.updatedAt),
+        resolveLastModified(path === route.en ? route.updatedAtEn ?? route.updatedAt : route.updatedAt),
         {
           languages: languageAlternates
         }

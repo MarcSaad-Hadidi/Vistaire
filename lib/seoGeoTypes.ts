@@ -135,4 +135,5 @@ export type SeoGeoRoutePair = {
   en: string;
   priority: number;
   updatedAt: string;
+  updatedAtEn?: string;
 };

@@ -7,6 +7,26 @@ const siteEnv = {
   NEXT_PUBLIC_SITE_URL: "https://www.vistaire.ca/"
 };
 
+test("sitemap records the editorial update only for the language actually edited", async () => {
+  const { buildSitemapEntries } = await import("../lib/seo.ts");
+  const entries = new Map(buildSitemapEntries([], undefined, siteEnv).map((entry) => [
+    new URL(entry.url).pathname,
+    entry.lastModified?.toISOString().slice(0, 10)
+  ]));
+  assert.equal(entries.get("/"), "2026-11-02");
+  assert.equal(entries.get("/en"), "2026-11-02");
+  assert.equal(entries.get("/en/digital-restaurant-menu-laval"), "2026-11-02");
+  assert.equal(entries.get("/menu-digital-restaurant-laval"), "2026-06-22");
+  assert.equal(entries.get("/menu-digital-restaurant-gastronomique"), "2026-11-02");
+  assert.equal(entries.get("/en/fine-dining-restaurant-digital-menu"), "2026-06-22");
+  const { getSeoGeoPage } = await import("../lib/seoGeoPages.ts");
+  const { buildSeoGeoAeoJsonLd } = await import("../lib/seoGeoJsonLd.ts");
+  const page = getSeoGeoPage("digital-restaurant-menu-laval", "en");
+  assert.ok(page);
+  const webPage = buildSeoGeoAeoJsonLd(page).find((item) => item["@type"] === "WebPage");
+  assert.equal(webPage.dateModified, entries.get(page.path));
+});
+
 test("declares a complete bilingual FR/EN route map", async () => {
   const i18nPath = join(process.cwd(), "lib", "i18n.ts");
   assert.equal(existsSync(i18nPath), true, "lib/i18n.ts should centralize bilingual routes");

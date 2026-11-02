@@ -655,6 +655,7 @@ const SEO_GEO_PAGE_DRAFTS_EN: SeoGeoPageDraft[] = [
   {
     locale: "en",
     slug: "digital-restaurant-menu-montreal",
+    updatedAt: "2026-11-02",
     path: "/en/digital-restaurant-menu-montreal",
     type: "local",
     cluster: "Digital restaurant menu Montreal",
@@ -672,7 +673,7 @@ const SEO_GEO_PAGE_DRAFTS_EN: SeoGeoPageDraft[] = [
     h1: "A premium digital menu for Montreal restaurants.",
     eyebrow: "Montreal",
     directAnswer:
-      "A digital restaurant menu in Montreal should match the dining room as much as it improves mobile reading. Vistaire serves Montreal restaurants with QR access, premium mobile structure, dish pages, photos, allergens and selective 3D/AR, without claiming a physical office, reviews or local awards that have not been verified.",
+      "A digital restaurant menu in Montreal should match the dining room as much as it improves mobile reading. Vistaire serves Montreal restaurants with QR access, premium mobile structure, dish pages, photos, allergens and selective 3D/AR, directly in the guest's browser.",
     context: {
       heading: "Why Montreal restaurants need more than a PDF",
       body: [
@@ -680,8 +681,8 @@ const SEO_GEO_PAGE_DRAFTS_EN: SeoGeoPageDraft[] = [
         "Vistaire keeps the experience mobile-first while preserving the warm, food-led tone expected from premium restaurants."
       ],
       points: [
-        "service area: Montreal, Quebec and Canada",
-        "no false local office claim",
+        "QR access directly in the browser",
+        "French and English menu content when available",
         "built for premium mobile reading"
       ]
     },
@@ -707,9 +708,9 @@ const SEO_GEO_PAGE_DRAFTS_EN: SeoGeoPageDraft[] = [
           vistaire: "Dish pages make the cuisine visible."
         },
         {
-          label: "Local claim",
-          basic: "Copy may overstate presence.",
-          vistaire: "The page states service area without invented proof."
+          label: "Dish details",
+          basic: "Descriptions and dietary information may require zooming.",
+          vistaire: "Dish pages gather photos, prices and allergen information."
         }
       ]
     },
@@ -721,8 +722,8 @@ const SEO_GEO_PAGE_DRAFTS_EN: SeoGeoPageDraft[] = [
     faq: faqEn(
       "Is Vistaire available for Montreal restaurants?",
       "Yes. Vistaire serves restaurants in Montreal, Quebec and Canada.",
-      "Does Vistaire claim local reviews or awards?",
-      "No. The page avoids unverified local claims, reviews, awards or client references."
+      "Can the menu work in French and English?",
+      "Yes, when the translated menu content is available. Guests can choose among the languages published for the restaurant."
     ),
     service: {
       name: "Vistaire digital menu Montreal",
@@ -738,6 +739,7 @@ const SEO_GEO_PAGE_DRAFTS_EN: SeoGeoPageDraft[] = [
   {
     locale: "en",
     slug: "digital-restaurant-menu-laval",
+    updatedAt: "2026-11-02",
     path: "/en/digital-restaurant-menu-laval",
     type: "local",
     cluster: "Digital restaurant menu Laval",
@@ -755,7 +757,7 @@ const SEO_GEO_PAGE_DRAFTS_EN: SeoGeoPageDraft[] = [
     h1: "A premium digital menu for Laval restaurants.",
     eyebrow: "Laval",
     directAnswer:
-      "A digital restaurant menu for Laval should make QR access feel premium instead of basic. Vistaire supports restaurants in Laval, Quebec and Canada with mobile-first categories, dish pages, readable prices, allergens, photos and selective 3D/AR, while avoiding unsupported claims about offices, reviews or local clients.",
+      "A digital restaurant menu for Laval should make QR access feel premium instead of basic. Vistaire supports restaurants in Laval, Quebec and Canada with mobile-first categories, dish pages, readable prices, allergens, photos and selective 3D/AR, without requiring guests to download an app.",
     context: {
       heading: "A better QR menu for Laval dining rooms",
       body: [
@@ -763,8 +765,8 @@ const SEO_GEO_PAGE_DRAFTS_EN: SeoGeoPageDraft[] = [
         "Vistaire focuses on readable mobile structure, food-led visuals and useful dish information that respects the rhythm of service."
       ],
       points: [
-        "service area language",
-        "no invented local proof",
+        "clear categories and dish pages",
+        "photos, prices and allergen information",
         "premium mobile presentation"
       ]
     },
@@ -790,9 +792,9 @@ const SEO_GEO_PAGE_DRAFTS_EN: SeoGeoPageDraft[] = [
           vistaire: "The dish page gathers image, price and details."
         },
         {
-          label: "Local accuracy",
-          basic: "Claims can become vague or inflated.",
-          vistaire: "The page stays precise about service area."
+          label: "Updates",
+          basic: "Changes require exporting and replacing the file.",
+          vistaire: "Menu content can change while the Vistaire QR destination stays the same."
         }
       ]
     },

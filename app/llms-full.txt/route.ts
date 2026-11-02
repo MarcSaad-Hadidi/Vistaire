@@ -5,6 +5,10 @@ export const dynamic = "force-static";
 
 export function GET() {
   return new Response(buildLlmsFullText(), {
-    headers: { "Content-Type": MARKDOWN_CONTENT_TYPE, "Cache-Control": AGENT_DISCOVERY_CACHE_CONTROL },
+    headers: {
+      "Content-Type": MARKDOWN_CONTENT_TYPE,
+      "Cache-Control": AGENT_DISCOVERY_CACHE_CONTROL,
+      "X-Robots-Tag": "noindex"
+    },
   });
 }

@@ -48,13 +48,14 @@ export const SEO_GEO_ROUTE_PAIRS = [
     fr: "/menu-digital-restaurant-montreal",
     en: "/en/digital-restaurant-menu-montreal",
     priority: 0.82,
-    updatedAt: SEO_GEO_CONTENT_UPDATED_AT
+    updatedAt: "2026-11-02"
   },
   {
     fr: "/menu-digital-restaurant-laval",
     en: "/en/digital-restaurant-menu-laval",
     priority: 0.74,
-    updatedAt: SEO_GEO_CONTENT_UPDATED_AT
+    updatedAt: SEO_GEO_CONTENT_UPDATED_AT,
+    updatedAtEn: "2026-11-02"
   },
   {
     fr: "/menu-digital-restaurant-brossard",
@@ -72,6 +73,7 @@ export const SEO_GEO_ROUTE_PAIRS = [
     fr: "/menu-digital-restaurant-gastronomique",
     en: "/en/fine-dining-restaurant-digital-menu",
     priority: 0.78,
-    updatedAt: SEO_GEO_CONTENT_UPDATED_AT
+    updatedAt: "2026-11-02",
+    updatedAtEn: SEO_GEO_CONTENT_UPDATED_AT
   }
 ] as const satisfies readonly SeoGeoRoutePair[];
