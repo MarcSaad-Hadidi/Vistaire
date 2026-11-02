@@ -37,34 +37,41 @@ Confirmed work: descriptive homepage semantics and lead, Markdown pricing omissi
 
 **Files:** `components/immersive/App.jsx`, `components/immersive/locale.jsx`, `components/immersive/styles.css`, `components/vistaire-preview/RestaurantExperiences.tsx`, selected entries in `lib/seoGeoPages.fr.ts` / `.en.ts`, affected route dates in `lib/i18n.ts` / `lib/seoGeoRoutes.ts`; existing landing/SEO E2E expectations.
 
-- [ ] Inspect current copy, CSS and existing test selectors before editing.
-- [ ] Update the existing homepage E2E expectation to require a descriptive localized H1; run against the untouched production build and observe the intended failure.
-- [ ] Keep the large VISTAIRE wordmark and cinematic layout; use the existing lead for the descriptive heading, preserving typography explicitly.
-- [ ] Replace only demonstrated internal editorial language and ambiguous gallery claims with factual visitor-facing FR/EN copy.
-- [ ] Record the actual editorial date only on changed route pairs; leave unrelated historical dates alone.
-- [ ] Run existing focused Node tests and homepage/SEO browser checks.
+- [x] Inspect current copy, CSS and existing test selectors before editing.
+- [x] Update the existing homepage E2E expectation to require a descriptive localized H1; run against the untouched production build and observe the intended failure.
+- [x] Keep the large VISTAIRE wordmark and cinematic layout; use the existing lead for the descriptive heading, preserving typography explicitly.
+- [x] Replace only demonstrated internal editorial language and ambiguous gallery claims with factual visitor-facing FR/EN copy.
+- [x] Record the actual editorial date only on changed route pairs; leave unrelated historical dates alone.
+- [x] Run existing focused Node tests and homepage/SEO browser checks.
 
 ## Task 2: Equivalent machine-readable content
 
 **Files:** `lib/agent-discovery/pageMarkdown.ts`, `public/llms.txt`, `app/llms-full.txt/route.ts`, `tests/agent-discovery.test.mjs`.
 
-- [ ] Add a regression assertion for existing pricing fields omitted from Markdown in both locales; watch it fail.
-- [ ] Serialize replacement/correction terms, option disclosure and total, pricing-variable explanation and extras from the existing pricing data.
-- [ ] Convert existing discovery URLs to descriptive Markdown links, accurately describe aggregate coverage, and remove the uncorroborated promise of subscription menu updates.
-- [ ] Mark the aggregate representation noindex while keeping it publicly readable, rather than creating an indexable duplicate of the marketing pages.
-- [ ] Verify every machine-readable term against visible content; run focused discovery/content tests.
+- [x] Add a regression assertion for existing pricing fields omitted from Markdown in both locales; watch it fail.
+- [x] Serialize replacement/correction terms, option disclosure and total, pricing-variable explanation and extras from the existing pricing data.
+- [x] Convert existing discovery URLs to descriptive Markdown links, accurately describe aggregate coverage, and remove the uncorroborated promise of subscription menu updates.
+- [x] Mark the aggregate representation noindex while keeping it publicly readable, rather than creating an indexable duplicate of the marketing pages.
+- [x] Verify every machine-readable term against visible content; run focused discovery/content tests.
 
 ## Task 3: Validate, review and hand off
 
 **Files:** `docs/audits/2026-11-02-seo-geo-aeo.md`, with source changes limited to the confirmed tasks above.
 
-- [ ] Inspect OSS licenses/methods before execution; run isolated Lighthouse CI and relevant accessibility checks without uploads.
-- [ ] Run `npm run assets:check`, `npm run lfs:check`, `npm run lint`, `npm run typecheck`, `npm run build`, `npm run test:node` and relevant existing Playwright suites.
-- [ ] Compare equivalent local production builds, crawl served HTML and Markdown, check robots/sitemap/JSON-LD/links, and validate mobile 390/430 plus desktop interactions, console and failed requests.
-- [ ] Document actual executed tools, baseline scores, before/after scope, unknowns, official facts still required, and external actions; do not invent citation or ranking gains.
-- [ ] Review the entire diff independently, address valid blockers, push only the dedicated branch, create/update one PR, inspect CI and its preview, leave it unmerged.
+- [x] Inspect OSS licenses/methods before execution; run isolated Lighthouse CI and relevant accessibility checks without uploads.
+- [x] Run `npm run assets:check`, `npm run lfs:check`, `npm run lint`, `npm run typecheck`, `npm run build`, `npm run test:node` and relevant existing Playwright suites.
+- [x] Compare equivalent local production builds, crawl served HTML and Markdown, check robots/sitemap/JSON-LD/links, and validate mobile 390/430 plus desktop interactions, console and failed requests.
+- [x] Document actual executed tools, baseline scores, before/after scope, unknowns, official facts still required, and external actions; do not invent citation or ranking gains.
+- [x] Review the entire diff independently, address valid blockers, push only the dedicated branch, create/update one PR, inspect CI and its preview, leave it unmerged.
 
 ## Execution record
 
 - Planning and source inspection completed before product changes. User explicitly authorized immediate execution without an additional approval pause.
 - Audit evidence and command logs: `/workspace/scratch/4c6320860a9a/audit-evidence/` and adjacent task logs; report only non-sensitive summaries in the repository.
+
+- Final code: remote `a6359ce`, tree `0eb9297515351ba6aded733c5d51c4aaa36ac4e8`. Main updates `c44e993` and `6af659b` integrated by normal merges; the latter changes only CI action pins and matching contracts.
+- Confirmed accessibility additions: preserve opaque pricing copy during animation, fade only decorative markers with sufficient contrast, and include FR/EN in accessible link names. Existing exact-match E2E expectations updated.
+- Validation: build/lint/typecheck/assets/LFS pass; 57 focused Node checks and 15 local Playwright checks pass. Full local Node result 2333 pass / 1 environment IPv6 failure / 6 skips; reproduced baseline. GitHub code CI: 2334 pass / 0 failures / 7 skips, database/build/Chromium/WebKit gates pass.
+- Lighthouse CI capture attempt was limited by the cinematic full-page screenshot; direct Lighthouse 13.6.0 completed five representative pages. Performance scores partly unavailable; no field CWV or ranking gains claimed.
+- Independent reviewer findings about stale test labels/headings resolved. GitHub Codex Review completed on `a6359ce` with no major issues.
+- Final report: `docs/audits/2026-11-02-seo-geo-aeo.md`. Preview verified, PR #335 remains unmerged; no production publication.
