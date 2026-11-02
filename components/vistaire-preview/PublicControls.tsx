@@ -17,7 +17,7 @@ export function PublicControls({ locale, languages, onNavigate }: {
         {languages.map((item) => (
           <a key={item.label} href={item.href} hrefLang={item.label.toLowerCase()}
             aria-current={item.active ? "true" : undefined}
-            aria-label={item.label === "EN" ? "View this page in English" : "Voir cette page en français"}
+            aria-label={item.label === "EN" ? "EN — View this page in English" : "FR — Voir cette page en français"}
             onClick={(event) => {
               // Language changes cross document roots. Preserve campaign/form context.
               const destination = new URL(item.href, window.location.origin);

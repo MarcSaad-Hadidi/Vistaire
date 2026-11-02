@@ -16,14 +16,14 @@ const DISCOVERY_ROUTES = [
   {
     language: "French", path: "/demo", queryLang: "en", lang: "fr-CA",
     title: "Trois expériences de menu restaurant | Vistaire",
-    heading: "Trois restaurants. Trois identités.", explore: "Explorer", discover: "Découvrir", show3d: "VOIR EN 3D",
+    heading: "Trois expériences. Trois identités.", explore: "Explorer", discover: "Découvrir", show3d: "VOIR EN 3D",
     activeLanguage: "Voir cette page en français", otherLanguage: "View this page in English",
     alternatePath: "/en/vistaire-menu", alternateLocale: "en-CA"
   },
   {
     language: "English", path: "/en/vistaire-menu", queryLang: "fr", lang: "en-CA",
     title: "Three restaurant menu experiences | Vistaire",
-    heading: "Three restaurants. Three identities.", explore: "Explore", discover: "Discover", show3d: "VIEW IN 3D",
+    heading: "Three experiences. Three identities.", explore: "Explore", discover: "Discover", show3d: "VIEW IN 3D",
     activeLanguage: "View this page in English", otherLanguage: "Voir cette page en français",
     alternatePath: "/demo", alternateLocale: "fr-CA"
   }
