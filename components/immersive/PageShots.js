@@ -53,6 +53,8 @@ const SHOTS = {
   // About: from the room to the house's three values, then the table from above.
   "about-room": { view: [0.95, 0.42], dish: { at: [0, 0.4] }, stand: { at: [1.9, 0.7], scale: 0.75, flat: true, yaw: 0.2 }, phone: { at: [-1.9, 0.8], scale: 0.62, flat: true, yaw: -0.25 } },
   "about-vision": { view: [-0.35, 0.16], dish: { at: [0.3, 0.5], scale: 1.05, turn: 0.8 }, phone: { at: [-1.25, 0.1], scale: 0.85, yaw: 0.35 } },
+  // Founder: the question that started Vistaire, the dish seen up close beside its menu.
+  "about-founder": { view: [0.35, 0.16], dish: { at: [-0.3, 0.5], scale: 1.15, turn: 0.5 }, phone: { at: [1.25, 0.1], scale: 0.85, yaw: -0.35 } },
   "about-values": { view: [0, 0.28], phone: { at: [-1.75, 0.5], scale: 0.8, yaw: 0.3 }, dish: { at: [0, 0.6], scale: 0.85, turn: 0.6 }, stand: { at: [1.8, 0.5], scale: 0.85, yaw: -0.35 } },
   "about-closing": { view: [0.2, 1.3], phone: { at: [-1.6, 0.6], scale: 0.7, flat: true, yaw: 0.3 }, dish: { at: [0.1, 0.5], scale: 0.9 }, stand: { at: [1.7, 0.4], scale: 0.7, flat: true, yaw: -0.25 } },
   // Contact: Trouvable's menu faces the guest, then rests by its burger.

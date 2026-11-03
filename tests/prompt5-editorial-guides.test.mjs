@@ -210,6 +210,7 @@ test("builds an Article graph with the verified founder byline and publication d
       "@id": "https://www.vistaire.ca/#founder",
       name: "Marc Saad-Hadidi",
       jobTitle: "Founder & CEO",
+      url: "https://www.vistaire.ca/en/about",
       worksFor: { "@id": "https://www.vistaire.ca/#organization" },
       sameAs: ["https://ca.linkedin.com/in/marc-saad-hadidi-403042339"]
     },

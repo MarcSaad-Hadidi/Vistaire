@@ -400,6 +400,7 @@ function buildFounderJsonLd(env?: SiteUrlEnv, locale: Locale = "fr"): JsonLdObje
     "@id": `${absoluteUrl("/", env)}#founder`,
     name: VISTAIRE_FOUNDER.name,
     jobTitle: VISTAIRE_FOUNDER.jobTitle[locale],
+    url: absoluteUrl(locale === "en" ? "/en/about" : "/a-propos", env),
     worksFor: { "@id": `${absoluteUrl("/", env)}#organization` },
     sameAs: [VISTAIRE_FOUNDER.linkedInUrl]
   };

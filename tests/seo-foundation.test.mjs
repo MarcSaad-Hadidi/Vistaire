@@ -171,6 +171,27 @@ test("keeps demo admin out of search indexes and removes legacy dish pages", () 
   assert.equal(existsSync(englishDishPagePath), false);
 });
 
+test("tells the founder story on the bilingual about page", async () => {
+  const about = readFileSync(
+    join(process.cwd(), "components", "vistaire-preview", "VistaireAboutPreview.tsx"),
+    "utf8"
+  );
+  assert.match(about, /id: "fondateur"/);
+  assert.match(about, /id="about-founder-title"/);
+  assert.match(about, /VISTAIRE_FOUNDER\.linkedInUrl/);
+  for (const phrase of [
+    "à quoi ressemblait le plat",
+    "what the dish looked like",
+    "Qui a fondé Vistaire",
+    "Who founded Vistaire"
+  ]) {
+    assert.ok(about.includes(phrase), phrase);
+  }
+
+  const { buildOrganizationJsonLd } = await import("../lib/seo.ts");
+  assert.equal(buildOrganizationJsonLd(siteEnv).founder.url, "https://www.vistaire.ca/a-propos");
+});
+
 test("declares an indexable public restaurateur dashboard page", () => {
   const page = readFileSync(
     join(process.cwd(), "app", "(fr)", "apercu-restaurateur", "page.tsx"),
