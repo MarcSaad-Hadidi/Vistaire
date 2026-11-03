@@ -60,7 +60,7 @@ for (const viewport of [
     const errors: string[] = [];
     page.on("pageerror", (error) => errors.push(error.message));
     await openScene(page);
-    await expect(page.getByRole("heading", { level: 1 })).toHaveText("VISTAIRE");
+    await expect(page.getByRole("heading", { level: 1 })).toContainText("menu digital QR premium");
     await expect(page.locator('.fallback-film, .world-fallback, [role="alertdialog"]')).toHaveCount(0);
     for (const theme of ["dark", "light"]) {
       if (theme === "light") {
@@ -110,7 +110,9 @@ for (const path of ["/", "/en"]) {
     const response = await request.get(path);
     expect(response.status()).toBe(200);
     const html = await response.text();
-    expect(html).toMatch(/<h1\b[^>]*>VISTAIRE<\/h1>/);
+    expect(html).toMatch(path === "/en"
+      ? /<h1\b[^>]*>Vistaire[^<]*premium QR digital menu[^<]*<\/h1>/
+      : /<h1\b[^>]*>Vistaire[^<]*menu digital QR premium[^<]*<\/h1>/);
     expect(html).toContain(path === "/en" ? '/en/book-a-call' : '/prendre-rendez-vous');
     expect(html).toContain(path === "/en" ? '/en/guides/premium-digital-menu-anatomy' : '/guides/anatomie-menu-digital-premium');
   });

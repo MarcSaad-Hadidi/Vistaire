@@ -153,13 +153,13 @@ type LocaleSwitchScenario = {
   sourcePath: string;
   sourceLocale: "fr-CA" | "en-CA";
   sourceControl: "Langue" | "Language";
-  sourceLinkName: "Voir cette page en français" | "View this page in English";
+  sourceLinkName: "FR — Voir cette page en français" | "EN — View this page in English";
   destinationPath: string;
   destinationLocale: "fr-CA" | "en-CA";
   destinationControl: "Langue" | "Language";
   destinationLinkName:
-    | "Voir cette page en français"
-    | "View this page in English";
+    | "FR — Voir cette page en français"
+    | "EN — View this page in English";
 };
 
 const localeSwitchScenarios: readonly LocaleSwitchScenario[] = [
@@ -167,41 +167,41 @@ const localeSwitchScenarios: readonly LocaleSwitchScenario[] = [
     sourcePath: "/",
     sourceLocale: "fr-CA",
     sourceControl: "Langue",
-    sourceLinkName: "Voir cette page en français",
+    sourceLinkName: "FR — Voir cette page en français",
     destinationPath: "/en",
     destinationLocale: "en-CA",
     destinationControl: "Language",
-    destinationLinkName: "View this page in English"
+    destinationLinkName: "EN — View this page in English"
   },
   {
     sourcePath: "/en",
     sourceLocale: "en-CA",
     sourceControl: "Language",
-    sourceLinkName: "View this page in English",
+    sourceLinkName: "EN — View this page in English",
     destinationPath: "/",
     destinationLocale: "fr-CA",
     destinationControl: "Langue",
-    destinationLinkName: "Voir cette page en français"
+    destinationLinkName: "FR — Voir cette page en français"
   },
   {
     sourcePath: "/a-propos",
     sourceLocale: "fr-CA",
     sourceControl: "Langue",
-    sourceLinkName: "Voir cette page en français",
+    sourceLinkName: "FR — Voir cette page en français",
     destinationPath: "/en/about",
     destinationLocale: "en-CA",
     destinationControl: "Language",
-    destinationLinkName: "View this page in English"
+    destinationLinkName: "EN — View this page in English"
   },
   {
     sourcePath: "/en/about",
     sourceLocale: "en-CA",
     sourceControl: "Language",
-    sourceLinkName: "View this page in English",
+    sourceLinkName: "EN — View this page in English",
     destinationPath: "/a-propos",
     destinationLocale: "fr-CA",
     destinationControl: "Langue",
-    destinationLinkName: "Voir cette page en français"
+    destinationLinkName: "FR — Voir cette page en français"
   }
 ];
 
@@ -367,8 +367,8 @@ async function expectFullDocumentLocaleSwitch(
   const destinationLink = sourceLanguageControl.getByRole("link", {
     name:
       scenario.destinationLocale === "en-CA"
-        ? "View this page in English"
-        : "Voir cette page en français",
+        ? "EN — View this page in English"
+        : "FR — Voir cette page en français",
     exact: true
   });
   await expect(destinationLink).toHaveAttribute("href", scenario.destinationPath);
@@ -880,7 +880,7 @@ test("public theme and mobile controls persist across locale navigation and relo
   await expect(trigger).toHaveAttribute("aria-expanded", "false");
   await expect(trigger).toBeFocused();
   await trigger.click();
-  await controls.getByRole("link", { name: "View this page in English" }).click();
+  await controls.getByRole("link", { name: "EN — View this page in English" }).click();
   await expect(page).toHaveURL(/\/en\/about\?utm_source=theme-test$/);
   await expect(page.locator("html")).toHaveAttribute("data-vistaire-theme", "light");
   await expect(topNavigation(page).locator("button[aria-controls]")).toHaveAttribute("aria-expanded", "false");

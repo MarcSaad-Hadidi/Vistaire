@@ -173,8 +173,8 @@ function LanguageSwitcher({
           aria-current={option.locale === locale ? "true" : undefined}
           aria-label={
             option.locale === "en"
-              ? "View this page in English"
-              : "Voir cette page en français"
+              ? "EN — View this page in English"
+              : "FR — Voir cette page en français"
           }
           className={
             option.locale === locale

@@ -151,7 +151,7 @@ async function expectPromotedLanding(page: Page) {
   const video = page.locator("main video").first();
 
   await expect(
-    page.getByRole("heading", { level: 1, name: /VISTAIRE/ })
+    page.getByRole("heading", { level: 1, name: /Vistaire/i })
   ).toBeVisible();
   await expect(video).toBeVisible();
   await expect

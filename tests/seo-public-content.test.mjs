@@ -26,7 +26,14 @@ const FORBIDDEN_VISIBLE_COPY = [
   /intention du client/i,
   /hreflang cassé/i,
   /connect this intent/i,
-  /relier cette intention/i
+  /relier cette intention/i,
+  /une page par quartier/i,
+  /contenu de quartier vraiment utile/i,
+  /no false local office claim/i,
+  /no invented local proof/i,
+  /service area language/i,
+  /la page ne doit pas afficher/i,
+  /the page avoids unverified local claims/i
 ];
 
 function readTarget(path) {
@@ -58,4 +65,6 @@ test("public crawler guidance stays product-facing, not strategy-facing", () => 
   assert.match(llms, /premium digital menu service/i);
   assert.doesNotMatch(llms, /SEO\/GEO|AEO|doorway|intent matrix|planned registry/i);
   assert.doesNotMatch(llms, /guaranteed ROI|first page rankings|ranking promise/i);
+  assert.doesNotMatch(llms, /reasonable menu updates during the subscription/i);
+  assert.match(llms, /\[[^\]]+\]\(https:\/\/www\.vistaire\.ca\//);
 });

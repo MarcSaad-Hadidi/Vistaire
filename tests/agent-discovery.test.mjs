@@ -7,6 +7,7 @@ import { join } from "node:path";
 import nextConfig from "../next.config.ts";
 import { buildNotFoundMarkdown, buildPageMarkdown, isMissingRoute } from "../lib/agent-discovery/pageMarkdown.ts";
 import * as agentDiscovery from "../lib/agent-discovery/index.ts";
+import { PRICING_PAGE, PRICING_PAGE_EN } from "../lib/pricingPage.ts";
 import {
   AGENT_SKILL_DOCS,
   LINKSET_CONTENT_TYPE,
@@ -23,6 +24,23 @@ import {
 } from "../lib/agent-discovery/index.ts";
 
 const repoRoot = process.cwd();
+
+test("pricing Markdown keeps the same commercial limits as the visible offer in both languages", () => {
+  for (const page of [PRICING_PAGE, PRICING_PAGE_EN]) {
+    const markdown = buildPageMarkdown(page.path);
+    assert.ok(markdown, page.path);
+    for (const term of [
+      page.threeDAddOns.individualNote,
+      page.threeDAddOns.replacementNote,
+      page.pilotage.disclosure,
+      page.pilotage.totalLabel,
+      page.additional.startingAtBody,
+      ...page.additional.extras
+    ]) {
+      assert.ok(markdown.includes(term), `${page.path} must retain: ${term}`);
+    }
+  }
+});
 
 function readRepoFile(path) {
   return readFileSync(join(repoRoot, path), "utf8");

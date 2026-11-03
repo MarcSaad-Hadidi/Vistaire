@@ -4,7 +4,7 @@ import type {
   EditorialGuideLocale
 } from "./editorialGuideRoutes.ts";
 
-export { EDITORIAL_GUIDE_ROUTE_PAIRS } from "./editorialGuideRoutes.ts";
+export { EDITORIAL_GUIDE_ROUTE_PAIRS, EDITORIAL_GUIDES_PUBLISHED_AT } from "./editorialGuideRoutes.ts";
 export type {
   EditorialGuideKey,
   EditorialGuideLocale,

@@ -784,6 +784,7 @@ const SEO_GEO_PAGE_DRAFTS: SeoGeoPageDraft[] = [
   },
   {
     slug: "menu-digital-restaurant-montreal",
+    updatedAt: "2026-11-02",
     path: "/menu-digital-restaurant-montreal",
     type: "local",
     cluster: "Local Montréal",
@@ -801,17 +802,17 @@ const SEO_GEO_PAGE_DRAFTS: SeoGeoPageDraft[] = [
     h1: "Menu digital premium pour restaurants à Montréal.",
     eyebrow: "Montréal",
     directAnswer:
-      "À Montréal, un menu digital restaurant doit fonctionner dans des salles variées : bistro premium, restaurant gastronomique, lounge, terrasse ou table de quartier. Vistaire propose une carte mobile QR premium avec fiches plats, photos, allergènes et 3D/AR sélective, sans se présenter comme un annuaire local.",
+      "À Montréal, un menu digital restaurant doit fonctionner dans des salles variées : bistro premium, restaurant gastronomique, lounge, terrasse ou table de quartier. Vistaire propose une carte mobile QR premium avec fiches plats, photos, allergènes et 3D/AR sélective, directement dans le navigateur du client.",
     context: {
       heading: "Une carte mobile pour la réalité montréalaise",
       body: [
         "Montréal réunit des restaurants très visuels, des clientèles locales et touristiques, et des quartiers où l'image du lieu compte autant que la rapidité de lecture.",
-        "Vistaire rassemble les besoins des restaurants de Vieux-Montréal, Griffintown, Plateau, Outremont, Westmount et Saint-Laurent dans un guide commun tant qu'un contenu de quartier vraiment utile n'est pas justifié."
+        "Les catégories, les prix, les photos et les allergènes sont regroupés dans une carte mobile, avec des versions française et anglaise lorsque les contenus sont disponibles."
       ],
       points: [
         "adapté aux restaurants indépendants et premium",
         "utile pour les menus QR sans PDF",
-        "approche bilingue possible sans créer de correspondance fragile"
+        "versions française et anglaise selon les contenus disponibles"
       ]
     },
     productProof: {
@@ -836,9 +837,9 @@ const SEO_GEO_PAGE_DRAFTS: SeoGeoPageDraft[] = [
           vistaire: "La carte prolonge l'ambiance haut de gamme du lieu."
         },
         {
-          label: "Quartiers",
-          basic: "Une page par quartier serait vite répétitive.",
-          vistaire: "Une page Montréal forte couvre les quartiers tant que le contenu reste unique."
+          label: "Lecture à table",
+          basic: "Un document peut nécessiter de zoomer pour lire les détails.",
+          vistaire: "Les catégories et les fiches plats sont adaptées à l'écran du téléphone."
         }
       ]
     },
@@ -854,9 +855,9 @@ const SEO_GEO_PAGE_DRAFTS: SeoGeoPageDraft[] = [
           "Oui. Vistaire positionne son service pour Montréal, le Québec et le Canada."
       },
       {
-        question: "Faut-il une page différente par quartier de Montréal ?",
+        question: "Le QR ouvre-t-il un menu PDF ?",
         answer:
-          "Pas au départ. Il vaut mieux éviter les pages dupliquées si chaque quartier n'a pas un contenu réellement distinct."
+          "Le QR Vistaire ouvre une carte dans le navigateur, sans téléchargement d'application. Le restaurant peut conserver une carte papier en complément."
       },
       {
         question: "Le menu peut-il être bilingue ?",
@@ -1221,6 +1222,7 @@ const SEO_GEO_PAGE_DRAFTS: SeoGeoPageDraft[] = [
   },
   {
     slug: "menu-digital-restaurant-gastronomique",
+    updatedAt: "2026-11-02",
     path: "/menu-digital-restaurant-gastronomique",
     type: "vertical",
     cluster: "Restaurant gastronomique",
@@ -1306,9 +1308,9 @@ const SEO_GEO_PAGE_DRAFTS: SeoGeoPageDraft[] = [
           "Oui. La fiche plat garde une hiérarchie claire entre nom, prix, description et détails."
       },
       {
-        question: "Vistaire invente-t-il des avis ou distinctions ?",
+        question: "Comment présenter les créations du chef ?",
         answer:
-          "Non. La page ne doit pas afficher de prix, avis ou clients non vérifiés."
+          "Une fiche plat peut réunir une photo, une description, le prix et les allergènes. La présentation met en valeur les créations tout en gardant les informations utiles à la commande lisibles."
       }
     ],
     service: {

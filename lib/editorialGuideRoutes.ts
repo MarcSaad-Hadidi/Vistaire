@@ -5,6 +5,9 @@ export type EditorialGuideKey =
 
 export type EditorialGuideLocale = "fr" | "en";
 
+/** All six guides shipped together; later edits only touched punctuation. */
+export const EDITORIAL_GUIDES_PUBLISHED_AT = "2026-08-09";
+
 export type EditorialGuideRoutePair = {
   key: EditorialGuideKey;
   fr: string;

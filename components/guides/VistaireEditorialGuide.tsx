@@ -8,6 +8,7 @@ import {
   type GuideSectionLayout,
 } from "./editorialGuidePresentation";
 import {
+  EDITORIAL_GUIDES_PUBLISHED_AT,
   getEditorialGuideByPath,
   type EditorialGuide,
   type EditorialGuideSection,
@@ -19,6 +20,7 @@ import {
   buildBreadcrumbJsonLd,
   buildWebPageJsonLd,
   socialImages,
+  VISTAIRE_FOUNDER,
 } from "@/lib/seo";
 import { PreviewNav } from "../vistaire-preview/VistairePreviewChrome";
 import styles from "./VistaireEditorialGuide.module.css";
@@ -175,6 +177,14 @@ export function VistaireEditorialGuide({ guide }: { guide: EditorialGuide }) {
           <span className="eyebrow">{guide.eyebrow}</span>
           <h1 id="guide-title">{guide.h1}</h1>
           <p>{guide.dek}</p>
+          <p className={styles.byline}>
+            {isEnglish ? "By " : "Par "}
+            <a href={VISTAIRE_FOUNDER.linkedInUrl} rel="author">{VISTAIRE_FOUNDER.name}</a>
+            {isEnglish ? ", founder of Vistaire · Published " : ", fondateur de Vistaire · Publié le "}
+            <time dateTime={EDITORIAL_GUIDES_PUBLISHED_AT}>
+              {new Intl.DateTimeFormat(isEnglish ? "en-CA" : "fr-CA", { dateStyle: "long", timeZone: "UTC" }).format(new Date(EDITORIAL_GUIDES_PUBLISHED_AT))}
+            </time>
+          </p>
         </>
       ),
     },
@@ -216,7 +226,7 @@ export function VistaireEditorialGuide({ guide }: { guide: EditorialGuide }) {
       <PreviewNav currentPath={guide.path} locale={guide.locale} routeMode="production" />
       <JsonLd data={[
         buildWebPageJsonLd({ path: guide.path, name: guide.h1, description: guide.metadataDescription, locale: guide.locale }),
-        buildArticleJsonLd({ path: guide.path, headline: guide.h1, description: guide.metadataDescription, locale: guide.locale, image: guideSocial(guide).twitter[0] }),
+        buildArticleJsonLd({ path: guide.path, headline: guide.h1, description: guide.metadataDescription, locale: guide.locale, image: guideSocial(guide).twitter[0], datePublished: EDITORIAL_GUIDES_PUBLISHED_AT }),
         buildBreadcrumbJsonLd([{ name: isEnglish ? "Home" : "Accueil", path: homePath }, { name: guide.h1, path: guide.path }]),
       ]} />
       <CinematicPage chapters={chapters} scene={scene} footer={<CinematicFooter locale={guide.locale} id={`guide-${variant}`} />} mainProps={{ "data-seo-experience": `guide-${variant}`, "data-guide-variant": variant }}>

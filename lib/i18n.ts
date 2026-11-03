@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { EDITORIAL_GUIDE_ROUTE_PAIRS } from "./editorialGuideRoutes.ts";
+import { EDITORIAL_GUIDE_ROUTE_PAIRS, EDITORIAL_GUIDES_PUBLISHED_AT } from "./editorialGuideRoutes.ts";
 import { SEO_GEO_ROUTE_PAIRS } from "./seoGeoRoutes.ts";
 
 export const SUPPORTED_LOCALES = ["fr", "en"] as const;
@@ -34,6 +34,8 @@ export type BilingualRoutePair = {
   changeFrequency: "weekly" | "monthly";
   priority: number;
   updatedAt?: string;
+  /** English content can change independently of its French counterpart. */
+  updatedAtEn?: string;
 };
 
 export const BILINGUAL_ROUTE_PAIRS: BilingualRoutePair[] = [
@@ -42,14 +44,14 @@ export const BILINGUAL_ROUTE_PAIRS: BilingualRoutePair[] = [
     en: "/en",
     changeFrequency: "monthly",
     priority: 1,
-    updatedAt: PUBLIC_ROUTE_UPDATED_AT
+    updatedAt: "2026-11-02"
   },
   {
     fr: "/demo",
     en: "/en/vistaire-menu",
     changeFrequency: "weekly",
     priority: 0.62,
-    updatedAt: PUBLIC_ROUTE_UPDATED_AT
+    updatedAt: "2026-11-02"
   },
   {
     fr: "/tarifs-menu-digital-restaurant",
@@ -118,14 +120,12 @@ export const BILINGUAL_ROUTE_PAIRS: BilingualRoutePair[] = [
     fr,
     en,
     changeFrequency,
-    priority
+    priority,
+    updatedAt: EDITORIAL_GUIDES_PUBLISHED_AT
   })),
   ...SEO_GEO_ROUTE_PAIRS.map((route) => ({
-    fr: route.fr,
-    en: route.en,
-    changeFrequency: "monthly" as const,
-    priority: route.priority,
-    updatedAt: route.updatedAt
+    ...route,
+    changeFrequency: "monthly" as const
   })),
   {
     fr: "/developers",

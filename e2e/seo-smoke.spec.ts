@@ -467,15 +467,16 @@ test.describe("Vistaire SEO smoke", () => {
       );
       await expectNoHorizontalOverflow(page);
       await expect(page.locator("[data-immersive-vistaire]")).toBeVisible();
-      await expect(page.locator("h1")).toHaveText("VISTAIRE");
-      await expect(page.getByRole('alertdialog')).toContainText('L’expérience 3D est indisponible.');
+      await expect(page.locator("h1")).toContainText("menu digital QR premium");
+      const sceneNotice = page.getByRole('status', { name: 'L’expérience 3D est indisponible.' });
+      await expect(sceneNotice).toContainText('L’expérience 3D est indisponible.');
       await expect(page.locator('.fallback-film, .world-fallback')).toHaveCount(0);
       await expect(page.locator(".preloader")).toHaveCount(0);
       // The HTML preloads the room and phone for WebGL visitors; AR models
       // (USDZ) still never load without intent.
       await expectNoEarlyModelAssets(page, { room: true });
 
-      const menu = page.getByRole('alertdialog').getByRole('link', { name: 'Explorer la carte' });
+      const menu = sceneNotice.getByRole('link', { name: 'Explorer la carte' });
       await expect(menu).toHaveAttribute('href', '/demo');
       await menu.click();
       await expect(page).toHaveURL(/\/demo$/);

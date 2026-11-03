@@ -1,10 +1,10 @@
 // Markdown twins of the structured public pages, served to agents that ask for
 // text/markdown and concatenated in /llms-full.txt. Built from the same content
 // modules as the HTML pages, so the two can never drift apart.
-import { CONTACT_EMAIL, CONTACT_PHONE_DISPLAY, CONTACT_LOCATION_LABEL, SITE_NAME, absoluteUrl } from "../seo.ts";
+import { CONTACT_EMAIL, CONTACT_PHONE_DISPLAY, CONTACT_LOCATION_LABEL, SITE_NAME, VISTAIRE_FOUNDER, absoluteUrl } from "../seo.ts";
 import { SEO_PAGES, SEO_PAGES_EN, type SeoPageData } from "../seoPages.ts";
 import { SEO_GEO_PAGES, SEO_GEO_PAGES_EN, type SeoGeoPageData } from "../seoGeoPages.ts";
-import { EDITORIAL_GUIDES, type EditorialGuide } from "../editorialGuides.ts";
+import { EDITORIAL_GUIDES, EDITORIAL_GUIDES_PUBLISHED_AT, type EditorialGuide } from "../editorialGuides.ts";
 import { PRICING_PAGE, PRICING_PAGE_EN, type PricingPageContent } from "../pricingPage.ts";
 import { DEVELOPERS_PAGE, type DevelopersPageContent } from "../developersPage.ts";
 import { calculateFirstYearCost, formatSetupAmount } from "../pricingCalculator.ts";
@@ -83,6 +83,10 @@ function guideMarkdown(guide: EditorialGuide) {
     "",
     guide.dek,
     "",
+    guide.locale === "en"
+      ? `By ${link(VISTAIRE_FOUNDER.linkedInUrl, VISTAIRE_FOUNDER.name)}, founder of ${SITE_NAME} · Published ${EDITORIAL_GUIDES_PUBLISHED_AT}`
+      : `Par ${link(VISTAIRE_FOUNDER.linkedInUrl, VISTAIRE_FOUNDER.name)}, fondateur de ${SITE_NAME} · Publié le ${EDITORIAL_GUIDES_PUBLISHED_AT}`,
+    "",
     `> ${guide.definition}`,
     ...guide.sections.flatMap((section) => [
       "",
@@ -133,11 +137,19 @@ function pricingMarkdown(page: PricingPageContent) {
     ...page.threeDAddOns.packs.map((pack) => `- ${pack.label} : ${pack.price}`),
     `- ${page.threeDAddOns.individualLabel} : ${page.threeDAddOns.individualPrice}`,
     "",
+    page.threeDAddOns.individualNote,
+    "",
+    page.threeDAddOns.replacementNote,
+    "",
     `## ${page.pilotage.title}`,
     "",
     `${page.pilotage.price}. ${page.pilotage.body}`,
     "",
     ...list(page.pilotage.features),
+    "",
+    page.pilotage.disclosure,
+    "",
+    `${page.pilotage.standardLabel} + ${page.pilotage.optionPriceLabel} — ${page.pilotage.totalLabel}`,
     "",
     `## ${page.workflow.title}`,
     "",
@@ -146,6 +158,16 @@ function pricingMarkdown(page: PricingPageContent) {
     ...page.workflow.steps.map((step) => `${step.index}. **${step.title}** ${step.body}`),
     "",
     page.workflow.leadTime,
+    "",
+    `## ${page.additional.eyebrow}`,
+    "",
+    ...list(page.additional.extras),
+    "",
+    `### ${page.additional.startingAtTitle}`,
+    "",
+    page.additional.startingAtBody,
+    "",
+    ...list(page.additional.variables),
     "",
     `## ${page.commercialTerms.title}`,
     "",
@@ -222,9 +244,11 @@ export function buildNotFoundMarkdown(pathname: string): string {
 /** Every structured page, once, for agents that read the whole site in one request. */
 export function buildLlmsFullText(): string {
   return [
-    `# ${SITE_NAME} : contenu complet`,
+    `# ${SITE_NAME} : pages de contenu structurées`,
     "",
-    `> Version texte intégrale des pages publiques de ${SITE_NAME}, menu digital premium pour restaurants (${CONTACT_LOCATION_LABEL}).`,
+    `> Texte des pages de tarifs, guides, services et ressources développeurs de ${SITE_NAME}, en français et en anglais. Les pages d’accueil, d’entreprise et les menus interactifs restent accessibles depuis le sitemap.`,
+    "",
+    `Sitemap : ${absoluteUrl("/sitemap.xml")}`,
     "",
     ...[...BY_PATH.keys()].flatMap((path) => [buildPageMarkdown(path) ?? "", ""]),
   ].join("\n");

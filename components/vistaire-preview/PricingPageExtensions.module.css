@@ -179,19 +179,23 @@
   transform: scaleX(0);
 }
 .workflowSection[data-motion="ready"] .workflowStep {
-  opacity: 0.6;
   transform: translateY(8px);
+}
+/* Animate decorative markers without dimming the readable step copy. */
+.workflowSection[data-motion="ready"] .workflowMarker {
+  opacity: 0.8;
 }
 .workflowSection[data-motion="visible"] .workflowProgress {
   transform: scaleX(1);
   transition: transform 600ms ease;
 }
 .workflowSection[data-motion="visible"] .workflowStep {
-  opacity: 1;
   transform: translateY(0);
-  transition:
-    opacity 350ms ease,
-    transform 400ms ease;
+  transition: transform 400ms ease;
+}
+.workflowSection[data-motion="visible"] .workflowMarker {
+  opacity: 1;
+  transition: opacity 350ms ease;
 }
 .workflowSection[data-motion="visible"] .workflowStep:nth-child(2) {
   transition-delay: 80ms;
@@ -333,7 +337,8 @@
 }
 @media (prefers-reduced-motion: reduce) {
   .workflowSection[data-motion] .workflowProgress,
-  .workflowSection[data-motion] .workflowStep {
+  .workflowSection[data-motion] .workflowStep,
+  .workflowSection[data-motion] .workflowMarker {
     opacity: 1;
     transform: none;
     transition: none;

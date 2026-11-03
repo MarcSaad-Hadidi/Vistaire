@@ -4,7 +4,7 @@ import { CinematicPage, type CinematicChapter } from "@/components/immersive/Cin
 import { CinematicFooter } from "@/components/immersive/pages/CinematicFooter";
 import { SeoFaq } from "@/components/seo/SeoFaq";
 import type { Locale } from "@/lib/i18n";
-import { buildFaqPageJsonLd } from "@/lib/seo";
+import { buildFaqPageJsonLd, VISTAIRE_FOUNDER } from "@/lib/seo";
 import {
   getVistaireChromeRoutes,
   PreviewNav,
@@ -27,6 +27,13 @@ const COPY = {
       "Digital should extend the restaurant experience, not replace it. Vistaire keeps the dish at the center: a clear, visual, mobile-first menu designed to create desire without turning the dining room into a cold app.",
     visionB:
       "Vistaire supports restaurants in Montreal, Quebec and Canada that want to present their menu on mobile without losing the elegance of the room.",
+    founderBadge: "Why Vistaire exists",
+    founderTitle: "It started with one question: what does this dish look like?",
+    founderA:
+      "Every time he went out to eat, Marc Saad-Hadidi wanted to know what the dish looked like before ordering it. He would run long Google searches without ever being sure he had found the right dish, let alone this restaurant’s version of it.",
+    founderB:
+      "He was not the only one hesitating at the table. So he built Vistaire: a menu that shows the real dish, so guests order with confidence and restaurants offer a better experience. Everyone wins.",
+    founderRole: "founder and CEO of Vistaire",
     serviceTitle: "Built for table service.",
     values: [
       { title: "Mobile-first", body: "A clear, visual menu designed for your guests’ phones." },
@@ -38,6 +45,7 @@ const COPY = {
     explore: "Explore the menus",
     faq: [
       { question: "What is Vistaire?", answer: "Vistaire turns the restaurant QR code into a premium digital menu. It helps high-end restaurants present their menu in an elegant mobile experience: clear navigation, visual dish pages, allergens, prices and selective 3D/AR." },
+      { question: "Who founded Vistaire, and why?", answer: "Vistaire was founded in Montreal by Marc Saad-Hadidi. At restaurants, he always wanted to see what a dish looked like before ordering, and Google searches never gave a reliable answer. Vistaire shows the real dish in the menu: guests order with confidence and the restaurant improves the experience in its dining room." },
       { question: "Where is Vistaire based?", answer: "Vistaire is a Montreal studio dedicated to high-end restaurants. It supports restaurants in Montreal, Quebec and Canada that want to present their menu on mobile without losing the elegance of the room." },
       { question: "Do guests need to install an app?", answer: "No. The menu opens directly from the table QR code, in the guest’s phone browser." },
       { question: "Is every dish shown in 3D?", answer: "No. 3D/AR is selective: it is used for the dishes where it brings real value, while every dish keeps a clear, visual page." },
@@ -58,6 +66,13 @@ const COPY = {
       "Le digital doit prolonger l'expérience du restaurant, pas la remplacer. Vistaire garde le plat au centre : une carte claire, visuelle et mobile-first, conçue pour donner envie sans transformer la salle en application froide.",
     visionB:
       "Vistaire accompagne les restaurants de Montréal, du Québec et du Canada qui veulent présenter leur carte sur mobile sans perdre l'élégance de la salle.",
+    founderBadge: "L’origine de Vistaire",
+    founderTitle: "Tout est parti d’une question : à quoi ressemble ce plat ?",
+    founderA:
+      "À chaque sortie au restaurant, Marc Saad-Hadidi voulait savoir à quoi ressemblait le plat avant de le commander. Il lançait de longues recherches sur Google, sans jamais être sûr de tomber sur le bon plat, encore moins sur celui de ce restaurant.",
+    founderB:
+      "Il n’était pas le seul à hésiter ainsi à table. Il a donc créé Vistaire : une carte qui montre le vrai plat, pour que le client choisisse en confiance et que le restaurant offre une meilleure expérience. Tout le monde y gagne.",
+    founderRole: "fondateur et PDG de Vistaire",
     serviceTitle: "Pensée pour le service à table.",
     values: [
       { title: "Mobile-first", body: "Une carte claire et visuelle, pensée pour le téléphone de vos clients." },
@@ -69,6 +84,7 @@ const COPY = {
     explore: "Explorer les cartes",
     faq: [
       { question: "Qu’est-ce que Vistaire ?", answer: "Vistaire transforme le QR code restaurant en carte digitale premium. Vistaire aide les restaurants haut de gamme à présenter leur carte dans une expérience mobile élégante : menu clair, fiches plats visuelles, allergènes, prix et 3D/AR sélective." },
+      { question: "Qui a fondé Vistaire, et pourquoi ?", answer: "Vistaire a été fondé à Montréal par Marc Saad-Hadidi. Au restaurant, il voulait toujours voir à quoi ressemblait un plat avant de le commander, et les recherches sur Google ne donnaient jamais une réponse sûre. Vistaire montre le vrai plat dans la carte : le client choisit en confiance et le restaurant améliore l’expérience de sa salle." },
       { question: "Où se trouve Vistaire ?", answer: "Vistaire est une maison montréalaise dédiée aux restaurants haut de gamme. Elle accompagne les restaurants de Montréal, du Québec et du Canada qui veulent présenter leur carte sur mobile sans perdre l'élégance de la salle." },
       { question: "Le client doit-il installer une application ?", answer: "Non. La carte s’ouvre directement depuis le QR code de la table, dans le navigateur du téléphone." },
       { question: "Tous les plats sont-ils en 3D ?", answer: "Non. La 3D/AR est sélective : elle sert les plats où elle apporte une vraie valeur, et chaque plat garde une fiche claire et visuelle." },
@@ -116,6 +132,22 @@ export function VistaireAboutPreview({
           <h2 id="about-vision-title">{copy.visionTitle}</h2>
           <p>{copy.visionA}</p>
           <p>{copy.visionB}</p>
+        </>
+      ),
+    },
+    {
+      id: "fondateur",
+      shot: "about-founder",
+      titleId: "about-founder-title",
+      content: (
+        <>
+          <span className="eyebrow">{copy.founderBadge}</span>
+          <h2 id="about-founder-title">{copy.founderTitle}</h2>
+          <p>{copy.founderA}</p>
+          <p>{copy.founderB}</p>
+          <p>
+            <a href={VISTAIRE_FOUNDER.linkedInUrl} rel="author">{VISTAIRE_FOUNDER.name}</a>, {copy.founderRole}
+          </p>
         </>
       ),
     },

@@ -2,14 +2,15 @@
 
 > Vistaire is a premium, mobile-first digital menu service for restaurants.
 
-Official site: https://www.vistaire.ca/
+Official site: [Vistaire](https://www.vistaire.ca/)
 Entity name: Vistaire
-Language: fr-CA
+Founder: [Marc Saad-Hadidi](https://ca.linkedin.com/in/marc-saad-hadidi-403042339), Founder & CEO
+Languages: fr-CA and en-CA
 Contact: contact@vistaire.ca
 Phone: 514-715-2421
 Location: Montréal, Québec, Canada
-Full text of every public page: https://www.vistaire.ca/llms-full.txt
-Content pages (pricing, guides, product and local pages, developers) also answer `Accept: text/markdown` with their markdown version; /llms-full.txt has all of them.
+Structured content pages: [Pricing, guides, services and developer resources in French and English](https://www.vistaire.ca/llms-full.txt)
+These structured pages also answer `Accept: text/markdown`. The [sitemap](https://www.vistaire.ca/sitemap.xml) lists all canonical public pages, including the homepage and company pages.
 
 ## Summary
 
@@ -27,39 +28,42 @@ Vistaire guide topics are editorial hypotheses based on public product positioni
 - Visual dish detail pages with descriptions, prices, allergens, options, and pairings when available.
 - PDF menu to mobile digital menu transformation.
 - Included 3D dishes for selected plates, with validation before publication.
-- QR code, public menu link, publication support, and reasonable menu updates during the subscription.
+- QR code, public menu link, hosting and accompanied publication.
 - Mobile presentation optimization for table-side menu reading.
 
 ## Canonical Public Pages
 
-- https://www.vistaire.ca/: Vistaire homepage.
-- https://www.vistaire.ca/tarifs-menu-digital-restaurant: Pricing for a premium restaurant digital menu with included 3D dishes.
-- https://www.vistaire.ca/menu-digital-restaurant: Guide to premium digital menus for restaurants.
-- https://www.vistaire.ca/menu-qr-code-restaurant: Guide to QR code menus for restaurants.
-- https://www.vistaire.ca/menu-3d-ar-restaurant: Guide to selective 3D and AR for restaurant menus.
-- https://www.vistaire.ca/menu-pdf-vs-menu-digital: Comparison between PDF menus and digital menus.
-- https://www.vistaire.ca/guides/anatomie-menu-digital-premium: French editorial guide to structuring a premium digital restaurant menu.
-- https://www.vistaire.ca/en/guides/premium-digital-menu-anatomy: English editorial guide to structuring a premium digital restaurant menu.
-- https://www.vistaire.ca/guides/menu-qr-mobile-sans-application: French operational guide to mobile QR menus without an app.
-- https://www.vistaire.ca/en/guides/mobile-qr-menu-without-app: English operational guide to mobile QR menus without an app.
-- https://www.vistaire.ca/guides/3d-restaurant-utile-vs-gadget: French decision guide to useful, selective restaurant 3D.
-- https://www.vistaire.ca/en/guides/restaurant-3d-useful-vs-gimmick: English decision guide to useful, selective restaurant 3D.
-- https://www.vistaire.ca/menu-qr-sans-pdf: Guide to QR menus that open a mobile menu instead of a PDF.
-- https://www.vistaire.ca/en/qr-menu-without-pdf: English guide to QR menus that avoid PDF files.
-- https://www.vistaire.ca/menu-digital-sans-application: Guide to digital restaurant menus that open without an app install.
-- https://www.vistaire.ca/en/digital-menu-without-app: English guide to browser-based restaurant menus without app downloads.
-- https://www.vistaire.ca/remplacer-menu-pdf-restaurant: Guide to replacing a restaurant PDF menu with a mobile digital menu.
-- https://www.vistaire.ca/en/replace-restaurant-pdf-menu: English guide to replacing a restaurant PDF menu.
-- https://www.vistaire.ca/fiche-plat-digitale-restaurant: Guide to digital dish pages for restaurants.
-- https://www.vistaire.ca/en/digital-dish-page-restaurant: English guide to digital dish pages for restaurants.
-- https://www.vistaire.ca/menu-digital-restaurant-montreal: Local guide for premium digital restaurant menus in Montreal.
-- https://www.vistaire.ca/en/digital-restaurant-menu-montreal: English local guide for premium digital restaurant menus in Montreal.
-- https://www.vistaire.ca/menu-digital-restaurant-haut-de-gamme: Guide to premium digital menus for high-end restaurants.
-- https://www.vistaire.ca/en/high-end-restaurant-digital-menu: English guide to high-end restaurant digital menus.
-- https://www.vistaire.ca/a-propos: About Vistaire.
-- https://www.vistaire.ca/contact: Public contact page.
-- https://www.vistaire.ca/prendre-rendez-vous: Appointment request page.
-- https://www.vistaire.ca/apercu-restaurateur: Public restaurateur overview.
+- [Vistaire homepage](https://www.vistaire.ca/)
+- [English homepage](https://www.vistaire.ca/en)
+- [Pricing for a premium restaurant digital menu with included 3D dishes](https://www.vistaire.ca/tarifs-menu-digital-restaurant)
+- [Guide to premium digital menus for restaurants](https://www.vistaire.ca/menu-digital-restaurant)
+- [Guide to QR code menus for restaurants](https://www.vistaire.ca/menu-qr-code-restaurant)
+- [Guide to selective 3D and AR for restaurant menus](https://www.vistaire.ca/menu-3d-ar-restaurant)
+- [Comparison between PDF menus and digital menus](https://www.vistaire.ca/menu-pdf-vs-menu-digital)
+- [French editorial guide to structuring a premium digital restaurant menu](https://www.vistaire.ca/guides/anatomie-menu-digital-premium)
+- [English editorial guide to structuring a premium digital restaurant menu](https://www.vistaire.ca/en/guides/premium-digital-menu-anatomy)
+- [French operational guide to mobile QR menus without an app](https://www.vistaire.ca/guides/menu-qr-mobile-sans-application)
+- [English operational guide to mobile QR menus without an app](https://www.vistaire.ca/en/guides/mobile-qr-menu-without-app)
+- [French decision guide to useful, selective restaurant 3D](https://www.vistaire.ca/guides/3d-restaurant-utile-vs-gadget)
+- [English decision guide to useful, selective restaurant 3D](https://www.vistaire.ca/en/guides/restaurant-3d-useful-vs-gimmick)
+- [Guide to QR menus that open a mobile menu instead of a PDF](https://www.vistaire.ca/menu-qr-sans-pdf)
+- [English guide to QR menus that avoid PDF files](https://www.vistaire.ca/en/qr-menu-without-pdf)
+- [Guide to digital restaurant menus that open without an app install](https://www.vistaire.ca/menu-digital-sans-application)
+- [English guide to browser-based restaurant menus without app downloads](https://www.vistaire.ca/en/digital-menu-without-app)
+- [Guide to replacing a restaurant PDF menu with a mobile digital menu](https://www.vistaire.ca/remplacer-menu-pdf-restaurant)
+- [English guide to replacing a restaurant PDF menu](https://www.vistaire.ca/en/replace-restaurant-pdf-menu)
+- [Guide to digital dish pages for restaurants](https://www.vistaire.ca/fiche-plat-digitale-restaurant)
+- [English guide to digital dish pages for restaurants](https://www.vistaire.ca/en/digital-dish-page-restaurant)
+- [Local guide for premium digital restaurant menus in Montreal](https://www.vistaire.ca/menu-digital-restaurant-montreal)
+- [English local guide for premium digital restaurant menus in Montreal](https://www.vistaire.ca/en/digital-restaurant-menu-montreal)
+- [Guide to premium digital menus for high-end restaurants](https://www.vistaire.ca/menu-digital-restaurant-haut-de-gamme)
+- [English guide to high-end restaurant digital menus](https://www.vistaire.ca/en/high-end-restaurant-digital-menu)
+- [Alternative to a restaurant PDF menu](https://www.vistaire.ca/alternative-menu-pdf-restaurant)
+- [English guide to PDF menu alternatives](https://www.vistaire.ca/en/restaurant-pdf-menu-alternative)
+- [About Vistaire](https://www.vistaire.ca/a-propos)
+- [Public contact page](https://www.vistaire.ca/contact)
+- [Appointment request page](https://www.vistaire.ca/prendre-rendez-vous)
+- [Public restaurateur overview](https://www.vistaire.ca/apercu-restaurateur)
 
 ## When to use Vistaire
 
@@ -93,31 +97,4 @@ How an agent should act for a user:
 
 Public pages are open for search indexing, AI input, and AI training when robots.txt says so. Private, internal, authenticated, API, owner, admin, sign-in, todo, legacy, and preview routes are not public product pages and are not intended for crawling or citation.
 
-Prefer these public pages for understanding Vistaire:
-
-- https://www.vistaire.ca/
-- https://www.vistaire.ca/tarifs-menu-digital-restaurant
-- https://www.vistaire.ca/menu-digital-restaurant
-- https://www.vistaire.ca/menu-qr-code-restaurant
-- https://www.vistaire.ca/menu-3d-ar-restaurant
-- https://www.vistaire.ca/menu-pdf-vs-menu-digital
-- https://www.vistaire.ca/guides/anatomie-menu-digital-premium
-- https://www.vistaire.ca/en/guides/premium-digital-menu-anatomy
-- https://www.vistaire.ca/guides/menu-qr-mobile-sans-application
-- https://www.vistaire.ca/en/guides/mobile-qr-menu-without-app
-- https://www.vistaire.ca/guides/3d-restaurant-utile-vs-gadget
-- https://www.vistaire.ca/en/guides/restaurant-3d-useful-vs-gimmick
-- https://www.vistaire.ca/menu-qr-sans-pdf
-- https://www.vistaire.ca/en/qr-menu-without-pdf
-- https://www.vistaire.ca/remplacer-menu-pdf-restaurant
-- https://www.vistaire.ca/en/replace-restaurant-pdf-menu
-- https://www.vistaire.ca/alternative-menu-pdf-restaurant
-- https://www.vistaire.ca/en/restaurant-pdf-menu-alternative
-- https://www.vistaire.ca/menu-digital-restaurant-montreal
-- https://www.vistaire.ca/en/digital-restaurant-menu-montreal
-- https://www.vistaire.ca/menu-digital-restaurant-haut-de-gamme
-- https://www.vistaire.ca/en/high-end-restaurant-digital-menu
-- https://www.vistaire.ca/a-propos
-- https://www.vistaire.ca/contact
-- https://www.vistaire.ca/prendre-rendez-vous
-- https://www.vistaire.ca/apercu-restaurateur
+Use the canonical public pages above to understand the service and the sitemap for the complete public route inventory.

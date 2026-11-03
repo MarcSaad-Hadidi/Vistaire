@@ -282,7 +282,7 @@ export function buildSitemapEntries(
         path,
         route.changeFrequency,
         route.priority,
-        resolveLastModified(route.updatedAt),
+        resolveLastModified(path === route.en ? route.updatedAtEn ?? route.updatedAt : route.updatedAt),
         {
           languages: languageAlternates
         }
@@ -388,6 +388,24 @@ export function getVistaireSocialProfiles(env?: SocialProfileEnv): SocialProfile
   ]);
 }
 
+export const VISTAIRE_FOUNDER = {
+  name: "Marc Saad-Hadidi",
+  jobTitle: { fr: "Fondateur et PDG", en: "Founder & CEO" },
+  linkedInUrl: "https://ca.linkedin.com/in/marc-saad-hadidi-403042339"
+} as const;
+
+function buildFounderJsonLd(env?: SiteUrlEnv, locale: Locale = "fr"): JsonLdObject {
+  return {
+    "@type": "Person",
+    "@id": `${absoluteUrl("/", env)}#founder`,
+    name: VISTAIRE_FOUNDER.name,
+    jobTitle: VISTAIRE_FOUNDER.jobTitle[locale],
+    url: absoluteUrl(locale === "en" ? "/en/about" : "/a-propos", env),
+    worksFor: { "@id": `${absoluteUrl("/", env)}#organization` },
+    sameAs: [VISTAIRE_FOUNDER.linkedInUrl]
+  };
+}
+
 export function buildOrganizationJsonLd(env?: SiteUrlEnv): JsonLdObject {
   const sameAs = getVistaireSocialProfiles(env).map((profile) => profile.url);
 
@@ -397,6 +415,8 @@ export function buildOrganizationJsonLd(env?: SiteUrlEnv): JsonLdObject {
     "@id": `${absoluteUrl("/", env)}#organization`,
     name: SITE_NAME,
     url: absoluteUrl("/", env),
+    logo: absoluteUrl("/icon.svg", env),
+    founder: buildFounderJsonLd(env),
     email: CONTACT_EMAIL,
     telephone: CONTACT_PHONE_TEL,
     address: ORGANIZATION_ADDRESS_JSON_LD,
@@ -537,9 +557,12 @@ export function buildArticleJsonLd(
     description: string;
     locale?: Locale;
     image?: string;
+    datePublished?: string;
+    dateModified?: string;
   },
   env?: SiteUrlEnv
 ): JsonLdObject {
+  const dateModified = article.dateModified ?? article.datePublished;
   return {
     "@context": "https://schema.org",
     "@type": "Article",
@@ -551,7 +574,9 @@ export function buildArticleJsonLd(
     mainEntityOfPage: {
       "@id": `${absoluteUrl(article.path, env)}#webpage`
     },
-    // No author or dates: the guides record none, and none is invented here.
+    ...(article.datePublished ? { datePublished: article.datePublished } : {}),
+    ...(dateModified ? { dateModified } : {}),
+    author: buildFounderJsonLd(env, article.locale),
     ...(article.image ? { image: absoluteUrl(article.image, env) } : {}),
     publisher: {
       "@id": `${absoluteUrl("/", env)}#organization`
