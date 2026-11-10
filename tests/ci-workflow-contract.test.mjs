@@ -104,6 +104,13 @@ test("App CI exposes the production job topology and all event modes", () => {
   assert.match(nightly, /\.\/\.github\/workflows\/app-ci\.yml/);
 });
 
+test("nightly grants the reusable App CI call every permission App CI requests", () => {
+  // A called workflow cannot exceed its caller's token: a missing grant is a startup_failure.
+  const requested = workflow.match(/^permissions:\n((?:  [\w-]+: \w+\n)+)/m)[1].trim().split("\n");
+  const call = nightly.replaceAll("\r\n", "\n").match(/^  exhaustive:\n([\s\S]*?)\n\n/m)[1];
+  for (const permission of requested) assert.ok(call.includes(permission.trim()), permission.trim());
+});
+
 test("CI Gate is fail-closed and receives every job result", () => {
   assert.match(workflow, /name: CI Gate/);
   assert.match(workflow, /if: \$\{\{ always\(\) \}\}/);

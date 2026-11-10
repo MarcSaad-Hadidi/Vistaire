@@ -15,6 +15,10 @@ concurrency:
 jobs:
   exhaustive:
     name: Nightly (all suites)
+    # app-ci.yml requests actions: read; a called workflow cannot exceed its caller's token.
+    permissions:
+      contents: read
+      actions: read
     uses: ./.github/workflows/app-ci.yml
     with:
       target: full
