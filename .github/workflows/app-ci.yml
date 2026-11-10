@@ -861,6 +861,6 @@ jobs:
             `- Collection warnings: ${(quality.collection_warnings ?? []).join(', ') || 'none'}`,
             `- Fields unavailable: ${(quality.fields_unavailable ?? []).join(', ') || 'none'}`
           ];
-          process.stdout.write(`${lines.join('\\n')}\\n`);
+          process.stdout.write(`${lines.join('\n')}\n`);
           NODE
         shell: bash
